@@ -1,0 +1,87 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:flutter_modular/flutter_modular.dart';
+import 'package:rufino_smart_app/Login/bloc/login_bloc.dart';
+import 'package:rufino_smart_app/login/bloc/login_event.dart';
+import 'package:rufino_smart_app/login/bloc/login_state.dart';
+import 'package:rufino_smart_app/utils/constants.dart';
+import 'componentes/remember_me_and_forgot_password_field.dart';
+import 'componentes/rounded_button.dart';
+import 'componentes/rounded_input_field.dart';
+import 'componentes/rounded_password_field.dart';
+
+class LoginPage extends StatelessWidget {
+  final TextEditingController _cpfController = TextEditingController();
+  final TextEditingController _passwordController = TextEditingController();
+
+  LoginPage({Key? key}) : super(key: key) {
+    Modular.get<LoginBloc>().add(LoginVerifiedSessionEvent());
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    Size size = MediaQuery.of(context).size;
+    return Scaffold(
+      backgroundColor: kSecondaryColor,
+      body: Container(
+        width: double.infinity,
+        height: size.height,
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            SingleChildScrollView(
+                child: Center(
+                    child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Text(
+                  "LOGIN",
+                  style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 24,
+                      color: kPrimaryColor),
+                ),
+                SizedBox(height: size.height * 0.03),
+                RoundedInputField(
+                  hintText: "CPF",
+                  controller: _cpfController,
+                ),
+                RoundedPasswordField(
+                  controller: _passwordController,
+                ),
+                BlocBuilder<LoginBloc, LoginState>(
+                  bloc: Modular.get<LoginBloc>(),
+                  builder: (context, state) {
+                    if (state is LoginErrorState) {
+                      return Text(
+                        state.message,
+                        style: TextStyle(color: Colors.red),
+                      );
+                    }
+                    return Container();
+                  },
+                ),
+                RoundedButton(
+                    bloc: Modular.get<LoginBloc>(),
+                    text: "LOGIN",
+                    press: () {
+                      Modular.get<LoginBloc>().add(LoginSendEvent(
+                          _cpfController.text, _passwordController.text));
+                    }),
+                RememberMeAndForgotPasswordField(
+                  press: () {
+                    Modular.to.navigate('/forgotpassword');
+                  },
+                  checkBox: () {
+                    Modular.get<LoginBloc>().add(LoginSelectRememberMeEvent());
+                  },
+                ),
+                SizedBox(height: size.height * 0.15),
+              ],
+            ))),
+          ],
+        ),
+      ),
+    );
+  }
+}

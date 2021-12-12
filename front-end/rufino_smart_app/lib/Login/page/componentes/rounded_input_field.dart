@@ -1,23 +1,23 @@
 import 'package:flutter/material.dart';
 import 'package:rufino_smart_app/Login/page/componentes/text_field_container.dart';
-import 'package:rufino_smart_app/constants.dart';
+import 'package:rufino_smart_app/utils/constants.dart';
 
 class RoundedInputField extends StatelessWidget {
   final String hintText;
   final IconData icon;
-  final ValueChanged<String> onChanged;
-  const RoundedInputField(
+  final TextEditingController controller;
+  RoundedInputField(
       {Key? key,
       required this.hintText,
       this.icon = Icons.person,
-      required this.onChanged})
+      required this.controller})
       : super(key: key);
 
   @override
   Widget build(BuildContext context) {
     return TextFieldContainer(
         child: TextField(
-      onChanged: onChanged,
+      controller: controller,
       cursorColor: kPrimaryLightColor,
       decoration: InputDecoration(
         icon: Icon(
