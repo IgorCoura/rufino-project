@@ -1,14 +1,23 @@
 import 'package:flutter/material.dart';
-import 'package:rufino_smart_app/constants.dart';
+import 'package:rufino_smart_app/utils/constants.dart';
 
-class RememberMeAndForgotPasswordField extends StatelessWidget {
-  final bool login;
+class RememberMeAndForgotPasswordField extends StatefulWidget {
   final Function() press;
-  const RememberMeAndForgotPasswordField({
+  final Function() checkBox;
+  RememberMeAndForgotPasswordField({
     Key? key,
-    this.login = true,
     required this.press,
+    required this.checkBox,
   }) : super(key: key);
+
+  @override
+  State<RememberMeAndForgotPasswordField> createState() =>
+      _RememberMeAndForgotPasswordFieldState();
+}
+
+class _RememberMeAndForgotPasswordFieldState
+    extends State<RememberMeAndForgotPasswordField> {
+  bool? check = false;
 
   @override
   Widget build(BuildContext context) {
@@ -16,22 +25,35 @@ class RememberMeAndForgotPasswordField extends StatelessWidget {
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        Checkbox(
-          value: login,
-          onChanged: (value) {},
-          activeColor: kPrimaryColor,
-        ),
-        const Text("Remember me"),
+        size.width > 300 ? _rememberMe() : Container(),
         SizedBox(
-          width: size.width * 0.05,
+          width: size.width > 300 ? size.width * 0.05 : 0,
         ),
         GestureDetector(
-          onTap: press,
+          onTap: widget.press,
           child: const Text(
             "Forgot Password?",
             style: TextStyle(color: kPrimaryColor, fontWeight: FontWeight.bold),
           ),
         )
+      ],
+    );
+  }
+
+  Widget _rememberMe() {
+    return Row(
+      children: [
+        Checkbox(
+          value: check,
+          onChanged: (value) {
+            setState(() {
+              check = value;
+            });
+            widget.checkBox();
+          },
+          activeColor: kPrimaryColor,
+        ),
+        Text("Remember me"),
       ],
     );
   }

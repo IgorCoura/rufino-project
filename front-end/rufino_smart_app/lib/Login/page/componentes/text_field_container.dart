@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:rufino_smart_app/constants.dart';
+import 'package:rufino_smart_app/utils/constants.dart';
 
 class TextFieldContainer extends StatelessWidget {
   final Widget child;
