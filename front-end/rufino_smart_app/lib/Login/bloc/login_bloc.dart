@@ -9,8 +9,7 @@ class LoginBloc extends Bloc<LoginEvent, LoginState> {
   LoginBloc() : super(LoginIdleState()) {
     on<LoginSendEvent>((event, emit) async {
       emit(LoginLoadingState());
-      await Future.delayed(Duration(seconds: 2));
-
+      //await Future.delayed(Duration(seconds: 2));
       if (event.cpf == "123" && event.password == "123" || true) {
         Modular.to.navigate("/home");
         emit(LoginIdleState());
@@ -23,7 +22,7 @@ class LoginBloc extends Bloc<LoginEvent, LoginState> {
       emit(LoginLoadingState());
 
       emit(LoginIdleState());
-      if (true) {
+      if (false) {
         Modular.to.navigate("/home");
       }
     });

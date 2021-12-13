@@ -18,7 +18,7 @@ class CardComponent extends StatelessWidget {
       onTap: () => onTap(),
       child: Container(
         decoration: BoxDecoration(
-          color: kPrimaryColor,
+          color: Colors.white,
           borderRadius: BorderRadius.circular(20),
         ),
         child: Column(
@@ -27,7 +27,7 @@ class CardComponent extends StatelessWidget {
                 child: Icon(
               icon,
               size: 60,
-              color: kTextSecondaryColor,
+              color: kPrimaryDarkColor,
             )),
             Container(
               child: Padding(
@@ -37,7 +37,7 @@ class CardComponent extends StatelessWidget {
                   style: const TextStyle(
                       fontSize: 24,
                       fontWeight: FontWeight.bold,
-                      color: kTextSecondaryColor),
+                      color: kPrimaryDarkColor),
                 ),
               ),
             )
