@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_modular/flutter_modular.dart';
 import 'package:rufino_smart_app/home/model/card_model.dart';
 import 'package:rufino_smart_app/utils/constants.dart';
 
@@ -13,7 +14,7 @@ class HomePage extends StatelessWidget {
         title: "EPI",
         icon: Icons.add_chart_sharp,
         onTap: () {
-          print("object");
+          Modular.to.navigate("/epihome");
         }),
     CardModel(id: 2, title: "DOCS", icon: Icons.add_box, onTap: () {})
   ];
@@ -21,11 +22,12 @@ class HomePage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: kBackGroundColor,
       appBar: AppBar(
         title: const Text(
           "Home",
           style: TextStyle(
-              color: kTextSecondaryColor,
+              color: kTextPrimaryColor,
               fontWeight: FontWeight.bold,
               fontSize: 24),
         ),

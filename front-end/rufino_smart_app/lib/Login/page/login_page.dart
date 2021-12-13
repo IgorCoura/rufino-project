@@ -22,8 +22,8 @@ class LoginPage extends StatelessWidget {
   Widget build(BuildContext context) {
     Size size = MediaQuery.of(context).size;
     return Scaffold(
-      backgroundColor: kSecondaryColor,
-      body: Container(
+      backgroundColor: kBackGroundColor,
+      body: SizedBox(
         width: double.infinity,
         height: size.height,
         child: Stack(
@@ -55,7 +55,7 @@ class LoginPage extends StatelessWidget {
                     if (state is LoginErrorState) {
                       return Text(
                         state.message,
-                        style: TextStyle(color: Colors.red),
+                        style: const TextStyle(color: Colors.red),
                       );
                     }
                     return Container();

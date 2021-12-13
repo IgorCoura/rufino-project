@@ -8,15 +8,13 @@ class ForgotPasswordPage extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text("Forgot Password"),
+        title: const Text("Forgot Password"),
         leading: BackButton(
           onPressed: () => Modular.to.navigate('/'),
         ),
       ),
-      body: Container(
-        child: const Center(
-          child: Text("Page Forgot Password"),
-        ),
+      body: const Center(
+        child: Text("Page Forgot Password"),
       ),
     );
   }
