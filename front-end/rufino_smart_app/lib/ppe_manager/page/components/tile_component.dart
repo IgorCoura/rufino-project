@@ -26,7 +26,7 @@ class TileComponent extends StatelessWidget {
           style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
         ),
         trailing: days <= 0
-            ? const Text("Vencido",
+            ? const Text("Invalido",
                 style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,

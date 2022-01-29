@@ -1,9 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_modular/flutter_modular.dart';
+import 'package:rufino_smart_app/ppe_manager/model/worker_model.dart';
 import 'package:rufino_smart_app/utils/constants.dart';
 
-class EpiEmployeePage extends StatelessWidget {
-  const EpiEmployeePage({Key? key}) : super(key: key);
+class PpeManagerEmployeePage extends StatelessWidget {
+  final int workerId;
+
+  const PpeManagerEmployeePage({Key? key, required this.workerId})
+      : super(key: key);
 
   @override
   Widget build(BuildContext context) {
@@ -15,13 +19,13 @@ class EpiEmployeePage extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.all(8.0),
             child: IconButton(
-                onPressed: () {}, icon: Icon(Icons.article_outlined)),
+                onPressed: () {}, icon: const Icon(Icons.article_outlined)),
           )
         ],
         backgroundColor: kPrimaryColor,
         title: Text("Ficha de Registro de Equipamentos de Proteção Individual"),
         leading: BackButton(
-          onPressed: () => Modular.to.navigate('/epihome'),
+          onPressed: () => Modular.to.navigate('/ppemanagerhome'),
         ),
       ),
       body: Column(
