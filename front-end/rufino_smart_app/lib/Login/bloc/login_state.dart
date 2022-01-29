@@ -13,7 +13,5 @@ class LoginSecondState extends LoginState {}
 
 class LoginErrorState extends LoginState {
   String message = "";
-  LoginErrorState(String message) {
-    this.message = message;
-  }
+  LoginErrorState(this.message);
 }

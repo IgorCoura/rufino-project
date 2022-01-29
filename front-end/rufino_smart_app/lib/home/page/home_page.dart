@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_modular/flutter_modular.dart';
+import 'package:rufino_smart_app/components/card_component.dart';
 import 'package:rufino_smart_app/home/model/card_model.dart';
 import 'package:rufino_smart_app/utils/constants.dart';
-
-import 'components/card_component.dart';
 
 class HomePage extends StatelessWidget {
   HomePage({Key? key}) : super(key: key);
@@ -14,9 +13,16 @@ class HomePage extends StatelessWidget {
         title: "EPI",
         icon: Icons.add_chart_sharp,
         onTap: () {
-          Modular.to.navigate("/epihome");
+          Modular.to.navigate("/ppemanagerhome");
         }),
-    CardModel(id: 2, title: "DOCS", icon: Icons.add_box, onTap: () {})
+    CardModel(id: 2, title: "DOCS", icon: Icons.add_box, onTap: () {}),
+    CardModel(
+        id: 3,
+        title: "Estoque",
+        icon: Icons.add_shopping_cart,
+        onTap: () {
+          Modular.to.navigate("/storage");
+        })
   ];
 
   @override
