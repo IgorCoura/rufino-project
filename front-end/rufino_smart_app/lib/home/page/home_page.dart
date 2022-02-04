@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_modular/flutter_modular.dart';
-import 'package:rufino_smart_app/components/card_component.dart';
+import 'package:rufino_smart_app/login/page/componentes/card_component.dart';
 import 'package:rufino_smart_app/home/model/card_model.dart';
 import 'package:rufino_smart_app/utils/constants.dart';
 
