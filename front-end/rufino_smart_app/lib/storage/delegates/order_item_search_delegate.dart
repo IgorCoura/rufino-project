@@ -16,7 +16,7 @@ class OrderItemSearchDelegate extends SearchDelegate {
         onPressed: () {
           query = "";
         },
-        icon: Icon(Icons.clear),
+        icon: const Icon(Icons.clear),
       ),
     ];
   }

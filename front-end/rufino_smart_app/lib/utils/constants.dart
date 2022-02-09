@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
 
+//Local DataBase;
+const kDataBase = "locaDataBase";
+
+//Colors
 const kPrimaryColor = Color(0xFF546e7a);
 const kPrimaryLightColor = Color(0xFF819ca9);
 const kPrimaryDarkColor = Color(0xFF29434e);
