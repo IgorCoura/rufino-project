@@ -21,7 +21,7 @@ class HomePage extends StatelessWidget {
         title: "Estoque",
         icon: Icons.add_shopping_cart,
         onTap: () {
-          Modular.to.navigate("/storage");
+          Modular.to.navigate("/storage/");
         })
   ];
 

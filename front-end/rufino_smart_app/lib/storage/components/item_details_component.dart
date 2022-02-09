@@ -48,8 +48,8 @@ class _ItemDetailsComponentState extends State<ItemDetailsComponent> {
     Size size = MediaQuery.of(context).size;
     return Container(
       color: kPrimaryColor.withOpacity(0.6),
-      height: size.height,
-      width: size.width,
+      height: double.infinity,
+      width: double.infinity,
       child: Center(
         child: Padding(
           padding: const EdgeInsets.all(8.0),

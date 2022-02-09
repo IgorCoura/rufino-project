@@ -13,7 +13,10 @@ class StorageModule extends Module {
 
   @override
   List<ModularRoute> get routes => [
-        ChildRoute('/', child: (context, args) => StorageHomePage()),
-        ChildRoute('/withdrawal', child: (context, args) => StorageOrderPage()),
+        ChildRoute('/', child: (context, args) => const StorageHomePage()),
+        ChildRoute('/withdrawal',
+            child: (context, args) => StorageOrderPage(
+                  withdrawal: true,
+                )),
       ];
 }

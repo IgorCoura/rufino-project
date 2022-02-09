@@ -9,13 +9,10 @@ import 'package:rufino_smart_app/storage/model/storage_order_item_model.dart';
 import 'package:rufino_smart_app/utils/constants.dart';
 
 class StorageOrderPage extends StatelessWidget {
-  StorageOrderPage({Key? key}) : super(key: key);
+  final bool withdrawal;
+  StorageOrderPage({Key? key, this.withdrawal = false}) : super(key: key);
 
   final storageBloc = Modular.get<bloc.StorageOrderBloc>();
-
-  List tempList = [
-    StorageOrderItemModel("", "Tubo PVC", "description", 100, "m")
-  ];
 
   @override
   Widget build(BuildContext context) {
@@ -24,7 +21,7 @@ class StorageOrderPage extends StatelessWidget {
       backgroundColor: kBackGroundColor,
       appBar: AppBar(
         backgroundColor: kPrimaryColor,
-        title: const Text("Ordem de retirada"),
+        title: const Text("Ordem"),
         leading: BackButton(
           onPressed: () => Modular.to.navigate('/storage'),
         ),
@@ -166,10 +163,15 @@ class StorageOrderPage extends StatelessWidget {
         onTap: () {
           storageBloc.add(bloc.EditItemEvent(index));
         },
-        leading: const Icon(
-          Icons.download,
-          color: Colors.red,
-        ),
+        leading: model.quantity < 0
+            ? const Icon(
+                Icons.download,
+                color: Colors.red,
+              )
+            : const Icon(
+                Icons.upload,
+                color: Colors.green,
+              ),
         title: Text(
           model.name,
           overflow: TextOverflow.ellipsis,
@@ -181,7 +183,7 @@ class StorageOrderPage extends StatelessWidget {
                 ? Container()
                 : IconButton(
                     onPressed: () {
-                      model.quantity += 1;
+                      model.addQuantity();
                       storageBloc.add(const bloc.ChangeQuantityItemEvent());
                     },
                     icon: Icon(Icons.add),
@@ -199,7 +201,7 @@ class StorageOrderPage extends StatelessWidget {
                 ? Container()
                 : IconButton(
                     onPressed: () {
-                      model.quantity -= 1;
+                      model.subtractQuantity();
                       storageBloc.add(const bloc.ChangeQuantityItemEvent());
                     },
                     icon: const Icon(Icons.remove),

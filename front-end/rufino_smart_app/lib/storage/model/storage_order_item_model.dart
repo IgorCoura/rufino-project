@@ -12,11 +12,12 @@ class StorageOrderItemModel extends Equatable {
       this.id, this.name, this.description, this.quantityInStorage, this.unity,
       {this.quantity = 0});
 
-  void changeQuantity(int value) {
-    quantity = value;
-    if (quantity < 0) {
-      quantity = 0;
-    }
+  void addQuantity() {
+    quantity++;
+  }
+
+  void subtractQuantity() {
+    quantity--;
   }
 
   @override
