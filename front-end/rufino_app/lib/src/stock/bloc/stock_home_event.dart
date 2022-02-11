@@ -12,13 +12,32 @@ class SearchEvent extends StockHomeEvent {
   const SearchEvent(this.search);
 }
 
-class AddQuantiyItemEvent extends StockHomeEvent {}
-
-class SubtractQuantiyItemEvent extends StockHomeEvent {}
-
-class OpenDialogEvent extends StockHomeEvent {}
-
-class ChangeQuantityEvent extends StockHomeEvent {
-  final String value;
-  const ChangeQuantityEvent(this.value);
+class AddItemEvent extends StockHomeEvent {
+  final StockOrderItemModel item;
+  const AddItemEvent(this.item);
 }
+
+class ReturnInitialEvent extends StockHomeEvent {}
+
+class AddQuantiyItemEvent extends StockHomeEvent {
+  final int index;
+  const AddQuantiyItemEvent(this.index);
+}
+
+class SubtractQuantiyItemEvent extends StockHomeEvent {
+  final int index;
+  const SubtractQuantiyItemEvent(this.index);
+}
+
+class ChangeItemEvent extends StockHomeEvent {
+  final int index;
+  final StockOrderItemModel item;
+  const ChangeItemEvent(this.index, this.item);
+}
+
+class RemoveItemEvent extends StockHomeEvent {
+  final int index;
+  const RemoveItemEvent(this.index);
+}
+
+class RemoveAllItemsEvent extends StockHomeEvent {}

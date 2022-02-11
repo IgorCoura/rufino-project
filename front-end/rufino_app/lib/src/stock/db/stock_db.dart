@@ -1,5 +1,6 @@
 import 'package:drift/drift.dart';
 import 'package:drift/native.dart';
+import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as p;
 import 'dart:io';
@@ -48,19 +49,35 @@ class Workers extends Table {
 
 @DriftDatabase(tables: [Products, ProductsTransactions, Workers])
 class StockDb extends _$StockDb {
-  static StockDb instance = StockDb._internal();
+  // static StockDb instance = StockDb._internal();
 
-  late ProductDao productDao;
+  // late ProductDao productDao;
 
-  StockDb._internal() : super(NativeDatabase.memory()) {
-    productDao = ProductDao(this);
-  }
+  // StockDb._internal() : super(_openConnect(ConnectOptions.memory)) {
+  //   productDao = ProductDao(this);
+  // }
+
+  StockDb(ConnectOptions options) : super(_openConnect(options));
 
   @override
   int get schemaVersion => 1;
 }
 
-LazyDatabase _openConnection() {
+enum ConnectOptions {
+  memory,
+  mobile,
+}
+
+QueryExecutor _openConnect(ConnectOptions options) {
+  switch (options) {
+    case ConnectOptions.mobile:
+      return _connectionMobile();
+    default:
+      return NativeDatabase.memory();
+  }
+}
+
+LazyDatabase _connectionMobile() {
   return LazyDatabase(() async {
     final dbFolder = await getApplicationDocumentsDirectory();
     final file = File(p.join(p.join(dbFolder.path, 'Stockdb.sqlite')));

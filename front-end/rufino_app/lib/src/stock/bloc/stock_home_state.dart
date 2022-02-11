@@ -2,25 +2,40 @@ part of 'stock_home_bloc.dart';
 
 class StockHomeState extends Equatable {
   final String search;
-  final TextEditingController? quantityController;
+
+  final List<StockOrderItemModel> items;
   const StockHomeState({
-    this.search = "",
-    this.quantityController,
+    required this.search,
+    required this.items,
   });
 
   @override
-  List<Object> get props => [search, quantityController.hashCode];
+  List<Object> get props => [search, items.hashCode];
+
+  StockHomeState copyWith({
+    String? search,
+    List<StockOrderItemModel>? items,
+  }) {
+    return StockHomeState(
+      search: search ?? this.search,
+      items: items ?? this.items,
+    );
+  }
 }
 
-class StockHomeInitial extends StockHomeState {}
+class StockHomeInitial extends StockHomeState {
+  StockHomeInitial({
+    required String search,
+    required List<StockOrderItemModel> items,
+  }) : super(search: search, items: items);
+}
 
 class SearchStockHomeState extends StockHomeState {
-  const SearchStockHomeState();
+  const SearchStockHomeState({
+    required search,
+    required items,
+  }) : super(search: search, items: items);
 
   @override
   List<Object> get props => [];
-}
-
-class DialogStockHomeState extends StockHomeState {
-  DialogStockHomeState() : super(quantityController: TextEditingController());
 }

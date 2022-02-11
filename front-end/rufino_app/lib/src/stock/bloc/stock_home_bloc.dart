@@ -1,62 +1,72 @@
+import 'dart:math';
+
 import 'package:bloc/bloc.dart';
 import 'package:equatable/equatable.dart';
 import 'package:flutter/cupertino.dart';
-import 'package:rufino_app/src/login/pages/components/text_field_container.dart';
 import 'package:rufino_app/src/stock/db/stock_db.dart';
+import 'package:rufino_app/src/stock/model/stock_order_item_model.dart';
 
 part 'stock_home_event.dart';
 part 'stock_home_state.dart';
 
 class StockHomeBloc extends Bloc<StockHomeEvent, StockHomeState> {
-  StockHomeBloc() : super(StockHomeInitial()) {
+  StockHomeBloc() : super(StockHomeInitial(search: "", items: const [])) {
     on<SearchEvent>(_search);
-    on<OpenDialogEvent>(_openDialog);
-    on<AddQuantiyItemEvent>(_addQuantityItem);
-    on<SubtractQuantiyItemEvent>(_subtractQuantityItem);
-    on<ChangeQuantityEvent>(_changeQuantity);
+    on<AddItemEvent>(_addItem);
+    on<ReturnInitialEvent>(_returnInitial);
+    on<ChangeItemEvent>(_changeItem);
+    on<AddQuantiyItemEvent>(_addQuantityItemEvent);
+    on<SubtractQuantiyItemEvent>(_subtractQuantityItemEvent);
+    on<RemoveItemEvent>(_removeItem);
+    on<RemoveAllItemsEvent>(_removeAllItems);
   }
 
   Future<void> _search(SearchEvent event, Emitter<StockHomeState> emit) async {
-    emit(StockHomeState(search: event.search));
+    emit(StockHomeState(search: event.search, items: state.items));
   }
 
-  Future<void> _openDialog(
-      OpenDialogEvent event, Emitter<StockHomeState> emit) async {
-    emit(DialogStockHomeState());
+  Future<void> _addItem(
+      AddItemEvent event, Emitter<StockHomeState> emit) async {
+    var items = List.of(state.items)..add(event.item);
+    emit(StockHomeInitial(search: state.search, items: items));
   }
 
-  Future<void> _addQuantityItem(
+  Future<void> _returnInitial(
+      ReturnInitialEvent event, Emitter<StockHomeState> emit) async {
+    emit(StockHomeInitial(search: state.search, items: state.items));
+  }
+
+  Future<void> _changeItem(
+      ChangeItemEvent event, Emitter<StockHomeState> emit) async {
+    var list = List.of(state.items);
+    list[event.index] = event.item;
+    emit(StockHomeState(search: state.search, items: list));
+  }
+
+  Future<void> _addQuantityItemEvent(
       AddQuantiyItemEvent event, Emitter<StockHomeState> emit) async {
-    if (state.quantityController == null) {
-      emit(DialogStockHomeState());
-    }
-    if (state.quantityController!.text == "") {
-      state.quantityController!.text = "1";
-    } else {
-      var value = int.parse(state.quantityController!.text);
-      state.quantityController!.text = (value + 1).toString();
-    }
+    var list = List.of(state.items);
+    list[event.index].quantityVariation++;
+    emit(state.copyWith(items: list));
   }
 
-  Future<void> _subtractQuantityItem(
+  Future<void> _subtractQuantityItemEvent(
       SubtractQuantiyItemEvent event, Emitter<StockHomeState> emit) async {
-    if (state.quantityController == null) {
-      emit(DialogStockHomeState());
-    }
-    if (state.quantityController!.text == "") {
-      state.quantityController!.text = "0";
-    } else {
-      var value = int.parse(state.quantityController!.text);
-      value = value - 1 < 0 ? 0 : value - 1;
-      state.quantityController!.text = value.toString();
-    }
+    var list = List.of(state.items);
+    var value = list[event.index].quantityVariation - 1;
+    list[event.index].quantityVariation = value < 0 ? 0 : value;
+    emit(state.copyWith(items: list));
   }
 
-  Future<void> _changeQuantity(
-      ChangeQuantityEvent event, Emitter<StockHomeState> emit) async {
-    if (state.quantityController == null) {
-      emit(DialogStockHomeState());
-    }
-    state.quantityController!.text = event.value;
+  Future<void> _removeItem(
+      RemoveItemEvent event, Emitter<StockHomeState> emit) async {
+    var list = List.of(state.items);
+    list.removeAt(event.index);
+    emit(state.copyWith(items: list));
+  }
+
+  Future<void> _removeAllItems(
+      RemoveAllItemsEvent event, Emitter<StockHomeState> emit) async {
+    emit(state.copyWith(items: []));
   }
 }
