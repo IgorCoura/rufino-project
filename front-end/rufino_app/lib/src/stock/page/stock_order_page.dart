@@ -1,8 +1,16 @@
+import 'dart:ffi';
+
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_modular/flutter_modular.dart';
+import 'package:rufino_app/src/stock/bloc/stock_home_bloc.dart';
+import 'package:rufino_app/src/stock/components/edit_item_dialog_component.dart';
+import 'package:rufino_app/src/stock/model/stock_order_item_model.dart';
 
 class StockOrderPage extends StatelessWidget {
-  const StockOrderPage({Key? key}) : super(key: key);
+  StockOrderPage({Key? key}) : super(key: key);
+
+  final bloc = Modular.get<StockHomeBloc>();
 
   @override
   Widget build(BuildContext context) {
@@ -22,17 +30,36 @@ class StockOrderPage extends StatelessWidget {
           ),
         ],
       ),
-      body: ListView(
-        children: [
-          _itemTileWidget("Tubo de concreto"),
-          _itemTileWidget("Tubo de concreto"),
-          _buttonsWidgt(context),
-        ],
+      body: BlocBuilder<StockHomeBloc, StockHomeState>(
+        bloc: bloc,
+        builder: (context, state) {
+          return ListView.builder(
+            itemCount: state.items.length + 1,
+            itemBuilder: (context, index) {
+              if (index == state.items.length && state.items.isNotEmpty) {
+                return _buttonsWidgt(context);
+              }
+              if (state.items.isNotEmpty) {
+                return _itemTileWidget(context, index, state.items[index]);
+              }
+              return const Center(
+                child: Padding(
+                  padding: EdgeInsets.all(16.0),
+                  child: Text(
+                    "Vaziou",
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 24),
+                  ),
+                ),
+              );
+            },
+          );
+        },
       ),
     );
   }
 
-  Widget _itemTileWidget(String title) {
+  Widget _itemTileWidget(
+      BuildContext context, int index, StockOrderItemModel model) {
     return ListTile(
       leading: const Icon(
         Icons.download,
@@ -40,25 +67,41 @@ class StockOrderPage extends StatelessWidget {
       ),
       title: TextButton(
         style: const ButtonStyle(alignment: Alignment.bottomLeft),
-        onPressed: () {},
+        onPressed: () {
+          showDialog(
+              context: context,
+              builder: (context) {
+                return EditItemDialogComponent(
+                    item: model,
+                    returnFunction: (returnItem) {
+                      bloc.add(ChangeItemEvent(index, returnItem));
+                    });
+              });
+        },
         child: Text(
-          title,
+          model.name,
           overflow: TextOverflow.ellipsis,
           style: const TextStyle(fontSize: 18),
         ),
       ),
       trailing: Row(mainAxisSize: MainAxisSize.min, children: [
         IconButton(
-          onPressed: () {},
+          onPressed: () {
+            bloc.add(AddQuantiyItemEvent(index));
+          },
           icon: const Icon(Icons.add),
         ),
-        const Text("1000 metros"),
+        Text("${model.quantityVariation} ${model.unity}"),
         IconButton(
-          onPressed: () {},
+          onPressed: () {
+            bloc.add(SubtractQuantiyItemEvent(index));
+          },
           icon: const Icon(Icons.remove),
         ),
         IconButton(
-            onPressed: () {},
+            onPressed: () {
+              bloc.add(RemoveItemEvent(index));
+            },
             icon: const Icon(
               Icons.delete,
               color: Colors.red,
@@ -101,20 +144,31 @@ class StockOrderPage extends StatelessWidget {
                           style: TextStyle(fontSize: 24),
                         ),
                         actions: [
-                          TextButton(
-                            onPressed: () => Navigator.pop(context, 'Cancel'),
-                            child: const Text(
-                              'Cancel',
-                              style: TextStyle(fontSize: 24),
-                            ),
-                          ),
-                          TextButton(
-                            onPressed: () => Navigator.pop(context, 'OK'),
-                            child: const Text(
-                              'OK',
-                              style: TextStyle(fontSize: 24),
-                            ),
-                          ),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: TextButton(
+                                  onPressed: () {
+                                    Navigator.pop(context, 'Cancel');
+                                    bloc.add(RemoveAllItemsEvent());
+                                  },
+                                  child: const Text(
+                                    'SIM',
+                                    style: TextStyle(fontSize: 24),
+                                  ),
+                                ),
+                              ),
+                              Expanded(
+                                child: TextButton(
+                                  onPressed: () => Navigator.pop(context, 'OK'),
+                                  child: const Text(
+                                    'NÃO',
+                                    style: TextStyle(fontSize: 24),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          )
                         ],
                       )),
               child: const Padding(

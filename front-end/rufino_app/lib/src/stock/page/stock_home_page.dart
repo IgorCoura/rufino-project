@@ -3,12 +3,16 @@ import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_modular/flutter_modular.dart';
 import 'package:rufino_app/src/stock/bloc/stock_home_bloc.dart';
+import 'package:rufino_app/src/stock/components/edit_item_dialog_component.dart';
+import 'package:rufino_app/src/stock/db/dao/product_dao.dart';
 import 'package:rufino_app/src/stock/db/stock_db.dart';
+import 'package:rufino_app/src/stock/model/stock_order_item_model.dart';
 import 'package:uuid/uuid.dart';
 
 class StockHomePage extends StatelessWidget {
   final searchController = TextEditingController();
   final bloc = Modular.get<StockHomeBloc>();
+  final productDao = Modular.get<ProductDao>();
   StockHomePage({Key? key}) : super(key: key);
 
   @override
@@ -23,7 +27,7 @@ class StockHomePage extends StatelessWidget {
           IconButton(
             onPressed: () {
               var idGeneration = const Uuid().v4();
-              StockDb.instance.productDao.add(Product(
+              productDao.add(Product(
                   id: idGeneration,
                   name: "Tubo de PVC 100 mm para esgoto $idGeneration",
                   description:
@@ -57,7 +61,7 @@ class StockHomePage extends StatelessWidget {
               builder: (context, state) {
                 return StreamBuilder<List<Product>>(
                   initialData: const [],
-                  stream: StockDb.instance.productDao.getFiltered(state.search),
+                  stream: productDao.getFiltered(state.search),
                   builder: (context, snapshot) {
                     if (snapshot.hasData) {
                       var data = snapshot.data;
@@ -66,18 +70,24 @@ class StockHomePage extends StatelessWidget {
                         itemBuilder: (BuildContext context, int index) {
                           return ListTile(
                             onTap: () {
-                              bloc.add(OpenDialogEvent());
+                              var newItem = StockOrderItemModel(
+                                data[index].id,
+                                data[index].name,
+                                data[index].description,
+                                0,
+                                data[index].unity,
+                              );
                               showDialog(
                                   context: context,
-                                  builder: (BuildContext context) =>
-                                      AlertDialog(
-                                        title: Text(data[index].name),
-                                        content: Text(data[index].description),
-                                        actions: [
-                                          _textFieldAlertDialogWidget(),
-                                          _buttonsAlertDialogWidget(context),
-                                        ],
-                                      ));
+                                  builder: (BuildContext context) {
+                                    return EditItemDialogComponent(
+                                      item: newItem,
+                                      returnFunction:
+                                          (StockOrderItemModel item) {
+                                        bloc.add(AddItemEvent(item));
+                                      },
+                                    );
+                                  });
                             },
                             title: Text(
                               data[index].name,
@@ -104,79 +114,6 @@ class StockHomePage extends StatelessWidget {
         },
         child: const Icon(Icons.shopping_cart),
       ),
-    );
-  }
-
-  Widget _textFieldAlertDialogWidget() {
-    return Center(
-      child: Row(mainAxisSize: MainAxisSize.min, children: [
-        IconButton(
-          onPressed: () {
-            bloc.add(AddQuantiyItemEvent());
-          },
-          icon: const Icon(
-            Icons.add,
-            size: 32,
-          ),
-        ),
-        SizedBox(
-          width: 200,
-          child: BlocBuilder<StockHomeBloc, StockHomeState>(
-            bloc: bloc,
-            builder: (context, state) {
-              return TextField(
-                keyboardType: TextInputType.number,
-                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                style: const TextStyle(fontSize: 24),
-                textAlign: TextAlign.center,
-                controller: state.quantityController,
-                onChanged: (value) {
-                  bloc.add(ChangeQuantityEvent(value));
-                },
-                decoration: const InputDecoration(
-                    hintText: 'Quantidade', border: InputBorder.none),
-                // onChanged: onSearchTextChanged,
-              );
-            },
-          ),
-        ),
-        IconButton(
-          onPressed: () {
-            bloc.add(SubtractQuantiyItemEvent());
-          },
-          icon: const Icon(
-            Icons.remove,
-            size: 32,
-          ),
-        ),
-      ]),
-    );
-  }
-
-  Widget _buttonsAlertDialogWidget(BuildContext context) {
-    return Row(
-      children: [
-        Expanded(
-          child: Padding(
-            padding: const EdgeInsets.all(8.0),
-            child: ElevatedButton(
-              onPressed: () {},
-              child: const Text("INSERIR"),
-            ),
-          ),
-        ),
-        Expanded(
-          child: Padding(
-            padding: const EdgeInsets.all(8.0),
-            child: ElevatedButton(
-              onPressed: () {
-                Navigator.pop(context);
-              },
-              child: const Text("CANCELAR"),
-            ),
-          ),
-        ),
-      ],
     );
   }
 
