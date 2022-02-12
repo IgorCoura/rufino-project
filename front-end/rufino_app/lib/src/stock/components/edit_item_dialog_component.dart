@@ -2,49 +2,34 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:rufino_app/src/stock/model/stock_order_item_model.dart';
 
-class EditItemDialogComponent extends StatefulWidget {
+class EditItemDialogComponent extends StatelessWidget {
+  final TextEditingController controller = TextEditingController();
   final StockOrderItemModel item;
   final Function(StockOrderItemModel item) returnFunction;
 
-  const EditItemDialogComponent({
+  EditItemDialogComponent({
     Key? key,
     required this.item,
     required this.returnFunction,
-  }) : super(key: key);
-
-  @override
-  State<EditItemDialogComponent> createState() =>
-      _EditItemDialogComponentState();
-}
-
-class _EditItemDialogComponentState extends State<EditItemDialogComponent> {
-  final TextEditingController controller = TextEditingController();
-
-  @override
-  void initState() {
-    controller.text = widget.item.quantityVariation.toString();
-    super.initState();
+  }) : super(key: key) {
+    controller.text = item.quantityVariation.toString();
   }
 
   _subtractQuantity() {
-    setState(() {
-      var value = controller.text == "" ? 0 : int.parse(controller.text) - 1;
-      controller.text = value < 0 ? "0" : value.toString();
-    });
+    var value = controller.text == "" ? 0 : int.parse(controller.text) - 1;
+    controller.text = value < 0 ? "0" : value.toString();
   }
 
   _addQuantity() {
-    setState(() {
-      var value = controller.text == "" ? 0 : int.parse(controller.text);
-      controller.text = (value + 1).toString();
-    });
+    var value = controller.text == "" ? 0 : int.parse(controller.text);
+    controller.text = (value + 1).toString();
   }
 
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: Text(widget.item.name),
-      content: Text(widget.item.description),
+      title: Text(item.name),
+      content: Text(item.description),
       actions: [
         _textFieldAlertDialogWidget(context),
         _buttonsAlertDialogWidget(context),
@@ -98,9 +83,9 @@ class _EditItemDialogComponentState extends State<EditItemDialogComponent> {
             padding: const EdgeInsets.all(8.0),
             child: ElevatedButton(
               onPressed: () {
-                widget.item.quantityVariation =
+                item.quantityVariation =
                     controller.text == "" ? 0 : int.parse(controller.text);
-                widget.returnFunction(widget.item);
+                returnFunction(item);
                 Navigator.pop(context);
               },
               child: const Text("INSERIR"),

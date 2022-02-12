@@ -5,12 +5,16 @@ import 'package:equatable/equatable.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:rufino_app/src/stock/db/stock_db.dart';
 import 'package:rufino_app/src/stock/model/stock_order_item_model.dart';
+import 'package:rufino_app/src/stock/services/stock_service.dart';
 
 part 'stock_home_event.dart';
 part 'stock_home_state.dart';
 
 class StockHomeBloc extends Bloc<StockHomeEvent, StockHomeState> {
-  StockHomeBloc() : super(StockHomeInitial(search: "", items: const [])) {
+  final StockService service;
+
+  StockHomeBloc(this.service)
+      : super(StockHomeInitial(search: "", items: const [])) {
     on<SearchEvent>(_search);
     on<AddItemEvent>(_addItem);
     on<ReturnInitialEvent>(_returnInitial);
@@ -19,6 +23,7 @@ class StockHomeBloc extends Bloc<StockHomeEvent, StockHomeState> {
     on<SubtractQuantiyItemEvent>(_subtractQuantityItemEvent);
     on<RemoveItemEvent>(_removeItem);
     on<RemoveAllItemsEvent>(_removeAllItems);
+    on<FinishedStockOrderEvent>(_finishedStockOrderEvent);
   }
 
   Future<void> _search(SearchEvent event, Emitter<StockHomeState> emit) async {
@@ -28,7 +33,7 @@ class StockHomeBloc extends Bloc<StockHomeEvent, StockHomeState> {
   Future<void> _addItem(
       AddItemEvent event, Emitter<StockHomeState> emit) async {
     var items = List.of(state.items)..add(event.item);
-    emit(StockHomeInitial(search: state.search, items: items));
+    emit(state.copyWith(search: state.search, items: items));
   }
 
   Future<void> _returnInitial(
@@ -68,5 +73,13 @@ class StockHomeBloc extends Bloc<StockHomeEvent, StockHomeState> {
   Future<void> _removeAllItems(
       RemoveAllItemsEvent event, Emitter<StockHomeState> emit) async {
     emit(state.copyWith(items: []));
+  }
+
+  Future<void> _finishedStockOrderEvent(
+      FinishedStockOrderEvent event, Emitter<StockHomeState> emit) async {
+    emit(LoadOrderState(search: state.search, items: state.items));
+    await service.insertTransaction(
+        state.items, event.idResposible, event.idTaker);
+    emit(const FinishedOrderState(search: "", items: []));
   }
 }
