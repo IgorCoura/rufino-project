@@ -24,23 +24,26 @@ class StockHomePage extends StatelessWidget {
         ),
         title: const Text("Estoque"),
         actions: [
-          IconButton(
-            onPressed: () {
-              var idGeneration = const Uuid().v4();
-              productDao.add(Product(
-                  id: idGeneration,
-                  name: "Tubo de PVC 100 mm para esgoto $idGeneration",
-                  description:
-                      "Se o conteúdo for muito grande para caber na tela verticalmente, a caixa de diálogo exibirá o título e as ações e deixará o conteúdo transbordar, o que raramente é desejado. Considere usar um widget de rolagem para conteúdo , como SingleChildScrollView , para evitar estouro. (No entanto, esteja ciente de que, como AlertDialog tenta se dimensionar usando as dimensões intrínsecas de seus filhos, widgets como ListView , GridView e CustomScrollView , que usam viewports preguiçosas, não funcionarão. Se isso for um problema, considere usar o Dialog diretamente. )",
-                  section: "section",
-                  category: "category",
-                  unity: "unity",
-                  quantity: 10000));
+          PopupMenuButton(
+            color: Theme.of(context).backgroundColor,
+            onSelected: (handleClick) {},
+            itemBuilder: (BuildContext context) {
+              var listString = ['Logout', 'Settings'];
+              List<PopupMenuEntry> list = [];
+              listString.forEach((element) {
+                list.add(
+                  PopupMenuItem(
+                    child: Text(element),
+                  ),
+                );
+                list.add(
+                  const PopupMenuDivider(
+                    height: 10,
+                  ),
+                );
+              });
+              return list;
             },
-            icon: const Icon(
-              Icons.more_vert,
-              size: 26,
-            ),
           ),
         ],
       ),
@@ -50,7 +53,7 @@ class StockHomePage extends StatelessWidget {
             padding: const EdgeInsets.all(8.0),
             child: Row(
               children: [
-                _searchBarWidget(),
+                _searchBarWidget(context),
                 _qrCodeButtonWidget(context),
               ],
             ),
@@ -117,14 +120,15 @@ class StockHomePage extends StatelessWidget {
     );
   }
 
-  Widget _searchBarWidget() {
+  Widget _searchBarWidget(BuildContext context) {
     return Expanded(
       child: Container(
         decoration: BoxDecoration(
+          color: Theme.of(context).backgroundColor,
           borderRadius: BorderRadius.circular(30),
           border: Border.all(
-            color: Colors.blueGrey.shade300,
-            width: 2,
+            color: Theme.of(context).primaryColor,
+            width: 3,
           ),
         ),
         child: Row(
@@ -165,10 +169,11 @@ class StockHomePage extends StatelessWidget {
       padding: const EdgeInsets.all(8.0),
       child: Container(
         decoration: BoxDecoration(
+          color: Theme.of(context).backgroundColor,
           borderRadius: BorderRadius.circular(10),
           border: Border.all(
-            color: Colors.blueGrey.shade300,
-            width: 2,
+            color: Theme.of(context).primaryColor,
+            width: 3,
           ),
         ),
         child: IconButton(

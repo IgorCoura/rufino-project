@@ -16,6 +16,8 @@ class AppWidget extends StatelessWidget {
             cardColor: const Color(0xFF37474f)),
         primaryColor: Colors.blueGrey[300],
         cardColor: Colors.blueGrey[400],
+        scaffoldBackgroundColor: Colors.white,
+        backgroundColor: Colors.white,
         listTileTheme: ListTileThemeData(
           shape: Border.symmetric(
             horizontal: BorderSide(
@@ -23,6 +25,12 @@ class AppWidget extends StatelessWidget {
             ),
           ),
         ),
+        textTheme: const TextTheme(
+            titleLarge: TextStyle(fontSize: 26, fontWeight: FontWeight.bold),
+            titleMedium: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            bodyLarge: TextStyle(
+              fontSize: 18,
+            )),
       ),
     ).modular();
   }
