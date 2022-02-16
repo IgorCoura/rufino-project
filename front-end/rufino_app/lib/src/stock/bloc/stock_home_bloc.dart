@@ -79,7 +79,7 @@ class StockHomeBloc extends Bloc<StockHomeEvent, StockHomeState> {
       FinishedStockOrderEvent event, Emitter<StockHomeState> emit) async {
     emit(LoadOrderState(search: state.search, items: state.items));
     await service.insertTransaction(
-        state.items, event.idResposible, event.idTaker);
+        state.items, event.idResposible, event.idTaker, event.withdraw);
     emit(const FinishedOrderState(search: "", items: []));
   }
 }

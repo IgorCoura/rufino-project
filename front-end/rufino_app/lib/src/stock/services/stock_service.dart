@@ -10,12 +10,13 @@ class StockService {
   const StockService(this.productTransactionDao);
 
   Future<void> insertTransaction(List<StockOrderItemModel> items,
-      String idResponsible, String idTaker) async {
+      String idResponsible, String idTaker, bool withdrawl) async {
     var date = DateTime.now();
     var itemsTransaction = items.map((e) => ProductTransaction(
         id: const Uuid().v4(),
         idProduct: e.idProduct,
-        quantityVariation: e.quantityVariation,
+        quantityVariation:
+            withdrawl ? -e.quantityVariation : e.quantityVariation,
         date: date,
         idResponsible: idResponsible,
         idTaker: idTaker));
