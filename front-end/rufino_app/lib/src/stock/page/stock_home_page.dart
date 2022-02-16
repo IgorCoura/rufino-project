@@ -26,22 +26,36 @@ class StockHomePage extends StatelessWidget {
         actions: [
           PopupMenuButton(
             color: Theme.of(context).backgroundColor,
-            onSelected: (handleClick) {},
+            onSelected: (handleClick) {
+              switch (handleClick) {
+                case 0:
+                  Modular.to.navigate("/stock/devolucion");
+                  break;
+                case 1:
+                  Modular.to.navigate('/stock/history');
+                  break;
+              }
+            },
             itemBuilder: (BuildContext context) {
-              var listString = ['Logout', 'Settings'];
+              var listString = ['Devolução', 'Historico', 'Settings', 'teste '];
               List<PopupMenuEntry> list = [];
-              listString.forEach((element) {
+              for (int i = 0; i < listString.length; i++) {
                 list.add(
                   PopupMenuItem(
-                    child: Text(element),
+                    child: Text(listString[i]),
+                    value: i,
                   ),
                 );
+                if (i >= listString.length - 1) {
+                  continue;
+                }
                 list.add(
                   const PopupMenuDivider(
                     height: 10,
                   ),
                 );
-              });
+              }
+
               return list;
             },
           ),
@@ -113,7 +127,7 @@ class StockHomePage extends StatelessWidget {
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () {
-          Modular.to.navigate("/stock/order");
+          Modular.to.navigate("/stock/withdraw");
         },
         child: const Icon(Icons.shopping_cart),
       ),

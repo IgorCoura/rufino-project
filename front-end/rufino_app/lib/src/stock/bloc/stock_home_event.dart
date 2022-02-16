@@ -45,6 +45,6 @@ class RemoveAllItemsEvent extends StockHomeEvent {}
 class FinishedStockOrderEvent extends StockHomeEvent {
   final String idTaker;
   final String idResposible;
-  final BuildContext context;
-  const FinishedStockOrderEvent(this.idTaker, this.idResposible, this.context);
+  final bool withdraw;
+  const FinishedStockOrderEvent(this.idTaker, this.idResposible, this.withdraw);
 }

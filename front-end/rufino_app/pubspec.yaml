@@ -40,6 +40,7 @@ dependencies:
   equatable: ^2.0.0
   flutter_modular: any
   dropdown_search: ^2.0.1
+  intl: ^0.17.0
 
 dev_dependencies:
   flutter_test:
