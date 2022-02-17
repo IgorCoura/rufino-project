@@ -2,12 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:rufino_app/src/stock/model/stock_order_item_model.dart';
 
-class EditItemDialogComponent extends StatelessWidget {
+class EditItemDialogWidget extends StatelessWidget {
   final TextEditingController controller = TextEditingController();
   final StockOrderItemModel item;
   final Function(StockOrderItemModel item) returnFunction;
 
-  EditItemDialogComponent({
+  EditItemDialogWidget({
     Key? key,
     required this.item,
     required this.returnFunction,
@@ -85,8 +85,8 @@ class EditItemDialogComponent extends StatelessWidget {
               onPressed: () {
                 item.quantityVariation =
                     controller.text == "" ? 0 : int.parse(controller.text);
-                returnFunction(item);
                 Navigator.pop(context);
+                returnFunction(item);
               },
               child: const Text("INSERIR"),
             ),
