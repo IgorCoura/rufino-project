@@ -3,7 +3,8 @@ import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_modular/flutter_modular.dart';
 import 'package:rufino_app/src/stock/bloc/stock_home_bloc.dart';
-import 'package:rufino_app/src/stock/components/edit_item_dialog_component.dart';
+import 'package:rufino_app/src/stock/components/edit_item_dialog_widget.dart';
+import 'package:rufino_app/src/stock/components/qr_code_button_widget.dart';
 import 'package:rufino_app/src/stock/db/dao/product_dao.dart';
 import 'package:rufino_app/src/stock/db/stock_db.dart';
 import 'package:rufino_app/src/stock/model/stock_order_item_model.dart';
@@ -13,7 +14,9 @@ class StockHomePage extends StatelessWidget {
   final searchController = TextEditingController();
   final bloc = Modular.get<StockHomeBloc>();
   final productDao = Modular.get<ProductDao>();
-  StockHomePage({Key? key}) : super(key: key);
+  StockHomePage({
+    Key? key,
+  }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
@@ -37,7 +40,10 @@ class StockHomePage extends StatelessWidget {
               }
             },
             itemBuilder: (BuildContext context) {
-              var listString = ['Devolução', 'Historico', 'Settings', 'teste '];
+              var listString = [
+                'Devolução',
+                'Historico',
+              ];
               List<PopupMenuEntry> list = [];
               for (int i = 0; i < listString.length; i++) {
                 list.add(
@@ -68,7 +74,12 @@ class StockHomePage extends StatelessWidget {
             child: Row(
               children: [
                 _searchBarWidget(context),
-                _qrCodeButtonWidget(context),
+                Padding(
+                  padding: const EdgeInsets.all(8.0),
+                  child: QrCodeButtonWidget(
+                    function: () {},
+                  ),
+                ),
               ],
             ),
           ),
@@ -97,7 +108,7 @@ class StockHomePage extends StatelessWidget {
                               showDialog(
                                   context: context,
                                   builder: (BuildContext context) {
-                                    return EditItemDialogComponent(
+                                    return EditItemDialogWidget(
                                       item: newItem,
                                       returnFunction:
                                           (StockOrderItemModel item) {
@@ -127,7 +138,7 @@ class StockHomePage extends StatelessWidget {
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () {
-          Modular.to.navigate("/stock/withdraw");
+          Modular.to.navigate("/stock/withdraw", arguments: bloc);
         },
         child: const Icon(Icons.shopping_cart),
       ),
@@ -142,7 +153,7 @@ class StockHomePage extends StatelessWidget {
           borderRadius: BorderRadius.circular(30),
           border: Border.all(
             color: Theme.of(context).primaryColor,
-            width: 3,
+            width: 2,
           ),
         ),
         child: Row(
@@ -173,29 +184,6 @@ class StockHomePage extends StatelessWidget {
               ),
             ),
           ],
-        ),
-      ),
-    );
-  }
-
-  Widget _qrCodeButtonWidget(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.all(8.0),
-      child: Container(
-        decoration: BoxDecoration(
-          color: Theme.of(context).backgroundColor,
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(
-            color: Theme.of(context).primaryColor,
-            width: 3,
-          ),
-        ),
-        child: IconButton(
-          onPressed: () {},
-          icon: const Icon(
-            Icons.qr_code_scanner_outlined,
-            size: 26,
-          ),
         ),
       ),
     );
