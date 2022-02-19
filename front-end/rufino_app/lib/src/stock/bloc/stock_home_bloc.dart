@@ -1,9 +1,5 @@
-import 'dart:math';
-
 import 'package:bloc/bloc.dart';
 import 'package:equatable/equatable.dart';
-import 'package:flutter/cupertino.dart';
-import 'package:rufino_app/src/stock/db/stock_db.dart';
 import 'package:rufino_app/src/stock/model/stock_order_item_model.dart';
 import 'package:rufino_app/src/stock/services/stock_service.dart';
 
@@ -19,15 +15,15 @@ class StockHomeBloc extends Bloc<StockHomeEvent, StockHomeState> {
     on<AddItemEvent>(_addItem);
     on<ReturnInitialEvent>(_returnInitial);
     on<ChangeItemEvent>(_changeItem);
-    on<AddQuantiyItemEvent>(_addQuantityItemEvent);
-    on<SubtractQuantiyItemEvent>(_subtractQuantityItemEvent);
+    on<AddQuantiyItemEvent>(_addQuantityItem);
+    on<SubtractQuantiyItemEvent>(_subtractQuantityItem);
     on<RemoveItemEvent>(_removeItem);
     on<RemoveAllItemsEvent>(_removeAllItems);
     on<FinishedStockOrderEvent>(_finishedStockOrderEvent);
   }
 
   Future<void> _search(SearchEvent event, Emitter<StockHomeState> emit) async {
-    emit(StockHomeState(search: event.search, items: state.items));
+    emit(state.copyWith(search: event.search, items: state.items));
   }
 
   Future<void> _addItem(
@@ -48,14 +44,14 @@ class StockHomeBloc extends Bloc<StockHomeEvent, StockHomeState> {
     emit(StockHomeState(search: state.search, items: list));
   }
 
-  Future<void> _addQuantityItemEvent(
+  Future<void> _addQuantityItem(
       AddQuantiyItemEvent event, Emitter<StockHomeState> emit) async {
     var list = List.of(state.items);
     list[event.index].quantityVariation++;
     emit(state.copyWith(items: list));
   }
 
-  Future<void> _subtractQuantityItemEvent(
+  Future<void> _subtractQuantityItem(
       SubtractQuantiyItemEvent event, Emitter<StockHomeState> emit) async {
     var list = List.of(state.items);
     var value = list[event.index].quantityVariation - 1;

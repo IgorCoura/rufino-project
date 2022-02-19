@@ -1,13 +1,13 @@
 // GENERATED CODE - DO NOT MODIFY BY HAND
 
-part of 'storage_db.dart';
+part of 'stock_db.dart';
 
 // **************************************************************************
 // MoorGenerator
 // **************************************************************************
 
 // ignore_for_file: unnecessary_brace_in_string_interps, unnecessary_this
-class Products extends DataClass implements Insertable<Products> {
+class Product extends DataClass implements Insertable<Product> {
   final String id;
   final String name;
   final String description;
@@ -15,7 +15,7 @@ class Products extends DataClass implements Insertable<Products> {
   final String category;
   final String unity;
   final int quantity;
-  Products(
+  Product(
       {required this.id,
       required this.name,
       required this.description,
@@ -23,9 +23,9 @@ class Products extends DataClass implements Insertable<Products> {
       required this.category,
       required this.unity,
       required this.quantity});
-  factory Products.fromData(Map<String, dynamic> data, {String? prefix}) {
+  factory Product.fromData(Map<String, dynamic> data, {String? prefix}) {
     final effectivePrefix = prefix ?? '';
-    return Products(
+    return Product(
       id: const StringType()
           .mapFromDatabaseResponse(data['${effectivePrefix}id'])!,
       name: const StringType()
@@ -67,10 +67,10 @@ class Products extends DataClass implements Insertable<Products> {
     );
   }
 
-  factory Products.fromJson(Map<String, dynamic> json,
+  factory Product.fromJson(Map<String, dynamic> json,
       {ValueSerializer? serializer}) {
     serializer ??= driftRuntimeOptions.defaultSerializer;
-    return Products(
+    return Product(
       id: serializer.fromJson<String>(json['id']),
       name: serializer.fromJson<String>(json['name']),
       description: serializer.fromJson<String>(json['description']),
@@ -94,7 +94,7 @@ class Products extends DataClass implements Insertable<Products> {
     };
   }
 
-  Products copyWith(
+  Product copyWith(
           {String? id,
           String? name,
           String? description,
@@ -102,7 +102,7 @@ class Products extends DataClass implements Insertable<Products> {
           String? category,
           String? unity,
           int? quantity}) =>
-      Products(
+      Product(
         id: id ?? this.id,
         name: name ?? this.name,
         description: description ?? this.description,
@@ -113,7 +113,7 @@ class Products extends DataClass implements Insertable<Products> {
       );
   @override
   String toString() {
-    return (StringBuffer('Products(')
+    return (StringBuffer('Product(')
           ..write('id: $id, ')
           ..write('name: $name, ')
           ..write('description: $description, ')
@@ -131,7 +131,7 @@ class Products extends DataClass implements Insertable<Products> {
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      (other is Products &&
+      (other is Product &&
           other.id == this.id &&
           other.name == this.name &&
           other.description == this.description &&
@@ -141,7 +141,7 @@ class Products extends DataClass implements Insertable<Products> {
           other.quantity == this.quantity);
 }
 
-class ProductsCompanion extends UpdateCompanion<Products> {
+class ProductsCompanion extends UpdateCompanion<Product> {
   final Value<String> id;
   final Value<String> name;
   final Value<String> description;
@@ -173,7 +173,7 @@ class ProductsCompanion extends UpdateCompanion<Products> {
         category = Value(category),
         unity = Value(unity),
         quantity = Value(quantity);
-  static Insertable<Products> custom({
+  static Insertable<Product> custom({
     Expression<String>? id,
     Expression<String>? name,
     Expression<String>? description,
@@ -254,7 +254,7 @@ class ProductsCompanion extends UpdateCompanion<Products> {
   }
 }
 
-class $ProductsTable extends Products with TableInfo<$ProductsTable, Products> {
+class $ProductsTable extends Products with TableInfo<$ProductsTable, Product> {
   @override
   final GeneratedDatabase attachedDatabase;
   final String? _alias;
@@ -303,7 +303,7 @@ class $ProductsTable extends Products with TableInfo<$ProductsTable, Products> {
   @override
   String get actualTableName => 'products';
   @override
-  VerificationContext validateIntegrity(Insertable<Products> instance,
+  VerificationContext validateIntegrity(Insertable<Product> instance,
       {bool isInserting = false}) {
     final context = VerificationContext();
     final data = instance.toColumns(true);
@@ -356,8 +356,8 @@ class $ProductsTable extends Products with TableInfo<$ProductsTable, Products> {
   @override
   Set<GeneratedColumn> get $primaryKey => {id};
   @override
-  Products map(Map<String, dynamic> data, {String? tablePrefix}) {
-    return Products.fromData(data,
+  Product map(Map<String, dynamic> data, {String? tablePrefix}) {
+    return Product.fromData(data,
         prefix: tablePrefix != null ? '$tablePrefix.' : null);
   }
 
@@ -367,8 +367,8 @@ class $ProductsTable extends Products with TableInfo<$ProductsTable, Products> {
   }
 }
 
-class ProductsTransactions extends DataClass
-    implements Insertable<ProductsTransactions> {
+class ProductTransaction extends DataClass
+    implements Insertable<ProductTransaction> {
   final String id;
   final String? idTransactionServer;
   final String idProduct;
@@ -376,7 +376,7 @@ class ProductsTransactions extends DataClass
   final DateTime date;
   final String idResponsible;
   final String idTaker;
-  ProductsTransactions(
+  ProductTransaction(
       {required this.id,
       this.idTransactionServer,
       required this.idProduct,
@@ -384,10 +384,10 @@ class ProductsTransactions extends DataClass
       required this.date,
       required this.idResponsible,
       required this.idTaker});
-  factory ProductsTransactions.fromData(Map<String, dynamic> data,
+  factory ProductTransaction.fromData(Map<String, dynamic> data,
       {String? prefix}) {
     final effectivePrefix = prefix ?? '';
-    return ProductsTransactions(
+    return ProductTransaction(
       id: const StringType()
           .mapFromDatabaseResponse(data['${effectivePrefix}id'])!,
       idTransactionServer: const StringType().mapFromDatabaseResponse(
@@ -433,10 +433,10 @@ class ProductsTransactions extends DataClass
     );
   }
 
-  factory ProductsTransactions.fromJson(Map<String, dynamic> json,
+  factory ProductTransaction.fromJson(Map<String, dynamic> json,
       {ValueSerializer? serializer}) {
     serializer ??= driftRuntimeOptions.defaultSerializer;
-    return ProductsTransactions(
+    return ProductTransaction(
       id: serializer.fromJson<String>(json['id']),
       idTransactionServer:
           serializer.fromJson<String?>(json['idTransactionServer']),
@@ -461,7 +461,7 @@ class ProductsTransactions extends DataClass
     };
   }
 
-  ProductsTransactions copyWith(
+  ProductTransaction copyWith(
           {String? id,
           String? idTransactionServer,
           String? idProduct,
@@ -469,7 +469,7 @@ class ProductsTransactions extends DataClass
           DateTime? date,
           String? idResponsible,
           String? idTaker}) =>
-      ProductsTransactions(
+      ProductTransaction(
         id: id ?? this.id,
         idTransactionServer: idTransactionServer ?? this.idTransactionServer,
         idProduct: idProduct ?? this.idProduct,
@@ -480,7 +480,7 @@ class ProductsTransactions extends DataClass
       );
   @override
   String toString() {
-    return (StringBuffer('ProductsTransactions(')
+    return (StringBuffer('ProductTransaction(')
           ..write('id: $id, ')
           ..write('idTransactionServer: $idTransactionServer, ')
           ..write('idProduct: $idProduct, ')
@@ -498,7 +498,7 @@ class ProductsTransactions extends DataClass
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      (other is ProductsTransactions &&
+      (other is ProductTransaction &&
           other.id == this.id &&
           other.idTransactionServer == this.idTransactionServer &&
           other.idProduct == this.idProduct &&
@@ -509,7 +509,7 @@ class ProductsTransactions extends DataClass
 }
 
 class ProductsTransactionsCompanion
-    extends UpdateCompanion<ProductsTransactions> {
+    extends UpdateCompanion<ProductTransaction> {
   final Value<String> id;
   final Value<String?> idTransactionServer;
   final Value<String> idProduct;
@@ -540,7 +540,7 @@ class ProductsTransactionsCompanion
         date = Value(date),
         idResponsible = Value(idResponsible),
         idTaker = Value(idTaker);
-  static Insertable<ProductsTransactions> custom({
+  static Insertable<ProductTransaction> custom({
     Expression<String>? id,
     Expression<String?>? idTransactionServer,
     Expression<String>? idProduct,
@@ -624,7 +624,7 @@ class ProductsTransactionsCompanion
 }
 
 class $ProductsTransactionsTable extends ProductsTransactions
-    with TableInfo<$ProductsTransactionsTable, ProductsTransactions> {
+    with TableInfo<$ProductsTransactionsTable, ProductTransaction> {
   @override
   final GeneratedDatabase attachedDatabase;
   final String? _alias;
@@ -682,8 +682,7 @@ class $ProductsTransactionsTable extends ProductsTransactions
   @override
   String get actualTableName => 'products_transactions';
   @override
-  VerificationContext validateIntegrity(
-      Insertable<ProductsTransactions> instance,
+  VerificationContext validateIntegrity(Insertable<ProductTransaction> instance,
       {bool isInserting = false}) {
     final context = VerificationContext();
     final data = instance.toColumns(true);
@@ -738,8 +737,8 @@ class $ProductsTransactionsTable extends ProductsTransactions
   @override
   Set<GeneratedColumn> get $primaryKey => {id};
   @override
-  ProductsTransactions map(Map<String, dynamic> data, {String? tablePrefix}) {
-    return ProductsTransactions.fromData(data,
+  ProductTransaction map(Map<String, dynamic> data, {String? tablePrefix}) {
+    return ProductTransaction.fromData(data,
         prefix: tablePrefix != null ? '$tablePrefix.' : null);
   }
 
@@ -749,13 +748,13 @@ class $ProductsTransactionsTable extends ProductsTransactions
   }
 }
 
-class Workers extends DataClass implements Insertable<Workers> {
+class Worker extends DataClass implements Insertable<Worker> {
   final String id;
   final String name;
-  Workers({required this.id, required this.name});
-  factory Workers.fromData(Map<String, dynamic> data, {String? prefix}) {
+  Worker({required this.id, required this.name});
+  factory Worker.fromData(Map<String, dynamic> data, {String? prefix}) {
     final effectivePrefix = prefix ?? '';
-    return Workers(
+    return Worker(
       id: const StringType()
           .mapFromDatabaseResponse(data['${effectivePrefix}id'])!,
       name: const StringType()
@@ -777,10 +776,10 @@ class Workers extends DataClass implements Insertable<Workers> {
     );
   }
 
-  factory Workers.fromJson(Map<String, dynamic> json,
+  factory Worker.fromJson(Map<String, dynamic> json,
       {ValueSerializer? serializer}) {
     serializer ??= driftRuntimeOptions.defaultSerializer;
-    return Workers(
+    return Worker(
       id: serializer.fromJson<String>(json['id']),
       name: serializer.fromJson<String>(json['name']),
     );
@@ -794,13 +793,13 @@ class Workers extends DataClass implements Insertable<Workers> {
     };
   }
 
-  Workers copyWith({String? id, String? name}) => Workers(
+  Worker copyWith({String? id, String? name}) => Worker(
         id: id ?? this.id,
         name: name ?? this.name,
       );
   @override
   String toString() {
-    return (StringBuffer('Workers(')
+    return (StringBuffer('Worker(')
           ..write('id: $id, ')
           ..write('name: $name')
           ..write(')'))
@@ -812,10 +811,10 @@ class Workers extends DataClass implements Insertable<Workers> {
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      (other is Workers && other.id == this.id && other.name == this.name);
+      (other is Worker && other.id == this.id && other.name == this.name);
 }
 
-class WorkersCompanion extends UpdateCompanion<Workers> {
+class WorkersCompanion extends UpdateCompanion<Worker> {
   final Value<String> id;
   final Value<String> name;
   const WorkersCompanion({
@@ -827,7 +826,7 @@ class WorkersCompanion extends UpdateCompanion<Workers> {
     required String name,
   })  : id = Value(id),
         name = Value(name);
-  static Insertable<Workers> custom({
+  static Insertable<Worker> custom({
     Expression<String>? id,
     Expression<String>? name,
   }) {
@@ -866,7 +865,7 @@ class WorkersCompanion extends UpdateCompanion<Workers> {
   }
 }
 
-class $WorkersTable extends Workers with TableInfo<$WorkersTable, Workers> {
+class $WorkersTable extends Workers with TableInfo<$WorkersTable, Worker> {
   @override
   final GeneratedDatabase attachedDatabase;
   final String? _alias;
@@ -888,7 +887,7 @@ class $WorkersTable extends Workers with TableInfo<$WorkersTable, Workers> {
   @override
   String get actualTableName => 'workers';
   @override
-  VerificationContext validateIntegrity(Insertable<Workers> instance,
+  VerificationContext validateIntegrity(Insertable<Worker> instance,
       {bool isInserting = false}) {
     final context = VerificationContext();
     final data = instance.toColumns(true);
@@ -909,8 +908,8 @@ class $WorkersTable extends Workers with TableInfo<$WorkersTable, Workers> {
   @override
   Set<GeneratedColumn> get $primaryKey => {id};
   @override
-  Workers map(Map<String, dynamic> data, {String? tablePrefix}) {
-    return Workers.fromData(data,
+  Worker map(Map<String, dynamic> data, {String? tablePrefix}) {
+    return Worker.fromData(data,
         prefix: tablePrefix != null ? '$tablePrefix.' : null);
   }
 
@@ -920,8 +919,8 @@ class $WorkersTable extends Workers with TableInfo<$WorkersTable, Workers> {
   }
 }
 
-abstract class _$StorageDb extends GeneratedDatabase {
-  _$StorageDb(QueryExecutor e) : super(SqlTypeSystem.defaultInstance, e);
+abstract class _$StockDb extends GeneratedDatabase {
+  _$StockDb(QueryExecutor e) : super(SqlTypeSystem.defaultInstance, e);
   late final $ProductsTable products = $ProductsTable(this);
   late final $ProductsTransactionsTable productsTransactions =
       $ProductsTransactionsTable(this);

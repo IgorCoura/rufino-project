@@ -3,9 +3,11 @@ import 'package:drift/native.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as p;
 import 'dart:io';
-part 'storage_db.g.dart';
 
-@DataClassName("Products")
+import 'package:rufino_smart_app/storage/database/dao/product_dao.dart';
+part 'stock_db.g.dart';
+
+@DataClassName("Product")
 class Products extends Table {
   TextColumn get id => text()();
   TextColumn get name => text()();
@@ -19,7 +21,7 @@ class Products extends Table {
   Set<Column>? get primaryKey => {id};
 }
 
-@DataClassName("ProductsTransactions")
+@DataClassName("ProductTransaction")
 class ProductsTransactions extends Table {
   TextColumn get id => text()();
   TextColumn get idTransactionServer => text().nullable()();
@@ -33,7 +35,7 @@ class ProductsTransactions extends Table {
   Set<Column>? get primaryKey => {id};
 }
 
-@DataClassName("Workers")
+@DataClassName("Worker")
 class Workers extends Table {
   TextColumn get id => text()();
   TextColumn get name => text()();
@@ -43,8 +45,12 @@ class Workers extends Table {
 }
 
 @DriftDatabase(tables: [Products, ProductsTransactions, Workers])
-class StorageDb extends _$StorageDb {
-  StorageDb() : super(_openConnection());
+class StockDb extends _$StockDb {
+  static StockDb instance = StockDb._internal();
+
+  ProductDao productDao = ProductDao(instance);
+
+  StockDb._internal() : super(_openConnection());
 
   @override
   int get schemaVersion => 1;

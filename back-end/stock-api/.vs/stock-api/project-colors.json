@@ -1,0 +1,31 @@
+{
+  "Version": 1,
+  "ProjectMap": {
+    "ce4a1591-55f1-4df6-8b24-29adbb48f17b": {
+      "ProjectGuid": "ce4a1591-55f1-4df6-8b24-29adbb48f17b",
+      "DisplayName": "StockApi",
+      "ColorIndex": 0
+    },
+    "b6be3308-07f9-4bf6-b4e1-81671abfdc96": {
+      "ProjectGuid": "b6be3308-07f9-4bf6-b4e1-81671abfdc96",
+      "DisplayName": "StockApi.Domain",
+      "ColorIndex": 1
+    },
+    "c01e1122-7a4d-49ec-b201-14209ef85805": {
+      "ProjectGuid": "c01e1122-7a4d-49ec-b201-14209ef85805",
+      "DisplayName": "StockApi.Service",
+      "ColorIndex": 2
+    },
+    "9e451a76-970e-47cd-b296-96655a99a865": {
+      "ProjectGuid": "9e451a76-970e-47cd-b296-96655a99a865",
+      "DisplayName": "StockApi.Infra.Data",
+      "ColorIndex": 3
+    },
+    "a2fe74e1-b743-11d0-ae1a-00a0c90fffc3": {
+      "ProjectGuid": "a2fe74e1-b743-11d0-ae1a-00a0c90fffc3",
+      "DisplayName": "Arquivos Diversos",
+      "ColorIndex": -1
+    }
+  },
+  "NextColorIndex": 4
+}

@@ -36,16 +36,6 @@ class StockHomeInitial extends StockHomeState {
   }) : super(search: search, items: items);
 }
 
-class SearchStockHomeState extends StockHomeState {
-  const SearchStockHomeState({
-    required search,
-    required items,
-  }) : super(search: search, items: items);
-
-  @override
-  List<Object> get props => [];
-}
-
 class LoadOrderState extends StockHomeState {
   const LoadOrderState(
       {required String search, required List<StockOrderItemModel> items})

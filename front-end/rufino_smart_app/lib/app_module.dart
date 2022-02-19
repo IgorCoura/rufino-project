@@ -6,7 +6,7 @@ import 'package:rufino_smart_app/ppe_manager/page/ppe_manager_employee_page.dart
 import 'package:rufino_smart_app/ppe_manager/page/ppe_manager_home_page.dart';
 import 'package:rufino_smart_app/home/page/home_page.dart';
 import 'package:rufino_smart_app/storage/Module/storage_module.dart';
-import 'package:rufino_smart_app/storage/page/storage_home_page.dart';
+import 'package:rufino_smart_app/storage/page/storage_home_old_page.dart';
 import 'login/page/forgot_password_page.dart';
 import 'login/page/login_page.dart';
 

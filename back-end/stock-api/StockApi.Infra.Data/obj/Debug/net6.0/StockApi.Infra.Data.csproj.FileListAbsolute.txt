@@ -1,0 +1,17 @@
+C:\Users\IGOR-NOT\Desktop\CodigosSSD\rufino-project\back-end\stock-api\StockApi.Infra.Data\bin\Debug\net6.0\StockApi.Infra.Data.deps.json
+C:\Users\IGOR-NOT\Desktop\CodigosSSD\rufino-project\back-end\stock-api\StockApi.Infra.Data\bin\Debug\net6.0\StockApi.Infra.Data.dll
+C:\Users\IGOR-NOT\Desktop\CodigosSSD\rufino-project\back-end\stock-api\StockApi.Infra.Data\bin\Debug\net6.0\ref\StockApi.Infra.Data.dll
+C:\Users\IGOR-NOT\Desktop\CodigosSSD\rufino-project\back-end\stock-api\StockApi.Infra.Data\bin\Debug\net6.0\StockApi.Infra.Data.pdb
+C:\Users\IGOR-NOT\Desktop\CodigosSSD\rufino-project\back-end\stock-api\StockApi.Infra.Data\bin\Debug\net6.0\StockApi.Domain.dll
+C:\Users\IGOR-NOT\Desktop\CodigosSSD\rufino-project\back-end\stock-api\StockApi.Infra.Data\bin\Debug\net6.0\StockApi.Domain.pdb
+C:\Users\IGOR-NOT\Desktop\CodigosSSD\rufino-project\back-end\stock-api\StockApi.Infra.Data\obj\Debug\net6.0\StockApi.Infra.Data.csproj.AssemblyReference.cache
+C:\Users\IGOR-NOT\Desktop\CodigosSSD\rufino-project\back-end\stock-api\StockApi.Infra.Data\obj\Debug\net6.0\StockApi.Infra.Data.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\IGOR-NOT\Desktop\CodigosSSD\rufino-project\back-end\stock-api\StockApi.Infra.Data\obj\Debug\net6.0\StockApi.Infra.Data.AssemblyInfoInputs.cache
+C:\Users\IGOR-NOT\Desktop\CodigosSSD\rufino-project\back-end\stock-api\StockApi.Infra.Data\obj\Debug\net6.0\StockApi.Infra.Data.AssemblyInfo.cs
+C:\Users\IGOR-NOT\Desktop\CodigosSSD\rufino-project\back-end\stock-api\StockApi.Infra.Data\obj\Debug\net6.0\StockApi.Infra.Data.csproj.CoreCompileInputs.cache
+C:\Users\IGOR-NOT\Desktop\CodigosSSD\rufino-project\back-end\stock-api\StockApi.Infra.Data\obj\Debug\net6.0\StockApi.Infra.Data.csproj.CopyComplete
+C:\Users\IGOR-NOT\Desktop\CodigosSSD\rufino-project\back-end\stock-api\StockApi.Infra.Data\obj\Debug\net6.0\StockApi.Infra.Data.dll
+C:\Users\IGOR-NOT\Desktop\CodigosSSD\rufino-project\back-end\stock-api\StockApi.Infra.Data\obj\Debug\net6.0\ref\StockApi.Infra.Data.dll
+C:\Users\IGOR-NOT\Desktop\CodigosSSD\rufino-project\back-end\stock-api\StockApi.Infra.Data\obj\Debug\net6.0\StockApi.Infra.Data.pdb
+C:\Users\IGOR-NOT\Desktop\CodigosSSD\rufino-project\back-end\stock-api\StockApi.Infra.Data\bin\Debug\net6.0\StockApi.Infra.Data.runtimeconfig.json
+C:\Users\IGOR-NOT\Desktop\CodigosSSD\rufino-project\back-end\stock-api\StockApi.Infra.Data\obj\Debug\net6.0\StockApi.Infra.Data.genruntimeconfig.cache
