@@ -1,0 +1,12 @@
+C:\Users\IGOR-NOT\Desktop\CodigosSSD\rufino-project\back-end\stock-api\StockApi.Domain\bin\Debug\net6.0\StockApi.Domain.deps.json
+C:\Users\IGOR-NOT\Desktop\CodigosSSD\rufino-project\back-end\stock-api\StockApi.Domain\bin\Debug\net6.0\StockApi.Domain.dll
+C:\Users\IGOR-NOT\Desktop\CodigosSSD\rufino-project\back-end\stock-api\StockApi.Domain\bin\Debug\net6.0\ref\StockApi.Domain.dll
+C:\Users\IGOR-NOT\Desktop\CodigosSSD\rufino-project\back-end\stock-api\StockApi.Domain\bin\Debug\net6.0\StockApi.Domain.pdb
+C:\Users\IGOR-NOT\Desktop\CodigosSSD\rufino-project\back-end\stock-api\StockApi.Domain\obj\Debug\net6.0\StockApi.Domain.csproj.AssemblyReference.cache
+C:\Users\IGOR-NOT\Desktop\CodigosSSD\rufino-project\back-end\stock-api\StockApi.Domain\obj\Debug\net6.0\StockApi.Domain.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\IGOR-NOT\Desktop\CodigosSSD\rufino-project\back-end\stock-api\StockApi.Domain\obj\Debug\net6.0\StockApi.Domain.AssemblyInfoInputs.cache
+C:\Users\IGOR-NOT\Desktop\CodigosSSD\rufino-project\back-end\stock-api\StockApi.Domain\obj\Debug\net6.0\StockApi.Domain.AssemblyInfo.cs
+C:\Users\IGOR-NOT\Desktop\CodigosSSD\rufino-project\back-end\stock-api\StockApi.Domain\obj\Debug\net6.0\StockApi.Domain.csproj.CoreCompileInputs.cache
+C:\Users\IGOR-NOT\Desktop\CodigosSSD\rufino-project\back-end\stock-api\StockApi.Domain\obj\Debug\net6.0\StockApi.Domain.dll
+C:\Users\IGOR-NOT\Desktop\CodigosSSD\rufino-project\back-end\stock-api\StockApi.Domain\obj\Debug\net6.0\ref\StockApi.Domain.dll
+C:\Users\IGOR-NOT\Desktop\CodigosSSD\rufino-project\back-end\stock-api\StockApi.Domain\obj\Debug\net6.0\StockApi.Domain.pdb

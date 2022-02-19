@@ -3,8 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_modular/flutter_modular.dart';
 import 'package:rufino_smart_app/utils/constants.dart';
 
-class StorageHomePage extends StatelessWidget {
-  const StorageHomePage({Key? key}) : super(key: key);
+class StorageHomeOldPage extends StatelessWidget {
+  const StorageHomeOldPage({Key? key}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
