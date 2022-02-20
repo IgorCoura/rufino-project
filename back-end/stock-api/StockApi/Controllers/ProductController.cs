@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using StockApi.Domain.Exceptions;
+using StockApi.Domain.Interfaces;
 
 namespace StockApi.Controllers
 {
@@ -8,17 +9,24 @@ namespace StockApi.Controllers
     [ApiController]
     public class ProductController : ControllerBase
     {
-        [HttpPost]
-        public async Task<IActionResult> Register()
+        private readonly IServiceProduct _serviceProduct;
+
+        public ProductController(IServiceProduct serviceProduct)
+        {
+            _serviceProduct = serviceProduct;
+        }
+
+        [HttpGet]
+        public IActionResult GetAll([FromQuery] DateTime modificationDate)
         {
             try
             {
-                return Ok();
+                var objs = _serviceProduct.RecoverAll(modificationDate);
+                return Ok(objs);
             }
-            catch (DomainException ex)
+            catch (DomainException e)
             {
-                
-                return BadRequest(ex.Message);
+                return BadRequest(e.Message);
             }
         }
     }

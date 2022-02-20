@@ -1,5 +1,8 @@
 using Microsoft.EntityFrameworkCore;
+using StockApi.Domain.Interfaces;
 using StockApi.Infra.Data.Context;
+using StockApi.Infra.Data.Repository;
+using StockApi.Service.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -9,6 +12,13 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
+builder.Services.AddScoped<IServiceWorker,WorkerService>();
+builder.Services.AddScoped<IRepositoryWorker,WorkerRepository>();
+builder.Services.AddScoped<IServiceProduct, ProductService>();
+builder.Services.AddScoped<IRepositoryProduct, ProductRepository>();
+builder.Services.AddScoped<IServiceProductTransaction, ProductTransactionService>();
+builder.Services.AddScoped<IRepositoryProductTransaction, ProductTransactionRepository>();
+
 builder.Services.AddDbContext<StockApiContext>(options => 
     options.UseNpgsql(builder.Configuration["ConnectionString"],
     npgsqlOptionsAction: sqlOptions =>
@@ -17,7 +27,6 @@ builder.Services.AddDbContext<StockApiContext>(options =>
     }
   )
 );
-
 
 
 

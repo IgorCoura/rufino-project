@@ -15,6 +15,7 @@
           "Npgsql.EntityFrameworkCore.PostgreSQL": "6.0.3",
           "StockApi.Domain": "1.0.0",
           "StockApi.Infra.Data": "1.0.0",
+          "StockApi.Service": "1.0.0",
           "Swashbuckle.AspNetCore": "6.2.3"
         },
         "runtime": {
@@ -236,6 +237,15 @@
         "runtime": {
           "StockApi.Infra.Data.dll": {}
         }
+      },
+      "StockApi.Service/1.0.0": {
+        "dependencies": {
+          "Microsoft.EntityFrameworkCore": "6.0.2",
+          "StockApi.Domain": "1.0.0"
+        },
+        "runtime": {
+          "StockApi.Service.dll": {}
+        }
       }
     }
   },
@@ -447,6 +457,11 @@
       "sha512": ""
     },
     "StockApi.Infra.Data/1.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "StockApi.Service/1.0.0": {
       "type": "project",
       "serviceable": false,
       "sha512": ""

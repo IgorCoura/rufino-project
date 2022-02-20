@@ -26,6 +26,7 @@
   <ItemGroup>
     <ProjectReference Include="..\StockApi.Domain\StockApi.Domain.csproj" />
     <ProjectReference Include="..\StockApi.Infra.Data\StockApi.Infra.Data.csproj" />
+    <ProjectReference Include="..\StockApi.Service\StockApi.Service.csproj" />
   </ItemGroup>
 
 </Project>

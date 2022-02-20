@@ -191,6 +191,16 @@
         "build": {
           "buildTransitive/netcoreapp3.1/_._": {}
         }
+      },
+      "StockApi.Domain/1.0.0": {
+        "type": "project",
+        "framework": ".NETCoreApp,Version=v6.0",
+        "compile": {
+          "bin/placeholder/StockApi.Domain.dll": {}
+        },
+        "runtime": {
+          "bin/placeholder/StockApi.Domain.dll": {}
+        }
       }
     }
   },
@@ -516,11 +526,17 @@
         "system.runtime.compilerservices.unsafe.nuspec",
         "useSharedDesignerContext.txt"
       ]
+    },
+    "StockApi.Domain/1.0.0": {
+      "type": "project",
+      "path": "../StockApi.Domain/StockApi.Domain.csproj",
+      "msbuildProject": "../StockApi.Domain/StockApi.Domain.csproj"
     }
   },
   "projectFileDependencyGroups": {
     "net6.0": [
-      "Microsoft.EntityFrameworkCore >= 6.0.2"
+      "Microsoft.EntityFrameworkCore >= 6.0.2",
+      "StockApi.Domain >= 1.0.0"
     ]
   },
   "packageFolders": {
@@ -554,7 +570,11 @@
       "frameworks": {
         "net6.0": {
           "targetAlias": "net6.0",
-          "projectReferences": {}
+          "projectReferences": {
+            "C:\\Users\\IGOR-NOT\\Desktop\\CodigosSSD\\rufino-project\\back-end\\stock-api\\StockApi.Domain\\StockApi.Domain.csproj": {
+              "projectPath": "C:\\Users\\IGOR-NOT\\Desktop\\CodigosSSD\\rufino-project\\back-end\\stock-api\\StockApi.Domain\\StockApi.Domain.csproj"
+            }
+          }
         }
       },
       "warningProperties": {

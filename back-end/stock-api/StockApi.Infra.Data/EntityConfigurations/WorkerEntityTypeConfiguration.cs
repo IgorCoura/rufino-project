@@ -14,7 +14,8 @@ namespace StockApi.Infra.Data.EntityConfigurations
         public void Configure(EntityTypeBuilder<Worker> builder)
         {
             builder.HasKey(x => x.Id);
-            builder.Property(x => x.Name);
+            builder.Property(x => x.Name).IsRequired();
+            builder.Property(x => x.ModificationDate).IsRequired();
         }
     }
 }
