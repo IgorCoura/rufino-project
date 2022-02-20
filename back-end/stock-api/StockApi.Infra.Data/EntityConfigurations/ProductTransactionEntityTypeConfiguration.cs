@@ -14,9 +14,9 @@ namespace StockApi.Infra.Data.EntityConfigurations
         public void Configure(EntityTypeBuilder<ProductTransaction> builder)
         {
             builder.HasKey(t => t.Id);
+            builder.HasIndex(t => t.DeviceId).IsUnique();
             builder.Property(t => t.QuantityVariation).IsRequired();
-            builder.Property(t => t.date).IsRequired();
-
+            builder.Property(t => t.Date).IsRequired();
             builder.HasOne(x => x.Product).WithMany();
             builder.HasOne(x => x.Responsible).WithMany();
             builder.HasOne(x => x.Taker).WithMany();

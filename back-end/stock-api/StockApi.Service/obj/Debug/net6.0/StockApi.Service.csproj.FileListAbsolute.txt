@@ -10,3 +10,6 @@ C:\Users\IGOR-NOT\Desktop\CodigosSSD\rufino-project\back-end\stock-api\StockApi.
 C:\Users\IGOR-NOT\Desktop\CodigosSSD\rufino-project\back-end\stock-api\StockApi.Service\obj\Debug\net6.0\StockApi.Service.dll
 C:\Users\IGOR-NOT\Desktop\CodigosSSD\rufino-project\back-end\stock-api\StockApi.Service\obj\Debug\net6.0\ref\StockApi.Service.dll
 C:\Users\IGOR-NOT\Desktop\CodigosSSD\rufino-project\back-end\stock-api\StockApi.Service\obj\Debug\net6.0\StockApi.Service.pdb
+C:\Users\IGOR-NOT\Desktop\CodigosSSD\rufino-project\back-end\stock-api\StockApi.Service\bin\Debug\net6.0\StockApi.Domain.dll
+C:\Users\IGOR-NOT\Desktop\CodigosSSD\rufino-project\back-end\stock-api\StockApi.Service\bin\Debug\net6.0\StockApi.Domain.pdb
+C:\Users\IGOR-NOT\Desktop\CodigosSSD\rufino-project\back-end\stock-api\StockApi.Service\obj\Debug\net6.0\StockApi.Service.csproj.CopyComplete

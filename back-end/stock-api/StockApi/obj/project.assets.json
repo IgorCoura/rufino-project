@@ -384,6 +384,20 @@
         "runtime": {
           "bin/placeholder/StockApi.Infra.Data.dll": {}
         }
+      },
+      "StockApi.Service/1.0.0": {
+        "type": "project",
+        "framework": ".NETCoreApp,Version=v6.0",
+        "dependencies": {
+          "Microsoft.EntityFrameworkCore": "6.0.2",
+          "StockApi.Domain": "1.0.0"
+        },
+        "compile": {
+          "bin/placeholder/StockApi.Service.dll": {}
+        },
+        "runtime": {
+          "bin/placeholder/StockApi.Service.dll": {}
+        }
       }
     }
   },
@@ -1048,6 +1062,11 @@
       "type": "project",
       "path": "../StockApi.Infra.Data/StockApi.Infra.Data.csproj",
       "msbuildProject": "../StockApi.Infra.Data/StockApi.Infra.Data.csproj"
+    },
+    "StockApi.Service/1.0.0": {
+      "type": "project",
+      "path": "../StockApi.Service/StockApi.Service.csproj",
+      "msbuildProject": "../StockApi.Service/StockApi.Service.csproj"
     }
   },
   "projectFileDependencyGroups": {
@@ -1059,6 +1078,7 @@
       "Npgsql.EntityFrameworkCore.PostgreSQL >= 6.0.3",
       "StockApi.Domain >= 1.0.0",
       "StockApi.Infra.Data >= 1.0.0",
+      "StockApi.Service >= 1.0.0",
       "Swashbuckle.AspNetCore >= 6.2.3"
     ]
   },
@@ -1099,6 +1119,9 @@
             },
             "C:\\Users\\IGOR-NOT\\Desktop\\CodigosSSD\\rufino-project\\back-end\\stock-api\\StockApi.Infra.Data\\StockApi.Infra.Data.csproj": {
               "projectPath": "C:\\Users\\IGOR-NOT\\Desktop\\CodigosSSD\\rufino-project\\back-end\\stock-api\\StockApi.Infra.Data\\StockApi.Infra.Data.csproj"
+            },
+            "C:\\Users\\IGOR-NOT\\Desktop\\CodigosSSD\\rufino-project\\back-end\\stock-api\\StockApi.Service\\StockApi.Service.csproj": {
+              "projectPath": "C:\\Users\\IGOR-NOT\\Desktop\\CodigosSSD\\rufino-project\\back-end\\stock-api\\StockApi.Service\\StockApi.Service.csproj"
             }
           }
         }

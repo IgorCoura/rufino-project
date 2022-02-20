@@ -28,5 +28,10 @@ namespace StockApi.Domain.Entities
         public string Unity { get; private set; }
         public int Quantity { get; private set; } = 0;
         public DateTime ModificationDate { get; private set; }
+
+        public void addQuantity(int value)
+        {
+            Quantity += value;
+        }
     }
 }

@@ -65,6 +65,12 @@ namespace StockApi.Infra.Data.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
+                    b.Property<DateTime>("Date")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("DeviceId")
+                        .HasColumnType("uuid");
+
                     b.Property<Guid>("ProductId")
                         .HasColumnType("uuid");
 
@@ -77,10 +83,10 @@ namespace StockApi.Infra.Data.Migrations
                     b.Property<Guid>("TakerId")
                         .HasColumnType("uuid");
 
-                    b.Property<DateTime>("date")
-                        .HasColumnType("timestamp with time zone");
-
                     b.HasKey("Id");
+
+                    b.HasIndex("DeviceId")
+                        .IsUnique();
 
                     b.HasIndex("ProductId");
 
@@ -96,6 +102,9 @@ namespace StockApi.Infra.Data.Migrations
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
+
+                    b.Property<DateTime>("ModificationDate")
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("Name")
                         .IsRequired()
