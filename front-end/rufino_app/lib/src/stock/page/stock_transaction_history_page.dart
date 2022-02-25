@@ -34,7 +34,7 @@ class StockTransactionHistoryPage extends StatelessWidget {
                           .format(data[index].date),
                     ),
                     title: Text(data[index].idProduct),
-                    subtitle: Text(data[index].idTaker),
+                    subtitle: Text(data[index].idTransactionServer ?? "NULL"),
                     trailing: Text('${data[index].quantityVariation}'),
                   );
                 }));

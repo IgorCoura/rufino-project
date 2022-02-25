@@ -11,18 +11,14 @@ class ProductDao extends DatabaseAccessor<StockDb> with _$ProductDaoMixin {
     return into(products).insert(entry);
   }
 
-  Stream<List<Product>> getAll() {
-    return (select(products)).watch();
+  Future<void> updateOrAdd(List<Product> entry) {
+    return batch((batch) {
+      batch.insertAllOnConflictUpdate(products, entry);
+    });
   }
 
-  Stream<List<Product>> getFiltered(String searchString) {
+  Stream<List<Product>> getAll(String searchString) {
     var search = "%$searchString%";
-    return customSelect(
-      'SELECT * FROM products WHERE name LIKE ?',
-      variables: [
-        Variable.withString(search),
-      ],
-      readsFrom: {products},
-    ).watch().map((row) => row.map((e) => Product.fromData(e.data)).toList());
+    return (select(products)..where((tbl) => tbl.name.like(search))).watch();
   }
 }

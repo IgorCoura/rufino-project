@@ -1,13 +1,13 @@
 import 'package:bloc/bloc.dart';
 import 'package:equatable/equatable.dart';
 import 'package:rufino_app/src/stock/model/stock_order_item_model.dart';
-import 'package:rufino_app/src/stock/services/stock_service.dart';
+import 'package:rufino_app/src/stock/services/product_transaction_service.dart';
 
 part 'stock_home_event.dart';
 part 'stock_home_state.dart';
 
 class StockHomeBloc extends Bloc<StockHomeEvent, StockHomeState> {
-  final StockService service;
+  final ProductTransactionService service;
 
   StockHomeBloc(this.service)
       : super(StockHomeInitial(search: "", items: const [])) {

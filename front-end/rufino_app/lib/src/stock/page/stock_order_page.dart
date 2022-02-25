@@ -5,10 +5,10 @@ import 'package:flutter_modular/flutter_modular.dart';
 import 'package:rufino_app/src/stock/bloc/stock_home_bloc.dart';
 import 'package:rufino_app/src/stock/components/edit_item_dialog_widget.dart';
 import 'package:rufino_app/src/stock/components/qr_code_button_widget.dart';
-import 'package:rufino_app/src/stock/db/dao/worker_dao.dart';
 import 'package:rufino_app/src/stock/db/stock_db.dart';
 import 'package:rufino_app/src/stock/delegates/order_item_search_delegate.dart';
 import 'package:rufino_app/src/stock/model/stock_order_item_model.dart';
+import 'package:rufino_app/src/stock/services/worker_service.dart';
 
 class StockOrderPage extends StatelessWidget {
   final TextEditingController controller = TextEditingController();
@@ -24,7 +24,7 @@ class StockOrderPage extends StatelessWidget {
     this.bloc = bloc ?? Modular.get<StockHomeBloc>();
   }
 
-  final workerDao = Modular.get<WorkerDao>();
+  final workerService = Modular.get<WorkerService>();
 
   @override
   Widget build(BuildContext context) {
@@ -210,7 +210,7 @@ class StockOrderPage extends StatelessWidget {
   }
 
   Widget _finishedOrderDialog(BuildContext context) {
-    var idResposible = "6eec8ea4-477a-4dbd-ae84-134b38baabee";
+    var idResposible = "e4d8aa3b-b109-4142-9f38-e40a5faf947c";
     var idTaker = "";
     return AlertDialog(
       title: Text(
@@ -266,7 +266,7 @@ class StockOrderPage extends StatelessWidget {
                     child: DropdownSearch<Worker>(
                       mode: Mode.BOTTOM_SHEET,
                       showSearchBox: true,
-                      onFind: (String? filter) => workerDao.getAll(),
+                      onFind: (String? filter) => workerService.getAll(),
                       itemAsString: (Worker? w) => w == null ? "" : w.name,
                       onChanged: (worker) {
                         idTaker = worker == null ? "" : worker.id;

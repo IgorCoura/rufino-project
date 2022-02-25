@@ -10,4 +10,10 @@ class WorkerDao extends DatabaseAccessor<StockDb> with _$WorkerDaoMixin {
   Future<List<Worker>> getAll() {
     return (select(workers)).get();
   }
+
+  Future<void> updateOrAdd(List<Worker> entry) {
+    return batch((batch) {
+      batch.insertAllOnConflictUpdate(workers, entry);
+    });
+  }
 }

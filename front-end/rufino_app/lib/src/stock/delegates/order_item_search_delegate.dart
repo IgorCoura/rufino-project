@@ -2,12 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_modular/flutter_modular.dart';
 import 'package:rufino_app/src/stock/bloc/stock_home_bloc.dart';
 import 'package:rufino_app/src/stock/components/edit_item_dialog_widget.dart';
-import 'package:rufino_app/src/stock/db/dao/product_dao.dart';
 import 'package:rufino_app/src/stock/db/stock_db.dart';
 import 'package:rufino_app/src/stock/model/stock_order_item_model.dart';
+import 'package:rufino_app/src/stock/services/product_service.dart';
 
 class OrderItemSearchDelegate extends SearchDelegate {
-  var productDao = Modular.get<ProductDao>();
+  var productService = Modular.get<ProductService>();
   final StockHomeBloc bloc;
   OrderItemSearchDelegate(this.bloc);
   @override
@@ -44,7 +44,7 @@ class OrderItemSearchDelegate extends SearchDelegate {
   Widget buildSuggestions(BuildContext context) {
     return StreamBuilder<List<Product>>(
       initialData: const [],
-      stream: productDao.getFiltered(query),
+      stream: productService.getAll(query),
       builder: (context, snapshot) {
         if (snapshot.hasData) {
           var data = snapshot.data;

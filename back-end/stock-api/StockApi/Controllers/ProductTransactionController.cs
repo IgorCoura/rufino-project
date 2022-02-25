@@ -7,7 +7,7 @@ using StockApi.Domain.Models;
 
 namespace StockApi.Controllers
 {
-    [Route("api/[controller]")]
+    [Route("api/v1/[controller]")]
     [ApiController]
     public class ProductTransactionController : ControllerBase
     {

@@ -6,6 +6,6 @@ using System.Threading.Tasks;
 
 namespace StockApi.Domain.Models
 {
-    public record CreateTransactionModel(Guid DeviceId, Guid ProductId, Guid ResponsibleId, Guid TakerId, DateTime Date, int QuantityVariation);
+    public record CreateTransactionModel(Guid DeviceId, Guid ProductId, int QuantityVariation, DateTime Date,  Guid ResponsibleId, Guid TakerId);
     
 }

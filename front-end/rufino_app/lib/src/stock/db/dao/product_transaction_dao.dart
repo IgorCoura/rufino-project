@@ -22,7 +22,19 @@ class ProductTransactionDao extends DatabaseAccessor<StockDb>
     });
   }
 
+  Future<void> updateOrAdd(List<ProductTransaction> entry) {
+    return batch((batch) {
+      batch.insertAllOnConflictUpdate(productsTransactions, entry);
+    });
+  }
+
   Stream<List<ProductTransaction>> getAll() {
     return (select(productsTransactions)).watch();
+  }
+
+  Future<List<ProductTransaction>> getTransactionsWithNotServerId() {
+    return (select(productsTransactions)
+          ..where((tbl) => tbl.idTransactionServer.isNull()))
+        .get();
   }
 }

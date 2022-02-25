@@ -1,19 +1,22 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_modular/flutter_modular.dart';
 import 'package:rufino_app/src/stock/bloc/stock_home_bloc.dart';
 import 'package:rufino_app/src/stock/components/edit_item_dialog_widget.dart';
 import 'package:rufino_app/src/stock/components/qr_code_button_widget.dart';
-import 'package:rufino_app/src/stock/db/dao/product_dao.dart';
 import 'package:rufino_app/src/stock/db/stock_db.dart';
 import 'package:rufino_app/src/stock/model/stock_order_item_model.dart';
-import 'package:uuid/uuid.dart';
+import 'package:rufino_app/src/stock/services/product_service.dart';
+import 'package:rufino_app/src/stock/services/product_transaction_service.dart';
+import 'package:rufino_app/src/stock/services/worker_service.dart';
+import 'package:rufino_app/src/stock/utils/stock_constants.dart';
 
 class StockHomePage extends StatelessWidget {
   final searchController = TextEditingController();
   final bloc = Modular.get<StockHomeBloc>();
-  final productDao = Modular.get<ProductDao>();
+  final productService = Modular.get<ProductService>();
+  final workerService = Modular.get<WorkerService>();
+  final productTransaction = Modular.get<ProductTransactionService>();
   StockHomePage({
     Key? key,
   }) : super(key: key);
@@ -37,13 +40,16 @@ class StockHomePage extends StatelessWidget {
                 case 1:
                   Modular.to.navigate('/stock/history');
                   break;
+                case 2:
+                  productService
+                      .syncProductWithServer(DateTime.parse(kDateDefault));
+                  workerService
+                      .syncWorkerWithServer(DateTime.parse(kDateDefault));
+                  productTransaction.sendTransactionsToServer();
               }
             },
             itemBuilder: (BuildContext context) {
-              var listString = [
-                'Devolução',
-                'Historico',
-              ];
+              var listString = ['Devolução', 'Historico', 'Sincronizar'];
               List<PopupMenuEntry> list = [];
               for (int i = 0; i < listString.length; i++) {
                 list.add(
@@ -89,7 +95,7 @@ class StockHomePage extends StatelessWidget {
               builder: (context, state) {
                 return StreamBuilder<List<Product>>(
                   initialData: const [],
-                  stream: productDao.getFiltered(state.search),
+                  stream: productService.getAll(state.search),
                   builder: (context, snapshot) {
                     if (snapshot.hasData) {
                       var data = snapshot.data;
