@@ -3,6 +3,7 @@ import 'package:rufino_app/src/home/page/home_page.dart';
 import 'package:rufino_app/src/login/pages/bloc/login_bloc.dart';
 import 'package:rufino_app/src/login/pages/login_page.dart';
 import 'package:rufino_app/src/stock/Module/stock_module.dart';
+import 'package:rufino_app/src/stock_management/module/stock_management_module.dart';
 
 class AppModule extends Module {
   @override
@@ -15,5 +16,6 @@ class AppModule extends Module {
         ChildRoute("/", child: (context, args) => LoginPage()),
         ChildRoute("/home", child: (context, args) => HomePage()),
         ModuleRoute("/stock", module: StockModule()),
+        ModuleRoute("/stockManagement", module: StockManagementModule()),
       ];
 }

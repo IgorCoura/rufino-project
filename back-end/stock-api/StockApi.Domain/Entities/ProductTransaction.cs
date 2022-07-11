@@ -1,4 +1,5 @@
-﻿using System;
+﻿using StockApi.Domain.SeedWork;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -6,7 +7,7 @@ using System.Threading.Tasks;
 
 namespace StockApi.Domain.Entities
 {
-    public class ProductTransaction
+    public class ProductTransaction: Entity
     {
         public ProductTransaction(DateTime date, int quantityVariation)
         {
@@ -14,9 +15,8 @@ namespace StockApi.Domain.Entities
             QuantityVariation = quantityVariation;
         }
 
-        public ProductTransaction(Guid id, Guid deviceId, Guid productId, Guid responsibleId, Guid takerId, DateTime date, int quantityVariation)
+        public ProductTransaction(Guid id, Guid deviceId, Guid productId, Guid responsibleId, Guid takerId, DateTime date, int quantityVariation): base(id)
         {
-            Id = id;
             DeviceId = deviceId;
             ProductId = productId;
             ResponsibleId = responsibleId;
@@ -25,7 +25,6 @@ namespace StockApi.Domain.Entities
             QuantityVariation = quantityVariation;
         }
 
-        public Guid Id { get; private set; }
         public Guid DeviceId { get; private set; }
         public Product? Product { get; private set; }
         public Guid ProductId { get; private set; }

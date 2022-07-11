@@ -16,7 +16,7 @@ class ProductRepository {
       } else {
         throw Exception(response.statusMessage);
       }
-    } catch (e) {
+    } on DioError {
       rethrow;
     }
   }

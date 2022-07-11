@@ -30,7 +30,7 @@ class StockHomeState extends Equatable {
 }
 
 class StockHomeInitial extends StockHomeState {
-  StockHomeInitial({
+  const StockHomeInitial({
     required String search,
     required List<StockOrderItemModel> items,
   }) : super(search: search, items: items);

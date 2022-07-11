@@ -1,5 +1,4 @@
 import 'package:connectivity_plus/connectivity_plus.dart';
-import 'package:flutter_modular/flutter_modular.dart';
 import 'package:rufino_app/src/stock/db/dao/product_transaction_dao.dart';
 import 'package:rufino_app/src/stock/db/stock_db.dart';
 import 'package:rufino_app/src/stock/model/stock_order_item_model.dart';
@@ -15,7 +14,7 @@ class ProductTransactionService {
 
   Future<void> insertTransaction(List<StockOrderItemModel> items,
       String idResponsible, String idTaker, bool withdrawl) async {
-    var date = DateTime.now();
+    var date = DateTime.now().toUtc();
     var itemsTransaction = items.map((e) => ProductTransaction(
         id: const Uuid().v4(),
         idProduct: e.idProduct,
@@ -33,9 +32,13 @@ class ProductTransactionService {
     if (connectivityResult == ConnectivityResult.ethernet ||
         connectivityResult == ConnectivityResult.wifi) {
       var items = await _productTransactionDao.getTransactionsWithNotServerId();
-      var returnTransactions =
-          await _productTransactionRepository.postTransactions(items);
-      _productTransactionDao.updateOrAdd(returnTransactions);
+      try {
+        var returnTransactions =
+            await _productTransactionRepository.postTransactions(items);
+        _productTransactionDao.updateOrAdd(returnTransactions);
+      } catch (e) {
+        //TODO: Criar um log para erros de server;
+      }
     }
   }
 }

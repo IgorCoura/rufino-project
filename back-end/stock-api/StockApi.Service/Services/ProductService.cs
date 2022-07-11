@@ -21,5 +21,10 @@ namespace StockApi.Service.Services
         {
             return _repositoryProduct.GetAll(p => p.ModificationDate > modificationDate);
         }
+
+        public IEnumerable<Product> RecoverAll()
+        {
+            return _repositoryProduct.GetAll(p => true);
+        }
     }
 }

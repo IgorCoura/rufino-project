@@ -27,8 +27,12 @@ namespace StockApi.Service.Services
             var resps = new List<ProductTransaction>();
             foreach (var transaction in orderTransactions)
             {
-                if (_repositoryTransaction.Get(t => t.DeviceId == transaction.DeviceId) is not null)
+                var trasactionExist = _repositoryTransaction.Get(t => t.DeviceId == transaction.DeviceId);
+                if (trasactionExist is not null)
+                {
+                   resps.Add(trasactionExist);
                     continue;
+                }   
                 var entity = new ProductTransaction(Guid.NewGuid(),transaction.DeviceId, transaction.ProductId, transaction.ResponsibleId, transaction.TakerId, transaction.Date, transaction.QuantityVariation);
                 await  ChangeProduct(entity);
                 var resp = _repositoryTransaction.Save(entity);

@@ -10,5 +10,6 @@ namespace StockApi.Domain.Interfaces
     public interface IServiceProduct
     {
         public IEnumerable<Product> RecoverAll(DateTime modificationDate);
+        public IEnumerable<Product> RecoverAll();
     }
 }

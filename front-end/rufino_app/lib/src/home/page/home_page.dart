@@ -21,7 +21,14 @@ class HomePage extends StatelessWidget {
         icon: Icons.add_shopping_cart,
         onTap: () {
           Modular.to.navigate("/stock/");
-        })
+        }),
+    CardModel(
+        id: 4,
+        title: "Gerenciament de Estoque",
+        icon: Icons.manage_accounts_outlined,
+        onTap: () {
+          Modular.to.navigate("/stockManagement/");
+        }),
   ];
 
   @override

@@ -1,17 +1,17 @@
 {
   "format": 1,
   "restore": {
-    "C:\\Users\\IGOR-NOT\\Desktop\\CodigosSSD\\rufino-project\\back-end\\stock-api\\StockApi.Infra.Data\\StockApi.Infra.Data.csproj": {}
+    "C:\\Users\\IGOR-NOT\\Desktop\\Codigos\\CodigosSSD\\rufino-project\\back-end\\stock-api\\StockApi.Infra.Data\\StockApi.Infra.Data.csproj": {}
   },
   "projects": {
-    "C:\\Users\\IGOR-NOT\\Desktop\\CodigosSSD\\rufino-project\\back-end\\stock-api\\StockApi.Domain\\StockApi.Domain.csproj": {
+    "C:\\Users\\IGOR-NOT\\Desktop\\Codigos\\CodigosSSD\\rufino-project\\back-end\\stock-api\\StockApi.Domain\\StockApi.Domain.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "C:\\Users\\IGOR-NOT\\Desktop\\CodigosSSD\\rufino-project\\back-end\\stock-api\\StockApi.Domain\\StockApi.Domain.csproj",
+        "projectUniqueName": "C:\\Users\\IGOR-NOT\\Desktop\\Codigos\\CodigosSSD\\rufino-project\\back-end\\stock-api\\StockApi.Domain\\StockApi.Domain.csproj",
         "projectName": "StockApi.Domain",
-        "projectPath": "C:\\Users\\IGOR-NOT\\Desktop\\CodigosSSD\\rufino-project\\back-end\\stock-api\\StockApi.Domain\\StockApi.Domain.csproj",
+        "projectPath": "C:\\Users\\IGOR-NOT\\Desktop\\Codigos\\CodigosSSD\\rufino-project\\back-end\\stock-api\\StockApi.Domain\\StockApi.Domain.csproj",
         "packagesPath": "C:\\Users\\IGOR-NOT\\.nuget\\packages\\",
-        "outputPath": "C:\\Users\\IGOR-NOT\\Desktop\\CodigosSSD\\rufino-project\\back-end\\stock-api\\StockApi.Domain\\obj\\",
+        "outputPath": "C:\\Users\\IGOR-NOT\\Desktop\\Codigos\\CodigosSSD\\rufino-project\\back-end\\stock-api\\StockApi.Domain\\obj\\",
         "projectStyle": "PackageReference",
         "fallbackFolders": [
           "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
@@ -58,18 +58,18 @@
               "privateAssets": "all"
             }
           },
-          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\6.0.101\\RuntimeIdentifierGraph.json"
+          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\6.0.301\\RuntimeIdentifierGraph.json"
         }
       }
     },
-    "C:\\Users\\IGOR-NOT\\Desktop\\CodigosSSD\\rufino-project\\back-end\\stock-api\\StockApi.Infra.Data\\StockApi.Infra.Data.csproj": {
+    "C:\\Users\\IGOR-NOT\\Desktop\\Codigos\\CodigosSSD\\rufino-project\\back-end\\stock-api\\StockApi.Infra.Data\\StockApi.Infra.Data.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "C:\\Users\\IGOR-NOT\\Desktop\\CodigosSSD\\rufino-project\\back-end\\stock-api\\StockApi.Infra.Data\\StockApi.Infra.Data.csproj",
+        "projectUniqueName": "C:\\Users\\IGOR-NOT\\Desktop\\Codigos\\CodigosSSD\\rufino-project\\back-end\\stock-api\\StockApi.Infra.Data\\StockApi.Infra.Data.csproj",
         "projectName": "StockApi.Infra.Data",
-        "projectPath": "C:\\Users\\IGOR-NOT\\Desktop\\CodigosSSD\\rufino-project\\back-end\\stock-api\\StockApi.Infra.Data\\StockApi.Infra.Data.csproj",
+        "projectPath": "C:\\Users\\IGOR-NOT\\Desktop\\Codigos\\CodigosSSD\\rufino-project\\back-end\\stock-api\\StockApi.Infra.Data\\StockApi.Infra.Data.csproj",
         "packagesPath": "C:\\Users\\IGOR-NOT\\.nuget\\packages\\",
-        "outputPath": "C:\\Users\\IGOR-NOT\\Desktop\\CodigosSSD\\rufino-project\\back-end\\stock-api\\StockApi.Infra.Data\\obj\\",
+        "outputPath": "C:\\Users\\IGOR-NOT\\Desktop\\Codigos\\CodigosSSD\\rufino-project\\back-end\\stock-api\\StockApi.Infra.Data\\obj\\",
         "projectStyle": "PackageReference",
         "fallbackFolders": [
           "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
@@ -90,8 +90,8 @@
           "net6.0": {
             "targetAlias": "net6.0",
             "projectReferences": {
-              "C:\\Users\\IGOR-NOT\\Desktop\\CodigosSSD\\rufino-project\\back-end\\stock-api\\StockApi.Domain\\StockApi.Domain.csproj": {
-                "projectPath": "C:\\Users\\IGOR-NOT\\Desktop\\CodigosSSD\\rufino-project\\back-end\\stock-api\\StockApi.Domain\\StockApi.Domain.csproj"
+              "C:\\Users\\IGOR-NOT\\Desktop\\Codigos\\CodigosSSD\\rufino-project\\back-end\\stock-api\\StockApi.Domain\\StockApi.Domain.csproj": {
+                "projectPath": "C:\\Users\\IGOR-NOT\\Desktop\\Codigos\\CodigosSSD\\rufino-project\\back-end\\stock-api\\StockApi.Domain\\StockApi.Domain.csproj"
               }
             }
           }
@@ -146,7 +146,7 @@
               "privateAssets": "all"
             }
           },
-          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\6.0.101\\RuntimeIdentifierGraph.json"
+          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\6.0.301\\RuntimeIdentifierGraph.json"
         }
       }
     }
