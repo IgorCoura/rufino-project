@@ -2,9 +2,9 @@
 {
     public abstract class Entity
     {
-        int _Id;
+        Guid _Id;
 
-        public virtual int Id
+        public virtual Guid Id
         {
             get
             {
@@ -16,6 +16,10 @@
             }
         }
 
-
+        protected Entity(Guid id)
+        {
+            Id = id;
+        }
+        protected Entity() { }
     }
 }

@@ -29,5 +29,19 @@ namespace StockApi.Controllers
                 return BadRequest(e.Message);
             }
         }
+
+        [HttpGet]
+        public IActionResult GetAll()
+        {
+            try
+            {
+                var objs = _serviceProduct.RecoverAll();
+                return Ok(objs);
+            }
+            catch (DomainException e)
+            {
+                return BadRequest(e.Message);
+            }
+        }
     }
 }

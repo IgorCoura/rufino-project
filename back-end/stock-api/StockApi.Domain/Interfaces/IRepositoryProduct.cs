@@ -10,5 +10,6 @@ namespace StockApi.Domain.Interfaces
         public Product Remove(Product obj);   
         public Task<Product> GetByIdAsync(Guid id);
         public IEnumerable<Product> GetAll(Func<Product, bool> predicate);
+        
     }
 }

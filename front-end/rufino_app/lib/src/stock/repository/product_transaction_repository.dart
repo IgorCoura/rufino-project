@@ -1,10 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
-
 import 'package:dio/dio.dart';
-import 'package:drift/drift.dart';
 import 'package:rufino_app/src/stock/db/stock_db.dart';
-import 'package:rufino_app/src/stock/model/stock_order_item_model.dart';
 import 'package:rufino_app/src/stock/utils/stock_constants.dart';
 
 class ProductTransactionRepository {
@@ -45,7 +42,7 @@ class ProductTransactionRepository {
                 quantityVariation: e["quantityVariation"],
               ))
           .toList();
-    } catch (e) {
+    } on DioError {
       rethrow;
     }
   }

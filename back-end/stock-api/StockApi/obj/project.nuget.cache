@@ -1,8 +1,8 @@
 {
   "version": 2,
-  "dgSpecHash": "Qh1+V9kEeeM+/X40E3/1naxwRTPTj2JPivGbC6fx4z4Gb1sIrS6eGo/AkNE41//oZSWRQqCjT6pg37cHFu9+PA==",
+  "dgSpecHash": "GLUuayOjZvPhulEjbo82DWsruZWjgNU0ShWW2jlWnEs3LDuMr63Ab+1KGObToxVZpZGA+QDmbUeF1EibsFTAfw==",
   "success": true,
-  "projectFilePath": "C:\\Users\\IGOR-NOT\\Desktop\\CodigosSSD\\rufino-project\\back-end\\stock-api\\StockApi\\StockApi.csproj",
+  "projectFilePath": "C:\\Users\\IGOR-NOT\\Desktop\\Codigos\\CodigosSSD\\rufino-project\\back-end\\stock-api\\StockApi\\StockApi.csproj",
   "expectedPackageFiles": [
     "C:\\Users\\IGOR-NOT\\.nuget\\packages\\humanizer.core\\2.8.26\\humanizer.core.2.8.26.nupkg.sha512",
     "C:\\Users\\IGOR-NOT\\.nuget\\packages\\microsoft.entityframeworkcore\\6.0.2\\microsoft.entityframeworkcore.6.0.2.nupkg.sha512",

@@ -12,20 +12,26 @@ class ProductService {
   ProductService(this._productRepository, this._productDao);
 
   Stream<List<Product>> getAll(String searchString) async* {
-    var sharedPreferences = await SharedPreferences.getInstance();
-    var date = sharedPreferences.getString("productDate") ?? kDateDefault;
-    syncProductWithServer(DateTime.parse(date));
-    sharedPreferences.setString(
-        "productDate", DateTime.now().toUtc().toString());
+    syncProductWithServer();
     yield* _productDao.getAll(searchString);
   }
 
-  void syncProductWithServer(DateTime modificationDate) async {
+  void syncProductWithServer([DateTime? modificationDate]) async {
+    var sharedPreferences = await SharedPreferences.getInstance();
+    modificationDate ??= DateTime.parse(
+        sharedPreferences.getString("productModificationDate") ?? kDateDefault);
     var connectivityResult = await (Connectivity().checkConnectivity());
     if (connectivityResult == ConnectivityResult.ethernet ||
         connectivityResult == ConnectivityResult.wifi) {
-      var products = await _productRepository.getAllProducts(modificationDate);
-      _productDao.updateOrAdd(products);
+      try {
+        var products =
+            await _productRepository.getAllProducts(modificationDate);
+        _productDao.updateOrAdd(products);
+        sharedPreferences.setString(
+            "productModificationDate", DateTime.now().toUtc().toString());
+      } catch (e) {
+        //TODO: Criar um log para erros de server;
+      }
     }
   }
 }

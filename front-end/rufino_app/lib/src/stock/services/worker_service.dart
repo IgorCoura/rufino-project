@@ -12,21 +12,25 @@ class WorkerService {
   WorkerService(this._workerRepository, this._workerDao);
 
   Future<List<Worker>> getAll() async {
-    var sharedPreferences = await SharedPreferences.getInstance();
-    var date =
-        sharedPreferences.getString("workerModificationDate") ?? kDateDefault;
-    await syncWorkerWithServer(DateTime.parse(date));
-    sharedPreferences.setString(
-        "workerModificationDate", DateTime.now().toUtc().toString());
+    await syncWorkerWithServer();
     return _workerDao.getAll();
   }
 
-  Future<void> syncWorkerWithServer(DateTime modificationDate) async {
+  Future<void> syncWorkerWithServer([DateTime? modificationDate]) async {
+    var sharedPreferences = await SharedPreferences.getInstance();
+    modificationDate ??= DateTime.parse(
+        sharedPreferences.getString("workerModificationDate") ?? kDateDefault);
     var connectivityResult = await (Connectivity().checkConnectivity());
     if (connectivityResult == ConnectivityResult.ethernet ||
         connectivityResult == ConnectivityResult.wifi) {
-      var worker = await _workerRepository.getAllWorkers(modificationDate);
-      _workerDao.updateOrAdd(worker);
+      try {
+        var worker = await _workerRepository.getAllWorkers(modificationDate);
+        _workerDao.updateOrAdd(worker);
+        sharedPreferences.setString(
+            "workerModificationDate", DateTime.now().toUtc().toString());
+      } catch (e) {
+        //TODO: Criar um log para erros de server;
+      }
     }
   }
 }

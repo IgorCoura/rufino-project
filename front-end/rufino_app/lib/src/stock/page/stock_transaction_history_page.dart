@@ -6,7 +6,7 @@ import 'package:rufino_app/src/stock/db/stock_db.dart';
 
 class StockTransactionHistoryPage extends StatelessWidget {
   StockTransactionHistoryPage({Key? key}) : super(key: key);
-  var productTransactionDao = Modular.get<ProductTransactionDao>();
+  final productTransactionDao = Modular.get<ProductTransactionDao>();
 
   @override
   Widget build(BuildContext context) {

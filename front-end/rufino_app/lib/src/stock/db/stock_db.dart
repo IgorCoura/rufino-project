@@ -4,8 +4,6 @@ import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as p;
 import 'dart:io';
 
-import 'package:uuid/uuid.dart';
-
 part 'stock_db.g.dart';
 
 @DataClassName("Product")
@@ -53,7 +51,6 @@ class StockDb extends _$StockDb {
   @override
   MigrationStrategy get migration =>
       MigrationStrategy(onCreate: (Migrator m) async {
-        var idGeneration = Uuid().v4();
         await m.createAll();
         if (options == ConnectOptions.dev) {
           //generateDataOnDb();

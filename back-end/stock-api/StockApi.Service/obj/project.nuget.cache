@@ -1,8 +1,8 @@
 {
   "version": 2,
-  "dgSpecHash": "lj5Y/SCfXmz2eArDcCBSti/2t3XJsC7+W8TUrM7xaAPc9j71GmQrnfK1YJyb57wClU8pAUUMBEM6BSCs/VlHeQ==",
+  "dgSpecHash": "bFq8VzTE82HY3nG11wNbUZh5oG8Cn/jbhZscsPZJ0nXacwrgsYqkWw+MWAHtpvPmxJgH4ig043C9BVWoEfqdJA==",
   "success": true,
-  "projectFilePath": "C:\\Users\\IGOR-NOT\\Desktop\\CodigosSSD\\rufino-project\\back-end\\stock-api\\StockApi.Service\\StockApi.Service.csproj",
+  "projectFilePath": "C:\\Users\\IGOR-NOT\\Desktop\\Codigos\\CodigosSSD\\rufino-project\\back-end\\stock-api\\StockApi.Service\\StockApi.Service.csproj",
   "expectedPackageFiles": [
     "C:\\Users\\IGOR-NOT\\.nuget\\packages\\microsoft.entityframeworkcore\\6.0.2\\microsoft.entityframeworkcore.6.0.2.nupkg.sha512",
     "C:\\Users\\IGOR-NOT\\.nuget\\packages\\microsoft.entityframeworkcore.abstractions\\6.0.2\\microsoft.entityframeworkcore.abstractions.6.0.2.nupkg.sha512",

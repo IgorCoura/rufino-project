@@ -10,7 +10,7 @@ class StockHomeBloc extends Bloc<StockHomeEvent, StockHomeState> {
   final ProductTransactionService service;
 
   StockHomeBloc(this.service)
-      : super(StockHomeInitial(search: "", items: const [])) {
+      : super(const StockHomeInitial(search: "", items: [])) {
     on<SearchEvent>(_search);
     on<AddItemEvent>(_addItem);
     on<ReturnInitialEvent>(_returnInitial);

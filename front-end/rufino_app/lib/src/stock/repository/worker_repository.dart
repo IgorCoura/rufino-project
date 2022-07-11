@@ -16,7 +16,7 @@ class WorkerRepository {
       } else {
         throw Exception(response.statusMessage);
       }
-    } catch (e) {
+    } on DioError {
       rethrow;
     }
   }
