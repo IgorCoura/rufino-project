@@ -11,8 +11,11 @@ namespace BuildManagement.Domain.Entities
     {
         public string Name { get; set; } = string.Empty;
         public string Description { get; set; } = string.Empty;
-        public IEnumerable<MaterialItem>? Material { get; set; }
-        //TODO: Add sistema de status
-        public int Status { get; set; }
+        public Construction? Construction { get; set; }
+        public Guid ConstructionId { get; set; }
+        public IEnumerable<MaterialItem> Material { get; set; } = new List<MaterialItem>();
+        public IEnumerable<WorkersBond> WorkersBonds { get; set; } = new List<WorkersBond>();
+        public DateTime? InitJob { get; set; }
+        public DateTime? EndJob { get; set; }
     }
 }

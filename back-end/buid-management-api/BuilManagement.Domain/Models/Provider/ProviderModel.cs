@@ -1,18 +1,18 @@
-﻿using BuildManagement.Domain.SeedWork;
+﻿using BuildManagement.Domain.Models.Base;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace BuildManagement.Domain.Entities
+namespace BuildManagement.Domain.Models.Provider
 {
-    public class Material : Entity
+    public class ProviderModel
     {
+
         public string Name { get; set; } = string.Empty;
         public string Description { get; set; } = string.Empty;
-        public string Unity { get; set; } = string.Empty;
-        public Decimal WorkHours { get; set; }
-
+        public string Cpf { get; set; } = string.Empty;
+        public AddressModel? AddressModel { get; set; }
     }
 }

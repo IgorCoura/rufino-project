@@ -7,12 +7,11 @@ using System.Threading.Tasks;
 
 namespace BuildManagement.Domain.Entities
 {
-    public class Material : Entity
+    public class Provider : Entity
     {
         public string Name { get; set; } = string.Empty;
         public string Description { get; set; } = string.Empty;
-        public string Unity { get; set; } = string.Empty;
-        public Decimal WorkHours { get; set; }
-
+        public string Cpf { get; set; } = string.Empty;
+        public Address? Address { get; set; }
     }
 }
