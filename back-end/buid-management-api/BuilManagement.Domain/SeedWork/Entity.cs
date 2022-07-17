@@ -9,8 +9,8 @@ namespace BuildManagement.Domain.SeedWork
     public abstract class Entity
     {
         private Guid _Id;
-        public DateTime CreateAt { get;}
-        public DateTime UpdateAt { get;}
+        public DateTime CreateAt { get; set; }
+        public DateTime UpdateAt { get; set; }
         public virtual Guid Id
         {
             get

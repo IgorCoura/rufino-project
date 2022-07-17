@@ -7,11 +7,10 @@ using System.Threading.Tasks;
 
 namespace BuildManagement.Domain.Entities
 {
-    public class Constrution: Entity
+    public class Brand: Entity
     {
-        public string CorporateName { get; set; } = string.Empty;
-        public string NickName { get; set; } = string.Empty;
-        public IEnumerable<Job>? Jobs { get; set; }
-
+        public string Name { get; set; } = string.Empty;
+        public string Description { get; set; } = string.Empty;
     }
+
 }
