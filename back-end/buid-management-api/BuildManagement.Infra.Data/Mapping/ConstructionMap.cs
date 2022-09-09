@@ -10,7 +10,7 @@ namespace BuildManagement.Infra.Data.Mapping
 {
     public class ConstructionMap : EntityMap<Construction>
     {
-        public new void Configure(EntityTypeBuilder<Construction> builder)
+        public override void Configure(EntityTypeBuilder<Construction> builder)
         {
             base.Configure(builder);
 
@@ -19,14 +19,32 @@ namespace BuildManagement.Infra.Data.Mapping
                 .IsRequired();
 
             builder.Property(x => x.NickName)
-                .HasMaxLength(200)
+                .HasMaxLength(100)
                 .IsRequired();
 
-            builder.OwnsOne(x => x.Address, x =>
+            builder.OwnsOne(x => x.Address, a =>
             {
-                x.Property<Guid>("ConstructionId");
-                x.WithOwner();
+                a.Property(v => v.Street)
+                .HasMaxLength(100)
+                .IsRequired();
+
+                a.Property(v => v.City)
+                .HasMaxLength(50)
+                .IsRequired();
+
+                a.Property(v => v.State)
+                .HasMaxLength(50)
+                .IsRequired();
+
+                a.Property(v => v.Country)
+                .HasMaxLength(50)
+                .IsRequired();
+
+                a.Property(v => v.ZipCode)
+                .HasMaxLength(16)
+                .IsRequired();
             });
+
 
         }
     }

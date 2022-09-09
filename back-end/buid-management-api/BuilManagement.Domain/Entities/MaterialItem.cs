@@ -10,6 +10,7 @@ namespace BuildManagement.Domain.Entities
     public class MaterialItem : Entity
     {
         public Material? Material { get; set; }
+        public Guid MaterialId { get; set; }
         public int Quantity { get; set; }
         public Decimal Pricing { get; set; }
         public Decimal WorkHours { get; set; }

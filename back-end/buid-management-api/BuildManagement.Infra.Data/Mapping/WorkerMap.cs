@@ -10,11 +10,12 @@ namespace BuildManagement.Infra.Data.Mapping
 {
     public class WorkerMap : EntityMap<Worker>
     {
-        public new void Configure(EntityTypeBuilder<Worker> builder)
+        public override void Configure(EntityTypeBuilder<Worker> builder)
         {
             base.Configure(builder);
 
             builder.Property(x => x.HourlyWage)
+                .HasPrecision(18, 6)
                 .IsRequired();
 
             builder.Property(x => x.Office)

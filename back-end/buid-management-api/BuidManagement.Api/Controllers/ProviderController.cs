@@ -4,8 +4,9 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace BuidManagement.Api.Controllers
 {
-    [Route("api/v1/Provider")]
-    public class ProviderController : ControllerBase
+    [ApiVersion("1.0")]
+    [Route("api/v{version:apiVersion}/Provider")]
+    public class ProviderController : MainController
     {
         private readonly IProviderService _providerService;
 
@@ -17,12 +18,9 @@ namespace BuidManagement.Api.Controllers
         [HttpPost]
         public async Task<ActionResult> Create([FromBody]CreateProviderModel model)
         {
-            if (!ModelState.IsValid)
-            {
-                return BadRequest(ModelState);
-            }
+
             var result = await _providerService.Create(model);
-            return Ok(result);
+            return OkCustomResponse(result);
         }
     }
 }

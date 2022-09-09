@@ -10,7 +10,7 @@ namespace BuildManagement.Infra.Data.Mapping
 {
     public class MaterialItemMap : EntityMap<MaterialItem>
     {
-        public new void Configure(EntityTypeBuilder<MaterialItem> builder)
+        public override void Configure(EntityTypeBuilder<MaterialItem> builder)
         {
             base.Configure(builder);
 
@@ -18,12 +18,18 @@ namespace BuildManagement.Infra.Data.Mapping
                 .IsRequired();
 
             builder.Property(x => x.Pricing)
+                .HasPrecision(18, 6)
                 .IsRequired();
 
             builder.Property(x => x.WorkHours)
+                .HasPrecision(18, 6)
                 .IsRequired();
 
-
+            builder.HasOne(x => x.Material)
+                .WithMany()
+                .HasForeignKey(x => x.MaterialId)
+                .IsRequired()
+                .OnDelete(Microsoft.EntityFrameworkCore.DeleteBehavior.Restrict);
 
         }
     }

@@ -10,7 +10,7 @@ namespace BuildManagement.Infra.Data.Mapping
         {
             builder.HasKey(x => x.Id);
             builder.Property(x => x.CreateAt).IsRequired();
-            builder.Property(x => x.UpdateAt).IsRequired(false);
+            builder.Property(x => x.UpdateAt).IsRequired();
         }
     }
 }

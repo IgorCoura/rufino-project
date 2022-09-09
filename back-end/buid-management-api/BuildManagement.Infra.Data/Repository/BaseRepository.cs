@@ -23,26 +23,25 @@ namespace BuildManagement.Infra.Data.Repository
 
         public IUnitOfWork UnitOfWork => (IUnitOfWork)_context;
 
-        public virtual async Task<T> RegisterAsync(T model, CancellationToken cancellationToken = default(CancellationToken))
+        public virtual async Task<T> RegisterAsync(T model)
         {
-
             var result = _context.Set<T>().Add(model).Entity;
             return await Task.FromResult(result);
         }
 
-        public virtual async Task<T> UpdateAsync(T model, CancellationToken cancellationToken = default(CancellationToken))
+        public virtual async Task<T> UpdateAsync(T model)
         {
-            var result = _context.Set<T>().Update(model).Entity;
-            return await Task.FromResult(result);
+            _context.Entry<T>(model).State = EntityState.Modified;
+            return await Task.FromResult(model);
         }
 
-        public virtual Task DeleteAsync(T model, CancellationToken cancellationToken = default(CancellationToken))
+        public virtual Task DeleteAsync(T model)
         {
             _context.Set<T>().Remove(model);
             return Task.CompletedTask;
         }
 
-        public async Task<T?> FirstAsync(Expression<Func<T, bool>> filter, Func<IQueryable<T>, IIncludableQueryable<T, object>>? include = null, CancellationToken cancellationToken = default(CancellationToken))
+        public async Task<T?> FirstAsync(Expression<Func<T, bool>> filter, Func<IQueryable<T>, IIncludableQueryable<T, object>>? include = null)
         {
             var query = _context.Set<T>().AsQueryable();
             if (include != null)
@@ -51,7 +50,7 @@ namespace BuildManagement.Infra.Data.Repository
             return await query.FirstOrDefaultAsync(filter);
         }
 
-        public async Task<T?> FirstAsyncAsTracking(Expression<Func<T, bool>> filter, Func<IQueryable<T>, IIncludableQueryable<T, object>>? include = null, CancellationToken cancellationToken = default(CancellationToken))
+        public async Task<T?> FirstAsyncAsTracking(Expression<Func<T, bool>> filter, Func<IQueryable<T>, IIncludableQueryable<T, object>>? include = null)
         {
             var query = _context.Set<T>().AsQueryable();
             if (include != null)
@@ -60,7 +59,7 @@ namespace BuildManagement.Infra.Data.Repository
             return await query.AsTracking().FirstOrDefaultAsync(filter);
         }
 
-        public async Task<IEnumerable<T>> GetDataAsync(Expression<Func<T, bool>>? filter = null, Func<IQueryable<T>, IIncludableQueryable<T, object>>? include = null, int? skip = null, int? take = null, CancellationToken cancellationToken = default(CancellationToken))
+        public async Task<IEnumerable<T>> GetDataAsync(Expression<Func<T, bool>>? filter = null, Func<IQueryable<T>, IIncludableQueryable<T, object>>? include = null, int? skip = null, int? take = null)
         {
             var query = _context.Set<T>().AsQueryable();
             if (filter != null)
@@ -78,7 +77,7 @@ namespace BuildManagement.Infra.Data.Repository
             return await query.ToListAsync();
         }
 
-        public TResult QueryData<TResult>(Func<IQueryable<T>, TResult> queryParm, Expression<Func<T, bool>>? filter = null, CancellationToken cancellationToken = default(CancellationToken))
+        public TResult QueryData<TResult>(Func<IQueryable<T>, TResult> queryParm, Expression<Func<T, bool>>? filter = null)
         {
             var query = _context.Set<T>().AsQueryable<T>();
             if (filter != null)
@@ -88,9 +87,9 @@ namespace BuildManagement.Infra.Data.Repository
             return result;
         }
 
-        public async Task<bool> HasAnyAsync(Expression<Func<T, bool>> filter, CancellationToken cancellationToken = default(CancellationToken))
+        public async Task<bool> HasAnyAsync(Expression<Func<T, bool>> filter)
         {
-            var result = await _context.Set<T>().AnyAsync(filter, cancellationToken);
+            var result = await _context.Set<T>().AnyAsync(filter);
             return result;
         }
     }
