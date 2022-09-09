@@ -10,7 +10,7 @@ namespace BuildManagement.Infra.Data.Mapping
 {
     public class JobMap : EntityMap<Job>
     {
-        public new void Configure(EntityTypeBuilder<Job> builder)
+        public override void Configure(EntityTypeBuilder<Job> builder)
         {
             base.Configure(builder);
 
@@ -28,7 +28,12 @@ namespace BuildManagement.Infra.Data.Mapping
             builder.Property(x => x.EndJob)
                 .IsRequired(false);
 
-
+            builder
+                .HasOne(x => x.Construction)
+                .WithMany()
+                .HasForeignKey(x => x.ConstructionId)
+                .IsRequired()
+                .OnDelete(Microsoft.EntityFrameworkCore.DeleteBehavior.Restrict);
         }
 
     }

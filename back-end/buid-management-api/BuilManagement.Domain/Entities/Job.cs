@@ -13,8 +13,8 @@ namespace BuildManagement.Domain.Entities
         public string Description { get; set; } = string.Empty;
         public Construction? Construction { get; set; }
         public Guid ConstructionId { get; set; }
-        public IEnumerable<MaterialItem> Material { get; set; } = new List<MaterialItem>();
-        public IEnumerable<WorkersBond> WorkersBonds { get; set; } = new List<WorkersBond>();
+        public List<MaterialItem> Material { get; set; } = new List<MaterialItem>();
+        public List<WorkersBond> WorkersBonds { get; set; } = new List<WorkersBond>();
         public DateTime? InitJob { get; set; }
         public DateTime? EndJob { get; set; }
     }

@@ -10,7 +10,7 @@ namespace BuildManagement.Infra.Data.Mapping
 {
     public class ProviderMap : EntityMap<Provider>
     {
-        public new void Configure(EntityTypeBuilder<Provider> builder)
+        public override void Configure(EntityTypeBuilder<Provider> builder)
         {
             base.Configure(builder);
 
@@ -22,15 +22,45 @@ namespace BuildManagement.Infra.Data.Mapping
                 .HasMaxLength(500)
                 .IsRequired();
 
-            builder.Property(x => x.Cpf)
-                .HasMaxLength(14)
+            builder.Property(x => x.Cnpj)
+                .HasMaxLength(18)
                 .IsRequired();
 
-            builder.OwnsOne(x => x.Address, x =>
+            builder.Property(x => x.Email)
+                .HasMaxLength(100)
+                .IsRequired(false);
+
+            builder.Property(x => x.Site)
+                .HasMaxLength(100)
+                .IsRequired(false);
+
+            builder.Property(x => x.Phone)
+                .HasMaxLength(20);
+
+
+            builder.OwnsOne(x => x.Address, a =>
             {
-                x.Property<Guid>("ProviderId");
-                x.WithOwner();
+                a.Property(v => v.Street)
+                .HasMaxLength(100)
+                .IsRequired();
+
+                a.Property(v => v.City)
+                .HasMaxLength(50)
+                .IsRequired();
+
+                a.Property(v => v.State)
+                .HasMaxLength(50)
+                .IsRequired();
+
+                a.Property(v => v.Country)
+                .HasMaxLength(50)
+                .IsRequired();
+
+                a.Property(v => v.ZipCode)
+                .HasMaxLength(16)
+                .IsRequired();
             });
+
         }
     }
 }

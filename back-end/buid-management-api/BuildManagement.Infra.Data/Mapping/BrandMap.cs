@@ -10,12 +10,12 @@ namespace BuildManagement.Infra.Data.Mapping
 {
     public class BrandMap : EntityMap<Brand>
     {
-        public new void Configure(EntityTypeBuilder<Brand> builder)
+        public override void Configure(EntityTypeBuilder<Brand> builder)
         {
             base.Configure(builder);
 
             builder.Property(x => x.Name)
-                .HasMaxLength(200)
+                .HasMaxLength(50)
                 .IsRequired();
 
             builder.Property(x => x.Description)

@@ -10,7 +10,7 @@ namespace BuildManagement.Infra.Data.Mapping
 {
     internal class WorkersBondMap : EntityMap<WorkersBond>
     {
-        public new void Configure(EntityTypeBuilder<WorkersBond> builder)
+        public override void Configure(EntityTypeBuilder<WorkersBond> builder)
         {
             base.Configure(builder);
 
@@ -18,8 +18,19 @@ namespace BuildManagement.Infra.Data.Mapping
                 .IsRequired();
 
             builder.Property(x => x.EndBond)
-                .IsRequired();
+                .IsRequired(false);
 
+            builder.HasOne(x => x.Worker)
+                .WithMany()
+                .HasForeignKey(x => x.WorkerId)
+                .IsRequired()
+                .OnDelete(Microsoft.EntityFrameworkCore.DeleteBehavior.Restrict);
+
+            builder.HasOne(x => x.Job)
+                .WithMany(x => x.WorkersBonds)
+                .HasForeignKey(x => x.JobId)
+                .IsRequired()
+                .OnDelete(Microsoft.EntityFrameworkCore.DeleteBehavior.Restrict);   
         }
     }
 }

@@ -10,7 +10,7 @@ namespace BuildManagement.Infra.Data.Mapping
 {
     public class MaterialMap : EntityMap<Material>
     {
-        public new void Configure(EntityTypeBuilder<Material> builder)
+        public override void Configure(EntityTypeBuilder<Material> builder)
         {
             base.Configure(builder);
 
@@ -27,6 +27,7 @@ namespace BuildManagement.Infra.Data.Mapping
                 .IsRequired();
 
             builder.Property(x => x.WorkHours)
+                .HasPrecision(18, 6)
                 .IsRequired();
         }
     }

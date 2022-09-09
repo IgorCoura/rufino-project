@@ -5,15 +5,15 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace BuildManagement.Domain.Entities
+namespace BuildManagement.Domain.Entities.Purchase
 {
-    public class OrderPurchase : Entity
+    public class MaterialPurchase : Entity
     {
         public Provider? Provider { get; set; }
         public Guid ProviderId { get; set; }
         public Construction? Construction { get; set; }
         public Guid ConstructionId { get; set; }
-        public IEnumerable<MaterialPurchase> Material { get; set; } = new List<MaterialPurchase>();
+        public virtual List<ItemMaterialPurchase> Material { get; set; } = new List<ItemMaterialPurchase>();
         public decimal Freight { get; set; }
     }
 }
