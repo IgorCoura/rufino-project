@@ -4,6 +4,7 @@ using BuildManagement.Domain.Exceptions;
 using BuildManagement.Domain.Interfaces.Repository;
 using BuildManagement.Domain.Interfaces.Services;
 using BuildManagement.Domain.Models.Brand;
+using Microsoft.Extensions.DependencyInjection;
 using FluentValidation;
 using System;
 using System.Collections.Generic;
@@ -17,17 +18,17 @@ namespace BuildManagement.Service.Services
     {
         private readonly IBrandRepository _brandRepository;
         private readonly IMapper _mapper;
-        private readonly IValidatorFactory _validatorFactory;
-        public BrandService(IBrandRepository brandRepository, IMapper mapper, IValidatorFactory validatorFactory)
+        private readonly IServiceProvider _serviceProvider;
+        public BrandService(IBrandRepository brandRepository, IMapper mapper, IServiceProvider serviceProvider)
         {
             _brandRepository = brandRepository;
             _mapper = mapper;
-            _validatorFactory = validatorFactory;
+            _serviceProvider = serviceProvider;
         }
 
         public async Task<BrandModel> Create(CreateBrandModel model)
         {
-            var validation = await _validatorFactory.GetValidator<CreateBrandModel>().ValidateAsync(model);
+            var validation = await _serviceProvider.GetRequiredService<IValidator<CreateBrandModel>>().ValidateAsync(model);
             if (!validation.IsValid)
                 throw new BadRequestException(validation.Errors);
 

@@ -5,8 +5,11 @@ using BuildManagement.Infra.Data.Repository;
 using BuildManagement.Service.Services;
 using Microsoft.Extensions.Options;
 using Swashbuckle.AspNetCore.SwaggerGen;
-using FluentValidation.AspNetCore;
 using BuildManagement.Service.Validations;
+using BuildManagement.Domain.Models.Brand;
+using FluentValidation;
+using BuildManagement.Domain.Models.Material;
+using BuildManagement.Domain.Models.Provider;
 
 namespace BuidManagement.Api.Configuration
 {
@@ -36,11 +39,7 @@ namespace BuidManagement.Api.Configuration
             service.AddTransient<IConfigureOptions<SwaggerGenOptions>, ConfigureSwaggerOptions>();
 
             //validations
-            service.AddFluentValidation(fv =>
-            {
-                fv.AutomaticValidationEnabled = false;
-                fv.RegisterValidatorsFromAssemblyContaining<CreateBrandValidator>();
-            });
+            service.AddValidatorsFromAssemblyContaining<CreateBrandValidator>();
 
             return service;
         }

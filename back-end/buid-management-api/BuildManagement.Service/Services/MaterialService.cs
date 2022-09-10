@@ -5,6 +5,7 @@ using BuildManagement.Domain.Interfaces.Repository;
 using BuildManagement.Domain.Interfaces.Services;
 using BuildManagement.Domain.Models.Material;
 using FluentValidation;
+using Microsoft.Extensions.DependencyInjection;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -17,18 +18,18 @@ namespace BuildManagement.Service.Services
     {
         private readonly IMaterialRepository _materialRepository;
         private readonly IMapper _mapper;
-        private readonly IValidatorFactory _validatorFactory;
+        private readonly IServiceProvider _validatorProvider;
 
-        public MaterialService(IMaterialRepository materialRepository, IMapper mapper, IValidatorFactory validatorFactory)
+        public MaterialService(IMaterialRepository materialRepository, IMapper mapper, IServiceProvider validatorProvider)
         {
             _materialRepository = materialRepository;
             _mapper = mapper;
-            _validatorFactory = validatorFactory;
+            _validatorProvider = validatorProvider;
         }
 
         public async Task<MaterialModel> Create(CreateMaterialModel model)
         {
-            var validator = await _validatorFactory.GetValidator<CreateMaterialModel>().ValidateAsync(model);
+            var validator = await _validatorProvider.GetRequiredService<IValidator<CreateMaterialModel>>().ValidateAsync(model);
             if (!validator.IsValid)
                 throw new BadRequestException(validator.Errors);
 

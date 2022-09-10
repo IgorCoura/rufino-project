@@ -20,6 +20,7 @@ builder.Services.AddDbContext<ApplicationContext>(options =>
 builder.Services.AddControllers(
 opts =>
 {
+    opts.SuppressImplicitRequiredAttributeForNonNullableReferenceTypes = true;
     opts.Filters.Add(new ApplicationExceptionFilter());
 });
 
