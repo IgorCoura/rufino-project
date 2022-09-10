@@ -28,7 +28,7 @@ namespace BuildManagement.Infra.Data.Mapping
 
             builder.Property(x => x.Email)
                 .HasMaxLength(100)
-                .IsRequired(false);
+                .IsRequired();
 
             builder.Property(x => x.Site)
                 .HasMaxLength(100)
