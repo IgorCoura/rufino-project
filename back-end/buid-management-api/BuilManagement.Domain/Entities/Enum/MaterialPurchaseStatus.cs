@@ -6,10 +6,12 @@ using System.Threading.Tasks;
 
 namespace BuildManagement.Domain.Entities.Enum
 {
-    public enum MaterialStatus
+    public enum MaterialPurchaseStatus
     {
-        Open,
+        Pending,
         Reproved,
+        PreAuthorized,
+        Authorized,
         Closed
     }
 }

@@ -18,41 +18,12 @@ namespace BuidManagement.Api.Filters
                     Success = false,
                     Errors = exception?.Errors.Select(x => new
                     {
-                        PropertyName = x.PropertyName,
-                        ErrorMessage = x.ErrorMessage
+                        ErrorCode = x.Code,
+                        ErrorMessage = x.Msg
                     })
                 });
             }
 
-            if (context.Exception is NotFoundRequestException)
-            {
-                var exception = context.Exception as NotFoundRequestException;
-                context.HttpContext.Response.StatusCode = (int)HttpStatusCode.NotFound;
-                context.Result = new JsonResult(new
-                {
-                    Success = false,
-                    Errors = exception?.Errors.Select(x => new
-                    {
-                        PropertyName = x.PropertyName,
-                        ErrorMessage = x.ErrorMessage
-                    })
-                });
-            }
-
-            if (context.Exception is NotAuthorizedException)
-            {
-                var exception = context.Exception as NotAuthorizedException;
-                context.HttpContext.Response.StatusCode = (int)HttpStatusCode.Unauthorized;
-                context.Result = new JsonResult(new
-                {
-                    Success = false,
-                    Errors = exception?.Errors.Select(x => new
-                    {
-                        PropertyName = x.PropertyName,
-                        ErrorMessage = x.ErrorMessage
-                    })
-                });
-            }
         }
     }
 }

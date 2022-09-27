@@ -18,6 +18,9 @@ namespace BuildManagement.Infra.Data.Mapping.Purchase
                 .HasPrecision(18, 6)
                 .IsRequired();
 
+            builder.Property(x => x.Status)
+                .IsRequired();
+
             builder.HasOne(x => x.Provider)
                 .WithMany()
                 .HasForeignKey(x => x.ProviderId)
@@ -29,6 +32,8 @@ namespace BuildManagement.Infra.Data.Mapping.Purchase
                 .HasForeignKey(x => x.ConstructionId)
                 .IsRequired()
                 .OnDelete(Microsoft.EntityFrameworkCore.DeleteBehavior.Restrict);
+
+
 
         }
     }
