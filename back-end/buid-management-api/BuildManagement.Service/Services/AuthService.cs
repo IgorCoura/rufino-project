@@ -28,11 +28,11 @@ namespace BuildManagement.Service.Services
         }
         public async Task<string> Login(LoginModel model)
         {
-            var user = await _userRepository.FirstAsync(filter: x => x.UserName == model.UserName) ?? throw new NotFoundRequestException("Username ou senha incorreta.", nameof(model));
+            var user = await _userRepository.FirstAsync(filter: x => x.UserName == model.UserName) ?? throw new BadRequestException(ErrorsMessages.AuthenticationFailed);
 
 
             if (!PasswordHasher.Verify(model.Password, user.Password))
-                throw new BadRequestException("Username ou senha incorreta.", nameof(model));
+                throw new BadRequestException(ErrorsMessages.AuthenticationFailed);
 
             var clains = new List<Claim>()
                 {

@@ -10,5 +10,7 @@ namespace BuildManagement.Domain.Interfaces.Services
     public interface IMaterialPurchaseService
     {
         Task<ReturnCreateMaterialPurchaseModel> Create(CreateMaterialPurchaseModel model);
+        Task PreAuthorization(Guid materialPurchaseId);
+        Task Authorization(Guid materialPurchaseId);
     }
 }

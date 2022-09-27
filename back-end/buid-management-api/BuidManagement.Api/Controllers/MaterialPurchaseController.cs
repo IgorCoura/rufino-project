@@ -21,5 +21,12 @@ namespace BuidManagement.Api.Controllers
             var result = await _orderPurchaseService.Create(model);
             return OkCustomResponse(result);
         }
+
+        [HttpPost("Autorization")]
+        public async Task<ActionResult> Autorization()
+        {
+            await _orderPurchaseService.PreAuthorization(Guid.NewGuid());
+            return Ok();
+        }
     }
 }

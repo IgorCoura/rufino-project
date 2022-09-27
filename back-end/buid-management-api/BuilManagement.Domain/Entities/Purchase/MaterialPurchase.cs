@@ -1,4 +1,5 @@
-﻿using BuildManagement.Domain.SeedWork;
+﻿using BuildManagement.Domain.Entities.Enum;
+using BuildManagement.Domain.SeedWork;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -15,5 +16,6 @@ namespace BuildManagement.Domain.Entities.Purchase
         public Guid ConstructionId { get; set; }
         public virtual List<ItemMaterialPurchase> Material { get; set; } = new List<ItemMaterialPurchase>();
         public decimal Freight { get; set; }
+        public MaterialPurchaseStatus Status { get; set; }
     }
 }
