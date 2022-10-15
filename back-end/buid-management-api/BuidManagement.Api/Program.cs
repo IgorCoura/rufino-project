@@ -2,8 +2,10 @@ using BuidManagement.Api.Configuration;
 using BuidManagement.Api.Filters;
 using BuildManagement.Infra.Data.Context;
 using BuildManagement.Service.Mappers;
+using FluentValidation;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System.Globalization;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -46,6 +48,8 @@ builder.Services.AddVersionedApiExplorer(options =>
 builder.Services.AddAuthConfig(builder.Configuration);
 
 builder.Services.AddAutoMapper(typeof(EntityToModelProfile), typeof(ModelToEntityProfile));
+
+ValidatorOptions.Global.LanguageManager.Culture = new CultureInfo("pt-br");
 
 builder.Services.AddSwaggerConfig();
 

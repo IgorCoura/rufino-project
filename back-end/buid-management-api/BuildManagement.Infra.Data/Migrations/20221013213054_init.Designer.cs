@@ -12,7 +12,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace BuildManagement.Infra.Data.Migrations
 {
     [DbContext(typeof(ApplicationContext))]
-    [Migration("20220908200738_init")]
+    [Migration("20221013213054_init")]
     partial class init
     {
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -210,6 +210,7 @@ namespace BuildManagement.Infra.Data.Migrations
                         .HasColumnType("nvarchar(500)");
 
                     b.Property<string>("Email")
+                        .IsRequired()
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
 
@@ -241,8 +242,7 @@ namespace BuildManagement.Infra.Data.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uniqueidentifier");
 
-                    b.Property<Guid?>("BrandId")
-                        .IsRequired()
+                    b.Property<Guid>("BrandId")
                         .HasColumnType("uniqueidentifier");
 
                     b.Property<DateTime>("CreateAt")
@@ -257,11 +257,13 @@ namespace BuildManagement.Infra.Data.Migrations
                     b.Property<int>("Quantity")
                         .HasColumnType("int");
 
+                    b.Property<int>("QuantityNotReceived")
+                        .HasColumnType("int");
+
                     b.Property<int>("Status")
                         .HasColumnType("int");
 
-                    b.Property<decimal?>("UnitPrice")
-                        .IsRequired()
+                    b.Property<decimal>("UnitPrice")
                         .HasPrecision(18, 6)
                         .HasColumnType("decimal(18,6)");
 
@@ -297,6 +299,9 @@ namespace BuildManagement.Infra.Data.Migrations
 
                     b.Property<Guid>("ProviderId")
                         .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("int");
 
                     b.Property<DateTime>("UpdateAt")
                         .HasColumnType("datetime2");
@@ -536,8 +541,8 @@ namespace BuildManagement.Infra.Data.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
-                    b.HasOne("BuildManagement.Domain.Entities.Purchase.MaterialPurchase", "Purchase")
-                        .WithMany("Material")
+                    b.HasOne("BuildManagement.Domain.Entities.Purchase.MaterialPurchase", "MaterialPurchase")
+                        .WithMany("Materials")
                         .HasForeignKey("MaterialPurchaseId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
@@ -546,7 +551,7 @@ namespace BuildManagement.Infra.Data.Migrations
 
                     b.Navigation("Material");
 
-                    b.Navigation("Purchase");
+                    b.Navigation("MaterialPurchase");
                 });
 
             modelBuilder.Entity("BuildManagement.Domain.Entities.Purchase.MaterialPurchase", b =>
@@ -596,7 +601,7 @@ namespace BuildManagement.Infra.Data.Migrations
 
             modelBuilder.Entity("BuildManagement.Domain.Entities.Purchase.MaterialPurchase", b =>
                 {
-                    b.Navigation("Material");
+                    b.Navigation("Materials");
                 });
 #pragma warning restore 612, 618
         }

@@ -9,13 +9,13 @@ namespace BuildManagement.Domain.Exceptions
     [AttributeUsage(AttributeTargets.Field)]
     public class ApiErrorAttribute : Attribute
     {
-        public ApiErrorAttribute(int errorCode, string errorMsgTemplate)
+        public ApiErrorAttribute(string errorCode, string errorMsgTemplate)
         {
             ErrorCode = errorCode;
             ErrorMsgTemplate = errorMsgTemplate;
         }
 
-        public int ErrorCode { get; }
+        public string ErrorCode { get; }
         public string ErrorMsgTemplate { get; }
 
     }

@@ -10,6 +10,8 @@ namespace BuildManagement.Domain.Entities.Enum
     {
         Open,
         Reproved,
+        NotReceived,
+        Received,
         Closed
     }
 }

@@ -37,7 +37,7 @@ namespace BuildManagement.Infra.Data.Mapping.Purchase
                 .OnDelete(Microsoft.EntityFrameworkCore.DeleteBehavior.Restrict);
 
             builder.HasOne(x => x.MaterialPurchase)
-                .WithMany(x => x.Material)
+                .WithMany(x => x.Materials)
                 .HasForeignKey(x => x.MaterialPurchaseId)
                 .IsRequired()
                 .OnDelete(Microsoft.EntityFrameworkCore.DeleteBehavior.Restrict);
