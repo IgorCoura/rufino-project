@@ -8,24 +8,35 @@ namespace BuildManagement.Domain.Exceptions
     {
         public List<ApiValidationError> Errors { get; set; } = new List<ApiValidationError>();
 
-        public BadRequestException(int erroCode, string errorMessage) 
+        public BadRequestException()
+        {
+        }
+        public BadRequestException(string erroCode, string errorMessage) 
         {
             Errors.Add(new ApiValidationError(erroCode, errorMessage));
         }
 
         public BadRequestException(IEnumerable<ValidationFailure> errorMessage)
         {
-            Errors.AddRange(errorMessage.Select(x => new ApiValidationError(1, x.ErrorMessage)));
-        }
-        public BadRequestException(Enum error)
-        {
-            Errors.Add(GetError(error));
+            Errors.AddRange(errorMessage.Select(x => new ApiValidationError(x.ErrorCode, x.ErrorMessage)));
         }
         public BadRequestException(Enum error, params string[] msgParms) 
         {
             var apiError = GetError(error);
             apiError.Msg = String.Format(apiError.Msg, msgParms);
             Errors.Add(apiError);
+        }
+
+        public void AddError(Enum error, params string[] msgParms)
+        {
+            var apiError = GetError(error);
+            apiError.Msg = String.Format(apiError.Msg, msgParms);
+            Errors.Add(apiError);
+        }
+
+        public bool HasErrors()
+        {
+            return Errors.Count > 0;
         }
 
         private ApiValidationError GetError(Enum error)

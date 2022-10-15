@@ -14,17 +14,17 @@ namespace BuildManagement.Infra.Data.Context
 {
     public class ApplicationContext : DbContext, IUnitOfWork
     {
-        public DbSet<Brand> Brand { get; set; }
-        public DbSet<Construction> Construction { get; set; }
-        public DbSet<Job> Job { get; set; }
-        public DbSet<MaterialItem> MaterialItem { get; set; }
-        public DbSet<Material> Material { get; set; }
-        public DbSet<ItemMaterialPurchase> ItemMaterialPurchase { get; set; }
-        public DbSet<MaterialPurchase> MaterialPurchase { get; set; }
-        public DbSet<Provider> Provider { get; set; }
-        public DbSet<Worker> Worker { get; set; }
-        public DbSet<WorkersBond> WorkersBond { get; set; }
-        public DbSet<User> User { get; set; }
+        public DbSet<Brand>? Brand { get; set; }
+        public DbSet<Construction>? Construction { get; set; }
+        public DbSet<Job>? Job { get; set; }
+        public DbSet<MaterialItem>? MaterialItem { get; set; }
+        public DbSet<Material>? Material { get; set; }
+        public DbSet<ItemMaterialPurchase>? ItemMaterialPurchase { get; set; }
+        public DbSet<MaterialPurchase>? MaterialPurchase { get; set; }
+        public DbSet<Provider>? Provider { get; set; }
+        public DbSet<Worker>? Worker { get; set; }
+        public DbSet<WorkersBond>? WorkersBond { get; set; }
+        public DbSet<User>? User { get; set; }
 
 
         public ApplicationContext(DbContextOptions options) : base(options)

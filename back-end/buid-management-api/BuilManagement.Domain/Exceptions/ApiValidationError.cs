@@ -8,12 +8,12 @@ namespace BuildManagement.Domain.Exceptions
 {
     public class ApiValidationError
     {
-        public ApiValidationError(int code, string msg) { 
+        public ApiValidationError(string code, string msg) { 
             Code = code;
             Msg = msg;
         }
 
-        public int Code { get; set; }
+        public string Code { get; set; }
         public string Msg { get; set; }
     }
 }

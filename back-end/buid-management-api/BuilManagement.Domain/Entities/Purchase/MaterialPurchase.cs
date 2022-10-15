@@ -14,7 +14,7 @@ namespace BuildManagement.Domain.Entities.Purchase
         public Guid ProviderId { get; set; }
         public Construction? Construction { get; set; }
         public Guid ConstructionId { get; set; }
-        public virtual List<ItemMaterialPurchase> Material { get; set; } = new List<ItemMaterialPurchase>();
+        public virtual List<ItemMaterialPurchase> Materials { get; set; } = new List<ItemMaterialPurchase>();
         public decimal Freight { get; set; }
         public MaterialPurchaseStatus Status { get; set; }
     }

@@ -10,6 +10,7 @@ using BuildManagement.Domain.Models.Brand;
 using FluentValidation;
 using BuildManagement.Domain.Models.Material;
 using BuildManagement.Domain.Models.Provider;
+using System.Reflection;
 
 namespace BuidManagement.Api.Configuration
 {
@@ -39,7 +40,7 @@ namespace BuidManagement.Api.Configuration
             service.AddTransient<IConfigureOptions<SwaggerGenOptions>, ConfigureSwaggerOptions>();
 
             //validations
-            service.AddValidatorsFromAssemblyContaining<CreateBrandValidator>();
+            service.AddValidatorsFromAssembly(Assembly.GetAssembly(typeof(AssemblyValidators)));
 
             return service;
         }

@@ -5,7 +5,6 @@ using BuildManagement.Domain.Models.Brand;
 using BuildManagement.Domain.Models.Construction;
 using BuildManagement.Domain.Models.Material;
 using BuildManagement.Domain.Models.Purchase.MaterialPurchase;
-using BuildManagement.Domain.Models.Purchase.ItemMaterialPurchase;
 using BuildManagement.Domain.Models.Provider;
 using BuildManagement.Domain.Models.User;
 using System;
@@ -13,6 +12,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using BuildManagement.Domain.Models.Purchase.CreateMaterialPurchase;
 
 namespace BuildManagement.Service.Mappers
 {
@@ -24,9 +24,18 @@ namespace BuildManagement.Service.Mappers
             CreateMap<CreateMaterialModel, Material>();
             CreateMap<CreateConstructionModel, Construction>();
             CreateMap<CreateBrandModel, Brand>();
-            CreateMap<CreateMaterialPurchaseModel, MaterialPurchase>();
-            CreateMap<CreateItemMaterialPurchaseModel, ItemMaterialPurchase>();
             CreateMap<CreateUserModel, User>();
+
+            #region MaterialPurchase
+
+            #region CreateMaterialPurchase
+
+            CreateMap<CreateMaterialPurchaseRequest, MaterialPurchase>();
+            CreateMap<CreateItemMaterialPurchaseRequest, ItemMaterialPurchase>();
+
+            #endregion
+
+            #endregion
         }
     }
 }

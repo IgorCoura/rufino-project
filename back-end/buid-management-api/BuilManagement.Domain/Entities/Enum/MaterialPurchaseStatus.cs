@@ -12,6 +12,7 @@ namespace BuildManagement.Domain.Entities.Enum
         Reproved,
         PreAuthorized,
         Authorized,
-        Closed
+        PartialReceived,
+        Received
     }
 }

@@ -18,6 +18,7 @@ namespace BuildManagement.Domain.Entities.Purchase
         public Brand? Brand { get; set; }
         public Guid BrandId { get; set; }
         public int Quantity { get; set; }
+        public int QuantityNotReceived { get; set; } = 0;
         public MaterialStatus Status { get; set; } = MaterialStatus.Open;
     }
 }
