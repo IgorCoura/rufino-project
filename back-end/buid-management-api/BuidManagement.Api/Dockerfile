@@ -7,8 +7,6 @@ EXPOSE 443
 
 FROM mcr.microsoft.com/dotnet/sdk:6.0 AS build
 WORKDIR /src
-COPY ["BuidManagement.Api/BuidManagement.Api.csproj", "BuidManagement.Api/"]
-RUN dotnet restore "BuidManagement.Api/BuidManagement.Api.csproj"
 COPY . .
 WORKDIR "/src/BuidManagement.Api"
 RUN dotnet build "BuidManagement.Api.csproj" -c Release -o /app/build
