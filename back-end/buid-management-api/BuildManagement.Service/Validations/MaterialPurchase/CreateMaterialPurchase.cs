@@ -24,11 +24,11 @@ namespace BuildManagement.Service.Validations.MaterialPurchase
 
             RuleFor(x => x.ProviderId)
                 .MustAsync((entity, field, cancellationToken) => providerRepository.HasAnyAsync(x => x.Id == field))
-                .WithErrorMessage(ErrorsMessages.FieldNotFound, (entity, field) => field.ToString());
+                .WithErrorMessage(ErrorsMessages.FieldNotFound, field => field!.ProviderId.ToString());
 
             RuleFor(x => x.ConstructionId)
                 .MustAsync((entity, field, cancellationToken) => constructionRepository.HasAnyAsync(x => x.Id == field))
-                .WithErrorMessage(ErrorsMessages.FieldNotFound, (entity, field) => field.ToString());
+                .WithErrorMessage(ErrorsMessages.FieldNotFound, field => field!.ConstructionId.ToString());
 
             RuleForEach(x => x.Materials)
                 .ChildRules(child =>
@@ -41,11 +41,11 @@ namespace BuildManagement.Service.Validations.MaterialPurchase
 
                     child.RuleFor(i => i.BrandId)
                         .MustAsync((entity, field, cancellationToken) => brandRepository.HasAnyAsync(x => x.Id == field))
-                        .WithErrorMessage(ErrorsMessages.FieldNotFound, (entity, field) => field.ToString()); ;
+                        .WithErrorMessage(ErrorsMessages.FieldNotFound, field => field!.BrandId.ToString()); ;
 
                     child.RuleFor(i => i.MaterialId)
                         .MustAsync((entity, field, cancellationToken) => materialRepository.HasAnyAsync(x => x.Id == field))
-                        .WithErrorMessage(ErrorsMessages.FieldNotFound, (entity, field) => field.ToString());
+                        .WithErrorMessage(ErrorsMessages.FieldNotFound, field => field!.MaterialId.ToString());
                     
                 });
         }
