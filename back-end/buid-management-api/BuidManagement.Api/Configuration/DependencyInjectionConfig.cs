@@ -18,7 +18,8 @@ namespace BuidManagement.Api.Configuration
     {
         public static IServiceCollection ResolveDependencies(this IServiceCollection service, ConfigurationManager configuration)
         {
-            //Repository
+            #region Repositories
+
             service.AddScoped<IProviderRepository, ProviderRepository>();
             service.AddScoped<IMaterialRepository, MaterialRepository>();
             service.AddScoped<IConstructionRepository, ConstructionRepository>();
@@ -27,7 +28,10 @@ namespace BuidManagement.Api.Configuration
             service.AddScoped<IUserRepository, UserRepository>();
             service.AddScoped<IAuthService, AuthService>();
 
-            //Service
+            #endregion
+
+            #region Services
+
             service.AddScoped<IProviderService, ProviderService>();
             service.AddScoped<IMaterialService, MaterialService>();
             service.AddScoped<IConstructionService, ConstructionService>();
@@ -35,12 +39,20 @@ namespace BuidManagement.Api.Configuration
             service.AddScoped<IMaterialPurchaseService, MaterialPurchaseService>();
             service.AddScoped<IUserService, UserService>();
 
-            //Options
+            #endregion
+
+            #region Options
+
             service.Configure<TokenGeneratorOptions>(configuration.GetSection("Jwt"));
             service.AddTransient<IConfigureOptions<SwaggerGenOptions>, ConfigureSwaggerOptions>();
 
-            //validations
+            #endregion
+
+            #region Validators
+
             service.AddValidatorsFromAssembly(Assembly.GetAssembly(typeof(AssemblyValidators)));
+
+            #endregion
 
             return service;
         }
