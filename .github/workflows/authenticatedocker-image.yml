@@ -27,4 +27,4 @@ jobs:
           
       - name: Push Docker image
         run: |  
-          docker push ${{secrets.DOCKER_USER}}/authenticate-api:latest
+          docker push igorcoura/authenticate-api:latest
