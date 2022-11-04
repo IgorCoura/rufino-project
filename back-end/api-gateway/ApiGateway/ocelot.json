@@ -1,0 +1,20 @@
+{
+  "Routes": [
+    {
+      "UpstreamPathTemplate": "/WeatherForecast",
+      "UpstreamHttpMethod": [ "GET" ],
+      "DownstreamScheme": "http",
+      "DownstreamHostAndPorts": [
+        {
+          "Host": "authenticate-api",
+          "Port": 80
+        }
+      ],
+      "DownstreamPathTemplate": "/WeatherForecast"
+
+    }
+  ],
+  "GlobalConfiguration": {
+    "BaseUrl" :  "http://localhost:8001"
+  }
+}

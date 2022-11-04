@@ -1,0 +1,23 @@
+version: "3.7"
+
+services:
+  authenticate-api:
+      container_name: authenticate-api
+      image: ${DOCKER_REGISTRY-}authenticateapi
+      build:
+        context: .
+        dockerfile: authenticate-api/Authenticate.Api/Dockerfile
+      ports:
+        - 4500:80
+      depends_on:
+        - apigateway
+
+  apigateway:
+    container_name: api-gateway
+    image: ${DOCKER_REGISTRY-}apigateway
+    build:
+      context: .
+      dockerfile: api-gateway/ApiGateway/Dockerfile
+    ports:
+      - 8001:80
+    
