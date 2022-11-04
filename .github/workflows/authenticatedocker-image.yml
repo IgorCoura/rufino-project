@@ -21,10 +21,12 @@ jobs:
           password: ${{ secrets.DOCKER_PASSWORD }}
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
+      - run: |
+          cd back-end/authenticate-api/Authenticate.Api
       - name: Build and push
         uses: docker/build-push-action@v3
         with:
-          context: ./back-end/authenticate-api/..
-          file: ./back-end/authenticate-api/Authenticate.Api/Dockerfile
+          context: ..
+          file: Dockerfile
           push: true
           tags: rufino/authenticate:latest
