@@ -27,4 +27,4 @@ jobs:
           context: ./back-end/authenticate-api
           file: ./back-end/authenticate-api/Authenticate.Api/Dockerfile
           push: true
-          tags: ${{ secrets.DOCKER_USERNAME }}/authenticate:latest
+          tags: ${{ secrets.DOCKER_USERNAME }}/authenticate-api:latest
