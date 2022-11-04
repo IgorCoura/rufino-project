@@ -24,5 +24,12 @@ namespace BuidManagement.Api.Controllers
             var token = await _authService.Login(model);
             return OkCustomResponse(token);
         }
+
+        [HttpGet]
+        [AllowAnonymous]
+        public async Task<ActionResult> GetAsync()
+        {
+            return OkCustomResponse("Api build-management esta funcionando");
+        }
     }
 }
