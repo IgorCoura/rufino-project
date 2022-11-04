@@ -27,4 +27,4 @@ jobs:
           
       - name: Push Docker image
         run: |  
-          docker push igorcoura/authenticate-api:latest
+          docker push authenticate-api:latest
