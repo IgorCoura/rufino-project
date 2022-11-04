@@ -24,7 +24,7 @@ jobs:
       - name: Build and push
         uses: docker/build-push-action@v3
         with:
-          context: .
+          context: ./Authenticate.Api
           file: ./back-end/authenticate-api/Authenticate.Api/Dockerfile
           push: true
           tags: ${{ secrets.DOCKER_USERNAME }}/authenticate:latest
