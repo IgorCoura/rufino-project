@@ -27,6 +27,6 @@ jobs:
         uses: docker/build-push-action@v3
         with:
           context: .
-          file: ./Authenticate.Api/Dockerfile
+          file: Dockerfile
           push: true
           tags: rufino/authenticate:latest
