@@ -8,8 +8,8 @@ namespace Authenticate.Api.Controllers
     {
         private static readonly string[] Summaries = new[]
         {
-        "Freezing", "Bracing", "Chilly", "Cool", "Mild", "Warm", "Balmy", "Hot", "Sweltering", "Scorching"
-    };
+        "VaiFunfa", "IssoEMuitoFoda", "MaisEDificielDeFazer", "Coolerr", "Mildermia", "Warminato", "Balmylavar", "Hoteria", "Swelteringuido", "Scorchingidofindo"
+        };
 
         private readonly ILogger<WeatherForecastController> _logger;
 

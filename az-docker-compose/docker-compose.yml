@@ -1,0 +1,16 @@
+version: "3.7"
+
+services:
+  authenticate-api:
+      container_name: authenticate-api
+      image: igorcoura/authenticate-api
+      restart: always
+
+  apigateway:
+    container_name: api-gateway
+    image: igorcoura/api-gateway
+    ports:
+       - "8000:80"
+    restart: always
+    depends_on:
+      - authenticate-api
