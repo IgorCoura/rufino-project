@@ -8,7 +8,7 @@ namespace Authenticate.Api.Controllers
     {
         private static readonly string[] Summaries = new[]
         {
-        "VaiFunfa", "IssoEMuitoFoda", "MaisEDificielDeFazer", "Coolerraaahh", "Mildermia", "Warminato", "Balmylavar", "Hoteria", "Swelteringuido", "Scorchingidofindo"
+        "GrupoTOpDaGalaxias", "IssoEMuitoFoda", "MaisEDificielDeFazer", "Coolerraaahh", "Mildermia", "Warminato", "Balmylavar", "Hoteria", "Swelteringuido", "Scorchingidofindo"
         };
 
         private readonly ILogger<WeatherForecastController> _logger;
