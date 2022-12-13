@@ -1,23 +1,36 @@
 version: "3.7"
 
 services:
+  api-gateway:
+    container_name: api-gateway
+    image: apigateway
+    build:
+      context: ApiGateway/
+      dockerfile: Dockerfile
+    ports:
+      - 9901:9901
+      - 10000:10000
+    volumes:
+      - ./ApiGateway/envoy/envoy.yaml:/etc/envoy/envoy.yaml
+      
   authenticate-api:
       container_name: authenticate-api
-      image: ${DOCKER_REGISTRY-}authenticateapi
+      image: authenticateapi
       build:
-        context: .
-        dockerfile: authenticate-api/Authenticate.Api/Dockerfile
+        context: AuthenticateApi/
+        dockerfile: ./Authenticate.Api/Dockerfile
+      environment:
+        ASPNETCORE_URLS: "https://+;http://+"
+        ASPNETCORE_HTTPS_PORT: "8011"
+        ASPNETCORE_ENVIRONMENT: Development
+      volumes:
+        - ${APPDATA}\microsoft\UserSecrets\:/root/.microsoft/usersecrets
+        - ${USERPROFILE}\.aspnet\https:/root/.aspnet/https/
       ports:
-        - 4500:80
+        - 8010:80
+        - 8011:443
       depends_on:
-        - apigateway
+        - api-gateway
 
-  apigateway:
-    container_name: api-gateway
-    image: ${DOCKER_REGISTRY-}apigateway
-    build:
-      context: .
-      dockerfile: api-gateway/ApiGateway/Dockerfile
-    ports:
-      - 8001:80
+  
     
