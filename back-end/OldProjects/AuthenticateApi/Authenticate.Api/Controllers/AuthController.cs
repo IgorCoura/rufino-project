@@ -1,7 +1,9 @@
-﻿using Authenticate.Api.Interfaces;
+﻿using System.Security.Cryptography;
+using Authenticate.Api.Interfaces;
 using Authenticate.Api.Model;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.IdentityModel.Tokens;
 
 namespace Authenticate.Api.Controllers
 {
@@ -23,6 +25,21 @@ namespace Authenticate.Api.Controllers
         {
             var token = await _authService.Login(model);
             return OkCustomResponse(token);
+            
+        }
+
+        [HttpGet]
+        [AllowAnonymous]
+        public async Task<ActionResult> Get()
+        {
+            return OkCustomResponse("A Bagaca ta funcionando, sem Auth");
+            
+        }
+
+        [HttpGet("get")]        
+        public async Task<ActionResult> GetAuth()
+        {
+            return OkCustomResponse("A Bagaca ta funcionando");
             
         }
 

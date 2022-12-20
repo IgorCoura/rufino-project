@@ -1,7 +1,7 @@
-version: "3.7"
+version: '3.4'
 
 services:
-  api-gateway:
+  api.gateway:
     container_name: api-gateway
     image: envoyproxy/envoy:v1.24.1
     ports:
@@ -13,25 +13,41 @@ services:
       - ./ApiGateway/Certificates/https.crt:/etc/ssl/certs/https.crt
       - ./ApiGateway/Certificates/key.pem:/etc/ssl/certs/key.pem
 
-      
-  authenticate-api:
-      container_name: authenticate-api
-      image: authenticateapi
-      build:
-        context: AuthenticateApi/
-        dockerfile: ./Authenticate.Api/Dockerfile
-      environment:
+  identity.api:
+    image: ${DOCKER_REGISTRY-}identityapi
+    build:
+        context: .
+        dockerfile: Services/Identity/Identity.API/Dockerfile
+    environment:
         ASPNETCORE_URLS: "https://+;http://+"
         ASPNETCORE_HTTPS_PORT: "8011"
         ASPNETCORE_ENVIRONMENT: Development
-      volumes:
+    volumes:
         - ${APPDATA}\microsoft\UserSecrets\:/root/.microsoft/usersecrets
         - ${USERPROFILE}\.aspnet\https:/root/.aspnet/https/
-      ports:
+    ports:
         - 8010:80
         - 8011:443
-      depends_on:
-        - api-gateway
+    depends_on:
+        - api.gateway
 
   
-    
+  teste.api:
+    image: ${DOCKER_REGISTRY-}testeapi
+    build:
+        context: .
+        dockerfile: Services/TesteAPI/Teste.API/Dockerfile
+    environment:
+        ASPNETCORE_URLS: "https://+;http://+"
+        ASPNETCORE_HTTPS_PORT: "8021"
+        ASPNETCORE_ENVIRONMENT: Development
+    volumes:
+        - ${APPDATA}\microsoft\UserSecrets\:/root/.microsoft/usersecrets
+        - ${USERPROFILE}\.aspnet\https:/root/.aspnet/https/
+    ports:
+        - 8020:80
+        - 8021:443
+    depends_on:
+        - api.gateway
+        - identity.api
+  

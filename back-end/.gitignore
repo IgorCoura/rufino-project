@@ -12,6 +12,8 @@
 *.userosscache
 *.sln.docstates
 
+
+
 # User-specific files (MonoDevelop/Xamarin Studio)
 *.userprefs
 
@@ -76,6 +78,7 @@ artifacts/
 *.scc
 *.pem
 *.crt
+*.key
 
 # Chutzpah Test files
 _Chutzpah*
