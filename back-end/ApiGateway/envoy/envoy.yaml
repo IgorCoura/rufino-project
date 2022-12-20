@@ -33,9 +33,9 @@ static_resources:
               domains: ["*"]
               routes:
               - match:
-                  prefix: "/w"
+                  prefix: "/auth"
                 route:
-                  prefix_rewrite: "/api/v1/WeatherForecast"
+                  prefix_rewrite: "/api/v1/Auth"
                   cluster: auth_service
   - name: listener_1
     address:
@@ -63,9 +63,9 @@ static_resources:
               domains: ["*"]
               routes:
               - match:
-                  prefix: "/w"
+                  prefix: "/auth"
                 route:
-                  prefix_rewrite: "/api/v1/WeatherForecast"
+                  prefix_rewrite: "/api/v1/Auth"
                   cluster: auth_service_secure
       transport_socket:
         name: envoy.transport_sockets.tls

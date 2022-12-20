@@ -5,13 +5,13 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.IdentityModel.Tokens;
 using System.Data;
+using System.Security.Cryptography;
 using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
 
-builder.Services.Configure<TokenGeneratorOptions>(builder.Configuration.GetSection("Jwt"));
+//AddApiVersioning
 
 builder.Services.AddApiVersioning(options =>
 {
@@ -26,13 +26,25 @@ builder.Services.AddVersionedApiExplorer(options =>
     options.SubstituteApiVersionInUrl = true;
 });
 
-var settings = builder.Configuration.GetSection("Jwt").Get<TokenGeneratorOptions>();
 
+//Api Options
 
-builder.Services.AddScoped<IAuthService, AuthService>();
+builder.Services.Configure<TokenGeneratorOptions>(builder.Configuration.GetSection("Jwt"));
+
+//Services 
+
+builder.Services.AddHttpClient("AuthApi", c => c.BaseAddress = new Uri("https://localhost:8011"));
+builder.Services.AddSingleton<IAuthService, AuthService>();
+
+//Autentication
+
+builder.Services.AddIdentityServer()
+        .AddDeveloperSigningCredential()        //This is for dev only scenarios when you don’t have a certificate to use.
+        .AddInMemoryApiScopes(Config.ApiScopes)
+        .AddInMemoryClients(Config.Clients);
+
 
 builder.Services.AddControllers();
-// Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
@@ -48,6 +60,9 @@ if (app.Environment.IsDevelopment())
 
 //app.UseHttpsRedirection();
 
+app.UseIdentityServer();
+
+app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();

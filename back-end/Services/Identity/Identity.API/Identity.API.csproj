@@ -11,6 +11,10 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Remove="Controllers\WeatherForecastController.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="6.0.12" />
     <PackageReference Include="Microsoft.AspNetCore.Authentication.OpenIdConnect" Version="6.0.12" />
     <PackageReference Include="Swashbuckle.AspNetCore" Version="6.4.0" />
@@ -19,6 +23,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\..\Commom\Commom.API\Commom.API.csproj" />
     <ProjectReference Include="..\NetDevPack.Security.Jwt.AspNetCore\NetDevPack.Security.Jwt.AspNetCore.csproj" />
     <ProjectReference Include="..\NetDevPack.Security.Jwt.Core\NetDevPack.Security.Jwt.Core.csproj" />
     <ProjectReference Include="..\NetDevPack.Security.Jwt.Store.FileSystem\NetDevPack.Security.Jwt.Store.FileSystem.csproj" />
