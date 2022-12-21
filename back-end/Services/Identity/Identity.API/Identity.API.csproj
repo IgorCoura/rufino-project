@@ -19,11 +19,11 @@
     <PackageReference Include="Microsoft.AspNetCore.Authentication.OpenIdConnect" Version="6.0.12" />
     <PackageReference Include="Swashbuckle.AspNetCore" Version="6.4.0" />
     <PackageReference Include="Microsoft.VisualStudio.Azure.Containers.Tools.Targets" Version="1.17.0" />
-    <PackageReference Include="NetDevPack.Security.JwtExtensions" Version="6.0.2" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\..\Commom\Commom.API\Commom.API.csproj" />
+    <ProjectReference Include="..\..\Commom\Commom.Domain\Commom.Domain.csproj" />
     <ProjectReference Include="..\NetDevPack.Security.Jwt.AspNetCore\NetDevPack.Security.Jwt.AspNetCore.csproj" />
     <ProjectReference Include="..\NetDevPack.Security.Jwt.Core\NetDevPack.Security.Jwt.Core.csproj" />
     <ProjectReference Include="..\NetDevPack.Security.Jwt.Store.FileSystem\NetDevPack.Security.Jwt.Store.FileSystem.csproj" />

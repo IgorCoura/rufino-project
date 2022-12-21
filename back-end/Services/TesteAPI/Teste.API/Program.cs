@@ -2,14 +2,13 @@ using Commom.API.Config;
 using Commom.API.FunctionIdAuthorization;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
-using NetDevPack.Security.JwtExtensions;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 
 builder.Services.AddAuthenticationJwtBearer(builder.Configuration);
-builder.Services.AddFunctionIdAuthorization();
+builder.Services.AddFunctionIdAuthorization(builder.Configuration);
 
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();

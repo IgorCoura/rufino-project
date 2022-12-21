@@ -1,4 +1,5 @@
 ﻿using Commom.API.Controllers;
+using Commom.Domain.PasswordHasher;
 using Identity.API.Model;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.IdentityModel.JsonWebTokens;
@@ -16,11 +17,13 @@ namespace Identity.API.Controllers
     {
         private readonly IJwtService _jwtService;
         private readonly IConfiguration _config;
+        private readonly IPasswordHasherService _passwordHasherService;
 
-        public AuthController(IJwtService jwtService, IConfiguration config)
+        public AuthController(IJwtService jwtService, IConfiguration config, IPasswordHasherService passwordHasherService)
         {
             _jwtService = jwtService;
             _config = config;
+            _passwordHasherService = passwordHasherService;
         }
 
         [HttpPost]
@@ -28,10 +31,14 @@ namespace Identity.API.Controllers
         {
             if (!ModelState.IsValid) return BadCustomResponse(ModelState);
 
+            var hash  = _passwordHasherService.HashPassword(loginModel.Password);
+
+            var verify = _passwordHasherService.VerifyHashedPassword(hash, loginModel.Password);
+
             var clains = new List<Claim>()
                 {
                     new Claim(ClaimTypes.Sid, Guid.NewGuid().ToString()),
-                    new Claim(ClaimTypes.Role, loginModel.UserName),
+                    new Claim(ClaimTypes.Role, loginModel.Username),
                 };
             var token = await GenerateToken(clains);
 

@@ -1,4 +1,5 @@
 ﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using System;
 using System.Collections.Generic;
@@ -10,8 +11,10 @@ namespace Commom.API.FunctionIdAuthorization
 {
     public static class DependencyInjection
     {
-        public static IServiceCollection AddFunctionIdAuthorization(this IServiceCollection services)
+        public static IServiceCollection AddFunctionIdAuthorization(this IServiceCollection services, IConfiguration configuration)
         {
+            services.Configure<FunctionIdAuthorizationOptions>(options => configuration.GetSection(FunctionIdAuthorizationOptions.Jwt));
+
             services.AddSingleton<IAuthorizationPolicyProvider, FunctionIdPolicyProvider>();
             services.AddScoped<IAuthorizationHandler, FunctionIdHandler>();
 

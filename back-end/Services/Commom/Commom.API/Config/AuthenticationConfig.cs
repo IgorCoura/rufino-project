@@ -2,7 +2,7 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.IdentityModel.Tokens;
-using NetDevPack.Security.JwtExtensions;
+using Security.JwtExtensions;
 using System;
 using System.Collections.Generic;
 using System.Linq;
