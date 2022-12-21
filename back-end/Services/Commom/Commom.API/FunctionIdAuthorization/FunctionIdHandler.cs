@@ -1,5 +1,6 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Options;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -11,19 +12,17 @@ namespace Commom.API.FunctionIdAuthorization
 {
     public class FunctionIdHandler : AuthorizationHandler<FunctionIdRequirement>
     {
-        private readonly IConfiguration _config;
+        private readonly FunctionIdAuthorizationOptions _options;
 
-        public FunctionIdHandler(IConfiguration config)
+        public FunctionIdHandler(IOptions<FunctionIdAuthorizationOptions> options)
         {
-            _config = config;
+            _options = options.Value;
         }
+
 
         protected override Task HandleRequirementAsync(AuthorizationHandlerContext context, FunctionIdRequirement requirement)
         {
-            var jwksUri = _config["Jwt:JwksUri"];
-            Uri uri = new Uri(jwksUri);
-            var issuer = uri.Scheme + "://" + uri.Authority;
-            var functionIdRole = context.User.FindFirst(r => r.Type == ClaimTypes.Role && r.Issuer == issuer);
+            var functionIdRole = context.User.FindFirst(r => r.Type == ClaimTypes.Role && r.Issuer == _options.Issuer);
 
             if(functionIdRole == null)
             {

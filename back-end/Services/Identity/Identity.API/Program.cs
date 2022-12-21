@@ -1,8 +1,8 @@
 using Commom.API.Config;
+using Commom.Domain.PasswordHasher;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.IdentityModel.Tokens;
-using NetDevPack.Security.JwtExtensions;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -18,6 +18,7 @@ if (!dir.Exists)
 builder.Services.AddSingleton<IMemoryCache, MemoryCache>();
 builder.Services.AddJwksManager().PersistKeysInMemory().PersistKeysToFileSystem(dir).UseJwtValidation();
 builder.Services.AddAuthenticationJwtBearer(builder.Configuration);
+builder.Services.AddPasswordHasher(builder.Configuration);
 
 builder.Services.AddControllers();
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle

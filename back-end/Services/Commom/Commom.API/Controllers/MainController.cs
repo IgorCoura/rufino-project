@@ -6,7 +6,7 @@ namespace Commom.API.Controllers
     [ApiController]
     public class MainController : ControllerBase
     {
-        protected ActionResult OkCustomResponse(object result = null)
+        protected ActionResult OkCustomResponse(object? result = null)
         {
             return Ok(new
             {
