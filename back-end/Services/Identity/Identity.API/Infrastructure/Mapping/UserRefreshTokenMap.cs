@@ -11,7 +11,6 @@ namespace Identity.API.Infrastructure.Mapping
             base.Configure(builder);
 
             builder.Property(x => x.UserId)
-                .HasMaxLength(20)
                 .IsRequired();
 
             builder.Property(x => x.ExpireDate)

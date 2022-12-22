@@ -1,9 +1,12 @@
 using Commom.API.Authentication;
+using Commom.API.Filters;
 using Commom.Domain.PasswordHasher;
 using Identity.API.Application.Interfaces;
 using Identity.API.Application.Service;
 using Identity.API.Infrastructure.Context;
+using Identity.API.Infrastructure.Repository;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.IdentityModel.Tokens;
@@ -39,12 +42,34 @@ builder.Services.AddDbContext<ApplicationContext>(options =>
 //Config Services
 
 builder.Services.AddScoped<ITokenService, TokenService>();
+builder.Services.AddScoped<IAuthService, AuthService>();
 
 //Config Repositories 
 
+builder.Services.AddScoped<IUserRefreshTokenRepository, UserRefreshTokenRepository>();
+builder.Services.AddScoped<IUserRepository, UserRepository>();
+
 
 //Base
-builder.Services.AddControllers();
+builder.Services.AddApiVersioning(options =>
+{
+    options.AssumeDefaultVersionWhenUnspecified = true;
+    options.DefaultApiVersion = new ApiVersion(1, 0);
+    options.ReportApiVersions = true;
+});
+
+builder.Services.AddVersionedApiExplorer(options =>
+{
+    options.GroupNameFormat = "'v'VVV";
+    options.SubstituteApiVersionInUrl = true;
+});
+
+builder.Services.AddControllers(
+    opts =>
+    {
+        opts.Filters.Add(new ApplicationExceptionFilter());
+    }
+);
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
@@ -55,6 +80,17 @@ if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
     app.UseSwaggerUI();
+}
+
+AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
+
+using (var scope = app.Services.CreateScope())
+{
+    var services = scope.ServiceProvider;
+
+    var context = services.GetRequiredService<ApplicationContext>();
+    if(context.Database.GetPendingMigrations().Any())
+        context.Database.Migrate();
 }
 
 app.UseJwksDiscovery();

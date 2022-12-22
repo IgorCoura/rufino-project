@@ -8,7 +8,7 @@ namespace Identity.API.Application.Interfaces
     {
         Task<TokenModel> SingIn(LoginModel loginModel);
         Task<TokenModel> RefreshToken(string refreshToken);
-        void SingOutLocal(string refreshToken);
-        void SingOutAll();
+        Task SingOutLocal(string refreshToken);
+        Task SingOutAll(string refreshToken);
     }
 }

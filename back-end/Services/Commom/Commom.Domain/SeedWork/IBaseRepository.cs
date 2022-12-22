@@ -10,6 +10,7 @@ namespace Commom.Domain.SeedWork
         Task<T> RegisterAsync(T model);
         Task<T> UpdateAsync(T model);
         Task DeleteAsync(T model);
+        Task DeleteRangeAsync(IEnumerable<T> model);
         Task<T?> FirstAsync(Expression<Func<T, bool>> filter, Func<IQueryable<T>, IIncludableQueryable<T, object>>? include = null);
         Task<T?> FirstAsyncAsTracking(Expression<Func<T, bool>> filter, Func<IQueryable<T>, IIncludableQueryable<T, object>>? include = null);
         Task<IEnumerable<T>> GetDataAsync(

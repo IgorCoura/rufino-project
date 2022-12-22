@@ -9,7 +9,6 @@ namespace Commom.Infra.Base
         public virtual void Configure(EntityTypeBuilder<T> builder)
         {
             builder.HasKey(x => x.Id);
-            builder.Property(x => x.Id).HasMaxLength(20);
             builder.Property(x => x.CreatedAt).IsRequired();
             builder.Property(x => x.UpdatedAt).IsRequired();
         }

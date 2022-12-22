@@ -8,16 +8,23 @@ namespace Commom.API.FunctionIdAuthorization
 {
     public class FunctionIdAuthorizationOptions
     {
+        private string _jwksUri = string.Empty;
+
         public const string Jwt = "Jwt";
-        public string Issuer { get; set; }
+        public string? Issuer { get; set; }
 
-        public string JwksUri { get; set; }
-
-        public FunctionIdAuthorizationOptions(string jwksUri, string? issuer = null)
-        {
-            JwksUri = jwksUri;
-            Uri uri = new(jwksUri);
-            Issuer = issuer ?? (uri.Scheme + "://" + uri.Authority);
+        public string JwksUri { 
+            get{
+                return _jwksUri;
+            }
+            set { 
+                _jwksUri= value;
+                var jwks = new Uri(value);
+                Issuer ??= $"{jwks.Scheme}://{jwks.Authority}";
+            } 
         }
+
+
+
     }
 }

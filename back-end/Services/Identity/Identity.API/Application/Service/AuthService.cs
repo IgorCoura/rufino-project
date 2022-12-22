@@ -5,6 +5,8 @@ using Identity.API.Application.Model;
 using Identity.API.Application.Entities;
 using Microsoft.Extensions.Options;
 using System.Security.Claims;
+using Commom.Domain.Exceptions;
+using Identity.API.Application.Errors;
 
 namespace Identity.API.Application.Service
 {
@@ -27,15 +29,15 @@ namespace Identity.API.Application.Service
 
         public async Task<TokenModel> SingIn(LoginModel loginModel)
         {
-            
+
             var user = await _userRepository.FirstAsyncAsTracking(u => u.Username == loginModel.Username) ??
-                throw new Exception(); //TODO: Mudar exception
+                throw new BadRequestException(IdentityErrors.AuthenticationFailed);
 
             var hashResult = _passwordHasherService.VerifyHashedPassword(user.Password, loginModel.Password);
 
             if (hashResult == PasswordVerificationResult.Failed)
             {
-                throw new Exception(); //TODO: Mudar exception
+                throw new BadRequestException(IdentityErrors.AuthenticationFailed);
             }
 
             if (hashResult == PasswordVerificationResult.SuccessRehashNeeded)
@@ -48,43 +50,54 @@ namespace Identity.API.Application.Service
             if (hashResult == PasswordVerificationResult.Success)
             {
                 var userRefreshToken = await CreateUserRefreshToken(user.Id);
-                var tokens = await _tokenService.GenerateTokens(user, userRefreshToken);
+                var tokens = await _tokenService.GenerateTokens(user, userRefreshToken);   
                 await _userRepository.UnitOfWork.SaveChangesAsync();
+                CleanRefreshTokens();
                 return tokens;
             }
 
-            throw new Exception(); //TODO: Mudar exception
+            throw new BadRequestException(IdentityErrors.AuthenticationFailed);
         }
 
         public async Task<TokenModel> RefreshToken(string refreshToken)
         {
             var claims = _tokenService.ValidateRefreshToken(refreshToken);
 
-            string tokenId = claims.FindFirst(c => c.Type == ClaimTypes.Sid)?.Value ?? throw new Exception();
-            string userId = claims.FindFirst(c => c.Type == ClaimTypes.Actor)?.Value ?? throw new Exception();
+            var credentials = GetClaims(claims);
 
-            var currentRefreshTokne = await _userRefreshTokenRepository.FirstAsync(x => x.Id.Equals(tokenId) && x.UserId.Equals(userId)) ?? throw new Exception(); //TODO: Mudar exception;
-            await _userRefreshTokenRepository.DeleteAsync(currentRefreshTokne);
+            var newRefreshToken = RecreateUserRefreshToken(credentials.Id, credentials.UserId);
+            var user = GetUser(credentials.UserId);            
 
-            var user = await _userRepository.FirstAsync(x => x.Id.Equals(userId)) ?? throw new Exception(); //TODO: Mudar exception;
+            var tokens = await _tokenService.GenerateTokens(await user, await newRefreshToken);
+            await _userRefreshTokenRepository.UnitOfWork.SaveChangesAsync();
 
-            var newRefreshToken = await CreateUserRefreshToken(user.Id);
-
-            return await _tokenService.GenerateTokens(user, newRefreshToken);       
+            return tokens;     
         }
 
-        public void SingOutLocal(string refreshToken)
+        public async Task SingOutLocal(string refreshToken)
         {
             var claims = _tokenService.ValidateRefreshToken(refreshToken);
 
+            var credentials = GetClaims(claims);
+
+            await _userRefreshTokenRepository.DeleteAsync(new (){Id = credentials.Id});
+            await _userRefreshTokenRepository.UnitOfWork.SaveChangesAsync();
         }
 
-        public void SingOutAll()
+        public async Task SingOutAll(string refreshToken)
         {
+            var claims = _tokenService.ValidateRefreshToken(refreshToken);
+            var credentials = GetClaims(claims);
+            var tokens = await _userRefreshTokenRepository.GetDataAsync(x => x.UserId == credentials.UserId);
 
+            if(!tokens.Any(x => x.Id == credentials.Id))
+                throw new BadRequestException(IdentityErrors.RefreshTokenInvalid);
+
+            await _userRefreshTokenRepository.DeleteRangeAsync(tokens);
+            await _userRefreshTokenRepository.UnitOfWork.SaveChangesAsync();
         }
 
-        public async Task<UserRefreshToken> CreateUserRefreshToken(Guid userId)
+        private async Task<UserRefreshToken> CreateUserRefreshToken(Guid userId)
         {
             var userRefreshToken = new UserRefreshToken()
             {
@@ -93,9 +106,53 @@ namespace Identity.API.Application.Service
                 ExpireDate = DateTime.UtcNow.AddMinutes(_authenticationOptions.ExpireRefreshToken)
             };
 
-            var result = await _userRefreshTokenRepository.RegisterAsync(userRefreshToken) ?? throw new Exception(); //TODO: Mudar exception;
+            var result = await _userRefreshTokenRepository.RegisterAsync(userRefreshToken);
 
             return result;
+        }
+
+        private async Task<UserRefreshToken> RecreateUserRefreshToken(Guid tokenId, Guid userId)
+        {
+            var currentRefreshToken =
+                await _userRefreshTokenRepository.FirstAsync(x => x.Id == tokenId && x.UserId == userId)
+                ?? throw new BadRequestException(IdentityErrors.RefreshTokenInvalid);
+
+            await _userRefreshTokenRepository.DeleteAsync(currentRefreshToken);
+
+            return await CreateUserRefreshToken(userId);
+        }
+
+        private async Task<User> GetUser(Guid userId)
+        {
+            var user = await _userRepository.FirstAsync(x => x.Id == userId)
+                ?? throw new BadRequestException(IdentityErrors.RefreshTokenInvalid);
+            return user;
+        }
+
+        private UserRefreshToken GetClaims(ClaimsPrincipal claims)
+        {
+            try
+            {
+                string? tokenId = claims.FindFirst(c => c.Type == ClaimTypes.Sid)?.Value;
+                string? userId = claims.FindFirst(c => c.Type == ClaimTypes.Actor)?.Value;
+                return new UserRefreshToken()
+                {
+                    Id = Guid.Parse(tokenId!),
+                    UserId = Guid.Parse(userId!),
+                };
+            }
+            catch
+            {
+                throw new BadRequestException(IdentityErrors.RefreshTokenInvalid);
+            }
+        }
+
+        private async Task CleanRefreshTokens()
+        {
+            var tokens = await _userRefreshTokenRepository.GetDataAsync(x => x.ExpireDate < DateTime.Now) 
+                ?? new List<UserRefreshToken>();
+            await _userRefreshTokenRepository.DeleteRangeAsync(tokens);
+            await _userRefreshTokenRepository.UnitOfWork.SaveChangesAsync();
         }
     }
 }
