@@ -18,9 +18,10 @@ namespace Commom.API.Controllers
         protected ActionResult BadCustomResponse(ModelStateDictionary modelState)
         {
             var errors = modelState.Values.SelectMany(e => e.Errors);
-            var result = errors.Select(error =>
+            var result = errors.Select(error =>new 
             {
-                return error.Exception == null ? error.ErrorMessage : error.Exception.Message;
+                ErrorCode = 0,
+                ErrorMessage = error.Exception == null ? error.ErrorMessage : error.Exception.Message
             }).ToList();
 
             return BadRequest(new

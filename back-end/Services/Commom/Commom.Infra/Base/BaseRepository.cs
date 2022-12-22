@@ -31,7 +31,13 @@ namespace Commom.Infra.Base
 
         public virtual Task DeleteAsync(T model)
         {
-            _context.Set<T>().Remove(model);
+            _context.Set<T>().Remove(model);           
+            return Task.CompletedTask;
+        }
+
+        public virtual Task DeleteRangeAsync(IEnumerable<T> model) 
+        {
+            _context.Set<T>().RemoveRange(model);
             return Task.CompletedTask;
         }
 

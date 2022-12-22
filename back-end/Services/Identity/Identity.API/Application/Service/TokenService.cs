@@ -1,5 +1,7 @@
 ﻿using Commom.API.Authentication;
+using Commom.Domain.Exceptions;
 using Identity.API.Application.Entities;
+using Identity.API.Application.Errors;
 using Identity.API.Application.Interfaces;
 using Identity.API.Application.Model;
 using Microsoft.Extensions.Options;
@@ -48,16 +50,22 @@ namespace Identity.API.Application.Service
 
             var tokenHandler = new JwtSecurityTokenHandler();
 
-            var principal = tokenHandler.ValidateToken(token, tokenValidationParameters, out SecurityToken securityToken);
-
-            JwtSecurityToken? jwtSecurityToken = securityToken as JwtSecurityToken;
-
-            if (jwtSecurityToken == null || !jwtSecurityToken.Header.Alg.Equals(SecurityAlgorithms.Aes256Gcm, StringComparison.InvariantCultureIgnoreCase))
+            try
             {
-                throw new SecurityTokenException("Invalid token");
-            }
+                var principal = tokenHandler.ValidateToken(token, tokenValidationParameters, out SecurityToken securityToken);
 
-            return principal;
+                if (securityToken is not JwtSecurityToken jwtSecurityToken 
+                    || !jwtSecurityToken.Header.Alg.Equals("HS256"))
+                {
+                    throw new BadRequestException(IdentityErrors.RefreshTokenInvalid);
+                }
+
+                return principal;
+            }
+            catch
+            {
+                throw new BadRequestException(IdentityErrors.RefreshTokenInvalid);
+            };
         }
 
 
@@ -103,7 +111,7 @@ namespace Identity.API.Application.Service
                 Audience = _authenticationOptions.Audience,
                 Subject = new ClaimsIdentity(claims),
                 Expires = DateTime.UtcNow.AddMinutes(_authenticationOptions.ExpireRefreshToken),
-                SigningCredentials = new SigningCredentials(new SymmetricSecurityKey(key), SecurityAlgorithms.Aes256Gcm)
+                SigningCredentials = new SigningCredentials(new SymmetricSecurityKey(key), SecurityAlgorithms.HmacSha256Signature)
             });
             return tokenHandler.WriteToken(token);
         }

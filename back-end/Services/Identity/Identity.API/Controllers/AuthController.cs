@@ -1,64 +1,60 @@
 ﻿using Commom.API.Controllers;
-using Commom.Domain.PasswordHasher;
+using Identity.API.Application.Interfaces;
 using Identity.API.Application.Model;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.IdentityModel.JsonWebTokens;
-using Microsoft.IdentityModel.Tokens;
-using NetDevPack.Security.Jwt.Core.Interfaces;
-using System.IdentityModel.Tokens.Jwt;
-using System.Security.Claims;
-using System.Text;
 
 namespace Identity.API.Controllers
 {
-    [ApiController]
-    [Route("[controller]")]
+    [ApiVersion("1.0")]
+    [Route("api/v{version:apiVersion}/[controller]")]
     public class AuthController : MainController
     {
-        private readonly IJwtService _jwtService;
-        private readonly IConfiguration _config;
-        private readonly IPasswordHasherService _passwordHasherService;
+        private readonly IAuthService _authService;
 
-        public AuthController(IJwtService jwtService, IConfiguration config, IPasswordHasherService passwordHasherService)
+        public AuthController(IAuthService authService)
         {
-            _jwtService = jwtService;
-            _config = config;
-            _passwordHasherService = passwordHasherService;
+            _authService = authService;
         }
 
-        [HttpPost]
+        [HttpPost("SignIn")]
         public async Task<ActionResult> Post([FromBody] LoginModel loginModel)
         {
             if (!ModelState.IsValid) return BadCustomResponse(ModelState);
 
-            var hash = _passwordHasherService.HashPassword(loginModel.Password);
-            var let = hash.Length;
+            var tokens = await _authService.SingIn(loginModel);
 
-            var clains = new List<Claim>()
-                {
-                    new Claim(ClaimTypes.Sid, Guid.NewGuid().ToString()),
-                    new Claim(ClaimTypes.Role, loginModel.Username),
-                };
-            var token = await GenerateToken(clains);
-
-            return OkCustomResponse(token);
+            return OkCustomResponse(tokens);
         }
 
-        private async Task<string> GenerateToken(IEnumerable<Claim> claims)
+        [HttpPost("Refresh")]
+        public async Task<ActionResult> PostRefresh([FromBody] RefreshTokenModel refreshTokenModel)
         {
-            var tokenHandler = new JwtSecurityTokenHandler();
+            if (!ModelState.IsValid) return BadCustomResponse(ModelState);
 
-            var key = await _jwtService.GetCurrentSigningCredentials();
-            var token = tokenHandler.CreateToken(new SecurityTokenDescriptor
-            {
-                Issuer = _config["Jwt:Issuer"],
-                IssuedAt = DateTime.UtcNow,
-                Audience = _config["Jwt:Audience"],
-                Subject = new ClaimsIdentity(claims),
-                Expires = DateTime.UtcNow.AddMinutes(60),
-                SigningCredentials = key
-            });
-            return tokenHandler.WriteToken(token);
+            var tokens = await _authService.RefreshToken(refreshTokenModel.RefreshToken);
+
+            return OkCustomResponse(tokens);
         }
+
+        [HttpPost("SignOut")]
+        public async Task<ActionResult> PostSingOut([FromBody] RefreshTokenModel refreshTokenModel)
+        {
+            if (!ModelState.IsValid) return BadCustomResponse(ModelState);
+
+            await _authService.SingOutLocal(refreshTokenModel.RefreshToken);
+
+            return OkCustomResponse();
+        }
+
+        [HttpPost("SignOut/All")]
+        public async Task<ActionResult> PostSingOutAll([FromBody] RefreshTokenModel refreshTokenModel)
+        {
+            if (!ModelState.IsValid) return BadCustomResponse(ModelState);
+
+            await _authService.SingOutAll(refreshTokenModel.RefreshToken);
+
+            return OkCustomResponse();
+        }
+
     }
 }

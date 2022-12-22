@@ -17,18 +17,18 @@ namespace Commom.Infra.Base
 
         public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = new CancellationToken())
         {
-            foreach (var entry in ChangeTracker.Entries().Where(entry => entry.Entity.GetType().GetProperty("CreateAt") != null || entry.Entity.GetType().GetProperty("UpdateAt") != null))
+            foreach (var entry in ChangeTracker.Entries().Where(entry => entry.Entity.GetType().GetProperty("CreatedAt") != null || entry.Entity.GetType().GetProperty("UpdateAt") != null))
             {
                 if (entry.State == EntityState.Added)
                 {
-                    entry.Property("CreateAt").CurrentValue = DateTime.UtcNow;
-                    entry.Property("UpdateAt").CurrentValue = DateTime.UtcNow;
+                    entry.Property("CreatedAt").CurrentValue = DateTime.UtcNow;
+                    entry.Property("UpdatedAt").CurrentValue = DateTime.UtcNow;
                 }
 
                 if (entry.State == EntityState.Modified)
                 {
-                    entry.Property("CreateAt").IsModified = false;
-                    entry.Property("UpdateAt").CurrentValue = DateTime.UtcNow;
+                    entry.Property("CreatedAt").IsModified = false;
+                    entry.Property("UpdatedAt").CurrentValue = DateTime.UtcNow;
                 }
             }
             return base.SaveChangesAsync(cancellationToken);
