@@ -1,6 +1,6 @@
 ﻿using Commom.API.Controllers;
 using Commom.Domain.PasswordHasher;
-using Identity.API.Model;
+using Identity.API.Application.Model;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.IdentityModel.JsonWebTokens;
 using Microsoft.IdentityModel.Tokens;
@@ -31,9 +31,8 @@ namespace Identity.API.Controllers
         {
             if (!ModelState.IsValid) return BadCustomResponse(ModelState);
 
-            var hash  = _passwordHasherService.HashPassword(loginModel.Password);
-
-            var verify = _passwordHasherService.VerifyHashedPassword(hash, loginModel.Password);
+            var hash = _passwordHasherService.HashPassword(loginModel.Password);
+            var let = hash.Length;
 
             var clains = new List<Claim>()
                 {

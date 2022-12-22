@@ -1,4 +1,4 @@
-﻿namespace Identity.API.Model
+﻿namespace Identity.API.Application.Model
 {
     public record TokenModel
     (

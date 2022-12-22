@@ -9,15 +9,15 @@ namespace Commom.Domain.SeedWork
     public abstract class Entity
     {
         private Guid _Id;
-        public DateTime CreateAt { get; set; }
-        public DateTime UpdateAt { get; set; }
+        public DateTime CreatedAt { get; set; }
+        public DateTime UpdatedAt { get; set; }
         public virtual Guid Id
         {
             get
             {
                 return _Id;
             }
-            protected set
+            set
             {
                 _Id = value;
             }

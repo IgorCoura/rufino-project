@@ -1,6 +1,6 @@
 ﻿using Commom.Domain.SeedWork;
 
-namespace Identity.API.Entities
+namespace Identity.API.Application.Entities
 {
     public class User : Entity
     {

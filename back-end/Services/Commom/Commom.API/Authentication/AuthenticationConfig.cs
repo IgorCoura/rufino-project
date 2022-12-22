@@ -9,12 +9,14 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Commom.API.Config
+namespace Commom.API.Authentication
 {
     public static class AuthenticationConfig
     {
         public static IServiceCollection AddAuthenticationJwtBearer(this IServiceCollection services, IConfiguration config)
         {
+            services.Configure<AuthenticationOptions>(config);
+
             services.AddAuthentication(x =>
             {
                 x.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;

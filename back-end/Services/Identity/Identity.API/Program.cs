@@ -1,12 +1,16 @@
-using Commom.API.Config;
+using Commom.API.Authentication;
 using Commom.Domain.PasswordHasher;
+using Identity.API.Application.Interfaces;
+using Identity.API.Application.Service;
+using Identity.API.Infrastructure.Context;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.IdentityModel.Tokens;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
+// Config Security
 
 var path = builder.Configuration["Jwt:Certs:Path"];
 
@@ -20,8 +24,27 @@ builder.Services.AddJwksManager().PersistKeysInMemory().PersistKeysToFileSystem(
 builder.Services.AddAuthenticationJwtBearer(builder.Configuration);
 builder.Services.AddPasswordHasher(builder.Configuration);
 
+//Config DataBase
+
+builder.Services.AddDbContext<ApplicationContext>(options =>
+{
+    options.UseNpgsql(builder.Configuration["ConnectionString"],
+        npgsqlOptionsAction: sqlOptions =>
+        {
+            sqlOptions.EnableRetryOnFailure(maxRetryCount: 15, maxRetryDelay: TimeSpan.FromSeconds(30), errorCodesToAdd: null);
+        });
+});
+
+
+//Config Services
+
+builder.Services.AddScoped<ITokenService, TokenService>();
+
+//Config Repositories 
+
+
+//Base
 builder.Services.AddControllers();
-// Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
