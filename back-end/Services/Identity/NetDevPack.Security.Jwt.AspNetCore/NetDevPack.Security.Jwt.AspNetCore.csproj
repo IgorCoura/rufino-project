@@ -18,8 +18,4 @@
     <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="6.0.11" />
   </ItemGroup>
 
-  <ItemGroup>
-    <ProjectReference Include="..\NetDevPack.Security.Jwt.Core\NetDevPack.Security.Jwt.Core.csproj" />
-  </ItemGroup>
-
 </Project>

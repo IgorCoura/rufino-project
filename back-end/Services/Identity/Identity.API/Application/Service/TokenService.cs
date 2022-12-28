@@ -6,7 +6,7 @@ using Identity.API.Application.Interfaces;
 using Identity.API.Application.Model;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
-using NetDevPack.Security.Jwt.Core.Interfaces;
+using Security.Jwt.Core.Interfaces;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
