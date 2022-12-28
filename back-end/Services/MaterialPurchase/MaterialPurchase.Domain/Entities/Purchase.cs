@@ -13,7 +13,7 @@ namespace MaterialPurchase.Domain.Entities
         public Guid ProviderId { get; set; }
         public Construction? Construction { get; set; }
         public Guid ConstructionId { get; set; }
-        public virtual List<MaterialPurchase> Materials { get; set; } = new List<MaterialPurchase>();
+        public virtual IEnumerable<MaterialPurchase> Materials { get; set; } = new List<MaterialPurchase>();
         public decimal Freight { get; set; }
     }
 }

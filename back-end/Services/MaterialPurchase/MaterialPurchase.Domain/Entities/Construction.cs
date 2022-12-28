@@ -12,5 +12,6 @@ namespace MaterialPurchase.Domain.Entities
         public string CorporateName { get; set; } = string.Empty;
         public string NickName { get; set; } = string.Empty;
         public Address? Address { get; set; }
+        public IEnumerable<AuthorizationUserGroup> PurchasingAuthorizationUserGroups { get; set; } = new List<AuthorizationUserGroup>();
     }
 }

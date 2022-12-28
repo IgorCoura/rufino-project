@@ -9,12 +9,6 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Identity", "Identity", "{1A
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Identity.API", "Services\Identity\Identity.API\Identity.API.csproj", "{471A0900-A0BD-4A77-BD35-2A88E679ADCB}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "NetDevPack.Security.Jwt.AspNetCore", "Services\Identity\NetDevPack.Security.Jwt.AspNetCore\NetDevPack.Security.Jwt.AspNetCore.csproj", "{2F76057A-64D6-4A53-BB15-454FC81BCB4C}"
-EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "NetDevPack.Security.Jwt.Core", "Services\Identity\NetDevPack.Security.Jwt.Core\NetDevPack.Security.Jwt.Core.csproj", "{AAACBE70-7D75-4AF8-BBC8-E8D42DFC49A9}"
-EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "NetDevPack.Security.Jwt.Store.FileSystem", "Services\Identity\NetDevPack.Security.Jwt.Store.FileSystem\NetDevPack.Security.Jwt.Store.FileSystem.csproj", "{C97C18B9-100D-4B6C-8D36-58A869A6C6BC}"
-EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "TesteAPI", "TesteAPI", "{BD43695D-8079-4C38-9FCA-1BCB539C586A}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Teste.API", "Services\TesteAPI\Teste.API\Teste.API.csproj", "{58D63A47-27F4-4277-8E51-BF6CEC4E8A8D}"
@@ -36,7 +30,7 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Commom.Infra", "Services\Co
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "MaterialPurchase", "MaterialPurchase", "{4944623A-033A-46E1-BC82-B355843BE304}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MaterialPurchase.API", "Services\MaterialPurchase\MaterialPurchase.API\MaterialPurchase.API.csproj", "{60EC2568-BCAB-48DE-A296-CDD043286944}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "MaterialPurchase.API", "Services\MaterialPurchase\MaterialPurchase.API\MaterialPurchase.API.csproj", "{60EC2568-BCAB-48DE-A296-CDD043286944}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "1-Application", "1-Application", "{50F6FA1C-87F0-4EF3-B915-A4B1C212E79A}"
 EndProject
@@ -46,11 +40,13 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "3-Service", "3-Service", "{
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "4-Infra", "4-Infra", "{2EEBDB75-5880-4DD0-AF19-CA55C15CC095}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MaterialPurchase.Domain", "Services\MaterialPurchase\MaterialPurchase.Domain\MaterialPurchase.Domain.csproj", "{4E9BCCF3-4D49-4279-8ED3-186E86794E92}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "MaterialPurchase.Domain", "Services\MaterialPurchase\MaterialPurchase.Domain\MaterialPurchase.Domain.csproj", "{4E9BCCF3-4D49-4279-8ED3-186E86794E92}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MaterialPurchase.Service", "Services\MaterialPurchase\MaterialPurchase.Service\MaterialPurchase.Service.csproj", "{64FD9032-1415-4574-ABC7-48B4A13BDDED}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "MaterialPurchase.Service", "Services\MaterialPurchase\MaterialPurchase.Service\MaterialPurchase.Service.csproj", "{64FD9032-1415-4574-ABC7-48B4A13BDDED}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MaterialPurchase.Infra", "Services\MaterialPurchase\MaterialPurchase.Infra\MaterialPurchase.Infra.csproj", "{CB7063F2-3995-4C26-94DE-D34922F60C01}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "MaterialPurchase.Infra", "Services\MaterialPurchase\MaterialPurchase.Infra\MaterialPurchase.Infra.csproj", "{CB7063F2-3995-4C26-94DE-D34922F60C01}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Security.Jwt", "Services\Identity\Security.Jwt\Security.Jwt.csproj", "{5C0EBE91-3F12-4F2F-8DD0-5169F53256E8}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -62,18 +58,6 @@ Global
 		{471A0900-A0BD-4A77-BD35-2A88E679ADCB}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{471A0900-A0BD-4A77-BD35-2A88E679ADCB}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{471A0900-A0BD-4A77-BD35-2A88E679ADCB}.Release|Any CPU.Build.0 = Release|Any CPU
-		{2F76057A-64D6-4A53-BB15-454FC81BCB4C}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{2F76057A-64D6-4A53-BB15-454FC81BCB4C}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{2F76057A-64D6-4A53-BB15-454FC81BCB4C}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{2F76057A-64D6-4A53-BB15-454FC81BCB4C}.Release|Any CPU.Build.0 = Release|Any CPU
-		{AAACBE70-7D75-4AF8-BBC8-E8D42DFC49A9}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{AAACBE70-7D75-4AF8-BBC8-E8D42DFC49A9}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{AAACBE70-7D75-4AF8-BBC8-E8D42DFC49A9}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{AAACBE70-7D75-4AF8-BBC8-E8D42DFC49A9}.Release|Any CPU.Build.0 = Release|Any CPU
-		{C97C18B9-100D-4B6C-8D36-58A869A6C6BC}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{C97C18B9-100D-4B6C-8D36-58A869A6C6BC}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{C97C18B9-100D-4B6C-8D36-58A869A6C6BC}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{C97C18B9-100D-4B6C-8D36-58A869A6C6BC}.Release|Any CPU.Build.0 = Release|Any CPU
 		{58D63A47-27F4-4277-8E51-BF6CEC4E8A8D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{58D63A47-27F4-4277-8E51-BF6CEC4E8A8D}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{58D63A47-27F4-4277-8E51-BF6CEC4E8A8D}.Release|Any CPU.ActiveCfg = Release|Any CPU
@@ -110,6 +94,10 @@ Global
 		{CB7063F2-3995-4C26-94DE-D34922F60C01}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{CB7063F2-3995-4C26-94DE-D34922F60C01}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{CB7063F2-3995-4C26-94DE-D34922F60C01}.Release|Any CPU.Build.0 = Release|Any CPU
+		{5C0EBE91-3F12-4F2F-8DD0-5169F53256E8}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{5C0EBE91-3F12-4F2F-8DD0-5169F53256E8}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{5C0EBE91-3F12-4F2F-8DD0-5169F53256E8}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{5C0EBE91-3F12-4F2F-8DD0-5169F53256E8}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -117,9 +105,6 @@ Global
 	GlobalSection(NestedProjects) = preSolution
 		{1AC2A159-4A93-4D3B-8AAC-4D980DB9B0D7} = {E15732C3-6351-4024-AC63-1F1CB368AC28}
 		{471A0900-A0BD-4A77-BD35-2A88E679ADCB} = {1AC2A159-4A93-4D3B-8AAC-4D980DB9B0D7}
-		{2F76057A-64D6-4A53-BB15-454FC81BCB4C} = {1AC2A159-4A93-4D3B-8AAC-4D980DB9B0D7}
-		{AAACBE70-7D75-4AF8-BBC8-E8D42DFC49A9} = {1AC2A159-4A93-4D3B-8AAC-4D980DB9B0D7}
-		{C97C18B9-100D-4B6C-8D36-58A869A6C6BC} = {1AC2A159-4A93-4D3B-8AAC-4D980DB9B0D7}
 		{BD43695D-8079-4C38-9FCA-1BCB539C586A} = {E15732C3-6351-4024-AC63-1F1CB368AC28}
 		{58D63A47-27F4-4277-8E51-BF6CEC4E8A8D} = {BD43695D-8079-4C38-9FCA-1BCB539C586A}
 		{227D4956-122D-4597-BFC4-A0831FF0DCAE} = {E15732C3-6351-4024-AC63-1F1CB368AC28}
@@ -135,6 +120,7 @@ Global
 		{4E9BCCF3-4D49-4279-8ED3-186E86794E92} = {97EBB372-966B-4761-8A01-E5DEBB988BFC}
 		{64FD9032-1415-4574-ABC7-48B4A13BDDED} = {F2EDA1EB-26F6-4040-86C4-409FCD19AFAD}
 		{CB7063F2-3995-4C26-94DE-D34922F60C01} = {2EEBDB75-5880-4DD0-AF19-CA55C15CC095}
+		{5C0EBE91-3F12-4F2F-8DD0-5169F53256E8} = {1AC2A159-4A93-4D3B-8AAC-4D980DB9B0D7}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {9847F031-C706-4524-A2AA-7006612702CA}

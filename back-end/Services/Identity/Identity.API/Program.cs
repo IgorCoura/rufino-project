@@ -5,7 +5,6 @@ using Identity.API.Application.Interfaces;
 using Identity.API.Application.Service;
 using Identity.API.Infrastructure.Context;
 using Identity.API.Infrastructure.Repository;
-using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;

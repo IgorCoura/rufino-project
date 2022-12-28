@@ -1,4 +1,5 @@
 ﻿using Commom.Domain.SeedWork;
+using MaterialPurchase.Domain.Enum;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -18,5 +19,7 @@ namespace MaterialPurchase.Domain.Entities
         public Guid BrandId { get; set; }
         public int Quantity { get; set; }
         public int QuantityReceived { get; set; } = 0;
+        public IEnumerable<AuthorizationUserGroup> AuthorizationUserGroups { get; set; } =  new List<AuthorizationUserGroup>();
+        public PurchaseStatus Status { get; set; } = PurchaseStatus.Open;
     }
 }
