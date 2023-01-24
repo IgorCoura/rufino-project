@@ -1,4 +1,5 @@
 ﻿using Commom.Domain.SeedWork;
+using MaterialPurchase.Domain.Enum;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -13,7 +14,11 @@ namespace MaterialPurchase.Domain.Entities
         public Guid ProviderId { get; set; }
         public Construction? Construction { get; set; }
         public Guid ConstructionId { get; set; }
-        public virtual IEnumerable<MaterialPurchase> Materials { get; set; } = new List<MaterialPurchase>();
+        public virtual IEnumerable<ItemMaterialPurchase> Materials { get; set; } = new List<ItemMaterialPurchase>();
         public decimal Freight { get; set; }
+        public IEnumerable<AuthorizationUserGroup> AuthorizationUserGroups { get; set; } = new List<AuthorizationUserGroup>();
+        public PurchaseStatus Status { get; set; } = PurchaseStatus.Open;
+        public DateTime LimitDeliveryDate { get; set; }
+        public IEnumerable<PurchaseDeliveryItem> PurchaseDeliveries { get; set; } = new List<PurchaseDeliveryItem>();
     }
 }

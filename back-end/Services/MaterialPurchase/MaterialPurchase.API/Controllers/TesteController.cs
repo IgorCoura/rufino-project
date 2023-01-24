@@ -10,7 +10,7 @@ namespace MaterialPurchase.API.Controllers
         [HttpGet]
         public async Task<ActionResult> Get()
         {
-
+            
             return OkCustomResponse("Funcionando");
         }
     }

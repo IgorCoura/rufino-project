@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 
 namespace Commom.Domain.Errors
 {
-    public enum ErrorsMessages 
+    public enum CommomErrors 
     {
         [ApiError("10", "O campo {TProperty} - {1}")]
         InvalidField,
