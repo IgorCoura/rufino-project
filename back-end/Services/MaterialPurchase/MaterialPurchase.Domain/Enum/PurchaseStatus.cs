@@ -15,6 +15,7 @@ namespace MaterialPurchase.Domain.Enum
         Cancelled,
         Approved,
         WaitingDelivery,
+        DeliveryProblem,
         Closed
     }
 }

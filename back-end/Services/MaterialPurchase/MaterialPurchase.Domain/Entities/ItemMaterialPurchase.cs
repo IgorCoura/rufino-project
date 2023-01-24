@@ -8,18 +8,15 @@ using System.Threading.Tasks;
 
 namespace MaterialPurchase.Domain.Entities
 {
-    public class MaterialPurchase : Entity
+    public class ItemMaterialPurchase : Entity
     {
         public Material? Material { get; set; }
         public Guid MaterialId { get; set; }
         public Purchase? Purchase { get; set; }
-        public Guid PurchaseId { get; set; }
+        public Guid PurchaseId { get; set; }    
         public decimal UnitPrice { get; set; }
         public Brand? Brand { get; set; }
         public Guid BrandId { get; set; }
-        public int Quantity { get; set; }
-        public int QuantityReceived { get; set; } = 0;
-        public IEnumerable<AuthorizationUserGroup> AuthorizationUserGroups { get; set; } =  new List<AuthorizationUserGroup>();
-        public PurchaseStatus Status { get; set; } = PurchaseStatus.Open;
+        public double Quantity { get; set; }
     }
 }

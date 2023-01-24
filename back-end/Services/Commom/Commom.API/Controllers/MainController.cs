@@ -1,11 +1,17 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Commom.Domain.SeedWork;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.ModelBinding;
+using System.Security.Claims;
 
 namespace Commom.API.Controllers
 {
     [ApiController]
     public class MainController : ControllerBase
     {
+        public MainController()
+        {
+        }
+
         protected ActionResult OkCustomResponse(object? result = null)
         {
             return Ok(new
@@ -29,6 +35,18 @@ namespace Commom.API.Controllers
                 success = false,
                 erros = result
             });
+        }
+
+        protected Context Context()
+        {
+            return new Context()
+            {
+                User = new UserBase()
+                {
+                    Id = Guid.Parse(User.FindFirstValue(ClaimTypes.Sid)),
+                    Role = User.FindFirstValue(ClaimTypes.Role)
+                }
+            };
         }
     }
 }
