@@ -9,12 +9,13 @@ using System.Threading.Tasks;
 
 namespace MaterialPurchase.Service.Mappers
 {
-    public class EntityToModelProfile : Profile
+    public class ModelToEntityProfile : Profile
     {
-        EntityToModelProfile()
+        ModelToEntityProfile() 
         {
-            CreateMap<Purchase, PurchaseResponse>();
+            CreateMap<CreateDraftPurchaseRequest, Purchase>();
+            CreateMap<DraftPurchaseRequest, Purchase>();
+            CreateMap<MaterialDraftPurchaseRequest, ItemMaterialPurchase>();
         }
     }
-    
 }

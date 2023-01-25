@@ -8,16 +8,17 @@ using System.Threading.Tasks;
 
 namespace MaterialPurchase.Service.Services
 {
-    public class ValidatePurchaseService
+    public class ValidatePurchaseService : IValidatePurchaseService
     {
         private readonly IPurchaseRepository _purchaseRepository;
         private readonly IPurchaseService _purchaseService;
-        public ValidatePurchaseService(IPurchaseRepository purchaseRepository)
+        public ValidatePurchaseService(IPurchaseRepository purchaseRepository, IPurchaseService purchaseService)
         {
             _purchaseRepository = purchaseRepository;
+            _purchaseService = purchaseService;
         }
 
-        public async Task ValidatePurchaseOrder(Guid PurchaseId)
+        public async void ValidatePurchaseOrder(Guid PurchaseId)
         {
             var purchase = await _purchaseRepository.FirstAsyncAsTracking(x => x.Id == PurchaseId)
                 ?? throw new BadRequestException();

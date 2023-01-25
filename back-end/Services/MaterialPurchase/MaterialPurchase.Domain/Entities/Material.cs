@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Commom.Domain.SeedWork;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -6,7 +7,7 @@ using System.Threading.Tasks;
 
 namespace MaterialPurchase.Domain.Entities
 {
-    public class Material
+    public class Material : Entity
     {
         private string _name = string.Empty;
 

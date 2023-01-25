@@ -1,4 +1,5 @@
-﻿using Commom.Domain.Errors;
+﻿using AutoMapper;
+using Commom.Domain.Errors;
 using Commom.Domain.Exceptions;
 using Commom.Domain.SeedWork;
 using MaterialPurchase.Domain.Entities;
@@ -15,24 +16,22 @@ using System.Threading.Tasks;
 
 namespace MaterialPurchase.Service.Services
 {
-    public class PurchaseService
+    public class PurchaseService : IPurchaseService
     {
         private readonly IPurchaseRepository _purchaseRepository;
 
-        public PurchaseService(IPurchaseRepository purchaseRepository)
+        private readonly IMapper _mapper;
+
+        public PurchaseService(IPurchaseRepository purchaseRepository, IMapper mapper)
         {
             _purchaseRepository = purchaseRepository;
+            _mapper = mapper;
         }
 
-        public async Task Read()
-        {
-            throw new NotImplementedException();
-        }
-
-        public async Task AuthorizePurchase(Context context, Guid purchaseId)
+        public async Task<PurchaseResponse> AuthorizePurchase(Context context, PurchaseRequest req)
         {
              var currentPuchase = await _purchaseRepository.FirstAsyncAsTracking(
-                 filter: x => x.Id == purchaseId, 
+                 filter: x => x.Id == req.Id, 
                  include: i => i.Include(a => a.AuthorizationUserGroups).ThenInclude(b => b.UserAuthorizations)) 
                 ?? throw new BadRequestException(); //TODO: Colocar error;
 
@@ -45,12 +44,14 @@ namespace MaterialPurchase.Service.Services
             CheckPurchaseAuthorizations(currentPuchase);
 
             await _purchaseRepository.UnitOfWork.SaveChangesAsync();
+
+            return _mapper.Map<PurchaseResponse>(currentPuchase);
         }
 
-        public async Task UnlockPurchase(Context context, Guid purchaseId)
+        public async Task<PurchaseResponse> UnlockPurchase(Context context, PurchaseRequest req)
         {
             var currentPuchase = await _purchaseRepository.FirstAsyncAsTracking(
-                  filter: x => x.Id == purchaseId,
+                  filter: x => x.Id == req.Id,
                   include: i => i.Include(a => a.AuthorizationUserGroups).ThenInclude(b => b.UserAuthorizations))
                  ?? throw new BadRequestException(); //TODO: Colocar error;
 
@@ -61,9 +62,11 @@ namespace MaterialPurchase.Service.Services
             CheckPurchaseAuthorizations(currentPuchase);
 
             await _purchaseRepository.UnitOfWork.SaveChangesAsync();
+
+            return _mapper.Map<PurchaseResponse>(currentPuchase);
         }
 
-        public async Task ConfirmDeliveryDate(Context context, ConfirmDeliveryDateRequest req)
+        public async Task<PurchaseResponse> ConfirmDeliveryDate(Context context, ConfirmDeliveryDateRequest req)
         {
             var currentPuchase = await _purchaseRepository.FirstAsyncAsTracking(
                   filter: x => x.Id == req.PurchaseId)
@@ -76,9 +79,11 @@ namespace MaterialPurchase.Service.Services
             currentPuchase.LimitDeliveryDate = req.LimitDeliveryDate;
 
             await _purchaseRepository.UnitOfWork.SaveChangesAsync();
+
+            return _mapper.Map<PurchaseResponse>(currentPuchase);
         }
 
-        public async Task ReceiveDelivery(Context context, ReceiveDeliveryRequest req)
+        public async Task<PurchaseResponse> ReceiveDelivery(Context context, ReceiveDeliveryRequest req)
         {
             var purchase = await _purchaseRepository.FirstAsyncAsTracking(
                   filter: x => x.Id == req.PurchaseId,
@@ -104,19 +109,25 @@ namespace MaterialPurchase.Service.Services
                 purchase.Status = PurchaseStatus.Closed;
 
             await _purchaseRepository.UnitOfWork.SaveChangesAsync();
+
+            return _mapper.Map<PurchaseResponse>(purchase);
         }
 
-        public async Task CancelPurchaseCreator(Context context, CancelPurchaseRequest req)
+        public async Task<PurchaseResponse> CancelPurchaseCreator(Context context, CancelPurchaseRequest req)
         {
-            await CancelPurchase(context, req, PurchaseStatus.Pending, PurchaseStatus.Authorizing);
+            var result = await CancelPurchase(context, req, PurchaseStatus.Pending, PurchaseStatus.Authorizing);
+
+            return _mapper.Map<PurchaseResponse>(result);
         }
 
-        public async Task CancelPurchaseClient(Context context, CancelPurchaseRequest req)
+        public async Task<PurchaseResponse> CancelPurchaseClient(Context context, CancelPurchaseRequest req)
         {
-            await CancelPurchase(context, req, PurchaseStatus.Authorizing);
+            var result = await CancelPurchase(context, req, PurchaseStatus.Authorizing);
+
+            return _mapper.Map<PurchaseResponse>(result);
         }
 
-        public async Task CancelPurchaseAdmin(Context context, CancelPurchaseRequest req)
+        public async Task<PurchaseResponse> CancelPurchaseAdmin(Context context, CancelPurchaseRequest req)
         {
             var currentPuchase = await _purchaseRepository.FirstAsyncAsTracking(
                  filter: x => x.Id == req.PurchaseId,
@@ -136,7 +147,7 @@ namespace MaterialPurchase.Service.Services
                 x.UserAuthorizations.Any(u => u.UserId == context.User.Id)).FirstOrDefault() 
                 ?? throw new BadRequestException(); //TODO: Colocar error;
 
-            var userAuth = group.UserAuthorizations.Where(x => x.UserId == context.User.Id).First();
+            var userAuth = group.UserAuthorizations.Where(x => x.UserId == context.User.Id).FirstOrDefault();
 
             if(userAuth == null)
             {
@@ -161,6 +172,8 @@ namespace MaterialPurchase.Service.Services
             }
             currentPuchase.Status = PurchaseStatus.Cancelled;
             await _purchaseRepository.UnitOfWork.SaveChangesAsync();
+
+            return _mapper.Map<PurchaseResponse>(currentPuchase);
         }
 
         
@@ -183,7 +196,7 @@ namespace MaterialPurchase.Service.Services
             purchase.Status = PurchaseStatus.Approved;
         }
 
-        private async Task CancelPurchase(Context context, CancelPurchaseRequest req, params PurchaseStatus[] status)
+        private async Task<Purchase> CancelPurchase(Context context, CancelPurchaseRequest req, params PurchaseStatus[] status)
         {
             var currentPuchase = await _purchaseRepository.FirstAsyncAsTracking(
                  filter: x => x.Id == req.PurchaseId,
@@ -199,6 +212,8 @@ namespace MaterialPurchase.Service.Services
             userAuth.Comment = req.Comment;
             currentPuchase.Status = PurchaseStatus.Cancelled;
             await _purchaseRepository.UnitOfWork.SaveChangesAsync();
+
+            return currentPuchase;
         }
 
 
