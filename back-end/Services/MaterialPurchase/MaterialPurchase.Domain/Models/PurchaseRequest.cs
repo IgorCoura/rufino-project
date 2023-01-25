@@ -6,9 +6,8 @@ using System.Threading.Tasks;
 
 namespace MaterialPurchase.Domain.Models
 {
-    public record CancelPurchaseRequest
+    public record PurchaseRequest
     (
-        Guid PurchaseId,
-        string Comment
+        Guid Id
     );
 }

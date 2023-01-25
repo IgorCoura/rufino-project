@@ -10,6 +10,8 @@ namespace MaterialPurchase.Domain.Entities
 {
     public class UserAuthorization : Entity
     {
+        public AuthorizationUserGroup AuthorizationUserGroup { get; set; }
+        public Guid AuthorizationUserGroupId { get; set; }
         public User? User { get; set; }
         public Guid UserId { get; set; }
         public UserAuthorizationStatus AuthorizationStatus { get; set; } = UserAuthorizationStatus.Pending;

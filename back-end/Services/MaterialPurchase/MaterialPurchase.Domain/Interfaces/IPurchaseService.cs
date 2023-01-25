@@ -13,18 +13,18 @@ namespace MaterialPurchase.Domain.Interfaces
 {
     public interface IPurchaseService
     {
-        Task AuthorizePurchase(Context context, Guid purchaseId);
-        Task UnlockPurchase(Context context, Guid purchaseId);
+        Task<PurchaseResponse> AuthorizePurchase(Context context, PurchaseRequest req);
+        Task<PurchaseResponse> UnlockPurchase(Context context, PurchaseRequest req);
 
-        Task ConfirmDeliveryDate(Context context, ConfirmDeliveryDateRequest req);
+        Task<PurchaseResponse> ConfirmDeliveryDate(Context context, ConfirmDeliveryDateRequest req);
 
-        Task ReceiveDelivery(Context context, ReceiveDeliveryRequest req);
+        Task<PurchaseResponse> ReceiveDelivery(Context context, ReceiveDeliveryRequest req);
 
-        Task CancelPurchaseCreator(Context context, CancelPurchaseRequest req);
+        Task<PurchaseResponse> CancelPurchaseCreator(Context context, CancelPurchaseRequest req);
 
-        Task CancelPurchaseClient(Context context, CancelPurchaseRequest req);
+        Task<PurchaseResponse> CancelPurchaseClient(Context context, CancelPurchaseRequest req);
 
-        Task CancelPurchaseAdmin(Context context, CancelPurchaseRequest req);
+        Task<PurchaseResponse> CancelPurchaseAdmin(Context context, CancelPurchaseRequest req);
         void CheckPurchaseAuthorizations(Purchase purchase);
     }
 }

@@ -8,6 +8,6 @@ namespace MaterialPurchase.Domain.Interfaces
 {
     public interface IValidatePurchaseService
     {
-        Task ValidatePurchaseOrder(Guid PurchaseId);
+        void ValidatePurchaseOrder(Guid PurchaseId);
     }
 }

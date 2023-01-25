@@ -14,11 +14,12 @@ using System.Threading.Tasks;
 
 namespace MaterialPurchase.Service.Services
 {
-    public class DraftPurchaseService
+    public class DraftPurchaseService : IDraftPurchaseService
     {
         private readonly IMapper _mapper;
         private readonly IConstructionRepository _constructionRepository;
         private readonly IPurchaseRepository _purchaseRepository;
+        private readonly IValidatePurchaseService _validatePurchaseService;
 
         public DraftPurchaseService(IMapper mapper, IConstructionRepository constructionRepository, IPurchaseRepository purchaseRepository)
         {
@@ -27,7 +28,7 @@ namespace MaterialPurchase.Service.Services
             _purchaseRepository = purchaseRepository;
         }
 
-        public async Task Create(Context context, CreateDraftPurchaseRequest req)
+        public async Task<PurchaseResponse> Create(Context context, CreateDraftPurchaseRequest req)
         {
             //Validar 
 
@@ -38,12 +39,14 @@ namespace MaterialPurchase.Service.Services
 
             purchase.AuthorizationUserGroups = GetAuthorizationUserGroups(context, construction);
 
-            await _purchaseRepository.RegisterAsync(purchase);
+            var result = await _purchaseRepository.RegisterAsync(purchase);
 
             await _purchaseRepository.UnitOfWork.SaveChangesAsync();
+
+            return _mapper.Map<PurchaseResponse>(result);
         }
 
-        public async Task Update(DraftPurchaseRequest req)
+        public async Task<PurchaseResponse> Update(DraftPurchaseRequest req)
         {
             var currentPurchase = await _purchaseRepository.FirstAsync(x => x.Id == req.Id, include: i => i.Include(x => x.Materials)) 
                 ?? throw new BadRequestException(); //TODO Colocar error;
@@ -55,14 +58,16 @@ namespace MaterialPurchase.Service.Services
 
             _mapper.Map<DraftPurchaseRequest, Purchase>(req, currentPurchase);
 
-            await _purchaseRepository.UpdateAsync(currentPurchase);
+            var result = await _purchaseRepository.UpdateAsync(currentPurchase);
 
             await _purchaseRepository.UnitOfWork.SaveChangesAsync();
+
+            return _mapper.Map<PurchaseResponse>(result);
         }
 
-        public async Task Delete(Guid PurchaseId)
+        public async Task Delete(PurchaseRequest req)
         {
-            var currentPurchase = await _purchaseRepository.FirstAsync(x => x.Id == PurchaseId)
+            var currentPurchase = await _purchaseRepository.FirstAsync(x => x.Id == req.Id)
                 ?? throw new BadRequestException(); //TODO Colocar error;
 
             if(currentPurchase.Status != PurchaseStatus.Open)
@@ -71,23 +76,26 @@ namespace MaterialPurchase.Service.Services
             await _purchaseRepository.DeleteAsync(currentPurchase);
 
             await _purchaseRepository.UnitOfWork.SaveChangesAsync();
+
         }
 
   
 
-        public async Task SendToAuthorization(Guid PurchaseId)
+        public async Task<PurchaseResponse> SendToAuthorization(PurchaseRequest req)
         {
-            var currentPurchase = await _purchaseRepository.FirstAsyncAsTracking(x => x.Id == PurchaseId)
+            var currentPurchase = await _purchaseRepository.FirstAsyncAsTracking(x => x.Id == req.Id)
                 ?? throw new BadRequestException(); //TODO Colocar error;
 
             currentPurchase.Status = PurchaseStatus.Pending;
 
             await _purchaseRepository.UnitOfWork.SaveChangesAsync();
 
+            _validatePurchaseService.ValidatePurchaseOrder(req.Id);
 
+            return _mapper.Map<PurchaseResponse>(currentPurchase);
         }
 
-        private List<AuthorizationUserGroup> GetAuthorizationUserGroups(Context context, Construction construction)
+        private static List<AuthorizationUserGroup> GetAuthorizationUserGroups(Context context, Construction construction)
         {
             var authorizationUserGroups = construction.PurchasingAuthorizationUserGroups.ToList();
 

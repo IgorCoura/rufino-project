@@ -19,6 +19,8 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\Commom\Commom.API\Commom.API.csproj" />
+    <ProjectReference Include="..\MaterialPurchase.Domain\MaterialPurchase.Domain.csproj" />
+    <ProjectReference Include="..\MaterialPurchase.Service\MaterialPurchase.Service.csproj" />
   </ItemGroup>
 
 </Project>

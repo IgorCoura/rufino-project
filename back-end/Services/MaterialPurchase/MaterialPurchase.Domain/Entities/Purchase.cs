@@ -15,10 +15,10 @@ namespace MaterialPurchase.Domain.Entities
         public Construction? Construction { get; set; }
         public Guid ConstructionId { get; set; }
         public virtual IEnumerable<ItemMaterialPurchase> Materials { get; set; } = new List<ItemMaterialPurchase>();
-        public decimal Freight { get; set; }
+        public decimal Freight { get; set; } = 0;
         public IEnumerable<AuthorizationUserGroup> AuthorizationUserGroups { get; set; } = new List<AuthorizationUserGroup>();
         public PurchaseStatus Status { get; set; } = PurchaseStatus.Open;
-        public DateTime LimitDeliveryDate { get; set; }
+        public DateTime? LimitDeliveryDate { get; set; }
         public IEnumerable<PurchaseDeliveryItem> PurchaseDeliveries { get; set; } = new List<PurchaseDeliveryItem>();
     }
 }
