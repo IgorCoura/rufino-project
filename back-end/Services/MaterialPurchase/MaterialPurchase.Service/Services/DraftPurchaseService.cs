@@ -21,11 +21,12 @@ namespace MaterialPurchase.Service.Services
         private readonly IPurchaseRepository _purchaseRepository;
         private readonly IValidatePurchaseService _validatePurchaseService;
 
-        public DraftPurchaseService(IMapper mapper, IConstructionRepository constructionRepository, IPurchaseRepository purchaseRepository)
+        public DraftPurchaseService(IMapper mapper, IConstructionRepository constructionRepository, IPurchaseRepository purchaseRepository, IValidatePurchaseService validatePurchaseService)
         {
             _mapper = mapper;
             _constructionRepository = constructionRepository;
             _purchaseRepository = purchaseRepository;
+            _validatePurchaseService = validatePurchaseService;
         }
 
         public async Task<PurchaseResponse> Create(Context context, CreateDraftPurchaseRequest req)
@@ -37,7 +38,7 @@ namespace MaterialPurchase.Service.Services
             
             var purchase = _mapper.Map<Purchase>(req);
 
-            purchase.AuthorizationUserGroups = GetAuthorizationUserGroups(context, construction);
+            purchase.AuthorizationUserGroups = GetAuthorizationUserGroups(context, _mapper.Map<IEnumerable<PurchaseAuthUserGroup>>(construction.PurchasingAuthorizationUserGroups));
 
             var result = await _purchaseRepository.RegisterAsync(purchase);
 
@@ -95,26 +96,23 @@ namespace MaterialPurchase.Service.Services
             return _mapper.Map<PurchaseResponse>(currentPurchase);
         }
 
-        private static List<AuthorizationUserGroup> GetAuthorizationUserGroups(Context context, Construction construction)
+        private static IEnumerable<PurchaseAuthUserGroup> GetAuthorizationUserGroups(Context context, IEnumerable<PurchaseAuthUserGroup> purchasingAuthorizationUserGroups)
         {
-            var authorizationUserGroups = construction.PurchasingAuthorizationUserGroups.ToList();
+            var authorizationUserGroups = purchasingAuthorizationUserGroups.ToList();
 
-            var userAuthorizations = new List<UserAuthorization>();
-
-            userAuthorizations.Add(
-                new UserAuthorization()
-                {
-                    UserId = context.User.Id,
-                    AuthorizationStatus = UserAuthorizationStatus.Approved,
-                    Permissions = UserAuthorizationPermissions.Creator
-                });
-
-            authorizationUserGroups.Prepend(new AuthorizationUserGroup()
+            return authorizationUserGroups.Prepend(new PurchaseAuthUserGroup()
             {
-                UserAuthorizations = userAuthorizations
+                UserAuthorizations = new List<PurchaseUserAuthorization>()
+                {
+                    new PurchaseUserAuthorization()
+                    {
+                        UserId = context.User.Id,
+                        AuthorizationStatus = UserAuthorizationStatus.Approved,
+                        Permissions = UserAuthorizationPermissions.Creator
+                    }
+                }
             });
 
-            return authorizationUserGroups;
         }
         
     }

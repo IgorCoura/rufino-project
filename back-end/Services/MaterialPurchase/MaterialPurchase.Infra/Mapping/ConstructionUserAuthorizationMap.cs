@@ -9,9 +9,9 @@ using System.Threading.Tasks;
 
 namespace MaterialPurchase.Infra.Mapping
 {
-    public class UserAuthorizationMap : EntityMap<UserAuthorization>
+    public class ConstructionUserAuthorizationMap : EntityMap<ConstructionUserAuthorization>
     {
-        public override void Configure(EntityTypeBuilder<UserAuthorization> builder)
+        public override void Configure(EntityTypeBuilder<ConstructionUserAuthorization> builder)
         {
             base.Configure(builder);
 

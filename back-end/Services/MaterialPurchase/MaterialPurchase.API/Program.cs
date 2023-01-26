@@ -1,8 +1,28 @@
+using Commom.API.Authentication;
+using MaterialPurchase.API.Configurations;
+using MaterialPurchase.Infra.Context;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
+//Config DataBase
+
+builder.Services.AddDbContext<MaterialPurchaseContext>(options =>
+{
+    options.UseNpgsql(builder.Configuration["ConnectionString"],
+        npgsqlOptionsAction: sqlOptions =>
+        {
+            sqlOptions.EnableRetryOnFailure(maxRetryCount: 15, maxRetryDelay: TimeSpan.FromSeconds(30), errorCodesToAdd: null);
+        })
+        .EnableDetailedErrors()
+        .EnableSensitiveDataLogging();
+});
+
 // Add services to the container.
+
+builder.Services.AddAuthenticationJwtBearer(builder.Configuration);
+builder.Services.AddDependencies(builder.Configuration);
 
 
 builder.Services.AddApiVersioning(options =>
@@ -32,6 +52,18 @@ if (app.Environment.IsDevelopment())
     app.UseSwagger();
     app.UseSwaggerUI();
 }
+
+AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
+
+using (var scope = app.Services.CreateScope())
+{
+    var services = scope.ServiceProvider;
+
+    var context = services.GetRequiredService<MaterialPurchaseContext>();
+    if (context.Database.GetPendingMigrations().Any())
+        context.Database.Migrate();
+}
+
 
 app.UseHttpsRedirection();
 

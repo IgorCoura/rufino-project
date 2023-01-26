@@ -9,7 +9,18 @@ namespace MaterialPurchase.Domain.Entities
 {
     public class Provider : Entity
     {
-        public string Name { get; set; } = string.Empty;
+        private string _name = string.Empty;
+        public string Name
+        {
+            get
+            {
+                return _name;
+            }
+            set
+            {
+                _name = value.ToUpper();
+            }
+        }
         public string Description { get; set; } = string.Empty;
         public string Cnpj { get; set; } = string.Empty;
         public string Email { get; set; } = string.Empty;

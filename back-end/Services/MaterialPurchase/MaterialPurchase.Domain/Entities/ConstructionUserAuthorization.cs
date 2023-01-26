@@ -8,9 +8,9 @@ using System.Threading.Tasks;
 
 namespace MaterialPurchase.Domain.Entities
 {
-    public class UserAuthorization : Entity
+    public class ConstructionUserAuthorization : Entity
     {
-        public AuthorizationUserGroup AuthorizationUserGroup { get; set; }
+        public ConstructionAuthUserGroup? AuthorizationUserGroup { get; set; }
         public Guid AuthorizationUserGroupId { get; set; }
         public User? User { get; set; }
         public Guid UserId { get; set; }
