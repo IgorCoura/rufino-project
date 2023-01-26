@@ -9,11 +9,11 @@ using System.Threading.Tasks;
 
 namespace MaterialPurchase.Service.Mappers
 {
-    public class EntityToModelProfile : Profile
+    public class EntityToEntityProfile : Profile
     {
-        EntityToModelProfile()
+        EntityToEntityProfile()
         {
-            CreateMap<ConstructionAuthUserGroup, PurchaseAuthUserGroup>();
+            CreateMap<Purchase, PurchaseResponse>();
         }
     }
     

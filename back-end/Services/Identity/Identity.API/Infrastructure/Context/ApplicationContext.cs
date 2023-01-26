@@ -32,8 +32,8 @@ namespace Identity.API.Infrastructure.Context
                     Id = Guid.NewGuid(),
                     Username = "admin",
                     Password = _passwordHasher.HashPassword("admin"),
-                    CreatedAt = DateTime.ParseExact("13/10/2021", "dd/MM/yyyy", CultureInfo.InvariantCulture),
-                    UpdatedAt = DateTime.ParseExact("13/10/2021", "dd/MM/yyyy", CultureInfo.InvariantCulture),
+                    CreatedAt = DateTime.Now,
+                    UpdatedAt = DateTime.Now,
                     Role = "11"
                 });
         }

@@ -17,7 +17,7 @@ namespace MaterialPurchase.Domain.Entities
             {
                 return _name;
             }
-            protected set
+            set
             {
                 _name = value.ToUpper();
             }

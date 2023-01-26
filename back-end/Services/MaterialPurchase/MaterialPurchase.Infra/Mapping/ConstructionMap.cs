@@ -46,11 +46,6 @@ namespace MaterialPurchase.Infra.Mapping
                 .IsRequired();
             });
 
-            builder.HasMany(x => x.PurchasingAuthorizationUserGroups)
-                .WithOne()
-                .HasForeignKey("ContructionId")
-                .IsRequired()
-                .OnDelete(Microsoft.EntityFrameworkCore.DeleteBehavior.Cascade);
 
         }
     }

@@ -151,16 +151,18 @@ namespace MaterialPurchase.Service.Services
 
             if(userAuth == null)
             {
-                var userAuthorizations = new List<UserAuthorization>();
-                userAuthorizations.Add(new UserAuthorization()
+                var userAuthorizations = new List<PurchaseUserAuthorization>()
                 {
-                    UserId = context.User.Id,
-                    AuthorizationStatus = UserAuthorizationStatus.Reproved,
-                    Comment = req.Comment,
-                    Permissions = UserAuthorizationPermissions.Admin
-                });
+                    new PurchaseUserAuthorization()
+                    {
+                        UserId = context.User.Id,
+                        AuthorizationStatus = UserAuthorizationStatus.Reproved,
+                        Comment = req.Comment,
+                        Permissions = UserAuthorizationPermissions.Admin
+                    }
+                };
                 var authorizationUserGroups = currentPuchase.AuthorizationUserGroups.ToList();
-                authorizationUserGroups.Add(new AuthorizationUserGroup()
+                authorizationUserGroups.Add(new PurchaseAuthUserGroup()
                 {
                     UserAuthorizations = userAuthorizations
                 });
@@ -217,7 +219,7 @@ namespace MaterialPurchase.Service.Services
         }
 
 
-        private static UserAuthorization UserIsInTheAuthorizationList(Context context, Purchase purchase) 
+        private static PurchaseUserAuthorization UserIsInTheAuthorizationList(Context context, Purchase purchase) 
         {
             var listGroup = purchase.AuthorizationUserGroups.ToList();
 
@@ -243,7 +245,7 @@ namespace MaterialPurchase.Service.Services
         {
             var exception = new BadRequestException();
 
-            int countItemsDelivered = default(int);
+            int countItemsDelivered = default;
 
             foreach(var material in purchase.Materials)
             {

@@ -8,11 +8,10 @@ namespace MaterialPurchase.API.Controllers
     public class TesteController : MainController
     {
         [HttpGet]
-        public async Task<ActionResult> Get()
+        public ActionResult Get()
         {
             
             return OkCustomResponse("Funcionando");
         }
     }
 }
-/

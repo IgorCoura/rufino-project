@@ -1,4 +1,8 @@
-﻿using Microsoft.Extensions.Options;
+﻿using MaterialPurchase.Domain.Interfaces;
+using MaterialPurchase.Infra.Repository;
+using MaterialPurchase.Service.Mappers;
+using MaterialPurchase.Service.Services;
+using Microsoft.Extensions.Options;
 using Swashbuckle.AspNetCore.SwaggerGen;
 using System.Reflection;
 
@@ -10,11 +14,16 @@ namespace MaterialPurchase.API.Configurations
         {
             #region Repositories
 
+            service.AddScoped<IConstructionRepository, ConstructionRepository>();
+            service.AddScoped<IPurchaseRepository, PurchaseRepository>();
 
             #endregion
 
             #region Services
 
+            service.AddScoped<IDraftPurchaseService, DraftPurchaseService>();
+            service.AddScoped<IPurchaseService, PurchaseService>();
+            service.AddScoped<IValidatePurchaseService, ValidatePurchaseService>();
 
             #endregion
 
@@ -27,6 +36,8 @@ namespace MaterialPurchase.API.Configurations
 
 
             #endregion
+
+            service.AddAutoMapper(typeof(EntityToModelProfile), typeof(ModelToEntityProfile), typeof(EntityToEntityProfile));
 
             return service;
         }

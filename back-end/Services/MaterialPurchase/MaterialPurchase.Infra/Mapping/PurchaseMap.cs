@@ -15,10 +15,10 @@ namespace MaterialPurchase.Infra.Mapping
                 .IsRequired();
 
             builder.Property(x => x.Status)
-                .IsRequired(false);
+                .IsRequired();
 
             builder.Property(x => x.LimitDeliveryDate)
-                .IsRequired();
+                .IsRequired(false);
 
             builder.HasOne(x => x.Provider)
                 .WithMany()
@@ -32,11 +32,7 @@ namespace MaterialPurchase.Infra.Mapping
                 .IsRequired()
                 .OnDelete(Microsoft.EntityFrameworkCore.DeleteBehavior.Restrict);
 
-            builder.HasMany(x => x.AuthorizationUserGroups)
-                .WithOne()
-                .HasForeignKey("PurchaseId")
-                .IsRequired()
-                .OnDelete(Microsoft.EntityFrameworkCore.DeleteBehavior.Cascade);
+            
         
         }
     }

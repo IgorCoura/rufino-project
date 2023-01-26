@@ -16,7 +16,7 @@ namespace MaterialPurchase.Domain.Entities
         public Guid ConstructionId { get; set; }
         public virtual IEnumerable<ItemMaterialPurchase> Materials { get; set; } = new List<ItemMaterialPurchase>();
         public decimal Freight { get; set; } = 0;
-        public IEnumerable<AuthorizationUserGroup> AuthorizationUserGroups { get; set; } = new List<AuthorizationUserGroup>();
+        public IEnumerable<PurchaseAuthUserGroup> AuthorizationUserGroups { get; set; } = new List<PurchaseAuthUserGroup>();
         public PurchaseStatus Status { get; set; } = PurchaseStatus.Open;
         public DateTime? LimitDeliveryDate { get; set; }
         public IEnumerable<PurchaseDeliveryItem> PurchaseDeliveries { get; set; } = new List<PurchaseDeliveryItem>();
