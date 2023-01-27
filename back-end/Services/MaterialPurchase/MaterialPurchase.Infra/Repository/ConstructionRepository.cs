@@ -9,6 +9,8 @@ namespace MaterialPurchase.Infra.Repository
     {
         public ConstructionRepository(MaterialPurchaseContext context) : base(context)
         {
+    
         }
     }
 }
+

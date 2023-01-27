@@ -37,7 +37,7 @@ namespace MaterialPurchase.API.Configurations
 
             #endregion
 
-            service.AddAutoMapper(typeof(EntityToModelProfile), typeof(ModelToEntityProfile), typeof(EntityToEntityProfile));
+            service.AddAutoMapper(typeof(EntityToModelProfile), typeof(ModelToEntityProfile));
 
             return service;
         }

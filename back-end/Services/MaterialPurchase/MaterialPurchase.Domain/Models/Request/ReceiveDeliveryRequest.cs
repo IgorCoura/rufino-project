@@ -4,14 +4,14 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace MaterialPurchase.Domain.Models
+namespace MaterialPurchase.Domain.Models.Request
 {
     public record ReceiveDeliveryRequest
     (
         Guid PurchaseId,
         DateTime DeliveryDate,
         ReceiveDeliveryItemRequest[] ReceiveDeliveryItemRequests
-        
+
     );
 
     public record ReceiveDeliveryItemRequest

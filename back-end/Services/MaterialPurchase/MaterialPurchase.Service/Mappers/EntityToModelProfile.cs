@@ -1,6 +1,7 @@
 ﻿using AutoMapper;
 using MaterialPurchase.Domain.Entities;
 using MaterialPurchase.Domain.Models;
+using MaterialPurchase.Domain.Models.Response;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -11,9 +12,12 @@ namespace MaterialPurchase.Service.Mappers
 {
     public class EntityToModelProfile : Profile
     {
-        EntityToModelProfile()
+        public EntityToModelProfile()
         {
-            CreateMap<ConstructionAuthUserGroup, PurchaseAuthUserGroup>();
+            CreateMap<Purchase, PurchaseResponse>();
+            CreateMap<Purchase, SimplePurchaseResponse>();
+            CreateMap<Construction, ConstructionResponse>();
+            CreateMap<Provider, ProviderResponse>();
         }
     }
     

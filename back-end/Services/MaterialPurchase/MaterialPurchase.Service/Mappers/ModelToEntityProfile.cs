@@ -1,6 +1,6 @@
 ﻿using AutoMapper;
 using MaterialPurchase.Domain.Entities;
-using MaterialPurchase.Domain.Models;
+using MaterialPurchase.Domain.Models.Request;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -11,7 +11,7 @@ namespace MaterialPurchase.Service.Mappers
 {
     public class ModelToEntityProfile : Profile
     {
-        ModelToEntityProfile() 
+        public ModelToEntityProfile() 
         {
             CreateMap<CreateDraftPurchaseRequest, Purchase>();
             CreateMap<DraftPurchaseRequest, Purchase>();

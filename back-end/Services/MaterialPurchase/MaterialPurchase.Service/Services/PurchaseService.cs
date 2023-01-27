@@ -5,7 +5,8 @@ using Commom.Domain.SeedWork;
 using MaterialPurchase.Domain.Entities;
 using MaterialPurchase.Domain.Enum;
 using MaterialPurchase.Domain.Interfaces;
-using MaterialPurchase.Domain.Models;
+using MaterialPurchase.Domain.Models.Request;
+using MaterialPurchase.Domain.Models.Response;
 using Microsoft.EntityFrameworkCore;
 using System;
 using System.Collections.Generic;
@@ -221,7 +222,7 @@ namespace MaterialPurchase.Service.Services
 
         private static PurchaseUserAuthorization UserIsInTheAuthorizationList(Context context, Purchase purchase) 
         {
-            var listGroup = purchase.AuthorizationUserGroups.ToList();
+            var listGroup = purchase.AuthorizationUserGroups.ToList().OrderBy(x => x.Priority);
 
             foreach (var group in listGroup)
             {

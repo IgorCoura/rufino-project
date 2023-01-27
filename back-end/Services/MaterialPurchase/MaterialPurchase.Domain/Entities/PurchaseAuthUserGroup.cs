@@ -11,6 +11,7 @@ namespace MaterialPurchase.Domain.Entities
     {
         public Purchase Purchase { get; set; }
         public Guid PurchaseId { get; set; }
+        public int Priority { get; set; }
         public IEnumerable<PurchaseUserAuthorization> UserAuthorizations { get; set; } = new List<PurchaseUserAuthorization>();
     }
 }

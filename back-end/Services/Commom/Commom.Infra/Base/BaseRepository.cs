@@ -5,7 +5,7 @@ using System.Linq.Expressions;
 
 namespace Commom.Infra.Base
 {
-    public abstract class BaseRepository<T> : IBaseRepository<T> where T : Entity
+    public class BaseRepository<T> : IBaseRepository<T> where T : Entity
     {
 
         protected readonly BaseContext _context;

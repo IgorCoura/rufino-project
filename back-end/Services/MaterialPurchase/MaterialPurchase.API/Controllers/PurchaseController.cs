@@ -1,7 +1,7 @@
 ﻿using Commom.API.Controllers;
 using Commom.API.FunctionIdAuthorization;
 using MaterialPurchase.Domain.Consts;
-using MaterialPurchase.Domain.Models;
+using MaterialPurchase.Domain.Models.Request;
 using MaterialPurchase.Service.Services;
 using Microsoft.AspNetCore.Mvc;
 
