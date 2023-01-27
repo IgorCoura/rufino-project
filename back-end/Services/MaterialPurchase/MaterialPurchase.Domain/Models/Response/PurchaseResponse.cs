@@ -4,11 +4,10 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace MaterialPurchase.Domain.Models
+namespace MaterialPurchase.Domain.Models.Response
 {
-    public record CancelPurchaseRequest
+    public record PurchaseResponse
     (
-        Guid PurchaseId,
-        string Comment
+        Guid Id
     );
 }

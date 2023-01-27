@@ -4,11 +4,11 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace MaterialPurchase.Domain.Models
+namespace MaterialPurchase.Domain.Models.Request
 {
-    public record ConfirmDeliveryDateRequest
+    public record CancelPurchaseRequest
     (
         Guid PurchaseId,
-        DateTime LimitDeliveryDate
+        string Comment
     );
 }

@@ -16,6 +16,9 @@ namespace MaterialPurchase.Infra.Mapping
         {
             base.Configure(builder);
 
+            builder.Property(x => x.Priority)
+                .IsRequired();
+
             builder.HasOne(x => x.Construction)
                 .WithMany(x => x.PurchasingAuthorizationUserGroups)
                 .HasForeignKey(x => x.ConstructionId)

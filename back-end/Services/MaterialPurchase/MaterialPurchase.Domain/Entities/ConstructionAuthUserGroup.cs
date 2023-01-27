@@ -11,6 +11,7 @@ namespace MaterialPurchase.Domain.Entities
     {
         public Construction? Construction { get; set; }
         public Guid ConstructionId { get; set; }
+        public int Priority { get; set; }
         public IEnumerable<ConstructionUserAuthorization> UserAuthorizations { get; set; } = new List<ConstructionUserAuthorization>();
     }
 }

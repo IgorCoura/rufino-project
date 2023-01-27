@@ -2,7 +2,8 @@
 using Commom.Domain.SeedWork;
 using MaterialPurchase.Domain.Entities;
 using MaterialPurchase.Domain.Enum;
-using MaterialPurchase.Domain.Models;
+using MaterialPurchase.Domain.Models.Request;
+using MaterialPurchase.Domain.Models.Response;
 using System;
 using System.Collections.Generic;
 using System.Linq;

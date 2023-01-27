@@ -4,7 +4,8 @@ using Commom.Domain.SeedWork;
 using MaterialPurchase.Domain.Entities;
 using MaterialPurchase.Domain.Enum;
 using MaterialPurchase.Domain.Interfaces;
-using MaterialPurchase.Domain.Models;
+using MaterialPurchase.Domain.Models.Request;
+using MaterialPurchase.Domain.Models.Response;
 using Microsoft.EntityFrameworkCore;
 using System;
 using System.Collections.Generic;
@@ -38,7 +39,7 @@ namespace MaterialPurchase.Service.Services
             
             var purchase = _mapper.Map<Purchase>(req);
 
-            purchase.AuthorizationUserGroups = GetAuthorizationUserGroups(context, _mapper.Map<IEnumerable<PurchaseAuthUserGroup>>(construction.PurchasingAuthorizationUserGroups));
+            purchase.AuthorizationUserGroups = GetAuthorizationUserGroups(context,construction.PurchasingAuthorizationUserGroups);
 
             var result = await _purchaseRepository.RegisterAsync(purchase);
 
@@ -96,12 +97,30 @@ namespace MaterialPurchase.Service.Services
             return _mapper.Map<PurchaseResponse>(currentPurchase);
         }
 
-        private static IEnumerable<PurchaseAuthUserGroup> GetAuthorizationUserGroups(Context context, IEnumerable<PurchaseAuthUserGroup> purchasingAuthorizationUserGroups)
+
+
+        private static IEnumerable<PurchaseAuthUserGroup> GetAuthorizationUserGroups(Context context, IEnumerable<ConstructionAuthUserGroup> constructionAuthorizationUserGroups)
         {
-            var authorizationUserGroups = purchasingAuthorizationUserGroups.ToList();
+            var authorizationUserGroups = constructionAuthorizationUserGroups.Select(group =>
+            {
+                return new PurchaseAuthUserGroup()
+                {
+                    Priority = group.Priority,
+                    UserAuthorizations = group.UserAuthorizations.Select(u =>
+                    {
+                        return new PurchaseUserAuthorization()
+                        {
+                            UserId = u.UserId,
+                            AuthorizationStatus = u.AuthorizationStatus,
+                            Permissions = u.Permissions
+                        };
+                    })
+                };
+            }).ToList();
 
             return authorizationUserGroups.Prepend(new PurchaseAuthUserGroup()
             {
+                Priority = 0,
                 UserAuthorizations = new List<PurchaseUserAuthorization>()
                 {
                     new PurchaseUserAuthorization()

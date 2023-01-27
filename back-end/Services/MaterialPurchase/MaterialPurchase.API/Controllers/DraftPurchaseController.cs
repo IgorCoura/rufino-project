@@ -2,8 +2,9 @@
 using Commom.API.FunctionIdAuthorization;
 using MaterialPurchase.Domain.Consts;
 using MaterialPurchase.Domain.Interfaces;
-using MaterialPurchase.Domain.Models;
+using MaterialPurchase.Domain.Models.Request;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 
 namespace MaterialPurchase.API.Controllers
 {
@@ -12,10 +13,12 @@ namespace MaterialPurchase.API.Controllers
     public class DraftPurchaseController : MainController
     {
         private readonly IDraftPurchaseService _draftPurchaseService;
+        private readonly IConstructionRepository constructionRepository;
 
-        public DraftPurchaseController(IDraftPurchaseService draftPurchaseService)
+        public DraftPurchaseController(IDraftPurchaseService draftPurchaseService, IConstructionRepository constructionRepository)
         {
             _draftPurchaseService = draftPurchaseService;
+            this.constructionRepository = constructionRepository;
         }
 
         [HttpPost]
@@ -49,5 +52,13 @@ namespace MaterialPurchase.API.Controllers
             await _draftPurchaseService.SendToAuthorization(req);
             return OkCustomResponse();
         }
+
+        [HttpGet]
+        public async Task<ActionResult> Get()
+        {
+            var result = await constructionRepository.GetDataAsync(include: x => x.Include(x => x.PurchasingAuthorizationUserGroups).ThenInclude(x => x.UserAuthorizations));
+            return OkCustomResponse(result);
+        }
+
     }
 }
