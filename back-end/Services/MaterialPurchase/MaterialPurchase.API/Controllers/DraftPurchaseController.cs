@@ -21,7 +21,7 @@ namespace MaterialPurchase.API.Controllers
             this.constructionRepository = constructionRepository;
         }
 
-        [HttpPost]
+        [HttpPost("Create")]
         [FunctionIdAuthorizeAttribute(MaterialPurchaseAuthorizationId.CreatePurchase)]
         public async Task<ActionResult> Create([FromBody] CreateDraftPurchaseRequest req)
         {
@@ -29,7 +29,7 @@ namespace MaterialPurchase.API.Controllers
             return OkCustomResponse(result);
         }
 
-        [HttpPost("update")]
+        [HttpPost("Update")]
         [FunctionIdAuthorizeAttribute(MaterialPurchaseAuthorizationId.UpdatePurchase)]
         public async Task<ActionResult> Update([FromBody] DraftPurchaseRequest req)
         {
@@ -37,7 +37,7 @@ namespace MaterialPurchase.API.Controllers
             return OkCustomResponse(result);
         }
 
-        [HttpPost("delete")]
+        [HttpPost("Delete")]
         [FunctionIdAuthorizeAttribute(MaterialPurchaseAuthorizationId.DeletePurchase)]
         public async Task<ActionResult> Delete([FromBody] PurchaseRequest req)
         {
@@ -45,7 +45,7 @@ namespace MaterialPurchase.API.Controllers
             return OkCustomResponse();
         }
 
-        [HttpPost("send")]
+        [HttpPost("Send")]
         [FunctionIdAuthorizeAttribute(MaterialPurchaseAuthorizationId.SendPurchase)]
         public async Task<ActionResult> Send([FromBody] PurchaseRequest req)
         {
@@ -53,12 +53,6 @@ namespace MaterialPurchase.API.Controllers
             return OkCustomResponse();
         }
 
-        [HttpGet]
-        public async Task<ActionResult> Get()
-        {
-            var result = await constructionRepository.GetDataAsync(include: x => x.Include(x => x.PurchasingAuthorizationUserGroups).ThenInclude(x => x.UserAuthorizations));
-            return OkCustomResponse(result);
-        }
 
     }
 }

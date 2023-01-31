@@ -25,7 +25,7 @@ namespace Commom.Infra.Base
 
         public virtual async Task<T> UpdateAsync(T model)
         {
-            _context.Entry<T>(model).State = EntityState.Modified;
+            _context.Set<T>().Update(model);
             return await Task.FromResult(model);
         }
 

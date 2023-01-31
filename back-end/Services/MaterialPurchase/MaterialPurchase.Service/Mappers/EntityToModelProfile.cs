@@ -14,10 +14,22 @@ namespace MaterialPurchase.Service.Mappers
     {
         public EntityToModelProfile()
         {
-            CreateMap<Purchase, PurchaseResponse>();
-            CreateMap<Purchase, SimplePurchaseResponse>();
+            CreateMap<PurchaseAuthUserGroup, AuthUserGroupResponse>();
+            CreateMap<ConstructionAuthUserGroup, AuthUserGroupResponse>();
+            CreateMap<PurchaseUserAuthorization, UserAuthorizationResponse>();   
+            CreateMap<ConstructionUserAuthorization, UserAuthorizationResponse>();
+            CreateMap<Brand, BrandResponse>();
+            CreateMap<Purchase, CompletePurchaseResponse>();
             CreateMap<Construction, ConstructionResponse>();
+            CreateMap<ItemMaterialPurchase, ItemMaterialPurchaseResponse>();
+            CreateMap<Material, MaterialResponse>();
             CreateMap<Provider, ProviderResponse>();
+            CreateMap<PurchaseDeliveryItem, PurchaseDeliveryItemResponse>();
+            CreateMap<Purchase, PurchaseResponse>();
+            CreateMap<Purchase, PurchaseWithMaterialResponse>();
+            CreateMap<Purchase, SimplePurchaseResponse>();
+            CreateMap<User, UserResponse>();
+
         }
     }
     

@@ -15,6 +15,7 @@ namespace MaterialPurchase.Service.Mappers
         {
             CreateMap<CreateDraftPurchaseRequest, Purchase>();
             CreateMap<DraftPurchaseRequest, Purchase>();
+            CreateMap<CreateMaterialDraftPurchaseRequest, ItemMaterialPurchase>();
             CreateMap<MaterialDraftPurchaseRequest, ItemMaterialPurchase>();
         }
     }

@@ -183,7 +183,7 @@ namespace MaterialPurchase.Service.Services
 
         public void CheckPurchaseAuthorizations(Purchase purchase)
         {
-            if (purchase.Status != PurchaseStatus.Pending || purchase.Status != PurchaseStatus.Authorizing)
+            if (purchase.Status != PurchaseStatus.Pending && purchase.Status != PurchaseStatus.Authorizing)
                 throw new BadRequestException(); //TODO: Colocar error
 
             var needAuthorization = purchase.AuthorizationUserGroups.Any(x => x.UserAuthorizations.Any(u => u.AuthorizationStatus == UserAuthorizationStatus.Pending));

@@ -11,6 +11,8 @@ namespace MaterialPurchase.Domain.Models.Response
     public record PurchaseWithMaterialResponse
     (
         Guid Id,
+        DateTime CreatedAt,
+        DateTime UpdatedAt,
         ProviderResponse Provider,
         ConstructionResponse Construction,
         IEnumerable<ItemMaterialPurchaseResponse> Materials,

@@ -17,3 +17,4 @@ namespace MaterialPurchase.Domain.Models.Request
 
 
 }
+

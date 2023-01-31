@@ -47,16 +47,6 @@ namespace MaterialPurchase.Infra.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("Brands");
-
-                    b.HasData(
-                        new
-                        {
-                            Id = new Guid("b11c344b-b3f5-4b49-a33f-89d7e945c339"),
-                            CreatedAt = new DateTime(2023, 1, 25, 23, 27, 37, 222, DateTimeKind.Local).AddTicks(9311),
-                            Description = "description",
-                            Name = "TIGRE",
-                            UpdatedAt = new DateTime(2023, 1, 25, 23, 27, 37, 222, DateTimeKind.Local).AddTicks(9312)
-                        });
                 });
 
             modelBuilder.Entity("MaterialPurchase.Domain.Entities.Construction", b =>
@@ -84,16 +74,6 @@ namespace MaterialPurchase.Infra.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("Constructions");
-
-                    b.HasData(
-                        new
-                        {
-                            Id = new Guid("cad4da64-e4ab-4b4a-8e83-63fc05fefa64"),
-                            CorporateName = "Build LTDA",
-                            CreatedAt = new DateTime(2023, 1, 25, 23, 27, 37, 222, DateTimeKind.Local).AddTicks(9698),
-                            NickName = "Build Ltda",
-                            UpdatedAt = new DateTime(2023, 1, 25, 23, 27, 37, 222, DateTimeKind.Local).AddTicks(9700)
-                        });
                 });
 
             modelBuilder.Entity("MaterialPurchase.Domain.Entities.ConstructionAuthUserGroup", b =>
@@ -108,6 +88,9 @@ namespace MaterialPurchase.Infra.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<int>("Priority")
+                        .HasColumnType("integer");
+
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("timestamp with time zone");
 
@@ -116,15 +99,6 @@ namespace MaterialPurchase.Infra.Migrations
                     b.HasIndex("ConstructionId");
 
                     b.ToTable("ConstructionAuthUserGroups");
-
-                    b.HasData(
-                        new
-                        {
-                            Id = new Guid("e6389915-3947-46d1-a636-da6f9ad505aa"),
-                            ConstructionId = new Guid("cad4da64-e4ab-4b4a-8e83-63fc05fefa64"),
-                            CreatedAt = new DateTime(2023, 1, 25, 23, 27, 37, 222, DateTimeKind.Local).AddTicks(9915),
-                            UpdatedAt = new DateTime(2023, 1, 25, 23, 27, 37, 222, DateTimeKind.Local).AddTicks(9917)
-                        });
                 });
 
             modelBuilder.Entity("MaterialPurchase.Domain.Entities.ConstructionUserAuthorization", b =>
@@ -163,19 +137,6 @@ namespace MaterialPurchase.Infra.Migrations
                     b.HasIndex("UserId");
 
                     b.ToTable("ConstructionUserAuthorizations");
-
-                    b.HasData(
-                        new
-                        {
-                            Id = new Guid("404d1ea8-8853-45b7-b9f3-02888579d5a2"),
-                            AuthorizationStatus = 0,
-                            AuthorizationUserGroupId = new Guid("e6389915-3947-46d1-a636-da6f9ad505aa"),
-                            Comment = "",
-                            CreatedAt = new DateTime(2023, 1, 25, 23, 27, 37, 222, DateTimeKind.Local).AddTicks(9952),
-                            Permissions = 3,
-                            UpdatedAt = new DateTime(2023, 1, 25, 23, 27, 37, 222, DateTimeKind.Local).AddTicks(9953),
-                            UserId = new Guid("4922766e-d3ba-4d4c-99b0-093d5977d41f")
-                        });
                 });
 
             modelBuilder.Entity("MaterialPurchase.Domain.Entities.ItemMaterialPurchase", b =>
@@ -247,17 +208,6 @@ namespace MaterialPurchase.Infra.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("Materials");
-
-                    b.HasData(
-                        new
-                        {
-                            Id = new Guid("31f57a85-0dcc-4c0d-ba9c-9e66886c8612"),
-                            CreatedAt = new DateTime(2023, 1, 25, 23, 27, 37, 222, DateTimeKind.Local).AddTicks(9273),
-                            Description = "description",
-                            Name = "TUBO DE PVC",
-                            Unity = "Metro",
-                            UpdatedAt = new DateTime(2023, 1, 25, 23, 27, 37, 222, DateTimeKind.Local).AddTicks(9275)
-                        });
                 });
 
             modelBuilder.Entity("MaterialPurchase.Domain.Entities.Provider", b =>
@@ -304,20 +254,6 @@ namespace MaterialPurchase.Infra.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("Providers");
-
-                    b.HasData(
-                        new
-                        {
-                            Id = new Guid("8299c0dc-927d-45de-b2c8-71c38faf9384"),
-                            Cnpj = "02.624.999/0001-23",
-                            CreatedAt = new DateTime(2023, 1, 25, 23, 27, 37, 222, DateTimeKind.Local).AddTicks(9412),
-                            Description = "description",
-                            Email = "ponto@email.com",
-                            Name = "PONTO DO ENCANADOR",
-                            Phone = "Phone",
-                            Site = "Site.com",
-                            UpdatedAt = new DateTime(2023, 1, 25, 23, 27, 37, 222, DateTimeKind.Local).AddTicks(9414)
-                        });
                 });
 
             modelBuilder.Entity("MaterialPurchase.Domain.Entities.Purchase", b =>
@@ -365,6 +301,9 @@ namespace MaterialPurchase.Infra.Migrations
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("Priority")
+                        .HasColumnType("integer");
 
                     b.Property<Guid>("PurchaseId")
                         .HasColumnType("uuid");
@@ -477,16 +416,6 @@ namespace MaterialPurchase.Infra.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("Users");
-
-                    b.HasData(
-                        new
-                        {
-                            Id = new Guid("4922766e-d3ba-4d4c-99b0-093d5977d41f"),
-                            CreatedAt = new DateTime(2023, 1, 25, 23, 27, 37, 222, DateTimeKind.Local).AddTicks(9010),
-                            Role = "11",
-                            UpdatedAt = new DateTime(2023, 1, 25, 23, 27, 37, 222, DateTimeKind.Local).AddTicks(9021),
-                            Username = "admin"
-                        });
                 });
 
             modelBuilder.Entity("MaterialPurchase.Domain.Entities.Construction", b =>
@@ -527,17 +456,6 @@ namespace MaterialPurchase.Infra.Migrations
 
                             b1.WithOwner()
                                 .HasForeignKey("ConstructionId");
-
-                            b1.HasData(
-                                new
-                                {
-                                    ConstructionId = new Guid("cad4da64-e4ab-4b4a-8e83-63fc05fefa64"),
-                                    City = "Piracicaba",
-                                    Country = "Brasil",
-                                    State = "Sao Paulo",
-                                    Street = "Dom Pedro",
-                                    ZipCode = "99999-000"
-                                });
                         });
 
                     b.Navigation("Address");
@@ -590,7 +508,7 @@ namespace MaterialPurchase.Infra.Migrations
                     b.HasOne("MaterialPurchase.Domain.Entities.Purchase", "Purchase")
                         .WithMany("Materials")
                         .HasForeignKey("PurchaseId")
-                        .OnDelete(DeleteBehavior.Restrict)
+                        .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
                     b.Navigation("Brand");
@@ -638,17 +556,6 @@ namespace MaterialPurchase.Infra.Migrations
 
                             b1.WithOwner()
                                 .HasForeignKey("ProviderId");
-
-                            b1.HasData(
-                                new
-                                {
-                                    ProviderId = new Guid("8299c0dc-927d-45de-b2c8-71c38faf9384"),
-                                    City = "Piracicaba",
-                                    Country = "Brasil",
-                                    State = "Sao Paulo",
-                                    Street = "Dom Pedro",
-                                    ZipCode = "99999-000"
-                                });
                         });
 
                     b.Navigation("Address");
