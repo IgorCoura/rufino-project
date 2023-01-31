@@ -11,7 +11,7 @@ namespace MaterialPurchase.Domain.Models.Request
         Guid ProviderId,
         Guid ConstructionId,
         decimal Freight,
-        MaterialDraftPurchaseRequest[] Materials
+        CreateMaterialDraftPurchaseRequest[] Materials
     );
 
 

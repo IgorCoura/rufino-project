@@ -1,11 +1,13 @@
 ﻿using MaterialPurchase.Infra.Context;
+using MaterialPurchase.Tests.Utils;
+using Microsoft.AspNetCore.Authorization.Policy;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 
 namespace MaterialPurchase.Tests
 {
-    public class MaterialPurchaseApplication : WebApplicationFactory<Program>
+    public class MaterialPurchaseFactory : WebApplicationFactory<Program>
     {
         public MaterialPurchaseContext GetContext()
         {
@@ -21,11 +23,14 @@ namespace MaterialPurchase.Tests
 
             builder.ConfigureServices(services =>
             {
+
                 var descriptor = services.SingleOrDefault(
                     d => d.ServiceType ==
                         typeof(DbContextOptions<MaterialPurchaseContext>));
 
                 services.Remove(descriptor);
+
+                services.AddSingleton<IPolicyEvaluator, FakeUserPolicyEvaluator>();
 
                 services.AddDbContext<MaterialPurchaseContext>(options =>
                 {
@@ -41,7 +46,7 @@ namespace MaterialPurchase.Tests
                     var scopedServices = scope.ServiceProvider;
                     var db = scopedServices.GetRequiredService<MaterialPurchaseContext>();
                     var logger = scopedServices
-                        .GetRequiredService<ILogger<MaterialPurchaseApplication>>();
+                        .GetRequiredService<ILogger<MaterialPurchaseFactory>>();
 
                     db.Database.EnsureCreated();
 

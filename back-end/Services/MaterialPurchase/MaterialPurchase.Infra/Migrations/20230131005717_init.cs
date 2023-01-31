@@ -107,6 +107,7 @@ namespace MaterialPurchase.Infra.Migrations
                 {
                     Id = table.Column<Guid>(type: "uuid", nullable: false),
                     ConstructionId = table.Column<Guid>(type: "uuid", nullable: false),
+                    Priority = table.Column<int>(type: "integer", nullable: false),
                     CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
                     UpdatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false)
                 },
@@ -214,7 +215,7 @@ namespace MaterialPurchase.Infra.Migrations
                         column: x => x.PurchaseId,
                         principalTable: "Purchases",
                         principalColumn: "Id",
-                        onDelete: ReferentialAction.Restrict);
+                        onDelete: ReferentialAction.Cascade);
                 });
 
             migrationBuilder.CreateTable(
@@ -223,6 +224,7 @@ namespace MaterialPurchase.Infra.Migrations
                 {
                     Id = table.Column<Guid>(type: "uuid", nullable: false),
                     PurchaseId = table.Column<Guid>(type: "uuid", nullable: false),
+                    Priority = table.Column<int>(type: "integer", nullable: false),
                     CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
                     UpdatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false)
                 },
@@ -301,41 +303,6 @@ namespace MaterialPurchase.Infra.Migrations
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Restrict);
                 });
-
-            migrationBuilder.InsertData(
-                table: "Brands",
-                columns: new[] { "Id", "CreatedAt", "Description", "Name", "UpdatedAt" },
-                values: new object[] { new Guid("b11c344b-b3f5-4b49-a33f-89d7e945c339"), new DateTime(2023, 1, 25, 23, 27, 37, 222, DateTimeKind.Local).AddTicks(9311), "description", "TIGRE", new DateTime(2023, 1, 25, 23, 27, 37, 222, DateTimeKind.Local).AddTicks(9312) });
-
-            migrationBuilder.InsertData(
-                table: "Constructions",
-                columns: new[] { "Id", "CorporateName", "CreatedAt", "NickName", "UpdatedAt", "Address_City", "Address_Country", "Address_State", "Address_Street", "Address_ZipCode" },
-                values: new object[] { new Guid("cad4da64-e4ab-4b4a-8e83-63fc05fefa64"), "Build LTDA", new DateTime(2023, 1, 25, 23, 27, 37, 222, DateTimeKind.Local).AddTicks(9698), "Build Ltda", new DateTime(2023, 1, 25, 23, 27, 37, 222, DateTimeKind.Local).AddTicks(9700), "Piracicaba", "Brasil", "Sao Paulo", "Dom Pedro", "99999-000" });
-
-            migrationBuilder.InsertData(
-                table: "Materials",
-                columns: new[] { "Id", "CreatedAt", "Description", "Name", "Unity", "UpdatedAt" },
-                values: new object[] { new Guid("31f57a85-0dcc-4c0d-ba9c-9e66886c8612"), new DateTime(2023, 1, 25, 23, 27, 37, 222, DateTimeKind.Local).AddTicks(9273), "description", "TUBO DE PVC", "Metro", new DateTime(2023, 1, 25, 23, 27, 37, 222, DateTimeKind.Local).AddTicks(9275) });
-
-            migrationBuilder.InsertData(
-                table: "Providers",
-                columns: new[] { "Id", "Cnpj", "CreatedAt", "Description", "Email", "Name", "Phone", "Site", "UpdatedAt", "Address_City", "Address_Country", "Address_State", "Address_Street", "Address_ZipCode" },
-                values: new object[] { new Guid("8299c0dc-927d-45de-b2c8-71c38faf9384"), "02.624.999/0001-23", new DateTime(2023, 1, 25, 23, 27, 37, 222, DateTimeKind.Local).AddTicks(9412), "description", "ponto@email.com", "PONTO DO ENCANADOR", "Phone", "Site.com", new DateTime(2023, 1, 25, 23, 27, 37, 222, DateTimeKind.Local).AddTicks(9414), "Piracicaba", "Brasil", "Sao Paulo", "Dom Pedro", "99999-000" });
-
-            migrationBuilder.InsertData(
-                table: "Users",
-                columns: new[] { "Id", "CreatedAt", "Role", "UpdatedAt", "Username" },
-                values: new object[] { new Guid("4922766e-d3ba-4d4c-99b0-093d5977d41f"), new DateTime(2023, 1, 25, 23, 27, 37, 222, DateTimeKind.Local).AddTicks(9010), "11", new DateTime(2023, 1, 25, 23, 27, 37, 222, DateTimeKind.Local).AddTicks(9021), "admin" });
-
-            migrationBuilder.InsertData(
-                table: "ConstructionAuthUserGroups",
-                columns: new[] { "Id", "ConstructionId", "CreatedAt", "UpdatedAt" },
-                values: new object[] { new Guid("e6389915-3947-46d1-a636-da6f9ad505aa"), new Guid("cad4da64-e4ab-4b4a-8e83-63fc05fefa64"), new DateTime(2023, 1, 25, 23, 27, 37, 222, DateTimeKind.Local).AddTicks(9915), new DateTime(2023, 1, 25, 23, 27, 37, 222, DateTimeKind.Local).AddTicks(9917) });
-
-            migrationBuilder.InsertData(
-                table: "ConstructionUserAuthorizations",
-                columns: new[] { "Id", "AuthorizationStatus", "AuthorizationUserGroupId", "Comment", "CreatedAt", "Permissions", "UpdatedAt", "UserId" },
-                values: new object[] { new Guid("404d1ea8-8853-45b7-b9f3-02888579d5a2"), 0, new Guid("e6389915-3947-46d1-a636-da6f9ad505aa"), "", new DateTime(2023, 1, 25, 23, 27, 37, 222, DateTimeKind.Local).AddTicks(9952), 3, new DateTime(2023, 1, 25, 23, 27, 37, 222, DateTimeKind.Local).AddTicks(9953), new Guid("4922766e-d3ba-4d4c-99b0-093d5977d41f") });
 
             migrationBuilder.CreateIndex(
                 name: "IX_ConstructionAuthUserGroups_ConstructionId",

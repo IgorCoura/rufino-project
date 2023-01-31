@@ -34,7 +34,7 @@ namespace MaterialPurchase.Service.Services
         {
             //Validar 
 
-            var construction = await _constructionRepository.FirstAsync(x => x.Id == req.ConstructionId)
+            var construction = await _constructionRepository.FirstAsync(x => x.Id == req.ConstructionId, include: i => i.Include(o => o.PurchasingAuthorizationUserGroups).ThenInclude(o=> o.UserAuthorizations))
                 ?? throw new BadRequestException(); //TODO Colocar error;
             
             var purchase = _mapper.Map<Purchase>(req);
@@ -50,7 +50,7 @@ namespace MaterialPurchase.Service.Services
 
         public async Task<PurchaseResponse> Update(DraftPurchaseRequest req)
         {
-            var currentPurchase = await _purchaseRepository.FirstAsync(x => x.Id == req.Id, include: i => i.Include(x => x.Materials)) 
+            var currentPurchase = await _purchaseRepository.FirstAsyncAsTracking(x => x.Id == req.Id, include: i => i.Include(x => x.Materials)) 
                 ?? throw new BadRequestException(); //TODO Colocar error;
 
             if (currentPurchase.Status != PurchaseStatus.Open)
@@ -58,22 +58,34 @@ namespace MaterialPurchase.Service.Services
                                                  
             //VALIDAR
 
-            _mapper.Map<DraftPurchaseRequest, Purchase>(req, currentPurchase);
+            foreach(var mat in req.Materials)
+            {
+                var currentMaterial = currentPurchase!.Materials.Where(x => x.Id == mat.Id).FirstOrDefault();
+                if (currentMaterial == null)
+                    continue;
 
-            var result = await _purchaseRepository.UpdateAsync(currentPurchase);
+                currentMaterial.Quantity = mat.Quantity;
+                currentMaterial.UnitPrice = mat.UnitPrice;
+                currentMaterial.MaterialId = mat.MaterialId;
+                currentMaterial.BrandId = mat.BrandId;
+            }
+
+            currentPurchase.ProviderId = req.ProviderId;
+            currentPurchase.ConstructionId= req.ConstructionId;
+            currentPurchase.Freight= req.Freight;
 
             await _purchaseRepository.UnitOfWork.SaveChangesAsync();
 
-            return _mapper.Map<PurchaseResponse>(result);
+            return _mapper.Map<PurchaseResponse>(currentPurchase);
         }
 
         public async Task Delete(PurchaseRequest req)
         {
             var currentPurchase = await _purchaseRepository.FirstAsync(x => x.Id == req.Id)
-                ?? throw new BadRequestException(); //TODO Colocar error;
+                ?? throw new BadRequestException("1","1"); //TODO Colocar error;
 
             if(currentPurchase.Status != PurchaseStatus.Open)
-                throw new BadRequestException(); //TODO Colocar error;
+                throw new BadRequestException("2","2"); //TODO Colocar error;
 
             await _purchaseRepository.DeleteAsync(currentPurchase);
 
@@ -86,7 +98,7 @@ namespace MaterialPurchase.Service.Services
         public async Task<PurchaseResponse> SendToAuthorization(PurchaseRequest req)
         {
             var currentPurchase = await _purchaseRepository.FirstAsyncAsTracking(x => x.Id == req.Id)
-                ?? throw new BadRequestException(); //TODO Colocar error;
+                ?? throw new BadRequestException("1", "1"); //TODO Colocar error;
 
             currentPurchase.Status = PurchaseStatus.Pending;
 
@@ -99,7 +111,7 @@ namespace MaterialPurchase.Service.Services
 
 
 
-        private static IEnumerable<PurchaseAuthUserGroup> GetAuthorizationUserGroups(Context context, IEnumerable<ConstructionAuthUserGroup> constructionAuthorizationUserGroups)
+        private static List<PurchaseAuthUserGroup> GetAuthorizationUserGroups(Context context, IEnumerable<ConstructionAuthUserGroup> constructionAuthorizationUserGroups)
         {
             var authorizationUserGroups = constructionAuthorizationUserGroups.Select(group =>
             {
@@ -114,11 +126,11 @@ namespace MaterialPurchase.Service.Services
                             AuthorizationStatus = u.AuthorizationStatus,
                             Permissions = u.Permissions
                         };
-                    })
+                    }).ToList()
                 };
             }).ToList();
 
-            return authorizationUserGroups.Prepend(new PurchaseAuthUserGroup()
+            authorizationUserGroups.Add((new PurchaseAuthUserGroup()
             {
                 Priority = 0,
                 UserAuthorizations = new List<PurchaseUserAuthorization>()
@@ -130,7 +142,9 @@ namespace MaterialPurchase.Service.Services
                         Permissions = UserAuthorizationPermissions.Creator
                     }
                 }
-            });
+            }));
+
+            return authorizationUserGroups;
 
         }
         

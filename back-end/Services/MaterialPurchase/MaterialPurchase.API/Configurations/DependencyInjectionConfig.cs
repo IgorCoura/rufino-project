@@ -24,6 +24,7 @@ namespace MaterialPurchase.API.Configurations
             service.AddScoped<IDraftPurchaseService, DraftPurchaseService>();
             service.AddScoped<IPurchaseService, PurchaseService>();
             service.AddScoped<IValidatePurchaseService, ValidatePurchaseService>();
+            service.AddScoped<IRecoverPurchaseService, RecoverPurchaseService>();
 
             #endregion
 

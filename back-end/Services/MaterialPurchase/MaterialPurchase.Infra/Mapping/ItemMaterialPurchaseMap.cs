@@ -37,8 +37,8 @@ namespace MaterialPurchase.Infra.Mapping
             builder.HasOne(x => x.Purchase)
                 .WithMany(x => x.Materials)
                 .HasForeignKey(x => x.PurchaseId)
-                .IsRequired()
-                .OnDelete(Microsoft.EntityFrameworkCore.DeleteBehavior.Restrict);
+                .IsRequired()                                
+                .OnDelete(Microsoft.EntityFrameworkCore.DeleteBehavior.Cascade);
 
         }
     }

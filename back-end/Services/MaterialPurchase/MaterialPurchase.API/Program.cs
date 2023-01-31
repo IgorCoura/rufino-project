@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.Text.Json.Serialization;
 using System.Text.Json;
+using Commom.API.FunctionIdAuthorization;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -24,6 +25,7 @@ builder.Services.AddDbContext<MaterialPurchaseContext>(options =>
 // Add services to the container.
 
 builder.Services.AddAuthenticationJwtBearer(builder.Configuration);
+builder.Services.AddFunctionIdAuthorization(builder.Configuration);
 builder.Services.AddDependencies(builder.Configuration);
 
 

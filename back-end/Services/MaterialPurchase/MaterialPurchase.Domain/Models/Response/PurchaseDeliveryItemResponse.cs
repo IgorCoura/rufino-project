@@ -4,21 +4,16 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using System.Xml.Linq;
 
 namespace MaterialPurchase.Domain.Models.Response
 {
-    public record ProviderResponse
+    public record PurchaseDeliveryItemResponse
     (
         Guid Id,
         DateTime CreatedAt,
         DateTime UpdatedAt,
-        string Name, 
-        string Description,
-        string Cnpj,
-        string Email,
-        string Site,
-        string Phone,
-        Address? Address
+        Guid MaterialPurchaseId,
+        double Quantity,
+        UserResponse? Receiver
     );
 }
