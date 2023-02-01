@@ -26,6 +26,6 @@ namespace MaterialPurchase.Domain.Interfaces
         Task<PurchaseResponse> CancelPurchaseClient(Context context, CancelPurchaseRequest req);
 
         Task<PurchaseResponse> CancelPurchaseAdmin(Context context, CancelPurchaseRequest req);
-        void CheckPurchaseAuthorizations(Purchase purchase);
+        Task CheckPurchaseAuthorizations(Purchase purchase);
     }
 }

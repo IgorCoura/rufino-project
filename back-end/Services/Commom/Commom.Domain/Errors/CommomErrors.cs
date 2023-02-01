@@ -9,10 +9,10 @@ namespace Commom.Domain.Errors
 {
     public enum CommomErrors 
     {
-        [ApiError("10", "O campo {TProperty} - {1}")]
+        [ApiError("10", "O campo {0} - {1}")]
         InvalidField,
 
-        [ApiError("20", " O {PropertyName} com valor {0} não foi encontrado.")]
-        FieldNotFound,
+        [ApiError("20", " O {0} com valor {1} não foi encontrado.")]
+        PropertyNotFound,
     }
 }

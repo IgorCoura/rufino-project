@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 
 namespace Commom.Domain.Exceptions
@@ -27,32 +28,19 @@ namespace Commom.Domain.Exceptions
 
         public BadRequestException(Enum error, params string[] msgParms)
         {
-            var apiError = GetError(error);
-            apiError.Msg = String.Format(apiError.Msg, msgParms);
+            var apiError = RecoverError.GetApiError(error, msgParms);
             Errors.Add(apiError);
         }
 
         public void AddError(Enum error, params string[] msgParms)
         {
-            var apiError = GetError(error);
-            apiError.Msg = String.Format(apiError.Msg, msgParms);
+            var apiError = RecoverError.GetApiError(error, msgParms);
             Errors.Add(apiError);
         }
 
         public bool HasErrors()
         {
             return Errors.Count > 0;
-        }
-
-        private ApiValidationError GetError(Enum error)
-        {
-            var enumType = error.GetType();
-            var memberInfos = enumType.GetMember(error.ToString());
-            var enumValueMemberInfo = memberInfos.FirstOrDefault(m => m.DeclaringType == enumType);
-            var valueAttributes = enumValueMemberInfo!.GetCustomAttributes(typeof(ApiErrorAttribute), false);
-            var erroCode = ((ApiErrorAttribute)valueAttributes[0]).ErrorCode;
-            var message = ((ApiErrorAttribute)valueAttributes[0]).ErrorMsgTemplate;
-            return new ApiValidationError(erroCode, message);
         }
     }
 }

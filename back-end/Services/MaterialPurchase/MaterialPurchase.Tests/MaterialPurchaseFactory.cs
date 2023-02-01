@@ -1,9 +1,12 @@
-﻿using MaterialPurchase.Infra.Context;
+﻿using Commom.API.FunctionIdAuthorization;
+using MaterialPurchase.Infra.Context;
 using MaterialPurchase.Tests.Utils;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authorization.Policy;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 
 namespace MaterialPurchase.Tests
 {
@@ -24,13 +27,20 @@ namespace MaterialPurchase.Tests
             builder.ConfigureServices(services =>
             {
 
-                var descriptor = services.SingleOrDefault(
+                var dbContext = services.SingleOrDefault(
                     d => d.ServiceType ==
                         typeof(DbContextOptions<MaterialPurchaseContext>));
+                services.Remove(dbContext);
 
-                services.Remove(descriptor);
+                services.AddOptions<FunctionIdAuthorizationOptions>()
+                .Configure(x => x.Schema = "Local");
 
-                services.AddSingleton<IPolicyEvaluator, FakeUserPolicyEvaluator>();
+                services.AddAuthentication(options =>
+                {
+                    options.DefaultAuthenticateScheme = LocalAuthenticationHandler.AuthScheme;
+                    options.DefaultChallengeScheme = LocalAuthenticationHandler.AuthScheme;
+                })
+                .AddScheme<AuthenticationSchemeOptions, LocalAuthenticationHandler>(LocalAuthenticationHandler.AuthScheme, options => { });
 
                 services.AddDbContext<MaterialPurchaseContext>(options =>
                 {

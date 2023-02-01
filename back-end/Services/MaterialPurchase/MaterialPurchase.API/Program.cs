@@ -6,6 +6,7 @@ using Microsoft.EntityFrameworkCore;
 using System.Text.Json.Serialization;
 using System.Text.Json;
 using Commom.API.FunctionIdAuthorization;
+using Commom.API.Filters;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -43,8 +44,12 @@ builder.Services.AddVersionedApiExplorer(options =>
 });
 
 
-builder.Services.AddControllers()
-    .AddJsonOptions(x => x.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles);
+builder.Services.AddControllers(
+    opts =>
+    {
+        opts.Filters.Add(new ApplicationExceptionFilter());
+    }
+).AddJsonOptions(x => x.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles);
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
@@ -78,6 +83,7 @@ if (!app.Environment.IsEnvironment("Testing")) {
 
 app.UseHttpsRedirection();
 
+app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
