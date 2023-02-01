@@ -11,10 +11,11 @@ namespace MaterialPurchase.Domain.Interfaces
 {
     public interface IRecoverPurchaseService
     {
-        Task<SimplePurchaseResponse> SimpleRecover(PurchaseRequest req);
-
-        Task<PurchaseWithMaterialResponse> RecoverPurchaseWithMaterials(PurchaseRequest req);
-        Task<CompletePurchaseResponse> RecoverPurchaseComplete(PurchaseRequest req);
-        Task<IEnumerable<CompletePurchaseResponse>> RecoverPurchaseAllComplete();
+        Task<SimplePurchaseResponse> SimpleRecover(Guid id);
+        Task<PurchaseWithMaterialResponse> RecoverPurchaseWithMaterials(Guid id);
+        Task<CompletePurchaseResponse> RecoverPurchaseComplete(Guid id);
+        Task<IEnumerable<CompletePurchaseResponse>> RecoverAllPurchaseComplete();
+        Task<IEnumerable<PurchaseWithMaterialResponse>> RecoverAllPurchaseWithMaterials();
+        Task<IEnumerable<SimplePurchaseResponse>> SimpleRecoverAll();
     }
 }

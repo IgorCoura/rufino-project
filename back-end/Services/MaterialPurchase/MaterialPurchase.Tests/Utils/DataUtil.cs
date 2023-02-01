@@ -6,7 +6,7 @@ using System.Data;
 
 namespace MaterialPurchase.Tests.Utils
 {
-    public static class Util
+    public static class DataUtil
     {
         public static void InsertDataForTests(this MaterialPurchaseContext context)
         {
@@ -228,6 +228,129 @@ namespace MaterialPurchase.Tests.Utils
                             Quantity=44
 
                         },
+                    }
+                }
+                ));
+
+            tasks.Add(context.Purchases.AddRangeAsync(
+                new Purchase()
+                {
+                    CreatedAt = DateTime.Now,
+                    UpdatedAt = DateTime.Now,
+                    Id = Guid.Parse("da9752e8-0cd6-4127-8364-c6fa7e1d8c8a"),
+                    ProviderId = Guid.Parse("8299C0DC-927D-45DE-B2C8-71C38FAF9384"),
+                    ConstructionId = Guid.Parse("651E60AD-DDAC-45F8-B2ED-60D2DB924AE7"),
+                    Freight = 11,
+                    Status = Domain.Enum.PurchaseStatus.Authorizing,
+                    AuthorizationUserGroups = new List<PurchaseAuthUserGroup>()
+                    {
+                        new PurchaseAuthUserGroup()
+                        {
+                            CreatedAt = DateTime.Now,
+                            UpdatedAt = DateTime.Now,
+                            Priority= 1,
+                            UserAuthorizations = new List<PurchaseUserAuthorization>()
+                            {
+                                new PurchaseUserAuthorization()
+                                {
+                                    CreatedAt = DateTime.Now,
+                                    UpdatedAt = DateTime.Now,
+                                    UserId = Guid.Parse("FDEC4D71-4300-4F5D-8146-9C3E8D62528B"),
+                                    AuthorizationStatus = Domain.Enum.UserAuthorizationStatus.Approved,
+                                    Permissions = Domain.Enum.UserAuthorizationPermissions.Client,
+                                }
+                            }
+                        },
+                        new PurchaseAuthUserGroup()
+                        {
+                            CreatedAt = DateTime.Now,
+                            UpdatedAt = DateTime.Now,
+                            Priority= 2,
+                            UserAuthorizations = new List<PurchaseUserAuthorization>()
+                            {
+                                new PurchaseUserAuthorization()
+                                {
+                                    CreatedAt = DateTime.Now,
+                                    UpdatedAt = DateTime.Now,
+                                    UserId = Guid.Parse("59C7F554-38E6-4C13-BB11-FE47BA08F97E"),
+                                    AuthorizationStatus = Domain.Enum.UserAuthorizationStatus.Pending,
+                                    Permissions = Domain.Enum.UserAuthorizationPermissions.Client,
+                                }
+                            }
+                        },
+                    },
+                    Materials = new List<ItemMaterialPurchase>()
+                    {
+                        new ItemMaterialPurchase()
+                        {
+                            CreatedAt = DateTime.Now,
+                            UpdatedAt = DateTime.Now,
+                            Id = Guid.Parse("b8d80162-84ab-4e95-9d1b-459be818a673"),
+                            MaterialId=Guid.Parse("54D98347-4009-466C-8A6E-AC01EC3F9A7C"),
+                            BrandId= Guid.Parse("9894CE53-89E3-47AE-BEDE-7D1AEC6F98F0"),
+                            UnitPrice=99,
+                            Quantity=11
+
+                        },
+                        new ItemMaterialPurchase()
+                        {
+                            CreatedAt = DateTime.Now,
+                            UpdatedAt = DateTime.Now,
+                            Id = Guid.Parse("b52aafee-30fc-48e4-83c1-131322bfc79e"),
+                            MaterialId=Guid.Parse("91909CEA-E52C-4945-AAA9-1E50266C1C66"),
+                            BrandId= Guid.Parse("2C377F5B-DA7A-4A2E-87BB-1C16894ADC0D"),
+                            UnitPrice=66,
+                            Quantity=44
+
+                        },
+                    }
+                }
+                ));
+
+            tasks.Add(context.Purchases.AddRangeAsync(
+                new Purchase()
+                {
+                    CreatedAt = DateTime.Now,
+                    UpdatedAt = DateTime.Now,
+                    Id = Guid.Parse("0c5a7011-2401-42c2-bd8a-c0b5d13739ce"),
+                    ProviderId = Guid.Parse("8299C0DC-927D-45DE-B2C8-71C38FAF9384"),
+                    ConstructionId = Guid.Parse("651E60AD-DDAC-45F8-B2ED-60D2DB924AE7"),
+                    Freight = 11,
+                    Status = Domain.Enum.PurchaseStatus.Blocked,
+                    AuthorizationUserGroups = new List<PurchaseAuthUserGroup>()
+                    {
+                        new PurchaseAuthUserGroup()
+                        {
+                            CreatedAt = DateTime.Now,
+                            UpdatedAt = DateTime.Now,
+                            Priority= 1,
+                            UserAuthorizations = new List<PurchaseUserAuthorization>()
+                            {
+                                new PurchaseUserAuthorization()
+                                {
+                                    CreatedAt = DateTime.Now,
+                                    UpdatedAt = DateTime.Now,
+                                    UserId = Guid.Parse("FDEC4D71-4300-4F5D-8146-9C3E8D62528B"),
+                                    AuthorizationStatus = Domain.Enum.UserAuthorizationStatus.Pending,
+                                    Permissions = Domain.Enum.UserAuthorizationPermissions.Client,
+                                }
+                            }
+                        },
+                    },
+                    Materials = new List<ItemMaterialPurchase>()
+                    {
+                        new ItemMaterialPurchase()
+                        {
+                            CreatedAt = DateTime.Now,
+                            UpdatedAt = DateTime.Now,
+                            Id = Guid.Parse("7ea45f31-a728-463a-b59f-a972f8750d38"),
+                            MaterialId=Guid.Parse("54D98347-4009-466C-8A6E-AC01EC3F9A7C"),
+                            BrandId= Guid.Parse("9894CE53-89E3-47AE-BEDE-7D1AEC6F98F0"),
+                            UnitPrice=99,
+                            Quantity=11
+
+                        },
+
                     }
                 }
                 ));

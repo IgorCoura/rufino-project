@@ -1,8 +1,8 @@
 ﻿using Commom.API.Controllers;
 using Commom.API.FunctionIdAuthorization;
 using MaterialPurchase.Domain.Consts;
+using MaterialPurchase.Domain.Interfaces;
 using MaterialPurchase.Domain.Models.Request;
-using MaterialPurchase.Service.Services;
 using Microsoft.AspNetCore.Mvc;
 
 namespace MaterialPurchase.API.Controllers
@@ -11,9 +11,9 @@ namespace MaterialPurchase.API.Controllers
     [Route("api/v{version:apiVersion}/[controller]")]
     public class PurchaseController : MainController
     {
-        private readonly PurchaseService _purchaseService;
+        private readonly IPurchaseService _purchaseService;
 
-        public PurchaseController(PurchaseService purchaseService)
+        public PurchaseController(IPurchaseService purchaseService)
         {
             _purchaseService = purchaseService;
         }

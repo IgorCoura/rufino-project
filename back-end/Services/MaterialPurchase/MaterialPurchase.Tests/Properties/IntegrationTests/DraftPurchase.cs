@@ -1,33 +1,31 @@
-﻿using Commom.Domain.Exceptions;
+﻿using Commom.Domain.Errors;
+using Commom.Domain.Exceptions;
 using Commom.Domain.SeedWork;
 using Commom.Infra.Base;
+using MaterialPurchase.Domain.Consts;
 using MaterialPurchase.Domain.Entities;
 using MaterialPurchase.Domain.Models.Request;
 using MaterialPurchase.Domain.Models.Response;
 using MaterialPurchase.Infra.Context;
+using MaterialPurchase.Tests.Models;
 using MaterialPurchase.Tests.Utils;
-using Microsoft.EntityFrameworkCore;
-using System.Net.Http.Headers;
-using System.Threading.Tasks;
+using System.Net;
 
 namespace MaterialPurchase.Tests.Properties.IntegrationTests
 {
-    public class DraftPurchase : IClassFixture<MaterialPurchaseFactory>
+    public class DraftPurchase
     {
-        private readonly HttpClient _client;
-        private readonly MaterialPurchaseFactory _factory;
-
-        public DraftPurchase(MaterialPurchaseFactory factory)
-        {
-            _factory = factory;
-            _client = factory.CreateClient();
-        }
+        
 
         [Fact]
         public async Task CreatePurchaseWithSuccess()
         {
             //Arrange
-            
+            var factory = new MaterialPurchaseFactory();
+            var client = factory.CreateClient();
+
+            client.DefaultRequestHeaders.Add("Sid", "4922766E-D3BA-4D4C-99B0-093D5977D41F");
+            client.DefaultRequestHeaders.Add("Role", MaterialPurchaseAuthorizationId.CreatePurchase);
 
             var newPurchase = new CreateDraftPurchaseRequest(
                 Guid.Parse("8299C0DC-927D-45DE-B2C8-71C38FAF9384"),
@@ -40,11 +38,14 @@ namespace MaterialPurchase.Tests.Properties.IntegrationTests
                 });
 
             //Act
-            var response = await _client.PostAsJsonAsync("/api/v1/DraftPurchase/Create", newPurchase);
-            var content = response.Content.ReadFromJsonAsync(typeof(Response<PurchaseResponse>)).Result as Response<PurchaseResponse>;
-            var result = await _client.GetFromJsonAsync<Response<CompletePurchaseResponse>>($"/api/v1/RecoverPurchase/Complete/{content.Data.Id}");
+            var response = await client.PostAsJsonAsync("/api/v1/DraftPurchase/Create", newPurchase);
 
             //Asssert 
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+            var content = response.Content.ReadFromJsonAsync(typeof(BaseResponse<PurchaseResponse>)).Result as BaseResponse<PurchaseResponse>;
+            client.DefaultRequestHeaders.Remove("Role");
+            client.DefaultRequestHeaders.Add("Role", MaterialPurchaseAuthorizationId.GetPurchaseComplete);
+            var result = await client.GetFromJsonAsync<BaseResponse<CompletePurchaseResponse>>($"/api/v1/RecoverPurchase/Complete/{content.Data.Id}");
             Assert.True(newPurchase.EqualExtesion(result!.Data!));
         }
 
@@ -52,6 +53,11 @@ namespace MaterialPurchase.Tests.Properties.IntegrationTests
         public async Task UpdatePurchaseWithSuccess()
         {
             //Arrange
+            var factory = new MaterialPurchaseFactory();
+            var client = factory.CreateClient();
+
+            client.DefaultRequestHeaders.Add("Sid", "4922766E-D3BA-4D4C-99B0-093D5977D41F");
+            client.DefaultRequestHeaders.Add("Role", MaterialPurchaseAuthorizationId.UpdatePurchase);
 
             var purchase = new DraftPurchaseRequest(
                 Guid.Parse("CA100B9F-8D13-4E64-ADBC-A90462D05A9A"),
@@ -65,11 +71,15 @@ namespace MaterialPurchase.Tests.Properties.IntegrationTests
 
            
             //Act
-            var response = await _client.PostAsJsonAsync("/api/v1/DraftPurchase/Update", purchase);
-            var content = response.Content.ReadFromJsonAsync(typeof(Response<PurchaseResponse>)).Result as Response<PurchaseResponse>;
-            var result = await _client.GetFromJsonAsync<Response<CompletePurchaseResponse>>($"/api/v1/RecoverPurchase/Complete/{content!.Data!.Id}");
+            var response = await client.PostAsJsonAsync("/api/v1/DraftPurchase/Update", purchase);
+
 
             //Asssert 
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+            var content = response.Content.ReadFromJsonAsync(typeof(BaseResponse<PurchaseResponse>)).Result as BaseResponse<PurchaseResponse>;
+            client.DefaultRequestHeaders.Remove("Role");
+            client.DefaultRequestHeaders.Add("Role", MaterialPurchaseAuthorizationId.GetPurchaseComplete);
+            var result = await client.GetFromJsonAsync<BaseResponse<CompletePurchaseResponse>>($"/api/v1/RecoverPurchase/Complete/{content!.Data!.Id}");
             Assert.True(purchase.EqualExtesion(result!.Data!));
         }
 
@@ -77,35 +87,53 @@ namespace MaterialPurchase.Tests.Properties.IntegrationTests
         public async Task DeletePurchaseWithSuccess()
         {
             //Arrange
+            var factory = new MaterialPurchaseFactory();
+            var client = factory.CreateClient();
+
+            client.DefaultRequestHeaders.Add("Sid", "4922766E-D3BA-4D4C-99B0-093D5977D41F");
+            client.DefaultRequestHeaders.Add("Role", MaterialPurchaseAuthorizationId.DeletePurchase);
 
             var purchase = new PurchaseRequest(
                 Guid.Parse("CA100B9F-8D13-4E64-ADBC-A90462D05A9A")
                 );
 
             //Act
-            var response = await _client.PostAsJsonAsync("/api/v1/DraftPurchase/Delete", purchase);
-
+            await client.PostAsJsonAsync("/api/v1/DraftPurchase/Delete", purchase);
 
             //Asssert 
-            //TODO: Verificar exceção
-            var ex = await Assert.ThrowsAsync<BadRequestException>(() => _client.GetFromJsonAsync<Response<CompletePurchaseResponse>>($"/api/v1/RecoverPurchase/Complete/{purchase.Id}"));
+            client.DefaultRequestHeaders.Remove("Role");
+            client.DefaultRequestHeaders.Add("Role", MaterialPurchaseAuthorizationId.GetPurchaseComplete);
+            var result = await client.GetAsync($"/api/v1/RecoverPurchase/Complete/{purchase.Id}");
+            Assert.Equal(HttpStatusCode.BadRequest, result.StatusCode);
+            var errorResponse = result.Content.ReadFromJsonAsync<ErrorResponse>().Result as ErrorResponse;
+            Assert.Equal(RecoverError.GetCode(CommomErrors.PropertyNotFound), errorResponse?.Errors[0].ErrorCode);
         }
 
         [Fact]
         public async Task SendPurchaseWithSuccess()
         {
             //Arrange
+            var factory = new MaterialPurchaseFactory();
+            var client = factory.CreateClient();
+
+            client.DefaultRequestHeaders.Add("Sid", "4922766E-D3BA-4D4C-99B0-093D5977D41F");
+            client.DefaultRequestHeaders.Add("Role", MaterialPurchaseAuthorizationId.SendPurchase);
 
             var purchase = new PurchaseRequest(
                 Guid.Parse("CA100B9F-8D13-4E64-ADBC-A90462D05A9A")
                 );
 
             //Act
-            var response = await _client.PostAsJsonAsync("/api/v1/DraftPurchase/Send", purchase);
-            var result = await _client.GetFromJsonAsync<Response<CompletePurchaseResponse>>($"/api/v1/RecoverPurchase/Complete/CA100B9F-8D13-4E64-ADBC-A90462D05A9A");
+            var response = await client.PostAsJsonAsync("/api/v1/DraftPurchase/Send", purchase);
 
             //Asssert 
-            Assert.True(true);
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+            var content = response.Content.ReadFromJsonAsync<BaseResponse<PurchaseResponse>>().Result as BaseResponse<PurchaseResponse>;
+            client.DefaultRequestHeaders.Remove("Role");
+            client.DefaultRequestHeaders.Add("Role", MaterialPurchaseAuthorizationId.GetPurchaseComplete);
+            var result = await client.GetFromJsonAsync<BaseResponse<CompletePurchaseResponse>>($"/api/v1/RecoverPurchase/Complete/{purchase.Id}");
+            Assert.True(content?.Success);
+            Assert.Equal(Domain.Enum.PurchaseStatus.Authorizing, result?.Data?.Status);
         }
 
 

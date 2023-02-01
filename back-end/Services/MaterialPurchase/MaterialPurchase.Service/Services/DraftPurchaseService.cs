@@ -1,8 +1,10 @@
 ﻿using AutoMapper;
+using Commom.Domain.Errors;
 using Commom.Domain.Exceptions;
 using Commom.Domain.SeedWork;
 using MaterialPurchase.Domain.Entities;
 using MaterialPurchase.Domain.Enum;
+using MaterialPurchase.Domain.Errors;
 using MaterialPurchase.Domain.Interfaces;
 using MaterialPurchase.Domain.Models.Request;
 using MaterialPurchase.Domain.Models.Response;
@@ -32,10 +34,10 @@ namespace MaterialPurchase.Service.Services
 
         public async Task<PurchaseResponse> Create(Context context, CreateDraftPurchaseRequest req)
         {
-            //Validar 
+            //TODO: Validar 
 
             var construction = await _constructionRepository.FirstAsync(x => x.Id == req.ConstructionId, include: i => i.Include(o => o.PurchasingAuthorizationUserGroups).ThenInclude(o=> o.UserAuthorizations))
-                ?? throw new BadRequestException(); //TODO Colocar error;
+                ?? throw new BadRequestException(CommomErrors.PropertyNotFound, nameof(req.ConstructionId), req.ConstructionId.ToString()); 
             
             var purchase = _mapper.Map<Purchase>(req);
 
@@ -51,12 +53,12 @@ namespace MaterialPurchase.Service.Services
         public async Task<PurchaseResponse> Update(DraftPurchaseRequest req)
         {
             var currentPurchase = await _purchaseRepository.FirstAsyncAsTracking(x => x.Id == req.Id, include: i => i.Include(x => x.Materials)) 
-                ?? throw new BadRequestException(); //TODO Colocar error;
+                ?? throw new BadRequestException(CommomErrors.PropertyNotFound, nameof(req.Id), req.Id.ToString()); 
 
             if (currentPurchase.Status != PurchaseStatus.Open)
-                throw new BadRequestException(); //TODO Colocar error;
+                throw new BadRequestException(MaterialPurchaseErrors.PurchaseStatusInvalid, currentPurchase.Status.ToString()); 
                                                  
-            //VALIDAR
+            //TODO: VALIDAR
 
             foreach(var mat in req.Materials)
             {
@@ -82,10 +84,10 @@ namespace MaterialPurchase.Service.Services
         public async Task Delete(PurchaseRequest req)
         {
             var currentPurchase = await _purchaseRepository.FirstAsync(x => x.Id == req.Id)
-                ?? throw new BadRequestException("1","1"); //TODO Colocar error;
+                ?? throw new BadRequestException(CommomErrors.PropertyNotFound, nameof(req.Id), req.Id.ToString()); 
 
             if(currentPurchase.Status != PurchaseStatus.Open)
-                throw new BadRequestException("2","2"); //TODO Colocar error;
+                throw new BadRequestException(MaterialPurchaseErrors.PurchaseStatusInvalid, currentPurchase.Status.ToString());
 
             await _purchaseRepository.DeleteAsync(currentPurchase);
 
@@ -98,7 +100,7 @@ namespace MaterialPurchase.Service.Services
         public async Task<PurchaseResponse> SendToAuthorization(PurchaseRequest req)
         {
             var currentPurchase = await _purchaseRepository.FirstAsyncAsTracking(x => x.Id == req.Id)
-                ?? throw new BadRequestException("1", "1"); //TODO Colocar error;
+                ?? throw new BadRequestException(CommomErrors.PropertyNotFound, nameof(req.Id), req.Id.ToString());
 
             currentPurchase.Status = PurchaseStatus.Pending;
 

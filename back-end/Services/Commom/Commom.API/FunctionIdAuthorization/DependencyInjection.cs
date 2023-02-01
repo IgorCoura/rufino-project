@@ -13,7 +13,7 @@ namespace Commom.API.FunctionIdAuthorization
     {
         public static IServiceCollection AddFunctionIdAuthorization(this IServiceCollection services, IConfiguration configuration)
         {
-            services.Configure<FunctionIdAuthorizationOptions>(configuration.GetSection(FunctionIdAuthorizationOptions.Jwt));
+            services.Configure<FunctionIdAuthorizationOptions>(configuration.GetSection(FunctionIdAuthorizationOptions.Section));
 
             services.AddSingleton<IAuthorizationPolicyProvider, FunctionIdPolicyProvider>();
             services.AddScoped<IAuthorizationHandler, FunctionIdHandler>();

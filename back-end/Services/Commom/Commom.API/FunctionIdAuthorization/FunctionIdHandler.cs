@@ -22,18 +22,21 @@ namespace Commom.API.FunctionIdAuthorization
 
         protected override Task HandleRequirementAsync(AuthorizationHandlerContext context, FunctionIdRequirement requirement)
         {
-            var functionIdRole = context.User.FindFirst(r => r.Type == ClaimTypes.Role && r.Issuer == _options.Issuer);
+            var functionIdRole = context.User.FindFirst(r => r.Type == ClaimTypes.Role);
 
-            if(functionIdRole == null)
+            if (functionIdRole == null)
             {
+                context.Fail();
                 return Task.CompletedTask;
             }
 
-            if( functionIdRole.Value == requirement.Id)
+            if ( requirement.Id.Equals(functionIdRole.Value.ToString()))
             {
                 context.Succeed(requirement);
+                return Task.CompletedTask;
             }
 
+            context.Fail();
             return Task.CompletedTask;
 
         }

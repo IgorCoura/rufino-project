@@ -1,5 +1,7 @@
-﻿using Commom.Domain.Exceptions;
+﻿using Commom.Domain.Errors;
+using Commom.Domain.Exceptions;
 using MaterialPurchase.Domain.Interfaces;
+using Microsoft.EntityFrameworkCore;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -18,14 +20,15 @@ namespace MaterialPurchase.Service.Services
             _purchaseService = purchaseService;
         }
 
-        public async void ValidatePurchaseOrder(Guid PurchaseId)
+        public async void ValidatePurchaseOrder(Guid purchaseId)
         {
-            var purchase = await _purchaseRepository.FirstAsyncAsTracking(x => x.Id == PurchaseId)
-                ?? throw new BadRequestException();
+            var purchase = await _purchaseRepository.FirstAsyncAsTracking(x => x.Id == purchaseId, include: i => i.Include(o => o.AuthorizationUserGroups).ThenInclude(o => o.UserAuthorizations))
+                ?? throw new BadRequestException(CommomErrors.PropertyNotFound, nameof(purchaseId), purchaseId.ToString());
 
             //TODO: Efetuar os Checks
 
-            _purchaseService.CheckPurchaseAuthorizations(purchase);
+            await _purchaseService.CheckPurchaseAuthorizations(purchase);
+            await _purchaseRepository.UnitOfWork.SaveChangesAsync();
         }
     }
 }

@@ -4,16 +4,11 @@ using Commom.Domain.Exceptions;
 using Commom.Domain.SeedWork;
 using MaterialPurchase.Domain.Entities;
 using MaterialPurchase.Domain.Enum;
+using MaterialPurchase.Domain.Errors;
 using MaterialPurchase.Domain.Interfaces;
 using MaterialPurchase.Domain.Models.Request;
 using MaterialPurchase.Domain.Models.Response;
 using Microsoft.EntityFrameworkCore;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Text.RegularExpressions;
-using System.Threading.Tasks;
 
 namespace MaterialPurchase.Service.Services
 {
@@ -34,15 +29,15 @@ namespace MaterialPurchase.Service.Services
              var currentPuchase = await _purchaseRepository.FirstAsyncAsTracking(
                  filter: x => x.Id == req.Id, 
                  include: i => i.Include(a => a.AuthorizationUserGroups).ThenInclude(b => b.UserAuthorizations)) 
-                ?? throw new BadRequestException(); //TODO: Colocar error;
+                ?? throw new BadRequestException(CommomErrors.PropertyNotFound, nameof(req.Id), req.Id.ToString());
 
             if (currentPuchase.Status != PurchaseStatus.Authorizing)
-                throw new BadRequestException(); //TODO: Colocar error;
+                throw new BadRequestException(MaterialPurchaseErrors.PurchaseStatusInvalid, currentPuchase.Status.ToString()); 
 
             var userAuth = UserIsInTheAuthorizationList(context, currentPuchase);
 
             userAuth.AuthorizationStatus = UserAuthorizationStatus.Approved;
-            CheckPurchaseAuthorizations(currentPuchase);
+            await CheckPurchaseAuthorizations(currentPuchase);
 
             await _purchaseRepository.UnitOfWork.SaveChangesAsync();
 
@@ -54,13 +49,13 @@ namespace MaterialPurchase.Service.Services
             var currentPuchase = await _purchaseRepository.FirstAsyncAsTracking(
                   filter: x => x.Id == req.Id,
                   include: i => i.Include(a => a.AuthorizationUserGroups).ThenInclude(b => b.UserAuthorizations))
-                 ?? throw new BadRequestException(); //TODO: Colocar error;
+                 ?? throw new BadRequestException(CommomErrors.PropertyNotFound, nameof(req.Id), req.Id.ToString());
 
             if (currentPuchase.Status != PurchaseStatus.Blocked)
-                throw new BadRequestException(); //TODO: Colocar error
+                throw new BadRequestException(MaterialPurchaseErrors.PurchaseStatusInvalid, currentPuchase.Status.ToString()); 
 
             currentPuchase.Status = PurchaseStatus.Pending;
-            CheckPurchaseAuthorizations(currentPuchase);
+            await CheckPurchaseAuthorizations(currentPuchase);
 
             await _purchaseRepository.UnitOfWork.SaveChangesAsync();
 
@@ -71,10 +66,10 @@ namespace MaterialPurchase.Service.Services
         {
             var currentPuchase = await _purchaseRepository.FirstAsyncAsTracking(
                   filter: x => x.Id == req.PurchaseId)
-                 ?? throw new BadRequestException(); //TODO: Colocar error;
+                 ?? throw new BadRequestException(CommomErrors.PropertyNotFound, nameof(req.PurchaseId), req.PurchaseId.ToString());
 
             if (currentPuchase.Status != PurchaseStatus.Approved || currentPuchase.Status != PurchaseStatus.DeliveryProblem)
-                throw new BadRequestException(); //TODO: Colocar error
+                throw new BadRequestException(MaterialPurchaseErrors.PurchaseStatusInvalid, currentPuchase.Status.ToString());
 
             currentPuchase.Status = PurchaseStatus.WaitingDelivery;
             currentPuchase.LimitDeliveryDate = req.LimitDeliveryDate;
@@ -89,7 +84,7 @@ namespace MaterialPurchase.Service.Services
             var purchase = await _purchaseRepository.FirstAsyncAsTracking(
                   filter: x => x.Id == req.PurchaseId,
                   include: i => i.Include(a => a.PurchaseDeliveries).Include(c => c.Materials))
-                 ?? throw new BadRequestException(); //TODO: Colocar error;
+                 ?? throw new BadRequestException(CommomErrors.PropertyNotFound, nameof(req.PurchaseId), req.PurchaseId.ToString()); 
 
             var allIsDelivered = CheckIfAllMaterialWasDelivered(purchase, req);
 
@@ -133,7 +128,7 @@ namespace MaterialPurchase.Service.Services
             var currentPuchase = await _purchaseRepository.FirstAsyncAsTracking(
                  filter: x => x.Id == req.PurchaseId,
                  include: i => i.Include(a => a.AuthorizationUserGroups).ThenInclude(b => b.UserAuthorizations))
-                ?? throw new BadRequestException(); //TODO: Colocar error;
+                ?? throw new BadRequestException(CommomErrors.PropertyNotFound, nameof(req.PurchaseId), req.PurchaseId.ToString());
 
             if (currentPuchase.Status != PurchaseStatus.Pending
                 || currentPuchase.Status != PurchaseStatus.Blocked
@@ -141,12 +136,12 @@ namespace MaterialPurchase.Service.Services
                 || currentPuchase.Status != PurchaseStatus.Approved
                 || currentPuchase.Status != PurchaseStatus.WaitingDelivery)
             {
-                throw new BadRequestException(); //TODO: Colocar error;
+                throw new BadRequestException(MaterialPurchaseErrors.PurchaseStatusInvalid, currentPuchase.Status.ToString());
             }
             
             var group = currentPuchase.AuthorizationUserGroups.Where(x => 
                 x.UserAuthorizations.Any(u => u.UserId == context.User.Id)).FirstOrDefault() 
-                ?? throw new BadRequestException(); //TODO: Colocar error;
+                ?? throw new BadRequestException(CommomErrors.PropertyNotFound, nameof(context.User.Id), context.User.Id.ToString());
 
             var userAuth = group.UserAuthorizations.Where(x => x.UserId == context.User.Id).FirstOrDefault();
 
@@ -181,22 +176,29 @@ namespace MaterialPurchase.Service.Services
 
         
 
-        public void CheckPurchaseAuthorizations(Purchase purchase)
+        public Task CheckPurchaseAuthorizations(Purchase purchase)
         {
             if (purchase.Status != PurchaseStatus.Pending && purchase.Status != PurchaseStatus.Authorizing)
-                throw new BadRequestException(); //TODO: Colocar error
+                throw new BadRequestException(MaterialPurchaseErrors.PurchaseStatusInvalid, purchase.Status.ToString());
 
             var needAuthorization = purchase.AuthorizationUserGroups.Any(x => x.UserAuthorizations.Any(u => u.AuthorizationStatus == UserAuthorizationStatus.Pending));
 
             if (needAuthorization)
+            {
                 purchase.Status = PurchaseStatus.Authorizing;
+                return Task.CompletedTask;
+            }     
             else
             {
                 var WasReproved = purchase.AuthorizationUserGroups.Any(x => x.UserAuthorizations.Any(u => u.AuthorizationStatus == UserAuthorizationStatus.Reproved));
                 if (WasReproved)
+                {
                     purchase.Status = PurchaseStatus.Cancelled;
+                    return Task.CompletedTask;
+                }                    
             }
             purchase.Status = PurchaseStatus.Approved;
+            return Task.CompletedTask;
         }
 
         private async Task<Purchase> CancelPurchase(Context context, CancelPurchaseRequest req, params PurchaseStatus[] status)
@@ -204,10 +206,10 @@ namespace MaterialPurchase.Service.Services
             var currentPuchase = await _purchaseRepository.FirstAsyncAsTracking(
                  filter: x => x.Id == req.PurchaseId,
                  include: i => i.Include(a => a.AuthorizationUserGroups).ThenInclude(b => b.UserAuthorizations))
-                ?? throw new BadRequestException(); //TODO: Colocar error;
+                ?? throw new BadRequestException(CommomErrors.PropertyNotFound, nameof(req.PurchaseId), req.PurchaseId.ToString());
 
             if (!status.Any(x => x == currentPuchase.Status))
-                throw new BadRequestException(); //TODO: Colocar error;
+                throw new BadRequestException(MaterialPurchaseErrors.PurchaseStatusInvalid, currentPuchase.Status.ToString());
 
             var userAuth = UserIsInTheAuthorizationList(context, currentPuchase);
 
@@ -235,16 +237,15 @@ namespace MaterialPurchase.Service.Services
                 //Nao pode verificar o proximo grupo se ainda houve pendecias no atual.
                 if (group.UserAuthorizations.Any(x => x.AuthorizationStatus == UserAuthorizationStatus.Pending))
                 {
-                    throw new BadRequestException(); //TODO: Colocar erro 
+                    throw new BadRequestException(MaterialPurchaseErrors.AuthorizationInvalid);
                 }
             }
-            throw new BadRequestException();//TODO: Colocar erro 
+            throw new BadRequestException(MaterialPurchaseErrors.AuthorizationInvalid);
         }
 
 
         private static bool CheckIfAllMaterialWasDelivered(Purchase purchase, ReceiveDeliveryRequest req)
         {
-            var exception = new BadRequestException();
 
             int countItemsDelivered = default;
 
@@ -262,7 +263,7 @@ namespace MaterialPurchase.Service.Services
                 {
                     if(quantityMaterialNotDelivered < materialReceive.Quantity)
                     {
-                        //TODO: exception.AddError(); Colocar error;
+                        throw new BadRequestException(MaterialPurchaseErrors.MaterialReceivedInvalid);
                     }
                     else if (quantityMaterialNotDelivered == materialReceive.Quantity)
                     {
@@ -273,9 +274,6 @@ namespace MaterialPurchase.Service.Services
                 if (quantityMaterialNotDelivered <= 0)
                     countItemsDelivered++;
             }
-
-            if (exception.HasErrors())
-                throw exception;
 
             if (countItemsDelivered == purchase.Materials.Count())
                 return true;
