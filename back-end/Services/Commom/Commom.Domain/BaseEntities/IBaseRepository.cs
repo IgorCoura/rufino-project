@@ -2,7 +2,7 @@
 using System.Linq.Expressions;
 
 
-namespace Commom.Domain.SeedWork
+namespace Commom.Domain.BaseEntities
 {
     public interface IBaseRepository<T> where T : Entity
     {

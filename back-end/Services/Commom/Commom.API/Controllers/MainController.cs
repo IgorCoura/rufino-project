@@ -1,7 +1,8 @@
-﻿using Commom.Domain.SeedWork;
+﻿using Commom.Domain.BaseEntities;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.ModelBinding;
 using System.Security.Claims;
+using System.Security.Cryptography;
 
 namespace Commom.API.Controllers
 {
@@ -37,16 +38,20 @@ namespace Commom.API.Controllers
             });
         }
 
-        protected Context Context()
+        protected Context Context
         {
-            return new Context()
+            get
             {
-                User = new UserBase()
+                return new Context()
                 {
-                    Id = Guid.Parse(User.FindFirstValue(ClaimTypes.Sid)),
-                    Role = User.FindFirstValue(ClaimTypes.Role)
-                }
-            };
+                    User = new UserBase()
+                    {
+                        Id = Guid.Parse(User.FindFirstValue(ClaimTypes.Sid)),
+                        Role = User.FindFirstValue(ClaimTypes.Role),
+                        FunctionsId = User.FindAll(x => x.Type == "FunctionId").Select(x => x.Value).ToArray()
+                    }
+                };
+            }
         }
     }
 }

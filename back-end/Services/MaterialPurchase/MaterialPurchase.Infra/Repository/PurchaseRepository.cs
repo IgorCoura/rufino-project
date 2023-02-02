@@ -1,5 +1,5 @@
 ﻿using Commom.Infra.Base;
-using MaterialPurchase.Domain.Entities;
+using MaterialPurchase.Domain.BaseEntities;
 using MaterialPurchase.Domain.Interfaces;
 using MaterialPurchase.Infra.Context;
 

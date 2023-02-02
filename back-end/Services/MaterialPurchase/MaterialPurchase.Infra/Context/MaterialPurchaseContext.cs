@@ -1,5 +1,5 @@
 ﻿using Commom.Infra.Base;
-using MaterialPurchase.Domain.Entities;
+using MaterialPurchase.Domain.BaseEntities;
 using MaterialPurchase.Infra.Mapping;
 using Microsoft.EntityFrameworkCore;
 using System.Diagnostics.Metrics;
@@ -30,6 +30,8 @@ namespace MaterialPurchase.Infra.Context
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
+            base.OnModelCreating(modelBuilder);
+
             modelBuilder.ApplyConfiguration(new ConstructionAuthorizationUserGroupMap());
             modelBuilder.ApplyConfiguration(new PurchaseAuthorizationUserGroupMap());
             modelBuilder.ApplyConfiguration(new BrandMap());
@@ -42,6 +44,9 @@ namespace MaterialPurchase.Infra.Context
             modelBuilder.ApplyConfiguration(new PurchaseUserAuthorizationMap());
             modelBuilder.ApplyConfiguration(new ConstructionUserAuthorizationMap());
             modelBuilder.ApplyConfiguration(new UserMap());
+
+
+            //DATA FOR TESTS 
 
             //modelBuilder
             //    .Entity<User>()

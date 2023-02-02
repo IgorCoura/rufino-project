@@ -22,7 +22,7 @@ namespace MaterialPurchase.API.Controllers
         [FunctionIdAuthorizeAttribute(MaterialPurchaseAuthorizationId.AuthorizePurchase)]
         public async Task<ActionResult> Authorize([FromBody] PurchaseRequest req)
         {
-            var result = await _purchaseService.AuthorizePurchase(Context(), req);
+            var result = await _purchaseService.AuthorizePurchase(Context, req);
             return OkCustomResponse(result);
         }
 
@@ -30,7 +30,7 @@ namespace MaterialPurchase.API.Controllers
         [FunctionIdAuthorizeAttribute(MaterialPurchaseAuthorizationId.UnlockPurchase)]
         public async Task<ActionResult> Unlock([FromBody] PurchaseRequest req)
         {
-            var result = await _purchaseService.UnlockPurchase(Context(), req);
+            var result = await _purchaseService.UnlockPurchase(Context, req);
             return OkCustomResponse(result);
         }
 
@@ -38,7 +38,7 @@ namespace MaterialPurchase.API.Controllers
         [FunctionIdAuthorizeAttribute(MaterialPurchaseAuthorizationId.ConfirmDeliveryDatePurchase)]
         public async Task<ActionResult> ConfirmDeliveryDate([FromBody] ConfirmDeliveryDateRequest req)
         {
-            var result = await _purchaseService.ConfirmDeliveryDate(Context(), req);
+            var result = await _purchaseService.ConfirmDeliveryDate(Context, req);
             return OkCustomResponse(result);
         }
 
@@ -46,7 +46,7 @@ namespace MaterialPurchase.API.Controllers
         [FunctionIdAuthorizeAttribute(MaterialPurchaseAuthorizationId.ReceiveDeliveryPurchase)]
         public async Task<ActionResult> ReceiveDelivery([FromBody] ReceiveDeliveryRequest req)
         {
-            var result = await _purchaseService.ReceiveDelivery(Context(), req);
+            var result = await _purchaseService.ReceiveDelivery(Context, req);
             return OkCustomResponse(result);
         }
 
@@ -54,7 +54,7 @@ namespace MaterialPurchase.API.Controllers
         [FunctionIdAuthorizeAttribute(MaterialPurchaseAuthorizationId.CancelPurchaseCreator)]
         public async Task<ActionResult> CancelCreator([FromBody] CancelPurchaseRequest req)
         {
-            var result = await _purchaseService.CancelPurchaseCreator(Context(), req);
+            var result = await _purchaseService.CancelPurchaseCreator(Context, req);
             return OkCustomResponse(result);
         }
 
@@ -62,7 +62,7 @@ namespace MaterialPurchase.API.Controllers
         [FunctionIdAuthorizeAttribute(MaterialPurchaseAuthorizationId.CancelPurchaseClient)]
         public async Task<ActionResult> CancelClient([FromBody] CancelPurchaseRequest req)
         {
-            var result = await _purchaseService.CancelPurchaseClient(Context(), req);
+            var result = await _purchaseService.CancelPurchaseClient(Context, req);
             return OkCustomResponse(result);
         }
 
@@ -70,7 +70,7 @@ namespace MaterialPurchase.API.Controllers
         [FunctionIdAuthorizeAttribute(MaterialPurchaseAuthorizationId.CancelPurchaseAdmin)]
         public async Task<ActionResult> CancelAdmin([FromBody] CancelPurchaseRequest req)
         {
-            var result = await _purchaseService.CancelPurchaseAdmin(Context(), req);
+            var result = await _purchaseService.CancelPurchaseAdmin(Context, req);
             return OkCustomResponse(result);
         }
 

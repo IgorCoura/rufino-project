@@ -1,0 +1,96 @@
+﻿using Commom.Domain.Exceptions;
+using Commom.Domain.BaseEntities;
+using MaterialPurchase.Domain.BaseEntities;
+using MaterialPurchase.Domain.Enum;
+using MaterialPurchase.Domain.Errors;
+using MaterialPurchase.Domain.Interfaces;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+
+namespace MaterialPurchase.Service.Services
+{
+    public class PermissionsService : IPermissionsService
+    {
+        public PermissionsService()
+        {
+        }
+
+        public Task<PurchaseUserAuthorization> VerifyPermissions(IEnumerable<PurchaseAuthUserGroup> purchase, Context context, params UserAuthorizationPermissions[] permissions)
+        {
+            var orderGroup = purchase.OrderBy(x => x.Priority).ToList();
+            var user = FindUserAuthorization(context.User.Id, orderGroup);
+
+            if (permissions.Any(x => x == user.Permissions)) 
+            {
+                if(user.Permissions == UserAuthorizationPermissions.Client)
+                {
+                    HasUserPedingWithHighestPriority(context.User.Id, orderGroup);
+                }
+                return Task.FromResult(user);
+            }
+            throw new BadRequestException(MaterialPurchaseErrors.AuthorizationInvalid);
+        }
+
+        public Task VerifyStatus(PurchaseStatus currentStatus, params PurchaseStatus[] statusHaveBe)
+        {
+            if (!statusHaveBe.Any(x => x == currentStatus))
+                throw new BadRequestException(MaterialPurchaseErrors.PurchaseStatusInvalid, currentStatus.ToString());
+
+            return Task.CompletedTask;
+        }
+
+        public Task CheckPurchaseAuthorizations(Purchase purchase)
+        {
+            if (purchase.Status != PurchaseStatus.Pending && purchase.Status != PurchaseStatus.Authorizing)
+                throw new BadRequestException(MaterialPurchaseErrors.PurchaseStatusInvalid, purchase.Status.ToString());
+
+            var needAuthorization = purchase.AuthorizationUserGroups.Any(x => x.UserAuthorizations.Any(u => u.AuthorizationStatus == UserAuthorizationStatus.Pending));
+
+            if (needAuthorization)
+            {
+                purchase.Status = PurchaseStatus.Authorizing;
+                return Task.CompletedTask;
+            }
+            else
+            {
+                var WasReproved = purchase.AuthorizationUserGroups.Any(x => x.UserAuthorizations.Any(u => u.AuthorizationStatus == UserAuthorizationStatus.Reproved));
+                if (WasReproved)
+                {
+                    purchase.Status = PurchaseStatus.Cancelled;
+                    return Task.CompletedTask;
+                }
+            }
+            purchase.Status = PurchaseStatus.Approved;
+            return Task.CompletedTask;
+        }
+
+        private static void HasUserPedingWithHighestPriority(Guid id, List<PurchaseAuthUserGroup> orderGroup)
+        {
+            foreach (var group in orderGroup)
+            {
+                if (group.UserAuthorizations.Any(x => x.UserId == id))
+                    return;
+
+                if (group.UserAuthorizations.Any(x => x.AuthorizationStatus == UserAuthorizationStatus.Pending))                
+                    throw new BadRequestException(MaterialPurchaseErrors.AuthorizationInvalid);
+                
+            }
+            throw new BadRequestException(MaterialPurchaseErrors.AuthorizationInvalid);
+        }
+
+        private static PurchaseUserAuthorization FindUserAuthorization(Guid id, List<PurchaseAuthUserGroup> orderGroup)
+        {
+            foreach (var group in orderGroup)
+            {
+                var userAuth = group.UserAuthorizations.Where(x => x.UserId == id).FirstOrDefault(); //TODO: Testa Erro UserID = null
+
+                if (userAuth != null)   
+                    return userAuth;
+            }
+            throw new BadRequestException(MaterialPurchaseErrors.AuthorizationInvalid);
+        }
+    }
+}

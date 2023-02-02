@@ -1,4 +1,4 @@
-﻿using Commom.Domain.SeedWork;
+﻿using Commom.Domain.BaseEntities;
 using MaterialPurchase.Domain.Enum;
 using System;
 using System.Collections.Generic;
@@ -6,7 +6,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace MaterialPurchase.Domain.Entities
+namespace MaterialPurchase.Domain.BaseEntities
 {
     public class PurchaseUserAuthorization : Entity
     {

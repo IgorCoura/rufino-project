@@ -13,6 +13,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Commom.Domain\Commom.Domain.csproj" />
+    <ProjectReference Include="..\Commom.Infra\Commom.Infra.csproj" />
   </ItemGroup>
 
 </Project>

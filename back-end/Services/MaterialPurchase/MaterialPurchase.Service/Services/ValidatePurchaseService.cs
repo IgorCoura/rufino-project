@@ -13,11 +13,11 @@ namespace MaterialPurchase.Service.Services
     public class ValidatePurchaseService : IValidatePurchaseService
     {
         private readonly IPurchaseRepository _purchaseRepository;
-        private readonly IPurchaseService _purchaseService;
-        public ValidatePurchaseService(IPurchaseRepository purchaseRepository, IPurchaseService purchaseService)
+        private readonly IPermissionsService _permissionsService;
+        public ValidatePurchaseService(IPurchaseRepository purchaseRepository, IPermissionsService permissionsService)
         {
             _purchaseRepository = purchaseRepository;
-            _purchaseService = purchaseService;
+            _permissionsService = permissionsService;
         }
 
         public async void ValidatePurchaseOrder(Guid purchaseId)
@@ -27,7 +27,7 @@ namespace MaterialPurchase.Service.Services
 
             //TODO: Efetuar os Checks
 
-            await _purchaseService.CheckPurchaseAuthorizations(purchase);
+            await _permissionsService.CheckPurchaseAuthorizations(purchase);
             await _purchaseRepository.UnitOfWork.SaveChangesAsync();
         }
     }

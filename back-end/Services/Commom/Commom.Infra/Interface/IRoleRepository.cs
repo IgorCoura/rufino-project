@@ -1,14 +1,13 @@
 ﻿using Commom.Domain.BaseEntities;
-using MaterialPurchase.Domain.BaseEntities;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace MaterialPurchase.Domain.Interfaces
+namespace Commom.Infra.Interface
 {
-    public interface IConstructionRepository : IBaseRepository<Construction>
+    public interface IRoleRepository : IBaseRepository<Role>
     {
     }
 }

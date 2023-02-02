@@ -1,5 +1,5 @@
-﻿using Commom.Domain.SeedWork;
-using MaterialPurchase.Domain.Entities;
+﻿using Commom.Domain.BaseEntities;
+using MaterialPurchase.Domain.BaseEntities;
 
 namespace MaterialPurchase.Domain.Interfaces
 {
