@@ -44,7 +44,7 @@ namespace Commom.API.FunctionIdAuthorization
                 return;
             }
 
-            if (role.FunctionsIds.Any(x => x.Id.ToString() == requirement.Id))
+            if (role.FunctionsIds.Any(x => x.Name == requirement.Id))
             {
                 context.User.AddIdentity(new ClaimsIdentity(role.FunctionsIds.Select(x =>
                 {

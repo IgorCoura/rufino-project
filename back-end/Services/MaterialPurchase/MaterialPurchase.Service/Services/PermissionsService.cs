@@ -9,6 +9,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using MaterialPurchase.Domain.Consts;
 
 namespace MaterialPurchase.Service.Services
 {
@@ -18,10 +19,19 @@ namespace MaterialPurchase.Service.Services
         {
         }
 
-        public Task<PurchaseUserAuthorization> VerifyPermissions(IEnumerable<PurchaseAuthUserGroup> purchase, Context context, params UserAuthorizationPermissions[] permissions)
+        public Task<PurchaseUserAuthorization?> VerifyPermissions(IEnumerable<PurchaseAuthUserGroup> purchase, Context context, params UserAuthorizationPermissions[] permissions)
         {
             var orderGroup = purchase.OrderBy(x => x.Priority).ToList();
             var user = FindUserAuthorization(context.User.Id, orderGroup);
+
+            if(user == null)
+            {
+                if(context.User.FunctionsId.Any(x => x == MaterialPurchaseAuthorizationId.ByPassPurchasePermission))
+                    return Task.FromResult<PurchaseUserAuthorization?>(null);
+                else
+                    throw new BadRequestException(MaterialPurchaseErrors.AuthorizationInvalid);
+
+            }
 
             if (permissions.Any(x => x == user.Permissions)) 
             {
@@ -29,7 +39,7 @@ namespace MaterialPurchase.Service.Services
                 {
                     HasUserPedingWithHighestPriority(context.User.Id, orderGroup);
                 }
-                return Task.FromResult(user);
+                return Task.FromResult<PurchaseUserAuthorization?>(user);
             }
             throw new BadRequestException(MaterialPurchaseErrors.AuthorizationInvalid);
         }
@@ -81,16 +91,16 @@ namespace MaterialPurchase.Service.Services
             throw new BadRequestException(MaterialPurchaseErrors.AuthorizationInvalid);
         }
 
-        private static PurchaseUserAuthorization FindUserAuthorization(Guid id, List<PurchaseAuthUserGroup> orderGroup)
+        private static PurchaseUserAuthorization? FindUserAuthorization(Guid id, List<PurchaseAuthUserGroup> orderGroup)
         {
             foreach (var group in orderGroup)
             {
-                var userAuth = group.UserAuthorizations.Where(x => x.UserId == id).FirstOrDefault(); //TODO: Testa Erro UserID = null
+                var userAuth = group.UserAuthorizations.Where(x => x.UserId == id).FirstOrDefault();
 
                 if (userAuth != null)   
                     return userAuth;
             }
-            throw new BadRequestException(MaterialPurchaseErrors.AuthorizationInvalid);
+            return null;
         }
     }
 }
