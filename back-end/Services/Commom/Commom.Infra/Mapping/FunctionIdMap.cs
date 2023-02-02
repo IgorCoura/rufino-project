@@ -18,8 +18,7 @@ namespace Commom.Infra.Mapping
                 .HasMaxLength(50)
                 .IsRequired();
 
-            builder.HasMany(x => x.Roles)
-                .WithMany(x => x.FunctionsIds);               
+             
            
         }
     }

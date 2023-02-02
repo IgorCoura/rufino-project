@@ -1,14 +1,6 @@
-﻿using Commom.Domain.Exceptions;
-using Commom.Domain.BaseEntities;
-using MaterialPurchase.Domain.BaseEntities;
-using MaterialPurchase.Domain.Enum;
+﻿using Commom.Domain.BaseEntities;
 using MaterialPurchase.Domain.Models.Request;
 using MaterialPurchase.Domain.Models.Response;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace MaterialPurchase.Domain.Interfaces
 {
@@ -21,10 +13,8 @@ namespace MaterialPurchase.Domain.Interfaces
 
         Task<PurchaseResponse> ReceiveDelivery(Context context, ReceiveDeliveryRequest req);
 
-        Task<PurchaseResponse> CancelPurchaseCreator(Context context, CancelPurchaseRequest req);
-
-        Task<PurchaseResponse> CancelPurchaseClient(Context context, CancelPurchaseRequest req);
-
-        Task<PurchaseResponse> CancelPurchaseAdmin(Context context, CancelPurchaseRequest req);
+        Task<PurchaseResponse> CancelPurchaseBeforeAuthorize(Context context, CancelPurchaseRequest req);
+        Task<PurchaseResponse> CancelPurchaseDuringAuthorize(Context context, CancelPurchaseRequest req);
+        Task<PurchaseResponse> CancelPurchaseAfterAuthorize(Context context, CancelPurchaseRequest req);
     }
 }

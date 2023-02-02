@@ -50,27 +50,27 @@ namespace MaterialPurchase.API.Controllers
             return OkCustomResponse(result);
         }
 
-        [HttpPost("Cancel/Creator")]
-        [FunctionIdAuthorizeAttribute(MaterialPurchaseAuthorizationId.CancelPurchaseCreator)]
+        [HttpPost("Cancel/BeforeAuthorize")]
+        [FunctionIdAuthorizeAttribute(MaterialPurchaseAuthorizationId.CancelPurchaseBeforeAuthoriz)]
         public async Task<ActionResult> CancelCreator([FromBody] CancelPurchaseRequest req)
         {
-            var result = await _purchaseService.CancelPurchaseCreator(Context, req);
+            var result = await _purchaseService.CancelPurchaseBeforeAuthorize(Context, req);
             return OkCustomResponse(result);
         }
 
-        [HttpPost("Cancel/Client")]
-        [FunctionIdAuthorizeAttribute(MaterialPurchaseAuthorizationId.CancelPurchaseClient)]
+        [HttpPost("Cancel/DuringAuthorize")]
+        [FunctionIdAuthorizeAttribute(MaterialPurchaseAuthorizationId.CancelPurchaseDuringAuthorize)]
         public async Task<ActionResult> CancelClient([FromBody] CancelPurchaseRequest req)
         {
-            var result = await _purchaseService.CancelPurchaseClient(Context, req);
+            var result = await _purchaseService.CancelPurchaseDuringAuthorize(Context, req);
             return OkCustomResponse(result);
         }
 
-        [HttpPost("Cancel/Admin")]
-        [FunctionIdAuthorizeAttribute(MaterialPurchaseAuthorizationId.CancelPurchaseAdmin)]
+        [HttpPost("Cancel/AfterAuthorize")]
+        [FunctionIdAuthorizeAttribute(MaterialPurchaseAuthorizationId.CancelPurchaseAfterAuthorize)]
         public async Task<ActionResult> CancelAdmin([FromBody] CancelPurchaseRequest req)
         {
-            var result = await _purchaseService.CancelPurchaseAdmin(Context, req);
+            var result = await _purchaseService.CancelPurchaseAfterAuthorize(Context, req);
             return OkCustomResponse(result);
         }
 

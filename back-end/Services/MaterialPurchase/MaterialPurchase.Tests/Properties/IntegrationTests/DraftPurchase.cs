@@ -43,8 +43,6 @@ namespace MaterialPurchase.Tests.Properties.IntegrationTests
             //Asssert 
             Assert.Equal(HttpStatusCode.OK, response.StatusCode);
             var content = response.Content.ReadFromJsonAsync(typeof(BaseResponse<PurchaseResponse>)).Result as BaseResponse<PurchaseResponse>;
-            client.DefaultRequestHeaders.Remove("Role");
-            client.DefaultRequestHeaders.Add("Role", MaterialPurchaseAuthorizationId.GetPurchaseComplete);
             var result = await client.GetFromJsonAsync<BaseResponse<CompletePurchaseResponse>>($"/api/v1/RecoverPurchase/Complete/{content.Data.Id}");
             Assert.True(newPurchase.EqualExtesion(result!.Data!));
         }
@@ -77,8 +75,6 @@ namespace MaterialPurchase.Tests.Properties.IntegrationTests
             //Asssert 
             Assert.Equal(HttpStatusCode.OK, response.StatusCode);
             var content = response.Content.ReadFromJsonAsync(typeof(BaseResponse<PurchaseResponse>)).Result as BaseResponse<PurchaseResponse>;
-            client.DefaultRequestHeaders.Remove("Role");
-            client.DefaultRequestHeaders.Add("Role", MaterialPurchaseAuthorizationId.GetPurchaseComplete);
             var result = await client.GetFromJsonAsync<BaseResponse<CompletePurchaseResponse>>($"/api/v1/RecoverPurchase/Complete/{content!.Data!.Id}");
             Assert.True(purchase.EqualExtesion(result!.Data!));
         }
@@ -101,8 +97,6 @@ namespace MaterialPurchase.Tests.Properties.IntegrationTests
             await client.PostAsJsonAsync("/api/v1/DraftPurchase/Delete", purchase);
 
             //Asssert 
-            client.DefaultRequestHeaders.Remove("Role");
-            client.DefaultRequestHeaders.Add("Role", MaterialPurchaseAuthorizationId.GetPurchaseComplete);
             var result = await client.GetAsync($"/api/v1/RecoverPurchase/Complete/{purchase.Id}");
             Assert.Equal(HttpStatusCode.BadRequest, result.StatusCode);
             var errorResponse = result.Content.ReadFromJsonAsync<ErrorResponse>().Result as ErrorResponse;
@@ -129,8 +123,6 @@ namespace MaterialPurchase.Tests.Properties.IntegrationTests
             //Asssert 
             Assert.Equal(HttpStatusCode.OK, response.StatusCode);
             var content = response.Content.ReadFromJsonAsync<BaseResponse<PurchaseResponse>>().Result as BaseResponse<PurchaseResponse>;
-            client.DefaultRequestHeaders.Remove("Role");
-            client.DefaultRequestHeaders.Add("Role", MaterialPurchaseAuthorizationId.GetPurchaseComplete);
             var result = await client.GetFromJsonAsync<BaseResponse<CompletePurchaseResponse>>($"/api/v1/RecoverPurchase/Complete/{purchase.Id}");
             Assert.True(content?.Success);
             Assert.Equal(Domain.Enum.PurchaseStatus.Authorizing, result?.Data?.Status);

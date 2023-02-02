@@ -18,9 +18,9 @@ namespace MaterialPurchase.Domain.Consts
         public const string UnlockPurchase = "1006";
         public const string ConfirmDeliveryDatePurchase = "1007";
         public const string ReceiveDeliveryPurchase = "1008";
-        public const string CancelPurchaseCreator = "1009";
-        public const string CancelPurchaseClient = "1010";
-        public const string CancelPurchaseAdmin = "1011";
+        public const string CancelPurchaseBeforeAuthoriz = "1009";
+        public const string CancelPurchaseDuringAuthorize = "1010";
+        public const string CancelPurchaseAfterAuthorize = "1011";
         public const string GetPurchaseSimple = "1012";
         public const string GetAllPurchaseSimple = "1013";
         public const string GetPurchaseWithMaterial = "1014";
