@@ -1,4 +1,4 @@
-﻿using Commom.Domain.SeedWork;
+﻿using Commom.Domain.BaseEntities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 

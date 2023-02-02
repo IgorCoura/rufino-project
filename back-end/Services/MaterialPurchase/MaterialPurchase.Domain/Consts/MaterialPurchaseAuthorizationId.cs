@@ -1,4 +1,4 @@
-﻿using Commom.Domain.SeedWork;
+﻿using Commom.Domain.BaseEntities;
 using MaterialPurchase.Domain.Models;
 using System;
 using System.Collections.Generic;
@@ -27,6 +27,7 @@ namespace MaterialPurchase.Domain.Consts
         public const string GetAllPurchaseWithMaterial = "1015";
         public const string GetPurchaseComplete = "1016";
         public const string GetAllPurchaseComplete = "1017";
+        public const string ByPassPurchasePermission = "1018";
     }
 }
 

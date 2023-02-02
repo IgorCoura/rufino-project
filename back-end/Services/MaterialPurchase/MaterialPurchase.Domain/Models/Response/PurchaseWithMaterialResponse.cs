@@ -1,4 +1,4 @@
-﻿using MaterialPurchase.Domain.Entities;
+﻿using MaterialPurchase.Domain.BaseEntities;
 using MaterialPurchase.Domain.Enum;
 using System;
 using System.Collections.Generic;

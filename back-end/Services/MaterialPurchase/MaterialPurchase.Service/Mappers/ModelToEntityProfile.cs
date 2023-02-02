@@ -1,5 +1,5 @@
 ﻿using AutoMapper;
-using MaterialPurchase.Domain.Entities;
+using MaterialPurchase.Domain.BaseEntities;
 using MaterialPurchase.Domain.Models.Request;
 using System;
 using System.Collections.Generic;

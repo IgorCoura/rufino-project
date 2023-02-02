@@ -1,4 +1,6 @@
-﻿using Commom.Domain.SeedWork;
+﻿using Commom.Domain.BaseEntities;
+using Commom.Infra.Mapping;
+using MaterialPurchase.Domain.BaseEntities;
 using Microsoft.EntityFrameworkCore;
 using System;
 using System.Collections.Generic;
@@ -10,9 +12,17 @@ namespace Commom.Infra.Base
 {
     public class BaseContext : DbContext, IUnitOfWork
     {
+        public DbSet<Role> Roles { get; set; }
+        public DbSet<FunctionId> FunctionsIds { get; set; }
         public BaseContext(DbContextOptions options) : base(options)
         {
 
+        }
+
+        protected override void OnModelCreating(ModelBuilder modelBuilder)
+        {
+            modelBuilder.ApplyConfiguration(new RoleMap());
+            modelBuilder.ApplyConfiguration(new FunctionIdMap());
         }
 
         public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = new CancellationToken())

@@ -10,6 +10,7 @@ namespace MaterialPurchase.Domain.Enum
     {
         Client,
         Creator,
+        Receiver,
         Supervisor,
         Admin
     }

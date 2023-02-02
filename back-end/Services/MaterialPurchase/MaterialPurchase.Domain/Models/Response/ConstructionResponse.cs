@@ -1,4 +1,4 @@
-﻿using MaterialPurchase.Domain.Entities;
+﻿using MaterialPurchase.Domain.BaseEntities;
 
 
 namespace MaterialPurchase.Domain.Models.Response

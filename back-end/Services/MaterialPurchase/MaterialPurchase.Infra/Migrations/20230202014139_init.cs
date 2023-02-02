@@ -47,6 +47,20 @@ namespace MaterialPurchase.Infra.Migrations
                 });
 
             migrationBuilder.CreateTable(
+                name: "FunctionsIds",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "uuid", nullable: false),
+                    Name = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: false),
+                    CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    UpdatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_FunctionsIds", x => x.Id);
+                });
+
+            migrationBuilder.CreateTable(
                 name: "Materials",
                 columns: table => new
                 {
@@ -84,6 +98,20 @@ namespace MaterialPurchase.Infra.Migrations
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_Providers", x => x.Id);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "Roles",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "uuid", nullable: false),
+                    Name = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: false),
+                    CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    UpdatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_Roles", x => x.Id);
                 });
 
             migrationBuilder.CreateTable(
@@ -150,6 +178,30 @@ namespace MaterialPurchase.Infra.Migrations
                         principalTable: "Providers",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Restrict);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "FunctionIdRole",
+                columns: table => new
+                {
+                    FunctionsIdsId = table.Column<Guid>(type: "uuid", nullable: false),
+                    RolesId = table.Column<Guid>(type: "uuid", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_FunctionIdRole", x => new { x.FunctionsIdsId, x.RolesId });
+                    table.ForeignKey(
+                        name: "FK_FunctionIdRole_FunctionsIds_FunctionsIdsId",
+                        column: x => x.FunctionsIdsId,
+                        principalTable: "FunctionsIds",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_FunctionIdRole_Roles_RolesId",
+                        column: x => x.RolesId,
+                        principalTable: "Roles",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
                 });
 
             migrationBuilder.CreateTable(
@@ -320,6 +372,17 @@ namespace MaterialPurchase.Infra.Migrations
                 column: "UserId");
 
             migrationBuilder.CreateIndex(
+                name: "IX_FunctionIdRole_RolesId",
+                table: "FunctionIdRole",
+                column: "RolesId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_FunctionsIds_Name",
+                table: "FunctionsIds",
+                column: "Name",
+                unique: true);
+
+            migrationBuilder.CreateIndex(
                 name: "IX_ItemMaterialPurchases_BrandId",
                 table: "ItemMaterialPurchases",
                 column: "BrandId");
@@ -373,6 +436,12 @@ namespace MaterialPurchase.Infra.Migrations
                 name: "IX_PurchaseUserAuthorizations_UserId",
                 table: "PurchaseUserAuthorizations",
                 column: "UserId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Roles_Name",
+                table: "Roles",
+                column: "Name",
+                unique: true);
         }
 
         /// <inheritdoc />
@@ -382,6 +451,9 @@ namespace MaterialPurchase.Infra.Migrations
                 name: "ConstructionUserAuthorizations");
 
             migrationBuilder.DropTable(
+                name: "FunctionIdRole");
+
+            migrationBuilder.DropTable(
                 name: "PurchaseDeliveryItems");
 
             migrationBuilder.DropTable(
@@ -389,6 +461,12 @@ namespace MaterialPurchase.Infra.Migrations
 
             migrationBuilder.DropTable(
                 name: "ConstructionAuthUserGroups");
+
+            migrationBuilder.DropTable(
+                name: "FunctionsIds");
+
+            migrationBuilder.DropTable(
+                name: "Roles");
 
             migrationBuilder.DropTable(
                 name: "ItemMaterialPurchases");

@@ -1,5 +1,5 @@
-﻿using Commom.Domain.SeedWork;
-using MaterialPurchase.Domain.Entities;
+﻿using Commom.Domain.BaseEntities;
+using MaterialPurchase.Domain.BaseEntities;
 using MaterialPurchase.Infra.Context;
 using Microsoft.EntityFrameworkCore;
 using System.Data;
@@ -40,7 +40,7 @@ namespace MaterialPurchase.Tests.Utils
                                 {
                                     UserId = Guid.Parse("FDEC4D71-4300-4F5D-8146-9C3E8D62528B"),
                                     AuthorizationStatus = Domain.Enum.UserAuthorizationStatus.Pending,
-                                    Permissions = Domain.Enum.UserAuthorizationPermissions.Client,
+                                    Permissions = Domain.Enum.UserAuthorizationPermissions.Creator,
                                 }
                             }
                         },
@@ -69,7 +69,7 @@ namespace MaterialPurchase.Tests.Utils
                     Username = "admin",
                     CreatedAt = DateTime.Now,
                     UpdatedAt = DateTime.Now,
-                    Role = "11"
+                    Role = "admin"
 
                 },
                 new User()
@@ -79,7 +79,7 @@ namespace MaterialPurchase.Tests.Utils
                     Username = "Creator",
                     CreatedAt = DateTime.Now,
                     UpdatedAt = DateTime.Now,
-                    Role = "22"
+                    Role = "client"
 
                 },
                 new User()
@@ -89,7 +89,7 @@ namespace MaterialPurchase.Tests.Utils
                     Username = "user1",
                     CreatedAt = DateTime.Now,
                     UpdatedAt = DateTime.Now,
-                    Role = "33"
+                    Role = "client"
 
                 },
                 new User()
@@ -99,7 +99,16 @@ namespace MaterialPurchase.Tests.Utils
                     Username = "user2",
                     CreatedAt = DateTime.Now,
                     UpdatedAt = DateTime.Now,
-                    Role = "44"
+                    Role = "client"
+                },
+                new User()
+                {
+
+                    Id = Guid.Parse("ddf5281b-cdf7-4781-b4ad-8391f743d35c"),
+                    Username = "sup1",
+                    CreatedAt = DateTime.Now,
+                    UpdatedAt = DateTime.Now,
+                    Role = "client"
                 }
                 ));
 
@@ -181,8 +190,8 @@ namespace MaterialPurchase.Tests.Utils
                                     CreatedAt = DateTime.Now,
                                     UpdatedAt = DateTime.Now,
                                     UserId = Guid.Parse("FDEC4D71-4300-4F5D-8146-9C3E8D62528B"),
-                                    AuthorizationStatus = Domain.Enum.UserAuthorizationStatus.Pending,
-                                    Permissions = Domain.Enum.UserAuthorizationPermissions.Client,
+                                    AuthorizationStatus = Domain.Enum.UserAuthorizationStatus.Approved,
+                                    Permissions = Domain.Enum.UserAuthorizationPermissions.Creator,
                                 }
                             }
                         },
@@ -257,7 +266,24 @@ namespace MaterialPurchase.Tests.Utils
                                     UpdatedAt = DateTime.Now,
                                     UserId = Guid.Parse("FDEC4D71-4300-4F5D-8146-9C3E8D62528B"),
                                     AuthorizationStatus = Domain.Enum.UserAuthorizationStatus.Approved,
-                                    Permissions = Domain.Enum.UserAuthorizationPermissions.Client,
+                                    Permissions = Domain.Enum.UserAuthorizationPermissions.Creator,
+                                }
+                            }
+                        },
+                        new PurchaseAuthUserGroup()
+                        {
+                            CreatedAt = DateTime.Now,
+                            UpdatedAt = DateTime.Now,
+                            Priority= 2,
+                            UserAuthorizations = new List<PurchaseUserAuthorization>()
+                            {
+                                new PurchaseUserAuthorization()
+                                {
+                                    CreatedAt = DateTime.Now,
+                                    UpdatedAt = DateTime.Now,
+                                    UserId = Guid.Parse("ddf5281b-cdf7-4781-b4ad-8391f743d35c"),
+                                    AuthorizationStatus = Domain.Enum.UserAuthorizationStatus.Pending,
+                                    Permissions = Domain.Enum.UserAuthorizationPermissions.Supervisor,
                                 }
                             }
                         },
@@ -312,6 +338,81 @@ namespace MaterialPurchase.Tests.Utils
                 {
                     CreatedAt = DateTime.Now,
                     UpdatedAt = DateTime.Now,
+                    Id = Guid.Parse("ae1d0df7-deed-4e3e-85ab-82bf2453c541"),
+                    ProviderId = Guid.Parse("8299C0DC-927D-45DE-B2C8-71C38FAF9384"),
+                    ConstructionId = Guid.Parse("651E60AD-DDAC-45F8-B2ED-60D2DB924AE7"),
+                    Freight = 11,
+                    Status = Domain.Enum.PurchaseStatus.Authorizing,
+                    AuthorizationUserGroups = new List<PurchaseAuthUserGroup>()
+                    {
+                        new PurchaseAuthUserGroup()
+                        {
+                            CreatedAt = DateTime.Now,
+                            UpdatedAt = DateTime.Now,
+                            Priority= 1,
+                            UserAuthorizations = new List<PurchaseUserAuthorization>()
+                            {
+                                new PurchaseUserAuthorization()
+                                {
+                                    CreatedAt = DateTime.Now,
+                                    UpdatedAt = DateTime.Now,
+                                    UserId = Guid.Parse("FDEC4D71-4300-4F5D-8146-9C3E8D62528B"),
+                                    AuthorizationStatus = Domain.Enum.UserAuthorizationStatus.Approved,
+                                    Permissions = Domain.Enum.UserAuthorizationPermissions.Creator,
+                                }
+                            }
+                        },
+                        new PurchaseAuthUserGroup()
+                        {
+                            CreatedAt = DateTime.Now,
+                            UpdatedAt = DateTime.Now,
+                            Priority= 2,
+                            UserAuthorizations = new List<PurchaseUserAuthorization>()
+                            {
+                                new PurchaseUserAuthorization()
+                                {
+                                    CreatedAt = DateTime.Now,
+                                    UpdatedAt = DateTime.Now,
+                                    UserId = Guid.Parse("59C7F554-38E6-4C13-BB11-FE47BA08F97E"),
+                                    AuthorizationStatus = Domain.Enum.UserAuthorizationStatus.Pending,
+                                    Permissions = Domain.Enum.UserAuthorizationPermissions.Client,
+                                }
+                            }
+                        },
+                    },
+                    Materials = new List<ItemMaterialPurchase>()
+                    {
+                        new ItemMaterialPurchase()
+                        {
+                            CreatedAt = DateTime.Now,
+                            UpdatedAt = DateTime.Now,
+                            Id = Guid.Parse("6852fc38-9763-448f-a898-c5d908e8906d"),
+                            MaterialId=Guid.Parse("54D98347-4009-466C-8A6E-AC01EC3F9A7C"),
+                            BrandId= Guid.Parse("9894CE53-89E3-47AE-BEDE-7D1AEC6F98F0"),
+                            UnitPrice=99,
+                            Quantity=11
+
+                        },
+                        new ItemMaterialPurchase()
+                        {
+                            CreatedAt = DateTime.Now,
+                            UpdatedAt = DateTime.Now,
+                            Id = Guid.Parse("7dc01270-8e70-4094-bb1c-e7d42e1c570a"),
+                            MaterialId=Guid.Parse("91909CEA-E52C-4945-AAA9-1E50266C1C66"),
+                            BrandId= Guid.Parse("2C377F5B-DA7A-4A2E-87BB-1C16894ADC0D"),
+                            UnitPrice=66,
+                            Quantity=44
+
+                        },
+                    }
+                }
+                ));
+
+            tasks.Add(context.Purchases.AddRangeAsync(
+                new Purchase()
+                {
+                    CreatedAt = DateTime.Now,
+                    UpdatedAt = DateTime.Now,
                     Id = Guid.Parse("0c5a7011-2401-42c2-bd8a-c0b5d13739ce"),
                     ProviderId = Guid.Parse("8299C0DC-927D-45DE-B2C8-71C38FAF9384"),
                     ConstructionId = Guid.Parse("651E60AD-DDAC-45F8-B2ED-60D2DB924AE7"),
@@ -331,8 +432,25 @@ namespace MaterialPurchase.Tests.Utils
                                     CreatedAt = DateTime.Now,
                                     UpdatedAt = DateTime.Now,
                                     UserId = Guid.Parse("FDEC4D71-4300-4F5D-8146-9C3E8D62528B"),
+                                    AuthorizationStatus = Domain.Enum.UserAuthorizationStatus.Approved,
+                                    Permissions = Domain.Enum.UserAuthorizationPermissions.Creator,
+                                }
+                            }
+                        },
+                        new PurchaseAuthUserGroup()
+                        {
+                            CreatedAt = DateTime.Now,
+                            UpdatedAt = DateTime.Now,
+                            Priority= 2,
+                            UserAuthorizations = new List<PurchaseUserAuthorization>()
+                            {
+                                new PurchaseUserAuthorization()
+                                {
+                                    CreatedAt = DateTime.Now,
+                                    UpdatedAt = DateTime.Now,
+                                    UserId = Guid.Parse("ddf5281b-cdf7-4781-b4ad-8391f743d35c"),
                                     AuthorizationStatus = Domain.Enum.UserAuthorizationStatus.Pending,
-                                    Permissions = Domain.Enum.UserAuthorizationPermissions.Client,
+                                    Permissions = Domain.Enum.UserAuthorizationPermissions.Supervisor,
                                 }
                             }
                         },
@@ -354,6 +472,38 @@ namespace MaterialPurchase.Tests.Utils
                     }
                 }
                 ));
+
+            var ids = new string[]
+            {
+                "1001", "1002", "1003", "1004", "1005", "1006",
+                "1007", "1008", "1009", "1010", "1011", "1012",
+                "1013", "1014", "1015", "1016", "1017", "1018",
+            };
+
+
+            var functionsIds = ids.Select(x => new FunctionId()
+            {
+                Id = Guid.NewGuid(),
+                Name = x
+            });
+
+            tasks.Add(context.FunctionsIds.AddRangeAsync(
+                functionsIds
+            ));
+
+            tasks.Add(context.Roles.AddRangeAsync(
+                new Role()
+                {
+                    Name = "admin",
+                    FunctionsIds = functionsIds
+                    
+                },
+                new Role()
+                {
+                    Name = "client",
+                    FunctionsIds = functionsIds
+                }
+            ));
 
             Task.WaitAll(tasks.ToArray());
             context.SaveChanges();

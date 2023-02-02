@@ -1,4 +1,7 @@
-﻿using MaterialPurchase.Domain.Interfaces;
+﻿using Commom.Infra.Interface;
+using Commom.Infra.Repository;
+using MaterialPurchase.Domain.Interfaces;
+using MaterialPurchase.Infra.Context;
 using MaterialPurchase.Infra.Repository;
 using MaterialPurchase.Service.Mappers;
 using MaterialPurchase.Service.Services;
@@ -16,6 +19,7 @@ namespace MaterialPurchase.API.Configurations
 
             service.AddScoped<IConstructionRepository, ConstructionRepository>();
             service.AddScoped<IPurchaseRepository, PurchaseRepository>();
+            service.AddScoped<IRoleRepository, RoleRepository<MaterialPurchaseContext>>();
 
             #endregion
 
@@ -25,6 +29,7 @@ namespace MaterialPurchase.API.Configurations
             service.AddScoped<IPurchaseService, PurchaseService>();
             service.AddScoped<IValidatePurchaseService, ValidatePurchaseService>();
             service.AddScoped<IRecoverPurchaseService, RecoverPurchaseService>();
+            service.AddScoped<IPermissionsService, PermissionsService>();
 
             #endregion
 

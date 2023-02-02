@@ -1,4 +1,4 @@
-﻿using Commom.Domain.SeedWork;
+﻿using Commom.Domain.BaseEntities;
 
 namespace Identity.API.Application.Entities
 {

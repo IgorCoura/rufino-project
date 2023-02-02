@@ -22,7 +22,47 @@ namespace MaterialPurchase.Infra.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
-            modelBuilder.Entity("MaterialPurchase.Domain.Entities.Brand", b =>
+            modelBuilder.Entity("Commom.Domain.BaseEntities.Role", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Name")
+                        .IsUnique();
+
+                    b.ToTable("Roles");
+                });
+
+            modelBuilder.Entity("FunctionIdRole", b =>
+                {
+                    b.Property<Guid>("FunctionsIdsId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("RolesId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("FunctionsIdsId", "RolesId");
+
+                    b.HasIndex("RolesId");
+
+                    b.ToTable("FunctionIdRole");
+                });
+
+            modelBuilder.Entity("MaterialPurchase.Domain.BaseEntities.Brand", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -49,7 +89,7 @@ namespace MaterialPurchase.Infra.Migrations
                     b.ToTable("Brands");
                 });
 
-            modelBuilder.Entity("MaterialPurchase.Domain.Entities.Construction", b =>
+            modelBuilder.Entity("MaterialPurchase.Domain.BaseEntities.Construction", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -76,7 +116,7 @@ namespace MaterialPurchase.Infra.Migrations
                     b.ToTable("Constructions");
                 });
 
-            modelBuilder.Entity("MaterialPurchase.Domain.Entities.ConstructionAuthUserGroup", b =>
+            modelBuilder.Entity("MaterialPurchase.Domain.BaseEntities.ConstructionAuthUserGroup", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -101,7 +141,7 @@ namespace MaterialPurchase.Infra.Migrations
                     b.ToTable("ConstructionAuthUserGroups");
                 });
 
-            modelBuilder.Entity("MaterialPurchase.Domain.Entities.ConstructionUserAuthorization", b =>
+            modelBuilder.Entity("MaterialPurchase.Domain.BaseEntities.ConstructionUserAuthorization", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -139,7 +179,32 @@ namespace MaterialPurchase.Infra.Migrations
                     b.ToTable("ConstructionUserAuthorizations");
                 });
 
-            modelBuilder.Entity("MaterialPurchase.Domain.Entities.ItemMaterialPurchase", b =>
+            modelBuilder.Entity("MaterialPurchase.Domain.BaseEntities.FunctionId", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Name")
+                        .IsUnique();
+
+                    b.ToTable("FunctionsIds");
+                });
+
+            modelBuilder.Entity("MaterialPurchase.Domain.BaseEntities.ItemMaterialPurchase", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -178,7 +243,7 @@ namespace MaterialPurchase.Infra.Migrations
                     b.ToTable("ItemMaterialPurchases");
                 });
 
-            modelBuilder.Entity("MaterialPurchase.Domain.Entities.Material", b =>
+            modelBuilder.Entity("MaterialPurchase.Domain.BaseEntities.Material", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -210,7 +275,7 @@ namespace MaterialPurchase.Infra.Migrations
                     b.ToTable("Materials");
                 });
 
-            modelBuilder.Entity("MaterialPurchase.Domain.Entities.Provider", b =>
+            modelBuilder.Entity("MaterialPurchase.Domain.BaseEntities.Provider", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -256,7 +321,7 @@ namespace MaterialPurchase.Infra.Migrations
                     b.ToTable("Providers");
                 });
 
-            modelBuilder.Entity("MaterialPurchase.Domain.Entities.Purchase", b =>
+            modelBuilder.Entity("MaterialPurchase.Domain.BaseEntities.Purchase", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -293,7 +358,7 @@ namespace MaterialPurchase.Infra.Migrations
                     b.ToTable("Purchases");
                 });
 
-            modelBuilder.Entity("MaterialPurchase.Domain.Entities.PurchaseAuthUserGroup", b =>
+            modelBuilder.Entity("MaterialPurchase.Domain.BaseEntities.PurchaseAuthUserGroup", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -318,7 +383,7 @@ namespace MaterialPurchase.Infra.Migrations
                     b.ToTable("PurchaseAuthUserGroups");
                 });
 
-            modelBuilder.Entity("MaterialPurchase.Domain.Entities.PurchaseDeliveryItem", b =>
+            modelBuilder.Entity("MaterialPurchase.Domain.BaseEntities.PurchaseDeliveryItem", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -354,7 +419,7 @@ namespace MaterialPurchase.Infra.Migrations
                     b.ToTable("PurchaseDeliveryItems");
                 });
 
-            modelBuilder.Entity("MaterialPurchase.Domain.Entities.PurchaseUserAuthorization", b =>
+            modelBuilder.Entity("MaterialPurchase.Domain.BaseEntities.PurchaseUserAuthorization", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -392,7 +457,7 @@ namespace MaterialPurchase.Infra.Migrations
                     b.ToTable("PurchaseUserAuthorizations");
                 });
 
-            modelBuilder.Entity("MaterialPurchase.Domain.Entities.User", b =>
+            modelBuilder.Entity("MaterialPurchase.Domain.BaseEntities.User", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -418,9 +483,24 @@ namespace MaterialPurchase.Infra.Migrations
                     b.ToTable("Users");
                 });
 
-            modelBuilder.Entity("MaterialPurchase.Domain.Entities.Construction", b =>
+            modelBuilder.Entity("FunctionIdRole", b =>
                 {
-                    b.OwnsOne("MaterialPurchase.Domain.Entities.Address", "Address", b1 =>
+                    b.HasOne("MaterialPurchase.Domain.BaseEntities.FunctionId", null)
+                        .WithMany()
+                        .HasForeignKey("FunctionsIdsId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Commom.Domain.BaseEntities.Role", null)
+                        .WithMany()
+                        .HasForeignKey("RolesId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("MaterialPurchase.Domain.BaseEntities.Construction", b =>
+                {
+                    b.OwnsOne("MaterialPurchase.Domain.BaseEntities.Address", "Address", b1 =>
                         {
                             b1.Property<Guid>("ConstructionId")
                                 .HasColumnType("uuid");
@@ -461,9 +541,9 @@ namespace MaterialPurchase.Infra.Migrations
                     b.Navigation("Address");
                 });
 
-            modelBuilder.Entity("MaterialPurchase.Domain.Entities.ConstructionAuthUserGroup", b =>
+            modelBuilder.Entity("MaterialPurchase.Domain.BaseEntities.ConstructionAuthUserGroup", b =>
                 {
-                    b.HasOne("MaterialPurchase.Domain.Entities.Construction", "Construction")
+                    b.HasOne("MaterialPurchase.Domain.BaseEntities.Construction", "Construction")
                         .WithMany("PurchasingAuthorizationUserGroups")
                         .HasForeignKey("ConstructionId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -472,15 +552,15 @@ namespace MaterialPurchase.Infra.Migrations
                     b.Navigation("Construction");
                 });
 
-            modelBuilder.Entity("MaterialPurchase.Domain.Entities.ConstructionUserAuthorization", b =>
+            modelBuilder.Entity("MaterialPurchase.Domain.BaseEntities.ConstructionUserAuthorization", b =>
                 {
-                    b.HasOne("MaterialPurchase.Domain.Entities.ConstructionAuthUserGroup", "AuthorizationUserGroup")
+                    b.HasOne("MaterialPurchase.Domain.BaseEntities.ConstructionAuthUserGroup", "AuthorizationUserGroup")
                         .WithMany("UserAuthorizations")
                         .HasForeignKey("AuthorizationUserGroupId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("MaterialPurchase.Domain.Entities.User", "User")
+                    b.HasOne("MaterialPurchase.Domain.BaseEntities.User", "User")
                         .WithMany()
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Restrict)
@@ -491,21 +571,21 @@ namespace MaterialPurchase.Infra.Migrations
                     b.Navigation("User");
                 });
 
-            modelBuilder.Entity("MaterialPurchase.Domain.Entities.ItemMaterialPurchase", b =>
+            modelBuilder.Entity("MaterialPurchase.Domain.BaseEntities.ItemMaterialPurchase", b =>
                 {
-                    b.HasOne("MaterialPurchase.Domain.Entities.Brand", "Brand")
+                    b.HasOne("MaterialPurchase.Domain.BaseEntities.Brand", "Brand")
                         .WithMany()
                         .HasForeignKey("BrandId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
-                    b.HasOne("MaterialPurchase.Domain.Entities.Material", "Material")
+                    b.HasOne("MaterialPurchase.Domain.BaseEntities.Material", "Material")
                         .WithMany()
                         .HasForeignKey("MaterialId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
-                    b.HasOne("MaterialPurchase.Domain.Entities.Purchase", "Purchase")
+                    b.HasOne("MaterialPurchase.Domain.BaseEntities.Purchase", "Purchase")
                         .WithMany("Materials")
                         .HasForeignKey("PurchaseId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -518,9 +598,9 @@ namespace MaterialPurchase.Infra.Migrations
                     b.Navigation("Purchase");
                 });
 
-            modelBuilder.Entity("MaterialPurchase.Domain.Entities.Provider", b =>
+            modelBuilder.Entity("MaterialPurchase.Domain.BaseEntities.Provider", b =>
                 {
-                    b.OwnsOne("MaterialPurchase.Domain.Entities.Address", "Address", b1 =>
+                    b.OwnsOne("MaterialPurchase.Domain.BaseEntities.Address", "Address", b1 =>
                         {
                             b1.Property<Guid>("ProviderId")
                                 .HasColumnType("uuid");
@@ -561,15 +641,15 @@ namespace MaterialPurchase.Infra.Migrations
                     b.Navigation("Address");
                 });
 
-            modelBuilder.Entity("MaterialPurchase.Domain.Entities.Purchase", b =>
+            modelBuilder.Entity("MaterialPurchase.Domain.BaseEntities.Purchase", b =>
                 {
-                    b.HasOne("MaterialPurchase.Domain.Entities.Construction", "Construction")
+                    b.HasOne("MaterialPurchase.Domain.BaseEntities.Construction", "Construction")
                         .WithMany()
                         .HasForeignKey("ConstructionId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
-                    b.HasOne("MaterialPurchase.Domain.Entities.Provider", "Provider")
+                    b.HasOne("MaterialPurchase.Domain.BaseEntities.Provider", "Provider")
                         .WithMany()
                         .HasForeignKey("ProviderId")
                         .OnDelete(DeleteBehavior.Restrict)
@@ -580,9 +660,9 @@ namespace MaterialPurchase.Infra.Migrations
                     b.Navigation("Provider");
                 });
 
-            modelBuilder.Entity("MaterialPurchase.Domain.Entities.PurchaseAuthUserGroup", b =>
+            modelBuilder.Entity("MaterialPurchase.Domain.BaseEntities.PurchaseAuthUserGroup", b =>
                 {
-                    b.HasOne("MaterialPurchase.Domain.Entities.Purchase", "Purchase")
+                    b.HasOne("MaterialPurchase.Domain.BaseEntities.Purchase", "Purchase")
                         .WithMany("AuthorizationUserGroups")
                         .HasForeignKey("PurchaseId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -591,21 +671,21 @@ namespace MaterialPurchase.Infra.Migrations
                     b.Navigation("Purchase");
                 });
 
-            modelBuilder.Entity("MaterialPurchase.Domain.Entities.PurchaseDeliveryItem", b =>
+            modelBuilder.Entity("MaterialPurchase.Domain.BaseEntities.PurchaseDeliveryItem", b =>
                 {
-                    b.HasOne("MaterialPurchase.Domain.Entities.ItemMaterialPurchase", "MaterialPurchase")
+                    b.HasOne("MaterialPurchase.Domain.BaseEntities.ItemMaterialPurchase", "MaterialPurchase")
                         .WithMany()
                         .HasForeignKey("MaterialPurchaseId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("MaterialPurchase.Domain.Entities.Purchase", "Purchase")
+                    b.HasOne("MaterialPurchase.Domain.BaseEntities.Purchase", "Purchase")
                         .WithMany("PurchaseDeliveries")
                         .HasForeignKey("PurchaseId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("MaterialPurchase.Domain.Entities.User", "Receiver")
+                    b.HasOne("MaterialPurchase.Domain.BaseEntities.User", "Receiver")
                         .WithMany()
                         .HasForeignKey("ReceiverId")
                         .OnDelete(DeleteBehavior.Restrict)
@@ -618,15 +698,15 @@ namespace MaterialPurchase.Infra.Migrations
                     b.Navigation("Receiver");
                 });
 
-            modelBuilder.Entity("MaterialPurchase.Domain.Entities.PurchaseUserAuthorization", b =>
+            modelBuilder.Entity("MaterialPurchase.Domain.BaseEntities.PurchaseUserAuthorization", b =>
                 {
-                    b.HasOne("MaterialPurchase.Domain.Entities.PurchaseAuthUserGroup", "AuthorizationUserGroup")
+                    b.HasOne("MaterialPurchase.Domain.BaseEntities.PurchaseAuthUserGroup", "AuthorizationUserGroup")
                         .WithMany("UserAuthorizations")
                         .HasForeignKey("AuthorizationUserGroupId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("MaterialPurchase.Domain.Entities.User", "User")
+                    b.HasOne("MaterialPurchase.Domain.BaseEntities.User", "User")
                         .WithMany()
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Restrict)
@@ -637,17 +717,17 @@ namespace MaterialPurchase.Infra.Migrations
                     b.Navigation("User");
                 });
 
-            modelBuilder.Entity("MaterialPurchase.Domain.Entities.Construction", b =>
+            modelBuilder.Entity("MaterialPurchase.Domain.BaseEntities.Construction", b =>
                 {
                     b.Navigation("PurchasingAuthorizationUserGroups");
                 });
 
-            modelBuilder.Entity("MaterialPurchase.Domain.Entities.ConstructionAuthUserGroup", b =>
+            modelBuilder.Entity("MaterialPurchase.Domain.BaseEntities.ConstructionAuthUserGroup", b =>
                 {
                     b.Navigation("UserAuthorizations");
                 });
 
-            modelBuilder.Entity("MaterialPurchase.Domain.Entities.Purchase", b =>
+            modelBuilder.Entity("MaterialPurchase.Domain.BaseEntities.Purchase", b =>
                 {
                     b.Navigation("AuthorizationUserGroups");
 
@@ -656,7 +736,7 @@ namespace MaterialPurchase.Infra.Migrations
                     b.Navigation("PurchaseDeliveries");
                 });
 
-            modelBuilder.Entity("MaterialPurchase.Domain.Entities.PurchaseAuthUserGroup", b =>
+            modelBuilder.Entity("MaterialPurchase.Domain.BaseEntities.PurchaseAuthUserGroup", b =>
                 {
                     b.Navigation("UserAuthorizations");
                 });

@@ -1,6 +1,6 @@
-﻿using Commom.Domain.SeedWork;
+﻿using Commom.Domain.BaseEntities;
 
-namespace MaterialPurchase.Domain.Entities
+namespace MaterialPurchase.Domain.BaseEntities
 {
     public class PurchaseDeliveryItem : Entity
     {

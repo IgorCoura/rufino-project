@@ -1,6 +1,6 @@
 ﻿using Commom.Domain.Exceptions;
-using Commom.Domain.SeedWork;
-using MaterialPurchase.Domain.Entities;
+using Commom.Domain.BaseEntities;
+using MaterialPurchase.Domain.BaseEntities;
 using MaterialPurchase.Domain.Enum;
 using MaterialPurchase.Domain.Models.Request;
 using MaterialPurchase.Domain.Models.Response;
@@ -26,6 +26,5 @@ namespace MaterialPurchase.Domain.Interfaces
         Task<PurchaseResponse> CancelPurchaseClient(Context context, CancelPurchaseRequest req);
 
         Task<PurchaseResponse> CancelPurchaseAdmin(Context context, CancelPurchaseRequest req);
-        Task CheckPurchaseAuthorizations(Purchase purchase);
     }
 }

@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Commom.Domain.SeedWork
+namespace Commom.Domain.BaseEntities
 {
     public abstract class Entity
     {

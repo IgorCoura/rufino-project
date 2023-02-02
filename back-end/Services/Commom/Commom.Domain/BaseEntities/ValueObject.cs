@@ -1,4 +1,4 @@
-﻿namespace Commom.Domain.SeedWork
+﻿namespace Commom.Domain.BaseEntities
 {
     public abstract class ValueObject
     {

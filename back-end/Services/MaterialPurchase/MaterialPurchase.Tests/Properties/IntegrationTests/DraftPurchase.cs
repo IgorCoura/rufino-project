@@ -1,9 +1,9 @@
 ﻿using Commom.Domain.Errors;
 using Commom.Domain.Exceptions;
-using Commom.Domain.SeedWork;
+using Commom.Domain.BaseEntities;
 using Commom.Infra.Base;
 using MaterialPurchase.Domain.Consts;
-using MaterialPurchase.Domain.Entities;
+using MaterialPurchase.Domain.BaseEntities;
 using MaterialPurchase.Domain.Models.Request;
 using MaterialPurchase.Domain.Models.Response;
 using MaterialPurchase.Infra.Context;
@@ -24,8 +24,8 @@ namespace MaterialPurchase.Tests.Properties.IntegrationTests
             var factory = new MaterialPurchaseFactory();
             var client = factory.CreateClient();
 
-            client.DefaultRequestHeaders.Add("Sid", "4922766E-D3BA-4D4C-99B0-093D5977D41F");
-            client.DefaultRequestHeaders.Add("Role", MaterialPurchaseAuthorizationId.CreatePurchase);
+            client.DefaultRequestHeaders.Add("Sid", "FDEC4D71-4300-4F5D-8146-9C3E8D62528B");
+            client.DefaultRequestHeaders.Add("Role", "client");
 
             var newPurchase = new CreateDraftPurchaseRequest(
                 Guid.Parse("8299C0DC-927D-45DE-B2C8-71C38FAF9384"),
@@ -56,8 +56,8 @@ namespace MaterialPurchase.Tests.Properties.IntegrationTests
             var factory = new MaterialPurchaseFactory();
             var client = factory.CreateClient();
 
-            client.DefaultRequestHeaders.Add("Sid", "4922766E-D3BA-4D4C-99B0-093D5977D41F");
-            client.DefaultRequestHeaders.Add("Role", MaterialPurchaseAuthorizationId.UpdatePurchase);
+            client.DefaultRequestHeaders.Add("Sid", "FDEC4D71-4300-4F5D-8146-9C3E8D62528B");
+            client.DefaultRequestHeaders.Add("Role", "client");
 
             var purchase = new DraftPurchaseRequest(
                 Guid.Parse("CA100B9F-8D13-4E64-ADBC-A90462D05A9A"),
@@ -90,8 +90,8 @@ namespace MaterialPurchase.Tests.Properties.IntegrationTests
             var factory = new MaterialPurchaseFactory();
             var client = factory.CreateClient();
 
-            client.DefaultRequestHeaders.Add("Sid", "4922766E-D3BA-4D4C-99B0-093D5977D41F");
-            client.DefaultRequestHeaders.Add("Role", MaterialPurchaseAuthorizationId.DeletePurchase);
+            client.DefaultRequestHeaders.Add("Sid", "FDEC4D71-4300-4F5D-8146-9C3E8D62528B");
+            client.DefaultRequestHeaders.Add("Role", "client");
 
             var purchase = new PurchaseRequest(
                 Guid.Parse("CA100B9F-8D13-4E64-ADBC-A90462D05A9A")
@@ -116,8 +116,8 @@ namespace MaterialPurchase.Tests.Properties.IntegrationTests
             var factory = new MaterialPurchaseFactory();
             var client = factory.CreateClient();
 
-            client.DefaultRequestHeaders.Add("Sid", "4922766E-D3BA-4D4C-99B0-093D5977D41F");
-            client.DefaultRequestHeaders.Add("Role", MaterialPurchaseAuthorizationId.SendPurchase);
+            client.DefaultRequestHeaders.Add("Sid", "FDEC4D71-4300-4F5D-8146-9C3E8D62528B");
+            client.DefaultRequestHeaders.Add("Role", "client");
 
             var purchase = new PurchaseRequest(
                 Guid.Parse("CA100B9F-8D13-4E64-ADBC-A90462D05A9A")

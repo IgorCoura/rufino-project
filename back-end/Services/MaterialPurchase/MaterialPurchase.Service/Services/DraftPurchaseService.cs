@@ -1,8 +1,8 @@
 ﻿using AutoMapper;
 using Commom.Domain.Errors;
 using Commom.Domain.Exceptions;
-using Commom.Domain.SeedWork;
-using MaterialPurchase.Domain.Entities;
+using Commom.Domain.BaseEntities;
+using MaterialPurchase.Domain.BaseEntities;
 using MaterialPurchase.Domain.Enum;
 using MaterialPurchase.Domain.Errors;
 using MaterialPurchase.Domain.Interfaces;
@@ -12,6 +12,7 @@ using Microsoft.EntityFrameworkCore;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Security;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -23,25 +24,33 @@ namespace MaterialPurchase.Service.Services
         private readonly IConstructionRepository _constructionRepository;
         private readonly IPurchaseRepository _purchaseRepository;
         private readonly IValidatePurchaseService _validatePurchaseService;
+        private readonly IPermissionsService _permissionService;
 
-        public DraftPurchaseService(IMapper mapper, IConstructionRepository constructionRepository, IPurchaseRepository purchaseRepository, IValidatePurchaseService validatePurchaseService)
+        public DraftPurchaseService(IMapper mapper, IConstructionRepository constructionRepository, IPurchaseRepository purchaseRepository, IValidatePurchaseService validatePurchaseService, IPermissionsService permissionService)
         {
             _mapper = mapper;
             _constructionRepository = constructionRepository;
             _purchaseRepository = purchaseRepository;
             _validatePurchaseService = validatePurchaseService;
+            _permissionService = permissionService;
         }
 
         public async Task<PurchaseResponse> Create(Context context, CreateDraftPurchaseRequest req)
         {
             //TODO: Validar 
 
-            var construction = await _constructionRepository.FirstAsync(x => x.Id == req.ConstructionId, include: i => i.Include(o => o.PurchasingAuthorizationUserGroups).ThenInclude(o=> o.UserAuthorizations))
-                ?? throw new BadRequestException(CommomErrors.PropertyNotFound, nameof(req.ConstructionId), req.ConstructionId.ToString()); 
-            
+            var construction = await _constructionRepository.FirstAsync(
+                filter: x => x.Id == req.ConstructionId, 
+                include: i => i.Include(o => o.PurchasingAuthorizationUserGroups).ThenInclude(o=> o.UserAuthorizations))
+                ?? throw new BadRequestException(CommomErrors.PropertyNotFound, nameof(req.ConstructionId), req.ConstructionId.ToString());
+
+            var authorizationUserGroups = ConvertAuthorizationUserGroups(context, construction.PurchasingAuthorizationUserGroups);
+
+            await _permissionService.VerifyPermissions(authorizationUserGroups, context, UserAuthorizationPermissions.Creator, UserAuthorizationPermissions.Admin);
+
             var purchase = _mapper.Map<Purchase>(req);
 
-            purchase.AuthorizationUserGroups = GetAuthorizationUserGroups(context,construction.PurchasingAuthorizationUserGroups);
+            purchase.AuthorizationUserGroups = authorizationUserGroups;
 
             var result = await _purchaseRepository.RegisterAsync(purchase);
 
@@ -50,13 +59,16 @@ namespace MaterialPurchase.Service.Services
             return _mapper.Map<PurchaseResponse>(result);
         }
 
-        public async Task<PurchaseResponse> Update(DraftPurchaseRequest req)
+        public async Task<PurchaseResponse> Update(Context context, DraftPurchaseRequest req)
         {
-            var currentPurchase = await _purchaseRepository.FirstAsyncAsTracking(x => x.Id == req.Id, include: i => i.Include(x => x.Materials)) 
-                ?? throw new BadRequestException(CommomErrors.PropertyNotFound, nameof(req.Id), req.Id.ToString()); 
+            var currentPurchase = await _purchaseRepository.FirstAsyncAsTracking(
+                filter: x => x.Id == req.Id, 
+                include: i => i.Include(x => x.Materials).Include(o => o.AuthorizationUserGroups).ThenInclude(o => o.UserAuthorizations)) 
+                ?? throw new BadRequestException(CommomErrors.PropertyNotFound, nameof(req.Id), req.Id.ToString());
 
-            if (currentPurchase.Status != PurchaseStatus.Open)
-                throw new BadRequestException(MaterialPurchaseErrors.PurchaseStatusInvalid, currentPurchase.Status.ToString()); 
+            await _permissionService.VerifyPermissions(currentPurchase.AuthorizationUserGroups, context, UserAuthorizationPermissions.Creator, UserAuthorizationPermissions.Admin);
+
+            await _permissionService.VerifyStatus(currentPurchase.Status, PurchaseStatus.Open);
                                                  
             //TODO: VALIDAR
 
@@ -81,13 +93,16 @@ namespace MaterialPurchase.Service.Services
             return _mapper.Map<PurchaseResponse>(currentPurchase);
         }
 
-        public async Task Delete(PurchaseRequest req)
+        public async Task Delete(Context context, PurchaseRequest req)
         {
-            var currentPurchase = await _purchaseRepository.FirstAsync(x => x.Id == req.Id)
-                ?? throw new BadRequestException(CommomErrors.PropertyNotFound, nameof(req.Id), req.Id.ToString()); 
+            var currentPurchase = await _purchaseRepository.FirstAsync(
+                filter: x => x.Id == req.Id, 
+                include: i => i.Include(o => o.AuthorizationUserGroups).ThenInclude(o => o.UserAuthorizations))
+                ?? throw new BadRequestException(CommomErrors.PropertyNotFound, nameof(req.Id), req.Id.ToString());
 
-            if(currentPurchase.Status != PurchaseStatus.Open)
-                throw new BadRequestException(MaterialPurchaseErrors.PurchaseStatusInvalid, currentPurchase.Status.ToString());
+            await _permissionService.VerifyPermissions(currentPurchase.AuthorizationUserGroups, context, UserAuthorizationPermissions.Creator, UserAuthorizationPermissions.Admin);
+
+            await _permissionService.VerifyStatus(currentPurchase.Status, PurchaseStatus.Open);
 
             await _purchaseRepository.DeleteAsync(currentPurchase);
 
@@ -97,10 +112,16 @@ namespace MaterialPurchase.Service.Services
 
   
 
-        public async Task<PurchaseResponse> SendToAuthorization(PurchaseRequest req)
+        public async Task<PurchaseResponse> SendToAuthorization(Context context, PurchaseRequest req)
         {
-            var currentPurchase = await _purchaseRepository.FirstAsyncAsTracking(x => x.Id == req.Id)
+            var currentPurchase = await _purchaseRepository.FirstAsyncAsTracking(
+                filter: x => x.Id == req.Id, 
+                include: i => i.Include(o => o.AuthorizationUserGroups).ThenInclude(o => o.UserAuthorizations))
                 ?? throw new BadRequestException(CommomErrors.PropertyNotFound, nameof(req.Id), req.Id.ToString());
+
+            await _permissionService.VerifyPermissions(currentPurchase.AuthorizationUserGroups, context, UserAuthorizationPermissions.Creator, UserAuthorizationPermissions.Admin);
+
+            await _permissionService.VerifyStatus(currentPurchase.Status, PurchaseStatus.Open);
 
             currentPurchase.Status = PurchaseStatus.Pending;
 
@@ -113,7 +134,7 @@ namespace MaterialPurchase.Service.Services
 
 
 
-        private static List<PurchaseAuthUserGroup> GetAuthorizationUserGroups(Context context, IEnumerable<ConstructionAuthUserGroup> constructionAuthorizationUserGroups)
+        private static List<PurchaseAuthUserGroup> ConvertAuthorizationUserGroups(Context context, IEnumerable<ConstructionAuthUserGroup> constructionAuthorizationUserGroups)
         {
             var authorizationUserGroups = constructionAuthorizationUserGroups.Select(group =>
             {
@@ -131,20 +152,6 @@ namespace MaterialPurchase.Service.Services
                     }).ToList()
                 };
             }).ToList();
-
-            authorizationUserGroups.Add((new PurchaseAuthUserGroup()
-            {
-                Priority = 0,
-                UserAuthorizations = new List<PurchaseUserAuthorization>()
-                {
-                    new PurchaseUserAuthorization()
-                    {
-                        UserId = context.User.Id,
-                        AuthorizationStatus = UserAuthorizationStatus.Approved,
-                        Permissions = UserAuthorizationPermissions.Creator
-                    }
-                }
-            }));
 
             return authorizationUserGroups;
 
