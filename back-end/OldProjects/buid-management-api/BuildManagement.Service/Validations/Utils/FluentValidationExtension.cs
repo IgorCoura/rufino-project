@@ -24,7 +24,7 @@ namespace BuildManagement.Service.Validations.Utils
                 var msgParms = messagesProvider.Select(m => m(ctx.InstanceToValidate)).ToArray() ?? new string[] {""};
                 return String.Format(message, msgParms);
             });
-
+            rule.WithErrorMessage()
             rule.WithErrorCode(erroCode);
 
             return rule;

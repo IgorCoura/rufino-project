@@ -1,10 +1,5 @@
 ﻿using FluentValidation;
 using MaterialPurchase.Domain.Models.Request;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace MaterialPurchase.Service.Validations
 {
@@ -12,7 +7,11 @@ namespace MaterialPurchase.Service.Validations
     {
         public CreateDraftPurchaseValidator()
         {
-            
+            RuleFor(x => x.Freight)
+                .GreaterThanOrEqualTo(0);
+
+            RuleForEach(x => x.Materials)
+                .SetValidator(new CreateMaterialDraftPurchaseValidator());
         }
     }
 }

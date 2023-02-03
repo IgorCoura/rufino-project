@@ -14,5 +14,8 @@ namespace Commom.Domain.Errors
 
         [ApiError("20", " O {0} com valor {1} não foi encontrado.")]
         PropertyNotFound,
+
+        [ApiError("30", " Violação de chave extrangeira.")]
+        ReferenceConstraintViolation
     }
 }

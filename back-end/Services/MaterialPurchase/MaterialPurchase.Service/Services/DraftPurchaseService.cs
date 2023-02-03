@@ -15,6 +15,10 @@ using System.Linq;
 using System.Security;
 using System.Text;
 using System.Threading.Tasks;
+using Microsoft.Data.SqlClient;
+using EntityFramework.Exceptions.Common;
+using FluentValidation;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace MaterialPurchase.Service.Services
 {
@@ -25,19 +29,24 @@ namespace MaterialPurchase.Service.Services
         private readonly IPurchaseRepository _purchaseRepository;
         private readonly IValidatePurchaseService _validatePurchaseService;
         private readonly IPermissionsService _permissionService;
+        private readonly IServiceProvider _serviceProvider;
 
-        public DraftPurchaseService(IMapper mapper, IConstructionRepository constructionRepository, IPurchaseRepository purchaseRepository, IValidatePurchaseService validatePurchaseService, IPermissionsService permissionService)
+        public DraftPurchaseService(IMapper mapper, IConstructionRepository constructionRepository, IPurchaseRepository purchaseRepository, IValidatePurchaseService validatePurchaseService, IPermissionsService permissionService, IServiceProvider serviceProvider)
         {
             _mapper = mapper;
             _constructionRepository = constructionRepository;
             _purchaseRepository = purchaseRepository;
             _validatePurchaseService = validatePurchaseService;
             _permissionService = permissionService;
+            _serviceProvider = serviceProvider;
         }
 
         public async Task<PurchaseResponse> Create(Context context, CreateDraftPurchaseRequest req)
         {
-            //TODO: Validar 
+            var validation = await _serviceProvider.GetRequiredService<IValidator<CreateDraftPurchaseRequest>>().ValidateAsync(req);
+
+            if (!validation.IsValid)
+                throw new BadRequestException(validation.Errors);
 
             var construction = await _constructionRepository.FirstAsync(
                 filter: x => x.Id == req.ConstructionId, 
@@ -52,11 +61,19 @@ namespace MaterialPurchase.Service.Services
 
             purchase.AuthorizationUserGroups = authorizationUserGroups;
 
-            var result = await _purchaseRepository.RegisterAsync(purchase);
+            try
+            {
+                var result = await _purchaseRepository.RegisterAsync(purchase);
 
-            await _purchaseRepository.UnitOfWork.SaveChangesAsync();
+                await _purchaseRepository.UnitOfWork.SaveChangesAsync();
 
-            return _mapper.Map<PurchaseResponse>(result);
+                return _mapper.Map<PurchaseResponse>(result);
+            }
+            catch (ReferenceConstraintException ex)
+            {
+                throw new BadRequestException(CommomErrors.ReferenceConstraintViolation);
+            };
+
         }
 
         public async Task<PurchaseResponse> Update(Context context, DraftPurchaseRequest req)
@@ -88,9 +105,16 @@ namespace MaterialPurchase.Service.Services
             currentPurchase.ConstructionId= req.ConstructionId;
             currentPurchase.Freight= req.Freight;
 
-            await _purchaseRepository.UnitOfWork.SaveChangesAsync();
+            try
+            {
+                await _purchaseRepository.UnitOfWork.SaveChangesAsync();
 
-            return _mapper.Map<PurchaseResponse>(currentPurchase);
+                return _mapper.Map<PurchaseResponse>(currentPurchase);
+            }
+            catch (ReferenceConstraintException ex)
+            {
+                throw new BadRequestException(CommomErrors.ReferenceConstraintViolation);
+            };  
         }
 
         public async Task Delete(Context context, PurchaseRequest req)

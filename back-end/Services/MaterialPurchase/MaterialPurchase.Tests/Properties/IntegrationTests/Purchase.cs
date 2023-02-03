@@ -401,5 +401,38 @@ namespace MaterialPurchase.Tests.Properties.IntegrationTests
             var content = response.Content.ReadFromJsonAsync<ErrorResponse>().Result as ErrorResponse;
             Assert.Equal(RecoverError.GetCode(MaterialPurchaseErrors.MaterialReceivedInvalid), content?.Errors[0].ErrorCode);
         }
+
+        [Fact]
+        public async Task CancelPurchaseWithSuccess()
+        {
+            //Arrange
+            var factory = new MaterialPurchaseFactory();
+            var client = factory.CreateClient();
+
+            client.DefaultRequestHeaders.Add("Sid", "ddf5281b-cdf7-4781-b4ad-8391f743d35c");
+            client.DefaultRequestHeaders.Add("role", "client");
+
+            var dateExpected = DateTime.UtcNow.AddDays(1);
+
+
+
+            var purchase = new CancelPurchaseRequest(
+                     Guid.Parse("da9752e8-0cd6-4127-8364-c6fa7e1d8c8a"),
+                     "Teste"
+                    );
+
+            //Act
+            var response = await client.PostAsJsonAsync("/api/v1/Purchase/Cancel/DuringAuthorize", purchase);
+
+
+            //Asssert 
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+            var content = response.Content.ReadFromJsonAsync<BaseResponse<PurchaseResponse>>().Result as BaseResponse<PurchaseResponse>;
+            var result = await client.GetFromJsonAsync<BaseResponse<CompletePurchaseResponse>>($"/api/v1/RecoverPurchase/Complete/{content?.Data?.Id}");
+            Assert.True(content?.Success);
+            Assert.Equal(Domain.Enum.PurchaseStatus.Cancelled, result?.Data?.Status);
+            Assert.Equal(purchase.Comment, result?.Data?.AuthorizationUserGroups.OrderBy(x => x.Priority).ToArray()[1].UserAuthorizations.ToArray()[0].Comment);
+        }
+
     }
 }

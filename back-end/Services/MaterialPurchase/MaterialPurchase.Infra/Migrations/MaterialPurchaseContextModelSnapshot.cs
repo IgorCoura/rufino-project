@@ -45,6 +45,15 @@ namespace MaterialPurchase.Infra.Migrations
                         .IsUnique();
 
                     b.ToTable("Roles");
+
+                    b.HasData(
+                        new
+                        {
+                            Id = new Guid("2dcb40c6-6508-4d88-af05-bbdf96584609"),
+                            CreatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
+                            Name = "admin",
+                            UpdatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified)
+                        });
                 });
 
             modelBuilder.Entity("FunctionIdRole", b =>
@@ -60,6 +69,98 @@ namespace MaterialPurchase.Infra.Migrations
                     b.HasIndex("RolesId");
 
                     b.ToTable("FunctionIdRole");
+
+                    b.HasData(
+                        new
+                        {
+                            FunctionsIdsId = new Guid("9caf5d43-bcb3-480a-855c-95cb334fb567"),
+                            RolesId = new Guid("2dcb40c6-6508-4d88-af05-bbdf96584609")
+                        },
+                        new
+                        {
+                            FunctionsIdsId = new Guid("3dbed3d8-0ca8-44ed-b584-d6d7c5981f10"),
+                            RolesId = new Guid("2dcb40c6-6508-4d88-af05-bbdf96584609")
+                        },
+                        new
+                        {
+                            FunctionsIdsId = new Guid("8b0dc6c4-f111-470c-a0e7-c86d24042d04"),
+                            RolesId = new Guid("2dcb40c6-6508-4d88-af05-bbdf96584609")
+                        },
+                        new
+                        {
+                            FunctionsIdsId = new Guid("0e8cd6e5-4ad9-4fe8-b701-548dba923ba8"),
+                            RolesId = new Guid("2dcb40c6-6508-4d88-af05-bbdf96584609")
+                        },
+                        new
+                        {
+                            FunctionsIdsId = new Guid("78d8138f-7611-48bd-8c19-4f7bde11d4cb"),
+                            RolesId = new Guid("2dcb40c6-6508-4d88-af05-bbdf96584609")
+                        },
+                        new
+                        {
+                            FunctionsIdsId = new Guid("2f7c0727-f0ce-42ba-86f2-d2432ea23dad"),
+                            RolesId = new Guid("2dcb40c6-6508-4d88-af05-bbdf96584609")
+                        },
+                        new
+                        {
+                            FunctionsIdsId = new Guid("9ed9f78a-edc4-44ab-9976-5b53be65273d"),
+                            RolesId = new Guid("2dcb40c6-6508-4d88-af05-bbdf96584609")
+                        },
+                        new
+                        {
+                            FunctionsIdsId = new Guid("e425be12-6bbd-419f-8615-a9cefbd5091b"),
+                            RolesId = new Guid("2dcb40c6-6508-4d88-af05-bbdf96584609")
+                        },
+                        new
+                        {
+                            FunctionsIdsId = new Guid("3c02e4ab-f25d-4fec-a8bc-75094e0f5008"),
+                            RolesId = new Guid("2dcb40c6-6508-4d88-af05-bbdf96584609")
+                        },
+                        new
+                        {
+                            FunctionsIdsId = new Guid("3aa12411-9e7c-427f-828b-af39f98e7d61"),
+                            RolesId = new Guid("2dcb40c6-6508-4d88-af05-bbdf96584609")
+                        },
+                        new
+                        {
+                            FunctionsIdsId = new Guid("1c55cb36-d9b6-430e-9c7f-9b1dd8f359cd"),
+                            RolesId = new Guid("2dcb40c6-6508-4d88-af05-bbdf96584609")
+                        },
+                        new
+                        {
+                            FunctionsIdsId = new Guid("0f7ab23d-e040-4f78-a981-b68239bb67fe"),
+                            RolesId = new Guid("2dcb40c6-6508-4d88-af05-bbdf96584609")
+                        },
+                        new
+                        {
+                            FunctionsIdsId = new Guid("79782c6e-49b9-4772-9555-135439779162"),
+                            RolesId = new Guid("2dcb40c6-6508-4d88-af05-bbdf96584609")
+                        },
+                        new
+                        {
+                            FunctionsIdsId = new Guid("b2f9f1e8-20e1-444a-8094-64e169009166"),
+                            RolesId = new Guid("2dcb40c6-6508-4d88-af05-bbdf96584609")
+                        },
+                        new
+                        {
+                            FunctionsIdsId = new Guid("a2d2546f-2382-4a71-a4fb-cad76f0515cc"),
+                            RolesId = new Guid("2dcb40c6-6508-4d88-af05-bbdf96584609")
+                        },
+                        new
+                        {
+                            FunctionsIdsId = new Guid("e40c3197-9e5d-442a-8ce7-5f156324a35e"),
+                            RolesId = new Guid("2dcb40c6-6508-4d88-af05-bbdf96584609")
+                        },
+                        new
+                        {
+                            FunctionsIdsId = new Guid("88b47f58-331f-465c-a99e-164339cac45d"),
+                            RolesId = new Guid("2dcb40c6-6508-4d88-af05-bbdf96584609")
+                        },
+                        new
+                        {
+                            FunctionsIdsId = new Guid("807c1a3b-48d3-4bdb-9b72-f7a3df841d40"),
+                            RolesId = new Guid("2dcb40c6-6508-4d88-af05-bbdf96584609")
+                        });
                 });
 
             modelBuilder.Entity("MaterialPurchase.Domain.BaseEntities.Brand", b =>
@@ -87,6 +188,16 @@ namespace MaterialPurchase.Infra.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("Brands");
+
+                    b.HasData(
+                        new
+                        {
+                            Id = new Guid("d006cdeb-4120-4c48-a1d0-3a6504c0ccdf"),
+                            CreatedAt = new DateTime(2023, 2, 3, 14, 30, 27, 418, DateTimeKind.Local).AddTicks(4941),
+                            Description = "description",
+                            Name = "TIGRE",
+                            UpdatedAt = new DateTime(2023, 2, 3, 14, 30, 27, 418, DateTimeKind.Local).AddTicks(4941)
+                        });
                 });
 
             modelBuilder.Entity("MaterialPurchase.Domain.BaseEntities.Construction", b =>
@@ -114,6 +225,16 @@ namespace MaterialPurchase.Infra.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("Constructions");
+
+                    b.HasData(
+                        new
+                        {
+                            Id = new Guid("cad4da64-e4ab-4b4a-8e83-63fc05fefa64"),
+                            CorporateName = "Build LTDA",
+                            CreatedAt = new DateTime(2023, 2, 3, 14, 30, 27, 418, DateTimeKind.Local).AddTicks(5150),
+                            NickName = "Build Ltda",
+                            UpdatedAt = new DateTime(2023, 2, 3, 14, 30, 27, 418, DateTimeKind.Local).AddTicks(5151)
+                        });
                 });
 
             modelBuilder.Entity("MaterialPurchase.Domain.BaseEntities.ConstructionAuthUserGroup", b =>
@@ -139,6 +260,16 @@ namespace MaterialPurchase.Infra.Migrations
                     b.HasIndex("ConstructionId");
 
                     b.ToTable("ConstructionAuthUserGroups");
+
+                    b.HasData(
+                        new
+                        {
+                            Id = new Guid("e6389915-3947-46d1-a636-da6f9ad505aa"),
+                            ConstructionId = new Guid("cad4da64-e4ab-4b4a-8e83-63fc05fefa64"),
+                            CreatedAt = new DateTime(2023, 2, 3, 14, 30, 27, 418, DateTimeKind.Local).AddTicks(5270),
+                            Priority = 0,
+                            UpdatedAt = new DateTime(2023, 2, 3, 14, 30, 27, 418, DateTimeKind.Local).AddTicks(5271)
+                        });
                 });
 
             modelBuilder.Entity("MaterialPurchase.Domain.BaseEntities.ConstructionUserAuthorization", b =>
@@ -177,6 +308,19 @@ namespace MaterialPurchase.Infra.Migrations
                     b.HasIndex("UserId");
 
                     b.ToTable("ConstructionUserAuthorizations");
+
+                    b.HasData(
+                        new
+                        {
+                            Id = new Guid("38db1f77-f9d2-414c-aeeb-35a57ac4cc2e"),
+                            AuthorizationStatus = 0,
+                            AuthorizationUserGroupId = new Guid("e6389915-3947-46d1-a636-da6f9ad505aa"),
+                            Comment = "",
+                            CreatedAt = new DateTime(2023, 2, 3, 14, 30, 27, 418, DateTimeKind.Local).AddTicks(5292),
+                            Permissions = 4,
+                            UpdatedAt = new DateTime(2023, 2, 3, 14, 30, 27, 418, DateTimeKind.Local).AddTicks(5293),
+                            UserId = new Guid("4922766e-d3ba-4d4c-99b0-093d5977d41f")
+                        });
                 });
 
             modelBuilder.Entity("MaterialPurchase.Domain.BaseEntities.FunctionId", b =>
@@ -202,6 +346,134 @@ namespace MaterialPurchase.Infra.Migrations
                         .IsUnique();
 
                     b.ToTable("FunctionsIds");
+
+                    b.HasData(
+                        new
+                        {
+                            Id = new Guid("9caf5d43-bcb3-480a-855c-95cb334fb567"),
+                            CreatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
+                            Name = "1001",
+                            UpdatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified)
+                        },
+                        new
+                        {
+                            Id = new Guid("3dbed3d8-0ca8-44ed-b584-d6d7c5981f10"),
+                            CreatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
+                            Name = "1002",
+                            UpdatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified)
+                        },
+                        new
+                        {
+                            Id = new Guid("8b0dc6c4-f111-470c-a0e7-c86d24042d04"),
+                            CreatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
+                            Name = "1003",
+                            UpdatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified)
+                        },
+                        new
+                        {
+                            Id = new Guid("0e8cd6e5-4ad9-4fe8-b701-548dba923ba8"),
+                            CreatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
+                            Name = "1004",
+                            UpdatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified)
+                        },
+                        new
+                        {
+                            Id = new Guid("78d8138f-7611-48bd-8c19-4f7bde11d4cb"),
+                            CreatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
+                            Name = "1005",
+                            UpdatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified)
+                        },
+                        new
+                        {
+                            Id = new Guid("2f7c0727-f0ce-42ba-86f2-d2432ea23dad"),
+                            CreatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
+                            Name = "1006",
+                            UpdatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified)
+                        },
+                        new
+                        {
+                            Id = new Guid("9ed9f78a-edc4-44ab-9976-5b53be65273d"),
+                            CreatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
+                            Name = "1007",
+                            UpdatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified)
+                        },
+                        new
+                        {
+                            Id = new Guid("e425be12-6bbd-419f-8615-a9cefbd5091b"),
+                            CreatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
+                            Name = "1008",
+                            UpdatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified)
+                        },
+                        new
+                        {
+                            Id = new Guid("3c02e4ab-f25d-4fec-a8bc-75094e0f5008"),
+                            CreatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
+                            Name = "1009",
+                            UpdatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified)
+                        },
+                        new
+                        {
+                            Id = new Guid("3aa12411-9e7c-427f-828b-af39f98e7d61"),
+                            CreatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
+                            Name = "1010",
+                            UpdatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified)
+                        },
+                        new
+                        {
+                            Id = new Guid("1c55cb36-d9b6-430e-9c7f-9b1dd8f359cd"),
+                            CreatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
+                            Name = "1011",
+                            UpdatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified)
+                        },
+                        new
+                        {
+                            Id = new Guid("0f7ab23d-e040-4f78-a981-b68239bb67fe"),
+                            CreatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
+                            Name = "1012",
+                            UpdatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified)
+                        },
+                        new
+                        {
+                            Id = new Guid("79782c6e-49b9-4772-9555-135439779162"),
+                            CreatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
+                            Name = "1013",
+                            UpdatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified)
+                        },
+                        new
+                        {
+                            Id = new Guid("b2f9f1e8-20e1-444a-8094-64e169009166"),
+                            CreatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
+                            Name = "1014",
+                            UpdatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified)
+                        },
+                        new
+                        {
+                            Id = new Guid("a2d2546f-2382-4a71-a4fb-cad76f0515cc"),
+                            CreatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
+                            Name = "1015",
+                            UpdatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified)
+                        },
+                        new
+                        {
+                            Id = new Guid("e40c3197-9e5d-442a-8ce7-5f156324a35e"),
+                            CreatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
+                            Name = "1016",
+                            UpdatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified)
+                        },
+                        new
+                        {
+                            Id = new Guid("88b47f58-331f-465c-a99e-164339cac45d"),
+                            CreatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
+                            Name = "1017",
+                            UpdatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified)
+                        },
+                        new
+                        {
+                            Id = new Guid("807c1a3b-48d3-4bdb-9b72-f7a3df841d40"),
+                            CreatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
+                            Name = "1018",
+                            UpdatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified)
+                        });
                 });
 
             modelBuilder.Entity("MaterialPurchase.Domain.BaseEntities.ItemMaterialPurchase", b =>
@@ -273,6 +545,17 @@ namespace MaterialPurchase.Infra.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("Materials");
+
+                    b.HasData(
+                        new
+                        {
+                            Id = new Guid("4b867637-aa7c-4878-9383-176a34ee3791"),
+                            CreatedAt = new DateTime(2023, 2, 3, 14, 30, 27, 418, DateTimeKind.Local).AddTicks(4914),
+                            Description = "description",
+                            Name = "TUBO DE PVC",
+                            Unity = "Metro",
+                            UpdatedAt = new DateTime(2023, 2, 3, 14, 30, 27, 418, DateTimeKind.Local).AddTicks(4916)
+                        });
                 });
 
             modelBuilder.Entity("MaterialPurchase.Domain.BaseEntities.Provider", b =>
@@ -319,6 +602,20 @@ namespace MaterialPurchase.Infra.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("Providers");
+
+                    b.HasData(
+                        new
+                        {
+                            Id = new Guid("8299c0dc-927d-45de-b2c8-71c38faf9384"),
+                            Cnpj = "02.624.999/0001-23",
+                            CreatedAt = new DateTime(2023, 2, 3, 14, 30, 27, 418, DateTimeKind.Local).AddTicks(4961),
+                            Description = "description",
+                            Email = "ponto@email.com",
+                            Name = "PONTO DO ENCANADOR",
+                            Phone = "Phone",
+                            Site = "Site.com",
+                            UpdatedAt = new DateTime(2023, 2, 3, 14, 30, 27, 418, DateTimeKind.Local).AddTicks(4961)
+                        });
                 });
 
             modelBuilder.Entity("MaterialPurchase.Domain.BaseEntities.Purchase", b =>
@@ -481,6 +778,16 @@ namespace MaterialPurchase.Infra.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("Users");
+
+                    b.HasData(
+                        new
+                        {
+                            Id = new Guid("4922766e-d3ba-4d4c-99b0-093d5977d41f"),
+                            CreatedAt = new DateTime(2023, 2, 3, 14, 30, 27, 418, DateTimeKind.Local).AddTicks(4656),
+                            Role = "admin",
+                            UpdatedAt = new DateTime(2023, 2, 3, 14, 30, 27, 418, DateTimeKind.Local).AddTicks(4665),
+                            Username = "admin"
+                        });
                 });
 
             modelBuilder.Entity("FunctionIdRole", b =>
@@ -536,6 +843,17 @@ namespace MaterialPurchase.Infra.Migrations
 
                             b1.WithOwner()
                                 .HasForeignKey("ConstructionId");
+
+                            b1.HasData(
+                                new
+                                {
+                                    ConstructionId = new Guid("cad4da64-e4ab-4b4a-8e83-63fc05fefa64"),
+                                    City = "Piracicaba",
+                                    Country = "Brasil",
+                                    State = "Sao Paulo",
+                                    Street = "Dom Pedro",
+                                    ZipCode = "99999-000"
+                                });
                         });
 
                     b.Navigation("Address");
@@ -636,6 +954,17 @@ namespace MaterialPurchase.Infra.Migrations
 
                             b1.WithOwner()
                                 .HasForeignKey("ProviderId");
+
+                            b1.HasData(
+                                new
+                                {
+                                    ProviderId = new Guid("8299c0dc-927d-45de-b2c8-71c38faf9384"),
+                                    City = "Piracicaba",
+                                    Country = "Brasil",
+                                    State = "Sao Paulo",
+                                    Street = "Dom Pedro",
+                                    ZipCode = "99999-000"
+                                });
                         });
 
                     b.Navigation("Address");

@@ -3,6 +3,8 @@ using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
 
+#pragma warning disable CA1814 // Prefer jagged arrays over multidimensional
+
 namespace MaterialPurchase.Infra.Migrations
 {
     /// <inheritdoc />
@@ -355,6 +357,96 @@ namespace MaterialPurchase.Infra.Migrations
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Restrict);
                 });
+
+            migrationBuilder.InsertData(
+                table: "Brands",
+                columns: new[] { "Id", "CreatedAt", "Description", "Name", "UpdatedAt" },
+                values: new object[] { new Guid("d006cdeb-4120-4c48-a1d0-3a6504c0ccdf"), new DateTime(2023, 2, 3, 14, 30, 27, 418, DateTimeKind.Local).AddTicks(4941), "description", "TIGRE", new DateTime(2023, 2, 3, 14, 30, 27, 418, DateTimeKind.Local).AddTicks(4941) });
+
+            migrationBuilder.InsertData(
+                table: "Constructions",
+                columns: new[] { "Id", "CorporateName", "CreatedAt", "NickName", "UpdatedAt", "Address_City", "Address_Country", "Address_State", "Address_Street", "Address_ZipCode" },
+                values: new object[] { new Guid("cad4da64-e4ab-4b4a-8e83-63fc05fefa64"), "Build LTDA", new DateTime(2023, 2, 3, 14, 30, 27, 418, DateTimeKind.Local).AddTicks(5150), "Build Ltda", new DateTime(2023, 2, 3, 14, 30, 27, 418, DateTimeKind.Local).AddTicks(5151), "Piracicaba", "Brasil", "Sao Paulo", "Dom Pedro", "99999-000" });
+
+            migrationBuilder.InsertData(
+                table: "FunctionsIds",
+                columns: new[] { "Id", "CreatedAt", "Name", "UpdatedAt" },
+                values: new object[,]
+                {
+                    { new Guid("0e8cd6e5-4ad9-4fe8-b701-548dba923ba8"), new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), "1004", new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified) },
+                    { new Guid("0f7ab23d-e040-4f78-a981-b68239bb67fe"), new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), "1012", new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified) },
+                    { new Guid("1c55cb36-d9b6-430e-9c7f-9b1dd8f359cd"), new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), "1011", new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified) },
+                    { new Guid("2f7c0727-f0ce-42ba-86f2-d2432ea23dad"), new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), "1006", new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified) },
+                    { new Guid("3aa12411-9e7c-427f-828b-af39f98e7d61"), new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), "1010", new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified) },
+                    { new Guid("3c02e4ab-f25d-4fec-a8bc-75094e0f5008"), new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), "1009", new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified) },
+                    { new Guid("3dbed3d8-0ca8-44ed-b584-d6d7c5981f10"), new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), "1002", new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified) },
+                    { new Guid("78d8138f-7611-48bd-8c19-4f7bde11d4cb"), new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), "1005", new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified) },
+                    { new Guid("79782c6e-49b9-4772-9555-135439779162"), new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), "1013", new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified) },
+                    { new Guid("807c1a3b-48d3-4bdb-9b72-f7a3df841d40"), new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), "1018", new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified) },
+                    { new Guid("88b47f58-331f-465c-a99e-164339cac45d"), new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), "1017", new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified) },
+                    { new Guid("8b0dc6c4-f111-470c-a0e7-c86d24042d04"), new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), "1003", new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified) },
+                    { new Guid("9caf5d43-bcb3-480a-855c-95cb334fb567"), new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), "1001", new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified) },
+                    { new Guid("9ed9f78a-edc4-44ab-9976-5b53be65273d"), new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), "1007", new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified) },
+                    { new Guid("a2d2546f-2382-4a71-a4fb-cad76f0515cc"), new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), "1015", new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified) },
+                    { new Guid("b2f9f1e8-20e1-444a-8094-64e169009166"), new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), "1014", new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified) },
+                    { new Guid("e40c3197-9e5d-442a-8ce7-5f156324a35e"), new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), "1016", new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified) },
+                    { new Guid("e425be12-6bbd-419f-8615-a9cefbd5091b"), new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), "1008", new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified) }
+                });
+
+            migrationBuilder.InsertData(
+                table: "Materials",
+                columns: new[] { "Id", "CreatedAt", "Description", "Name", "Unity", "UpdatedAt" },
+                values: new object[] { new Guid("4b867637-aa7c-4878-9383-176a34ee3791"), new DateTime(2023, 2, 3, 14, 30, 27, 418, DateTimeKind.Local).AddTicks(4914), "description", "TUBO DE PVC", "Metro", new DateTime(2023, 2, 3, 14, 30, 27, 418, DateTimeKind.Local).AddTicks(4916) });
+
+            migrationBuilder.InsertData(
+                table: "Providers",
+                columns: new[] { "Id", "Cnpj", "CreatedAt", "Description", "Email", "Name", "Phone", "Site", "UpdatedAt", "Address_City", "Address_Country", "Address_State", "Address_Street", "Address_ZipCode" },
+                values: new object[] { new Guid("8299c0dc-927d-45de-b2c8-71c38faf9384"), "02.624.999/0001-23", new DateTime(2023, 2, 3, 14, 30, 27, 418, DateTimeKind.Local).AddTicks(4961), "description", "ponto@email.com", "PONTO DO ENCANADOR", "Phone", "Site.com", new DateTime(2023, 2, 3, 14, 30, 27, 418, DateTimeKind.Local).AddTicks(4961), "Piracicaba", "Brasil", "Sao Paulo", "Dom Pedro", "99999-000" });
+
+            migrationBuilder.InsertData(
+                table: "Roles",
+                columns: new[] { "Id", "CreatedAt", "Name", "UpdatedAt" },
+                values: new object[] { new Guid("2dcb40c6-6508-4d88-af05-bbdf96584609"), new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), "admin", new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified) });
+
+            migrationBuilder.InsertData(
+                table: "Users",
+                columns: new[] { "Id", "CreatedAt", "Role", "UpdatedAt", "Username" },
+                values: new object[] { new Guid("4922766e-d3ba-4d4c-99b0-093d5977d41f"), new DateTime(2023, 2, 3, 14, 30, 27, 418, DateTimeKind.Local).AddTicks(4656), "admin", new DateTime(2023, 2, 3, 14, 30, 27, 418, DateTimeKind.Local).AddTicks(4665), "admin" });
+
+            migrationBuilder.InsertData(
+                table: "ConstructionAuthUserGroups",
+                columns: new[] { "Id", "ConstructionId", "CreatedAt", "Priority", "UpdatedAt" },
+                values: new object[] { new Guid("e6389915-3947-46d1-a636-da6f9ad505aa"), new Guid("cad4da64-e4ab-4b4a-8e83-63fc05fefa64"), new DateTime(2023, 2, 3, 14, 30, 27, 418, DateTimeKind.Local).AddTicks(5270), 0, new DateTime(2023, 2, 3, 14, 30, 27, 418, DateTimeKind.Local).AddTicks(5271) });
+
+            migrationBuilder.InsertData(
+                table: "FunctionIdRole",
+                columns: new[] { "FunctionsIdsId", "RolesId" },
+                values: new object[,]
+                {
+                    { new Guid("0e8cd6e5-4ad9-4fe8-b701-548dba923ba8"), new Guid("2dcb40c6-6508-4d88-af05-bbdf96584609") },
+                    { new Guid("0f7ab23d-e040-4f78-a981-b68239bb67fe"), new Guid("2dcb40c6-6508-4d88-af05-bbdf96584609") },
+                    { new Guid("1c55cb36-d9b6-430e-9c7f-9b1dd8f359cd"), new Guid("2dcb40c6-6508-4d88-af05-bbdf96584609") },
+                    { new Guid("2f7c0727-f0ce-42ba-86f2-d2432ea23dad"), new Guid("2dcb40c6-6508-4d88-af05-bbdf96584609") },
+                    { new Guid("3aa12411-9e7c-427f-828b-af39f98e7d61"), new Guid("2dcb40c6-6508-4d88-af05-bbdf96584609") },
+                    { new Guid("3c02e4ab-f25d-4fec-a8bc-75094e0f5008"), new Guid("2dcb40c6-6508-4d88-af05-bbdf96584609") },
+                    { new Guid("3dbed3d8-0ca8-44ed-b584-d6d7c5981f10"), new Guid("2dcb40c6-6508-4d88-af05-bbdf96584609") },
+                    { new Guid("78d8138f-7611-48bd-8c19-4f7bde11d4cb"), new Guid("2dcb40c6-6508-4d88-af05-bbdf96584609") },
+                    { new Guid("79782c6e-49b9-4772-9555-135439779162"), new Guid("2dcb40c6-6508-4d88-af05-bbdf96584609") },
+                    { new Guid("807c1a3b-48d3-4bdb-9b72-f7a3df841d40"), new Guid("2dcb40c6-6508-4d88-af05-bbdf96584609") },
+                    { new Guid("88b47f58-331f-465c-a99e-164339cac45d"), new Guid("2dcb40c6-6508-4d88-af05-bbdf96584609") },
+                    { new Guid("8b0dc6c4-f111-470c-a0e7-c86d24042d04"), new Guid("2dcb40c6-6508-4d88-af05-bbdf96584609") },
+                    { new Guid("9caf5d43-bcb3-480a-855c-95cb334fb567"), new Guid("2dcb40c6-6508-4d88-af05-bbdf96584609") },
+                    { new Guid("9ed9f78a-edc4-44ab-9976-5b53be65273d"), new Guid("2dcb40c6-6508-4d88-af05-bbdf96584609") },
+                    { new Guid("a2d2546f-2382-4a71-a4fb-cad76f0515cc"), new Guid("2dcb40c6-6508-4d88-af05-bbdf96584609") },
+                    { new Guid("b2f9f1e8-20e1-444a-8094-64e169009166"), new Guid("2dcb40c6-6508-4d88-af05-bbdf96584609") },
+                    { new Guid("e40c3197-9e5d-442a-8ce7-5f156324a35e"), new Guid("2dcb40c6-6508-4d88-af05-bbdf96584609") },
+                    { new Guid("e425be12-6bbd-419f-8615-a9cefbd5091b"), new Guid("2dcb40c6-6508-4d88-af05-bbdf96584609") }
+                });
+
+            migrationBuilder.InsertData(
+                table: "ConstructionUserAuthorizations",
+                columns: new[] { "Id", "AuthorizationStatus", "AuthorizationUserGroupId", "Comment", "CreatedAt", "Permissions", "UpdatedAt", "UserId" },
+                values: new object[] { new Guid("38db1f77-f9d2-414c-aeeb-35a57ac4cc2e"), 0, new Guid("e6389915-3947-46d1-a636-da6f9ad505aa"), "", new DateTime(2023, 2, 3, 14, 30, 27, 418, DateTimeKind.Local).AddTicks(5292), 4, new DateTime(2023, 2, 3, 14, 30, 27, 418, DateTimeKind.Local).AddTicks(5293), new Guid("4922766e-d3ba-4d4c-99b0-093d5977d41f") });
 
             migrationBuilder.CreateIndex(
                 name: "IX_ConstructionAuthUserGroups_ConstructionId",

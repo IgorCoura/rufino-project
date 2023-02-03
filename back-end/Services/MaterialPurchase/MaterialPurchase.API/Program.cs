@@ -7,6 +7,9 @@ using System.Text.Json.Serialization;
 using System.Text.Json;
 using Commom.API.FunctionIdAuthorization;
 using Commom.API.Filters;
+using EntityFramework.Exceptions.PostgreSQL;
+
+// MATERIA PURCHASE API
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -19,14 +22,16 @@ builder.Services.AddDbContext<MaterialPurchaseContext>(options =>
         {
             sqlOptions.EnableRetryOnFailure(maxRetryCount: 15, maxRetryDelay: TimeSpan.FromSeconds(30), errorCodesToAdd: null);
         })
+        .UseQueryTrackingBehavior(QueryTrackingBehavior.NoTrackingWithIdentityResolution)
         .EnableDetailedErrors()
-        .EnableSensitiveDataLogging();
+        .EnableSensitiveDataLogging()
+        .UseExceptionProcessor();
 });
 
 // Add services to the container.
 
 builder.Services.AddAuthenticationJwtBearer(builder.Configuration);
-builder.Services.AddFunctionIdAuthorization(builder.Configuration);
+builder.Services.AddFunctionIdAuthorization<MaterialPurchaseContext>(builder.Configuration);
 builder.Services.AddDependencies(builder.Configuration);
 
 
@@ -63,7 +68,9 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
-if (!app.Environment.IsEnvironment("Testing")) {
+var env = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT");
+
+if (env != null && !env.Equals("Testing")) {
 
     AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
 
