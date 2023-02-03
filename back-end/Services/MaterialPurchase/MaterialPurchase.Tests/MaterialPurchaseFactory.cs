@@ -1,4 +1,5 @@
 ﻿using Commom.API.FunctionIdAuthorization;
+using EntityFramework.Exceptions.Sqlite;
 using MaterialPurchase.Infra.Context;
 using MaterialPurchase.Tests.Utils;
 using Microsoft.AspNetCore.Authentication;
@@ -19,7 +20,7 @@ namespace MaterialPurchase.Tests
         }
         protected override void ConfigureWebHost(IWebHostBuilder builder)
         {
-            builder.UseEnvironment("Testing");
+            Environment.SetEnvironmentVariable("ASPNETCORE_ENVIRONMENT", "Testing");
 
             var connection = new SqliteConnection("DataSource=:memory:");
             connection.Open();
@@ -45,6 +46,8 @@ namespace MaterialPurchase.Tests
                 services.AddDbContext<MaterialPurchaseContext>(options =>
                 {
                     options.UseSqlite(connection)
+                    .UseExceptionProcessor()
+                    .UseQueryTrackingBehavior(QueryTrackingBehavior.NoTrackingWithIdentityResolution)
                     .EnableSensitiveDataLogging()
                     .EnableDetailedErrors();
                 });

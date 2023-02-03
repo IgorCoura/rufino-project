@@ -33,14 +33,12 @@ public class WeatherForecastController : ControllerBase
     }
 
     [HttpGet("Auth")]
-    [Authorize]
     public ActionResult GetAtuh()
     {
         return Ok("FUNFOu");
     }
 
     [HttpGet("Auth/Custom")]
-    [FunctionIdAuthorizeAttribute("69")]
     public ActionResult GetAuth()
     {
         return Ok("FUNFOu 222");

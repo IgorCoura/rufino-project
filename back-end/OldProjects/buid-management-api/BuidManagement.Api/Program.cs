@@ -47,7 +47,7 @@ builder.Services.AddVersionedApiExplorer(options =>
 
 builder.Services.AddAuthConfig(builder.Configuration);
 
-builder.Services.AddAutoMapper(typeof(EntityToModelProfile), typeof(ModelToEntityProfile));
+builder.Services
 
 ValidatorOptions.Global.LanguageManager.Culture = new CultureInfo("pt-br");
 

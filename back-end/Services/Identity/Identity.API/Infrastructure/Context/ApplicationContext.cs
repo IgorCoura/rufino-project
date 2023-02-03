@@ -2,9 +2,7 @@
 using Commom.Infra.Base;
 using Identity.API.Application.Entities;
 using Identity.API.Infrastructure.Mapping;
-using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
-using System.Globalization;
 
 namespace Identity.API.Infrastructure.Context
 {
@@ -34,7 +32,7 @@ namespace Identity.API.Infrastructure.Context
                     Password = _passwordHasher.HashPassword("admin"),
                     CreatedAt = DateTime.Now,
                     UpdatedAt = DateTime.Now,
-                    Role = "11"
+                    Role = "admin"
                 });
         }
     }
