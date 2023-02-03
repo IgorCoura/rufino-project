@@ -11,10 +11,10 @@ namespace Commom.Domain.Exceptions
         public ApiValidationError(string code, string msg)
         {
             Code = code;
-            Msg = msg;
+            Message = msg;
         }
 
         public string Code { get; set; }
-        public string Msg { get; set; }
+        public string Message { get; set; }
     }
 }
