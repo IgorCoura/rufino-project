@@ -24,7 +24,7 @@ namespace Commom.API.Filters
                     Errors = exception?.Errors.Select(x => new
                     {
                         ErrorCode = x.Code,
-                        ErrorMessage = x.Msg
+                        ErrorMessage = x.Message
                     })
                 });
             }

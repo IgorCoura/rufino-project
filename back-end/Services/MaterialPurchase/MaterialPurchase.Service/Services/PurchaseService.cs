@@ -89,7 +89,8 @@ namespace MaterialPurchase.Service.Services
         {
             var currentPurchase = await _purchaseRepository.FirstAsyncAsTracking(
                   filter: x => x.Id == req.PurchaseId,
-                  include: i => i.Include(a => a.PurchaseDeliveries).Include(c => c.Materials))
+                  include: i => i.Include(a => a.PurchaseDeliveries).Include(c => c.Materials)
+                                .Include(a => a.AuthorizationUserGroups).ThenInclude(b => b.UserAuthorizations))
                  ?? throw new BadRequestException(CommomErrors.PropertyNotFound, nameof(req.PurchaseId), req.PurchaseId.ToString());
 
             await _permissionService.VerifyPermissions(currentPurchase.AuthorizationUserGroups, context, UserAuthorizationPermissions.Receiver, UserAuthorizationPermissions.Creator, UserAuthorizationPermissions.Admin);
@@ -102,7 +103,7 @@ namespace MaterialPurchase.Service.Services
             {
                 return new PurchaseDeliveryItem()
                 {
-                    ReceiverId = context.User.Id,
+                    ReceiverId = context.User.Id, 
                     MaterialPurchaseId = item.MaterialPurchaseId,
                     Quantity = item.Quantity,
                 };
@@ -113,6 +114,8 @@ namespace MaterialPurchase.Service.Services
 
             if (allIsDelivered)
                 currentPurchase.Status = PurchaseStatus.Closed;
+            else
+                currentPurchase.Status = PurchaseStatus.DeliveryProblem;
 
             await _purchaseRepository.UnitOfWork.SaveChangesAsync();
 
@@ -224,7 +227,7 @@ namespace MaterialPurchase.Service.Services
 
             foreach (var group in listGroup)
             {
-                var userAuth = group.UserAuthorizations.Where(x => x.UserId == context.User.Id).FirstOrDefault(); //TODO: Testa Erro UserID = null
+                var userAuth = group.UserAuthorizations.Where(x => x.UserId == context.User.Id).FirstOrDefault(); 
                 if (userAuth != null)
                 {
                     return userAuth;      
@@ -251,24 +254,28 @@ namespace MaterialPurchase.Service.Services
 
                 var materilAlreadyDelivered = purchase.PurchaseDeliveries.Where(x => x.MaterialPurchaseId == material.Id).ToList();
 
-                var quantityMaterialAlreadyDelivered = materilAlreadyDelivered.Sum(x => x.Quantity); //TODO: Check se a lista for vazia ou nula
+                var quantityMaterialAlreadyDelivered = materilAlreadyDelivered.Sum(x => x.Quantity); 
 
                 var quantityMaterialNotDelivered = material.Quantity - quantityMaterialAlreadyDelivered;
 
-                if (materialReceive is not null)
+                if (materialReceive == null)
                 {
-                    if(quantityMaterialNotDelivered < materialReceive.Quantity)
-                    {
-                        throw new BadRequestException(MaterialPurchaseErrors.MaterialReceivedInvalid);
-                    }
-                    else if (quantityMaterialNotDelivered == materialReceive.Quantity)
-                    {
-                        countItemsDelivered++;
-                    }
-                    continue;
+                    throw new BadRequestException(MaterialPurchaseErrors.MaterialReceivedInvalid);
                 }
-                if (quantityMaterialNotDelivered <= 0)
+                
+                if(quantityMaterialNotDelivered < materialReceive.Quantity)
+                {
+                    throw new BadRequestException(MaterialPurchaseErrors.MaterialReceivedInvalid);
+                }
+                else if (quantityMaterialNotDelivered == materialReceive.Quantity)
+                {
                     countItemsDelivered++;
+                }   
+                else if (quantityMaterialNotDelivered <= 0)
+                {
+                    countItemsDelivered++;
+                }
+                    
             }
 
             if (countItemsDelivered == purchase.Materials.Count())

@@ -11,7 +11,7 @@ namespace Commom.Domain.Exceptions
         public static ApiValidationError GetApiError(Enum error, params string[] msgParms)
         {
             var result = GetValues(error);
-            result.Msg = String.Format(result.Msg, msgParms);
+            result.Message = String.Format(result.Message, msgParms);
             return result;
         }
 
@@ -24,8 +24,8 @@ namespace Commom.Domain.Exceptions
         public static string GetMessage(Enum error, params string[] msgParms)
         {
             var result = GetValues(error);
-            result.Msg = String.Format(result.Msg, msgParms);
-            return result.Msg;
+            result.Message = String.Format(result.Message, msgParms);
+            return result.Message;
         }
 
         private static ApiValidationError GetValues(Enum error)
