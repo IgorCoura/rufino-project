@@ -1,9 +1,9 @@
-﻿using Commom.API.Authentication;
-using Commom.Domain.Exceptions;
+﻿using Commom.Domain.Exceptions;
 using Identity.API.Application.Entities;
 using Identity.API.Application.Errors;
 using Identity.API.Application.Interfaces;
 using Identity.API.Application.Model;
+using Identity.API.Application.Options;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using Security.Jwt.Core.Interfaces;

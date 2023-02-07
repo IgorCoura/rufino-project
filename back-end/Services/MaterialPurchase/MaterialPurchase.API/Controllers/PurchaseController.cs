@@ -1,5 +1,5 @@
 ﻿using Commom.API.Controllers;
-using Commom.API.FunctionIdAuthorization;
+using Commom.API.AuthorizationIds;
 using MaterialPurchase.Domain.Consts;
 using MaterialPurchase.Domain.Interfaces;
 using MaterialPurchase.Domain.Models.Request;
@@ -19,7 +19,7 @@ namespace MaterialPurchase.API.Controllers
         }
 
         [HttpPost("Authorize")]
-        [FunctionIdAuthorizeAttribute(MaterialPurchaseAuthorizationId.AuthorizePurchase)]
+        [AuthorizationIdAttribute(MaterialPurchaseAuthorizationId.AuthorizePurchase)]
         public async Task<ActionResult> Authorize([FromBody] PurchaseRequest req)
         {
             var result = await _purchaseService.AuthorizePurchase(Context, req);
@@ -27,7 +27,7 @@ namespace MaterialPurchase.API.Controllers
         }
 
         [HttpPost("Unlock")]
-        [FunctionIdAuthorizeAttribute(MaterialPurchaseAuthorizationId.UnlockPurchase)]
+        [AuthorizationIdAttribute(MaterialPurchaseAuthorizationId.UnlockPurchase)]
         public async Task<ActionResult> Unlock([FromBody] PurchaseRequest req)
         {
             var result = await _purchaseService.UnlockPurchase(Context, req);
@@ -35,7 +35,7 @@ namespace MaterialPurchase.API.Controllers
         }
 
         [HttpPost("Delivery/Confirm")]
-        [FunctionIdAuthorizeAttribute(MaterialPurchaseAuthorizationId.ConfirmDeliveryDatePurchase)]
+        [AuthorizationIdAttribute(MaterialPurchaseAuthorizationId.ConfirmDeliveryDatePurchase)]
         public async Task<ActionResult> ConfirmDeliveryDate([FromBody] ConfirmDeliveryDateRequest req)
         {
             var result = await _purchaseService.ConfirmDeliveryDate(Context, req);
@@ -43,7 +43,7 @@ namespace MaterialPurchase.API.Controllers
         }
 
         [HttpPost("Delivery/Receive")]
-        [FunctionIdAuthorizeAttribute(MaterialPurchaseAuthorizationId.ReceiveDeliveryPurchase)]
+        [AuthorizationIdAttribute(MaterialPurchaseAuthorizationId.ReceiveDeliveryPurchase)]
         public async Task<ActionResult> ReceiveDelivery([FromBody] ReceiveDeliveryRequest req)
         {
             var result = await _purchaseService.ReceiveDelivery(Context, req);
@@ -51,7 +51,7 @@ namespace MaterialPurchase.API.Controllers
         }
 
         [HttpPost("Cancel/BeforeAuthorize")]
-        [FunctionIdAuthorizeAttribute(MaterialPurchaseAuthorizationId.CancelPurchaseBeforeAuthoriz)]
+        [AuthorizationIdAttribute(MaterialPurchaseAuthorizationId.CancelPurchaseBeforeAuthoriz)]
         public async Task<ActionResult> CancelCreator([FromBody] CancelPurchaseRequest req)
         {
             var result = await _purchaseService.CancelPurchaseBeforeAuthorize(Context, req);
@@ -59,7 +59,7 @@ namespace MaterialPurchase.API.Controllers
         }
 
         [HttpPost("Cancel/DuringAuthorize")]
-        [FunctionIdAuthorizeAttribute(MaterialPurchaseAuthorizationId.CancelPurchaseDuringAuthorize)]
+        [AuthorizationIdAttribute(MaterialPurchaseAuthorizationId.CancelPurchaseDuringAuthorize)]
         public async Task<ActionResult> CancelClient([FromBody] CancelPurchaseRequest req)
         {
             var result = await _purchaseService.CancelPurchaseDuringAuthorize(Context, req);
@@ -67,7 +67,7 @@ namespace MaterialPurchase.API.Controllers
         }
 
         [HttpPost("Cancel/AfterAuthorize")]
-        [FunctionIdAuthorizeAttribute(MaterialPurchaseAuthorizationId.CancelPurchaseAfterAuthorize)]
+        [AuthorizationIdAttribute(MaterialPurchaseAuthorizationId.CancelPurchaseAfterAuthorize)]
         public async Task<ActionResult> CancelAdmin([FromBody] CancelPurchaseRequest req)
         {
             var result = await _purchaseService.CancelPurchaseAfterAuthorize(Context, req);

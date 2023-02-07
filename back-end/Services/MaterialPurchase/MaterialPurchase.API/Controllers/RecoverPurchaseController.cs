@@ -1,5 +1,5 @@
 ﻿using Commom.API.Controllers;
-using Commom.API.FunctionIdAuthorization;
+using Commom.API.AuthorizationIds;
 using MaterialPurchase.Domain.Consts;
 using MaterialPurchase.Domain.Interfaces;
 using MaterialPurchase.Domain.Models.Request;
@@ -19,7 +19,7 @@ namespace MaterialPurchase.API.Controllers
         }
 
         [HttpGet("Simple/{id}")]
-        [FunctionIdAuthorize(MaterialPurchaseAuthorizationId.GetPurchaseSimple)]
+        [AuthorizationIdAttribute(MaterialPurchaseAuthorizationId.GetPurchaseSimple)]
         public async Task<ActionResult> SimpleGet([FromRoute] Guid id)
         {
             var result = await _recoverPurchaseService.SimpleRecover(id);
@@ -27,7 +27,7 @@ namespace MaterialPurchase.API.Controllers
         }
 
         [HttpGet("Material/{id}")]
-        [FunctionIdAuthorize(MaterialPurchaseAuthorizationId.GetPurchaseWithMaterial)]
+        [AuthorizationIdAttribute(MaterialPurchaseAuthorizationId.GetPurchaseWithMaterial)]
         public async Task<ActionResult> GetWithMaterial([FromRoute] Guid id)
         {
             var result = await _recoverPurchaseService.RecoverPurchaseWithMaterials(id);
@@ -35,7 +35,7 @@ namespace MaterialPurchase.API.Controllers
         }
 
         [HttpGet("Complete/{id}")]
-        [FunctionIdAuthorize(MaterialPurchaseAuthorizationId.GetPurchaseComplete)]
+        [AuthorizationIdAttribute(MaterialPurchaseAuthorizationId.GetPurchaseComplete)]
         public async Task<ActionResult> CompleteGet([FromRoute] Guid id)
         {
             var result = await _recoverPurchaseService.RecoverPurchaseComplete(id);
@@ -43,7 +43,7 @@ namespace MaterialPurchase.API.Controllers
         }
 
         [HttpGet("Complete")]
-        [FunctionIdAuthorize(MaterialPurchaseAuthorizationId.GetAllPurchaseComplete)]
+        [AuthorizationIdAttribute(MaterialPurchaseAuthorizationId.GetAllPurchaseComplete)]
         public async Task<ActionResult> CompleteGetAll()
         {
             var result = await _recoverPurchaseService.RecoverAllPurchaseComplete();
@@ -51,7 +51,7 @@ namespace MaterialPurchase.API.Controllers
         }
 
         [HttpGet("Material")]
-        [FunctionIdAuthorize(MaterialPurchaseAuthorizationId.GetAllPurchaseWithMaterial)]
+        [AuthorizationIdAttribute(MaterialPurchaseAuthorizationId.GetAllPurchaseWithMaterial)]
         public async Task<ActionResult> GetAllWithMaterial()
         {
             var result = await _recoverPurchaseService.RecoverAllPurchaseWithMaterials();
@@ -59,7 +59,7 @@ namespace MaterialPurchase.API.Controllers
         }
 
         [HttpGet("Simple")]
-        [FunctionIdAuthorize(MaterialPurchaseAuthorizationId.GetAllPurchaseSimple)]
+        [AuthorizationIdAttribute(MaterialPurchaseAuthorizationId.GetAllPurchaseSimple)]
         public async Task<ActionResult> SimpleGetAll()
         {
             var result = await _recoverPurchaseService.SimpleRecoverAll();

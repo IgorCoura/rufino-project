@@ -2,6 +2,7 @@ using Commom.API.Authentication;
 using Commom.API.Filters;
 using Commom.Domain.PasswordHasher;
 using Identity.API.Application.Interfaces;
+using Identity.API.Application.Options;
 using Identity.API.Application.Service;
 using Identity.API.Infrastructure.Context;
 using Identity.API.Infrastructure.Repository;
@@ -27,6 +28,7 @@ builder.Services.AddSingleton<IMemoryCache, MemoryCache>();
 builder.Services.AddJwksManager().PersistKeysInMemory().PersistKeysToFileSystem(dir).UseJwtValidation();
 builder.Services.AddAuthenticationJwtBearer(builder.Configuration);
 builder.Services.AddPasswordHasher(builder.Configuration);
+builder.Services.Configure<AuthenticationOptions>(builder.Configuration.GetSection(AuthenticationOptions.Section));
 
 //Config DataBase
 

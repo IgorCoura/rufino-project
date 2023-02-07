@@ -10,7 +10,6 @@ namespace Commom.API.Authentication
     {
         public static IServiceCollection AddAuthenticationJwtBearer(this IServiceCollection services, IConfiguration config)
         {
-            services.Configure<AuthenticationOptions>(config.GetSection(AuthenticationOptions.Jwt));
 
             services.AddAuthentication(x =>
             {
@@ -20,7 +19,7 @@ namespace Commom.API.Authentication
             {
                 x.RequireHttpsMetadata = false;
                 x.SaveToken = true;
-                x.SetJwksOptions(new JwkOptions(config["Jwt:JwksUri"], audience: config["Jwt:Audience"]));
+                x.SetJwksOptions(new JwkOptions(config["Authentication:JwksUri"], audience: config["Authentication:Audience"]));
                 x.TokenValidationParameters.ValidateLifetime = true;
                 x.Events = new JwtBearerEvents
                 {

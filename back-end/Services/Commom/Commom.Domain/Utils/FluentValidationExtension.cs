@@ -1,4 +1,5 @@
-﻿using Commom.Domain.Exceptions;
+﻿using Commom.Domain.BaseEntities;
+using Commom.Domain.Exceptions;
 using FluentValidation;
 using System;
 using System.Collections.Generic;
@@ -10,11 +11,17 @@ namespace Commom.Domain.Utils
 {
     public static class FluentValidationExtension
     {
-        public static IRuleBuilderOptions<T, TProperty> WithErrorMessage<T, TProperty>(this IRuleBuilderOptions<T, TProperty> rule, Enum errorMessage, params string[] msgParms)
+        public static IRuleBuilderOptions<T, TProperty> WithErrorMessage<T, TProperty>(this IRuleBuilderOptions<T, TProperty> rule, Enum apiError, params Func<T, string>[] messagesProvider)
         {
-            var error = RecoverError.GetApiError(errorMessage, msgParms);
-            rule.WithMessage(error.Message);
-            rule.WithErrorCode(error.Code);
+            var errorCode = RecoverError.GetCode(apiError);
+            var errorMessage = RecoverError.GetMessage(apiError);
+
+            DefaultValidatorOptions.Configurable(rule).Current.SetErrorMessage((ctx, val) => {
+                var msgParms = messagesProvider.Select(m => m(ctx.InstanceToValidate)).ToArray() ?? new string[] { "" };
+                return String.Format(errorMessage, msgParms);
+            });
+            
+            rule.WithErrorCode(errorCode);
 
             return rule;
         }

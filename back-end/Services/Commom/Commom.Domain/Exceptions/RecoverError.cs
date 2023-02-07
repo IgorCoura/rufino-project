@@ -21,10 +21,9 @@ namespace Commom.Domain.Exceptions
             return result.Code;
         }
 
-        public static string GetMessage(Enum error, params string[] msgParms)
+        public static string GetMessage(Enum error)
         {
             var result = GetValues(error);
-            result.Message = String.Format(result.Message, msgParms);
             return result.Message;
         }
 

@@ -70,15 +70,16 @@ services:
     ports:
         - 8022:5432
 
-  
-  teste.api:
-    image: ${DOCKER_REGISTRY-}testeapi
+
+
+  materialcontrol.api:
+    image: ${DOCKER_REGISTRY-}materialcontrolapi
     build:
         context: .
-        dockerfile: Services/TesteAPI/Teste.API/Dockerfile
+        dockerfile: Services/MaterialControl/MaterialControl.API/Dockerfile
     environment:
         ASPNETCORE_URLS: "https://+;http://+"
-        ASPNETCORE_HTTPS_PORT: "8031"
+        ASPNETCORE_HTTPS_PORT: "8011"
         ASPNETCORE_ENVIRONMENT: Development
     volumes:
         - ${APPDATA}\microsoft\UserSecrets\:/root/.microsoft/usersecrets
@@ -89,4 +90,33 @@ services:
     depends_on:
         - api.gateway
         - identity.api
-  
+
+
+  materialcontrol.db:
+    image: postgres:15.1-alpine
+    restart: always
+    environment:
+        POSTGRES_USER: "admin"
+        POSTGRES_PASSWORD: "5up3rS3nh@"
+    ports:
+        - 8032:5432
+
+
+  teste.api:
+        image: ${DOCKER_REGISTRY-}testeapi
+        build:
+            context: .
+            dockerfile: Services/TesteAPI/Teste.API/Dockerfile
+        environment:
+            ASPNETCORE_URLS: "https://+;http://+"
+            ASPNETCORE_HTTPS_PORT: "8041"
+            ASPNETCORE_ENVIRONMENT: Development
+        volumes:
+            - ${APPDATA}\microsoft\UserSecrets\:/root/.microsoft/usersecrets
+            - ${USERPROFILE}\.aspnet\https:/root/.aspnet/https/
+        ports:
+            - 8100:80
+            - 8101:443
+        depends_on:
+            - api.gateway
+            - identity.api

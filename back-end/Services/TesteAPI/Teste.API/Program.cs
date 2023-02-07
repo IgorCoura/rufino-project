@@ -1,5 +1,5 @@
 using Commom.API.Authentication;
-using Commom.API.FunctionIdAuthorization;
+using Commom.API.AuthorizationIds;
 using Commom.Infra.Interface;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;

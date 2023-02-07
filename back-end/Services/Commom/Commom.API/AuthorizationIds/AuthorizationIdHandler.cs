@@ -1,32 +1,24 @@
-﻿using Commom.Domain.Errors;
-using Commom.Domain.Exceptions;
-using Commom.Infra.Interface;
+﻿using Commom.Infra.Interface;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Options;
-using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Security.Claims;
-using System.Text;
-using System.Threading.Tasks;
 
-namespace Commom.API.FunctionIdAuthorization
+namespace Commom.API.AuthorizationIds
 {
-    public class FunctionIdHandler : AuthorizationHandler<FunctionIdRequirement>
+    public class AuthorizationIdHandler : AuthorizationHandler<AuthorizationIdRequirement>
     {
-        private readonly FunctionIdAuthorizationOptions _options;
+        private readonly AuthorizationIdOptions _options;
         private readonly IRoleRepository _roleRepository;
 
-        public FunctionIdHandler(IOptions<FunctionIdAuthorizationOptions> options, IRoleRepository roleRepository)
+        public AuthorizationIdHandler(IOptions<AuthorizationIdOptions> options, IRoleRepository roleRepository)
         {
             _options = options.Value;
             _roleRepository = roleRepository;
         }
 
 
-        protected override async Task HandleRequirementAsync(AuthorizationHandlerContext context, FunctionIdRequirement requirement)
+        protected override async Task HandleRequirementAsync(AuthorizationHandlerContext context, AuthorizationIdRequirement requirement)
         {
             var roleName = context.User.FindFirst(r => r.Type == ClaimTypes.Role)?.Value.ToString();            
 
@@ -48,7 +40,7 @@ namespace Commom.API.FunctionIdAuthorization
             {
                 context.User.AddIdentity(new ClaimsIdentity(role.FunctionsIds.Select(x =>
                 {
-                    return new Claim("FunctionId", x.Name);
+                    return new Claim(AuthorizationIdOptions.POLICY_PREFIX, x.Name);
                 })));
 
                 context.Succeed(requirement);

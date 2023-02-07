@@ -1,25 +1,18 @@
-﻿using Microsoft.AspNetCore.Authentication.Cookies;
-using Microsoft.AspNetCore.Authentication.JwtBearer;
-using Microsoft.AspNetCore.Authorization;
+﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.Extensions.Options;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
-namespace Commom.API.FunctionIdAuthorization
+namespace Commom.API.AuthorizationIds
 {
-    public class FunctionIdPolicyProvider : IAuthorizationPolicyProvider
+    public class AuthorizationIdPolicyProvider : IAuthorizationPolicyProvider
     {
-        private readonly FunctionIdAuthorizationOptions _options;
+        private readonly AuthorizationIdOptions _options;
 
-        public FunctionIdPolicyProvider(IOptions<FunctionIdAuthorizationOptions> options)
+        public AuthorizationIdPolicyProvider(IOptions<AuthorizationIdOptions> options)
         {
             _options = options.Value;
         }
 
-        const string POLICY_PREFIX = "FunctionId";
+        const string POLICY_PREFIX = AuthorizationIdOptions.POLICY_PREFIX;
         public Task<AuthorizationPolicy> GetDefaultPolicyAsync()
         {
             return Task.FromResult(new AuthorizationPolicyBuilder(_options.Schema).RequireAuthenticatedUser().Build());
@@ -35,7 +28,7 @@ namespace Commom.API.FunctionIdAuthorization
             if (policyName.StartsWith(POLICY_PREFIX, StringComparison.OrdinalIgnoreCase))
             {
                 var policy = new AuthorizationPolicyBuilder(_options.Schema);
-                policy.AddRequirements(new FunctionIdRequirement(policyName[POLICY_PREFIX.Length..]));
+                policy.AddRequirements(new AuthorizationIdRequirement(policyName[POLICY_PREFIX.Length..]));
                 return Task.FromResult<AuthorizationPolicy?>(policy.Build());
             }
 

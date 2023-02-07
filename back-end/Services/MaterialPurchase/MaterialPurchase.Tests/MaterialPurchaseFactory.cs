@@ -1,13 +1,11 @@
-﻿using Commom.API.FunctionIdAuthorization;
+﻿using Commom.API.AuthorizationIds;
 using EntityFramework.Exceptions.Sqlite;
 using MaterialPurchase.Infra.Context;
 using MaterialPurchase.Tests.Utils;
 using Microsoft.AspNetCore.Authentication;
-using Microsoft.AspNetCore.Authorization.Policy;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Configuration;
 
 namespace MaterialPurchase.Tests
 {
@@ -33,7 +31,7 @@ namespace MaterialPurchase.Tests
                         typeof(DbContextOptions<MaterialPurchaseContext>));
                 services.Remove(dbContext);
 
-                services.AddOptions<FunctionIdAuthorizationOptions>()
+                services.AddOptions<AuthorizationIdOptions>()
                 .Configure(x => x.Schema = "Local");
 
                 services.AddAuthentication(options =>
