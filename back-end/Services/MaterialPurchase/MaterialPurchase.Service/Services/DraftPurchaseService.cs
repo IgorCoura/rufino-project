@@ -86,10 +86,13 @@ namespace MaterialPurchase.Service.Services
             await _permissionService.VerifyPermissions(currentPurchase.AuthorizationUserGroups, context, UserAuthorizationPermissions.Creator, UserAuthorizationPermissions.Admin);
 
             await _permissionService.VerifyStatus(currentPurchase.Status, PurchaseStatus.Open);
-                                                 
-            //TODO: VALIDAR
 
-            foreach(var mat in req.Materials)
+            var validation = await _serviceProvider.GetRequiredService<IValidator<DraftPurchaseRequest>>().ValidateAsync(req);
+
+            if(!validation.IsValid)
+                throw new BadRequestException(validation.Errors);
+
+            foreach (var mat in req.Materials)
             {
                 var currentMaterial = currentPurchase!.Materials.Where(x => x.Id == mat.Id).FirstOrDefault();
                 if (currentMaterial == null)

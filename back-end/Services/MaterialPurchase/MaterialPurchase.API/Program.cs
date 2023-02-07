@@ -5,7 +5,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.Text.Json.Serialization;
 using System.Text.Json;
-using Commom.API.FunctionIdAuthorization;
+using Commom.API.AuthorizationIds;
 using Commom.API.Filters;
 using EntityFramework.Exceptions.PostgreSQL;
 
@@ -61,14 +61,15 @@ builder.Services.AddSwaggerGen();
 
 var app = builder.Build();
 
+var env = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT");
+
 // Configure the HTTP request pipeline.
-if (app.Environment.IsDevelopment())
+if (env != null && env.Equals("Development"))
 {
     app.UseSwagger();
     app.UseSwaggerUI();
 }
 
-var env = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT");
 
 if (env != null && !env.Equals("Testing")) {
 

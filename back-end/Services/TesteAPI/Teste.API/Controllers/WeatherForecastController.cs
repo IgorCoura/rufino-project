@@ -1,4 +1,4 @@
-using Commom.API.FunctionIdAuthorization;
+using Commom.API.AuthorizationIds;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 

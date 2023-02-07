@@ -1,5 +1,5 @@
 ﻿using Commom.API.Controllers;
-using Commom.API.FunctionIdAuthorization;
+using Commom.API.AuthorizationIds;
 using MaterialPurchase.Domain.Consts;
 using MaterialPurchase.Domain.Interfaces;
 using MaterialPurchase.Domain.Models.Request;
@@ -20,7 +20,7 @@ namespace MaterialPurchase.API.Controllers
         }
 
         [HttpPost("Create")]
-        [FunctionIdAuthorizeAttribute(MaterialPurchaseAuthorizationId.CreatePurchase)]
+        [AuthorizationIdAttribute(MaterialPurchaseAuthorizationId.CreatePurchase)]
         public async Task<ActionResult> Create([FromBody] CreateDraftPurchaseRequest req)
         {
             var result = await _draftPurchaseService.Create(Context, req);
@@ -28,7 +28,7 @@ namespace MaterialPurchase.API.Controllers
         }
 
         [HttpPost("Update")]
-        [FunctionIdAuthorizeAttribute(MaterialPurchaseAuthorizationId.UpdatePurchase)]
+        [AuthorizationIdAttribute(MaterialPurchaseAuthorizationId.UpdatePurchase)]
         public async Task<ActionResult> Update([FromBody] DraftPurchaseRequest req)
         {
             var result = await _draftPurchaseService.Update(Context, req);
@@ -36,7 +36,7 @@ namespace MaterialPurchase.API.Controllers
         }
 
         [HttpPost("Delete")]
-        [FunctionIdAuthorizeAttribute(MaterialPurchaseAuthorizationId.DeletePurchase)]
+        [AuthorizationIdAttribute(MaterialPurchaseAuthorizationId.DeletePurchase)]
         public async Task<ActionResult> Delete([FromBody] PurchaseRequest req)
         {
             await _draftPurchaseService.Delete(Context, req);
@@ -44,7 +44,7 @@ namespace MaterialPurchase.API.Controllers
         }
 
         [HttpPost("Send")]
-        [FunctionIdAuthorizeAttribute(MaterialPurchaseAuthorizationId.SendPurchase)]
+        [AuthorizationIdAttribute(MaterialPurchaseAuthorizationId.SendPurchase)]
         public async Task<ActionResult> Send([FromBody] PurchaseRequest req)
         {
             await _draftPurchaseService.SendToAuthorization(Context, req);

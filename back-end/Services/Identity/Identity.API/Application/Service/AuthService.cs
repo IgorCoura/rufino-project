@@ -1,5 +1,4 @@
-﻿using Commom.API.Authentication;
-using Commom.Domain.PasswordHasher;
+﻿using Commom.Domain.PasswordHasher;
 using Identity.API.Application.Interfaces;
 using Identity.API.Application.Model;
 using Identity.API.Application.Entities;
@@ -7,6 +6,7 @@ using Microsoft.Extensions.Options;
 using System.Security.Claims;
 using Commom.Domain.Exceptions;
 using Identity.API.Application.Errors;
+using Identity.API.Application.Options;
 
 namespace Identity.API.Application.Service
 {
