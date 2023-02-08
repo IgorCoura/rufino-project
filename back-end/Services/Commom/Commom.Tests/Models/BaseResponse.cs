@@ -1,4 +1,4 @@
-﻿namespace MaterialPurchase.Tests.Models
+﻿namespace Commom.Tests.Models
 {
     public class BaseResponse<T>
     {

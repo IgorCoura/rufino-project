@@ -6,7 +6,12 @@ using System.Threading.Tasks;
 
 namespace MaterialControl.Domain.Models.Response
 {
-    internal class MaterialResponse
-    {
-    }
+    public record MaterialResponse
+    (
+        Guid Id,
+        string Name,
+        string Description,
+        UnityResponse Unity
+    );
+    
 }

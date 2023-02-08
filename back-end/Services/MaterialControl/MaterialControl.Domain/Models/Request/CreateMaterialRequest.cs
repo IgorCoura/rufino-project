@@ -10,6 +10,6 @@ namespace MaterialControl.Domain.Models.Request
     (
         string Name,
         string Description,
-        string Unit
+        Guid UnityId
     );
 }

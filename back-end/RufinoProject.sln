@@ -54,7 +54,7 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "MaterialPurchase.Tests", "S
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "MaterialControl", "MaterialControl", "{E3C7F336-474F-454A-9807-BFF96F86355B}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MaterialControl.API", "Services\MaterialControl\MaterialControl.API\MaterialControl.API.csproj", "{83FF96B1-812D-4740-8A44-4BBB1351E8B4}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "MaterialControl.API", "Services\MaterialControl\MaterialControl.API\MaterialControl.API.csproj", "{83FF96B1-812D-4740-8A44-4BBB1351E8B4}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "1-Application", "1-Application", "{93D18017-24E8-4695-81DA-26E6B5376BAC}"
 EndProject
@@ -64,15 +64,17 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "3-Service", "3-Service", "{
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "4-Infra", "4-Infra", "{9593D208-B03D-42A9-89C5-528AFF4B7C1D}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MaterialControl.Domain", "Services\MaterialControl\MaterialControl.Domain\MaterialControl.Domain.csproj", "{4EE63FE8-CF65-4238-AA20-A2C262051A71}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "MaterialControl.Domain", "Services\MaterialControl\MaterialControl.Domain\MaterialControl.Domain.csproj", "{4EE63FE8-CF65-4238-AA20-A2C262051A71}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MaterialControl.Services", "Services\MaterialControl\MaterialControl.Services\MaterialControl.Services.csproj", "{CDD3C19C-37EB-4DA8-A15C-22EFE2632F03}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "MaterialControl.Services", "Services\MaterialControl\MaterialControl.Services\MaterialControl.Services.csproj", "{CDD3C19C-37EB-4DA8-A15C-22EFE2632F03}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MaterialControl.Infra", "Services\MaterialControl\MaterialControl.Infra\MaterialControl.Infra.csproj", "{539A5DB7-6972-4344-9FFE-5079B79A0082}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "MaterialControl.Infra", "Services\MaterialControl\MaterialControl.Infra\MaterialControl.Infra.csproj", "{539A5DB7-6972-4344-9FFE-5079B79A0082}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "5-Tests", "5-Tests", "{21A728F8-7555-4BBD-A763-EBE56DF9BBE9}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MaterialControl.Tests", "Services\MaterialControl\MaterialControl.Tests\MaterialControl.Tests.csproj", "{74666122-5348-4250-B2F7-E2B87B5A80D3}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "MaterialControl.Tests", "Services\MaterialControl\MaterialControl.Tests\MaterialControl.Tests.csproj", "{74666122-5348-4250-B2F7-E2B87B5A80D3}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Commom.Tests", "Services\Commom\Commom.Tests\Commom.Tests.csproj", "{C8CABC9E-1CD8-43BD-B3F0-12376A98C8CA}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -148,6 +150,10 @@ Global
 		{74666122-5348-4250-B2F7-E2B87B5A80D3}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{74666122-5348-4250-B2F7-E2B87B5A80D3}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{74666122-5348-4250-B2F7-E2B87B5A80D3}.Release|Any CPU.Build.0 = Release|Any CPU
+		{C8CABC9E-1CD8-43BD-B3F0-12376A98C8CA}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{C8CABC9E-1CD8-43BD-B3F0-12376A98C8CA}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{C8CABC9E-1CD8-43BD-B3F0-12376A98C8CA}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{C8CABC9E-1CD8-43BD-B3F0-12376A98C8CA}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -184,6 +190,7 @@ Global
 		{539A5DB7-6972-4344-9FFE-5079B79A0082} = {9593D208-B03D-42A9-89C5-528AFF4B7C1D}
 		{21A728F8-7555-4BBD-A763-EBE56DF9BBE9} = {E3C7F336-474F-454A-9807-BFF96F86355B}
 		{74666122-5348-4250-B2F7-E2B87B5A80D3} = {21A728F8-7555-4BBD-A763-EBE56DF9BBE9}
+		{C8CABC9E-1CD8-43BD-B3F0-12376A98C8CA} = {227D4956-122D-4597-BFC4-A0831FF0DCAE}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {9847F031-C706-4524-A2AA-7006612702CA}

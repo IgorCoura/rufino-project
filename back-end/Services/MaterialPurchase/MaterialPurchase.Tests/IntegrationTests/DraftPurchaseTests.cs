@@ -1,20 +1,14 @@
 ﻿using Commom.Domain.Errors;
 using Commom.Domain.Exceptions;
-using Commom.Domain.BaseEntities;
-using Commom.Infra.Base;
-using MaterialPurchase.Domain.Consts;
-using MaterialPurchase.Domain.BaseEntities;
+using Commom.Tests.Models;
 using MaterialPurchase.Domain.Models.Request;
 using MaterialPurchase.Domain.Models.Response;
-using MaterialPurchase.Infra.Context;
-using MaterialPurchase.Tests.Models;
 using MaterialPurchase.Tests.Utils;
 using System.Net;
-using MaterialPurchase.Domain.Errors;
 
-namespace MaterialPurchase.Tests.Properties.IntegrationTests
+namespace MaterialPurchase.Tests.IntegrationTests
 {
-    public class DraftPurchase
+    public class DraftPurchaseTests
     {
         
 
@@ -90,7 +84,7 @@ namespace MaterialPurchase.Tests.Properties.IntegrationTests
             var newPurchase = new CreateDraftPurchaseRequest(
                 Guid.Parse("6bb5a348-64d3-4c92-aedd-63319de238c4"),
                 Guid.Parse("651E60AD-DDAC-45F8-B2ED-60D2DB924AE7"),
-                -99,
+                -9,
                 new CreateMaterialDraftPurchaseRequest[]
                 {
                     new CreateMaterialDraftPurchaseRequest(Guid.Parse("54D98347-4009-466C-8A6E-AC01EC3F9A7C"), Guid.Parse("9894CE53-89E3-47AE-BEDE-7D1AEC6F98F0"), -77, -33),

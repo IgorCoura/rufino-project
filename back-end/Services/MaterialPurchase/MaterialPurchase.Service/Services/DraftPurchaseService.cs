@@ -69,7 +69,7 @@ namespace MaterialPurchase.Service.Services
 
                 return _mapper.Map<PurchaseResponse>(result);
             }
-            catch (ReferenceConstraintException ex)
+            catch (ReferenceConstraintException)
             {
                 throw new BadRequestException(CommomErrors.ReferenceConstraintViolation);
             };
@@ -114,7 +114,7 @@ namespace MaterialPurchase.Service.Services
 
                 return _mapper.Map<PurchaseResponse>(currentPurchase);
             }
-            catch (ReferenceConstraintException ex)
+            catch (ReferenceConstraintException)
             {
                 throw new BadRequestException(CommomErrors.ReferenceConstraintViolation);
             };  

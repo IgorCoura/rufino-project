@@ -1,55 +1,17 @@
-﻿using Commom.API.AuthorizationIds;
-using EntityFramework.Exceptions.Sqlite;
+﻿using Commom.Tests;
 using MaterialPurchase.Infra.Context;
 using MaterialPurchase.Tests.Utils;
-using Microsoft.AspNetCore.Authentication;
-using Microsoft.AspNetCore.Mvc.Testing;
-using Microsoft.Data.Sqlite;
-using Microsoft.EntityFrameworkCore;
 
 namespace MaterialPurchase.Tests
 {
-    public class MaterialPurchaseFactory : WebApplicationFactory<Program>
+    public class MaterialPurchaseFactory : CustomWebApplicationFactory<MaterialPurchaseContext, Program>
     {
-        public MaterialPurchaseContext GetContext()
-        {
-            var scope = this.Services.CreateScope();
-            return scope.ServiceProvider.GetRequiredService<MaterialPurchaseContext>();
-        }
         protected override void ConfigureWebHost(IWebHostBuilder builder)
         {
-            Environment.SetEnvironmentVariable("ASPNETCORE_ENVIRONMENT", "Testing");
-
-            var connection = new SqliteConnection("DataSource=:memory:");
-            connection.Open();
+            base.ConfigureWebHost(builder);
 
             builder.ConfigureServices(services =>
-            {
-
-                var dbContext = services.SingleOrDefault(
-                    d => d.ServiceType ==
-                        typeof(DbContextOptions<MaterialPurchaseContext>));
-                services.Remove(dbContext);
-
-                services.AddOptions<AuthorizationIdOptions>()
-                .Configure(x => x.Schema = "Local");
-
-                services.AddAuthentication(options =>
-                {
-                    options.DefaultAuthenticateScheme = LocalAuthenticationHandler.AuthScheme;
-                    options.DefaultChallengeScheme = LocalAuthenticationHandler.AuthScheme;
-                })
-                .AddScheme<AuthenticationSchemeOptions, LocalAuthenticationHandler>(LocalAuthenticationHandler.AuthScheme, options => { });
-
-                services.AddDbContext<MaterialPurchaseContext>(options =>
-                {
-                    options.UseSqlite(connection)
-                    .UseExceptionProcessor()
-                    .UseQueryTrackingBehavior(QueryTrackingBehavior.NoTrackingWithIdentityResolution)
-                    .EnableSensitiveDataLogging()
-                    .EnableDetailedErrors();
-                });
-
+            {               
                 var sp = services.BuildServiceProvider();
 
                 using (var scope = sp.CreateScope())

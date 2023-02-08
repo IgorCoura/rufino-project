@@ -1,15 +1,13 @@
 ﻿using Commom.Domain.Exceptions;
-using MaterialPurchase.Domain.Consts;
+using Commom.Tests.Models;
 using MaterialPurchase.Domain.Errors;
 using MaterialPurchase.Domain.Models.Request;
 using MaterialPurchase.Domain.Models.Response;
-using MaterialPurchase.Tests.Models;
-using Microsoft.EntityFrameworkCore;
 using System.Net;
 
-namespace MaterialPurchase.Tests.Properties.IntegrationTests
+namespace MaterialPurchase.Tests.IntegrationTests
 {
-    public class Purchase
+    public class PurchaseTests
     {
         [Fact]
         public async Task AuthorizePurchaseWithNonExistentUser()
