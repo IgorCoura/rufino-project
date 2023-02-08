@@ -1,4 +1,6 @@
 ﻿using AutoMapper;
+using MaterialControl.Domain.Entities;
+using MaterialControl.Domain.Models.Response;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -11,6 +13,9 @@ namespace MaterialControl.Services.Mappers
     {
         public EntityToModelProfile()
         {
+            CreateMap<Brand, BrandResponse>();
+            CreateMap<Material, MaterialResponse>();
+            CreateMap<Unity, UnityResponse>();
         }
     }
 }

@@ -1,7 +1,4 @@
-﻿using Microsoft.AspNetCore.Mvc.Versioning;
-using Xunit.Sdk;
-
-namespace MaterialPurchase.Tests.Models
+﻿namespace Commom.Tests.Models
 {
     public class ErrorResponse
     {

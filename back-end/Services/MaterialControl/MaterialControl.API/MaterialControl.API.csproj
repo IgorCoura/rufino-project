@@ -27,6 +27,7 @@
     <ProjectReference Include="..\..\Commom\Commom.API\Commom.API.csproj" />
     <ProjectReference Include="..\MaterialControl.Domain\MaterialControl.Domain.csproj" />
     <ProjectReference Include="..\MaterialControl.Infra\MaterialControl.Infra.csproj" />
+    <ProjectReference Include="..\MaterialControl.Services\MaterialControl.Services.csproj" />
   </ItemGroup>
 
 </Project>

@@ -1,9 +1,6 @@
 ﻿using AutoMapper;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using MaterialControl.Domain.Entities;
+using MaterialControl.Domain.Models.Request;
 
 namespace MaterialControl.Services.Mappers
 {
@@ -11,6 +8,13 @@ namespace MaterialControl.Services.Mappers
     {
         public ModelToEntityProfile()
         {
+            CreateMap<CreateBrandRequest, Brand>();
+            CreateMap<CreateMaterialRequest, Material>();
+            CreateMap<CreateUnityRequest, Unity>();
+            CreateMap<BrandRequest, Brand>();
+            CreateMap<MaterialRequest, Material>();
+            CreateMap<UnityRequest, Unity>();
         }
     }
 }
+

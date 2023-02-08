@@ -7,11 +7,12 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Folder Include="Validations\" />
+    <PackageReference Include="AutoMapper" Version="12.0.1" />
+    <PackageReference Include="EntityFrameworkCore.Exceptions.Common" Version="6.0.3" />
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="AutoMapper" Version="12.0.1" />
+    <ProjectReference Include="..\MaterialControl.Domain\MaterialControl.Domain.csproj" />
   </ItemGroup>
 
 </Project>

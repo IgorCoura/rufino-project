@@ -1,5 +1,7 @@
 ﻿using Commom.Domain.BaseEntities;
 using Commom.Infra.Base;
+using MaterialControl.Domain.Entities;
+using MaterialControl.Infra.Mapping;
 using MaterialPurchase.Domain.BaseEntities;
 using Microsoft.EntityFrameworkCore;
 
@@ -7,12 +9,25 @@ namespace MaterialControl.Infra.Context
 {
     public class MaterialControlContext : BaseContext
     {
+        public DbSet<Brand> Brands { get; set; }
+        public DbSet<Material> Materials { get; set; }
+        public DbSet<Unity> Unities { get; set; }
+        public DbSet<User> Users { get; set; }
+
+        
         public MaterialControlContext(DbContextOptions<MaterialControlContext> options) : base(options)
         {
         }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
+            base.OnModelCreating(modelBuilder);
+
+            modelBuilder.ApplyConfiguration(new BrandMap());
+            modelBuilder.ApplyConfiguration(new MaterialMap());
+            modelBuilder.ApplyConfiguration(new UnityMap());
+            modelBuilder.ApplyConfiguration(new UserMap());
+
             //DATA FOR TESTS 
             var env = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT");
 

@@ -6,6 +6,7 @@ using MaterialControl.Infra.Context;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.Text.Json.Serialization;
+using MaterialControl.API.Configurations;
 
 //MaterialControl.API
 
@@ -28,6 +29,7 @@ builder.Services.AddDbContext<MaterialControlContext>(options =>
 
 builder.Services.AddAuthenticationJwtBearer(builder.Configuration);
 builder.Services.AddFunctionIdAuthorization<MaterialControlContext>(builder.Configuration);
+builder.Services.AddDependencies(builder.Configuration);
 
 builder.Services.AddApiVersioning(options =>
 {

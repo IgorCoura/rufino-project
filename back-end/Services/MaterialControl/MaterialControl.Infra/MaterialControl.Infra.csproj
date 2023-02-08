@@ -8,11 +8,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\Commom\Commom.Infra\Commom.Infra.csproj" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <Folder Include="Mapping\" />
-    <Folder Include="Repository\" />
+    <ProjectReference Include="..\MaterialControl.Domain\MaterialControl.Domain.csproj" />
   </ItemGroup>
 
   <ItemGroup>
