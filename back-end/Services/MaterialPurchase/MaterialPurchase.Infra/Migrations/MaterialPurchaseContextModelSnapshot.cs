@@ -49,7 +49,7 @@ namespace MaterialPurchase.Infra.Migrations
                     b.HasData(
                         new
                         {
-                            Id = new Guid("2dcb40c6-6508-4d88-af05-bbdf96584609"),
+                            Id = new Guid("ae524c8e-27ef-4f62-8d6a-5df0297fb6c4"),
                             CreatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
                             Name = "admin",
                             UpdatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified)
@@ -73,97 +73,97 @@ namespace MaterialPurchase.Infra.Migrations
                     b.HasData(
                         new
                         {
-                            FunctionsIdsId = new Guid("9caf5d43-bcb3-480a-855c-95cb334fb567"),
-                            RolesId = new Guid("2dcb40c6-6508-4d88-af05-bbdf96584609")
+                            FunctionsIdsId = new Guid("641442a0-db41-415a-862a-32c01c200163"),
+                            RolesId = new Guid("ae524c8e-27ef-4f62-8d6a-5df0297fb6c4")
                         },
                         new
                         {
-                            FunctionsIdsId = new Guid("3dbed3d8-0ca8-44ed-b584-d6d7c5981f10"),
-                            RolesId = new Guid("2dcb40c6-6508-4d88-af05-bbdf96584609")
+                            FunctionsIdsId = new Guid("0c3054ef-dc4a-428d-9f54-cfb3846b142a"),
+                            RolesId = new Guid("ae524c8e-27ef-4f62-8d6a-5df0297fb6c4")
                         },
                         new
                         {
-                            FunctionsIdsId = new Guid("8b0dc6c4-f111-470c-a0e7-c86d24042d04"),
-                            RolesId = new Guid("2dcb40c6-6508-4d88-af05-bbdf96584609")
+                            FunctionsIdsId = new Guid("b1f86d9c-591a-47d3-885d-0ff4c4c3a307"),
+                            RolesId = new Guid("ae524c8e-27ef-4f62-8d6a-5df0297fb6c4")
                         },
                         new
                         {
-                            FunctionsIdsId = new Guid("0e8cd6e5-4ad9-4fe8-b701-548dba923ba8"),
-                            RolesId = new Guid("2dcb40c6-6508-4d88-af05-bbdf96584609")
+                            FunctionsIdsId = new Guid("55b7457c-0e2a-4715-b86b-92cbd6a52546"),
+                            RolesId = new Guid("ae524c8e-27ef-4f62-8d6a-5df0297fb6c4")
                         },
                         new
                         {
-                            FunctionsIdsId = new Guid("78d8138f-7611-48bd-8c19-4f7bde11d4cb"),
-                            RolesId = new Guid("2dcb40c6-6508-4d88-af05-bbdf96584609")
+                            FunctionsIdsId = new Guid("4a78cace-0c5a-40d0-9605-3d713b6121aa"),
+                            RolesId = new Guid("ae524c8e-27ef-4f62-8d6a-5df0297fb6c4")
                         },
                         new
                         {
-                            FunctionsIdsId = new Guid("2f7c0727-f0ce-42ba-86f2-d2432ea23dad"),
-                            RolesId = new Guid("2dcb40c6-6508-4d88-af05-bbdf96584609")
+                            FunctionsIdsId = new Guid("b41af008-1729-4edb-95a3-f46157d8420e"),
+                            RolesId = new Guid("ae524c8e-27ef-4f62-8d6a-5df0297fb6c4")
                         },
                         new
                         {
-                            FunctionsIdsId = new Guid("9ed9f78a-edc4-44ab-9976-5b53be65273d"),
-                            RolesId = new Guid("2dcb40c6-6508-4d88-af05-bbdf96584609")
+                            FunctionsIdsId = new Guid("3be84b90-5117-4f58-9392-0a9e7ecd5c0b"),
+                            RolesId = new Guid("ae524c8e-27ef-4f62-8d6a-5df0297fb6c4")
                         },
                         new
                         {
-                            FunctionsIdsId = new Guid("e425be12-6bbd-419f-8615-a9cefbd5091b"),
-                            RolesId = new Guid("2dcb40c6-6508-4d88-af05-bbdf96584609")
+                            FunctionsIdsId = new Guid("9097b32e-783c-4309-9c23-f6c08252a489"),
+                            RolesId = new Guid("ae524c8e-27ef-4f62-8d6a-5df0297fb6c4")
                         },
                         new
                         {
-                            FunctionsIdsId = new Guid("3c02e4ab-f25d-4fec-a8bc-75094e0f5008"),
-                            RolesId = new Guid("2dcb40c6-6508-4d88-af05-bbdf96584609")
+                            FunctionsIdsId = new Guid("241a5ef5-e5aa-4e36-8d2e-6461dcd56298"),
+                            RolesId = new Guid("ae524c8e-27ef-4f62-8d6a-5df0297fb6c4")
                         },
                         new
                         {
-                            FunctionsIdsId = new Guid("3aa12411-9e7c-427f-828b-af39f98e7d61"),
-                            RolesId = new Guid("2dcb40c6-6508-4d88-af05-bbdf96584609")
+                            FunctionsIdsId = new Guid("30fff483-1d53-46bb-b5b2-f3f2f64b935a"),
+                            RolesId = new Guid("ae524c8e-27ef-4f62-8d6a-5df0297fb6c4")
                         },
                         new
                         {
-                            FunctionsIdsId = new Guid("1c55cb36-d9b6-430e-9c7f-9b1dd8f359cd"),
-                            RolesId = new Guid("2dcb40c6-6508-4d88-af05-bbdf96584609")
+                            FunctionsIdsId = new Guid("520cea04-f214-4d40-8d62-d3f5c058e869"),
+                            RolesId = new Guid("ae524c8e-27ef-4f62-8d6a-5df0297fb6c4")
                         },
                         new
                         {
-                            FunctionsIdsId = new Guid("0f7ab23d-e040-4f78-a981-b68239bb67fe"),
-                            RolesId = new Guid("2dcb40c6-6508-4d88-af05-bbdf96584609")
+                            FunctionsIdsId = new Guid("1a425bc2-246c-4cc5-8041-fec431bea70a"),
+                            RolesId = new Guid("ae524c8e-27ef-4f62-8d6a-5df0297fb6c4")
                         },
                         new
                         {
-                            FunctionsIdsId = new Guid("79782c6e-49b9-4772-9555-135439779162"),
-                            RolesId = new Guid("2dcb40c6-6508-4d88-af05-bbdf96584609")
+                            FunctionsIdsId = new Guid("1499bfea-9baf-45be-b76c-b5f3a65b28c9"),
+                            RolesId = new Guid("ae524c8e-27ef-4f62-8d6a-5df0297fb6c4")
                         },
                         new
                         {
-                            FunctionsIdsId = new Guid("b2f9f1e8-20e1-444a-8094-64e169009166"),
-                            RolesId = new Guid("2dcb40c6-6508-4d88-af05-bbdf96584609")
+                            FunctionsIdsId = new Guid("45b77ac4-436e-4a46-a457-d8e5c1ce9d47"),
+                            RolesId = new Guid("ae524c8e-27ef-4f62-8d6a-5df0297fb6c4")
                         },
                         new
                         {
-                            FunctionsIdsId = new Guid("a2d2546f-2382-4a71-a4fb-cad76f0515cc"),
-                            RolesId = new Guid("2dcb40c6-6508-4d88-af05-bbdf96584609")
+                            FunctionsIdsId = new Guid("e5b34b70-30f7-458b-a2f0-ef2e6c3bd011"),
+                            RolesId = new Guid("ae524c8e-27ef-4f62-8d6a-5df0297fb6c4")
                         },
                         new
                         {
-                            FunctionsIdsId = new Guid("e40c3197-9e5d-442a-8ce7-5f156324a35e"),
-                            RolesId = new Guid("2dcb40c6-6508-4d88-af05-bbdf96584609")
+                            FunctionsIdsId = new Guid("2aa5ab7e-a149-4e37-a1ce-a8803ead44db"),
+                            RolesId = new Guid("ae524c8e-27ef-4f62-8d6a-5df0297fb6c4")
                         },
                         new
                         {
-                            FunctionsIdsId = new Guid("88b47f58-331f-465c-a99e-164339cac45d"),
-                            RolesId = new Guid("2dcb40c6-6508-4d88-af05-bbdf96584609")
+                            FunctionsIdsId = new Guid("c37b998d-d73e-40bb-987d-afea1616d45b"),
+                            RolesId = new Guid("ae524c8e-27ef-4f62-8d6a-5df0297fb6c4")
                         },
                         new
                         {
-                            FunctionsIdsId = new Guid("807c1a3b-48d3-4bdb-9b72-f7a3df841d40"),
-                            RolesId = new Guid("2dcb40c6-6508-4d88-af05-bbdf96584609")
+                            FunctionsIdsId = new Guid("3cb2b2cc-7731-404d-9b64-c19e4f9d4c72"),
+                            RolesId = new Guid("ae524c8e-27ef-4f62-8d6a-5df0297fb6c4")
                         });
                 });
 
-            modelBuilder.Entity("MaterialPurchase.Domain.BaseEntities.Brand", b =>
+            modelBuilder.Entity("MaterialPurchase.Domain.Entities.Brand", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -171,11 +171,6 @@ namespace MaterialPurchase.Infra.Migrations
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("Description")
-                        .IsRequired()
-                        .HasMaxLength(250)
-                        .HasColumnType("character varying(250)");
 
                     b.Property<string>("Name")
                         .IsRequired()
@@ -192,15 +187,14 @@ namespace MaterialPurchase.Infra.Migrations
                     b.HasData(
                         new
                         {
-                            Id = new Guid("d006cdeb-4120-4c48-a1d0-3a6504c0ccdf"),
-                            CreatedAt = new DateTime(2023, 2, 3, 14, 30, 27, 418, DateTimeKind.Local).AddTicks(4941),
-                            Description = "description",
+                            Id = new Guid("2bc27280-cf98-4116-ad6c-d7cf5179f41e"),
+                            CreatedAt = new DateTime(2023, 2, 9, 21, 1, 52, 6, DateTimeKind.Local).AddTicks(948),
                             Name = "TIGRE",
-                            UpdatedAt = new DateTime(2023, 2, 3, 14, 30, 27, 418, DateTimeKind.Local).AddTicks(4941)
+                            UpdatedAt = new DateTime(2023, 2, 9, 21, 1, 52, 6, DateTimeKind.Local).AddTicks(948)
                         });
                 });
 
-            modelBuilder.Entity("MaterialPurchase.Domain.BaseEntities.Construction", b =>
+            modelBuilder.Entity("MaterialPurchase.Domain.Entities.Construction", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -231,13 +225,13 @@ namespace MaterialPurchase.Infra.Migrations
                         {
                             Id = new Guid("cad4da64-e4ab-4b4a-8e83-63fc05fefa64"),
                             CorporateName = "Build LTDA",
-                            CreatedAt = new DateTime(2023, 2, 3, 14, 30, 27, 418, DateTimeKind.Local).AddTicks(5150),
+                            CreatedAt = new DateTime(2023, 2, 9, 21, 1, 52, 6, DateTimeKind.Local).AddTicks(1141),
                             NickName = "Build Ltda",
-                            UpdatedAt = new DateTime(2023, 2, 3, 14, 30, 27, 418, DateTimeKind.Local).AddTicks(5151)
+                            UpdatedAt = new DateTime(2023, 2, 9, 21, 1, 52, 6, DateTimeKind.Local).AddTicks(1142)
                         });
                 });
 
-            modelBuilder.Entity("MaterialPurchase.Domain.BaseEntities.ConstructionAuthUserGroup", b =>
+            modelBuilder.Entity("MaterialPurchase.Domain.Entities.ConstructionAuthUserGroup", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -266,13 +260,13 @@ namespace MaterialPurchase.Infra.Migrations
                         {
                             Id = new Guid("e6389915-3947-46d1-a636-da6f9ad505aa"),
                             ConstructionId = new Guid("cad4da64-e4ab-4b4a-8e83-63fc05fefa64"),
-                            CreatedAt = new DateTime(2023, 2, 3, 14, 30, 27, 418, DateTimeKind.Local).AddTicks(5270),
+                            CreatedAt = new DateTime(2023, 2, 9, 21, 1, 52, 6, DateTimeKind.Local).AddTicks(1541),
                             Priority = 0,
-                            UpdatedAt = new DateTime(2023, 2, 3, 14, 30, 27, 418, DateTimeKind.Local).AddTicks(5271)
+                            UpdatedAt = new DateTime(2023, 2, 9, 21, 1, 52, 6, DateTimeKind.Local).AddTicks(1542)
                         });
                 });
 
-            modelBuilder.Entity("MaterialPurchase.Domain.BaseEntities.ConstructionUserAuthorization", b =>
+            modelBuilder.Entity("MaterialPurchase.Domain.Entities.ConstructionUserAuthorization", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -312,18 +306,18 @@ namespace MaterialPurchase.Infra.Migrations
                     b.HasData(
                         new
                         {
-                            Id = new Guid("38db1f77-f9d2-414c-aeeb-35a57ac4cc2e"),
+                            Id = new Guid("1b505080-5f17-4b2a-84b1-5f43baba35c4"),
                             AuthorizationStatus = 0,
                             AuthorizationUserGroupId = new Guid("e6389915-3947-46d1-a636-da6f9ad505aa"),
                             Comment = "",
-                            CreatedAt = new DateTime(2023, 2, 3, 14, 30, 27, 418, DateTimeKind.Local).AddTicks(5292),
+                            CreatedAt = new DateTime(2023, 2, 9, 21, 1, 52, 6, DateTimeKind.Local).AddTicks(1558),
                             Permissions = 4,
-                            UpdatedAt = new DateTime(2023, 2, 3, 14, 30, 27, 418, DateTimeKind.Local).AddTicks(5293),
+                            UpdatedAt = new DateTime(2023, 2, 9, 21, 1, 52, 6, DateTimeKind.Local).AddTicks(1559),
                             UserId = new Guid("4922766e-d3ba-4d4c-99b0-093d5977d41f")
                         });
                 });
 
-            modelBuilder.Entity("MaterialPurchase.Domain.BaseEntities.FunctionId", b =>
+            modelBuilder.Entity("MaterialPurchase.Domain.Entities.FunctionId", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -350,133 +344,133 @@ namespace MaterialPurchase.Infra.Migrations
                     b.HasData(
                         new
                         {
-                            Id = new Guid("9caf5d43-bcb3-480a-855c-95cb334fb567"),
+                            Id = new Guid("641442a0-db41-415a-862a-32c01c200163"),
                             CreatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
                             Name = "1001",
                             UpdatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified)
                         },
                         new
                         {
-                            Id = new Guid("3dbed3d8-0ca8-44ed-b584-d6d7c5981f10"),
+                            Id = new Guid("0c3054ef-dc4a-428d-9f54-cfb3846b142a"),
                             CreatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
                             Name = "1002",
                             UpdatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified)
                         },
                         new
                         {
-                            Id = new Guid("8b0dc6c4-f111-470c-a0e7-c86d24042d04"),
+                            Id = new Guid("b1f86d9c-591a-47d3-885d-0ff4c4c3a307"),
                             CreatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
                             Name = "1003",
                             UpdatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified)
                         },
                         new
                         {
-                            Id = new Guid("0e8cd6e5-4ad9-4fe8-b701-548dba923ba8"),
+                            Id = new Guid("55b7457c-0e2a-4715-b86b-92cbd6a52546"),
                             CreatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
                             Name = "1004",
                             UpdatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified)
                         },
                         new
                         {
-                            Id = new Guid("78d8138f-7611-48bd-8c19-4f7bde11d4cb"),
+                            Id = new Guid("4a78cace-0c5a-40d0-9605-3d713b6121aa"),
                             CreatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
                             Name = "1005",
                             UpdatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified)
                         },
                         new
                         {
-                            Id = new Guid("2f7c0727-f0ce-42ba-86f2-d2432ea23dad"),
+                            Id = new Guid("b41af008-1729-4edb-95a3-f46157d8420e"),
                             CreatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
                             Name = "1006",
                             UpdatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified)
                         },
                         new
                         {
-                            Id = new Guid("9ed9f78a-edc4-44ab-9976-5b53be65273d"),
+                            Id = new Guid("3be84b90-5117-4f58-9392-0a9e7ecd5c0b"),
                             CreatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
                             Name = "1007",
                             UpdatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified)
                         },
                         new
                         {
-                            Id = new Guid("e425be12-6bbd-419f-8615-a9cefbd5091b"),
+                            Id = new Guid("9097b32e-783c-4309-9c23-f6c08252a489"),
                             CreatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
                             Name = "1008",
                             UpdatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified)
                         },
                         new
                         {
-                            Id = new Guid("3c02e4ab-f25d-4fec-a8bc-75094e0f5008"),
+                            Id = new Guid("241a5ef5-e5aa-4e36-8d2e-6461dcd56298"),
                             CreatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
                             Name = "1009",
                             UpdatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified)
                         },
                         new
                         {
-                            Id = new Guid("3aa12411-9e7c-427f-828b-af39f98e7d61"),
+                            Id = new Guid("30fff483-1d53-46bb-b5b2-f3f2f64b935a"),
                             CreatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
                             Name = "1010",
                             UpdatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified)
                         },
                         new
                         {
-                            Id = new Guid("1c55cb36-d9b6-430e-9c7f-9b1dd8f359cd"),
+                            Id = new Guid("520cea04-f214-4d40-8d62-d3f5c058e869"),
                             CreatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
                             Name = "1011",
                             UpdatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified)
                         },
                         new
                         {
-                            Id = new Guid("0f7ab23d-e040-4f78-a981-b68239bb67fe"),
+                            Id = new Guid("1a425bc2-246c-4cc5-8041-fec431bea70a"),
                             CreatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
                             Name = "1012",
                             UpdatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified)
                         },
                         new
                         {
-                            Id = new Guid("79782c6e-49b9-4772-9555-135439779162"),
+                            Id = new Guid("1499bfea-9baf-45be-b76c-b5f3a65b28c9"),
                             CreatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
                             Name = "1013",
                             UpdatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified)
                         },
                         new
                         {
-                            Id = new Guid("b2f9f1e8-20e1-444a-8094-64e169009166"),
+                            Id = new Guid("45b77ac4-436e-4a46-a457-d8e5c1ce9d47"),
                             CreatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
                             Name = "1014",
                             UpdatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified)
                         },
                         new
                         {
-                            Id = new Guid("a2d2546f-2382-4a71-a4fb-cad76f0515cc"),
+                            Id = new Guid("e5b34b70-30f7-458b-a2f0-ef2e6c3bd011"),
                             CreatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
                             Name = "1015",
                             UpdatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified)
                         },
                         new
                         {
-                            Id = new Guid("e40c3197-9e5d-442a-8ce7-5f156324a35e"),
+                            Id = new Guid("2aa5ab7e-a149-4e37-a1ce-a8803ead44db"),
                             CreatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
                             Name = "1016",
                             UpdatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified)
                         },
                         new
                         {
-                            Id = new Guid("88b47f58-331f-465c-a99e-164339cac45d"),
+                            Id = new Guid("c37b998d-d73e-40bb-987d-afea1616d45b"),
                             CreatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
                             Name = "1017",
                             UpdatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified)
                         },
                         new
                         {
-                            Id = new Guid("807c1a3b-48d3-4bdb-9b72-f7a3df841d40"),
+                            Id = new Guid("3cb2b2cc-7731-404d-9b64-c19e4f9d4c72"),
                             CreatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
                             Name = "1018",
                             UpdatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified)
                         });
                 });
 
-            modelBuilder.Entity("MaterialPurchase.Domain.BaseEntities.ItemMaterialPurchase", b =>
+            modelBuilder.Entity("MaterialPurchase.Domain.Entities.ItemMaterialPurchase", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -515,7 +509,7 @@ namespace MaterialPurchase.Infra.Migrations
                     b.ToTable("ItemMaterialPurchases");
                 });
 
-            modelBuilder.Entity("MaterialPurchase.Domain.BaseEntities.Material", b =>
+            modelBuilder.Entity("MaterialPurchase.Domain.Entities.Material", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -523,11 +517,6 @@ namespace MaterialPurchase.Infra.Migrations
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("Description")
-                        .IsRequired()
-                        .HasMaxLength(250)
-                        .HasColumnType("character varying(250)");
 
                     b.Property<string>("Name")
                         .IsRequired()
@@ -549,16 +538,15 @@ namespace MaterialPurchase.Infra.Migrations
                     b.HasData(
                         new
                         {
-                            Id = new Guid("4b867637-aa7c-4878-9383-176a34ee3791"),
-                            CreatedAt = new DateTime(2023, 2, 3, 14, 30, 27, 418, DateTimeKind.Local).AddTicks(4914),
-                            Description = "description",
+                            Id = new Guid("c855f3cb-6666-4fe2-bf79-a1d8696ef951"),
+                            CreatedAt = new DateTime(2023, 2, 9, 21, 1, 52, 6, DateTimeKind.Local).AddTicks(734),
                             Name = "TUBO DE PVC",
                             Unity = "Metro",
-                            UpdatedAt = new DateTime(2023, 2, 3, 14, 30, 27, 418, DateTimeKind.Local).AddTicks(4916)
+                            UpdatedAt = new DateTime(2023, 2, 9, 21, 1, 52, 6, DateTimeKind.Local).AddTicks(735)
                         });
                 });
 
-            modelBuilder.Entity("MaterialPurchase.Domain.BaseEntities.Provider", b =>
+            modelBuilder.Entity("MaterialPurchase.Domain.Entities.Provider", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -608,17 +596,17 @@ namespace MaterialPurchase.Infra.Migrations
                         {
                             Id = new Guid("8299c0dc-927d-45de-b2c8-71c38faf9384"),
                             Cnpj = "02.624.999/0001-23",
-                            CreatedAt = new DateTime(2023, 2, 3, 14, 30, 27, 418, DateTimeKind.Local).AddTicks(4961),
+                            CreatedAt = new DateTime(2023, 2, 9, 21, 1, 52, 6, DateTimeKind.Local).AddTicks(965),
                             Description = "description",
                             Email = "ponto@email.com",
                             Name = "PONTO DO ENCANADOR",
                             Phone = "Phone",
                             Site = "Site.com",
-                            UpdatedAt = new DateTime(2023, 2, 3, 14, 30, 27, 418, DateTimeKind.Local).AddTicks(4961)
+                            UpdatedAt = new DateTime(2023, 2, 9, 21, 1, 52, 6, DateTimeKind.Local).AddTicks(965)
                         });
                 });
 
-            modelBuilder.Entity("MaterialPurchase.Domain.BaseEntities.Purchase", b =>
+            modelBuilder.Entity("MaterialPurchase.Domain.Entities.Purchase", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -655,7 +643,7 @@ namespace MaterialPurchase.Infra.Migrations
                     b.ToTable("Purchases");
                 });
 
-            modelBuilder.Entity("MaterialPurchase.Domain.BaseEntities.PurchaseAuthUserGroup", b =>
+            modelBuilder.Entity("MaterialPurchase.Domain.Entities.PurchaseAuthUserGroup", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -680,7 +668,7 @@ namespace MaterialPurchase.Infra.Migrations
                     b.ToTable("PurchaseAuthUserGroups");
                 });
 
-            modelBuilder.Entity("MaterialPurchase.Domain.BaseEntities.PurchaseDeliveryItem", b =>
+            modelBuilder.Entity("MaterialPurchase.Domain.Entities.PurchaseDeliveryItem", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -716,7 +704,7 @@ namespace MaterialPurchase.Infra.Migrations
                     b.ToTable("PurchaseDeliveryItems");
                 });
 
-            modelBuilder.Entity("MaterialPurchase.Domain.BaseEntities.PurchaseUserAuthorization", b =>
+            modelBuilder.Entity("MaterialPurchase.Domain.Entities.PurchaseUserAuthorization", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -754,7 +742,7 @@ namespace MaterialPurchase.Infra.Migrations
                     b.ToTable("PurchaseUserAuthorizations");
                 });
 
-            modelBuilder.Entity("MaterialPurchase.Domain.BaseEntities.User", b =>
+            modelBuilder.Entity("MaterialPurchase.Domain.Entities.User", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -783,16 +771,16 @@ namespace MaterialPurchase.Infra.Migrations
                         new
                         {
                             Id = new Guid("4922766e-d3ba-4d4c-99b0-093d5977d41f"),
-                            CreatedAt = new DateTime(2023, 2, 3, 14, 30, 27, 418, DateTimeKind.Local).AddTicks(4656),
+                            CreatedAt = new DateTime(2023, 2, 9, 21, 1, 52, 6, DateTimeKind.Local).AddTicks(438),
                             Role = "admin",
-                            UpdatedAt = new DateTime(2023, 2, 3, 14, 30, 27, 418, DateTimeKind.Local).AddTicks(4665),
+                            UpdatedAt = new DateTime(2023, 2, 9, 21, 1, 52, 6, DateTimeKind.Local).AddTicks(446),
                             Username = "admin"
                         });
                 });
 
             modelBuilder.Entity("FunctionIdRole", b =>
                 {
-                    b.HasOne("MaterialPurchase.Domain.BaseEntities.FunctionId", null)
+                    b.HasOne("MaterialPurchase.Domain.Entities.FunctionId", null)
                         .WithMany()
                         .HasForeignKey("FunctionsIdsId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -805,9 +793,9 @@ namespace MaterialPurchase.Infra.Migrations
                         .IsRequired();
                 });
 
-            modelBuilder.Entity("MaterialPurchase.Domain.BaseEntities.Construction", b =>
+            modelBuilder.Entity("MaterialPurchase.Domain.Entities.Construction", b =>
                 {
-                    b.OwnsOne("MaterialPurchase.Domain.BaseEntities.Address", "Address", b1 =>
+                    b.OwnsOne("MaterialPurchase.Domain.Entities.Address", "Address", b1 =>
                         {
                             b1.Property<Guid>("ConstructionId")
                                 .HasColumnType("uuid");
@@ -859,9 +847,9 @@ namespace MaterialPurchase.Infra.Migrations
                     b.Navigation("Address");
                 });
 
-            modelBuilder.Entity("MaterialPurchase.Domain.BaseEntities.ConstructionAuthUserGroup", b =>
+            modelBuilder.Entity("MaterialPurchase.Domain.Entities.ConstructionAuthUserGroup", b =>
                 {
-                    b.HasOne("MaterialPurchase.Domain.BaseEntities.Construction", "Construction")
+                    b.HasOne("MaterialPurchase.Domain.Entities.Construction", "Construction")
                         .WithMany("PurchasingAuthorizationUserGroups")
                         .HasForeignKey("ConstructionId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -870,15 +858,15 @@ namespace MaterialPurchase.Infra.Migrations
                     b.Navigation("Construction");
                 });
 
-            modelBuilder.Entity("MaterialPurchase.Domain.BaseEntities.ConstructionUserAuthorization", b =>
+            modelBuilder.Entity("MaterialPurchase.Domain.Entities.ConstructionUserAuthorization", b =>
                 {
-                    b.HasOne("MaterialPurchase.Domain.BaseEntities.ConstructionAuthUserGroup", "AuthorizationUserGroup")
+                    b.HasOne("MaterialPurchase.Domain.Entities.ConstructionAuthUserGroup", "AuthorizationUserGroup")
                         .WithMany("UserAuthorizations")
                         .HasForeignKey("AuthorizationUserGroupId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("MaterialPurchase.Domain.BaseEntities.User", "User")
+                    b.HasOne("MaterialPurchase.Domain.Entities.User", "User")
                         .WithMany()
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Restrict)
@@ -889,21 +877,21 @@ namespace MaterialPurchase.Infra.Migrations
                     b.Navigation("User");
                 });
 
-            modelBuilder.Entity("MaterialPurchase.Domain.BaseEntities.ItemMaterialPurchase", b =>
+            modelBuilder.Entity("MaterialPurchase.Domain.Entities.ItemMaterialPurchase", b =>
                 {
-                    b.HasOne("MaterialPurchase.Domain.BaseEntities.Brand", "Brand")
+                    b.HasOne("MaterialPurchase.Domain.Entities.Brand", "Brand")
                         .WithMany()
                         .HasForeignKey("BrandId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
-                    b.HasOne("MaterialPurchase.Domain.BaseEntities.Material", "Material")
+                    b.HasOne("MaterialPurchase.Domain.Entities.Material", "Material")
                         .WithMany()
                         .HasForeignKey("MaterialId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
-                    b.HasOne("MaterialPurchase.Domain.BaseEntities.Purchase", "Purchase")
+                    b.HasOne("MaterialPurchase.Domain.Entities.Purchase", "Purchase")
                         .WithMany("Materials")
                         .HasForeignKey("PurchaseId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -916,9 +904,9 @@ namespace MaterialPurchase.Infra.Migrations
                     b.Navigation("Purchase");
                 });
 
-            modelBuilder.Entity("MaterialPurchase.Domain.BaseEntities.Provider", b =>
+            modelBuilder.Entity("MaterialPurchase.Domain.Entities.Provider", b =>
                 {
-                    b.OwnsOne("MaterialPurchase.Domain.BaseEntities.Address", "Address", b1 =>
+                    b.OwnsOne("MaterialPurchase.Domain.Entities.Address", "Address", b1 =>
                         {
                             b1.Property<Guid>("ProviderId")
                                 .HasColumnType("uuid");
@@ -970,15 +958,15 @@ namespace MaterialPurchase.Infra.Migrations
                     b.Navigation("Address");
                 });
 
-            modelBuilder.Entity("MaterialPurchase.Domain.BaseEntities.Purchase", b =>
+            modelBuilder.Entity("MaterialPurchase.Domain.Entities.Purchase", b =>
                 {
-                    b.HasOne("MaterialPurchase.Domain.BaseEntities.Construction", "Construction")
+                    b.HasOne("MaterialPurchase.Domain.Entities.Construction", "Construction")
                         .WithMany()
                         .HasForeignKey("ConstructionId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
-                    b.HasOne("MaterialPurchase.Domain.BaseEntities.Provider", "Provider")
+                    b.HasOne("MaterialPurchase.Domain.Entities.Provider", "Provider")
                         .WithMany()
                         .HasForeignKey("ProviderId")
                         .OnDelete(DeleteBehavior.Restrict)
@@ -989,9 +977,9 @@ namespace MaterialPurchase.Infra.Migrations
                     b.Navigation("Provider");
                 });
 
-            modelBuilder.Entity("MaterialPurchase.Domain.BaseEntities.PurchaseAuthUserGroup", b =>
+            modelBuilder.Entity("MaterialPurchase.Domain.Entities.PurchaseAuthUserGroup", b =>
                 {
-                    b.HasOne("MaterialPurchase.Domain.BaseEntities.Purchase", "Purchase")
+                    b.HasOne("MaterialPurchase.Domain.Entities.Purchase", "Purchase")
                         .WithMany("AuthorizationUserGroups")
                         .HasForeignKey("PurchaseId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -1000,21 +988,21 @@ namespace MaterialPurchase.Infra.Migrations
                     b.Navigation("Purchase");
                 });
 
-            modelBuilder.Entity("MaterialPurchase.Domain.BaseEntities.PurchaseDeliveryItem", b =>
+            modelBuilder.Entity("MaterialPurchase.Domain.Entities.PurchaseDeliveryItem", b =>
                 {
-                    b.HasOne("MaterialPurchase.Domain.BaseEntities.ItemMaterialPurchase", "MaterialPurchase")
+                    b.HasOne("MaterialPurchase.Domain.Entities.ItemMaterialPurchase", "MaterialPurchase")
                         .WithMany()
                         .HasForeignKey("MaterialPurchaseId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("MaterialPurchase.Domain.BaseEntities.Purchase", "Purchase")
+                    b.HasOne("MaterialPurchase.Domain.Entities.Purchase", "Purchase")
                         .WithMany("PurchaseDeliveries")
                         .HasForeignKey("PurchaseId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("MaterialPurchase.Domain.BaseEntities.User", "Receiver")
+                    b.HasOne("MaterialPurchase.Domain.Entities.User", "Receiver")
                         .WithMany()
                         .HasForeignKey("ReceiverId")
                         .OnDelete(DeleteBehavior.Restrict)
@@ -1027,15 +1015,15 @@ namespace MaterialPurchase.Infra.Migrations
                     b.Navigation("Receiver");
                 });
 
-            modelBuilder.Entity("MaterialPurchase.Domain.BaseEntities.PurchaseUserAuthorization", b =>
+            modelBuilder.Entity("MaterialPurchase.Domain.Entities.PurchaseUserAuthorization", b =>
                 {
-                    b.HasOne("MaterialPurchase.Domain.BaseEntities.PurchaseAuthUserGroup", "AuthorizationUserGroup")
+                    b.HasOne("MaterialPurchase.Domain.Entities.PurchaseAuthUserGroup", "AuthorizationUserGroup")
                         .WithMany("UserAuthorizations")
                         .HasForeignKey("AuthorizationUserGroupId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("MaterialPurchase.Domain.BaseEntities.User", "User")
+                    b.HasOne("MaterialPurchase.Domain.Entities.User", "User")
                         .WithMany()
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Restrict)
@@ -1046,17 +1034,17 @@ namespace MaterialPurchase.Infra.Migrations
                     b.Navigation("User");
                 });
 
-            modelBuilder.Entity("MaterialPurchase.Domain.BaseEntities.Construction", b =>
+            modelBuilder.Entity("MaterialPurchase.Domain.Entities.Construction", b =>
                 {
                     b.Navigation("PurchasingAuthorizationUserGroups");
                 });
 
-            modelBuilder.Entity("MaterialPurchase.Domain.BaseEntities.ConstructionAuthUserGroup", b =>
+            modelBuilder.Entity("MaterialPurchase.Domain.Entities.ConstructionAuthUserGroup", b =>
                 {
                     b.Navigation("UserAuthorizations");
                 });
 
-            modelBuilder.Entity("MaterialPurchase.Domain.BaseEntities.Purchase", b =>
+            modelBuilder.Entity("MaterialPurchase.Domain.Entities.Purchase", b =>
                 {
                     b.Navigation("AuthorizationUserGroups");
 
@@ -1065,7 +1053,7 @@ namespace MaterialPurchase.Infra.Migrations
                     b.Navigation("PurchaseDeliveries");
                 });
 
-            modelBuilder.Entity("MaterialPurchase.Domain.BaseEntities.PurchaseAuthUserGroup", b =>
+            modelBuilder.Entity("MaterialPurchase.Domain.Entities.PurchaseAuthUserGroup", b =>
                 {
                     b.Navigation("UserAuthorizations");
                 });

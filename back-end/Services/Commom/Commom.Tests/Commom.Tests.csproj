@@ -16,6 +16,7 @@
   <ItemGroup>
     <ProjectReference Include="..\Commom.API\Commom.API.csproj" />
     <ProjectReference Include="..\Commom.Infra\Commom.Infra.csproj" />
+    <ProjectReference Include="..\Commom.MessageBroker\Commom.MessageBroker.csproj" />
   </ItemGroup>
 
 </Project>

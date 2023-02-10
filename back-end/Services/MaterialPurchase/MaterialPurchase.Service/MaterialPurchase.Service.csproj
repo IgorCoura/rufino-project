@@ -8,12 +8,14 @@
 
   <ItemGroup>
     <PackageReference Include="AutoMapper" Version="12.0.1" />
+    <PackageReference Include="EasyNetQ" Version="7.4.3" />
     <PackageReference Include="EntityFrameworkCore.Exceptions.Common" Version="6.0.3" />
     <PackageReference Include="Microsoft.Data.SqlClient" Version="5.1.0" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\..\Commom\Commom.Domain\Commom.Domain.csproj" />
+    <ProjectReference Include="..\..\Commom\Commom.MessageBroker\Commom.MessageBroker.csproj" />
     <ProjectReference Include="..\MaterialPurchase.Domain\MaterialPurchase.Domain.csproj" />
   </ItemGroup>
 

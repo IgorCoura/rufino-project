@@ -1,12 +1,8 @@
 ﻿using Commom.Domain.Errors;
 using Commom.Domain.Exceptions;
-using MaterialPurchase.Domain.Interfaces;
+using MaterialPurchase.Domain.Interfaces.Repositories;
+using MaterialPurchase.Domain.Interfaces.Services;
 using Microsoft.EntityFrameworkCore;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace MaterialPurchase.Service.Services
 {

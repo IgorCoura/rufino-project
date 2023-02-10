@@ -7,6 +7,8 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.Text.Json.Serialization;
 using MaterialControl.API.Configurations;
+using EasyNetQ;
+using Commom.MessageBroker;
 
 //MaterialControl.API
 
@@ -14,7 +16,7 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddDbContext<MaterialControlContext>(options =>
 {
-    options.UseNpgsql(builder.Configuration["ConnectionString"],
+    options.UseNpgsql(builder.Configuration["Database:ConnectionString"],
         npgsqlOptionsAction: sqlOptions =>
         {
             sqlOptions.EnableRetryOnFailure(maxRetryCount: 15, maxRetryDelay: TimeSpan.FromSeconds(30), errorCodesToAdd: null);
@@ -23,7 +25,12 @@ builder.Services.AddDbContext<MaterialControlContext>(options =>
         .EnableDetailedErrors()
         .EnableSensitiveDataLogging()
         .UseExceptionProcessor();
+
 });
+
+// messaging
+builder.Services.AddMessageBrokerConfig(builder.Configuration, "material_control_id");
+
 
 // Add services to the container.
 

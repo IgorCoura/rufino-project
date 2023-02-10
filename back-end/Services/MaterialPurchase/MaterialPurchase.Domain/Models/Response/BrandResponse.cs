@@ -12,7 +12,6 @@ namespace MaterialPurchase.Domain.Models.Response
         Guid Id,
         DateTime CreatedAt,
         DateTime UpdatedAt,
-        string Name,
-        string Description
+        string Name
     );
 }

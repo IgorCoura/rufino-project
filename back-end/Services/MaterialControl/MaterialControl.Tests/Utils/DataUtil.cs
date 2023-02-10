@@ -1,7 +1,7 @@
 ﻿using Commom.Domain.BaseEntities;
 using MaterialControl.Domain.Entities;
 using MaterialControl.Infra.Context;
-using MaterialPurchase.Domain.BaseEntities;
+using MaterialPurchase.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
 using System.Data;
 
@@ -39,7 +39,7 @@ namespace Commom.Tests.Utils
 
             var ids = new string[]
             {
-                "2001","2002","2003","2004","2005","2006","2007","2008","2009","2010","20011","2012",
+                "2001","2002","2003","2004","2005","2006","2007","2008","2009","2010","2011","2012",
                 "2013","2014","2015",
                 "2999"
             };

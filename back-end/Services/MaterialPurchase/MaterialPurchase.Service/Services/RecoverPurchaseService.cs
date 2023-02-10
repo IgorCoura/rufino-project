@@ -1,8 +1,8 @@
 ﻿using AutoMapper;
 using Commom.Domain.Errors;
 using Commom.Domain.Exceptions;
-using MaterialPurchase.Domain.Interfaces;
-using MaterialPurchase.Domain.Models.Request;
+using MaterialPurchase.Domain.Interfaces.Repositories;
+using MaterialPurchase.Domain.Interfaces.Services;
 using MaterialPurchase.Domain.Models.Response;
 using Microsoft.EntityFrameworkCore;
 

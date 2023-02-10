@@ -1,6 +1,6 @@
 ﻿using Commom.Domain.BaseEntities;
 using Commom.Infra.Mapping;
-using MaterialPurchase.Domain.BaseEntities;
+using MaterialPurchase.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
 using System;
 using System.Collections.Generic;

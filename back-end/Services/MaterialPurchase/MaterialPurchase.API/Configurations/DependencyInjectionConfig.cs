@@ -1,17 +1,11 @@
-﻿using Commom.Infra.Interface;
-using Commom.Infra.Repository;
-using FluentValidation;
-using MaterialPurchase.Domain.Interfaces;
-using MaterialPurchase.Domain.Models.Request;
-using MaterialPurchase.Infra.Context;
+﻿using FluentValidation;
+using MaterialPurchase.Domain.Interfaces.Repositories;
+using MaterialPurchase.Domain.Interfaces.Services;
 using MaterialPurchase.Infra.Repository;
+using MaterialPurchase.Service.Consumer;
 using MaterialPurchase.Service.Mappers;
 using MaterialPurchase.Service.Services;
 using MaterialPurchase.Service.Validations;
-using Microsoft.AspNetCore.Identity;
-using Microsoft.Extensions.Options;
-using Swashbuckle.AspNetCore.SwaggerGen;
-using System.Reflection;
 
 namespace MaterialPurchase.API.Configurations
 {
@@ -23,7 +17,8 @@ namespace MaterialPurchase.API.Configurations
 
             service.AddScoped<IConstructionRepository, ConstructionRepository>();
             service.AddScoped<IPurchaseRepository, PurchaseRepository>();
-            
+            service.AddScoped<IBrandRepository, BrandRepository>();
+            service.AddScoped<IMaterialRepository, MaterialRepository>();
 
             #endregion
 
@@ -36,6 +31,14 @@ namespace MaterialPurchase.API.Configurations
             service.AddScoped<IPermissionsService, PermissionsService>();
 
             #endregion
+
+            #region Consumer
+
+            service.AddScoped<BrandConsumer>();
+            service.AddScoped<MaterialConsumer>();
+
+            #endregion
+
 
             #region Options
 

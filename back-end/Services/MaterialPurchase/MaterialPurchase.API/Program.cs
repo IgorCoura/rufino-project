@@ -8,6 +8,11 @@ using System.Text.Json;
 using Commom.API.AuthorizationIds;
 using Commom.API.Filters;
 using EntityFramework.Exceptions.PostgreSQL;
+using EasyNetQ;
+using EasyNetQ.AutoSubscribe;
+using System.Reflection;
+using MaterialPurchase.Service.Consumer;
+using Commom.MessageBroker;
 
 // MATERIA PURCHASE API
 
@@ -17,7 +22,7 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddDbContext<MaterialPurchaseContext>(options =>
 {
-    options.UseNpgsql(builder.Configuration["ConnectionString"],
+    options.UseNpgsql(builder.Configuration["Database:ConnectionString"],
         npgsqlOptionsAction: sqlOptions =>
         {
             sqlOptions.EnableRetryOnFailure(maxRetryCount: 15, maxRetryDelay: TimeSpan.FromSeconds(30), errorCodesToAdd: null);
@@ -27,6 +32,12 @@ builder.Services.AddDbContext<MaterialPurchaseContext>(options =>
         .EnableSensitiveDataLogging()
         .UseExceptionProcessor();
 });
+
+// messaging
+
+builder.Services.AddMessageBrokerConfig(builder.Configuration, "material_purchase_id");
+
+
 
 // Add services to the container.
 
@@ -87,7 +98,7 @@ if (env != null && !env.Equals("Testing")) {
 
 
 
-
+app.Services.GetRequiredService<AutoSubscriber>().SubscribeAsync(typeof(BrandConsumer).Assembly.GetTypes());
 
 app.UseHttpsRedirection();
 

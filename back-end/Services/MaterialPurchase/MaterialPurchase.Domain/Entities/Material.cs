@@ -1,11 +1,6 @@
 ﻿using Commom.Domain.BaseEntities;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
-namespace MaterialPurchase.Domain.BaseEntities
+namespace MaterialPurchase.Domain.Entities
 {
     public class Material : Entity
     {
@@ -22,8 +17,6 @@ namespace MaterialPurchase.Domain.BaseEntities
                 _name = value.ToUpper();
             }
         }
-
-        public string Description { get; set; } = string.Empty;
         public string Unity { get; set; } = string.Empty;
     }
 }

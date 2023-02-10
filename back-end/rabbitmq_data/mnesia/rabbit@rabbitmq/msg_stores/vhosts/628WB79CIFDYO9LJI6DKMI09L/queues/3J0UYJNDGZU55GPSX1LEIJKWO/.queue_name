@@ -1,0 +1,2 @@
+VHOST: /
+QUEUE: Commom.MessageBroker.Message.BrandMessage, Commom.MessageBroker_teste_id:c81df42a79a8fad80debf665e1566718

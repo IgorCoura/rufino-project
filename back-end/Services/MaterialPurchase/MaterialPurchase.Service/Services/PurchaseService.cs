@@ -2,13 +2,14 @@
 using Commom.Domain.Errors;
 using Commom.Domain.Exceptions;
 using Commom.Domain.BaseEntities;
-using MaterialPurchase.Domain.BaseEntities;
+using MaterialPurchase.Domain.Entities;
 using MaterialPurchase.Domain.Enum;
 using MaterialPurchase.Domain.Errors;
-using MaterialPurchase.Domain.Interfaces;
 using MaterialPurchase.Domain.Models.Request;
 using MaterialPurchase.Domain.Models.Response;
 using Microsoft.EntityFrameworkCore;
+using MaterialPurchase.Domain.Interfaces.Repositories;
+using MaterialPurchase.Domain.Interfaces.Services;
 
 namespace MaterialPurchase.Service.Services
 {

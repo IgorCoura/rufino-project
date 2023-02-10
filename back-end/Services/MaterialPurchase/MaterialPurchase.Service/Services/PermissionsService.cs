@@ -1,15 +1,10 @@
 ﻿using Commom.Domain.Exceptions;
 using Commom.Domain.BaseEntities;
-using MaterialPurchase.Domain.BaseEntities;
+using MaterialPurchase.Domain.Entities;
 using MaterialPurchase.Domain.Enum;
 using MaterialPurchase.Domain.Errors;
-using MaterialPurchase.Domain.Interfaces;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using MaterialPurchase.Domain.Consts;
+using MaterialPurchase.Domain.Interfaces.Services;
 
 namespace MaterialPurchase.Service.Services
 {

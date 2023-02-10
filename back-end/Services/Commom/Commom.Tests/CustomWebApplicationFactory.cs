@@ -1,5 +1,7 @@
 ﻿using Commom.API.AuthorizationIds;
 using Commom.Infra.Base;
+using Commom.MessageBroker.Bus;
+using Commom.Tests.Mocks;
 using EntityFramework.Exceptions.Sqlite;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Mvc.Testing;
@@ -23,7 +25,19 @@ namespace Commom.Tests
                 var dbContext = services.SingleOrDefault(
                     d => d.ServiceType ==
                         typeof(DbContextOptions<Context>));
-                services.Remove(dbContext);
+                
+                if(dbContext != null)
+                    services.Remove(dbContext);
+
+                var publishSubscribe = services.SingleOrDefault(
+                    d => d.ServiceType ==
+                        typeof(IPublishSubscribe));
+
+                if(publishSubscribe != null)
+                    services.Remove(publishSubscribe);
+
+                services.AddScoped<IPublishSubscribe, PublishSubscribeMock>();
+
 
                 services.AddOptions<AuthorizationIdOptions>()
                 .Configure(x => x.Schema = "Local");

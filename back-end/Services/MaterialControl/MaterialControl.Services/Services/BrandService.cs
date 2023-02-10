@@ -2,6 +2,9 @@
 using Commom.Domain.BaseEntities;
 using Commom.Domain.Errors;
 using Commom.Domain.Exceptions;
+using Commom.MessageBroker.Bus;
+using Commom.MessageBroker.Message;
+using EasyNetQ;
 using FluentValidation;
 using MaterialControl.Domain.Entities;
 using MaterialControl.Domain.Interfaces;
@@ -16,12 +19,15 @@ namespace MaterialControl.Services.Services
         private readonly IServiceProvider _serviceProvider;
         private readonly IBrandRepository _brandRepository;
         private readonly IMapper _mapper;
+        private readonly IPublishSubscribe _pubSub;
 
-        public BrandService(IServiceProvider serviceProvider, IBrandRepository brandRepository, IMapper mapper)
+
+        public BrandService(IServiceProvider serviceProvider, IBrandRepository brandRepository, IMapper mapper, IPublishSubscribe pubSub)
         {
             _serviceProvider = serviceProvider;
             _brandRepository = brandRepository;
             _mapper = mapper;
+            _pubSub = pubSub;
         }
 
         public async Task<BrandResponse> Create(Context context, CreateBrandRequest req)
@@ -31,10 +37,14 @@ namespace MaterialControl.Services.Services
             if (!validation.IsValid)
                 throw new BadRequestException(validation.Errors);
 
+            
+
             var entity = _mapper.Map<Brand>(req);
 
             var result = await _brandRepository.RegisterAsync(entity);
             await _brandRepository.UnitOfWork.SaveChangesAsync();
+
+            await _pubSub.PublishMessageAsync(_mapper.Map<ModifyBrandMessage>(entity)); 
 
             return _mapper.Map<BrandResponse>(result);
         }
@@ -54,6 +64,8 @@ namespace MaterialControl.Services.Services
             entity.Description = req.Description;
             await _brandRepository.UnitOfWork.SaveChangesAsync();
 
+            await _pubSub.PublishMessageAsync(_mapper.Map<ModifyBrandMessage>(entity));
+
             return _mapper.Map<BrandResponse>(entity);
         }
 
@@ -64,6 +76,8 @@ namespace MaterialControl.Services.Services
 
             await _brandRepository.DeleteAsync(entity);
             await _brandRepository.UnitOfWork.SaveChangesAsync();
+
+            await _pubSub.PublishMessageAsync(_mapper.Map<DeleteBrandMessage>(entity));
         }
 
         public async Task<BrandResponse> Recover(Guid id)
