@@ -18,6 +18,9 @@ namespace Commom.Domain.Errors
         [ApiError("30", " Violação de chave extrangeira.")]
         ReferenceConstraintViolation,
 
+        [ApiError("31", " Unique constraint violation.")]
+        UniqueConstraintViolation,
+
         [ApiError("101", "{0} deve ser maior ou igual a {1}.")]
         GreaterThanOrEqualValidator,
 

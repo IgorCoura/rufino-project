@@ -8,10 +8,10 @@ using System.Net;
 
 namespace MaterialControl.Tests.IntegrationTests
 {
-    public class BrandTests
+    public class UnityTests
     {
         [Fact]
-        public async Task CreateBrandWithSuccess()
+        public async Task CreateUnityWithSuccess()
         {
             //Arrange
             var factory = new MaterialControlFactory();
@@ -20,20 +20,20 @@ namespace MaterialControl.Tests.IntegrationTests
             client.DefaultRequestHeaders.Add("Sid", "71b36eec-2db3-4cb1-8c98-5c894f7cc264");
             client.DefaultRequestHeaders.Add("Role", "client");
 
-            var request = new CreateBrandRequest("Deca", "Produto de cano");
+            var request = new CreateUnityRequest("Peça");
 
             //Act
-            var response = await client.PostAsJsonAsync("/api/v1/Brand", request);
+            var response = await client.PostAsJsonAsync("/api/v1/Unity", request);
 
             //Asssert 
             Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-            var content = response.Content.ReadFromJsonAsync(typeof(BaseResponse<BrandResponse>)).Result as BaseResponse<BrandResponse>;
-            var result = await client.GetFromJsonAsync<BaseResponse<BrandResponse>>($"/api/v1/Brand/{content.Data.Id}");
+            var content = response.Content.ReadFromJsonAsync(typeof(BaseResponse<UnityResponse>)).Result as BaseResponse<UnityResponse>;
+            var result = await client.GetFromJsonAsync<BaseResponse<UnityResponse>>($"/api/v1/Unity/{content.Data.Id}");
             Assert.True(request.EqualExtesion(result!.Data!));
         }
 
         [Fact]
-        public async Task CreateBrandWithDuplicateBrand()
+        public async Task CreateUnityWithInvalidProperty()
         {
             //Arrange
             var factory = new MaterialControlFactory();
@@ -42,10 +42,31 @@ namespace MaterialControl.Tests.IntegrationTests
             client.DefaultRequestHeaders.Add("Sid", "71b36eec-2db3-4cb1-8c98-5c894f7cc264");
             client.DefaultRequestHeaders.Add("Role", "client");
 
-            var request = new CreateBrandRequest("Amanco", "Produto de cano");
+            var request = new CreateUnityRequest(string.Create(30, "A", (buffer, value) => buffer.Fill(value[0])));
 
             //Act
-            var response = await client.PostAsJsonAsync("/api/v1/Brand", request);
+            var response = await client.PostAsJsonAsync("/api/v1/Unity", request);
+
+            //Asssert 
+            Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+            var content = response.Content.ReadFromJsonAsync<ErrorResponse>().Result as ErrorResponse;
+            Assert.Equal(RecoverError.GetCode(CommomErrors.MaximumLengthValidator), content?.Errors[0].ErrorCode);
+        }
+
+        [Fact]
+        public async Task CreateUnityWithDuplicateUnity()
+        {
+            //Arrange
+            var factory = new MaterialControlFactory();
+            var client = factory.CreateClient();
+
+            client.DefaultRequestHeaders.Add("Sid", "71b36eec-2db3-4cb1-8c98-5c894f7cc264");
+            client.DefaultRequestHeaders.Add("Role", "client");
+
+            var request = new CreateUnityRequest("Metro");
+
+            //Act
+            var response = await client.PostAsJsonAsync("/api/v1/Unity", request);
 
             //Asssert 
             Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
@@ -54,7 +75,7 @@ namespace MaterialControl.Tests.IntegrationTests
         }
 
         [Fact]
-        public async Task CreateBrandWithInvalidProperty()
+        public async Task UpdateUnityWithSuccess()
         {
             //Arrange
             var factory = new MaterialControlFactory();
@@ -63,42 +84,20 @@ namespace MaterialControl.Tests.IntegrationTests
             client.DefaultRequestHeaders.Add("Sid", "71b36eec-2db3-4cb1-8c98-5c894f7cc264");
             client.DefaultRequestHeaders.Add("Role", "client");
 
-            var request = new CreateBrandRequest(string.Create(51, "A", (buffer, value) => buffer.Fill(value[0])), "");
+            var request = new UnityRequest(Guid.Parse("ec9ec3fd-b6b8-43e1-80b3-60b7a22152c1"), "Peças");
 
             //Act
-            var response = await client.PostAsJsonAsync("/api/v1/Brand", request);
-
-            //Asssert 
-            Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
-            var content = response.Content.ReadFromJsonAsync<ErrorResponse>().Result as ErrorResponse;
-            Assert.Equal(RecoverError.GetCode(CommomErrors.MaximumLengthValidator), content?.Errors[0].ErrorCode);
-            Assert.Equal(RecoverError.GetCode(CommomErrors.NotEmptyValidator), content?.Errors[1].ErrorCode);
-        }
-
-        [Fact]
-        public async Task UpdateBrandWithSuccess()
-        {
-            //Arrange
-            var factory = new MaterialControlFactory();
-            var client = factory.CreateClient();
-
-            client.DefaultRequestHeaders.Add("Sid", "71b36eec-2db3-4cb1-8c98-5c894f7cc264");
-            client.DefaultRequestHeaders.Add("Role", "client");
-
-            var request = new BrandRequest(Guid.Parse("6e59a809-88c7-4e75-a684-4e5b0948ab20"), "AmancoTop", "Produto de cano");
-
-            //Act
-            var response = await client.PutAsJsonAsync("/api/v1/Brand", request);
+            var response = await client.PutAsJsonAsync("/api/v1/Unity", request);
 
             //Asssert 
             Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-            var content = response.Content.ReadFromJsonAsync(typeof(BaseResponse<BrandResponse>)).Result as BaseResponse<BrandResponse>;
-            var result = await client.GetFromJsonAsync<BaseResponse<BrandResponse>>($"/api/v1/Brand/{content.Data.Id}");
+            var content = response.Content.ReadFromJsonAsync(typeof(BaseResponse<UnityResponse>)).Result as BaseResponse<UnityResponse>;
+            var result = await client.GetFromJsonAsync<BaseResponse<UnityResponse>>($"/api/v1/Unity/{content.Data.Id}");
             Assert.True(request.EqualExtesion(result!.Data!));
         }
 
         [Fact]
-        public async Task UpdateBrandWithInvalidProperty()
+        public async Task UpdateUnityWithInvalidProperty()
         {
             //Arrange
             var factory = new MaterialControlFactory();
@@ -107,16 +106,15 @@ namespace MaterialControl.Tests.IntegrationTests
             client.DefaultRequestHeaders.Add("Sid", "71b36eec-2db3-4cb1-8c98-5c894f7cc264");
             client.DefaultRequestHeaders.Add("Role", "client");
 
-            var request = new BrandRequest(Guid.Parse("6e59a809-88c7-4e75-a684-4e5b0948ab20"), string.Create(51, "A", (buffer, value) => buffer.Fill(value[0])), "");
+            var request = new UnityRequest(Guid.Parse("6e59a809-88c7-4e75-a684-4e5b0948ab20"), "");
 
             //Act
-            var response = await client.PutAsJsonAsync("/api/v1/Brand", request);
+            var response = await client.PutAsJsonAsync("/api/v1/Unity", request);
 
             //Asssert 
             Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
             var content = response.Content.ReadFromJsonAsync<ErrorResponse>().Result as ErrorResponse;
-            Assert.Equal(RecoverError.GetCode(CommomErrors.MaximumLengthValidator), content?.Errors[0].ErrorCode);
-            Assert.Equal(RecoverError.GetCode(CommomErrors.NotEmptyValidator), content?.Errors[1].ErrorCode);
+            Assert.Equal(RecoverError.GetCode(CommomErrors.NotEmptyValidator), content?.Errors[0].ErrorCode);
         }
 
         [Fact]
@@ -129,10 +127,10 @@ namespace MaterialControl.Tests.IntegrationTests
             client.DefaultRequestHeaders.Add("Sid", "71b36eec-2db3-4cb1-8c98-5c894f7cc264");
             client.DefaultRequestHeaders.Add("Role", "client");
 
-            var request = new BrandRequest(Guid.Parse("3d59a809-88c7-4e75-a684-4e5b0948ab20"), "Tigre", "Produto de cano");
+            var request = new UnityRequest(Guid.Parse("3d59a809-88c7-4e75-a684-4e5b0948ab20"), "METRO");
 
             //Act
-            var response = await client.PutAsJsonAsync("/api/v1/Brand", request);
+            var response = await client.PutAsJsonAsync("/api/v1/Unity", request);
 
             //Asssert 
             Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
@@ -141,7 +139,7 @@ namespace MaterialControl.Tests.IntegrationTests
         }
 
         [Fact]
-        public async Task UpdateBrandWithDuplicateBrand()
+        public async Task UpdateUnityWithDuplicateUnity()
         {
             //Arrange
             var factory = new MaterialControlFactory();
@@ -150,10 +148,10 @@ namespace MaterialControl.Tests.IntegrationTests
             client.DefaultRequestHeaders.Add("Sid", "71b36eec-2db3-4cb1-8c98-5c894f7cc264");
             client.DefaultRequestHeaders.Add("Role", "client");
 
-            var request = new BrandRequest(Guid.Parse("6e59a809-88c7-4e75-a684-4e5b0948ab20"), "Tigre", "Produto de cano");
+            var request = new UnityRequest(Guid.Parse("f6a65b2e-d765-4e73-a458-cf6e9cc375ef"),"Metro");
 
             //Act
-            var response = await client.PutAsJsonAsync("/api/v1/Brand", request);
+            var response = await client.PutAsJsonAsync("/api/v1/Unity", request);
 
             //Asssert 
             Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
@@ -162,7 +160,7 @@ namespace MaterialControl.Tests.IntegrationTests
         }
 
         [Fact]
-        public async Task DeleteBrandWithSuccess()
+        public async Task DeleteUnityWithSuccess()
         {
             //Arrange
             var factory = new MaterialControlFactory();
@@ -172,17 +170,17 @@ namespace MaterialControl.Tests.IntegrationTests
             client.DefaultRequestHeaders.Add("Role", "client");
 
             //Act
-            var response = await client.DeleteAsync("/api/v1/Brand/6e59a809-88c7-4e75-a684-4e5b0948ab20");
+            var response = await client.DeleteAsync("/api/v1/Unity/f6a65b2e-d765-4e73-a458-cf6e9cc375ef");
 
             //Asssert 
-            Assert.Equal(HttpStatusCode.OK, response.StatusCode);          
-            var result = await client.GetAsync("/api/v1/Brand/6e59a809-88c7-4e75-a684-4e5b0948ab20");
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+            var result = await client.GetAsync("/api/v1/Unity/f6a65b2e-d765-4e73-a458-cf6e9cc375ef");
             var error = result.Content.ReadFromJsonAsync<ErrorResponse>().Result as ErrorResponse;
             Assert.Equal(RecoverError.GetCode(CommomErrors.PropertyNotFound), error.Errors[0].ErrorCode);
         }
 
         [Fact]
-        public async Task DeleteBrandNonexistent()
+        public async Task DeleteUnityNonexistent()
         {
             //Arrange
             var factory = new MaterialControlFactory();
@@ -192,7 +190,7 @@ namespace MaterialControl.Tests.IntegrationTests
             client.DefaultRequestHeaders.Add("Role", "client");
 
             //Act
-            var response = await client.DeleteAsync("/api/v1/Brand/5e59a809-88c7-4e75-a684-4e5b0948ab20");
+            var response = await client.DeleteAsync("/api/v1/Unity/71b36eec-2db3-4cb1-8c98-5c894f7cc264");
 
             //Asssert 
             Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);

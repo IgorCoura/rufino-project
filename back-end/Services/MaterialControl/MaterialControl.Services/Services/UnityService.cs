@@ -2,6 +2,7 @@
 using Commom.Domain.BaseEntities;
 using Commom.Domain.Errors;
 using Commom.Domain.Exceptions;
+using EntityFramework.Exceptions.Common;
 using FluentValidation;
 using MaterialControl.Domain.Entities;
 using MaterialControl.Domain.Interfaces;
@@ -37,10 +38,18 @@ namespace MaterialControl.Services.Services
                 throw new BadRequestException(validation.Errors);
 
             var entity = _mapper.Map<Unity>(req);
-            var result = await _unityRepository.RegisterAsync(entity);
-            await _unityRepository.UnitOfWork.SaveChangesAsync();
+            try
+            {
+                var result = await _unityRepository.RegisterAsync(entity);
+                await _unityRepository.UnitOfWork.SaveChangesAsync();
 
-            return _mapper.Map<UnityResponse>(result);
+                return _mapper.Map<UnityResponse>(result);
+            }
+            catch (UniqueConstraintException)
+            {
+                throw new BadRequestException(CommomErrors.UniqueConstraintViolation);
+            }
+            
         }        
 
         public async Task<UnityResponse> Update(Context context, UnityRequest req)
@@ -55,9 +64,16 @@ namespace MaterialControl.Services.Services
 
             entity.Name = req.Name;
 
-            await _unityRepository.UnitOfWork.SaveChangesAsync();
+            try
+            {
+                await _unityRepository.UnitOfWork.SaveChangesAsync();
 
-            return _mapper.Map<UnityResponse>(entity);
+                return _mapper.Map<UnityResponse>(entity);
+            }
+            catch (UniqueConstraintException)
+            {
+                throw new BadRequestException(CommomErrors.UniqueConstraintViolation);
+            }
         }
 
         public async Task Delete(Context context, Guid id)

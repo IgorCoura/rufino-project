@@ -9,6 +9,17 @@ namespace MaterialControl.Domain.Entities
 {
     public class Unity : Entity
     {
-        public string Name { get; set; }
+        private string _name = string.Empty;
+        public string Name
+        {
+            get
+            {
+                return _name;
+            }
+            set
+            {
+                _name = value.ToUpper();
+            }
+        }
     }
 }

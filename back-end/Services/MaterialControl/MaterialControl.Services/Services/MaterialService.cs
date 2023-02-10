@@ -56,6 +56,10 @@ namespace MaterialControl.Services.Services
             catch (ReferenceConstraintException)
             {
                 throw new BadRequestException(CommomErrors.ReferenceConstraintViolation);
+            }
+            catch (UniqueConstraintException) 
+            {
+                throw new BadRequestException(CommomErrors.UniqueConstraintViolation);
             };
 
         }       
@@ -83,6 +87,10 @@ namespace MaterialControl.Services.Services
             catch (ReferenceConstraintException)
             {
                 throw new BadRequestException(CommomErrors.ReferenceConstraintViolation);
+            }
+            catch (UniqueConstraintException)
+            {
+                throw new BadRequestException(CommomErrors.UniqueConstraintViolation);
             };
         }
 
