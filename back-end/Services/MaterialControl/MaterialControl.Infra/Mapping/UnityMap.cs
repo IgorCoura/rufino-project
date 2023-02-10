@@ -15,6 +15,9 @@ namespace MaterialControl.Infra.Mapping
         {
             base.Configure(builder);
 
+            builder.HasIndex(x => x.Name)
+               .IsUnique();
+
             builder.Property(x => x.Name)
                 .HasMaxLength(25)
                 .IsRequired();

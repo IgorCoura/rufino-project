@@ -5,6 +5,7 @@ using Commom.Domain.Exceptions;
 using Commom.MessageBroker.Bus;
 using Commom.MessageBroker.Message;
 using EasyNetQ;
+using EntityFramework.Exceptions.Common;
 using FluentValidation;
 using MaterialControl.Domain.Entities;
 using MaterialControl.Domain.Interfaces;
@@ -41,12 +42,20 @@ namespace MaterialControl.Services.Services
 
             var entity = _mapper.Map<Brand>(req);
 
-            var result = await _brandRepository.RegisterAsync(entity);
-            await _brandRepository.UnitOfWork.SaveChangesAsync();
+            try
+            {
+                var result = await _brandRepository.RegisterAsync(entity);
+                await _brandRepository.UnitOfWork.SaveChangesAsync();
 
-            await _pubSub.PublishMessageAsync(_mapper.Map<ModifyBrandMessage>(entity)); 
+                await _pubSub.PublishMessageAsync(_mapper.Map<ModifyBrandMessage>(entity));
 
-            return _mapper.Map<BrandResponse>(result);
+                return _mapper.Map<BrandResponse>(result);
+            }
+            catch(UniqueConstraintException)
+            {
+                throw new BadRequestException(CommomErrors.UniqueConstraintViolation);
+            }
+            
         }
 
 
@@ -62,11 +71,19 @@ namespace MaterialControl.Services.Services
 
             entity.Name = req.Name;
             entity.Description = req.Description;
-            await _brandRepository.UnitOfWork.SaveChangesAsync();
+            try
+            {
+                await _brandRepository.UnitOfWork.SaveChangesAsync();
 
-            await _pubSub.PublishMessageAsync(_mapper.Map<ModifyBrandMessage>(entity));
+                await _pubSub.PublishMessageAsync(_mapper.Map<ModifyBrandMessage>(entity));
 
-            return _mapper.Map<BrandResponse>(entity);
+                return _mapper.Map<BrandResponse>(entity);
+            }
+            catch (UniqueConstraintException)
+            {
+                throw new BadRequestException(CommomErrors.UniqueConstraintViolation);
+
+            }
         }
 
         public async Task Delete(Context context, Guid id)

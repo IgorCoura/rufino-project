@@ -34,6 +34,42 @@ namespace Commom.Tests.Utils
                     Id = Guid.Parse("6e59a809-88c7-4e75-a684-4e5b0948ab20"),
                     Name = "Amanco",
                     Description = "Produtor de tubos"
+                },
+                new Brand()
+                {
+                    Id = Guid.Parse("66afccee-7569-48af-9329-7dd30fd09b92"),
+                    Name = "Tigre",
+                    Description = "Produtor de tubos"
+                }
+                ));
+
+            tasks.Add(context.Unities.AddRangeAsync(
+                new Unity()
+                {
+                    Id = Guid.Parse("ec9ec3fd-b6b8-43e1-80b3-60b7a22152c1"),
+                    Name = "metro",
+                },
+                new Unity()
+                {
+                    Id = Guid.Parse("f6a65b2e-d765-4e73-a458-cf6e9cc375ef"),
+                    Name = "Barra",
+                }
+                ));
+
+            tasks.Add(context.Materials.AddRangeAsync(
+                new Material()
+                {
+                    Id = Guid.Parse("f77667aa-45d6-43dd-b929-af132e879415"),
+                    Name = "Material1",
+                    Description = "Material00001",
+                    UnityId = Guid.Parse("ec9ec3fd-b6b8-43e1-80b3-60b7a22152c1"),
+                },
+                new Material()
+                {
+                    Id = Guid.Parse("a31b98f7-1f9c-4d28-9e23-0f4376157ff3"),
+                    Name = "Material2",
+                    Description = "Material00002",
+                    UnityId = Guid.Parse("ec9ec3fd-b6b8-43e1-80b3-60b7a22152c1"),
                 }
                 ));
 
