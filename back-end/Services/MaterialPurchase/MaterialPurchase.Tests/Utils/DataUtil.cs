@@ -1,5 +1,5 @@
 ﻿using Commom.Domain.BaseEntities;
-using MaterialPurchase.Domain.BaseEntities;
+using MaterialPurchase.Domain.Entities;
 using MaterialPurchase.Infra.Context;
 using Microsoft.EntityFrameworkCore;
 using System.Data;
@@ -117,7 +117,6 @@ namespace MaterialPurchase.Tests.Utils
                 {
                     Id = Guid.Parse("54D98347-4009-466C-8A6E-AC01EC3F9A7C"),
                     Name = "Tubo de PVC",
-                    Description = "description",
                     Unity = "Metro",
                     CreatedAt = DateTime.Now,
                     UpdatedAt = DateTime.Now
@@ -126,7 +125,6 @@ namespace MaterialPurchase.Tests.Utils
                 {
                     Id = Guid.Parse("91909CEA-E52C-4945-AAA9-1E50266C1C66"),
                     Name = "Cabo de cobre 2,5mm²",
-                    Description = "description",
                     Unity = "Metro",
                     CreatedAt = DateTime.Now,
                     UpdatedAt = DateTime.Now
@@ -138,7 +136,6 @@ namespace MaterialPurchase.Tests.Utils
                 {
                     Id = Guid.Parse("9894CE53-89E3-47AE-BEDE-7D1AEC6F98F0"),
                     Name = "Tigre",
-                    Description = "description",
                     CreatedAt = DateTime.Now,
                     UpdatedAt = DateTime.Now
                 },
@@ -146,7 +143,6 @@ namespace MaterialPurchase.Tests.Utils
                 {
                     Id = Guid.Parse("2C377F5B-DA7A-4A2E-87BB-1C16894ADC0D"),
                     Name = "CobreFlex",
-                    Description = "description",
                     CreatedAt = DateTime.Now,
                     UpdatedAt = DateTime.Now
                 }

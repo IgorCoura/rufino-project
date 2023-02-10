@@ -49,7 +49,7 @@ namespace MaterialControl.Infra.Migrations
                     b.HasData(
                         new
                         {
-                            Id = new Guid("a952e946-8b19-41fc-92d8-9abad5893d0e"),
+                            Id = new Guid("8b1bea78-5520-46e9-a6c9-cb16a152b5aa"),
                             CreatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
                             Name = "admin",
                             UpdatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified)
@@ -73,8 +73,83 @@ namespace MaterialControl.Infra.Migrations
                     b.HasData(
                         new
                         {
-                            FunctionsIdsId = new Guid("a0a30d8f-54dc-497b-90c7-0b21c379a517"),
-                            RolesId = new Guid("a952e946-8b19-41fc-92d8-9abad5893d0e")
+                            FunctionsIdsId = new Guid("5d585d78-945b-41bb-9d92-c98a06b31d45"),
+                            RolesId = new Guid("8b1bea78-5520-46e9-a6c9-cb16a152b5aa")
+                        },
+                        new
+                        {
+                            FunctionsIdsId = new Guid("5481ecf7-062c-497e-bb57-0c4c7d033dba"),
+                            RolesId = new Guid("8b1bea78-5520-46e9-a6c9-cb16a152b5aa")
+                        },
+                        new
+                        {
+                            FunctionsIdsId = new Guid("a6ce5a4c-5299-427d-a98f-d8d1d335f05d"),
+                            RolesId = new Guid("8b1bea78-5520-46e9-a6c9-cb16a152b5aa")
+                        },
+                        new
+                        {
+                            FunctionsIdsId = new Guid("cc038d6b-3739-4980-896c-f7af9c5275c8"),
+                            RolesId = new Guid("8b1bea78-5520-46e9-a6c9-cb16a152b5aa")
+                        },
+                        new
+                        {
+                            FunctionsIdsId = new Guid("a5773b18-d2d9-4fe9-a5ac-23d9aa9a8a6a"),
+                            RolesId = new Guid("8b1bea78-5520-46e9-a6c9-cb16a152b5aa")
+                        },
+                        new
+                        {
+                            FunctionsIdsId = new Guid("78add384-59a1-4df0-b862-a04206825f3f"),
+                            RolesId = new Guid("8b1bea78-5520-46e9-a6c9-cb16a152b5aa")
+                        },
+                        new
+                        {
+                            FunctionsIdsId = new Guid("eb725059-2702-4495-a1da-2ffa205e8cc5"),
+                            RolesId = new Guid("8b1bea78-5520-46e9-a6c9-cb16a152b5aa")
+                        },
+                        new
+                        {
+                            FunctionsIdsId = new Guid("63845308-fea9-4e75-a3ee-e6690ef0f690"),
+                            RolesId = new Guid("8b1bea78-5520-46e9-a6c9-cb16a152b5aa")
+                        },
+                        new
+                        {
+                            FunctionsIdsId = new Guid("d9117560-ce79-4e1a-aa42-15af2afbbe89"),
+                            RolesId = new Guid("8b1bea78-5520-46e9-a6c9-cb16a152b5aa")
+                        },
+                        new
+                        {
+                            FunctionsIdsId = new Guid("7e3bbe14-7cdf-4d95-a58b-f77b196f3e98"),
+                            RolesId = new Guid("8b1bea78-5520-46e9-a6c9-cb16a152b5aa")
+                        },
+                        new
+                        {
+                            FunctionsIdsId = new Guid("0ac8f35e-9a8a-4eda-819c-f8db3a90eb34"),
+                            RolesId = new Guid("8b1bea78-5520-46e9-a6c9-cb16a152b5aa")
+                        },
+                        new
+                        {
+                            FunctionsIdsId = new Guid("196537c1-7d40-438d-90f3-e355ab0f927e"),
+                            RolesId = new Guid("8b1bea78-5520-46e9-a6c9-cb16a152b5aa")
+                        },
+                        new
+                        {
+                            FunctionsIdsId = new Guid("fbb3fddb-e1b9-4bab-9dc0-4c46e4a1fe14"),
+                            RolesId = new Guid("8b1bea78-5520-46e9-a6c9-cb16a152b5aa")
+                        },
+                        new
+                        {
+                            FunctionsIdsId = new Guid("66c313a8-bcf0-424d-b71e-8118132f8d2a"),
+                            RolesId = new Guid("8b1bea78-5520-46e9-a6c9-cb16a152b5aa")
+                        },
+                        new
+                        {
+                            FunctionsIdsId = new Guid("ede7cad4-ac6e-4c3d-8ee5-a121836c3d84"),
+                            RolesId = new Guid("8b1bea78-5520-46e9-a6c9-cb16a152b5aa")
+                        },
+                        new
+                        {
+                            FunctionsIdsId = new Guid("64cae9f5-fced-4c5e-be14-2c97eefe5ce4"),
+                            RolesId = new Guid("8b1bea78-5520-46e9-a6c9-cb16a152b5aa")
                         });
                 });
 
@@ -212,7 +287,112 @@ namespace MaterialControl.Infra.Migrations
                     b.HasData(
                         new
                         {
-                            Id = new Guid("a0a30d8f-54dc-497b-90c7-0b21c379a517"),
+                            Id = new Guid("5d585d78-945b-41bb-9d92-c98a06b31d45"),
+                            CreatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
+                            Name = "2001",
+                            UpdatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified)
+                        },
+                        new
+                        {
+                            Id = new Guid("5481ecf7-062c-497e-bb57-0c4c7d033dba"),
+                            CreatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
+                            Name = "2002",
+                            UpdatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified)
+                        },
+                        new
+                        {
+                            Id = new Guid("a6ce5a4c-5299-427d-a98f-d8d1d335f05d"),
+                            CreatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
+                            Name = "2003",
+                            UpdatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified)
+                        },
+                        new
+                        {
+                            Id = new Guid("cc038d6b-3739-4980-896c-f7af9c5275c8"),
+                            CreatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
+                            Name = "2004",
+                            UpdatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified)
+                        },
+                        new
+                        {
+                            Id = new Guid("a5773b18-d2d9-4fe9-a5ac-23d9aa9a8a6a"),
+                            CreatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
+                            Name = "2005",
+                            UpdatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified)
+                        },
+                        new
+                        {
+                            Id = new Guid("78add384-59a1-4df0-b862-a04206825f3f"),
+                            CreatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
+                            Name = "2006",
+                            UpdatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified)
+                        },
+                        new
+                        {
+                            Id = new Guid("eb725059-2702-4495-a1da-2ffa205e8cc5"),
+                            CreatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
+                            Name = "2007",
+                            UpdatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified)
+                        },
+                        new
+                        {
+                            Id = new Guid("63845308-fea9-4e75-a3ee-e6690ef0f690"),
+                            CreatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
+                            Name = "2008",
+                            UpdatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified)
+                        },
+                        new
+                        {
+                            Id = new Guid("d9117560-ce79-4e1a-aa42-15af2afbbe89"),
+                            CreatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
+                            Name = "2009",
+                            UpdatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified)
+                        },
+                        new
+                        {
+                            Id = new Guid("7e3bbe14-7cdf-4d95-a58b-f77b196f3e98"),
+                            CreatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
+                            Name = "2010",
+                            UpdatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified)
+                        },
+                        new
+                        {
+                            Id = new Guid("0ac8f35e-9a8a-4eda-819c-f8db3a90eb34"),
+                            CreatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
+                            Name = "2011",
+                            UpdatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified)
+                        },
+                        new
+                        {
+                            Id = new Guid("196537c1-7d40-438d-90f3-e355ab0f927e"),
+                            CreatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
+                            Name = "2012",
+                            UpdatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified)
+                        },
+                        new
+                        {
+                            Id = new Guid("fbb3fddb-e1b9-4bab-9dc0-4c46e4a1fe14"),
+                            CreatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
+                            Name = "2013",
+                            UpdatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified)
+                        },
+                        new
+                        {
+                            Id = new Guid("66c313a8-bcf0-424d-b71e-8118132f8d2a"),
+                            CreatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
+                            Name = "2014",
+                            UpdatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified)
+                        },
+                        new
+                        {
+                            Id = new Guid("ede7cad4-ac6e-4c3d-8ee5-a121836c3d84"),
+                            CreatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
+                            Name = "2015",
+                            UpdatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified)
+                        },
+                        new
+                        {
+                            Id = new Guid("64cae9f5-fced-4c5e-be14-2c97eefe5ce4"),
                             CreatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
                             Name = "2999",
                             UpdatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified)

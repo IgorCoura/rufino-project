@@ -1,5 +1,5 @@
 ﻿using Commom.Infra.Base;
-using MaterialPurchase.Domain.BaseEntities;
+using MaterialPurchase.Domain.Entities;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 namespace MaterialPurchase.Infra.Mapping

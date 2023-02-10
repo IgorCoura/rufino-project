@@ -1,5 +1,5 @@
 ﻿using Commom.Infra.Base;
-using MaterialPurchase.Domain.BaseEntities;
+using MaterialPurchase.Domain.Entities;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 namespace MaterialPurchase.Infra.Mapping
@@ -12,10 +12,6 @@ namespace MaterialPurchase.Infra.Mapping
 
             builder.Property(x => x.Name)
                 .HasMaxLength(50)
-                .IsRequired();
-
-            builder.Property(x => x.Description)
-                .HasMaxLength(250)
                 .IsRequired();
 
         }

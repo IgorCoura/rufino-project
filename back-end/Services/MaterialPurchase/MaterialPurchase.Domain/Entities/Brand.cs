@@ -5,7 +5,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace MaterialPurchase.Domain.BaseEntities
+namespace MaterialPurchase.Domain.Entities
 {
     public class Brand : Entity
     {
@@ -22,6 +22,5 @@ namespace MaterialPurchase.Domain.BaseEntities
             }
         }
 
-        public string Description { get; set; } = string.Empty;
     }
 }

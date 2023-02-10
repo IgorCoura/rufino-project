@@ -13,7 +13,6 @@ namespace MaterialPurchase.Domain.Models.Response
         DateTime CreatedAt,
         DateTime UpdatedAt,
         string Name,
-        string Description,
         string Unity
     );
 }

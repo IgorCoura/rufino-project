@@ -37,7 +37,8 @@ namespace MaterialControl.Services.Services
                 throw new BadRequestException(validation.Errors);
 
             var entity = _mapper.Map<Unity>(req);
-            var result = _unityRepository.RegisterAsync(entity);
+            var result = await _unityRepository.RegisterAsync(entity);
+            await _unityRepository.UnitOfWork.SaveChangesAsync();
 
             return _mapper.Map<UnityResponse>(result);
         }        

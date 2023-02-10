@@ -6,7 +6,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace MaterialPurchase.Domain.BaseEntities
+namespace MaterialPurchase.Domain.Entities
 {
     public class ItemMaterialPurchase : Entity
     {

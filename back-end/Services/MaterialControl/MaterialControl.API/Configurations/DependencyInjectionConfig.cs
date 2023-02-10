@@ -39,7 +39,7 @@ namespace MaterialControl.API.Configurations
 
             #endregion
 
-            service.AddAutoMapper(typeof(EntityToModelProfile), typeof(ModelToEntityProfile));
+            service.AddAutoMapper(typeof(EntityToModelProfile), typeof(ModelToEntityProfile), typeof(EntityToMessageProfile));
 
             return service;
         }

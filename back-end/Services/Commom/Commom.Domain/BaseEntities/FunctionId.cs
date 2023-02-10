@@ -1,6 +1,6 @@
 ﻿using Commom.Domain.BaseEntities;
 
-namespace MaterialPurchase.Domain.BaseEntities
+namespace MaterialPurchase.Domain.Entities
 {
     public class FunctionId : Entity
     {

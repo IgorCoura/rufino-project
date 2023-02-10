@@ -1,6 +1,6 @@
 ﻿using Commom.Domain.BaseEntities;
 using Commom.Infra.Base;
-using MaterialPurchase.Domain.BaseEntities;
+using MaterialPurchase.Domain.Entities;
 using MaterialPurchase.Infra.Mapping;
 using Microsoft.EntityFrameworkCore;
 using System.Diagnostics.Metrics;
@@ -68,8 +68,7 @@ namespace MaterialPurchase.Infra.Context
                     .HasData(new Material
                     {
                         Id = Guid.NewGuid(),
-                        Name = "Tubo de PVC",
-                        Description = "description",
+                        Name = "Tubo de PVC",          
                         Unity = "Metro",
                         CreatedAt = DateTime.Now,
                         UpdatedAt = DateTime.Now
@@ -80,8 +79,7 @@ namespace MaterialPurchase.Infra.Context
                     {
                         Id = Guid.NewGuid(),
                         Name = "Tigre",
-                        Description = "description",
-                        CreatedAt = DateTime.Now,
+                            CreatedAt = DateTime.Now,
                         UpdatedAt = DateTime.Now
                     });
 

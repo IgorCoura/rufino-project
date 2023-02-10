@@ -1,6 +1,6 @@
 ﻿using Commom.Infra.Base;
-using MaterialPurchase.Domain.BaseEntities;
-using MaterialPurchase.Domain.Interfaces;
+using MaterialPurchase.Domain.Entities;
+using MaterialPurchase.Domain.Interfaces.Repositories;
 using MaterialPurchase.Infra.Context;
 
 namespace MaterialPurchase.Infra.Repository

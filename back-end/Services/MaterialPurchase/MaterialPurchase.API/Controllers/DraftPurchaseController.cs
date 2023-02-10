@@ -1,10 +1,10 @@
 ﻿using Commom.API.Controllers;
 using Commom.API.AuthorizationIds;
 using MaterialPurchase.Domain.Consts;
-using MaterialPurchase.Domain.Interfaces;
 using MaterialPurchase.Domain.Models.Request;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using MaterialPurchase.Domain.Interfaces.Services;
 
 namespace MaterialPurchase.API.Controllers
 {
