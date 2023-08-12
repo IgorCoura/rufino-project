@@ -1,5 +1,5 @@
 ﻿using AutoMapper;
-using Commom.MessageBroker.Message;
+using Commom.MessageBroker.Message.MaterialControlMessages;
 using MaterialControl.Domain.Entities;
 using System;
 using System.Collections.Generic;

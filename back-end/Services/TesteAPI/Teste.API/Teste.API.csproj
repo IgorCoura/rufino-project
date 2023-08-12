@@ -12,6 +12,9 @@
 
   <ItemGroup>
     <PackageReference Include="EasyNetQ" Version="7.4.3" />
+    <PackageReference Include="HtmlAgilityPack" Version="1.11.51" />
+    <PackageReference Include="itext7.bouncy-castle-adapter" Version="8.0.1" />
+    <PackageReference Include="itext7.pdfhtml" Version="5.0.1" />
     <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="6.0.12" />
     <PackageReference Include="Swashbuckle.AspNetCore" Version="6.2.3" />
     <PackageReference Include="Microsoft.VisualStudio.Azure.Containers.Tools.Targets" Version="1.17.0" />
@@ -19,6 +22,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\Commom\Commom.API\Commom.API.csproj" />
+    <ProjectReference Include="..\..\Commom\Commom.FileManager\Commom.FileManager.csproj" />
     <ProjectReference Include="..\..\Commom\Commom.MessageBroker\Commom.MessageBroker.csproj" />
   </ItemGroup>
 

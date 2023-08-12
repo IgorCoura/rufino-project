@@ -11,7 +11,7 @@ using Microsoft.EntityFrameworkCore;
 using MaterialPurchase.Domain.Interfaces.Repositories;
 using MaterialPurchase.Domain.Interfaces.Services;
 
-namespace MaterialPurchase.Service.Services
+namespace MaterialPurchase.Service.Services.Modify
 {
     public class PurchaseService : IPurchaseService
     {
@@ -29,12 +29,12 @@ namespace MaterialPurchase.Service.Services
 
         public async Task<PurchaseResponse> AuthorizePurchase(Context context, PurchaseRequest req)
         {
-             var currentPurchase = await _purchaseRepository.FirstAsyncAsTracking(
-                 filter: x => x.Id == req.Id, 
-                 include: i => i.Include(a => a.AuthorizationUserGroups).ThenInclude(b => b.UserAuthorizations)) 
-                ?? throw new BadRequestException(CommomErrors.PropertyNotFound, nameof(req.Id), req.Id.ToString());
+            var currentPurchase = await _purchaseRepository.FirstAsyncAsTracking(
+                filter: x => x.Id == req.Id,
+                include: i => i.Include(a => a.AuthorizationUserGroups).ThenInclude(b => b.UserAuthorizations))
+               ?? throw new BadRequestException(CommomErrors.PropertyNotFound, nameof(req.Id), req.Id.ToString());
 
-            var userAuth = await _permissionService.VerifyPermissions(currentPurchase.AuthorizationUserGroups, context, UserAuthorizationPermissions.Client, UserAuthorizationPermissions.Supervisor ,UserAuthorizationPermissions.Admin)
+            var userAuth = await _permissionService.VerifyPermissions(currentPurchase.AuthorizationUserGroups, context, UserAuthorizationPermissions.Client, UserAuthorizationPermissions.Supervisor, UserAuthorizationPermissions.Admin)
                 ?? throw new BadRequestException(MaterialPurchaseErrors.AuthorizationInvalid);
 
             await _permissionService.VerifyStatus(currentPurchase.Status, PurchaseStatus.Authorizing);
@@ -104,7 +104,7 @@ namespace MaterialPurchase.Service.Services
             {
                 return new PurchaseDeliveryItem()
                 {
-                    ReceiverId = context.User.Id, 
+                    ReceiverId = context.User.Id,
                     MaterialPurchaseId = item.MaterialPurchaseId,
                     Quantity = item.Quantity,
                 };
@@ -154,7 +154,7 @@ namespace MaterialPurchase.Service.Services
                 UserAuthorizationPermissions.Supervisor,
                 UserAuthorizationPermissions.Admin
             };
-            var result = await CancelPurchase(context, req,  status, permissions);
+            var result = await CancelPurchase(context, req, status, permissions);
             return _mapper.Map<PurchaseResponse>(result);
         }
 
@@ -173,7 +173,7 @@ namespace MaterialPurchase.Service.Services
             };
             var result = await CancelPurchase(context, req, status, permissions);
             return _mapper.Map<PurchaseResponse>(result);
-        }     
+        }
 
         private Task AddUserInAuthorizeList(Purchase currentPurchase, Context context, CancelPurchaseRequest req)
         {
@@ -222,16 +222,16 @@ namespace MaterialPurchase.Service.Services
         }
 
 
-        private static PurchaseUserAuthorization UserIsInTheAuthorizationList(Context context, Purchase purchase) 
+        private static PurchaseUserAuthorization UserIsInTheAuthorizationList(Context context, Purchase purchase)
         {
             var listGroup = purchase.AuthorizationUserGroups.ToList().OrderBy(x => x.Priority);
 
             foreach (var group in listGroup)
             {
-                var userAuth = group.UserAuthorizations.Where(x => x.UserId == context.User.Id).FirstOrDefault(); 
+                var userAuth = group.UserAuthorizations.Where(x => x.UserId == context.User.Id).FirstOrDefault();
                 if (userAuth != null)
                 {
-                    return userAuth;      
+                    return userAuth;
                 }
 
                 //Nao pode verificar o proximo grupo se ainda houve pendecias no atual.
@@ -249,13 +249,13 @@ namespace MaterialPurchase.Service.Services
 
             int countItemsDelivered = default;
 
-            foreach(var material in purchase.Materials)
+            foreach (var material in purchase.Materials)
             {
                 var materialReceive = req.ReceiveDeliveryItemRequests.Where(x => x.MaterialPurchaseId == material.Id).FirstOrDefault();
 
                 var materilAlreadyDelivered = purchase.PurchaseDeliveries.Where(x => x.MaterialPurchaseId == material.Id).ToList();
 
-                var quantityMaterialAlreadyDelivered = materilAlreadyDelivered.Sum(x => x.Quantity); 
+                var quantityMaterialAlreadyDelivered = materilAlreadyDelivered.Sum(x => x.Quantity);
 
                 var quantityMaterialNotDelivered = material.Quantity - quantityMaterialAlreadyDelivered;
 
@@ -263,20 +263,20 @@ namespace MaterialPurchase.Service.Services
                 {
                     throw new BadRequestException(MaterialPurchaseErrors.MaterialReceivedInvalid);
                 }
-                
-                if(quantityMaterialNotDelivered < materialReceive.Quantity)
+
+                if (quantityMaterialNotDelivered < materialReceive.Quantity)
                 {
                     throw new BadRequestException(MaterialPurchaseErrors.MaterialReceivedInvalid);
                 }
                 else if (quantityMaterialNotDelivered == materialReceive.Quantity)
                 {
                     countItemsDelivered++;
-                }   
+                }
                 else if (quantityMaterialNotDelivered <= 0)
                 {
                     countItemsDelivered++;
                 }
-                    
+
             }
 
             if (countItemsDelivered == purchase.Materials.Count())

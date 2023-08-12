@@ -13,7 +13,7 @@ namespace MaterialPurchase.Domain.Interfaces.Services
 {
     public interface IPermissionsService
     {
-        Task<PurchaseUserAuthorization> VerifyPermissions(IEnumerable<PurchaseAuthUserGroup> purchase, Context context, params UserAuthorizationPermissions[] permissions);
+        Task<PurchaseUserAuthorization?> VerifyPermissions(IEnumerable<PurchaseAuthUserGroup> purchase, Context context, params UserAuthorizationPermissions[] permissions);
 
         Task VerifyStatus(PurchaseStatus currentStatus, params PurchaseStatus[] statusNotCanBe);
 

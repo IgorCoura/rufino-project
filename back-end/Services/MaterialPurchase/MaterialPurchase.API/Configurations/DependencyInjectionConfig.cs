@@ -4,7 +4,8 @@ using MaterialPurchase.Domain.Interfaces.Services;
 using MaterialPurchase.Infra.Repository;
 using MaterialPurchase.Service.Consumer;
 using MaterialPurchase.Service.Mappers;
-using MaterialPurchase.Service.Services;
+using MaterialPurchase.Service.Services.Consult;
+using MaterialPurchase.Service.Services.Modify;
 using MaterialPurchase.Service.Validations;
 
 namespace MaterialPurchase.API.Configurations

@@ -22,8 +22,8 @@ builder.Services.AddDbContext<MaterialControlContext>(options =>
             sqlOptions.EnableRetryOnFailure(maxRetryCount: 15, maxRetryDelay: TimeSpan.FromSeconds(30), errorCodesToAdd: null);
         })
         .UseQueryTrackingBehavior(QueryTrackingBehavior.NoTrackingWithIdentityResolution)
-        .EnableDetailedErrors()
-        .EnableSensitiveDataLogging()
+        .EnableDetailedErrors() //TODO: Remover na produção
+        .EnableSensitiveDataLogging()  //TODO: Remover na produção
         .UseExceptionProcessor();
 
 });
