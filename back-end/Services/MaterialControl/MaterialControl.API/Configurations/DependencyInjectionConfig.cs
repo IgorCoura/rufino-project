@@ -2,7 +2,7 @@
 using MaterialControl.Domain.Interfaces;
 using MaterialControl.Infra.Repository;
 using MaterialControl.Services.Mappers;
-using MaterialControl.Services.Services;
+using MaterialControl.Services.Services.Modify;
 using MaterialControl.Services.Validations;
 
 namespace MaterialControl.API.Configurations

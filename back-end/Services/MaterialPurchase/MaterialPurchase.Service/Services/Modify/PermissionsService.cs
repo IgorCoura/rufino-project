@@ -6,7 +6,7 @@ using MaterialPurchase.Domain.Errors;
 using MaterialPurchase.Domain.Consts;
 using MaterialPurchase.Domain.Interfaces.Services;
 
-namespace MaterialPurchase.Service.Services
+namespace MaterialPurchase.Service.Services.Modify
 {
     public class PermissionsService : IPermissionsService
     {
@@ -19,18 +19,18 @@ namespace MaterialPurchase.Service.Services
             var orderGroup = purchase.OrderBy(x => x.Priority).ToList();
             var user = FindUserAuthorization(context.User.Id, orderGroup);
 
-            if(user == null)
+            if (user == null)
             {
-                if(context.User.FunctionsId.Any(x => x == MaterialPurchaseAuthorizationId.ByPassPurchasePermission))
+                if (context.User.FunctionsId.Any(x => x == MaterialPurchaseAuthorizationId.ByPassPurchasePermission))
                     return Task.FromResult<PurchaseUserAuthorization?>(null);
                 else
                     throw new BadRequestException(MaterialPurchaseErrors.AuthorizationInvalid);
 
             }
 
-            if (permissions.Any(x => x == user.Permissions)) 
+            if (permissions.Any(x => x == user.Permissions))
             {
-                if(user.Permissions == UserAuthorizationPermissions.Client)
+                if (user.Permissions == UserAuthorizationPermissions.Client)
                 {
                     HasUserPedingWithHighestPriority(context.User.Id, orderGroup);
                 }
@@ -79,9 +79,9 @@ namespace MaterialPurchase.Service.Services
                 if (group.UserAuthorizations.Any(x => x.UserId == id))
                     return;
 
-                if (group.UserAuthorizations.Any(x => x.AuthorizationStatus == UserAuthorizationStatus.Pending))                
+                if (group.UserAuthorizations.Any(x => x.AuthorizationStatus == UserAuthorizationStatus.Pending))
                     throw new BadRequestException(MaterialPurchaseErrors.AuthorizationInvalid);
-                
+
             }
             throw new BadRequestException(MaterialPurchaseErrors.AuthorizationInvalid);
         }
@@ -92,7 +92,7 @@ namespace MaterialPurchase.Service.Services
             {
                 var userAuth = group.UserAuthorizations.Where(x => x.UserId == id).FirstOrDefault();
 
-                if (userAuth != null)   
+                if (userAuth != null)
                     return userAuth;
             }
             return null;

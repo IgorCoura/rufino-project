@@ -13,7 +13,7 @@ using Microsoft.Extensions.DependencyInjection;
 using MaterialPurchase.Domain.Interfaces.Repositories;
 using MaterialPurchase.Domain.Interfaces.Services;
 
-namespace MaterialPurchase.Service.Services
+namespace MaterialPurchase.Service.Services.Modify
 {
     public class DraftPurchaseService : IDraftPurchaseService
     {
@@ -42,8 +42,8 @@ namespace MaterialPurchase.Service.Services
                 throw new BadRequestException(validation.Errors);
 
             var construction = await _constructionRepository.FirstAsync(
-                filter: x => x.Id == req.ConstructionId, 
-                include: i => i.Include(o => o.PurchasingAuthorizationUserGroups).ThenInclude(o=> o.UserAuthorizations))
+                filter: x => x.Id == req.ConstructionId,
+                include: i => i.Include(o => o.PurchasingAuthorizationUserGroups).ThenInclude(o => o.UserAuthorizations))
                 ?? throw new BadRequestException(CommomErrors.PropertyNotFound, nameof(req.ConstructionId), req.ConstructionId.ToString());
 
             var authorizationUserGroups = ConvertAuthorizationUserGroups(context, construction.PurchasingAuthorizationUserGroups);
@@ -72,8 +72,8 @@ namespace MaterialPurchase.Service.Services
         public async Task<PurchaseResponse> Update(Context context, DraftPurchaseRequest req)
         {
             var currentPurchase = await _purchaseRepository.FirstAsyncAsTracking(
-                filter: x => x.Id == req.Id, 
-                include: i => i.Include(x => x.Materials).Include(o => o.AuthorizationUserGroups).ThenInclude(o => o.UserAuthorizations)) 
+                filter: x => x.Id == req.Id,
+                include: i => i.Include(x => x.Materials).Include(o => o.AuthorizationUserGroups).ThenInclude(o => o.UserAuthorizations))
                 ?? throw new BadRequestException(CommomErrors.PropertyNotFound, nameof(req.Id), req.Id.ToString());
 
             await _permissionService.VerifyPermissions(currentPurchase.AuthorizationUserGroups, context, UserAuthorizationPermissions.Creator, UserAuthorizationPermissions.Admin);
@@ -82,7 +82,7 @@ namespace MaterialPurchase.Service.Services
 
             var validation = await _serviceProvider.GetRequiredService<IValidator<DraftPurchaseRequest>>().ValidateAsync(req);
 
-            if(!validation.IsValid)
+            if (!validation.IsValid)
                 throw new BadRequestException(validation.Errors);
 
             foreach (var mat in req.Materials)
@@ -98,8 +98,8 @@ namespace MaterialPurchase.Service.Services
             }
 
             currentPurchase.ProviderId = req.ProviderId;
-            currentPurchase.ConstructionId= req.ConstructionId;
-            currentPurchase.Freight= req.Freight;
+            currentPurchase.ConstructionId = req.ConstructionId;
+            currentPurchase.Freight = req.Freight;
 
             try
             {
@@ -110,13 +110,13 @@ namespace MaterialPurchase.Service.Services
             catch (ReferenceConstraintException)
             {
                 throw new BadRequestException(CommomErrors.ReferenceConstraintViolation);
-            };  
+            };
         }
 
         public async Task Delete(Context context, PurchaseRequest req)
         {
             var currentPurchase = await _purchaseRepository.FirstAsync(
-                filter: x => x.Id == req.Id, 
+                filter: x => x.Id == req.Id,
                 include: i => i.Include(o => o.AuthorizationUserGroups).ThenInclude(o => o.UserAuthorizations))
                 ?? throw new BadRequestException(CommomErrors.PropertyNotFound, nameof(req.Id), req.Id.ToString());
 
@@ -130,12 +130,12 @@ namespace MaterialPurchase.Service.Services
 
         }
 
-  
+
 
         public async Task<PurchaseResponse> SendToAuthorization(Context context, PurchaseRequest req)
         {
             var currentPurchase = await _purchaseRepository.FirstAsyncAsTracking(
-                filter: x => x.Id == req.Id, 
+                filter: x => x.Id == req.Id,
                 include: i => i.Include(o => o.AuthorizationUserGroups).ThenInclude(o => o.UserAuthorizations))
                 ?? throw new BadRequestException(CommomErrors.PropertyNotFound, nameof(req.Id), req.Id.ToString());
 
@@ -176,6 +176,6 @@ namespace MaterialPurchase.Service.Services
             return authorizationUserGroups;
 
         }
-        
+
     }
 }

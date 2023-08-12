@@ -27,10 +27,10 @@ namespace Identity.API.Application.Service
 
         public async Task<TokenModel> GenerateTokens(User user, UserRefreshToken userRefreshToken)
         {
-            var acessToken = await GenerateAccessToken(user);
+            var acessToken = GenerateAccessToken(user);
             var refreshToken = GenerateRefreshToken(userRefreshToken);
 
-            return new TokenModel(acessToken, refreshToken);
+            return new TokenModel(await acessToken, await refreshToken);
         }
 
         public ClaimsPrincipal ValidateRefreshToken(string token)
@@ -95,7 +95,7 @@ namespace Identity.API.Application.Service
         }
 
 
-        private string GenerateRefreshToken(UserRefreshToken userRefreshToken)
+        private Task<string> GenerateRefreshToken(UserRefreshToken userRefreshToken)
         {
             var claims = new List<Claim>()
             {
@@ -113,7 +113,7 @@ namespace Identity.API.Application.Service
                 Expires = DateTime.UtcNow.AddMinutes(_authenticationOptions.ExpireRefreshToken),
                 SigningCredentials = new SigningCredentials(new SymmetricSecurityKey(key), SecurityAlgorithms.HmacSha256Signature)
             });
-            return tokenHandler.WriteToken(token);
+            return Task.FromResult<string>(tokenHandler.WriteToken(token));
         }
 
 

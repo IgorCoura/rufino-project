@@ -6,7 +6,7 @@ using MaterialPurchase.Domain.Interfaces.Services;
 using MaterialPurchase.Domain.Models.Response;
 using Microsoft.EntityFrameworkCore;
 
-namespace MaterialPurchase.Service.Services
+namespace MaterialPurchase.Service.Services.Consult
 {
     public class RecoverPurchaseService : IRecoverPurchaseService
     {
@@ -24,7 +24,7 @@ namespace MaterialPurchase.Service.Services
             var result = await _purchaseRepository.FirstAsync(
                 filter: x => x.Id == id,
                 include: i => i.Include(o => o.Construction).Include(o => o.Provider)!)
-                ?? throw new BadRequestException(CommomErrors.PropertyNotFound, nameof(id), id.ToString()); 
+                ?? throw new BadRequestException(CommomErrors.PropertyNotFound, nameof(id), id.ToString());
 
             return _mapper.Map<SimplePurchaseResponse>(result);
         }
@@ -32,7 +32,7 @@ namespace MaterialPurchase.Service.Services
         public async Task<PurchaseWithMaterialResponse> RecoverPurchaseWithMaterials(Guid id)
         {
             var result = await _purchaseRepository.FirstAsync(
-                filter: x => x.Id == id, 
+                filter: x => x.Id == id,
                 include: i => i.Include(o => o.Construction)
                                .Include(o => o.Provider)
                                .Include(o => o.Materials)
@@ -58,7 +58,7 @@ namespace MaterialPurchase.Service.Services
                                .ThenInclude(o => o.UserAuthorizations)
                                .Include(o => o.PurchaseDeliveries)
                                .ThenInclude(o => o.Receiver)!)
-                ?? throw new BadRequestException(CommomErrors.PropertyNotFound, nameof(id), id.ToString()); 
+                ?? throw new BadRequestException(CommomErrors.PropertyNotFound, nameof(id), id.ToString());
 
             return _mapper.Map<CompletePurchaseResponse>(result);
         }

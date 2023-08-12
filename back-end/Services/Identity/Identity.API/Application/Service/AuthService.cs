@@ -129,7 +129,7 @@ namespace Identity.API.Application.Service
             return user;
         }
 
-        private UserRefreshToken GetClaims(ClaimsPrincipal claims)
+        private static UserRefreshToken GetClaims(ClaimsPrincipal claims)
         {
             try
             {
@@ -147,7 +147,7 @@ namespace Identity.API.Application.Service
             }
         }
 
-        private async Task CleanRefreshTokens()
+        private async void CleanRefreshTokens()
         {
             var tokens = await _userRefreshTokenRepository.GetDataAsync(x => x.ExpireDate < DateTime.Now) 
                 ?? new List<UserRefreshToken>();

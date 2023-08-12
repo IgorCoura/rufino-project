@@ -4,7 +4,7 @@ using MaterialPurchase.Domain.Interfaces.Repositories;
 using MaterialPurchase.Domain.Interfaces.Services;
 using Microsoft.EntityFrameworkCore;
 
-namespace MaterialPurchase.Service.Services
+namespace MaterialPurchase.Service.Services.Modify
 {
     public class ValidatePurchaseService : IValidatePurchaseService
     {

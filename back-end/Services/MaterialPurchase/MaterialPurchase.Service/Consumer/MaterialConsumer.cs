@@ -1,4 +1,4 @@
-﻿using Commom.MessageBroker.Message;
+﻿using Commom.MessageBroker.Message.MaterialControlMessages;
 using EasyNetQ.AutoSubscribe;
 using MaterialPurchase.Domain.Entities;
 using MaterialPurchase.Domain.Interfaces.Repositories;

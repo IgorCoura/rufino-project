@@ -15,7 +15,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace MaterialControl.Services.Services
+namespace MaterialControl.Services.Services.Modify
 {
     public class UnityService : IUnityService
     {
@@ -49,8 +49,8 @@ namespace MaterialControl.Services.Services
             {
                 throw new BadRequestException(CommomErrors.UniqueConstraintViolation);
             }
-            
-        }        
+
+        }
 
         public async Task<UnityResponse> Update(Context context, UnityRequest req)
         {
@@ -82,7 +82,7 @@ namespace MaterialControl.Services.Services
                 ?? throw new BadRequestException(CommomErrors.PropertyNotFound, nameof(id), id.ToString());
 
             await _unityRepository.DeleteAsync(entity);
-            await _unityRepository.UnitOfWork.SaveChangesAsync();            
+            await _unityRepository.UnitOfWork.SaveChangesAsync();
         }
 
         public async Task<UnityResponse> Recover(Guid id)

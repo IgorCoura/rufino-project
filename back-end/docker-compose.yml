@@ -89,6 +89,7 @@ services:
         - 8031:443
     depends_on:
         - api.gateway
+        - materialcontrol.db
         - identity.api
 
 
@@ -100,6 +101,35 @@ services:
         POSTGRES_PASSWORD: "5up3rS3nh@"
     ports:
         - 8032:5432
+
+  custsuprmanager.api:
+    image: ${DOCKER_REGISTRY-}custsuprmanagerapi
+    build:
+        context: .
+        dockerfile: Services/CustSuprManager/CustSuprManager.API/Dockerfile
+    environment:
+        ASPNETCORE_URLS: "https://+;http://+"
+        ASPNETCORE_HTTPS_PORT: "8011"
+        ASPNETCORE_ENVIRONMENT: Development
+    volumes:
+        - ${APPDATA}\microsoft\UserSecrets\:/root/.microsoft/usersecrets
+        - ${USERPROFILE}\.aspnet\https:/root/.aspnet/https/
+    ports:
+        - 8040:80
+        - 8041:443
+    depends_on:
+        - api.gateway
+        - custsuprmanager.db
+        - identity.api
+
+  custsuprmanager.db:
+    image: postgres:15.1-alpine
+    restart: always
+    environment:
+        POSTGRES_USER: "admin"
+        POSTGRES_PASSWORD: "5up3rS3nh@"
+    ports:
+        - 8042:5432
 
   rabbitmq:
     image: rabbitmq:management-alpine

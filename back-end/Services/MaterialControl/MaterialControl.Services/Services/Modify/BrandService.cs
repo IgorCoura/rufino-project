@@ -3,7 +3,7 @@ using Commom.Domain.BaseEntities;
 using Commom.Domain.Errors;
 using Commom.Domain.Exceptions;
 using Commom.MessageBroker.Bus;
-using Commom.MessageBroker.Message;
+using Commom.MessageBroker.Message.MaterialControlMessages;
 using EasyNetQ;
 using EntityFramework.Exceptions.Common;
 using FluentValidation;
@@ -13,7 +13,7 @@ using MaterialControl.Domain.Models.Request;
 using MaterialControl.Domain.Models.Response;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace MaterialControl.Services.Services
+namespace MaterialControl.Services.Services.Modify
 {
     public class BrandService : IBrandService
     {
@@ -38,24 +38,25 @@ namespace MaterialControl.Services.Services
             if (!validation.IsValid)
                 throw new BadRequestException(validation.Errors);
 
-            
+
 
             var entity = _mapper.Map<Brand>(req);
 
             try
             {
                 var result = await _brandRepository.RegisterAsync(entity);
-                await _brandRepository.UnitOfWork.SaveChangesAsync();
 
                 await _pubSub.PublishMessageAsync(_mapper.Map<ModifyBrandMessage>(entity));
 
+                await _brandRepository.UnitOfWork.SaveChangesAsync();
+
                 return _mapper.Map<BrandResponse>(result);
             }
-            catch(UniqueConstraintException)
+            catch (UniqueConstraintException)
             {
                 throw new BadRequestException(CommomErrors.UniqueConstraintViolation);
             }
-            
+
         }
 
 
@@ -73,9 +74,10 @@ namespace MaterialControl.Services.Services
             entity.Description = req.Description;
             try
             {
-                await _brandRepository.UnitOfWork.SaveChangesAsync();
 
                 await _pubSub.PublishMessageAsync(_mapper.Map<ModifyBrandMessage>(entity));
+
+                await _brandRepository.UnitOfWork.SaveChangesAsync();
 
                 return _mapper.Map<BrandResponse>(entity);
             }
@@ -92,9 +94,10 @@ namespace MaterialControl.Services.Services
                 ?? throw new BadRequestException(CommomErrors.PropertyNotFound, nameof(id), id.ToString());
 
             await _brandRepository.DeleteAsync(entity);
-            await _brandRepository.UnitOfWork.SaveChangesAsync();
 
             await _pubSub.PublishMessageAsync(_mapper.Map<DeleteBrandMessage>(entity));
+
+            await _brandRepository.UnitOfWork.SaveChangesAsync();
         }
 
         public async Task<BrandResponse> Recover(Guid id)

@@ -9,7 +9,7 @@ using Commom.Domain.BaseEntities;
 using Commom.Domain.Errors;
 using Commom.Domain.Exceptions;
 using Commom.MessageBroker.Bus;
-using Commom.MessageBroker.Message;
+using Commom.MessageBroker.Message.MaterialControlMessages;
 using EasyNetQ;
 using EntityFramework.Exceptions.Common;
 using FluentValidation;
@@ -20,7 +20,7 @@ using MaterialControl.Domain.Models.Response;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace MaterialControl.Services.Services
+namespace MaterialControl.Services.Services.Modify
 {
     public class MaterialService : IMaterialService
     {
@@ -48,21 +48,21 @@ namespace MaterialControl.Services.Services
             try
             {
                 var result = await _materialRepository.RegisterAsync(entity);
-                await _materialRepository.UnitOfWork.SaveChangesAsync();
                 entity = await _materialRepository.FirstAsync(x => x.Id == result.Id, include: i => i.Include(o => o.Unity)!);
                 await _pubSub.PublishMessageAsync(_mapper.Map<ModifyMaterialMessage>(entity));
+                await _materialRepository.UnitOfWork.SaveChangesAsync();
                 return _mapper.Map<MaterialResponse>(result);
             }
             catch (ReferenceConstraintException)
             {
                 throw new BadRequestException(CommomErrors.ReferenceConstraintViolation);
             }
-            catch (UniqueConstraintException) 
+            catch (UniqueConstraintException)
             {
                 throw new BadRequestException(CommomErrors.UniqueConstraintViolation);
             };
 
-        }       
+        }
 
         public async Task<MaterialResponse> Update(Context context, MaterialRequest req)
         {
@@ -80,8 +80,8 @@ namespace MaterialControl.Services.Services
 
             try
             {
-                await _materialRepository.UnitOfWork.SaveChangesAsync();
                 await _pubSub.PublishMessageAsync(_mapper.Map<ModifyMaterialMessage>(entity));
+                await _materialRepository.UnitOfWork.SaveChangesAsync();
                 return _mapper.Map<MaterialResponse>(entity);
             }
             catch (ReferenceConstraintException)
@@ -100,8 +100,10 @@ namespace MaterialControl.Services.Services
                 ?? throw new BadRequestException(CommomErrors.PropertyNotFound, nameof(id), id.ToString());
 
             await _materialRepository.DeleteAsync(entity);
-            await _materialRepository.UnitOfWork.SaveChangesAsync();
+
             await _pubSub.PublishMessageAsync(_mapper.Map<DeleteMaterialMessage>(entity));
+
+            await _materialRepository.UnitOfWork.SaveChangesAsync();
         }
 
         public async Task<MaterialResponse> Recover(Guid id)
