@@ -89,26 +89,59 @@ class GeneratePDF
         //    return "Texto não encontrado.";
         //}
         // Criando uma string com valores entre chaves duplas
-        string str = "Olá, {{nome}}! Você tem {{idade}} anos e mora em {{cidade}}.";
 
-        // Criando um dicionário com as chaves e os valores correspondentes
-        Dictionary<string, dynamic> dic1 = new Dictionary<string, dynamic>();
-        dic1.Add("nome", "Paulo");
-        dic1.Add("idade", "85");
-        dic1.Add("cidade", "São Paulo");
-
-        Dictionary<string, dynamic> dic2 = new Dictionary<string, dynamic>();
-        dic2.Add("nome", "Roberto");
-        dic2.Add("idade", "45");
-        dic2.Add("cidade", "São Paulo");
-        dic2.Add("pai", dic1);
-
-        Dictionary<string, dynamic> dic = new Dictionary<string, dynamic>();
-        dic.Add("nome", "João");
-        dic.Add("idade", "25");
-        dic.Add("cidade", "São Paulo");
-        dic.Add("pai", dic2);
-
+        Dictionary<string, dynamic> dic = new Dictionary<string, dynamic>(){
+                { "contentInit", "init1" },
+                { "contentFinal", "final1"},
+                { "materials", new List<Dictionary<string, dynamic>>()
+                    {
+                        new Dictionary<string, dynamic>()
+                        {
+                            {"decription", "Arroz"},
+                            {"unit", "kg"},
+                            {"quantity", "100" },
+                            {"unityPrice", new List<Dictionary<string, dynamic>>()
+                                { 
+                                    new Dictionary<string, dynamic>()
+                                    {
+                                        {"a", "123,00"},
+                                        {"b", "123,00"}
+                                    }
+                                } 
+                            },
+                            {"totalPrice", "R$ 500,00" }
+                        },
+                        new Dictionary<string, dynamic>()
+                        {
+                            {"decription", "Arroz"},
+                            {"unit", "kg"},
+                            {"quantity", "100" },
+                            {"unityPrice", new List<Dictionary<string, dynamic>>()
+                                {
+                                    new Dictionary<string, dynamic>()
+                                    {
+                                        {"a", "123,00"},
+                                        {"b", "123,00"}
+                                    },
+                                    new Dictionary<string, dynamic>()
+                                    {
+                                        {"a", "123ddd,00"},
+                                        {"b", "123ddd,00"}
+                                    }
+                                    ,
+                                    new Dictionary<string, dynamic>()
+                                    {
+                                        {"a", "123cd,00"},
+                                        {"b", "123cd,00"}
+                                    }
+                                }
+                            },
+                            {"totalPrice", "R$ 500,00" }
+                        }
+                    }
+                }
+            };
+    
 
         var result = await HtmlManager.InsertValuesInHtmlTemplate(dic, "Html/input.html");
         await PdfManager.ConvertHtml2Pdf(result, "Html/output.pdf");
