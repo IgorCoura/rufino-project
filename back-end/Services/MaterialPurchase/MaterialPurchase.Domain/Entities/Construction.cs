@@ -13,5 +13,6 @@ namespace MaterialPurchase.Domain.Entities
         public string NickName { get; set; } = string.Empty;
         public Address? Address { get; set; }
         public IEnumerable<ConstructionAuthUserGroup> PurchasingAuthorizationUserGroups { get; set; } = new List<ConstructionAuthUserGroup>();
+        public IEnumerable<UsePermission> UsePermissions { get; set; } = new List<UsePermission>();
     }
 }

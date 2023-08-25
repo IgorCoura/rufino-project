@@ -13,6 +13,8 @@ using EasyNetQ.AutoSubscribe;
 using System.Reflection;
 using MaterialPurchase.Service.Consumer;
 using Commom.MessageBroker;
+using Microsoft.AspNetCore.Authorization;
+using MaterialPurchase.API.Authorization;
 
 // MATERIA PURCHASE API
 
@@ -40,10 +42,11 @@ builder.Services.AddMessageBrokerConfig(builder.Configuration, "material_purchas
 
 
 // Add services to the container.
-
-builder.Services.AddAuthenticationJwtBearer(builder.Configuration);
-builder.Services.AddFunctionIdAuthorization<MaterialPurchaseContext>(builder.Configuration);
 builder.Services.AddDependencies(builder.Configuration);
+builder.Services.AddAuthenticationJwtBearer(builder.Configuration);
+builder.Services.AddScoped<IAuthorizationHandler, PermissionAccessHandler>();
+builder.Services.AddFunctionIdAuthorization<MaterialPurchaseContext>(builder.Configuration);
+
 
 
 builder.Services.AddApiVersioning(options =>
@@ -86,14 +89,12 @@ if (env != null && !env.Equals("Testing")) {
 
     AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
 
-    using (var scope = app.Services.CreateScope())
-    {
-        var services = scope.ServiceProvider;
+    using var scope = app.Services.CreateScope();
+    var services = scope.ServiceProvider;
 
-        var context = services.GetRequiredService<MaterialPurchaseContext>();
-        if (context.Database.GetPendingMigrations().Any())
-            context.Database.Migrate();
-    }
+    var context = services.GetRequiredService<MaterialPurchaseContext>();
+    if (context.Database.GetPendingMigrations().Any())
+        context.Database.Migrate();
 }
 
 

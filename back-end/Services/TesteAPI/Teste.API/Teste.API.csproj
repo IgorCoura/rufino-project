@@ -26,4 +26,9 @@
     <ProjectReference Include="..\..\Commom\Commom.MessageBroker\Commom.MessageBroker.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Folder Include="Files\OutputsPdfs\" />
+    <Folder Include="Files\OutputsHtmls\" />
+  </ItemGroup>
+
 </Project>

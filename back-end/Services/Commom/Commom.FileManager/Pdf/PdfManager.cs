@@ -11,13 +11,14 @@ namespace Commom.FileManager.Pdf
 {
     public class PdfManager
     {
-        public static Task ConvertHtml2Pdf(string htmlString, string outputPathPdf)
+        public static Task ConvertHtml2Pdf(string htmlFilePath, string outputPdfPath)
         {
-            using FileStream pdfDest = File.Open(outputPathPdf, FileMode.Create);
+            using FileStream htmlFile = File.Open(htmlFilePath, FileMode.Open);
+            using FileStream pdfDest = File.Open(outputPdfPath, FileMode.Create);
             ConverterProperties converterProperties = new();
             converterProperties.SetFontProvider(new DefaultFontProvider(true, true, true));
-            converterProperties.SetBaseUri(outputPathPdf);
-            HtmlConverter.ConvertToPdf(htmlString, pdfDest, converterProperties);
+            converterProperties.SetBaseUri(htmlFilePath);
+            HtmlConverter.ConvertToPdf(htmlFile, pdfDest, converterProperties);
             return Task.CompletedTask;
         }
     }

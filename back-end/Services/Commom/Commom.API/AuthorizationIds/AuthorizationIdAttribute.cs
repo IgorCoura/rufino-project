@@ -12,7 +12,7 @@ namespace Commom.API.AuthorizationIds
         {
             get
             {
-                return Policy[POLICY_PREFIX.Length..];
+                return Policy![POLICY_PREFIX.Length..];
             }
             set
             {

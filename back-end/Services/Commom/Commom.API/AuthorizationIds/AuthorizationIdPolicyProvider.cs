@@ -20,7 +20,7 @@ namespace Commom.API.AuthorizationIds
 
         public Task<AuthorizationPolicy?> GetFallbackPolicyAsync()
         {
-            return Task.FromResult<AuthorizationPolicy?>(null);
+            return Task.FromResult<AuthorizationPolicy?>(new AuthorizationPolicyBuilder(_options.Schema).RequireAuthenticatedUser().Build());
         }
 
         public Task<AuthorizationPolicy?> GetPolicyAsync(string policyName)

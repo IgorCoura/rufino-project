@@ -206,7 +206,8 @@ namespace MaterialPurchase.Tests.IntegrationTests
             client.DefaultRequestHeaders.Add("Role", "client");
 
             var purchase = new PurchaseRequest(
-                Guid.Parse("CA100B9F-8D13-4E64-ADBC-A90462D05A9A")
+                Guid.Parse("CA100B9F-8D13-4E64-ADBC-A90462D05A9A"),
+                Guid.Parse("651E60AD-DDAC-45F8-B2ED-60D2DB924AE7")
                 );
 
             //Act
@@ -230,7 +231,8 @@ namespace MaterialPurchase.Tests.IntegrationTests
             client.DefaultRequestHeaders.Add("Role", "client");
 
             var purchase = new PurchaseRequest(
-                Guid.Parse("CA100B9F-8D13-4E64-ADBC-A90462D05A9A")
+                Guid.Parse("CA100B9F-8D13-4E64-ADBC-A90462D05A9A"),
+                Guid.Parse("651E60AD-DDAC-45F8-B2ED-60D2DB924AE7")
                 );
 
             //Act

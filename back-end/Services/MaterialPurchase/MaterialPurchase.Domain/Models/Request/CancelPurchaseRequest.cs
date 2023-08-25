@@ -6,9 +6,15 @@ using System.Threading.Tasks;
 
 namespace MaterialPurchase.Domain.Models.Request
 {
-    public record CancelPurchaseRequest
-    (
-        Guid PurchaseId,
-        string Comment
-    );
+    public record CancelPurchaseRequest : ModelBase
+    {
+        public CancelPurchaseRequest(Guid constructioId, Guid purchaseId, string comment) : base(constructioId)
+        {
+            PurchaseId = purchaseId;
+            Comment = comment;
+        }
+
+        public Guid PurchaseId { get; set; }
+        public string Comment { get; set; }
+    }
 }

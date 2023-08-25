@@ -1,5 +1,6 @@
 ﻿using Commom.Infra.Interface;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using System.Security.Claims;
@@ -8,31 +9,34 @@ namespace Commom.API.AuthorizationIds
 {
     public class AuthorizationIdHandler : AuthorizationHandler<AuthorizationIdRequirement>
     {
-        private readonly AuthorizationIdOptions _options;
         private readonly IRoleRepository _roleRepository;
 
-        public AuthorizationIdHandler(IOptions<AuthorizationIdOptions> options, IRoleRepository roleRepository)
+        public AuthorizationIdHandler(IRoleRepository roleRepository)
         {
-            _options = options.Value;
             _roleRepository = roleRepository;
         }
 
 
         protected override async Task HandleRequirementAsync(AuthorizationHandlerContext context, AuthorizationIdRequirement requirement)
         {
-            var roleName = context.User.FindFirst(r => r.Type == ClaimTypes.Role)?.Value.ToString();            
+
+            if (context.HasSucceeded)
+            {
+                return;
+            }
+
+
+            var roleName = context.User.FindFirst(r => r.Type == ClaimTypes.Role)?.Value.ToString();
 
             if (roleName == null)
             {
-                context.Fail();
                 return;
             }
 
             var role = await _roleRepository.FirstAsync(x => x.Name.Equals(roleName), include: i => i.Include(o => o.FunctionsIds));
 
             if (role == null)
-            {
-                context.Fail();
+            {          
                 return;
             }
 
@@ -47,7 +51,6 @@ namespace Commom.API.AuthorizationIds
                 return;
             }
 
-            context.Fail();
             return;
 
         }

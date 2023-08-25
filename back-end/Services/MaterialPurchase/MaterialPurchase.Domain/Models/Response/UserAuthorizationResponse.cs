@@ -15,7 +15,6 @@ namespace MaterialPurchase.Domain.Models.Response
         DateTime UpdatedAt,
         UserResponse? User,
         UserAuthorizationStatus AuthorizationStatus,
-        string Comment,
-        UserAuthorizationPermissions Permissions
+        string Comment
     );
 }

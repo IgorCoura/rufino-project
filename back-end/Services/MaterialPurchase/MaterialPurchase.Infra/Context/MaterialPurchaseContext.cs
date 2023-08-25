@@ -25,6 +25,8 @@ namespace MaterialPurchase.Infra.Context
         public DbSet<PurchaseUserAuthorization> PurchaseUserAuthorizations { get; set; }
         public DbSet<ConstructionUserAuthorization> ConstructionUserAuthorizations { get; set; }
         public DbSet<User> Users { get; set; }
+        public DbSet<UsePermission> UsePermissions { get; set; }
+        public DbSet<FunctionIdPermission> FunctionIdPermissions { get; set; }
 
         public MaterialPurchaseContext(DbContextOptions<MaterialPurchaseContext> options) : base(options)
         {
@@ -46,6 +48,8 @@ namespace MaterialPurchase.Infra.Context
             modelBuilder.ApplyConfiguration(new PurchaseUserAuthorizationMap());
             modelBuilder.ApplyConfiguration(new ConstructionUserAuthorizationMap());
             modelBuilder.ApplyConfiguration(new UserMap());
+            modelBuilder.ApplyConfiguration(new UsePermissionMap());
+            modelBuilder.ApplyConfiguration(new FunctionIdPermissionMap());
 
 
             //DATA FOR TESTS 
@@ -146,7 +150,6 @@ namespace MaterialPurchase.Infra.Context
                         AuthorizationUserGroupId = Guid.Parse("E6389915-3947-46D1-A636-DA6F9AD505AA"),
                         UserId = Guid.Parse("4922766E-D3BA-4D4C-99B0-093D5977D41F"),
                         AuthorizationStatus = Domain.Enum.UserAuthorizationStatus.Pending,
-                        Permissions = Domain.Enum.UserAuthorizationPermissions.Admin,
                         CreatedAt = DateTime.Now,
                         UpdatedAt = DateTime.Now
                     });
@@ -185,7 +188,7 @@ namespace MaterialPurchase.Infra.Context
 
                 modelBuilder.Entity<Role>()
                     .HasMany(p => p.FunctionsIds)
-                    .WithMany(p => p.Roles)
+                    .WithMany()
                     .UsingEntity(j => j.HasData(mData));
 
             }

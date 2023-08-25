@@ -68,7 +68,7 @@ namespace MaterialControl.Infra.Context
 
                 modelBuilder.Entity<Role>()
                     .HasMany(p => p.FunctionsIds)
-                    .WithMany(p => p.Roles)
+                    .WithMany()
                     .UsingEntity(j => j.HasData(mData));
             } 
         }

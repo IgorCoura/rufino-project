@@ -14,27 +14,20 @@ namespace MaterialPurchase.Service.Services.Modify
         {
         }
 
-        public Task<PurchaseUserAuthorization?> VerifyPermissions(IEnumerable<PurchaseAuthUserGroup> purchase, Context context, params UserAuthorizationPermissions[] permissions)
+        public Task<PurchaseUserAuthorization> FindUserAuthorization(Guid id, IEnumerable<PurchaseAuthUserGroup> purchase)
         {
             var orderGroup = purchase.OrderBy(x => x.Priority).ToList();
-            var user = FindUserAuthorization(context.User.Id, orderGroup);
-
-            if (user == null)
+            foreach (var group in orderGroup)
             {
-                if (context.User.FunctionsId.Any(x => x == MaterialPurchaseAuthorizationId.ByPassPurchasePermission))
-                    return Task.FromResult<PurchaseUserAuthorization?>(null);
-                else
+                var userAuth = group.UserAuthorizations.Where(x => x.UserId == id).FirstOrDefault();
+
+                if (userAuth != null)
+                    return Task.FromResult(userAuth);
+
+                var hasPendingAuthorization = group.UserAuthorizations.Any(x => x.AuthorizationStatus == UserAuthorizationStatus.Pending);
+
+                if (hasPendingAuthorization)
                     throw new BadRequestException(MaterialPurchaseErrors.AuthorizationInvalid);
-
-            }
-
-            if (permissions.Any(x => x == user.Permissions))
-            {
-                if (user.Permissions == UserAuthorizationPermissions.Client)
-                {
-                    HasUserPedingWithHighestPriority(context.User.Id, orderGroup);
-                }
-                return Task.FromResult<PurchaseUserAuthorization?>(user);
             }
             throw new BadRequestException(MaterialPurchaseErrors.AuthorizationInvalid);
         }
@@ -72,30 +65,7 @@ namespace MaterialPurchase.Service.Services.Modify
             return Task.CompletedTask;
         }
 
-        private static void HasUserPedingWithHighestPriority(Guid id, List<PurchaseAuthUserGroup> orderGroup)
-        {
-            foreach (var group in orderGroup)
-            {
-                if (group.UserAuthorizations.Any(x => x.UserId == id))
-                    return;
 
-                if (group.UserAuthorizations.Any(x => x.AuthorizationStatus == UserAuthorizationStatus.Pending))
-                    throw new BadRequestException(MaterialPurchaseErrors.AuthorizationInvalid);
-
-            }
-            throw new BadRequestException(MaterialPurchaseErrors.AuthorizationInvalid);
-        }
-
-        private static PurchaseUserAuthorization? FindUserAuthorization(Guid id, List<PurchaseAuthUserGroup> orderGroup)
-        {
-            foreach (var group in orderGroup)
-            {
-                var userAuth = group.UserAuthorizations.Where(x => x.UserId == id).FirstOrDefault();
-
-                if (userAuth != null)
-                    return userAuth;
-            }
-            return null;
-        }
+       
     }
 }

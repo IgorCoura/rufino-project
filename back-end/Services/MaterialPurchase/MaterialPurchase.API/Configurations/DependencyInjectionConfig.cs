@@ -1,4 +1,5 @@
 ﻿using FluentValidation;
+using MaterialPurchase.API.Authorization;
 using MaterialPurchase.Domain.Interfaces.Repositories;
 using MaterialPurchase.Domain.Interfaces.Services;
 using MaterialPurchase.Infra.Repository;
@@ -7,6 +8,7 @@ using MaterialPurchase.Service.Mappers;
 using MaterialPurchase.Service.Services.Consult;
 using MaterialPurchase.Service.Services.Modify;
 using MaterialPurchase.Service.Validations;
+using Microsoft.AspNetCore.Authorization;
 
 namespace MaterialPurchase.API.Configurations
 {
@@ -14,6 +16,7 @@ namespace MaterialPurchase.API.Configurations
     {
         public static IServiceCollection AddDependencies(this IServiceCollection service, IConfiguration configuration)
         {
+            
             #region Repositories
 
             service.AddScoped<IConstructionRepository, ConstructionRepository>();

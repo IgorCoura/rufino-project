@@ -6,8 +6,13 @@ using System.Threading.Tasks;
 
 namespace MaterialPurchase.Domain.Models.Request
 {
-    public record PurchaseRequest
-    (
-        Guid Id
-    );
+    public record PurchaseRequest : ModelBase
+    {
+        public PurchaseRequest(Guid id, Guid constructionId): base(constructionId)
+        {
+            Id = id;
+        }
+
+        public Guid Id { get; set; }
+    }
 }

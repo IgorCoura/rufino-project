@@ -19,8 +19,11 @@ namespace MaterialPurchase.Tests.IntegrationTests
             client.DefaultRequestHeaders.Add("Sid", "E16CDCFC-0EF8-4B9C-AB4D-707C175B3376");
             client.DefaultRequestHeaders.Add("role", "client");
 
-            var purchase = new PurchaseRequest(
-                Guid.Parse("da9752e8-0cd6-4127-8364-c6fa7e1d8c8a")
+            var purchase = new ReleasePurchaseRequest(
+                Guid.Parse("da9752e8-0cd6-4127-8364-c6fa7e1d8c8a"),
+                Guid.Parse("651E60AD-DDAC-45F8-B2ED-60D2DB924AE7"),
+                true,
+                ""
                 );
 
             //Act
@@ -43,8 +46,11 @@ namespace MaterialPurchase.Tests.IntegrationTests
             client.DefaultRequestHeaders.Add("Sid", "59C7F554-38E6-4C13-BB11-FE47BA08F97E");
             client.DefaultRequestHeaders.Add("role", "client");
 
-            var purchase = new PurchaseRequest(
-                Guid.Parse("da9752e8-0cd6-4127-8364-c6fa7e1d8c8a")
+            var purchase = new ReleasePurchaseRequest(
+                Guid.Parse("da9752e8-0cd6-4127-8364-c6fa7e1d8c8a"),
+                Guid.Parse("651E60AD-DDAC-45F8-B2ED-60D2DB924AE7"),
+                true,
+                ""
                 );
 
             //Act
@@ -69,8 +75,11 @@ namespace MaterialPurchase.Tests.IntegrationTests
             client.DefaultRequestHeaders.Add("Sid", "59C7F554-38E6-4C13-BB11-FE47BA08F97E");
             client.DefaultRequestHeaders.Add("role", "client");
 
-            var purchase = new PurchaseRequest(
-                Guid.Parse("ae1d0df7-deed-4e3e-85ab-82bf2453c541")
+            var purchase = new ReleasePurchaseRequest(
+                Guid.Parse("ae1d0df7-deed-4e3e-85ab-82bf2453c541"),
+                Guid.Parse("651E60AD-DDAC-45F8-B2ED-60D2DB924AE7"),
+                true,
+                ""
                 );
 
             //Act
@@ -95,8 +104,11 @@ namespace MaterialPurchase.Tests.IntegrationTests
             client.DefaultRequestHeaders.Add("Sid", "ddf5281b-cdf7-4781-b4ad-8391f743d35c");
             client.DefaultRequestHeaders.Add("role", "client");
 
-            var purchase = new PurchaseRequest(
-                Guid.Parse("0c5a7011-2401-42c2-bd8a-c0b5d13739ce")
+            var purchase = new ReleasePurchaseRequest(
+                Guid.Parse("0c5a7011-2401-42c2-bd8a-c0b5d13739ce"),
+                Guid.Parse("651E60AD-DDAC-45F8-B2ED-60D2DB924AE7"),
+                true,
+                ""
                 );
 
             //Act
@@ -121,8 +133,11 @@ namespace MaterialPurchase.Tests.IntegrationTests
             client.DefaultRequestHeaders.Add("Sid", "4922766E-D3BA-4D4C-99B0-093D5977D41F");
             client.DefaultRequestHeaders.Add("role", "admin");
 
-            var purchase = new PurchaseRequest(
-                Guid.Parse("0c5a7011-2401-42c2-bd8a-c0b5d13739ce")
+            var purchase = new ReleasePurchaseRequest(
+                Guid.Parse("0c5a7011-2401-42c2-bd8a-c0b5d13739ce"),
+                Guid.Parse("651E60AD-DDAC-45F8-B2ED-60D2DB924AE7"),
+                true,
+                ""
                 );
 
             //Act
@@ -147,8 +162,11 @@ namespace MaterialPurchase.Tests.IntegrationTests
             client.DefaultRequestHeaders.Add("Sid", "4922766E-D3BA-4D4C-99B0-093D5977D41F");
             client.DefaultRequestHeaders.Add("role", "client");
 
-            var purchase = new PurchaseRequest(
-                Guid.Parse("0c5a7011-2401-42c2-bd8a-c0b5d13739ce")
+            var purchase = new ReleasePurchaseRequest(
+                Guid.Parse("0c5a7011-2401-42c2-bd8a-c0b5d13739ce"),
+                Guid.Parse("651E60AD-DDAC-45F8-B2ED-60D2DB924AE7"),
+                true,
+                ""
                 );
 
             //Act
@@ -174,6 +192,7 @@ namespace MaterialPurchase.Tests.IntegrationTests
             var dateExpected = DateTime.UtcNow.AddDays(1);
 
             var purchase = new ConfirmDeliveryDateRequest(
+                Guid.Parse("651E60AD-DDAC-45F8-B2ED-60D2DB924AE7"),
                 Guid.Parse("3887e6ff-13a4-4665-a8e3-14632d7dd2ce"),
                 dateExpected
                 );
@@ -204,6 +223,7 @@ namespace MaterialPurchase.Tests.IntegrationTests
             var dateExpected = DateTime.UtcNow.AddDays(1);
 
             var purchase = new ConfirmDeliveryDateRequest(
+                Guid.Parse("651E60AD-DDAC-45F8-B2ED-60D2DB924AE7"),
                 Guid.Parse("3887e6ff-13a4-4665-a8e3-14632d7dd2ce"),
                 dateExpected
                 );
@@ -231,6 +251,7 @@ namespace MaterialPurchase.Tests.IntegrationTests
             var dateExpected = DateTime.UtcNow.AddDays(1);
 
             var purchase = new ConfirmDeliveryDateRequest(
+                Guid.Parse("651E60AD-DDAC-45F8-B2ED-60D2DB924AE7"),
                 Guid.Parse("3887e6ff-13a4-4665-a8e3-14632d7dd2ce"),
                 dateExpected
                 );
@@ -263,6 +284,7 @@ namespace MaterialPurchase.Tests.IntegrationTests
 
 
             var purchase = new ReceiveDeliveryRequest(
+                Guid.Parse("651E60AD-DDAC-45F8-B2ED-60D2DB924AE7"),
                 Guid.Parse("7a694ea5-a2aa-4f38-aed3-b2fbf09cc208"),
                 DateTime.UtcNow,
                 new ReceiveDeliveryItemRequest[]
@@ -302,6 +324,7 @@ namespace MaterialPurchase.Tests.IntegrationTests
 
 
             var purchase = new ReceiveDeliveryRequest(
+                Guid.Parse("651E60AD-DDAC-45F8-B2ED-60D2DB924AE7"),
                 Guid.Parse("7a694ea5-a2aa-4f38-aed3-b2fbf09cc208"),
                 DateTime.UtcNow,
                 new ReceiveDeliveryItemRequest[]
@@ -341,6 +364,7 @@ namespace MaterialPurchase.Tests.IntegrationTests
 
 
             var purchase = new ReceiveDeliveryRequest(
+                Guid.Parse("651E60AD-DDAC-45F8-B2ED-60D2DB924AE7"),
                 Guid.Parse("7a694ea5-a2aa-4f38-aed3-b2fbf09cc208"),
                 DateTime.UtcNow,
                 new ReceiveDeliveryItemRequest[]
@@ -378,6 +402,7 @@ namespace MaterialPurchase.Tests.IntegrationTests
 
 
             var purchase = new ReceiveDeliveryRequest(
+                Guid.Parse("651E60AD-DDAC-45F8-B2ED-60D2DB924AE7"),
                 Guid.Parse("7a694ea5-a2aa-4f38-aed3-b2fbf09cc208"),
                 DateTime.UtcNow,
                 new ReceiveDeliveryItemRequest[]
@@ -415,6 +440,7 @@ namespace MaterialPurchase.Tests.IntegrationTests
 
 
             var purchase = new CancelPurchaseRequest(
+                     Guid.Parse("651E60AD-DDAC-45F8-B2ED-60D2DB924AE7"),
                      Guid.Parse("da9752e8-0cd6-4127-8364-c6fa7e1d8c8a"),
                      "Teste"
                     );

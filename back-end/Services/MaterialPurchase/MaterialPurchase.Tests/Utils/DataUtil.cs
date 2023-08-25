@@ -39,8 +39,7 @@ namespace MaterialPurchase.Tests.Utils
                                 new ConstructionUserAuthorization()
                                 {
                                     UserId = Guid.Parse("FDEC4D71-4300-4F5D-8146-9C3E8D62528B"),
-                                    AuthorizationStatus = Domain.Enum.UserAuthorizationStatus.Pending,
-                                    Permissions = Domain.Enum.UserAuthorizationPermissions.Creator,
+                                    AuthorizationStatus = Domain.Enum.UserAuthorizationStatus.Pending,                 
                                 }
                             }
                         },
@@ -52,8 +51,7 @@ namespace MaterialPurchase.Tests.Utils
                                 new ConstructionUserAuthorization()
                                 {
                                     UserId = Guid.Parse("59C7F554-38E6-4C13-BB11-FE47BA08F97E"),
-                                    AuthorizationStatus = Domain.Enum.UserAuthorizationStatus.Pending,
-                                    Permissions = Domain.Enum.UserAuthorizationPermissions.Client,
+                                    AuthorizationStatus = Domain.Enum.UserAuthorizationStatus.Pending,       
                                 }
                             }
                         },
@@ -186,8 +184,7 @@ namespace MaterialPurchase.Tests.Utils
                                     CreatedAt = DateTime.Now,
                                     UpdatedAt = DateTime.Now,
                                     UserId = Guid.Parse("FDEC4D71-4300-4F5D-8146-9C3E8D62528B"),
-                                    AuthorizationStatus = Domain.Enum.UserAuthorizationStatus.Approved,
-                                    Permissions = Domain.Enum.UserAuthorizationPermissions.Creator,
+                                    AuthorizationStatus = Domain.Enum.UserAuthorizationStatus.Approved,                     
                                 }
                             }
                         },
@@ -203,8 +200,7 @@ namespace MaterialPurchase.Tests.Utils
                                     CreatedAt = DateTime.Now,
                                 UpdatedAt = DateTime.Now,
                                     UserId = Guid.Parse("59C7F554-38E6-4C13-BB11-FE47BA08F97E"),
-                                    AuthorizationStatus = Domain.Enum.UserAuthorizationStatus.Pending,
-                                    Permissions = Domain.Enum.UserAuthorizationPermissions.Client,
+                                    AuthorizationStatus = Domain.Enum.UserAuthorizationStatus.Pending,                            
                                 }
                             }
                         },
@@ -262,7 +258,6 @@ namespace MaterialPurchase.Tests.Utils
                                     UpdatedAt = DateTime.Now,
                                     UserId = Guid.Parse("FDEC4D71-4300-4F5D-8146-9C3E8D62528B"),
                                     AuthorizationStatus = Domain.Enum.UserAuthorizationStatus.Approved,
-                                    Permissions = Domain.Enum.UserAuthorizationPermissions.Creator,
                                 }
                             }
                         },
@@ -279,7 +274,6 @@ namespace MaterialPurchase.Tests.Utils
                                     UpdatedAt = DateTime.Now,
                                     UserId = Guid.Parse("ddf5281b-cdf7-4781-b4ad-8391f743d35c"),
                                     AuthorizationStatus = Domain.Enum.UserAuthorizationStatus.Pending,
-                                    Permissions = Domain.Enum.UserAuthorizationPermissions.Supervisor,
                                 }
                             }
                         },
@@ -296,7 +290,6 @@ namespace MaterialPurchase.Tests.Utils
                                     UpdatedAt = DateTime.Now,
                                     UserId = Guid.Parse("59C7F554-38E6-4C13-BB11-FE47BA08F97E"),
                                     AuthorizationStatus = Domain.Enum.UserAuthorizationStatus.Pending,
-                                    Permissions = Domain.Enum.UserAuthorizationPermissions.Client,
                                 }
                             }
                         },
@@ -354,7 +347,6 @@ namespace MaterialPurchase.Tests.Utils
                                     UpdatedAt = DateTime.Now,
                                     UserId = Guid.Parse("FDEC4D71-4300-4F5D-8146-9C3E8D62528B"),
                                     AuthorizationStatus = Domain.Enum.UserAuthorizationStatus.Approved,
-                                    Permissions = Domain.Enum.UserAuthorizationPermissions.Creator,
                                 }
                             }
                         },
@@ -371,7 +363,6 @@ namespace MaterialPurchase.Tests.Utils
                                     UpdatedAt = DateTime.Now,
                                     UserId = Guid.Parse("59C7F554-38E6-4C13-BB11-FE47BA08F97E"),
                                     AuthorizationStatus = Domain.Enum.UserAuthorizationStatus.Pending,
-                                    Permissions = Domain.Enum.UserAuthorizationPermissions.Client,
                                 }
                             }
                         },
@@ -429,7 +420,6 @@ namespace MaterialPurchase.Tests.Utils
                                     UpdatedAt = DateTime.Now,
                                     UserId = Guid.Parse("FDEC4D71-4300-4F5D-8146-9C3E8D62528B"),
                                     AuthorizationStatus = Domain.Enum.UserAuthorizationStatus.Approved,
-                                    Permissions = Domain.Enum.UserAuthorizationPermissions.Creator,
                                 }
                             }
                         },
@@ -445,8 +435,7 @@ namespace MaterialPurchase.Tests.Utils
                                     CreatedAt = DateTime.Now,
                                     UpdatedAt = DateTime.Now,
                                     UserId = Guid.Parse("ddf5281b-cdf7-4781-b4ad-8391f743d35c"),
-                                    AuthorizationStatus = Domain.Enum.UserAuthorizationStatus.Pending,
-                                    Permissions = Domain.Enum.UserAuthorizationPermissions.Supervisor,
+                                    AuthorizationStatus = Domain.Enum.UserAuthorizationStatus.Pending,  
                                 }
                             }
                         },
@@ -494,7 +483,6 @@ namespace MaterialPurchase.Tests.Utils
                                     UpdatedAt = DateTime.Now,
                                     UserId = Guid.Parse("FDEC4D71-4300-4F5D-8146-9C3E8D62528B"),
                                     AuthorizationStatus = Domain.Enum.UserAuthorizationStatus.Approved,
-                                    Permissions = Domain.Enum.UserAuthorizationPermissions.Creator,
                                 }
                             }
                         },
@@ -511,7 +499,6 @@ namespace MaterialPurchase.Tests.Utils
                                     UpdatedAt = DateTime.Now,
                                     UserId = Guid.Parse("59C7F554-38E6-4C13-BB11-FE47BA08F97E"),
                                     AuthorizationStatus = Domain.Enum.UserAuthorizationStatus.Approved,
-                                    Permissions = Domain.Enum.UserAuthorizationPermissions.Client,
                                 }
                             }
                         }
@@ -559,7 +546,6 @@ namespace MaterialPurchase.Tests.Utils
                                     UpdatedAt = DateTime.Now,
                                     UserId = Guid.Parse("FDEC4D71-4300-4F5D-8146-9C3E8D62528B"),
                                     AuthorizationStatus = Domain.Enum.UserAuthorizationStatus.Approved,
-                                    Permissions = Domain.Enum.UserAuthorizationPermissions.Creator,
                                 }
                             }
                         }
@@ -607,7 +593,6 @@ namespace MaterialPurchase.Tests.Utils
                                     UpdatedAt = DateTime.Now,
                                     UserId = Guid.Parse("FDEC4D71-4300-4F5D-8146-9C3E8D62528B"),
                                     AuthorizationStatus = Domain.Enum.UserAuthorizationStatus.Approved,
-                                    Permissions = Domain.Enum.UserAuthorizationPermissions.Creator,
                                 }
                             }
                         }

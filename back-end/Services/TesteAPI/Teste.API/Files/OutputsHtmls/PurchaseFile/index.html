@@ -1,17 +1,17 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
     <title>Default</title>
     <!--Style A4-->
     <!--https://www.smashingmagazine.com/2015/01/designing-for-print-with-css/-->
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="styles/style.css">
 </head>
 <body>
     <div class="main">
         <div class="header">
             <div class="qrcode">
-                <img style="width:35mm; height:35mm;" src="qrcode.png">
+                <img style="width:35mm; height:35mm;" src="img/qrcode.png">
                 <p>35f9b34b-8053-415f-b203-962ed3cfffaf</p>
             </div>
             <div class="title">AUTORIZAÇÃO PARA FARUTAMENTO DIRETO DE MATERIAIS</div>
@@ -214,13 +214,19 @@
                     <div class="div-table-head">Valor<br>unitário</div>
                     <div class="div-table-head">Valor<br>total</div>
                 </div>
-                <list:materials class="div-table-row">
-                    <div class="div-table-cell col-descricao">{{decription}}</div>
-                    <div class="div-table-cell">{{unit}}</div>
-                    <div class="div-table-cell">{{quantity}}</div>
-                    <div class="div-table-cell">{{unityPrice}}</div>
-                    <div class="div-table-cell">{{totalPrice}}</div>
-                </list:materials>
+                <div class="div-table-row">
+                    <div class="div-table-cell col-descricao">Arroz</div>
+                    <div class="div-table-cell">kg</div>
+                    <div class="div-table-cell">100</div>
+                    <div class="div-table-cell">R% 190,00</div>
+                    <div class="div-table-cell">R$ 500,00</div>
+                </div><div class="div-table-row">
+                    <div class="div-table-cell col-descricao">Arroz</div>
+                    <div class="div-table-cell">kg</div>
+                    <div class="div-table-cell">100</div>
+                    <div class="div-table-cell">1,5</div>
+                    <div class="div-table-cell">R$ 500,00</div>
+                </div>
             </div>
             <div class="div-table-total">Total: R$ 15.000,00</div>
         </div>

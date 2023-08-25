@@ -1,4 +1,5 @@
-﻿using iText.Layout.Element;
+﻿using Commom.FileManager.Files;
+using iText.Layout.Element;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -11,14 +12,20 @@ namespace Commom.FileManager.Html
 {
     public class HtmlManager
     {
-        public static Task<string> InsertValuesInHtmlTemplate(Dictionary<string, dynamic> values, string pathHtmlTemplate)
-        {
-            using StreamReader sr = new StreamReader(pathHtmlTemplate);
-            string html = sr.ReadToEnd();
 
+        public async static Task CreateHtmlFiles(Dictionary<string, dynamic> values, string pathOrigin, string pathDestiny, string fileName)
+        {
+            var pathDestinyHtml = Path.Combine(pathDestiny, fileName);
+            await CopyDirectory.Copy(pathOrigin, pathDestiny);
+            string html = await File.ReadAllTextAsync(pathDestinyHtml);
+            var result = await InsertValuesInHtmlTemplate(values, html);
+            await File.WriteAllTextAsync(pathDestinyHtml, result);
+        }
+        
+        public static Task<string> InsertValuesInHtmlTemplate(Dictionary<string, dynamic> values, string html)
+        {
             var result = ReplaceListTags(html, values);
             result = ReplaceDoubleBraces(result, values);
-
             return Task.FromResult(result);
         }
 
