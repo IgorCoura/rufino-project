@@ -6,13 +6,20 @@ using System.Threading.Tasks;
 
 namespace MaterialPurchase.Domain.Models.Request
 {
-    public record ReceiveDeliveryRequest
-    (
-        Guid PurchaseId,
-        DateTime DeliveryDate,
-        ReceiveDeliveryItemRequest[] ReceiveDeliveryItemRequests
+    public record ReceiveDeliveryRequest : ModelBase
+    {
+        public ReceiveDeliveryRequest(Guid constructionId, Guid purchaseId, DateTime deliveryDate, ReceiveDeliveryItemRequest[] receiveDeliveryItemRequests) : base(constructionId)
+        {
+            PurchaseId = purchaseId;
+            DeliveryDate = deliveryDate;
+            ReceiveDeliveryItemRequests = receiveDeliveryItemRequests;
+        }
 
-    );
+        public Guid PurchaseId { get; set; }
+        public DateTime DeliveryDate { get; set; }
+        public ReceiveDeliveryItemRequest[] ReceiveDeliveryItemRequests { get; set; } = Array.Empty<ReceiveDeliveryItemRequest>();
+    }
+    
 
     public record ReceiveDeliveryItemRequest
     (

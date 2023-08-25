@@ -27,19 +27,21 @@ namespace MaterialPurchase.Service.Services.Modify
             _permissionService = permissionService;
         }
 
-        public async Task<PurchaseResponse> AuthorizePurchase(Context context, PurchaseRequest req)
+        public async Task<PurchaseResponse> AuthorizePurchase(Context context, ReleasePurchaseRequest req)
         {
             var currentPurchase = await _purchaseRepository.FirstAsyncAsTracking(
                 filter: x => x.Id == req.Id,
                 include: i => i.Include(a => a.AuthorizationUserGroups).ThenInclude(b => b.UserAuthorizations))
                ?? throw new BadRequestException(CommomErrors.PropertyNotFound, nameof(req.Id), req.Id.ToString());
 
-            var userAuth = await _permissionService.VerifyPermissions(currentPurchase.AuthorizationUserGroups, context, UserAuthorizationPermissions.Client, UserAuthorizationPermissions.Supervisor, UserAuthorizationPermissions.Admin)
-                ?? throw new BadRequestException(MaterialPurchaseErrors.AuthorizationInvalid);
-
             await _permissionService.VerifyStatus(currentPurchase.Status, PurchaseStatus.Authorizing);
 
-            userAuth.AuthorizationStatus = UserAuthorizationStatus.Approved;
+            var userAuth = await _permissionService.FindUserAuthorization(context.User.Id, currentPurchase.AuthorizationUserGroups)
+                ?? throw new BadRequestException(MaterialPurchaseErrors.AuthorizationInvalid);
+
+            userAuth.AuthorizationStatus = req.Approve ? UserAuthorizationStatus.Approved : UserAuthorizationStatus.Reproved;
+            userAuth.Comment = req.Comment;
+
             await _permissionService.CheckPurchaseAuthorizations(currentPurchase);
 
             await _purchaseRepository.UnitOfWork.SaveChangesAsync();
@@ -47,19 +49,32 @@ namespace MaterialPurchase.Service.Services.Modify
             return _mapper.Map<PurchaseResponse>(currentPurchase);
         }
 
-        public async Task<PurchaseResponse> UnlockPurchase(Context context, PurchaseRequest req)
+        public async Task<PurchaseResponse> UnlockPurchase(Context context, ReleasePurchaseRequest req)
         {
             var currentPurchase = await _purchaseRepository.FirstAsyncAsTracking(
                   filter: x => x.Id == req.Id,
                   include: i => i.Include(a => a.AuthorizationUserGroups).ThenInclude(b => b.UserAuthorizations))
                  ?? throw new BadRequestException(CommomErrors.PropertyNotFound, nameof(req.Id), req.Id.ToString());
 
-
-            await _permissionService.VerifyPermissions(currentPurchase.AuthorizationUserGroups, context, UserAuthorizationPermissions.Supervisor, UserAuthorizationPermissions.Admin);
-
             await _permissionService.VerifyStatus(currentPurchase.Status, PurchaseStatus.Blocked);
 
-            currentPurchase.Status = PurchaseStatus.Pending;
+            if (req.Approve)
+            {
+                currentPurchase.Status = PurchaseStatus.Pending;
+            }
+            else
+            {
+                var user = await _permissionService.FindUserAuthorization(context.User.Id, currentPurchase.AuthorizationUserGroups)
+                    ?? throw new BadRequestException(MaterialPurchaseErrors.AuthorizationInvalid);
+
+                if (user == null)
+                    user = await AddUserInAuthorizeList(currentPurchase, context.User.Id);    
+                
+                user.AuthorizationStatus = UserAuthorizationStatus.Reproved;
+                user.Comment = req.Comment;
+                currentPurchase.Status = PurchaseStatus.Authorizing;
+            }
+            
             await _permissionService.CheckPurchaseAuthorizations(currentPurchase);
 
             await _purchaseRepository.UnitOfWork.SaveChangesAsync();
@@ -73,8 +88,6 @@ namespace MaterialPurchase.Service.Services.Modify
                   filter: x => x.Id == req.PurchaseId,
                   include: i => i.Include(a => a.AuthorizationUserGroups).ThenInclude(b => b.UserAuthorizations))
                  ?? throw new BadRequestException(CommomErrors.PropertyNotFound, nameof(req.PurchaseId), req.PurchaseId.ToString());
-
-            await _permissionService.VerifyPermissions(currentPurchase.AuthorizationUserGroups, context, UserAuthorizationPermissions.Receiver, UserAuthorizationPermissions.Creator, UserAuthorizationPermissions.Admin);
 
             await _permissionService.VerifyStatus(currentPurchase.Status, PurchaseStatus.Approved, PurchaseStatus.DeliveryProblem);
 
@@ -93,8 +106,6 @@ namespace MaterialPurchase.Service.Services.Modify
                   include: i => i.Include(a => a.PurchaseDeliveries).Include(c => c.Materials)
                                 .Include(a => a.AuthorizationUserGroups).ThenInclude(b => b.UserAuthorizations))
                  ?? throw new BadRequestException(CommomErrors.PropertyNotFound, nameof(req.PurchaseId), req.PurchaseId.ToString());
-
-            await _permissionService.VerifyPermissions(currentPurchase.AuthorizationUserGroups, context, UserAuthorizationPermissions.Receiver, UserAuthorizationPermissions.Creator, UserAuthorizationPermissions.Admin);
 
             await _permissionService.VerifyStatus(currentPurchase.Status, PurchaseStatus.WaitingDelivery);
 
@@ -128,90 +139,43 @@ namespace MaterialPurchase.Service.Services.Modify
         {
             var status = new PurchaseStatus[]
             {
+                PurchaseStatus.Pending
+            };
+
+            var result = await CancelPurchase(context, req, status);
+            return _mapper.Map<PurchaseResponse>(result);
+        }
+
+        public async Task<PurchaseResponse> CancelPurchaseAdmin(Context context, CancelPurchaseRequest req)
+        {
+            var status = new PurchaseStatus[]
+            {
                 PurchaseStatus.Pending,
-                PurchaseStatus.Blocked
-            };
-            var permissions = new UserAuthorizationPermissions[]
-            {
-                UserAuthorizationPermissions.Creator,
-                UserAuthorizationPermissions.Supervisor,
-                UserAuthorizationPermissions.Admin
-            };
-            var result = await CancelPurchase(context, req, status, permissions);
-            return _mapper.Map<PurchaseResponse>(result);
-        }
-
-        public async Task<PurchaseResponse> CancelPurchaseDuringAuthorize(Context context, CancelPurchaseRequest req)
-        {
-            var status = new PurchaseStatus[]
-            {
-                PurchaseStatus.Authorizing
-            };
-            var permissions = new UserAuthorizationPermissions[]
-            {
-                UserAuthorizationPermissions.Creator,
-                UserAuthorizationPermissions.Client,
-                UserAuthorizationPermissions.Supervisor,
-                UserAuthorizationPermissions.Admin
-            };
-            var result = await CancelPurchase(context, req, status, permissions);
-            return _mapper.Map<PurchaseResponse>(result);
-        }
-
-        public async Task<PurchaseResponse> CancelPurchaseAfterAuthorize(Context context, CancelPurchaseRequest req)
-        {
-            var status = new PurchaseStatus[]
-            {
+                PurchaseStatus.Authorizing,
                 PurchaseStatus.Approved,
                 PurchaseStatus.WaitingDelivery,
                 PurchaseStatus.DeliveryProblem
 
             };
-            var permissions = new UserAuthorizationPermissions[]
-            {
-                UserAuthorizationPermissions.Admin
-            };
-            var result = await CancelPurchase(context, req, status, permissions);
+            var result = await CancelPurchase(context, req, status);
             return _mapper.Map<PurchaseResponse>(result);
         }
 
-        private Task AddUserInAuthorizeList(Purchase currentPurchase, Context context, CancelPurchaseRequest req)
-        {
-            var userAuthorizations = new List<PurchaseUserAuthorization>()
-                {
-                    new PurchaseUserAuthorization()
-                    {
-                        UserId = context.User.Id,
-                        AuthorizationStatus = UserAuthorizationStatus.Reproved,
-                        Comment = req.Comment,
-                        Permissions = UserAuthorizationPermissions.Admin
-                    }
-                };
-            var authorizationUserGroups = currentPurchase.AuthorizationUserGroups.ToList();
-            authorizationUserGroups.Add(new PurchaseAuthUserGroup()
-            {
-                UserAuthorizations = userAuthorizations
-            });
-            return Task.CompletedTask;
-        }
-
-
-        private async Task<Purchase> CancelPurchase(Context context, CancelPurchaseRequest req, PurchaseStatus[] status, UserAuthorizationPermissions[] permissions)
+        private async Task<Purchase> CancelPurchase(Context context, CancelPurchaseRequest req, PurchaseStatus[] status)
         {
             var currentPurchase = await _purchaseRepository.FirstAsyncAsTracking(
                  filter: x => x.Id == req.PurchaseId,
                  include: i => i.Include(a => a.AuthorizationUserGroups).ThenInclude(b => b.UserAuthorizations))
                 ?? throw new BadRequestException(CommomErrors.PropertyNotFound, nameof(req.PurchaseId), req.PurchaseId.ToString());
-
-            var user = await _permissionService.VerifyPermissions(currentPurchase.AuthorizationUserGroups, context, permissions);
+            
             await _permissionService.VerifyStatus(currentPurchase.Status, status);
+
+            var user = await _permissionService.FindUserAuthorization(context.User.Id, currentPurchase.AuthorizationUserGroups)
+                ?? throw new BadRequestException(MaterialPurchaseErrors.AuthorizationInvalid);
 
             if (user == null)
             {
-                await AddUserInAuthorizeList(currentPurchase, context, req);
-            }
-            else
-            {
+                user = await AddUserInAuthorizeList(currentPurchase, context.User.Id);
                 user.AuthorizationStatus = UserAuthorizationStatus.Reproved;
                 user.Comment = req.Comment;
             }
@@ -221,28 +185,25 @@ namespace MaterialPurchase.Service.Services.Modify
             return currentPurchase;
         }
 
-
-        private static PurchaseUserAuthorization UserIsInTheAuthorizationList(Context context, Purchase purchase)
+        private static Task<PurchaseUserAuthorization> AddUserInAuthorizeList(Purchase currentPurchase, Guid id)
         {
-            var listGroup = purchase.AuthorizationUserGroups.ToList().OrderBy(x => x.Priority);
-
-            foreach (var group in listGroup)
+            var userAuthorization = new PurchaseUserAuthorization()
             {
-                var userAuth = group.UserAuthorizations.Where(x => x.UserId == context.User.Id).FirstOrDefault();
-                if (userAuth != null)
-                {
-                    return userAuth;
-                }
-
-                //Nao pode verificar o proximo grupo se ainda houve pendecias no atual.
-                if (group.UserAuthorizations.Any(x => x.AuthorizationStatus == UserAuthorizationStatus.Pending))
-                {
-                    throw new BadRequestException(MaterialPurchaseErrors.AuthorizationInvalid);
-                }
-            }
-            throw new BadRequestException(MaterialPurchaseErrors.AuthorizationInvalid);
+                UserId = id,
+                AuthorizationStatus = UserAuthorizationStatus.Pending,
+                Comment = ""
+            };
+            var userAuthorizations = new List<PurchaseUserAuthorization>() 
+            {
+                userAuthorization
+            };
+            var authorizationUserGroups = currentPurchase.AuthorizationUserGroups.ToList();
+            authorizationUserGroups.Add(new PurchaseAuthUserGroup()
+            {
+                UserAuthorizations = userAuthorizations
+            });
+            return Task.FromResult(userAuthorization);
         }
-
 
         private static bool AllMaterialWasDelivered(Purchase purchase, ReceiveDeliveryRequest req)
         {

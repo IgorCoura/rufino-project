@@ -20,7 +20,7 @@ namespace MaterialPurchase.API.Controllers
 
         [HttpPost("Authorize")]
         [AuthorizationIdAttribute(MaterialPurchaseAuthorizationId.AuthorizePurchase)]
-        public async Task<ActionResult> Authorize([FromBody] PurchaseRequest req)
+        public async Task<ActionResult> Authorize([FromBody] ReleasePurchaseRequest req)
         {
             var result = await _purchaseService.AuthorizePurchase(Context, req);
             return OkCustomResponse(result);
@@ -28,7 +28,7 @@ namespace MaterialPurchase.API.Controllers
 
         [HttpPost("Unlock")]
         [AuthorizationIdAttribute(MaterialPurchaseAuthorizationId.UnlockPurchase)]
-        public async Task<ActionResult> Unlock([FromBody] PurchaseRequest req)
+        public async Task<ActionResult> Unlock([FromBody] ReleasePurchaseRequest req)
         {
             var result = await _purchaseService.UnlockPurchase(Context, req);
             return OkCustomResponse(result);
@@ -58,19 +58,12 @@ namespace MaterialPurchase.API.Controllers
             return OkCustomResponse(result);
         }
 
-        [HttpPost("Cancel/DuringAuthorize")]
-        [AuthorizationIdAttribute(MaterialPurchaseAuthorizationId.CancelPurchaseDuringAuthorize)]
-        public async Task<ActionResult> CancelClient([FromBody] CancelPurchaseRequest req)
-        {
-            var result = await _purchaseService.CancelPurchaseDuringAuthorize(Context, req);
-            return OkCustomResponse(result);
-        }
 
-        [HttpPost("Cancel/AfterAuthorize")]
+        [HttpPost("Cancel/Admin")]
         [AuthorizationIdAttribute(MaterialPurchaseAuthorizationId.CancelPurchaseAfterAuthorize)]
         public async Task<ActionResult> CancelAdmin([FromBody] CancelPurchaseRequest req)
         {
-            var result = await _purchaseService.CancelPurchaseAfterAuthorize(Context, req);
+            var result = await _purchaseService.CancelPurchaseAdmin(Context, req);
             return OkCustomResponse(result);
         }
 

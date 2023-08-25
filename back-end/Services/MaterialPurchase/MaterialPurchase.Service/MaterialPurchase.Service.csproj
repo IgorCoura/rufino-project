@@ -14,6 +14,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\..\Commom\Commom.API\Commom.API.csproj" />
     <ProjectReference Include="..\..\Commom\Commom.Domain\Commom.Domain.csproj" />
     <ProjectReference Include="..\..\Commom\Commom.MessageBroker\Commom.MessageBroker.csproj" />
     <ProjectReference Include="..\MaterialPurchase.Domain\MaterialPurchase.Domain.csproj" />

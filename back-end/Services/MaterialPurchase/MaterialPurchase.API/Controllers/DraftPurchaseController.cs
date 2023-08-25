@@ -5,6 +5,8 @@ using MaterialPurchase.Domain.Models.Request;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using MaterialPurchase.Domain.Interfaces.Services;
+using Commom.Domain.BaseEntities;
+using Microsoft.AspNetCore.Authorization;
 
 namespace MaterialPurchase.API.Controllers
 {
@@ -13,16 +15,18 @@ namespace MaterialPurchase.API.Controllers
     public class DraftPurchaseController : MainController
     {
         private readonly IDraftPurchaseService _draftPurchaseService;
+        private readonly IAuthorizationService _authorizationService;
 
-        public DraftPurchaseController(IDraftPurchaseService draftPurchaseService)
+        public DraftPurchaseController(IDraftPurchaseService draftPurchaseService, IAuthorizationService authorizationService)
         {
             _draftPurchaseService = draftPurchaseService;
+            _authorizationService = authorizationService;
         }
 
         [HttpPost("Create")]
-        [AuthorizationIdAttribute(MaterialPurchaseAuthorizationId.CreatePurchase)]
         public async Task<ActionResult> Create([FromBody] CreateDraftPurchaseRequest req)
         {
+            var isAuthorize = await _authorizationService.AuthorizeAsync(User, req, new AuthorizationIdRequirement(MaterialPurchaseAuthorizationId.CreatePurchase));
             var result = await _draftPurchaseService.Create(Context, req);
             return OkCustomResponse(result);
         }

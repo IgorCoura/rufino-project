@@ -100,14 +100,7 @@ class GeneratePDF
                             {"decription", "Arroz"},
                             {"unit", "kg"},
                             {"quantity", "100" },
-                            {"unityPrice", new List<Dictionary<string, dynamic>>()
-                                { 
-                                    new Dictionary<string, dynamic>()
-                                    {
-                                        {"a", "123,00"},
-                                        {"b", "123,00"}
-                                    }
-                                } 
+                            {"unityPrice", "R% 190,00" 
                             },
                             {"totalPrice", "R$ 500,00" }
                         },
@@ -116,26 +109,7 @@ class GeneratePDF
                             {"decription", "Arroz"},
                             {"unit", "kg"},
                             {"quantity", "100" },
-                            {"unityPrice", new List<Dictionary<string, dynamic>>()
-                                {
-                                    new Dictionary<string, dynamic>()
-                                    {
-                                        {"a", "123,00"},
-                                        {"b", "123,00"}
-                                    },
-                                    new Dictionary<string, dynamic>()
-                                    {
-                                        {"a", "123ddd,00"},
-                                        {"b", "123ddd,00"}
-                                    }
-                                    ,
-                                    new Dictionary<string, dynamic>()
-                                    {
-                                        {"a", "123cd,00"},
-                                        {"b", "123cd,00"}
-                                    }
-                                }
-                            },
+                            {"unityPrice", "1,5" },
                             {"totalPrice", "R$ 500,00" }
                         }
                     }
@@ -143,10 +117,9 @@ class GeneratePDF
             };
     
 
-        var result = await HtmlManager.InsertValuesInHtmlTemplate(dic, "Html/input.html");
-        await PdfManager.ConvertHtml2Pdf(result, "Html/output.pdf");
-
-        return result;
+        await HtmlManager.CreateHtmlFiles(dic, "Files/HtmlTamplates/PurchaseTamplate", "Files/OutputsHtmls/PurchaseFile", "index.html");
+        await PdfManager.ConvertHtml2Pdf("Files/OutputsHtmls/PurchaseFile/index.html", "Files/OutputsPdfs/PurchaseFile.pdf");
+        return "";
 
     }
 }

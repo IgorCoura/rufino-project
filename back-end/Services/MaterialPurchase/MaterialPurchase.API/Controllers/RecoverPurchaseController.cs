@@ -4,6 +4,8 @@ using MaterialPurchase.Domain.Consts;
 using MaterialPurchase.Domain.Models.Request;
 using Microsoft.AspNetCore.Mvc;
 using MaterialPurchase.Domain.Interfaces.Services;
+using Microsoft.AspNetCore.Authorization;
+using MaterialPurchase.Domain.Entities;
 
 namespace MaterialPurchase.API.Controllers
 {
@@ -12,6 +14,7 @@ namespace MaterialPurchase.API.Controllers
     public class RecoverPurchaseController: MainController
     {
         private readonly IRecoverPurchaseService _recoverPurchaseService;
+       
 
         public RecoverPurchaseController(IRecoverPurchaseService recoverPurchaseService)
         {
@@ -44,7 +47,7 @@ namespace MaterialPurchase.API.Controllers
 
         [HttpGet("Complete")]
         [AuthorizationIdAttribute(MaterialPurchaseAuthorizationId.GetAllPurchaseComplete)]
-        public async Task<ActionResult> CompleteGetAll()
+        public async Task<ActionResult> CompleteGetAll([FromBody] ResourceEntity entity)
         {
             var result = await _recoverPurchaseService.RecoverAllPurchaseComplete();
             return OkCustomResponse(result);

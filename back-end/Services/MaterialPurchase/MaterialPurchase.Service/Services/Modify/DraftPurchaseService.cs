@@ -48,8 +48,6 @@ namespace MaterialPurchase.Service.Services.Modify
 
             var authorizationUserGroups = ConvertAuthorizationUserGroups(context, construction.PurchasingAuthorizationUserGroups);
 
-            await _permissionService.VerifyPermissions(authorizationUserGroups, context, UserAuthorizationPermissions.Creator, UserAuthorizationPermissions.Admin);
-
             var purchase = _mapper.Map<Purchase>(req);
 
             purchase.AuthorizationUserGroups = authorizationUserGroups;
@@ -75,8 +73,6 @@ namespace MaterialPurchase.Service.Services.Modify
                 filter: x => x.Id == req.Id,
                 include: i => i.Include(x => x.Materials).Include(o => o.AuthorizationUserGroups).ThenInclude(o => o.UserAuthorizations))
                 ?? throw new BadRequestException(CommomErrors.PropertyNotFound, nameof(req.Id), req.Id.ToString());
-
-            await _permissionService.VerifyPermissions(currentPurchase.AuthorizationUserGroups, context, UserAuthorizationPermissions.Creator, UserAuthorizationPermissions.Admin);
 
             await _permissionService.VerifyStatus(currentPurchase.Status, PurchaseStatus.Open);
 
@@ -120,8 +116,6 @@ namespace MaterialPurchase.Service.Services.Modify
                 include: i => i.Include(o => o.AuthorizationUserGroups).ThenInclude(o => o.UserAuthorizations))
                 ?? throw new BadRequestException(CommomErrors.PropertyNotFound, nameof(req.Id), req.Id.ToString());
 
-            await _permissionService.VerifyPermissions(currentPurchase.AuthorizationUserGroups, context, UserAuthorizationPermissions.Creator, UserAuthorizationPermissions.Admin);
-
             await _permissionService.VerifyStatus(currentPurchase.Status, PurchaseStatus.Open);
 
             await _purchaseRepository.DeleteAsync(currentPurchase);
@@ -138,8 +132,6 @@ namespace MaterialPurchase.Service.Services.Modify
                 filter: x => x.Id == req.Id,
                 include: i => i.Include(o => o.AuthorizationUserGroups).ThenInclude(o => o.UserAuthorizations))
                 ?? throw new BadRequestException(CommomErrors.PropertyNotFound, nameof(req.Id), req.Id.ToString());
-
-            await _permissionService.VerifyPermissions(currentPurchase.AuthorizationUserGroups, context, UserAuthorizationPermissions.Creator, UserAuthorizationPermissions.Admin);
 
             await _permissionService.VerifyStatus(currentPurchase.Status, PurchaseStatus.Open);
 
@@ -167,7 +159,6 @@ namespace MaterialPurchase.Service.Services.Modify
                         {
                             UserId = u.UserId,
                             AuthorizationStatus = u.AuthorizationStatus,
-                            Permissions = u.Permissions
                         };
                     }).ToList()
                 };

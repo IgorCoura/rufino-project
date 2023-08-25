@@ -22,9 +22,6 @@ namespace MaterialPurchase.Infra.Mapping
                 .HasMaxLength(250)
                 .IsRequired();
 
-            builder.Property(x => x.Permissions)
-                .IsRequired();
-
             builder.HasOne(x => x.User)
                 .WithMany()
                 .HasForeignKey(x => x.UserId)

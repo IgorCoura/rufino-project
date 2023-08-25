@@ -19,7 +19,7 @@ namespace Commom.API.Authentication
             {
                 x.RequireHttpsMetadata = false;
                 x.SaveToken = true;
-                x.SetJwksOptions(new JwkOptions(config["Authentication:JwksUri"], audience: config["Authentication:Audience"]));
+                x.SetJwksOptions(new JwkOptions(config["Authentication:JwksUri"]!, audience: config["Authentication:Audience"]));
                 x.TokenValidationParameters.ValidateLifetime = true;
                 x.Events = new JwtBearerEvents
                 {
