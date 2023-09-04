@@ -8,7 +8,7 @@ namespace MaterialPurchase.Domain.Models.Request
 {
     public record PurchaseRequest : ModelBase
     {
-        public PurchaseRequest(Guid id, Guid constructionId): base(constructionId)
+        public PurchaseRequest(Guid id, Guid constructionId, Guid companyId): base(constructionId, companyId)
         {
             Id = id;
         }

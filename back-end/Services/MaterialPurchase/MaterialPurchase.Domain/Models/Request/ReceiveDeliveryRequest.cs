@@ -8,7 +8,7 @@ namespace MaterialPurchase.Domain.Models.Request
 {
     public record ReceiveDeliveryRequest : ModelBase
     {
-        public ReceiveDeliveryRequest(Guid constructionId, Guid purchaseId, DateTime deliveryDate, ReceiveDeliveryItemRequest[] receiveDeliveryItemRequests) : base(constructionId)
+        public ReceiveDeliveryRequest(Guid constructionId, Guid companyId, Guid purchaseId, DateTime deliveryDate, ReceiveDeliveryItemRequest[] receiveDeliveryItemRequests) : base(constructionId, companyId)
         {
             PurchaseId = purchaseId;
             DeliveryDate = deliveryDate;

@@ -1,5 +1,5 @@
-using Commom.API.Authentication;
 using Commom.API.Filters;
+using Commom.Auth.Authentication;
 using Commom.Domain.PasswordHasher;
 using Identity.API.Application.Interfaces;
 using Identity.API.Application.Options;

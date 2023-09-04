@@ -8,7 +8,7 @@ namespace MaterialPurchase.Domain.Models.Request
 {
     public record ConfirmDeliveryDateRequest : ModelBase
     {
-        public ConfirmDeliveryDateRequest(Guid constructionId, Guid purchaseId, DateTime limitDeliveryDate):base(constructionId)
+        public ConfirmDeliveryDateRequest(Guid constructionId, Guid companyId, Guid purchaseId, DateTime limitDeliveryDate):base(constructionId, companyId)
         {
             PurchaseId = purchaseId;
             LimitDeliveryDate = limitDeliveryDate;

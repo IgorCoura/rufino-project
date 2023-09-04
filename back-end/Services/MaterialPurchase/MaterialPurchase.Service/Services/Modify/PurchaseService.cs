@@ -170,8 +170,7 @@ namespace MaterialPurchase.Service.Services.Modify
             
             await _permissionService.VerifyStatus(currentPurchase.Status, status);
 
-            var user = await _permissionService.FindUserAuthorization(context.User.Id, currentPurchase.AuthorizationUserGroups)
-                ?? throw new BadRequestException(MaterialPurchaseErrors.AuthorizationInvalid);
+            var user = await _permissionService.FindUserAuthorization(context.User.Id, currentPurchase.AuthorizationUserGroups);
 
             if (user == null)
             {

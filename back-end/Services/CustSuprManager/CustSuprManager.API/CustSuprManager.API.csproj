@@ -29,6 +29,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\Commom\Commom.API\Commom.API.csproj" />
+    <ProjectReference Include="..\..\Commom\Commom.Auth\Commom.Auth.csproj" />
     <ProjectReference Include="..\CustSuprManager.Domain\CustSuprManager.Domain.csproj" />
     <ProjectReference Include="..\CustSuprManager.Infra\CustSuprManager.Infra.csproj" />
   </ItemGroup>

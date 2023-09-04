@@ -46,7 +46,30 @@ namespace MaterialPurchase.Infra.Mapping
                 .IsRequired();
             });
 
-            builder.HasMany(x => x.UsePermissions)
+            builder.OwnsOne(x => x.DeliveryAddress, a =>
+            {
+                a.Property(v => v.Street)
+                .HasMaxLength(50)
+                .IsRequired();
+
+                a.Property(v => v.City)
+                .HasMaxLength(50)
+                .IsRequired();
+
+                a.Property(v => v.State)
+                .HasMaxLength(50)
+                .IsRequired();
+
+                a.Property(v => v.Country)
+                .HasMaxLength(50)
+                .IsRequired();
+
+                a.Property(v => v.ZipCode)
+                .HasMaxLength(16)
+                .IsRequired();
+            });
+
+            builder.HasMany(x => x.CompanyPermissions)
                 .WithOne()
                 .HasForeignKey(x => x.ConstructionId);
 

@@ -14,7 +14,7 @@ namespace MaterialPurchase.Service.Services.Modify
         {
         }
 
-        public Task<PurchaseUserAuthorization> FindUserAuthorization(Guid id, IEnumerable<PurchaseAuthUserGroup> purchase)
+        public Task<PurchaseUserAuthorization?> FindUserAuthorization(Guid id, IEnumerable<PurchaseAuthUserGroup> purchase)
         {
             var orderGroup = purchase.OrderBy(x => x.Priority).ToList();
             foreach (var group in orderGroup)
@@ -22,14 +22,15 @@ namespace MaterialPurchase.Service.Services.Modify
                 var userAuth = group.UserAuthorizations.Where(x => x.UserId == id).FirstOrDefault();
 
                 if (userAuth != null)
-                    return Task.FromResult(userAuth);
+                    return Task.FromResult<PurchaseUserAuthorization?>(userAuth);
 
                 var hasPendingAuthorization = group.UserAuthorizations.Any(x => x.AuthorizationStatus == UserAuthorizationStatus.Pending);
 
                 if (hasPendingAuthorization)
-                    throw new BadRequestException(MaterialPurchaseErrors.AuthorizationInvalid);
+                    return Task.FromResult<PurchaseUserAuthorization?>(null);
             }
-            throw new BadRequestException(MaterialPurchaseErrors.AuthorizationInvalid);
+            return Task.FromResult<PurchaseUserAuthorization?>(null);
+            
         }
 
         public Task VerifyStatus(PurchaseStatus currentStatus, params PurchaseStatus[] statusHaveBe)

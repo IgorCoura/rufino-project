@@ -8,10 +8,12 @@ namespace MaterialPurchase.Domain.Models.Request
 {
     public record CreateDraftPurchaseRequest : ModelBase
     {
-        public CreateDraftPurchaseRequest(Guid constructionId, 
+        public CreateDraftPurchaseRequest(
             Guid providerId,
+            Guid constructionId,
+            Guid companyId,
             decimal freight,
-            CreateMaterialDraftPurchaseRequest[] materials):base(constructionId)
+            CreateMaterialDraftPurchaseRequest[] materials):base(constructionId, companyId)
         {
             ProviderId = providerId;
             Freight = freight;

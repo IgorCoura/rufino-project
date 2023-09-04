@@ -1,9 +1,11 @@
 ﻿using Commom.Domain.Errors;
 using Commom.Domain.Exceptions;
 using Commom.Tests.Models;
+using MaterialPurchase.Domain.Entities;
 using MaterialPurchase.Domain.Models.Request;
 using MaterialPurchase.Domain.Models.Response;
 using MaterialPurchase.Tests.Utils;
+using System.ComponentModel.Design;
 using System.Net;
 
 namespace MaterialPurchase.Tests.IntegrationTests
@@ -19,12 +21,16 @@ namespace MaterialPurchase.Tests.IntegrationTests
             var factory = new MaterialPurchaseFactory();
             var client = factory.CreateClient();
 
-            client.DefaultRequestHeaders.Add("Sid", "FDEC4D71-4300-4F5D-8146-9C3E8D62528B");
-            client.DefaultRequestHeaders.Add("Role", "client");
+            client.DefaultRequestHeaders.Add("Sid", "F363DA96-1EBB-419D-B178-3F7F3B54B863");
+            client.DefaultRequestHeaders.Add("Role", "creator");
+
+            var constructionId = Guid.Parse("651E60AD-DDAC-45F8-B2ED-60D2DB924AE7");
+            var companyId = Guid.Parse("3551e82d-3dc4-4017-a9d7-b062550409fb");
 
             var newPurchase = new CreateDraftPurchaseRequest(
                 Guid.Parse("8299C0DC-927D-45DE-B2C8-71C38FAF9384"),
-                Guid.Parse("651E60AD-DDAC-45F8-B2ED-60D2DB924AE7"),
+                constructionId,
+                companyId,
                 99,
                 new CreateMaterialDraftPurchaseRequest[]
                 {
@@ -38,7 +44,7 @@ namespace MaterialPurchase.Tests.IntegrationTests
             //Asssert 
             Assert.Equal(HttpStatusCode.OK, response.StatusCode);
             var content = response.Content.ReadFromJsonAsync(typeof(BaseResponse<PurchaseResponse>)).Result as BaseResponse<PurchaseResponse>;
-            var result = await client.GetFromJsonAsync<BaseResponse<CompletePurchaseResponse>>($"/api/v1/RecoverPurchase/Complete/{content.Data.Id}");
+            var result = await client.GetFromJsonAsync<BaseResponse<CompletePurchaseResponse>>($"/api/v1/RecoverPurchase/Complete/{constructionId}/{content.Data.Id}");
             Assert.True(newPurchase.EqualExtesion(result!.Data!));
         }
 
@@ -49,12 +55,16 @@ namespace MaterialPurchase.Tests.IntegrationTests
             var factory = new MaterialPurchaseFactory();
             var client = factory.CreateClient();
 
-            client.DefaultRequestHeaders.Add("Sid", "FDEC4D71-4300-4F5D-8146-9C3E8D62528B");
-            client.DefaultRequestHeaders.Add("Role", "client");
+            client.DefaultRequestHeaders.Add("Sid", "F363DA96-1EBB-419D-B178-3F7F3B54B863");
+            client.DefaultRequestHeaders.Add("Role", "creator");
+
+            var constructionId = Guid.Parse("651E60AD-DDAC-45F8-B2ED-60D2DB924AE7");
+            var companyId = Guid.Parse("3551e82d-3dc4-4017-a9d7-b062550409fb");
 
             var newPurchase = new CreateDraftPurchaseRequest(
                 Guid.Parse("6bb5a348-64d3-4c92-aedd-63319de238c4"),
-                Guid.Parse("651E60AD-DDAC-45F8-B2ED-60D2DB924AE7"),
+                constructionId,
+                companyId,
                 99,
                 new CreateMaterialDraftPurchaseRequest[]
                 {
@@ -78,12 +88,16 @@ namespace MaterialPurchase.Tests.IntegrationTests
             var factory = new MaterialPurchaseFactory();
             var client = factory.CreateClient();
 
-            client.DefaultRequestHeaders.Add("Sid", "FDEC4D71-4300-4F5D-8146-9C3E8D62528B");
-            client.DefaultRequestHeaders.Add("Role", "client");
+            client.DefaultRequestHeaders.Add("Sid", "F363DA96-1EBB-419D-B178-3F7F3B54B863");
+            client.DefaultRequestHeaders.Add("Role", "creator");
+
+            var constructionId = Guid.Parse("651E60AD-DDAC-45F8-B2ED-60D2DB924AE7");
+            var companyId = Guid.Parse("3551e82d-3dc4-4017-a9d7-b062550409fb");
 
             var newPurchase = new CreateDraftPurchaseRequest(
                 Guid.Parse("6bb5a348-64d3-4c92-aedd-63319de238c4"),
-                Guid.Parse("651E60AD-DDAC-45F8-B2ED-60D2DB924AE7"),
+                constructionId,
+                companyId,
                 -9,
                 new CreateMaterialDraftPurchaseRequest[]
                 {
@@ -108,13 +122,17 @@ namespace MaterialPurchase.Tests.IntegrationTests
             var factory = new MaterialPurchaseFactory();
             var client = factory.CreateClient();
 
-            client.DefaultRequestHeaders.Add("Sid", "FDEC4D71-4300-4F5D-8146-9C3E8D62528B");
-            client.DefaultRequestHeaders.Add("Role", "client");
+            client.DefaultRequestHeaders.Add("Sid", "F363DA96-1EBB-419D-B178-3F7F3B54B863");
+            client.DefaultRequestHeaders.Add("Role", "creator");
+
+            var constructionId = Guid.Parse("651E60AD-DDAC-45F8-B2ED-60D2DB924AE7");
+            var companyId = Guid.Parse("3551e82d-3dc4-4017-a9d7-b062550409fb");
 
             var purchase = new DraftPurchaseRequest(
                 Guid.Parse("CA100B9F-8D13-4E64-ADBC-A90462D05A9A"),
                 Guid.Parse("6bb5a348-64d3-4c92-aedd-63319de238c4"),
-                Guid.Parse("651E60AD-DDAC-45F8-B2ED-60D2DB924AE7"),
+                constructionId,
+                companyId,
                 99,
                 new MaterialDraftPurchaseRequest[]
                 {
@@ -139,13 +157,17 @@ namespace MaterialPurchase.Tests.IntegrationTests
             var factory = new MaterialPurchaseFactory();
             var client = factory.CreateClient();
 
-            client.DefaultRequestHeaders.Add("Sid", "FDEC4D71-4300-4F5D-8146-9C3E8D62528B");
-            client.DefaultRequestHeaders.Add("Role", "client");
+            client.DefaultRequestHeaders.Add("Sid", "F363DA96-1EBB-419D-B178-3F7F3B54B863");
+            client.DefaultRequestHeaders.Add("Role", "creator");
+
+            var constructionId = Guid.Parse("651E60AD-DDAC-45F8-B2ED-60D2DB924AE7");
+            var companyId = Guid.Parse("3551e82d-3dc4-4017-a9d7-b062550409fb");
 
             var purchase = new DraftPurchaseRequest(
                 Guid.Parse("CA100B9F-8D13-4E64-ADBC-A90462D05A9A"),
                 Guid.Parse("8299C0DC-927D-45DE-B2C8-71C38FAF9384"),
-                Guid.Parse("651E60AD-DDAC-45F8-B2ED-60D2DB924AE7"),
+                constructionId,
+                companyId,
                 -99,
                 new MaterialDraftPurchaseRequest[]
                 {
@@ -169,13 +191,17 @@ namespace MaterialPurchase.Tests.IntegrationTests
             var factory = new MaterialPurchaseFactory();
             var client = factory.CreateClient();
 
-            client.DefaultRequestHeaders.Add("Sid", "FDEC4D71-4300-4F5D-8146-9C3E8D62528B");
-            client.DefaultRequestHeaders.Add("Role", "client");
+            client.DefaultRequestHeaders.Add("Sid", "F363DA96-1EBB-419D-B178-3F7F3B54B863");
+            client.DefaultRequestHeaders.Add("Role", "creator");
+
+            var constructionId = Guid.Parse("651E60AD-DDAC-45F8-B2ED-60D2DB924AE7");
+            var companyId = Guid.Parse("3551e82d-3dc4-4017-a9d7-b062550409fb");
 
             var purchase = new DraftPurchaseRequest(
                 Guid.Parse("CA100B9F-8D13-4E64-ADBC-A90462D05A9A"),
                 Guid.Parse("8299C0DC-927D-45DE-B2C8-71C38FAF9384"),
-                Guid.Parse("651E60AD-DDAC-45F8-B2ED-60D2DB924AE7"),
+                constructionId,
+                companyId,
                 99,
                 new MaterialDraftPurchaseRequest[]
                 {
@@ -190,7 +216,7 @@ namespace MaterialPurchase.Tests.IntegrationTests
             //Asssert 
             Assert.Equal(HttpStatusCode.OK, response.StatusCode);
             var content = response.Content.ReadFromJsonAsync(typeof(BaseResponse<PurchaseResponse>)).Result as BaseResponse<PurchaseResponse>;
-            var result = await client.GetFromJsonAsync<BaseResponse<CompletePurchaseResponse>>($"/api/v1/RecoverPurchase/Complete/{content!.Data!.Id}");
+            var result = await client.GetFromJsonAsync<BaseResponse<CompletePurchaseResponse>>($"/api/v1/RecoverPurchase/Complete/{constructionId}/{content!.Data!.Id}");
             Assert.True(purchase.EqualExtesion(result!.Data!));
         }
 
@@ -202,19 +228,23 @@ namespace MaterialPurchase.Tests.IntegrationTests
             var factory = new MaterialPurchaseFactory();
             var client = factory.CreateClient();
 
-            client.DefaultRequestHeaders.Add("Sid", "FDEC4D71-4300-4F5D-8146-9C3E8D62528B");
-            client.DefaultRequestHeaders.Add("Role", "client");
+            client.DefaultRequestHeaders.Add("Sid", "F363DA96-1EBB-419D-B178-3F7F3B54B863");
+            client.DefaultRequestHeaders.Add("Role", "creator");
+
+            var constructionId = Guid.Parse("651E60AD-DDAC-45F8-B2ED-60D2DB924AE7");
+            var companyId = Guid.Parse("3551e82d-3dc4-4017-a9d7-b062550409fb");
 
             var purchase = new PurchaseRequest(
                 Guid.Parse("CA100B9F-8D13-4E64-ADBC-A90462D05A9A"),
-                Guid.Parse("651E60AD-DDAC-45F8-B2ED-60D2DB924AE7")
+                constructionId,
+                companyId
                 );
 
             //Act
             await client.PostAsJsonAsync("/api/v1/DraftPurchase/Delete", purchase);
 
             //Asssert 
-            var result = await client.GetAsync($"/api/v1/RecoverPurchase/Complete/{purchase.Id}");
+            var result = await client.GetAsync($"/api/v1/RecoverPurchase/Complete/{constructionId}/{purchase.Id}");
             Assert.Equal(HttpStatusCode.BadRequest, result.StatusCode);
             var errorResponse = result.Content.ReadFromJsonAsync<ErrorResponse>().Result as ErrorResponse;
             Assert.Equal(RecoverError.GetCode(CommomErrors.PropertyNotFound), errorResponse?.Errors[0].ErrorCode);
@@ -227,12 +257,16 @@ namespace MaterialPurchase.Tests.IntegrationTests
             var factory = new MaterialPurchaseFactory();
             var client = factory.CreateClient();
 
-            client.DefaultRequestHeaders.Add("Sid", "FDEC4D71-4300-4F5D-8146-9C3E8D62528B");
-            client.DefaultRequestHeaders.Add("Role", "client");
+            client.DefaultRequestHeaders.Add("Sid", "F363DA96-1EBB-419D-B178-3F7F3B54B863");
+            client.DefaultRequestHeaders.Add("Role", "creator");
+
+            var constructionId = Guid.Parse("651E60AD-DDAC-45F8-B2ED-60D2DB924AE7");
+            var companyId = Guid.Parse("3551e82d-3dc4-4017-a9d7-b062550409fb");
 
             var purchase = new PurchaseRequest(
                 Guid.Parse("CA100B9F-8D13-4E64-ADBC-A90462D05A9A"),
-                Guid.Parse("651E60AD-DDAC-45F8-B2ED-60D2DB924AE7")
+                constructionId,
+                companyId
                 );
 
             //Act
@@ -241,7 +275,7 @@ namespace MaterialPurchase.Tests.IntegrationTests
             //Asssert 
             Assert.Equal(HttpStatusCode.OK, response.StatusCode);
             var content = response.Content.ReadFromJsonAsync<BaseResponse<PurchaseResponse>>().Result as BaseResponse<PurchaseResponse>;
-            var result = await client.GetFromJsonAsync<BaseResponse<CompletePurchaseResponse>>($"/api/v1/RecoverPurchase/Complete/{purchase.Id}");
+            var result = await client.GetFromJsonAsync<BaseResponse<CompletePurchaseResponse>>($"/api/v1/RecoverPurchase/Complete/{constructionId}/{purchase.Id}");
             Assert.True(content?.Success);
             Assert.Equal(Domain.Enum.PurchaseStatus.Authorizing, result?.Data?.Status);
         }
