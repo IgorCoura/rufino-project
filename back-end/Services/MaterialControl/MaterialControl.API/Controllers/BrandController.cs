@@ -1,6 +1,5 @@
-﻿using Commom.API.AuthorizationIds;
-using Commom.API.Controllers;
-using Commom.Domain.BaseEntities;
+﻿using Commom.API.Controllers;
+using Commom.Auth.Authorization;
 using MaterialControl.Domain.Consts;
 using MaterialControl.Domain.Interfaces;
 using MaterialControl.Domain.Models.Request;
@@ -10,7 +9,7 @@ namespace MaterialControl.API.Controllers
 {
     [ApiVersion("1.0")]
     [Route("api/v{version:apiVersion}/[controller]")]
-    public class BrandController : MainController
+    public class BrandController : BaseController
     {
         private readonly IBrandService _brandService;
 

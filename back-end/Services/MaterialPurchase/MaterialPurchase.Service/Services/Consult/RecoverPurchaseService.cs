@@ -23,7 +23,7 @@ namespace MaterialPurchase.Service.Services.Consult
         {
             var result = await _purchaseRepository.FirstAsync(
                 filter: x => x.Id == id,
-                include: i => i.Include(o => o.Construction).Include(o => o.Provider)!)
+                include: i => i.Include(o => o.Construction).Include(o => o.Provider).Include(o => o.Company)!)
                 ?? throw new BadRequestException(CommomErrors.PropertyNotFound, nameof(id), id.ToString());
 
             return _mapper.Map<SimplePurchaseResponse>(result);
@@ -33,7 +33,8 @@ namespace MaterialPurchase.Service.Services.Consult
         {
             var result = await _purchaseRepository.FirstAsync(
                 filter: x => x.Id == id,
-                include: i => i.Include(o => o.Construction)
+                include: i => i.Include(o => o.Company)
+                               .Include(o => o.Construction)
                                .Include(o => o.Provider)
                                .Include(o => o.Materials)
                                .ThenInclude(o => o.Brand)
@@ -49,6 +50,7 @@ namespace MaterialPurchase.Service.Services.Consult
             var result = await _purchaseRepository.FirstAsync(
                 filter: x => x.Id == id,
                 include: i => i.Include(o => o.Construction)
+                               .Include(o => o.Company)
                                .Include(o => o.Provider)
                                .Include(o => o.Materials)
                                .ThenInclude(o => o.Brand)
@@ -67,6 +69,7 @@ namespace MaterialPurchase.Service.Services.Consult
         {
             var result = await _purchaseRepository.GetDataAsync(
                 include: i => i.Include(o => o.Construction)
+                               .Include(o => o.Company)
                                .Include(o => o.Provider)
                                .Include(o => o.Materials)
                                .ThenInclude(o => o.Brand)
@@ -84,6 +87,7 @@ namespace MaterialPurchase.Service.Services.Consult
         {
             var result = await _purchaseRepository.GetDataAsync(
                 include: i => i.Include(o => o.Construction)
+                               .Include(o => o.Company)
                                .Include(o => o.Provider)
                                .Include(o => o.Materials)
                                .ThenInclude(o => o.Brand)
@@ -96,7 +100,7 @@ namespace MaterialPurchase.Service.Services.Consult
         public async Task<IEnumerable<SimplePurchaseResponse>> SimpleRecoverAll()
         {
             var result = await _purchaseRepository.GetDataAsync(
-                include: i => i.Include(o => o.Construction).Include(o => o.Provider)!);
+                include: i => i.Include(o => o.Construction).Include(o => o.Provider).Include(o => o.Company)!);
 
             return _mapper.Map<IEnumerable<SimplePurchaseResponse>>(result);
         }

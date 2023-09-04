@@ -1,4 +1,3 @@
-using Commom.API.AuthorizationIds;
 using HtmlAgilityPack;
 using iText.Html2pdf;
 using Microsoft.AspNetCore.Authorization;

@@ -16,6 +16,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\..\Commom\Commom.Auth\Commom.Auth.csproj" />
     <ProjectReference Include="..\..\Commom\Commom.Domain\Commom.Domain.csproj" />
     <ProjectReference Include="..\..\Commom\Commom.Infra\Commom.Infra.csproj" />
     <ProjectReference Include="..\MaterialPurchase.Domain\MaterialPurchase.Domain.csproj" />

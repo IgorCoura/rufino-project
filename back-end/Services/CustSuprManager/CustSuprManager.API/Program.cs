@@ -1,12 +1,12 @@
-using Commom.API.Authentication;
 using Commom.API.Filters;
-using Commom.API.AuthorizationIds;
 using Microsoft.EntityFrameworkCore;
 using EntityFramework.Exceptions.PostgreSQL;
 using CustSuprManager.Infra.Context;
 using Microsoft.AspNetCore.Mvc;
 using System.Text.Json.Serialization;
 using CustSuprManager.API.Configurations;
+using Commom.Auth.Authentication;
+using Commom.Auth.Authorization;
 
 //CustSuprManager.API
 
@@ -30,7 +30,7 @@ builder.Services.AddDbContext<CustSuprManagerContext>(options =>
 // Add services to the container.
 
 builder.Services.AddAuthenticationJwtBearer(builder.Configuration);
-builder.Services.AddFunctionIdAuthorization<CustSuprManagerContext>(builder.Configuration);
+builder.Services.AddBaseAuthorization(builder.Configuration);
 builder.Services.AddDependencies(builder.Configuration);
 
 builder.Services.AddApiVersioning(options =>

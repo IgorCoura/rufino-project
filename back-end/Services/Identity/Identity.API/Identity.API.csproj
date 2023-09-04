@@ -31,6 +31,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\Commom\Commom.API\Commom.API.csproj" />
+    <ProjectReference Include="..\..\Commom\Commom.Auth\Commom.Auth.csproj" />
     <ProjectReference Include="..\..\Commom\Commom.Domain\Commom.Domain.csproj" />
     <ProjectReference Include="..\..\Commom\Commom.Infra\Commom.Infra.csproj" />
     <ProjectReference Include="..\Security.Jwt\Security.Jwt.csproj" />

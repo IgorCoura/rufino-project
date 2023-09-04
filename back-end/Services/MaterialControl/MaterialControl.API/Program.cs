@@ -1,13 +1,12 @@
-using Commom.API.Authentication;
+using Commom.Auth.Authentication;
+using Commom.Auth.Authorization;
 using Commom.API.Filters;
-using Commom.API.AuthorizationIds;
 using EntityFramework.Exceptions.PostgreSQL;
 using MaterialControl.Infra.Context;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.Text.Json.Serialization;
 using MaterialControl.API.Configurations;
-using EasyNetQ;
 using Commom.MessageBroker;
 
 //MaterialControl.API
@@ -35,7 +34,7 @@ builder.Services.AddMessageBrokerConfig(builder.Configuration, "material_control
 // Add services to the container.
 
 builder.Services.AddAuthenticationJwtBearer(builder.Configuration);
-builder.Services.AddFunctionIdAuthorization<MaterialControlContext>(builder.Configuration);
+builder.Services.AddBaseAuthorization(builder.Configuration);
 builder.Services.AddDependencies(builder.Configuration);
 
 builder.Services.AddApiVersioning(options =>

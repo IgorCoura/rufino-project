@@ -1,8 +1,6 @@
-﻿using Commom.Domain.BaseEntities;
+﻿using Commom.Auth.Entities;
 using MaterialControl.Domain.Entities;
 using MaterialControl.Infra.Context;
-using MaterialPurchase.Domain.Entities;
-using Microsoft.EntityFrameworkCore;
 using System.Data;
 
 namespace Commom.Tests.Utils

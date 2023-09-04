@@ -1,8 +1,8 @@
-﻿using Commom.Domain.BaseEntities;
-using MaterialPurchase.Domain.Entities;
+﻿using MaterialPurchase.Domain.Entities;
 using MaterialPurchase.Infra.Context;
 using Microsoft.EntityFrameworkCore;
 using System.Data;
+using Commom.Auth.Entities;
 
 namespace MaterialPurchase.Tests.Utils
 {
@@ -10,7 +10,38 @@ namespace MaterialPurchase.Tests.Utils
     {
         public static void InsertDataForTests(this MaterialPurchaseContext context)
         {
+            var ids = new string[]
+            {
+                "1001", "1002", "1003", "1004", "1005", "1006",
+                "1007", "1008", "1009", "1010", "1011", "1012",
+                "1013", "1014", "1015", "1016", "1017", "1018",
+            };
+
+
             List<Task> tasks = new List<Task>();
+
+            tasks.Add(context.Companies.AddRangeAsync(
+                new Company()
+                {
+                    Id = Guid.Parse("3551e82d-3dc4-4017-a9d7-b062550409fb"),
+                    Name = "Rufino Empreiteira",
+                    Description = "description",
+                    Cnpj = "02.624.911/0001-23",
+                    Email = "rufino@email.com",
+                    Phone = "Phone",
+                    Address = new Address("Dom Pedro", "Piracicaba", "Sao Paulo", "Brasil", "99999-000")
+                },
+                new Company()
+                {
+                    Id = Guid.Parse("855b640e-4d45-47df-ad89-4b144c91896c"),
+                    Name = "Rbc2 Empreiteira",
+                    Description = "description",
+                    Cnpj = "02.624.922/0001-23",
+                    Email = "rbc@email.com",
+                    Phone = "Phone",
+                    Address = new Address("Dom Romeu", "Piracicaba", "Sao Paulo", "Brasil", "99999-000")
+                }
+                ));
 
             tasks.Add(context.Constructions.AddRangeAsync(
                 new Construction()
@@ -39,7 +70,7 @@ namespace MaterialPurchase.Tests.Utils
                                 new ConstructionUserAuthorization()
                                 {
                                     UserId = Guid.Parse("FDEC4D71-4300-4F5D-8146-9C3E8D62528B"),
-                                    AuthorizationStatus = Domain.Enum.UserAuthorizationStatus.Pending,                 
+                                    AuthorizationStatus = Domain.Enum.UserAuthorizationStatus.Pending,
                                 }
                             }
                         },
@@ -51,10 +82,94 @@ namespace MaterialPurchase.Tests.Utils
                                 new ConstructionUserAuthorization()
                                 {
                                     UserId = Guid.Parse("59C7F554-38E6-4C13-BB11-FE47BA08F97E"),
-                                    AuthorizationStatus = Domain.Enum.UserAuthorizationStatus.Pending,       
+                                    AuthorizationStatus = Domain.Enum.UserAuthorizationStatus.Pending,
                                 }
                             }
                         },
+                    },
+                    CompanyPermissions = new List<CompanyPermission>()
+                    {
+                        new CompanyPermission()
+                        {
+                            CompanyId = Guid.Parse("3551e82d-3dc4-4017-a9d7-b062550409fb"),
+                            UsePermissions = new List<UsePermission>()
+                            {
+                                //Admin
+                                new UsePermission()
+                                {
+                                    UserId = Guid.Parse("4922766E-D3BA-4D4C-99B0-093D5977D41F"),
+                                    FunctionsIds = new string[]
+                                    {
+                                       "1001", "1002", "1003", "1004", "1005", "1006",
+                                        "1007", "1008", "1009", "1010", "1011", "1012",
+                                        "1013", "1014", "1015", "1016", "1017", "1018",
+                                    }.Select(x => new FunctionIdPermission()
+                                    {
+                                        Id = Guid.NewGuid(),
+                                        Name = x
+                                    }).ToList()
+                                },
+
+                                //Creator
+                                new UsePermission()
+                                {
+                                    UserId = Guid.Parse("F363DA96-1EBB-419D-B178-3F7F3B54B863"),
+                                    FunctionsIds = new string[]
+                                    {
+                                       "1001", "1002", "1003", "1004", "1007", "1008",
+                                        "1009",  "1012","1013", "1014", "1015", "1016",
+                                        "1017", "1018",
+                                    }.Select(x => new FunctionIdPermission()
+                                    {
+                                        Id = Guid.NewGuid(),
+                                        Name = x
+                                    }).ToList()
+                                },
+
+                                //user1
+                                new UsePermission()
+                                {
+                                    UserId = Guid.Parse("FDEC4D71-4300-4F5D-8146-9C3E8D62528B"),
+                                    FunctionsIds =  new string[]
+                                    {
+                                       "1005", "1012","1013", "1014", "1015", "1016", "1017", "1018",
+                                    }.Select(x => new FunctionIdPermission()
+                                    {
+                                        Id = Guid.NewGuid(),
+                                        Name = x
+                                    }).ToList()
+                                },
+
+                                //user2
+                                new UsePermission()
+                                {
+                                    UserId = Guid.Parse("59C7F554-38E6-4C13-BB11-FE47BA08F97E"),
+                                    FunctionsIds =  new string[]
+                                    {
+                                       "1005", "1012","1013", "1014", "1015", "1016", "1017", "1018",
+                                    }.Select(x => new FunctionIdPermission()
+                                    {
+                                        Id = Guid.NewGuid(),
+                                        Name = x
+                                    }).ToList()
+                                },
+
+                                //sup1
+                                new UsePermission()
+                                {
+                                    UserId = Guid.Parse("ddf5281b-cdf7-4781-b4ad-8391f743d35c"),
+                                    FunctionsIds =  new string[]
+                                    {
+                                       "1005", "1006", "1007", "1008", "1009", "1010", "1011", "1012",
+                                        "1013", "1014", "1015", "1016", "1017", "1018",
+                                    }.Select(x => new FunctionIdPermission()
+                                    {
+                                        Id = Guid.NewGuid(),
+                                        Name = x
+                                    }).ToList()
+                                },
+                            }
+                        }
                     }
                 }
              ));
@@ -184,7 +299,7 @@ namespace MaterialPurchase.Tests.Utils
                                     CreatedAt = DateTime.Now,
                                     UpdatedAt = DateTime.Now,
                                     UserId = Guid.Parse("FDEC4D71-4300-4F5D-8146-9C3E8D62528B"),
-                                    AuthorizationStatus = Domain.Enum.UserAuthorizationStatus.Approved,                     
+                                    AuthorizationStatus = Domain.Enum.UserAuthorizationStatus.Approved,
                                 }
                             }
                         },
@@ -200,7 +315,7 @@ namespace MaterialPurchase.Tests.Utils
                                     CreatedAt = DateTime.Now,
                                 UpdatedAt = DateTime.Now,
                                     UserId = Guid.Parse("59C7F554-38E6-4C13-BB11-FE47BA08F97E"),
-                                    AuthorizationStatus = Domain.Enum.UserAuthorizationStatus.Pending,                            
+                                    AuthorizationStatus = Domain.Enum.UserAuthorizationStatus.Pending,
                                 }
                             }
                         },
@@ -435,7 +550,7 @@ namespace MaterialPurchase.Tests.Utils
                                     CreatedAt = DateTime.Now,
                                     UpdatedAt = DateTime.Now,
                                     UserId = Guid.Parse("ddf5281b-cdf7-4781-b4ad-8391f743d35c"),
-                                    AuthorizationStatus = Domain.Enum.UserAuthorizationStatus.Pending,  
+                                    AuthorizationStatus = Domain.Enum.UserAuthorizationStatus.Pending,
                                 }
                             }
                         },
@@ -624,13 +739,6 @@ namespace MaterialPurchase.Tests.Utils
                     }
                 }
                 ));
-
-            var ids = new string[]
-            {
-                "1001", "1002", "1003", "1004", "1005", "1006",
-                "1007", "1008", "1009", "1010", "1011", "1012",
-                "1013", "1014", "1015", "1016", "1017", "1018",
-            };
 
             var functionsIdsAdmin = ids.Select(x => new FunctionId()
             {

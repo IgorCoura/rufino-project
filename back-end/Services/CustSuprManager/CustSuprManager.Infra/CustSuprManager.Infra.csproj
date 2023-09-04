@@ -7,12 +7,12 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\..\Commom\Commom.Auth\Commom.Auth.csproj" />
     <ProjectReference Include="..\..\Commom\Commom.Infra\Commom.Infra.csproj" />
   </ItemGroup>
 
   <ItemGroup>
     <Folder Include="Mapping\" />
-    <Folder Include="Migrations\" />
     <Folder Include="Repository\" />
   </ItemGroup>
 

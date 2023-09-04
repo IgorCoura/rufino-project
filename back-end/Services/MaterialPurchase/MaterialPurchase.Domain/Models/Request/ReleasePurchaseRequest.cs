@@ -8,7 +8,7 @@ namespace MaterialPurchase.Domain.Models.Request
 {
     public record ReleasePurchaseRequest : ModelBase
     {
-        public ReleasePurchaseRequest(Guid id, Guid constructionId, bool approve, string comment) : base(constructionId)
+        public ReleasePurchaseRequest(Guid id, Guid constructionId, Guid companyId, bool approve, string comment) : base(constructionId, companyId)
         {
             Id = id;
             Approve = approve;

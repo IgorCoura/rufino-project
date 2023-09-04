@@ -1,11 +1,7 @@
-using Commom.API.Authentication;
-using MaterialPurchase.API.Configurations;
 using MaterialPurchase.Infra.Context;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.Text.Json.Serialization;
-using System.Text.Json;
-using Commom.API.AuthorizationIds;
 using Commom.API.Filters;
 using EntityFramework.Exceptions.PostgreSQL;
 using EasyNetQ;
@@ -15,6 +11,9 @@ using MaterialPurchase.Service.Consumer;
 using Commom.MessageBroker;
 using Microsoft.AspNetCore.Authorization;
 using MaterialPurchase.API.Authorization;
+using Commom.Auth.Authentication;
+using Commom.Auth.Authorization;
+using MaterialPurchase.API.Configurations;
 
 // MATERIA PURCHASE API
 
@@ -43,9 +42,12 @@ builder.Services.AddMessageBrokerConfig(builder.Configuration, "material_purchas
 
 // Add services to the container.
 builder.Services.AddDependencies(builder.Configuration);
+
+// Auth
 builder.Services.AddAuthenticationJwtBearer(builder.Configuration);
+builder.Services.AddBaseAuthorization(builder.Configuration);
 builder.Services.AddScoped<IAuthorizationHandler, PermissionAccessHandler>();
-builder.Services.AddFunctionIdAuthorization<MaterialPurchaseContext>(builder.Configuration);
+
 
 
 

@@ -7,7 +7,7 @@ namespace Identity.API.Controllers
 {
     [ApiVersion("1.0")]
     [Route("api/v{version:apiVersion}/[controller]")]
-    public class AuthController : MainController
+    public class AuthController : BaseController
     {
         private readonly IAuthService _authService;
 

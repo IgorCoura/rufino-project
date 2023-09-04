@@ -22,6 +22,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\..\Commom\Commom.Auth\Commom.Auth.csproj" />
     <ProjectReference Include="..\..\Commom\Commom.Tests\Commom.Tests.csproj" />
     <ProjectReference Include="..\MaterialControl.API\MaterialControl.API.csproj" />
     <ProjectReference Include="..\MaterialControl.Infra\MaterialControl.Infra.csproj" />
