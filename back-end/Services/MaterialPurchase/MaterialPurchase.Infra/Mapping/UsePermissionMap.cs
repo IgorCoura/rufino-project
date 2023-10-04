@@ -23,6 +23,7 @@ namespace MaterialPurchase.Infra.Mapping
             builder.HasOne(x => x.User)
                 .WithMany()
                 .HasForeignKey(x => x.UserId);
+
         }
     }
 }

@@ -11,7 +11,7 @@ namespace MaterialPurchase.API.Authorization
     public class PermissionAccessHandler : AuthorizationHandler<AuthorizationIdRequirement, ModelBase>
     {
         private readonly IConstructionRepository _constructionRepository;
-        public PermissionAccessHandler(IConstructionRepository constructionRepository, ICompanyRepository companyRepository)
+        public PermissionAccessHandler(IConstructionRepository constructionRepository)
         {
             _constructionRepository = constructionRepository;
         }
@@ -32,7 +32,9 @@ namespace MaterialPurchase.API.Authorization
                 
 
             var havePermission = construction.CompanyPermissions
-                .Any(x => x.Id == resource.CompanyId && x.UsePermissions.Any(x => x.UserId == id && x.FunctionsIds.Any(x => x.Name == requirement.Id)));
+                .Any(x => x.CompanyId == resource.CompanyId && x.UsePermissions.Any(x => x.UserId == id && x.FunctionsIds.Any(x => x.Name == requirement.Id)));
+
+    
 
             if (havePermission)
             {

@@ -23,10 +23,10 @@ namespace MaterialPurchase.API.Controllers
             _authorizationService = authorizationService;
         }
 
-        [HttpGet("Simple/{constructionId}/{id}")]
-        public async Task<ActionResult> SimpleGet([FromRoute] Guid constructionId, [FromRoute] Guid id)
+        [HttpGet("Simple/{companyId}/{constructionId}/{id}")]
+        public async Task<ActionResult> SimpleGet([FromRoute] Guid constructionId, [FromRoute] Guid companyId, [FromRoute] Guid id)
         {
-            var model = new ModelBase(constructionId);
+            var model = new ModelBase(constructionId, companyId);
             return await VerifyAuthorize(_authorizationService, model, MaterialPurchaseAuthorizationId.GetPurchaseSimple, async () =>
             {
                 var result = await _recoverPurchaseService.SimpleRecover(id);
@@ -34,10 +34,10 @@ namespace MaterialPurchase.API.Controllers
             });            
         }
 
-        [HttpGet("Material/{constructionId}/{id}")]
-        public async Task<ActionResult> GetWithMaterial([FromRoute] Guid constructionId,  [FromRoute] Guid id)
+        [HttpGet("Material/{companyId}/{constructionId}/{id}")]
+        public async Task<ActionResult> GetWithMaterial([FromRoute] Guid constructionId, [FromRoute] Guid companyId,  [FromRoute] Guid id)
         {
-            var model = new ModelBase(constructionId);
+            var model = new ModelBase(constructionId, companyId);
             return await VerifyAuthorize(_authorizationService, model, MaterialPurchaseAuthorizationId.GetPurchaseWithMaterial, async () =>
             {
                 var result = await _recoverPurchaseService.RecoverPurchaseWithMaterials(id);
@@ -46,22 +46,30 @@ namespace MaterialPurchase.API.Controllers
             
         }
 
-        [HttpGet("Complete/{constructionId}/{id}")]
-        public async Task<ActionResult> CompleteGet([FromRoute] Guid constructionId, [FromRoute] Guid id)
+        [HttpGet("Complete/{companyId}/{constructionId}/{id}")]
+        public async Task<ActionResult> CompleteGet([FromRoute] Guid constructionId, [FromRoute] Guid companyId, [FromRoute] Guid id)
         {
-            var model = new ModelBase(constructionId);
+            var model = new ModelBase(constructionId, companyId);
             return await VerifyAuthorize(_authorizationService, model, MaterialPurchaseAuthorizationId.GetPurchaseComplete, async () =>
             {
-                var result = await _recoverPurchaseService.RecoverPurchaseComplete(id);
-                return OkCustomResponse(result);
+                try
+                {
+                    var result = await _recoverPurchaseService.RecoverPurchaseComplete(id);
+                    return OkCustomResponse(result);
+                }
+                catch(Exception ex)
+                {
+                    throw ex;
+                }
+                
             });
             
         }
 
-        [HttpGet("Complete/{constructionId}")]
-        public async Task<ActionResult> CompleteGetAll([FromRoute] Guid constructionId)
+        [HttpGet("Complete/{companyId}/{constructionId}")]
+        public async Task<ActionResult> CompleteGetAll([FromRoute] Guid constructionId, [FromRoute] Guid companyId)
         {
-            var model = new ModelBase(constructionId);
+            var model = new ModelBase(constructionId, companyId);
             return await VerifyAuthorize(_authorizationService, model, MaterialPurchaseAuthorizationId.GetAllPurchaseComplete, async () =>
             {
                 var result = await _recoverPurchaseService.RecoverAllPurchaseComplete();
@@ -70,10 +78,10 @@ namespace MaterialPurchase.API.Controllers
             
         }
 
-        [HttpGet("Material/{constructionId}")]
-        public async Task<ActionResult> GetAllWithMaterial([FromRoute] Guid constructionId)
+        [HttpGet("Material/{companyId}/{constructionId}")]
+        public async Task<ActionResult> GetAllWithMaterial([FromRoute] Guid constructionId, [FromRoute] Guid companyId)
         {
-            var model = new ModelBase(constructionId);
+            var model = new ModelBase(constructionId, companyId);
             return await VerifyAuthorize(_authorizationService, model, MaterialPurchaseAuthorizationId.GetAllPurchaseWithMaterial, async () =>
             {
                 var result = await _recoverPurchaseService.RecoverAllPurchaseWithMaterials();
@@ -81,10 +89,10 @@ namespace MaterialPurchase.API.Controllers
             });
         }
 
-        [HttpGet("Simple/{constructionId}")]
-        public async Task<ActionResult> SimpleGetAll([FromRoute] Guid constructionId)
+        [HttpGet("Simple/{companyId}/{constructionId}")]
+        public async Task<ActionResult> SimpleGetAll([FromRoute] Guid constructionId, [FromRoute] Guid companyId)
         {
-            var model = new ModelBase(constructionId);
+            var model = new ModelBase(constructionId, companyId);
             return await VerifyAuthorize(_authorizationService, model, MaterialPurchaseAuthorizationId.GetAllPurchaseSimple, async () =>
             {
                 var result = await _recoverPurchaseService.SimpleRecoverAll();

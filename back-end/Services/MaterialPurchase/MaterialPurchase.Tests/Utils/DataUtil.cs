@@ -3,6 +3,7 @@ using MaterialPurchase.Infra.Context;
 using Microsoft.EntityFrameworkCore;
 using System.Data;
 using Commom.Auth.Entities;
+using System.ComponentModel.Design;
 
 namespace MaterialPurchase.Tests.Utils
 {
@@ -40,6 +41,57 @@ namespace MaterialPurchase.Tests.Utils
                     Email = "rbc@email.com",
                     Phone = "Phone",
                     Address = new Address("Dom Romeu", "Piracicaba", "Sao Paulo", "Brasil", "99999-000")
+                }
+                ));
+
+            tasks.Add(context.Users.AddRangeAsync(
+                new User()
+                {
+
+                    Id = Guid.Parse("4922766E-D3BA-4D4C-99B0-093D5977D41F"),
+                    Username = "admin",
+                    CreatedAt = DateTime.Now,
+                    UpdatedAt = DateTime.Now,
+                    Role = "admin"
+
+                },
+                new User()
+                {
+
+                    Id = Guid.Parse("F363DA96-1EBB-419D-B178-3F7F3B54B863"),
+                    Username = "Creator",
+                    CreatedAt = DateTime.Now,
+                    UpdatedAt = DateTime.Now,
+                    Role = "client"
+
+                },
+                new User()
+                {
+
+                    Id = Guid.Parse("FDEC4D71-4300-4F5D-8146-9C3E8D62528B"),
+                    Username = "user1",
+                    CreatedAt = DateTime.Now,
+                    UpdatedAt = DateTime.Now,
+                    Role = "client"
+
+                },
+                new User()
+                {
+
+                    Id = Guid.Parse("59C7F554-38E6-4C13-BB11-FE47BA08F97E"),
+                    Username = "user2",
+                    CreatedAt = DateTime.Now,
+                    UpdatedAt = DateTime.Now,
+                    Role = "client"
+                },
+                new User()
+                {
+
+                    Id = Guid.Parse("ddf5281b-cdf7-4781-b4ad-8391f743d35c"),
+                    Username = "sup1",
+                    CreatedAt = DateTime.Now,
+                    UpdatedAt = DateTime.Now,
+                    Role = "client"
                 }
                 ));
 
@@ -174,56 +226,7 @@ namespace MaterialPurchase.Tests.Utils
                 }
              ));
 
-            tasks.Add(context.Users.AddRangeAsync(
-                new User()
-                {
 
-                    Id = Guid.Parse("4922766E-D3BA-4D4C-99B0-093D5977D41F"),
-                    Username = "admin",
-                    CreatedAt = DateTime.Now,
-                    UpdatedAt = DateTime.Now,
-                    Role = "admin"
-
-                },
-                new User()
-                {
-
-                    Id = Guid.Parse("F363DA96-1EBB-419D-B178-3F7F3B54B863"),
-                    Username = "Creator",
-                    CreatedAt = DateTime.Now,
-                    UpdatedAt = DateTime.Now,
-                    Role = "client"
-
-                },
-                new User()
-                {
-
-                    Id = Guid.Parse("FDEC4D71-4300-4F5D-8146-9C3E8D62528B"),
-                    Username = "user1",
-                    CreatedAt = DateTime.Now,
-                    UpdatedAt = DateTime.Now,
-                    Role = "client"
-
-                },
-                new User()
-                {
-
-                    Id = Guid.Parse("59C7F554-38E6-4C13-BB11-FE47BA08F97E"),
-                    Username = "user2",
-                    CreatedAt = DateTime.Now,
-                    UpdatedAt = DateTime.Now,
-                    Role = "client"
-                },
-                new User()
-                {
-
-                    Id = Guid.Parse("ddf5281b-cdf7-4781-b4ad-8391f743d35c"),
-                    Username = "sup1",
-                    CreatedAt = DateTime.Now,
-                    UpdatedAt = DateTime.Now,
-                    Role = "client"
-                }
-                ));
 
             tasks.Add(context.Materials.AddRangeAsync(
                 new Material
@@ -242,7 +245,7 @@ namespace MaterialPurchase.Tests.Utils
                     CreatedAt = DateTime.Now,
                     UpdatedAt = DateTime.Now
                 }
-                )); ;
+                ));
 
             tasks.Add(context.Brands.AddRangeAsync(
                 new Brand()
@@ -283,6 +286,7 @@ namespace MaterialPurchase.Tests.Utils
                     Id = Guid.Parse("CA100B9F-8D13-4E64-ADBC-A90462D05A9A"),
                     ProviderId = Guid.Parse("8299C0DC-927D-45DE-B2C8-71C38FAF9384"),
                     ConstructionId = Guid.Parse("651E60AD-DDAC-45F8-B2ED-60D2DB924AE7"),
+                    CompanyId = Guid.Parse("3551e82d-3dc4-4017-a9d7-b062550409fb"),
                     Freight = 11,
                     Status = Domain.Enum.PurchaseStatus.Open,
                     AuthorizationUserGroups = new List<PurchaseAuthUserGroup>()
@@ -313,7 +317,7 @@ namespace MaterialPurchase.Tests.Utils
                                 new PurchaseUserAuthorization()
                                 {
                                     CreatedAt = DateTime.Now,
-                                UpdatedAt = DateTime.Now,
+                                    UpdatedAt = DateTime.Now,
                                     UserId = Guid.Parse("59C7F554-38E6-4C13-BB11-FE47BA08F97E"),
                                     AuthorizationStatus = Domain.Enum.UserAuthorizationStatus.Pending,
                                 }
@@ -356,6 +360,7 @@ namespace MaterialPurchase.Tests.Utils
                     Id = Guid.Parse("da9752e8-0cd6-4127-8364-c6fa7e1d8c8a"),
                     ProviderId = Guid.Parse("8299C0DC-927D-45DE-B2C8-71C38FAF9384"),
                     ConstructionId = Guid.Parse("651E60AD-DDAC-45F8-B2ED-60D2DB924AE7"),
+                    CompanyId = Guid.Parse("3551e82d-3dc4-4017-a9d7-b062550409fb"),
                     Freight = 11,
                     Status = Domain.Enum.PurchaseStatus.Authorizing,
                     AuthorizationUserGroups = new List<PurchaseAuthUserGroup>()
@@ -445,6 +450,7 @@ namespace MaterialPurchase.Tests.Utils
                     Id = Guid.Parse("ae1d0df7-deed-4e3e-85ab-82bf2453c541"),
                     ProviderId = Guid.Parse("8299C0DC-927D-45DE-B2C8-71C38FAF9384"),
                     ConstructionId = Guid.Parse("651E60AD-DDAC-45F8-B2ED-60D2DB924AE7"),
+                    CompanyId = Guid.Parse("3551e82d-3dc4-4017-a9d7-b062550409fb"),
                     Freight = 11,
                     Status = Domain.Enum.PurchaseStatus.Authorizing,
                     AuthorizationUserGroups = new List<PurchaseAuthUserGroup>()
@@ -518,6 +524,7 @@ namespace MaterialPurchase.Tests.Utils
                     Id = Guid.Parse("0c5a7011-2401-42c2-bd8a-c0b5d13739ce"),
                     ProviderId = Guid.Parse("8299C0DC-927D-45DE-B2C8-71C38FAF9384"),
                     ConstructionId = Guid.Parse("651E60AD-DDAC-45F8-B2ED-60D2DB924AE7"),
+                    CompanyId = Guid.Parse("3551e82d-3dc4-4017-a9d7-b062550409fb"),
                     Freight = 11,
                     Status = Domain.Enum.PurchaseStatus.Blocked,
                     AuthorizationUserGroups = new List<PurchaseAuthUserGroup>()
@@ -581,6 +588,7 @@ namespace MaterialPurchase.Tests.Utils
                     Id = Guid.Parse("3887e6ff-13a4-4665-a8e3-14632d7dd2ce"),
                     ProviderId = Guid.Parse("8299C0DC-927D-45DE-B2C8-71C38FAF9384"),
                     ConstructionId = Guid.Parse("651E60AD-DDAC-45F8-B2ED-60D2DB924AE7"),
+                    CompanyId = Guid.Parse("3551e82d-3dc4-4017-a9d7-b062550409fb"),
                     Freight = 11,
                     Status = Domain.Enum.PurchaseStatus.Approved,
                     AuthorizationUserGroups = new List<PurchaseAuthUserGroup>()
@@ -644,6 +652,7 @@ namespace MaterialPurchase.Tests.Utils
                     Id = Guid.Parse("29475890-4638-4a8b-a866-30a4b1ae2ac5"),
                     ProviderId = Guid.Parse("8299C0DC-927D-45DE-B2C8-71C38FAF9384"),
                     ConstructionId = Guid.Parse("651E60AD-DDAC-45F8-B2ED-60D2DB924AE7"),
+                    CompanyId = Guid.Parse("3551e82d-3dc4-4017-a9d7-b062550409fb"),
                     Freight = 11,
                     Status = Domain.Enum.PurchaseStatus.DeliveryProblem,
                     AuthorizationUserGroups = new List<PurchaseAuthUserGroup>()
@@ -691,6 +700,7 @@ namespace MaterialPurchase.Tests.Utils
                     Id = Guid.Parse("7a694ea5-a2aa-4f38-aed3-b2fbf09cc208"),
                     ProviderId = Guid.Parse("8299C0DC-927D-45DE-B2C8-71C38FAF9384"),
                     ConstructionId = Guid.Parse("651E60AD-DDAC-45F8-B2ED-60D2DB924AE7"),
+                    CompanyId = Guid.Parse("3551e82d-3dc4-4017-a9d7-b062550409fb"),
                     Freight = 11,
                     Status = Domain.Enum.PurchaseStatus.WaitingDelivery,
                     AuthorizationUserGroups = new List<PurchaseAuthUserGroup>()

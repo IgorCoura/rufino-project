@@ -69,9 +69,6 @@ namespace MaterialPurchase.Infra.Mapping
                 .IsRequired();
             });
 
-            builder.HasMany(x => x.CompanyPermissions)
-                .WithOne()
-                .HasForeignKey(x => x.ConstructionId);
 
         }
     }

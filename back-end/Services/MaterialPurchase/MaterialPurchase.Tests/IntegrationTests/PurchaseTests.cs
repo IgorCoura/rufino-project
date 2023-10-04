@@ -126,7 +126,7 @@ namespace MaterialPurchase.Tests.IntegrationTests
 
             Assert.Equal(HttpStatusCode.OK, response.StatusCode);
             var content = response.Content.ReadFromJsonAsync<BaseResponse<PurchaseResponse>>().Result as BaseResponse<PurchaseResponse>;
-            var result = await client.GetFromJsonAsync<BaseResponse<CompletePurchaseResponse>>($"/api/v1/RecoverPurchase/Complete/{constructionId}/{purchase.Id}");
+            var result = await client.GetFromJsonAsync<BaseResponse<CompletePurchaseResponse>>($"/api/v1/RecoverPurchase/Complete/{companyId}/{constructionId}/{purchase.Id}");
             Assert.True(content?.Success);
             Assert.Equal(Domain.Enum.PurchaseStatus.Approved, result?.Data?.Status);
         }
@@ -159,7 +159,7 @@ namespace MaterialPurchase.Tests.IntegrationTests
             //Asssert 
             Assert.Equal(HttpStatusCode.OK, response.StatusCode);
             var content = response.Content.ReadFromJsonAsync<BaseResponse<PurchaseResponse>>().Result as BaseResponse<PurchaseResponse>;
-            var result = await client.GetFromJsonAsync<BaseResponse<CompletePurchaseResponse>>($"/api/v1/RecoverPurchase/Complete/{constructionId}/{purchase.Id}");
+            var result = await client.GetFromJsonAsync<BaseResponse<CompletePurchaseResponse>>($"/api/v1/RecoverPurchase/Complete/{companyId}/{constructionId}/{purchase.Id}");
             Assert.True(content?.Success);
             Assert.Equal(Domain.Enum.PurchaseStatus.Authorizing, result?.Data?.Status);
         }
@@ -192,7 +192,7 @@ namespace MaterialPurchase.Tests.IntegrationTests
             //Asssert 
             Assert.Equal(HttpStatusCode.OK, response.StatusCode);
             var content = response.Content.ReadFromJsonAsync<BaseResponse<PurchaseResponse>>().Result as BaseResponse<PurchaseResponse>;
-            var result = await client.GetFromJsonAsync<BaseResponse<CompletePurchaseResponse>>($"/api/v1/RecoverPurchase/Complete/{constructionId}/{purchase.Id}");
+            var result = await client.GetFromJsonAsync<BaseResponse<CompletePurchaseResponse>>($"/api/v1/RecoverPurchase/Complete/{companyId}/{constructionId}/{purchase.Id}");
             Assert.True(content?.Success);
             Assert.Equal(Domain.Enum.PurchaseStatus.Authorizing, result?.Data?.Status);
         }
@@ -255,7 +255,7 @@ namespace MaterialPurchase.Tests.IntegrationTests
             //Asssert 
             Assert.Equal(HttpStatusCode.OK, response.StatusCode);
             var content = response.Content.ReadFromJsonAsync<BaseResponse<PurchaseResponse>>().Result as BaseResponse<PurchaseResponse>;
-            var result = await client.GetFromJsonAsync<BaseResponse<CompletePurchaseResponse>>($"/api/v1/RecoverPurchase/Complete/{constructionId}/{content?.Data?.Id}");
+            var result = await client.GetFromJsonAsync<BaseResponse<CompletePurchaseResponse>>($"/api/v1/RecoverPurchase/Complete/{companyId}/{constructionId}/{content?.Data?.Id}");
             Assert.True(content?.Success);
             Assert.Equal(Domain.Enum.PurchaseStatus.WaitingDelivery, result?.Data?.Status);
             Assert.Equal(dateExpected, result?.Data?.LimitDeliveryDate);
@@ -320,7 +320,7 @@ namespace MaterialPurchase.Tests.IntegrationTests
             //Asssert 
             Assert.Equal(HttpStatusCode.OK, response.StatusCode);
             var content = response.Content.ReadFromJsonAsync<BaseResponse<PurchaseResponse>>().Result as BaseResponse<PurchaseResponse>;
-            var result = await client.GetFromJsonAsync<BaseResponse<CompletePurchaseResponse>>($"/api/v1/RecoverPurchase/Complete/{constructionId}/{content?.Data?.Id}");
+            var result = await client.GetFromJsonAsync<BaseResponse<CompletePurchaseResponse>>($"/api/v1/RecoverPurchase/Complete/{companyId}/{constructionId}/{content?.Data?.Id}");
             Assert.True(content?.Success);
             Assert.Equal(Domain.Enum.PurchaseStatus.WaitingDelivery, result?.Data?.Status);
             Assert.Equal(dateExpected, result?.Data?.LimitDeliveryDate);
@@ -363,7 +363,7 @@ namespace MaterialPurchase.Tests.IntegrationTests
             //Asssert 
             Assert.Equal(HttpStatusCode.OK, response.StatusCode);
             var content = response.Content.ReadFromJsonAsync<BaseResponse<PurchaseResponse>>().Result as BaseResponse<PurchaseResponse>;
-            var result = await client.GetFromJsonAsync<BaseResponse<CompletePurchaseResponse>>($"/api/v1/RecoverPurchase/Complete/{constructionId}/{content?.Data?.Id}");
+            var result = await client.GetFromJsonAsync<BaseResponse<CompletePurchaseResponse>>($"/api/v1/RecoverPurchase/Complete/{companyId}/{constructionId}/{content?.Data?.Id}");
             Assert.True(content?.Success);
             Assert.Equal(Domain.Enum.PurchaseStatus.DeliveryProblem, result?.Data?.Status);
         }
@@ -405,7 +405,7 @@ namespace MaterialPurchase.Tests.IntegrationTests
             //Asssert 
             Assert.Equal(HttpStatusCode.OK, response.StatusCode);
             var content = response.Content.ReadFromJsonAsync<BaseResponse<PurchaseResponse>>().Result as BaseResponse<PurchaseResponse>;
-            var result = await client.GetFromJsonAsync<BaseResponse<CompletePurchaseResponse>>($"/api/v1/RecoverPurchase/Complete/{constructionId}/{content?.Data?.Id}");
+            var result = await client.GetFromJsonAsync<BaseResponse<CompletePurchaseResponse>>($"/api/v1/RecoverPurchase/Complete/{companyId}/{constructionId}/{content?.Data?.Id}");
             Assert.True(content?.Success);
             Assert.Equal(Domain.Enum.PurchaseStatus.Closed, result?.Data?.Status);
         }
@@ -515,7 +515,7 @@ namespace MaterialPurchase.Tests.IntegrationTests
             var cont = response.Content.ReadAsStringAsync();
             Assert.Equal(HttpStatusCode.OK, response.StatusCode);
             var content = response.Content.ReadFromJsonAsync<BaseResponse<PurchaseResponse>>().Result as BaseResponse<PurchaseResponse>;
-            var result = await client.GetFromJsonAsync<BaseResponse<CompletePurchaseResponse>>($"/api/v1/RecoverPurchase/Complete/{constructionId}/{content?.Data?.Id}");
+            var result = await client.GetFromJsonAsync<BaseResponse<CompletePurchaseResponse>>($"/api/v1/RecoverPurchase/Complete/{companyId}/{constructionId}/{content?.Data?.Id}");
             Assert.True(content?.Success);
             Assert.Equal(Domain.Enum.PurchaseStatus.Cancelled, result?.Data?.Status);
             Assert.Equal(purchase.Comment, result?.Data?.AuthorizationUserGroups.OrderBy(x => x.Priority).ToArray()[1].UserAuthorizations.ToArray()[0].Comment);
