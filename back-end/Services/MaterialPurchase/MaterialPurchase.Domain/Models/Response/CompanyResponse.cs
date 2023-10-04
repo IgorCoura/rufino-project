@@ -11,7 +11,6 @@ namespace MaterialPurchase.Domain.Models.Response
         string Description,
         string Cnpj,
         string Email,
-        string Site,
         string Phone,
         Address? Address
     );

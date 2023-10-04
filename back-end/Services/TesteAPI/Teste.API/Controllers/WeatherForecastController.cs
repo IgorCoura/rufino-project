@@ -89,35 +89,35 @@ class GeneratePDF
         //}
         // Criando uma string com valores entre chaves duplas
 
-        Dictionary<string, dynamic> dic = new Dictionary<string, dynamic>(){
-                { "contentInit", "init1" },
-                { "contentFinal", "final1"},
-                { "materials", new List<Dictionary<string, dynamic>>()
-                    {
-                        new Dictionary<string, dynamic>()
-                        {
-                            {"decription", "Arroz"},
-                            {"unit", "kg"},
-                            {"quantity", "100" },
-                            {"unityPrice", "R% 190,00" 
-                            },
-                            {"totalPrice", "R$ 500,00" }
-                        },
-                        new Dictionary<string, dynamic>()
-                        {
-                            {"decription", "Arroz"},
-                            {"unit", "kg"},
-                            {"quantity", "100" },
-                            {"unityPrice", "1,5" },
-                            {"totalPrice", "R$ 500,00" }
-                        }
-                    }
-                }
-            };
+        //Dictionary<string, dynamic> dic = new Dictionary<string, dynamic>(){
+        //        { "contentInit", "init1" },
+        //        { "contentFinal", "final1"},
+        //        { "materials", new List<Dictionary<string, dynamic>>()
+        //            {
+        //                new Dictionary<string, dynamic>()
+        //                {
+        //                    {"decription", "Arroz"},
+        //                    {"unit", "kg"},
+        //                    {"quantity", "100" },
+        //                    {"unityPrice", "R% 190,00" 
+        //                    },
+        //                    {"totalPrice", "R$ 500,00" }
+        //                },
+        //                new Dictionary<string, dynamic>()
+        //                {
+        //                    {"decription", "Arroz"},
+        //                    {"unit", "kg"},
+        //                    {"quantity", "100" },
+        //                    {"unityPrice", "1,5" },
+        //                    {"totalPrice", "R$ 500,00" }
+        //                }
+        //            }
+        //        }
+        //    };
     
 
-        await HtmlManager.CreateHtmlFiles(dic, "Files/HtmlTamplates/PurchaseTamplate", "Files/OutputsHtmls/PurchaseFile", "index.html");
-        await PdfManager.ConvertHtml2Pdf("Files/OutputsHtmls/PurchaseFile/index.html", "Files/OutputsPdfs/PurchaseFile.pdf");
+        //await HtmlManager.CreateHtmlFiles(dic, "Files/HtmlTamplates/PurchaseTamplate", "Files/OutputsHtmls/PurchaseFile", "index.html");
+        await PdfManager.ConvertHtml2Pdf("Files\\HtmlTamplates\\Nr06Tamplate\\index.html", "Files/OutputsPdfs/Nr06File.pdf");
         return "";
 
     }

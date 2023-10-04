@@ -17,7 +17,7 @@ namespace MaterialPurchase.Infra.Mapping
 
 
             builder.HasMany(x => x.UsePermissions)
-                .WithOne()
+                .WithOne(x => x.CompanyPermission)
                 .HasForeignKey(x => x.CompanyPermissionId)
                 .OnDelete(Microsoft.EntityFrameworkCore.DeleteBehavior.Restrict);
 
@@ -25,7 +25,12 @@ namespace MaterialPurchase.Infra.Mapping
                 .WithMany()
                 .HasForeignKey(x => x.CompanyId)
                 .OnDelete(Microsoft.EntityFrameworkCore.DeleteBehavior.Restrict);
-                
+
+            builder.HasOne(x => x.Construction)
+                .WithMany(x => x.CompanyPermissions)
+                .HasForeignKey(x => x.ConstructionId)
+                .OnDelete(Microsoft.EntityFrameworkCore.DeleteBehavior.Restrict);
+
         }
     }
 }
