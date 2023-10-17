@@ -1,2 +1,0 @@
-VHOST: /
-QUEUE: Commom.MessageBroker.Message.MaterialControlMessages.DeleteBrandMessage, Commom.MessageBroker_material_purchase_id:ee86aa89e3d1014900bc1c43d6e749f4
