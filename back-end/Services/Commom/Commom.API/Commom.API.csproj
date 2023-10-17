@@ -12,6 +12,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\Commom.Auth\Commom.Auth.csproj" />
     <ProjectReference Include="..\Commom.Domain\Commom.Domain.csproj" />
     <ProjectReference Include="..\Commom.Infra\Commom.Infra.csproj" />
   </ItemGroup>

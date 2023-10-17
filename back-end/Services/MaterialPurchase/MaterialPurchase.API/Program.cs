@@ -1,11 +1,7 @@
-using Commom.API.Authentication;
-using MaterialPurchase.API.Configurations;
 using MaterialPurchase.Infra.Context;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.Text.Json.Serialization;
-using System.Text.Json;
-using Commom.API.AuthorizationIds;
 using Commom.API.Filters;
 using EntityFramework.Exceptions.PostgreSQL;
 using EasyNetQ;
@@ -13,6 +9,11 @@ using EasyNetQ.AutoSubscribe;
 using System.Reflection;
 using MaterialPurchase.Service.Consumer;
 using Commom.MessageBroker;
+using Microsoft.AspNetCore.Authorization;
+using MaterialPurchase.API.Authorization;
+using Commom.Auth.Authentication;
+using Commom.Auth.Authorization;
+using MaterialPurchase.API.Configurations;
 
 // MATERIA PURCHASE API
 
@@ -40,10 +41,14 @@ builder.Services.AddMessageBrokerConfig(builder.Configuration, "material_purchas
 
 
 // Add services to the container.
-
-builder.Services.AddAuthenticationJwtBearer(builder.Configuration);
-builder.Services.AddFunctionIdAuthorization<MaterialPurchaseContext>(builder.Configuration);
 builder.Services.AddDependencies(builder.Configuration);
+
+// Auth
+builder.Services.AddAuthenticationJwtBearer(builder.Configuration);
+builder.Services.AddBaseAuthorization(builder.Configuration);
+builder.Services.AddScoped<IAuthorizationHandler, PermissionAccessHandler>();
+
+
 
 
 builder.Services.AddApiVersioning(options =>
@@ -86,14 +91,12 @@ if (env != null && !env.Equals("Testing")) {
 
     AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
 
-    using (var scope = app.Services.CreateScope())
-    {
-        var services = scope.ServiceProvider;
+    using var scope = app.Services.CreateScope();
+    var services = scope.ServiceProvider;
 
-        var context = services.GetRequiredService<MaterialPurchaseContext>();
-        if (context.Database.GetPendingMigrations().Any())
-            context.Database.Migrate();
-    }
+    var context = services.GetRequiredService<MaterialPurchaseContext>();
+    if (context.Database.GetPendingMigrations().Any())
+        context.Database.Migrate();
 }
 
 

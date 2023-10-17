@@ -29,6 +29,7 @@ namespace MaterialPurchase.Service.Mappers
             CreateMap<Purchase, PurchaseWithMaterialResponse>();
             CreateMap<Purchase, SimplePurchaseResponse>();
             CreateMap<User, UserResponse>();
+            CreateMap<Company, CompanyResponse>();
 
         }
     }

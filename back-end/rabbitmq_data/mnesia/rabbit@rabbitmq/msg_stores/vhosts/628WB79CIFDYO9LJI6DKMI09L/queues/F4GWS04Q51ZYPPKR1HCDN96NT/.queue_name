@@ -1,0 +1,2 @@
+VHOST: /
+QUEUE: Commom.MessageBroker.Message.MaterialControlMessages.ModifyBrandMessage, Commom.MessageBroker_material_purchase_id:79320941c0511704af8bf3a4badfa701

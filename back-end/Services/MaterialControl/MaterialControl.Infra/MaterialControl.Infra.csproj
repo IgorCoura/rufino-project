@@ -7,6 +7,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\..\Commom\Commom.Auth\Commom.Auth.csproj" />
     <ProjectReference Include="..\..\Commom\Commom.Infra\Commom.Infra.csproj" />
     <ProjectReference Include="..\MaterialControl.Domain\MaterialControl.Domain.csproj" />
   </ItemGroup>

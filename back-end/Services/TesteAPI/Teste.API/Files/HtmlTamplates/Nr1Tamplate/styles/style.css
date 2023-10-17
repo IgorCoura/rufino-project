@@ -1,0 +1,180 @@
+
+@page {
+    width: 210mm;
+    height: 297mm;
+    page-break-after: always;
+    margin: 10mm 10mm 10mm 10mm;
+    
+}
+
+@page{
+    @bottom-right {
+        font-size: 2.5mm;
+        content:  "Data: 21/09/2023 - Página " counter(page)"/"counter(pages);
+    }
+    @bottom-left{
+        font-size: 2.5mm;
+        content: "ID: 35f9b34b-8053-415f-b203-962ed3cfffaf";
+    }
+}
+
+*{
+    margin: 0;
+    padding: 0;
+    font-family: Arial;
+}
+
+.main{
+    margin: auto;
+    width: 190mm;
+}
+.header{
+    text-align: center;
+    font-size: 4mm;
+    font-weight: 900;
+    margin: 5mm;
+}
+.qrcode{
+    width: 35mm;
+    font-size: 1.7mm;
+    text-align: center;
+    margin: 2mm;
+}
+
+
+.body{
+    margin-top: 1mm;
+    font-size: 3mm;
+}
+
+.table-data{
+    border: 0.3mm solid black;
+    margin-bottom: 1.5mm;
+}
+
+.table-data-title{
+    background-color: azure;
+    text-align: center;
+    border-bottom: 0.3mm solid black;
+    font-weight: 900;
+}
+
+.table-data-subtitle{
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    border-bottom: 0.3mm solid black;
+}
+.table-data-subtitle-title{
+    margin: 0.5mm;
+    font-weight: 900;
+}
+
+.table-data-subtitle-text{
+    margin: 0.5mm;
+}
+
+.table-data-content{
+    text-align: left;
+    margin: 0.5mm;
+    word-break: break-all;
+}
+
+.table-data-content-line{
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    word-break: break-all;
+    margin: 0.2mm;
+}
+
+.table-data-content-line-inline{
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    word-break: break-all;
+}
+
+.table-data-content-line-title{
+    font-weight: 900;
+    word-break: break-all;
+}
+
+.table-data-content-line-text{
+    margin-left: 1mm;
+    word-break: break-all;
+}
+
+.div-table-title{
+    text-align: center;
+    border-top: 0.3mm solid black;
+    border-left: 0.3mm solid black;
+    border-right: 0.3mm  solid black;
+    font-weight: bold;
+    padding: 1mm;
+  }
+
+.div-table {
+    box-sizing: border-box;
+    display: table;
+    width: 100%;
+    table-layout:auto;
+    border: 0.3mm solid black;
+    border-collapse: collapse;
+}
+
+.div-table-row {
+    display: table-row;
+}
+
+.div-table-cell {
+    display: table-cell;
+    padding: 1mm;
+    border: 0.3mm solid black;
+    text-align: center;
+}
+
+.div-table-head {
+    display: table-cell;
+    padding: 1mm;
+    font-weight: bold;
+    background-color: lightgray;
+    border: 0.3mm solid black;
+    text-align: center;
+}
+
+.col-descricao{
+    word-break: break-all;
+    text-align: start;
+}
+
+.div-table-total{
+    display: flex;
+    justify-content: end;
+    border-bottom: 0.3mm  solid black;
+    border-left: 0.3mm  solid black;
+    border-right: 0.3mm solid black;
+    font-weight: bold;
+    padding: 1mm;
+}
+.signature-body{
+    display: flex;
+    align-items: center;
+    flex-direction: row;
+    margin: 5mm;
+}
+.signature-local{
+    flex: 1;
+    align-content: center;
+    margin: 5mm;
+    text-align: center;
+    border-top: 0.3mm  solid black;
+    font-weight: bold;
+}
+
+.date{
+    padding-left: 2mm;
+    padding-top: 5mm;
+    padding-bottom: 5mm;
+    font-weight: bold;
+}

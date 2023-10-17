@@ -16,7 +16,6 @@ namespace MaterialPurchase.Domain.Entities
         public Guid UserId { get; set; }
         public UserAuthorizationStatus AuthorizationStatus { get; set; } = UserAuthorizationStatus.Pending;
         public string Comment { get; set; } = string.Empty;
-        public UserAuthorizationPermissions Permissions { get; set; }
 
     }
 }

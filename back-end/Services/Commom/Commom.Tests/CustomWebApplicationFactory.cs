@@ -1,4 +1,4 @@
-﻿using Commom.API.AuthorizationIds;
+﻿using Commom.Auth.Authorization;
 using Commom.Infra.Base;
 using Commom.MessageBroker.Bus;
 using Commom.Tests.Mocks;

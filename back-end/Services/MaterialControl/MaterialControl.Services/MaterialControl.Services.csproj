@@ -17,4 +17,8 @@
     <ProjectReference Include="..\MaterialControl.Domain\MaterialControl.Domain.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Folder Include="Services\Consult\" />
+  </ItemGroup>
+
 </Project>

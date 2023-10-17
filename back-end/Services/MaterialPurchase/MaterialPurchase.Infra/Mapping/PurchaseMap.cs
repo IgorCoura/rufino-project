@@ -20,6 +20,14 @@ namespace MaterialPurchase.Infra.Mapping
             builder.Property(x => x.LimitDeliveryDate)
                 .IsRequired(false);
 
+            builder.Property(x => x.PaymentDescription)
+                .HasMaxLength(250)
+                .IsRequired();
+
+            builder.Property(x => x.Description)
+                .HasMaxLength(500)
+                .IsRequired();
+
             builder.HasOne(x => x.Provider)
                 .WithMany()
                 .HasForeignKey(x => x.ProviderId)
@@ -32,8 +40,14 @@ namespace MaterialPurchase.Infra.Mapping
                 .IsRequired()
                 .OnDelete(Microsoft.EntityFrameworkCore.DeleteBehavior.Restrict);
 
-            
-        
+            builder.HasOne(x => x.Company)
+                .WithMany()
+                .HasForeignKey(x => x.CompanyId)
+                .IsRequired()
+                .OnDelete(Microsoft.EntityFrameworkCore.DeleteBehavior.Restrict);
+
+
+
         }
     }
 }

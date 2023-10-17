@@ -1,14 +1,15 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace MaterialPurchase.Domain.Models.Request
+﻿namespace MaterialPurchase.Domain.Models.Request
 {
-    public record CancelPurchaseRequest
-    (
-        Guid PurchaseId,
-        string Comment
-    );
+    public record CancelPurchaseRequest : ModelBase
+    {
+        public CancelPurchaseRequest(Guid constructionId, Guid companyId, Guid purchaseId, string comment) : base(constructionId, companyId)
+        {
+            ConstructionId = constructionId;
+            PurchaseId = purchaseId;
+            Comment = comment;
+        }
+
+        public Guid PurchaseId { get; set; }
+        public string Comment { get; set; }
+    }
 }

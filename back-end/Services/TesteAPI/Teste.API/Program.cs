@@ -1,10 +1,5 @@
-using Commom.API.Authentication;
-using Commom.API.AuthorizationIds;
-using Commom.Infra.Interface;
 using Commom.MessageBroker;
 using EasyNetQ.AutoSubscribe;
-using Microsoft.AspNetCore.Authentication.JwtBearer;
-using Microsoft.IdentityModel.Tokens;
 using Teste.API.Consumer;
 
 // TESTE API

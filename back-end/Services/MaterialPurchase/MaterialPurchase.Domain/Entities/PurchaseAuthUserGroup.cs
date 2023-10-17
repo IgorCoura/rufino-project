@@ -9,7 +9,7 @@ namespace MaterialPurchase.Domain.Entities
 {
     public class PurchaseAuthUserGroup : Entity
     {
-        public Purchase Purchase { get; set; }
+        public Purchase? Purchase { get; set; }
         public Guid PurchaseId { get; set; }
         public int Priority { get; set; }
         public IEnumerable<PurchaseUserAuthorization> UserAuthorizations { get; set; } = new List<PurchaseUserAuthorization>();

@@ -25,6 +25,7 @@
     <PackageReference Include="Swashbuckle.AspNetCore" Version="6.2.3" />
   </ItemGroup>
 
+
   <ItemGroup>
     <ProjectReference Include="..\..\Commom\Commom.API\Commom.API.csproj" />
     <ProjectReference Include="..\MaterialControl.Domain\MaterialControl.Domain.csproj" />
