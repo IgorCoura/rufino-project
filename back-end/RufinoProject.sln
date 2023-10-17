@@ -102,7 +102,7 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "CustSuprManager.Tests", "Se
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Commom.FileManager", "Services\Commom\Commom.FileManager\Commom.FileManager.csproj", "{86346034-A1B9-4C0A-99F3-F95EBCDF539C}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Commom.Auth", "Services\Commom\Commom.Auth\Commom.Auth.csproj", "{E9E6D6F9-3EDD-49AE-AB72-5C6231EEDACE}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Commom.Auth", "Services\Commom\Commom.Auth\Commom.Auth.csproj", "{E9E6D6F9-3EDD-49AE-AB72-5C6231EEDACE}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
