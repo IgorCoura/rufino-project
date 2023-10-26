@@ -1,0 +1,60 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Services", "Services", "{D69D5AE2-B8F1-481C-B4A7-64A34E4266D5}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "PeopleManagement", "PeopleManagement", "{7F74AC7B-07A6-4636-A266-AB0C423C18B6}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "PeopleManagement.API", "Services\PeopleManagement\PeopleManagement.API\PeopleManagement.API.csproj", "{2496FB78-1038-4943-85B7-ECDF0EA4ECA8}"
+EndProject
+Project("{E53339B2-1760-4266-BCC7-CA923CBCF16C}") = "docker-compose", "docker-compose.dcproj", "{03C02F5B-7BC0-4AA0-8661-7A28189DBCC0}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PeopleManagement.Domain", "Services\PeopleManagement\PeopleManagement.Domain\PeopleManagement.Domain.csproj", "{D0B8D8EE-E089-4712-86EF-6EE78E947382}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PeopleManagement.Application", "Services\PeopleManagement\PeopleManagement.Application\PeopleManagement.Application.csproj", "{6C41376A-6500-43B4-ABD7-990D35656722}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PeopleManagement.Infra", "Services\PeopleManagement\PeopleManagement.Infra\PeopleManagement.Infra.csproj", "{9164958A-09F4-4712-812B-7A6662381E92}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{2496FB78-1038-4943-85B7-ECDF0EA4ECA8}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{2496FB78-1038-4943-85B7-ECDF0EA4ECA8}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{2496FB78-1038-4943-85B7-ECDF0EA4ECA8}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{2496FB78-1038-4943-85B7-ECDF0EA4ECA8}.Release|Any CPU.Build.0 = Release|Any CPU
+		{03C02F5B-7BC0-4AA0-8661-7A28189DBCC0}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{03C02F5B-7BC0-4AA0-8661-7A28189DBCC0}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{03C02F5B-7BC0-4AA0-8661-7A28189DBCC0}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{03C02F5B-7BC0-4AA0-8661-7A28189DBCC0}.Release|Any CPU.Build.0 = Release|Any CPU
+		{D0B8D8EE-E089-4712-86EF-6EE78E947382}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{D0B8D8EE-E089-4712-86EF-6EE78E947382}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{D0B8D8EE-E089-4712-86EF-6EE78E947382}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{D0B8D8EE-E089-4712-86EF-6EE78E947382}.Release|Any CPU.Build.0 = Release|Any CPU
+		{6C41376A-6500-43B4-ABD7-990D35656722}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{6C41376A-6500-43B4-ABD7-990D35656722}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{6C41376A-6500-43B4-ABD7-990D35656722}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{6C41376A-6500-43B4-ABD7-990D35656722}.Release|Any CPU.Build.0 = Release|Any CPU
+		{9164958A-09F4-4712-812B-7A6662381E92}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{9164958A-09F4-4712-812B-7A6662381E92}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{9164958A-09F4-4712-812B-7A6662381E92}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{9164958A-09F4-4712-812B-7A6662381E92}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{7F74AC7B-07A6-4636-A266-AB0C423C18B6} = {D69D5AE2-B8F1-481C-B4A7-64A34E4266D5}
+		{2496FB78-1038-4943-85B7-ECDF0EA4ECA8} = {7F74AC7B-07A6-4636-A266-AB0C423C18B6}
+		{D0B8D8EE-E089-4712-86EF-6EE78E947382} = {7F74AC7B-07A6-4636-A266-AB0C423C18B6}
+		{6C41376A-6500-43B4-ABD7-990D35656722} = {7F74AC7B-07A6-4636-A266-AB0C423C18B6}
+		{9164958A-09F4-4712-812B-7A6662381E92} = {7F74AC7B-07A6-4636-A266-AB0C423C18B6}
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {E18991AE-7E06-48F5-A6A0-43CA060A6166}
+	EndGlobalSection
+EndGlobal

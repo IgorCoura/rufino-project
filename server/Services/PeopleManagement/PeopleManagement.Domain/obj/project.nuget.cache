@@ -1,0 +1,12 @@
+{
+  "version": 2,
+  "dgSpecHash": "ynG4k4CN+0+FxrYl5d6rv6Q7u0q1gWoJhvkpaSAaTpsM9guNBGUEaSLtfU3eUrXlivMJ/l7bYJLNmxZD2QVjmg==",
+  "success": true,
+  "projectFilePath": "C:\\Users\\IGOR-NOT\\Desktop\\Codigos\\CodigosSSD\\rufino-project\\server\\Services\\PeopleManagement\\PeopleManagement.Domain\\PeopleManagement.Domain.csproj",
+  "expectedPackageFiles": [
+    "C:\\Users\\IGOR-NOT\\.nuget\\packages\\mediatr\\12.1.1\\mediatr.12.1.1.nupkg.sha512",
+    "C:\\Users\\IGOR-NOT\\.nuget\\packages\\mediatr.contracts\\2.0.1\\mediatr.contracts.2.0.1.nupkg.sha512",
+    "C:\\Users\\IGOR-NOT\\.nuget\\packages\\microsoft.extensions.dependencyinjection.abstractions\\6.0.0\\microsoft.extensions.dependencyinjection.abstractions.6.0.0.nupkg.sha512"
+  ],
+  "logs": []
+}
