@@ -1,0 +1,15 @@
+C:\Users\IGOR-NOT\Desktop\Codigos\CodigosSSD\rufino-project\server\Services\PeopleManagement\PeopleManagement.Application\bin\Debug\net6.0\PeopleManagement.Application.deps.json
+C:\Users\IGOR-NOT\Desktop\Codigos\CodigosSSD\rufino-project\server\Services\PeopleManagement\PeopleManagement.Application\bin\Debug\net6.0\PeopleManagement.Application.dll
+C:\Users\IGOR-NOT\Desktop\Codigos\CodigosSSD\rufino-project\server\Services\PeopleManagement\PeopleManagement.Application\bin\Debug\net6.0\PeopleManagement.Application.pdb
+C:\Users\IGOR-NOT\Desktop\Codigos\CodigosSSD\rufino-project\server\Services\PeopleManagement\PeopleManagement.Application\bin\Debug\net6.0\PeopleManagement.Domain.dll
+C:\Users\IGOR-NOT\Desktop\Codigos\CodigosSSD\rufino-project\server\Services\PeopleManagement\PeopleManagement.Application\bin\Debug\net6.0\PeopleManagement.Domain.pdb
+C:\Users\IGOR-NOT\Desktop\Codigos\CodigosSSD\rufino-project\server\Services\PeopleManagement\PeopleManagement.Application\obj\Debug\net6.0\PeopleManagement.Application.csproj.AssemblyReference.cache
+C:\Users\IGOR-NOT\Desktop\Codigos\CodigosSSD\rufino-project\server\Services\PeopleManagement\PeopleManagement.Application\obj\Debug\net6.0\PeopleManagement.Application.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\IGOR-NOT\Desktop\Codigos\CodigosSSD\rufino-project\server\Services\PeopleManagement\PeopleManagement.Application\obj\Debug\net6.0\PeopleManagement.Application.AssemblyInfoInputs.cache
+C:\Users\IGOR-NOT\Desktop\Codigos\CodigosSSD\rufino-project\server\Services\PeopleManagement\PeopleManagement.Application\obj\Debug\net6.0\PeopleManagement.Application.AssemblyInfo.cs
+C:\Users\IGOR-NOT\Desktop\Codigos\CodigosSSD\rufino-project\server\Services\PeopleManagement\PeopleManagement.Application\obj\Debug\net6.0\PeopleManagement.Application.csproj.CoreCompileInputs.cache
+C:\Users\IGOR-NOT\Desktop\Codigos\CodigosSSD\rufino-project\server\Services\PeopleManagement\PeopleManagement.Application\obj\Debug\net6.0\PeopleManagement.Application.csproj.CopyComplete
+C:\Users\IGOR-NOT\Desktop\Codigos\CodigosSSD\rufino-project\server\Services\PeopleManagement\PeopleManagement.Application\obj\Debug\net6.0\PeopleManagement.Application.dll
+C:\Users\IGOR-NOT\Desktop\Codigos\CodigosSSD\rufino-project\server\Services\PeopleManagement\PeopleManagement.Application\obj\Debug\net6.0\refint\PeopleManagement.Application.dll
+C:\Users\IGOR-NOT\Desktop\Codigos\CodigosSSD\rufino-project\server\Services\PeopleManagement\PeopleManagement.Application\obj\Debug\net6.0\PeopleManagement.Application.pdb
+C:\Users\IGOR-NOT\Desktop\Codigos\CodigosSSD\rufino-project\server\Services\PeopleManagement\PeopleManagement.Application\obj\Debug\net6.0\ref\PeopleManagement.Application.dll

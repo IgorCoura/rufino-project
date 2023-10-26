@@ -1,0 +1,8 @@
+version: '3.4'
+
+services:
+  peoplemanagement.api:
+    image: ${DOCKER_REGISTRY-}peoplemanagementapi
+    build:
+      context: .
+      dockerfile: Services/PeopleManagement/PeopleManagement.API/Dockerfile
