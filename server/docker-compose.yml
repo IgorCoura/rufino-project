@@ -6,3 +6,26 @@ services:
     build:
       context: .
       dockerfile: Services/PeopleManagement/PeopleManagement.API/Dockerfile
+    environment:
+        ASPNETCORE_URLS: "https://+;http://+"
+        ASPNETCORE_HTTPS_PORT: "443"
+        ASPNETCORE_ENVIRONMENT: Development
+    volumes:
+        - ${APPDATA}\microsoft\UserSecrets\:/root/.microsoft/usersecrets
+        - ${USERPROFILE}\.aspnet\https:/root/.aspnet/https/
+    ports:
+        - 8020:80
+        - 8021:443
+    depends_on:
+        - peoplemanagement.db
+
+  peoplemanagement.db:
+    image: postgres:15.1-alpine
+    restart: always
+    environment:
+        POSTGRES_USER: "admin"
+        POSTGRES_PASSWORD: "5up3rS3nh@"
+    ports:
+        - 8022:5432
+
+

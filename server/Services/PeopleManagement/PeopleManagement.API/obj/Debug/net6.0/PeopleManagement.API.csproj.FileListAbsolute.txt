@@ -37,3 +37,4 @@ C:\Users\IGOR-NOT\Desktop\Codigos\CodigosSSD\rufino-project\server\Services\Peop
 C:\Users\IGOR-NOT\Desktop\Codigos\CodigosSSD\rufino-project\server\Services\PeopleManagement\PeopleManagement.API\bin\Debug\net6.0\PeopleManagement.Domain.dll
 C:\Users\IGOR-NOT\Desktop\Codigos\CodigosSSD\rufino-project\server\Services\PeopleManagement\PeopleManagement.API\bin\Debug\net6.0\PeopleManagement.Application.pdb
 C:\Users\IGOR-NOT\Desktop\Codigos\CodigosSSD\rufino-project\server\Services\PeopleManagement\PeopleManagement.API\bin\Debug\net6.0\PeopleManagement.Domain.pdb
+C:\Users\IGOR-NOT\Desktop\Codigos\CodigosSSD\rufino-project\server\Services\PeopleManagement\PeopleManagement.API\obj\Debug\net6.0\PeopleManagement.API.sourcelink.json

@@ -5,6 +5,9 @@ public abstract class Entity
     int? _requestedHashCode;
     Guid _Id;
 
+    public DateTime CreatedAt { get; set; }
+    public DateTime UpdatedAt { get; set; }
+
     protected Entity(Guid id)
     {
         _Id = id;
