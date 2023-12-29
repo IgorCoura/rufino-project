@@ -1,23 +1,54 @@
-﻿namespace PeopleManagement.Application.Commands.CreateCompany;
+﻿using PeopleManagement.Application.Commands.Identified;
+
+namespace PeopleManagement.Application.Commands.CreateCompany;
 public class CreateCompanyCommandHandler : IRequestHandler<CreateCompanyCommand, BaseDTO>
 {
-    public Task<BaseDTO> Handle(CreateCompanyCommand request, CancellationToken cancellationToken)
+    private readonly ICompanyRepository _companyReposity;
+    private readonly ILogger<CreateCompanyCommandHandler> _logger;
+
+    public CreateCompanyCommandHandler(ICompanyRepository companyReposity, ILogger<CreateCompanyCommandHandler> logger)
+    {
+        _companyReposity = companyReposity;
+        _logger = logger;
+    }
+
+    public async Task<BaseDTO> Handle(CreateCompanyCommand request, CancellationToken cancellationToken)
     {
         var company = Company.Create(
-            request.CorporateNmae, 
-            request.FantasyName, 
-            request.Cnpj, 
+            request.CorporateName!, 
+            request.FantasyName!, 
+            request.Description!,
+            request.Cnpj!, 
+            request.Email!,
+            request.Phone!,
             new Address(
-                request.ZipCode, 
-                request.Street, 
-                request.Number, 
-                request.Complement, 
-                request.Neighborhood, 
-                request.City, 
-                request.State, 
-                request.Country)
+                request.ZipCode!, 
+                request.Street!, 
+                request.Number!, 
+                request.Complement!, 
+                request.Neighborhood!, 
+                request.City!, 
+                request.State!, 
+                request.Country!)
             );
 
-        return Task.FromResult(new BaseDTO(company.Id));
+        var result = await _companyReposity.InsertAsync( company );
+
+        await _companyReposity.UnitOfWork.SaveChangesAsync( cancellationToken );
+
+        return new BaseDTO(result.Id);
+    }
+}
+
+
+public class CreateCompanyIdentifiedCommandHandler : IdentifiedCommandHandler<CreateCompanyCommand, BaseDTO>
+{
+    public CreateCompanyIdentifiedCommandHandler(IMediator mediator, ILogger<IdentifiedCommandHandler<CreateCompanyCommand, BaseDTO>> logger) : base(mediator, logger)
+    {
+    }
+
+    protected override BaseDTO CreateResultForDuplicateRequest()
+    {
+        return new BaseDTO(Guid.Empty);
     }
 }

@@ -1,7 +1,6 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk.Web">
-
   <PropertyGroup>
-    <TargetFramework>net6.0</TargetFramework>
+    <TargetFramework>net8.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <UserSecretsId>1d8757db-36cf-4318-a310-61b681d9ca7f</UserSecretsId>
@@ -9,15 +8,19 @@
     <DockerfileContext>..\..\..</DockerfileContext>
     <DockerComposeProjectPath>..\..\..\docker-compose.dcproj</DockerComposeProjectPath>
   </PropertyGroup>
-
   <ItemGroup>
-    <PackageReference Include="MediatR" Version="12.1.1" />
-    <PackageReference Include="Microsoft.VisualStudio.Azure.Containers.Tools.Targets" Version="1.17.2" />
+    <PackageReference Include="EntityFrameworkCore.Exceptions.PostgreSQL" Version="8.0.0" />
+    <PackageReference Include="FluentValidation.DependencyInjectionExtensions" Version="11.9.0" />
+    <PackageReference Include="MediatR" Version="12.2.0" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="8.0.0">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="8.0.0" />
     <PackageReference Include="Swashbuckle.AspNetCore" Version="6.5.0" />
   </ItemGroup>
-
   <ItemGroup>
     <ProjectReference Include="..\PeopleManagement.Application\PeopleManagement.Application.csproj" />
+    <ProjectReference Include="..\PeopleManagement.Infra\PeopleManagement.Infra.csproj" />
   </ItemGroup>
-
 </Project>
