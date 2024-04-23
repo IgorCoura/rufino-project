@@ -7,8 +7,6 @@ namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
         const int MAX_LENGHT = 12;
 
         private string _number = string.Empty;
-        private Guid _archiveId;
-
         public string Number
         {
             get => _number;
@@ -21,26 +19,27 @@ namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
             }
         }
 
-        public Guid ArchiveId
-        {
-            get => _archiveId;
-            private set
-            {
-                if (value == Guid.Empty)
-                    throw new DomainException(DomainErrors.ObjectNotBeDefaultValue(nameof(ArchiveId), Guid.Empty.ToString()));
-                _archiveId = value;
-            }
-        }
+        public File[] Files { get; private set; } = [];
 
 
-        private VoteId(string value, Guid archiveId)
+        private VoteId(string value)
         {
             Number = value;
-            ArchiveId = archiveId;
+        }
+
+        private VoteId(string value, File[] files)
+        {
+            Number = value;
+            Files = files;
         }
 
 
-        public static VoteId Create(string value, Guid archiveId) => new(value, archiveId);
+        public static VoteId Create(string value) => new(value);
+        public VoteId AddFile(File file)
+        {
+            File[] files = [.. Files, file];
+            return new(Number, files);
+        }
 
         private void Validate(string value)
         {
@@ -49,8 +48,8 @@ namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
                 throw new DomainException(DomainErrors.FieldNotBeNullOrEmpty(nameof(VoteId)));
             }
 
-            int[] multiplierOne = new int[8] { 2, 3, 4, 5, 6, 7, 8, 9 };
-            int[] multiplierTwo = new int[3] { 7, 8, 9 };
+            int[] multiplierOne = [ 2, 3, 4, 5, 6, 7, 8, 9 ];
+            int[] multiplierTwo = [ 7, 8, 9 ];
             var invalido = new List<string> { "000000000000", "111111111111", "222222222222", "333333333333", "444444444444", "555555555555", "666666666666", "777777777777", "888888888888", "999999999999" };
             string aux;
             string digit;

@@ -31,7 +31,7 @@ namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
                 throw new DomainException(DomainErrors.FieldNotBeNullOrEmpty(nameof(SocialIntegrationProgram)));
             }
 
-            int[] multiplier = new int[10] {3,2,9,8,7,6,5,4,3,2};     
+            int[] multiplier = [3,2,9,8,7,6,5,4,3,2];     
             var invalido = new string[10] { "00000000000", "11111111111", "22222222222", "33333333333", "44444444444", "55555555555", "66666666666", "77777777777", "888888888888", "99999999999" };
             string aux;
             string digit;

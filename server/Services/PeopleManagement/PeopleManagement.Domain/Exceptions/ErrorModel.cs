@@ -1,23 +1,17 @@
 ﻿namespace PeopleManagement.Domain.Exceptions
 {
-    public class ErrorModel
+    public class ErrorModel(string code, string msg)
     {
-        public ErrorModel(string code, string msg)
-        {
-            Code = code;
-            Message = msg;
-        }
-
-        public string Code { get; private set; }
-        public string Message { get; private set; }
+        public string Code { get; private set; } = code;
+        public string Message { get; private set; } = msg;
 
         protected static bool EqualOperator(ErrorModel left, ErrorModel right)
         {
-            if (ReferenceEquals(left, null) ^ ReferenceEquals(right, null))
+            if (left is null ^ right is null)
             {
                 return false;
             }
-            return ReferenceEquals(left, null) || left.Equals(right);
+            return left is null || left.Equals(right);
         }
 
         protected static bool NotEqualOperator(ErrorModel left, ErrorModel right)

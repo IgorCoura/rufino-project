@@ -12,7 +12,7 @@ namespace PeopleManagement.Tests.UnitTests.Aggregates.EmployeeTests
         public void CreateValidSocialIntegrationProgram(string value)
         {
             //Act
-            SocialIntegrationProgram pis = value;
+            SocialIntegrationProgram _ = value;
             //Assert
             Assert.True(true);
         }

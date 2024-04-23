@@ -4,29 +4,27 @@ namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
 {
     public class Testimonial : ValueObject
     {
-        private Guid _archiveId;        
+        public File[] Files { get; private set; }
 
-        public Guid ArchiveId
+        private Testimonial(File[] files)
         {
-            get => _archiveId;
-            private set
-            {
-                if (value == Guid.Empty)
-                    throw new DomainException(DomainErrors.ObjectNotBeDefaultValue(nameof(ArchiveId), Guid.Empty.ToString()));
-                _archiveId = value;
-            }
+            Files = files;
         }
 
-        private Testimonial(Guid archiveId)
-        {
-            ArchiveId = archiveId;
-        }
+        public static Testimonial Create() => new([]);
 
-        public Testimonial Create(Guid archiveId) => new(archiveId);
+        public Testimonial AddFile(File file)
+        {
+            File[] files = [.. Files, file];
+            return new(files);
+        }
 
         protected override IEnumerable<object> GetEqualityComponents()
         {
-            yield return ArchiveId;
+            foreach (var file in Files)
+            {
+                yield return file;
+            }
         }
     }
 }

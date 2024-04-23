@@ -1,32 +1,39 @@
 ﻿
 using PeopleManagement.Domain.Exceptions;
+using static System.Net.Mime.MediaTypeNames;
 
 namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
 {
     public class Picture : ValueObject
     {
-        private Guid _archiveId;
-        public Guid ArchiveId 
+        private Image[] _images = [];
+        public Image[] Images 
         {
-            get => _archiveId;
+            get => _images;
             private set
             {
-                if (value == Guid.Empty)
-                    throw new DomainException(DomainErrors.ObjectNotBeDefaultValue(nameof(ArchiveId), Guid.Empty.ToString()));
-                _archiveId = value;
+                _images = value;
+                _images = _images.Distinct().ToArray();
             }
         }
-
-        public Picture(Guid archiveId)
+        private Picture(Image[] images)
         {
-            ArchiveId = archiveId;
+            Images = images;
         }
 
-        public static implicit operator Picture(Guid input) => new(input);
+        public static Picture Create() => new([]);
+        public Picture AddImage(Image image)
+        {
+            Image[] images = [.. Images, image];
+            return new(images);
+        }
 
         protected override IEnumerable<object?> GetEqualityComponents()
         {
-            throw new NotImplementedException();
+            foreach(var image in Images)
+            {
+                yield return image;
+            }
         }
     }
 }

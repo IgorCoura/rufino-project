@@ -59,5 +59,6 @@ namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
 
         [GeneratedRegex(@"^[0-9]{2}[0-9]{9}")]
         private static partial Regex CellPhonerRegex();
+
     }
 }
