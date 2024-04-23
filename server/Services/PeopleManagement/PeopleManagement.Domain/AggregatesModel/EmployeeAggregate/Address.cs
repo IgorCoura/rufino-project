@@ -182,5 +182,6 @@ namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
 
         [GeneratedRegex(@"^\d{8}")]
         private static partial Regex ZipCodeRegex();
+     
     }
 }

@@ -4,7 +4,7 @@
     {
         public static readonly Gender MALE = new(1, nameof(MALE));
         public static readonly Gender FEMALE = new(2, nameof(FEMALE));
-        public Gender(int id, string name) : base(id, name)
+        private Gender(int id, string name) : base(id, name)
         {
         }
 

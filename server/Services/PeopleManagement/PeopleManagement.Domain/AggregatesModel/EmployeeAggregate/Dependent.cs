@@ -2,32 +2,26 @@
 
 namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
 {
-    public class Dependent : ValueObject
+    public class Dependent : Entity
     {
-        public Name Name { get; private set; }
-        public IdCard IdCard { get; private set; }
-        public PersonalInfo PersonalInfo { get; private set; }
-        public Kinship Kinship { get; private set; }
-        public Testimonial Testimonial { get; private set; }
+        public Name Name { get; private set; } = null!;
+        public IdCard IdCard { get; private set; } = null!;
+        public Gender Gender { get; private set; } = null!;
+        public DependencyType DependencyType { get; private set; } = null!;
+        public Testimonial Testimonial { get; private set; } = null!;
 
-        private Dependent(string name, IdCard idCard, PersonalInfo personalInfo, Kinship kinship, Testimonial testimonial)
+        private Dependent() { }
+
+        private Dependent(Guid id, string name, IdCard idCard, Gender gender, DependencyType dependencyType): base(id)
         {
             Name = name;
             IdCard = idCard;
-            PersonalInfo = personalInfo;
-            Kinship = kinship;
-            Testimonial = testimonial;
+            Gender = gender;
+            DependencyType = dependencyType;
+            Testimonial = Testimonial.Create();
         }
 
-        public static Dependent Create(string name, IdCard idCard, PersonalInfo personalInfo, Kinship kinship, Testimonial testimonial) => new(name, idCard, personalInfo, kinship, testimonial);
+        public static Dependent Create(Guid id, string name, IdCard idCard, Gender gender, DependencyType dependencyType) => new(id, name, idCard, gender, dependencyType);
 
-        protected override IEnumerable<object?> GetEqualityComponents()
-        {
-            yield return Name;
-            yield return IdCard;
-            yield return PersonalInfo;
-            yield return Kinship;
-            yield return Testimonial;
-        }
     }
 }

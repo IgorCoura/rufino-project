@@ -3,7 +3,7 @@ using System.Text.RegularExpressions;
 
 namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
 {
-    public class Name : ValueObject
+    public partial class Name : ValueObject
     {
         const int MAX_LENGTH = 100;
 
@@ -23,7 +23,7 @@ namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
                 if (_value.Length < MAX_LENGTH)
                     throw new DomainException(DomainErrors.FieldInvalid(this.GetType().Name, value));
 
-                if (!Regex.IsMatch(_value, (@"[^a-zA-Z0-9]")))
+                if (!NameRegex().IsMatch(_value))
                     throw new DomainException(DomainErrors.FieldCannotHaveSpecialChar(this.GetType().Name));
 
                 _value = value.ToUpper();
@@ -45,5 +45,8 @@ namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
         {
             yield return Value;
         }
+
+        [GeneratedRegex(@"[^a-zA-Z0-9]")]
+        private static partial Regex NameRegex();
     }
 }

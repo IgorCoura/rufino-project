@@ -1,5 +1,0 @@
-D:\OneDrive\OneDrive - RUFINO EMPREITEIRA\Programas\ConvMedProj\bin\ConversorMedicoesProjetos.exe
-D:\OneDrive\OneDrive - RUFINO EMPREITEIRA\Programas\ConvMedProj\bin\ConversorMedicoesProjetos.dll
-D:\OneDrive\OneDrive - RUFINO EMPREITEIRA\Programas\ConvMedProj\bin\ConversorMedicoesProjetos.deps.json
-D:\OneDrive\OneDrive - RUFINO EMPREITEIRA\Programas\ConvMedProj\bin\ConversorMedicoesProjetos.runtimeconfig.json
-D:\OneDrive\OneDrive - RUFINO EMPREITEIRA\Programas\ConvMedProj\bin\ConversorMedicoesProjetos.pdb

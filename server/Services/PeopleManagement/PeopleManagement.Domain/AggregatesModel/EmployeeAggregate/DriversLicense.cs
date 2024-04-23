@@ -11,6 +11,7 @@ namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
         private string _registerNumber = string.Empty;
         private CategoryDriversLicense[] _categories = [];
         private DateOnly _validity;
+        private File[] _files = [];
 
         public string RegisterNumber
         {
@@ -28,12 +29,9 @@ namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
             get => _categories;
             private set
             {
-                if (_categories.Length <= 0)
+                if (value.Length <= 0)
                     throw new DomainException(DomainErrors.ListNotBeNullOrEmpty(nameof(Categories)));
-                var count = value.Distinct().Count();
-                if (value.Length != count)
-                    throw new DomainException(DomainErrors.ListHasObjectDuplicate(nameof(Categories)));
-                _categories = value;
+                _categories = _categories.Distinct().ToArray();
             }
         }
         public DateOnly Validity 
@@ -49,16 +47,38 @@ namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
             }
         }
 
-        public Guid ArchiveId { get; private set; }
+        public File[] Files 
+        {
+            get => _files;
+            private set
+            {
+                _files = value;
+                _files = _files.Distinct().ToArray();
+            }
+        }
 
-        private DriversLicense(string registerNumber, CategoryDriversLicense[] categories, DateOnly validity, Guid archiveId)
+        private DriversLicense(string registerNumber, CategoryDriversLicense[] categories, DateOnly validity)
         {
             RegisterNumber = registerNumber;
             Categories = categories;
-            ArchiveId = archiveId;
+            Validity = validity;
         }
 
-        public static DriversLicense Create(string registerNumber, DateOnly validity, Guid archiveId, params CategoryDriversLicense[] categories) => new(registerNumber, categories, validity, archiveId);
+        private DriversLicense(string registerNumber, CategoryDriversLicense[] categories, DateOnly validity, File[] files)
+        {
+            RegisterNumber = registerNumber;
+            Categories = categories;
+            Validity = validity;
+            Files = files;
+        }
+
+        public static DriversLicense Create(string registerNumber, DateOnly validity, params CategoryDriversLicense[] categories) => new(registerNumber, categories, validity);
+
+        public DriversLicense AddFile(File file)
+        {
+            File[] files = [.. Files, file];
+            return new(RegisterNumber, Categories, Validity, files);
+        }
 
         private void Validate(string value)
         {
@@ -144,6 +164,10 @@ namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
             foreach (var category in Categories)
             {
                 yield return category;
+            }
+            foreach (var file in Files)
+            {
+                yield return file;
             }
         }
     }

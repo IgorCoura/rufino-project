@@ -4,11 +4,11 @@ public abstract class ValueObject
 {
     protected static bool EqualOperator(ValueObject left, ValueObject right)
     {
-        if (ReferenceEquals(left, null) ^ ReferenceEquals(right, null))
+        if (left is null ^ right is null)
         {
             return false;
         }
-        return ReferenceEquals(left, null) || left.Equals(right);
+        return left is null || left.Equals(right);
     }
 
     protected static bool NotEqualOperator(ValueObject left, ValueObject right)
@@ -17,6 +17,51 @@ public abstract class ValueObject
     }
 
     protected abstract IEnumerable<object?> GetEqualityComponents();
+
+    public override string ToString()
+    {
+        Type t = this.GetType();
+
+        PropertyInfo[] propInfos = t.GetProperties();
+        var values = propInfos.Select(x =>
+        {
+            var value = x.GetValue(this);
+
+            if(value != null && value.GetType().IsArray)
+            {
+                Object[]? array = value as Object[];
+                value = "null";
+                if (array != null)
+                {
+                    value = "[";
+                    foreach (var ar in array)
+                    {
+                        value += ar.ToString();
+                        if (ar != array.Last())
+                            value += ",";
+                    }
+                    value += "]";
+                }
+                
+            }
+
+            if(value == null)
+                value = "null";
+
+            return $"{x.Name}:{value}";
+        });
+
+        var result = "{";
+        foreach (var value in values)
+        {
+            result += value;
+            if (value != values.Last())
+                result += ",";
+        }
+        result += "}";
+        return result;
+    }
+
 
     public override bool Equals(object? obj)
     {

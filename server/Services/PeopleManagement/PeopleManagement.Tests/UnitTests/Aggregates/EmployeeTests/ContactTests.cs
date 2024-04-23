@@ -1,19 +1,23 @@
 ﻿using PeopleManagement.Domain.AggregatesModel.EmployeeAggregate;
 using PeopleManagement.Domain.Exceptions;
+using PeopleManagement.Domain.SeedWord;
+using System.Reflection;
 
 namespace PeopleManagement.Tests.UnitTests.Aggregates.EmployeeTests
 {
     public class ContactTests
     {
         [Theory]
-        [InlineData("email@email.com","(11) 99-3345639")]
-        [InlineData("irg-asd.email@email.com.br","11456784379")]
-        [InlineData("123hh$2irg-asd.email@email.com.br.ar"," 11()456  7843 -79   ")]
+        [InlineData("email@email.com", "(11) 99-3345639")]
+        [InlineData("irg-asd.email@email.com.br", "11456784379")]
+        [InlineData("123hh$2irg-asd.email@email.com.br.ar", " 11()456  7843 -79   ")]
         public void CreateContactWithValidEmailAndPhone(string email, string phone)
         {
             var expectPhone = phone.ToUpper().Trim();
             expectPhone = expectPhone.Replace("(", "").Replace(")", "").Replace("-", "").Replace(" ", "");
+
             //Act
+
             var contact = Contact.Create(email, phone);
 
             //Assert
@@ -32,5 +36,7 @@ namespace PeopleManagement.Tests.UnitTests.Aggregates.EmployeeTests
             DomainException ex = Assert.Throws<DomainException>(() => Contact.Create(email, phone));
             Assert.Equal(ex.Errors.First(), DomainErrors.FieldIsFormatInvalid(nameof(Contact.Email)));
         }
+
     }
+
 }

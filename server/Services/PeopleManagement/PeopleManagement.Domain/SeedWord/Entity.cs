@@ -1,4 +1,6 @@
-﻿namespace PeopleManagement.Domain.SeedWord;
+﻿using PeopleManagement.Domain.Exceptions;
+
+namespace PeopleManagement.Domain.SeedWord;
 
 public abstract class Entity
 {
@@ -25,11 +27,13 @@ public abstract class Entity
         }
         protected set
         {
+            if (value == Guid.Empty)
+                throw new DomainException(DomainErrors.FieldNotBeDefaultValue(nameof(Id), Guid.Empty.ToString()));
             _Id = value;
         }
     }
 
-    private readonly List<INotification> _domainEvents = new();
+    private readonly List<INotification> _domainEvents = [];
     public IReadOnlyCollection<INotification> DomainEvents => _domainEvents;
 
     protected void AddDomainEvent(INotification eventItem)

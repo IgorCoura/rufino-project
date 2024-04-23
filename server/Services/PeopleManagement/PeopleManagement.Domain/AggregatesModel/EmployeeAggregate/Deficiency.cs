@@ -15,6 +15,7 @@ namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
                 if (_disabilities.Length <= 0)
                     throw new DomainException(DomainErrors.ListNotBeNullOrEmpty(nameof(Disabilities)));
                 _disabilities = value;
+                _disabilities = _disabilities.Distinct().ToArray();
             }
         }
         public string Observation 
@@ -34,6 +35,13 @@ namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
             }
         
         }
+        private Deficiency(Disability[] disabilities, string observation)
+        {
+            Disabilities = disabilities;
+            Observation = observation;
+        }
+
+        public static Deficiency Create(string observation, params Disability[] disabilities) => new (disabilities, observation);
 
         protected override IEnumerable<object> GetEqualityComponents()
         {
@@ -44,13 +52,5 @@ namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
             yield return Observation;
 
         }
-
-        private Deficiency(Disability[] disabilities, string observation)
-        {
-            Disabilities = disabilities;
-            Observation = observation;
-        }
-
-        public static Deficiency Create(string observation, params Disability[] disabilities) => new (disabilities, observation);
     }
 }

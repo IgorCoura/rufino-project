@@ -16,7 +16,7 @@ namespace PeopleManagement.Infra.Context
         public DbSet<Company> Companies { get; set; } 
 
         private readonly IMediator? _mediator;
-        private IDbContextTransaction? _currentTransaction;
+        private readonly IDbContextTransaction? _currentTransaction;
 
         public IDbContextTransaction? GetCurrentTransaction() => _currentTransaction;
         public bool HasActiveTransaction => _currentTransaction != null;
@@ -43,7 +43,7 @@ namespace PeopleManagement.Infra.Context
 
             await UpdateDatetimeEntities();
 
-            var result = await base.SaveChangesAsync(cancellationToken);
+            await base.SaveChangesAsync(cancellationToken);
 
             return true;
         }
