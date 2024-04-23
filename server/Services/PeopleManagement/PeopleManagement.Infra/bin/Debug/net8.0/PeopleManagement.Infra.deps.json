@@ -25,7 +25,7 @@
           }
         }
       },
-      "MediatR/12.1.1": {
+      "MediatR/12.2.0": {
         "dependencies": {
           "MediatR.Contracts": "2.0.1",
           "Microsoft.Extensions.DependencyInjection.Abstractions": "8.0.0"
@@ -33,7 +33,7 @@
         "runtime": {
           "lib/net6.0/MediatR.dll": {
             "assemblyVersion": "12.0.0.0",
-            "fileVersion": "12.1.1.0"
+            "fileVersion": "12.2.0.0"
           }
         }
       },
@@ -578,7 +578,7 @@
       "System.Threading.Channels/6.0.0": {},
       "PeopleManagement.Domain/1.0.0": {
         "dependencies": {
-          "MediatR": "12.1.1",
+          "MediatR": "12.2.0",
           "Microsoft.EntityFrameworkCore": "8.0.0"
         },
         "runtime": {
@@ -600,12 +600,12 @@
       "path": "humanizer.core/2.14.1",
       "hashPath": "humanizer.core.2.14.1.nupkg.sha512"
     },
-    "MediatR/12.1.1": {
+    "MediatR/12.2.0": {
       "type": "package",
       "serviceable": true,
-      "sha512": "sha512-1AbwzzeS6gn4NdcO6A9LfKS5TXXgAiUQM3J18dREHa7O7TrdCXJ5dNFeRBpzPZY7UWl5Kby+n9pWrPJe3SDiMA==",
-      "path": "mediatr/12.1.1",
-      "hashPath": "mediatr.12.1.1.nupkg.sha512"
+      "sha512": "sha512-8TUFrHapKi6D74PhnSNEguRsH91HNGyP3R4ZQdgDorJgl9Wac5Prh0vA33QfrniAaS6L2xNNhc6vxzg+5AIbwA==",
+      "path": "mediatr/12.2.0",
+      "hashPath": "mediatr.12.2.0.nupkg.sha512"
     },
     "MediatR.Contracts/2.0.1": {
       "type": "package",

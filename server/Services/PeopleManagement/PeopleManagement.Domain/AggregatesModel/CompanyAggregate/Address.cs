@@ -13,7 +13,7 @@
 
         private Address() { }
 
-        public Address(string zipCode, string street, string number, string complement, string neighborhood, string city, string state, string country)
+        private Address(string zipCode, string street, string number, string complement, string neighborhood, string city, string state, string country)
         {
             ZipCode = zipCode;
             Street = street;
@@ -23,6 +23,11 @@
             City = city;
             State = state;
             Country = country;
+        }
+
+        public static Address Create(string zipCode, string street, string number, string complement, string neighborhood, string city, string state, string country)
+        {
+            return new Address(zipCode, street, number, complement, neighborhood, city, state, country);
         }
 
         public static Address Default()

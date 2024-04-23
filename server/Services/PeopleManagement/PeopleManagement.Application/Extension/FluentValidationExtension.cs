@@ -1,6 +1,7 @@
 ﻿using FluentValidation;
 using FluentValidation.Results;
 using PeopleManagement.Domain.Exceptions;
+
 namespace PeopleManagement.Application.Extension
 {
     public static class FluentValidationExtension

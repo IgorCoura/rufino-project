@@ -2,13 +2,17 @@
 
 public abstract class Entity
 {
-    int? _requestedHashCode;
-    Guid _Id;
+    private int? _requestedHashCode;
+    private Guid _Id;
 
-    public DateTime CreatedAt { get; set; }
-    public DateTime UpdatedAt { get; set; }
+    public DateTime CreatedAt { get; protected set; }
+    public DateTime UpdatedAt { get; protected set; }
 
-    protected Entity(Guid id)
+    protected Entity()
+    {
+    }
+
+    protected Entity(Guid id)   
     {
         _Id = id;
     }
@@ -28,12 +32,12 @@ public abstract class Entity
     private readonly List<INotification> _domainEvents = new();
     public IReadOnlyCollection<INotification> DomainEvents => _domainEvents;
 
-    public void AddDomainEvent(INotification eventItem)
+    protected void AddDomainEvent(INotification eventItem)
     {
         _domainEvents.Add(eventItem);
     }
 
-    public void RemoveDomainEvent(INotification eventItem)
+    protected void RemoveDomainEvent(INotification eventItem)
     {
         _domainEvents.Remove(eventItem);
     }

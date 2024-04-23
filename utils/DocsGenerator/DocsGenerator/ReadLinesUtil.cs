@@ -9,6 +9,10 @@ namespace DocsGenerator
 {
     public static class ReadLinesUtil
     {
+        const string FILE_TEMPLATE = "\\index.html";
+        const string DEFAULT_TEMPLATE_LOCAL = "templates\\";
+        const string DEFAULT_DATA_LOCAL = "data\\";
+
         public static bool GetIfContinue()
         {
             while (true)
@@ -39,14 +43,14 @@ namespace DocsGenerator
                     Console.WriteLine("Informação invalida. Tente novamente.\n");
                     continue;
                 }
-                string extensao = Path.GetExtension(value);
-                bool hasHtml = string.Equals(extensao, ".html", StringComparison.OrdinalIgnoreCase);
 
-                bool fileExist = File.Exists(value);
+                var path = DEFAULT_TEMPLATE_LOCAL + value;
 
-                if (hasHtml && fileExist)
+                bool fileExist = File.Exists(path + FILE_TEMPLATE);
+
+                if (fileExist)
                 {
-                    return value;
+                    return path;
                 }
 
                 Console.WriteLine("Arquivo não existe ou não é html. Tente novamente.\n");
@@ -64,6 +68,8 @@ namespace DocsGenerator
                     Console.WriteLine("Informação invalida. Tente novamente.\n");
                     continue;
                 }
+
+                value = DEFAULT_DATA_LOCAL + value;
                 string extensao = Path.GetExtension(value);
                 bool hasHtml = string.Equals(extensao, ".csv", StringComparison.OrdinalIgnoreCase);
 

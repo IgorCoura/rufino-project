@@ -2,14 +2,24 @@
 {
     public class DomainException : Exception
     {
-        public List<ErrorModel> Errors { get; set; } = new List<ErrorModel>();
+        public List<ErrorModel> Errors { get; } = new List<ErrorModel>();
         public DomainException() { }
-        public DomainException(ErrorModel error) {
-            Errors.Add(error);
+        public DomainException(ErrorModel model) {
+            Errors.Add(model);
         }
-        public DomainException(List<ErrorModel> errors)
+        public void AddError(ErrorModel model)
         {
-            Errors.AddRange(errors);
+
+            Errors.Add(model);
         }
+
+        public void AddErrors(List<ErrorModel> models)
+        {
+
+            Errors.AddRange(models);
+        }
+
+        public bool HasErrors => Errors.Count > 0;
+        
     }
 }

@@ -2,7 +2,7 @@
 {
     public sealed class Company : Entity
     {
-        public Company(Guid id, string corporateName, string fantasyName, string description, string cnpj, string email, string phone, Address address) : base(id)
+        private Company(Guid id, string corporateName, string fantasyName, string description, string cnpj, string email, string phone, Address address) : base(id)
         {
             CorporateName = corporateName;
             FantasyName = fantasyName;
@@ -13,7 +13,8 @@
             Address = address;
         }
 
-        private Company(Guid id) : base(id) { }
+        private Company() { 
+        }
 
         public string CorporateName { get; private set; } = string.Empty;
         public string FantasyName { get; private set; } = string.Empty;

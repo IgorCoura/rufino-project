@@ -1,4 +1,5 @@
 ﻿using Commom.FileManager.Files;
+using iText.Kernel.XMP.Impl.XPath;
 using iText.Layout.Element;
 using System;
 using System.Collections.Generic;
@@ -13,13 +14,46 @@ namespace Commom.FileManager.Html
     public class HtmlManager
     {
 
-        public async static Task CreateHtmlFiles(Dictionary<string, dynamic> values, string pathOrigin, string pathDestiny, string fileName)
+        public async static Task<HtmlContent> CreateHtmlContent(Dictionary<string, dynamic> values, string pathOrigin)
         {
-            var pathDestinyHtml = Path.Combine(pathDestiny, fileName);
-            await CopyDirectory.Copy(pathOrigin, pathDestiny);
-            string html = await File.ReadAllTextAsync(pathDestinyHtml);
-            var result = await InsertValuesInHtmlTemplate(values, html);
-            await File.WriteAllTextAsync(pathDestinyHtml, result);
+            const string tempPath = "Temp";
+            const string nameFileBody = "index.html";
+            const string nameFileHeader = "header.html";
+            const string nameFileFooter = "footer.html";
+
+            var pathHtmlBody = Path.Combine(pathOrigin, nameFileBody);
+            var pathHtmlHeader = Path.Combine(pathOrigin, nameFileHeader);
+            var pathHtmlFooter = Path.Combine(pathOrigin, nameFileFooter);
+
+            var tempPathLocal = Path.Combine(tempPath, Guid.NewGuid().ToString());
+
+            await CopyDirectory.Copy(pathOrigin, tempPathLocal);
+
+            var pathDestinyHtml = Path.Combine(tempPathLocal, nameFileBody);
+            string htmlStringBody = await File.ReadAllTextAsync(pathHtmlBody);
+            var htmlBody = await InsertValuesInHtmlTemplate(values, htmlStringBody);
+            await File.WriteAllTextAsync(pathDestinyHtml, htmlBody);
+
+            try
+            {
+                string htmlStringHeader = await File.ReadAllTextAsync(pathHtmlHeader);
+                var htmlHeader = await InsertValuesInHtmlTemplate(values, htmlStringHeader);
+
+                string htmlStringFooter = await File.ReadAllTextAsync(pathHtmlFooter);
+                var htmlFooter = await InsertValuesInHtmlTemplate(values, htmlStringFooter);
+
+                var result = new HtmlContent(htmlHeader, pathDestinyHtml, htmlFooter);
+
+                return result;
+            }
+            catch
+            {
+                var result = new HtmlContent("", pathDestinyHtml, "");
+
+                return result;
+            }
+
+            
         }
         
         public static Task<string> InsertValuesInHtmlTemplate(Dictionary<string, dynamic> values, string html)

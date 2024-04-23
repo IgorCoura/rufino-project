@@ -4,11 +4,11 @@ public abstract class ValueObject
 {
     protected static bool EqualOperator(ValueObject left, ValueObject right)
     {
-        if (left is null ^ right is null)
+        if (ReferenceEquals(left, null) ^ ReferenceEquals(right, null))
         {
             return false;
         }
-        return left is null || left.Equals(right);
+        return ReferenceEquals(left, null) || left.Equals(right);
     }
 
     protected static bool NotEqualOperator(ValueObject left, ValueObject right)
@@ -16,7 +16,7 @@ public abstract class ValueObject
         return !(EqualOperator(left, right));
     }
 
-    protected abstract IEnumerable<object> GetEqualityComponents();
+    protected abstract IEnumerable<object?> GetEqualityComponents();
 
     public override bool Equals(object? obj)
     {
@@ -37,8 +37,8 @@ public abstract class ValueObject
             .Aggregate((x, y) => x ^ y);
     }
 
-    public ValueObject? GetCopy()
+    public ValueObject GetCopy()
     {
-        return this.MemberwiseClone() as ValueObject;
+        return this.MemberwiseClone() as ValueObject ?? throw new NullReferenceException();
     }
 }

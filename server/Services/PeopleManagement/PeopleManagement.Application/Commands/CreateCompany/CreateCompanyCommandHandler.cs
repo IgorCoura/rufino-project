@@ -21,7 +21,7 @@ public class CreateCompanyCommandHandler : IRequestHandler<CreateCompanyCommand,
             request.Cnpj!, 
             request.Email!,
             request.Phone!,
-            new Address(
+            Address.Create(
                 request.ZipCode!, 
                 request.Street!, 
                 request.Number!, 

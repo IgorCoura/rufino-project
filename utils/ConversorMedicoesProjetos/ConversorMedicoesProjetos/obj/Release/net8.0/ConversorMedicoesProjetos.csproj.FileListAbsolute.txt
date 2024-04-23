@@ -1,0 +1,15 @@
+C:\Users\IGOR-NOT\Desktop\Codigos\CodigosSSD\rufino-project\utils\ConversorMedicoesProjetos\ConversorMedicoesProjetos\bin\Release\net8.0\ConversorMedicoesProjetos.exe
+C:\Users\IGOR-NOT\Desktop\Codigos\CodigosSSD\rufino-project\utils\ConversorMedicoesProjetos\ConversorMedicoesProjetos\bin\Release\net8.0\ConversorMedicoesProjetos.deps.json
+C:\Users\IGOR-NOT\Desktop\Codigos\CodigosSSD\rufino-project\utils\ConversorMedicoesProjetos\ConversorMedicoesProjetos\bin\Release\net8.0\ConversorMedicoesProjetos.runtimeconfig.json
+C:\Users\IGOR-NOT\Desktop\Codigos\CodigosSSD\rufino-project\utils\ConversorMedicoesProjetos\ConversorMedicoesProjetos\bin\Release\net8.0\ConversorMedicoesProjetos.dll
+C:\Users\IGOR-NOT\Desktop\Codigos\CodigosSSD\rufino-project\utils\ConversorMedicoesProjetos\ConversorMedicoesProjetos\bin\Release\net8.0\ConversorMedicoesProjetos.pdb
+C:\Users\IGOR-NOT\Desktop\Codigos\CodigosSSD\rufino-project\utils\ConversorMedicoesProjetos\ConversorMedicoesProjetos\obj\Release\net8.0\ConversorMedicoesProjetos.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\IGOR-NOT\Desktop\Codigos\CodigosSSD\rufino-project\utils\ConversorMedicoesProjetos\ConversorMedicoesProjetos\obj\Release\net8.0\ConversorMedicoesProjetos.AssemblyInfoInputs.cache
+C:\Users\IGOR-NOT\Desktop\Codigos\CodigosSSD\rufino-project\utils\ConversorMedicoesProjetos\ConversorMedicoesProjetos\obj\Release\net8.0\ConversorMedicoesProjetos.AssemblyInfo.cs
+C:\Users\IGOR-NOT\Desktop\Codigos\CodigosSSD\rufino-project\utils\ConversorMedicoesProjetos\ConversorMedicoesProjetos\obj\Release\net8.0\ConversorMedicoesProjetos.csproj.CoreCompileInputs.cache
+C:\Users\IGOR-NOT\Desktop\Codigos\CodigosSSD\rufino-project\utils\ConversorMedicoesProjetos\ConversorMedicoesProjetos\obj\Release\net8.0\ConversorMedicoesProjetos.sourcelink.json
+C:\Users\IGOR-NOT\Desktop\Codigos\CodigosSSD\rufino-project\utils\ConversorMedicoesProjetos\ConversorMedicoesProjetos\obj\Release\net8.0\ConversorMedicoesProjetos.dll
+C:\Users\IGOR-NOT\Desktop\Codigos\CodigosSSD\rufino-project\utils\ConversorMedicoesProjetos\ConversorMedicoesProjetos\obj\Release\net8.0\refint\ConversorMedicoesProjetos.dll
+C:\Users\IGOR-NOT\Desktop\Codigos\CodigosSSD\rufino-project\utils\ConversorMedicoesProjetos\ConversorMedicoesProjetos\obj\Release\net8.0\ConversorMedicoesProjetos.pdb
+C:\Users\IGOR-NOT\Desktop\Codigos\CodigosSSD\rufino-project\utils\ConversorMedicoesProjetos\ConversorMedicoesProjetos\obj\Release\net8.0\ConversorMedicoesProjetos.genruntimeconfig.cache
+C:\Users\IGOR-NOT\Desktop\Codigos\CodigosSSD\rufino-project\utils\ConversorMedicoesProjetos\ConversorMedicoesProjetos\obj\Release\net8.0\ref\ConversorMedicoesProjetos.dll
