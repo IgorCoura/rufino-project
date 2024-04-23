@@ -1,11 +1,11 @@
 {
   "version": 2,
-  "dgSpecHash": "ys9kw+NdYTD9Omuy18d4yUxJgZK2CwYOdL1oP2tPexZnL/xQmStF0LqbJLd6SIEMi+3qVo1TxGHgip5y4vJrJA==",
+  "dgSpecHash": "jJyh98HI8vlPwFFrwq5OUM8pk6/q3ndbXiZ9ZkKCwCo4UkScZbOcLt+e6JzG4h8EIkk5O+UrQnhs2vrGxk28Yg==",
   "success": true,
   "projectFilePath": "C:\\Users\\IGOR-NOT\\Desktop\\Codigos\\CodigosSSD\\rufino-project\\server\\Services\\PeopleManagement\\PeopleManagement.Infra\\PeopleManagement.Infra.csproj",
   "expectedPackageFiles": [
     "C:\\Users\\IGOR-NOT\\.nuget\\packages\\humanizer.core\\2.14.1\\humanizer.core.2.14.1.nupkg.sha512",
-    "C:\\Users\\IGOR-NOT\\.nuget\\packages\\mediatr\\12.1.1\\mediatr.12.1.1.nupkg.sha512",
+    "C:\\Users\\IGOR-NOT\\.nuget\\packages\\mediatr\\12.2.0\\mediatr.12.2.0.nupkg.sha512",
     "C:\\Users\\IGOR-NOT\\.nuget\\packages\\mediatr.contracts\\2.0.1\\mediatr.contracts.2.0.1.nupkg.sha512",
     "C:\\Users\\IGOR-NOT\\.nuget\\packages\\microsoft.bcl.asyncinterfaces\\6.0.0\\microsoft.bcl.asyncinterfaces.6.0.0.nupkg.sha512",
     "C:\\Users\\IGOR-NOT\\.nuget\\packages\\microsoft.codeanalysis.analyzers\\3.3.3\\microsoft.codeanalysis.analyzers.3.3.3.nupkg.sha512",
