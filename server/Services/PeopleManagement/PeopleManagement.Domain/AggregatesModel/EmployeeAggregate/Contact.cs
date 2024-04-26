@@ -1,6 +1,5 @@
-﻿using PeopleManagement.Domain.Exceptions;
-using System;
-using System.ComponentModel.DataAnnotations;
+﻿using PeopleManagement.Domain.ErrorTools;
+using PeopleManagement.Domain.ErrorTools.ErrorsMessages;
 using System.Net.Mail;
 using System.Text.RegularExpressions;
 
@@ -17,7 +16,7 @@ namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
             private set
             {
                 if (!MailAddress.TryCreate(value, out _))
-                    throw new DomainException(DomainErrors.FieldIsFormatInvalid(nameof(Email)));
+                    throw new DomainException(this.GetType().Name, DomainErrors.FieldIsFormatInvalid(nameof(Email)));
 
                 _email = value;
             }
@@ -31,10 +30,10 @@ namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
                 number = number.Replace("(", "").Replace(")", "").Replace("-", "").Replace(" ", "");
 
                 if (string.IsNullOrWhiteSpace(number))
-                    throw new DomainException(DomainErrors.FieldNotBeNullOrEmpty(nameof(CellPhone)));
+                    throw new DomainException(this.GetType().Name, DomainErrors.FieldNotBeNullOrEmpty(nameof(CellPhone)));
 
                 if (!CellPhonerRegex().IsMatch(number))
-                    throw new DomainException(DomainErrors.FieldIsFormatInvalid(nameof(CellPhone)));
+                    throw new DomainException(this.GetType().Name, DomainErrors.FieldIsFormatInvalid(nameof(CellPhone)));
 
                 _cellphone = number;
             }

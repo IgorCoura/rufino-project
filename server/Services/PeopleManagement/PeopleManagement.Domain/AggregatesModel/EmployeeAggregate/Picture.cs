@@ -1,6 +1,5 @@
-﻿
-using PeopleManagement.Domain.Exceptions;
-using static System.Net.Mime.MediaTypeNames;
+﻿using PeopleManagement.Domain.ErrorTools.ErrorsMessages;
+using PeopleManagement.Domain.ErrorTools;
 
 namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
 {
@@ -28,6 +27,16 @@ namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
             return new(images);
         }
 
+        public bool HasValidImage => Images.Any(x => x.Valid);
+        public Result CheckPendingIssues()
+        {
+            var error = new List<Error>();
+
+            if (!HasValidImage)
+                error.Add(DomainErrors.FieldIsRequired(nameof(Image)));
+
+            return Result.Failure(this.GetType().Name, error);
+        }
         protected override IEnumerable<object?> GetEqualityComponents()
         {
             foreach(var image in Images)

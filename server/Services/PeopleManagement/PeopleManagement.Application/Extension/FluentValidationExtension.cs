@@ -1,12 +1,12 @@
 ﻿using FluentValidation;
 using FluentValidation.Results;
-using PeopleManagement.Domain.Exceptions;
+using PeopleManagement.Domain.ErrorTools;
 
 namespace PeopleManagement.Application.Extension
 {
     public static class FluentValidationExtension
     {
-        public static IRuleBuilderOptions<T, TProperty> WithMessage<T, TProperty>(this IRuleBuilderOptions<T, TProperty> rule, ErrorModel errorModel)
+        public static IRuleBuilderOptions<T, TProperty> WithMessage<T, TProperty>(this IRuleBuilderOptions<T, TProperty> rule, Error errorModel)
         {
             rule.WithErrorCode(errorModel.Code);
             rule.WithMessage(errorModel.Message);
@@ -14,7 +14,7 @@ namespace PeopleManagement.Application.Extension
             return rule;
         }
 
-        public static IRuleBuilderOptions<T, TProperty> WithMessage<T, TProperty>(this IRuleBuilderOptions<T, TProperty> rule, Func<T, ErrorModel> messageProvider)
+        public static IRuleBuilderOptions<T, TProperty> WithMessage<T, TProperty>(this IRuleBuilderOptions<T, TProperty> rule, Func<T, Error> messageProvider)
         {
             DefaultValidatorOptions.Configurable(rule).Current.SetErrorMessage((ctx, val) => {
                 var result = messageProvider(ctx.InstanceToValidate);
@@ -23,9 +23,9 @@ namespace PeopleManagement.Application.Extension
             });
             return rule;
         }
-        public static List<ErrorModel> GetErrors(this ValidationResult validationResult)
+        public static List<Error> GetErrors(this ValidationResult validationResult)
         {
-            var result = validationResult.Errors.Select(x => new ErrorModel(x.ErrorCode, x.ErrorMessage)).ToList();
+            var result = validationResult.Errors.Select(x => new Error(x.ErrorCode, x.ErrorMessage, new {})).ToList();
             return result;
         }
     }

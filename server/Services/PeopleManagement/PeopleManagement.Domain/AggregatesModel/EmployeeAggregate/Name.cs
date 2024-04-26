@@ -1,4 +1,5 @@
-﻿using PeopleManagement.Domain.Exceptions;
+﻿using PeopleManagement.Domain.ErrorTools;
+using PeopleManagement.Domain.ErrorTools.ErrorsMessages;
 using System.Text.RegularExpressions;
 
 namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
@@ -17,16 +18,16 @@ namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
             }
             set
             {
-                if (string.IsNullOrWhiteSpace(_value))
-                    throw new DomainException(DomainErrors.FieldNotBeNullOrEmpty(this.GetType().Name));
+                value = value.ToUpper().Trim();
 
-                if (_value.Length < MAX_LENGTH)
-                    throw new DomainException(DomainErrors.FieldInvalid(this.GetType().Name, value));
+                if (!NameRegex().IsMatch(value))
+                    throw new DomainException(this.GetType().Name, DomainErrors.FieldIsFormatInvalid(this.GetType().Name));
 
-                if (!NameRegex().IsMatch(_value))
-                    throw new DomainException(DomainErrors.FieldCannotHaveSpecialChar(this.GetType().Name));
+                if (value.Length > MAX_LENGTH)
+                    throw new DomainException(this.GetType().Name, DomainErrors.FieldInvalid(this.GetType().Name, value));
 
-                _value = value.ToUpper();
+
+                _value = value;
             }
         }
 
@@ -46,7 +47,7 @@ namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
             yield return Value;
         }
 
-        [GeneratedRegex(@"[^a-zA-Z0-9]")]
+        [GeneratedRegex(@"^[a-zA-ZÀ-ÿ']+(?: [a-zA-ZÀ-ÿ']+)+$")]
         private static partial Regex NameRegex();
     }
 }

@@ -1,5 +1,5 @@
 ﻿using Microsoft.AspNetCore.Mvc.Filters;
-using PeopleManagement.Domain.Exceptions;
+using PeopleManagement.Domain.ErrorTools;
 using System.Net;
 
 namespace PeopleManagement.API.Filters
@@ -15,11 +15,7 @@ namespace PeopleManagement.API.Filters
                 context.Result = new JsonResult(new
                 {
                     Success = false,
-                    Errors = exception?.Errors.Select(x => new
-                    {
-                        Code = x.Code,
-                        Message = x.Message
-                    })
+                    exception?.Errors
                 });
             }
         }

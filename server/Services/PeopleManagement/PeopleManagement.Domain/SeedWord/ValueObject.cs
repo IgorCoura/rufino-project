@@ -1,4 +1,6 @@
-﻿namespace PeopleManagement.Domain.SeedWord;
+﻿using PeopleManagement.Domain.ErrorTools;
+
+namespace PeopleManagement.Domain.SeedWord;
 
 public abstract class ValueObject
 {
@@ -45,8 +47,7 @@ public abstract class ValueObject
                 
             }
 
-            if(value == null)
-                value = "null";
+            value ??= "null";
 
             return $"{x.Name}:{value}";
         });
@@ -85,5 +86,18 @@ public abstract class ValueObject
     public ValueObject GetCopy()
     {
         return this.MemberwiseClone() as ValueObject ?? throw new NullReferenceException();
+    }
+
+    public static Result<TValue> CreateCatchingException<TValue>(Func<TValue> createObject) where TValue : ValueObject
+    {
+        try
+        {
+            TValue result = createObject();
+            return Result.Success<TValue>(result);
+        }
+        catch(DomainException e)
+        {
+            return Result.Failure<TValue>(e);
+        }
     }
 }

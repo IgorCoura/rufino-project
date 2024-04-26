@@ -1,4 +1,5 @@
-﻿using PeopleManagement.Domain.Exceptions;
+﻿using PeopleManagement.Domain.ErrorTools;
+using PeopleManagement.Domain.ErrorTools.ErrorsMessages;
 
 namespace PeopleManagement.Domain.SeedWord;
 
@@ -28,7 +29,7 @@ public abstract class Entity
         protected set
         {
             if (value == Guid.Empty)
-                throw new DomainException(DomainErrors.FieldNotBeDefaultValue(nameof(Id), Guid.Empty.ToString()));
+                throw new DomainException(this.GetType().Name, DomainErrors.FieldNotBeDefaultValue(nameof(Id), Guid.Empty.ToString()));
             _Id = value;
         }
     }

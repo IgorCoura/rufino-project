@@ -1,6 +1,5 @@
 ﻿using FluentValidation;
-using PeopleManagement.Application.Extension;
-using PeopleManagement.Domain.Exceptions;
+using PeopleManagement.Domain.ErrorTools;
 
 namespace PeopleManagement.Application.Behaviors
 {
@@ -31,7 +30,7 @@ namespace PeopleManagement.Application.Behaviors
 
             if (results != null && !results.IsValid)
             {
-                throw new DomainException();
+                throw new DomainException("");
             }
                 
 

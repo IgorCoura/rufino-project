@@ -1,5 +1,6 @@
 ﻿using PeopleManagement.Domain.AggregatesModel.EmployeeAggregate;
-using PeopleManagement.Domain.Exceptions;
+using PeopleManagement.Domain.ErrorTools;
+using PeopleManagement.Domain.ErrorTools.ErrorsMessages;
 
 namespace PeopleManagement.Tests.UnitTests.Aggregates.EmployeeTests
 {
@@ -37,7 +38,7 @@ namespace PeopleManagement.Tests.UnitTests.Aggregates.EmployeeTests
             });
 
             //Assert
-            Assert.Equal(ex.Errors.First(), DomainErrors.FieldInvalid(nameof(VoteId), number));
+            Assert.Equal(ex.Errors[nameof(VoteId)].First(), DomainErrors.FieldInvalid(nameof(VoteId), number));
         }
 
     }

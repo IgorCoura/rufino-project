@@ -1,4 +1,5 @@
-﻿using PeopleManagement.Domain.Exceptions;
+﻿using PeopleManagement.Domain.ErrorTools;
+using PeopleManagement.Domain.ErrorTools.ErrorsMessages;
 
 namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
 {
@@ -30,7 +31,7 @@ namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
             private set
             {
                 if (value.Length <= 0)
-                    throw new DomainException(DomainErrors.ListNotBeNullOrEmpty(nameof(Categories)));
+                    throw new DomainException(this.GetType().Name, DomainErrors.ListNotBeNullOrEmpty(nameof(Categories)));
                 _categories = _categories.Distinct().ToArray();
             }
         }
@@ -42,7 +43,7 @@ namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
                 var minDate = DateOnly.FromDateTime(DateTime.UtcNow);
                 var maxDate = minDate.AddYears(MAX_YEARS_VALIDITY);
                 if (value < minDate || value > maxDate)
-                    throw new DomainException(DomainErrors.DataHasBeBetween(nameof(Validity), value, minDate, maxDate));
+                    throw new DomainException(this.GetType().Name, DomainErrors.DataHasBeBetween(nameof(Validity), value, minDate, maxDate));
                 _validity = value;
             }
         }
@@ -80,11 +81,13 @@ namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
             return new(RegisterNumber, Categories, Validity, files);
         }
 
+        public bool HasValidFile => Files.Any(x => x.Valid);
+
         private void Validate(string value)
         {
             if (string.IsNullOrWhiteSpace(value))
             {
-                throw new DomainException(DomainErrors.FieldNotBeNullOrEmpty(nameof(RegisterNumber)));
+                throw new DomainException(this.GetType().Name, DomainErrors.FieldNotBeNullOrEmpty(nameof(RegisterNumber)));
             }
 
             string[] invalidForm = ["00000000000", "11111111111", "22222222222", "33333333333", "44444444444", "55555555555", "66666666666", "77777777777", "88888888888", "99999999999"];
@@ -95,14 +98,14 @@ namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
 
             if (value.Length != MAX_LENGHT)
             {
-                throw new DomainException((DomainErrors.FieldCannotBeLarger(nameof(RegisterNumber), MAX_LENGHT)));
+                throw new DomainException(this.GetType().Name, DomainErrors.FieldCannotBeLarger(nameof(RegisterNumber), MAX_LENGHT));
             }
 
             foreach (string item in invalidForm)
             {
                 if (item == value)
                 {
-                    throw new DomainException(DomainErrors.FieldInvalid(nameof(RegisterNumber), value));
+                    throw new DomainException(this.GetType().Name, DomainErrors.FieldInvalid(nameof(RegisterNumber), value));
                 }
             }
 
@@ -154,7 +157,7 @@ namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
             digit += digitNumber.ToString();
 
             if (!value.EndsWith(digit))
-                throw new DomainException(DomainErrors.FieldInvalid(nameof(RegisterNumber), value));
+                throw new DomainException(this.GetType().Name, DomainErrors.FieldInvalid(nameof(RegisterNumber), value));
         }
 
         protected override IEnumerable<object> GetEqualityComponents()

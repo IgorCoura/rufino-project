@@ -1,4 +1,5 @@
-﻿using PeopleManagement.Domain.Exceptions;
+﻿using PeopleManagement.Domain.ErrorTools;
+using PeopleManagement.Domain.ErrorTools.ErrorsMessages;
 
 namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
 {
@@ -41,11 +42,24 @@ namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
             return new(Number, files);
         }
 
+        public bool HasValidFile => Files.Any(x => x.Valid);
+
+        public Result CheckPendingIssues()
+        {
+            var error = new List<Error>();
+
+            if (!HasValidFile)
+                error.Add(DomainErrors.FieldIsRequired(nameof(File)));
+
+            return Result.Failure(this.GetType().Name, error);
+        }
+
+
         private void Validate(string value)
         {
             if (string.IsNullOrWhiteSpace(value))
             {
-                throw new DomainException(DomainErrors.FieldNotBeNullOrEmpty(nameof(VoteId)));
+                throw new DomainException(this.GetType().Name, DomainErrors.FieldNotBeNullOrEmpty(nameof(VoteId)));
             }
 
             int[] multiplierOne = [ 2, 3, 4, 5, 6, 7, 8, 9 ];
@@ -55,12 +69,12 @@ namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
             string digit;
             int sum, rest;
             if (value.Length != MAX_LENGHT)
-                throw new DomainException((DomainErrors.FieldCannotBeLarger(nameof(VoteId), MAX_LENGHT)));
+                throw new DomainException(this.GetType().Name, DomainErrors.FieldCannotBeLarger(nameof(VoteId), MAX_LENGHT));
 
             foreach (string item in invalido)
             {
                 if (item == value)
-                    throw new DomainException(DomainErrors.FieldInvalid(nameof(VoteId), value));
+                    throw new DomainException(this.GetType().Name, DomainErrors.FieldInvalid(nameof(VoteId), value));
             }
 
             aux = value[..8];
@@ -90,7 +104,7 @@ namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
             digit += rest.ToString();
 
             if (!value.EndsWith(digit))
-                throw new DomainException(DomainErrors.FieldInvalid(nameof(VoteId), value));
+                throw new DomainException(this.GetType().Name, DomainErrors.FieldInvalid(nameof(VoteId), value));
         }
 
         public override string ToString() => Number;

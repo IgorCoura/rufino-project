@@ -1,4 +1,5 @@
-﻿using PeopleManagement.Domain.Exceptions;
+﻿using PeopleManagement.Domain.ErrorTools;
+using PeopleManagement.Domain.ErrorTools.ErrorsMessages;
 
 namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
 {
@@ -28,7 +29,7 @@ namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
         {
             if (string.IsNullOrWhiteSpace(value))
             {
-                throw new DomainException(DomainErrors.FieldNotBeNullOrEmpty(nameof(CPF)));
+                throw new DomainException(this.GetType().Name, DomainErrors.FieldNotBeNullOrEmpty(nameof(CPF)));
             }
 
             int[] multiplierOne = [ 10, 9, 8, 7, 6, 5, 4, 3, 2 ];
@@ -41,14 +42,14 @@ namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
             
             if (value.Length != MAX_LENGHT)
             {
-                throw new DomainException((DomainErrors.FieldCannotBeLarger(nameof(CPF), MAX_LENGHT)));
+                throw new DomainException(this.GetType().Name, DomainErrors.FieldCannotBeLarger(nameof(CPF), MAX_LENGHT));
             }
 
             foreach (string item in cpfInvalido)
             {
                 if (item == value)
                 {
-                    throw new DomainException(DomainErrors.FieldInvalid(nameof(CPF), value));
+                    throw new DomainException(this.GetType().Name, DomainErrors.FieldInvalid(nameof(CPF), value));
                 }
             }
 
@@ -82,7 +83,7 @@ namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
             digit += rest.ToString();
 
             if (!value.EndsWith(digit))
-                throw new DomainException(DomainErrors.FieldInvalid(nameof(CPF), value));
+                throw new DomainException(this.GetType().Name, DomainErrors.FieldInvalid(nameof(CPF), value));
         }
 
         public override string ToString() => Number;
