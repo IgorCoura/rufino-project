@@ -1,5 +1,5 @@
-﻿using PeopleManagement.Domain.Exceptions;
-using System.Data;
+﻿using PeopleManagement.Domain.ErrorTools;
+using PeopleManagement.Domain.ErrorTools.ErrorsMessages;
 
 namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
 {
@@ -9,6 +9,7 @@ namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
 
         private DateOnly _initDate;
         private DateOnly? _finalDate = null;
+        private EmploymentContactType _contactType = null!;
         private File[] _files = [];
 
 
@@ -22,7 +23,7 @@ namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
                 var dateMax = dateNow.AddYears(MAX_RANGE_DATE_YEARS);
                 var dateMin = dateNow.AddYears(MAX_RANGE_DATE_YEARS * -1);
                 if (value < dateMin || value > dateMax)
-                    throw new DomainException(DomainErrors.DataHasBeBetween(nameof(InitDate), value, dateMin, dateMax));
+                    throw new DomainException(this.GetType().Name, DomainErrors.DataHasBeBetween(nameof(InitDate), value, dateMin, dateMax));
                 _initDate = dateNow;
             }
         }
@@ -37,11 +38,20 @@ namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
                     var dateMax = dateNow.AddYears(MAX_RANGE_DATE_YEARS);
                     var dateMin = dateNow.AddYears(MAX_RANGE_DATE_YEARS * -1);
                     if (value < dateMin || value > dateMax)
-                        throw new DomainException(DomainErrors.DataHasBeBetween(nameof(FinalDate), (DateOnly)value, dateMin, dateMax));
+                        throw new DomainException(this.GetType().Name, DomainErrors.DataHasBeBetween(nameof(FinalDate), (DateOnly)value, dateMin, dateMax));
                     _finalDate = dateNow;
                 }
             }
         }
+        public EmploymentContactType ContractType
+        {
+            get => _contactType;
+            private set 
+            {
+                _contactType = value; 
+            }
+        }      
+
 
         public File[] Files 
         {
@@ -54,26 +64,28 @@ namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
         }
 
         private EmploymentContract() { }
-        private EmploymentContract(DateOnly initDate)
+        private EmploymentContract(DateOnly initDate, EmploymentContactType contractType)
         {
             InitDate = initDate;
+            ContractType = contractType;
         }
-        private EmploymentContract(DateOnly initDate, DateOnly? finalDate, File[] files)
+        private EmploymentContract(DateOnly initDate, DateOnly? finalDate, EmploymentContactType contractType, File[] files)
         {
             InitDate = initDate;
             FinalDate = finalDate;
             Files = files;
+            ContractType = contractType;
         }
 
-        public static EmploymentContract Create(DateOnly initDate) => new(initDate);
-        public EmploymentContract FinshedContract(DateOnly finalDate) => new(InitDate, finalDate , Files);
+        public static EmploymentContract Create(DateOnly initDate, EmploymentContactType contractType) => new(initDate, contractType);
+        public EmploymentContract FinshedContract(DateOnly finalDate) => new(InitDate, finalDate , ContractType, Files);
 
         public EmploymentContract AddFile(File file)
         {
             File[] files = [.. Files, file];
-            return new(InitDate, FinalDate, files);
+            return new(InitDate, FinalDate, ContractType, files);
         }
-
+        public bool HasValidFile => Files.Any(x => x.Valid);
 
         protected override IEnumerable<object?> GetEqualityComponents()
         {

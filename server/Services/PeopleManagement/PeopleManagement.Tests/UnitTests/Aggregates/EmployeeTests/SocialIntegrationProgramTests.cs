@@ -1,5 +1,7 @@
 ﻿using PeopleManagement.Domain.AggregatesModel.EmployeeAggregate;
-using PeopleManagement.Domain.Exceptions;
+using PeopleManagement.Domain.ErrorTools;
+using PeopleManagement.Domain.ErrorTools.ErrorsMessages;
+
 namespace PeopleManagement.Tests.UnitTests.Aggregates.EmployeeTests
 {
     public class SocialIntegrationProgramTests
@@ -31,7 +33,7 @@ namespace PeopleManagement.Tests.UnitTests.Aggregates.EmployeeTests
             });
 
             //Assert
-            Assert.Equal(ex.Errors.First(), DomainErrors.FieldInvalid(nameof(SocialIntegrationProgram), value));
+            Assert.Equal(ex.Errors[nameof(SocialIntegrationProgram)].First(), DomainErrors.FieldInvalid(nameof(SocialIntegrationProgram), value));
         }
 
     }

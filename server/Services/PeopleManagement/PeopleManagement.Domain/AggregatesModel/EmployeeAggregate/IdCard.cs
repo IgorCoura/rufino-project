@@ -1,5 +1,5 @@
-﻿using PeopleManagement.Domain.Exceptions;
-using static System.Runtime.InteropServices.JavaScript.JSType;
+﻿using PeopleManagement.Domain.ErrorTools;
+using PeopleManagement.Domain.ErrorTools.ErrorsMessages;
 
 namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
 {
@@ -8,8 +8,6 @@ namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
         public const int MAX_NUMBER = 20;
         public const int MAX_SHIPPING_ORGANIZATION = 60;
         public const int MAX_YEARS_CREATE_DATE = 15;
-        public const int MAX_MOTHER_NAME = 100;
-        public const int MAX_FATHER_NAME = 100;
         public const int MAX_BIRTHCITY = 100;
         public const int MAX_BIRTHSTATE = 100;
         public const int MAX_NACIONALITY = 100;
@@ -21,8 +19,8 @@ namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
         private DateOnly _createAt;
         private string _breedingOrganization = string.Empty;
         private File[] _files = [];
-        private string _motherName = string.Empty;
-        private string _fatherName = string.Empty;
+        private Name _motherName = null!;
+        private Name? _fatherName = null!;
         private string _birthcity = string.Empty;
         private string _birthstate = string.Empty;
         private string _nacionality = string.Empty;
@@ -34,9 +32,9 @@ namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
             private set
             {
                 if (string.IsNullOrWhiteSpace(value))
-                    throw new DomainException(DomainErrors.FieldNotBeNullOrEmpty(nameof(Number)));
+                    throw new DomainException(this.GetType().Name, DomainErrors.FieldNotBeNullOrEmpty(nameof(Number)));
                 if (value.Length > MAX_NUMBER)
-                    throw new DomainException(DomainErrors.FieldCannotBeLarger(nameof(Number), MAX_NUMBER));
+                    throw new DomainException(this.GetType().Name, DomainErrors.FieldCannotBeLarger(nameof(Number), MAX_NUMBER));
                 _number = value;
             }
         }
@@ -56,7 +54,7 @@ namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
                 var dateNow = DateOnly.FromDateTime(DateTime.Now);
                 var dateMin = dateNow.AddYears(MAX_YEARS_CREATE_DATE * -1);
                 if (_createAt > dateNow || dateMin < _createAt)
-                    throw new DomainException(DomainErrors.DataHasBeBetween(nameof(CreateAt), value, dateMin, dateNow));
+                    throw new DomainException(this.GetType().Name, DomainErrors.DataHasBeBetween(nameof(CreateAt), value, dateMin, dateNow));
                 _createAt = value;
             }
         }
@@ -67,9 +65,9 @@ namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
             private set
             {
                 if (string.IsNullOrWhiteSpace(value))
-                    throw new DomainException(DomainErrors.FieldNotBeNullOrEmpty(nameof(Number)));
+                    throw new DomainException(this.GetType().Name, DomainErrors.FieldNotBeNullOrEmpty(nameof(Number)));
                 if (value.Length > MAX_NUMBER)
-                    throw new DomainException(DomainErrors.FieldCannotBeLarger(nameof(Number), MAX_NUMBER));
+                    throw new DomainException(this.GetType().Name, DomainErrors.FieldCannotBeLarger(nameof(Number), MAX_NUMBER));
                 _breedingOrganization = value;
             } 
         }
@@ -83,35 +81,19 @@ namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
             } 
         }
 
-        public string MotherName
+        public Name MotherName
         {
             get => _motherName;
             private set
             {
-                value = value.ToUpper().Trim();
-
-                if (string.IsNullOrWhiteSpace(value))
-                    throw new DomainException(DomainErrors.FieldNotBeNullOrEmpty(nameof(MotherName)));
-
-                if (value.Length > MAX_MOTHER_NAME)
-                    throw new DomainException(DomainErrors.FieldCannotBeLarger(nameof(MotherName), MAX_MOTHER_NAME));
-
                 _motherName = value;
             }
         }
-        public string FatherName
+        public Name? FatherName
         {
             get => _fatherName;
             private set
             {
-                value = value.ToUpper().Trim();
-
-                if (string.IsNullOrWhiteSpace(value))
-                    throw new DomainException(DomainErrors.FieldNotBeNullOrEmpty(nameof(FatherName)));
-
-                if (value.Length > MAX_FATHER_NAME)
-                    throw new DomainException(DomainErrors.FieldCannotBeLarger(nameof(FatherName), MAX_FATHER_NAME));
-
                 _fatherName = value;
             }
         }
@@ -123,10 +105,10 @@ namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
                 value = value.ToUpper().Trim();
 
                 if (string.IsNullOrWhiteSpace(value))
-                    throw new DomainException(DomainErrors.FieldNotBeNullOrEmpty(nameof(BirthCity)));
+                    throw new DomainException(this.GetType().Name, DomainErrors.FieldNotBeNullOrEmpty(nameof(BirthCity)));
 
                 if (value.Length > MAX_BIRTHCITY)
-                    throw new DomainException(DomainErrors.FieldCannotBeLarger(nameof(BirthCity), MAX_BIRTHCITY));
+                    throw new DomainException(this.GetType().Name, DomainErrors.FieldCannotBeLarger(nameof(BirthCity), MAX_BIRTHCITY));
 
                 _birthcity = value;
             }
@@ -140,10 +122,10 @@ namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
                 value = value.ToUpper().Trim();
 
                 if (string.IsNullOrWhiteSpace(value))
-                    throw new DomainException(DomainErrors.FieldNotBeNullOrEmpty(nameof(BirthState)));
+                    throw new DomainException(this.GetType().Name, DomainErrors.FieldNotBeNullOrEmpty(nameof(BirthState)));
 
                 if (value.Length > MAX_BIRTHSTATE)
-                    throw new DomainException(DomainErrors.FieldCannotBeLarger(nameof(BirthState), MAX_BIRTHSTATE));
+                    throw new DomainException(this.GetType().Name, DomainErrors.FieldCannotBeLarger(nameof(BirthState), MAX_BIRTHSTATE));
 
                 _birthstate = value;
             }
@@ -157,10 +139,10 @@ namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
                 value = value.ToUpper().Trim();
 
                 if (string.IsNullOrWhiteSpace(value))
-                    throw new DomainException(DomainErrors.FieldNotBeNullOrEmpty(nameof(Nacionality)));
+                    throw new DomainException(this.GetType().Name, DomainErrors.FieldNotBeNullOrEmpty(nameof(Nacionality)));
 
                 if (value.Length > MAX_NACIONALITY)
-                    throw new DomainException(DomainErrors.FieldCannotBeLarger(nameof(Nacionality), MAX_NACIONALITY));
+                    throw new DomainException(this.GetType().Name, DomainErrors.FieldCannotBeLarger(nameof(Nacionality), MAX_NACIONALITY));
 
                 _nacionality = value;
             }
@@ -174,11 +156,11 @@ namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
                 var maxDate = DateOnly.FromDateTime(DateTime.UtcNow).AddYears(MAX_AGE * -1);
                 var minDate = DateOnly.FromDateTime(DateTime.UtcNow).AddYears(MIN_AGE * -1);
                 if (value < maxDate || value > minDate)
-                    throw new DomainException(DomainErrors.DataHasBeBetween(nameof(DateOfBirth), value, minDate, maxDate));
+                    throw new DomainException(this.GetType().Name, DomainErrors.DataHasBeBetween(nameof(DateOfBirth), value, minDate, maxDate));
                 _dateOfBirth = value;
             }
         }
-        public IdCard(string number, CPF cpf, DateOnly createAt, string breedingOrganization, string motherName, string fatherName, string birthCity, string birthState, string nacionality, DateOnly dateOfBirth)
+        public IdCard(string number, CPF cpf, DateOnly createAt, string breedingOrganization, Name motherName, Name? fatherName, string birthCity, string birthState, string nacionality, DateOnly dateOfBirth)
         {
             Number = number;
             Cpf = cpf;
@@ -192,7 +174,7 @@ namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
             DateOfBirth = dateOfBirth;
         }
 
-        public IdCard(string number, CPF cpf, DateOnly createAt, string breedingOrganization, string motherName, string fatherName, string birthCity, string birthState, string nacionality, DateOnly dateOfBirth, File[] files)
+        public IdCard(string number, CPF cpf, DateOnly createAt, string breedingOrganization, Name motherName, Name? fatherName, string birthCity, string birthState, string nacionality, DateOnly dateOfBirth, File[] files)
         {
             Number = number;
             Cpf = cpf;
@@ -207,7 +189,7 @@ namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
             DateOfBirth = dateOfBirth;
         }
 
-        public static IdCard Create(string number, CPF cpf, DateOnly createAt, string breedingOrganization, string motherName, string fatherName, string birthCity, string birthState, string nacionality, DateOnly dateOfBirth)
+        public static IdCard Create(string number, CPF cpf, DateOnly createAt, string breedingOrganization, Name motherName, Name? fatherName, string birthCity, string birthState, string nacionality, DateOnly dateOfBirth)
             => new(number, cpf, createAt, breedingOrganization, motherName, fatherName, birthCity, birthState, nacionality, dateOfBirth);
 
         public IdCard AddFile(File file)
@@ -217,6 +199,30 @@ namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
             return new(Number, Cpf, CreateAt, BreedingOrganization, MotherName, FatherName, BirthCity, BirthState, Nacionality, DateOfBirth ,files);
         }
 
+        public bool HasValidFile => Files.Any(x => x.Valid);
+
+        public int Age() 
+        {
+            var dateNow = DateOnly.FromDateTime(DateTime.UtcNow);
+            var age = dateNow.Year - DateOfBirth.Year;
+            if (DateOfBirth.Month > dateNow.Month)
+                age -= 1;
+
+            if (DateOfBirth.Month == dateNow.Month && DateOfBirth.Day > dateNow.Day)
+                age -= 1;
+
+            return age;
+        }
+
+        public Result CheckPendingIssues()
+        {
+            var error = new List<Error>();
+
+            if (!HasValidFile)
+                error.Add(DomainErrors.FieldIsRequired(nameof(File)));
+
+            return Result.Failure(this.GetType().Name, error);
+        }
         protected override IEnumerable<object?> GetEqualityComponents()
         {
             yield return Number; 

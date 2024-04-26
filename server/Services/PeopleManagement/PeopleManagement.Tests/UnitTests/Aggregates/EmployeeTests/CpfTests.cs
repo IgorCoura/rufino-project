@@ -1,6 +1,7 @@
 ﻿using Newtonsoft.Json.Linq;
 using PeopleManagement.Domain.AggregatesModel.EmployeeAggregate;
-using PeopleManagement.Domain.Exceptions;
+using PeopleManagement.Domain.ErrorTools;
+using PeopleManagement.Domain.ErrorTools.ErrorsMessages;
 using System.Numerics;
 
 namespace PeopleManagement.Tests.UnitTests.Aggregates.EmployeeTests
@@ -35,7 +36,7 @@ namespace PeopleManagement.Tests.UnitTests.Aggregates.EmployeeTests
                 return cpf;
             });
 
-            Assert.Equal(ex.Errors.First(), DomainErrors.FieldInvalid(nameof(CPF), value));
+            Assert.Equal(ex.Errors[nameof(CPF)].First(), DomainErrors.FieldInvalid(nameof(CPF), value));
         }
 
     }

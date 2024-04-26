@@ -1,7 +1,7 @@
 ﻿using PeopleManagement.Domain.AggregatesModel.EmployeeAggregate;
-using PeopleManagement.Domain.Exceptions;
+using PeopleManagement.Domain.ErrorTools;
+using PeopleManagement.Domain.ErrorTools.ErrorsMessages;
 using PeopleManagement.Domain.SeedWord;
-using System.Reflection;
 
 namespace PeopleManagement.Tests.UnitTests.Aggregates.EmployeeTests
 {
@@ -34,7 +34,20 @@ namespace PeopleManagement.Tests.UnitTests.Aggregates.EmployeeTests
         public void CreateContactWithInalidEmail(string email, string phone)
         {
             DomainException ex = Assert.Throws<DomainException>(() => Contact.Create(email, phone));
-            Assert.Equal(ex.Errors.First(), DomainErrors.FieldIsFormatInvalid(nameof(Contact.Email)));
+            Assert.Equal(ex.Errors[nameof(Contact)].FirstOrDefault(), DomainErrors.FieldIsFormatInvalid(nameof(Contact.Email)));
+        }
+
+        [Theory]
+        [InlineData("emai", "(11) 99-3345639")]
+        [InlineData("emai@", "11993345639")]
+        [InlineData("@emai", "11993345639")]
+        [InlineData("@emai.com", "11993345639")]
+        [InlineData("@.com", "11993345639")]
+        public void CreateContactWithInalidEmailWithoutThrow(string email, string phone)
+        {
+            var result = ValueObject.CreateCatchingException(() => Contact.Create(email, phone));
+            Assert.True(result.IsFailure);
+            Assert.Equal(result.Errors[nameof(Contact)].FirstOrDefault(), DomainErrors.FieldIsFormatInvalid(nameof(Contact.Email)));
         }
 
     }

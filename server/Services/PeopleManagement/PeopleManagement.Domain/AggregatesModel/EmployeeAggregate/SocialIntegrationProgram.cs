@@ -1,4 +1,5 @@
-﻿using PeopleManagement.Domain.Exceptions;
+﻿using PeopleManagement.Domain.ErrorTools;
+using PeopleManagement.Domain.ErrorTools.ErrorsMessages;
 
 namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
 {
@@ -28,7 +29,7 @@ namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
         {
             if (string.IsNullOrWhiteSpace(value))
             {
-                throw new DomainException(DomainErrors.FieldNotBeNullOrEmpty(nameof(SocialIntegrationProgram)));
+                throw new DomainException(this.GetType().Name, DomainErrors.FieldNotBeNullOrEmpty(nameof(SocialIntegrationProgram)));
             }
 
             int[] multiplier = [3,2,9,8,7,6,5,4,3,2];     
@@ -38,12 +39,12 @@ namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
             int sum, rest;
 
             if (value.Length != MAX_LENGHT)
-                throw new DomainException((DomainErrors.FieldCannotBeLarger(nameof(SocialIntegrationProgram), MAX_LENGHT)));
+                throw new DomainException(this.GetType().Name, DomainErrors.FieldCannotBeLarger(nameof(SocialIntegrationProgram), MAX_LENGHT));
 
             foreach (string item in invalido)
             {
                 if (item == value)
-                    throw new DomainException(DomainErrors.FieldInvalid(nameof(SocialIntegrationProgram), value));
+                    throw new DomainException(this.GetType().Name, DomainErrors.FieldInvalid(nameof(SocialIntegrationProgram), value));
             }
 
             aux = value[..10];
@@ -60,7 +61,7 @@ namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
             digit = rest.ToString();
 
             if (!value.EndsWith(digit))
-                throw new DomainException(DomainErrors.FieldInvalid(nameof(SocialIntegrationProgram), value));
+                throw new DomainException(this.GetType().Name, DomainErrors.FieldInvalid(nameof(SocialIntegrationProgram), value));
         }
 
         public override string ToString() => Number;

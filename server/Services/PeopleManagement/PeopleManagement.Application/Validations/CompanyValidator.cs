@@ -2,8 +2,7 @@
 using PeopleManagement.Application.Commands.CreateCompany;
 using PeopleManagement.Application.Extension;
 using PeopleManagement.Application.Utils;
-using PeopleManagement.Domain.Exceptions;
-using System.Text.RegularExpressions;
+using PeopleManagement.Domain.ErrorTools.ErrorsMessages;
 
 namespace PeopleManagement.Application.Validations
 {

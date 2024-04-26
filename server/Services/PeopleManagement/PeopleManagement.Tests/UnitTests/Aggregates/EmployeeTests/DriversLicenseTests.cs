@@ -1,5 +1,6 @@
 ﻿using PeopleManagement.Domain.AggregatesModel.EmployeeAggregate;
-using PeopleManagement.Domain.Exceptions;
+using PeopleManagement.Domain.ErrorTools;
+using PeopleManagement.Domain.ErrorTools.ErrorsMessages;
 
 namespace PeopleManagement.Tests.UnitTests.Aggregates.EmployeeTests
 {
@@ -41,7 +42,7 @@ namespace PeopleManagement.Tests.UnitTests.Aggregates.EmployeeTests
             });
 
             //Assert
-            Assert.Equal(ex.Errors.First(), DomainErrors.FieldInvalid(nameof(DriversLicense.RegisterNumber), registerNumber));
+            Assert.Equal(ex.Errors[nameof(DriversLicense)].First(), DomainErrors.FieldInvalid(nameof(DriversLicense.RegisterNumber), registerNumber));
         }
 
     }

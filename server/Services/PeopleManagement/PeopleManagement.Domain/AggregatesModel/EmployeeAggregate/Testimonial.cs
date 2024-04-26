@@ -1,4 +1,5 @@
-﻿using PeopleManagement.Domain.Exceptions;
+﻿using PeopleManagement.Domain.ErrorTools;
+using PeopleManagement.Domain.ErrorTools.ErrorsMessages;
 
 namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
 {
@@ -17,6 +18,17 @@ namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
         {
             File[] files = [.. Files, file];
             return new(files);
+        }
+        public bool HasValidFile => Files.Any(x => x.Valid);
+
+        public Result CheckPendingIssues()
+        {
+            var error = new List<Error>();
+
+            if (!HasValidFile)
+                error.Add(DomainErrors.FieldIsRequired(nameof(File)));
+
+            return Result.Failure(this.GetType().Name, error);
         }
 
         protected override IEnumerable<object> GetEqualityComponents()

@@ -1,4 +1,5 @@
-﻿using PeopleManagement.Domain.Exceptions;
+﻿using PeopleManagement.Domain.ErrorTools;
+using PeopleManagement.Domain.ErrorTools.ErrorsMessages;
 namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
 {
     public class Deficiency : ValueObject
@@ -12,8 +13,6 @@ namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
             get => _disabilities;
             private set
             {
-                if (_disabilities.Length <= 0)
-                    throw new DomainException(DomainErrors.ListNotBeNullOrEmpty(nameof(Disabilities)));
                 _disabilities = value;
                 _disabilities = _disabilities.Distinct().ToArray();
             }
@@ -25,11 +24,8 @@ namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
             {
                 value = value.Trim();
 
-                if (string.IsNullOrWhiteSpace(value))
-                    throw new DomainException(DomainErrors.FieldNotBeNullOrEmpty(nameof(Observation)));
-
                 if(value.Length > MAX_OBSERVATION)
-                    throw new DomainException(DomainErrors.FieldCannotBeLarger(nameof(Observation), MAX_OBSERVATION));
+                    throw new DomainException(this.GetType().Name, DomainErrors.FieldCannotBeLarger(nameof(Observation), MAX_OBSERVATION));
                 
                 _observation = value;
             }

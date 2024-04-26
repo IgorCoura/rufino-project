@@ -1,4 +1,5 @@
-﻿using PeopleManagement.Domain.Exceptions;
+﻿using PeopleManagement.Domain.ErrorTools;
+using PeopleManagement.Domain.ErrorTools.ErrorsMessages;
 
 namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
 {
@@ -19,7 +20,7 @@ namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
                 var dateMin = dateNow.AddYears(DEFAULT_VALIDITY_EXAM_YEARS * -1);
                 var dateMax = dateNow.AddDays(1);
                 if (value <  dateMin || value > dateNow)
-                    throw new DomainException(DomainErrors.DataHasBeBetween(nameof(DateExam), value, dateMin, dateMax));
+                    throw new DomainException(this.GetType().Name, DomainErrors.DataHasBeBetween(nameof(DateExam), value, dateMin, dateMax));
                 _dateExam = value;
             } 
         }
@@ -31,8 +32,8 @@ namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
             {
                 var dateNow = DateOnly.FromDateTime(DateTime.UtcNow);
                 var dateMax = dateNow.AddYears(MAX_YEARS_VALIDITY);
-                if (_validity < dateNow || _validity > dateMax)
-                    throw new DomainException(DomainErrors.DataHasBeBetween(nameof(Validity), value, dateNow, dateMax));
+                if (value < dateNow || value > dateMax)
+                    throw new DomainException(this.GetType().Name, DomainErrors.DataHasBeBetween(nameof(Validity), value, dateNow, dateMax));
                 _validity = value;
             }
         }
@@ -46,6 +47,7 @@ namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
 
         public static MedicalExam Create(DateOnly dateExam, DateOnly validity) => new(dateExam, validity);
 
+        public bool IsValid => _validity > DateOnly.FromDateTime(DateTime.UtcNow);
 
         protected override IEnumerable<object?> GetEqualityComponents()
         {
