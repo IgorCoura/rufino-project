@@ -1,8 +1,6 @@
-﻿using Newtonsoft.Json.Linq;
-using PeopleManagement.Domain.AggregatesModel.EmployeeAggregate;
+﻿using PeopleManagement.Domain.AggregatesModel.EmployeeAggregate;
 using PeopleManagement.Domain.ErrorTools;
 using PeopleManagement.Domain.ErrorTools.ErrorsMessages;
-using System.Numerics;
 
 namespace PeopleManagement.Tests.UnitTests.Aggregates.EmployeeTests
 {
@@ -30,6 +28,7 @@ namespace PeopleManagement.Tests.UnitTests.Aggregates.EmployeeTests
         [InlineData("36.734.42  80-56  ")]
         public void CreateInvalidCpf(string value)
         {
+
             DomainException ex = Assert.Throws<DomainException>(() =>
             {
                 CPF cpf = value;

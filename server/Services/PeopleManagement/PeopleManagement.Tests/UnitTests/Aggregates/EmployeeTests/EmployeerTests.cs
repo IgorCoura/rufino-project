@@ -70,8 +70,6 @@ namespace PeopleManagement.Tests.UnitTests.Aggregates.EmployeeTests
                 DependencyType.Spouse
                 );
 
-            var result = dependent.CheckPendingIssues();
-
             employee.AddDependent(dependent);
 
 
@@ -85,8 +83,6 @@ namespace PeopleManagement.Tests.UnitTests.Aggregates.EmployeeTests
         {
             var employee = GetValidEmployee;
 
-            var Image = employee.AddPictureImage(ImageExtesion.PNG);
-
             employee.RoleId = Guid.NewGuid();
             employee.WorkPlaceId = Guid.NewGuid();
 
@@ -96,9 +92,7 @@ namespace PeopleManagement.Tests.UnitTests.Aggregates.EmployeeTests
 
             employee.PersonalInfo = PersonalInfo.Create(Deficiency.Create("", []), MaritalStatus.Single, Gender.MALE, Ethinicity.White, EducationLevel.CompleteHigher);
             employee.IdCard = IdCard.Create("12312455", "216.456.330-12", DateOnly.Parse("2015-12-12"), "SSP/SP", "Maria Silva", "Marcio Andrade", "Suzano", "São Paulo", "Brasileiro", DateOnly.Parse("2000/01/01"));
-            employee.AddIdCardFile(FileExtesion.PDF);
             employee.VoteId = VoteId.Create("281662310124");
-            employee.AddVoteIdFile(FileExtesion.PDF);
 
             employee.AddMedicalExam(MedicalExam.Create(DateOnly.Parse("2024/04/20"), DateOnly.Parse("2025/04/20")));
 

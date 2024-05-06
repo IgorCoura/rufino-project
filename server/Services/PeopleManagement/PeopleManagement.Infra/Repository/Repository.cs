@@ -42,13 +42,45 @@ namespace PeopleManagement.Infra.Repository
             return Task.CompletedTask;
         }
 
-        public async Task<T?> FirstAsync(Expression<Func<T, bool>> filter, Func<IQueryable<T>, IIncludableQueryable<T, object>>? include = null, CancellationToken cancellation = default)
+        public async Task<T?> FirstOrDefaultAsync(Guid id, Func<IQueryable<T>, IIncludableQueryable<T, object>>? include = null, CancellationToken cancellation = default)
+        {
+            var query = _context.Set<T>().AsQueryable();
+            if (include != null)
+                query = include(query);
+
+            return await query.FirstOrDefaultAsync(x => x.Id == id, cancellation);
+        }
+
+        public async Task<T?> FirstOrDefaultAsync(Expression<Func<T, bool>> filter, Func<IQueryable<T>, IIncludableQueryable<T, object>>? include = null, CancellationToken cancellation = default)
         {
             var query = _context.Set<T>().AsQueryable();
             if (include != null)
                 query = include(query);
 
             return await query.FirstOrDefaultAsync(filter, cancellation);
+        }
+
+        public async Task<IEnumerable<T>> GetDataAsync(Expression<Func<T, bool>>? filter = null, Func<IQueryable<T>, IIncludableQueryable<T, object>>? include = null, int? skip = null, int? take = null)
+        {
+            var query = _context.Set<T>().AsQueryable();
+            if (filter != null)
+                query = query.Where(filter);
+
+            if (include != null)
+                query = include(query);
+
+            if (skip != null && skip.HasValue)
+                query = query.Skip(skip.Value);
+
+            if (take != null && take.HasValue)
+                query = query.Take(take.Value);
+
+            return await query.ToListAsync();
+        }
+
+        public async Task<bool> AnyAsync(Expression<Func<T, bool>> filter)
+        {
+            return await _context.Set<T>().AnyAsync(filter);
         }
     }
 }

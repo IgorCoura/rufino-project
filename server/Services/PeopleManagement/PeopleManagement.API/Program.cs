@@ -2,7 +2,6 @@ using EntityFramework.Exceptions.PostgreSQL;
 using Microsoft.EntityFrameworkCore;
 using PeopleManagement.API.DependencyInjection;
 using PeopleManagement.API.Filters;
-using PeopleManagement.Application.Behaviors;
 using PeopleManagement.Application.Commands;
 using PeopleManagement.Infra.Context;
 using System.Text.Json.Serialization;
