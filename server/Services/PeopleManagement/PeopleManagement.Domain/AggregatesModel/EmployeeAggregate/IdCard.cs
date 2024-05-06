@@ -18,7 +18,6 @@ namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
         private CPF _cpf = null!;
         private DateOnly _createAt;
         private string _breedingOrganization = string.Empty;
-        private File[] _files = [];
         private Name _motherName = null!;
         private Name? _fatherName = null!;
         private string _birthcity = string.Empty;
@@ -69,15 +68,6 @@ namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
                 if (value.Length > MAX_NUMBER)
                     throw new DomainException(this.GetType().Name, DomainErrors.FieldCannotBeLarger(nameof(Number), MAX_NUMBER));
                 _breedingOrganization = value;
-            } 
-        }
-        public File[] Files
-        {
-            get => _files;
-            private set
-            {
-                _files = value;
-                _files = _files.Distinct().ToArray();
             } 
         }
 
@@ -174,32 +164,11 @@ namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
             DateOfBirth = dateOfBirth;
         }
 
-        public IdCard(string number, CPF cpf, DateOnly createAt, string breedingOrganization, Name motherName, Name? fatherName, string birthCity, string birthState, string nacionality, DateOnly dateOfBirth, File[] files)
-        {
-            Number = number;
-            Cpf = cpf;
-            CreateAt = createAt;
-            BreedingOrganization = breedingOrganization;
-            Files = files;
-            MotherName = motherName;
-            FatherName = fatherName;
-            BirthCity = birthCity;
-            BirthState = birthState;
-            Nacionality = nacionality;
-            DateOfBirth = dateOfBirth;
-        }
+
 
         public static IdCard Create(string number, CPF cpf, DateOnly createAt, string breedingOrganization, Name motherName, Name? fatherName, string birthCity, string birthState, string nacionality, DateOnly dateOfBirth)
             => new(number, cpf, createAt, breedingOrganization, motherName, fatherName, birthCity, birthState, nacionality, dateOfBirth);
 
-        public IdCard AddFile(File file)
-        {
-            File[] files = [.. Files, file];
-            files = files.Distinct().ToArray();
-            return new(Number, Cpf, CreateAt, BreedingOrganization, MotherName, FatherName, BirthCity, BirthState, Nacionality, DateOfBirth ,files);
-        }
-
-        public bool HasValidFile => Files.Any(x => x.Valid);
 
         public int Age() 
         {
@@ -214,25 +183,14 @@ namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
             return age;
         }
 
-        public Result CheckPendingIssues()
-        {
-            var error = new List<Error>();
 
-            if (!HasValidFile)
-                error.Add(DomainErrors.FieldIsRequired(nameof(File)));
-
-            return Result.Failure(this.GetType().Name, error);
-        }
         protected override IEnumerable<object?> GetEqualityComponents()
         {
             yield return Number; 
             yield return Cpf; 
             yield return CreateAt; 
             yield return BreedingOrganization;
-            foreach(var file in Files)
-            {
-                yield return file;
-            }
+ 
         }
     }
 }

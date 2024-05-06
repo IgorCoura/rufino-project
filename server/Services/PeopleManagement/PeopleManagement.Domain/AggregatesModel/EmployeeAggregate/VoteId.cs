@@ -20,39 +20,13 @@ namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
             }
         }
 
-        public File[] Files { get; private set; } = [];
-
-
         private VoteId(string value)
         {
             Number = value;
         }
 
-        private VoteId(string value, File[] files)
-        {
-            Number = value;
-            Files = files;
-        }
-
 
         public static VoteId Create(string value) => new(value);
-        public VoteId AddFile(File file)
-        {
-            File[] files = [.. Files, file];
-            return new(Number, files);
-        }
-
-        public bool HasValidFile => Files.Any(x => x.Valid);
-
-        public Result CheckPendingIssues()
-        {
-            var error = new List<Error>();
-
-            if (!HasValidFile)
-                error.Add(DomainErrors.FieldIsRequired(nameof(File)));
-
-            return Result.Failure(this.GetType().Name, error);
-        }
 
 
         private void Validate(string value)

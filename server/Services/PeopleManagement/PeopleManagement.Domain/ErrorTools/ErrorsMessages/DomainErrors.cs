@@ -32,12 +32,18 @@ namespace PeopleManagement.Domain.ErrorTools.ErrorsMessages
 
         #endregion
 
-        #region DataErrors 200-299
+        #region ListErrors 200-299
 
         public static Error ListHasObjectDuplicate(string NameField) => new("PMD201", $"A lista {NameField} contém objetos duplicados.", new { NameField });
         public static Error ListNotBeNullOrEmpty(string NameField) => new("PMD202", $"A lista {NameField}, não pode ser nulo ou vazio.", new { NameField });
         public static Error ListItemNotFound(string NameField, string Item) => new("PMD203", $"Na lista {NameField}, não foi possivel encontrar o item {Item}.", new { NameField, Item});
 
+
+        #endregion
+
+        #region ObjectErrors 300-399
+
+        public static Error ObjectNotFound(string NameObject) => new("PMD301", $"{NameObject} Não foi encontrar.", new { NameObject});
 
         #endregion
     }

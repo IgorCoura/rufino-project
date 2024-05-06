@@ -1,7 +1,7 @@
-﻿using PeopleManagement.Domain.ErrorTools;
+﻿using PeopleManagement.Domain.AggregatesModel.ArchiveAggregate;
+using PeopleManagement.Domain.ErrorTools;
 using PeopleManagement.Domain.ErrorTools.ErrorsMessages;
 using PeopleManagement.Domain.Events;
-using System;
 
 namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
 {
@@ -35,7 +35,6 @@ namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
             }
         }  
         public Name Name { get; set; } = null!;
-        public Picture Picture { get; set; } = null!;
         public Guid? RoleId 
         {
             get => _roleId;
@@ -125,13 +124,13 @@ namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
         private Employee(Guid id, Guid companyId, Name name, Status status) : base(id)
         {
             Name = name;
-            Picture = Picture.Create();
             CompanyId = companyId;
             Status = status;
         }
 
         public static Employee Create(Guid id, Guid companyId, Name name)
         {
+
             return new(id, companyId, name, Status.Pending);
         }
 
@@ -152,9 +151,6 @@ namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
         public Result ThereNotPendingIssues()
         {
             var result = Result.Success(this.GetType().Name);
-
-            if (Picture == null)
-                result.AddError(DomainErrors.FieldIsRequired(nameof(Picture)));
 
             if (RoleId == null || RoleId == Guid.Empty)
                 result.AddError(DomainErrors.FieldIsRequired(nameof(RoleId)));
@@ -183,18 +179,6 @@ namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
             if (!MedicalExams.Any(x => x.IsValid))
                 result.AddError(DomainErrors.FieldIsRequired(nameof(MedicalExams)));
 
-            if(Picture != null)
-                result.AddResult(Picture.CheckPendingIssues());
-
-            if (IdCard != null)
-                result.AddResult(IdCard.CheckPendingIssues());
-
-            if (VoteId != null)
-                result.AddResult(VoteId.CheckPendingIssues());
-
-            if (Dependents.Any())
-                result.AddResults(Dependents.Select(x => x.CheckPendingIssues()).ToList());
-
             return result;
         }
 
@@ -203,67 +187,10 @@ namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
             Dependents = Dependents.Append(dependent);
         }
 
-        public File AddIdCardFile(FileExtesion extesionFile)
-        {
-            if (IdCard == null)
-                throw new DomainException(this.GetType().Name, DomainErrors.FieldNotBeNull(nameof(IdCard)));
-            File file = CreateFile(extesionFile, nameof(IdCard));
-            IdCard = IdCard.AddFile(file);
-            return file;
-        }
-        public File AddVoteIdFile(FileExtesion extesionFile)
-        {
-            if (VoteId == null)
-                throw new DomainException(this.GetType().Name, DomainErrors.FieldNotBeNull(nameof(VoteId)));
-            File file = CreateFile(extesionFile, nameof(VoteId));
-            VoteId = VoteId.AddFile(file);
-            return file;
-        }
-
-
-        public Image AddPictureImage(ImageExtesion extesionFile)
-        {
-            var imageName = Guid.NewGuid().ToString();
-            var path = CreateFileStoragePath(nameof(Picture));
-            Image image = Image.Create(path, imageName, extesionFile, true);
-            Picture = Picture.AddImage(image);
-            return image;
-        }
-
-        public File AddDepedentIdCardFile(Guid depedentId, FileExtesion extesionFile)
-        {
-            var dependent = Dependents.FirstOrDefault(x => x.Id == depedentId) 
-                ?? throw new DomainException(this.GetType().Name, DomainErrors.ListItemNotFound(nameof(Dependents), depedentId.ToString()));
-            
-            if (dependent.IdCard == null)
-                throw new DomainException(this.GetType().Name, DomainErrors.FieldNotBeNull(nameof(IdCard)));
-
-            File file = CreateFile(extesionFile, nameof(dependent.IdCard));
-            dependent.IdCard.AddFile(file);
-            return file;
-        }
-
-        public File AddDepedentTestimonialFile(Guid depedentId, FileExtesion extesionFile)
-        {
-            var dependent = Dependents.FirstOrDefault(x => x.Id == depedentId)
-                ?? throw new DomainException(this.GetType().Name, DomainErrors.ListItemNotFound(nameof(Dependents), depedentId.ToString()));                
-
-            File file = CreateFile(extesionFile, nameof(dependent.Testimonial));
-            dependent.AddTestimonialFile(file);
-            return file;
-        }
 
         public void AddMedicalExam(MedicalExam exam)
         {
             MedicalExams = MedicalExams.Append(exam);
-        }
-
-        private File CreateFile(FileExtesion extesionFile, string valueObjectName)
-        {
-            var fileName = Guid.NewGuid().ToString();
-            var path = CreateFileStoragePath(valueObjectName);
-            File file = File.Create(path, fileName, extesionFile, true);
-            return file;
         }
 
         private string CreateFileStoragePath(string archiveName)

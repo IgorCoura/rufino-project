@@ -12,7 +12,6 @@ namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
         private string _registerNumber = string.Empty;
         private CategoryDriversLicense[] _categories = [];
         private DateOnly _validity;
-        private File[] _files = [];
 
         public string RegisterNumber
         {
@@ -48,16 +47,6 @@ namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
             }
         }
 
-        public File[] Files 
-        {
-            get => _files;
-            private set
-            {
-                _files = value;
-                _files = _files.Distinct().ToArray();
-            }
-        }
-
         private DriversLicense(string registerNumber, CategoryDriversLicense[] categories, DateOnly validity)
         {
             RegisterNumber = registerNumber;
@@ -65,23 +54,8 @@ namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
             Validity = validity;
         }
 
-        private DriversLicense(string registerNumber, CategoryDriversLicense[] categories, DateOnly validity, File[] files)
-        {
-            RegisterNumber = registerNumber;
-            Categories = categories;
-            Validity = validity;
-            Files = files;
-        }
-
         public static DriversLicense Create(string registerNumber, DateOnly validity, params CategoryDriversLicense[] categories) => new(registerNumber, categories, validity);
 
-        public DriversLicense AddFile(File file)
-        {
-            File[] files = [.. Files, file];
-            return new(RegisterNumber, Categories, Validity, files);
-        }
-
-        public bool HasValidFile => Files.Any(x => x.Valid);
 
         private void Validate(string value)
         {
@@ -167,10 +141,6 @@ namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
             foreach (var category in Categories)
             {
                 yield return category;
-            }
-            foreach (var file in Files)
-            {
-                yield return file;
             }
         }
     }

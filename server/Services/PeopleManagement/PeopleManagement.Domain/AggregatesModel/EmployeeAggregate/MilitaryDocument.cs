@@ -12,7 +12,6 @@ namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
 
         private string _number = string.Empty;
         private string _type = string.Empty;
-        private File[] _files = [];
 
         public string Number
         {
@@ -41,17 +40,6 @@ namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
             }
         }
 
-        public File[] Files
-        {
-            get => _files;
-            private set
-            {
-                _files = value;
-                _files = _files.Distinct().ToArray();
-            }
-        }
-
-
 
         private MilitaryDocument(string number, string type)
         {
@@ -59,21 +47,8 @@ namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
             Type = type;
         }
 
-        private MilitaryDocument(string number, string type, File[] files)
-        {
-            Number = number;
-            Type = type;
-            Files = files;
-        }
-
 
         public static MilitaryDocument Create(string number, string type) => new(number, type);
-        public MilitaryDocument AddFile(File file)
-        {
-            File[] files = [.. Files, file];
-            files = files.Distinct().ToArray();
-            return new(Number, Type, files);
-        }
 
         public static bool IsRequired(IdCard idCard, PersonalInfo personalInfo)
         {
@@ -83,8 +58,6 @@ namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
                 return false;
             return true;
         }
-
-        public bool HasValidFile => Files.Any(x => x.Valid);
 
 
         protected override IEnumerable<object> GetEqualityComponents()
