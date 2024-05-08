@@ -1,6 +1,6 @@
 ﻿namespace PeopleManagement.Domain.AggregatesModel.ArchiveAggregate
 {
-    public class FileStatus : Enumeration
+    public sealed class FileStatus : Enumeration
     {
         public static readonly FileStatus Pending = new(1, nameof(Pending));
         public static readonly FileStatus OK = new(2, nameof(OK));

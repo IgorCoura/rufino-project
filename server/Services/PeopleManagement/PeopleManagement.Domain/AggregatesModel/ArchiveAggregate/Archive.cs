@@ -1,6 +1,6 @@
 ﻿namespace PeopleManagement.Domain.AggregatesModel.ArchiveAggregate
 {
-    public class Archive : Entity, IAggregateRoot
+    public sealed class Archive : Entity, IAggregateRoot
     {
         public IEnumerable<File> Files { get; private set; } = [];
         public Category Category { get; private set; } = null!;

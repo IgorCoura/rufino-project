@@ -2,7 +2,7 @@
 using PeopleManagement.Domain.ErrorTools.ErrorsMessages;
 namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
 {
-    public class Deficiency : ValueObject
+    public sealed class Deficiency : ValueObject
     {
         public const int MAX_OBSERVATION = 500;
 

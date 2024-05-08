@@ -1,6 +1,6 @@
 ﻿namespace PeopleManagement.Domain.AggregatesModel.CompanyAggregate
 {
-    public class Address : ValueObject
+    public sealed class Address : ValueObject
     {
         public string ZipCode { get; } = string.Empty;
         public string Street { get;  } = string.Empty;

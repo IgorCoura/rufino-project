@@ -43,8 +43,14 @@ namespace PeopleManagement.Domain.ErrorTools.ErrorsMessages
 
         #region ObjectErrors 300-399
 
-        public static Error ObjectNotFound(string NameObject) => new("PMD301", $"{NameObject} Não foi encontrar.", new { NameObject});
+        public static Error ObjectNotFound(string NameObject, string Value) => new("PMD301", $"{NameObject} identificado por {Value}, não foi encontrar.", new { NameObject, Value});
 
         #endregion
+
+        public class Employee
+        {
+            public static Error AlreadyExistOpenContract() => new("PMD.EMP10", $"Já existe um contrato de trabalho aberto.", new { });
+            public static Error NotExistOpenContract() => new("PMD.EMP10", $"Não existe um contrato de trabalho aberto.", new { });
+        }
     }
 }

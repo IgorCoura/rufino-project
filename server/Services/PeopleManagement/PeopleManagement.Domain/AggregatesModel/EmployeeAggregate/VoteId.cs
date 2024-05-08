@@ -3,7 +3,7 @@ using PeopleManagement.Domain.ErrorTools.ErrorsMessages;
 
 namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
 {
-    public class VoteId : ValueObject
+    public sealed class VoteId : ValueObject
     {
         const int MAX_LENGHT = 12;
 

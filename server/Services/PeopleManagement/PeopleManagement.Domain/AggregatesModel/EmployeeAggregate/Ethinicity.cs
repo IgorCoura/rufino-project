@@ -1,6 +1,6 @@
 ﻿namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
 {
-    public class Ethinicity : Enumeration
+    public sealed class Ethinicity : Enumeration
     {
         public static readonly Ethinicity White = new(1, nameof(White));
         public static readonly Ethinicity Black = new(2, nameof(Black));

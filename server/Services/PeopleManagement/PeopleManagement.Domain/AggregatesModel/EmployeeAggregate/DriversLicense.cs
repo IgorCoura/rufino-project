@@ -3,7 +3,7 @@ using PeopleManagement.Domain.ErrorTools.ErrorsMessages;
 
 namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
 {
-    public class DriversLicense : ValueObject
+    public sealed class DriversLicense : ValueObject
     {
         public const int MAX_LENGHT = 11;
 

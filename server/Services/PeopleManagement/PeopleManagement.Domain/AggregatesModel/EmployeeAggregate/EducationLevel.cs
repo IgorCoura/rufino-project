@@ -1,6 +1,6 @@
 ﻿namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
 {
-    public class EducationLevel : Enumeration
+    public sealed class EducationLevel : Enumeration
     {
         public static readonly EducationLevel Illiterate = new(1, nameof(Illiterate));
         public static readonly EducationLevel IncompleteElementary = new(2, nameof(IncompleteElementary));

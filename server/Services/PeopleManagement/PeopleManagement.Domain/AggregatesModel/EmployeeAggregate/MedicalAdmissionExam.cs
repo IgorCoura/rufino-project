@@ -3,7 +3,7 @@ using PeopleManagement.Domain.ErrorTools.ErrorsMessages;
 
 namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
 {
-    public class MedicalExam : ValueObject
+    public sealed class MedicalAdmissionExam : ValueObject
     {
         public const int DEFAULT_VALIDITY_EXAM_YEARS = 1;
         public const int MAX_YEARS_VALIDITY = 10;
@@ -39,13 +39,13 @@ namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
         }
 
 
-        private MedicalExam(DateOnly dateExam, DateOnly validity)
+        private MedicalAdmissionExam(DateOnly dateExam, DateOnly validity)
         {
             DateExam = dateExam;
             Validity = validity;
         }
 
-        public static MedicalExam Create(DateOnly dateExam, DateOnly validity) => new(dateExam, validity);
+        public static MedicalAdmissionExam Create(DateOnly dateExam, DateOnly validity) => new(dateExam, validity);
 
         public bool IsValid => _validity > DateOnly.FromDateTime(DateTime.UtcNow);
 

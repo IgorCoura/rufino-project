@@ -1,21 +1,17 @@
-﻿using PeopleManagement.Application.Commands.CreateCompany;
+﻿using PeopleManagement.Application.Commands.CompanyCommands.CreateCompany;
 using PeopleManagement.Application.Commands.DTO;
 using PeopleManagement.Application.Commands.Identified;
-using System.ComponentModel.Design;
 
 namespace PeopleManagement.API.Controllers
 {
     [Route("api/v1/[controller]")]
-    [ApiController]
-    public class CompanyController : ControllerBase
+    public class CompanyController : BaseController
     {
-        private readonly IMediator _mediator;
-        private readonly ILogger<CompanyController> _logger;
+        private readonly IMediator _mediator;       
 
-        public CompanyController(IMediator mediator, ILogger<CompanyController> logger)
+        public CompanyController(IMediator mediator, ILogger<CompanyController> logger) : base(logger)
         {
             _mediator = mediator;
-            _logger = logger;
         }
 
         [HttpPost]
@@ -26,28 +22,17 @@ namespace PeopleManagement.API.Controllers
             {
                 var command = new IdentifiedCommand<CreateCompanyCommand, BaseDTO>(request, guid);
 
-                _logger.LogInformation(
-                    "----- Sending command: {CommandName} - {IdProperty}: {CommandId} ({@Command})",
-                    request.GetType().Name,
-                    nameof(request.Cnpj),
-                    request.Cnpj,
-                    request);
+                SendingCommandLog(request.GetType().Name, nameof(request.Cnpj), request.Cnpj, request);
 
                 var result = await _mediator.Send(command);
 
-                _logger.LogInformation(
-                "----- Command result: {@Result} - {CommandName} - {IdProperty}: {CommandId} ({@Command})",
-                result,
-                request.GetType().Name,
-                nameof(request.Cnpj),
-                request.Cnpj,
-                command);
+                CommandResultLog(result, request.GetType().Name, nameof(request.Cnpj), request.Cnpj, command);
 
-                return Created("", result);
+                return OkResponse(result);
             }
             else
             {
-                return BadRequest("Invalid request Id");
+                return BadRequestResponse("Invalid request Id");
             }
 
             

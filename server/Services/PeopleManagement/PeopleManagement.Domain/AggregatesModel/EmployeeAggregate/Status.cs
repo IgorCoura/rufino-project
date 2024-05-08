@@ -1,6 +1,6 @@
 ﻿namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
 {
-    public class Status : Enumeration
+    public sealed class Status : Enumeration
     {
         public static readonly Status Pending = new(1, "Pending");
         public static readonly Status Active = new(2, "Active");

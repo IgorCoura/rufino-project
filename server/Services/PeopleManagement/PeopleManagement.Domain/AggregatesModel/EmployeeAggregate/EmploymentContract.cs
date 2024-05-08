@@ -3,7 +3,7 @@ using PeopleManagement.Domain.ErrorTools.ErrorsMessages;
 
 namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
 {
-    public class EmploymentContract : ValueObject
+    public sealed class EmploymentContract : ValueObject
     {
         public int MAX_RANGE_DATE_YEARS = 1;
 

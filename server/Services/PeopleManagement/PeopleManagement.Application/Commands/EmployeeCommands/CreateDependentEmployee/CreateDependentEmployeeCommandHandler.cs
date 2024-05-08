@@ -1,0 +1,44 @@
+﻿
+using PeopleManagement.Domain.AggregatesModel.EmployeeAggregate;
+using PeopleManagement.Domain.ErrorTools;
+using PeopleManagement.Domain.ErrorTools.ErrorsMessages;
+
+namespace PeopleManagement.Application.Commands.EmployeeCommands.CreateDependentEmployee
+{
+    public class CreateDependentEmployeeCommandHandler : IRequestHandler<CreateDependentEmployeeCommand, CreateDependentEmployeeResponse>
+    {
+        private readonly IEmployeeRepository _employeeRepository;
+
+        public CreateDependentEmployeeCommandHandler(IEmployeeRepository employeeRepository)
+        {
+            _employeeRepository = employeeRepository;
+        }
+
+        public async Task<CreateDependentEmployeeResponse> Handle(CreateDependentEmployeeCommand request, CancellationToken cancellationToken)
+        {
+            var employee = await _employeeRepository.FirstOrDefaultAsync(request.Id, cancellation: cancellationToken)
+                ?? throw new DomainException(this, DomainErrors.ObjectNotFound(nameof(Employee), request.Id.ToString()));
+
+            var idCard = IdCard.Create(
+                request.IdCard.Cpf, 
+                request.IdCard.MotherName, 
+                request.IdCard.FatherName, 
+                request.IdCard.BirthCity, 
+                request.IdCard.BirthState, 
+                request.IdCard.Nacionality, 
+                request.IdCard.DateOfBirth);
+
+            var dependent = Dependent.Create(
+                request.Name,
+                idCard,
+                Gender.FromValue<Gender>(request.Gender),
+                DependencyType.FromValue<DependencyType>(request.DependecyType));
+
+            employee.AddDependent(dependent);
+
+            await _employeeRepository.UnitOfWork.SaveChangesAsync(cancellationToken);
+
+            return employee.Id;
+        }
+    }
+}

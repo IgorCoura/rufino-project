@@ -1,5 +1,5 @@
 ﻿using FluentValidation;
-using PeopleManagement.Application.Commands.CreateCompany;
+using PeopleManagement.Application.Commands.CompanyCommands.CreateCompany;
 using PeopleManagement.Application.Extension;
 using PeopleManagement.Application.Utils;
 using PeopleManagement.Domain.ErrorTools.ErrorsMessages;

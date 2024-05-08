@@ -1,6 +1,6 @@
 ﻿namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
 {
-    public class EmploymentContactType : Enumeration
+    public sealed class EmploymentContactType : Enumeration
     {
         public static readonly EmploymentContactType CLT = new (1, nameof(CLT));
         public static readonly EmploymentContactType Aprendiz = new (2, nameof(Aprendiz));

@@ -3,21 +3,15 @@ using PeopleManagement.Domain.ErrorTools.ErrorsMessages;
 
 namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
 {
-    public class IdCard : ValueObject
+    public sealed class IdCard : ValueObject
     {
-        public const int MAX_NUMBER = 20;
-        public const int MAX_SHIPPING_ORGANIZATION = 60;
-        public const int MAX_YEARS_CREATE_DATE = 15;
         public const int MAX_BIRTHCITY = 100;
         public const int MAX_BIRTHSTATE = 100;
         public const int MAX_NACIONALITY = 100;
         public const int MAX_AGE = 80;
         public const int MIN_AGE = 18;
 
-        private string _number = string.Empty;
         private CPF _cpf = null!;
-        private DateOnly _createAt;
-        private string _breedingOrganization = string.Empty;
         private Name _motherName = null!;
         private Name? _fatherName = null!;
         private string _birthcity = string.Empty;
@@ -25,18 +19,6 @@ namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
         private string _nacionality = string.Empty;
         private DateOnly _dateOfBirth;
 
-        public string Number 
-        { 
-            get => _number;
-            private set
-            {
-                if (string.IsNullOrWhiteSpace(value))
-                    throw new DomainException(this.GetType().Name, DomainErrors.FieldNotBeNullOrEmpty(nameof(Number)));
-                if (value.Length > MAX_NUMBER)
-                    throw new DomainException(this.GetType().Name, DomainErrors.FieldCannotBeLarger(nameof(Number), MAX_NUMBER));
-                _number = value;
-            }
-        }
         public CPF Cpf 
         {
             get => _cpf;
@@ -45,32 +27,7 @@ namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
                 _cpf = value;
             } 
         }
-        public DateOnly CreateAt 
-        {
-            get => _createAt;
-            private set
-            {
-                var dateNow = DateOnly.FromDateTime(DateTime.Now);
-                var dateMin = dateNow.AddYears(MAX_YEARS_CREATE_DATE * -1);
-                if (_createAt > dateNow || dateMin < _createAt)
-                    throw new DomainException(this.GetType().Name, DomainErrors.DataHasBeBetween(nameof(CreateAt), value, dateMin, dateNow));
-                _createAt = value;
-            }
-        }
         
-        public string BreedingOrganization 
-        { 
-            get => _breedingOrganization;
-            private set
-            {
-                if (string.IsNullOrWhiteSpace(value))
-                    throw new DomainException(this.GetType().Name, DomainErrors.FieldNotBeNullOrEmpty(nameof(Number)));
-                if (value.Length > MAX_NUMBER)
-                    throw new DomainException(this.GetType().Name, DomainErrors.FieldCannotBeLarger(nameof(Number), MAX_NUMBER));
-                _breedingOrganization = value;
-            } 
-        }
-
         public Name MotherName
         {
             get => _motherName;
@@ -150,12 +107,9 @@ namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
                 _dateOfBirth = value;
             }
         }
-        public IdCard(string number, CPF cpf, DateOnly createAt, string breedingOrganization, Name motherName, Name? fatherName, string birthCity, string birthState, string nacionality, DateOnly dateOfBirth)
+        public IdCard(CPF cpf, Name motherName, Name? fatherName, string birthCity, string birthState, string nacionality, DateOnly dateOfBirth)
         {
-            Number = number;
             Cpf = cpf;
-            CreateAt = createAt;
-            BreedingOrganization = breedingOrganization;
             MotherName = motherName;
             FatherName = fatherName;
             BirthCity = birthCity;
@@ -166,8 +120,8 @@ namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
 
 
 
-        public static IdCard Create(string number, CPF cpf, DateOnly createAt, string breedingOrganization, Name motherName, Name? fatherName, string birthCity, string birthState, string nacionality, DateOnly dateOfBirth)
-            => new(number, cpf, createAt, breedingOrganization, motherName, fatherName, birthCity, birthState, nacionality, dateOfBirth);
+        public static IdCard Create(CPF cpf, Name motherName, Name? fatherName, string birthCity, string birthState, string nacionality, DateOnly dateOfBirth)
+            => new(cpf, motherName, fatherName, birthCity, birthState, nacionality, dateOfBirth);
 
 
         public int Age() 
@@ -186,10 +140,13 @@ namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
 
         protected override IEnumerable<object?> GetEqualityComponents()
         {
-            yield return Number; 
-            yield return Cpf; 
-            yield return CreateAt; 
-            yield return BreedingOrganization;
+            yield return Cpf;
+            yield return MotherName;
+            yield return FatherName;
+            yield return BirthCity;
+            yield return BirthState;                
+            yield return Nacionality;
+            yield return DateOfBirth;               
  
         }
     }

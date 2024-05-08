@@ -1,7 +1,7 @@
 ﻿
 namespace PeopleManagement.Domain.AggregatesModel.ArchiveAggregate
 {
-    public class File : ValueObject
+    public sealed class File : ValueObject
     {
         public string Name { get; private set; } = string.Empty;
         public string Extension { get; private set; } = string.Empty;

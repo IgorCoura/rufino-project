@@ -4,7 +4,7 @@ using PeopleManagement.Domain.ErrorTools.ErrorsMessages;
 
 namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
 {
-    public partial class Address : ValueObject
+    public sealed partial class Address : ValueObject
     {
         public const int MAX_LENGHT_STREET = 100;
         public const int MAX_LENGHT_NUMBER = 10;

@@ -1,6 +1,6 @@
 ﻿namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
 {
-    public class Disability : Enumeration
+    public sealed class Disability : Enumeration
     {
         public static readonly Disability Physical = new(1, nameof(Physical));
         public static readonly Disability Intellectual = new(2, nameof(Intellectual));

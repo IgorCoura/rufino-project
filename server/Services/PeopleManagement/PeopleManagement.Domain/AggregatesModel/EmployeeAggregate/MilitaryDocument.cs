@@ -3,7 +3,7 @@ using PeopleManagement.Domain.ErrorTools.ErrorsMessages;
 
 namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
 {
-    public class MilitaryDocument : ValueObject
+    public sealed class MilitaryDocument : ValueObject
     {
         public const int MAX_NUMBER = 20;
         public const int MAX_TYPE = 50;

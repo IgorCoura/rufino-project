@@ -5,7 +5,7 @@ using System.Text.RegularExpressions;
 
 namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
 {
-    public partial class Contact : ValueObject
+    public sealed partial class Contact : ValueObject
     {
         private string _email = string.Empty;
         private string _cellphone = string.Empty;

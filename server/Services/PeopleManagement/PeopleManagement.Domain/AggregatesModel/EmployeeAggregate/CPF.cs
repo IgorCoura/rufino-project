@@ -3,7 +3,7 @@ using PeopleManagement.Domain.ErrorTools.ErrorsMessages;
 
 namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
 {
-    public class CPF : ValueObject
+    public sealed class CPF : ValueObject
     {
         const int MAX_LENGHT = 11;
 
