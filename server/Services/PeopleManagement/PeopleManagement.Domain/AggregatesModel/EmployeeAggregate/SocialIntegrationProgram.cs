@@ -3,7 +3,7 @@ using PeopleManagement.Domain.ErrorTools.ErrorsMessages;
 
 namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
 {
-    public class SocialIntegrationProgram : ValueObject
+    public sealed class SocialIntegrationProgram : ValueObject
     {
         public const int MAX_LENGHT = 11;
 

@@ -1,36 +1,26 @@
-﻿using PeopleManagement.Domain.AggregatesModel.ArchiveAggregate;
-using PeopleManagement.Domain.ErrorTools;
+﻿using PeopleManagement.Domain.ErrorTools;
 using PeopleManagement.Domain.ErrorTools.ErrorsMessages;
 using PeopleManagement.Domain.Events;
 
 namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
 {
     public sealed class Employee : Entity, IAggregateRoot
-    {
-        public const int MAX_CHARS_REGISTRATION = 15;
-
+    {       
         private IdCard? _idCard;
         private VoteId? _voteId;
         private PersonalInfo? _personalInfo;
         private Guid? _roleId;
         private Guid? _workPlaceId;
         private Guid _companyId;
-        private string _registration = string.Empty;//Matricula Esocial
+        private Registration _registration = string.Empty;//Matricula Esocial
         private MilitaryDocument? _militaryDocument;
+        private Address? _address = null!;
 
-        public string Registration 
+        public Registration Registration 
         { 
             get => _registration;
             private set
             {
-                value = value.ToUpper().Trim();
-
-                if (string.IsNullOrWhiteSpace(value))
-                    throw new DomainException(this.GetType().Name, DomainErrors.FieldNotBeNullOrEmpty(nameof(Registration)));
-
-                if (value.Length > MAX_CHARS_REGISTRATION)
-                    throw new DomainException(this.GetType().Name, DomainErrors.FieldCannotBeLarger(nameof(Registration), MAX_CHARS_REGISTRATION));
-
                 _registration = value;
             }
         }  
@@ -53,7 +43,7 @@ namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
             private set
             {
                 if (value == Guid.Empty)
-                    throw new DomainException(this.GetType().Name, DomainErrors.FieldNotBeDefaultValue(nameof(CompanyId), Guid.Empty.ToString()));
+                    throw new DomainException(this, DomainErrors.FieldNotBeDefaultValue(nameof(CompanyId), Guid.Empty.ToString()));
                 _companyId = value;
             }
         }
@@ -69,13 +59,24 @@ namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
                 }
             }
         }
-        public Address? Address { get; set; }
+        public Address? Address 
+        {
+            get => _address;
+            set
+            {
+                if(value != null)
+                {
+                    _address = value;
+                    AddDomainEvent(RequestDocumentsEvent.AddressProof(Id, CompanyId));
+                }
+            }
+        }
         public Contact? Contact { get; set; }
         public IEnumerable<Dependent> Dependents { get; private set; } = [];
         public Status Status { get; private set; } = null!;
         public SocialIntegrationProgram? Sip { get;  set; }
-        public IEnumerable<MedicalExam> MedicalExams { get; private set; } = [];
-        public IEnumerable<EmploymentContract> EmploymentContracts { get; private set; } = [];
+        public IEnumerable<MedicalAdmissionExam> MedicalAdmissionExam { get; private set; } = [];
+        public IEnumerable<EmploymentContract> Contracts { get; private set; } = [];
         public PersonalInfo? PersonalInfo 
         {
             get => _personalInfo;
@@ -93,6 +94,7 @@ namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
                 {
                     _idCard = value;
                     SendCreateRequestMedicalExamEvent();
+                    AddDomainEvent(RequestDocumentsEvent.IdCard(Id, CompanyId));
                 }
                     
             }
@@ -105,6 +107,7 @@ namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
                 if (value != null)
                 {
                     _voteId = value;
+                    AddDomainEvent(RequestDocumentsEvent.VoteId(Id, CompanyId));
                 }
             }
         }
@@ -117,6 +120,7 @@ namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
                 if (value != null)
                 {
                     _militaryDocument = value;
+                    AddDomainEvent(RequestDocumentsEvent.MilitarDocument(Id, CompanyId));
                 }
             }
         }
@@ -130,22 +134,21 @@ namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
 
         public static Employee Create(Guid id, Guid companyId, Name name)
         {
+            Employee employee = new(id, companyId, name, Status.Pending);
 
-            return new(id, companyId, name, Status.Pending);
+            return employee;
         }
 
-        public void CompleteAdmission(string registration, EmploymentContactType contractType)
+        public void CompleteAdmission(Registration registration, EmploymentContactType contractType)
         {
             var result = ThereNotPendingIssues();
 
             if (result.IsFailure)
                 throw new DomainException(this.GetType().Name, result);
-
-            var dateNow = DateOnly.FromDateTime(DateTime.UtcNow);
-            var contract = EmploymentContract.Create(dateNow, contractType);
-            EmploymentContracts = EmploymentContracts.Append(contract);
+            CreateContract(contractType);
             Registration = registration;
             Status = Status.Active;
+            AddDomainEvent(RequestDocumentsEvent.Contract(Id, CompanyId));
         }
 
         public Result ThereNotPendingIssues()
@@ -176,8 +179,8 @@ namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
             if (IdCard != null && PersonalInfo != null && MilitaryDocument.IsRequired(IdCard, PersonalInfo) && MilitaryDocument == null)
                 result.AddError(DomainErrors.FieldIsRequired(nameof(MilitaryDocument)));
 
-            if (!MedicalExams.Any(x => x.IsValid))
-                result.AddError(DomainErrors.FieldIsRequired(nameof(MedicalExams)));
+            if (!MedicalAdmissionExam.Any(x => x.IsValid))
+                result.AddError(DomainErrors.FieldIsRequired(nameof(MedicalAdmissionExam)));
 
             return result;
         }
@@ -185,17 +188,56 @@ namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
         public void AddDependent(Dependent dependent)
         {
             Dependents = Dependents.Append(dependent);
+
+            RequestDependentDocuments(dependent.DependencyType);
+        }
+
+        public void AlterDependet(Name nameDependent, Dependent currentDependent)
+        {
+            var oldDependent = Dependents.FirstOrDefault(x => x.Name.Equals(nameDependent)) ??
+                throw new DomainException(this, DomainErrors.DataNotBeNull(nameof(Dependent)));
+
+            oldDependent = currentDependent;
+
+            RequestDependentDocuments(currentDependent.DependencyType);
+        }
+
+        public void RequestDependentDocuments(DependencyType type)
+        {
+            if (type.Equals(DependencyType.Spouse))
+            {
+                AddDomainEvent(RequestDocumentsEvent.SpouseDocument(Id, CompanyId));
+                AddDomainEvent(RequestDocumentsEvent.MarriageCertificate(Id, CompanyId));
+            }
+
+            if (type.Equals(DependencyType.Child))
+            {
+                AddDomainEvent(RequestDocumentsEvent.ChildDocument(Id, CompanyId));
+            }
         }
 
 
-        public void AddMedicalExam(MedicalExam exam)
+        public void FinishedContract(DateOnly finishDateContract)
         {
-            MedicalExams = MedicalExams.Append(exam);
+            var contract = Contracts.FirstOrDefault(x => x.FinalDate == null) ??
+                throw new DomainException(this, DomainErrors.Employee.NotExistOpenContract());
+
+            contract = contract.FinshedContract(finishDateContract);
         }
 
-        private string CreateFileStoragePath(string archiveName)
+        public void AddMedicalAdmissionExam(MedicalAdmissionExam exam)
         {
-            return Path.Combine(Id.ToString(), archiveName);
+            MedicalAdmissionExam = MedicalAdmissionExam.Append(exam);
+            AddDomainEvent(RequestDocumentsEvent.MedicalAdmissionExam(Id, CompanyId));
+        }
+
+        private void CreateContract(EmploymentContactType contractType)
+        {
+            if (Contracts.Any(x => x.FinalDate == null))
+                throw new DomainException(this, DomainErrors.Employee.AlreadyExistOpenContract());
+            var dateNow = DateOnly.FromDateTime(DateTime.UtcNow);
+            var contract = EmploymentContract.Create(dateNow, contractType);
+            Contracts = Contracts.Append(contract);
         }
 
         private void SendCreateRequestMedicalExamEvent()
@@ -206,7 +248,7 @@ namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
                 && RoleId != Guid.Empty
                 )
             {
-                AddDomainEvent(new CreateRequestMedicalExamEvent(PersonalInfo, IdCard, (Guid)WorkPlaceId!, (Guid)RoleId!));
+                AddDomainEvent(CreateRequestMedicalExamEvent.Create(PersonalInfo, IdCard, (Guid)WorkPlaceId!, (Guid)RoleId!));
             }
         }
     }

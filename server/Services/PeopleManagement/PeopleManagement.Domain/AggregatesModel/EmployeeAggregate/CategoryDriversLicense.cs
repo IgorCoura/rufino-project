@@ -1,6 +1,6 @@
 ﻿namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
 {
-    public class CategoryDriversLicense : Enumeration
+    public sealed class CategoryDriversLicense : Enumeration
     {
         public static readonly CategoryDriversLicense A = new(1, nameof(A));
         public static readonly CategoryDriversLicense B = new(2, nameof(B));

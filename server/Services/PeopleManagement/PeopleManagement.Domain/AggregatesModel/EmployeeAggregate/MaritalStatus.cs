@@ -1,6 +1,6 @@
 ﻿namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
 {
-    public class MaritalStatus : Enumeration
+    public sealed class MaritalStatus : Enumeration
     {
         public static readonly MaritalStatus Single = new(1, nameof(Single));
         public static readonly MaritalStatus Married = new(2, nameof(Married));

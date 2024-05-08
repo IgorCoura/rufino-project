@@ -1,4 +1,4 @@
-﻿namespace PeopleManagement.Application.Commands.CreateCompany
+﻿namespace PeopleManagement.Application.Commands.CompanyCommands.CreateCompany
 {
     public record CreateCompanyCommand : IRequest<BaseDTO>
     {

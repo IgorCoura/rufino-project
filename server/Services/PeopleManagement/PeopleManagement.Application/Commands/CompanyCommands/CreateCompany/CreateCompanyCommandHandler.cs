@@ -1,6 +1,6 @@
 ﻿using PeopleManagement.Application.Commands.Identified;
 
-namespace PeopleManagement.Application.Commands.CreateCompany;
+namespace PeopleManagement.Application.Commands.CompanyCommands.CreateCompany;
 public class CreateCompanyCommandHandler : IRequestHandler<CreateCompanyCommand, BaseDTO>
 {
     private readonly ICompanyRepository _companyReposity;
@@ -15,28 +15,28 @@ public class CreateCompanyCommandHandler : IRequestHandler<CreateCompanyCommand,
     public async Task<BaseDTO> Handle(CreateCompanyCommand request, CancellationToken cancellationToken)
     {
         var company = Company.Create(
-            request.CorporateName!, 
-            request.FantasyName!, 
+            request.CorporateName!,
+            request.FantasyName!,
             request.Description!,
-            request.Cnpj!, 
+            request.Cnpj!,
             request.Email!,
             request.Phone!,
             Address.Create(
-                request.ZipCode!, 
-                request.Street!, 
-                request.Number!, 
-                request.Complement!, 
-                request.Neighborhood!, 
-                request.City!, 
-                request.State!, 
+                request.ZipCode!,
+                request.Street!,
+                request.Number!,
+                request.Complement!,
+                request.Neighborhood!,
+                request.City!,
+                request.State!,
                 request.Country!)
             );
 
-        var result = await _companyReposity.InsertAsync( company );
+        var result = await _companyReposity.InsertAsync(company);
 
-        await _companyReposity.UnitOfWork.SaveChangesAsync( cancellationToken );
+        await _companyReposity.UnitOfWork.SaveChangesAsync(cancellationToken);
 
-        return new BaseDTO(result.Id);
+        return result.Id;
     }
 }
 

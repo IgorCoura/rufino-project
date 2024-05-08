@@ -38,6 +38,12 @@
             AddError(error);
         }
 
+        public DomainException(object origin, Error error)
+        {
+            Origin = origin.GetType().Name;
+            AddError(error);
+        }
+
         public bool HasError => Errors.Count > 0;
 
         public void AddError(Error error)

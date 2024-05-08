@@ -65,7 +65,7 @@ namespace PeopleManagement.Tests.UnitTests.Aggregates.EmployeeTests
             var dependent = Dependent.Create(
                 id,
                 "Maria Atunieta",
-                IdCard.Create("12312455", "216.456.330-12", DateOnly.Parse("2015-12-12"), "SSP/SP", "Maria Silva", "Marcio Andrade", "Suzano", "São Paulo", "Brasileiro", DateOnly.Parse("2000/01/01")),
+                IdCard.Create("216.456.330-12", "Maria Silva", "Marcio Andrade", "Suzano", "São Paulo", "Brasileiro", DateOnly.Parse("2000/01/01")),
                 Gender.FEMALE,
                 DependencyType.Spouse
                 );
@@ -91,10 +91,10 @@ namespace PeopleManagement.Tests.UnitTests.Aggregates.EmployeeTests
             employee.Sip = "873.58571.07-9";
 
             employee.PersonalInfo = PersonalInfo.Create(Deficiency.Create("", []), MaritalStatus.Single, Gender.MALE, Ethinicity.White, EducationLevel.CompleteHigher);
-            employee.IdCard = IdCard.Create("12312455", "216.456.330-12", DateOnly.Parse("2015-12-12"), "SSP/SP", "Maria Silva", "Marcio Andrade", "Suzano", "São Paulo", "Brasileiro", DateOnly.Parse("2000/01/01"));
+            employee.IdCard = IdCard.Create("216.456.330-12", "Maria Silva", "Marcio Andrade", "Suzano", "São Paulo", "Brasileiro", DateOnly.Parse("2000/01/01"));
             employee.VoteId = VoteId.Create("281662310124");
 
-            employee.AddMedicalExam(MedicalExam.Create(DateOnly.Parse("2024/04/20"), DateOnly.Parse("2025/04/20")));
+            employee.AddMedicalAdmissionExam(MedicalAdmissionExam.Create(DateOnly.Parse("2024/04/20"), DateOnly.Parse("2025/04/20")));
 
             employee.MilitaryDocument = MilitaryDocument.Create("2312312312", "Rersevista");
 

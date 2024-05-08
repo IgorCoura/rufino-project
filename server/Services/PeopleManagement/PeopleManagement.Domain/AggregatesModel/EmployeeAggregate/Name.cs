@@ -4,7 +4,7 @@ using System.Text.RegularExpressions;
 
 namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
 {
-    public partial class Name : ValueObject
+    public sealed partial class Name : ValueObject
     {
         const int MAX_LENGTH = 100;
 

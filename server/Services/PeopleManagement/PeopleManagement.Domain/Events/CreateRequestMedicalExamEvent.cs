@@ -10,7 +10,7 @@ namespace PeopleManagement.Domain.Events
         public Guid WorkPlaceId { get; private set; }
         public Guid RoleId { get; private set; }
 
-        public CreateRequestMedicalExamEvent(PersonalInfo personalInfo, IdCard idCard, Guid workPlaceId, Guid roleId)
+        private CreateRequestMedicalExamEvent(PersonalInfo personalInfo, IdCard idCard, Guid workPlaceId, Guid roleId)
         {
             PersonalInfo = personalInfo;
             IdCard = idCard;
@@ -18,6 +18,8 @@ namespace PeopleManagement.Domain.Events
             RoleId = roleId;
         }
 
+
+        public static CreateRequestMedicalExamEvent Create(PersonalInfo personalInfo, IdCard idCard, Guid workPlaceId, Guid roleId) => new(personalInfo, idCard, workPlaceId, roleId);
 
     }
 }

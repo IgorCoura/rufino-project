@@ -1,6 +1,6 @@
 ﻿namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
 {
-    public class PersonalInfo : ValueObject
+    public sealed class PersonalInfo : ValueObject
     {        
 
         private MaritalStatus _maritalStatus = null!;
