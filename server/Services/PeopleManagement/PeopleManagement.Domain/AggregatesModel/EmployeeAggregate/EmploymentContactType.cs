@@ -9,5 +9,8 @@
         private EmploymentContactType(int id, string name) : base(id, name)
         {
         }
+
+        public static implicit operator EmploymentContactType(int id) => Enumeration.FromValue<EmploymentContactType>(id);
+        public static implicit operator EmploymentContactType(string name) => Enumeration.FromDisplayName<EmploymentContactType>(name);
     }
 }

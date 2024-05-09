@@ -18,6 +18,9 @@ namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
             get => _number;
             private set
             {
+                var temp = value.Select(x => char.IsDigit(x) ? x : ' ').ToArray();
+                value = new string(temp).Replace(" ", "");
+
                 if (string.IsNullOrWhiteSpace(value))
                     throw new DomainException(this.GetType().Name, DomainErrors.FieldNotBeNullOrEmpty(nameof(Number)));
                 if (value.Length > MAX_NUMBER)

@@ -17,8 +17,8 @@ namespace PeopleManagement.Application.Commands.EmployeeCommands.AlterAddressEmp
 
         public async Task<AlterAddressEmployeeResponse> Handle(AlterAddressEmployeeCommand request, CancellationToken cancellationToken)
         {
-            var employee = await _employeeRepository.FirstOrDefaultAsync(request.Id, cancellation: cancellationToken)
-                ?? throw new DomainException(this, DomainErrors.ObjectNotFound(nameof(Employee), request.Id.ToString()));
+            var employee = await _employeeRepository.FirstOrDefaultAsync(x => x.Id == request.EmployeeId && x.CompanyId == request.CompanyId, cancellation: cancellationToken)
+                ?? throw new DomainException(this, DomainErrors.ObjectNotFound(nameof(Employee), request.EmployeeId.ToString()));
 
             employee.Address = EmployeeAddress.Create(
                 request.ZipCode, 

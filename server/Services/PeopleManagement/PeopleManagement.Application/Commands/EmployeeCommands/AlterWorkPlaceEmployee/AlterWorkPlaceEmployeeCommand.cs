@@ -1,6 +1,6 @@
 ﻿namespace PeopleManagement.Application.Commands.EmployeeCommands.AlterWorkPlaceEmployee
 {
-    public record AlterWorkPlaceEmployeeCommand(Guid Id, Guid WorkPlaceId) : IRequest<AlterWorkPlaceEmployeeResponse>
+    public record AlterWorkPlaceEmployeeCommand(Guid EmployeeId, Guid CompanyId, Guid WorkPlaceId) : IRequest<AlterWorkPlaceEmployeeResponse>
     {
     }
 }

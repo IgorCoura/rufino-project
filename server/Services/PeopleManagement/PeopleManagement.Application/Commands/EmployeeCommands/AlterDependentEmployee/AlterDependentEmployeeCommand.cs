@@ -1,6 +1,6 @@
 ﻿namespace PeopleManagement.Application.Commands.EmployeeCommands.AlterDependentEmployee
 {
-    public record AlterDependentEmployeeCommand(Guid Id, string OldName, DependentModel CurrentDepentent) : IRequest<AlterDependentEmployeeResponse>
+    public record AlterDependentEmployeeCommand(Guid EmployeeId, Guid CompanyId, string OldName, DependentModel CurrentDepentent) : IRequest<AlterDependentEmployeeResponse>
     {
     }
     public record DependentModel(string Name, IdCardModel IdCard, int Gender, int DependecyType) { }

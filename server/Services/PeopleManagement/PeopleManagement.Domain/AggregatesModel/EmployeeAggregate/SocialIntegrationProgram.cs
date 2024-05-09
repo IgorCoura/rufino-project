@@ -13,8 +13,8 @@ namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
             get => _number;
             private set 
             {
-                value = value.Trim();
-                value = value.Replace(".", "").Replace("-", "").Replace("/", "").Replace(" ", "");
+                var temp = value.Select(x => char.IsDigit(x) ? x : ' ').ToArray();
+                value = new string(temp).Replace(" ", "");
                 Validate(value);
                 _number = value;
             }

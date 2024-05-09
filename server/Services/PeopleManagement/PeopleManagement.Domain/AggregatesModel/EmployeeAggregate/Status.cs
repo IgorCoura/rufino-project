@@ -10,5 +10,8 @@
         private Status(int id, string name) : base(id, name)
         {
         }
+
+        public static implicit operator Status(int id) => Enumeration.FromValue<Status>(id);
+        public static implicit operator Status(string name) => Enumeration.FromDisplayName<Status>(name);
     }
 }

@@ -1,4 +1,6 @@
-﻿namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
+﻿using PeopleManagement.Domain.AggregatesModel.ArchiveAggregate;
+
+namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
 {
     public sealed class CategoryDriversLicense : Enumeration
     {
@@ -12,6 +14,7 @@
         {
 
         }
-
+        public static implicit operator CategoryDriversLicense(int id) => Enumeration.FromValue<CategoryDriversLicense>(id);
+        public static implicit operator CategoryDriversLicense(string name) => Enumeration.FromDisplayName<CategoryDriversLicense>(name);
     }
 }

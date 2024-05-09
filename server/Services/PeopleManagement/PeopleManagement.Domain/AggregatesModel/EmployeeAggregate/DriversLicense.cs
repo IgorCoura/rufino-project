@@ -18,8 +18,8 @@ namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
             get => _registerNumber;
             private set
             {
-                value = value.ToUpper().Trim();
-                value = value.Replace(".", "").Replace("-", "").Replace("/", "").Replace(" ", "");
+                var temp = value.Select(x => char.IsDigit(x) ? x : ' ').ToArray();
+                value = new string(temp).Replace(" ", "");
                 Validate(value);
                 _registerNumber = value;
             } 

@@ -16,8 +16,8 @@ namespace PeopleManagement.Application.Commands.EmployeeCommands.AlterSipEmploye
 
         public async Task<AlterSipEmployeeResponse> Handle(AlterSipEmployeeCommand request, CancellationToken cancellationToken)
         {
-            var employee = await _employeeRepository.FirstOrDefaultAsync(request.Id, cancellation: cancellationToken)
-                ?? throw new DomainException(this, DomainErrors.ObjectNotFound(nameof(Employee), request.Id.ToString()));
+            var employee = await _employeeRepository.FirstOrDefaultAsync(x => x.Id == request.EmployeeId && x.CompanyId == request.CompanyId, cancellation: cancellationToken)
+                ?? throw new DomainException(this, DomainErrors.ObjectNotFound(nameof(Employee), request.EmployeeId.ToString()));
 
             employee.Sip = request.SipNumber;
 

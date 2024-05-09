@@ -16,5 +16,8 @@
         private EducationLevel(int id, string name) : base(id, name)
         {
         }
+
+        public static implicit operator EducationLevel(int id) => Enumeration.FromValue<EducationLevel>(id);
+        public static implicit operator EducationLevel(string name) => Enumeration.FromDisplayName<EducationLevel>(name);
     }
 }

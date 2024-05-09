@@ -1,4 +1,5 @@
-﻿using PeopleManagement.Domain.ErrorTools;
+﻿using PeopleManagement.Domain.AggregatesModel.CompanyAggregate;
+using PeopleManagement.Domain.ErrorTools;
 using PeopleManagement.Domain.ErrorTools.ErrorsMessages;
 
 namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
@@ -13,8 +14,9 @@ namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
             get => _number;
             set
             {
-                value = value.Trim();
-                value = value.Replace(".", "").Replace("-", "").Replace("/", "").Replace(" ", "");
+                var temp = value.Select(x => char.IsDigit(x) ? x : ' ').ToArray();
+                value = new string(temp).Replace(" ", "");
+
                 Validate(value);
                 _number = value;
             }
@@ -82,6 +84,8 @@ namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
         }
 
         public override string ToString() => Number;
+
+        public static implicit operator VoteId(string number) => new(number);
         protected override IEnumerable<object> GetEqualityComponents()
         {
             yield return Number;

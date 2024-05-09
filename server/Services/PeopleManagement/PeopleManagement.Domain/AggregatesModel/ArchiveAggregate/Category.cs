@@ -13,10 +13,14 @@
         public static readonly Category VaccinationCertificate = new (8, nameof(VaccinationCertificate));
         public static readonly Category MilitaryDocument = new (9, nameof(MilitaryDocument));
         public static readonly Category MedicalAdmissionExam = new (10, nameof(MedicalAdmissionExam));
-        public static readonly Category SpouseDocument = new (11, nameof(MedicalAdmissionExam));
-        
+        public static readonly Category SpouseDocument = new (11, nameof(SpouseDocument));
+        public static readonly Category MedicalDismissalExam = new(12, nameof(MedicalDismissalExam));
+
         private Category(int id, string name) : base(id, name)
         {
         }
+
+        public static implicit operator Category(int id) => Enumeration.FromValue<Category>(id);
+        public static implicit operator Category(string name) => Enumeration.FromDisplayName<Category>(name);
     }
 }

@@ -33,7 +33,7 @@ namespace PeopleManagement.Services.Services
         public async Task InsertFile(Guid ownerId, Guid companyId, Category category, ArchiveFile file, Stream stream)
         {
             Archive archive = await _archiveRepository.FirstOrDefaultAsync(x => x.OwnerId == ownerId && x.CompanyId == companyId && x.Category == category) ??
-                throw new DomainException(nameof(ArchiveService), DomainErrors.ObjectNotFound(nameof(Archive)));
+                throw new DomainException(this, DomainErrors.ObjectNotFound(nameof(Archive), ownerId.ToString()));
   
             archive.AddFile(file);
             var path = archive.GetFilePath(file);
@@ -47,6 +47,10 @@ namespace PeopleManagement.Services.Services
             return archives;
         }
 
-
+        public async Task<bool> HasRequiresFiles(Guid ownerId, Guid companyId)
+        {
+            var has = await _archiveRepository.AnyAsync(x => x.OwnerId == ownerId && x.CompanyId == companyId && x.RequiresFile);
+            return has;
+        }
     }
 }

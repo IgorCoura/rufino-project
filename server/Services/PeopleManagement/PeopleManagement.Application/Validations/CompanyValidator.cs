@@ -1,7 +1,6 @@
 ﻿using FluentValidation;
 using PeopleManagement.Application.Commands.CompanyCommands.CreateCompany;
 using PeopleManagement.Application.Extension;
-using PeopleManagement.Application.Utils;
 using PeopleManagement.Domain.ErrorTools.ErrorsMessages;
 
 namespace PeopleManagement.Application.Validations
@@ -20,7 +19,6 @@ namespace PeopleManagement.Application.Validations
                 .NotEmpty()
                 .NotNull()
                 .MaximumLength(18)
-                .Must((obj, prop, context) => ValidateCNPJ.ValidaCNPJ(prop))
                 .WithMessage(x => DomainErrors.FieldInvalid(nameof(x.Cnpj), x.Cnpj!));
             RuleFor(x => x.Email)
                 .NotNull()
