@@ -16,20 +16,20 @@ namespace PeopleManagement.Application.Commands.EmployeeCommands.AlterPersonalIn
 
         public async Task<AlterPersonalInfoEmployeeResponse> Handle(AlterPersonalInfoEmployeeCommand request, CancellationToken cancellationToken)
         {
-            var employee = await _employeeRepository.FirstOrDefaultAsync(request.Id, cancellation: cancellationToken) ??
-                throw new DomainException(this, DomainErrors.ObjectNotFound(nameof(Employee), request.Id.ToString()));
+            var employee = await _employeeRepository.FirstOrDefaultAsync(x => x.Id == request.EmployeeId && x.CompanyId == request.CompanyId, cancellation: cancellationToken)
+                ?? throw new DomainException(this, DomainErrors.ObjectNotFound(nameof(Employee), request.EmployeeId.ToString()));
 
             var deficiency = Deficiency.Create(request.Deficiency.Observation, request.Deficiency.Disability.Select(x => Disability.FromValue<Disability>(x)).ToArray());
 
             employee.PersonalInfo = PersonalInfo.Create(
                     deficiency,
-                    MaritalStatus.FromValue<MaritalStatus>(request.MaritalStatus),
-                    Gender.FromValue<Gender>(request.Gender),
-                    Ethinicity.FromValue<Ethinicity>(request.Ethinicity),
-                    EducationLevel.FromValue<EducationLevel>(request.EducationLevel)
+                    request.MaritalStatus,
+                    request.Gender,
+                    request.Ethinicity,
+                    request.EducationLevel
                 );
 
-            await _employeeRepository.UnitOfWork.SaveChangesAsync();
+            await _employeeRepository.UnitOfWork.SaveChangesAsync(cancellationToken);
 
             return employee.Id;
         }

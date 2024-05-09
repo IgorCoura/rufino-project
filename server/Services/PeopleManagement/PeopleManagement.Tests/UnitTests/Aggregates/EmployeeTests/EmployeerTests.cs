@@ -60,11 +60,11 @@ namespace PeopleManagement.Tests.UnitTests.Aggregates.EmployeeTests
         public void AddValidDepedentToEmployer()
         {
             var employee = GetValidEmployee;
-            var id = Guid.NewGuid();
+
+            var name = "Maria Atunieta";
 
             var dependent = Dependent.Create(
-                id,
-                "Maria Atunieta",
+                name,
                 IdCard.Create("216.456.330-12", "Maria Silva", "Marcio Andrade", "Suzano", "São Paulo", "Brasileiro", DateOnly.Parse("2000/01/01")),
                 Gender.FEMALE,
                 DependencyType.Spouse
@@ -73,7 +73,7 @@ namespace PeopleManagement.Tests.UnitTests.Aggregates.EmployeeTests
             employee.AddDependent(dependent);
 
 
-            Assert.Collection(employee.Dependents, x => Assert.Equal(id, x.Id));
+            Assert.Collection(employee.Dependents, x => Assert.Equal(name, x.Name));
         }
 
 
@@ -94,7 +94,7 @@ namespace PeopleManagement.Tests.UnitTests.Aggregates.EmployeeTests
             employee.IdCard = IdCard.Create("216.456.330-12", "Maria Silva", "Marcio Andrade", "Suzano", "São Paulo", "Brasileiro", DateOnly.Parse("2000/01/01"));
             employee.VoteId = VoteId.Create("281662310124");
 
-            employee.AddMedicalAdmissionExam(MedicalAdmissionExam.Create(DateOnly.Parse("2024/04/20"), DateOnly.Parse("2025/04/20")));
+            employee.MedicalAdmissionExam = MedicalAdmissionExam.Create(DateOnly.Parse("2024/04/20"), DateOnly.Parse("2025/04/20"));
 
             employee.MilitaryDocument = MilitaryDocument.Create("2312312312", "Rersevista");
 

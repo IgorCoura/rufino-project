@@ -8,5 +8,7 @@
         {
         }
 
+        public static implicit operator Gender(int id) => Enumeration.FromValue<Gender>(id);
+        public static implicit operator Gender(string name) => Enumeration.FromDisplayName<Gender>(name);
     }
 }

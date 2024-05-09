@@ -1,6 +1,6 @@
 ﻿namespace PeopleManagement.Application.Commands.EmployeeCommands.AlterContactEmployee
 {
-    public record AlterContactEmployeeCommand(Guid Id, string CellPhone, string Email) : IRequest<AlterContactEmployeeResponse>
+    public record AlterContactEmployeeCommand(Guid EmployeeId, Guid CompanyId, string CellPhone, string Email) : IRequest<AlterContactEmployeeResponse>
     {
     }
 }

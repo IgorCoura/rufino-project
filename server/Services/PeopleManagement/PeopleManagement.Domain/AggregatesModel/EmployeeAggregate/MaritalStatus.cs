@@ -10,5 +10,7 @@
         {
         }
 
+        public static implicit operator MaritalStatus(int id) => Enumeration.FromValue<MaritalStatus>(id);
+        public static implicit operator MaritalStatus(string name) => Enumeration.FromDisplayName<MaritalStatus>(name);
     }
 }

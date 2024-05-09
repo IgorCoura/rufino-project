@@ -15,8 +15,8 @@ namespace PeopleManagement.Application.Commands.EmployeeCommands.AlterDependentE
 
         public async Task<AlterDependentEmployeeResponse> Handle(AlterDependentEmployeeCommand request, CancellationToken cancellationToken)
         {
-            var employee = await _employeeRepository.FirstOrDefaultAsync(request.Id, cancellation: cancellationToken)
-                ?? throw new DomainException(this, DomainErrors.ObjectNotFound(nameof(Employee), request.Id.ToString()));
+            var employee = await _employeeRepository.FirstOrDefaultAsync(x => x.Id == request.EmployeeId && x.CompanyId == request.CompanyId, cancellation: cancellationToken)
+                ?? throw new DomainException(this, DomainErrors.ObjectNotFound(nameof(Employee), request.EmployeeId.ToString()));
 
             var idCard = IdCard.Create(
                 request.CurrentDepentent.IdCard.Cpf,
@@ -30,8 +30,8 @@ namespace PeopleManagement.Application.Commands.EmployeeCommands.AlterDependentE
             var dependent = Dependent.Create(
                 request.CurrentDepentent.Name,
                 idCard,
-                Gender.FromValue<Gender>(request.CurrentDepentent.Gender),
-                DependencyType.FromValue<DependencyType>(request.CurrentDepentent.DependecyType));
+                request.CurrentDepentent.Gender,
+                request.CurrentDepentent.DependecyType);
 
             employee.AlterDependet(request.OldName, dependent);
 

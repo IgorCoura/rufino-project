@@ -8,5 +8,8 @@
         private FileStatus(int id, string name) : base(id, name)
         {
         }
+
+        public static implicit operator FileStatus(int id) => Enumeration.FromValue<FileStatus>(id);
+        public static implicit operator FileStatus(string name) => Enumeration.FromDisplayName<FileStatus>(name);
     }
 }

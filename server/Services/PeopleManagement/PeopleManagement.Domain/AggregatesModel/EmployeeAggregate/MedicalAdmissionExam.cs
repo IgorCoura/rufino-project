@@ -7,6 +7,7 @@ namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
     {
         public const int DEFAULT_VALIDITY_EXAM_YEARS = 1;
         public const int MAX_YEARS_VALIDITY = 10;
+        public const int LIMIT_DAYS_TO_DEMISSIONAL_EXAM = 90;
 
         private DateOnly _dateExam;
         private DateOnly _validity;
@@ -48,6 +49,8 @@ namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
         public static MedicalAdmissionExam Create(DateOnly dateExam, DateOnly validity) => new(dateExam, validity);
 
         public bool IsValid => _validity > DateOnly.FromDateTime(DateTime.UtcNow);
+
+        public bool NeedDismissalExam => DateExam.AddDays(LIMIT_DAYS_TO_DEMISSIONAL_EXAM) > DateOnly.FromDateTime(DateTime.UtcNow);
 
         protected override IEnumerable<object?> GetEqualityComponents()
         {

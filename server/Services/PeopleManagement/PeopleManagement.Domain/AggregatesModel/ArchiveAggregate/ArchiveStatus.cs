@@ -9,5 +9,8 @@
         private ArchiveStatus(int id, string name) : base(id, name)
         {
         }
+
+        public static implicit operator ArchiveStatus(int id) => Enumeration.FromValue<ArchiveStatus>(id);
+        public static implicit operator ArchiveStatus(string name) => Enumeration.FromDisplayName<ArchiveStatus>(name);
     }
 }

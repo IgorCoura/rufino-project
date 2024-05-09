@@ -7,5 +7,8 @@
         private DependencyType(int id, string name) : base(id, name)
         {
         }
+
+        public static implicit operator DependencyType(int id) => Enumeration.FromValue<DependencyType>(id);
+        public static implicit operator DependencyType(string name) => Enumeration.FromDisplayName<DependencyType>(name);
     }
 }

@@ -13,5 +13,8 @@
         private Disability(int id, string name) : base(id, name)
         {
         }
+
+        public static implicit operator Disability(int id) => Enumeration.FromValue<Disability>(id);
+        public static implicit operator Disability(string name) => Enumeration.FromDisplayName<Disability>(name);
     }
 }

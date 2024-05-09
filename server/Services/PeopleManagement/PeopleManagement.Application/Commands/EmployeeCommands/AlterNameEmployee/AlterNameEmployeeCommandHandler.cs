@@ -1,5 +1,4 @@
-﻿using PeopleManagement.Application.Commands.EmployeeCommands.AlterNameEmployee;
-using PeopleManagement.Domain.AggregatesModel.EmployeeAggregate;
+﻿using PeopleManagement.Domain.AggregatesModel.EmployeeAggregate;
 using PeopleManagement.Domain.ErrorTools;
 using PeopleManagement.Domain.ErrorTools.ErrorsMessages;
 
@@ -16,8 +15,8 @@ namespace PeopleManagement.Application.Commands.EmployeeCommands.AlterNameEmploy
 
         public async Task<AlterNameEmployeeResponse> Handle(AlterNameEmployeeCommand request, CancellationToken cancellationToken)
         {
-            var employee = await _employeeRepository.FirstOrDefaultAsync(request.Id, cancellation: cancellationToken) ??
-                throw new DomainException(this, DomainErrors.ObjectNotFound(nameof(Employee), request.Id.ToString()));
+            var employee = await _employeeRepository.FirstOrDefaultAsync(x => x.Id == request.EmployeeId && x.CompanyId == request.CompanyId, cancellation: cancellationToken)
+                ?? throw new DomainException(this, DomainErrors.ObjectNotFound(nameof(Employee), request.EmployeeId.ToString()));
 
             employee.Name = request.Name;
 

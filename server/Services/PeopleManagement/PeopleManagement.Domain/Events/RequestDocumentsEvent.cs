@@ -26,6 +26,7 @@ namespace PeopleManagement.Domain.Events
         public static RequestDocumentsEvent MilitarDocument(Guid ownerId, Guid companyId) => new(ownerId, companyId, [Category.MilitaryDocument]);
         public static RequestDocumentsEvent MedicalAdmissionExam(Guid ownerId, Guid companyId) => new(ownerId, companyId, [Category.MedicalAdmissionExam]);
         public static RequestDocumentsEvent SpouseDocument(Guid ownerId, Guid companyId) => new(ownerId, companyId, [Category.SpouseDocument]);
+        public static RequestDocumentsEvent MedicalDismissalExam(Guid ownerId, Guid companyId) => new(ownerId, companyId, [Category.MedicalDismissalExam]);
 
     }
 }

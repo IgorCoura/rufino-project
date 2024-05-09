@@ -16,8 +16,8 @@ namespace PeopleManagement.Application.Commands.EmployeeCommands.CreateDependent
 
         public async Task<CreateDependentEmployeeResponse> Handle(CreateDependentEmployeeCommand request, CancellationToken cancellationToken)
         {
-            var employee = await _employeeRepository.FirstOrDefaultAsync(request.Id, cancellation: cancellationToken)
-                ?? throw new DomainException(this, DomainErrors.ObjectNotFound(nameof(Employee), request.Id.ToString()));
+            var employee = await _employeeRepository.FirstOrDefaultAsync(x => x.Id == request.EmployeeId && x.CompanyId == request.CompanyId, cancellation: cancellationToken)
+                ?? throw new DomainException(this, DomainErrors.ObjectNotFound(nameof(Employee), request.EmployeeId.ToString()));
 
             var idCard = IdCard.Create(
                 request.IdCard.Cpf, 
@@ -31,8 +31,8 @@ namespace PeopleManagement.Application.Commands.EmployeeCommands.CreateDependent
             var dependent = Dependent.Create(
                 request.Name,
                 idCard,
-                Gender.FromValue<Gender>(request.Gender),
-                DependencyType.FromValue<DependencyType>(request.DependecyType));
+                request.Gender,
+                request.DependecyType);
 
             employee.AddDependent(dependent);
 

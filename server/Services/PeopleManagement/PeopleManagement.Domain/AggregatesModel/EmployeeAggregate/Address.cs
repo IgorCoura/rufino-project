@@ -27,8 +27,8 @@ namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
             get => _zipCode;
             private set
             {
-                value = value.ToUpper();
-                value = value.ToLower().Trim().Replace("-", "");
+                var temp = value.Select(x => char.IsDigit(x) ? x : ' ').ToArray();
+                value = new string(temp).Replace(" ", "");
 
                 if (!ZipCodeRegex().IsMatch(value))
                     throw new DomainException(this.GetType().Name, DomainErrors.FieldIsFormatInvalid(nameof(ZipCode)));

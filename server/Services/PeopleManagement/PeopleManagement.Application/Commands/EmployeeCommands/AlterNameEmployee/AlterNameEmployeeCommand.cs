@@ -2,5 +2,5 @@
 
 namespace PeopleManagement.Application.Commands.EmployeeCommands.AlterNameEmployee
 {
-    public record AlterNameEmployeeCommand(Guid Id, string Name) : IRequest<AlterNameEmployeeResponse>;
+    public record AlterNameEmployeeCommand(Guid EmployeeId, Guid CompanyId, string Name) : IRequest<AlterNameEmployeeResponse>;
 }

@@ -12,11 +12,12 @@ namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
         private Guid? _roleId;
         private Guid? _workPlaceId;
         private Guid _companyId;
-        private Registration _registration = string.Empty;//Matricula Esocial
+        private Registration? _registration = null!;//Matricula Esocial
         private MilitaryDocument? _militaryDocument;
         private Address? _address = null!;
+        private MedicalAdmissionExam? _medicalAdmissionExam = null!;
 
-        public Registration Registration 
+        public Registration? Registration 
         { 
             get => _registration;
             private set
@@ -75,7 +76,19 @@ namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
         public IEnumerable<Dependent> Dependents { get; private set; } = [];
         public Status Status { get; private set; } = null!;
         public SocialIntegrationProgram? Sip { get;  set; }
-        public IEnumerable<MedicalAdmissionExam> MedicalAdmissionExam { get; private set; } = [];
+        public MedicalAdmissionExam? MedicalAdmissionExam 
+        {
+            get => _medicalAdmissionExam;
+            set
+            {
+                if(value != null)
+                {
+                    _medicalAdmissionExam = value;
+                    AddDomainEvent(RequestDocumentsEvent.MedicalAdmissionExam(Id, CompanyId));
+                }
+
+            } 
+        }
         public IEnumerable<EmploymentContract> Contracts { get; private set; } = [];
         public PersonalInfo? PersonalInfo 
         {
@@ -179,7 +192,7 @@ namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
             if (IdCard != null && PersonalInfo != null && MilitaryDocument.IsRequired(IdCard, PersonalInfo) && MilitaryDocument == null)
                 result.AddError(DomainErrors.FieldIsRequired(nameof(MilitaryDocument)));
 
-            if (!MedicalAdmissionExam.Any(x => x.IsValid))
+            if (MedicalAdmissionExam == null || !MedicalAdmissionExam.IsValid)
                 result.AddError(DomainErrors.FieldIsRequired(nameof(MedicalAdmissionExam)));
 
             return result;
@@ -202,7 +215,29 @@ namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
             RequestDependentDocuments(currentDependent.DependencyType);
         }
 
-        public void RequestDependentDocuments(DependencyType type)
+        
+        public void FinishedContract(DateOnly finishDateContract)
+        {
+            var contract = Contracts.FirstOrDefault(x => x.FinalDate == null) ??
+                throw new DomainException(this, DomainErrors.Employee.NotExistOpenContract());
+
+            contract = contract.FinshedContract(finishDateContract);
+            Status = Status.Inactive;
+            if (MedicalAdmissionExam!.NeedDismissalExam)
+                AddDomainEvent(RequestDocumentsEvent.MedicalDismissalExam(Id, CompanyId)); 
+
+        }
+
+        private void CreateContract(EmploymentContactType contractType)
+        {
+            if (Contracts.Any(x => x.FinalDate == null))
+                throw new DomainException(this, DomainErrors.Employee.AlreadyExistOpenContract());
+            var dateNow = DateOnly.FromDateTime(DateTime.UtcNow);
+            var contract = EmploymentContract.Create(dateNow, contractType);
+            Contracts = Contracts.Append(contract);
+        }
+
+        private void RequestDependentDocuments(DependencyType type)
         {
             if (type.Equals(DependencyType.Spouse))
             {
@@ -214,30 +249,6 @@ namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
             {
                 AddDomainEvent(RequestDocumentsEvent.ChildDocument(Id, CompanyId));
             }
-        }
-
-
-        public void FinishedContract(DateOnly finishDateContract)
-        {
-            var contract = Contracts.FirstOrDefault(x => x.FinalDate == null) ??
-                throw new DomainException(this, DomainErrors.Employee.NotExistOpenContract());
-
-            contract = contract.FinshedContract(finishDateContract);
-        }
-
-        public void AddMedicalAdmissionExam(MedicalAdmissionExam exam)
-        {
-            MedicalAdmissionExam = MedicalAdmissionExam.Append(exam);
-            AddDomainEvent(RequestDocumentsEvent.MedicalAdmissionExam(Id, CompanyId));
-        }
-
-        private void CreateContract(EmploymentContactType contractType)
-        {
-            if (Contracts.Any(x => x.FinalDate == null))
-                throw new DomainException(this, DomainErrors.Employee.AlreadyExistOpenContract());
-            var dateNow = DateOnly.FromDateTime(DateTime.UtcNow);
-            var contract = EmploymentContract.Create(dateNow, contractType);
-            Contracts = Contracts.Append(contract);
         }
 
         private void SendCreateRequestMedicalExamEvent()

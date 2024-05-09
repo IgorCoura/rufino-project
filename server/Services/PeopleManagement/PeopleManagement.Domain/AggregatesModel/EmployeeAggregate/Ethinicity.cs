@@ -11,5 +11,8 @@
         private Ethinicity(int id, string name) : base(id, name)
         {
         }
+
+        public static implicit operator Ethinicity(int id) => Enumeration.FromValue<Ethinicity>(id);
+        public static implicit operator Ethinicity(string name) => Enumeration.FromDisplayName<Ethinicity>(name);
     }
 }
