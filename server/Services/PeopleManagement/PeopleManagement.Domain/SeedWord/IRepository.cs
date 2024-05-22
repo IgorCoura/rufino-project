@@ -7,8 +7,7 @@ namespace PeopleManagement.Domain.SeedWord;
 public interface IRepository<T> where T : Entity
 {
     IUnitOfWork UnitOfWork { get; }
-    Task<T> InsertAsync(T model);
-    Task<T> UpdateAsync(T model);
+    Task<T> InsertAsync(T model, CancellationToken cancellation = default);
     Task DeleteAsync(T model);
     Task DeleteRangeAsync(IEnumerable<T> model);
     Task<T?> FirstOrDefaultAsync(Guid id, Func<IQueryable<T>, IIncludableQueryable<T, object>>? include = null, CancellationToken cancellation = default);

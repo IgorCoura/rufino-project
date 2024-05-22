@@ -14,7 +14,6 @@ namespace PeopleManagement.API.Filters
                 context.HttpContext.Response.StatusCode = (int)HttpStatusCode.BadRequest;
                 context.Result = new JsonResult(new
                 {
-                    Success = false,
                     exception?.Errors
                 });
             }

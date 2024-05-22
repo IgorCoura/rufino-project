@@ -6,7 +6,7 @@ namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
 {
     public sealed partial class Name : ValueObject
     {
-        const int MAX_LENGTH = 100;
+        public const int MAX_LENGTH = 100;
 
         private string _value = string.Empty;
 

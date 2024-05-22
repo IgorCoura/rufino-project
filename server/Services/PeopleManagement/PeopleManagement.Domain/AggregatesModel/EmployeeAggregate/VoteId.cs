@@ -6,7 +6,7 @@ namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
 {
     public sealed class VoteId : ValueObject
     {
-        const int MAX_LENGHT = 12;
+        public const int MAX_LENGHT = 12;
 
         private string _number = string.Empty;
         public string Number

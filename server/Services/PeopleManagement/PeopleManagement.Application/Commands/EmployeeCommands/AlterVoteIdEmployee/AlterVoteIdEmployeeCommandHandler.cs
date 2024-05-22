@@ -2,6 +2,8 @@
 using PeopleManagement.Domain.AggregatesModel.EmployeeAggregate;
 using PeopleManagement.Domain.ErrorTools.ErrorsMessages;
 using PeopleManagement.Domain.ErrorTools;
+using PeopleManagement.Application.Commands.EmployeeCommands.AlterRoleEmployee;
+using PeopleManagement.Application.Commands.Identified;
 
 namespace PeopleManagement.Application.Commands.EmployeeCommands.AlterVoteIdEmployee
 {
@@ -25,5 +27,10 @@ namespace PeopleManagement.Application.Commands.EmployeeCommands.AlterVoteIdEmpl
 
             return employee.Id;
         }
+    }
+
+    public class AlterVoteIdEmployeeIdentifiedCommandHandler(IMediator mediator, ILogger<IdentifiedCommandHandler<AlterVoteIdEmployeeCommand, AlterVoteIdEmployeeResponse>> logger) : IdentifiedCommandHandler<AlterVoteIdEmployeeCommand, AlterVoteIdEmployeeResponse>(mediator, logger)
+    {
+        protected override AlterVoteIdEmployeeResponse CreateResultForDuplicateRequest() => new(Guid.Empty);
     }
 }

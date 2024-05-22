@@ -5,8 +5,8 @@ namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
 {
     public sealed class MilitaryDocument : ValueObject
     {
-        public const int MAX_NUMBER = 20;
-        public const int MAX_TYPE = 50;
+        public const int MAX_LENGHT_NUMBER = 20;
+        public const int MAX_LENGHT_TYPE = 50;
         public const int MIN_AGE = 19;
         public const int MAX_AGE = 45;
 
@@ -23,8 +23,8 @@ namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
 
                 if (string.IsNullOrWhiteSpace(value))
                     throw new DomainException(this.GetType().Name, DomainErrors.FieldNotBeNullOrEmpty(nameof(Number)));
-                if (value.Length > MAX_NUMBER)
-                    throw new DomainException(this.GetType().Name, DomainErrors.FieldCannotBeLarger(nameof(Number), MAX_NUMBER));
+                if (value.Length > MAX_LENGHT_NUMBER)
+                    throw new DomainException(this.GetType().Name, DomainErrors.FieldCannotBeLarger(nameof(Number), MAX_LENGHT_NUMBER));
 
                 _number = value;
             }
@@ -36,8 +36,8 @@ namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
             {
                 if (string.IsNullOrWhiteSpace(value))
                     throw new DomainException(this.GetType().Name, DomainErrors.FieldNotBeNullOrEmpty(nameof(Type)));
-                if (value.Length > MAX_TYPE)
-                    throw new DomainException(this.GetType().Name, DomainErrors.FieldCannotBeLarger(nameof(Type), MAX_TYPE));
+                if (value.Length > MAX_LENGHT_TYPE)
+                    throw new DomainException(this.GetType().Name, DomainErrors.FieldCannotBeLarger(nameof(Type), MAX_LENGHT_TYPE));
 
                 _type = value;
             }

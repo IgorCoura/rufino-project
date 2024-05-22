@@ -1,4 +1,7 @@
-﻿using PeopleManagement.Domain.AggregatesModel.EmployeeAggregate;
+﻿using PeopleManagement.Application.Commands.EmployeeCommands.AlterMilitarDocumentEmployee;
+using PeopleManagement.Application.Commands.EmployeeCommands.AlterNameEmployee;
+using PeopleManagement.Application.Commands.Identified;
+using PeopleManagement.Domain.AggregatesModel.EmployeeAggregate;
 using PeopleManagement.Domain.ErrorTools;
 using PeopleManagement.Domain.ErrorTools.ErrorsMessages;
 
@@ -25,4 +28,10 @@ namespace PeopleManagement.Application.Commands.EmployeeCommands.AlterNameEmploy
             return employee.Id;
         }
     }
+    public class AlterNameEmployeeIdentifiedCommandHandler(IMediator mediator, ILogger<IdentifiedCommandHandler<AlterNameEmployeeCommand, AlterNameEmployeeResponse>> logger) : IdentifiedCommandHandler<AlterNameEmployeeCommand, AlterNameEmployeeResponse>(mediator, logger)
+    {
+        protected override AlterNameEmployeeResponse CreateResultForDuplicateRequest() => new(Guid.Empty);
+    }
+
 }
+

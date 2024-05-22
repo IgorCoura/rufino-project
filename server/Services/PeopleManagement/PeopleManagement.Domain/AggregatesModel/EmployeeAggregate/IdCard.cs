@@ -5,15 +5,15 @@ namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
 {
     public sealed class IdCard : ValueObject
     {
-        public const int MAX_BIRTHCITY = 100;
-        public const int MAX_BIRTHSTATE = 100;
-        public const int MAX_NACIONALITY = 100;
+        public const int MAX_LENGHT_BIRTHCITY = 100;
+        public const int MAX_LENGHT_BIRTHSTATE = 100;
+        public const int MAX_LENGHT_NACIONALITY = 100;
         public const int MAX_AGE = 80;
         public const int MIN_AGE = 18;
 
         private CPF _cpf = null!;
         private Name _motherName = null!;
-        private Name? _fatherName = null!;
+        private Name _fatherName = null!;
         private string _birthcity = string.Empty;
         private string _birthstate = string.Empty;
         private string _nacionality = string.Empty;
@@ -36,7 +36,7 @@ namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
                 _motherName = value;
             }
         }
-        public Name? FatherName
+        public Name FatherName
         {
             get => _fatherName;
             private set
@@ -54,8 +54,8 @@ namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
                 if (string.IsNullOrWhiteSpace(value))
                     throw new DomainException(this.GetType().Name, DomainErrors.FieldNotBeNullOrEmpty(nameof(BirthCity)));
 
-                if (value.Length > MAX_BIRTHCITY)
-                    throw new DomainException(this.GetType().Name, DomainErrors.FieldCannotBeLarger(nameof(BirthCity), MAX_BIRTHCITY));
+                if (value.Length > MAX_LENGHT_BIRTHCITY)
+                    throw new DomainException(this.GetType().Name, DomainErrors.FieldCannotBeLarger(nameof(BirthCity), MAX_LENGHT_BIRTHCITY));
 
                 _birthcity = value;
             }
@@ -71,8 +71,8 @@ namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
                 if (string.IsNullOrWhiteSpace(value))
                     throw new DomainException(this.GetType().Name, DomainErrors.FieldNotBeNullOrEmpty(nameof(BirthState)));
 
-                if (value.Length > MAX_BIRTHSTATE)
-                    throw new DomainException(this.GetType().Name, DomainErrors.FieldCannotBeLarger(nameof(BirthState), MAX_BIRTHSTATE));
+                if (value.Length > MAX_LENGHT_BIRTHSTATE)
+                    throw new DomainException(this.GetType().Name, DomainErrors.FieldCannotBeLarger(nameof(BirthState), MAX_LENGHT_BIRTHSTATE));
 
                 _birthstate = value;
             }
@@ -88,8 +88,8 @@ namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
                 if (string.IsNullOrWhiteSpace(value))
                     throw new DomainException(this.GetType().Name, DomainErrors.FieldNotBeNullOrEmpty(nameof(Nacionality)));
 
-                if (value.Length > MAX_NACIONALITY)
-                    throw new DomainException(this.GetType().Name, DomainErrors.FieldCannotBeLarger(nameof(Nacionality), MAX_NACIONALITY));
+                if (value.Length > MAX_LENGHT_NACIONALITY)
+                    throw new DomainException(this.GetType().Name, DomainErrors.FieldCannotBeLarger(nameof(Nacionality), MAX_LENGHT_NACIONALITY));
 
                 _nacionality = value;
             }
@@ -107,7 +107,7 @@ namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
                 _dateOfBirth = value;
             }
         }
-        public IdCard(CPF cpf, Name motherName, Name? fatherName, string birthCity, string birthState, string nacionality, DateOnly dateOfBirth)
+        public IdCard(CPF cpf, Name motherName, Name fatherName, string birthCity, string birthState, string nacionality, DateOnly dateOfBirth)
         {
             Cpf = cpf;
             MotherName = motherName;
@@ -120,7 +120,7 @@ namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
 
 
 
-        public static IdCard Create(CPF cpf, Name motherName, Name? fatherName, string birthCity, string birthState, string nacionality, DateOnly dateOfBirth)
+        public static IdCard Create(CPF cpf, Name motherName, Name fatherName, string birthCity, string birthState, string nacionality, DateOnly dateOfBirth)
             => new(cpf, motherName, fatherName, birthCity, birthState, nacionality, dateOfBirth);
 
 

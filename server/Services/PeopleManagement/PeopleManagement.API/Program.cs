@@ -4,6 +4,7 @@ using PeopleManagement.API.DependencyInjection;
 using PeopleManagement.API.Filters;
 using PeopleManagement.Application.Commands;
 using PeopleManagement.Infra.Context;
+using PeopleManagement.Services.DomainEventHandlers;
 using System.Text.Json.Serialization;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -21,15 +22,16 @@ builder.Services.AddDbContext<PeopleManagementContext>(options =>
         .UseExceptionProcessor();
 });
 
-// Add services to the container.
-
-builder.Services.AddInfraDependencies(builder.Configuration);
-builder.Services.AddApplicationDependencies(builder.Configuration);
-
 builder.Services.AddMediatR(cfg =>
 {
     cfg.RegisterServicesFromAssembly(typeof(CommandAssembly).Assembly);
+    cfg.RegisterServicesFromAssembly(typeof(DomainEventHandlerAssembly).Assembly);
 });
+
+// Add services to the container.
+builder.Services.AddInfraDependencies(builder.Configuration);
+builder.Services.AddServicesDependencies(builder.Configuration);
+builder.Services.AddApplicationDependencies(builder.Configuration);
 
 builder.Services.AddControllers(opts =>
     {
@@ -72,3 +74,5 @@ app.UseAuthorization();
 app.MapControllers();
 
 app.Run();
+
+public partial class Program { }

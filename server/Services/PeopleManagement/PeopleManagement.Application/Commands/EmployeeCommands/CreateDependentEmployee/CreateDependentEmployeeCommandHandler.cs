@@ -1,4 +1,6 @@
 ﻿
+using PeopleManagement.Application.Commands.EmployeeCommands.AlterWorkPlaceEmployee;
+using PeopleManagement.Application.Commands.Identified;
 using PeopleManagement.Domain.AggregatesModel.EmployeeAggregate;
 using PeopleManagement.Domain.ErrorTools;
 using PeopleManagement.Domain.ErrorTools.ErrorsMessages;
@@ -40,5 +42,10 @@ namespace PeopleManagement.Application.Commands.EmployeeCommands.CreateDependent
 
             return employee.Id;
         }
+    }
+
+    public class CreateDependentEmployeeIdentifiedCommandHandler(IMediator mediator, ILogger<IdentifiedCommandHandler<CreateDependentEmployeeCommand, CreateDependentEmployeeResponse>> logger) : IdentifiedCommandHandler<CreateDependentEmployeeCommand, CreateDependentEmployeeResponse>(mediator, logger)
+    {
+        protected override CreateDependentEmployeeResponse CreateResultForDuplicateRequest() => new(Guid.Empty);
     }
 }

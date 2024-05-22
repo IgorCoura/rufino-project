@@ -1,4 +1,4 @@
-﻿
+﻿using PeopleManagement.Application.Commands.Identified;
 using PeopleManagement.Domain.AggregatesModel.EmployeeAggregate;
 using PeopleManagement.Domain.ErrorTools;
 using PeopleManagement.Domain.ErrorTools.ErrorsMessages;
@@ -35,4 +35,11 @@ namespace PeopleManagement.Application.Commands.EmployeeCommands.AlterAddressEmp
             return employee.Id;
         }
     }
+    public class AlterAddressEmployeeIdentifiedCommandHandler(IMediator mediator, ILogger<IdentifiedCommandHandler<AlterAddressEmployeeCommand, AlterAddressEmployeeResponse>> logger) : IdentifiedCommandHandler<AlterAddressEmployeeCommand, AlterAddressEmployeeResponse>(mediator, logger)
+    {
+        protected override AlterAddressEmployeeResponse CreateResultForDuplicateRequest() => new (Guid.Empty);
+        
+    }
 }
+
+

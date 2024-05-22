@@ -3,11 +3,7 @@ using PeopleManagement.Infra.Context;
 
 namespace PeopleManagement.Infra.Repository
 {
-    public class CompanyRepository : Repository<Company>, ICompanyRepository
+    public class CompanyRepository(PeopleManagementContext context) : Repository<Company>(context), ICompanyRepository
     {
-        public CompanyRepository(PeopleManagementContext context) : base(context)
-        {
-            
-        }
     }
 }

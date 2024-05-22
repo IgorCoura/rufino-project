@@ -1,4 +1,6 @@
 ﻿
+using PeopleManagement.Application.Commands.EmployeeCommands.AlterVoteIdEmployee;
+using PeopleManagement.Application.Commands.Identified;
 using PeopleManagement.Domain.AggregatesModel.EmployeeAggregate;
 using PeopleManagement.Domain.ErrorTools;
 using PeopleManagement.Domain.ErrorTools.ErrorsMessages;
@@ -25,5 +27,10 @@ namespace PeopleManagement.Application.Commands.EmployeeCommands.AlterWorkPlaceE
 
             return employee.Id;
         }
+    }
+
+    public class AlterWorkPlaceEmployeeIdentifiedCommandHandler(IMediator mediator, ILogger<IdentifiedCommandHandler<AlterWorkPlaceEmployeeCommand, AlterWorkPlaceEmployeeResponse>> logger) : IdentifiedCommandHandler<AlterWorkPlaceEmployeeCommand, AlterWorkPlaceEmployeeResponse>(mediator, logger)
+    {
+        protected override AlterWorkPlaceEmployeeResponse CreateResultForDuplicateRequest() => new(Guid.Empty);
     }
 }

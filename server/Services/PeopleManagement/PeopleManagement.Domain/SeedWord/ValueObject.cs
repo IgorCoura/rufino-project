@@ -1,5 +1,4 @@
 ﻿using PeopleManagement.Domain.ErrorTools;
-
 namespace PeopleManagement.Domain.SeedWord;
 
 public abstract class ValueObject

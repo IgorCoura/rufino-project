@@ -10,51 +10,68 @@ namespace PeopleManagement.Infra.Mapping
             base.Configure(builder);
 
             builder.Property(x => x.CorporateName)
-                .HasMaxLength(150)
+                .HasConversion(x => x.Value, x => x)
+                .HasMaxLength(NameCompany.MAX_LENGTH)
                 .IsRequired();
 
             builder.Property(x => x.FantasyName)
-                .HasMaxLength(100)
+                .HasConversion(x => x.Value, x => x)
+                .HasMaxLength(NameFantasy.MAX_LENGTH)
                 .IsRequired();
 
-            builder.Property(x => x.Description)
-                .HasMaxLength(500)
-                .IsRequired();
 
             builder.Property(x => x.Cnpj)
-                .HasMaxLength(18)
+                .HasConversion(x => x.Value, x => x)
+                .HasMaxLength(CNPJ.MAX_LENGTH)
                 .IsRequired();
 
-            builder.Property(x => x.Email)
-                .HasMaxLength(100)
+            builder.OwnsOne(a => a.Contact, x =>
+            {
+                x.Property(x => x.Email)               
+                .HasMaxLength(Contact.MAX_EMAIL)
                 .IsRequired();
 
-            builder.Property(x => x.Phone)
-                .HasMaxLength(20);
+                x.Property(x => x.Phone)
+                .HasMaxLength(Contact.MAX_PHONE)
+                .IsRequired();
+            });
 
 
             builder.OwnsOne(x => x.Address, a =>
             {
+                a.Property(v => v.Number)
+                .HasMaxLength(Address.MAX_LENGHT_NUMBER)
+                .IsRequired();
+
+                a.Property(v => v.Complement)
+                .HasMaxLength(Address.MAX_LENGHT_COMPLEMENT)
+                .IsRequired();
+
                 a.Property(v => v.Street)
-                .HasMaxLength(100)
+                .HasMaxLength(Address.MAX_LENGHT_STREET)
+                .IsRequired();
+
+                a.Property(v => v.Neighborhood)
+                .HasMaxLength(Address.MAX_LENGHT_NEIGHBORHOOD)
                 .IsRequired();
 
                 a.Property(v => v.City)
-                .HasMaxLength(50)
+                .HasMaxLength(Address.MAX_LENGHT_CITY)
                 .IsRequired();
 
                 a.Property(v => v.State)
-                .HasMaxLength(50)
+                .HasMaxLength(Address.MAX_LENGHT_STATE)
                 .IsRequired();
 
                 a.Property(v => v.Country)
-                .HasMaxLength(50)
+                .HasMaxLength(Address.MAX_LENGHT_COUNTRY)
                 .IsRequired();
 
                 a.Property(v => v.ZipCode)
-                .HasMaxLength(16)
+                .HasMaxLength(Address.MAX_LENGHT_ZIPCODE)
                 .IsRequired();
             });
+
         }
     }
 }

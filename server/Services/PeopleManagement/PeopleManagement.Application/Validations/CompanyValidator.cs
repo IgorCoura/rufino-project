@@ -13,8 +13,6 @@ namespace PeopleManagement.Application.Validations
                 .WithMessage(x => DomainErrors.FieldInvalid(nameof(x.CorporateName), x.CorporateName!.ToString())); 
             RuleFor(x => x.FantasyName).NotEmpty().NotNull().MaximumLength(100)
                 .WithMessage(x => DomainErrors.FieldInvalid(nameof(x.FantasyName), x.FantasyName!.ToString())); 
-            RuleFor(x => x.Description).NotNull().MaximumLength(500)
-                .WithMessage(x => DomainErrors.FieldInvalid(nameof(x.Description), x.Description!.ToString()));
             RuleFor(x => x.Cnpj)
                 .NotEmpty()
                 .NotNull()

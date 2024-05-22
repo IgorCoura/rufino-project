@@ -6,9 +6,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace PeopleManagement.Infra.Migrations
 {
     /// <inheritdoc />
-#pragma warning disable CS8981 // The type name only contains lower-cased ascii characters. Such names may become reserved for the language.
     public partial class init : Migration
-#pragma warning restore CS8981 // The type name only contains lower-cased ascii characters. Such names may become reserved for the language.
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -18,14 +16,16 @@ namespace PeopleManagement.Infra.Migrations
                 columns: table => new
                 {
                     Id = table.Column<Guid>(type: "uuid", nullable: false),
-                    CorporateName = table.Column<string>(type: "character varying(150)", maxLength: 150, nullable: false),
+                    CorporateName = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: false),
                     FantasyName = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: false),
-                    Description = table.Column<string>(type: "character varying(500)", maxLength: 500, nullable: false),
-                    Cnpj = table.Column<string>(type: "character varying(18)", maxLength: 18, nullable: false),
-                    Email = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: false),
-                    Phone = table.Column<string>(type: "character varying(20)", maxLength: 20, nullable: false),
-                    Address_ZipCode = table.Column<string>(type: "character varying(16)", maxLength: 16, nullable: false),
+                    Cnpj = table.Column<string>(type: "character varying(14)", maxLength: 14, nullable: false),
+                    Contact_Email = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: false),
+                    Contact_Phone = table.Column<string>(type: "character varying(15)", maxLength: 15, nullable: false),
+                    Address_ZipCode = table.Column<string>(type: "character varying(8)", maxLength: 8, nullable: false),
                     Address_Street = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: false),
+                    Address_Number = table.Column<string>(type: "character varying(10)", maxLength: 10, nullable: false),
+                    Address_Complement = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: false),
+                    Address_Neighborhood = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: false),
                     Address_City = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: false),
                     Address_State = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: false),
                     Address_Country = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: false),

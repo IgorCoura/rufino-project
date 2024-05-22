@@ -6,28 +6,17 @@ using System.Linq.Expressions;
 
 namespace PeopleManagement.Infra.Repository
 {
-    public class Repository<T> : IRepository<T> where T : Entity
+    public class Repository<T>(PeopleManagementContext context) : IRepository<T> where T : Entity
     {
 
-        protected readonly PeopleManagementContext _context;
-
-        public Repository(PeopleManagementContext context)
-        {
-            _context = context;
-        }
+        protected readonly PeopleManagementContext _context = context;
 
         public IUnitOfWork UnitOfWork => (IUnitOfWork)_context;
 
-        public virtual async Task<T> InsertAsync(T model)
+        public virtual async Task<T> InsertAsync(T model, CancellationToken cancellation = default)
         {
-            var result = _context.Set<T>().Add(model).Entity;
-            return await Task.FromResult(result);
-        }
-
-        public virtual async Task<T> UpdateAsync(T model)
-        {
-            _context.Set<T>().Update(model);
-            return await Task.FromResult(model);
+            var result = await _context.Set<T>().AddAsync(model);
+            return await Task.FromResult(result.Entity);
         }
 
         public virtual Task DeleteAsync(T model)

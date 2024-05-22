@@ -5,7 +5,7 @@ namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
 {
     public sealed class Registration : ValueObject
     {
-        public const int MAX_CHARS_REGISTRATION = 15;
+        public const int MAX_LENGTH = 15;
         private string _value = string.Empty;       
         public string Value
         {
@@ -17,8 +17,8 @@ namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
                 if (string.IsNullOrWhiteSpace(value))
                     throw new DomainException(this.GetType().Name, DomainErrors.FieldNotBeNullOrEmpty(nameof(Registration)));
 
-                if (value.Length > MAX_CHARS_REGISTRATION)
-                    throw new DomainException(this.GetType().Name, DomainErrors.FieldCannotBeLarger(nameof(Registration), MAX_CHARS_REGISTRATION));
+                if (value.Length > MAX_LENGTH)
+                    throw new DomainException(this.GetType().Name, DomainErrors.FieldCannotBeLarger(nameof(Registration), MAX_LENGTH));
 
                 _value = value;
             }

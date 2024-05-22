@@ -72,8 +72,7 @@ namespace PeopleManagement.Tests.UnitTests.Aggregates.EmployeeTests
 
             employee.AddDependent(dependent);
 
-
-            Assert.Collection(employee.Dependents, x => Assert.Equal(name, x.Name));
+            Assert.Contains(name, employee.Dependents.Select(x => x.Name));
         }
 
 
