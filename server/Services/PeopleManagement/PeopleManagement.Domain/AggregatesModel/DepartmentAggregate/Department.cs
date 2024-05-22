@@ -1,4 +1,4 @@
-﻿namespace PeopleManagement.Domain.AggregatesModel.RoleAggregate
+﻿namespace PeopleManagement.Domain.AggregatesModel.DepartmentAggregate
 {
     public sealed class Department : Entity
     {
@@ -6,12 +6,12 @@
         public Description Description { get; private set; } = null!;
 
         private Department() { }
-        private Department(Name name, Description description)
+        private Department(Guid id, Name name, Description description) : base(id)
         {
             Name = name;
             Description = description;
         }
 
-        public static Department Create(Name name, Description description) => new(name, description);
+        public static Department Create(Guid id, Name name, Description description) => new(id, name, description);
     }
 }

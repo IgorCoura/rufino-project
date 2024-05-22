@@ -4,7 +4,7 @@ using PeopleManagement.Domain.AggregatesModel.EmployeeAggregate;
 
 namespace PeopleManagement.Application.Commands.EmployeeCommands.CreateEmployee
 {
-    public sealed class CreateEmployeeCommandHandler : IRequestHandler<CreateEmployeeCommand, CreateEmployeeCommandResponse>
+    public sealed class CreateEmployeeCommandHandler : IRequestHandler<CreateEmployeeCommand, CreateEmployeeResponse>
     {
         private readonly IEmployeeRepository _employeeRepository;
 
@@ -13,19 +13,19 @@ namespace PeopleManagement.Application.Commands.EmployeeCommands.CreateEmployee
             _employeeRepository = employeeRepository;
         }
 
-        public async Task<CreateEmployeeCommandResponse> Handle(CreateEmployeeCommand request, CancellationToken cancellationToken)
+        public async Task<CreateEmployeeResponse> Handle(CreateEmployeeCommand request, CancellationToken cancellationToken)
         {
             var id = Guid.NewGuid();
-            var employee = Employee.Create(id, request.CompanyId, request.Name);
+            var employee = request.ToEmployee(id);
 
-            var result = await _employeeRepository.InsertAsync(employee);
+            var result = await _employeeRepository.InsertAsync(employee, cancellationToken);
             await _employeeRepository.UnitOfWork.SaveChangesAsync(cancellationToken);
             return result.Id;
         }
     }
 
-    public class CreateEmployeeIdentifiedCommandHandler(IMediator mediator, ILogger<IdentifiedCommandHandler<CreateEmployeeCommand, CreateEmployeeCommandResponse>> logger) : IdentifiedCommandHandler<CreateEmployeeCommand, CreateEmployeeCommandResponse>(mediator, logger)
+    public class CreateEmployeeIdentifiedCommandHandler(IMediator mediator, ILogger<IdentifiedCommandHandler<CreateEmployeeCommand, CreateEmployeeResponse>> logger) : IdentifiedCommandHandler<CreateEmployeeCommand, CreateEmployeeResponse>(mediator, logger)
     {
-        protected override CreateEmployeeCommandResponse CreateResultForDuplicateRequest() => new(Guid.Empty);
+        protected override CreateEmployeeResponse CreateResultForDuplicateRequest() => new(Guid.Empty);
     }
 }

@@ -1,4 +1,5 @@
-﻿using Microsoft.EntityFrameworkCore.Metadata.Builders;
+﻿using Microsoft.EntityFrameworkCore.ChangeTracking;
+using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using PeopleManagement.Domain.AggregatesModel.CompanyAggregate;
 using PeopleManagement.Domain.AggregatesModel.EmployeeAggregate;
 using PeopleManagement.Domain.AggregatesModel.RoleAggregate;
@@ -77,6 +78,7 @@ namespace PeopleManagement.Infra.Mapping
             builder.OwnsMany(x => x.Dependents, deps =>
             {
                 deps.Property(x => x.Name)
+                    .HasConversion(x => x.Value, x => x)
                     .HasMaxLength(Name.MAX_LENGTH)
                     .IsRequired();
 
@@ -157,7 +159,12 @@ namespace PeopleManagement.Infra.Mapping
                 {
                     deficiency.Property(x => x.Disabilities)
                         .HasConversion(x => string.Join<Disability>(';', x), x => x.Split(';', StringSplitOptions.None).Select(x => (Disability)x).ToArray())
-                        .IsRequired();
+                        .IsRequired()
+                        .Metadata
+                        .SetValueComparer(new ValueComparer<ICollection<Disability>>(
+                            (c1, c2) => c1!.SequenceEqual(c2!),
+                            c => c.Aggregate(0, (a, v) => HashCode.Combine(a, v.GetHashCode())),
+                            c => (ICollection<Disability>)c.ToList()));
 
                     deficiency.Property(x => x.Observation)
                         .HasMaxLength(Deficiency.MAX_OBSERVATION)
@@ -233,7 +240,8 @@ namespace PeopleManagement.Infra.Mapping
             builder.HasOne<Company>()
                 .WithMany()
                 .HasForeignKey(x => x.CompanyId)
-                .IsRequired();
+                .IsRequired()
+                .OnDelete(Microsoft.EntityFrameworkCore.DeleteBehavior.Restrict);
 
             builder.HasOne<Role>()
                 .WithMany()

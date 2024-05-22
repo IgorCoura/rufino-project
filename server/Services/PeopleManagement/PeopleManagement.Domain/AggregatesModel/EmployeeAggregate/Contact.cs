@@ -49,6 +49,7 @@ namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
             }
         }
 
+        private Contact() { }
         private Contact(string email, string phone)
         {
             Email = email;

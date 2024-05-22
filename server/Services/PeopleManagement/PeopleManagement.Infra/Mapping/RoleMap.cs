@@ -1,4 +1,5 @@
 ﻿using Microsoft.EntityFrameworkCore.Metadata.Builders;
+using Position = PeopleManagement.Domain.AggregatesModel.PositionAggregate.Position;
 using PeopleManagement.Domain.AggregatesModel.RoleAggregate;
 
 namespace PeopleManagement.Infra.Mapping
@@ -40,10 +41,16 @@ namespace PeopleManagement.Infra.Mapping
                         .HasMaxLength(Currency.MAX_LENGTH)
                         .IsRequired();
                 });
+
+                remuneration.Property(x => x.Description)
+                    .HasConversion(x => x.Value, x => x)
+                    .HasMaxLength(Description.MAX_LENGTH)
+                    .IsRequired();
             });
 
-            builder.HasOne(x => x.Position)
+            builder.HasOne<Position>()
                 .WithMany()
+                .HasForeignKey(x => x.PositionId)
                 .IsRequired();
         }
     }

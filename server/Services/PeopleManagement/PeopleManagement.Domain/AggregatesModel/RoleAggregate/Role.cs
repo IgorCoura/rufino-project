@@ -1,4 +1,6 @@
-﻿namespace PeopleManagement.Domain.AggregatesModel.RoleAggregate
+﻿using PeopleManagement.Domain.AggregatesModel.PositionAggregate;
+
+namespace PeopleManagement.Domain.AggregatesModel.RoleAggregate
 {
     public sealed class Role : Entity, IAggregateRoot
     {       
@@ -6,11 +8,10 @@
         public Description Description { get; private set; } = null!;
         public CBO CBO { get; private set; } = null!;
         public Remuneration Remuneration { get; private set; } = null!;
-        public Position? Position { get; private set; }
         public Guid PositionId { get; private set; }
 
         private Role() { }
-        private Role(Name name, Description description, CBO cBO, Remuneration remuneration, Guid positionId)
+        private Role(Guid id, Name name, Description description, CBO cBO, Remuneration remuneration, Guid positionId) : base(id)
         {
             Name = name;
             Description = description;
@@ -19,7 +20,7 @@
             PositionId = positionId;
         }
 
-        public static Role Create(Name name, Description description, CBO cBO, Remuneration remuneration, Guid positionId) => new(name, description, cBO, remuneration, positionId);
+        public static Role Create(Guid id, Name name, Description description, CBO cBO, Remuneration remuneration, Guid positionId) => new(id, name, description, cBO, remuneration, positionId);
 
     }
 }

@@ -26,25 +26,31 @@ namespace PeopleManagement.API.Controllers
             });
         }
 
-        protected void SendingCommandLog(object? CommandName, object? IdProperty, object? CommandId, object? Command)
+        protected void SendingCommandLog(object? CommandId, object? Command, Guid RequestId)
         {
+            var IdProperty = CommandId?.GetType().Name;
+            var CommandName = Command?.GetType().Name;
             _logger.LogInformation(
-                    "----- Sending command: {CommandName} - {IdProperty}: {CommandId} ({@Command})",
+                    "----- Sending command: {CommandName} - {IdProperty}: {CommandId} ({@Command}) - RequestId : {RequestId} -----",
                     CommandName,
                     IdProperty,
                     CommandId,
-                    Command);
+                    Command,
+                    RequestId);
         }
 
-        protected void CommandResultLog(object? result, object? CommandName, object? IdProperty, object? CommandId, object? Command)
+        protected void CommandResultLog(object? result, object? CommandId, object? Command, Guid RequestId)
         {
+            var IdProperty = CommandId?.GetType().Name;
+            var CommandName = Command?.GetType().Name;
             _logger.LogInformation(
-                "----- Command result: {@Result} - {CommandName} - {IdProperty}: {CommandId} ({@Command})",
+                "----- Command result: {@Result} - {CommandName} - {IdProperty}: {CommandId} ({@Command}) - RequestId : {RequestId} -----",
                 result,
                 CommandName,
                 IdProperty,
                 CommandId,
-                Command);
+                Command,
+                RequestId);
         }
 
         protected void ValidityRequestId(string requestId)

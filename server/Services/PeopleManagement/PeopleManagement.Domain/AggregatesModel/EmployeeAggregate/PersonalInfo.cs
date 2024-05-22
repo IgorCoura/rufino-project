@@ -54,7 +54,7 @@
             }
         }
 
-
+        private PersonalInfo() { }
         private PersonalInfo(Deficiency deficiency, MaritalStatus maritalStatus, Gender gender, Ethinicity ethinicity, EducationLevel educationLevel)
         {
             Deficiency = deficiency;

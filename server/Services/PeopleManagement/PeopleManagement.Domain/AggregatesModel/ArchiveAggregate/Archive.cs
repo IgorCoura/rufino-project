@@ -8,6 +8,7 @@
         public Guid CompanyId { get; private set; }
         public ArchiveStatus Status { get; private set; } = ArchiveStatus.OK;
 
+        private Archive() { }
         private Archive(Guid id, Category category, Guid ownerId, Guid companyId): base(id) 
         {
             Category = category;
