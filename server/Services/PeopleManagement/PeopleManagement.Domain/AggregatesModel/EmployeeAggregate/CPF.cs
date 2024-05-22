@@ -5,7 +5,7 @@ namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
 {
     public sealed class CPF : ValueObject
     {
-        const int MAX_LENGHT = 11;
+        public const int MAX_LENGHT = 11;
 
         private string _number = string.Empty;
         public string Number 

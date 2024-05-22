@@ -1,6 +1,10 @@
-﻿using PeopleManagement.Domain.AggregatesModel.EmployeeAggregate;
+﻿using PeopleManagement.Application.Commands.EmployeeCommands.AlterAddressEmployee;
+using PeopleManagement.Application.Commands.EmployeeCommands.AlterContactEmployee;
+using PeopleManagement.Application.Commands.Identified;
+using PeopleManagement.Domain.AggregatesModel.EmployeeAggregate;
 using PeopleManagement.Domain.ErrorTools;
 using PeopleManagement.Domain.ErrorTools.ErrorsMessages;
+using Contact = PeopleManagement.Domain.AggregatesModel.EmployeeAggregate.Contact;
 
 namespace PeopleManagement.Application.Commands.EmployeeCommands.AlterContactEmployee
 {
@@ -25,4 +29,10 @@ namespace PeopleManagement.Application.Commands.EmployeeCommands.AlterContactEmp
             return employee.Id;
         }
     }
+
+    public class AlterContactEmployeeIdentifiedCommandHandler(IMediator mediator, ILogger<IdentifiedCommandHandler<AlterContactEmployeeCommand, AlterContactEmployeeResponse>> logger) : IdentifiedCommandHandler<AlterContactEmployeeCommand, AlterContactEmployeeResponse>(mediator, logger)
+    {
+        protected override AlterContactEmployeeResponse CreateResultForDuplicateRequest() => new(Guid.Empty);
+    }
 }
+

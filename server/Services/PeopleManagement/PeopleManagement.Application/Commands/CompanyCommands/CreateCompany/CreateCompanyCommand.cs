@@ -1,13 +1,14 @@
-﻿namespace PeopleManagement.Application.Commands.CompanyCommands.CreateCompany
+﻿using MediatR;
+
+namespace PeopleManagement.Application.Commands.CompanyCommands.CreateCompany
 {
     public record CreateCompanyCommand : IRequest<BaseDTO>
     {
-        public CreateCompanyCommand(string? corporateName, string? fantasyName, string? cnpj, string? description, string? email, string? phone, string? zipCode, string? street, string? number, string? complement, string? neighborhood, string? city, string? state, string? country)
+        public CreateCompanyCommand(string? corporateName, string? fantasyName, string? cnpj, string? email, string? phone, string? zipCode, string? street, string? number, string? complement, string? neighborhood, string? city, string? state, string? country)
         {
             CorporateName = corporateName;
             FantasyName = fantasyName;
             Cnpj = cnpj;
-            Description = description;
             Email = email;
             Phone = phone;
             ZipCode = zipCode;
@@ -23,7 +24,6 @@
         public string? CorporateName { get; }
         public string? FantasyName { get; }
         public string? Cnpj { get; }
-        public string? Description { get; set; }
         public string? Email { get; set; }
         public string? Phone { get; set; }
         public string? ZipCode { get; }
@@ -34,6 +34,28 @@
         public string? City { get; }
         public string? State { get; }
         public string? Country { get; }
+
+        public Company ToCompany(Guid id)
+        {
+            return Company.Create(
+            id,
+            this.CorporateName!,
+            this.FantasyName!,
+            this.Cnpj!,
+            Contact.Create(
+            this.Email!,
+                this.Phone!),
+            Address.Create(
+                this.ZipCode!,
+                this.Street!,
+                this.Number!,
+                this.Complement!,
+                this.Neighborhood!,
+                this.City!,
+                this.State!,
+                this.Country!)
+            );
+        }
 
     }
 }

@@ -1,4 +1,6 @@
-﻿using PeopleManagement.Domain.AggregatesModel.EmployeeAggregate;
+﻿using PeopleManagement.Application.Commands.EmployeeCommands.CreateDependentEmployee;
+using PeopleManagement.Application.Commands.Identified;
+using PeopleManagement.Domain.AggregatesModel.EmployeeAggregate;
 
 namespace PeopleManagement.Application.Commands.EmployeeCommands.CreateEmployee
 {
@@ -20,5 +22,10 @@ namespace PeopleManagement.Application.Commands.EmployeeCommands.CreateEmployee
             await _employeeRepository.UnitOfWork.SaveChangesAsync(cancellationToken);
             return result.Id;
         }
+    }
+
+    public class CreateEmployeeIdentifiedCommandHandler(IMediator mediator, ILogger<IdentifiedCommandHandler<CreateEmployeeCommand, CreateEmployeeCommandResponse>> logger) : IdentifiedCommandHandler<CreateEmployeeCommand, CreateEmployeeCommandResponse>(mediator, logger)
+    {
+        protected override CreateEmployeeCommandResponse CreateResultForDuplicateRequest() => new(Guid.Empty);
     }
 }

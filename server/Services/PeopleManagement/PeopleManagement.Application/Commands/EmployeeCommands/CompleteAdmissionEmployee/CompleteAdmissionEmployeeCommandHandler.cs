@@ -1,4 +1,6 @@
-﻿using PeopleManagement.Domain.AggregatesModel.EmployeeAggregate;
+﻿using PeopleManagement.Application.Commands.EmployeeCommands.AlterWorkPlaceEmployee;
+using PeopleManagement.Application.Commands.Identified;
+using PeopleManagement.Domain.AggregatesModel.EmployeeAggregate;
 
 namespace PeopleManagement.Application.Commands.EmployeeCommands.CompleteAdmissionEmployee
 {
@@ -22,5 +24,10 @@ namespace PeopleManagement.Application.Commands.EmployeeCommands.CompleteAdmissi
 
             return employee.Id;
         }
+    }
+
+    public class AlterWorkPlaceEmployeeIdentifiedCommandHandler(IMediator mediator, ILogger<IdentifiedCommandHandler<AlterWorkPlaceEmployeeCommand, AlterWorkPlaceEmployeeResponse>> logger) : IdentifiedCommandHandler<AlterWorkPlaceEmployeeCommand, AlterWorkPlaceEmployeeResponse>(mediator, logger)
+    {
+        protected override AlterWorkPlaceEmployeeResponse CreateResultForDuplicateRequest() => new(Guid.Empty);
     }
 }

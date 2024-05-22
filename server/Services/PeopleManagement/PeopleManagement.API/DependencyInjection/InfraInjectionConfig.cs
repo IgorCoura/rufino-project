@@ -1,4 +1,6 @@
-﻿using PeopleManagement.Domain.AggregatesModel.CompanyAggregate;
+﻿using PeopleManagement.Domain.AggregatesModel.ArchiveAggregate;
+using PeopleManagement.Domain.AggregatesModel.CompanyAggregate;
+using PeopleManagement.Domain.AggregatesModel.EmployeeAggregate;
 using PeopleManagement.Infra.Repository;
 
 namespace PeopleManagement.API.DependencyInjection
@@ -9,6 +11,8 @@ namespace PeopleManagement.API.DependencyInjection
         {
 
             service.AddScoped<ICompanyRepository, CompanyRepository>();
+            service.AddScoped<IArchiveRepository, ArchiveRepository>();
+            service.AddScoped<IEmployeeRepository, EmployeeRepository>();
 
             return service;
         }

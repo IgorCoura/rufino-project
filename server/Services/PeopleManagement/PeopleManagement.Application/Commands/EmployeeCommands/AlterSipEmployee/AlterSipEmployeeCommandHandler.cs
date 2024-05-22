@@ -1,4 +1,6 @@
 ﻿
+using PeopleManagement.Application.Commands.EmployeeCommands.AlterRoleEmployee;
+using PeopleManagement.Application.Commands.Identified;
 using PeopleManagement.Domain.AggregatesModel.EmployeeAggregate;
 using PeopleManagement.Domain.ErrorTools;
 using PeopleManagement.Domain.ErrorTools.ErrorsMessages;
@@ -26,4 +28,10 @@ namespace PeopleManagement.Application.Commands.EmployeeCommands.AlterSipEmploye
             return employee.Id;
         }
     }
+
+    public class AlterRoleEmployeeIdentifiedCommandHandler(IMediator mediator, ILogger<IdentifiedCommandHandler<AlterRoleEmployeeCommand, AlterRoleEmployeeResponse>> logger) : IdentifiedCommandHandler<AlterRoleEmployeeCommand, AlterRoleEmployeeResponse>(mediator, logger)
+    {
+        protected override AlterRoleEmployeeResponse CreateResultForDuplicateRequest() => new(Guid.Empty);
+    }
+
 }

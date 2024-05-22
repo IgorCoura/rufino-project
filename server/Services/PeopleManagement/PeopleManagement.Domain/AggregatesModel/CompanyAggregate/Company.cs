@@ -1,34 +1,29 @@
 ﻿namespace PeopleManagement.Domain.AggregatesModel.CompanyAggregate
 {
-    public sealed class Company : Entity
+    public sealed class Company : Entity, IAggregateRoot
     {
-        private Company(Guid id, string corporateName, string fantasyName, string description, string cnpj, string email, string phone, Address address) : base(id)
+        private Company(Guid id, NameCompany corporateName, NameFantasy fantasyName, CNPJ cnpj, Contact contact, Address address) : base(id)
         {
             CorporateName = corporateName;
             FantasyName = fantasyName;
-            Description = description;
             Cnpj = cnpj;
-            Email = email;
-            Phone = phone;
+            Contact = contact;
             Address = address;
         }
 
         private Company() { 
         }
 
-        public string CorporateName { get; private set; } = string.Empty;
-        public string FantasyName { get; private set; } = string.Empty;
-        public string Description { get; set; } = string.Empty;
-        public string Cnpj { get; private set; } = string.Empty;
-        public string Email { get; set; } = string.Empty;
-        public string Phone { get; set; } = string.Empty;
-        public Address Address { get; private set; } = Address.Default();
+        public NameCompany CorporateName { get; private set; } = null!;
+        public NameFantasy FantasyName { get; private set; } = null!;
+        public CNPJ Cnpj { get; private set; } = null!;
+        public Contact Contact { get; private set; } = null!;
+        public Address Address { get; private set; } = null!;
 
 
-        public static Company Create(string corporateName, string fantasyName, string description, string cnpj, string email, string phone, Address address)
+        public static Company Create(Guid id, NameCompany corporateName, NameFantasy fantasyName, CNPJ cnpj, Contact contact, Address address)
         {
-            var id = Guid.NewGuid();
-            return new Company(id, corporateName, fantasyName, description, cnpj, email, phone, address);
+            return new Company(id, corporateName, fantasyName, cnpj, contact, address);
         }
     }
 }

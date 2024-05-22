@@ -6,6 +6,7 @@ namespace PeopleManagement.Domain.AggregatesModel.CompanyAggregate
 {
     public class CNPJ : ValueObject
     {
+        public const int MAX_LENGTH = 14;
         private string _value = string.Empty;
 
         public string Value 
@@ -13,7 +14,7 @@ namespace PeopleManagement.Domain.AggregatesModel.CompanyAggregate
             get => _value;
             private set
             {
-                if (ValidityCNPJ(value))
+                if (!ValidityCNPJ(value))
                     throw new DomainException(this, DomainErrors.FieldInvalid(nameof(CNPJ), value));
                 _value = value;
             }
@@ -43,7 +44,7 @@ namespace PeopleManagement.Domain.AggregatesModel.CompanyAggregate
 
 
             // Verifica se o CNPJ informado tem os 14 digitos 
-            if (new_cnpj.Length != 14)
+            if (new_cnpj.Length != MAX_LENGTH)
             {
                 return false;
             }

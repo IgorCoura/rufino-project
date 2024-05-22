@@ -4,7 +4,7 @@ using PeopleManagement.Domain.ErrorTools.ErrorsMessages;
 
 namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
 {
-    public sealed partial class Address : ValueObject
+    public sealed class Address : ValueObject
     {
         public const int MAX_LENGHT_STREET = 100;
         public const int MAX_LENGHT_NUMBER = 10;
@@ -13,6 +13,7 @@ namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
         public const int MAX_LENGHT_CITY = 50;
         public const int MAX_LENGHT_STATE = 50;
         public const int MAX_LENGHT_COUNTRY = 50;
+        public const int MAX_LENGHT_ZIPCODE = 8;
 
         private string _zipCode = string.Empty;
         private string _street = string.Empty;
@@ -22,7 +23,7 @@ namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
         private string _city = string.Empty;
         private string _state = string.Empty;
         private string _country = string.Empty;
-        public string ZipCode 
+        public string ZipCode
         {
             get => _zipCode;
             private set
@@ -30,13 +31,16 @@ namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
                 var temp = value.Select(x => char.IsDigit(x) ? x : ' ').ToArray();
                 value = new string(temp).Replace(" ", "");
 
-                if (!ZipCodeRegex().IsMatch(value))
-                    throw new DomainException(this.GetType().Name, DomainErrors.FieldIsFormatInvalid(nameof(ZipCode)));
+                if (string.IsNullOrWhiteSpace(value))
+                    throw new DomainException(this, DomainErrors.FieldNotBeNullOrEmpty(nameof(ZipCode)));
+
+                if (value.Length > MAX_LENGHT_ZIPCODE)
+                    throw new DomainException(this, DomainErrors.FieldCannotBeLarger(nameof(ZipCode), MAX_LENGHT_ZIPCODE));
 
                 _zipCode = value;
             }
         }
-        public string Street 
+        public string Street
         {
             get => _street;
             private set
@@ -44,15 +48,15 @@ namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
                 value = value.ToUpper().Trim();
 
                 if (string.IsNullOrWhiteSpace(value))
-                    throw new DomainException(this.GetType().Name, DomainErrors.FieldNotBeNullOrEmpty(nameof(Street)));
+                    throw new DomainException(this, DomainErrors.FieldNotBeNullOrEmpty(nameof(Street)));
 
                 if (value.Length > MAX_LENGHT_STREET)
-                    throw new DomainException(this.GetType().Name, DomainErrors.FieldCannotBeLarger(nameof(Street), MAX_LENGHT_STREET));
+                    throw new DomainException(this, DomainErrors.FieldCannotBeLarger(nameof(Street), MAX_LENGHT_STREET));
 
                 _street = value;
             }
-        } 
-        public string Number 
+        }
+        public string Number
         {
             get => _number;
             private set
@@ -60,15 +64,15 @@ namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
                 value = value.ToUpper().Trim();
 
                 if (string.IsNullOrWhiteSpace(value))
-                    throw new DomainException(this.GetType().Name, DomainErrors.FieldNotBeNullOrEmpty(nameof(Number)));
+                    throw new DomainException(this, DomainErrors.FieldNotBeNullOrEmpty(nameof(Number)));
 
                 if (value.Length > MAX_LENGHT_NUMBER)
-                    throw new DomainException(this.GetType().Name, DomainErrors.FieldCannotBeLarger(nameof(Number), MAX_LENGHT_NUMBER));
+                    throw new DomainException(this, DomainErrors.FieldCannotBeLarger(nameof(Number), MAX_LENGHT_NUMBER));
 
                 _number = value;
             }
         }
-        public string Complement 
+        public string Complement
         {
             get => _complement;
             private set
@@ -76,29 +80,29 @@ namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
                 value = value.ToUpper().Trim();
 
                 if (value.Length > MAX_LENGHT_COMPLEMENT)
-                    throw new DomainException(this.GetType().Name, DomainErrors.FieldCannotBeLarger(nameof(Complement), MAX_LENGHT_COMPLEMENT));
+                    throw new DomainException(this, DomainErrors.FieldCannotBeLarger(nameof(Complement), MAX_LENGHT_COMPLEMENT));
 
                 _complement = value;
             }
         }
-        public string Neighborhood 
+        public string Neighborhood
         {
             get => _neighborhood;
             private set
             {
                 value = value.ToUpper().Trim();
-                 
+
                 if (string.IsNullOrWhiteSpace(value))
-                    throw new DomainException(this.GetType().Name, DomainErrors.FieldNotBeNullOrEmpty(nameof(Neighborhood)));
+                    throw new DomainException(this, DomainErrors.FieldNotBeNullOrEmpty(nameof(Neighborhood)));
 
                 if (value.Length > MAX_LENGHT_NEIGHBORHOOD)
-                    throw new DomainException(this.GetType().Name, DomainErrors.FieldCannotBeLarger(nameof(Neighborhood), MAX_LENGHT_NEIGHBORHOOD));
+                    throw new DomainException(this, DomainErrors.FieldCannotBeLarger(nameof(Neighborhood), MAX_LENGHT_NEIGHBORHOOD));
 
                 _neighborhood = value;
             }
-            
+
         }
-        public string City 
+        public string City
         {
             get => _city;
             private set
@@ -106,15 +110,15 @@ namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
                 value = value.ToUpper().Trim();
 
                 if (string.IsNullOrWhiteSpace(value))
-                    throw new DomainException(this.GetType().Name, DomainErrors.FieldNotBeNullOrEmpty(nameof(City)));
+                    throw new DomainException(this, DomainErrors.FieldNotBeNullOrEmpty(nameof(City)));
 
                 if (value.Length > MAX_LENGHT_CITY)
-                    throw new DomainException(this.GetType().Name, DomainErrors.FieldCannotBeLarger(nameof(City), MAX_LENGHT_CITY));
+                    throw new DomainException(this, DomainErrors.FieldCannotBeLarger(nameof(City), MAX_LENGHT_CITY));
 
                 _city = value;
             }
         }
-        public string State 
+        public string State
         {
             get => _state;
             private set
@@ -122,15 +126,15 @@ namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
                 value = value.ToUpper().Trim();
 
                 if (string.IsNullOrWhiteSpace(value))
-                    throw new DomainException(this.GetType().Name, DomainErrors.FieldNotBeNullOrEmpty(nameof(State)));
+                    throw new DomainException(this, DomainErrors.FieldNotBeNullOrEmpty(nameof(State)));
 
                 if (value.Length > MAX_LENGHT_STATE)
-                    throw new DomainException(this.GetType().Name, DomainErrors.FieldCannotBeLarger(nameof(State), MAX_LENGHT_STATE));
+                    throw new DomainException(this, DomainErrors.FieldCannotBeLarger(nameof(State), MAX_LENGHT_STATE));
 
                 _state = value;
             }
-        } 
-        public string Country 
+        }
+        public string Country
         {
             get => _country;
             private set
@@ -138,10 +142,10 @@ namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
                 value = value.ToUpper().Trim();
 
                 if (string.IsNullOrWhiteSpace(value))
-                    throw new DomainException(this.GetType().Name, DomainErrors.FieldNotBeNullOrEmpty(nameof(Country)));
+                    throw new DomainException(this, DomainErrors.FieldNotBeNullOrEmpty(nameof(Country)));
 
                 if (value.Length > MAX_LENGHT_COUNTRY)
-                    throw new DomainException(this.GetType().Name, DomainErrors.FieldCannotBeLarger(nameof(Country), MAX_LENGHT_COUNTRY));
+                    throw new DomainException(this, DomainErrors.FieldCannotBeLarger(nameof(Country), MAX_LENGHT_COUNTRY));
 
                 _country = value;
             }
@@ -155,7 +159,7 @@ namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
             Complement = complement;
             Neighborhood = neighborhood;
             City = city;
-            State = state;  
+            State = state;
             Country = country;
         }
 
@@ -177,8 +181,6 @@ namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
             yield return ZipCode;
         }
 
-        [GeneratedRegex(@"^\d{8}")]
-        private static partial Regex ZipCodeRegex();
-     
+
     }
 }

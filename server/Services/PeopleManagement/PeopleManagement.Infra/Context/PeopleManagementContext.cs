@@ -13,7 +13,7 @@ namespace PeopleManagement.Infra.Context
     {
         public const string DEFAULT_SCHEMA = "people_management";
 
-        public DbSet<Company> Companies { get; set; } 
+        public DbSet<Company> Companies { get; set; }
 
         private readonly IMediator? _mediator;
         private readonly IDbContextTransaction? _currentTransaction;
@@ -21,9 +21,12 @@ namespace PeopleManagement.Infra.Context
         public IDbContextTransaction? GetCurrentTransaction() => _currentTransaction;
         public bool HasActiveTransaction => _currentTransaction != null;
 
-        public PeopleManagementContext(DbContextOptions<PeopleManagementContext> options) : base(options) { }
+        public PeopleManagementContext(DbContextOptions<PeopleManagementContext> options) : base(options)
+        {
 
-        public PeopleManagementContext(DbContextOptions<PeopleManagementContext> options, IMediator mediator) : base(options)
+        }
+
+        public PeopleManagementContext(DbContextOptions<PeopleManagementContext> options, IMediator? mediator) : base(options)
         {
             _mediator = mediator ?? throw new ArgumentNullException(nameof(mediator));
 
@@ -36,7 +39,7 @@ namespace PeopleManagement.Infra.Context
 
         public async Task<bool> SaveEntitiesAsync(CancellationToken cancellationToken = default)
         {
-            if(_mediator != null)
+            if (_mediator != null)
             {
                 await _mediator.DispatchDomainEventsAsync(this);
             }

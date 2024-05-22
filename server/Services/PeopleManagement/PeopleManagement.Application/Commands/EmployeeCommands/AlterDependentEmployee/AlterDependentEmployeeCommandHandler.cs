@@ -1,6 +1,9 @@
 ﻿using PeopleManagement.Domain.AggregatesModel.EmployeeAggregate;
 using PeopleManagement.Domain.ErrorTools.ErrorsMessages;
 using PeopleManagement.Domain.ErrorTools;
+using PeopleManagement.Application.Commands.EmployeeCommands.AlterContactEmployee;
+using PeopleManagement.Application.Commands.Identified;
+using PeopleManagement.Application.Commands.EmployeeCommands.AlterDependentEmployee;
 
 namespace PeopleManagement.Application.Commands.EmployeeCommands.AlterDependentEmployee
 {
@@ -40,4 +43,12 @@ namespace PeopleManagement.Application.Commands.EmployeeCommands.AlterDependentE
             return employee.Id;
         }
     }
+
+    public class AlterDependentEmployeeIdentifiedCommandHandler(IMediator mediator, ILogger<IdentifiedCommandHandler<AlterDependentEmployeeCommand, AlterDependentEmployeeResponse>> logger) : IdentifiedCommandHandler<AlterDependentEmployeeCommand, AlterDependentEmployeeResponse>(mediator, logger)
+    {
+        protected override AlterDependentEmployeeResponse CreateResultForDuplicateRequest() => new(Guid.Empty);
+    }
 }
+
+
+

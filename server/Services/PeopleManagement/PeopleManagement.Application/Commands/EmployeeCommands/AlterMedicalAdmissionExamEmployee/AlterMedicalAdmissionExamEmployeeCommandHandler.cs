@@ -2,6 +2,8 @@
 using PeopleManagement.Domain.AggregatesModel.EmployeeAggregate;
 using PeopleManagement.Domain.ErrorTools.ErrorsMessages;
 using PeopleManagement.Domain.ErrorTools;
+using PeopleManagement.Application.Commands.Identified;
+using PeopleManagement.Application.Commands.EmployeeCommands.AlterMedicalAdmissionExamEmployee;
 
 namespace PeopleManagement.Application.Commands.EmployeeCommands.AlterMedicalAdmissionExamEmployee
 {
@@ -27,4 +29,11 @@ namespace PeopleManagement.Application.Commands.EmployeeCommands.AlterMedicalAdm
             return employee.Id;
         }
     }
+    public class AlterMedicalAdmissionExamEmployeeIdentifiedCommandHandler(IMediator mediator, ILogger<IdentifiedCommandHandler<AlterMedicalAdmissionExamEmployeeCommand, AlterMedicalAdmissionExamEmployeeResponse>> logger) : IdentifiedCommandHandler<AlterMedicalAdmissionExamEmployeeCommand, AlterMedicalAdmissionExamEmployeeResponse>(mediator, logger)
+    {
+        protected override AlterMedicalAdmissionExamEmployeeResponse CreateResultForDuplicateRequest() => new(Guid.Empty);
+    }
+
+
 }
+

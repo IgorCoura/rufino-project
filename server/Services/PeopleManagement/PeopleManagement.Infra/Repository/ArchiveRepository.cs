@@ -3,10 +3,7 @@ using PeopleManagement.Infra.Context;
 
 namespace PeopleManagement.Infra.Repository
 {
-    internal class ArchiveRepository : Repository<Archive>, IArchiveRepository
+    public class ArchiveRepository(PeopleManagementContext context) : Repository<Archive>(context), IArchiveRepository
     {
-        public ArchiveRepository(PeopleManagementContext context) : base(context)
-        {
-        }
     }
 }
