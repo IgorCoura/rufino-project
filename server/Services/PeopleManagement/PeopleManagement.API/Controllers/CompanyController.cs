@@ -22,11 +22,11 @@ namespace PeopleManagement.API.Controllers
             {
                 var command = new IdentifiedCommand<CreateCompanyCommand, BaseDTO>(request, guid);
 
-                SendingCommandLog(request.GetType().Name, nameof(request.Cnpj), request.Cnpj, request);
+                SendingCommandLog(request.Cnpj, request, guid);
 
                 var result = await _mediator.Send(command);
 
-                CommandResultLog(result, request.GetType().Name, nameof(request.Cnpj), request.Cnpj, command);
+                CommandResultLog(result, request.Cnpj, request, guid);
 
                 return OkResponse(result);
             }

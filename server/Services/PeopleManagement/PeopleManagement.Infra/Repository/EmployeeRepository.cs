@@ -5,5 +5,6 @@ namespace PeopleManagement.Infra.Repository
 {
     public class EmployeeRepository(PeopleManagementContext context) : Repository<Employee>(context), IEmployeeRepository
     {
+
     }
 }

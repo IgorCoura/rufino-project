@@ -5,6 +5,9 @@ namespace PeopleManagement.Application.Commands.EmployeeCommands.CreateEmployee
     public record CreateEmployeeCommand(
         Guid CompanyId,
         string Name
-        ) : IRequest<CreateEmployeeCommandResponse>;
+        ) : IRequest<CreateEmployeeResponse>
+    {
+        public Employee ToEmployee(Guid id) => Employee.Create(id, CompanyId, Name);
+    }
 
 }

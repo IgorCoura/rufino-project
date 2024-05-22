@@ -2,6 +2,11 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
 using PeopleManagement.Domain.AggregatesModel.CompanyAggregate;
+using PeopleManagement.Domain.AggregatesModel.DepartmentAggregate;
+using PeopleManagement.Domain.AggregatesModel.EmployeeAggregate;
+using PeopleManagement.Domain.AggregatesModel.PositionAggregate;
+using PeopleManagement.Domain.AggregatesModel.RoleAggregate;
+using PeopleManagement.Domain.AggregatesModel.WorkplaceAggregate;
 using PeopleManagement.Domain.SeedWord;
 using PeopleManagement.Infra.Extension;
 using PeopleManagement.Infra.Mapping;
@@ -14,6 +19,11 @@ namespace PeopleManagement.Infra.Context
         public const string DEFAULT_SCHEMA = "people_management";
 
         public DbSet<Company> Companies { get; set; }
+        public DbSet<Employee> Employees { get; set; }
+        public DbSet<Department> Departments { get; set; }
+        public DbSet<Position> Positions { get; set; }
+        public DbSet<Role> Roles { get; set; }
+        public DbSet<Workplace> Workplaces { get; set; }
 
         private readonly IMediator? _mediator;
         private readonly IDbContextTransaction? _currentTransaction;
@@ -35,6 +45,11 @@ namespace PeopleManagement.Infra.Context
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             modelBuilder.ApplyConfiguration(new CompanyMap());
+            modelBuilder.ApplyConfiguration(new EmployeeMap());
+            modelBuilder.ApplyConfiguration(new DepartmentMap());
+            modelBuilder.ApplyConfiguration(new PositionMap());
+            modelBuilder.ApplyConfiguration(new RoleMap());
+            modelBuilder.ApplyConfiguration(new WorkplaceMap());
         }
 
         public async Task<bool> SaveEntitiesAsync(CancellationToken cancellationToken = default)
