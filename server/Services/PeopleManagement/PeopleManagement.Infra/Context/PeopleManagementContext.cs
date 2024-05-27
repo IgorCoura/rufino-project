@@ -1,6 +1,7 @@
 ﻿using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
+using PeopleManagement.Domain.AggregatesModel.ArchiveAggregate;
 using PeopleManagement.Domain.AggregatesModel.CompanyAggregate;
 using PeopleManagement.Domain.AggregatesModel.DepartmentAggregate;
 using PeopleManagement.Domain.AggregatesModel.EmployeeAggregate;
@@ -18,9 +19,10 @@ namespace PeopleManagement.Infra.Context
     {
         public const string DEFAULT_SCHEMA = "people_management";
 
+        public DbSet<Archive> Archives { get; set; }
         public DbSet<Company> Companies { get; set; }
-        public DbSet<Employee> Employees { get; set; }
         public DbSet<Department> Departments { get; set; }
+        public DbSet<Employee> Employees { get; set; }
         public DbSet<Position> Positions { get; set; }
         public DbSet<Role> Roles { get; set; }
         public DbSet<Workplace> Workplaces { get; set; }
@@ -44,9 +46,10 @@ namespace PeopleManagement.Infra.Context
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
+            modelBuilder.ApplyConfiguration(new ArchiveMap());
             modelBuilder.ApplyConfiguration(new CompanyMap());
-            modelBuilder.ApplyConfiguration(new EmployeeMap());
             modelBuilder.ApplyConfiguration(new DepartmentMap());
+            modelBuilder.ApplyConfiguration(new EmployeeMap());            
             modelBuilder.ApplyConfiguration(new PositionMap());
             modelBuilder.ApplyConfiguration(new RoleMap());
             modelBuilder.ApplyConfiguration(new WorkplaceMap());

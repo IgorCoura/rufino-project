@@ -28,7 +28,8 @@ namespace PeopleManagement.Infra.Mapping
             builder.HasOne<Department>()
                 .WithMany()
                 .HasForeignKey(x => x.DepartmentId)
-                .IsRequired();
+                .IsRequired()
+                .OnDelete(Microsoft.EntityFrameworkCore.DeleteBehavior.Restrict);
         }
     }
 }

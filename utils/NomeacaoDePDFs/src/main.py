@@ -1,7 +1,9 @@
-import pdfplumber
 import os
 from unidecode import unidecode
 import csv
+import pytesseract
+from PIL import Image
+import sys, pathlib, pymupdf
 
 def formatar_string(s):
     # Remove espaços
@@ -20,21 +22,37 @@ def get_lines_csv(path):
             list.append(linha)
     return list
 
+def get_text_image(page):
+    nameImage = "page-%i.png" % page.number
+    page.get_pixmap().save(nameImage) 
+    pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
+    text = pytesseract.image_to_string(Image.open(nameImage))
+    os.remove(nameImage)
+    return text
+
 def get_text_pdf(base_path, name):
     pdf_path = base_path + "/" + name
-    pdf = pdfplumber.open(pdf_path)
     text = ""
-    for page in pdf.pages:
-        list_text = page.extract_text()
-        for text_line in list_text:
-            text += text_line
-    pdf.close()
+    with pymupdf.open(pdf_path) as doc:
+        for page in doc:
+            text += page.get_text()        
+            text += get_text_image(page)
     return formatar_string(text)
 
 def text_contains_name_in_list(text, list_names):
+    max = 3
+    for i in range(max):
+        name = check_name_in_list(text, list_names, i)
+        if(name != None):
+            return name
+    return None
+
+def check_name_in_list(text, list_names, remove_chars):
     for line in list_names:
         name = line[0]
         name_normalize = formatar_string(line[0])
+        if(remove_chars > 0):
+            name_normalize = name_normalize[remove_chars:-remove_chars]
         if name_normalize in text:
             return name
     return None
@@ -55,7 +73,7 @@ def put_name_files(base_pdf_path, name_folder, name_pdf, csv_path):
         rename_file(base_pdf_path, name_pdf, new_name)
 
 
-
+print("Incio")
 base_path = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))) + "/NomeacaoDePDFs"
 
 csv_path = base_path + '/data/funcionarios.csv'
@@ -69,7 +87,7 @@ for folder in folders:
     for file in files:
         put_name_files(files_base, folder, file, csv_path)
 
-
+print("Fim")
 
 
 

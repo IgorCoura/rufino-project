@@ -2,18 +2,21 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using PeopleManagement.Infra.Context;
 
 #nullable disable
 
-namespace PeopleManagement.Infra.Migrations
+namespace PeopleManagement.Migrations.Postgresql.Migrations
 {
     [DbContext(typeof(PeopleManagementContext))]
-    partial class PeopleManagementContextModelSnapshot : ModelSnapshot
+    [Migration("20240523035454_InitialCreate")]
+    partial class InitialCreate
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -21,6 +24,35 @@ namespace PeopleManagement.Infra.Migrations
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
+
+            modelBuilder.Entity("PeopleManagement.Domain.AggregatesModel.ArchiveAggregate.Archive", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("Category")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid>("CompanyId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("OwnerId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("Archives");
+                });
 
             modelBuilder.Entity("PeopleManagement.Domain.AggregatesModel.CompanyAggregate.Company", b =>
                 {
@@ -108,9 +140,8 @@ namespace PeopleManagement.Infra.Migrations
                     b.Property<string>("Sip")
                         .HasColumnType("text");
 
-                    b.Property<string>("Status")
-                        .IsRequired()
-                        .HasColumnType("text");
+                    b.Property<int>("Status")
+                        .HasColumnType("integer");
 
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("timestamp with time zone");
@@ -232,6 +263,46 @@ namespace PeopleManagement.Infra.Migrations
                     b.ToTable("Workplaces");
                 });
 
+            modelBuilder.Entity("PeopleManagement.Domain.AggregatesModel.ArchiveAggregate.Archive", b =>
+                {
+                    b.OwnsMany("PeopleManagement.Domain.AggregatesModel.ArchiveAggregate.File", "Files", b1 =>
+                        {
+                            b1.Property<int>("Id")
+                                .ValueGeneratedOnAdd()
+                                .HasColumnType("integer");
+
+                            NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b1.Property<int>("Id"));
+
+                            b1.Property<Guid>("ArchiveId")
+                                .HasColumnType("uuid");
+
+                            b1.Property<int>("Extension")
+                                .HasColumnType("integer");
+
+                            b1.Property<DateTime>("InsertAt")
+                                .HasColumnType("timestamp with time zone");
+
+                            b1.Property<string>("Name")
+                                .IsRequired()
+                                .HasMaxLength(100)
+                                .HasColumnType("character varying(100)");
+
+                            b1.Property<int>("Status")
+                                .HasColumnType("integer");
+
+                            b1.HasKey("Id");
+
+                            b1.HasIndex("ArchiveId");
+
+                            b1.ToTable("File");
+
+                            b1.WithOwner()
+                                .HasForeignKey("ArchiveId");
+                        });
+
+                    b.Navigation("Files");
+                });
+
             modelBuilder.Entity("PeopleManagement.Domain.AggregatesModel.CompanyAggregate.Company", b =>
                 {
                     b.OwnsOne("PeopleManagement.Domain.AggregatesModel.CompanyAggregate.Address", "Address", b1 =>
@@ -322,16 +393,18 @@ namespace PeopleManagement.Infra.Migrations
                     b.HasOne("PeopleManagement.Domain.AggregatesModel.CompanyAggregate.Company", null)
                         .WithMany()
                         .HasForeignKey("CompanyId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
                     b.HasOne("PeopleManagement.Domain.AggregatesModel.RoleAggregate.Role", null)
                         .WithMany()
-                        .HasForeignKey("RoleId");
+                        .HasForeignKey("RoleId")
+                        .OnDelete(DeleteBehavior.Restrict);
 
                     b.HasOne("PeopleManagement.Domain.AggregatesModel.WorkplaceAggregate.Workplace", null)
                         .WithMany()
-                        .HasForeignKey("WorkPlaceId");
+                        .HasForeignKey("WorkPlaceId")
+                        .OnDelete(DeleteBehavior.Restrict);
 
                     b.OwnsOne("PeopleManagement.Domain.AggregatesModel.EmployeeAggregate.Address", "Address", b1 =>
                         {
@@ -411,29 +484,29 @@ namespace PeopleManagement.Infra.Migrations
 
                     b.OwnsMany("PeopleManagement.Domain.AggregatesModel.EmployeeAggregate.Dependent", "Dependents", b1 =>
                         {
-                            b1.Property<Guid>("EmployeeId")
-                                .HasColumnType("uuid");
-
                             b1.Property<int>("Id")
                                 .ValueGeneratedOnAdd()
                                 .HasColumnType("integer");
 
                             NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b1.Property<int>("Id"));
 
-                            b1.Property<string>("DependencyType")
-                                .IsRequired()
-                                .HasColumnType("text");
+                            b1.Property<int>("DependencyType")
+                                .HasColumnType("integer");
 
-                            b1.Property<string>("Gender")
-                                .IsRequired()
-                                .HasColumnType("text");
+                            b1.Property<Guid>("EmployeeId")
+                                .HasColumnType("uuid");
+
+                            b1.Property<int>("Gender")
+                                .HasColumnType("integer");
 
                             b1.Property<string>("Name")
                                 .IsRequired()
                                 .HasMaxLength(100)
                                 .HasColumnType("character varying(100)");
 
-                            b1.HasKey("EmployeeId", "Id");
+                            b1.HasKey("Id");
+
+                            b1.HasIndex("EmployeeId");
 
                             b1.ToTable("Dependent");
 
@@ -442,9 +515,6 @@ namespace PeopleManagement.Infra.Migrations
 
                             b1.OwnsOne("PeopleManagement.Domain.AggregatesModel.EmployeeAggregate.IdCard", "IdCard", b2 =>
                                 {
-                                    b2.Property<Guid>("DependentEmployeeId")
-                                        .HasColumnType("uuid");
-
                                     b2.Property<int>("DependentId")
                                         .HasColumnType("integer");
 
@@ -481,12 +551,12 @@ namespace PeopleManagement.Infra.Migrations
                                         .HasMaxLength(100)
                                         .HasColumnType("character varying(100)");
 
-                                    b2.HasKey("DependentEmployeeId", "DependentId");
+                                    b2.HasKey("DependentId");
 
                                     b2.ToTable("Dependent");
 
                                     b2.WithOwner()
-                                        .HasForeignKey("DependentEmployeeId", "DependentId");
+                                        .HasForeignKey("DependentId");
                                 });
 
                             b1.Navigation("IdCard")
@@ -541,27 +611,27 @@ namespace PeopleManagement.Infra.Migrations
 
                     b.OwnsMany("PeopleManagement.Domain.AggregatesModel.EmployeeAggregate.EmploymentContract", "Contracts", b1 =>
                         {
-                            b1.Property<Guid>("EmployeeId")
-                                .HasColumnType("uuid");
-
                             b1.Property<int>("Id")
                                 .ValueGeneratedOnAdd()
                                 .HasColumnType("integer");
 
                             NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b1.Property<int>("Id"));
 
-                            b1.Property<string>("ContractType")
-                                .IsRequired()
-                                .HasColumnType("text");
+                            b1.Property<int>("ContractType")
+                                .HasColumnType("integer");
+
+                            b1.Property<Guid>("EmployeeId")
+                                .HasColumnType("uuid");
 
                             b1.Property<DateOnly?>("FinalDate")
-                                .IsRequired()
                                 .HasColumnType("date");
 
                             b1.Property<DateOnly>("InitDate")
                                 .HasColumnType("date");
 
-                            b1.HasKey("EmployeeId", "Id");
+                            b1.HasKey("Id");
+
+                            b1.HasIndex("EmployeeId");
 
                             b1.ToTable("EmploymentContract");
 
@@ -616,21 +686,17 @@ namespace PeopleManagement.Infra.Migrations
                             b1.Property<Guid>("EmployeeId")
                                 .HasColumnType("uuid");
 
-                            b1.Property<string>("EducationLevel")
-                                .IsRequired()
-                                .HasColumnType("text");
+                            b1.Property<int>("EducationLevel")
+                                .HasColumnType("integer");
 
-                            b1.Property<string>("Ethinicity")
-                                .IsRequired()
-                                .HasColumnType("text");
+                            b1.Property<int>("Ethinicity")
+                                .HasColumnType("integer");
 
-                            b1.Property<string>("Gender")
-                                .IsRequired()
-                                .HasColumnType("text");
+                            b1.Property<int>("Gender")
+                                .HasColumnType("integer");
 
-                            b1.Property<string>("MaritalStatus")
-                                .IsRequired()
-                                .HasColumnType("text");
+                            b1.Property<int>("MaritalStatus")
+                                .HasColumnType("integer");
 
                             b1.HasKey("EmployeeId");
 
@@ -687,7 +753,7 @@ namespace PeopleManagement.Infra.Migrations
                     b.HasOne("PeopleManagement.Domain.AggregatesModel.DepartmentAggregate.Department", null)
                         .WithMany()
                         .HasForeignKey("DepartmentId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
                 });
 
@@ -696,7 +762,7 @@ namespace PeopleManagement.Infra.Migrations
                     b.HasOne("PeopleManagement.Domain.AggregatesModel.PositionAggregate.Position", null)
                         .WithMany()
                         .HasForeignKey("PositionId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
                     b.OwnsOne("PeopleManagement.Domain.AggregatesModel.RoleAggregate.Remuneration", "Remuneration", b1 =>

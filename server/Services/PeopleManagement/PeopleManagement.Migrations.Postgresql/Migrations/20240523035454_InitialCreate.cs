@@ -4,14 +4,31 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
 #nullable disable
 
-namespace PeopleManagement.Infra.Migrations
+namespace PeopleManagement.Migrations.Postgresql.Migrations
 {
     /// <inheritdoc />
-    public partial class init : Migration
+    public partial class InitialCreate : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
+            migrationBuilder.CreateTable(
+                name: "Archives",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "uuid", nullable: false),
+                    Category = table.Column<int>(type: "integer", nullable: false),
+                    OwnerId = table.Column<Guid>(type: "uuid", nullable: false),
+                    CompanyId = table.Column<Guid>(type: "uuid", nullable: false),
+                    Status = table.Column<int>(type: "integer", nullable: false),
+                    CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    UpdatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_Archives", x => x.Id);
+                });
+
             migrationBuilder.CreateTable(
                 name: "Companies",
                 columns: table => new
@@ -76,6 +93,29 @@ namespace PeopleManagement.Infra.Migrations
                 });
 
             migrationBuilder.CreateTable(
+                name: "File",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "integer", nullable: false)
+                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
+                    Name = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: false),
+                    Extension = table.Column<int>(type: "integer", nullable: false),
+                    Status = table.Column<int>(type: "integer", nullable: false),
+                    InsertAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    ArchiveId = table.Column<Guid>(type: "uuid", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_File", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_File_Archives_ArchiveId",
+                        column: x => x.ArchiveId,
+                        principalTable: "Archives",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
                 name: "Positions",
                 columns: table => new
                 {
@@ -95,7 +135,7 @@ namespace PeopleManagement.Infra.Migrations
                         column: x => x.DepartmentId,
                         principalTable: "Departments",
                         principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
+                        onDelete: ReferentialAction.Restrict);
                 });
 
             migrationBuilder.CreateTable(
@@ -122,7 +162,7 @@ namespace PeopleManagement.Infra.Migrations
                         column: x => x.PositionId,
                         principalTable: "Positions",
                         principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
+                        onDelete: ReferentialAction.Restrict);
                 });
 
             migrationBuilder.CreateTable(
@@ -145,16 +185,16 @@ namespace PeopleManagement.Infra.Migrations
                     Address_Country = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: true),
                     Contact_Email = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: true),
                     Contact_CellPhone = table.Column<string>(type: "character varying(15)", maxLength: 15, nullable: true),
-                    Status = table.Column<string>(type: "text", nullable: false),
+                    Status = table.Column<int>(type: "integer", nullable: false),
                     Sip = table.Column<string>(type: "text", nullable: true),
                     MedicalAdmissionExam_DateExam = table.Column<DateOnly>(type: "date", nullable: true),
                     MedicalAdmissionExam_Validity = table.Column<DateOnly>(type: "date", nullable: true),
                     PersonalInfo_Deficiency_Disabilities = table.Column<string>(type: "text", nullable: true),
                     PersonalInfo_Deficiency_Observation = table.Column<string>(type: "character varying(500)", maxLength: 500, nullable: true),
-                    PersonalInfo_MaritalStatus = table.Column<string>(type: "text", nullable: true),
-                    PersonalInfo_Gender = table.Column<string>(type: "text", nullable: true),
-                    PersonalInfo_Ethinicity = table.Column<string>(type: "text", nullable: true),
-                    PersonalInfo_EducationLevel = table.Column<string>(type: "text", nullable: true),
+                    PersonalInfo_MaritalStatus = table.Column<int>(type: "integer", nullable: true),
+                    PersonalInfo_Gender = table.Column<int>(type: "integer", nullable: true),
+                    PersonalInfo_Ethinicity = table.Column<int>(type: "integer", nullable: true),
+                    PersonalInfo_EducationLevel = table.Column<int>(type: "integer", nullable: true),
                     IdCard_Cpf = table.Column<string>(type: "character varying(11)", maxLength: 11, nullable: true),
                     IdCard_MotherName = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: true),
                     IdCard_FatherName = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: true),
@@ -176,24 +216,25 @@ namespace PeopleManagement.Infra.Migrations
                         column: x => x.CompanyId,
                         principalTable: "Companies",
                         principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
+                        onDelete: ReferentialAction.Restrict);
                     table.ForeignKey(
                         name: "FK_Employees_Roles_RoleId",
                         column: x => x.RoleId,
                         principalTable: "Roles",
-                        principalColumn: "Id");
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Restrict);
                     table.ForeignKey(
                         name: "FK_Employees_Workplaces_WorkPlaceId",
                         column: x => x.WorkPlaceId,
                         principalTable: "Workplaces",
-                        principalColumn: "Id");
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Restrict);
                 });
 
             migrationBuilder.CreateTable(
                 name: "Dependent",
                 columns: table => new
                 {
-                    EmployeeId = table.Column<Guid>(type: "uuid", nullable: false),
                     Id = table.Column<int>(type: "integer", nullable: false)
                         .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
                     Name = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: false),
@@ -204,12 +245,13 @@ namespace PeopleManagement.Infra.Migrations
                     IdCard_BirthState = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: false),
                     IdCard_Nacionality = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: false),
                     IdCard_DateOfBirth = table.Column<DateOnly>(type: "date", nullable: false),
-                    Gender = table.Column<string>(type: "text", nullable: false),
-                    DependencyType = table.Column<string>(type: "text", nullable: false)
+                    Gender = table.Column<int>(type: "integer", nullable: false),
+                    DependencyType = table.Column<int>(type: "integer", nullable: false),
+                    EmployeeId = table.Column<Guid>(type: "uuid", nullable: false)
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_Dependent", x => new { x.EmployeeId, x.Id });
+                    table.PrimaryKey("PK_Dependent", x => x.Id);
                     table.ForeignKey(
                         name: "FK_Dependent_Employees_EmployeeId",
                         column: x => x.EmployeeId,
@@ -222,16 +264,16 @@ namespace PeopleManagement.Infra.Migrations
                 name: "EmploymentContract",
                 columns: table => new
                 {
-                    EmployeeId = table.Column<Guid>(type: "uuid", nullable: false),
                     Id = table.Column<int>(type: "integer", nullable: false)
                         .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
                     InitDate = table.Column<DateOnly>(type: "date", nullable: false),
-                    FinalDate = table.Column<DateOnly>(type: "date", nullable: false),
-                    ContractType = table.Column<string>(type: "text", nullable: false)
+                    FinalDate = table.Column<DateOnly>(type: "date", nullable: true),
+                    ContractType = table.Column<int>(type: "integer", nullable: false),
+                    EmployeeId = table.Column<Guid>(type: "uuid", nullable: false)
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_EmploymentContract", x => new { x.EmployeeId, x.Id });
+                    table.PrimaryKey("PK_EmploymentContract", x => x.Id);
                     table.ForeignKey(
                         name: "FK_EmploymentContract_Employees_EmployeeId",
                         column: x => x.EmployeeId,
@@ -239,6 +281,11 @@ namespace PeopleManagement.Infra.Migrations
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
                 });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Dependent_EmployeeId",
+                table: "Dependent",
+                column: "EmployeeId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_Employees_CompanyId",
@@ -262,6 +309,16 @@ namespace PeopleManagement.Infra.Migrations
                 column: "WorkPlaceId");
 
             migrationBuilder.CreateIndex(
+                name: "IX_EmploymentContract_EmployeeId",
+                table: "EmploymentContract",
+                column: "EmployeeId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_File_ArchiveId",
+                table: "File",
+                column: "ArchiveId");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_Positions_DepartmentId",
                 table: "Positions",
                 column: "DepartmentId");
@@ -282,7 +339,13 @@ namespace PeopleManagement.Infra.Migrations
                 name: "EmploymentContract");
 
             migrationBuilder.DropTable(
+                name: "File");
+
+            migrationBuilder.DropTable(
                 name: "Employees");
+
+            migrationBuilder.DropTable(
+                name: "Archives");
 
             migrationBuilder.DropTable(
                 name: "Companies");

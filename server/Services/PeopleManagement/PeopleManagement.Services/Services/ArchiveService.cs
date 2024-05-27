@@ -43,13 +43,13 @@ namespace PeopleManagement.Services.Services
 
         public async Task<IEnumerable<Archive>> GetArchivesWithRequiresFiles(Guid ownerId, Guid companyId)
         {
-            var archives = await _archiveRepository.GetDataAsync(x => x.OwnerId == ownerId && x.CompanyId == companyId && x.RequiresFile);
+            var archives = await _archiveRepository.GetDataAsync(x => x.OwnerId == ownerId && x.CompanyId == companyId && x.Status == ArchiveStatus.RequiresFile);
             return archives;
         }
 
         public async Task<bool> HasRequiresFiles(Guid ownerId, Guid companyId)
         {
-            var has = await _archiveRepository.AnyAsync(x => x.OwnerId == ownerId && x.CompanyId == companyId && x.RequiresFile);
+            var has = await _archiveRepository.AnyAsync(x => x.OwnerId == ownerId && x.CompanyId == companyId && x.Status == ArchiveStatus.RequiresFile);
             return has;
         }
     }

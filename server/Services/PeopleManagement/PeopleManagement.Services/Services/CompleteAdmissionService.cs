@@ -2,6 +2,7 @@
 using PeopleManagement.Domain.ErrorTools.ErrorsMessages;
 using PeopleManagement.Domain.ErrorTools;
 using PeopleManagement.Domain.AggregatesModel.ArchiveAggregate;
+using Microsoft.EntityFrameworkCore;
 
 namespace PeopleManagement.Services.Services
 {

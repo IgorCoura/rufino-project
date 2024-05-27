@@ -14,9 +14,11 @@ namespace PeopleManagement.Domain.AggregatesModel.CompanyAggregate
             get => _value;
             private set
             {
-                if (!ValidityCNPJ(value))
+                var cnpjChars = value.Select(x => char.IsDigit(x) ? x : ' ').ToArray();
+                var new_cnpj = new string(cnpjChars).Replace(" ", "");
+                if (!ValidityCNPJ(new_cnpj))
                     throw new DomainException(this, DomainErrors.FieldInvalid(nameof(CNPJ), value));
-                _value = value;
+                _value = new_cnpj;
             }
         }
 
@@ -35,23 +37,19 @@ namespace PeopleManagement.Domain.AggregatesModel.CompanyAggregate
         private static Boolean ValidityCNPJ(string cnpj)
         {
 
-            // Retira carcteres invalidos não numericos da string
-            var cnpjChars = cnpj.Select(x => char.IsDigit(x) ? x : ' ').ToArray();
-            var new_cnpj = new string(cnpjChars).Replace(" ", "");
-
-            if (string.IsNullOrEmpty(new_cnpj))
+            if (string.IsNullOrEmpty(cnpj))
                 return false;
 
 
             // Verifica se o CNPJ informado tem os 14 digitos 
-            if (new_cnpj.Length != MAX_LENGTH)
+            if (cnpj.Length != MAX_LENGTH)
             {
                 return false;
             }
 
             // Calcula o digito do CNPJ e compara com o digito informado
-            var digitoVerificador = CalculaDigCNPJ(new_cnpj);
-            if (digitoVerificador == new_cnpj.Substring(12, 2))
+            var digitoVerificador = CalculaDigCNPJ(cnpj);
+            if (digitoVerificador == cnpj.Substring(12, 2))
             {
                 return true;
             }

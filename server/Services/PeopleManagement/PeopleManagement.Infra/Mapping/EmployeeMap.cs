@@ -1,9 +1,14 @@
 ﻿using Microsoft.EntityFrameworkCore.ChangeTracking;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
+using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using PeopleManagement.Domain.AggregatesModel.CompanyAggregate;
 using PeopleManagement.Domain.AggregatesModel.EmployeeAggregate;
 using PeopleManagement.Domain.AggregatesModel.RoleAggregate;
 using PeopleManagement.Domain.AggregatesModel.WorkplaceAggregate;
+using PeopleManagement.Domain.SeedWord;
+using System.Diagnostics.Contracts;
+using System.Linq;
+using System.Text.Json;
 using Address = PeopleManagement.Domain.AggregatesModel.EmployeeAggregate.Address;
 using Contact = PeopleManagement.Domain.AggregatesModel.EmployeeAggregate.Contact;
 using Name = PeopleManagement.Domain.AggregatesModel.EmployeeAggregate.Name;
@@ -77,6 +82,8 @@ namespace PeopleManagement.Infra.Mapping
 
             builder.OwnsMany(x => x.Dependents, deps =>
             {
+                deps.HasKey("Id");
+
                 deps.Property(x => x.Name)
                     .HasConversion(x => x.Value, x => x)
                     .HasMaxLength(Name.MAX_LENGTH)
@@ -116,16 +123,16 @@ namespace PeopleManagement.Infra.Mapping
                 });
 
                 deps.Property(x => x.Gender)
-                    .HasConversion(x => x.Name, x => x)
+                    .HasConversion(x => x.Id, x => x)
                     .IsRequired();
 
                 deps.Property(x => x.DependencyType)
-                    .HasConversion(x => x.Name, x => x)
+                    .HasConversion(x => x.Id, x => x)
                     .IsRequired();
             });
 
             builder.Property(x => x.Status)
-                .HasConversion(x => x.Name, x => x)
+                .HasConversion(x => x.Id, x => x)
                 .IsRequired();
 
             builder.Property(x => x.Sip)
@@ -142,14 +149,16 @@ namespace PeopleManagement.Infra.Mapping
 
             builder.OwnsMany(x => x.Contracts, contracts =>
             {
+                contracts.HasKey("Id");
+
                 contracts.Property(x => x.InitDate)
                     .IsRequired();
 
                 contracts.Property(x => x.FinalDate)
-                    .IsRequired();
+                    .IsRequired(false);
 
                 contracts.Property(x => x.ContractType)
-                    .HasConversion(x => x.Name, x => x)
+                    .HasConversion(x => x.Id, x => x)
                     .IsRequired();
             });
 
@@ -158,13 +167,14 @@ namespace PeopleManagement.Infra.Mapping
                 personal.OwnsOne(x => x.Deficiency, deficiency =>
                 {
                     deficiency.Property(x => x.Disabilities)
-                        .HasConversion(x => string.Join<Disability>(';', x), x => x.Split(';', StringSplitOptions.None).Select(x => (Disability)x).ToArray())
-                        .IsRequired()
-                        .Metadata
-                        .SetValueComparer(new ValueComparer<ICollection<Disability>>(
-                            (c1, c2) => c1!.SequenceEqual(c2!),
-                            c => c.Aggregate(0, (a, v) => HashCode.Combine(a, v.GetHashCode())),
-                            c => (ICollection<Disability>)c.ToList()));
+                        .HasConversion(
+                            v => JsonSerializer.Serialize(v, JsonSerializerOptions.Default),
+                            v => JsonSerializer.Deserialize<Disability[]>(v, JsonSerializerOptions.Default)!,
+                            new ValueComparer<Disability[]>(
+                                (c1, c2) => c1!.SequenceEqual(c2!),
+                                c => c.Aggregate(0, (a, v) => HashCode.Combine(a, v.GetHashCode())),
+                                c => c.ToArray()))
+                        .IsRequired();
 
                     deficiency.Property(x => x.Observation)
                         .HasMaxLength(Deficiency.MAX_OBSERVATION)
@@ -172,19 +182,19 @@ namespace PeopleManagement.Infra.Mapping
                 });
 
                 personal.Property(x => x.MaritalStatus)
-                    .HasConversion(x => x.Name, x => x)
+                    .HasConversion(x => x.Id, x => x)
                     .IsRequired();
 
                 personal.Property(x => x.Gender)
-                    .HasConversion(x => x.Name, x => x)
+                    .HasConversion(x => x.Id, x => x)
                     .IsRequired();
 
                 personal.Property(x => x.Ethinicity)
-                    .HasConversion(x => x.Name, x => x)
+                    .HasConversion(x => x.Id, x => x)
                     .IsRequired();
 
                 personal.Property(x => x.EducationLevel)
-                    .HasConversion(x => x.Name, x => x)
+                    .HasConversion(x => x.Id, x => x)
                     .IsRequired();
             });
 
@@ -246,12 +256,14 @@ namespace PeopleManagement.Infra.Mapping
             builder.HasOne<Role>()
                 .WithMany()
                 .HasForeignKey(x => x.RoleId)
-                .IsRequired(false);
+                .IsRequired(false)
+                .OnDelete(Microsoft.EntityFrameworkCore.DeleteBehavior.Restrict);
 
             builder.HasOne<Workplace>()
                 .WithMany()
                 .HasForeignKey(x => x.WorkPlaceId)
-                .IsRequired(false);
+                .IsRequired(false)
+                .OnDelete(Microsoft.EntityFrameworkCore.DeleteBehavior.Restrict);
 
         }
     }

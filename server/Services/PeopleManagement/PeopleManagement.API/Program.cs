@@ -1,4 +1,5 @@
 using EntityFramework.Exceptions.PostgreSQL;
+using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using PeopleManagement.API.DependencyInjection;
 using PeopleManagement.API.Filters;
@@ -9,18 +10,38 @@ using System.Text.Json.Serialization;
 
 var builder = WebApplication.CreateBuilder(args);
 
+var env = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT");
 //Config DataBase
+
+
+var connection = new SqliteConnection("DataSource=:memory:");
+connection.Open();
+
+
 
 builder.Services.AddDbContext<PeopleManagementContext>(options =>
 {
-    options.UseNpgsql(builder.Configuration["Database:ConnectionString"],
-        npgsqlOptionsAction: sqlOptions =>
-        {
-            sqlOptions.EnableRetryOnFailure(maxRetryCount: 15, maxRetryDelay: TimeSpan.FromSeconds(30), errorCodesToAdd: null);
-        })
-        .UseQueryTrackingBehavior(QueryTrackingBehavior.NoTrackingWithIdentityResolution)
-        .UseExceptionProcessor();
+    if(env != null && env.Equals("Testing"))
+    {        
+        options.UseSqlite(connection, x => x.MigrationsAssembly("PeopleManagement.Migrations.Sqlite"))
+            .UseExceptionProcessor()
+            .EnableSensitiveDataLogging()
+            .EnableDetailedErrors();
+        
+    }
+    else
+    {
+        options.UseNpgsql(
+            builder.Configuration["Database:ConnectionString"],
+            npgsqlOptionsAction: sqlOptions =>
+            {
+                sqlOptions.EnableRetryOnFailure(maxRetryCount: 15, maxRetryDelay: TimeSpan.FromSeconds(30), errorCodesToAdd: null);
+                sqlOptions.MigrationsAssembly("PeopleManagement.Migrations.Postgresql");
+            })
+            .UseExceptionProcessor();
+    }
 });
+
 
 builder.Services.AddMediatR(cfg =>
 {
@@ -44,7 +65,6 @@ builder.Services.AddSwaggerGen();
 
 var app = builder.Build();
 
-var env = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT");
 
 // Configure the HTTP request pipeline.
 if (env != null && env.Equals("Development"))
@@ -54,16 +74,13 @@ if (env != null && env.Equals("Development"))
 }
 
 
-if (env != null && !env.Equals("Testing"))
-{
+using var scope = app.Services.CreateScope();
+var services = scope.ServiceProvider;
 
-    using var scope = app.Services.CreateScope();
-    var services = scope.ServiceProvider;
-
-    var context = services.GetRequiredService<PeopleManagementContext>();
-    if (context.Database.GetPendingMigrations().Any())
-        context.Database.Migrate();
-}
+var context = services.GetRequiredService<PeopleManagementContext>();
+//if (context.Database.GetPendingMigrations().Any())
+//    context.Database.Migrate();
+context.Database.EnsureCreated();
 
 
 app.UseHttpsRedirection();

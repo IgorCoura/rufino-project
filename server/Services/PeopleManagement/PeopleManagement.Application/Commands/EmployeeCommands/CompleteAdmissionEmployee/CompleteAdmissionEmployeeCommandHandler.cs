@@ -20,14 +20,16 @@ namespace PeopleManagement.Application.Commands.EmployeeCommands.CompleteAdmissi
             var employee = await _completeAdmissionService.CompleteAdmission(request.EmployeeId, request.CompanyId, 
                 request.Registration, request.ContractType, cancellationToken);
 
+            await _employeeRepository.DebugChangeTracker(); 
+
             await _employeeRepository.UnitOfWork.SaveChangesAsync(cancellationToken);
 
             return employee.Id;
         }
     }
 
-    public class AlterWorkPlaceEmployeeIdentifiedCommandHandler(IMediator mediator, ILogger<IdentifiedCommandHandler<AlterWorkPlaceEmployeeCommand, AlterWorkPlaceEmployeeResponse>> logger) : IdentifiedCommandHandler<AlterWorkPlaceEmployeeCommand, AlterWorkPlaceEmployeeResponse>(mediator, logger)
+    public class CompleteAdmissionEmployeeIdentifiedCommandHandler(IMediator mediator, ILogger<IdentifiedCommandHandler<CompleteAdmissionEmployeeCommand, CompleteAdmissionEmployeeResponse>> logger) : IdentifiedCommandHandler<CompleteAdmissionEmployeeCommand, CompleteAdmissionEmployeeResponse>(mediator, logger)
     {
-        protected override AlterWorkPlaceEmployeeResponse CreateResultForDuplicateRequest() => new(Guid.Empty);
+        protected override CompleteAdmissionEmployeeResponse CreateResultForDuplicateRequest() => new(Guid.Empty);
     }
 }

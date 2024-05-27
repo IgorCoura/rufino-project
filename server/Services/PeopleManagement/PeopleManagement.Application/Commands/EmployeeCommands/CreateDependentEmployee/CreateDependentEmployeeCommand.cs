@@ -2,8 +2,8 @@
 
 namespace PeopleManagement.Application.Commands.EmployeeCommands.CreateDependentEmployee
 {
-    public record CreateDependentEmployeeCommand(Guid EmployeeId, Guid CompanyId, string Name, IdCardModel IdCard, int Gender, int DependecyType) : IRequest<CreateDependentEmployeeResponse>
+    public record CreateDependentEmployeeCommand(Guid EmployeeId, Guid CompanyId, string Name, IdCardModelCreateDependentEmployeeCommand IdCard, int Gender, int DependecyType) : IRequest<CreateDependentEmployeeResponse>
     {
     }
-    public record IdCardModel(string Cpf, string MotherName, string FatherName, string BirthCity, string BirthState, string Nacionality, DateOnly DateOfBirth) { }
+    public record IdCardModelCreateDependentEmployeeCommand(string Cpf, string MotherName, string FatherName, string BirthCity, string BirthState, string Nacionality, DateOnly DateOfBirth) { }
 }

@@ -48,35 +48,22 @@ public class Result
 
     public void AddError(Error error)
     {
-        if(Errors.TryGetValue(Origin, out List<object>? value))
-        {
-            value.Add(error);
-            return;
-        }            
-        Errors.Add(Origin, [error]);
+        AddOrUpdateErrorsValue(Origin, [error]);
     }
     public void AddErrorsRange(List<Error> errors)
     {
-        if (!Errors.ContainsKey(Origin))
-            Errors.Add(Origin, []);
-        Errors[Origin].AddRange(errors);
+        var list = errors.ConvertAll(x => (object)x);
+        AddOrUpdateErrorsValue(Origin, list);
     }
 
     public void AddErrorsDictionary(Dictionary<string, List<object>> errorDic)
     {
-        if (Errors.TryGetValue(Origin, out List<object>? value))
+        if (errorDic.Count == 1 && errorDic.Any(x => x.Key == Origin))
         {
-            value.Add(errorDic);
+            AddOrUpdateErrorsValue(Origin, errorDic[Origin]);
             return;
-        }            
-        Errors.Add(Origin, [errorDic]);
-    }
-
-    public void AddErrorDictionaries(List<Dictionary<string, List<object>>> errorDics)
-    {
-        if (!Errors.ContainsKey(Origin))
-            Errors.Add(Origin, []);
-        Errors[Origin].AddRange(errorDics);
+        }   
+        AddOrUpdateErrorsValue(Origin, [errorDic]);
     }
 
     public void AddResult(Result result)
@@ -87,8 +74,11 @@ public class Result
 
     public void AddResults(List<Result> result)
     {
-        var errorDics = result.Where(x => x.IsFailure).Select(x => x.Errors).ToList() ?? [];
-        AddErrorDictionaries(errorDics);  
+        var errorDics = result.Where(x => x.IsFailure).Select(x => x.Errors).ToList() ?? []; 
+        foreach(var errorDic in errorDics)
+        {
+            AddErrorsDictionary(errorDic);
+        }
     }
 
     public static Result Success() => new("");
@@ -103,4 +93,9 @@ public class Result
     public static Result<TValue> Failure<TValue>(string origin, Error error) => new(origin, error);
     public static Result<TValue> Failure<TValue>(DomainException exception) => new(exception);
 
+    private void AddOrUpdateErrorsValue(string key, List<object> value)
+    {
+        if (!Errors.TryAdd(key, value))
+            Errors[key].AddRange(value);
+    }
 }
