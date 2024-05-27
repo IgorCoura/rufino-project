@@ -20,15 +20,7 @@ namespace PeopleManagement.Application.Commands.EmployeeCommands.AlterAddressEmp
             var employee = await _employeeRepository.FirstOrDefaultAsync(x => x.Id == request.EmployeeId && x.CompanyId == request.CompanyId, cancellation: cancellationToken)
                 ?? throw new DomainException(this, DomainErrors.ObjectNotFound(nameof(Employee), request.EmployeeId.ToString()));
 
-            employee.Address = EmployeeAddress.Create(
-                request.ZipCode, 
-                request.Street, 
-                request.Number, 
-                request.Complement, 
-                request.Neighborhood, 
-                request.City, 
-                request.State, 
-                request.Country);
+            employee.Address = request.ToAddress();
 
             await _employeeRepository.UnitOfWork.SaveChangesAsync(cancellationToken);
 

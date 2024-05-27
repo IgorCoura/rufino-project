@@ -1,4 +1,6 @@
-﻿namespace PeopleManagement.Domain.ErrorTools
+﻿using static System.Runtime.InteropServices.JavaScript.JSType;
+
+namespace PeopleManagement.Domain.ErrorTools
 {
     public class DomainException : Exception
     {
@@ -10,25 +12,44 @@
         }
         public Dictionary<string, List<object>> Errors { get; private set; } = [];
 
+        public DomainException(string origin)
+        {
+            Origin = origin;
+        }
+        public DomainException(object origin)
+        {
+            Origin = origin.GetType().Name;
+        }
         public DomainException(string origin, Result result)
         {
             Origin = origin;
             AddResult(result);
         }
-
+        public DomainException(object origin, Result result)
+        {
+            Origin = origin.GetType().Name;
+            AddResult(result);
+        }
         public DomainException(string origin, List<Result> results)
         {
             Origin = origin;
             AddResults(results);
         }
-        public DomainException(string origin)
+        public DomainException(object origin, List<Result> results)
         {
-            Origin = origin;
-        }
+            Origin = origin.GetType().Name;
+            AddResults(results);
+        }        
 
         public DomainException(string origin, List<Error> errors)
         {
             Origin = origin;
+            AddErrorsRange(errors);
+        }
+
+        public DomainException(object origin, List<Error> errors)
+        {
+            Origin = origin.GetType().Name;
             AddErrorsRange(errors);
         }
 
@@ -48,35 +69,22 @@
 
         public void AddError(Error error)
         {
-            if (Errors.TryGetValue(Origin, out List<object>? value))
-            {
-                value.Add(error);
-                return;
-            }
-            Errors.Add(Origin, [error]);
+            AddOrUpdateErrorsValue(Origin, [error]);
         }
         public void AddErrorsRange(List<Error> errors)
         {
-            if (!Errors.ContainsKey(Origin))
-                Errors.Add(Origin, []);
-            Errors[Origin].AddRange(errors);
+            var list = errors.ConvertAll(x => (object)x);
+            AddOrUpdateErrorsValue(Origin, list);
         }
 
         public void AddErrorsDictionary(Dictionary<string, List<object>> errorDic)
         {
-            if (Errors.TryGetValue(Origin, out List<object>? value))
+            if (errorDic.Count == 1 && errorDic.Any(x => x.Key == Origin))
             {
-                value.Add(errorDic);
+                AddOrUpdateErrorsValue(Origin, errorDic[Origin]);
                 return;
             }
-            Errors.Add(Origin, [errorDic]);
-        }
-
-        public void AddErrorDictionaries(List<Dictionary<string, List<object>>> errorDics)
-        {
-            if (!Errors.ContainsKey(Origin))
-                Errors.Add(Origin, []);
-            Errors[Origin].AddRange(errorDics);
+            AddOrUpdateErrorsValue(Origin, [errorDic]);
         }
 
         public void AddResult(Result result)
@@ -88,13 +96,16 @@
         public void AddResults(List<Result> result)
         {
             var errorDics = result.Where(x => x.IsFailure).Select(x => x.Errors).ToList() ?? [];
-            AddErrorDictionaries(errorDics);
+            foreach (var errorDic in errorDics)
+            {
+                AddErrorsDictionary(errorDic);
+            }
         }
 
-        public void AddException(DomainException result)
+        private void AddOrUpdateErrorsValue(string key, List<object> value)
         {
-            if (result.HasError)
-                AddErrorsDictionary(result.Errors);
+            if (!Errors.TryAdd(key, value))
+                Errors[key].AddRange(value);
         }
 
     }

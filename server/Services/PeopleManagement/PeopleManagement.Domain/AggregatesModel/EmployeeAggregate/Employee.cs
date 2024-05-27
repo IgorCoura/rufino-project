@@ -73,7 +73,7 @@ namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
             }
         }
         public Contact? Contact { get; set; }
-        public IEnumerable<Dependent> Dependents { get; private set; } = [];
+        public List<Dependent> Dependents { get; private set; } = new();
         public Status Status { get; private set; } = null!;
         public SocialIntegrationProgram? Sip { get;  set; }
         public MedicalAdmissionExam? MedicalAdmissionExam 
@@ -89,7 +89,7 @@ namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
 
             } 
         }
-        public IEnumerable<EmploymentContract> Contracts { get; private set; } = [];
+        public List<EmploymentContract> Contracts { get; private set; } = new();
         public PersonalInfo? PersonalInfo 
         {
             get => _personalInfo;
@@ -157,7 +157,7 @@ namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
             var result = ThereNotPendingIssues();
 
             if (result.IsFailure)
-                throw new DomainException(this.GetType().Name, result);
+                throw new DomainException(this, result);
             CreateContract(contractType);
             Registration = registration;
             Status = Status.Active;
@@ -200,17 +200,22 @@ namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
 
         public void AddDependent(Dependent dependent)
         {
-            Dependents = Dependents.Append(dependent);
+            Dependents.Add(dependent);
 
             RequestDependentDocuments(dependent.DependencyType);
         }
 
         public void AlterDependet(Name nameDependent, Dependent currentDependent)
         {
-            var oldDependent = Dependents.FirstOrDefault(x => x.Name.Equals(nameDependent)) ??
+            var copyDependents = Dependents.ToList();
+            var index = copyDependents.FindIndex(x => x.Name.Equals(nameDependent));
+
+            if(index == -1)
                 throw new DomainException(this, DomainErrors.DataNotBeNull(nameof(Dependent)));
 
-            oldDependent = currentDependent;
+            copyDependents[index] = currentDependent;
+
+            Dependents = copyDependents;
 
             RequestDependentDocuments(currentDependent.DependencyType);
         }
@@ -218,7 +223,7 @@ namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
         
         public void FinishedContract(DateOnly finishDateContract)
         {
-            var contract = Contracts.FirstOrDefault(x => x.FinalDate == null) ??
+            var contract = Contracts.Find(x => x.FinalDate == null) ??
                 throw new DomainException(this, DomainErrors.Employee.NotExistOpenContract());
 
             contract = contract.FinshedContract(finishDateContract);
@@ -234,7 +239,7 @@ namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
                 throw new DomainException(this, DomainErrors.Employee.AlreadyExistOpenContract());
             var dateNow = DateOnly.FromDateTime(DateTime.UtcNow);
             var contract = EmploymentContract.Create(dateNow, contractType);
-            Contracts = Contracts.Append(contract);
+            Contracts.Add(contract);
         }
 
         private void RequestDependentDocuments(DependencyType type)

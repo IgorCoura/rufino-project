@@ -4,7 +4,7 @@ using PeopleManagement.Domain.SeedWord;
 
 namespace PeopleManagement.Infra.Mapping
 {
-    public class EntityMap<T> : IEntityTypeConfiguration<T> where T : Entity
+    public abstract class EntityMap<T> : IEntityTypeConfiguration<T> where T : Entity
     {
         public virtual void Configure(EntityTypeBuilder<T> builder)
         {

@@ -22,7 +22,7 @@ namespace PeopleManagement.Application.Commands.EmployeeCommands.AlterContactEmp
             var employee = await _employeeRepository.FirstOrDefaultAsync(x => x.Id == request.EmployeeId && x.CompanyId == request.CompanyId, cancellation: cancellationToken)
                 ?? throw new DomainException(this, DomainErrors.ObjectNotFound(nameof(Employee), request.EmployeeId.ToString()));
 
-            employee.Contact = Contact.Create(request.Email, request.CellPhone);
+            employee.Contact = request.ToContact();
 
             await _employeeRepository.UnitOfWork.SaveChangesAsync(cancellationToken);
 

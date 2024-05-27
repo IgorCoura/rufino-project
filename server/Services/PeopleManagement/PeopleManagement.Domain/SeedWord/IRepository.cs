@@ -14,4 +14,5 @@ public interface IRepository<T> where T : Entity
     Task<T?> FirstOrDefaultAsync(Expression<Func<T, bool>> filter, Func<IQueryable<T>, IIncludableQueryable<T, object>>? include = null, CancellationToken cancellation = default);
     Task<IEnumerable<T>> GetDataAsync(Expression<Func<T, bool>>? filter = null, Func<IQueryable<T>, IIncludableQueryable<T, object>>? include = null, int? skip = null, int? take = null);
     Task<bool> AnyAsync(Expression<Func<T, bool>> filter);
+    Task DebugChangeTracker();
 }

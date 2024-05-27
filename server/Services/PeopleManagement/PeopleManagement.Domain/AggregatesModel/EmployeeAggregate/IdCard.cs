@@ -9,7 +9,6 @@ namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
         public const int MAX_LENGHT_BIRTHSTATE = 100;
         public const int MAX_LENGHT_NACIONALITY = 100;
         public const int MAX_AGE = 80;
-        public const int MIN_AGE = 18;
 
         private CPF _cpf = null!;
         private Name _motherName = null!;
@@ -101,7 +100,7 @@ namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
             set
             {
                 var maxDate = DateOnly.FromDateTime(DateTime.UtcNow).AddYears(MAX_AGE * -1);
-                var minDate = DateOnly.FromDateTime(DateTime.UtcNow).AddYears(MIN_AGE * -1);
+                var minDate = DateOnly.FromDateTime(DateTime.UtcNow);
                 if (value < maxDate || value > minDate)
                     throw new DomainException(this.GetType().Name, DomainErrors.DataHasBeBetween(nameof(DateOfBirth), value, minDate, maxDate));
                 _dateOfBirth = value;

@@ -37,7 +37,7 @@ namespace PeopleManagement.Infra.Repository
             if (include != null)
                 query = include(query);
 
-            return await query.FirstOrDefaultAsync(x => x.Id == id, cancellation);
+            return await query.AsTracking().FirstOrDefaultAsync(x => x.Id == id, cancellation);
         }
 
         public async Task<T?> FirstOrDefaultAsync(Expression<Func<T, bool>> filter, Func<IQueryable<T>, IIncludableQueryable<T, object>>? include = null, CancellationToken cancellation = default)
@@ -46,7 +46,7 @@ namespace PeopleManagement.Infra.Repository
             if (include != null)
                 query = include(query);
 
-            return await query.FirstOrDefaultAsync(filter, cancellation);
+            return await query.AsTracking().FirstOrDefaultAsync(filter, cancellation);
         }
 
         public async Task<IEnumerable<T>> GetDataAsync(Expression<Func<T, bool>>? filter = null, Func<IQueryable<T>, IIncludableQueryable<T, object>>? include = null, int? skip = null, int? take = null)
@@ -70,6 +70,13 @@ namespace PeopleManagement.Infra.Repository
         public async Task<bool> AnyAsync(Expression<Func<T, bool>> filter)
         {
             return await _context.Set<T>().AnyAsync(filter);
+        }
+
+        public Task DebugChangeTracker()
+        {
+            _context.ChangeTracker.DetectChanges();
+            System.Diagnostics.Debug.WriteLine(_context.ChangeTracker.DebugView.LongView);
+            return Task.CompletedTask;
         }
     }
 }

@@ -14,8 +14,8 @@ services:
         - ${APPDATA}\microsoft\UserSecrets\:/root/.microsoft/usersecrets
         - ${USERPROFILE}\.aspnet\https:/root/.aspnet/https/
     ports:
-        - 8020:80
-        - 8021:443
+        - 8040:80
+        - 8041:443
     depends_on:
         - peoplemanagement.db
 
@@ -26,6 +26,6 @@ services:
         POSTGRES_USER: "admin"
         POSTGRES_PASSWORD: "5up3rS3nh@"
     ports:
-        - 8022:5432
+        - 8042:5432
 
 

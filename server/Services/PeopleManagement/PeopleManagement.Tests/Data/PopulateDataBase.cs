@@ -1,4 +1,5 @@
-﻿using PeopleManagement.Application.Commands.EmployeeCommands.CreateEmployee;
+﻿using Microsoft.EntityFrameworkCore;
+using PeopleManagement.Application.Commands.EmployeeCommands.CreateEmployee;
 using PeopleManagement.Domain.AggregatesModel.CompanyAggregate;
 using PeopleManagement.Domain.AggregatesModel.DepartmentAggregate;
 using PeopleManagement.Domain.AggregatesModel.EmployeeAggregate;
@@ -6,14 +7,17 @@ using PeopleManagement.Domain.AggregatesModel.PositionAggregate;
 using PeopleManagement.Domain.AggregatesModel.RoleAggregate;
 using PeopleManagement.Domain.AggregatesModel.WorkplaceAggregate;
 using PeopleManagement.Infra.Context;
+using System.Data;
 using AddressCompany = PeopleManagement.Domain.AggregatesModel.CompanyAggregate.Address;
 using AddressWorkplace = PeopleManagement.Domain.AggregatesModel.WorkplaceAggregate.Address;
+using ContactCompany = PeopleManagement.Domain.AggregatesModel.CompanyAggregate.Contact;
+using EmplyeeAddress = PeopleManagement.Domain.AggregatesModel.EmployeeAggregate.Address;
 
 namespace PeopleManagement.Tests.Data
 {
     public static class PopulateDataBase
     {
-        public static async Task<Guid> InsertCompany(this PeopleManagementContext context, CancellationToken cancellationToken = default)
+        public static async Task<Company> InsertCompany(this PeopleManagementContext context, CancellationToken cancellationToken = default)
         {
             var id = Guid.NewGuid();
             var company = Company.Create(
@@ -21,7 +25,7 @@ namespace PeopleManagement.Tests.Data
             "Lucas e Ryan Informática Ltda",
             "Lucas e Ryan Informática",
             "82161379000186",
-            Contact.Create(
+            ContactCompany.Create(
                 "auditoria@lucaseryaninformaticaltda.com.br",
                 "1637222844"),
             AddressCompany.Create(
@@ -37,10 +41,10 @@ namespace PeopleManagement.Tests.Data
 
             await context.Companies.AddAsync(company, cancellationToken);
 
-            return id;
+            return company;
         }
 
-        public static async Task<Guid> InsertRole(this PeopleManagementContext context, CancellationToken cancellationToken = default)
+        public static async Task<Role> InsertRole(this PeopleManagementContext context, CancellationToken cancellationToken = default)
         {
             var departmentId = Guid.NewGuid();
             var departament = Department.Create(departmentId, "Hidraulica", "Hidraulica");
@@ -54,10 +58,10 @@ namespace PeopleManagement.Tests.Data
             var role = Role.Create(roleId, "Encanador Senior", "Encanador Com Experiencia", "738298", Remuneration.Create(PaymentUnit.PerHour, Currency.Create(CurrencyType.Real, "10.55"), "Por Hora"), postionId);
             await context.Roles.AddAsync(role, cancellationToken);
 
-            return roleId;
+            return role;
         }
 
-        public static async Task<Guid> InsertWorkplace(this PeopleManagementContext context, CancellationToken cancellationToken = default)
+        public static async Task<Workplace> InsertWorkplace(this PeopleManagementContext context, CancellationToken cancellationToken = default)
         {
             var workplaceId = Guid.NewGuid();
 
@@ -73,20 +77,78 @@ namespace PeopleManagement.Tests.Data
 
             await context.Workplaces.AddAsync(workplace, cancellationToken);
 
-            return workplaceId;
+            return workplace;
         }
 
-        public static async Task<Guid> InsertEmployeeWithMinimalInfos(this PeopleManagementContext context, CancellationToken cancellationToken = default)
+        public static async Task<Employee> InsertEmployeeWithMinimalInfos(this PeopleManagementContext context, CancellationToken cancellationToken = default)
         {
-            var companyId = await context.InsertCompany(cancellationToken);
+            var company = await context.InsertCompany(cancellationToken);
 
             var id = Guid.NewGuid();
 
-            var employee = Employee.Create(id, companyId, "Rosdevaldo Pereira");
+            var employee = Employee.Create(id, company.Id, "Rosdevaldo Pereira");
 
             await context.Employees.AddAsync(employee, cancellationToken);
 
-            return id;
+            return employee;
         }
+
+        public static async Task<Employee> InsertEmployeeWithOneDependent(this PeopleManagementContext context, CancellationToken cancellationToken = default)
+        {
+            var company = await context.InsertCompany(cancellationToken);
+
+            var id = Guid.NewGuid();
+
+            var employee = Employee.Create(id, company.Id, "Rosdevaldo Pereira");
+            employee.AddDependent(
+                Dependent.Create(
+                    "Roberto Kaique",
+                    IdCard.Create(
+                        "630.354.970-52",
+                        "Bragrku Aldase",
+                        "Shobrowu Voen",
+                        "Bauru",
+                        "SP",
+                        "brasileiro",
+                        DateOnly.Parse("1995/04/30")
+                    ),
+                    1,
+                    1)
+                );
+
+            await context.Employees.AddAsync(employee, cancellationToken);
+
+            return employee;
+        }
+
+        public static async Task<Employee> InsertEmployeeWithAllInfoToAdmission(this PeopleManagementContext context, CancellationToken cancellationToken = default)
+        {
+            var company = await context.InsertCompany(cancellationToken);
+            var id = Guid.NewGuid();
+            var employee = Employee.Create(id, company.Id, "Rosdevaldo Pereira");
+            var role = await context.InsertRole(cancellationToken);
+            var workplace = await context.InsertWorkplace(cancellationToken);
+
+            employee.RoleId = role.Id;
+            employee.WorkPlaceId = workplace.Id;
+
+            employee.Address = EmplyeeAddress.Create("69015-756", "Rua 11", "936", "", "Colônia Terra Nova", "Manaus", "Amazonia", "Brasil");
+
+            employee.Sip = "873.58571.07-9";
+
+            employee.PersonalInfo = PersonalInfo.Create(Deficiency.Create("", []), MaritalStatus.Single, Gender.MALE, Ethinicity.White, EducationLevel.CompleteHigher);
+            employee.IdCard = IdCard.Create("216.456.330-12", "Maria Silva", "Marcio Andrade", "Suzano", "São Paulo", "Brasileiro", DateOnly.Parse("2000/01/01"));
+            employee.VoteId = VoteId.Create("281662310124");
+
+            employee.MedicalAdmissionExam = MedicalAdmissionExam.Create(DateOnly.Parse("2024/04/20"), DateOnly.Parse("2025/04/20"));
+
+            employee.MilitaryDocument = MilitaryDocument.Create("2312312312", "Rersevista");
+
+            await context.Employees.AddAsync(employee, cancellationToken);
+
+            return employee;
+        }
+
+
     }
 }

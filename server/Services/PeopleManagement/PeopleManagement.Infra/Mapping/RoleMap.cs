@@ -51,7 +51,8 @@ namespace PeopleManagement.Infra.Mapping
             builder.HasOne<Position>()
                 .WithMany()
                 .HasForeignKey(x => x.PositionId)
-                .IsRequired();
+                .IsRequired()
+                .OnDelete(Microsoft.EntityFrameworkCore.DeleteBehavior.Restrict); ;
         }
     }
 }
