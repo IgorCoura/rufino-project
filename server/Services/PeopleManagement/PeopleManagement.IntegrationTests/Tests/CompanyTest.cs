@@ -1,22 +1,34 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.EntityFrameworkCore;
 using PeopleManagement.Application.Commands.CompanyCommands.CreateCompany;
 using PeopleManagement.Application.Commands.DTO;
-using PeopleManagement.Tests.Configs;
+using PeopleManagement.Infra.Context;
+using PeopleManagement.IntegrationTests.Configs;
 using System.Net;
 
-namespace PeopleManagement.Tests.IntegrationTests
+namespace PeopleManagement.IntegrationTests.Tests
 {
-    public class CompanyTest
+    public class CompanyTest : IClassFixture<PeopleManagementWebApplicationFactory>
     {
+        private readonly HttpClient _client;
+        private readonly PeopleManagementWebApplicationFactory _factory;
+        private readonly PeopleManagementContext _context;
+
+        public CompanyTest(PeopleManagementWebApplicationFactory factory)
+        {
+            _factory = factory;
+            _context = _factory.GetContext();
+            _client = _factory.CreateClient();
+        }
+
         [Fact]
         public async Task CreateCompanyWithSuccess()
         {
             //Arrange 
-            using var factory = new PeopleManagementWebApplicationFactory();
-            var client = factory.CreateClient();
-            using var context = factory.GetContext();
 
-            client.DefaultRequestHeaders.Add("x-requestid", Guid.NewGuid().ToString());
+            _client.DefaultRequestHeaders.Add("x-requestid", Guid.NewGuid().ToString());
+
+            var context = _factory.GetContext();
 
             var company = new CreateCompanyCommand(
                 "Lucas e Ryan Informática Ltda",
@@ -36,10 +48,9 @@ namespace PeopleManagement.Tests.IntegrationTests
 
             //Act
 
-            var response = await client.PostAsJsonAsync("/api/v1/company", company);
+            var response = await _client.PostAsJsonAsync("/api/v1/company", company);
 
             //Assert
-
             Assert.Equal(HttpStatusCode.OK, response.StatusCode);
             var content = await response.Content.ReadFromJsonAsync(typeof(BaseDTO)) as BaseDTO ?? throw new ArgumentNullException();
             var result = await context.Companies.FirstOrDefaultAsync(x => x.Id == content.Id) ?? throw new ArgumentNullException();

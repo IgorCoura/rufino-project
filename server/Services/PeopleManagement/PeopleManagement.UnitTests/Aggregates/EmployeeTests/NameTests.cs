@@ -7,7 +7,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace PeopleManagement.Tests.UnitTests.Aggregates.EmployeeTests
+namespace PeopleManagement.UnitTests.Aggregates.EmployeeTests
 {
     public class NameTests
     {

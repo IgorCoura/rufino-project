@@ -2,47 +2,49 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
-using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
+using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using PeopleManagement.Infra.Context;
 
 #nullable disable
 
-namespace PeopleManagement.Migrations.Sqlite.Migrations
+namespace PeopleManagement.Infra.Migrations
 {
     [DbContext(typeof(PeopleManagementContext))]
-    [Migration("20240523034909_InitialCreate")]
-    partial class InitialCreate
+    partial class PeopleManagementContextModelSnapshot : ModelSnapshot
     {
-        /// <inheritdoc />
-        protected override void BuildTargetModel(ModelBuilder modelBuilder)
+        protected override void BuildModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
-            modelBuilder.HasAnnotation("ProductVersion", "8.0.5");
+            modelBuilder
+                .HasAnnotation("ProductVersion", "8.0.5")
+                .HasAnnotation("Relational:MaxIdentifierLength", 63);
+
+            NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
             modelBuilder.Entity("PeopleManagement.Domain.AggregatesModel.ArchiveAggregate.Archive", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("TEXT");
+                        .HasColumnType("uuid");
 
                     b.Property<int>("Category")
-                        .HasColumnType("INTEGER");
+                        .HasColumnType("integer");
 
                     b.Property<Guid>("CompanyId")
-                        .HasColumnType("TEXT");
+                        .HasColumnType("uuid");
 
                     b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("TEXT");
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<Guid>("OwnerId")
-                        .HasColumnType("TEXT");
+                        .HasColumnType("uuid");
 
                     b.Property<int>("Status")
-                        .HasColumnType("INTEGER");
+                        .HasColumnType("integer");
 
                     b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("TEXT");
+                        .HasColumnType("timestamp with time zone");
 
                     b.HasKey("Id");
 
@@ -53,28 +55,28 @@ namespace PeopleManagement.Migrations.Sqlite.Migrations
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("TEXT");
+                        .HasColumnType("uuid");
 
                     b.Property<string>("Cnpj")
                         .IsRequired()
                         .HasMaxLength(14)
-                        .HasColumnType("TEXT");
+                        .HasColumnType("character varying(14)");
 
                     b.Property<string>("CorporateName")
                         .IsRequired()
                         .HasMaxLength(100)
-                        .HasColumnType("TEXT");
+                        .HasColumnType("character varying(100)");
 
                     b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("TEXT");
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("FantasyName")
                         .IsRequired()
                         .HasMaxLength(100)
-                        .HasColumnType("TEXT");
+                        .HasColumnType("character varying(100)");
 
                     b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("TEXT");
+                        .HasColumnType("timestamp with time zone");
 
                     b.HasKey("Id");
 
@@ -85,23 +87,23 @@ namespace PeopleManagement.Migrations.Sqlite.Migrations
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("TEXT");
+                        .HasColumnType("uuid");
 
                     b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("TEXT");
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("Description")
                         .IsRequired()
                         .HasMaxLength(500)
-                        .HasColumnType("TEXT");
+                        .HasColumnType("character varying(500)");
 
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(100)
-                        .HasColumnType("TEXT");
+                        .HasColumnType("character varying(100)");
 
                     b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("TEXT");
+                        .HasColumnType("timestamp with time zone");
 
                     b.HasKey("Id");
 
@@ -112,41 +114,41 @@ namespace PeopleManagement.Migrations.Sqlite.Migrations
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("TEXT");
+                        .HasColumnType("uuid");
 
                     b.Property<Guid>("CompanyId")
-                        .HasColumnType("TEXT");
+                        .HasColumnType("uuid");
 
                     b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("TEXT");
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(100)
-                        .HasColumnType("TEXT");
+                        .HasColumnType("character varying(100)");
 
                     b.Property<string>("Registration")
                         .HasMaxLength(15)
-                        .HasColumnType("TEXT");
+                        .HasColumnType("character varying(15)");
 
                     b.Property<Guid?>("RoleId")
-                        .HasColumnType("TEXT");
+                        .HasColumnType("uuid");
 
                     b.Property<string>("Sip")
-                        .HasColumnType("TEXT");
+                        .HasColumnType("text");
 
                     b.Property<int>("Status")
-                        .HasColumnType("INTEGER");
+                        .HasColumnType("integer");
 
                     b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("TEXT");
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("VoteId")
                         .HasMaxLength(12)
-                        .HasColumnType("TEXT");
+                        .HasColumnType("character varying(12)");
 
                     b.Property<Guid?>("WorkPlaceId")
-                        .HasColumnType("TEXT");
+                        .HasColumnType("uuid");
 
                     b.HasKey("Id");
 
@@ -166,31 +168,31 @@ namespace PeopleManagement.Migrations.Sqlite.Migrations
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("TEXT");
+                        .HasColumnType("uuid");
 
                     b.Property<string>("CBO")
                         .IsRequired()
                         .HasMaxLength(6)
-                        .HasColumnType("TEXT");
+                        .HasColumnType("character varying(6)");
 
                     b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("TEXT");
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<Guid>("DepartmentId")
-                        .HasColumnType("TEXT");
+                        .HasColumnType("uuid");
 
                     b.Property<string>("Description")
                         .IsRequired()
                         .HasMaxLength(500)
-                        .HasColumnType("TEXT");
+                        .HasColumnType("character varying(500)");
 
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(100)
-                        .HasColumnType("TEXT");
+                        .HasColumnType("character varying(100)");
 
                     b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("TEXT");
+                        .HasColumnType("timestamp with time zone");
 
                     b.HasKey("Id");
 
@@ -203,31 +205,31 @@ namespace PeopleManagement.Migrations.Sqlite.Migrations
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("TEXT");
+                        .HasColumnType("uuid");
 
                     b.Property<string>("CBO")
                         .IsRequired()
                         .HasMaxLength(6)
-                        .HasColumnType("TEXT");
+                        .HasColumnType("character varying(6)");
 
                     b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("TEXT");
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("Description")
                         .IsRequired()
                         .HasMaxLength(500)
-                        .HasColumnType("TEXT");
+                        .HasColumnType("character varying(500)");
 
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(100)
-                        .HasColumnType("TEXT");
+                        .HasColumnType("character varying(100)");
 
                     b.Property<Guid>("PositionId")
-                        .HasColumnType("TEXT");
+                        .HasColumnType("uuid");
 
                     b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("TEXT");
+                        .HasColumnType("timestamp with time zone");
 
                     b.HasKey("Id");
 
@@ -240,18 +242,18 @@ namespace PeopleManagement.Migrations.Sqlite.Migrations
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("TEXT");
+                        .HasColumnType("uuid");
 
                     b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("TEXT");
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(100)
-                        .HasColumnType("TEXT");
+                        .HasColumnType("character varying(100)");
 
                     b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("TEXT");
+                        .HasColumnType("timestamp with time zone");
 
                     b.HasKey("Id");
 
@@ -264,24 +266,26 @@ namespace PeopleManagement.Migrations.Sqlite.Migrations
                         {
                             b1.Property<int>("Id")
                                 .ValueGeneratedOnAdd()
-                                .HasColumnType("INTEGER");
+                                .HasColumnType("integer");
+
+                            NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b1.Property<int>("Id"));
 
                             b1.Property<Guid>("ArchiveId")
-                                .HasColumnType("TEXT");
+                                .HasColumnType("uuid");
 
                             b1.Property<int>("Extension")
-                                .HasColumnType("INTEGER");
+                                .HasColumnType("integer");
 
                             b1.Property<DateTime>("InsertAt")
-                                .HasColumnType("TEXT");
+                                .HasColumnType("timestamp with time zone");
 
                             b1.Property<string>("Name")
                                 .IsRequired()
                                 .HasMaxLength(100)
-                                .HasColumnType("TEXT");
+                                .HasColumnType("character varying(100)");
 
                             b1.Property<int>("Status")
-                                .HasColumnType("INTEGER");
+                                .HasColumnType("integer");
 
                             b1.HasKey("Id");
 
@@ -301,47 +305,47 @@ namespace PeopleManagement.Migrations.Sqlite.Migrations
                     b.OwnsOne("PeopleManagement.Domain.AggregatesModel.CompanyAggregate.Address", "Address", b1 =>
                         {
                             b1.Property<Guid>("CompanyId")
-                                .HasColumnType("TEXT");
+                                .HasColumnType("uuid");
 
                             b1.Property<string>("City")
                                 .IsRequired()
                                 .HasMaxLength(50)
-                                .HasColumnType("TEXT");
+                                .HasColumnType("character varying(50)");
 
                             b1.Property<string>("Complement")
                                 .IsRequired()
                                 .HasMaxLength(50)
-                                .HasColumnType("TEXT");
+                                .HasColumnType("character varying(50)");
 
                             b1.Property<string>("Country")
                                 .IsRequired()
                                 .HasMaxLength(50)
-                                .HasColumnType("TEXT");
+                                .HasColumnType("character varying(50)");
 
                             b1.Property<string>("Neighborhood")
                                 .IsRequired()
                                 .HasMaxLength(50)
-                                .HasColumnType("TEXT");
+                                .HasColumnType("character varying(50)");
 
                             b1.Property<string>("Number")
                                 .IsRequired()
                                 .HasMaxLength(10)
-                                .HasColumnType("TEXT");
+                                .HasColumnType("character varying(10)");
 
                             b1.Property<string>("State")
                                 .IsRequired()
                                 .HasMaxLength(50)
-                                .HasColumnType("TEXT");
+                                .HasColumnType("character varying(50)");
 
                             b1.Property<string>("Street")
                                 .IsRequired()
                                 .HasMaxLength(100)
-                                .HasColumnType("TEXT");
+                                .HasColumnType("character varying(100)");
 
                             b1.Property<string>("ZipCode")
                                 .IsRequired()
                                 .HasMaxLength(8)
-                                .HasColumnType("TEXT");
+                                .HasColumnType("character varying(8)");
 
                             b1.HasKey("CompanyId");
 
@@ -354,17 +358,17 @@ namespace PeopleManagement.Migrations.Sqlite.Migrations
                     b.OwnsOne("PeopleManagement.Domain.AggregatesModel.CompanyAggregate.Contact", "Contact", b1 =>
                         {
                             b1.Property<Guid>("CompanyId")
-                                .HasColumnType("TEXT");
+                                .HasColumnType("uuid");
 
                             b1.Property<string>("Email")
                                 .IsRequired()
                                 .HasMaxLength(100)
-                                .HasColumnType("TEXT");
+                                .HasColumnType("character varying(100)");
 
                             b1.Property<string>("Phone")
                                 .IsRequired()
                                 .HasMaxLength(15)
-                                .HasColumnType("TEXT");
+                                .HasColumnType("character varying(15)");
 
                             b1.HasKey("CompanyId");
 
@@ -402,47 +406,47 @@ namespace PeopleManagement.Migrations.Sqlite.Migrations
                     b.OwnsOne("PeopleManagement.Domain.AggregatesModel.EmployeeAggregate.Address", "Address", b1 =>
                         {
                             b1.Property<Guid>("EmployeeId")
-                                .HasColumnType("TEXT");
+                                .HasColumnType("uuid");
 
                             b1.Property<string>("City")
                                 .IsRequired()
                                 .HasMaxLength(50)
-                                .HasColumnType("TEXT");
+                                .HasColumnType("character varying(50)");
 
                             b1.Property<string>("Complement")
                                 .IsRequired()
                                 .HasMaxLength(50)
-                                .HasColumnType("TEXT");
+                                .HasColumnType("character varying(50)");
 
                             b1.Property<string>("Country")
                                 .IsRequired()
                                 .HasMaxLength(50)
-                                .HasColumnType("TEXT");
+                                .HasColumnType("character varying(50)");
 
                             b1.Property<string>("Neighborhood")
                                 .IsRequired()
                                 .HasMaxLength(50)
-                                .HasColumnType("TEXT");
+                                .HasColumnType("character varying(50)");
 
                             b1.Property<string>("Number")
                                 .IsRequired()
                                 .HasMaxLength(10)
-                                .HasColumnType("TEXT");
+                                .HasColumnType("character varying(10)");
 
                             b1.Property<string>("State")
                                 .IsRequired()
                                 .HasMaxLength(50)
-                                .HasColumnType("TEXT");
+                                .HasColumnType("character varying(50)");
 
                             b1.Property<string>("Street")
                                 .IsRequired()
                                 .HasMaxLength(100)
-                                .HasColumnType("TEXT");
+                                .HasColumnType("character varying(100)");
 
                             b1.Property<string>("ZipCode")
                                 .IsRequired()
                                 .HasMaxLength(8)
-                                .HasColumnType("TEXT");
+                                .HasColumnType("character varying(8)");
 
                             b1.HasKey("EmployeeId");
 
@@ -455,17 +459,17 @@ namespace PeopleManagement.Migrations.Sqlite.Migrations
                     b.OwnsOne("PeopleManagement.Domain.AggregatesModel.EmployeeAggregate.Contact", "Contact", b1 =>
                         {
                             b1.Property<Guid>("EmployeeId")
-                                .HasColumnType("TEXT");
+                                .HasColumnType("uuid");
 
                             b1.Property<string>("CellPhone")
                                 .IsRequired()
                                 .HasMaxLength(15)
-                                .HasColumnType("TEXT");
+                                .HasColumnType("character varying(15)");
 
                             b1.Property<string>("Email")
                                 .IsRequired()
                                 .HasMaxLength(100)
-                                .HasColumnType("TEXT");
+                                .HasColumnType("character varying(100)");
 
                             b1.HasKey("EmployeeId");
 
@@ -477,27 +481,27 @@ namespace PeopleManagement.Migrations.Sqlite.Migrations
 
                     b.OwnsMany("PeopleManagement.Domain.AggregatesModel.EmployeeAggregate.Dependent", "Dependents", b1 =>
                         {
+                            b1.Property<Guid>("EmployeeId")
+                                .HasColumnType("uuid");
+
                             b1.Property<int>("Id")
                                 .ValueGeneratedOnAdd()
-                                .HasColumnType("INTEGER");
+                                .HasColumnType("integer");
+
+                            NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b1.Property<int>("Id"));
 
                             b1.Property<int>("DependencyType")
-                                .HasColumnType("INTEGER");
-
-                            b1.Property<Guid>("EmployeeId")
-                                .HasColumnType("TEXT");
+                                .HasColumnType("integer");
 
                             b1.Property<int>("Gender")
-                                .HasColumnType("INTEGER");
+                                .HasColumnType("integer");
 
                             b1.Property<string>("Name")
                                 .IsRequired()
                                 .HasMaxLength(100)
-                                .HasColumnType("TEXT");
+                                .HasColumnType("character varying(100)");
 
-                            b1.HasKey("Id");
-
-                            b1.HasIndex("EmployeeId");
+                            b1.HasKey("EmployeeId", "Id");
 
                             b1.ToTable("Dependent");
 
@@ -506,48 +510,51 @@ namespace PeopleManagement.Migrations.Sqlite.Migrations
 
                             b1.OwnsOne("PeopleManagement.Domain.AggregatesModel.EmployeeAggregate.IdCard", "IdCard", b2 =>
                                 {
+                                    b2.Property<Guid>("DependentEmployeeId")
+                                        .HasColumnType("uuid");
+
                                     b2.Property<int>("DependentId")
-                                        .HasColumnType("INTEGER");
+                                        .HasColumnType("integer");
 
                                     b2.Property<string>("BirthCity")
                                         .IsRequired()
                                         .HasMaxLength(100)
-                                        .HasColumnType("TEXT");
+                                        .HasColumnType("character varying(100)");
 
                                     b2.Property<string>("BirthState")
                                         .IsRequired()
                                         .HasMaxLength(100)
-                                        .HasColumnType("TEXT");
+                                        .HasColumnType("character varying(100)");
 
                                     b2.Property<string>("Cpf")
                                         .IsRequired()
                                         .HasMaxLength(11)
-                                        .HasColumnType("TEXT");
+                                        .HasColumnType("character varying(11)");
 
                                     b2.Property<DateOnly>("DateOfBirth")
-                                        .HasColumnType("TEXT");
+                                        .HasColumnType("date");
 
                                     b2.Property<string>("FatherName")
                                         .IsRequired()
                                         .HasMaxLength(100)
-                                        .HasColumnType("TEXT");
+                                        .HasColumnType("character varying(100)");
 
                                     b2.Property<string>("MotherName")
                                         .IsRequired()
                                         .HasMaxLength(100)
-                                        .HasColumnType("TEXT");
+                                        .HasColumnType("character varying(100)");
 
                                     b2.Property<string>("Nacionality")
                                         .IsRequired()
                                         .HasMaxLength(100)
-                                        .HasColumnType("TEXT");
+                                        .HasColumnType("character varying(100)");
 
-                                    b2.HasKey("DependentId");
+                                    b2.HasKey("DependentEmployeeId", "DependentId");
 
                                     b2.ToTable("Dependent");
 
                                     b2.WithOwner()
-                                        .HasForeignKey("DependentId");
+                                        .HasForeignKey("DependentEmployeeId", "DependentId");
                                 });
 
                             b1.Navigation("IdCard")
@@ -557,40 +564,40 @@ namespace PeopleManagement.Migrations.Sqlite.Migrations
                     b.OwnsOne("PeopleManagement.Domain.AggregatesModel.EmployeeAggregate.IdCard", "IdCard", b1 =>
                         {
                             b1.Property<Guid>("EmployeeId")
-                                .HasColumnType("TEXT");
+                                .HasColumnType("uuid");
 
                             b1.Property<string>("BirthCity")
                                 .IsRequired()
                                 .HasMaxLength(100)
-                                .HasColumnType("TEXT");
+                                .HasColumnType("character varying(100)");
 
                             b1.Property<string>("BirthState")
                                 .IsRequired()
                                 .HasMaxLength(100)
-                                .HasColumnType("TEXT");
+                                .HasColumnType("character varying(100)");
 
                             b1.Property<string>("Cpf")
                                 .IsRequired()
                                 .HasMaxLength(11)
-                                .HasColumnType("TEXT");
+                                .HasColumnType("character varying(11)");
 
                             b1.Property<DateOnly>("DateOfBirth")
-                                .HasColumnType("TEXT");
+                                .HasColumnType("date");
 
                             b1.Property<string>("FatherName")
                                 .IsRequired()
                                 .HasMaxLength(100)
-                                .HasColumnType("TEXT");
+                                .HasColumnType("character varying(100)");
 
                             b1.Property<string>("MotherName")
                                 .IsRequired()
                                 .HasMaxLength(100)
-                                .HasColumnType("TEXT");
+                                .HasColumnType("character varying(100)");
 
                             b1.Property<string>("Nacionality")
                                 .IsRequired()
                                 .HasMaxLength(100)
-                                .HasColumnType("TEXT");
+                                .HasColumnType("character varying(100)");
 
                             b1.HasKey("EmployeeId");
 
@@ -602,25 +609,25 @@ namespace PeopleManagement.Migrations.Sqlite.Migrations
 
                     b.OwnsMany("PeopleManagement.Domain.AggregatesModel.EmployeeAggregate.EmploymentContract", "Contracts", b1 =>
                         {
+                            b1.Property<Guid>("EmployeeId")
+                                .HasColumnType("uuid");
+
                             b1.Property<int>("Id")
                                 .ValueGeneratedOnAdd()
-                                .HasColumnType("INTEGER");
+                                .HasColumnType("integer");
+
+                            NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b1.Property<int>("Id"));
 
                             b1.Property<int>("ContractType")
-                                .HasColumnType("INTEGER");
-
-                            b1.Property<Guid>("EmployeeId")
-                                .HasColumnType("TEXT");
+                                .HasColumnType("integer");
 
                             b1.Property<DateOnly?>("FinalDate")
-                                .HasColumnType("TEXT");
+                                .HasColumnType("date");
 
                             b1.Property<DateOnly>("InitDate")
-                                .HasColumnType("TEXT");
+                                .HasColumnType("date");
 
-                            b1.HasKey("Id");
-
-                            b1.HasIndex("EmployeeId");
+                            b1.HasKey("EmployeeId", "Id");
 
                             b1.ToTable("EmploymentContract");
 
@@ -631,13 +638,13 @@ namespace PeopleManagement.Migrations.Sqlite.Migrations
                     b.OwnsOne("PeopleManagement.Domain.AggregatesModel.EmployeeAggregate.MedicalAdmissionExam", "MedicalAdmissionExam", b1 =>
                         {
                             b1.Property<Guid>("EmployeeId")
-                                .HasColumnType("TEXT");
+                                .HasColumnType("uuid");
 
                             b1.Property<DateOnly>("DateExam")
-                                .HasColumnType("TEXT");
+                                .HasColumnType("date");
 
                             b1.Property<DateOnly>("Validity")
-                                .HasColumnType("TEXT");
+                                .HasColumnType("date");
 
                             b1.HasKey("EmployeeId");
 
@@ -650,17 +657,17 @@ namespace PeopleManagement.Migrations.Sqlite.Migrations
                     b.OwnsOne("PeopleManagement.Domain.AggregatesModel.EmployeeAggregate.MilitaryDocument", "MilitaryDocument", b1 =>
                         {
                             b1.Property<Guid>("EmployeeId")
-                                .HasColumnType("TEXT");
+                                .HasColumnType("uuid");
 
                             b1.Property<string>("Number")
                                 .IsRequired()
                                 .HasMaxLength(20)
-                                .HasColumnType("TEXT");
+                                .HasColumnType("character varying(20)");
 
                             b1.Property<string>("Type")
                                 .IsRequired()
                                 .HasMaxLength(50)
-                                .HasColumnType("TEXT");
+                                .HasColumnType("character varying(50)");
 
                             b1.HasKey("EmployeeId");
 
@@ -673,19 +680,19 @@ namespace PeopleManagement.Migrations.Sqlite.Migrations
                     b.OwnsOne("PeopleManagement.Domain.AggregatesModel.EmployeeAggregate.PersonalInfo", "PersonalInfo", b1 =>
                         {
                             b1.Property<Guid>("EmployeeId")
-                                .HasColumnType("TEXT");
+                                .HasColumnType("uuid");
 
                             b1.Property<int>("EducationLevel")
-                                .HasColumnType("INTEGER");
+                                .HasColumnType("integer");
 
                             b1.Property<int>("Ethinicity")
-                                .HasColumnType("INTEGER");
+                                .HasColumnType("integer");
 
                             b1.Property<int>("Gender")
-                                .HasColumnType("INTEGER");
+                                .HasColumnType("integer");
 
                             b1.Property<int>("MaritalStatus")
-                                .HasColumnType("INTEGER");
+                                .HasColumnType("integer");
 
                             b1.HasKey("EmployeeId");
 
@@ -697,16 +704,16 @@ namespace PeopleManagement.Migrations.Sqlite.Migrations
                             b1.OwnsOne("PeopleManagement.Domain.AggregatesModel.EmployeeAggregate.Deficiency", "Deficiency", b2 =>
                                 {
                                     b2.Property<Guid>("PersonalInfoEmployeeId")
-                                        .HasColumnType("TEXT");
+                                        .HasColumnType("uuid");
 
                                     b2.Property<string>("Disabilities")
                                         .IsRequired()
-                                        .HasColumnType("TEXT");
+                                        .HasColumnType("text");
 
                                     b2.Property<string>("Observation")
                                         .IsRequired()
                                         .HasMaxLength(500)
-                                        .HasColumnType("TEXT");
+                                        .HasColumnType("character varying(500)");
 
                                     b2.HasKey("PersonalInfoEmployeeId");
 
@@ -757,15 +764,15 @@ namespace PeopleManagement.Migrations.Sqlite.Migrations
                     b.OwnsOne("PeopleManagement.Domain.AggregatesModel.RoleAggregate.Remuneration", "Remuneration", b1 =>
                         {
                             b1.Property<Guid>("RoleId")
-                                .HasColumnType("TEXT");
+                                .HasColumnType("uuid");
 
                             b1.Property<string>("Description")
                                 .IsRequired()
                                 .HasMaxLength(500)
-                                .HasColumnType("TEXT");
+                                .HasColumnType("character varying(500)");
 
                             b1.Property<int>("PaymentUnit")
-                                .HasColumnType("INTEGER");
+                                .HasColumnType("integer");
 
                             b1.HasKey("RoleId");
 
@@ -777,15 +784,15 @@ namespace PeopleManagement.Migrations.Sqlite.Migrations
                             b1.OwnsOne("PeopleManagement.Domain.AggregatesModel.RoleAggregate.Currency", "BaseSalary", b2 =>
                                 {
                                     b2.Property<Guid>("RemunerationRoleId")
-                                        .HasColumnType("TEXT");
+                                        .HasColumnType("uuid");
 
                                     b2.Property<int>("Type")
-                                        .HasColumnType("INTEGER");
+                                        .HasColumnType("integer");
 
                                     b2.Property<string>("Value")
                                         .IsRequired()
                                         .HasMaxLength(21)
-                                        .HasColumnType("TEXT");
+                                        .HasColumnType("character varying(21)");
 
                                     b2.HasKey("RemunerationRoleId");
 
@@ -808,47 +815,47 @@ namespace PeopleManagement.Migrations.Sqlite.Migrations
                     b.OwnsOne("PeopleManagement.Domain.AggregatesModel.WorkplaceAggregate.Address", "Address", b1 =>
                         {
                             b1.Property<Guid>("WorkplaceId")
-                                .HasColumnType("TEXT");
+                                .HasColumnType("uuid");
 
                             b1.Property<string>("City")
                                 .IsRequired()
                                 .HasMaxLength(50)
-                                .HasColumnType("TEXT");
+                                .HasColumnType("character varying(50)");
 
                             b1.Property<string>("Complement")
                                 .IsRequired()
                                 .HasMaxLength(50)
-                                .HasColumnType("TEXT");
+                                .HasColumnType("character varying(50)");
 
                             b1.Property<string>("Country")
                                 .IsRequired()
                                 .HasMaxLength(50)
-                                .HasColumnType("TEXT");
+                                .HasColumnType("character varying(50)");
 
                             b1.Property<string>("Neighborhood")
                                 .IsRequired()
                                 .HasMaxLength(50)
-                                .HasColumnType("TEXT");
+                                .HasColumnType("character varying(50)");
 
                             b1.Property<string>("Number")
                                 .IsRequired()
                                 .HasMaxLength(10)
-                                .HasColumnType("TEXT");
+                                .HasColumnType("character varying(10)");
 
                             b1.Property<string>("State")
                                 .IsRequired()
                                 .HasMaxLength(50)
-                                .HasColumnType("TEXT");
+                                .HasColumnType("character varying(50)");
 
                             b1.Property<string>("Street")
                                 .IsRequired()
                                 .HasMaxLength(100)
-                                .HasColumnType("TEXT");
+                                .HasColumnType("character varying(100)");
 
                             b1.Property<string>("ZipCode")
                                 .IsRequired()
                                 .HasMaxLength(8)
-                                .HasColumnType("TEXT");
+                                .HasColumnType("character varying(8)");
 
                             b1.HasKey("WorkplaceId");
 

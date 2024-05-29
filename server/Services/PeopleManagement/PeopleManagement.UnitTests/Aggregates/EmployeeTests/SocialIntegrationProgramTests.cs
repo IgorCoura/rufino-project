@@ -2,7 +2,7 @@
 using PeopleManagement.Domain.ErrorTools;
 using PeopleManagement.Domain.ErrorTools.ErrorsMessages;
 
-namespace PeopleManagement.Tests.UnitTests.Aggregates.EmployeeTests
+namespace PeopleManagement.UnitTests.Aggregates.EmployeeTests
 {
     public class SocialIntegrationProgramTests
     {

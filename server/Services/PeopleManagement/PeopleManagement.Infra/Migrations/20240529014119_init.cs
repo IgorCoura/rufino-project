@@ -4,10 +4,10 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
 #nullable disable
 
-namespace PeopleManagement.Migrations.Postgresql.Migrations
+namespace PeopleManagement.Infra.Migrations
 {
     /// <inheritdoc />
-    public partial class InitialCreate : Migration
+    public partial class init : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -235,6 +235,7 @@ namespace PeopleManagement.Migrations.Postgresql.Migrations
                 name: "Dependent",
                 columns: table => new
                 {
+                    EmployeeId = table.Column<Guid>(type: "uuid", nullable: false),
                     Id = table.Column<int>(type: "integer", nullable: false)
                         .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
                     Name = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: false),
@@ -246,12 +247,11 @@ namespace PeopleManagement.Migrations.Postgresql.Migrations
                     IdCard_Nacionality = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: false),
                     IdCard_DateOfBirth = table.Column<DateOnly>(type: "date", nullable: false),
                     Gender = table.Column<int>(type: "integer", nullable: false),
-                    DependencyType = table.Column<int>(type: "integer", nullable: false),
-                    EmployeeId = table.Column<Guid>(type: "uuid", nullable: false)
+                    DependencyType = table.Column<int>(type: "integer", nullable: false)
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_Dependent", x => x.Id);
+                    table.PrimaryKey("PK_Dependent", x => new { x.EmployeeId, x.Id });
                     table.ForeignKey(
                         name: "FK_Dependent_Employees_EmployeeId",
                         column: x => x.EmployeeId,
@@ -264,16 +264,16 @@ namespace PeopleManagement.Migrations.Postgresql.Migrations
                 name: "EmploymentContract",
                 columns: table => new
                 {
+                    EmployeeId = table.Column<Guid>(type: "uuid", nullable: false),
                     Id = table.Column<int>(type: "integer", nullable: false)
                         .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
                     InitDate = table.Column<DateOnly>(type: "date", nullable: false),
                     FinalDate = table.Column<DateOnly>(type: "date", nullable: true),
-                    ContractType = table.Column<int>(type: "integer", nullable: false),
-                    EmployeeId = table.Column<Guid>(type: "uuid", nullable: false)
+                    ContractType = table.Column<int>(type: "integer", nullable: false)
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_EmploymentContract", x => x.Id);
+                    table.PrimaryKey("PK_EmploymentContract", x => new { x.EmployeeId, x.Id });
                     table.ForeignKey(
                         name: "FK_EmploymentContract_Employees_EmployeeId",
                         column: x => x.EmployeeId,
@@ -281,11 +281,6 @@ namespace PeopleManagement.Migrations.Postgresql.Migrations
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
                 });
-
-            migrationBuilder.CreateIndex(
-                name: "IX_Dependent_EmployeeId",
-                table: "Dependent",
-                column: "EmployeeId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_Employees_CompanyId",
@@ -307,11 +302,6 @@ namespace PeopleManagement.Migrations.Postgresql.Migrations
                 name: "IX_Employees_WorkPlaceId",
                 table: "Employees",
                 column: "WorkPlaceId");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_EmploymentContract_EmployeeId",
-                table: "EmploymentContract",
-                column: "EmployeeId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_File_ArchiveId",

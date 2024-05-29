@@ -1,6 +1,7 @@
 ﻿using PeopleManagement.Domain.ErrorTools;
 using PeopleManagement.Domain.ErrorTools.ErrorsMessages;
 using PeopleManagement.Domain.Events;
+using System.Collections.ObjectModel;
 
 namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
 {
@@ -73,7 +74,7 @@ namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
             }
         }
         public Contact? Contact { get; set; }
-        public List<Dependent> Dependents { get; private set; } = new();
+        public List<Dependent> Dependents { get; private set; } = [];
         public Status Status { get; private set; } = null!;
         public SocialIntegrationProgram? Sip { get;  set; }
         public MedicalAdmissionExam? MedicalAdmissionExam 
@@ -200,22 +201,20 @@ namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
 
         public void AddDependent(Dependent dependent)
         {
-            Dependents.Add(dependent);
+
+            Dependents = [.. Dependents, dependent];
 
             RequestDependentDocuments(dependent.DependencyType);
         }
 
         public void AlterDependet(Name nameDependent, Dependent currentDependent)
         {
-            var copyDependents = Dependents.ToList();
-            var index = copyDependents.FindIndex(x => x.Name.Equals(nameDependent));
+            var index = Dependents.FindIndex(x => x.Name.Equals(nameDependent));
 
-            if(index == -1)
-                throw new DomainException(this, DomainErrors.DataNotBeNull(nameof(Dependent)));
+            if (index == -1)
+                throw new DomainException(this, DomainErrors.ObjectNotFound(nameof(Dependent), nameDependent.Value));
 
-            copyDependents[index] = currentDependent;
-
-            Dependents = copyDependents;
+            Dependents[index] = currentDependent;
 
             RequestDependentDocuments(currentDependent.DependencyType);
         }
