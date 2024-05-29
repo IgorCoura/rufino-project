@@ -53,7 +53,7 @@ namespace PeopleManagement.IntegrationTests.Tests
             //Assert
             Assert.Equal(HttpStatusCode.OK, response.StatusCode);
             var content = await response.Content.ReadFromJsonAsync(typeof(BaseDTO)) as BaseDTO ?? throw new ArgumentNullException();
-            var result = await context.Companies.FirstOrDefaultAsync(x => x.Id == content.Id) ?? throw new ArgumentNullException();
+            var result = await context.Companies.AsNoTracking().FirstOrDefaultAsync(x => x.Id == content.Id) ?? throw new ArgumentNullException();
             Assert.Equal(company.ToCompany(result.Id), result);
         }
     }

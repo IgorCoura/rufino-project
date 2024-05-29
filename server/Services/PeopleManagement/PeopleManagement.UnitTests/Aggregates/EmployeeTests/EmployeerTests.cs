@@ -87,8 +87,6 @@ namespace PeopleManagement.UnitTests.Aggregates.EmployeeTests
 
             employee.Address = Address.Create("69015-756", "Rua 11", "936", "", "Colônia Terra Nova", "Manaus", "Amazonia", "Brasil");
 
-            employee.Sip = "873.58571.07-9";
-
             employee.PersonalInfo = PersonalInfo.Create(Deficiency.Create("", []), MaritalStatus.Single, Gender.MALE, Ethinicity.White, EducationLevel.CompleteHigher);
             employee.IdCard = IdCard.Create("216.456.330-12", "Maria Silva", "Marcio Andrade", "Suzano", "São Paulo", "Brasileiro", DateOnly.Parse("2000/01/01"));
             employee.VoteId = VoteId.Create("281662310124");

@@ -6,5 +6,6 @@ namespace PeopleManagement.Application.Commands.EmployeeCommands.AlterIdCardEmpl
         string BirthCity, string BirthState, string Nacionality, DateOnly DateOfBirth) 
         : IRequest<AlterIdCardEmployeeResponse>
     {
+        public IdCard ToIdCard() => IdCard.Create(Cpf, MotherName, FatherName, BirthCity, BirthState, Nacionality, DateOfBirth);
     }
 }

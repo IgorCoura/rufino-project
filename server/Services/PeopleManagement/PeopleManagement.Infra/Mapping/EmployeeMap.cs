@@ -133,10 +133,6 @@ namespace PeopleManagement.Infra.Mapping
                 .HasConversion(x => x.Id, x => x)
                 .IsRequired();
 
-            builder.Property(x => x.Sip)
-                .HasConversion(x => x!.Number, x => x)
-                .IsRequired(false);
-
             builder.OwnsOne(x => x.MedicalAdmissionExam, medical =>
             {
                 medical.Property(x => x.DateExam)

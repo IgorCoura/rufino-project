@@ -19,13 +19,12 @@ namespace PeopleManagement.Domain.Events
         public static RequestDocumentsEvent VoteId(Guid ownerId, Guid companyId) => new(ownerId, companyId, [Category.VoteId]);
         public static RequestDocumentsEvent AddressProof(Guid ownerId, Guid companyId) => new(ownerId, companyId, [Category.AddressProof]);
         public static RequestDocumentsEvent Contract(Guid ownerId, Guid companyId) => new(ownerId, companyId, [Category.Contract]);        
-        public static RequestDocumentsEvent MarriageCertificate(Guid ownerId, Guid companyId) => new(ownerId, companyId, [Category.MarriageCertificate]);
         public static RequestDocumentsEvent ChildDocument(Guid ownerId, Guid companyId) => new(ownerId, companyId, [Category.ChildDocument]);
         public static RequestDocumentsEvent EducationalCertificate(Guid ownerId, Guid companyId) => new(ownerId, companyId, [Category.EducationalCertificate]);
         public static RequestDocumentsEvent VaccinationCertificate(Guid ownerId, Guid companyId) => new(ownerId, companyId, [Category.VaccinationCertificate]);
         public static RequestDocumentsEvent MilitarDocument(Guid ownerId, Guid companyId) => new(ownerId, companyId, [Category.MilitaryDocument]);
         public static RequestDocumentsEvent MedicalAdmissionExam(Guid ownerId, Guid companyId) => new(ownerId, companyId, [Category.MedicalAdmissionExam]);
-        public static RequestDocumentsEvent SpouseDocument(Guid ownerId, Guid companyId) => new(ownerId, companyId, [Category.SpouseDocument]);
+        public static RequestDocumentsEvent SpouseDocument(Guid ownerId, Guid companyId) => new(ownerId, companyId, [Category.SpouseDocument, Category.MarriageCertificate]);
         public static RequestDocumentsEvent MedicalDismissalExam(Guid ownerId, Guid companyId) => new(ownerId, companyId, [Category.MedicalDismissalExam]);
 
     }

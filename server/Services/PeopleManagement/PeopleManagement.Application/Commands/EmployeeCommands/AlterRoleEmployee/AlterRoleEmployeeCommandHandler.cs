@@ -24,6 +24,8 @@ namespace PeopleManagement.Application.Commands.EmployeeCommands.AlterRoleEmploy
 
             employee.RoleId = request.RoleId;
 
+            await _employeeRepository.UnitOfWork.SaveChangesAsync(cancellationToken);
+
             return employee.Id;
         }
     }

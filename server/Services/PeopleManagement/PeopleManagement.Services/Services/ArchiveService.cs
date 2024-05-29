@@ -19,15 +19,20 @@ namespace PeopleManagement.Services.Services
         {
             Archive? archive = await _archiveRepository.FirstOrDefaultAsync(x => x.OwnerId == ownerId && x.CompanyId == companyId && x.Category == category);
 
-            archive ??= Archive.Create(Guid.NewGuid(), category, ownerId, companyId);
-
+            if(archive is null)
+            {
+                var createArchive = Archive.Create(Guid.NewGuid(), category, ownerId, companyId);
+                archive = await _archiveRepository.InsertAsync(createArchive);
+            }
             archive.RequestFile();
         }
 
-        public async Task RequiresFiles(Guid ownerId, Guid companyId, Category[] category)
+        public async Task RequiresFiles(Guid ownerId, Guid companyId, Category[] categories)
         {
-            var tasks = category.Select(item => RequiresFile(ownerId, companyId, item));
-            await Task.WhenAll(tasks);
+            foreach (var category in categories)
+            {
+                await RequiresFile(ownerId, companyId, category);
+            }
         }
 
         public async Task InsertFile(Guid ownerId, Guid companyId, Category category, ArchiveFile file, Stream stream)

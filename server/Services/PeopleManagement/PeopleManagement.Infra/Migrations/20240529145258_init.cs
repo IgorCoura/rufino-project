@@ -186,7 +186,6 @@ namespace PeopleManagement.Infra.Migrations
                     Contact_Email = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: true),
                     Contact_CellPhone = table.Column<string>(type: "character varying(15)", maxLength: 15, nullable: true),
                     Status = table.Column<int>(type: "integer", nullable: false),
-                    Sip = table.Column<string>(type: "text", nullable: true),
                     MedicalAdmissionExam_DateExam = table.Column<DateOnly>(type: "date", nullable: true),
                     MedicalAdmissionExam_Validity = table.Column<DateOnly>(type: "date", nullable: true),
                     PersonalInfo_Deficiency_Disabilities = table.Column<string>(type: "text", nullable: true),

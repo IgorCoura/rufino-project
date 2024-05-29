@@ -1,23 +1,17 @@
 ﻿using PeopleManagement.Domain.AggregatesModel.EmployeeAggregate;
 using PeopleManagement.Domain.ErrorTools.ErrorsMessages;
 using PeopleManagement.Domain.ErrorTools;
-using PeopleManagement.Application.Commands.EmployeeCommands.AlterContactEmployee;
 using PeopleManagement.Application.Commands.Identified;
-using PeopleManagement.Application.Commands.EmployeeCommands.AlterDependentEmployee;
-using PeopleManagement.Infra.Context;
-using Microsoft.EntityFrameworkCore;
 
 namespace PeopleManagement.Application.Commands.EmployeeCommands.AlterDependentEmployee
 {
     public sealed class AlterDependentEmployeeCommandHandler : IRequestHandler<AlterDependentEmployeeCommand, AlterDependentEmployeeResponse>
     {
         private readonly IEmployeeRepository _employeeRepository;
-        private readonly PeopleManagementContext _dbContext;
 
-        public AlterDependentEmployeeCommandHandler(IEmployeeRepository employeeRepository, PeopleManagementContext dbContext)
+        public AlterDependentEmployeeCommandHandler(IEmployeeRepository employeeRepository)
         {
             _employeeRepository = employeeRepository;
-            _dbContext = dbContext;
         }
 
         public async Task<AlterDependentEmployeeResponse> Handle(AlterDependentEmployeeCommand request, CancellationToken cancellationToken)
@@ -28,11 +22,9 @@ namespace PeopleManagement.Application.Commands.EmployeeCommands.AlterDependentE
 
             var dependent = request.CurrentDepentent.ToDependent();
 
-            employee.AlterDependet(request.OldName, dependent);
-                 
-            await _employeeRepository.DebugChangeTracker();
+            employee.AlterDependet(request.OldName, dependent);                
 
-            await _employeeRepository.UnitOfWork.SaveChangesAsync(); 
+            await _employeeRepository.UnitOfWork.SaveChangesAsync(cancellationToken); 
 
             return employee.Id;
         }

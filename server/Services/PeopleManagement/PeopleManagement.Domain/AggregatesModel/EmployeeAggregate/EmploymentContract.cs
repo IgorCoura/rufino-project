@@ -22,7 +22,7 @@ namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
                 var dateMin = dateNow.AddYears(MAX_RANGE_DATE_YEARS * -1);
                 if (value < dateMin || value > dateMax)
                     throw new DomainException(this.GetType().Name, DomainErrors.DataHasBeBetween(nameof(InitDate), value, dateMin, dateMax));
-                _initDate = dateNow;
+                _initDate = value;
             }
         }
         public DateOnly? FinalDate
@@ -37,7 +37,7 @@ namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
                     var dateMin = dateNow.AddYears(MAX_RANGE_DATE_YEARS * -1);
                     if (value < dateMin || value > dateMax)
                         throw new DomainException(this.GetType().Name, DomainErrors.DataHasBeBetween(nameof(FinalDate), (DateOnly)value, dateMin, dateMax));
-                    _finalDate = dateNow;
+                    _finalDate = value;
                 }
             }
         }
