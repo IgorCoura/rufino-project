@@ -76,7 +76,6 @@ namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
         public Contact? Contact { get; set; }
         public List<Dependent> Dependents { get; private set; } = [];
         public Status Status { get; private set; } = null!;
-        public SocialIntegrationProgram? Sip { get;  set; }
         public MedicalAdmissionExam? MedicalAdmissionExam 
         {
             get => _medicalAdmissionExam;
@@ -90,7 +89,7 @@ namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
 
             } 
         }
-        public List<EmploymentContract> Contracts { get; private set; } = new();
+        public List<EmploymentContract> Contracts { get; private set; } = [];
         public PersonalInfo? PersonalInfo 
         {
             get => _personalInfo;
@@ -178,9 +177,6 @@ namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
             if (Address == null)
                 result.AddError(DomainErrors.FieldIsRequired(nameof(Address)));
 
-            if (Sip == null)
-                result.AddError(DomainErrors.FieldIsRequired(nameof(Sip)));
-
             if (PersonalInfo == null)
                 result.AddError(DomainErrors.FieldIsRequired(nameof(PersonalInfo)));
 
@@ -201,9 +197,7 @@ namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
 
         public void AddDependent(Dependent dependent)
         {
-
-            Dependents = [.. Dependents, dependent];
-
+            Dependents.Add(dependent);
             RequestDependentDocuments(dependent.DependencyType);
         }
 
@@ -222,10 +216,12 @@ namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
         
         public void FinishedContract(DateOnly finishDateContract)
         {
-            var contract = Contracts.Find(x => x.FinalDate == null) ??
+            var index = Contracts.FindIndex(x => x.FinalDate == null);
+
+            if (index == -1)
                 throw new DomainException(this, DomainErrors.Employee.NotExistOpenContract());
 
-            contract = contract.FinshedContract(finishDateContract);
+            Contracts[index] = Contracts[index].FinshedContract(finishDateContract);
             Status = Status.Inactive;
             if (MedicalAdmissionExam!.NeedDismissalExam)
                 AddDomainEvent(RequestDocumentsEvent.MedicalDismissalExam(Id, CompanyId)); 
@@ -246,7 +242,6 @@ namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
             if (type.Equals(DependencyType.Spouse))
             {
                 AddDomainEvent(RequestDocumentsEvent.SpouseDocument(Id, CompanyId));
-                AddDomainEvent(RequestDocumentsEvent.MarriageCertificate(Id, CompanyId));
             }
 
             if (type.Equals(DependencyType.Child))

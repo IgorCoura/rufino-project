@@ -134,9 +134,6 @@ namespace PeopleManagement.Infra.Migrations
                     b.Property<Guid?>("RoleId")
                         .HasColumnType("uuid");
 
-                    b.Property<string>("Sip")
-                        .HasColumnType("text");
-
                     b.Property<int>("Status")
                         .HasColumnType("integer");
 

@@ -20,8 +20,6 @@ namespace PeopleManagement.Application.Commands.EmployeeCommands.CompleteAdmissi
             var employee = await _completeAdmissionService.CompleteAdmission(request.EmployeeId, request.CompanyId, 
                 request.Registration, request.ContractType, cancellationToken);
 
-            await _employeeRepository.DebugChangeTracker(); 
-
             await _employeeRepository.UnitOfWork.SaveChangesAsync(cancellationToken);
 
             return employee.Id;

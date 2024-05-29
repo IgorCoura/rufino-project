@@ -65,14 +65,17 @@ public abstract class ValueObject
 
     public override bool Equals(object? obj)
     {
-        if (obj == null || obj.GetType() != GetType())
+        if(obj == null)
+            return false;
+        try
+        {
+            var other = (ValueObject)obj;
+            return this.GetEqualityComponents().SequenceEqual(other.GetEqualityComponents());
+        }
+        catch
         {
             return false;
-        }
-
-        var other = (ValueObject)obj;
-
-        return this.GetEqualityComponents().SequenceEqual(other.GetEqualityComponents());
+        }   
     }
 
     public override int GetHashCode()

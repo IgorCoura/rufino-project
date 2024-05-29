@@ -2,7 +2,7 @@
 {
     public sealed class Archive : Entity, IAggregateRoot
     {
-        public IEnumerable<File> Files { get; private set; } = [];
+        public List<File> Files { get; private set; } = [];
         public Category Category { get; private set; } = null!;
         public Guid OwnerId { get; private set; }
         public Guid CompanyId { get; private set; }
@@ -28,7 +28,7 @@
 
         public void AddFile(File file)
         {
-            Files = Files.Append(file);
+            Files.Add(file);
             Status = file.RequiresVerification ? ArchiveStatus.RequiresVerification : ArchiveStatus.OK;
         }
 

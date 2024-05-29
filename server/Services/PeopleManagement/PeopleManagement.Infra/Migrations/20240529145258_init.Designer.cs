@@ -12,7 +12,7 @@ using PeopleManagement.Infra.Context;
 namespace PeopleManagement.Infra.Migrations
 {
     [DbContext(typeof(PeopleManagementContext))]
-    [Migration("20240529014119_init")]
+    [Migration("20240529145258_init")]
     partial class init
     {
         /// <inheritdoc />
@@ -136,9 +136,6 @@ namespace PeopleManagement.Infra.Migrations
 
                     b.Property<Guid?>("RoleId")
                         .HasColumnType("uuid");
-
-                    b.Property<string>("Sip")
-                        .HasColumnType("text");
 
                     b.Property<int>("Status")
                         .HasColumnType("integer");

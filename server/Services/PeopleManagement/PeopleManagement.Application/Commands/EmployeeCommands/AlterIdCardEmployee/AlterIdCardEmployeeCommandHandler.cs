@@ -22,16 +22,7 @@ namespace PeopleManagement.Application.Commands.EmployeeCommands.AlterIdCardEmpl
             var employee = await _employeeRepository.FirstOrDefaultAsync(x => x.Id == request.EmployeeId && x.CompanyId == request.CompanyId, cancellation: cancellationToken)
                 ?? throw new DomainException(this, DomainErrors.ObjectNotFound(nameof(Employee), request.EmployeeId.ToString()));
 
-            var idCard = IdCard.Create(
-                request.Cpf,
-                request.MotherName,
-                request.FatherName,
-                request.BirthCity,
-                request.BirthState,
-                request.Nacionality,
-                request.DateOfBirth);
-
-            employee.IdCard = idCard;   
+            employee.IdCard = request.ToIdCard();   
 
             await _employeeRepository.UnitOfWork.SaveChangesAsync(cancellationToken);
 

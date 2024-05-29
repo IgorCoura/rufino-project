@@ -7,12 +7,12 @@ using PeopleManagement.Application.Commands.EmployeeCommands.AlterMilitarDocumen
 using PeopleManagement.Application.Commands.EmployeeCommands.AlterNameEmployee;
 using PeopleManagement.Application.Commands.EmployeeCommands.AlterPersonalInfoEmployee;
 using PeopleManagement.Application.Commands.EmployeeCommands.AlterRoleEmployee;
-using PeopleManagement.Application.Commands.EmployeeCommands.AlterSipEmployee;
 using PeopleManagement.Application.Commands.EmployeeCommands.AlterVoteIdEmployee;
 using PeopleManagement.Application.Commands.EmployeeCommands.AlterWorkPlaceEmployee;
 using PeopleManagement.Application.Commands.EmployeeCommands.CompleteAdmissionEmployee;
 using PeopleManagement.Application.Commands.EmployeeCommands.CreateDependentEmployee;
 using PeopleManagement.Application.Commands.EmployeeCommands.CreateEmployee;
+using PeopleManagement.Application.Commands.EmployeeCommands.FinishedContractEmployee;
 using PeopleManagement.Application.Commands.Identified;
 
 namespace PeopleManagement.API.Controllers
@@ -167,20 +167,6 @@ namespace PeopleManagement.API.Controllers
             return OkResponse(result);
         }
 
-        [HttpPut("Alter/Sip")]
-        public async Task<ActionResult<AlterSipEmployeeResponse>> AlterSip([FromBody] AlterSipEmployeeCommand request, [FromHeader(Name = "x-requestid")] Guid requestId)
-        {
-            var command = new IdentifiedCommand<AlterSipEmployeeCommand, AlterSipEmployeeResponse>(request, requestId);
-
-            SendingCommandLog(request.EmployeeId, request, requestId);
-
-            var result = await _mediator.Send(command);
-
-            CommandResultLog(result, request.EmployeeId, request, requestId);
-
-            return OkResponse(result);
-        }
-
         [HttpPut("Alter/VoteId")]
         public async Task<ActionResult<AlterVoteIdEmployeeResponse>> AlterVoteId([FromBody] AlterVoteIdEmployeeCommand request, [FromHeader(Name = "x-requestid")] Guid requestId)
         {
@@ -227,6 +213,20 @@ namespace PeopleManagement.API.Controllers
         public async Task<ActionResult<CreateDependentEmployeeResponse>> CreateDependent([FromBody] CreateDependentEmployeeCommand request, [FromHeader(Name = "x-requestid")] Guid requestId)
         {
             var command = new IdentifiedCommand<CreateDependentEmployeeCommand, CreateDependentEmployeeResponse>(request, requestId);
+
+            SendingCommandLog(request.EmployeeId, request, requestId);
+
+            var result = await _mediator.Send(command);
+
+            CommandResultLog(result, request.EmployeeId, request, requestId);
+
+            return OkResponse(result);
+        }
+
+        [HttpPut("Finished/Contract")]
+        public async Task<ActionResult<FinishedContractEmployeeResponse>> FinishedContract([FromBody] FinishedContractEmployeeCommand request, [FromHeader(Name = "x-requestid")] Guid requestId)
+        {
+            var command = new IdentifiedCommand<FinishedContractEmployeeCommand, FinishedContractEmployeeResponse>(request, requestId);
 
             SendingCommandLog(request.EmployeeId, request, requestId);
 

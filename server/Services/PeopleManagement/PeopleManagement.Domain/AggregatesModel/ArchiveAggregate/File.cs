@@ -3,7 +3,7 @@ namespace PeopleManagement.Domain.AggregatesModel.ArchiveAggregate
 {
     public sealed class File : ValueObject
     {
-        public Name Name { get; private set; } = string.Empty;
+        public Name Name { get; private set; } = null!;
         public Extension Extension { get; private set; } = null!;
         public FileStatus Status { get; private set; } = FileStatus.Pending;
         public DateTime InsertAt { get; private set; }

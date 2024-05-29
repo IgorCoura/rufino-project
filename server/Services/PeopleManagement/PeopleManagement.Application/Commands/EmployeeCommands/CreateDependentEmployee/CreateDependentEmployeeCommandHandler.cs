@@ -21,20 +21,7 @@ namespace PeopleManagement.Application.Commands.EmployeeCommands.CreateDependent
             var employee = await _employeeRepository.FirstOrDefaultAsync(x => x.Id == request.EmployeeId && x.CompanyId == request.CompanyId, cancellation: cancellationToken)
                 ?? throw new DomainException(this, DomainErrors.ObjectNotFound(nameof(Employee), request.EmployeeId.ToString()));
 
-            var idCard = IdCard.Create(
-                request.IdCard.Cpf, 
-                request.IdCard.MotherName, 
-                request.IdCard.FatherName, 
-                request.IdCard.BirthCity, 
-                request.IdCard.BirthState, 
-                request.IdCard.Nacionality, 
-                request.IdCard.DateOfBirth);
-
-            var dependent = Dependent.Create(
-                request.Name,
-                idCard,
-                request.Gender,
-                request.DependecyType);
+            var dependent = request.ToDependent();
 
             employee.AddDependent(dependent);
 
