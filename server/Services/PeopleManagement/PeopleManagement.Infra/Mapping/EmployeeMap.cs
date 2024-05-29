@@ -82,8 +82,6 @@ namespace PeopleManagement.Infra.Mapping
 
             builder.OwnsMany(x => x.Dependents, deps =>
             {
-                deps.HasKey("Id");
-
                 deps.Property(x => x.Name)
                     .HasConversion(x => x.Value, x => x)
                     .HasMaxLength(Name.MAX_LENGTH)
@@ -149,8 +147,6 @@ namespace PeopleManagement.Infra.Mapping
 
             builder.OwnsMany(x => x.Contracts, contracts =>
             {
-                contracts.HasKey("Id");
-
                 contracts.Property(x => x.InitDate)
                     .IsRequired();
 

@@ -1,4 +1,4 @@
-﻿namespace PeopleManagement.Tests.UnitTests.Aggregates.EmployeeTests
+﻿namespace PeopleManagement.UnitTests.Aggregates.EmployeeTests
 {
     public class Tests
     {

@@ -1,10 +1,15 @@
 {
   "profiles": {
-    "Docker Compose": {
+    "Docker Api": {
       "commandName": "DockerCompose",
       "commandVersion": "1.0",
-      "serviceActions": {
-        "peoplemanagement.api": "StartDebugging"
+      "composeLaunchAction": "LaunchBrowser",
+      "composeLaunchServiceName": "peoplemanagement.api",
+      "composeLaunchUrl": "{Scheme}://localhost:{ServicePort}/swagger",
+      "composeProfile": {
+        "includes": [
+          "api"
+        ]
       }
     }
   }

@@ -1,10 +1,10 @@
 ﻿using PeopleManagement.Domain.AggregatesModel.EmployeeAggregate;
 
-namespace PeopleManagement.Tests.UnitTests.Aggregates.EmployeeTests
+namespace PeopleManagement.UnitTests.Aggregates.EmployeeTests
 {
     public class EmployeerTests
     {
-        private static  Employee GetValidEmployee => Employee.Create(Guid.NewGuid(), Guid.NewGuid(), "Ritinha Valvense");
+        private static Employee GetValidEmployee => Employee.Create(Guid.NewGuid(), Guid.NewGuid(), "Ritinha Valvense");
 
         [Theory]
         [InlineData("Rogerio Junior")]
@@ -20,7 +20,7 @@ namespace PeopleManagement.Tests.UnitTests.Aggregates.EmployeeTests
             Assert.Equal(companyId, employeer.CompanyId);
             Assert.Equal(name, employeer.Name);
         }
-        
+
         [Fact]
         public void AddValidRoleIdToEmployer()
         {
@@ -52,8 +52,8 @@ namespace PeopleManagement.Tests.UnitTests.Aggregates.EmployeeTests
 
             employee.Contact = Contact.Create(email, phone);
 
-            Assert.Equal(email , employee.Contact.Email);
-            Assert.Equal(phone , employee.Contact.CellPhone);
+            Assert.Equal(email, employee.Contact.Email);
+            Assert.Equal(phone, employee.Contact.CellPhone);
         }
 
         [Fact]

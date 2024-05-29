@@ -1,5 +1,4 @@
 using EntityFramework.Exceptions.PostgreSQL;
-using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using PeopleManagement.API.DependencyInjection;
 using PeopleManagement.API.Filters;
@@ -13,33 +12,15 @@ var builder = WebApplication.CreateBuilder(args);
 var env = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT");
 //Config DataBase
 
-
-var connection = new SqliteConnection("DataSource=:memory:");
-connection.Open();
-
-
-
 builder.Services.AddDbContext<PeopleManagementContext>(options =>
 {
-    if(env != null && env.Equals("Testing"))
-    {        
-        options.UseSqlite(connection, x => x.MigrationsAssembly("PeopleManagement.Migrations.Sqlite"))
-            .UseExceptionProcessor()
-            .EnableSensitiveDataLogging()
-            .EnableDetailedErrors();
-        
-    }
-    else
-    {
-        options.UseNpgsql(
-            builder.Configuration["Database:ConnectionString"],
-            npgsqlOptionsAction: sqlOptions =>
-            {
-                sqlOptions.EnableRetryOnFailure(maxRetryCount: 15, maxRetryDelay: TimeSpan.FromSeconds(30), errorCodesToAdd: null);
-                sqlOptions.MigrationsAssembly("PeopleManagement.Migrations.Postgresql");
-            })
-            .UseExceptionProcessor();
-    }
+    options.UseNpgsql(
+        builder.Configuration["Database:ConnectionString"],
+        npgsqlOptionsAction: sqlOptions =>
+        {
+            sqlOptions.EnableRetryOnFailure(maxRetryCount: 15, maxRetryDelay: TimeSpan.FromSeconds(30), errorCodesToAdd: null);
+        })
+        .UseExceptionProcessor();
 });
 
 
@@ -78,10 +59,10 @@ using var scope = app.Services.CreateScope();
 var services = scope.ServiceProvider;
 
 var context = services.GetRequiredService<PeopleManagementContext>();
-//if (context.Database.GetPendingMigrations().Any())
-//    context.Database.Migrate();
-context.Database.EnsureCreated();
-
+if (context.Database.GetPendingMigrations().Any())
+{
+    context.Database.Migrate();
+}
 
 app.UseHttpsRedirection();
 

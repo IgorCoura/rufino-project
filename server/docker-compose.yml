@@ -2,6 +2,7 @@ version: '3.4'
 
 services:
   peoplemanagement.api:
+    profiles: ["api"]
     image: ${DOCKER_REGISTRY-}peoplemanagementapi
     build:
       context: .
@@ -27,5 +28,4 @@ services:
         POSTGRES_PASSWORD: "5up3rS3nh@"
     ports:
         - 8042:5432
-
 

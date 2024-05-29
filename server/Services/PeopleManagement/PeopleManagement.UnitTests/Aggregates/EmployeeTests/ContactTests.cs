@@ -3,7 +3,7 @@ using PeopleManagement.Domain.ErrorTools;
 using PeopleManagement.Domain.ErrorTools.ErrorsMessages;
 using PeopleManagement.Domain.SeedWord;
 
-namespace PeopleManagement.Tests.UnitTests.Aggregates.EmployeeTests
+namespace PeopleManagement.UnitTests.Aggregates.EmployeeTests
 {
     public class ContactTests
     {

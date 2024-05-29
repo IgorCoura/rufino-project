@@ -2,7 +2,7 @@
 using PeopleManagement.Domain.ErrorTools;
 using PeopleManagement.Domain.ErrorTools.ErrorsMessages;
 
-namespace PeopleManagement.Tests.UnitTests.Aggregates.EmployeeTests
+namespace PeopleManagement.UnitTests.Aggregates.EmployeeTests
 {
     public class VoteIdTests
     {
@@ -14,7 +14,7 @@ namespace PeopleManagement.Tests.UnitTests.Aggregates.EmployeeTests
         public void CreateValidVoteId(string number)
         {
             //Act
-            var _  = VoteId.Create(
+            var _ = VoteId.Create(
                     value: number
                 );
 

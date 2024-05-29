@@ -18,14 +18,10 @@
     </PackageReference>
     <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="8.0.4" />
     <PackageReference Include="Swashbuckle.AspNetCore" Version="6.6.1" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="8.0.5" />
-    <PackageReference Include="EntityFrameworkCore.Exceptions.Sqlite" Version="8.1.2" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\PeopleManagement.Application\PeopleManagement.Application.csproj" />
     <ProjectReference Include="..\PeopleManagement.Infra\PeopleManagement.Infra.csproj" />
-    <ProjectReference Include="..\PeopleManagement.Migrations.Postgresql\PeopleManagement.Migrations.Postgresql.csproj" />
-    <ProjectReference Include="..\PeopleManagement.Migrations.Sqlite\PeopleManagement.Migrations.Sqlite.csproj" />
     <ProjectReference Include="..\PeopleManagement.Services\PeopleManagement.Services.csproj" />
   </ItemGroup>
 </Project>

@@ -1,12 +1,12 @@
 {
   "profiles": {
-    "PeopleManagement.Tests": {
+    "PeopleManagement.IntegrationTests": {
       "commandName": "Project",
       "launchBrowser": true,
       "environmentVariables": {
         "ASPNETCORE_ENVIRONMENT": "Development"
       },
-      "applicationUrl": "https://localhost:57316;http://localhost:57317"
+      "applicationUrl": "https://localhost:52515;http://localhost:52516"
     }
   }
 }

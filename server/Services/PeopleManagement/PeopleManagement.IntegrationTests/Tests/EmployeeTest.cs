@@ -1,28 +1,35 @@
 ﻿using Microsoft.EntityFrameworkCore;
-using PeopleManagement.Application.Commands.DTO;
 using PeopleManagement.Application.Commands.EmployeeCommands.AlterAddressEmployee;
 using PeopleManagement.Application.Commands.EmployeeCommands.AlterContactEmployee;
 using PeopleManagement.Application.Commands.EmployeeCommands.AlterDependentEmployee;
 using PeopleManagement.Application.Commands.EmployeeCommands.CompleteAdmissionEmployee;
+using PeopleManagement.Application.Commands.EmployeeCommands.CreateDependentEmployee;
 using PeopleManagement.Application.Commands.EmployeeCommands.CreateEmployee;
-using PeopleManagement.Domain.AggregatesModel.CompanyAggregate;
 using PeopleManagement.Domain.AggregatesModel.EmployeeAggregate;
-using PeopleManagement.Tests.Configs;
-using PeopleManagement.Tests.Data;
+using PeopleManagement.Infra.Context;
+using PeopleManagement.IntegrationTests.Configs;
+using PeopleManagement.IntegrationTests.Data;
 using System.Net;
 
-namespace PeopleManagement.Tests.IntegrationTests
+namespace PeopleManagement.IntegrationTests.Tests
 {
-    public class EmployeeTest
+    public class EmployeeTest : IClassFixture<PeopleManagementWebApplicationFactory>
     {
+        private readonly PeopleManagementWebApplicationFactory _factory;
+
+        public EmployeeTest(PeopleManagementWebApplicationFactory factory)
+        {
+            _factory = factory;
+            
+        }
+
         [Fact]
         public async Task CreateEmployeeWithSuccess()
         {
             var cancellationToken = new CancellationToken();
 
-            using var factory = new PeopleManagementWebApplicationFactory();
-            var client = factory.CreateClient();
-            using var context = factory.GetContext();
+            var context = _factory.GetContext();
+            var client = _factory.CreateClient();
 
             var company = await context.InsertCompany(cancellationToken);
             await context.SaveChangesAsync(cancellationToken);
@@ -36,8 +43,9 @@ namespace PeopleManagement.Tests.IntegrationTests
 
             Assert.Equal(HttpStatusCode.OK, response.StatusCode);
             var content = await response.Content.ReadFromJsonAsync(typeof(CreateEmployeeResponse)) as CreateEmployeeResponse ?? throw new ArgumentNullException();
-            var result = await context.Employees.FirstOrDefaultAsync(x => x.Id == content.Id) ?? throw new ArgumentNullException();
+            var result = await context.Employees.FirstOrDefaultAsync(x => x.Id == content.Id) ?? throw new ArgumentNullException();            
             Assert.Equal(employee.ToEmployee(result.Id), result);
+
         }
 
         [Fact]
@@ -45,15 +53,14 @@ namespace PeopleManagement.Tests.IntegrationTests
         {
             var cancellationToken = new CancellationToken();
 
-            using var factory = new PeopleManagementWebApplicationFactory();
-            var client = factory.CreateClient();
-            using var context = factory.GetContext();
+            var context = _factory.GetContext();
+            var client = _factory.CreateClient();
 
             var employee = await context.InsertEmployeeWithMinimalInfos(cancellationToken);
             await context.SaveChangesAsync(cancellationToken);
 
             var command = new AlterAddressEmployeeCommand(
-                employee.Id, 
+                employee.Id,
                 employee.CompanyId,
                 "12603-130",
                 "Rua Expedicionário Sebastião Ribeiro Guimarães",
@@ -79,9 +86,8 @@ namespace PeopleManagement.Tests.IntegrationTests
         {
             var cancellationToken = new CancellationToken();
 
-            using var factory = new PeopleManagementWebApplicationFactory();
-            var client = factory.CreateClient();
-            using var context = factory.GetContext();
+            var context = _factory.GetContext();
+            var client = _factory.CreateClient();
 
             var employee = await context.InsertEmployeeWithMinimalInfos(cancellationToken);
             await context.SaveChangesAsync(cancellationToken);
@@ -107,32 +113,29 @@ namespace PeopleManagement.Tests.IntegrationTests
         {
             var cancellationToken = new CancellationToken();
 
-            using var factory = new PeopleManagementWebApplicationFactory();
-            var client = factory.CreateClient();
-            using var context = factory.GetContext();
+            var context = _factory.GetContext();
+            var client = _factory.CreateClient();
 
             var employee = await context.InsertEmployeeWithOneDependent(cancellationToken);
             await context.SaveChangesAsync(cancellationToken);
 
-            var dependent = employee.Dependents[0];
-
             var command = new AlterDependentEmployeeCommand(
                 employee.Id,
                 employee.CompanyId,
-                dependent.Name.Value,
+                employee.Dependents.First().Name.Value,
                 new DependentModelAlterDependentEmployeeCommand(
-                    "Roberto Kaique",
+                    "Roberto Matias Kaique",
                     new IdCardModelAlterDependentEmployeeCommand(
                         "289.598.500-63",
-                        "Kurfude Felarion",
-                        "Adanxahu Lamon",
-                        "Ribeirão Pires",
+                        "Pamela Matias Kaika",
+                        "Andelou Araujo Kaika",
+                        "Ribeirão Preto",
                         "SP",
                         "brasileiro",
                         DateOnly.Parse("2000/01/23")
                         ),
-                    2,
-                    2
+                    1,
+                    1
                     )
                 );
 
@@ -141,7 +144,7 @@ namespace PeopleManagement.Tests.IntegrationTests
 
             Assert.Equal(HttpStatusCode.OK, response.StatusCode);
             var content = await response.Content.ReadFromJsonAsync(typeof(AlterDependentEmployeeResponse)) as AlterDependentEmployeeResponse ?? throw new ArgumentNullException();
-            var result = await context.Employees.FirstOrDefaultAsync(x => x.Id == content.Id) ?? throw new ArgumentNullException();
+            var result = await context.Employees.AsNoTracking().FirstOrDefaultAsync(x => x.Id == content.Id) ?? throw new ArgumentNullException();
             var expected = command.CurrentDepentent.ToDependent();
             Assert.Single(result.Dependents);
             Assert.Equal(expected, result.Dependents.FirstOrDefault(x => x.Name.Equals(expected.Name)));
@@ -151,12 +154,11 @@ namespace PeopleManagement.Tests.IntegrationTests
         [Fact]
         public async Task CompleteEmployeeAdmissionWithSuccess()
         {
-            
+
             var cancellationToken = new CancellationToken();
 
-            var factory = new PeopleManagementWebApplicationFactory();
-            var client = factory.CreateClient();
-            var context = factory.GetContext();
+            var context = _factory.GetContext();
+            var client = _factory.CreateClient();
 
             var employee = await context.InsertEmployeeWithAllInfoToAdmission(cancellationToken);
             await context.SaveChangesAsync(cancellationToken);
@@ -167,9 +169,10 @@ namespace PeopleManagement.Tests.IntegrationTests
 
             Assert.Equal(HttpStatusCode.OK, response.StatusCode);
             var content = await response.Content.ReadFromJsonAsync(typeof(CompleteAdmissionEmployeeResponse)) as CompleteAdmissionEmployeeResponse ?? throw new ArgumentNullException();
-            var result = await context.Employees.FirstOrDefaultAsync(x => x.Id == content.Id) ?? throw new ArgumentNullException();
+            var result = await context.Employees.AsNoTracking().FirstOrDefaultAsync(x => x.Id == content.Id) ?? throw new ArgumentNullException();
             Assert.Equal(Status.Active, result.Status);
         }
+
+
     }
 }
- 

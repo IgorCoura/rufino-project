@@ -1,19 +1,16 @@
-﻿using Microsoft.EntityFrameworkCore;
-using PeopleManagement.Application.Commands.EmployeeCommands.CreateEmployee;
-using PeopleManagement.Domain.AggregatesModel.CompanyAggregate;
+﻿using PeopleManagement.Domain.AggregatesModel.CompanyAggregate;
 using PeopleManagement.Domain.AggregatesModel.DepartmentAggregate;
 using PeopleManagement.Domain.AggregatesModel.EmployeeAggregate;
 using PeopleManagement.Domain.AggregatesModel.PositionAggregate;
 using PeopleManagement.Domain.AggregatesModel.RoleAggregate;
 using PeopleManagement.Domain.AggregatesModel.WorkplaceAggregate;
 using PeopleManagement.Infra.Context;
-using System.Data;
 using AddressCompany = PeopleManagement.Domain.AggregatesModel.CompanyAggregate.Address;
 using AddressWorkplace = PeopleManagement.Domain.AggregatesModel.WorkplaceAggregate.Address;
 using ContactCompany = PeopleManagement.Domain.AggregatesModel.CompanyAggregate.Contact;
 using EmplyeeAddress = PeopleManagement.Domain.AggregatesModel.EmployeeAggregate.Address;
 
-namespace PeopleManagement.Tests.Data
+namespace PeopleManagement.IntegrationTests.Data
 {
     public static class PopulateDataBase
     {

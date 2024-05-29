@@ -11,5 +11,6 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\PeopleManagement.Domain\PeopleManagement.Domain.csproj" />
+    <ProjectReference Include="..\PeopleManagement.Infra\PeopleManagement.Infra.csproj" />
   </ItemGroup>
 </Project>

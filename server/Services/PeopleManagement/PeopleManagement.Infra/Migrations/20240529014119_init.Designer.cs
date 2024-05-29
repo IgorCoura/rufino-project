@@ -9,11 +9,11 @@ using PeopleManagement.Infra.Context;
 
 #nullable disable
 
-namespace PeopleManagement.Migrations.Postgresql.Migrations
+namespace PeopleManagement.Infra.Migrations
 {
     [DbContext(typeof(PeopleManagementContext))]
-    [Migration("20240523035454_InitialCreate")]
-    partial class InitialCreate
+    [Migration("20240529014119_init")]
+    partial class init
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -484,6 +484,9 @@ namespace PeopleManagement.Migrations.Postgresql.Migrations
 
                     b.OwnsMany("PeopleManagement.Domain.AggregatesModel.EmployeeAggregate.Dependent", "Dependents", b1 =>
                         {
+                            b1.Property<Guid>("EmployeeId")
+                                .HasColumnType("uuid");
+
                             b1.Property<int>("Id")
                                 .ValueGeneratedOnAdd()
                                 .HasColumnType("integer");
@@ -493,9 +496,6 @@ namespace PeopleManagement.Migrations.Postgresql.Migrations
                             b1.Property<int>("DependencyType")
                                 .HasColumnType("integer");
 
-                            b1.Property<Guid>("EmployeeId")
-                                .HasColumnType("uuid");
-
                             b1.Property<int>("Gender")
                                 .HasColumnType("integer");
 
@@ -504,9 +504,7 @@ namespace PeopleManagement.Migrations.Postgresql.Migrations
                                 .HasMaxLength(100)
                                 .HasColumnType("character varying(100)");
 
-                            b1.HasKey("Id");
-
-                            b1.HasIndex("EmployeeId");
+                            b1.HasKey("EmployeeId", "Id");
 
                             b1.ToTable("Dependent");
 
@@ -515,6 +513,9 @@ namespace PeopleManagement.Migrations.Postgresql.Migrations
 
                             b1.OwnsOne("PeopleManagement.Domain.AggregatesModel.EmployeeAggregate.IdCard", "IdCard", b2 =>
                                 {
+                                    b2.Property<Guid>("DependentEmployeeId")
+                                        .HasColumnType("uuid");
+
                                     b2.Property<int>("DependentId")
                                         .HasColumnType("integer");
 
@@ -551,12 +552,12 @@ namespace PeopleManagement.Migrations.Postgresql.Migrations
                                         .HasMaxLength(100)
                                         .HasColumnType("character varying(100)");
 
-                                    b2.HasKey("DependentId");
+                                    b2.HasKey("DependentEmployeeId", "DependentId");
 
                                     b2.ToTable("Dependent");
 
                                     b2.WithOwner()
-                                        .HasForeignKey("DependentId");
+                                        .HasForeignKey("DependentEmployeeId", "DependentId");
                                 });
 
                             b1.Navigation("IdCard")
@@ -611,6 +612,9 @@ namespace PeopleManagement.Migrations.Postgresql.Migrations
 
                     b.OwnsMany("PeopleManagement.Domain.AggregatesModel.EmployeeAggregate.EmploymentContract", "Contracts", b1 =>
                         {
+                            b1.Property<Guid>("EmployeeId")
+                                .HasColumnType("uuid");
+
                             b1.Property<int>("Id")
                                 .ValueGeneratedOnAdd()
                                 .HasColumnType("integer");
@@ -620,18 +624,13 @@ namespace PeopleManagement.Migrations.Postgresql.Migrations
                             b1.Property<int>("ContractType")
                                 .HasColumnType("integer");
 
-                            b1.Property<Guid>("EmployeeId")
-                                .HasColumnType("uuid");
-
                             b1.Property<DateOnly?>("FinalDate")
                                 .HasColumnType("date");
 
                             b1.Property<DateOnly>("InitDate")
                                 .HasColumnType("date");
 
-                            b1.HasKey("Id");
-
-                            b1.HasIndex("EmployeeId");
+                            b1.HasKey("EmployeeId", "Id");
 
                             b1.ToTable("EmploymentContract");
 
