@@ -17,7 +17,7 @@ def formatar_string(s):
 def get_lines_csv(path):
     list = []
     with open(path, 'r', encoding='utf-8') as arquivo_csv:
-        leitor_csv = csv.reader(arquivo_csv)
+        leitor_csv = csv.reader(arquivo_csv, delimiter=";")
         for linha in leitor_csv:
             list.append(linha)
     return list
@@ -43,18 +43,20 @@ def text_contains_name_in_list(text, list_names):
     max = 3
     for i in range(max):
         name = check_name_in_list(text, list_names, i)
-        if(name != None):
-            return name
+        return name
     return None
 
 def check_name_in_list(text, list_names, remove_chars):
     for line in list_names:
-        name = line[0]
-        name_normalize = formatar_string(line[0])
-        if(remove_chars > 0):
-            name_normalize = name_normalize[remove_chars:-remove_chars]
-        if name_normalize in text:
-            return name
+        first_name = line[0]
+        for name in line:
+            name_normalize = formatar_string(name)
+            if(remove_chars > 0):
+                name_normalize = name_normalize[remove_chars:-remove_chars]
+            if name_normalize == None or name_normalize == '':
+                continue
+            if name_normalize in text:
+                return first_name
     return None
 
 def rename_file(base_path, current_name, new_name):
