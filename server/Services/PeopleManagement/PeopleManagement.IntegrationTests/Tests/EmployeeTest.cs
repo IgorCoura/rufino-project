@@ -444,7 +444,8 @@ namespace PeopleManagement.IntegrationTests.Tests
             var employee = await context.InsertEmployeeWithAllInfoToAdmission(cancellationToken);
             await context.SaveChangesAsync(cancellationToken);
 
-            var command = new CompleteAdmissionEmployeeCommand(employee.Id, employee.CompanyId, "RU1902", EmploymentContactType.CLT.Id);
+            var dateNow = DateOnly.FromDateTime(DateTime.UtcNow);
+            var command = new CompleteAdmissionEmployeeCommand(employee.Id, employee.CompanyId, "RU1902", dateNow, EmploymentContactType.CLT.Id);
             client.DefaultRequestHeaders.Add("x-requestid", Guid.NewGuid().ToString());
             var response = await client.PutAsJsonAsync("/api/v1/employee/complete/admission", command);
 

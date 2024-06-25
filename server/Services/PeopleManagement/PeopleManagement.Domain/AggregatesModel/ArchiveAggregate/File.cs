@@ -5,18 +5,18 @@ namespace PeopleManagement.Domain.AggregatesModel.ArchiveAggregate
     {
         public Name Name { get; private set; } = null!;
         public Extension Extension { get; private set; } = null!;
-        public FileStatus Status { get; private set; } = FileStatus.Pending;
+        public DocumentStatus Status { get; private set; } = DocumentStatus.Pending;
         public DateTime InsertAt { get; private set; }
         private File() { }
 
-        private File(string name, Extension extension, DateTime insertAt)
+        private File(Name name, Extension extension, DateTime insertAt)
         {
             Name = name;
             Extension = extension;
             InsertAt = insertAt;
         }
 
-        private File(string name, Extension extension, DateTime insertAt, FileStatus status)
+        private File(Name name, Extension extension, DateTime insertAt, DocumentStatus status)
         {
             Name = name;
             Extension = extension;
@@ -24,10 +24,10 @@ namespace PeopleManagement.Domain.AggregatesModel.ArchiveAggregate
             Status = status;
         }
 
-        public static File Create(string name, Extension extension, DateTime insertAt) => new(name, extension, insertAt);
-        public static File CreateWithoutVerification(string name, Extension extension, DateTime insertAt) => new(name, extension, insertAt, FileStatus.OK);
+        public static File Create(Name name, Extension extension, DateTime insertAt) => new(name, extension, insertAt);
+        public static File CreateWithoutVerification(Name name, Extension extension, DateTime insertAt) => new(name, extension, insertAt, DocumentStatus.OK);
 
-        public bool RequiresVerification => Status == FileStatus.Pending;
+        public bool RequiresVerification => Status == DocumentStatus.Pending;
 
         public string GetNameWithExtension => $"{Name}.{Extension}";
         protected override IEnumerable<object?> GetEqualityComponents()

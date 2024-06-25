@@ -18,7 +18,7 @@ namespace PeopleManagement.Application.Commands.EmployeeCommands.CompleteAdmissi
         public async Task<CompleteAdmissionEmployeeResponse> Handle(CompleteAdmissionEmployeeCommand request, CancellationToken cancellationToken)
         {
             var employee = await _completeAdmissionService.CompleteAdmission(request.EmployeeId, request.CompanyId, 
-                request.Registration, request.ContractType, cancellationToken);
+                request.Registration, request.dateInit, request.ContractType, cancellationToken);
 
             await _employeeRepository.UnitOfWork.SaveChangesAsync(cancellationToken);
 
