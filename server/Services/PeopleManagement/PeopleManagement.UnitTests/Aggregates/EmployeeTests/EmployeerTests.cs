@@ -95,7 +95,9 @@ namespace PeopleManagement.UnitTests.Aggregates.EmployeeTests
 
             employee.MilitaryDocument = MilitaryDocument.Create("2312312312", "Rersevista");
 
-            employee.CompleteAdmission("BBC2", EmploymentContactType.CLT);
+            var dateNow = DateOnly.FromDateTime(DateTime.UtcNow);
+
+            employee.CompleteAdmission("BBC2", dateNow,  EmploymentContactType.CLT);
 
 
             Assert.True(employee.Status == Status.Active);

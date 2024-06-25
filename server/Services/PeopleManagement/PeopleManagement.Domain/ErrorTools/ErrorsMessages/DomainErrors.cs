@@ -26,8 +26,11 @@ namespace PeopleManagement.Domain.ErrorTools.ErrorsMessages
         public static Error DataInvalid(string NameField, DateTime Value) => new("PMD100", $"O data {NameField} com o valor {Value} é invalido.", new { NameField, Value });
         public static Error DataInvalid(string NameField, DateOnly Value) => new("PMD101", $"O data {NameField} com o valor {Value} é invalido.", new { NameField, Value });
         public static Error DataIsGreaterThanMax(string NameField, DateOnly Value, DateOnly DateMax) => new("PMD102", $"A data do campo {NameField} com valor {Value} não pode ser maior que a data {DateMax}.", new { NameField, Value , DateMax });
+        public static Error DataIsGreaterThanMax(string NameField, DateTime Value, DateTime DateMax) => new("PMD102", $"A data do campo {NameField} com valor {Value} não pode ser maior que a data {DateMax}.", new { NameField, Value , DateMax });
         public static Error DataIsLessThanMin(string NameField, DateOnly Value, DateOnly DateMin) => new("PMD103", $"A data do campo {NameField} com valor {Value} não pode ser menor que a data {DateMin}.", new { NameField, Value , DateMin });
+        public static Error DataIsLessThanMin(string NameField, DateTime Value, DateTime DateMin) => new("PMD103", $"A data do campo {NameField} com valor {Value} não pode ser menor que a data {DateMin}.", new { NameField, Value , DateMin });
         public static Error DataHasBeBetween(string NameField, DateOnly Value, DateOnly DateMin, DateOnly DateMax) => new("PMD104", $"A data do campo {NameField} com valor {Value} deve está entre {DateMin} e {DateMax}.", new { NameField, Value, DateMin, DateMax});
+        public static Error DataHasBeBetween(string NameField, DateTime Value, DateTime DateMin, DateTime DateMax) => new("PMD104", $"A data do campo {NameField} com valor {Value} deve está entre {DateMin} e {DateMax}.", new { NameField, Value, DateMin, DateMax});
         public static Error DataNotBeNull(string NameField) => new("PMD104", $"A data do campo {NameField} não pode ser nulo.", new { NameField});
 
         #endregion

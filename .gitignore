@@ -4,6 +4,10 @@ utils/NomeacaoDePDFs/data/
 utils/NomeacaoDePDFs/input/
 utils/NomeacaoDePDFs/output/
 
+utils/CombinePDFs/data/
+utils/CombinePDFs/input/
+utils/CombinePDFs/output/
+
 
 # Created by https://www.toptal.com/developers/gitignore/api/csharp,dotnetcore,aspnetcore
 # Edit at https://www.toptal.com/developers/gitignore?templates=csharp,dotnetcore,aspnetcore

@@ -176,7 +176,9 @@ namespace PeopleManagement.IntegrationTests.Data
 
             employee.MilitaryDocument = MilitaryDocument.Create("2312312312", "Rersevista");
 
-            employee.CompleteAdmission("RU123", EmploymentContactType.CLT);
+            var dateNow = DateOnly.FromDateTime(DateTime.UtcNow);
+
+            employee.CompleteAdmission("RU123", dateNow, EmploymentContactType.CLT);
 
             await context.Employees.AddAsync(employee, cancellationToken);
 

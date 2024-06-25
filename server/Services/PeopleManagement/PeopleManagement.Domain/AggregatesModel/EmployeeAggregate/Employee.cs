@@ -152,13 +152,13 @@ namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
             return employee;
         }
 
-        public void CompleteAdmission(Registration registration, EmploymentContactType contractType)
+        public void CompleteAdmission(Registration registration, DateOnly dateInit, EmploymentContactType contractType)
         {
             var result = ThereNotPendingIssues();
 
             if (result.IsFailure)
                 throw new DomainException(this, result);
-            CreateContract(contractType);
+            CreateContract(dateInit, contractType);
             Registration = registration;
             Status = Status.Active;
             AddDomainEvent(RequestDocumentsEvent.Contract(Id, CompanyId));
@@ -228,12 +228,11 @@ namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
 
         }
 
-        private void CreateContract(EmploymentContactType contractType)
+        private void CreateContract(DateOnly dateInit, EmploymentContactType contractType)
         {
             if (Contracts.Any(x => x.FinalDate == null))
                 throw new DomainException(this, DomainErrors.Employee.AlreadyExistOpenContract());
-            var dateNow = DateOnly.FromDateTime(DateTime.UtcNow);
-            var contract = EmploymentContract.Create(dateNow, contractType);
+            var contract = EmploymentContract.Create(dateInit, contractType);
             Contracts.Add(contract);
         }
 

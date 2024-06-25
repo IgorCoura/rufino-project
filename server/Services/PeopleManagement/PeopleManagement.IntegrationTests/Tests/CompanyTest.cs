@@ -1,5 +1,4 @@
-﻿using Microsoft.AspNetCore.Mvc.Testing;
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 using PeopleManagement.Application.Commands.CompanyCommands.CreateCompany;
 using PeopleManagement.Application.Commands.DTO;
 using PeopleManagement.Infra.Context;
