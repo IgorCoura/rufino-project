@@ -1,28 +1,32 @@
-﻿using PeopleManagement.Domain.AggregatesModel.RequireSecurityDocumentsAggregate;
-using PeopleManagement.Domain.AggregatesModel.SecurityDocumentAggregate;
-using PeopleManagement.Domain.AggregatesModel.SecurityDocumentAggregate.Interfaces;
-using System.IO;
+﻿using Newtonsoft.Json;
 using System.Text.RegularExpressions;
 using DocumentType = PeopleManagement.Domain.AggregatesModel.SecurityDocumentAggregate.DocumentType;
 
 namespace PeopleManagement.Infra.Services
 {
-    public class HtmlService : IHtmlService
+    public static class HtmlService
     {
-        public async Task<HtmlContent> CreateHtml(DocumentType documentType, Dictionary<string, dynamic> values)
+        public static async Task<string> CreateTemporaryHtmlTemplate(DocumentType type, string content, string templatesSourcePath, CancellationToken cancellationToken = default)
         {
-            var headerPath = documentType.GetHeaderPath();
-            var bodyPath = documentType.GetBodyPath();
-            var footerPath = documentType.GetFooterPath();
+            var workDiretory = await FileService.CreateTemporatyDiretory();
+            await FileService.CopyDiretory(type.GetSourcePath(templatesSourcePath), type.GetSourcePath(workDiretory));
 
-            var headerContent = await CreateHtmlContent(headerPath, values);
-            var bodyContent = await CreateHtmlContent(bodyPath, values);
-            var footerContent = await CreateHtmlContent(footerPath, values);
+            var dic = JsonToDic(content);
 
-            return HtmlContent.Create(headerContent, bodyContent, footerContent);
+            await FillHtmlTemplatesInformation(dic, type.GetHeaderPath(templatesSourcePath), type.GetHeaderPath(workDiretory), cancellationToken);
+            await FillHtmlTemplatesInformation(dic, type.GetBodyPath(templatesSourcePath), type.GetBodyPath(workDiretory), cancellationToken);
+            await FillHtmlTemplatesInformation(dic, type.GetFooterPath(templatesSourcePath), type.GetFooterPath(workDiretory), cancellationToken);
+
+            return workDiretory;
         }
 
-        private static async Task<string> CreateHtmlContent(string path, Dictionary<string, dynamic> values)
+        private static async Task FillHtmlTemplatesInformation(Dictionary<string, dynamic>? values, string originPath, string workPath, CancellationToken cancellationToken = default)
+        {
+            var content = await CreateHtmlContent(originPath, values);
+            await File.WriteAllTextAsync(workPath, content, cancellationToken);
+        }
+
+        private static async Task<string> CreateHtmlContent(string path, Dictionary<string, dynamic>? values)
         {
             if (!File.Exists(path))
             {
@@ -33,14 +37,14 @@ namespace PeopleManagement.Infra.Services
             return htmlContentFinal;
         }
 
-        private static Task<string> InsertValuesInHtmlTemplate(Dictionary<string, dynamic> values, string html)
+        private static Task<string> InsertValuesInHtmlTemplate(Dictionary<string, dynamic>? values, string html)
         {
             var result = ReplaceListTags(html, values);
             result = ReplaceDoubleBraces(result, values);
             return Task.FromResult(result);
         }
 
-        private static string ReplaceListTags(string html, Dictionary<string, dynamic> values)
+        private static string ReplaceListTags(string html, Dictionary<string, dynamic>? values)
         {
             Regex regex_list = new Regex(@"<list:([^>]+)([^>]*)>([\s\S]*?)<\/list:\1>");
             return regex_list.Replace(html, m =>
@@ -66,7 +70,7 @@ namespace PeopleManagement.Infra.Services
 
         }
 
-        private static string ReplaceDoubleBraces(string content, Dictionary<string, dynamic> values)
+        private static string ReplaceDoubleBraces(string content, Dictionary<string, dynamic>? values)
         {
             Regex regex = new Regex("{{(.*?)}}");
             return regex.Replace(content, m =>
@@ -81,9 +85,12 @@ namespace PeopleManagement.Infra.Services
             });
         }
 
-        private static dynamic? GetValueFromDictionary(Dictionary<string, dynamic> dict, string[] keys)
+        private static dynamic? GetValueFromDictionary(Dictionary<string, dynamic>? dict, string[] keys)
         {
             var value = dict;
+
+            if(dict == null)
+                return null;
 
             foreach (string key in keys)
             {
@@ -101,6 +108,12 @@ namespace PeopleManagement.Infra.Services
                 }
             }
             return value;
+        }
+
+        private static Dictionary<string, dynamic>? JsonToDic(string json)
+        {
+            var dic = JsonConvert.DeserializeObject<Dictionary<string, dynamic>>(json);
+            return dic;
         }
     }
 }

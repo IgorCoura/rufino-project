@@ -22,9 +22,8 @@ namespace PeopleManagement.Domain.AggregatesModel.SecurityDocumentAggregate
 
         public static SecurityDocument Create(Guid employeeId, Guid companyId, Guid roleId, DocumentType type) => new(employeeId, companyId, roleId, type);
 
-        public void CreateDocument(Guid id, HtmlContent template, DateTime date)
+        public void AddDocument(Document document)
         {
-            var document = Document.Create(id, template, date);
             Documents.Add(document);
         }
 

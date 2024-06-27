@@ -2,6 +2,6 @@
 {
     public interface IRecoverInfoToSegurityDocumentService
     {
-        Task<Dictionary<string, dynamic>> RecoverInfo();
+        Task<string> RecoverInfo();
     }
 }

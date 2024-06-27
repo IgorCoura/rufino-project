@@ -12,7 +12,7 @@ namespace PeopleManagement.Services.Services.RecoverInfoToSecurityDocument
             _employeeRepository = employeeRepository;
         }
 
-        public Task<Dictionary<string, dynamic>> RecoverInfo()
+        public Task<string> RecoverInfo()
         {
             throw new NotImplementedException();
         }
