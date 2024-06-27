@@ -5,6 +5,7 @@ using PeopleManagement.Domain.ErrorTools;
 using PeopleManagement.Application.Commands.EmployeeCommands.AlterMedicalAdmissionExamEmployee;
 using PeopleManagement.Application.Commands.Identified;
 using PeopleManagement.Application.Commands.EmployeeCommands.AlterMilitarDocumentEmployee;
+using PeopleManagement.Domain.AggregatesModel.EmployeeAggregate.Interfaces;
 
 namespace PeopleManagement.Application.Commands.EmployeeCommands.AlterMilitarDocumentEmployee
 {

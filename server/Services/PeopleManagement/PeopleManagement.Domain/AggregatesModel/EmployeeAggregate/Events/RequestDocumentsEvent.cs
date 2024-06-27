@@ -1,6 +1,6 @@
 ﻿using PeopleManagement.Domain.AggregatesModel.ArchiveAggregate;
 
-namespace PeopleManagement.Domain.Events
+namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate.Events
 {
     public record RequestDocumentsEvent : INotification
     {
@@ -18,7 +18,7 @@ namespace PeopleManagement.Domain.Events
         public static RequestDocumentsEvent IdCard(Guid ownerId, Guid companyId) => new(ownerId, companyId, [Category.IdCard]);
         public static RequestDocumentsEvent VoteId(Guid ownerId, Guid companyId) => new(ownerId, companyId, [Category.VoteId]);
         public static RequestDocumentsEvent AddressProof(Guid ownerId, Guid companyId) => new(ownerId, companyId, [Category.AddressProof]);
-        public static RequestDocumentsEvent Contract(Guid ownerId, Guid companyId) => new(ownerId, companyId, [Category.Contract]);        
+        public static RequestDocumentsEvent Contract(Guid ownerId, Guid companyId) => new(ownerId, companyId, [Category.Contract]);
         public static RequestDocumentsEvent ChildDocument(Guid ownerId, Guid companyId) => new(ownerId, companyId, [Category.ChildDocument]);
         public static RequestDocumentsEvent EducationalCertificate(Guid ownerId, Guid companyId) => new(ownerId, companyId, [Category.EducationalCertificate]);
         public static RequestDocumentsEvent VaccinationCertificate(Guid ownerId, Guid companyId) => new(ownerId, companyId, [Category.VaccinationCertificate]);

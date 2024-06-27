@@ -4,6 +4,7 @@ using PeopleManagement.Domain.ErrorTools.ErrorsMessages;
 using PeopleManagement.Domain.ErrorTools;
 using PeopleManagement.Application.Commands.EmployeeCommands.AlterRoleEmployee;
 using PeopleManagement.Application.Commands.Identified;
+using PeopleManagement.Domain.AggregatesModel.EmployeeAggregate.Interfaces;
 
 namespace PeopleManagement.Application.Commands.EmployeeCommands.AlterVoteIdEmployee
 {

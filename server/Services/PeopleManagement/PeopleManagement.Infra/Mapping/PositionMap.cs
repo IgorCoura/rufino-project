@@ -1,4 +1,5 @@
 ﻿using Microsoft.EntityFrameworkCore.Metadata.Builders;
+using PeopleManagement.Domain.AggregatesModel.CompanyAggregate;
 using PeopleManagement.Domain.AggregatesModel.PositionAggregate;
 using Department = PeopleManagement.Domain.AggregatesModel.DepartmentAggregate.Department;
 
@@ -28,6 +29,12 @@ namespace PeopleManagement.Infra.Mapping
             builder.HasOne<Department>()
                 .WithMany()
                 .HasForeignKey(x => x.DepartmentId)
+                .IsRequired()
+                .OnDelete(Microsoft.EntityFrameworkCore.DeleteBehavior.Restrict);
+
+            builder.HasOne<Company>()
+                .WithMany()
+                .HasForeignKey(x => x.CompanyId)
                 .IsRequired()
                 .OnDelete(Microsoft.EntityFrameworkCore.DeleteBehavior.Restrict);
         }

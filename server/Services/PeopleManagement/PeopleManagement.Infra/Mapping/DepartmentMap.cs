@@ -1,4 +1,5 @@
 ﻿using Microsoft.EntityFrameworkCore.Metadata.Builders;
+using PeopleManagement.Domain.AggregatesModel.CompanyAggregate;
 using PeopleManagement.Domain.AggregatesModel.DepartmentAggregate;
 
 namespace PeopleManagement.Infra.Mapping
@@ -18,6 +19,12 @@ namespace PeopleManagement.Infra.Mapping
                 .HasConversion(x => x.Value, x => x)
                 .HasMaxLength(Description.MAX_LENGTH)
                 .IsRequired();
+
+            builder.HasOne<Company>()
+                .WithMany()
+                .HasForeignKey(x => x.CompanyId)
+                .IsRequired()
+                .OnDelete(Microsoft.EntityFrameworkCore.DeleteBehavior.Restrict);
         }
     }
 }

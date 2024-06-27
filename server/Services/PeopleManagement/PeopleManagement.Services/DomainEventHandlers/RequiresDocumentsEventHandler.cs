@@ -1,6 +1,6 @@
 ﻿using MediatR;
-using PeopleManagement.Domain.AggregatesModel.ArchiveAggregate;
-using PeopleManagement.Domain.Events;
+using PeopleManagement.Domain.AggregatesModel.ArchiveAggregate.Interfaces;
+using PeopleManagement.Domain.AggregatesModel.EmployeeAggregate.Events;
 
 namespace PeopleManagement.Services.DomainEventHandlers
 {

@@ -1,6 +1,6 @@
 ﻿using PeopleManagement.Application.Commands.EmployeeCommands.CreateDependentEmployee;
 using PeopleManagement.Application.Commands.Identified;
-using PeopleManagement.Domain.AggregatesModel.EmployeeAggregate;
+using PeopleManagement.Domain.AggregatesModel.EmployeeAggregate.Interfaces;
 
 namespace PeopleManagement.Application.Commands.EmployeeCommands.CreateEmployee
 {

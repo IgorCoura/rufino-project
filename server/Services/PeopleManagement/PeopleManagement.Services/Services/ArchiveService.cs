@@ -1,4 +1,5 @@
 ﻿using PeopleManagement.Domain.AggregatesModel.ArchiveAggregate;
+using PeopleManagement.Domain.AggregatesModel.ArchiveAggregate.Interfaces;
 using PeopleManagement.Domain.ErrorTools;
 using PeopleManagement.Domain.ErrorTools.ErrorsMessages;
 using ArchiveFile = PeopleManagement.Domain.AggregatesModel.ArchiveAggregate.File;

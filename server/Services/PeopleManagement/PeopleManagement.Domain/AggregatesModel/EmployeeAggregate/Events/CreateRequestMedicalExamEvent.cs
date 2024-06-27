@@ -1,6 +1,4 @@
-﻿using PeopleManagement.Domain.AggregatesModel.EmployeeAggregate;
-
-namespace PeopleManagement.Domain.Events
+﻿namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate.Events
 {
     public record CreateRequestMedicalExamEvent : INotification
     {

@@ -17,7 +17,7 @@ using PeopleManagement.Application.Commands.EmployeeCommands.CreateEmployee;
 using PeopleManagement.Application.Commands.EmployeeCommands.FinishedContractEmployee;
 using PeopleManagement.Domain.AggregatesModel.ArchiveAggregate;
 using PeopleManagement.Domain.AggregatesModel.EmployeeAggregate;
-using PeopleManagement.Domain.Events;
+using PeopleManagement.Domain.AggregatesModel.EmployeeAggregate.Events;
 using PeopleManagement.Infra.Context;
 using PeopleManagement.IntegrationTests.Configs;
 using PeopleManagement.IntegrationTests.Data;
@@ -358,7 +358,7 @@ namespace PeopleManagement.IntegrationTests.Tests
             var client = _factory.CreateClient();
 
             var employee = await context.InsertEmployeeWithMinimalInfos(cancellationToken);
-            var role = await context.InsertRole(cancellationToken);
+            var role = await context.InsertRole(employee.CompanyId, cancellationToken);
             await context.SaveChangesAsync(cancellationToken);
 
             var command = new AlterRoleEmployeeCommand(
@@ -412,7 +412,7 @@ namespace PeopleManagement.IntegrationTests.Tests
             var client = _factory.CreateClient();
 
             var employee = await context.InsertEmployeeWithMinimalInfos(cancellationToken);
-            var workplace = await context.InsertWorkplace(cancellationToken);
+            var workplace = await context.InsertWorkplace(employee.CompanyId, cancellationToken);
             await context.SaveChangesAsync(cancellationToken);
 
             var command = new AlterWorkPlaceEmployeeCommand(

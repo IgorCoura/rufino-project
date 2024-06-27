@@ -1,4 +1,5 @@
 ﻿using PeopleManagement.Application.Commands.Identified;
+using PeopleManagement.Domain.AggregatesModel.CompanyAggregate.Interfaces;
 
 namespace PeopleManagement.Application.Commands.CompanyCommands.CreateCompany;
 public class CreateCompanyCommandHandler : IRequestHandler<CreateCompanyCommand, BaseDTO>
