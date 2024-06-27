@@ -2,33 +2,34 @@
 using PeopleManagement.Domain.AggregatesModel.SecurityDocumentAggregate.Interfaces;
 using PeopleManagement.Domain.ErrorTools;
 using PeopleManagement.Domain.ErrorTools.ErrorsMessages;
-using PeopleManagement.Services.FactoryImpl.RecoverInfoToSegurityDocument;
 
 namespace PeopleManagement.Services.Services
 {
     public class SecurityDocumentService : ISecurityDocumentService
     {
         private readonly ISecurityDocumentRepository _securityDocumentRepository;
-        private readonly IHtmlService _htmlService;
+        private readonly IPdfService _pdfService;
         private readonly IServiceProvider _serviceProvider;
 
-        public SecurityDocumentService(ISecurityDocumentRepository securityDocumentRepository, IServiceProvider serviceProvider, IHtmlService htmlService)
+        public SecurityDocumentService(ISecurityDocumentRepository securityDocumentRepository, IServiceProvider serviceProvider, IPdfService pdfService)
         {
             _securityDocumentRepository = securityDocumentRepository;
             _serviceProvider = serviceProvider;
-            _htmlService = htmlService;
+            _pdfService = pdfService;
         }
 
-        public async void CreateDocument(Guid securityDocumentId, Guid employeeId, Guid companyId, DateTime documentDate)
+        public async Task<byte[]> CreateDocument(Guid securityDocumentId, Guid employeeId, Guid companyId, DateTime documentDate)
         {
             var securityDocument = await _securityDocumentRepository.FirstOrDefaultAsync(x => x.Id == securityDocumentId && x.EmployeeId == employeeId && x.CompanyId == companyId)
                 ?? throw new DomainException(this, DomainErrors.ObjectNotFound(nameof(SecurityDocument), securityDocumentId.ToString()));
 
             var documentId = Guid.NewGuid();
             var service = GetService(securityDocument.Type, _serviceProvider);
-            var values = await service.RecoverInfo();
-            var htmlContent = await _htmlService.CreateHtml(securityDocument.Type, values);
-            securityDocument.CreateDocument(documentId, htmlContent, documentDate);
+            var content = await service.RecoverInfo();
+            var document = Document.Create(documentId, content, documentDate);
+            securityDocument.AddDocument(document);
+            var pdfBytes = await _pdfService.ConvertHtml2Pdf(securityDocument.Type, content);
+            return pdfBytes;
         }
 
         private static IRecoverInfoToSegurityDocumentService GetService(DocumentType doc, IServiceProvider provider)

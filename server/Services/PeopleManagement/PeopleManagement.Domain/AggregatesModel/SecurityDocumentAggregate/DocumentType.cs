@@ -6,7 +6,6 @@ namespace PeopleManagement.Domain.AggregatesModel.SecurityDocumentAggregate
 {
     public class DocumentType : Enumeration
     {
-        private const string Origin = "templates";
         private const string Header = "header.html";
         private const string Body = "body.html";
         private const string Footer = "footer.html";
@@ -25,19 +24,23 @@ namespace PeopleManagement.Domain.AggregatesModel.SecurityDocumentAggregate
         public static implicit operator DocumentType(int id) => Enumeration.FromValue<DocumentType>(id);
         public static implicit operator DocumentType(string name) => Enumeration.FromDisplayName<DocumentType>(name);
 
-        public string GetHeaderPath()
+        public string GetSourcePath(string source)
         {
-            return Path.Combine(Origin, TemplateName, Header);
+            return Path.Combine(source, TemplateName);
+        }
+        public string GetHeaderPath(string source)
+        {
+            return Path.Combine(source, TemplateName, Header);
         }
 
-        public string GetBodyPath()
+        public string GetBodyPath(string source)
         {
-            return Path.Combine(Origin, TemplateName, Body);
+            return Path.Combine(source, TemplateName, Body);
         }
 
-        public string GetFooterPath()
+        public string GetFooterPath(string source)
         {
-            return Path.Combine(Origin, TemplateName, Footer);
+            return Path.Combine(source, TemplateName, Footer);
         }
     }
 }
