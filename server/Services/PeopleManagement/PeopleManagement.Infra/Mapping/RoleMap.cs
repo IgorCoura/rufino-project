@@ -1,6 +1,7 @@
 ﻿using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using Position = PeopleManagement.Domain.AggregatesModel.PositionAggregate.Position;
 using PeopleManagement.Domain.AggregatesModel.RoleAggregate;
+using PeopleManagement.Domain.AggregatesModel.CompanyAggregate;
 
 namespace PeopleManagement.Infra.Mapping
 {
@@ -52,7 +53,13 @@ namespace PeopleManagement.Infra.Mapping
                 .WithMany()
                 .HasForeignKey(x => x.PositionId)
                 .IsRequired()
-                .OnDelete(Microsoft.EntityFrameworkCore.DeleteBehavior.Restrict); ;
+                .OnDelete(Microsoft.EntityFrameworkCore.DeleteBehavior.Restrict);
+
+            builder.HasOne<Company>()
+                .WithMany()
+                .HasForeignKey(x => x.CompanyId)
+                .IsRequired()
+                .OnDelete(Microsoft.EntityFrameworkCore.DeleteBehavior.Restrict);
         }
     }
 }

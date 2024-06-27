@@ -1,7 +1,6 @@
-﻿using PeopleManagement.Domain.ErrorTools;
+﻿using PeopleManagement.Domain.AggregatesModel.EmployeeAggregate.Events;
+using PeopleManagement.Domain.ErrorTools;
 using PeopleManagement.Domain.ErrorTools.ErrorsMessages;
-using PeopleManagement.Domain.Events;
-using System.Collections.ObjectModel;
 
 namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
 {

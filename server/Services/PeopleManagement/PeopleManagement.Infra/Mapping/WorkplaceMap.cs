@@ -1,5 +1,7 @@
 ﻿using Microsoft.EntityFrameworkCore.Metadata.Builders;
+using PeopleManagement.Domain.AggregatesModel.CompanyAggregate;
 using PeopleManagement.Domain.AggregatesModel.WorkplaceAggregate;
+using Address = PeopleManagement.Domain.AggregatesModel.WorkplaceAggregate.Address;
 
 namespace PeopleManagement.Infra.Mapping
 {
@@ -48,6 +50,12 @@ namespace PeopleManagement.Infra.Mapping
                     .HasMaxLength(Address.MAX_LENGHT_COUNTRY)
                     .IsRequired();
             });
+
+            builder.HasOne<Company>()
+                .WithMany()
+                .HasForeignKey(x => x.CompanyId)
+                .IsRequired()
+                .OnDelete(Microsoft.EntityFrameworkCore.DeleteBehavior.Restrict);
         }
     }
 }

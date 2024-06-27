@@ -1,7 +1,5 @@
-﻿using PeopleManagement.Domain.AggregatesModel.RequireSecurityDocumentsAggregate;
-using PeopleManagement.Domain.ErrorTools;
+﻿using PeopleManagement.Domain.ErrorTools;
 using PeopleManagement.Domain.ErrorTools.ErrorsMessages;
-using System.Reflection.Metadata;
 
 namespace PeopleManagement.Domain.AggregatesModel.SecurityDocumentAggregate
 {
@@ -24,7 +22,7 @@ namespace PeopleManagement.Domain.AggregatesModel.SecurityDocumentAggregate
 
         public static SecurityDocument Create(Guid employeeId, Guid companyId, Guid roleId, DocumentType type) => new(employeeId, companyId, roleId, type);
 
-        public void CreateDocument(Guid id, string template, DateTime date)
+        public void CreateDocument(Guid id, HtmlContent template, DateTime date)
         {
             var document = Document.Create(id, template, date);
             Documents.Add(document);

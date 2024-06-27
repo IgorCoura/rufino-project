@@ -1,8 +1,8 @@
 ﻿using PeopleManagement.Domain.AggregatesModel.EmployeeAggregate;
 using PeopleManagement.Domain.ErrorTools.ErrorsMessages;
 using PeopleManagement.Domain.ErrorTools;
-using PeopleManagement.Domain.AggregatesModel.ArchiveAggregate;
-using Microsoft.EntityFrameworkCore;
+using PeopleManagement.Domain.AggregatesModel.EmployeeAggregate.Interfaces;
+using PeopleManagement.Domain.AggregatesModel.ArchiveAggregate.Interfaces;
 
 namespace PeopleManagement.Services.Services
 {

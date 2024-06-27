@@ -1,4 +1,4 @@
-﻿namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
+﻿namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate.Interfaces
 {
     public interface ICompleteAdmissionService
     {

@@ -1,6 +1,5 @@
-﻿using PeopleManagement.Application.Commands.EmployeeCommands.AlterWorkPlaceEmployee;
-using PeopleManagement.Application.Commands.Identified;
-using PeopleManagement.Domain.AggregatesModel.EmployeeAggregate;
+﻿using PeopleManagement.Application.Commands.Identified;
+using PeopleManagement.Domain.AggregatesModel.EmployeeAggregate.Interfaces;
 
 namespace PeopleManagement.Application.Commands.EmployeeCommands.CompleteAdmissionEmployee
 {

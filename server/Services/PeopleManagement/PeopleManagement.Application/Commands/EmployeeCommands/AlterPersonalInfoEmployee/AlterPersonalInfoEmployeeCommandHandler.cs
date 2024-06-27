@@ -5,6 +5,7 @@ using PeopleManagement.Domain.ErrorTools;
 using PeopleManagement.Application.Commands.EmployeeCommands.AlterNameEmployee;
 using PeopleManagement.Application.Commands.Identified;
 using PeopleManagement.Application.Commands.EmployeeCommands.AlterPersonalInfoEmployee;
+using PeopleManagement.Domain.AggregatesModel.EmployeeAggregate.Interfaces;
 
 namespace PeopleManagement.Application.Commands.EmployeeCommands.AlterPersonalInfoEmployee
 {

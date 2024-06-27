@@ -6,7 +6,7 @@ namespace PeopleManagement.Domain.AggregatesModel.SecurityDocumentAggregate
     public class Document : Entity
     {
         private DateTime? _validity;
-        public string Template { get; private set; } = string.Empty;
+        public HtmlContent Content { get; private set; }
         public DateTime? Validity 
         { 
             get => _validity;
@@ -24,13 +24,13 @@ namespace PeopleManagement.Domain.AggregatesModel.SecurityDocumentAggregate
         public DocumentStatus Status { get; private set; } = DocumentStatus.Pending;
         public DateTime Date { get; private set; } 
 
-        private Document(Guid id, string template, DateTime date) : base(id)
+        private Document(Guid id, HtmlContent content, DateTime date) : base(id)
         {
-            Template = template;
+            Content = content;
             Date = date;
         }
 
-        public static Document Create(Guid id, string template, DateTime date) => new(id, template, date);
+        public static Document Create(Guid id, HtmlContent content, DateTime date) => new(id, content, date);
 
         public void InsertFileWithRequireValidation(Name name, Extension extension, DateTime? validity)
         {

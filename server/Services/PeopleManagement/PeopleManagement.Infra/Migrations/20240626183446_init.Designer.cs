@@ -12,7 +12,7 @@ using PeopleManagement.Infra.Context;
 namespace PeopleManagement.Infra.Migrations
 {
     [DbContext(typeof(PeopleManagementContext))]
-    [Migration("20240529145258_init")]
+    [Migration("20240626183446_init")]
     partial class init
     {
         /// <inheritdoc />
@@ -50,6 +50,8 @@ namespace PeopleManagement.Infra.Migrations
                         .HasColumnType("timestamp with time zone");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("CompanyId");
 
                     b.ToTable("Archives");
                 });
@@ -92,6 +94,9 @@ namespace PeopleManagement.Infra.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
+                    b.Property<Guid>("CompanyId")
+                        .HasColumnType("uuid");
+
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
@@ -109,6 +114,8 @@ namespace PeopleManagement.Infra.Migrations
                         .HasColumnType("timestamp with time zone");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("CompanyId");
 
                     b.ToTable("Departments");
                 });
@@ -175,6 +182,9 @@ namespace PeopleManagement.Infra.Migrations
                         .HasMaxLength(6)
                         .HasColumnType("character varying(6)");
 
+                    b.Property<Guid>("CompanyId")
+                        .HasColumnType("uuid");
+
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
@@ -196,6 +206,8 @@ namespace PeopleManagement.Infra.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("CompanyId");
+
                     b.HasIndex("DepartmentId");
 
                     b.ToTable("Positions");
@@ -211,6 +223,9 @@ namespace PeopleManagement.Infra.Migrations
                         .IsRequired()
                         .HasMaxLength(6)
                         .HasColumnType("character varying(6)");
+
+                    b.Property<Guid>("CompanyId")
+                        .HasColumnType("uuid");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
@@ -233,6 +248,8 @@ namespace PeopleManagement.Infra.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("CompanyId");
+
                     b.HasIndex("PositionId");
 
                     b.ToTable("Roles");
@@ -242,6 +259,9 @@ namespace PeopleManagement.Infra.Migrations
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("CompanyId")
                         .HasColumnType("uuid");
 
                     b.Property<DateTime>("CreatedAt")
@@ -257,11 +277,19 @@ namespace PeopleManagement.Infra.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("CompanyId");
+
                     b.ToTable("Workplaces");
                 });
 
             modelBuilder.Entity("PeopleManagement.Domain.AggregatesModel.ArchiveAggregate.Archive", b =>
                 {
+                    b.HasOne("PeopleManagement.Domain.AggregatesModel.CompanyAggregate.Company", null)
+                        .WithMany()
+                        .HasForeignKey("CompanyId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
                     b.OwnsMany("PeopleManagement.Domain.AggregatesModel.ArchiveAggregate.File", "Files", b1 =>
                         {
                             b1.Property<int>("Id")
@@ -382,6 +410,15 @@ namespace PeopleManagement.Infra.Migrations
                         .IsRequired();
 
                     b.Navigation("Contact")
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("PeopleManagement.Domain.AggregatesModel.DepartmentAggregate.Department", b =>
+                {
+                    b.HasOne("PeopleManagement.Domain.AggregatesModel.CompanyAggregate.Company", null)
+                        .WithMany()
+                        .HasForeignKey("CompanyId")
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
                 });
 
@@ -746,6 +783,12 @@ namespace PeopleManagement.Infra.Migrations
 
             modelBuilder.Entity("PeopleManagement.Domain.AggregatesModel.PositionAggregate.Position", b =>
                 {
+                    b.HasOne("PeopleManagement.Domain.AggregatesModel.CompanyAggregate.Company", null)
+                        .WithMany()
+                        .HasForeignKey("CompanyId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
                     b.HasOne("PeopleManagement.Domain.AggregatesModel.DepartmentAggregate.Department", null)
                         .WithMany()
                         .HasForeignKey("DepartmentId")
@@ -755,6 +798,12 @@ namespace PeopleManagement.Infra.Migrations
 
             modelBuilder.Entity("PeopleManagement.Domain.AggregatesModel.RoleAggregate.Role", b =>
                 {
+                    b.HasOne("PeopleManagement.Domain.AggregatesModel.CompanyAggregate.Company", null)
+                        .WithMany()
+                        .HasForeignKey("CompanyId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
                     b.HasOne("PeopleManagement.Domain.AggregatesModel.PositionAggregate.Position", null)
                         .WithMany()
                         .HasForeignKey("PositionId")
@@ -812,6 +861,12 @@ namespace PeopleManagement.Infra.Migrations
 
             modelBuilder.Entity("PeopleManagement.Domain.AggregatesModel.WorkplaceAggregate.Workplace", b =>
                 {
+                    b.HasOne("PeopleManagement.Domain.AggregatesModel.CompanyAggregate.Company", null)
+                        .WithMany()
+                        .HasForeignKey("CompanyId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
                     b.OwnsOne("PeopleManagement.Domain.AggregatesModel.WorkplaceAggregate.Address", "Address", b1 =>
                         {
                             b1.Property<Guid>("WorkplaceId")

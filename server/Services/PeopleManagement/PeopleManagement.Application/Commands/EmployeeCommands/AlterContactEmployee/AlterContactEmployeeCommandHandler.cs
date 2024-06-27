@@ -2,6 +2,7 @@
 using PeopleManagement.Application.Commands.EmployeeCommands.AlterContactEmployee;
 using PeopleManagement.Application.Commands.Identified;
 using PeopleManagement.Domain.AggregatesModel.EmployeeAggregate;
+using PeopleManagement.Domain.AggregatesModel.EmployeeAggregate.Interfaces;
 using PeopleManagement.Domain.ErrorTools;
 using PeopleManagement.Domain.ErrorTools.ErrorsMessages;
 using Contact = PeopleManagement.Domain.AggregatesModel.EmployeeAggregate.Contact;

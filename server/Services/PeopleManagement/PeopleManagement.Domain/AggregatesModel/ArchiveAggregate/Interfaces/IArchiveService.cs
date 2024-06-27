@@ -1,4 +1,4 @@
-﻿namespace PeopleManagement.Domain.AggregatesModel.ArchiveAggregate
+﻿namespace PeopleManagement.Domain.AggregatesModel.ArchiveAggregate.Interfaces
 {
     public interface IArchiveService
     {

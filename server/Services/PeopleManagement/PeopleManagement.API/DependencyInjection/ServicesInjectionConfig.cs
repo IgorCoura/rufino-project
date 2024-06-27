@@ -1,5 +1,5 @@
-﻿using PeopleManagement.Domain.AggregatesModel.ArchiveAggregate;
-using PeopleManagement.Domain.AggregatesModel.EmployeeAggregate;
+﻿using PeopleManagement.Domain.AggregatesModel.ArchiveAggregate.Interfaces;
+using PeopleManagement.Domain.AggregatesModel.EmployeeAggregate.Interfaces;
 using PeopleManagement.Services.Services;
 
 namespace PeopleManagement.API.DependencyInjection

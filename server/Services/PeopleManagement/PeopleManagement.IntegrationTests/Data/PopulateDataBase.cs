@@ -44,27 +44,27 @@ namespace PeopleManagement.IntegrationTests.Data
             return company;
         }
 
-        public static async Task<Role> InsertRole(this PeopleManagementContext context, CancellationToken cancellationToken = default)
+        public static async Task<Role> InsertRole(this PeopleManagementContext context, Guid companyId, CancellationToken cancellationToken = default)
         {
             var departmentId = Guid.NewGuid();
-            var departament = Department.Create(departmentId, "Hidraulica", "Hidraulica");
+            var departament = Department.Create(departmentId, "Hidraulica", "Hidraulica", companyId);
             await context.Departments.AddAsync(departament, cancellationToken);
 
             var postionId = Guid.NewGuid();
-            var position = Position.Create(postionId, "Encanador", "Encanador", "738298", departmentId);
+            var position = Position.Create(postionId, "Encanador", "Encanador", "738298", departmentId, companyId);
             await context.Positions.AddAsync(position, cancellationToken);
             
             var roleId = Guid.NewGuid();
-            var role = Role.Create(roleId, "Encanador Senior", "Encanador Com Experiencia", "738298", Remuneration.Create(PaymentUnit.PerHour, Currency.Create(CurrencyType.Real, "10.55"), "Por Hora"), postionId);
+            var role = Role.Create(roleId, "Encanador Senior", "Encanador Com Experiencia", "738298", Remuneration.Create(PaymentUnit.PerHour, Currency.Create(CurrencyType.Real, "10.55"), "Por Hora"), postionId, companyId);
             await context.Roles.AddAsync(role, cancellationToken);
 
             return role;
         }
 
-        public static async Task<Workplace> InsertWorkplace(this PeopleManagementContext context, CancellationToken cancellationToken = default)
+        public static async Task<Workplace> InsertWorkplace(this PeopleManagementContext context, Guid companyId, CancellationToken cancellationToken = default)
         {
-
-            var workplace = Workplace.Create("Eleve", AddressWorkplace.Create(
+            var workplaceId = Guid.NewGuid();
+            var workplace = Workplace.Create(workplaceId, "Eleve", AddressWorkplace.Create(
                 "14093636",
                 "Rua José Otávio de Oliveira",
                 "776",
@@ -72,7 +72,7 @@ namespace PeopleManagement.IntegrationTests.Data
                 "Parque dos Flamboyans",
                 "Ribeirão Preto",
                 "SP",
-                "BRASIL"));
+                "BRASIL"), companyId);
 
             await context.Workplaces.AddAsync(workplace, cancellationToken);
 
@@ -128,8 +128,8 @@ namespace PeopleManagement.IntegrationTests.Data
             var company = await context.InsertCompany(cancellationToken);
             var id = Guid.NewGuid();
             var employee = Employee.Create(id, company.Id, "Rosdevaldo Pereira");
-            var role = await context.InsertRole(cancellationToken);
-            var workplace = await context.InsertWorkplace(cancellationToken);
+            var role = await context.InsertRole(company.Id, cancellationToken);
+            var workplace = await context.InsertWorkplace(company.Id, cancellationToken);
 
             employee.RoleId = role.Id;
             employee.WorkPlaceId = workplace.Id;
@@ -159,8 +159,8 @@ namespace PeopleManagement.IntegrationTests.Data
             var company = await context.InsertCompany(cancellationToken);
             var id = Guid.NewGuid();
             var employee = Employee.Create(id, company.Id, "Rosdevaldo Pereira");
-            var role = await context.InsertRole(cancellationToken);
-            var workplace = await context.InsertWorkplace(cancellationToken);
+            var role = await context.InsertRole(company.Id, cancellationToken);
+            var workplace = await context.InsertWorkplace(company.Id, cancellationToken);
 
             employee.RoleId = role.Id;
             employee.WorkPlaceId = workplace.Id;
