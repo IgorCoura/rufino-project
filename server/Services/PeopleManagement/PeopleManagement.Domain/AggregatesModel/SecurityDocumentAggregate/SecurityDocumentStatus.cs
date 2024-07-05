@@ -2,10 +2,11 @@
 {
     public class SecurityDocumentStatus : Enumeration
     {
-        public static SecurityDocumentStatus RequiredDocument => new(1, nameof(RequiredDocument));
-        public static SecurityDocumentStatus RequiredValidaty => new(2, nameof(RequiredValidaty));
-        public static SecurityDocumentStatus OK => new(3, nameof(OK));
-        public static SecurityDocumentStatus Deprecated => new(4, nameof(Deprecated));
+        public static readonly SecurityDocumentStatus RequiredDocument = new(1, nameof(RequiredDocument));
+        public static readonly SecurityDocumentStatus RequiredValidaty = new(2, nameof(RequiredValidaty));
+        public static readonly SecurityDocumentStatus OK = new(3, nameof(OK));
+        public static readonly SecurityDocumentStatus Deprecated = new(4, nameof(Deprecated));
+
         private SecurityDocumentStatus(int id, string name) : base(id, name)
         {
         }

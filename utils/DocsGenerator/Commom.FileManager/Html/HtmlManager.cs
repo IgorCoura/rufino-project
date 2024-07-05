@@ -28,7 +28,7 @@ namespace Commom.FileManager.Html
             var tempPathLocal = Path.Combine(tempPath, Guid.NewGuid().ToString());
 
             await CopyDirectory.Copy(pathOrigin, tempPathLocal);
-
+             
             var pathDestinyHtml = Path.Combine(tempPathLocal, nameFileBody);
             string htmlStringBody = await File.ReadAllTextAsync(pathHtmlBody);
             var htmlBody = await InsertValuesInHtmlTemplate(values, htmlStringBody);

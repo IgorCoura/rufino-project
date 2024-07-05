@@ -43,6 +43,7 @@ namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
             new(value);
 
 
+        public override string ToString() => Value;
         protected override IEnumerable<object?> GetEqualityComponents()
         {
             yield return Value;

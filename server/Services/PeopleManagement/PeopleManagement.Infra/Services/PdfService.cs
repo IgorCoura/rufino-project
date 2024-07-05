@@ -1,10 +1,8 @@
-﻿using Newtonsoft.Json.Linq;
-using PeopleManagement.Domain.AggregatesModel.SecurityDocumentAggregate;
+﻿using PeopleManagement.Domain.AggregatesModel.SecurityDocumentAggregate;
 using PeopleManagement.Domain.AggregatesModel.SecurityDocumentAggregate.Interfaces;
 using PeopleManagement.Domain.AggregatesModel.SecurityDocumentAggregate.Options;
 using PuppeteerSharp;
 using PuppeteerSharp.Media;
-using System.Net.Http;
 
 namespace PeopleManagement.Infra.Services
 {
@@ -17,27 +15,36 @@ namespace PeopleManagement.Infra.Services
             _templatesPathOptions = templatesPathOptions;
         }
 
-        public async Task<byte[]> ConvertHtml2Pdf(DocumentType type, string content, CancellationToken cancellationToken = default)
+        public async Task<byte[]> ConvertHtml2Pdf(DocumentType type, string values, CancellationToken cancellationToken = default)
         {
-            var workDiretory = await HtmlService.CreateTemporaryHtmlTemplate(type, content, _templatesPathOptions.Source, cancellationToken);
-
+            //var cd = Directory.GetCurrentDirectory(); //DEGUB 
             await DownloadBrowser();
 
             await using var browser = await Puppeteer.LaunchAsync(new LaunchOptions { Headless = true });
 
             await using var page = await browser.NewPageAsync();
 
-            var bodyHtmlPath = Path.Combine(Directory.GetCurrentDirectory(), type.GetBodyPath(workDiretory));
-            await page.GoToAsync("file:" + bodyHtmlPath);
+            var htmlPath = Path.Combine(Directory.GetCurrentDirectory(), type.GetBodyPath(_templatesPathOptions.Source));
+            await page.GoToAsync("file:" + htmlPath);
+
+            var contentPage = await page.GetContentAsync();
+
+            var htmlContent = await HtmlService.CreateTemporaryHtmlTemplate(contentPage, type, values, _templatesPathOptions.Source, cancellationToken);
+
+            await page.SetContentAsync(htmlContent.Body);
 
             var pdfOptions = new PdfOptions
             {
                 Format = PaperFormat.A4,
                 PrintBackground = true,
                 DisplayHeaderFooter = true,
-                HeaderTemplate = await ReadContentFile(type.GetHeaderPath(workDiretory)),
-                FooterTemplate = await ReadContentFile(type.GetFooterPath(workDiretory)),
+                HeaderTemplate = htmlContent.Header,
+                FooterTemplate = htmlContent.Footer,
             };
+
+            
+            var path = Path.Combine(Directory.GetCurrentDirectory(), "temp", $"{Guid.NewGuid()}.pdf");
+            await page.PdfAsync(path, pdfOptions);
 
             var pdfBytes = await page.PdfDataAsync(pdfOptions);
             await browser.CloseAsync();
@@ -45,19 +52,10 @@ namespace PeopleManagement.Infra.Services
             return pdfBytes;
         }
 
-        private static async Task<string> ReadContentFile(string path)
-        {
-            var content = await File.ReadAllTextAsync(path);
-            return content;
-        }
-        
-
         private static async Task DownloadBrowser()
         {
-            Console.Write("Baixando dependencias...");
             var browserFetcher = new BrowserFetcher();
             await browserFetcher.DownloadAsync();
-            Console.Write("Fim.\n");
         }
 
         

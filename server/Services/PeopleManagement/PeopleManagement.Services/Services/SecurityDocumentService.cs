@@ -1,4 +1,6 @@
-﻿using PeopleManagement.Domain.AggregatesModel.SecurityDocumentAggregate;
+﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
+using PeopleManagement.Domain.AggregatesModel.SecurityDocumentAggregate;
 using PeopleManagement.Domain.AggregatesModel.SecurityDocumentAggregate.Interfaces;
 using PeopleManagement.Domain.ErrorTools;
 using PeopleManagement.Domain.ErrorTools.ErrorsMessages;
@@ -18,23 +20,33 @@ namespace PeopleManagement.Services.Services
             _pdfService = pdfService;
         }
 
-        public async Task<byte[]> CreateDocument(Guid securityDocumentId, Guid employeeId, Guid companyId, DateTime documentDate)
+        public async Task<Document> CreateDocument(Guid securityDocumentId, Guid employeeId, Guid companyId, DateTime documentDate, CancellationToken cancellationToken)
         {
-            var securityDocument = await _securityDocumentRepository.FirstOrDefaultAsync(x => x.Id == securityDocumentId && x.EmployeeId == employeeId && x.CompanyId == companyId)
+            var securityDocument = await _securityDocumentRepository.FirstOrDefaultAsync(x => x.Id == securityDocumentId && x.EmployeeId == employeeId && x.CompanyId == companyId, cancellation: cancellationToken)
                 ?? throw new DomainException(this, DomainErrors.ObjectNotFound(nameof(SecurityDocument), securityDocumentId.ToString()));
 
             var documentId = Guid.NewGuid();
-            var service = GetService(securityDocument.Type, _serviceProvider);
-            var content = await service.RecoverInfo();
-            var document = Document.Create(documentId, content, documentDate);
+            var service = GetService(securityDocument.Type, _serviceProvider);            
+            var content = await service.RecoverInfo(securityDocument.EmployeeId, securityDocument.CompanyId, documentDate, cancellationToken);
+            var document = Document.Create(documentId, content, documentDate, securityDocument);
             securityDocument.AddDocument(document);
-            var pdfBytes = await _pdfService.ConvertHtml2Pdf(securityDocument.Type, content);
+
+            return document;
+        }
+
+        public async Task<byte[]> GeneratePdf(Guid documentId, Guid securityDocumentId, Guid employeeId, Guid companyId, CancellationToken cancellationToken)
+        {
+            var securityDocument = await _securityDocumentRepository.FirstOrDefaultAsync(x => x.Id == securityDocumentId && x.EmployeeId == employeeId && x.CompanyId == companyId, include: x => x.Include(y => y.Documents), cancellation: cancellationToken)
+                ?? throw new DomainException(this, DomainErrors.ObjectNotFound(nameof(SecurityDocument), securityDocumentId.ToString()));
+
+            var document = securityDocument.Documents.First(x => x.Id == documentId);
+            var pdfBytes = await _pdfService.ConvertHtml2Pdf(securityDocument.Type, document.Content, cancellationToken);
             return pdfBytes;
         }
 
-        private static IRecoverInfoToSegurityDocumentService GetService(DocumentType doc, IServiceProvider provider)
+        private static IRecoverInfoToSecurityDocumentService GetService(DocumentType doc, IServiceProvider provider)
         {
-            var result = provider.GetService(doc.Type) as IRecoverInfoToSegurityDocumentService ?? throw new NullReferenceException($"O Serviço de tipo {doc.Type} não foi invejtado.");
+            var result = provider.GetRequiredService(doc.Type) as IRecoverInfoToSecurityDocumentService ?? throw new NullReferenceException($"O Serviço de tipo {doc.Type} não foi invejtado.");
             return result;
         }
     }

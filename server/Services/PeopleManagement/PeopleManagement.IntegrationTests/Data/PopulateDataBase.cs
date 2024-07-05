@@ -5,6 +5,7 @@ using PeopleManagement.Domain.AggregatesModel.DepartmentAggregate;
 using PeopleManagement.Domain.AggregatesModel.EmployeeAggregate;
 using PeopleManagement.Domain.AggregatesModel.PositionAggregate;
 using PeopleManagement.Domain.AggregatesModel.RoleAggregate;
+using PeopleManagement.Domain.AggregatesModel.SecurityDocumentAggregate;
 using PeopleManagement.Domain.AggregatesModel.WorkplaceAggregate;
 using PeopleManagement.Infra.Context;
 using AddressCompany = PeopleManagement.Domain.AggregatesModel.CompanyAggregate.Address;
@@ -12,6 +13,9 @@ using AddressWorkplace = PeopleManagement.Domain.AggregatesModel.WorkplaceAggreg
 using ContactCompany = PeopleManagement.Domain.AggregatesModel.CompanyAggregate.Contact;
 using EmplyeeAddress = PeopleManagement.Domain.AggregatesModel.EmployeeAggregate.Address;
 using FileArchive = PeopleManagement.Domain.AggregatesModel.ArchiveAggregate.File;
+using ExtensionArchive = PeopleManagement.Domain.AggregatesModel.ArchiveAggregate.Extension;
+using PeopleManagement.Domain.AggregatesModel.SecurityDocumentAggregate.Interfaces;
+using System.Json;
 
 namespace PeopleManagement.IntegrationTests.Data
 {
@@ -188,10 +192,33 @@ namespace PeopleManagement.IntegrationTests.Data
             return employee;
         }
 
-        public static async Task SendRequiresFiles(this PeopleManagementContext context, Guid ownerId, Guid companyId, CancellationToken cancellationToken = default)
+        public static async Task<SecurityDocument> InsertSecurityDocument(this PeopleManagementContext context, CancellationToken cancellationToken = default)
+        {
+            var employee = await context.InsertEmployeeActive(cancellationToken);
+            await context.SaveChangesAsync(cancellationToken);
+
+            var securityDocument = SecurityDocument.Create(Guid.NewGuid(), employee.Id, employee.CompanyId, (Guid)employee.RoleId!, DocumentType.NR01);
+            await context.SecurityDocuments.AddAsync(securityDocument, cancellationToken);
+
+            return securityDocument;
+        }
+
+        public static Task<Document> InsertOneDocumentInSecurityDocument(this SecurityDocument securityDocument, CancellationToken cancellationToken = default)
+        {
+            var content = DataToSecurityDocument.GetContent();
+            var document = Document.Create(Guid.NewGuid(), content, DateTime.UtcNow, securityDocument);
+            securityDocument.AddDocument(document);
+            return Task.FromResult(document);
+        }
+
+        private static async Task SendRequiresFiles(this PeopleManagementContext context, Guid ownerId, Guid companyId, CancellationToken cancellationToken = default)
         {
             var archives = await context.Archives.Where(x => x.OwnerId == ownerId && x.CompanyId == companyId && x.Status == ArchiveStatus.RequiresFile).ToListAsync(cancellationToken);
-            archives.ForEach(x => x.AddFile(FileArchive.CreateWithoutVerification(Guid.NewGuid().ToString(), Extension.PDF, DateTime.UtcNow)));
+            archives.ForEach(x => x.AddFile(FileArchive.CreateWithoutVerification(Guid.NewGuid().ToString(), ExtensionArchive.PDF, DateTime.UtcNow)));
         }
+
+
+        
+
     }
 }

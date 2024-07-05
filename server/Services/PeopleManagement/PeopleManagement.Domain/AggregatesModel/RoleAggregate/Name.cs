@@ -42,6 +42,7 @@ namespace PeopleManagement.Domain.AggregatesModel.RoleAggregate
         public static implicit operator Name(string value) =>
             new(value);
 
+        public override string ToString() => Value;
         protected override IEnumerable<object?> GetEqualityComponents()
         {
             yield return Value;
