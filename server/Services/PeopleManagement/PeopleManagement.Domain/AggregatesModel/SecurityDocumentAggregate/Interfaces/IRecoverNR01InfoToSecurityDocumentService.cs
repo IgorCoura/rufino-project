@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace PeopleManagement.Domain.AggregatesModel.SecurityDocumentAggregate.Interfaces
 {
-    public interface IRecoverNR01InfoToSegurityDocumentService : IRecoverInfoToSegurityDocumentService
+    public interface IRecoverNR01InfoToSecurityDocumentService : IRecoverInfoToSecurityDocumentService
     {
     }
 }

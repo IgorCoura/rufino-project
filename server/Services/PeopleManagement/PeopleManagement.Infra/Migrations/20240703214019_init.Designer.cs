@@ -12,7 +12,7 @@ using PeopleManagement.Infra.Context;
 namespace PeopleManagement.Infra.Migrations
 {
     [DbContext(typeof(PeopleManagementContext))]
-    [Migration("20240626183446_init")]
+    [Migration("20240703214019_init")]
     partial class init
     {
         /// <inheritdoc />
@@ -28,7 +28,6 @@ namespace PeopleManagement.Infra.Migrations
             modelBuilder.Entity("PeopleManagement.Domain.AggregatesModel.ArchiveAggregate.Archive", b =>
                 {
                     b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
                     b.Property<int>("Category")
@@ -59,7 +58,6 @@ namespace PeopleManagement.Infra.Migrations
             modelBuilder.Entity("PeopleManagement.Domain.AggregatesModel.CompanyAggregate.Company", b =>
                 {
                     b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
                     b.Property<string>("Cnpj")
@@ -91,7 +89,6 @@ namespace PeopleManagement.Infra.Migrations
             modelBuilder.Entity("PeopleManagement.Domain.AggregatesModel.DepartmentAggregate.Department", b =>
                 {
                     b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
                     b.Property<Guid>("CompanyId")
@@ -123,7 +120,6 @@ namespace PeopleManagement.Infra.Migrations
             modelBuilder.Entity("PeopleManagement.Domain.AggregatesModel.EmployeeAggregate.Employee", b =>
                 {
                     b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
                     b.Property<Guid>("CompanyId")
@@ -174,7 +170,6 @@ namespace PeopleManagement.Infra.Migrations
             modelBuilder.Entity("PeopleManagement.Domain.AggregatesModel.PositionAggregate.Position", b =>
                 {
                     b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
                     b.Property<string>("CBO")
@@ -213,10 +208,39 @@ namespace PeopleManagement.Infra.Migrations
                     b.ToTable("Positions");
                 });
 
+            modelBuilder.Entity("PeopleManagement.Domain.AggregatesModel.RequireSecurityDocumentsAggregate.RequireSecurityDocuments", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("CompanyId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("RoleId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Types")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CompanyId");
+
+                    b.HasIndex("RoleId");
+
+                    b.ToTable("RequireDocuments");
+                });
+
             modelBuilder.Entity("PeopleManagement.Domain.AggregatesModel.RoleAggregate.Role", b =>
                 {
                     b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
                     b.Property<string>("CBO")
@@ -255,10 +279,87 @@ namespace PeopleManagement.Infra.Migrations
                     b.ToTable("Roles");
                 });
 
+            modelBuilder.Entity("PeopleManagement.Domain.AggregatesModel.SecurityDocumentAggregate.Document", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Content")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("Date")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int?>("Extension")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Name")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<Guid>("SecurityDocumentId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("Validity")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("SecurityDocumentId");
+
+                    b.ToTable("Documents");
+                });
+
+            modelBuilder.Entity("PeopleManagement.Domain.AggregatesModel.SecurityDocumentAggregate.SecurityDocument", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("CompanyId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("EmployeeId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("RoleId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("Type")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CompanyId");
+
+                    b.HasIndex("EmployeeId");
+
+                    b.HasIndex("RoleId");
+
+                    b.ToTable("SecurityDocuments");
+                });
+
             modelBuilder.Entity("PeopleManagement.Domain.AggregatesModel.WorkplaceAggregate.Workplace", b =>
                 {
                     b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
                     b.Property<Guid>("CompanyId")
@@ -796,6 +897,21 @@ namespace PeopleManagement.Infra.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("PeopleManagement.Domain.AggregatesModel.RequireSecurityDocumentsAggregate.RequireSecurityDocuments", b =>
+                {
+                    b.HasOne("PeopleManagement.Domain.AggregatesModel.CompanyAggregate.Company", null)
+                        .WithMany()
+                        .HasForeignKey("CompanyId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("PeopleManagement.Domain.AggregatesModel.RoleAggregate.Role", null)
+                        .WithMany()
+                        .HasForeignKey("RoleId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("PeopleManagement.Domain.AggregatesModel.RoleAggregate.Role", b =>
                 {
                     b.HasOne("PeopleManagement.Domain.AggregatesModel.CompanyAggregate.Company", null)
@@ -856,6 +972,38 @@ namespace PeopleManagement.Infra.Migrations
                         });
 
                     b.Navigation("Remuneration")
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("PeopleManagement.Domain.AggregatesModel.SecurityDocumentAggregate.Document", b =>
+                {
+                    b.HasOne("PeopleManagement.Domain.AggregatesModel.SecurityDocumentAggregate.SecurityDocument", "SecurityDocument")
+                        .WithMany("Documents")
+                        .HasForeignKey("SecurityDocumentId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("SecurityDocument");
+                });
+
+            modelBuilder.Entity("PeopleManagement.Domain.AggregatesModel.SecurityDocumentAggregate.SecurityDocument", b =>
+                {
+                    b.HasOne("PeopleManagement.Domain.AggregatesModel.CompanyAggregate.Company", null)
+                        .WithMany()
+                        .HasForeignKey("CompanyId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("PeopleManagement.Domain.AggregatesModel.EmployeeAggregate.Employee", null)
+                        .WithMany()
+                        .HasForeignKey("EmployeeId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("PeopleManagement.Domain.AggregatesModel.RoleAggregate.Role", null)
+                        .WithMany()
+                        .HasForeignKey("RoleId")
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
                 });
 
@@ -922,6 +1070,11 @@ namespace PeopleManagement.Infra.Migrations
 
                     b.Navigation("Address")
                         .IsRequired();
+                });
+
+            modelBuilder.Entity("PeopleManagement.Domain.AggregatesModel.SecurityDocumentAggregate.SecurityDocument", b =>
+                {
+                    b.Navigation("Documents");
                 });
 #pragma warning restore 612, 618
         }

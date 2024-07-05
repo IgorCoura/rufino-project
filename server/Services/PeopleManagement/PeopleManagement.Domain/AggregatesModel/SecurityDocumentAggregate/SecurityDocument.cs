@@ -12,7 +12,7 @@ namespace PeopleManagement.Domain.AggregatesModel.SecurityDocumentAggregate
         public SecurityDocumentStatus Status { get; private set; } = SecurityDocumentStatus.RequiredDocument;
         public DocumentType Type { get; private set; }
 
-        private SecurityDocument(Guid employeeId, Guid companyId, Guid roleId, DocumentType type)
+        private SecurityDocument(Guid id, Guid employeeId, Guid companyId, Guid roleId, DocumentType type) : base(id)
         {
             EmployeeId = employeeId;
             CompanyId = companyId;
@@ -20,7 +20,7 @@ namespace PeopleManagement.Domain.AggregatesModel.SecurityDocumentAggregate
             Type = type;
         }
 
-        public static SecurityDocument Create(Guid employeeId, Guid companyId, Guid roleId, DocumentType type) => new(employeeId, companyId, roleId, type);
+        public static SecurityDocument Create(Guid id, Guid employeeId, Guid companyId, Guid roleId, DocumentType type) => new(id, employeeId, companyId, roleId, type);
 
         public void AddDocument(Document document)
         {

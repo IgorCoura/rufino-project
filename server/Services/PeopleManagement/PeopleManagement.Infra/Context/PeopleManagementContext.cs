@@ -6,7 +6,9 @@ using PeopleManagement.Domain.AggregatesModel.CompanyAggregate;
 using PeopleManagement.Domain.AggregatesModel.DepartmentAggregate;
 using PeopleManagement.Domain.AggregatesModel.EmployeeAggregate;
 using PeopleManagement.Domain.AggregatesModel.PositionAggregate;
+using PeopleManagement.Domain.AggregatesModel.RequireSecurityDocumentsAggregate;
 using PeopleManagement.Domain.AggregatesModel.RoleAggregate;
+using PeopleManagement.Domain.AggregatesModel.SecurityDocumentAggregate;
 using PeopleManagement.Domain.AggregatesModel.WorkplaceAggregate;
 using PeopleManagement.Domain.SeedWord;
 using PeopleManagement.Infra.Extension;
@@ -26,6 +28,9 @@ namespace PeopleManagement.Infra.Context
         public DbSet<Position> Positions { get; set; }
         public DbSet<Role> Roles { get; set; }
         public DbSet<Workplace> Workplaces { get; set; }
+        public DbSet<SecurityDocument> SecurityDocuments { get; set; }
+        public DbSet<Document> Documents { get; set; }
+        public DbSet<RequireSecurityDocuments> RequireDocuments { get; set; }
 
         private readonly IMediator? _mediator;
         private readonly IDbContextTransaction? _currentTransaction;
@@ -53,6 +58,9 @@ namespace PeopleManagement.Infra.Context
             modelBuilder.ApplyConfiguration(new PositionMap());
             modelBuilder.ApplyConfiguration(new RoleMap());
             modelBuilder.ApplyConfiguration(new WorkplaceMap());
+            modelBuilder.ApplyConfiguration(new SecurityDocumentMap());
+            modelBuilder.ApplyConfiguration(new DocumentMap());
+            modelBuilder.ApplyConfiguration(new RequireSecurityDocumentsMap());
         }
 
         public async Task<bool> SaveEntitiesAsync(CancellationToken cancellationToken = default)

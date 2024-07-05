@@ -7,10 +7,10 @@ namespace PeopleManagement.Domain.AggregatesModel.SecurityDocumentAggregate
     public class DocumentType : Enumeration
     {
         private const string Header = "header.html";
-        private const string Body = "body.html";
+        private const string Body = "index.html";
         private const string Footer = "footer.html";
 
-        public static DocumentType NR01 = new(1, nameof(NR01), "NR01", typeof(IRecoverNR01InfoToSegurityDocumentService),  TimeSpan.FromDays(365));
+        public static DocumentType NR01 = new(1, nameof(NR01), "NR01", typeof(IRecoverNR01InfoToSecurityDocumentService),  TimeSpan.FromDays(365));
         public string TemplateName { get; private set; }
         public TimeSpan? ValidityInterval { get; private set; }
         public Type Type { get; private set; }

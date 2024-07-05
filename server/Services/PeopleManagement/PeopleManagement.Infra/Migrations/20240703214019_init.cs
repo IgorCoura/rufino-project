@@ -265,6 +265,34 @@ namespace PeopleManagement.Infra.Migrations
                 });
 
             migrationBuilder.CreateTable(
+                name: "RequireDocuments",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "uuid", nullable: false),
+                    RoleId = table.Column<Guid>(type: "uuid", nullable: false),
+                    CompanyId = table.Column<Guid>(type: "uuid", nullable: false),
+                    Types = table.Column<string>(type: "text", nullable: false),
+                    CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    UpdatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_RequireDocuments", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_RequireDocuments_Companies_CompanyId",
+                        column: x => x.CompanyId,
+                        principalTable: "Companies",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Restrict);
+                    table.ForeignKey(
+                        name: "FK_RequireDocuments_Roles_RoleId",
+                        column: x => x.RoleId,
+                        principalTable: "Roles",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Restrict);
+                });
+
+            migrationBuilder.CreateTable(
                 name: "Dependent",
                 columns: table => new
                 {
@@ -315,6 +343,68 @@ namespace PeopleManagement.Infra.Migrations
                         onDelete: ReferentialAction.Cascade);
                 });
 
+            migrationBuilder.CreateTable(
+                name: "SecurityDocuments",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "uuid", nullable: false),
+                    EmployeeId = table.Column<Guid>(type: "uuid", nullable: false),
+                    CompanyId = table.Column<Guid>(type: "uuid", nullable: false),
+                    RoleId = table.Column<Guid>(type: "uuid", nullable: false),
+                    Status = table.Column<int>(type: "integer", nullable: false),
+                    Type = table.Column<int>(type: "integer", nullable: false),
+                    CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    UpdatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_SecurityDocuments", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_SecurityDocuments_Companies_CompanyId",
+                        column: x => x.CompanyId,
+                        principalTable: "Companies",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Restrict);
+                    table.ForeignKey(
+                        name: "FK_SecurityDocuments_Employees_EmployeeId",
+                        column: x => x.EmployeeId,
+                        principalTable: "Employees",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Restrict);
+                    table.ForeignKey(
+                        name: "FK_SecurityDocuments_Roles_RoleId",
+                        column: x => x.RoleId,
+                        principalTable: "Roles",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Restrict);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "Documents",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "uuid", nullable: false),
+                    Content = table.Column<string>(type: "text", nullable: false),
+                    Validity = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
+                    Name = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: true),
+                    Extension = table.Column<int>(type: "integer", nullable: true),
+                    Status = table.Column<int>(type: "integer", nullable: false),
+                    Date = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    SecurityDocumentId = table.Column<Guid>(type: "uuid", nullable: false),
+                    CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    UpdatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_Documents", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_Documents_SecurityDocuments_SecurityDocumentId",
+                        column: x => x.SecurityDocumentId,
+                        principalTable: "SecurityDocuments",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
             migrationBuilder.CreateIndex(
                 name: "IX_Archives_CompanyId",
                 table: "Archives",
@@ -324,6 +414,11 @@ namespace PeopleManagement.Infra.Migrations
                 name: "IX_Departments_CompanyId",
                 table: "Departments",
                 column: "CompanyId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Documents_SecurityDocumentId",
+                table: "Documents",
+                column: "SecurityDocumentId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_Employees_CompanyId",
@@ -362,6 +457,16 @@ namespace PeopleManagement.Infra.Migrations
                 column: "DepartmentId");
 
             migrationBuilder.CreateIndex(
+                name: "IX_RequireDocuments_CompanyId",
+                table: "RequireDocuments",
+                column: "CompanyId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_RequireDocuments_RoleId",
+                table: "RequireDocuments",
+                column: "RoleId");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_Roles_CompanyId",
                 table: "Roles",
                 column: "CompanyId");
@@ -370,6 +475,21 @@ namespace PeopleManagement.Infra.Migrations
                 name: "IX_Roles_PositionId",
                 table: "Roles",
                 column: "PositionId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_SecurityDocuments_CompanyId",
+                table: "SecurityDocuments",
+                column: "CompanyId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_SecurityDocuments_EmployeeId",
+                table: "SecurityDocuments",
+                column: "EmployeeId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_SecurityDocuments_RoleId",
+                table: "SecurityDocuments",
+                column: "RoleId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_Workplaces_CompanyId",
@@ -384,16 +504,25 @@ namespace PeopleManagement.Infra.Migrations
                 name: "Dependent");
 
             migrationBuilder.DropTable(
+                name: "Documents");
+
+            migrationBuilder.DropTable(
                 name: "EmploymentContract");
 
             migrationBuilder.DropTable(
                 name: "File");
 
             migrationBuilder.DropTable(
-                name: "Employees");
+                name: "RequireDocuments");
+
+            migrationBuilder.DropTable(
+                name: "SecurityDocuments");
 
             migrationBuilder.DropTable(
                 name: "Archives");
+
+            migrationBuilder.DropTable(
+                name: "Employees");
 
             migrationBuilder.DropTable(
                 name: "Roles");

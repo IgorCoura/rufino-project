@@ -35,6 +35,7 @@ namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
         public static implicit operator Registration(string input) =>
             new(input);
 
+        public override string ToString() => Value;
         protected override IEnumerable<object?> GetEqualityComponents()
         {
             yield return Value;

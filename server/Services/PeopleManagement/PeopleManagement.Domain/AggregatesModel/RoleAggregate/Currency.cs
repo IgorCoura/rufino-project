@@ -22,6 +22,8 @@ namespace PeopleManagement.Domain.AggregatesModel.RoleAggregate
 
                 if (value.Length > MAX_LENGTH)
                     throw new DomainException(this, DomainErrors.FieldCannotBeLarger(nameof(Value), MAX_LENGTH));
+
+                _value = value;
             }
         }
 

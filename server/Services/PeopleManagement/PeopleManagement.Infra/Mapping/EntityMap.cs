@@ -9,6 +9,9 @@ namespace PeopleManagement.Infra.Mapping
         public virtual void Configure(EntityTypeBuilder<T> builder)
         {
             builder.HasKey(x => x.Id);
+            builder.Property(x => x.Id)
+                .IsRequired()
+                .ValueGeneratedNever();
             builder.Property(x => x.CreatedAt).IsRequired();
             builder.Property(x => x.UpdatedAt).IsRequired();
         }

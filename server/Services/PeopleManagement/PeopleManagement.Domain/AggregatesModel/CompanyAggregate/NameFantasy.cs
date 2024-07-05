@@ -41,6 +41,7 @@ namespace PeopleManagement.Domain.AggregatesModel.CompanyAggregate
         public static implicit operator NameFantasy(string value) =>
             new(value);
 
+        public override string ToString() => Value;
         protected override IEnumerable<object?> GetEqualityComponents()
         {
             yield return Value;
