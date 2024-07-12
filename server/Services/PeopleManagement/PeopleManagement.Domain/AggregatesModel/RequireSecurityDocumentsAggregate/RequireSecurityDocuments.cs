@@ -13,6 +13,6 @@
             DocumentsTemplatesIds = documentsTemplatesIds;
         }
 
-        public RequireSecurityDocuments Create(Guid id, Guid roleId, Guid companyId, params Guid[] documentsTemplatesIds) => new(id, roleId, companyId, [.. documentsTemplatesIds]);
+        public static RequireSecurityDocuments Create(Guid id, Guid roleId, Guid companyId, params Guid[] documentsTemplatesIds) => new(id, roleId, companyId, [.. documentsTemplatesIds]);
     }
 }

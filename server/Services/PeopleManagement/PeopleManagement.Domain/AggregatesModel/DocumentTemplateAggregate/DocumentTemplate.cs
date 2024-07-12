@@ -13,13 +13,6 @@
         public RecoverDataType RecoverDataType { get; private set; } = recoverDataType;
         public TimeSpan? DocumentValidityDuration { get; private set; } = documentValidityDuration;
 
-        public static DocumentTemplate Create(Guid id, Guid companyId, FileName bodyFileName, FileName headerFileName, 
-            FileName footerFileName, RecoverDataType recoverDataType, TimeSpan? documentValidityDuration)
-        {
-            var directory = Guid.NewGuid().ToString();
-            return new DocumentTemplate(id, companyId, directory, bodyFileName, headerFileName, footerFileName, recoverDataType, documentValidityDuration);
-        }
-
         public static DocumentTemplate Create(Guid id, Guid companyId, DirectoryName directory, FileName bodyFileName, FileName headerFileName,
             FileName footerFileName, RecoverDataType recoverDataType, TimeSpan? documentValidityDuration)
         {

@@ -2,16 +2,10 @@
 using PeopleManagement.Domain.AggregatesModel.CompanyAggregate.Interfaces;
 
 namespace PeopleManagement.Application.Commands.CompanyCommands.CreateCompany;
-public class CreateCompanyCommandHandler : IRequestHandler<CreateCompanyCommand, BaseDTO>
+public class CreateCompanyCommandHandler(ICompanyRepository companyReposity, ILogger<CreateCompanyCommandHandler> logger) : IRequestHandler<CreateCompanyCommand, BaseDTO>
 {
-    private readonly ICompanyRepository _companyReposity;
-    private readonly ILogger<CreateCompanyCommandHandler> _logger;
-
-    public CreateCompanyCommandHandler(ICompanyRepository companyReposity, ILogger<CreateCompanyCommandHandler> logger)
-    {
-        _companyReposity = companyReposity;
-        _logger = logger;
-    }
+    private readonly ICompanyRepository _companyReposity = companyReposity;
+    private readonly ILogger<CreateCompanyCommandHandler> _logger = logger;
 
     public async Task<BaseDTO> Handle(CreateCompanyCommand request, CancellationToken cancellationToken)
     {

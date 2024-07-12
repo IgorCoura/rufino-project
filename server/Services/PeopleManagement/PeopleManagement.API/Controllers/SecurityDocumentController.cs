@@ -2,6 +2,10 @@
 using PeopleManagement.Application.Commands.SecurityDocumentCommands.CreateDocument;
 using PeopleManagement.Application.Commands.SecurityDocumentCommands.GeneratePdf;
 using PeopleManagement.Application.Commands.SecurityDocumentCommands.InsertDocument;
+using PeopleManagement.Domain.AggregatesModel.CompanyAggregate.Interfaces;
+using PeopleManagement.Domain.SeedWord;
+using PeopleManagement.Infra.Context;
+using PeopleManagement.Infra.Repository;
 
 namespace PeopleManagement.API.Controllers
 {

@@ -30,6 +30,7 @@ namespace PeopleManagement.API.DependencyInjection
 
             service.AddScoped<IPdfService, PdfService>();
             service.AddScoped<IBlobService, BlobAzureService>();
+            service.AddScoped<ILocalStorageService, LocalStorageService>();
 
             service.AddSingleton(x => new BlobServiceClient(configuration.GetConnectionString("BlobStorage")));
 
