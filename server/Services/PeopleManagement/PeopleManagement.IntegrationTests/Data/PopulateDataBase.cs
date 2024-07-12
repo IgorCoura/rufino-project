@@ -16,6 +16,7 @@ using FileArchive = PeopleManagement.Domain.AggregatesModel.ArchiveAggregate.Fil
 using ExtensionArchive = PeopleManagement.Domain.AggregatesModel.ArchiveAggregate.Extension;
 using PeopleManagement.Domain.AggregatesModel.SecurityDocumentAggregate.Interfaces;
 using System.Json;
+using PeopleManagement.Domain.AggregatesModel.DocumentTemplateAggregate;
 
 namespace PeopleManagement.IntegrationTests.Data
 {
@@ -182,7 +183,7 @@ namespace PeopleManagement.IntegrationTests.Data
 
             var dateNow = DateOnly.FromDateTime(DateTime.UtcNow);
 
-            employee.CompleteAdmission("RU123", dateNow, EmploymentContactType.CLT);
+            employee.CompleteAdmission(Guid.NewGuid().ToString()[..14], dateNow, EmploymentContactType.CLT);
 
             await context.Employees.AddAsync(employee, cancellationToken);
 
@@ -192,12 +193,21 @@ namespace PeopleManagement.IntegrationTests.Data
             return employee;
         }
 
+        public static async Task<DocumentTemplate> InsertDocumentTemplate(this PeopleManagementContext context, Guid companyId,  CancellationToken cancellationToken = default)
+        {
+            var documentTemplate = DocumentTemplate.Create(Guid.NewGuid(), companyId, "NR01", "index.html", "header.html", "footer.html", RecoverDataType.NR01, TimeSpan.FromDays(365));
+            await context.DocumentTemplates.AddAsync(documentTemplate, cancellationToken);
+            return documentTemplate;
+        }
+
         public static async Task<SecurityDocument> InsertSecurityDocument(this PeopleManagementContext context, CancellationToken cancellationToken = default)
         {
             var employee = await context.InsertEmployeeActive(cancellationToken);
             await context.SaveChangesAsync(cancellationToken);
 
-            var securityDocument = SecurityDocument.Create(Guid.NewGuid(), employee.Id, employee.CompanyId, (Guid)employee.RoleId!, DocumentType.NR01);
+            var documentTemplate = await context.InsertDocumentTemplate(employee.CompanyId, cancellationToken);
+
+            var securityDocument = SecurityDocument.Create(Guid.NewGuid(), employee.Id, employee.CompanyId, (Guid)employee.RoleId!, documentTemplate.Id);
             await context.SecurityDocuments.AddAsync(securityDocument, cancellationToken);
 
             return securityDocument;
@@ -216,9 +226,6 @@ namespace PeopleManagement.IntegrationTests.Data
             var archives = await context.Archives.Where(x => x.OwnerId == ownerId && x.CompanyId == companyId && x.Status == ArchiveStatus.RequiresFile).ToListAsync(cancellationToken);
             archives.ForEach(x => x.AddFile(FileArchive.CreateWithoutVerification(Guid.NewGuid().ToString(), ExtensionArchive.PDF, DateTime.UtcNow)));
         }
-
-
-        
 
     }
 }

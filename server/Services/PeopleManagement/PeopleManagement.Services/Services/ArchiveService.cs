@@ -6,15 +6,9 @@ using ArchiveFile = PeopleManagement.Domain.AggregatesModel.ArchiveAggregate.Fil
 
 namespace PeopleManagement.Services.Services
 {
-    public class ArchiveService : IArchiveService
+    public class ArchiveService(IArchiveRepository archiveRepository) : IArchiveService
     {
-        private readonly IArchiveRepository _archiveRepository;
-
-        public ArchiveService(IArchiveRepository archiveRepository)
-        {
-            _archiveRepository = archiveRepository;
-        }
-        
+        private readonly IArchiveRepository _archiveRepository = archiveRepository;
 
         public async Task RequiresFile(Guid ownerId, Guid companyId, Category category)
         {

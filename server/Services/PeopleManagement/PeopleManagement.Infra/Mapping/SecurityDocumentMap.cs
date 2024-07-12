@@ -1,5 +1,6 @@
 ﻿using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using PeopleManagement.Domain.AggregatesModel.CompanyAggregate;
+using PeopleManagement.Domain.AggregatesModel.DocumentTemplateAggregate;
 using PeopleManagement.Domain.AggregatesModel.EmployeeAggregate;
 using PeopleManagement.Domain.AggregatesModel.RoleAggregate;
 using PeopleManagement.Domain.AggregatesModel.SecurityDocumentAggregate;
@@ -16,11 +17,12 @@ namespace PeopleManagement.Infra.Mapping
                 .HasConversion(x => x.Id, x => x)
                 .IsRequired();
 
-            builder.Property(x => x.Type)
-                .HasConversion(x => x.Id, x => x)
-                .IsRequired();
+            builder.HasOne<DocumentTemplate>()
+                .WithMany()
+                .HasForeignKey(x => x.DocumentTemplateId)
+                .IsRequired()
+                .OnDelete(Microsoft.EntityFrameworkCore.DeleteBehavior.Restrict);
 
-            
             builder.HasOne<Company>()
                 .WithMany()
                 .HasForeignKey(x => x.CompanyId)

@@ -12,17 +12,18 @@ var builder = WebApplication.CreateBuilder(args);
 var env = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT");
 //Config DataBase
 
+var a = builder.Configuration.GetConnectionString("Postgresql");
+
 builder.Services.AddDbContext<PeopleManagementContext>(options =>
 {
     options.UseNpgsql(
-        builder.Configuration["Database:ConnectionString"],
+        builder.Configuration.GetConnectionString("Postgresql"),
         npgsqlOptionsAction: sqlOptions =>
         {
             sqlOptions.EnableRetryOnFailure(maxRetryCount: 15, maxRetryDelay: TimeSpan.FromSeconds(30), errorCodesToAdd: null);
         })
         .UseExceptionProcessor();
 });
-
 
 builder.Services.AddMediatR(cfg =>
 {

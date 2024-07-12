@@ -1,55 +1,63 @@
-﻿using PeopleManagement.Domain.AggregatesModel.SecurityDocumentAggregate;
+﻿using PeopleManagement.Domain.AggregatesModel.DocumentTemplateAggregate;
+using PeopleManagement.Domain.AggregatesModel.DocumentTemplateAggregate.options;
 using PeopleManagement.Domain.AggregatesModel.SecurityDocumentAggregate.Interfaces;
-using PeopleManagement.Domain.AggregatesModel.SecurityDocumentAggregate.Options;
 using PuppeteerSharp;
 using PuppeteerSharp.Media;
+using System.Text.Json.Nodes;
 
 namespace PeopleManagement.Infra.Services
 {
-    public class PdfService : IPdfService
+    public class PdfService(DocumentTemplatesOptions documentTemplatesOptions) : IPdfService
     {
-        private readonly TemplatesPathOptions _templatesPathOptions;
+        private readonly DocumentTemplatesOptions _documentTemplatesOptions = documentTemplatesOptions;
 
-        public PdfService(TemplatesPathOptions templatesPathOptions)
+        public async Task<byte[]> ConvertHtml2Pdf(DocumentTemplate template, string values, CancellationToken cancellationToken = default)
         {
-            _templatesPathOptions = templatesPathOptions;
-        }
+            var jsonValues = JsonValue.Parse(values);
 
-        public async Task<byte[]> ConvertHtml2Pdf(DocumentType type, string values, CancellationToken cancellationToken = default)
-        {
-            //var cd = Directory.GetCurrentDirectory(); //DEGUB 
+            //Path
+            var currentDirectory = Directory.GetCurrentDirectory();
+            var templateDirectory = Path.Combine(currentDirectory, _documentTemplatesOptions.SourceDirectory, template.Directory.ToString());;
+            var headerPath = Path.Combine(templateDirectory, template.HeaderFileName.ToString());
+            var footerPath = Path.Combine(templateDirectory, template.FooterFileName.ToString());
+            var indexHtmlPath = Path.Combine(templateDirectory, template.BodyFileName.ToString());
+
+            //Pdf Generate
             await DownloadBrowser();
 
             await using var browser = await Puppeteer.LaunchAsync(new LaunchOptions { Headless = true });
 
             await using var page = await browser.NewPageAsync();
 
-            var htmlPath = Path.Combine(Directory.GetCurrentDirectory(), type.GetBodyPath(_templatesPathOptions.Source));
-            await page.GoToAsync("file:" + htmlPath);
+            await page.GoToAsync("file:" + indexHtmlPath);
 
             var contentPage = await page.GetContentAsync();
 
-            var htmlContent = await HtmlService.CreateTemporaryHtmlTemplate(contentPage, type, values, _templatesPathOptions.Source, cancellationToken);
+            var newContentPage = await HtmlService.InsertValuesInHtmlTemplate(jsonValues, contentPage); 
 
-            await page.SetContentAsync(htmlContent.Body);
+            await page.SetContentAsync(newContentPage);
 
             var pdfOptions = new PdfOptions
             {
                 Format = PaperFormat.A4,
                 PrintBackground = true,
                 DisplayHeaderFooter = true,
-                HeaderTemplate = htmlContent.Header,
-                FooterTemplate = htmlContent.Footer,
+                HeaderTemplate = await GetHtmlContent(headerPath, jsonValues),
+                FooterTemplate = await GetHtmlContent(footerPath, jsonValues),
             };
-
-            
-            var path = Path.Combine(Directory.GetCurrentDirectory(), "temp", $"{Guid.NewGuid()}.pdf");
-            await page.PdfAsync(path, pdfOptions);
+                      
 
             var pdfBytes = await page.PdfDataAsync(pdfOptions);
             await browser.CloseAsync();
 
             return pdfBytes;
+        }
+
+        private static async Task<string> GetHtmlContent(string path, JsonNode? values)
+        {
+            var htmlContentInit = await File.ReadAllTextAsync(path);
+            var htmlContentFinal = await HtmlService.InsertValuesInHtmlTemplate(values, htmlContentInit);
+            return htmlContentFinal;
         }
 
         private static async Task DownloadBrowser()

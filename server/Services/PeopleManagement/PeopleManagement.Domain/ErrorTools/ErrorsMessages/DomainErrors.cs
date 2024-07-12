@@ -47,6 +47,7 @@ namespace PeopleManagement.Domain.ErrorTools.ErrorsMessages
         #region ObjectErrors 300-399
 
         public static Error ObjectNotFound(string NameObject, string Value) => new("PMD301", $"{NameObject} identificado por {Value}, não foi encontrar.", new { NameObject, Value});
+        public static Error ErroCreateEnumeration(string NameEnumeration, string Value) => new("PMD302", $"O {NameEnumeration} com o valor {Value}, não é aceito.", new {NameEnumeration, Value});
 
         #endregion
 

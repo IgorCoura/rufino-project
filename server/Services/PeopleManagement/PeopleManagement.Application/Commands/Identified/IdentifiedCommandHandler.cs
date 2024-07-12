@@ -1,18 +1,10 @@
 ﻿namespace PeopleManagement.Application.Commands.Identified
 {
-    public class IdentifiedCommandHandler<T, R> : IRequestHandler<IdentifiedCommand<T, R>, R>
+    public class IdentifiedCommandHandler<T, R>(IMediator mediator, ILogger<IdentifiedCommandHandler<T, R>> logger) : IRequestHandler<IdentifiedCommand<T, R>, R>
     where T : IRequest<R> 
     {
-        private IList<IdentifiedCommand<T, R>> _commands;
-        private readonly IMediator _mediator;
-        private readonly ILogger<IdentifiedCommandHandler<T, R>> _logger;
-
-        public IdentifiedCommandHandler(IMediator mediator, ILogger<IdentifiedCommandHandler<T, R>> logger)
-        {
-            _commands = new List<IdentifiedCommand<T, R>>();
-            _mediator = mediator;
-            _logger = logger;
-        }
+        private readonly List<IdentifiedCommand<T, R>> _commands = [];
+        private readonly IMediator _mediator = mediator;
 
         protected virtual R CreateResultForDuplicateRequest()
         {

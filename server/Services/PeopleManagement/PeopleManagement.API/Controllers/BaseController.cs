@@ -4,14 +4,9 @@ using PeopleManagement.Domain.ErrorTools.ErrorsMessages;
 namespace PeopleManagement.API.Controllers
 {
     [ApiController]
-    public class BaseController : ControllerBase
+    public class BaseController(ILogger<CompanyController> logger) : ControllerBase
     {
-        private readonly ILogger<CompanyController> _logger;
-
-        public BaseController(ILogger<CompanyController> logger)
-        {
-            _logger = logger;
-        }
+        private readonly ILogger<CompanyController> _logger = logger;
 
         protected ActionResult OkResponse(object? result = null)
         {

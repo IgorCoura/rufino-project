@@ -161,6 +161,7 @@ namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
             Registration = registration;
             Status = Status.Active;
             AddDomainEvent(RequestDocumentsEvent.Contract(Id, CompanyId));
+            //TODO:AddDomainEvent(RequestSecurityDocumentsEvent.Create(Id, CompanyId, RoleId!.Value));
         }
 
         public Result ThereNotPendingIssues()

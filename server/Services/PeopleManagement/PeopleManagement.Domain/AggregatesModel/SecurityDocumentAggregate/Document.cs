@@ -1,5 +1,6 @@
 ﻿using PeopleManagement.Domain.ErrorTools;
 using PeopleManagement.Domain.ErrorTools.ErrorsMessages;
+using System.Reflection.Metadata;
 
 namespace PeopleManagement.Domain.AggregatesModel.SecurityDocumentAggregate
 {
@@ -37,18 +38,22 @@ namespace PeopleManagement.Domain.AggregatesModel.SecurityDocumentAggregate
 
         public static Document Create(Guid id, string content, DateTime date, SecurityDocument securityDocument) => new(id, content, date, securityDocument);
 
-        public void InsertFileWithRequireValidation(Name name, Extension extension, DateTime? validity)
+        public void InsertFileWithRequireValidation(Name name, Extension extension, TimeSpan? documentValidityDuration)
         {
+            if (documentValidityDuration != null)
+                Validity = Date.Add((documentValidityDuration.Value));
+
             Name = name;
-            Extension = Extension;
-            Validity = validity;
+            Extension = extension;
             Status = DocumentStatus.RequiredValidaty;
         }
-        public void InsertFileWithoutRequireValidation(Name name, Extension extension, DateTime? validity)
+        public void InsertFileWithoutRequireValidation(Name name, Extension extension, TimeSpan? documentValidityDuration)
         {
+            if (documentValidityDuration != null)
+                Validity = Date.Add((documentValidityDuration.Value));
+
             Name = name;
-            Extension = Extension;
-            Validity = validity;
+            Extension = extension;
             Status = DocumentStatus.OK;
         }
 

@@ -10,51 +10,45 @@ namespace PeopleManagement.Domain.AggregatesModel.SecurityDocumentAggregate
         public Guid RoleId { get; private set; }
         public List<Document> Documents { get; private set; } = [];
         public SecurityDocumentStatus Status { get; private set; } = SecurityDocumentStatus.RequiredDocument;
-        public DocumentType Type { get; private set; }
+        public Guid DocumentTemplateId { get; private set; }
 
-        private SecurityDocument(Guid id, Guid employeeId, Guid companyId, Guid roleId, DocumentType type) : base(id)
+        private SecurityDocument(Guid id, Guid employeeId, Guid companyId, Guid roleId, Guid documentTemplateId) : base(id)
         {
             EmployeeId = employeeId;
             CompanyId = companyId;
             RoleId = roleId;
-            Type = type;
+            DocumentTemplateId = documentTemplateId;
         }
 
-        public static SecurityDocument Create(Guid id, Guid employeeId, Guid companyId, Guid roleId, DocumentType type) => new(id, employeeId, companyId, roleId, type);
+        public static SecurityDocument Create(Guid id, Guid employeeId, Guid companyId, Guid roleId, Guid documentTemplateId) => new(id, employeeId, companyId, roleId, documentTemplateId);
 
         public void AddDocument(Document document)
         {
             Documents.Add(document);
         }
 
-        public void InsertDocumentWithRequireValidation(Guid documentId, Name name, Extension extension)
+        public void InsertDocumentWithRequireValidation(Guid documentId, Name name, Extension extension, TimeSpan? documentValidityDuration)
         {
             var document = Documents.FirstOrDefault(x => x.Id == documentId)
                 ?? throw new DomainException(this, DomainErrors.ObjectNotFound(nameof(Document), documentId.ToString()));
 
-            DateTime? validity = null;
-            if (Type.ValidityInterval != null)
-                validity = document.Date.Add((TimeSpan)Type.ValidityInterval);
-
-            document.InsertFileWithRequireValidation(name, extension, validity);
+            document.InsertFileWithRequireValidation(name, extension, documentValidityDuration);
 
             Status = SecurityDocumentStatus.RequiredValidaty;
         }
 
-        public void InsertDocumentWithoutRequireValidation(Guid documentId, Name name, Extension extension)
+        public string InsertDocumentWithoutRequireValidation(Guid documentId, Name name, Extension extension, TimeSpan? documentValidityDuration)
         {
             var document = Documents.FirstOrDefault(x => x.Id == documentId)
                 ?? throw new DomainException(this, DomainErrors.ObjectNotFound(nameof(Document), documentId.ToString()));
-
-            DateTime? validity = null;
-            if (Type.ValidityInterval != null)
-                validity = document.Date.Add((TimeSpan)Type.ValidityInterval);
-
-            document.InsertFileWithRequireValidation(name, extension, validity);
+            
+            document.InsertFileWithRequireValidation(name, extension, documentValidityDuration);
 
             Status = SecurityDocumentStatus.OK;
 
             DeprecateOldDocuments(documentId);
+
+            return document.GetNameWithExtension;
         }
 
         public void ValidateDocument(Guid documentId, bool IsValid)

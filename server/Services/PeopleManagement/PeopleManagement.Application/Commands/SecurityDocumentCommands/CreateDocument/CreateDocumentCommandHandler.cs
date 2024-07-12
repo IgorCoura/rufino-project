@@ -3,16 +3,10 @@ using PeopleManagement.Domain.AggregatesModel.SecurityDocumentAggregate.Interfac
 
 namespace PeopleManagement.Application.Commands.SecurityDocumentCommands.CreateDocument
 {
-    public class CreateDocumentCommandHandler : IRequestHandler<CreateDocumentCommand, CreateDocumentResponse>
+    public class CreateDocumentCommandHandler(ISecurityDocumentService securityDocumentService, ISecurityDocumentRepository securityDocumentRepository) : IRequestHandler<CreateDocumentCommand, CreateDocumentResponse>
     {
-        private readonly ISecurityDocumentService _securityDocumentService;
-        private readonly ISecurityDocumentRepository _securityDocumentRepository;
-
-        public CreateDocumentCommandHandler(ISecurityDocumentService securityDocumentService, ISecurityDocumentRepository securityDocumentRepository)
-        {
-            _securityDocumentService = securityDocumentService;
-            _securityDocumentRepository = securityDocumentRepository;
-        }
+        private readonly ISecurityDocumentService _securityDocumentService = securityDocumentService;
+        private readonly ISecurityDocumentRepository _securityDocumentRepository = securityDocumentRepository;
 
         public async Task<CreateDocumentResponse> Handle(CreateDocumentCommand request, CancellationToken cancellationToken)
         {
