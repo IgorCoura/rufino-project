@@ -1,38 +1,11 @@
-﻿using Newtonsoft.Json.Linq;
-using System.Runtime.InteropServices.JavaScript;
-using System.Text.Json;
-using System.Text.Json.Nodes;
+﻿using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
-using DocumentType = PeopleManagement.Domain.AggregatesModel.SecurityDocumentAggregate.DocumentType;
 
 namespace PeopleManagement.Infra.Services
 {
-    public static class HtmlService
+    public static partial class HtmlService
     {
-        public static async Task<HtmlContent> CreateTemporaryHtmlTemplate(string bodyContent, DocumentType type, string values, string templatesSourcePath, CancellationToken cancellationToken = default)
-        {
-            var json = JsonValue.Parse(values);
-
-            var header = await CreateHtmlContent(json, type.GetHeaderPath(templatesSourcePath));
-            var body = await InsertValuesInHtmlTemplate(json, bodyContent);
-            var footer = await CreateHtmlContent(json, type.GetFooterPath(templatesSourcePath));
-
-            return new HtmlContent(header, body, footer);
-        }
-            
-
-        private static async Task<string> CreateHtmlContent(JsonNode? values, string path)
-        {
-            if (!File.Exists(path))
-            {
-                throw new FileNotFoundException($"O arquivo no caminho {path}, não foi encontrado. Erro lançado em {nameof(HtmlService)}.");
-            }
-            var htmlContentInit = await File.ReadAllTextAsync(path);
-            var htmlContentFinal = await InsertValuesInHtmlTemplate(values, htmlContentInit);
-            return htmlContentFinal;
-        }
-
-        private static Task<string> InsertValuesInHtmlTemplate(JsonNode? values, string html)
+        public static Task<string> InsertValuesInHtmlTemplate(JsonNode? values, string html)
         {
             var result = ReplaceListTags(html, values);
             result = ReplaceDoubleBraces(result, values);
@@ -41,7 +14,7 @@ namespace PeopleManagement.Infra.Services
 
         private static string ReplaceListTags(string html, JsonNode? values)
         {
-            Regex regex_list = new Regex(@"<list:([^>]+)([^>]*)>([\s\S]*?)<\/list:\1>");
+            Regex regex_list = HtmlListRegex();
             return regex_list.Replace(html, m =>
             {
                 string keysString = m.Groups[1].Value;
@@ -68,7 +41,7 @@ namespace PeopleManagement.Infra.Services
 
         private static string ReplaceDoubleBraces(string content, JsonNode? values)
         {
-            Regex regex = new Regex("{{(.*?)}}");
+            Regex regex = HtmlParamRegex();
             return regex.Replace(content, m =>
             {
                 string keysString = m.Groups[1].Value;
@@ -97,9 +70,9 @@ namespace PeopleManagement.Infra.Services
                         return null;
                     }
 
-                    if(value is JsonObject)
+                    if(value is JsonObject jsonValue)
                     {
-                        return GetValueFromJson(keys.Skip(1).ToArray(), (JsonObject)value);
+                        return GetValueFromJson(keys.Skip(1).ToArray(), jsonValue);
                     }
 
                     return value;
@@ -113,5 +86,10 @@ namespace PeopleManagement.Infra.Services
         }
 
         public record HtmlContent(string Header, string Body, string Footer);
+
+        [GeneratedRegex(@"<list:([^>]+)([^>]*)>([\s\S]*?)<\/list:\1>")]
+        private static partial Regex HtmlListRegex();
+        [GeneratedRegex("{{(.*?)}}")]
+        private static partial Regex HtmlParamRegex();
     }
 }

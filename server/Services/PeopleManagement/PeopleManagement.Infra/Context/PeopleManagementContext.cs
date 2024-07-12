@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore.Storage;
 using PeopleManagement.Domain.AggregatesModel.ArchiveAggregate;
 using PeopleManagement.Domain.AggregatesModel.CompanyAggregate;
 using PeopleManagement.Domain.AggregatesModel.DepartmentAggregate;
+using PeopleManagement.Domain.AggregatesModel.DocumentTemplateAggregate;
 using PeopleManagement.Domain.AggregatesModel.EmployeeAggregate;
 using PeopleManagement.Domain.AggregatesModel.PositionAggregate;
 using PeopleManagement.Domain.AggregatesModel.RequireSecurityDocumentsAggregate;
@@ -24,13 +25,18 @@ namespace PeopleManagement.Infra.Context
         public DbSet<Archive> Archives { get; set; }
         public DbSet<Company> Companies { get; set; }
         public DbSet<Department> Departments { get; set; }
+        public DbSet<Document> Documents { get; set; }
+        public DbSet<DocumentTemplate> DocumentTemplates { get; set; }
+
         public DbSet<Employee> Employees { get; set; }
         public DbSet<Position> Positions { get; set; }
-        public DbSet<Role> Roles { get; set; }
-        public DbSet<Workplace> Workplaces { get; set; }
-        public DbSet<SecurityDocument> SecurityDocuments { get; set; }
-        public DbSet<Document> Documents { get; set; }
         public DbSet<RequireSecurityDocuments> RequireDocuments { get; set; }
+        public DbSet<Role> Roles { get; set; }
+        public DbSet<SecurityDocument> SecurityDocuments { get; set; }
+        public DbSet<Workplace> Workplaces { get; set; }
+        
+        
+       
 
         private readonly IMediator? _mediator;
         private readonly IDbContextTransaction? _currentTransaction;
@@ -61,6 +67,7 @@ namespace PeopleManagement.Infra.Context
             modelBuilder.ApplyConfiguration(new SecurityDocumentMap());
             modelBuilder.ApplyConfiguration(new DocumentMap());
             modelBuilder.ApplyConfiguration(new RequireSecurityDocumentsMap());
+            modelBuilder.ApplyConfiguration(new DocumentTemplateMap());
         }
 
         public async Task<bool> SaveEntitiesAsync(CancellationToken cancellationToken = default)

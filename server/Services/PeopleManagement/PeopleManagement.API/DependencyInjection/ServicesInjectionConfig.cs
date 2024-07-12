@@ -1,4 +1,5 @@
 ﻿using PeopleManagement.Domain.AggregatesModel.ArchiveAggregate.Interfaces;
+using PeopleManagement.Domain.AggregatesModel.DocumentTemplateAggregate.options;
 using PeopleManagement.Domain.AggregatesModel.EmployeeAggregate.Interfaces;
 using PeopleManagement.Domain.AggregatesModel.SecurityDocumentAggregate.Interfaces;
 using PeopleManagement.Domain.AggregatesModel.SecurityDocumentAggregate.Options;
@@ -17,12 +18,16 @@ namespace PeopleManagement.API.DependencyInjection
             service.AddScoped<ICompleteAdmissionService, CompleteAdmissionService>();
             service.AddScoped<ISecurityDocumentService, SecurityDocumentService>();
 
-            var templatesPathOptions = new TemplatesPathOptions();
-            configuration.Bind("TemplatesPath", templatesPathOptions);
+            var securityDocumentsFilesOptions = new SecurityDocumentsFilesOptions();
+            configuration.Bind("SecurityDocumentsFilesOptions", securityDocumentsFilesOptions);
+            service.AddSingleton(securityDocumentsFilesOptions);
 
-            service.AddSingleton(templatesPathOptions);
+            var documentTemplatesOptions = new DocumentTemplatesOptions();
+            configuration.Bind("DocumentTemplatesOptions", documentTemplatesOptions);
+            service.AddSingleton(documentTemplatesOptions);
 
             return service;
         }
     }
 }
+

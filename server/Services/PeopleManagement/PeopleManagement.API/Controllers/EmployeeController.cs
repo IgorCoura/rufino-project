@@ -18,14 +18,8 @@ using PeopleManagement.Application.Commands.Identified;
 namespace PeopleManagement.API.Controllers
 {
     [Route("api/v1/[controller]")]
-    public class EmployeeController : BaseController
+    public class EmployeeController(ILogger<CompanyController> logger, IMediator mediator) : BaseController(logger)
     {
-        private readonly IMediator _mediator;
-        public EmployeeController(ILogger<CompanyController> logger, IMediator mediator) : base(logger)
-        {
-            _mediator = mediator;
-        }
-
         [HttpPost("Create")]
         public async Task<ActionResult<CreateEmployeeResponse>> Create([FromBody] CreateEmployeeCommand request, [FromHeader(Name = "x-requestid")] Guid requestId)
         {
@@ -33,7 +27,7 @@ namespace PeopleManagement.API.Controllers
 
                 SendingCommandLog(request.Name, request, requestId);
 
-                var result = await _mediator.Send(command);
+                var result = await mediator.Send(command);
 
                 CommandResultLog(result, request.Name, request, requestId);
 
@@ -48,7 +42,7 @@ namespace PeopleManagement.API.Controllers
 
             SendingCommandLog(request.EmployeeId, request, requestId);
 
-            var result = await _mediator.Send(command);
+            var result = await mediator.Send(command);
 
             CommandResultLog(result, request.EmployeeId, request, requestId);
 
@@ -62,7 +56,7 @@ namespace PeopleManagement.API.Controllers
 
             SendingCommandLog(request.EmployeeId, request, requestId);
 
-            var result = await _mediator.Send(command);
+            var result = await mediator.Send(command);
 
             CommandResultLog(result, request.EmployeeId, request, requestId);
 
@@ -76,7 +70,7 @@ namespace PeopleManagement.API.Controllers
 
             SendingCommandLog(request.EmployeeId, request, requestId);
 
-            var result = await _mediator.Send(command);
+            var result = await mediator.Send(command);
 
             CommandResultLog(result, request.EmployeeId, request, requestId);
 
@@ -90,7 +84,7 @@ namespace PeopleManagement.API.Controllers
 
             SendingCommandLog(request.EmployeeId, request, requestId);
 
-            var result = await _mediator.Send(command);
+            var result = await mediator.Send(command);
 
             CommandResultLog(result, request.EmployeeId, request, requestId);
 
@@ -104,7 +98,7 @@ namespace PeopleManagement.API.Controllers
 
             SendingCommandLog(request.EmployeeId, request, requestId);
 
-            var result = await _mediator.Send(command);
+            var result = await mediator.Send(command);
 
             CommandResultLog(result, request.EmployeeId, request, requestId);
 
@@ -118,7 +112,7 @@ namespace PeopleManagement.API.Controllers
 
             SendingCommandLog(request.EmployeeId, request, requestId);
 
-            var result = await _mediator.Send(command);
+            var result = await mediator.Send(command);
 
             CommandResultLog(result, request.EmployeeId, request, requestId);
 
@@ -132,7 +126,7 @@ namespace PeopleManagement.API.Controllers
 
             SendingCommandLog(request.EmployeeId, request, requestId);
 
-            var result = await _mediator.Send(command);
+            var result = await mediator.Send(command);
 
             CommandResultLog(result, request.EmployeeId, request, requestId);
 
@@ -146,7 +140,7 @@ namespace PeopleManagement.API.Controllers
 
             SendingCommandLog(request.EmployeeId, request, requestId);
 
-            var result = await _mediator.Send(command);
+            var result = await mediator.Send(command);
 
             CommandResultLog(result, request.EmployeeId, request, requestId);
 
@@ -160,7 +154,7 @@ namespace PeopleManagement.API.Controllers
 
             SendingCommandLog(request.EmployeeId, request, requestId);
 
-            var result = await _mediator.Send(command);
+            var result = await mediator.Send(command);
 
             CommandResultLog(result, request.EmployeeId, request, requestId);
 
@@ -174,7 +168,7 @@ namespace PeopleManagement.API.Controllers
 
             SendingCommandLog(request.EmployeeId, request, requestId);
 
-            var result = await _mediator.Send(command);
+            var result = await mediator.Send(command);
 
             CommandResultLog(result, request.EmployeeId, request, requestId);
 
@@ -188,7 +182,7 @@ namespace PeopleManagement.API.Controllers
 
             SendingCommandLog(request.EmployeeId, request, requestId);
 
-            var result = await _mediator.Send(command);
+            var result = await mediator.Send(command);
 
             CommandResultLog(result, request.EmployeeId, request, requestId);
 
@@ -202,7 +196,7 @@ namespace PeopleManagement.API.Controllers
 
             SendingCommandLog(request.EmployeeId, request, requestId);
 
-            var result = await _mediator.Send(command);
+            var result = await mediator.Send(command);
 
             CommandResultLog(result, request.EmployeeId, request, requestId);
 
@@ -216,7 +210,7 @@ namespace PeopleManagement.API.Controllers
 
             SendingCommandLog(request.EmployeeId, request, requestId);
 
-            var result = await _mediator.Send(command);
+            var result = await mediator.Send(command);
 
             CommandResultLog(result, request.EmployeeId, request, requestId);
 
@@ -230,7 +224,7 @@ namespace PeopleManagement.API.Controllers
 
             SendingCommandLog(request.EmployeeId, request, requestId);
 
-            var result = await _mediator.Send(command);
+            var result = await mediator.Send(command);
 
             CommandResultLog(result, request.EmployeeId, request, requestId);
 

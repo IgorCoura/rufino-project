@@ -4,15 +4,10 @@ using PeopleManagement.Domain.AggregatesModel.EmployeeAggregate.Events;
 
 namespace PeopleManagement.Services.DomainEventHandlers
 {
-    public class RequiresDocumentsEventHandler : INotificationHandler<RequestDocumentsEvent>
+    public class RequiresDocumentsEventHandler(IArchiveService archiveService, IArchiveRepository archiveRepository) : INotificationHandler<RequestDocumentsEvent>
     {
-        private readonly IArchiveService _archiveService;
-        private readonly IArchiveRepository _archiveRepository;
-        public RequiresDocumentsEventHandler(IArchiveService archiveService, IArchiveRepository archiveRepository)
-        {
-            _archiveService = archiveService;
-            _archiveRepository = archiveRepository;
-        }
+        private readonly IArchiveService _archiveService = archiveService;
+        private readonly IArchiveRepository _archiveRepository = archiveRepository;
 
         public async Task Handle(RequestDocumentsEvent notification, CancellationToken cancellationToken)
         {

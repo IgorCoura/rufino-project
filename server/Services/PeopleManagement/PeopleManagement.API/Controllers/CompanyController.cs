@@ -5,14 +5,9 @@ using PeopleManagement.Application.Commands.Identified;
 namespace PeopleManagement.API.Controllers
 {
     [Route("api/v1/[controller]")]
-    public class CompanyController : BaseController
+    public class CompanyController(IMediator mediator, ILogger<CompanyController> logger) : BaseController(logger)
     {
-        private readonly IMediator _mediator;       
-
-        public CompanyController(IMediator mediator, ILogger<CompanyController> logger) : base(logger)
-        {
-            _mediator = mediator;
-        }
+        private readonly IMediator _mediator = mediator;
 
         [HttpPost]
         public async Task<ActionResult<BaseDTO>> CreateCompany([FromBody] CreateCompanyCommand request, [FromHeader(Name = "x-requestid")] string requestId)
