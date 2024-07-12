@@ -14,9 +14,8 @@ using ContactCompany = PeopleManagement.Domain.AggregatesModel.CompanyAggregate.
 using EmplyeeAddress = PeopleManagement.Domain.AggregatesModel.EmployeeAggregate.Address;
 using FileArchive = PeopleManagement.Domain.AggregatesModel.ArchiveAggregate.File;
 using ExtensionArchive = PeopleManagement.Domain.AggregatesModel.ArchiveAggregate.Extension;
-using PeopleManagement.Domain.AggregatesModel.SecurityDocumentAggregate.Interfaces;
-using System.Json;
 using PeopleManagement.Domain.AggregatesModel.DocumentTemplateAggregate;
+using PeopleManagement.Domain.AggregatesModel.RequireSecurityDocumentsAggregate;
 
 namespace PeopleManagement.IntegrationTests.Data
 {
@@ -131,11 +130,13 @@ namespace PeopleManagement.IntegrationTests.Data
         public static async Task<Employee> InsertEmployeeWithAllInfoToAdmission(this PeopleManagementContext context, CancellationToken cancellationToken = default)
         {
             var company = await context.InsertCompany(cancellationToken);
-            var id = Guid.NewGuid();
-            var employee = Employee.Create(id, company.Id, "Rosdevaldo Pereira");
             var role = await context.InsertRole(company.Id, cancellationToken);
             var workplace = await context.InsertWorkplace(company.Id, cancellationToken);
+            var documentTemplate = await context.InsertDocumentTemplate(company.Id, cancellationToken);
+            var requiresDocuments = await context.InsertRequireSecurityDocuments(company.Id, role.Id, [documentTemplate.Id], cancellationToken);
 
+            var id = Guid.NewGuid();
+            var employee = Employee.Create(id, company.Id, "Rosdevaldo Pereira");
             employee.RoleId = role.Id;
             employee.WorkPlaceId = workplace.Id;
 
@@ -161,12 +162,14 @@ namespace PeopleManagement.IntegrationTests.Data
 
         public static async Task<Employee> InsertEmployeeActive(this PeopleManagementContext context, CancellationToken cancellationToken = default)
         {
-            var company = await context.InsertCompany(cancellationToken);
-            var id = Guid.NewGuid();
-            var employee = Employee.Create(id, company.Id, "Rosdevaldo Pereira");
+            var company = await context.InsertCompany(cancellationToken);            
             var role = await context.InsertRole(company.Id, cancellationToken);
             var workplace = await context.InsertWorkplace(company.Id, cancellationToken);
+            var documentTemplate = await context.InsertDocumentTemplate(company.Id, cancellationToken);
+            var requiresDocuments = await context.InsertRequireSecurityDocuments(company.Id, role.Id, [documentTemplate.Id], cancellationToken);
 
+            var id = Guid.NewGuid();
+            var employee = Employee.Create(id, company.Id, "Rosdevaldo Pereira");
             employee.RoleId = role.Id;
             employee.WorkPlaceId = workplace.Id;
 
@@ -193,6 +196,54 @@ namespace PeopleManagement.IntegrationTests.Data
             return employee;
         }
 
+        public static async Task<Employee> InsertEmployeeActive(this PeopleManagementContext context, Guid companyId, Guid roleId, CancellationToken cancellationToken = default)
+        {
+            var id = Guid.NewGuid();
+            var employee = Employee.Create(id, companyId, "Rosdevaldo Pereira");
+            var workplace = await context.InsertWorkplace(companyId, cancellationToken);
+
+            employee.RoleId = roleId;
+            employee.WorkPlaceId = workplace.Id;
+
+            employee.Address = EmplyeeAddress.Create("69015-756", "Rua 11", "936", "", "Colônia Terra Nova", "Manaus", "Amazonia", "Brasil");
+
+
+            employee.PersonalInfo = PersonalInfo.Create(Deficiency.Create("", []), MaritalStatus.Single, Gender.MALE, Ethinicity.White, EducationLevel.CompleteHigher);
+            employee.IdCard = IdCard.Create("216.456.330-12", "Maria Silva", "Marcio Andrade", "Suzano", "São Paulo", "Brasileiro", DateOnly.Parse("2000/01/01"));
+            employee.VoteId = VoteId.Create("281662310124");
+
+            employee.MedicalAdmissionExam = MedicalAdmissionExam.Create(DateOnly.Parse("2024/04/20"), DateOnly.Parse("2025/04/20"));
+
+            employee.MilitaryDocument = MilitaryDocument.Create("2312312312", "Rersevista");
+
+            var dateNow = DateOnly.FromDateTime(DateTime.UtcNow);
+
+            employee.CompleteAdmission(Guid.NewGuid().ToString()[..14], dateNow, EmploymentContactType.CLT);
+
+            await context.Employees.AddAsync(employee, cancellationToken);
+
+            await context.SaveChangesAsync(cancellationToken);
+            await context.SendRequiresFiles(employee.Id, employee.CompanyId, cancellationToken);
+
+            return employee;
+        }
+
+        public static async Task<RequireSecurityDocuments> InsertRequireSecurityDocuments(this PeopleManagementContext context, Guid companyId, Guid roleId, Guid[] documentTemplates, CancellationToken cancellationToken = default)
+        {
+            var id = Guid.NewGuid();
+            var requiresSecurityDocuments = RequireSecurityDocuments.Create(id, roleId, companyId, documentTemplates);
+            await context.RequireDocuments.AddAsync(requiresSecurityDocuments, cancellationToken);
+            return requiresSecurityDocuments;
+        }
+
+        public static async Task<DocumentTemplate> InsertDocumentTemplate(this PeopleManagementContext context, CancellationToken cancellationToken = default)
+        {
+            var company = await context.InsertCompany(cancellationToken);
+            var documentTemplate = DocumentTemplate.Create(Guid.NewGuid(), company.Id, Guid.NewGuid().ToString(), "index.html", "header.html", "footer.html", RecoverDataType.NR01, TimeSpan.FromDays(365));
+            await context.DocumentTemplates.AddAsync(documentTemplate, cancellationToken);
+            return documentTemplate;
+        }
+
         public static async Task<DocumentTemplate> InsertDocumentTemplate(this PeopleManagementContext context, Guid companyId,  CancellationToken cancellationToken = default)
         {
             var documentTemplate = DocumentTemplate.Create(Guid.NewGuid(), companyId, "NR01", "index.html", "header.html", "footer.html", RecoverDataType.NR01, TimeSpan.FromDays(365));
@@ -200,12 +251,16 @@ namespace PeopleManagement.IntegrationTests.Data
             return documentTemplate;
         }
 
+
         public static async Task<SecurityDocument> InsertSecurityDocument(this PeopleManagementContext context, CancellationToken cancellationToken = default)
         {
-            var employee = await context.InsertEmployeeActive(cancellationToken);
-            await context.SaveChangesAsync(cancellationToken);
+            var company = await context.InsertCompany(cancellationToken);
+            var role = await context.InsertRole(company.Id, cancellationToken);
+            var documentTemplate = await context.InsertDocumentTemplate(company.Id, cancellationToken);
+            var requiresDocuments = await context.InsertRequireSecurityDocuments(company.Id, role.Id, [documentTemplate.Id], cancellationToken);
 
-            var documentTemplate = await context.InsertDocumentTemplate(employee.CompanyId, cancellationToken);
+            var employee = await context.InsertEmployeeActive(company.Id, role.Id, cancellationToken);
+            await context.SaveChangesAsync(cancellationToken);
 
             var securityDocument = SecurityDocument.Create(Guid.NewGuid(), employee.Id, employee.CompanyId, (Guid)employee.RoleId!, documentTemplate.Id);
             await context.SecurityDocuments.AddAsync(securityDocument, cancellationToken);

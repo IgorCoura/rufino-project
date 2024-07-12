@@ -1,6 +1,4 @@
-﻿using Docker.DotNet.Models;
-using Microsoft.EntityFrameworkCore;
-using Newtonsoft.Json;
+﻿using Microsoft.EntityFrameworkCore;
 using PeopleManagement.Application.Commands.SecurityDocumentCommands.CreateDocument;
 using PeopleManagement.Application.Commands.SecurityDocumentCommands.InsertDocument;
 using PeopleManagement.Domain.AggregatesModel.SecurityDocumentAggregate;
@@ -10,21 +8,19 @@ using PeopleManagement.IntegrationTests.Configs;
 using PeopleManagement.IntegrationTests.Data;
 using System.Net;
 using System.Net.Http.Headers;
-using System.Reflection.Metadata;
-using System.Text;
-using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace PeopleManagement.IntegrationTests.Tests
 {
     public class SecurityDocumentTests(PeopleManagementWebApplicationFactory factory) : IClassFixture<PeopleManagementWebApplicationFactory>
     {
+        private readonly PeopleManagementWebApplicationFactory _factory = factory;
         [Fact]
         public async Task CreateDocumentWithSuccess()
         {
             var cancellationToken = new CancellationToken();
 
-            var context = factory.GetContext();
-            var client = factory.CreateClient();
+            var context = _factory.GetContext();
+            var client = _factory.CreateClient();
 
             var securityDocument = await context.InsertSecurityDocument(cancellationToken);
             await context.SaveChangesAsync(cancellationToken);
@@ -53,8 +49,8 @@ namespace PeopleManagement.IntegrationTests.Tests
         {
             var cancellationToken = new CancellationToken();
 
-            var context = factory.GetContext();
-            var client = factory.CreateClient();
+            var context = _factory.GetContext();
+            var client = _factory.CreateClient();
             
             var securityDocument = await context.InsertSecurityDocument(cancellationToken);
             await context.SaveChangesAsync(cancellationToken);
@@ -82,8 +78,8 @@ namespace PeopleManagement.IntegrationTests.Tests
         {
             var cancellationToken = new CancellationToken();
 
-            var context = factory.GetContext();
-            var client = factory.CreateClient();
+            var context = _factory.GetContext();
+            var client = _factory.CreateClient();
 
             var securityDocument = await context.InsertSecurityDocument(cancellationToken);
             await context.SaveChangesAsync(cancellationToken);
@@ -94,7 +90,7 @@ namespace PeopleManagement.IntegrationTests.Tests
             using var content = new MultipartFormDataContent();
 
             // Carregue o arquivo PDF em um stream
-            var path = Path.Combine("test", "199f760b-601d-4a05-aee4-d0a9dbcc6b4d.pdf");
+            var path = Path.Combine("DataForTests", "199f760b-601d-4a05-aee4-d0a9dbcc6b4d.pdf");
             using var fileStream = new FileStream(path, FileMode.Open, FileAccess.Read);
             using var streamContent = new StreamContent(fileStream);
                 
@@ -117,7 +113,7 @@ namespace PeopleManagement.IntegrationTests.Tests
             Assert.Equal(Extension.PDF, documentResponse.Extension);
             Assert.Equal(typeof(Guid), documentResponse.Id.GetType());
 
-            using var scope = factory.Services.CreateScope();
+            using var scope = _factory.Services.CreateScope();
 
             var blobService = scope.ServiceProvider.GetRequiredService<IBlobService>();
             var options = scope.ServiceProvider.GetRequiredService<SecurityDocumentsFilesOptions>();

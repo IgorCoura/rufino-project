@@ -51,6 +51,7 @@ namespace PeopleManagement.Domain.ErrorTools.ErrorsMessages
 
         #endregion
 
+        
         public static class Employee
         {
             public static Error AlreadyExistOpenContract() => new("PMD.EMP10", $"Já existe um contrato de trabalho aberto.", new { });

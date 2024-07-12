@@ -18,6 +18,7 @@ using PeopleManagement.Application.Commands.EmployeeCommands.FinishedContractEmp
 using PeopleManagement.Domain.AggregatesModel.ArchiveAggregate;
 using PeopleManagement.Domain.AggregatesModel.EmployeeAggregate;
 using PeopleManagement.Domain.AggregatesModel.EmployeeAggregate.Events;
+using PeopleManagement.Domain.AggregatesModel.SecurityDocumentAggregate;
 using PeopleManagement.Infra.Context;
 using PeopleManagement.IntegrationTests.Configs;
 using PeopleManagement.IntegrationTests.Data;
@@ -27,15 +28,9 @@ using NameEmployee = PeopleManagement.Domain.AggregatesModel.EmployeeAggregate.N
 
 namespace PeopleManagement.IntegrationTests.Tests
 {
-    public class EmployeeTest : IClassFixture<PeopleManagementWebApplicationFactory>
+    public class EmployeeTest(PeopleManagementWebApplicationFactory factory) : IClassFixture<PeopleManagementWebApplicationFactory>
     {
-        private readonly PeopleManagementWebApplicationFactory _factory;
-
-        public EmployeeTest(PeopleManagementWebApplicationFactory factory)
-        {
-            _factory = factory;
-            
-        }
+        private readonly PeopleManagementWebApplicationFactory _factory = factory;
 
         [Fact]
         public async Task CreateEmployeeWithSuccess()
@@ -458,6 +453,9 @@ namespace PeopleManagement.IntegrationTests.Tests
             Assert.Equal(command.ContractType, contract.ContractType.Id);
             Assert.Equal(DateOnly.FromDateTime(DateTime.UtcNow), contract.InitDate);
             
+            var securityDocument = await context.SecurityDocuments.AsNoTracking().FirstAsync(x  => x.EmployeeId == employee.Id && x.CompanyId == employee.CompanyId);
+            Assert.Equal(SecurityDocumentStatus.RequiredDocument ,securityDocument.Status);
+
             await CheckRequestDocumentEvent(context, RequestDocumentsEvent.Contract(employee.Id, employee.CompanyId), cancellationToken);
         }
 
