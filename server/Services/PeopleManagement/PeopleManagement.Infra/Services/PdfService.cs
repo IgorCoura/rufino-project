@@ -1,6 +1,6 @@
 ﻿using PeopleManagement.Domain.AggregatesModel.DocumentTemplateAggregate;
 using PeopleManagement.Domain.AggregatesModel.DocumentTemplateAggregate.options;
-using PeopleManagement.Domain.AggregatesModel.SecurityDocumentAggregate.Interfaces;
+using PeopleManagement.Domain.AggregatesModel.DocumentAggregate.Interfaces;
 using PuppeteerSharp;
 using PuppeteerSharp.Media;
 using System.Text.Json.Nodes;

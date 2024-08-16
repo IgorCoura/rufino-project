@@ -1,6 +1,11 @@
 ﻿using Microsoft.EntityFrameworkCore.Metadata.Builders;
-using Document = PeopleManagement.Domain.AggregatesModel.SecurityDocumentAggregate.Document;
-using Name = PeopleManagement.Domain.AggregatesModel.SecurityDocumentAggregate.Name;
+using PeopleManagement.Domain.AggregatesModel.CompanyAggregate;
+using PeopleManagement.Domain.AggregatesModel.DocumentTemplateAggregate;
+using PeopleManagement.Domain.AggregatesModel.EmployeeAggregate;
+using PeopleManagement.Domain.AggregatesModel.RoleAggregate;
+using PeopleManagement.Domain.AggregatesModel.DocumentAggregate;
+using Name = PeopleManagement.Domain.AggregatesModel.DocumentAggregate.Name;
+using Description = PeopleManagement.Domain.AggregatesModel.DocumentAggregate.Description;
 
 namespace PeopleManagement.Infra.Mapping
 {
@@ -10,29 +15,49 @@ namespace PeopleManagement.Infra.Mapping
         {
             base.Configure(builder);
 
-            builder.Property(x => x.Content)
-                .IsRequired();
-
-            builder.Property(x => x.Validity)
-                .IsRequired(false);
-
-            builder.Property(x => x.Name)
-                .HasConversion(x => x!.Value, x => x)
-                .HasMaxLength(Name.MAX_LENGTH)
-                .IsRequired(false);
-
-            builder.Property(x => x.Extension)
-                .HasConversion(x => x!.Id, x => x)
-                .IsRequired(false);
-
             builder.Property(x => x.Status)
                 .HasConversion(x => x.Id, x => x)
                 .IsRequired();
 
-            builder.Property(x => x.Date)
+            builder.Property(x => x.Name)
+                .HasConversion(x => x.Value, x => x)
+                .HasMaxLength(Name.MAX_LENGTH)
                 .IsRequired();
 
-            
+            builder.Property(x => x.Description)
+                .HasConversion(x => x.Value, x => x)
+                .HasMaxLength(Description.MAX_LENGTH)
+                .IsRequired();
+
+            builder.HasOne<DocumentTemplate>()
+                .WithMany()
+                .HasForeignKey(x => x.DocumentTemplateId)
+                .IsRequired()
+                .OnDelete(Microsoft.EntityFrameworkCore.DeleteBehavior.Restrict);
+
+            builder.HasOne<Company>()
+                .WithMany()
+                .HasForeignKey(x => x.CompanyId)
+                .IsRequired()
+                .OnDelete(Microsoft.EntityFrameworkCore.DeleteBehavior.Restrict);
+
+            builder.HasOne<Role>()
+                .WithMany()
+                .HasForeignKey(x => x.RoleId)
+                .IsRequired()
+                .OnDelete(Microsoft.EntityFrameworkCore.DeleteBehavior.Restrict);
+
+            builder.HasOne<Employee>()
+                .WithMany()
+                .HasForeignKey(x => x.EmployeeId)
+                .IsRequired()
+                .OnDelete(Microsoft.EntityFrameworkCore.DeleteBehavior.Restrict);
+
+            builder.HasMany(x => x.DocumentsUnits)
+                .WithOne(x => x.Document)
+                .HasForeignKey(x => x.DocumentId)
+                .OnDelete(Microsoft.EntityFrameworkCore.DeleteBehavior.Cascade)
+                .IsRequired();
         }
     }
 }

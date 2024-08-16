@@ -61,19 +61,31 @@ def check_name_in_list(text, list_names, remove_chars):
 
 def rename_file(base_path, current_name, new_name):
     path_current_name = base_path +"/" + current_name
-    path_new_name = base_path + "/" + new_name
+    path_new_name = base_path + "/" + unidecode(new_name, "utf-8")
     os.rename(path_current_name, path_new_name)
     
-def put_name_files(base_pdf_path, name_folder, name_pdf, csv_path):
+def put_name_files(base_pdf_path, name_folder, name_pdf, list_of_lines):
     text_pdf = get_text_pdf(base_pdf_path, name_pdf)
-    list_of_lines = get_lines_csv(csv_path)
     match_name = text_contains_name_in_list(text_pdf, list_of_lines)
     if match_name == None:
         return
     new_name = name_folder + " - " + match_name + ".pdf"
-    if match_name != None:
-        rename_file(base_pdf_path, name_pdf, new_name)
+    rename_file(base_pdf_path, name_pdf, new_name)
+    return match_name
 
+def find_name_in_list(name, list):
+    name_normalize = formatar_string(name)
+    for item in list:
+        item_normalize = formatar_string(item)
+        if name_normalize == item_normalize:
+            return True
+    return False
+
+def check_name_list_not_used(folder_name, files_renames, list_name, list_names_not_found):
+    for name in list_name:
+        if find_name_in_list(name[0], files_renames) == False:
+            return_name = unidecode(name[0], "utf-8")
+            list_names_not_found.append(f"Não encontrado: {folder_name} - {return_name}")
 
 print("Incio")
 base_path = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))) + "/NomeacaoDePDFs"
@@ -82,13 +94,38 @@ csv_path = base_path + '/data/funcionarios.csv'
 folders_base = base_path + '/input'
 
 folders = os.listdir(folders_base)
+list_of_lines = get_lines_csv(csv_path)
+
+list_errors = []
+list_names_not_found = []
 
 for folder in folders:
     files_base = folders_base +"/" +folder
     files = os.listdir(files_base)
+    files_renames = []
+    count = len(files)
     for file in files:
-        put_name_files(files_base, folder, file, csv_path)
-
+        try:
+            name = put_name_files(files_base, folder, file, list_of_lines)
+            if name == None:
+                continue
+            files_renames.append(name)
+        except Exception as e:
+            list_errors.append(f"{e}")
+            continue
+        finally:
+            count -= 1
+            print(f"{folder}: {count}/{len(files)}")
+    check_name_list_not_used(folder, files_renames, list_of_lines, list_names_not_found)
+        
+print("Errors Lançados")
+for erro in list_errors:
+    print(erro)
+    
+print("Nomes não encontrados")
+for name in list_names_not_found:
+    print(name)
+    
 print("Fim")
 
 

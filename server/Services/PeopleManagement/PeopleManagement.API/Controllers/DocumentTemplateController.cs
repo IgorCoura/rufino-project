@@ -1,8 +1,6 @@
 ﻿using PeopleManagement.Application.Commands.DocumentTemplateCommands.CreateDocumentTemplate;
 using PeopleManagement.Application.Commands.DocumentTemplateCommands.InsertDocumentTemplate;
-using PeopleManagement.Application.Commands.EmployeeCommands.CreateEmployee;
 using PeopleManagement.Application.Commands.Identified;
-using PeopleManagement.Application.Commands.SecurityDocumentCommands.InsertDocument;
 
 namespace PeopleManagement.API.Controllers
 {

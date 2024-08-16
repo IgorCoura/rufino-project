@@ -1,33 +1,18 @@
-﻿using PeopleManagement.Domain.AggregatesModel.ArchiveAggregate;
-
-namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate.Events
+﻿namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate.Events
 {
     public record RequestDocumentsEvent : INotification
     {
-        public Guid OwnerId { get; private set; }
+        public Guid EmployeeId { get; private set; }
         public Guid CompanyId { get; private set; }
-        public Category[] Categories { get; private set; }
-
-        private RequestDocumentsEvent(Guid ownerId, Guid companyId, Category[] categories)
+        public Guid RoleId { get; set; }
+        private RequestDocumentsEvent(Guid employeeId, Guid companyId, Guid roleId)
         {
-            OwnerId = ownerId;
+            EmployeeId = employeeId;
             CompanyId = companyId;
-            Categories = categories;
+            RoleId = roleId;
         }
 
-        public static RequestDocumentsEvent IdCard(Guid ownerId, Guid companyId) => new(ownerId, companyId, [Category.IdCard]);
-        public static RequestDocumentsEvent VoteId(Guid ownerId, Guid companyId) => new(ownerId, companyId, [Category.VoteId]);
-        public static RequestDocumentsEvent AddressProof(Guid ownerId, Guid companyId) => new(ownerId, companyId, [Category.AddressProof]);
-        public static RequestDocumentsEvent Contract(Guid ownerId, Guid companyId) => new(ownerId, companyId, [Category.Contract]);
-        public static RequestDocumentsEvent ChildDocument(Guid ownerId, Guid companyId) => new(ownerId, companyId, [Category.ChildDocument]);
-        public static RequestDocumentsEvent EducationalCertificate(Guid ownerId, Guid companyId) => new(ownerId, companyId, [Category.EducationalCertificate]);
-        public static RequestDocumentsEvent VaccinationCertificate(Guid ownerId, Guid companyId) => new(ownerId, companyId, [Category.VaccinationCertificate]);
-        public static RequestDocumentsEvent MilitarDocument(Guid ownerId, Guid companyId) => new(ownerId, companyId, [Category.MilitaryDocument]);
-        public static RequestDocumentsEvent MedicalAdmissionExam(Guid ownerId, Guid companyId) => new(ownerId, companyId, [Category.MedicalAdmissionExam]);
-        public static RequestDocumentsEvent SpouseDocument(Guid ownerId, Guid companyId) => new(ownerId, companyId, [Category.SpouseDocument, Category.MarriageCertificate]);
-        public static RequestDocumentsEvent MedicalDismissalExam(Guid ownerId, Guid companyId) => new(ownerId, companyId, [Category.MedicalDismissalExam]);
+        public static RequestDocumentsEvent Create(Guid employeeId, Guid companyId, Guid roleId) => new(employeeId, companyId, roleId);
 
     }
 }
-
-

@@ -47,5 +47,9 @@ namespace PeopleManagement.Domain.AggregatesModel.ArchiveAggregate
             yield return Value;
         }
 
+        public override string ToString()
+        {
+            return Value;
+        }
     }
 }

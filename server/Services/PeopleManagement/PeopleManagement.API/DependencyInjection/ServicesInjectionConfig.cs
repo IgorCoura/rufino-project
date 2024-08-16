@@ -1,10 +1,11 @@
 ﻿using PeopleManagement.Domain.AggregatesModel.ArchiveAggregate.Interfaces;
+using PeopleManagement.Domain.AggregatesModel.DocumentTemplateAggregate.Interfaces;
 using PeopleManagement.Domain.AggregatesModel.DocumentTemplateAggregate.options;
 using PeopleManagement.Domain.AggregatesModel.EmployeeAggregate.Interfaces;
-using PeopleManagement.Domain.AggregatesModel.SecurityDocumentAggregate.Interfaces;
-using PeopleManagement.Domain.AggregatesModel.SecurityDocumentAggregate.Options;
+using PeopleManagement.Domain.AggregatesModel.DocumentAggregate.Interfaces;
 using PeopleManagement.Services.Services;
 using PeopleManagement.Services.Services.RecoverInfoToSecurityDocument;
+using PeopleManagement.Domain.AggregatesModel.ArchiveCategoryAggregate.Interfaces;
 
 namespace PeopleManagement.API.DependencyInjection
 {
@@ -12,15 +13,13 @@ namespace PeopleManagement.API.DependencyInjection
     {
         public static IServiceCollection AddServicesDependencies(this IServiceCollection service, IConfiguration configuration)
         {
-            service.AddScoped<IRecoverNR01InfoToSecurityDocumentService, RecoverNR01InfoToSecurityDocumentService>();
+            service.AddScoped<IRecoverNR01InfoToDocumentTemplateService, RecoverNR01InfoToDocumentTemplateService>();
 
             service.AddScoped<IArchiveService, ArchiveService>();
             service.AddScoped<ICompleteAdmissionService, CompleteAdmissionService>();
-            service.AddScoped<ISecurityDocumentService, SecurityDocumentService>();
-
-            var securityDocumentsFilesOptions = new SecurityDocumentsFilesOptions();
-            configuration.Bind("SecurityDocumentsFilesOptions", securityDocumentsFilesOptions);
-            service.AddSingleton(securityDocumentsFilesOptions);
+            service.AddScoped<IDocumentService, DocumentService>();
+            service.AddScoped<IArchiveCategoryService , ArchiveCategoryService>();
+            service.AddScoped<ISignDocumentService , SignDocumentService>();
 
             var documentTemplatesOptions = new DocumentTemplatesOptions();
             configuration.Bind("DocumentTemplatesOptions", documentTemplatesOptions);

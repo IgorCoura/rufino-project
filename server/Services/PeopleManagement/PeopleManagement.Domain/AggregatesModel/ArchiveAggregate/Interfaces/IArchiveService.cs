@@ -2,11 +2,8 @@
 {
     public interface IArchiveService
     {
-        Task RequiresFile(Guid ownerId, Guid companyId, Category category);
-        Task RequiresFiles(Guid ownerId, Guid companyId, Category[] category);
-        Task InsertFile(Guid ownerId, Guid companyId, Category category, File file, Stream stream);
-
-        Task<IEnumerable<Archive>> GetArchivesWithRequiresFiles(Guid ownerId, Guid companyId);
+        Task RequiresFiles(Guid ownerId, Guid companyId, int eventId, CancellationToken cancellationToken = default);
+        Task<Guid> InsertFile(Guid ownerId, Guid companyId, Guid categoryId, File file, Stream stream, CancellationToken cancellation = default);
         Task<bool> HasRequiresFiles(Guid ownerId, Guid companyId);
     }
 }

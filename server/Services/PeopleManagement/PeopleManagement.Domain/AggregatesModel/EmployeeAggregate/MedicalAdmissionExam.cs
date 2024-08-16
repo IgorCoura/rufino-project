@@ -50,7 +50,7 @@ namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
 
         public bool IsValid => _validity > DateOnly.FromDateTime(DateTime.UtcNow);
 
-        public bool NeedDismissalExam => DateExam.AddDays(LIMIT_DAYS_TO_DEMISSIONAL_EXAM) > DateOnly.FromDateTime(DateTime.UtcNow);
+        public bool NeedDismissalExam => DateExam.AddDays(LIMIT_DAYS_TO_DEMISSIONAL_EXAM) < DateOnly.FromDateTime(DateTime.UtcNow);
 
         protected override IEnumerable<object?> GetEqualityComponents()
         {

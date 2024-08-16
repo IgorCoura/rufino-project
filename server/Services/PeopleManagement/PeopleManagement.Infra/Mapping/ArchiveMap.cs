@@ -1,6 +1,8 @@
 ﻿using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using PeopleManagement.Domain.AggregatesModel.ArchiveAggregate;
+using PeopleManagement.Domain.AggregatesModel.ArchiveCategoryAggregate;
 using PeopleManagement.Domain.AggregatesModel.CompanyAggregate;
+using Name = PeopleManagement.Domain.AggregatesModel.ArchiveAggregate.Name;
 
 namespace PeopleManagement.Infra.Mapping
 {
@@ -31,10 +33,6 @@ namespace PeopleManagement.Infra.Mapping
                     .IsRequired();
             });
 
-            builder.Property(x => x.Category)
-                .HasConversion(x => x.Id, x => x)
-                .IsRequired();
-
             builder.Property(x => x.Status)
                 .HasConversion(x => x.Id, x => x)
                 .IsRequired();
@@ -44,6 +42,12 @@ namespace PeopleManagement.Infra.Mapping
                 .HasForeignKey(x => x.CompanyId)
                 .IsRequired()
                 .OnDelete(Microsoft.EntityFrameworkCore.DeleteBehavior.Restrict);
+
+            builder.HasOne<ArchiveCategory>()
+               .WithMany()
+               .HasForeignKey(x => x.CategoryId)
+               .IsRequired()
+               .OnDelete(Microsoft.EntityFrameworkCore.DeleteBehavior.Restrict);
 
         }
     }
