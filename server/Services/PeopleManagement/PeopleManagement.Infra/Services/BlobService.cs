@@ -1,5 +1,5 @@
 ﻿using Azure.Storage.Blobs;
-using PeopleManagement.Domain.AggregatesModel.SecurityDocumentAggregate.Interfaces;
+using PeopleManagement.Domain.AggregatesModel.DocumentAggregate.Interfaces;
 
 namespace PeopleManagement.Infra.Services
 {

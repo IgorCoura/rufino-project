@@ -15,10 +15,16 @@
 
         public static class File
         {
-            public static Error ExtesionFileInvalid(string NameObject, string Extesion) => new("PMI.FILE401", $"A extesão {Extesion} para {NameObject} é invalida", new { NameObject, Extesion });
-            public static Error InvalidFile() => new("PMI.FILE402", $"O arquivo enviado está em um formato Invalido.", new { });
-            public static Error FileNotFound() => new("PMI.FILE403", $"Não foi possivel encotrar o arquivo.", new { });
+            public static Error ExtesionFileInvalid(string NameObject, string Extesion) => new("PMI.FILE101", $"A extesão {Extesion} para {NameObject} é invalida", new { NameObject, Extesion });
+            public static Error InvalidFile() => new("PMI.FILE102", $"O arquivo enviado está em um formato Invalido.", new { });
+            public static Error FileNotFound() => new("PMI.FILE103", $"Não foi possivel encotrar o arquivo.", new { });
+           
+        }
 
+        public static class SignDoc
+        {
+            public static Error ErrorSendDocToSign(Guid DocumentUnitId) => new("PMI.SD101", $"Um erro ocorreu ao tentar enviar o documento {DocumentUnitId} para assinar.", new { DocumentUnitId });
+            public static Error ErrorInRecoverDocSigned(string DocumentUnitId) => new("PMI.SD102", $"Um erro ocorreu ao tentar recuperar o documento {DocumentUnitId} assinado.", new { DocumentUnitId });
         }
     }
 }

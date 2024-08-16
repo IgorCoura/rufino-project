@@ -1,4 +1,7 @@
-﻿namespace PeopleManagement.Domain.AggregatesModel.ArchiveAggregate
+﻿using PeopleManagement.Domain.ErrorTools.ErrorsMessages;
+using PeopleManagement.Domain.ErrorTools;
+
+namespace PeopleManagement.Domain.AggregatesModel.ArchiveAggregate
 {
     public class Extension : Enumeration
     {
@@ -10,9 +13,34 @@
         public static readonly Extension TIFF = new(6, nameof(TIFF));
         private Extension(int id, string name) : base(id, name)
         {
+        }      
+
+        public static implicit operator Extension(int id)  => CreateFromValue(id);
+        public static implicit operator Extension(string name)  => CreateFromDisplayName(name);
+
+        public static Extension CreateFromDisplayName(string value)
+        {
+            try
+            {
+                value = value.Replace(".", "").Trim().ToUpper();
+                return Enumeration.FromDisplayName<Extension>(value);
+            }
+            catch
+            {
+                throw new DomainException(nameof(Extension), DomainErrors.ErroCreateEnumeration(nameof(Extension), value));
+            }
         }
 
-        public static implicit operator Extension(int id)  => Enumeration.FromValue<Extension>(id);
-        public static implicit operator Extension(string name)  => Enumeration.FromDisplayName<Extension>(name);
+        public static Extension CreateFromValue(int value)
+        {
+            try
+            {
+                return Enumeration.FromValue<Extension>(value);
+            }
+            catch
+            {
+                throw new DomainException(nameof(Extension), DomainErrors.ErroCreateEnumeration(nameof(Extension), value.ToString()));
+            }
+        }
     }
 }

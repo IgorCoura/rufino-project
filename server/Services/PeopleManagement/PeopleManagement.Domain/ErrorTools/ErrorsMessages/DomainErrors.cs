@@ -10,7 +10,8 @@ namespace PeopleManagement.Domain.ErrorTools.ErrorsMessages
         public static Error FieldInvalid(string NameField, string Value) => new("PMD10", $"O campo {NameField} com o valor {Value} é invalido.", new {NameField, Value});
         public static Error FieldCannotBeLarger(string NameField, int Length) => new("PMD11", $"O campo {NameField}, não pode ser maior que {Length}.", new {NameField, Length});
         public static Error FieldCannotBeSmaller(string NameField, int Length) => new("PMD12", $"O campo {NameField}, não pode ser menor que {Length}.", new {NameField, Length});
-        public static Error FieldMustHaveLengthBetween(string NameField, int Length) => new("PMD13", $"O campo {NameField}, não pode ser menor que {Length}.", new {NameField, Length});
+        public static Error FieldMustHaveLengthBetween(string NameField, int Min, int Max) => new("PMD13", $"O campo {NameField}, não pode ser menor que {Min} ou maior que {Max}.", new {NameField, Min, Max});
+        public static Error FieldMustHaveLengthBetween(string NameField, double Min, double Max) => new("PMD13", $"O campo {NameField}, não pode ser menor que {Min} ou maior que {Max}.", new {NameField, Min, Max});
         public static Error FieldNotBeNull(string NameField) => new("PMD14", $"O campo {NameField}, não pode ser nulo.", new {NameField});
         public static Error FieldNotBeNullOrEmpty(string NameField) => new("PMD15", $"O campo {NameField}, não pode ser nulo ou vazio.", new {NameField});
         public static Error FieldNotBeEmpty(string NameField) => new("PMD16", $"O campo {NameField}, não pode ser  vazio.", new {NameField});
@@ -57,6 +58,12 @@ namespace PeopleManagement.Domain.ErrorTools.ErrorsMessages
             public static Error AlreadyExistOpenContract() => new("PMD.EMP10", $"Já existe um contrato de trabalho aberto.", new { });
             public static Error NotExistOpenContract() => new("PMD.EMP11", $"Não existe um contrato de trabalho aberto.", new { });
             public static Error HasRequiresFiles() => new("PMD.EMP12", $"Há documentos requeridos.", new { });
+            public static Error EmployeeCantSignByCellPhone(Guid Id) => new("PMD.EMP13", $"O funcionario {Id} não tem um celular registrado para poder assinar contratos. .", new { Id });
+        }
+
+        public static class ArchiveCategory
+        {
+            public static Error EventNotExist(int EventId) => new("PMD.AC10", $"O Event com id {EventId} não exist.", new { EventId });
         }
     }
 }

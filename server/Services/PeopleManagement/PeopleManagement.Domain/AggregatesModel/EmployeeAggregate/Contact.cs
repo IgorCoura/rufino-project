@@ -19,6 +19,15 @@ namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
             get => _email; 
             private set
             {
+                if (value == null)
+                    throw new DomainException(this.GetType().Name, DomainErrors.FieldNotBeNull(nameof(Email)));
+
+                if (string.IsNullOrWhiteSpace(value))
+                {
+                    _email = string.Empty;
+                    return;
+                }
+
                 if (!MailAddress.TryCreate(value, out _))
                     throw new DomainException(this.GetType().Name, DomainErrors.FieldIsFormatInvalid(nameof(Email)));
 
@@ -33,11 +42,18 @@ namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
             get => _cellphone;
             private set
             {
+                if (value == null)
+                    throw new DomainException(this.GetType().Name, DomainErrors.FieldNotBeNull(nameof(CellPhone)));
+
+
                 var charValue = value.Select(x => char.IsDigit(x) ? x : ' ').ToArray();
                 var number = new string(charValue).Replace(" ", "");
 
                 if (string.IsNullOrWhiteSpace(number))
-                    throw new DomainException(this.GetType().Name, DomainErrors.FieldNotBeNullOrEmpty(nameof(CellPhone)));
+                {
+                    _cellphone = string.Empty;
+                    return;
+                }
 
                 if (!CellPhonerRegex().IsMatch(number))
                     throw new DomainException(this.GetType().Name, DomainErrors.FieldIsFormatInvalid(nameof(CellPhone)));
@@ -60,6 +76,9 @@ namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
         {
             return new(email, phone);
         }
+
+        public bool CellPhoneIsEmpty => CellPhone == string.Empty;
+        public bool EmailIsEmpty => Email == string.Empty;
 
         protected override IEnumerable<object> GetEqualityComponents()
         {

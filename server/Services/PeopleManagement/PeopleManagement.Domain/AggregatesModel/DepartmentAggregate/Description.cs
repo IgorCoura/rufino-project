@@ -42,6 +42,7 @@ namespace PeopleManagement.Domain.AggregatesModel.DepartmentAggregate
         public static implicit operator Description(string value) =>
             new(value);
 
+        public override string ToString() => Value;
         protected override IEnumerable<object?> GetEqualityComponents()
         {
             yield return Value;

@@ -118,7 +118,7 @@ namespace PeopleManagement.Domain.AggregatesModel.CompanyAggregate
             return digito;
         }
 
-
+        public override string ToString() => Value;
         protected override IEnumerable<object?> GetEqualityComponents()
         {
             yield return _value;

@@ -7,14 +7,15 @@ using PeopleManagement.Domain.AggregatesModel.DepartmentAggregate;
 using PeopleManagement.Domain.AggregatesModel.DocumentTemplateAggregate;
 using PeopleManagement.Domain.AggregatesModel.EmployeeAggregate;
 using PeopleManagement.Domain.AggregatesModel.PositionAggregate;
-using PeopleManagement.Domain.AggregatesModel.RequireSecurityDocumentsAggregate;
+using PeopleManagement.Domain.AggregatesModel.RequireDocumentsAggregate;
 using PeopleManagement.Domain.AggregatesModel.RoleAggregate;
-using PeopleManagement.Domain.AggregatesModel.SecurityDocumentAggregate;
+using PeopleManagement.Domain.AggregatesModel.DocumentAggregate;
 using PeopleManagement.Domain.AggregatesModel.WorkplaceAggregate;
 using PeopleManagement.Domain.SeedWord;
 using PeopleManagement.Infra.Extension;
 using PeopleManagement.Infra.Mapping;
 using System.Data;
+using PeopleManagement.Domain.AggregatesModel.ArchiveCategoryAggregate;
 
 namespace PeopleManagement.Infra.Context
 {
@@ -22,17 +23,18 @@ namespace PeopleManagement.Infra.Context
     {
         public const string DEFAULT_SCHEMA = "people_management";
 
+        public DbSet<ArchiveCategory> ArchiveCategories { get; set; }
         public DbSet<Archive> Archives { get; set; }
         public DbSet<Company> Companies { get; set; }
         public DbSet<Department> Departments { get; set; }
-        public DbSet<Document> Documents { get; set; }
+        public DbSet<DocumentUnit> DocumentsUnits { get; set; }
         public DbSet<DocumentTemplate> DocumentTemplates { get; set; }
 
         public DbSet<Employee> Employees { get; set; }
         public DbSet<Position> Positions { get; set; }
-        public DbSet<RequireSecurityDocuments> RequireDocuments { get; set; }
+        public DbSet<RequireDocuments> RequireDocuments { get; set; }
         public DbSet<Role> Roles { get; set; }
-        public DbSet<SecurityDocument> SecurityDocuments { get; set; }
+        public DbSet<Document> Documents { get; set; }
         public DbSet<Workplace> Workplaces { get; set; }
         
         
@@ -57,6 +59,7 @@ namespace PeopleManagement.Infra.Context
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
+            modelBuilder.ApplyConfiguration(new ArchiveCategoryMap());
             modelBuilder.ApplyConfiguration(new ArchiveMap());
             modelBuilder.ApplyConfiguration(new CompanyMap());
             modelBuilder.ApplyConfiguration(new DepartmentMap());
@@ -64,9 +67,9 @@ namespace PeopleManagement.Infra.Context
             modelBuilder.ApplyConfiguration(new PositionMap());
             modelBuilder.ApplyConfiguration(new RoleMap());
             modelBuilder.ApplyConfiguration(new WorkplaceMap());
-            modelBuilder.ApplyConfiguration(new SecurityDocumentMap());
             modelBuilder.ApplyConfiguration(new DocumentMap());
-            modelBuilder.ApplyConfiguration(new RequireSecurityDocumentsMap());
+            modelBuilder.ApplyConfiguration(new DocumentUnitMap());
+            modelBuilder.ApplyConfiguration(new RequireDocumentsMap());
             modelBuilder.ApplyConfiguration(new DocumentTemplateMap());
         }
 

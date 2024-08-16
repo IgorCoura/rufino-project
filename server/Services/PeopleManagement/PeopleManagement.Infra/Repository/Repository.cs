@@ -49,7 +49,7 @@ namespace PeopleManagement.Infra.Repository
             return await query.AsTracking().FirstOrDefaultAsync(filter, cancellation);
         }
 
-        public async Task<IEnumerable<T>> GetDataAsync(Expression<Func<T, bool>>? filter = null, Func<IQueryable<T>, IIncludableQueryable<T, object>>? include = null, int? skip = null, int? take = null)
+        public async Task<IEnumerable<T>> GetDataAsync(Expression<Func<T, bool>>? filter = null, Func<IQueryable<T>, IIncludableQueryable<T, object>>? include = null, int? skip = null, int? take = null, CancellationToken cancellation = default)
         {
             var query = _context.Set<T>().AsQueryable();
             if (filter != null)
@@ -64,7 +64,7 @@ namespace PeopleManagement.Infra.Repository
             if (take != null && take.HasValue)
                 query = query.Take(take.Value);
 
-            return await query.ToListAsync();
+            return await query.ToListAsync(cancellation);
         }
 
         public async Task<bool> AnyAsync(Expression<Func<T, bool>> filter)

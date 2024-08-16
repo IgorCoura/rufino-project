@@ -47,6 +47,8 @@ namespace PeopleManagement.Domain.AggregatesModel.CompanyAggregate
             yield return Value;
         }
 
+        public override string ToString() => Value;
+
         [GeneratedRegex(@"^[a-zA-ZÀ-ÿ']+(?: [a-zA-ZÀ-ÿ']+)+$")]
         private static partial Regex NameRegex();
     }

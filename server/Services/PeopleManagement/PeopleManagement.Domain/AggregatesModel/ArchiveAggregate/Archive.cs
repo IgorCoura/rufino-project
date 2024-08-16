@@ -1,22 +1,26 @@
-﻿namespace PeopleManagement.Domain.AggregatesModel.ArchiveAggregate
+﻿using PeopleManagement.Domain.AggregatesModel.DocumentAggregate;
+using PeopleManagement.Domain.ErrorTools.ErrorsMessages;
+using PeopleManagement.Domain.ErrorTools;
+
+namespace PeopleManagement.Domain.AggregatesModel.ArchiveAggregate
 {
     public sealed class Archive : Entity, IAggregateRoot
     {
         public List<File> Files { get; private set; } = [];
-        public Category Category { get; private set; } = null!;
+        public Guid CategoryId { get; private set; }
         public Guid OwnerId { get; private set; }
         public Guid CompanyId { get; private set; }
         public ArchiveStatus Status { get; private set; } = ArchiveStatus.OK;
 
         private Archive() { }
-        private Archive(Guid id, Category category, Guid ownerId, Guid companyId): base(id) 
+        private Archive(Guid id, Guid categoryId, Guid ownerId, Guid companyId): base(id) 
         {
-            Category = category;
+            CategoryId = categoryId;
             OwnerId = ownerId;
             CompanyId = companyId;
         }
 
-        public static Archive Create(Guid id, Category category, Guid ownerId, Guid companyId) => new(id, category, ownerId, companyId);
+        public static Archive Create(Guid id, Guid categoryId, Guid ownerId, Guid companyId) => new(id, categoryId, ownerId, companyId);
 
         public void RequestFile()
         {
@@ -32,15 +36,15 @@
             Status = file.RequiresVerification ? ArchiveStatus.RequiresVerification : ArchiveStatus.OK;
         }
 
-        public string GetArchivePath()
+        public void DocumentNotApplicable(Name fileName)
         {
-            return Path.Combine(CompanyId.ToString(), OwnerId.ToString(), Category.Name);
+            var document = Files.FirstOrDefault(x => x.Name == fileName)
+               ?? throw new DomainException(this, DomainErrors.ObjectNotFound(nameof(DocumentUnit), fileName.ToString()));
+
+            document.NotApplicable();
+            Status = ArchiveStatus.OK;
         }
 
-        public string GetFilePath(File file)
-        {
-            return Path.Combine(CompanyId.ToString(), OwnerId.ToString(), Category.Name, file.GetNameWithExtension);
-        }
-       
+
     }
 }

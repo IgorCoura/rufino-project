@@ -31,6 +31,8 @@ builder.Services.AddMediatR(cfg =>
     cfg.RegisterServicesFromAssembly(typeof(DomainEventHandlerAssembly).Assembly);
 });
 
+builder.Services.AddHttpClient();
+
 // Add services to the container.
 builder.Services.AddInfraDependencies(builder.Configuration);
 builder.Services.AddServicesDependencies(builder.Configuration);

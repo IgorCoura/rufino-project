@@ -1,4 +1,4 @@
-﻿using PeopleManagement.Domain.AggregatesModel.SecurityDocumentAggregate.Interfaces;
+﻿using PeopleManagement.Domain.AggregatesModel.DocumentTemplateAggregate.Interfaces;
 
 namespace PeopleManagement.Domain.AggregatesModel.DocumentTemplateAggregate
 {
@@ -8,7 +8,7 @@ namespace PeopleManagement.Domain.AggregatesModel.DocumentTemplateAggregate
         private const string Body = "index.html";
         private const string Footer = "footer.html";
 
-        public static readonly RecoverDataType NR01 = new(1, nameof(NR01), "NR01", typeof(IRecoverNR01InfoToSecurityDocumentService));
+        public static readonly RecoverDataType NR01 = new(1, nameof(NR01), "NR01", typeof(IRecoverNR01InfoToDocumentTemplateService));
 
         public string TemplateName { get; private set; }
         public Type Type { get; private set; }

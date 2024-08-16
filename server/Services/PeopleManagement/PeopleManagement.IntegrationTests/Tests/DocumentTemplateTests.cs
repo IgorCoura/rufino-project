@@ -1,12 +1,8 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using PeopleManagement.Application.Commands.DocumentTemplateCommands.CreateDocumentTemplate;
 using PeopleManagement.Application.Commands.DocumentTemplateCommands.InsertDocumentTemplate;
-using PeopleManagement.Application.Commands.SecurityDocumentCommands.CreateDocument;
-using PeopleManagement.Application.Commands.SecurityDocumentCommands.InsertDocument;
 using PeopleManagement.Domain.AggregatesModel.DocumentTemplateAggregate;
 using PeopleManagement.Domain.AggregatesModel.DocumentTemplateAggregate.options;
-using PeopleManagement.Domain.AggregatesModel.SecurityDocumentAggregate.Interfaces;
-using PeopleManagement.Domain.AggregatesModel.SecurityDocumentAggregate.Options;
 using PeopleManagement.IntegrationTests.Configs;
 using PeopleManagement.IntegrationTests.Data;
 using System.Net;
@@ -31,11 +27,15 @@ namespace PeopleManagement.IntegrationTests.Tests
 
             var command = new CreateDocumentTemplateCommand(
                 company.Id,
+                "NR01",
+                "Description NR01",
                 "index.html",
                 "header.html",
                 "footer.html",
                 RecoverDataType.NR01.Id,
-                TimeSpan.FromDays(365));
+                TimeSpan.FromDays(365),
+                TimeSpan.FromDays(8),
+                []);
 
 
 
