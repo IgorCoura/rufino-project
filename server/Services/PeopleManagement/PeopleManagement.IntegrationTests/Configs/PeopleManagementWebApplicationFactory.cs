@@ -34,7 +34,6 @@ namespace PeopleManagement.IntegrationTests.Configs
 
         protected override void ConfigureWebHost(IWebHostBuilder builder)
         {
-            Environment.SetEnvironmentVariable("ASPNETCORE_ENVIRONMENT", "Testing");
 
             builder.ConfigureTestServices(services =>
             {

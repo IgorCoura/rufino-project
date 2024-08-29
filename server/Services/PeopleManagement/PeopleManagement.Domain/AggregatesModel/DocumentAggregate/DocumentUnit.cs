@@ -27,30 +27,32 @@ namespace PeopleManagement.Domain.AggregatesModel.DocumentAggregate
         public Document Document { get; private set; } = null!;
 
         private DocumentUnit() { }
-        private DocumentUnit(Guid id, string content, DateTime date, Document securityDocument) : base(id)
+        private DocumentUnit(Guid id, string content, DateTime date, Document securityDocument, DateTime? validity) : base(id)
         {
             Content = content;
             Date = date;
             Document = securityDocument;
             DocumentId = securityDocument.Id;
+            Validity = validity;
         }
 
-        public static DocumentUnit Create(Guid id, string content, DateTime date, Document securityDocument) => new(id, content, date, securityDocument);
-
-        public void InsertWithRequireValidation(Name name, Extension extension, TimeSpan? documentValidityDuration)
+        public static DocumentUnit Create(Guid id, string content, DateTime date, Document securityDocument, TimeSpan? validityDuration)
         {
-            if (documentValidityDuration != null)
-                Validity = Date.Add((documentValidityDuration.Value));
+            DateTime? validity = null;
+            if(validityDuration != null)
+                validity = date.Add((TimeSpan)validityDuration);
 
+            return new(id, content, date, securityDocument, validity);
+        }
+
+        public void InsertWithRequireValidation(Name name, Extension extension)
+        {
             Name = name;
             Extension = extension;
             Status = DocumentUnitStatus.RequiredValidaty;
         }
-        public void InsertWithoutRequireValidation(Name name, Extension extension, TimeSpan? documentValidityDuration)
+        public void InsertWithoutRequireValidation(Name name, Extension extension)
         {
-            if (documentValidityDuration != null)
-                Validity = Date.Add((documentValidityDuration.Value));
-
             Name = name;
             Extension = extension;
             Status = DocumentUnitStatus.OK;

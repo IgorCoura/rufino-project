@@ -1,5 +1,6 @@
 using EntityFramework.Exceptions.PostgreSQL;
 using Microsoft.EntityFrameworkCore;
+using PeopleManagement.API.Authentication;
 using PeopleManagement.API.DependencyInjection;
 using PeopleManagement.API.Filters;
 using PeopleManagement.Application.Commands;
@@ -10,8 +11,8 @@ using System.Text.Json.Serialization;
 var builder = WebApplication.CreateBuilder(args);
 
 var env = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT");
-//Config DataBase
 
+//Config DataBase
 var a = builder.Configuration.GetConnectionString("Postgresql");
 
 builder.Services.AddDbContext<PeopleManagementContext>(options =>
@@ -25,10 +26,14 @@ builder.Services.AddDbContext<PeopleManagementContext>(options =>
         .UseExceptionProcessor();
 });
 
+//Config Keycloak
+builder.Services.AddKeycloakAuthentication(builder.Configuration);
+
+
 builder.Services.AddMediatR(cfg =>
 {
-    cfg.RegisterServicesFromAssembly(typeof(CommandAssembly).Assembly);
-    cfg.RegisterServicesFromAssembly(typeof(DomainEventHandlerAssembly).Assembly);
+    cfg.RegisterServicesFromAssemblyContaining<CommandAssembly>();
+    cfg.RegisterServicesFromAssemblyContaining<DomainEventHandlerAssembly>();
 });
 
 builder.Services.AddHttpClient();

@@ -65,5 +65,12 @@ namespace PeopleManagement.Domain.ErrorTools.ErrorsMessages
         {
             public static Error EventNotExist(int EventId) => new("PMD.AC10", $"O Event com id {EventId} não exist.", new { EventId });
         }
+
+        public static class Document
+        {
+            public static Error TimeConflictBetweenDocuments(Guid DocIdWithConflict, Guid DocIdHasConclict, TimeSpan TimeMax) => new("PMD.DOC10", 
+                $"Há um conflito de tempo gasta entre o documento sendo criado {DocIdWithConflict} e o já existente {DocIdHasConclict}." +
+                $"O tempo total diaria não pode ultrapassar {TimeMax} ", new { DocIdWithConflict, DocIdHasConclict, TimeMax });
+        }
     }
 }

@@ -1,4 +1,5 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using PeopleManagement.Application.Commands.DocumentCommands.CreateDocument;
 using PeopleManagement.Application.Commands.DocumentCommands.GenerateDocumentToSign;
 using PeopleManagement.Application.Commands.DocumentCommands.InsertDocument;
@@ -47,6 +48,48 @@ namespace PeopleManagement.IntegrationTests.Tests
             var result = await context.Documents.AsNoTracking().Include(x => x.DocumentsUnits.Where(x => x.Id == content.Id)).FirstOrDefaultAsync(x => x.Id == document.Id) ?? throw new ArgumentNullException();
             var documentResult = result.DocumentsUnits.First();
             Assert.Equal(date.Minute, documentResult.Date.Minute);
+        }
+
+        [Fact]
+        public async Task CreateDocumentWithTimeConflict()
+        {
+            var cancellationToken = new CancellationToken();
+
+            var context = _factory.GetContext();
+            var client = _factory.CreateClient();
+
+            var company = await context.InsertCompany(cancellationToken);
+            var role = await context.InsertRole(company.Id, cancellationToken);
+            var documentTemplate = await context.InsertDocumentTemplate(company.Id, cancellationToken);
+            var documentTemplate2 = await context.InsertDocumentTemplate(company.Id, cancellationToken);
+            var requiresDocuments = await context.InsertRequireDocuments(company.Id, role.Id, [documentTemplate.Id, documentTemplate2.Id], cancellationToken);
+
+            var emplyeeActive = await context.InsertEmployeeActive(company.Id, role.Id, cancellationToken);
+            await context.SaveChangesAsync(cancellationToken);
+
+            var documentWithConflict = await context.InsertDocument(emplyeeActive, documentTemplate, cancellationToken);
+            await documentWithConflict.InsertOneDocumentInDocument();
+            await context.SaveChangesAsync(cancellationToken);
+
+            var document = await context.InsertDocument(emplyeeActive, documentTemplate2, cancellationToken);
+            await context.SaveChangesAsync(cancellationToken);
+
+            var date = DateTime.UtcNow;
+            var command = new CreateDocumentCommand(
+                    document.Id,
+                    document.EmployeeId,
+                    document.CompanyId,
+                    date
+                );
+
+
+            client.DefaultRequestHeaders.Add("x-requestid", Guid.NewGuid().ToString());
+            var response = await client.PostAsJsonAsync("/api/v1/document/create", command);
+
+            Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+            var content = await response.Content.ReadFromJsonAsync<JsonNode>();
+            var erroCode = content!["errors"]!["DocumentService"]![0]!["Code"]!;
+            Assert.Equal("PMD.DOC10", erroCode.ToString());
         }
 
         [Fact]
@@ -308,6 +351,8 @@ namespace PeopleManagement.IntegrationTests.Tests
             command.Headers.ContentType = new MediaTypeHeaderValue("application/json");
             client.DefaultRequestHeaders.Add("x-requestid", Guid.NewGuid().ToString());
             var response = await client.PostAsync($"/api/v1/document/insert/signer", command);
+
+            var response231 = await response.Content.ReadAsStringAsync();
 
             Assert.Equal(HttpStatusCode.OK, response.StatusCode);
             var contentResponse = await response.Content.ReadFromJsonAsync<InsertDocumentSignedResponse>() ?? throw new ArgumentNullException();
