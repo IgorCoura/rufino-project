@@ -31,7 +31,7 @@ namespace PeopleManagement.Services.Services
             var employee = await _employeeRepository.FirstOrDefaultAsync(x => x.Id == employeeId && x.CompanyId == companyId, cancellation: cancellationToken)
                ?? throw new DomainException(this, DomainErrors.ObjectNotFound(nameof(Employee), employeeId.ToString()));
 
-            if (employee.CantSignByCellPhone == false)
+            if (employee.CantSignByCellPhone)
                 throw new DomainException(this, DomainErrors.Employee.EmployeeCantSignByCellPhone(employeeId));
 
             var document = await _documentRepository.FirstOrDefaultAsync(x => x.Id == documentId && x.EmployeeId == employeeId && x.CompanyId == companyId, cancellation: cancellationToken)
@@ -89,10 +89,7 @@ namespace PeopleManagement.Services.Services
             var document = await _documentRepository.FirstOrDefaultAsync(x => x.DocumentsUnits.Any(x => x.Id == docSigned.DocumentUnitId), include: x => x.Include(y => y.DocumentsUnits), cancellation: cancellationToken)
                 ?? throw new DomainException(this, DomainErrors.ObjectNotFound(nameof(DocumentUnit), docSigned.DocumentUnitId.ToString()));
 
-            var documentTemplate = await _documentTemplateRepository.FirstOrDefaultAsync(x => x.Id == document.DocumentTemplateId && x.CompanyId == document.CompanyId, cancellation: cancellationToken)
-                ?? throw new DomainException(this, DomainErrors.ObjectNotFound(nameof(DocumentTemplate), document.DocumentTemplateId.ToString()));
-
-            string fileNameWithExtesion = document.InsertUnitWithoutRequireValidation(docSigned.DocumentUnitId, Guid.NewGuid().ToString(), docSigned.Extension, documentTemplate.DocumentValidityDuration);
+            string fileNameWithExtesion = document.InsertUnitWithoutRequireValidation(docSigned.DocumentUnitId, Guid.NewGuid().ToString(), docSigned.Extension);
 
             await _blobService.UploadAsync(docSigned.DocStream, fileNameWithExtesion, document.CompanyId.ToString(), cancellationToken);
 

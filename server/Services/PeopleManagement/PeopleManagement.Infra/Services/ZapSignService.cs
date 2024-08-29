@@ -9,6 +9,7 @@ using PeopleManagement.Domain.ErrorTools;
 using System.Net.Http.Json;
 using System.Text.Json.Nodes;
 using System.Net.Http.Headers;
+using Microsoft.Net.Http.Headers;
 
 namespace PeopleManagement.Infra.Services
 {
@@ -92,10 +93,10 @@ namespace PeopleManagement.Infra.Services
 
             var documentUrl = contentBody?["signed_file"]?.ToString() ?? "";
             var documentUnitId = contentBody?["external_id"]?.ToString() ?? "";
+            _httpClient.DefaultRequestHeaders.Remove(HeaderNames.Authorization);
+            var response = await _httpClient.GetAsync(documentUrl, cancellationToken);
 
-            using HttpClient httpClientDownload = new();
-
-            var response = await httpClientDownload.GetAsync(documentUrl, cancellationToken);
+            var debug = await response.Content.ReadAsStringAsync();
 
             if (response.IsSuccessStatusCode == false)
                 throw new DomainException(this, InfraErrors.SignDoc.ErrorInRecoverDocSigned(documentUnitId));

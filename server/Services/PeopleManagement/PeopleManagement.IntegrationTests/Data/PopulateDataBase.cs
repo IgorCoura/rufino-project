@@ -20,6 +20,8 @@ using PeopleManagement.Domain.AggregatesModel.RequireDocumentsAggregate;
 using PeopleManagement.Domain.AggregatesModel.ArchiveCategoryAggregate;
 using PeopleManagement.Domain.AggregatesModel.EmployeeAggregate.Events;
 using static Microsoft.EntityFrameworkCore.DbLoggerCategory.Database;
+using System.ComponentModel.Design;
+using System.Data;
 
 namespace PeopleManagement.IntegrationTests.Data
 {
@@ -209,7 +211,7 @@ namespace PeopleManagement.IntegrationTests.Data
             var id = Guid.NewGuid();
             var employee = Employee.Create(id, companyId, "Rosdevaldo Pereira");
             var workplace = await context.InsertWorkplace(companyId, cancellationToken);
-            await context.InsertArchiveCategory(companyId, cancellationToken); ;
+            await context.InsertArchiveCategory(companyId, cancellationToken); 
 
             employee.RoleId = roleId;
             employee.WorkPlaceId = workplace.Id;
@@ -233,7 +235,7 @@ namespace PeopleManagement.IntegrationTests.Data
 
             await context.SaveChangesAsync(cancellationToken);
             await context.SendRequiresFiles(employee.Id, employee.CompanyId, cancellationToken);
-
+            
             return employee;
         }
 
@@ -277,14 +279,23 @@ namespace PeopleManagement.IntegrationTests.Data
         }
 
 
+        public static async Task<Document> InsertDocument(this PeopleManagementContext context, Employee employeeActiveWithOutDocuments, DocumentTemplate documentTemplate, CancellationToken cancellationToken = default)
+        {
+            var securityDocument = Document.Create(Guid.NewGuid(), employeeActiveWithOutDocuments.Id, employeeActiveWithOutDocuments.CompanyId, (Guid)employeeActiveWithOutDocuments.RoleId!, documentTemplate.Id, documentTemplate.Name.ToString(), documentTemplate.Description.ToString());
+            await context.Documents.AddAsync(securityDocument, cancellationToken);
+
+            return securityDocument;
+        }
+
         public static async Task<Document> InsertDocument(this PeopleManagementContext context, CancellationToken cancellationToken = default)
         {
             var company = await context.InsertCompany(cancellationToken);
             var role = await context.InsertRole(company.Id, cancellationToken);
+
             var documentTemplate = await context.InsertDocumentTemplate(company.Id, cancellationToken);
             var requiresDocuments = await context.InsertRequireDocuments(company.Id, role.Id, [documentTemplate.Id], cancellationToken);
 
-            var employee = await context.InsertEmployeeActive(company.Id, role.Id, cancellationToken);
+            var employee = await context.InsertEmployeeActive(company.Id, role.Id);
             await context.SaveChangesAsync(cancellationToken);
 
             var securityDocument = Document.Create(Guid.NewGuid(), employee.Id, employee.CompanyId, (Guid)employee.RoleId!, documentTemplate.Id, documentTemplate.Name.ToString(), documentTemplate.Description.ToString());
@@ -296,7 +307,7 @@ namespace PeopleManagement.IntegrationTests.Data
         public static Task<DocumentUnit> InsertOneDocumentInDocument(this Document securityDocument)
         {
             var content = DataToSecurityDocument.GetContent();
-            var document = DocumentUnit.Create(Guid.NewGuid(), content, DateTime.UtcNow, securityDocument);
+            var document = DocumentUnit.Create(Guid.NewGuid(), content, DateTime.UtcNow, securityDocument, TimeSpan.FromHours(8));
             securityDocument.AddDocument(document);
             return Task.FromResult(document);
         }

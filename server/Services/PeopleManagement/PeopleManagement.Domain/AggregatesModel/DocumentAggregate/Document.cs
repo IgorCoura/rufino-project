@@ -32,22 +32,22 @@ namespace PeopleManagement.Domain.AggregatesModel.DocumentAggregate
             DocumentsUnits.Add(document);
         }
 
-        public void InsertUnitWithRequireValidation(Guid documentUnitId, Name name, Extension extension, TimeSpan? documentValidityDuration)
+        public void InsertUnitWithRequireValidation(Guid documentUnitId, Name name, Extension extension)
         {
             var documentUnit = DocumentsUnits.FirstOrDefault(x => x.Id == documentUnitId)
                 ?? throw new DomainException(this, DomainErrors.ObjectNotFound(nameof(DocumentUnit), documentUnitId.ToString()));
 
-            documentUnit.InsertWithRequireValidation(name, extension, documentValidityDuration);
+            documentUnit.InsertWithRequireValidation(name, extension);
 
             Status = DocumentStatus.RequiredValidaty;
         }
 
-        public string InsertUnitWithoutRequireValidation(Guid documentUnitId, Name name, Extension extension, TimeSpan? documentValidityDuration)
+        public string InsertUnitWithoutRequireValidation(Guid documentUnitId, Name name, Extension extension)
         {
             var documentUnit = DocumentsUnits.FirstOrDefault(x => x.Id == documentUnitId)
                 ?? throw new DomainException(this, DomainErrors.ObjectNotFound(nameof(DocumentUnit), documentUnitId.ToString()));
-            
-            documentUnit.InsertWithRequireValidation(name, extension, documentValidityDuration);
+
+            documentUnit.InsertWithRequireValidation(name, extension);
 
             Status = DocumentStatus.OK;
 

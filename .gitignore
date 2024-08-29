@@ -8,6 +8,8 @@ utils/CombinePDFs/data/
 utils/CombinePDFs/input/
 utils/CombinePDFs/output/
 
+server/data/*
+
 
 # Created by https://www.toptal.com/developers/gitignore/api/csharp,dotnetcore,aspnetcore
 # Edit at https://www.toptal.com/developers/gitignore?templates=csharp,dotnetcore,aspnetcore
