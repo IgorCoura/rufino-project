@@ -1,4 +1,5 @@
-﻿using PeopleManagement.Application.Commands.DocumentTemplateCommands.CreateDocumentTemplate;
+﻿using PeopleManagement.API.Authorization;
+using PeopleManagement.Application.Commands.DocumentTemplateCommands.CreateDocumentTemplate;
 using PeopleManagement.Application.Commands.DocumentTemplateCommands.InsertDocumentTemplate;
 using PeopleManagement.Application.Commands.Identified;
 
@@ -8,6 +9,7 @@ namespace PeopleManagement.API.Controllers
     public class DocumentTemplateController(ILogger<CompanyController> logger, IMediator mediator) : BaseController(logger)
     {
         [HttpPost("Create")]
+        [ProtectedResource("DocumentTemplate", "create")]
         public async Task<ActionResult<CreateDocumentTemplateResponse>> Create([FromBody] CreateDocumentTemplateCommand request, [FromHeader(Name = "x-requestid")] Guid requestId)
         {
             var command = new IdentifiedCommand<CreateDocumentTemplateCommand, CreateDocumentTemplateResponse>(request, requestId);
@@ -22,6 +24,7 @@ namespace PeopleManagement.API.Controllers
         }
 
         [HttpPost("Insert")]
+        [ProtectedResource("DocumentTemplate", "send")]
         public async Task<ActionResult<InsertDocumentTemplateResponse>> Insert(IFormFile formFile, [FromForm] Guid id, [FromForm] Guid companyId, [FromHeader(Name = "x-requestid")] Guid requestId)
         {
             var stream = formFile.OpenReadStream();

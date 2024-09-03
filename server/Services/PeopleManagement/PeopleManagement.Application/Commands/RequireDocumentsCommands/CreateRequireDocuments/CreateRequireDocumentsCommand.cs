@@ -6,4 +6,9 @@ namespace PeopleManagement.Application.Commands.RequireDocumentsCommands.CreateR
     {
         public RequireDocuments ToRequireSecurityDocuments(Guid id) => RequireDocuments.Create(id, RoleId, CompanyId, Name, Description, DocumentsTemplatesIds); 
     }
+
+    public record CreateRequireDocumentsModel(Guid RoleId, string Name, string Description, params Guid[] DocumentsTemplatesIds)
+    {
+        public CreateRequireDocumentsCommand ToCommand(Guid company) => new(RoleId, company, Name, Description, DocumentsTemplatesIds);
+    }
 }

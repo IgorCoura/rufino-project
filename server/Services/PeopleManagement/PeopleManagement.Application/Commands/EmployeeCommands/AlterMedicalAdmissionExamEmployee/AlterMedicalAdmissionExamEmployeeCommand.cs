@@ -6,4 +6,9 @@ namespace PeopleManagement.Application.Commands.EmployeeCommands.AlterMedicalAdm
     {
         public MedicalAdmissionExam ToMedicalAdmissionExam() => MedicalAdmissionExam.Create(DateExam, ValidityExam);
     }
+
+    public record AlterMedicalAdmissionExamEmployeeModel(Guid EmployeeId, DateOnly DateExam, DateOnly ValidityExam)
+    {
+        public AlterMedicalAdmissionExamEmployeeCommand ToCommand(Guid company) => new(EmployeeId, company, DateExam, ValidityExam);
+    }
 }

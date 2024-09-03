@@ -5,14 +5,17 @@ using PeopleManagement.Application.Commands.DocumentCommands.GenerateDocumentToS
 using PeopleManagement.Application.Commands.DocumentCommands.InsertDocument;
 using PeopleManagement.Application.Commands.DocumentCommands.InsertDocumentSigned;
 using PeopleManagement.Application.Commands.DocumentCommands.InsertDocumentToSign;
+using PeopleManagement.Domain.AggregatesModel.CompanyAggregate;
 using PeopleManagement.Domain.AggregatesModel.DocumentAggregate;
 using PeopleManagement.Domain.AggregatesModel.DocumentAggregate.Interfaces;
 using PeopleManagement.IntegrationTests.Configs;
 using PeopleManagement.IntegrationTests.Data;
+using System.ComponentModel.Design;
 using System.Net;
 using System.Net.Http.Headers;
 using System.Reflection.Metadata;
 using System.Text.Json.Nodes;
+using static Microsoft.EntityFrameworkCore.DbLoggerCategory.Database;
 using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace PeopleManagement.IntegrationTests.Tests
@@ -32,16 +35,14 @@ namespace PeopleManagement.IntegrationTests.Tests
             await context.SaveChangesAsync(cancellationToken);
 
             var date = DateTime.UtcNow;
-            var command = new CreateDocumentCommand(
+            var command = new CreateDocumentModel(
                     document.Id,
                     document.EmployeeId,
-                    document.CompanyId,
-                    date
+            date
                 );
- 
 
-            client.DefaultRequestHeaders.Add("x-requestid", Guid.NewGuid().ToString());
-            var response = await client.PostAsJsonAsync("/api/v1/document/create", command);
+            client.InputHeaders([document.CompanyId]);
+            var response = await client.PostAsJsonAsync($"/api/v1/{document.CompanyId}/document", command);
 
             Assert.Equal(HttpStatusCode.OK, response.StatusCode);
             var content = await response.Content.ReadFromJsonAsync(typeof(CreateDocumentResponse)) as CreateDocumentResponse ?? throw new ArgumentNullException();
@@ -75,16 +76,15 @@ namespace PeopleManagement.IntegrationTests.Tests
             await context.SaveChangesAsync(cancellationToken);
 
             var date = DateTime.UtcNow;
-            var command = new CreateDocumentCommand(
+            var command = new CreateDocumentModel(
                     document.Id,
                     document.EmployeeId,
-                    document.CompanyId,
                     date
                 );
 
 
-            client.DefaultRequestHeaders.Add("x-requestid", Guid.NewGuid().ToString());
-            var response = await client.PostAsJsonAsync("/api/v1/document/create", command);
+            client.InputHeaders([company.Id]);
+            var response = await client.PostAsJsonAsync($"/api/v1/{document.CompanyId}/document", command);
 
             Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
             var content = await response.Content.ReadFromJsonAsync<JsonNode>();
@@ -105,8 +105,8 @@ namespace PeopleManagement.IntegrationTests.Tests
             var documentUnit = await document.InsertOneDocumentInDocument();
             await context.SaveChangesAsync(cancellationToken);
 
-            client.DefaultRequestHeaders.Add("x-requestid", Guid.NewGuid().ToString());
-            var response = await client.GetAsync($"/api/v1/document/generate/{documentUnit.Id}/{document.Id}/{document.EmployeeId}/{document.CompanyId}");         
+            client.InputHeaders([document.CompanyId]);
+            var response = await client.GetAsync($"/api/v1/{document.CompanyId}/document/{document.EmployeeId}/{document.Id}/{documentUnit.Id}");         
 
             Assert.Equal(HttpStatusCode.OK, response.StatusCode);
             var content = await response.Content.ReadAsByteArrayAsync();
@@ -149,10 +149,9 @@ namespace PeopleManagement.IntegrationTests.Tests
             content.Add(new StringContent(documentUnit.Id.ToString()), "documentUnitId");
             content.Add(new StringContent(document.Id.ToString()), "documentId");
             content.Add(new StringContent(document.EmployeeId.ToString()), "employeeId");
-            content.Add(new StringContent(document.CompanyId.ToString()), "companyId");
 
-            client.DefaultRequestHeaders.Add("x-requestid", Guid.NewGuid().ToString());
-            var response = await client.PostAsync($"/api/v1/document/insert", content);
+            client.InputHeaders([document.CompanyId]);
+            var response = await client.PostAsync($"/api/v1/{document.CompanyId}/document/insert", content);
 
             Assert.Equal(HttpStatusCode.OK, response.StatusCode);
             var contentResponse = await response.Content.ReadFromJsonAsync<InsertDocumentToSignResponse>() ?? throw new ArgumentNullException();
@@ -186,10 +185,10 @@ namespace PeopleManagement.IntegrationTests.Tests
             var documentUnit = await document.InsertOneDocumentInDocument();
             await context.SaveChangesAsync(cancellationToken);
 
-            var command = new GenerateDocumentToSignCommand(documentUnit.Id, document.Id, document.EmployeeId, document.CompanyId, DateTime.UtcNow.AddDays(30), 1);
+            var command = new GenerateDocumentToSignModel(documentUnit.Id, document.Id, document.EmployeeId, DateTime.UtcNow.AddDays(30), 1);
 
-            client.DefaultRequestHeaders.Add("x-requestid", Guid.NewGuid().ToString());
-            var response = await client.PostAsJsonAsync($"/api/v1/document/generate/sign", command);
+            client.InputHeaders([document.CompanyId]);
+            var response = await client.PostAsJsonAsync($"/api/v1/{document.CompanyId}/document/send2sign", command);
 
             Assert.Equal(HttpStatusCode.OK, response.StatusCode);
             var content = await response.Content.ReadFromJsonAsync(typeof(GenerateDocumentToSignResponse)) as GenerateDocumentToSignResponse ?? throw new ArgumentNullException();
@@ -227,12 +226,11 @@ namespace PeopleManagement.IntegrationTests.Tests
             content.Add(new StringContent(documentUnit.Id.ToString()), "DocumentUnitId");
             content.Add(new StringContent(document.Id.ToString()), "documentId");
             content.Add(new StringContent(document.EmployeeId.ToString()), "employeeId");
-            content.Add(new StringContent(document.CompanyId.ToString()), "companyId");
             content.Add(new StringContent(DateTime.UtcNow.AddDays(30).ToString()), "DateLimitToSign");
             content.Add(new StringContent("1"), "EminderEveryNDays");
 
-            client.DefaultRequestHeaders.Add("x-requestid", Guid.NewGuid().ToString());
-            var response = await client.PostAsync($"/api/v1/document/insert/sign", content);
+            client.InputHeaders([document.CompanyId]);
+            var response = await client.PostAsync($"/api/v1/{document.CompanyId}/document/insert/send2sign", content);
 
             Assert.Equal(HttpStatusCode.OK, response.StatusCode);
             var contentResponse = await response.Content.ReadFromJsonAsync(typeof(InsertDocumentResponse)) as InsertDocumentResponse ?? throw new ArgumentNullException();
@@ -344,13 +342,14 @@ namespace PeopleManagement.IntegrationTests.Tests
                         ""geo_longitude"": ""-46.683343""
                     }
                 }";
+
             JsonNode jsonNode = JsonNode.Parse(commandString)!;
 
             jsonNode["external_id"] = documentUnit.Id;
             var command = new StringContent(jsonNode.ToString());
             command.Headers.ContentType = new MediaTypeHeaderValue("application/json");
-            client.DefaultRequestHeaders.Add("x-requestid", Guid.NewGuid().ToString());
-            var response = await client.PostAsync($"/api/v1/document/insert/signer", command);
+            client.InputHeaders([document.CompanyId]);
+            var response = await client.PostAsync($"/api/v1/{document.CompanyId}/document/insert/signer", command);
 
             var response231 = await response.Content.ReadAsStringAsync();
 

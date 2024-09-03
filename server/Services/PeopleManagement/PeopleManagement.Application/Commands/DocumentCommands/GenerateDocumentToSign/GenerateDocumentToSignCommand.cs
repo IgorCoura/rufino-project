@@ -4,4 +4,11 @@
         int EminderEveryNDays) : IRequest<GenerateDocumentToSignResponse>
     {
     }
+
+    public record GenerateDocumentToSignModel(Guid DocumentUnitId, Guid DocumentId, Guid EmployeeId, DateTime DateLimitToSign,
+        int EminderEveryNDays)
+    {
+        public GenerateDocumentToSignCommand ToCommand(Guid company) => new(DocumentUnitId, DocumentId, EmployeeId, company, 
+            DateLimitToSign, EminderEveryNDays);
+    }
 }

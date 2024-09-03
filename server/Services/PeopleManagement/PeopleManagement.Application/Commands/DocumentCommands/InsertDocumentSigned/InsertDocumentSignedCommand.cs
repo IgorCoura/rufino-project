@@ -5,4 +5,5 @@ namespace PeopleManagement.Application.Commands.DocumentCommands.InsertDocumentS
     public record InsertDocumentSignedCommand(JsonNode ContentBody) : IRequest<InsertDocumentSignedResponse> 
     {
     }
+
 }

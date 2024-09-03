@@ -1,20 +1,21 @@
-﻿using PeopleManagement.Application.Commands.ArchiveCommands.InsertFile;
+﻿using PeopleManagement.API.Authorization;
+using PeopleManagement.Application.Commands.ArchiveCommands.InsertFile;
 using PeopleManagement.Application.Commands.ArchiveCommands.NotApplicable;
 using PeopleManagement.Application.Commands.Identified;
 namespace PeopleManagement.API.Controllers
 {
-    [Route("api/v1/[controller]")]
+    [Route("api/v1/{company}/[controller]")]
     public class ArchiveController(ILogger<CompanyController> logger, IMediator mediator) : BaseController(logger)
     {
 
-        [HttpPost("file/insert")]
-        public async Task<ActionResult<InsertFileResponse>> InsertFile(IFormFile formFile, [FromForm] Guid ownerId, [FromForm] Guid companyId, [FromForm] Guid categoryId, [FromHeader(Name = "x-requestid")] Guid requestId)
+        [HttpPost("file")]
+        [ProtectedResource("Archive", "edit")]
+        public async Task<ActionResult<InsertFileResponse>> InsertFile(IFormFile formFile, [FromRoute] Guid company, [FromForm] InsertFileModel request,[FromHeader(Name = "x-requestid")] Guid requestId)
         {
             var extension = Path.GetExtension(formFile.FileName);
             var stream = formFile.OpenReadStream();
 
-            var request = new InsertFileCommand(ownerId, companyId, categoryId, extension, stream);
-            var command = new IdentifiedCommand<InsertFileCommand, InsertFileResponse>(request, requestId);
+            var command = new IdentifiedCommand<InsertFileCommand, InsertFileResponse>(request.ToCommand(company, extension, stream), requestId);
 
             SendingCommandLog(request.OwnerId, request, requestId);
 
@@ -26,9 +27,10 @@ namespace PeopleManagement.API.Controllers
         }
 
         [HttpPut("file/notapplicable")]
-        public async Task<ActionResult<FileNotApplicableResponse>> FileNotApplicable([FromBody] FileNotApplicableCommand request, [FromHeader(Name = "x-requestid")] Guid requestId)
+        [ProtectedResource("Archive", "edit")]
+        public async Task<ActionResult<FileNotApplicableResponse>> FileNotApplicable([FromRoute] Guid company, [FromBody] FileNotApplicableModel request, [FromHeader(Name = "x-requestid")] Guid requestId)
         {
-            var command = new IdentifiedCommand<FileNotApplicableCommand, FileNotApplicableResponse>(request, requestId);
+            var command = new IdentifiedCommand<FileNotApplicableCommand, FileNotApplicableResponse>(request.ToCommand(company), requestId);
 
             SendingCommandLog(request.FileName, request, requestId);
 

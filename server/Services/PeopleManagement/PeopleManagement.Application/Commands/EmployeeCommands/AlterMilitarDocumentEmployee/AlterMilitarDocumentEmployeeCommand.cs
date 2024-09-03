@@ -6,4 +6,9 @@ namespace PeopleManagement.Application.Commands.EmployeeCommands.AlterMilitarDoc
     {
         public MilitaryDocument ToMilitaryDocument() => MilitaryDocument.Create(DocumentNumber, DocumentType);
     }
+
+    public record AlterMilitarDocumentEmployeeModel(Guid EmployeeId, string DocumentNumber, string DocumentType) : IRequest<AlterMilitarDocumentEmployeeResponse>
+    {
+        public AlterMilitarDocumentEmployeeCommand ToCommand(Guid company) => new(EmployeeId, company, DocumentNumber, DocumentType);
+    }
 }

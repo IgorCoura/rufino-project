@@ -23,15 +23,15 @@ namespace PeopleManagement.IntegrationTests.Tests
             var company = await context.InsertCompany(cancellationToken);
             await context.SaveChangesAsync(cancellationToken);
 
-            var command = new CreateArchiveCategoryCommand("Documento Nacional de Identidade", "Documento Nacional Brasileiro que identifica o funcionario.", company.Id, [1,2]);
+            var command = new CreateArchiveCategoryModel("Documento Nacional de Identidade", "Documento Nacional Brasileiro que identifica o funcionario.",  [1,2]);
 
-            client.DefaultRequestHeaders.Add("x-requestid", Guid.NewGuid().ToString());
-            var response = await client.PostAsJsonAsync("/api/v1/ArchiveCategory/Create", command);
+            client.InputHeaders([company.Id]);
+            var response = await client.PostAsJsonAsync($"/api/v1/{company.Id}/ArchiveCategory", command);
 
             Assert.Equal(HttpStatusCode.OK, response.StatusCode);
             var content = await response.Content.ReadFromJsonAsync(typeof(CreateArchiveCategoryResponse)) as CreateArchiveCategoryResponse ?? throw new ArgumentNullException();
             var result = await context.ArchiveCategories.AsNoTracking().FirstOrDefaultAsync(x => x.Id == content.Id) ?? throw new ArgumentNullException();
-            Assert.Equal(command.ToArchiveCategory(result.Id), result);
+            Assert.Equal(command.ToCommand(company.Id).ToArchiveCategory(result.Id), result);
         }
 
         [Fact]
@@ -48,10 +48,10 @@ namespace PeopleManagement.IntegrationTests.Tests
 
             var listenEvenId = 3;
             var archiveCategory = archiveCategories.First();
-            var command = new AddListenEventCommand(archiveCategory.Id, archiveCategory.CompanyId, [listenEvenId]);
+            var command = new AddListenEventModel(archiveCategory.Id, [listenEvenId]);
 
-            client.DefaultRequestHeaders.Add("x-requestid", Guid.NewGuid().ToString());
-            var response = await client.PutAsJsonAsync("/api/v1/ArchiveCategory/ListenEvent/Add", command);
+            client.InputHeaders([company.Id]);
+            var response = await client.PutAsJsonAsync($"/api/v1/{company.Id}/ArchiveCategory/event/add", command);
 
             Assert.Equal(HttpStatusCode.OK, response.StatusCode);
             var content = await response.Content.ReadFromJsonAsync(typeof(AddListenEventResponse)) as AddListenEventResponse ?? throw new ArgumentNullException();
@@ -73,10 +73,10 @@ namespace PeopleManagement.IntegrationTests.Tests
 
             var listenEvenId = 1;
             var archiveCategory = archiveCategories.First();
-            var command = new RemoveListenEventCommand(archiveCategory.Id, archiveCategory.CompanyId, [listenEvenId]);
+            var command = new RemoveListenEventModel(archiveCategory.Id, [listenEvenId]);
 
-            client.DefaultRequestHeaders.Add("x-requestid", Guid.NewGuid().ToString());
-            var response = await client.PutAsJsonAsync("/api/v1/ArchiveCategory/ListenEvent/Remove", command);
+            client.InputHeaders([company.Id]);
+            var response = await client.PutAsJsonAsync($"/api/v1/{company.Id}/ArchiveCategory/event/remove", command);
 
             Assert.Equal(HttpStatusCode.OK, response.StatusCode);
             var content = await response.Content.ReadFromJsonAsync(typeof(RemoveListenEventResponse)) as RemoveListenEventResponse ?? throw new ArgumentNullException();

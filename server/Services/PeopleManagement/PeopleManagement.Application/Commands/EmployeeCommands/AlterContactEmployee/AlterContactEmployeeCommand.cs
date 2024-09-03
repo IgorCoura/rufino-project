@@ -6,4 +6,9 @@ namespace PeopleManagement.Application.Commands.EmployeeCommands.AlterContactEmp
     {
         public Contact ToContact() => Contact.Create(Email, CellPhone);
     }
+
+    public record AlterContactEmployeeModel(Guid EmployeeId, string CellPhone, string Email)
+    {
+        public AlterContactEmployeeCommand ToCommand(Guid company) => new(EmployeeId, company, CellPhone, Email);
+    }
 }

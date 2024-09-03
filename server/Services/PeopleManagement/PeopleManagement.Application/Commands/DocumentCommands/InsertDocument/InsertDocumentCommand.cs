@@ -4,4 +4,10 @@
         Guid CompanyId, string Extension, Stream Stream) : IRequest<InsertDocumentResponse>
     {
     }
+
+    public record InsertDocumentModel(Guid DocumentUnitId, Guid DocumentId, Guid EmployeeId)
+    {
+        public InsertDocumentCommand ToCommand(Guid company, string extension, Stream stream) 
+            => new(DocumentUnitId, DocumentId, EmployeeId, company, extension, stream);
+    }
 }

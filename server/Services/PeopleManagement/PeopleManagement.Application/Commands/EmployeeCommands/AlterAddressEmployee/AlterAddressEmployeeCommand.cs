@@ -7,4 +7,10 @@ namespace PeopleManagement.Application.Commands.EmployeeCommands.AlterAddressEmp
     {
         public Address ToAddress() => Address.Create(ZipCode, Street, Number, Complement, Neighborhood, City, State, Country);
     }
+
+    public record AlterAddressEmployeeModel(Guid EmployeeId, string ZipCode, string Street, string Number,
+        string Complement, string Neighborhood, string City, string State, string Country) : IRequest<AlterAddressEmployeeResponse>
+    {
+        public AlterAddressEmployeeCommand ToCommand(Guid company) => new(EmployeeId, company, ZipCode, Street, Number, Complement, Neighborhood, City, State, Country);
+    }
 }

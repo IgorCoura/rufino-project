@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Authorization;
+using PeopleManagement.API.Authorization;
 
 namespace PeopleManagement.API.Controllers
 {
@@ -6,7 +7,6 @@ namespace PeopleManagement.API.Controllers
     [Route("[controller]")]
     public class TestController(ILogger<TestController> logger) : ControllerBase
     {
-
         [HttpGet]
         public IActionResult GetTest()
         {
@@ -14,17 +14,24 @@ namespace PeopleManagement.API.Controllers
         }
 
         [HttpGet("auth")]
-        [Authorize]
+        [ProtectedResource("teste")]
         public IActionResult GetTestAuth()
         {
             return Ok("It's ok. Endpoint with Authorize");
         }
 
         [HttpGet("auth/role")]
-        [Authorize]
+        [ProtectedResource("teste", ["sc1", "sc2", "sc3"])]
         public IActionResult GetTestAuthRole()
         {
             return Ok("It's ok. Endpoint with Authorize just to admin");
+        }
+
+        [HttpGet("auth/role/{company}")]
+        [ProtectedResource("teste", ["sc1", "sc2", "sc3"])]
+        public IActionResult GetTestAuthRole(string company)
+        {
+            return Ok($"It's ok. Endpoint with Authorize just to admin - {company}");
         }
     }
 }

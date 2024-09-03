@@ -6,18 +6,20 @@ using PeopleManagement.Application.Commands.DocumentCommands.GenerateDocumentToS
 using PeopleManagement.Application.Commands.DocumentCommands.InsertDocumentToSign;
 using PeopleManagement.Application.Commands.DocumentCommands.InsertDocumentSigned;
 using System.Text.Json.Nodes;
+using PeopleManagement.API.Authorization;
 
 namespace PeopleManagement.API.Controllers
 {
-    [Route("api/v1/[controller]")]
+    [Route("api/v1/{company}/[controller]")]
     public class DocumentController(ILogger<CompanyController> logger, IMediator mediator) : BaseController(logger)
     {
         private readonly IMediator _mediator = mediator;
 
-        [HttpPost("create")]
-        public async Task<ActionResult<CreateDocumentResponse>> Create([FromBody] CreateDocumentCommand request, [FromHeader(Name = "x-requestid")] Guid requestId)
+        [HttpPost]
+        [ProtectedResource("Document", "create")]
+        public async Task<ActionResult<CreateDocumentResponse>> Create([FromRoute]Guid company, [FromBody] CreateDocumentModel request, [FromHeader(Name = "x-requestid")] Guid requestId)
         {
-            var command = new IdentifiedCommand<CreateDocumentCommand, CreateDocumentResponse>(request, requestId);
+            var command = new IdentifiedCommand<CreateDocumentCommand, CreateDocumentResponse>(request.ToCommand(company), requestId);
 
             SendingCommandLog(request.DocumentId, request, requestId);
 
@@ -28,10 +30,11 @@ namespace PeopleManagement.API.Controllers
             return OkResponse(result);
         }
 
-        [HttpGet("generate/{documentUnitId}/{documentId}/{employeeId}/{companyId}")]
-        public async Task<ActionResult> GeneratePdf([FromRoute] Guid documentUnitId, [FromRoute] Guid documentId, [FromRoute] Guid employeeId, [FromRoute] Guid companyId, [FromHeader(Name = "x-requestid")] Guid requestId)
+        [HttpGet("{employeeId}/{documentId}/{documentUnitId}")]
+        [ProtectedResource("Document", "view")]
+        public async Task<ActionResult> GeneratePdf([FromRoute] Guid documentUnitId, [FromRoute] Guid documentId, [FromRoute] Guid employeeId, [FromRoute] Guid company, [FromHeader(Name = "x-requestid")] Guid requestId)
         {
-            var request = new GeneratePdfCommand(documentUnitId, documentId, employeeId, companyId);
+            var request = new GeneratePdfCommand(documentUnitId, documentId, employeeId, company);
             var command = new IdentifiedCommand<GeneratePdfCommand, GeneratePdfResponse>(request, requestId);
 
             SendingCommandLog(request.DocumentUnitId, request, requestId);
@@ -43,10 +46,11 @@ namespace PeopleManagement.API.Controllers
             return File(result.Pdf, "application/pdf", $"{result.Id}.pdf");
         }
 
-        [HttpPost("generate/sign")]
-        public async Task<ActionResult<GenerateDocumentToSignResponse>> GeneratePdfToSign([FromBody] GenerateDocumentToSignCommand request, [FromHeader(Name = "x-requestid")] Guid requestId)
+        [HttpPost("send2sign")]
+        [ProtectedResource("Document", "send")]
+        public async Task<ActionResult<GenerateDocumentToSignResponse>> GeneratePdfToSign([FromRoute] Guid company, [FromBody] GenerateDocumentToSignModel request, [FromHeader(Name = "x-requestid")] Guid requestId)
         {
-            var identifiedCommand = new IdentifiedCommand<GenerateDocumentToSignCommand, GenerateDocumentToSignResponse>(request, requestId);
+            var identifiedCommand = new IdentifiedCommand<GenerateDocumentToSignCommand, GenerateDocumentToSignResponse>(request.ToCommand(company), requestId);
 
             SendingCommandLog(request.DocumentUnitId, request, requestId);
 
@@ -58,13 +62,13 @@ namespace PeopleManagement.API.Controllers
         }
 
         [HttpPost("insert")]
-        public async Task<ActionResult<InsertDocumentResponse>> Insert(IFormFile formFile, [FromForm] Guid documentUnitId, [FromForm] Guid documentId, [FromForm] Guid employeeId, [FromForm] Guid companyId, [FromHeader(Name = "x-requestid")] Guid requestId)
+        [ProtectedResource("Document", "send")]
+        public async Task<ActionResult<InsertDocumentResponse>> Insert(IFormFile formFile, [FromRoute] Guid company, [FromForm] InsertDocumentModel request,[FromHeader(Name = "x-requestid")] Guid requestId)
         {
             var extension = Path.GetExtension(formFile.FileName);
             var stream = formFile.OpenReadStream();
 
-            var request = new InsertDocumentCommand(documentUnitId, documentId, employeeId, companyId, extension, stream);
-            var command = new IdentifiedCommand<InsertDocumentCommand, InsertDocumentResponse>(request, requestId);
+            var command = new IdentifiedCommand<InsertDocumentCommand, InsertDocumentResponse>(request.ToCommand(company, extension, stream), requestId);
 
             SendingCommandLog(request.DocumentId, request, requestId);
 
@@ -75,13 +79,14 @@ namespace PeopleManagement.API.Controllers
             return OkResponse(result);
         }
 
-        [HttpPost("insert/sign")]
-        public async Task<ActionResult<InsertDocumentToSignResponse>> InsertToSign(IFormFile formFile, [FromForm] InsertDocumentToSignModel request, [FromHeader(Name = "x-requestid")] Guid requestId)
+        [HttpPost("insert/send2sign")]
+        [ProtectedResource("Document", "send")]
+        public async Task<ActionResult<InsertDocumentToSignResponse>> InsertToSign(IFormFile formFile,[FromRoute] Guid company, [FromForm] InsertDocumentToSignModel request, [FromHeader(Name = "x-requestid")] Guid requestId)
         {
             var extension = Path.GetExtension(formFile.FileName);
             var stream = formFile.OpenReadStream();
 
-            var command = request.ToCommand(stream, extension);
+            var command = request.ToCommand( stream, extension, company);
             var identifiedCommand = new IdentifiedCommand<InsertDocumentToSignCommand, InsertDocumentToSignResponse>(command, requestId);
 
             SendingCommandLog(request.DocumentUnitId, request, requestId);
@@ -95,6 +100,7 @@ namespace PeopleManagement.API.Controllers
 
 
         [HttpPost("insert/signer")]
+        [ProtectedResource("Document", "send")]
         public async Task<ActionResult<InsertDocumentSignedResponse>> InsertDocSigner([FromBody] JsonNode request, [FromHeader(Name = "x-requestid")] Guid requestId)
         {
             var command = new InsertDocumentSignedCommand(request);

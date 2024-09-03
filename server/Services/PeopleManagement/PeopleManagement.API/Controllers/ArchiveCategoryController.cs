@@ -1,17 +1,19 @@
-﻿using PeopleManagement.Application.Commands.ArchiveCategoryCommands.AddListenEvent;
+﻿using PeopleManagement.API.Authorization;
+using PeopleManagement.Application.Commands.ArchiveCategoryCommands.AddListenEvent;
 using PeopleManagement.Application.Commands.ArchiveCategoryCommands.CreateArchiveCategory;
 using PeopleManagement.Application.Commands.ArchiveCategoryCommands.RemoveListenEvent;
 using PeopleManagement.Application.Commands.Identified;
 
 namespace PeopleManagement.API.Controllers
 {
-    [Route("api/v1/[controller]")]
+    [Route("api/v1/{company}/[controller]")]
     public class ArchiveCategoryController(ILogger<CompanyController> logger, IMediator mediator) : BaseController(logger)
     {
-        [HttpPost("Create")]
-        public async Task<ActionResult<CreateArchiveCategoryResponse>> Create([FromBody] CreateArchiveCategoryCommand request, [FromHeader(Name = "x-requestid")] Guid requestId)
+        [HttpPost]
+        [ProtectedResource("ArchiveCategory", "create")]
+        public async Task<ActionResult<CreateArchiveCategoryResponse>> Create([FromRoute] Guid company, [FromBody] CreateArchiveCategoryModel request, [FromHeader(Name = "x-requestid")] Guid requestId)
         {
-            var command = new IdentifiedCommand<CreateArchiveCategoryCommand, CreateArchiveCategoryResponse>(request, requestId);
+            var command = new IdentifiedCommand<CreateArchiveCategoryCommand, CreateArchiveCategoryResponse>(request.ToCommand(company), requestId);
 
             SendingCommandLog(request.Name, request, requestId);
 
@@ -22,10 +24,11 @@ namespace PeopleManagement.API.Controllers
             return OkResponse(result);
         }
 
-        [HttpPut("listenevent/add")]
-        public async Task<ActionResult<AddListenEventResponse>> AddListenEvent([FromBody] AddListenEventCommand request, [FromHeader(Name = "x-requestid")] Guid requestId)
+        [HttpPut("event/add")]
+        [ProtectedResource("ArchiveCategory", "edit")]
+        public async Task<ActionResult<AddListenEventResponse>> AddEvents([FromRoute] Guid company, [FromBody] AddListenEventModel request, [FromHeader(Name = "x-requestid")] Guid requestId)
         {
-            var command = new IdentifiedCommand<AddListenEventCommand, AddListenEventResponse>(request, requestId);
+            var command = new IdentifiedCommand<AddListenEventCommand, AddListenEventResponse>(request.ToCommand(company), requestId);
 
             SendingCommandLog(request.ArchiveCategoryId, request, requestId);
 
@@ -36,10 +39,11 @@ namespace PeopleManagement.API.Controllers
             return OkResponse(result);
         }
 
-        [HttpPut("listenevent/remove")]
-        public async Task<ActionResult<RemoveListenEventResponse>> RemoveListenEvent([FromBody] RemoveListenEventCommand request, [FromHeader(Name = "x-requestid")] Guid requestId)
+        [HttpPut("event/remove")]
+        [ProtectedResource("ArchiveCategory", "edit")]
+        public async Task<ActionResult<RemoveListenEventResponse>> RemoveEvents([FromRoute] Guid company, [FromBody] RemoveListenEventModel request, [FromHeader(Name = "x-requestid")] Guid requestId)
         {
-            var command = new IdentifiedCommand<RemoveListenEventCommand, RemoveListenEventResponse>(request, requestId);
+            var command = new IdentifiedCommand<RemoveListenEventCommand, RemoveListenEventResponse>(request.ToCommand(company), requestId);
 
             SendingCommandLog(request.ArchiveCategoryId, request, requestId);
 

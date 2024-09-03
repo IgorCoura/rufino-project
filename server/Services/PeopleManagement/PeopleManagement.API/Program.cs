@@ -1,6 +1,8 @@
 using EntityFramework.Exceptions.PostgreSQL;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 using PeopleManagement.API.Authentication;
+using PeopleManagement.API.Authorization;
 using PeopleManagement.API.DependencyInjection;
 using PeopleManagement.API.Filters;
 using PeopleManagement.Application.Commands;
@@ -28,6 +30,7 @@ builder.Services.AddDbContext<PeopleManagementContext>(options =>
 
 //Config Keycloak
 builder.Services.AddKeycloakAuthentication(builder.Configuration);
+builder.Services.AddKeycloakAuthorization(builder.Configuration);
 
 
 builder.Services.AddMediatR(cfg =>
