@@ -1,18 +1,20 @@
 ﻿using PeopleManagement.Application.Commands.Identified;
 using PeopleManagement.Application.Commands.RequireDocumentsCommands.CreateRequireSecurityDocuments;
 using PeopleManagement.Application.Commands.DocumentCommands.CreateDocument;
+using PeopleManagement.API.Authorization;
 
 namespace PeopleManagement.API.Controllers
 {
-    [Route("api/v1/[controller]")]
+    [Route("api/v1/{company}/[controller]")]
     public class RequireDocumentsController(ILogger<CompanyController> logger, IMediator mediator) : BaseController(logger)
     {
         private readonly IMediator _mediator = mediator;
 
-        [HttpPost("create")]
-        public async Task<ActionResult<CreateRequireDocumentsResponse>> Create([FromBody] CreateRequireDocumentsCommand request, [FromHeader(Name = "x-requestid")] Guid requestId)
+        [HttpPost]
+        [ProtectedResource("RequireDocuments", "create")]
+        public async Task<ActionResult<CreateRequireDocumentsResponse>> Create([FromRoute] Guid company, [FromBody] CreateRequireDocumentsModel request, [FromHeader(Name = "x-requestid")] Guid requestId)
         {
-            var command = new IdentifiedCommand<CreateRequireDocumentsCommand, CreateRequireDocumentsResponse>(request, requestId);
+            var command = new IdentifiedCommand<CreateRequireDocumentsCommand, CreateRequireDocumentsResponse>(request.ToCommand(company), requestId);
 
             SendingCommandLog(request.RoleId, request, requestId);
 

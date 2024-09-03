@@ -3,9 +3,12 @@ using Docker.DotNet.Models;
 using DotNet.Testcontainers.Builders;
 using DotNet.Testcontainers.Containers;
 using EntityFramework.Exceptions.PostgreSQL;
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.EntityFrameworkCore;
+using PeopleManagement.API.Authorization;
 using PeopleManagement.Infra.Context;
 using Testcontainers.Azurite;
 using Testcontainers.PostgreSql;
@@ -60,6 +63,26 @@ namespace PeopleManagement.IntegrationTests.Configs
                     services.Remove(azureBlob);
 
                 services.AddSingleton(_ => new BlobServiceClient(_azuriteContainer.GetConnectionString()));
+
+                //Auth
+
+                services.AddAuthentication(options =>
+                {
+                    options.DefaultAuthenticateScheme = MockAuthenticationHandler.AuthScheme;
+                    options.DefaultChallengeScheme = MockAuthenticationHandler.AuthScheme;
+                })
+                .AddScheme<AuthenticationSchemeOptions, MockAuthenticationHandler>(MockAuthenticationHandler.AuthScheme, options => { });
+
+                services.AddSingleton<IAuthorizationHandler, MockAccessRequirementHandler>();
+
+                services.AddSingleton<IAuthorizationPolicyProvider>(x => new ProtectedResourcePolicyProvider(
+                param =>
+                {
+                    var policy = new AuthorizationPolicyBuilder(MockAuthenticationHandler.AuthScheme);
+                    policy.AddRequirements(new MockAccessRequirement("company", "companies"));
+                    return policy;
+                })
+            ); 
             });
         }
 

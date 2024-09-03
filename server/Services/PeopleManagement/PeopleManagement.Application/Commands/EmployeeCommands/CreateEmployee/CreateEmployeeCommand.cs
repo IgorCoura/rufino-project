@@ -10,4 +10,9 @@ namespace PeopleManagement.Application.Commands.EmployeeCommands.CreateEmployee
         public Employee ToEmployee(Guid id) => Employee.Create(id, CompanyId, Name);
     }
 
+    public record CreateEmployeeModel(string Name) 
+    {
+        public CreateEmployeeCommand ToCommand(Guid company) => new(company, Name);
+    }
+
 }

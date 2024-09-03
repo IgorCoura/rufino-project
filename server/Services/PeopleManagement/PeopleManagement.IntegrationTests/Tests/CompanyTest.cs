@@ -25,8 +25,6 @@ namespace PeopleManagement.IntegrationTests.Tests
         {
             //Arrange 
 
-            _client.DefaultRequestHeaders.Add("x-requestid", Guid.NewGuid().ToString());
-
             var context = _factory.GetContext();
 
             var company = new CreateCompanyCommand(
@@ -46,7 +44,7 @@ namespace PeopleManagement.IntegrationTests.Tests
             );
 
             //Act
-
+            _client.InputHeaders();
             var response = await _client.PostAsJsonAsync("/api/v1/company", company);
 
             //Assert

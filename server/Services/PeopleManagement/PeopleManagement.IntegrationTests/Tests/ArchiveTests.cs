@@ -1,6 +1,7 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using PeopleManagement.Application.Commands.ArchiveCategoryCommands.AddListenEvent;
 using PeopleManagement.Application.Commands.ArchiveCommands.InsertFile;
+using PeopleManagement.Application.Commands.ArchiveCommands.NotApplicable;
 using PeopleManagement.Application.Commands.DocumentCommands.InsertDocument;
 using PeopleManagement.Domain.AggregatesModel.ArchiveAggregate;
 using PeopleManagement.Domain.AggregatesModel.DocumentAggregate.Interfaces;
@@ -40,11 +41,10 @@ namespace PeopleManagement.IntegrationTests.Tests
             content.Add(streamContent, "formFile", Path.GetFileName(path));
 
             content.Add(new StringContent(archive.OwnerId.ToString()), "ownerId");
-            content.Add(new StringContent(archive.CompanyId.ToString()), "companyId");
             content.Add(new StringContent(archive.CategoryId.ToString()), "categoryId");
 
-            client.DefaultRequestHeaders.Add("x-requestid", Guid.NewGuid().ToString());
-            var response = await client.PostAsync($"/api/v1/archive/file/insert", content);
+            client.InputHeaders([company.Id]);
+            var response = await client.PostAsync($"/api/v1/{company.Id}/archive/file", content);
 
             Assert.Equal(HttpStatusCode.OK, response.StatusCode);
             var contentResponse = await response.Content.ReadFromJsonAsync(typeof(InsertFileResponse)) as InsertFileResponse ?? throw new ArgumentNullException();
@@ -73,19 +73,21 @@ namespace PeopleManagement.IntegrationTests.Tests
 
             var company = await context.InsertCompany(cancellationToken);
             var archiveCategories = await context.InsertArchiveCategory(company.Id, cancellationToken);
+            var archive = await context.InsertArchiveOneFilePending(company.Id, archiveCategories.First().Id, cancellationToken);
+
             await context.SaveChangesAsync(cancellationToken);
 
-            var listenEvenId = 3;
-            var archiveCategory = archiveCategories.First();
-            var command = new AddListenEventCommand(archiveCategory.Id, archiveCategory.CompanyId, [listenEvenId]);
+            var command = new FileNotApplicableModel(archive.Id, archive.OwnerId, archive.Files.First().Name.Value);
 
-            client.DefaultRequestHeaders.Add("x-requestid", Guid.NewGuid().ToString());
-            var response = await client.PutAsJsonAsync("/api/v1/ArchiveCategory/ListenEvent/Add", command);
+            client.InputHeaders([company.Id]);
+            var response = await client.PutAsJsonAsync($"/api/v1/{company.Id}/archive/file/notapplicable", command);
+
+            var res = await response.Content.ReadAsStringAsync();
 
             Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-            var content = await response.Content.ReadFromJsonAsync(typeof(AddListenEventResponse)) as AddListenEventResponse ?? throw new ArgumentNullException();
-            var result = await context.ArchiveCategories.AsNoTracking().FirstOrDefaultAsync(x => x.Id == content.Id) ?? throw new ArgumentNullException();
-            Assert.Contains(listenEvenId, result.ListenEventsIds);
+            var content = await response.Content.ReadFromJsonAsync<FileNotApplicableResponse>();
+            var result = await context.Archives.AsNoTracking().FirstOrDefaultAsync(x => x.Id == content!.Id) ?? throw new ArgumentNullException();
+            Assert.Equal(FileStatus.NotApplicable, result.Files.First().Status);
         }
 
 

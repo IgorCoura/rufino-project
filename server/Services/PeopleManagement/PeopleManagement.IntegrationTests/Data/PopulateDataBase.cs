@@ -342,7 +342,19 @@ namespace PeopleManagement.IntegrationTests.Data
             var archive = Archive.Create(Guid.NewGuid(), categoryId, Guid.NewGuid(), companyId);
             await context.Archives.AddAsync(archive, cancellationToken);
             return archive;
-        } 
+        }
+
+        public static async Task<Archive> InsertArchiveOneFilePending(this PeopleManagementContext context, Guid companyId, Guid categoryId, CancellationToken cancellationToken)
+        {
+            var archive = Archive.Create(Guid.NewGuid(), categoryId, Guid.NewGuid(), companyId);
+
+            var file = FileArchive.Create("File", "PDF");
+            archive.AddFile(file);
+   
+            await context.Archives.AddAsync(archive, cancellationToken);
+            return archive;
+        }
+
 
         private static async Task SendRequiresFiles(this PeopleManagementContext context, Guid ownerId, Guid companyId, CancellationToken cancellationToken = default)
         {

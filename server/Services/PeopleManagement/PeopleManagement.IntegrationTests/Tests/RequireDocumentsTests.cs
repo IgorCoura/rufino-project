@@ -23,22 +23,21 @@ namespace PeopleManagement.IntegrationTests.Tests
             var role = await context.InsertRole(documentTemplate.CompanyId, cancellationToken);    
             await context.SaveChangesAsync(cancellationToken);
 
-            var command = new CreateRequireDocumentsCommand(
+            var command = new CreateRequireDocumentsModel(
                     role.Id,
-                    documentTemplate.CompanyId,
                     "Contract Docs",
                     "Description Contract Docs",
                     [documentTemplate.Id]
                 );
 
 
-            client.DefaultRequestHeaders.Add("x-requestid", Guid.NewGuid().ToString());
-            var response = await client.PostAsJsonAsync("/api/v1/requiredocuments/create", command);
+            client.InputHeaders([documentTemplate.CompanyId]);
+            var response = await client.PostAsJsonAsync($"/api/v1/{documentTemplate.CompanyId}/requiredocuments", command);
 
             Assert.Equal(HttpStatusCode.OK, response.StatusCode);
             var content = await response.Content.ReadFromJsonAsync(typeof(CreateRequireDocumentsResponse)) as CreateRequireDocumentsResponse ?? throw new ArgumentNullException();
             var result = await context.RequireDocuments.AsNoTracking().FirstOrDefaultAsync(x => x.Id == content.Id) ?? throw new ArgumentNullException();
-            Assert.Equal(command.ToRequireSecurityDocuments(result.Id), result);
+            Assert.Equal(command.ToCommand(documentTemplate.CompanyId).ToRequireSecurityDocuments(result.Id), result);
         }
 
     }

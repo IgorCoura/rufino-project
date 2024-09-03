@@ -1,6 +1,7 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using PeopleManagement.Application.Commands.DocumentTemplateCommands.CreateDocumentTemplate;
 using PeopleManagement.Application.Commands.DocumentTemplateCommands.InsertDocumentTemplate;
+using PeopleManagement.Domain.AggregatesModel.CompanyAggregate;
 using PeopleManagement.Domain.AggregatesModel.DocumentTemplateAggregate;
 using PeopleManagement.Domain.AggregatesModel.DocumentTemplateAggregate.options;
 using PeopleManagement.IntegrationTests.Configs;
@@ -39,7 +40,7 @@ namespace PeopleManagement.IntegrationTests.Tests
 
 
 
-            client.DefaultRequestHeaders.Add("x-requestid", Guid.NewGuid().ToString());
+            client.InputHeaders([company.Id]);
             var response = await client.PostAsJsonAsync("/api/v1/documenttemplate/create", command);
 
             Assert.Equal(HttpStatusCode.OK, response.StatusCode);
@@ -74,7 +75,7 @@ namespace PeopleManagement.IntegrationTests.Tests
             content.Add(new StringContent(documentTemplate.Id.ToString()), "id");
             content.Add(new StringContent(documentTemplate.CompanyId.ToString()), "companyId");
 
-            client.DefaultRequestHeaders.Add("x-requestid", Guid.NewGuid().ToString());
+            client.InputHeaders([documentTemplate.CompanyId]);
             var response = await client.PostAsync($"/api/v1/documenttemplate/insert", content);
 
             Assert.Equal(HttpStatusCode.OK, response.StatusCode);

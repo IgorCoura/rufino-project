@@ -1,4 +1,5 @@
-﻿using PeopleManagement.Application.Commands.EmployeeCommands.AlterAddressEmployee;
+﻿using PeopleManagement.API.Authorization;
+using PeopleManagement.Application.Commands.EmployeeCommands.AlterAddressEmployee;
 using PeopleManagement.Application.Commands.EmployeeCommands.AlterContactEmployee;
 using PeopleManagement.Application.Commands.EmployeeCommands.AlterDependentEmployee;
 using PeopleManagement.Application.Commands.EmployeeCommands.AlterIdCardEmployee;
@@ -17,13 +18,14 @@ using PeopleManagement.Application.Commands.Identified;
 
 namespace PeopleManagement.API.Controllers
 {
-    [Route("api/v1/[controller]")]
+    [Route("api/v1/{company}/[controller]")]
     public class EmployeeController(ILogger<CompanyController> logger, IMediator mediator) : BaseController(logger)
     {
-        [HttpPost("Create")]
-        public async Task<ActionResult<CreateEmployeeResponse>> Create([FromBody] CreateEmployeeCommand request, [FromHeader(Name = "x-requestid")] Guid requestId)
+        [HttpPost]
+        [ProtectedResource("employee", "create")]
+        public async Task<ActionResult<CreateEmployeeResponse>> Create([FromRoute] Guid company, [FromBody] CreateEmployeeModel request, [FromHeader(Name = "x-requestid")] Guid requestId)
         {
-                var command = new IdentifiedCommand<CreateEmployeeCommand, CreateEmployeeResponse>(request, requestId);
+                var command = new IdentifiedCommand<CreateEmployeeCommand, CreateEmployeeResponse>(request.ToCommand(company), requestId);
 
                 SendingCommandLog(request.Name, request, requestId);
 
@@ -35,10 +37,11 @@ namespace PeopleManagement.API.Controllers
 
         }
 
-        [HttpPut("Alter/Address")]
-        public async Task<ActionResult<CreateEmployeeResponse>> AlterAddress([FromBody] AlterAddressEmployeeCommand request, [FromHeader(Name = "x-requestid")] Guid requestId)
+        [HttpPut("Address")]
+        [ProtectedResource("employee", "edit")]
+        public async Task<ActionResult<CreateEmployeeResponse>> AlterAddress([FromRoute] Guid company, [FromBody] AlterAddressEmployeeModel request, [FromHeader(Name = "x-requestid")] Guid requestId)
         {
-            var command = new IdentifiedCommand<AlterAddressEmployeeCommand, AlterAddressEmployeeResponse>(request, requestId);
+            var command = new IdentifiedCommand<AlterAddressEmployeeCommand, AlterAddressEmployeeResponse>(request.ToCommand(company), requestId);
 
             SendingCommandLog(request.EmployeeId, request, requestId);
 
@@ -49,10 +52,11 @@ namespace PeopleManagement.API.Controllers
             return OkResponse(result);
         }
 
-        [HttpPut("Alter/Contact")]
-        public async Task<ActionResult<AlterContactEmployeeResponse>> AlterContact([FromBody] AlterContactEmployeeCommand request, [FromHeader(Name = "x-requestid")] Guid requestId)
+        [HttpPut("Contact")]
+        [ProtectedResource("employee", "edit")]
+        public async Task<ActionResult<AlterContactEmployeeResponse>> AlterContact([FromRoute] Guid company, [FromBody] AlterContactEmployeeModel request, [FromHeader(Name = "x-requestid")] Guid requestId)
         {
-            var command = new IdentifiedCommand<AlterContactEmployeeCommand, AlterContactEmployeeResponse>(request, requestId);
+            var command = new IdentifiedCommand<AlterContactEmployeeCommand, AlterContactEmployeeResponse>(request.ToCommand(company), requestId);
 
             SendingCommandLog(request.EmployeeId, request, requestId);
 
@@ -63,10 +67,11 @@ namespace PeopleManagement.API.Controllers
             return OkResponse(result);
         }
 
-        [HttpPut("Alter/Dependent")]
-        public async Task<ActionResult<AlterDependentEmployeeResponse>> AlterDependent([FromBody] AlterDependentEmployeeCommand request, [FromHeader(Name = "x-requestid")] Guid requestId)
+        [HttpPut("Dependent")]
+        [ProtectedResource("employee", "edit")]
+        public async Task<ActionResult<AlterDependentEmployeeResponse>> AlterDependent([FromRoute] Guid company, [FromBody] AlterDependentEmployeeModel request, [FromHeader(Name = "x-requestid")] Guid requestId)
         {
-            var command = new IdentifiedCommand<AlterDependentEmployeeCommand, AlterDependentEmployeeResponse>(request, requestId);
+            var command = new IdentifiedCommand<AlterDependentEmployeeCommand, AlterDependentEmployeeResponse>(request.ToCommand(company), requestId);
 
             SendingCommandLog(request.EmployeeId, request, requestId);
 
@@ -77,10 +82,11 @@ namespace PeopleManagement.API.Controllers
             return OkResponse(result);
         }
 
-        [HttpPut("Alter/IdCard")]
-        public async Task<ActionResult<AlterIdCardEmployeeResponse>> AlterIdCard([FromBody] AlterIdCardEmployeeCommand request, [FromHeader(Name = "x-requestid")] Guid requestId)
+        [HttpPut("IdCard")]
+        [ProtectedResource("employee", "edit")]
+        public async Task<ActionResult<AlterIdCardEmployeeResponse>> AlterIdCard([FromRoute] Guid company, [FromBody] AlterIdCardEmployeeModel request, [FromHeader(Name = "x-requestid")] Guid requestId)
         {
-            var command = new IdentifiedCommand<AlterIdCardEmployeeCommand, AlterIdCardEmployeeResponse>(request, requestId);
+            var command = new IdentifiedCommand<AlterIdCardEmployeeCommand, AlterIdCardEmployeeResponse>(request.ToCommand(company), requestId);
 
             SendingCommandLog(request.EmployeeId, request, requestId);
 
@@ -91,10 +97,12 @@ namespace PeopleManagement.API.Controllers
             return OkResponse(result);
         }
 
-        [HttpPut("Alter/MedicalAdmissionExam")]
-        public async Task<ActionResult<AlterMedicalAdmissionExamEmployeeResponse>> AlterMedicalAdmissionExam([FromBody] AlterMedicalAdmissionExamEmployeeCommand request, [FromHeader(Name = "x-requestid")] Guid requestId)
+        [HttpPut("MedicalAdmissionExam")]
+        [ProtectedResource("employee", "edit")]
+        public async Task<ActionResult<AlterMedicalAdmissionExamEmployeeResponse>> AlterMedicalAdmissionExam([FromRoute] Guid company, 
+            [FromBody] AlterMedicalAdmissionExamEmployeeModel request, [FromHeader(Name = "x-requestid")] Guid requestId)
         {
-            var command = new IdentifiedCommand<AlterMedicalAdmissionExamEmployeeCommand, AlterMedicalAdmissionExamEmployeeResponse>(request, requestId);
+            var command = new IdentifiedCommand<AlterMedicalAdmissionExamEmployeeCommand, AlterMedicalAdmissionExamEmployeeResponse>(request.ToCommand(company), requestId);
 
             SendingCommandLog(request.EmployeeId, request, requestId);
 
@@ -105,10 +113,12 @@ namespace PeopleManagement.API.Controllers
             return OkResponse(result);
         }
 
-        [HttpPut("Alter/MilitarDocument")]
-        public async Task<ActionResult<AlterMilitarDocumentEmployeeResponse>> AlterMilitarDocument([FromBody] AlterMilitarDocumentEmployeeCommand request, [FromHeader(Name = "x-requestid")] Guid requestId)
+        [HttpPut("MilitarDocument")]
+        [ProtectedResource("employee", "edit")]
+        public async Task<ActionResult<AlterMilitarDocumentEmployeeResponse>> AlterMilitarDocument([FromRoute] Guid company, 
+            [FromBody] AlterMilitarDocumentEmployeeModel request, [FromHeader(Name = "x-requestid")] Guid requestId)
         {
-            var command = new IdentifiedCommand<AlterMilitarDocumentEmployeeCommand, AlterMilitarDocumentEmployeeResponse>(request, requestId);
+            var command = new IdentifiedCommand<AlterMilitarDocumentEmployeeCommand, AlterMilitarDocumentEmployeeResponse>(request.ToCommand(company), requestId);
 
             SendingCommandLog(request.EmployeeId, request, requestId);
 
@@ -119,10 +129,12 @@ namespace PeopleManagement.API.Controllers
             return OkResponse(result);
         }
 
-        [HttpPut("Alter/Name")]
-        public async Task<ActionResult<AlterNameEmployeeResponse>> AlterName([FromBody] AlterNameEmployeeCommand request, [FromHeader(Name = "x-requestid")] Guid requestId)
+        [HttpPut("Name")]
+        [ProtectedResource("employee", "edit")]
+        public async Task<ActionResult<AlterNameEmployeeResponse>> AlterName([FromRoute] Guid company, [FromBody] AlterNameEmployeeModel request, 
+            [FromHeader(Name = "x-requestid")] Guid requestId)
         {
-            var command = new IdentifiedCommand<AlterNameEmployeeCommand, AlterNameEmployeeResponse>(request, requestId);
+            var command = new IdentifiedCommand<AlterNameEmployeeCommand, AlterNameEmployeeResponse>(request.ToCommand(company), requestId);
 
             SendingCommandLog(request.EmployeeId, request, requestId);
 
@@ -133,10 +145,12 @@ namespace PeopleManagement.API.Controllers
             return OkResponse(result);
         }
 
-        [HttpPut("Alter/PersonalInfo")]
-        public async Task<ActionResult<AlterPersonalInfoEmployeeResponse>> AlterPersonalInfo([FromBody] AlterPersonalInfoEmployeeCommand request, [FromHeader(Name = "x-requestid")] Guid requestId)
+        [HttpPut("PersonalInfo")]
+        [ProtectedResource("employee", "edit")]
+        public async Task<ActionResult<AlterPersonalInfoEmployeeResponse>> AlterPersonalInfo([FromRoute] Guid company, 
+            [FromBody] AlterPersonalInfoEmployeeModel request, [FromHeader(Name = "x-requestid")] Guid requestId)
         {
-            var command = new IdentifiedCommand<AlterPersonalInfoEmployeeCommand, AlterPersonalInfoEmployeeResponse>(request, requestId);
+            var command = new IdentifiedCommand<AlterPersonalInfoEmployeeCommand, AlterPersonalInfoEmployeeResponse>(request.ToCommand(company), requestId);
 
             SendingCommandLog(request.EmployeeId, request, requestId);
 
@@ -147,10 +161,12 @@ namespace PeopleManagement.API.Controllers
             return OkResponse(result);
         }
 
-        [HttpPut("Alter/Role")]
-        public async Task<ActionResult<AlterRoleEmployeeResponse>> AlterRole([FromBody] AlterRoleEmployeeCommand request, [FromHeader(Name = "x-requestid")] Guid requestId)
+        [HttpPut("Role")]
+        [ProtectedResource("employee", "edit")]
+        public async Task<ActionResult<AlterRoleEmployeeResponse>> AlterRole([FromRoute] Guid company, [FromBody] AlterRoleEmployeeModel request, 
+            [FromHeader(Name = "x-requestid")] Guid requestId)
         {
-            var command = new IdentifiedCommand<AlterRoleEmployeeCommand, AlterRoleEmployeeResponse>(request, requestId);
+            var command = new IdentifiedCommand<AlterRoleEmployeeCommand, AlterRoleEmployeeResponse>(request.ToCommand(company), requestId);
 
             SendingCommandLog(request.EmployeeId, request, requestId);
 
@@ -161,10 +177,12 @@ namespace PeopleManagement.API.Controllers
             return OkResponse(result);
         }
 
-        [HttpPut("Alter/VoteId")]
-        public async Task<ActionResult<AlterVoteIdEmployeeResponse>> AlterVoteId([FromBody] AlterVoteIdEmployeeCommand request, [FromHeader(Name = "x-requestid")] Guid requestId)
+        [HttpPut("VoteId")]
+        [ProtectedResource("employee", "edit")]
+        public async Task<ActionResult<AlterVoteIdEmployeeResponse>> AlterVoteId([FromRoute] Guid company, [FromBody] AlterVoteIdEmployeeModel request, 
+            [FromHeader(Name = "x-requestid")] Guid requestId)
         {
-            var command = new IdentifiedCommand<AlterVoteIdEmployeeCommand, AlterVoteIdEmployeeResponse>(request, requestId);
+            var command = new IdentifiedCommand<AlterVoteIdEmployeeCommand, AlterVoteIdEmployeeResponse>(request.ToCommand(company), requestId);
 
             SendingCommandLog(request.EmployeeId, request, requestId);
 
@@ -175,10 +193,12 @@ namespace PeopleManagement.API.Controllers
             return OkResponse(result);
         }
 
-        [HttpPut("Alter/WorkPlace")]
-        public async Task<ActionResult<AlterWorkPlaceEmployeeResponse>> AlterWorkPlace([FromBody] AlterWorkPlaceEmployeeCommand request, [FromHeader(Name = "x-requestid")] Guid requestId)
+        [HttpPut("WorkPlace")]
+        [ProtectedResource("employee", "edit")]
+        public async Task<ActionResult<AlterWorkPlaceEmployeeResponse>> AlterWorkPlace([FromRoute] Guid company, 
+            [FromBody] AlterWorkPlaceEmployeeModel request, [FromHeader(Name = "x-requestid")] Guid requestId)
         {
-            var command = new IdentifiedCommand<AlterWorkPlaceEmployeeCommand, AlterWorkPlaceEmployeeResponse>(request, requestId);
+            var command = new IdentifiedCommand<AlterWorkPlaceEmployeeCommand, AlterWorkPlaceEmployeeResponse>(request.ToCommand(company), requestId);
 
             SendingCommandLog(request.EmployeeId, request, requestId);
 
@@ -189,10 +209,12 @@ namespace PeopleManagement.API.Controllers
             return OkResponse(result);
         }
 
-        [HttpPut("Complete/Admission")]
-        public async Task<ActionResult<CompleteAdmissionEmployeeResponse>> CompleteAdmission([FromBody] CompleteAdmissionEmployeeCommand request, [FromHeader(Name = "x-requestid")] Guid requestId)
+        [HttpPut("Admission/Complete")]
+        [ProtectedResource("employee", "edit")]
+        public async Task<ActionResult<CompleteAdmissionEmployeeResponse>> CompleteAdmission([FromRoute] Guid company, 
+            [FromBody] CompleteAdmissionEmployeeModel request, [FromHeader(Name = "x-requestid")] Guid requestId)
         {
-            var command = new IdentifiedCommand<CompleteAdmissionEmployeeCommand, CompleteAdmissionEmployeeResponse>(request, requestId);
+            var command = new IdentifiedCommand<CompleteAdmissionEmployeeCommand, CompleteAdmissionEmployeeResponse>(request.ToCommand(company), requestId);
 
             SendingCommandLog(request.EmployeeId, request, requestId);
 
@@ -203,10 +225,12 @@ namespace PeopleManagement.API.Controllers
             return OkResponse(result);
         }
 
-        [HttpPost("Create/Dependent")]
-        public async Task<ActionResult<CreateDependentEmployeeResponse>> CreateDependent([FromBody] CreateDependentEmployeeCommand request, [FromHeader(Name = "x-requestid")] Guid requestId)
+        [HttpPost("Dependent")]
+        [ProtectedResource("employee", "edit")]
+        public async Task<ActionResult<CreateDependentEmployeeResponse>> CreateDependent([FromRoute] Guid company, 
+            [FromBody] CreateDependentEmployeeModel request, [FromHeader(Name = "x-requestid")] Guid requestId)
         {
-            var command = new IdentifiedCommand<CreateDependentEmployeeCommand, CreateDependentEmployeeResponse>(request, requestId);
+            var command = new IdentifiedCommand<CreateDependentEmployeeCommand, CreateDependentEmployeeResponse>(request.ToCommand(company), requestId);
 
             SendingCommandLog(request.EmployeeId, request, requestId);
 
@@ -217,10 +241,12 @@ namespace PeopleManagement.API.Controllers
             return OkResponse(result);
         }
 
-        [HttpPut("Finished/Contract")]
-        public async Task<ActionResult<FinishedContractEmployeeResponse>> FinishedContract([FromBody] FinishedContractEmployeeCommand request, [FromHeader(Name = "x-requestid")] Guid requestId)
+        [HttpPut("Contract/Finished")]
+        [ProtectedResource("employee", "edit")]
+        public async Task<ActionResult<FinishedContractEmployeeResponse>> FinishedContract([FromRoute] Guid company, 
+            [FromBody] FinishedContractEmployeeModel request, [FromHeader(Name = "x-requestid")] Guid requestId)
         {
-            var command = new IdentifiedCommand<FinishedContractEmployeeCommand, FinishedContractEmployeeResponse>(request, requestId);
+            var command = new IdentifiedCommand<FinishedContractEmployeeCommand, FinishedContractEmployeeResponse>(request.ToCommand(company), requestId);
 
             SendingCommandLog(request.EmployeeId, request, requestId);
 

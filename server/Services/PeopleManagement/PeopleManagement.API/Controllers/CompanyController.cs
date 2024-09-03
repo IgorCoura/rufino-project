@@ -1,4 +1,5 @@
-﻿using PeopleManagement.Application.Commands.CompanyCommands.CreateCompany;
+﻿using PeopleManagement.API.Authorization;
+using PeopleManagement.Application.Commands.CompanyCommands.CreateCompany;
 using PeopleManagement.Application.Commands.DTO;
 using PeopleManagement.Application.Commands.Identified;
 
@@ -10,6 +11,7 @@ namespace PeopleManagement.API.Controllers
         private readonly IMediator _mediator = mediator;
 
         [HttpPost]
+        [ProtectedResource("Company", "create")]
         public async Task<ActionResult<BaseDTO>> CreateCompany([FromBody] CreateCompanyCommand request, [FromHeader(Name = "x-requestid")] string requestId)
         {
            

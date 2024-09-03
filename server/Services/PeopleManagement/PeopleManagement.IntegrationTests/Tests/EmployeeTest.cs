@@ -27,6 +27,7 @@ using System.Threading;
 using NameEmployee = PeopleManagement.Domain.AggregatesModel.EmployeeAggregate.Name;
 using Microsoft.Extensions.Logging;
 using System.Linq;
+using PeopleManagement.Domain.AggregatesModel.CompanyAggregate;
 
 namespace PeopleManagement.IntegrationTests.Tests
 {
@@ -47,15 +48,15 @@ namespace PeopleManagement.IntegrationTests.Tests
 
             var id = Guid.NewGuid();
 
-            var employee = new CreateEmployeeCommand(company.Id, "Rosdevaldo Pereira");
+            var employee = new CreateEmployeeModel("Rosdevaldo Pereira");
 
-            client.DefaultRequestHeaders.Add("x-requestid", Guid.NewGuid().ToString());
-            var response = await client.PostAsJsonAsync("/api/v1/employee/create", employee);
+            client.InputHeaders([company.Id]);
+            var response = await client.PostAsJsonAsync($"/api/v1/{company.Id}/employee", employee);
 
             Assert.Equal(HttpStatusCode.OK, response.StatusCode);
             var content = await response.Content.ReadFromJsonAsync(typeof(CreateEmployeeResponse)) as CreateEmployeeResponse ?? throw new ArgumentNullException();
             var result = await context.Employees.AsNoTracking().FirstOrDefaultAsync(x => x.Id == content.Id) ?? throw new ArgumentNullException();            
-            Assert.Equal(employee.ToEmployee(result.Id), result);
+            Assert.Equal(employee.ToCommand(company.Id).ToEmployee(result.Id), result);
 
         }
 
@@ -70,26 +71,25 @@ namespace PeopleManagement.IntegrationTests.Tests
             var employee = await context.InsertEmployeeWithMinimalInfos(cancellationToken);
             await context.SaveChangesAsync(cancellationToken);
 
-            var command = new AlterAddressEmployeeCommand(
+            var command = new AlterAddressEmployeeModel(
                 employee.Id,
-                employee.CompanyId,
                 "12603-130",
                 "Rua Expedicionário Sebastião Ribeiro Guimarães",
                 "949",
                 "",
                 "Vila Nunes",
                 "Lorena",
-                "SP",
-                "Brasil"
+            "SP",
+            "Brasil"
                 );
 
-            client.DefaultRequestHeaders.Add("x-requestid", Guid.NewGuid().ToString());
-            var response = await client.PutAsJsonAsync("/api/v1/employee/alter/address", command);
+            client.InputHeaders([employee.CompanyId]);
+            var response = await client.PutAsJsonAsync($"/api/v1/{employee.CompanyId}/employee/address", command);
 
             Assert.Equal(HttpStatusCode.OK, response.StatusCode);
             var content = await response.Content.ReadFromJsonAsync(typeof(AlterAddressEmployeeResponse)) as AlterAddressEmployeeResponse ?? throw new ArgumentNullException();
             var result = await context.Employees.AsNoTracking().FirstOrDefaultAsync(x => x.Id == content.Id) ?? throw new ArgumentNullException();
-            Assert.Equal(command.ToAddress(), result.Address);
+            Assert.Equal(command.ToCommand(employee.CompanyId).ToAddress(), result.Address);
             var archives = await context.Archives.AsNoTracking().Where(x => x.OwnerId == content.Id).ToListAsync(cancellationToken);           
         }
 
@@ -104,20 +104,19 @@ namespace PeopleManagement.IntegrationTests.Tests
             var employee = await context.InsertEmployeeWithMinimalInfos(cancellationToken);
             await context.SaveChangesAsync(cancellationToken);
 
-            var command = new AlterContactEmployeeCommand(
+            var command = new AlterContactEmployeeModel(
                 employee.Id,
-                employee.CompanyId,
                 "11 99765-7890",
                 "email@topsemail.com"
                 );
 
-            client.DefaultRequestHeaders.Add("x-requestid", Guid.NewGuid().ToString());
-            var response = await client.PutAsJsonAsync("/api/v1/employee/alter/contact", command);
+            client.InputHeaders([employee.CompanyId]);
+            var response = await client.PutAsJsonAsync($"/api/v1/{employee.CompanyId}/employee/contact", command);
 
             Assert.Equal(HttpStatusCode.OK, response.StatusCode);
             var content = await response.Content.ReadFromJsonAsync(typeof(AlterContactEmployeeResponse)) as AlterContactEmployeeResponse ?? throw new ArgumentNullException();
             var result = await context.Employees.AsNoTracking().FirstOrDefaultAsync(x => x.Id == content.Id) ?? throw new ArgumentNullException();
-            Assert.Equal(command.ToContact(), result.Contact);
+            Assert.Equal(command.ToCommand(employee.CompanyId).ToContact(), result.Contact);
         }
 
         [Fact]
@@ -130,11 +129,10 @@ namespace PeopleManagement.IntegrationTests.Tests
             var employee = await context.InsertEmployeeWithMinimalInfos(cancellationToken);
             await context.SaveChangesAsync(cancellationToken);
 
-            var command = new CreateDependentEmployeeCommand(
+            var command = new CreateDependentEmployeeModel(
                 employee.Id,
-                employee.CompanyId,
                 "Roberto Matias Saveiro Kaique",
-                new IdCardModelCreateDependentEmployeeCommand(
+                new IdCardModelCreateDependentEmployeeModel(
                     "289.598.500-63",
                     "Pamela Matias Saveiro Kaika",
                     "Andelou Araujo Saveiro Kaika",
@@ -147,14 +145,14 @@ namespace PeopleManagement.IntegrationTests.Tests
                 2
                 );
 
-            client.DefaultRequestHeaders.Add("x-requestid", Guid.NewGuid().ToString());
-            var response = await client.PostAsJsonAsync("/api/v1/employee/create/dependent", command);
+            client.InputHeaders([employee.CompanyId]);
+            var response = await client.PostAsJsonAsync($"/api/v1/{employee.CompanyId}/employee/dependent", command);
 
             Assert.Equal(HttpStatusCode.OK, response.StatusCode);
             var content = await response.Content.ReadFromJsonAsync(typeof(CreateDependentEmployeeResponse)) as CreateDependentEmployeeResponse ?? throw new ArgumentNullException();
             var result = await context.Employees.AsNoTracking().FirstOrDefaultAsync(x => x.Id == content.Id) ?? throw new ArgumentNullException();
             Assert.Single(result.Dependents);
-            Assert.Equal(command.ToDependent(), result.Dependents.First(x => x.Name.Equals((NameEmployee)command.Name)));
+            Assert.Equal(command.ToCommand(employee.CompanyId).ToDependent(), result.Dependents.First(x => x.Name.Equals((NameEmployee)command.Name)));
             await CheckRequestDocumentEvent(context, RequestFilesEvent.SpouseDocument(employee.Id, employee.CompanyId), cancellationToken);
         }
 
@@ -169,13 +167,12 @@ namespace PeopleManagement.IntegrationTests.Tests
             var employee = await context.InsertEmployeeWithOneDependent(cancellationToken);
             await context.SaveChangesAsync(cancellationToken);
 
-            var command = new AlterDependentEmployeeCommand(
+            var command = new AlterDependentEmployeeModel(
                 employee.Id,
-                employee.CompanyId,
                 employee.Dependents.First().Name.Value,
-                new DependentModelAlterDependentEmployeeCommand(
+                new DependentModelAlterDependentEmployeeModel(
                     "Roberto Matias Kaique",
-                    new IdCardModelAlterDependentEmployeeCommand(
+                    new IdCardModelAlterDependentEmployeeModel(
                         "289.598.500-63",
                         "Pamela Matias Kaika",
                         "Andelou Araujo Kaika",
@@ -189,8 +186,8 @@ namespace PeopleManagement.IntegrationTests.Tests
                     )
                 );
 
-            client.DefaultRequestHeaders.Add("x-requestid", Guid.NewGuid().ToString());
-            var response = await client.PutAsJsonAsync("/api/v1/employee/alter/dependent", command);
+            client.InputHeaders([employee.CompanyId]);
+            var response = await client.PutAsJsonAsync($"/api/v1/{employee.CompanyId}/employee/dependent", command);
 
             Assert.Equal(HttpStatusCode.OK, response.StatusCode);
             var content = await response.Content.ReadFromJsonAsync(typeof(AlterDependentEmployeeResponse)) as AlterDependentEmployeeResponse ?? throw new ArgumentNullException();
@@ -212,9 +209,8 @@ namespace PeopleManagement.IntegrationTests.Tests
             var employee = await context.InsertEmployeeWithMinimalInfos(cancellationToken);
             await context.SaveChangesAsync(cancellationToken);
 
-            var command = new AlterIdCardEmployeeCommand(
+            var command = new AlterIdCardEmployeeModel(
                     employee.Id,
-                    employee.CompanyId,
                     "289.598.500-63",
                     "Pamela Matias Kaika",
                     "Andelou Araujo Kaika",
@@ -225,13 +221,13 @@ namespace PeopleManagement.IntegrationTests.Tests
                 );
 
 
-            client.DefaultRequestHeaders.Add("x-requestid", Guid.NewGuid().ToString());
-            var response = await client.PutAsJsonAsync("/api/v1/employee/alter/idcard", command);
+            client.InputHeaders([employee.CompanyId]);
+            var response = await client.PutAsJsonAsync($"/api/v1/{employee.CompanyId}/employee/idcard", command);
 
             Assert.Equal(HttpStatusCode.OK, response.StatusCode);
             var content = await response.Content.ReadFromJsonAsync(typeof(AlterIdCardEmployeeResponse)) as AlterIdCardEmployeeResponse ?? throw new ArgumentNullException();
             var result = await context.Employees.AsNoTracking().FirstOrDefaultAsync(x => x.Id == content.Id) ?? throw new ArgumentNullException();
-            Assert.Equal(command.ToIdCard(), result.IdCard);
+            Assert.Equal(command.ToCommand(employee.CompanyId).ToIdCard(), result.IdCard);
         }
 
         [Fact]
@@ -245,19 +241,18 @@ namespace PeopleManagement.IntegrationTests.Tests
             var employee = await context.InsertEmployeeWithMinimalInfos(cancellationToken);
             await context.SaveChangesAsync(cancellationToken);
 
-            var command = new AlterMedicalAdmissionExamEmployeeCommand(
+            var command = new AlterMedicalAdmissionExamEmployeeModel(
                 employee.Id,
-                employee.CompanyId,
                 DateOnly.Parse("2024/04/01"),
                 DateOnly.Parse("2025/04/01"));
 
-            client.DefaultRequestHeaders.Add("x-requestid", Guid.NewGuid().ToString());
-            var response = await client.PutAsJsonAsync("/api/v1/employee/alter/MedicalAdmissionExam", command);
+            client.InputHeaders([employee.CompanyId]);
+            var response = await client.PutAsJsonAsync($"/api/v1/{employee.CompanyId}/employee/MedicalAdmissionExam", command);
 
             Assert.Equal(HttpStatusCode.OK, response.StatusCode);
             var content = await response.Content.ReadFromJsonAsync(typeof(AlterMedicalAdmissionExamEmployeeResponse)) as AlterMedicalAdmissionExamEmployeeResponse ?? throw new ArgumentNullException();
             var result = await context.Employees.AsNoTracking().FirstOrDefaultAsync(x => x.Id == content.Id) ?? throw new ArgumentNullException();
-            Assert.Equal(command.ToMedicalAdmissionExam(), result.MedicalAdmissionExam);
+            Assert.Equal(command.ToCommand(employee.CompanyId).ToMedicalAdmissionExam(), result.MedicalAdmissionExam);
         }
 
 
@@ -272,19 +267,18 @@ namespace PeopleManagement.IntegrationTests.Tests
             var employee = await context.InsertEmployeeWithMinimalInfos(cancellationToken);
             await context.SaveChangesAsync(cancellationToken);
 
-            var command = new AlterMilitarDocumentEmployeeCommand(
+            var command = new AlterMilitarDocumentEmployeeModel(
                 employee.Id,
-                employee.CompanyId,
                 "33456888565",
                 "Reservista");
 
-            client.DefaultRequestHeaders.Add("x-requestid", Guid.NewGuid().ToString());
-            var response = await client.PutAsJsonAsync("/api/v1/employee/alter/MilitarDocument", command);
+            client.InputHeaders([employee.CompanyId]);
+            var response = await client.PutAsJsonAsync($"/api/v1/{employee.CompanyId}/employee/MilitarDocument", command);
 
             Assert.Equal(HttpStatusCode.OK, response.StatusCode);
             var content = await response.Content.ReadFromJsonAsync(typeof(AlterMilitarDocumentEmployeeResponse)) as AlterMilitarDocumentEmployeeResponse ?? throw new ArgumentNullException();
             var result = await context.Employees.AsNoTracking().FirstOrDefaultAsync(x => x.Id == content.Id) ?? throw new ArgumentNullException();
-            Assert.Equal(command.ToMilitaryDocument(), result.MilitaryDocument);
+            Assert.Equal(command.ToCommand(employee.CompanyId).ToMilitaryDocument(), result.MilitaryDocument);
         }
 
         [Fact]
@@ -298,13 +292,12 @@ namespace PeopleManagement.IntegrationTests.Tests
             var employee = await context.InsertEmployeeWithMinimalInfos(cancellationToken);
             await context.SaveChangesAsync(cancellationToken);
 
-            var command = new AlterNameEmployeeCommand(
+            var command = new AlterNameEmployeeModel(
                 employee.Id,
-                employee.CompanyId,
                 "Roberto de Maione");
 
-            client.DefaultRequestHeaders.Add("x-requestid", Guid.NewGuid().ToString());
-            var response = await client.PutAsJsonAsync("/api/v1/employee/alter/name", command);
+            client.InputHeaders([employee.CompanyId]);
+            var response = await client.PutAsJsonAsync($"/api/v1/{employee.CompanyId}/employee/name", command);
 
             Assert.Equal(HttpStatusCode.OK, response.StatusCode);
             var content = await response.Content.ReadFromJsonAsync(typeof(AlterNameEmployeeResponse)) as AlterNameEmployeeResponse ?? throw new ArgumentNullException();
@@ -323,9 +316,8 @@ namespace PeopleManagement.IntegrationTests.Tests
             var employee = await context.InsertEmployeeWithMinimalInfos(cancellationToken);
             await context.SaveChangesAsync(cancellationToken);
 
-            var command = new AlterPersonalInfoEmployeeCommand(
+            var command = new AlterPersonalInfoEmployeeModel(
                 employee.Id,
-                employee.CompanyId,
                 new DeficiencyModel([], ""),
                 1,
                 1,
@@ -333,13 +325,13 @@ namespace PeopleManagement.IntegrationTests.Tests
                 1
                 );
 
-            client.DefaultRequestHeaders.Add("x-requestid", Guid.NewGuid().ToString());
-            var response = await client.PutAsJsonAsync("/api/v1/employee/alter/personalinfo", command);
+            client.InputHeaders([employee.CompanyId]);
+            var response = await client.PutAsJsonAsync($"/api/v1/{employee.CompanyId}/employee/personalinfo", command);
 
             Assert.Equal(HttpStatusCode.OK, response.StatusCode);
             var content = await response.Content.ReadFromJsonAsync(typeof(AlterPersonalInfoEmployeeResponse)) as AlterPersonalInfoEmployeeResponse ?? throw new ArgumentNullException();
             var result = await context.Employees.AsNoTracking().FirstOrDefaultAsync(x => x.Id == content.Id) ?? throw new ArgumentNullException();
-            Assert.Equal(command.ToPersonalInfo(), result.PersonalInfo);
+            Assert.Equal(command.ToCommand(employee.CompanyId).ToPersonalInfo(), result.PersonalInfo);
         }
 
         [Fact]
@@ -354,14 +346,13 @@ namespace PeopleManagement.IntegrationTests.Tests
             var role = await context.InsertRole(employee.CompanyId, cancellationToken);
             await context.SaveChangesAsync(cancellationToken);
 
-            var command = new AlterRoleEmployeeCommand(
+            var command = new AlterRoleEmployeeModel(
                 employee.Id,
-                employee.CompanyId,
                 role.Id
                 );
 
-            client.DefaultRequestHeaders.Add("x-requestid", Guid.NewGuid().ToString());
-            var response = await client.PutAsJsonAsync("/api/v1/employee/alter/role", command);
+            client.InputHeaders([employee.CompanyId]);
+            var response = await client.PutAsJsonAsync($"/api/v1/{employee.CompanyId}/employee/role", command);
 
             Assert.Equal(HttpStatusCode.OK, response.StatusCode);
             var content = await response.Content.ReadFromJsonAsync(typeof(AlterRoleEmployeeResponse)) as AlterRoleEmployeeResponse ?? throw new ArgumentNullException();
@@ -380,14 +371,13 @@ namespace PeopleManagement.IntegrationTests.Tests
             var employee = await context.InsertEmployeeWithMinimalInfos(cancellationToken);
             await context.SaveChangesAsync(cancellationToken);
 
-            var command = new AlterVoteIdEmployeeCommand(
+            var command = new AlterVoteIdEmployeeModel(
                 employee.Id,
-                employee.CompanyId,
                 "354627230167"
                 );
 
-            client.DefaultRequestHeaders.Add("x-requestid", Guid.NewGuid().ToString());
-            var response = await client.PutAsJsonAsync("/api/v1/employee/alter/voteid", command);
+            client.InputHeaders([employee.CompanyId]);
+            var response = await client.PutAsJsonAsync($"/api/v1/{employee.CompanyId}/employee/voteid", command);
 
             Assert.Equal(HttpStatusCode.OK, response.StatusCode);
             var content = await response.Content.ReadFromJsonAsync(typeof(AlterVoteIdEmployeeResponse)) as AlterVoteIdEmployeeResponse ?? throw new ArgumentNullException();
@@ -407,14 +397,13 @@ namespace PeopleManagement.IntegrationTests.Tests
             var workplace = await context.InsertWorkplace(employee.CompanyId, cancellationToken);
             await context.SaveChangesAsync(cancellationToken);
 
-            var command = new AlterWorkPlaceEmployeeCommand(
+            var command = new AlterWorkPlaceEmployeeModel(
                 employee.Id,
-                employee.CompanyId,
                 workplace.Id
                 );
 
-            client.DefaultRequestHeaders.Add("x-requestid", Guid.NewGuid().ToString());
-            var response = await client.PutAsJsonAsync("/api/v1/employee/alter/workplace", command);
+            client.InputHeaders([employee.CompanyId]);
+            var response = await client.PutAsJsonAsync($"/api/v1/{employee.CompanyId}/employee/workplace", command);
 
             Assert.Equal(HttpStatusCode.OK, response.StatusCode);
             var content = await response.Content.ReadFromJsonAsync(typeof(AlterWorkPlaceEmployeeResponse)) as AlterWorkPlaceEmployeeResponse ?? throw new ArgumentNullException();
@@ -431,15 +420,13 @@ namespace PeopleManagement.IntegrationTests.Tests
             var context = _factory.GetContext();
             var client = _factory.CreateClient();
 
-            var aaa1 = await context.Archives.ToListAsync();
-
             var employee = await context.InsertEmployeeWithAllInfoToAdmission(cancellationToken);
             await context.SaveChangesAsync(cancellationToken);
 
             var dateNow = DateOnly.FromDateTime(DateTime.UtcNow);
-            var command = new CompleteAdmissionEmployeeCommand(employee.Id, employee.CompanyId, "RU1902", dateNow, EmploymentContactType.CLT.Id);
-            client.DefaultRequestHeaders.Add("x-requestid", Guid.NewGuid().ToString());
-            var response = await client.PutAsJsonAsync("/api/v1/employee/complete/admission", command);
+            var command = new CompleteAdmissionEmployeeModel(employee.Id,"RU1902", dateNow, EmploymentContactType.CLT.Id);
+            client.InputHeaders([employee.CompanyId]);
+            var response = await client.PutAsJsonAsync($"/api/v1/{employee.CompanyId}/employee/admission/complete", command);
 
             Assert.Equal(HttpStatusCode.OK, response.StatusCode);
             var content = await response.Content.ReadFromJsonAsync(typeof(CompleteAdmissionEmployeeResponse)) as CompleteAdmissionEmployeeResponse ?? throw new ArgumentNullException();
@@ -468,9 +455,9 @@ namespace PeopleManagement.IntegrationTests.Tests
             var employee = await context.InsertEmployeeActive(cancellationToken);
             await context.SaveChangesAsync(cancellationToken);
 
-            var command = new FinishedContractEmployeeCommand(employee.Id, employee.CompanyId, DateOnly.Parse("30/05/2024"));
-            client.DefaultRequestHeaders.Add("x-requestid", Guid.NewGuid().ToString());
-            var response = await client.PutAsJsonAsync("/api/v1/employee/finished/contract", command);
+            var command = new FinishedContractEmployeeModel(employee.Id, DateOnly.Parse("30/05/2024"));
+            client.InputHeaders([employee.CompanyId]);
+            var response = await client.PutAsJsonAsync($"/api/v1/{employee.CompanyId}/employee/contract/finished", command);
 
             Assert.Equal(HttpStatusCode.OK, response.StatusCode);
             var content = await response.Content.ReadFromJsonAsync(typeof(FinishedContractEmployeeResponse)) as FinishedContractEmployeeResponse ?? throw new ArgumentNullException();

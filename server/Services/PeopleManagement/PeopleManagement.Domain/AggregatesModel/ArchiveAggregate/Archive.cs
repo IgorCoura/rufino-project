@@ -38,7 +38,7 @@ namespace PeopleManagement.Domain.AggregatesModel.ArchiveAggregate
 
         public void DocumentNotApplicable(Name fileName)
         {
-            var document = Files.FirstOrDefault(x => x.Name == fileName)
+            var document = Files.FirstOrDefault(x => x.Name.Equals(fileName))
                ?? throw new DomainException(this, DomainErrors.ObjectNotFound(nameof(DocumentUnit), fileName.ToString()));
 
             document.NotApplicable();

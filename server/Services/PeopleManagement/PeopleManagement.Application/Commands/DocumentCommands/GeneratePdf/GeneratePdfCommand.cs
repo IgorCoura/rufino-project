@@ -4,4 +4,9 @@
     {
 
     }
+
+    public record GeneratePdfModel(Guid DocumentUnitId, Guid DocumentId, Guid EmployeeId)
+    {
+        public GeneratePdfCommand ToCommand(Guid company) => new(DocumentUnitId, DocumentId, EmployeeId, company);
+    }
 }
