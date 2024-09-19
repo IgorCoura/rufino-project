@@ -15,11 +15,12 @@ using PeopleManagement.Application.Commands.EmployeeCommands.CreateDependentEmpl
 using PeopleManagement.Application.Commands.EmployeeCommands.CreateEmployee;
 using PeopleManagement.Application.Commands.EmployeeCommands.FinishedContractEmployee;
 using PeopleManagement.Application.Commands.Identified;
+using PeopleManagement.Application.Queries.Employee;
 
 namespace PeopleManagement.API.Controllers
 {
     [Route("api/v1/{company}/[controller]")]
-    public class EmployeeController(ILogger<CompanyController> logger, IMediator mediator) : BaseController(logger)
+    public class EmployeeController(ILogger<CompanyController> logger, IMediator mediator, IEmployeeQueries employeeQueries) : BaseController(logger)
     {
         [HttpPost]
         [ProtectedResource("employee", "create")]
@@ -256,5 +257,15 @@ namespace PeopleManagement.API.Controllers
 
             return OkResponse(result);
         }
+
+
+        [HttpGet("/{page}/{size}")]
+        [ProtectedResource("employee", "view")]
+        public async Task<ActionResult<IEnumerable<EmployeeSimpleDto>>> GetEmployees(int page, int size)
+        {
+            var result = await employeeQueries.GetEmployeeList(page, size);
+            return OkResponse(result);
+        }
+
     }
 }

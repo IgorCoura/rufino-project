@@ -1,24 +1,24 @@
 import 'package:bloc/bloc.dart';
 import 'package:equatable/equatable.dart';
+import 'package:rufino/domain/services/auth_service.dart';
 import 'package:rufino/modules/auth/domain/enums/login_status.dart';
 import 'package:rufino/modules/auth/domain/models/password.dart';
 import 'package:rufino/modules/auth/domain/models/username.dart';
-import 'package:rufino/modules/auth/domain/services/auth_service.dart';
 
 part 'login_event.dart';
 part 'login_state.dart';
 
 class LoginBloc extends Bloc<LoginEvent, LoginState> {
   LoginBloc({
-    required AuthenticationService authenticationRepository,
-  })  : _authenticationRepository = authenticationRepository,
+    required AuthService authService,
+  })  : _authService = authService,
         super(const LoginState()) {
     on<LoginUsernameChanged>(_onUsernameChanged);
     on<LoginPasswordChanged>(_onPasswordChanged);
     on<LoginSubmitted>(_onSubmitted);
   }
 
-  final AuthenticationService _authenticationRepository;
+  final AuthService _authService;
 
   void _onUsernameChanged(
     LoginUsernameChanged event,
@@ -46,15 +46,11 @@ class LoginBloc extends Bloc<LoginEvent, LoginState> {
   ) async {
     emit(state.copyWith(status: LoginStatus.inProgress));
     try {
-      var result = await _authenticationRepository.logIn(
+      await _authService.logIn(
         username: state.username.value,
         password: state.password.value,
       );
-      if (result) {
-        emit(state.copyWith(status: LoginStatus.success));
-      } else {
-        emit(state.copyWith(status: LoginStatus.failure));
-      }
+      emit(state.copyWith(status: LoginStatus.success));
     } catch (_) {
       emit(state.copyWith(status: LoginStatus.failure));
     }

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_modular/flutter_modular.dart';
-import 'package:rufino/modules/auth/domain/enums/authentication_status.dart';
+import 'package:rufino/domain/enum/auth_status.dart';
 import 'package:rufino/modules/auth/presentation/initial/bloc/authentication_bloc.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -26,11 +26,11 @@ class _InitialPageState extends State<InitialPage> {
       bloc: bloc,
       listener: (context, state) {
         switch (state.status) {
-          case AuthenticationStatus.authenticated:
-            Modular.to.navigate('/home');
-          case AuthenticationStatus.unauthenticated:
+          case AuthStatus.authenticated:
+            Modular.to.navigate('/home/');
+          case AuthStatus.unauthenticated:
             Modular.to.navigate('/login');
-          case AuthenticationStatus.unknown:
+          case AuthStatus.unknown:
             break;
         }
       },
