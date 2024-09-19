@@ -1,5 +1,6 @@
 ﻿using FluentValidation;
 using PeopleManagement.Application.Behaviors;
+using PeopleManagement.Application.Queries.Employee;
 using PeopleManagement.Application.Validations;
 
 namespace PeopleManagement.API.DependencyInjection
@@ -10,6 +11,8 @@ namespace PeopleManagement.API.DependencyInjection
         {
             //service.AddValidatorsFromAssemblyContaining<ValidatorAssembly>();
             //service.AddTransient(typeof(IPipelineBehavior<,>), typeof(ValidatorBehavior<,>));
+
+            service.AddScoped<IEmployeeQueries, EmployeeQueries>();
 
             return service;
         }
