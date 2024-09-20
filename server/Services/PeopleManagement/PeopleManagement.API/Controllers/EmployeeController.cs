@@ -35,7 +35,6 @@ namespace PeopleManagement.API.Controllers
                 CommandResultLog(result, request.Name, request, requestId);
 
                 return OkResponse(result);
-
         }
 
         [HttpPut("Address")]
@@ -259,11 +258,10 @@ namespace PeopleManagement.API.Controllers
         }
 
 
-        [HttpGet("/{page}/{size}")]
-        [ProtectedResource("employee", "view")]
-        public async Task<ActionResult<IEnumerable<EmployeeSimpleDto>>> GetEmployees(int page, int size)
+        [HttpGet("/list")]
+        public async Task<ActionResult<IEnumerable<EmployeeSimpleDto>>> GetEmployees([FromRoute] Guid company, [FromQuery] EmployeeParams employeeParams)
         {
-            var result = await employeeQueries.GetEmployeeList(page, size);
+            var result = await employeeQueries.GetEmployeeList(employeeParams, company);
             return OkResponse(result);
         }
 

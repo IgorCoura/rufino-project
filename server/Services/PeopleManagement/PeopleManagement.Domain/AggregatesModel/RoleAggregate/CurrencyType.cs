@@ -2,9 +2,9 @@
 {
     public sealed class CurrencyType : Enumeration
     {
-        public static readonly CurrencyType Real = new(1, nameof(Real));
-        public static readonly CurrencyType Dolar = new(2, nameof(Dolar));
-        public static readonly CurrencyType Euro = new(3, nameof(Euro));
+        public static readonly CurrencyType BRL = new(1, nameof(BRL));
+        public static readonly CurrencyType USD = new(2, nameof(USD));
+        public static readonly CurrencyType EUR = new(3, nameof(EUR));
         private CurrencyType(int id, string name) : base(id, name)
         {
         }

@@ -38,7 +38,7 @@ class HomePage extends StatelessWidget {
             onSelected: (value) async {
               if (value == "logout") {
                 bloc.add(LogoutRequested());
-                Modular.to.navigate("/");
+                Modular.to.navigate("/login");
                 return;
               }
             },

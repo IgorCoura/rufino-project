@@ -105,46 +105,16 @@ class _EmployeesListPageState extends State<EmployeesListPage> {
           ),
         ],
       ),
-      floatingActionButton: Padding(
-        padding: const EdgeInsets.only(bottom: 20.0),
-        child: Container(
-          padding: const EdgeInsets.all(8),
-          decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(35),
-              color: Theme.of(context).colorScheme.secondaryContainer),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              FloatingActionButton(
-                shape: RoundedRectangleBorder(
-                  borderRadius:
-                      BorderRadius.circular(30), // Arredondando os cantos
-                ),
-                onPressed: () {
-                  // Ação do primeiro botão
-                }, // Ícone centralizado
-                heroTag: "btn1",
-                child: const Icon(Icons
-                    .add), // É necessário usar heroTag único para evitar conflito
-              ),
-              const SizedBox(width: 20), // Espaçamento entre os botões
-              FloatingActionButton(
-                shape: RoundedRectangleBorder(
-                  borderRadius:
-                      BorderRadius.circular(30), // Arredondando os cantos
-                ),
-                onPressed: () {
-                  // Ação do segundo botão
-                }, // Ícone centralizado
-                heroTag: "btn2",
-                child: const Icon(Icons.remove), // HeroTag único
-              ),
-            ],
-          ),
+      floatingActionButton: FloatingActionButton(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(30), // Arredondando os cantos
         ),
+        onPressed: () {
+          // Ação do segundo botão
+        }, // Ícone centralizado
+        heroTag: "btn2",
+        child: const Icon(Icons.add), // HeroTag único
       ),
-      floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
     );
   }
 }

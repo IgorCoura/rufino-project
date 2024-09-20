@@ -1,12 +1,30 @@
-﻿namespace PeopleManagement.Application.Queries.Employee
+﻿using System.Linq.Expressions;
+using static Microsoft.EntityFrameworkCore.DbLoggerCategory;
+
+namespace PeopleManagement.Application.Queries.Employee
 {
     public record EmployeeSimpleDto
+    { 
+        public Guid Id { get; init; }
+        public string Name { get; init; }
+        public string? Registration { get; init; }
+        public int Status { get; init; }
+        public Guid? RoleId { get; init; }
+        public string RoleName { get; init; }
+    }
+
+    public record EmployeeParams
     {
-        public Guid Id { get; set; }
-        public string Name { get; set; }
-        public string Registration { get; set; }
-        public int Status { get; set; }
-        public Guid? RoleId { get; set; }
-        public string RoleName { get; set; }
+        public string? Name { get; init; }
+        public int? Status { get; init; }
+        public int PageSize { get; init; } = 10;
+        public int PageNumber { get; init; } = 1;
+        public SortOrder SortOrder { get; init; } = SortOrder.ASC;
+    }
+
+    public enum SortOrder
+    {
+        ASC,
+        DESC,
     }
 }

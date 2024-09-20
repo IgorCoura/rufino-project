@@ -1,5 +1,4 @@
-﻿using PeopleManagement.Domain.AggregatesModel.CompanyAggregate;
-using PeopleManagement.Domain.ErrorTools;
+﻿using PeopleManagement.Domain.ErrorTools;
 using PeopleManagement.Domain.ErrorTools.ErrorsMessages;
 
 namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate

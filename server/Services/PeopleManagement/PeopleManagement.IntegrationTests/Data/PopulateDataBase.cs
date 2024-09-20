@@ -65,7 +65,7 @@ namespace PeopleManagement.IntegrationTests.Data
             await context.Positions.AddAsync(position, cancellationToken);
             
             var roleId = Guid.NewGuid();
-            var role = Role.Create(roleId, "Encanador Senior", "Encanador Com Experiencia", "738298", Remuneration.Create(PaymentUnit.PerHour, Currency.Create(CurrencyType.Real, "10.55"), "Por Hora"), postionId, companyId);
+            var role = Role.Create(roleId, "Encanador Senior", "Encanador Com Experiencia", "738298", Remuneration.Create(PaymentUnit.PerHour, Currency.Create(CurrencyType.BRL, "10.55"), "Por Hora"), postionId, companyId);
             await context.Roles.AddAsync(role, cancellationToken);
 
             return role;
