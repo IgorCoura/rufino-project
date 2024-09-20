@@ -100,6 +100,13 @@ namespace PeopleManagement.Infra.Context
             return await base.SaveChangesAsync(cancellationToken);
         }
 
+        public async Task<int> SaveChangesWithoutDispatchEventsAsync(CancellationToken cancellationToken = default)
+        {
+
+            await UpdateDatetimeEntities();
+
+            return await base.SaveChangesAsync(cancellationToken);
+        }
 
         public Task UpdateDatetimeEntities()
         {

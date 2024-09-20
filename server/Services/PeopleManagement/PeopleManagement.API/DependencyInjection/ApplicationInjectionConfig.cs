@@ -1,7 +1,4 @@
-﻿using FluentValidation;
-using PeopleManagement.Application.Behaviors;
-using PeopleManagement.Application.Queries.Employee;
-using PeopleManagement.Application.Validations;
+﻿using PeopleManagement.Application.Queries.Employee;
 
 namespace PeopleManagement.API.DependencyInjection
 {

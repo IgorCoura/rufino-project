@@ -2,6 +2,6 @@
 {
     public interface IEmployeeQueries
     {
-        Task<IEnumerable<EmployeeSimpleDto>> GetEmployeeList(int pageSize, int pageNumber);
+        Task<IEnumerable<EmployeeSimpleDto>> GetEmployeeList(EmployeeParams pms, Guid company);
     }
 }

@@ -1,41 +1,60 @@
-﻿using Dapper;
-using Npgsql;
-using System.Data.SqlClient;
+﻿using Microsoft.EntityFrameworkCore;
+using PeopleManagement.Domain.AggregatesModel.EmployeeAggregate;
+using PeopleManagement.Domain.SeedWord;
+using PeopleManagement.Infra.Context;
 
 namespace PeopleManagement.Application.Queries.Employee
 {
-    public class EmployeeQueries(string connectionString) : IEmployeeQueries
+    public class EmployeeQueries(PeopleManagementContext peopleManagementContext) : IEmployeeQueries
     {
-        private string _connectionString = connectionString;
+        private PeopleManagementContext _context = peopleManagementContext;
 
-
-        public async Task<IEnumerable<EmployeeSimpleDto>> GetEmployeeList(int pageSize, int pageNumber)
+        public async Task<IEnumerable<EmployeeSimpleDto>> GetEmployeeList(EmployeeParams pms, Guid company)
         {
-            var sql = @"
-                    SELECT 
-                        e.Id, 
-                        e.Name, 
-                        e.Registration, 
-                        e.Status, 
-                        e.RoleId, 
-                        r.Name AS RoleName
-                    FROM Employees e
-                    LEFT JOIN Roles r ON e.RoleId = r.Id
-                    ORDER BY e.Name
-                    LIMIT @PageSize OFFSET (@Offset);";
+            var query = 
+                (
+                    from e in _context.Employees
+                    join r in _context.Roles on e.RoleId equals r.Id
+                    select new
+                    {
+                        Employee = e,
+                        Role = r
+                    }
+                );
 
-            var parameters = new
+
+            if (!string.IsNullOrEmpty(pms.Name))
             {
-                PageSize = pageSize,
-                Offset = (pageNumber - 1) * pageSize
-            };
+                query = query.Where(e => e.Employee.Name.Value.Contains((string)pms.Name));
+            }
 
-            using var connection = new NpgsqlConnection(_connectionString);
-            
-            return await connection.QueryAsync<EmployeeSimpleDto>(sql, parameters);
-            
+            if (pms.Status.HasValue && Enumeration.TryFromValue<Status>((int)pms.Status) != null)
+            {
+                query = query.Where(e => e.Employee.Status == (Status)pms.Status);
+            }
+
+            query = pms.SortOrder == SortOrder.ASC
+                ? query.OrderBy(e => e.Employee.Name)
+                : query.OrderByDescending(e => e.Employee.Name);
+
+            var pageNumber = pms.PageNumber <= 0 ? 1 : pms.PageNumber;
+            query = query.Skip((pageNumber - 1) * pms.PageSize).Take(pms.PageSize);
+
+            var result = await query.Select(o => new EmployeeSimpleDto
+            {
+                Id = o.Employee.Id,
+                Name = o.Employee.Name.Value,
+                Registration = o.Employee.Registration == null ? "" : o.Employee.Registration!.Value,
+                Status = o.Employee.Status.Id,
+                RoleId = o.Employee.RoleId,
+                RoleName = o.Role.Name.Value,
+            }).ToListAsync();
+
+            return result;
         }
- 
+
+
+
 
     }
 }

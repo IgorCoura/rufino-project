@@ -7,6 +7,7 @@ using PeopleManagement.API.DependencyInjection;
 using PeopleManagement.API.Filters;
 using PeopleManagement.Application.Commands;
 using PeopleManagement.Infra.Context;
+using PeopleManagement.Infra.DataForTests;
 using PeopleManagement.Services.DomainEventHandlers;
 using System.Text.Json.Serialization;
 
@@ -74,6 +75,8 @@ if (context.Database.GetPendingMigrations().Any())
 {
     context.Database.Migrate();
 }
+
+await PopulateDb.Populate(context);
 
 app.UseHttpsRedirection();
 

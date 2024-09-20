@@ -73,6 +73,7 @@ class _LoginPageState extends State<LoginPage> {
                       onChanged: (password) =>
                           bloc.add(LoginPasswordChanged(password)),
                     ),
+
                     const SizedBox(height: 20),
 
                     // Botão de "Esqueci a Senha"
@@ -88,24 +89,33 @@ class _LoginPageState extends State<LoginPage> {
                     const SizedBox(height: 20),
 
                     // Botão de Login
-                    SizedBox(
-                      width: double
-                          .infinity, // Botão ocupa toda a largura possível
-                      height: 50.0, // Altura do botão
-                      child: ElevatedButton(
-                        onPressed: () {
-                          bloc.add(const LoginSubmitted());
-                        },
-                        style: ElevatedButton.styleFrom(
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(30.0),
+
+                    BlocBuilder<LoginBloc, LoginState>(
+                      bloc: bloc,
+                      builder: (context, state) {
+                        if (state.status == LoginStatus.inProgress) {
+                          return const CircularProgressIndicator();
+                        }
+                        return SizedBox(
+                          width: double
+                              .infinity, // Botão ocupa toda a largura possível
+                          height: 50.0, // Altura do botão
+                          child: ElevatedButton(
+                            onPressed: () {
+                              bloc.add(const LoginSubmitted());
+                            },
+                            style: ElevatedButton.styleFrom(
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(30.0),
+                              ),
+                            ),
+                            child: const Text(
+                              'Login',
+                              style: TextStyle(fontSize: 18),
+                            ),
                           ),
-                        ),
-                        child: const Text(
-                          'Login',
-                          style: TextStyle(fontSize: 18),
-                        ),
-                      ),
+                        );
+                      },
                     ),
                   ],
                 ),
