@@ -42,8 +42,11 @@ namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
         public static implicit operator Name(string value) =>
             new(value);
 
+        public static implicit operator string(Name name) =>
+            name.Value;
 
         public override string ToString() => Value;
+
         protected override IEnumerable<object?> GetEqualityComponents()
         {
             yield return Value;

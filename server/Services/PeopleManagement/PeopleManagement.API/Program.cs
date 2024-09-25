@@ -13,6 +13,15 @@ using System.Text.Json.Serialization;
 
 var builder = WebApplication.CreateBuilder(args);
 
+
+builder.WebHost.ConfigureKestrel(serverOptions =>
+{
+    serverOptions.Limits.KeepAliveTimeout = TimeSpan.FromMinutes(2);
+    serverOptions.Limits.MaxConcurrentConnections = 100;
+    serverOptions.Limits.MaxConcurrentUpgradedConnections = 100;
+
+});
+
 var env = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT");
 
 //Config DataBase
@@ -33,6 +42,12 @@ builder.Services.AddDbContext<PeopleManagementContext>(options =>
 builder.Services.AddKeycloakAuthentication(builder.Configuration);
 builder.Services.AddKeycloakAuthorization(builder.Configuration);
 
+builder.Services.AddCors(options => 
+{ options.AddPolicy("CorsPolicy", builder => builder
+    .AllowAnyOrigin()
+    .AllowAnyMethod()
+    .AllowAnyHeader()); 
+});
 
 builder.Services.AddMediatR(cfg =>
 {
@@ -80,6 +95,7 @@ await PopulateDb.Populate(context);
 
 app.UseHttpsRedirection();
 
+app.UseCors("CorsPolicy");
 app.UseAuthentication();
 app.UseAuthorization();
 

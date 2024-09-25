@@ -1,4 +1,5 @@
-﻿using PeopleManagement.Domain.AggregatesModel.ArchiveAggregate;
+﻿using Microsoft.EntityFrameworkCore;
+using PeopleManagement.Domain.AggregatesModel.ArchiveAggregate;
 using PeopleManagement.Domain.AggregatesModel.ArchiveAggregate.Interfaces;
 using PeopleManagement.Domain.AggregatesModel.ArchiveCategoryAggregate.Interfaces;
 using PeopleManagement.Domain.AggregatesModel.DocumentAggregate.Interfaces;
@@ -16,10 +17,10 @@ namespace PeopleManagement.Services.Services
 
         public async Task RequiresFiles(Guid ownerId, Guid companyId, int eventId, CancellationToken cancellationToken = default)
         {
-            var categories = await _archiveCategoryRepository.GetDataAsync(cancellation: cancellationToken);
-            categories = categories.Where(x => x.ListenEventsIds.Contains(eventId));
 
-            foreach(var category in categories)
+            var categories = await _archiveCategoryRepository.GetDataAsync(ac => ((string)(object)ac.ListenEventsIds).Contains(eventId.ToString()), cancellation: cancellationToken);
+
+            foreach (var category in categories)
             {
                 Archive? archive = await _archiveRepository.FirstOrDefaultAsync(x => x.OwnerId == ownerId && x.CompanyId == companyId && x.CategoryId == category.Id, cancellation: cancellationToken);
                 if (archive is null)
@@ -29,6 +30,7 @@ namespace PeopleManagement.Services.Services
                 }
                 archive.RequestFile();
             }
+            
         }   
 
 

@@ -15,7 +15,7 @@ namespace PeopleManagement.API.Authorization
         protected override Task HandleRequirementAsync(AuthorizationHandlerContext context, RouteAccessRequirement requirement)
         {
             var parameter = _httpContextAccessor?.HttpContext?.GetRouteValue(requirement.ParamRouteName)?.ToString();
-            var claims = context.User.FindAll(x => x.Type == requirement.ClaimType).Select(x => x.Value.ToString()).ToList() ?? [];
+            var claims = context.User.FindAll(x => x.Type.Contains(requirement.ClaimType, StringComparison.OrdinalIgnoreCase)).Select(x => x.Value.ToString()).ToList() ?? [];
 
             if (claims.Count <= 0)
             {
