@@ -18,7 +18,7 @@ namespace PeopleManagement.UnitTests.Aggregates.EmployeeTests
 
             Assert.Equal(id, employeer.Id);
             Assert.Equal(companyId, employeer.CompanyId);
-            Assert.Equal(name, employeer.Name);
+            Assert.Equal(name, employeer.Name.ToString(), StringComparer.OrdinalIgnoreCase);
         }
 
         [Fact]
@@ -72,7 +72,7 @@ namespace PeopleManagement.UnitTests.Aggregates.EmployeeTests
 
             employee.AddDependent(dependent);
 
-            Assert.Contains(name, employee.Dependents.Select(x => x.Name));
+            Assert.Contains(name, employee.Dependents.Select(x => x.Name.ToString()), StringComparer.OrdinalIgnoreCase);
         }
 
 

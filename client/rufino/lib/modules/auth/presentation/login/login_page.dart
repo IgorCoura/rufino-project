@@ -100,15 +100,10 @@ class _LoginPageState extends State<LoginPage> {
                           width: double
                               .infinity, // Botão ocupa toda a largura possível
                           height: 50.0, // Altura do botão
-                          child: ElevatedButton(
+                          child: FilledButton(
                             onPressed: () {
                               bloc.add(const LoginSubmitted());
                             },
-                            style: ElevatedButton.styleFrom(
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(30.0),
-                              ),
-                            ),
                             child: const Text(
                               'Login',
                               style: TextStyle(fontSize: 18),

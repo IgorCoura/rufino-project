@@ -25,7 +25,12 @@ namespace PeopleManagement.Application.Queries.Employee
 
             if (!string.IsNullOrEmpty(pms.Name))
             {
-                query = query.Where(e => e.Employee.Name.Value.Contains((string)pms.Name));
+                query = query.Where(e => ((string)e.Employee.Name).Contains(pms.Name.ToUpper()));
+            }
+
+            if (!string.IsNullOrEmpty(pms.Role))
+            {
+                query = query.Where(e => ((string)e.Role.Name).Contains(pms.Role.ToUpper()));
             }
 
             if (pms.Status.HasValue && Enumeration.TryFromValue<Status>((int)pms.Status) != null)
@@ -37,8 +42,8 @@ namespace PeopleManagement.Application.Queries.Employee
                 ? query.OrderBy(e => e.Employee.Name)
                 : query.OrderByDescending(e => e.Employee.Name);
 
-            var pageNumber = pms.PageNumber <= 0 ? 1 : pms.PageNumber;
-            query = query.Skip((pageNumber - 1) * pms.PageSize).Take(pms.PageSize);
+   
+            query = query.Skip(pms.SizeSkip).Take(pms.PageSize);
 
             var result = await query.Select(o => new EmployeeSimpleDto
             {

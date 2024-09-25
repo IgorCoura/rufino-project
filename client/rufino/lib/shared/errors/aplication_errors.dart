@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:rufino/shared/errors/types/auth_errors.dart';
 
 class AplicationErrors {
@@ -6,8 +8,15 @@ class AplicationErrors {
   static AplicationException get internalError => _factory.newError(
       1, "Houve um erro no aplicativo. Tente novamente mais tarde.");
 
-  static AplicationException serverError(String code, String message) =>
-      _factory.newError(2, "$code: $message");
+  static AplicationException get serverError => _factory.newError(
+      2, "Erro interno no servidor. Tente novamente mais tarde.");
+
+  static AplicationException errorList(List<Map<String, String>> errors) =>
+      _factory.newError(
+          3, errors.map((map) => jsonEncode(map)).toList().join(","));
+
+  static AplicationException error(String code, String message) =>
+      _factory.newError(4, "Server Erro $code : $message");
 
   static AuthErrors get auth => AuthErrors();
 }

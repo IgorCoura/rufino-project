@@ -315,22 +315,38 @@ namespace PeopleManagement.IntegrationTests.Data
         public static async Task<List<ArchiveCategory>> InsertArchiveCategory(this PeopleManagementContext context, Guid companyId, CancellationToken cancellationToken = default)
         {
             List<ArchiveCategory> categorie = [];
-            categorie.Add(ArchiveCategory.Create(Guid.NewGuid(), "RG", "Cateira de Identidade", [RequestFilesEvent.AdmissionFiles(Guid.Empty, Guid.Empty).Id], companyId));
-            categorie.Add(ArchiveCategory.Create(Guid.NewGuid(), "TITULO DE ELEITOR", "Titulo de eleitor comprovando seu cadastro.", [RequestFilesEvent.AdmissionFiles(Guid.Empty, Guid.Empty).Id], companyId));
-            categorie.Add(ArchiveCategory.Create(Guid.NewGuid(), "COMPROVANTE DE ENDEREÇO", "Comprovante de endereço do funcionario.", [RequestFilesEvent.AdmissionFiles(Guid.Empty, Guid.Empty).Id], companyId));
+            categorie.Add(ArchiveCategory.Create(Guid.NewGuid(),
+                "RG", "Cateira de Identidade",
+                [RequestFilesEvent.ADMISSION_FILES], companyId));
+            categorie.Add(ArchiveCategory.Create(Guid.NewGuid(), "TITULO DE ELEITOR",
+                "Titulo de eleitor comprovando seu cadastro.",
+                [RequestFilesEvent.ADMISSION_FILES], companyId));
+            categorie.Add(ArchiveCategory.Create(Guid.NewGuid(), "COMPROVANTE DE ENDEREÇO",
+                "Comprovante de endereço do funcionario.", [RequestFilesEvent.ADMISSION_FILES], companyId));
 
+            categorie.Add(ArchiveCategory.Create(Guid.NewGuid(), "CONTRATO DE ADMISSAO",
+                "Contrato assinado de adimissao do funcionario.",
+                [RequestFilesEvent.COMPLETE_ADMISSION_FILES], companyId));
+            categorie.Add(ArchiveCategory.Create(Guid.NewGuid(), "EXAME ADMISSIONAL",
+                "Exame admissional do funcionario comprovando sua aptidão para a função.",
+                [RequestFilesEvent.COMPLETE_ADMISSION_FILES], companyId));
 
-            categorie.Add(ArchiveCategory.Create(Guid.NewGuid(), "CONTRATO DE ADMISSAO", "Contrato assinado de adimissao do funcionario.", [RequestFilesEvent.CompleteAdmissionFiles(Guid.Empty, Guid.Empty).Id], companyId));
-            categorie.Add(ArchiveCategory.Create(Guid.NewGuid(), "EXAME ADMISSIONAL", "Exame admissional do funcionario comprovando sua aptidão para a função.", [RequestFilesEvent.CompleteAdmissionFiles(Guid.Empty, Guid.Empty).Id], companyId));
+            categorie.Add(ArchiveCategory.Create(Guid.NewGuid(), "DOCUMENTO DE IDENTIFICAÇÃO DO FILHO",
+                "Documento de identificação do filho do funcionario com CPF.",
+                [RequestFilesEvent.CHILD_DOCUMENT], companyId));
 
-            categorie.Add(ArchiveCategory.Create(Guid.NewGuid(), "DOCUMENTO DE IDENTIFICAÇÃO DO FILHO", "Documento de identificação do filho do funcionario com CPF.", [RequestFilesEvent.ChildDocument(Guid.Empty, Guid.Empty).Id], companyId));
+            categorie.Add(ArchiveCategory.Create(Guid.NewGuid(), "DOCUMENTO MILITAR",
+                "Documento de comprovação de alistamento e dispensa dos serviços militares obrigatorios.",
+                [RequestFilesEvent.MilitarDocument(Guid.Empty, Guid.Empty).Id], companyId));
 
-            categorie.Add(ArchiveCategory.Create(Guid.NewGuid(), "DOCUMENTO MILITAR", "Documento de comprovação de alistamento e dispensa dos serviços militares obrigatorios.", [RequestFilesEvent.MilitarDocument(Guid.Empty, Guid.Empty).Id], companyId));
+            categorie.Add(ArchiveCategory.Create(Guid.NewGuid(), "DOCUMENTO DE IDENTIFICAÇÃO DA ESPOSA",
+                "Documento de identificação da esposa do funcionario.",
+                [RequestFilesEvent.MILITAR_DOCUMENT], companyId));
 
-            categorie.Add(ArchiveCategory.Create(Guid.NewGuid(), "DOCUMENTO DE IDENTIFICAÇÃO DA ESPOSA", "Documento de identificação da esposa do funcionario.", [RequestFilesEvent.MilitarDocument(Guid.Empty, Guid.Empty).Id], companyId));
+            categorie.Add(ArchiveCategory.Create(Guid.NewGuid(), "EXAME DEMISSIONAL",
+                "Exame demissional do funcionario comprovando sua aptidão para a demissão.",
+                [RequestFilesEvent.MEDICAL_DISMISSAL_EXAM], companyId));
 
-            categorie.Add(ArchiveCategory.Create(Guid.NewGuid(), "EXAME DEMISSIONAL", "Exame demissional do funcionario comprovando sua aptidão para a demissão.", [RequestFilesEvent.MedicalDismissalExam(Guid.Empty, Guid.Empty).Id], companyId));
-            
             await context.AddRangeAsync(categorie, cancellationToken);
 
             return categorie;

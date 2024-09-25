@@ -302,7 +302,7 @@ namespace PeopleManagement.IntegrationTests.Tests
             Assert.Equal(HttpStatusCode.OK, response.StatusCode);
             var content = await response.Content.ReadFromJsonAsync(typeof(AlterNameEmployeeResponse)) as AlterNameEmployeeResponse ?? throw new ArgumentNullException();
             var result = await context.Employees.AsNoTracking().FirstOrDefaultAsync(x => x.Id == content.Id) ?? throw new ArgumentNullException();
-            Assert.Equal(command.Name, result.Name);
+            Assert.Equal(command.Name, result.Name.ToString(), StringComparer.OrdinalIgnoreCase);
         }
 
         [Fact]

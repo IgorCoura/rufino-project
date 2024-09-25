@@ -32,6 +32,11 @@ class AuthService {
     }
   }
 
+  Future<String> getAuthorizationHeader() async {
+    var credentials = await getCredentials();
+    return "Bearer ${credentials.accessToken}";
+  }
+
   Future<String> getToken() async {
     var credentials = await getCredentials();
     return credentials.accessToken;
@@ -43,7 +48,9 @@ class AuthService {
       if (credentials.canRefresh == false) {
         throw AplicationErrors.auth.unauthenticatedAccess;
       }
-      await credentials.refresh(identifier: _identifier, secret: _secret);
+      credentials =
+          await credentials.refresh(identifier: _identifier, secret: _secret);
+      await _storage.write(key: _keyStorage, value: credentials.toJson());
     }
     return credentials;
   }

@@ -16,6 +16,7 @@ using PeopleManagement.Application.Commands.EmployeeCommands.CreateEmployee;
 using PeopleManagement.Application.Commands.EmployeeCommands.FinishedContractEmployee;
 using PeopleManagement.Application.Commands.Identified;
 using PeopleManagement.Application.Queries.Employee;
+using PeopleManagement.Domain.AggregatesModel.EmployeeAggregate;
 
 namespace PeopleManagement.API.Controllers
 {
@@ -258,10 +259,20 @@ namespace PeopleManagement.API.Controllers
         }
 
 
-        [HttpGet("/list")]
+        [HttpGet("List")]
+        [ProtectedResource("employee", "view")]
         public async Task<ActionResult<IEnumerable<EmployeeSimpleDto>>> GetEmployees([FromRoute] Guid company, [FromQuery] EmployeeParams employeeParams)
         {
+            var a = Status.GetAll<Status>();
             var result = await employeeQueries.GetEmployeeList(employeeParams, company);
+            return OkResponse(result);
+        }
+
+        [HttpGet("Status")]
+        [ProtectedResource("employee", "view")]
+        public ActionResult<IEnumerable<Status>> GetStatus([FromRoute] Guid company)
+        {
+            var result = Status.GetAll<Status>();
             return OkResponse(result);
         }
 

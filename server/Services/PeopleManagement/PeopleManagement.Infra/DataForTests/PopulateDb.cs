@@ -11,6 +11,10 @@ using EmployeeAddress = PeopleManagement.Domain.AggregatesModel.EmployeeAggregat
 using EmployeeContact = PeopleManagement.Domain.AggregatesModel.EmployeeAggregate.Contact;
 using Employee = PeopleManagement.Domain.AggregatesModel.EmployeeAggregate.Employee;
 using PeopleManagement.Infra.Context;
+using PeopleManagement.Domain.AggregatesModel.EmployeeAggregate.Events;
+using PeopleManagement.Domain.AggregatesModel.ArchiveCategoryAggregate;
+using Microsoft.EntityFrameworkCore;
+using PeopleManagement.Domain.SeedWord;
 
 namespace PeopleManagement.Infra.DataForTests
 {
@@ -25,17 +29,19 @@ namespace PeopleManagement.Infra.DataForTests
                 try
                 {
                     var companies = CreateCompanies();
-                    await context.Companies.AddRangeAsync(companies);
+                    await context.AddRangeIfNotExistsAsync(companies);
                     var departamets = CreateDepartments(companies[0].Id);
-                    await context.Departments.AddRangeAsync(departamets);
+                    await context.AddRangeIfNotExistsAsync(departamets);
                     var positions = CreatePositions(departamets[0].Id, companies[0].Id);
-                    await context.Positions.AddRangeAsync(positions);
+                    await context.AddRangeIfNotExistsAsync(positions);
                     var roles = CreateRoles(positions[0].Id, companies[0].Id);
-                    await context.Roles.AddRangeAsync(roles);
+                    await context.AddRangeIfNotExistsAsync(roles);
                     var workplaces = CreateWorkPlaces(companies[0].Id);
-                    await context.Workplaces.AddRangeAsync(workplaces);
-                    var employees = CreateEmployees(roles[0].Id, workplaces[0].Id, companies[0].Id);
-                    await context.Employees.AddRangeAsync(employees);
+                    await context.AddRangeIfNotExistsAsync(workplaces);
+                    var employees = CreateEmployees(roles, workplaces[0].Id, companies[0].Id);
+                    await context.AddRangeIfNotExistsAsync(employees);
+                    var archivesCategories = CreateArchiveCategories(companies[0].Id);
+                    await context.AddRangeIfNotExistsAsync(archivesCategories);
                     await context.SaveChangesWithoutDispatchEventsAsync();
                 }
                 catch { }
@@ -46,7 +52,7 @@ namespace PeopleManagement.Infra.DataForTests
         {
             var comapnies = new[] {
                 Company.Create(
-                    Guid.NewGuid(),
+                    Guid.Parse("665cdd0d-392c-47f7-b13c-de9b3be48a94"),
                     "Anderson e Fátima Entulhos ME",
                     "Anderson e Fátima Entulhos",
                     "83.559.705/0001-70",
@@ -62,7 +68,7 @@ namespace PeopleManagement.Infra.DataForTests
                         "Brasil"
                     ) ),
                 Company.Create(
-                    Guid.NewGuid(),
+                    Guid.Parse("47985f1b-b005-4686-9d1d-8fd25c671928"),
                     "Laura e Maya Mudanças Ltda",
                     "Laura e Maya Mudanças",
                     "78.718.423/0001-39",
@@ -85,8 +91,8 @@ namespace PeopleManagement.Infra.DataForTests
         {
             var departments = new[]
             {
-                Department.Create(Guid.NewGuid(),"Tecnologia", "Departamento de tecnologia.", companyId),
-                Department.Create(Guid.NewGuid(), "Recursos Humanos", "Departamento de recursos humanos.", companyId),
+                Department.Create(Guid.Parse("6ee46bc9-f952-4092-bc53-37a9929f5c2d"),"Tecnologia", "Departamento de tecnologia.", companyId),
+                Department.Create(Guid.Parse("748440fc-9458-498e-8baa-c0b299315ba8"), "Recursos Humanos", "Departamento de recursos humanos.", companyId),
             };
             return departments;
         }
@@ -95,8 +101,8 @@ namespace PeopleManagement.Infra.DataForTests
         {
             var positions = new[]
             {
-                Position.Create(Guid.NewGuid(), "Engenheiro de Software", "Resposavel por criar softwares", "123454", departamentId, companydId),
-                Position.Create(Guid.NewGuid(), "Engenheiro de dados", "Resposavel por analisar dados", "123465", departamentId, companydId),
+                Position.Create(Guid.Parse("91836bca-26f3-48aa-9846-ad826e2392dc"), "Engenheiro de Software", "Resposavel por criar softwares", "123454", departamentId, companydId),
+                Position.Create(Guid.Parse("55826abb-b8db-4ba6-b946-c5de12d927a6"), "Engenheiro de dados", "Resposavel por analisar dados", "123465", departamentId, companydId),
             };
             return positions;
         }
@@ -105,8 +111,8 @@ namespace PeopleManagement.Infra.DataForTests
         {
             var roles = new[]
             {
-                Role.Create(Guid.NewGuid(), "Engenheiro de Software Junior", "Resposavel por criar softwares", "123455" , Remuneration.Create(PaymentUnit.PerHour, Currency.Create(CurrencyType.BRL, "30"), "Pagamento Eng Junior" ), positionId, companydId),
-                Role.Create(Guid.NewGuid(), "Engenheiro de Software Senior", "Resposavel por criar softwares", "123456", Remuneration.Create(PaymentUnit.PerHour, Currency.Create(CurrencyType.BRL, "30"), "Pagamento Eng Senior" ), positionId, companydId),
+                Role.Create(Guid.Parse("ef0dee7d-730e-4bc5-a302-bd85f6bc21cb"), "Engenheiro de Software Junior", "Resposavel por criar softwares", "123455" , Remuneration.Create(PaymentUnit.PerHour, Currency.Create(CurrencyType.BRL, "30"), "Pagamento Eng Junior" ), positionId, companydId),
+                Role.Create(Guid.Parse("797361a8-23ce-4372-9119-a932b413be84"), "Engenheiro de Software Senior", "Resposavel por criar softwares", "123456", Remuneration.Create(PaymentUnit.PerHour, Currency.Create(CurrencyType.BRL, "30"), "Pagamento Eng Senior" ), positionId, companydId),
             };
             return roles;
         }
@@ -116,7 +122,7 @@ namespace PeopleManagement.Infra.DataForTests
             var workplaces = new[]
             {
                 Workplace.Create(
-                    Guid.NewGuid(), 
+                    Guid.Parse("f4b10503-73c3-41ae-aeb1-f8e9880679aa"), 
                     "Escritorio Matriz", 
                     WorkPlaceAddress.Create(
                         "14704-066",
@@ -133,19 +139,103 @@ namespace PeopleManagement.Infra.DataForTests
             return workplaces;
         }
 
-        public static Employee[] CreateEmployees(Guid roleId, Guid workplaceId, Guid companyId)
+        public static Employee[] CreateEmployees(Role[] roles, Guid workplaceId, Guid companyId)
         {
             var employees = new List<Employee>();
-
             employees.Add(
-                FactoryEmployee(Guid.NewGuid(), companyId, "Rogerio Marques", roleId, workplaceId)
+                FactoryEmployee(Guid.Parse("caf35a09-3ec0-48ff-9e67-0155151e81e6"), companyId, "Ana Clara", roles[0].Id, workplaceId)
                 );
             employees.Add(
+                FactoryEmployee(Guid.Parse("4cb4b7f0-bf56-4d70-85fc-af3ad0b70508"), companyId, "Bruno Costa", roles[0].Id, workplaceId)
+                );
+            employees.Add(
+                FactoryEmployee(Guid.Parse("5e9d0a53-66df-4df9-80a8-64cbe0a7171b"), companyId, "Carlos Eduardo", roles[1].Id, workplaceId)
+                );
+            employees.Add(
+                FactoryEmployee(Guid.Parse("dbd43fd9-70d9-4f49-a524-a13d87da1031"), companyId, "Daniela Lima", roles[1].Id, workplaceId)
+                );
+            employees.Add(
+                FactoryEmployee(Guid.Parse("46fbcc36-174b-444f-9409-a874c76121ea"), companyId, "Eduardo Paiva", roles[1].Id, workplaceId)
+                );
+            employees.Add(
+                FactoryEmployee(Guid.Parse("c8f1ae81-c596-4e5a-9ca2-2d05409bc38e"), companyId, "Fernanda Souza", roles[1].Id, workplaceId)
+                );
+            employees.Add(
+                FactoryEmployee(Guid.Parse("aa5ca7f1-6869-4ac0-b702-269a0150154b"), companyId, "Gustavo Alves", roles[1].Id, workplaceId)
+                );
+            employees.Add(
+                FactoryEmployee(Guid.Parse("e07df8e3-5ddd-4a23-a957-3fa1740b5fce"), companyId, "Helena Vieira", roles[0].Id, workplaceId)
+                );
+            employees.Add(
+                FactoryEmployee(Guid.Parse("74470f6a-c049-40b6-9008-ed3536e19554"), companyId, "Isabela Fernandes", roles[0].Id, workplaceId)
+                );
+            employees.Add(
+                FactoryEmployee(Guid.Parse("5f1e0a5b-1344-4213-bfa9-94d66bc56976"), companyId, "João Victor", roles[0].Id, workplaceId)
+                );
+            employees.Add(
+                FactoryEmployee(Guid.Parse("71f1b14b-3ca2-413d-871c-c3c3ea07aa9e"), companyId, "Karen Moura", roles[0].Id, workplaceId)
+                );
+            employees.Add(
+                FactoryEmployee(Guid.Parse("080f9595-17be-482d-8ce4-69fe32cb59e9"), companyId, "Luís Felipe", roles[0].Id, workplaceId)
+                );
+            employees.Add(
+                FactoryEmployee(Guid.Parse("b1dd7362-f99f-4221-80da-ab98bc625c85"), companyId, "Mariana Ribeiro", roles[1].Id, workplaceId)
+                );
+            employees.Add(
+                FactoryEmployee(Guid.Parse("a4166f37-f7d2-4fda-a97a-0f7e402b2012"), companyId, "Nicolas Silveira", roles[1].Id, workplaceId)
+                );
+            employees.Add(
+                FactoryEmployee(Guid.Parse("40360549-4b1a-4505-ba58-022da1cfe9f6"), companyId, "Quésia Monteiro", roles[1].Id, workplaceId)
+                );
+            employees.Add(
+                FactoryEmployee(Guid.Parse("6f20950a-65fb-47c7-a29e-348b1fbae835"), companyId, "Ricardo Faria", roles[1].Id, workplaceId)
+                );
+            employees.Add(
+                FactoryEmployee(Guid.Parse("acdb2074-278b-43e6-b389-be0d09c1069b"), companyId, "Sara Martins", roles[1].Id, workplaceId)
+                );
+            employees.Add(
+                FactoryEmployee(Guid.Parse("e835f19a-c17b-4c7f-b526-4d9e6ee049cc"), companyId, "Thiago Silva", roles[1].Id, workplaceId)
+                );
+            employees.Add(
+                FactoryEmployee(Guid.Parse("128be466-99c6-4ce1-8836-83e98b572f0f"), companyId, "Ursula Rodrigues", roles[1].Id, workplaceId)
+                );
+            employees.Add(
+                FactoryEmployee(Guid.Parse("d7cf4476-e26e-4198-87f7-e283ab131b61"), companyId, "Vítor Carvalho", roles[1].Id, workplaceId)
+                );
+            employees.Add(
+                FactoryEmployee(Guid.Parse("c919a4a5-5eb5-44fb-9acb-b85af68bfdf2"), companyId, "Wesley Nascimento", roles[1].Id, workplaceId)
+                );
+            employees.Add(
+                FactoryEmployee(Guid.Parse("b259cd41-6c2d-4de7-8cd8-74af123dc8bb"), companyId, "Xênia Teixeira", roles[1].Id, workplaceId)
+                );
+            employees.Add(
+                FactoryEmployee(Guid.Parse("39a588ef-8e8a-40ae-99f7-1ab3574724f1"), companyId, "Yasmin Duarte", roles[1].Id, workplaceId)
+                );
+            employees.Add(
+                FactoryEmployee(Guid.Parse("a5c7f15f-374e-4019-bd15-34c41bb3b56e"), companyId, "Zeca Amaral", roles[1].Id, workplaceId)
+                );
+            employees.Add(
+                FactoryEmployee(Guid.Parse("1c76bfcc-a6fc-4f8b-ad2c-dda955f63115"), companyId, "Beatriz Andrade", roles[1].Id, workplaceId)
+                );
+            employees.Add(
+                FactoryEmployee(Guid.Parse("c21c2058-63de-4313-86d6-01fe67b83add"), companyId, "Cláudio Bastos", roles[0].Id, workplaceId)
+                );
+            employees.Add(
+                FactoryEmployee(Guid.Parse("fa8b7242-ad92-4acc-bf5b-8c1f403b55a4"), companyId, "Débora Fonseca", roles[0].Id, workplaceId)
+                );
+            employees.Add(
+                FactoryEmployee(Guid.Parse("28de6ef1-7686-44b2-a5ab-89f159d6fbfc"), companyId, "Elias Nunes", roles[0].Id, workplaceId)
+                );
+            employees.Add(
+                FactoryEmployee(Guid.Parse("46188819-da63-47c0-adf9-5319192208f7"), companyId, "Rogerio Marques", roles[0].Id, workplaceId)
+                );
+
+            employees.Add(
                 FactoryEmployee(
-                    Guid.NewGuid(),
+                    Guid.Parse("18439da0-259e-45df-8ba4-197e1833e555"),
                     companyId,
                     "Andrea Clara Valentina Jesus",
-                    roleId,
+                    roles[0].Id,
                     workplaceId,
                     EmployeeAddress.Create(
                         "29170-196",
@@ -189,13 +279,57 @@ namespace PeopleManagement.Infra.DataForTests
 
         }
 
+        
+
+        public static ArchiveCategory[] CreateArchiveCategories(Guid companyId)
+        {
+            List<ArchiveCategory> categorie = [];
+            categorie.Add(ArchiveCategory.Create(Guid.Parse("e3b67736-42ce-41a6-9b1f-742dee98f106"), 
+                "RG", "Cateira de Identidade",
+                [RequestFilesEvent.ADMISSION_FILES], companyId));
+            categorie.Add(ArchiveCategory.Create(Guid.Parse("2fb2c14f-8a8a-4a27-9803-e356ff7f355e"), "TITULO DE ELEITOR", 
+                "Titulo de eleitor comprovando seu cadastro.",
+                [RequestFilesEvent.ADMISSION_FILES], companyId));
+            categorie.Add(ArchiveCategory.Create(Guid.Parse("45e26e0c-eda4-43bb-9ed2-d8178a3a9db3"), "COMPROVANTE DE ENDEREÇO", 
+                "Comprovante de endereço do funcionario.", [RequestFilesEvent.ADMISSION_FILES], companyId));
+
+            categorie.Add(ArchiveCategory.Create(Guid.Parse("cd51b33a-f27e-43e2-8746-38ef9c62f141"), "CONTRATO DE ADMISSAO", 
+                "Contrato assinado de adimissao do funcionario.",
+                [RequestFilesEvent.COMPLETE_ADMISSION_FILES], companyId));
+            categorie.Add(ArchiveCategory.Create(Guid.Parse("e0a7a37b-d205-4bfe-abbf-e9c8bcc4909d"), "EXAME ADMISSIONAL", 
+                "Exame admissional do funcionario comprovando sua aptidão para a função.",
+                [RequestFilesEvent.COMPLETE_ADMISSION_FILES], companyId));
+
+            categorie.Add(ArchiveCategory.Create(Guid.Parse("a64d9f71-0e22-4ff8-ba6d-0ba8b616cee5"), "DOCUMENTO DE IDENTIFICAÇÃO DO FILHO", 
+                "Documento de identificação do filho do funcionario com CPF.",
+                [RequestFilesEvent.CHILD_DOCUMENT], companyId));
+
+            categorie.Add(ArchiveCategory.Create(Guid.Parse("2db92b0d-1042-4c93-9d68-d03690635803"), "DOCUMENTO MILITAR", 
+                "Documento de comprovação de alistamento e dispensa dos serviços militares obrigatorios.", 
+                [RequestFilesEvent.MilitarDocument(Guid.Empty, Guid.Empty).Id], companyId));
+
+            categorie.Add(ArchiveCategory.Create(Guid.Parse("29295921-60c7-4cba-8268-571780a4452a"), "DOCUMENTO DE IDENTIFICAÇÃO DA ESPOSA", 
+                "Documento de identificação da esposa do funcionario.",
+                [RequestFilesEvent.MILITAR_DOCUMENT], companyId));
+
+            categorie.Add(ArchiveCategory.Create(Guid.Parse("8c693e2a-a0fa-4198-9058-0961c5eeefff"), "EXAME DEMISSIONAL", 
+                "Exame demissional do funcionario comprovando sua aptidão para a demissão.",
+                [RequestFilesEvent.MEDICAL_DISMISSAL_EXAM], companyId));
+
+            categorie.Add(ArchiveCategory.Create(Guid.Parse("494aa6a7-5f12-4e61-9ab5-4beee69e358e"), "EXAME DEMISSIONAL", 
+                "Exame demissional do funcionario comprovando sua aptidão para a demissão.",
+                [RequestFilesEvent.MEDICAL_DISMISSAL_EXAM, RequestFilesEvent.ADMISSION_FILES, RequestFilesEvent.COMPLETE_ADMISSION_FILES, RequestFilesEvent.CHILD_DOCUMENT], companyId));
+
+            return categorie.ToArray();
+        }
+
         private static Employee FactoryEmployee(Guid id, Guid companyId, string Name, Guid? roleId = null, Guid? workplaceId = null,
-            EmployeeAddress? address = null, EmployeeContact? contact = null, PersonalInfo? personalInfo = null, IdCard? idCard = null, 
-            VoteId? voteId = null,  MedicalAdmissionExam? medicalAdmissionExam = null, MilitaryDocument? militaryDocument = null, 
+            EmployeeAddress? address = null, EmployeeContact? contact = null, PersonalInfo? personalInfo = null, IdCard? idCard = null,
+            VoteId? voteId = null, MedicalAdmissionExam? medicalAdmissionExam = null, MilitaryDocument? militaryDocument = null,
             string? registration = null, DateOnly? dateInitContract = null, EmploymentContactType? contractType = null)
         {
             var employee = Employee.Create(id, companyId, Name);
-            
+
 
             try
             {
@@ -211,9 +345,30 @@ namespace PeopleManagement.Infra.DataForTests
                 employee.CompleteAdmission(registration!, (DateOnly)dateInitContract!, contractType!);
             }
             catch { };
-            
+
 
             return employee;
+        }
+
+        private static async Task AddRangeIfNotExistsAsync<T>(this PeopleManagementContext context, T[] newItems) where T : Entity
+        {
+            // Get all existing item names in a single query
+            var existingNames = await context.Set<T>()
+                .Where(i => newItems.Select(n => n.Id).Contains(i.Id))
+                .Select(i => i.Id)
+                .ToListAsync();
+
+            // Filter out items that already exist
+            var itemsToAdd = newItems
+                .Where(n => !existingNames.Contains(n.Id)) // Adjust condition as needed
+                .ToList();
+
+            // Add the new items to the context if any exist
+            if (itemsToAdd.Count > 0)
+            {
+                await context.Set<T>().AddRangeAsync(itemsToAdd);
+                await context.SaveChangesAsync();
+            }
         }
     }
 }

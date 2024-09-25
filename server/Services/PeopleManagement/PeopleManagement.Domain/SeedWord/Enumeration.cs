@@ -62,6 +62,7 @@ public abstract class Enumeration : IComparable
         return matchingItem;
     }
 
+
     private static T Parse<T, K>(K value, string description, Func<T, bool> predicate) where T : Enumeration
     {
         var matchingItem = GetAll<T>().FirstOrDefault(predicate);
@@ -75,6 +76,8 @@ public abstract class Enumeration : IComparable
 
         return matchingItem;
     }
+
+    
 
     public int CompareTo(object? other) => Id.CompareTo(((Enumeration?)other)?.Id);
 }
