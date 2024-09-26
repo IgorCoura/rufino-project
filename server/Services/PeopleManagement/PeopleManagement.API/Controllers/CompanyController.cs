@@ -2,16 +2,17 @@
 using PeopleManagement.Application.Commands.CompanyCommands.CreateCompany;
 using PeopleManagement.Application.Commands.DTO;
 using PeopleManagement.Application.Commands.Identified;
+using PeopleManagement.Application.Queries.Company;
 
 namespace PeopleManagement.API.Controllers
 {
     [Route("api/v1/[controller]")]
-    public class CompanyController(IMediator mediator, ILogger<CompanyController> logger) : BaseController(logger)
+    public class CompanyController(IMediator mediator, ICompanyQueries companyQueries, ILogger<CompanyController> logger) : BaseController(logger)
     {
         private readonly IMediator _mediator = mediator;
 
         [HttpPost]
-        [ProtectedResource("Company", "create")]
+        [ProtectedResource("company", "create")]
         public async Task<ActionResult<BaseDTO>> CreateCompany([FromBody] CreateCompanyCommand request, [FromHeader(Name = "x-requestid")] string requestId)
         {
            
@@ -33,6 +34,22 @@ namespace PeopleManagement.API.Controllers
             }
 
             
+        }
+
+        [HttpGet]
+        [ProtectedResource("company", "view")]
+        public async Task<ActionResult<CompanySimplefiedDTO>> GetCompany([FromQuery] Guid id)
+        {
+            var company = await companyQueries.GetCompanySimplefiedAsync(id);
+            return OkResponse(company);
+        }
+
+        [HttpGet("list")]
+        [ProtectedResource("company", "view")]
+        public async Task<ActionResult<IEnumerable<CompanySimplefiedDTO>>> GetCompanies([FromQuery] Guid[] id)
+        {
+            var companies = await companyQueries.GetCompaniesSimplefiedsAsync(id);
+            return OkResponse(companies);
         }
     }
 }

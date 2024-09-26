@@ -20,24 +20,25 @@ class EmployeesListPage extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-          leading: IconButton(
-            icon: const Icon(Icons.arrow_back),
-            onPressed: () {
-              Modular.to.navigate("/home");
-            },
-          ),
-          title: const Row(
-            children: [
-              CircleAvatar(
-                backgroundImage: AssetImage("assets/img/company_default.jpg"),
-              ),
-              SizedBox(width: 10),
-              Text(
-                'Empresa XYZ',
-                overflow: TextOverflow.ellipsis,
-              ),
-            ],
-          )),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () {
+            Modular.to.navigate("/home");
+          },
+        ),
+        title: const Row(
+          children: [
+            CircleAvatar(
+              backgroundImage: AssetImage("assets/img/company_default.jpg"),
+            ),
+            SizedBox(width: 10),
+            Text(
+              'Empresa XYZ',
+              overflow: TextOverflow.ellipsis,
+            ),
+          ],
+        ),
+      ),
       body: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(

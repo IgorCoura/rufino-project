@@ -1,5 +1,6 @@
 import 'package:flutter_modular/flutter_modular.dart';
 import 'package:rufino/domain/services/auth_service.dart';
+import 'package:rufino/domain/services/company_service.dart';
 import 'package:rufino/modules/auth/auth_module.dart';
 import 'package:rufino/modules/home/home_module.dart';
 import 'package:rufino/modules/people/presentation/people_module.dart';
@@ -9,7 +10,8 @@ class AppModule extends Module {
   void binds(i) {}
   @override
   void exportedBinds(i) {
-    i.add<AuthService>(AuthService.new);
+    i.addSingleton<AuthService>(AuthService.new);
+    i.addSingleton<CompanyService>(CompanyService.new);
   }
 
   @override

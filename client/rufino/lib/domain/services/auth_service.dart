@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:oauth2/oauth2.dart' as oauth2;
 import 'package:rufino/shared/errors/aplication_errors.dart';
+import 'package:jwt_decoder/jwt_decoder.dart';
 
 class AuthService {
   final Uri _authorizationEndpoint =
@@ -12,6 +13,7 @@ class AuthService {
   final String _secret = const String.fromEnvironment("secret");
   final _storage = const FlutterSecureStorage();
   final _keyStorage = "credentials";
+  oauth2.Credentials? _credentials;
 
   AuthService();
 
@@ -23,6 +25,7 @@ class AuthService {
       var client = await oauth2.resourceOwnerPasswordGrant(
           _authorizationEndpoint, username, password,
           identifier: _identifier, secret: _secret);
+      _credentials = client.credentials;
       await _storage.write(
           key: _keyStorage, value: client.credentials.toJson());
       client.close();
@@ -43,25 +46,33 @@ class AuthService {
   }
 
   Future<oauth2.Credentials> getCredentials() async {
-    var credentials = await _recoverFromStorageCredentials();
-    if (credentials.isExpired) {
-      if (credentials.canRefresh == false) {
+    await _recoverFromStorageCredentials();
+    if (_credentials!.isExpired) {
+      if (_credentials!.canRefresh == false) {
         throw AplicationErrors.auth.unauthenticatedAccess;
       }
-      credentials =
-          await credentials.refresh(identifier: _identifier, secret: _secret);
-      await _storage.write(key: _keyStorage, value: credentials.toJson());
+      _credentials =
+          await _credentials!.refresh(identifier: _identifier, secret: _secret);
+      await _storage.write(key: _keyStorage, value: _credentials!.toJson());
     }
-    return credentials;
+    return _credentials!;
   }
 
-  Future<oauth2.Credentials> _recoverFromStorageCredentials() async {
-    var credentialsJson = await _storage.read(key: _keyStorage);
-    if (credentialsJson == null) {
-      throw AplicationErrors.auth.unauthenticatedAccess;
+  Future<List<String>> getCompaniesIds() async {
+    var accessTokenString = await getToken();
+    var accessToken = JwtDecoder.decode(accessTokenString);
+    var companies = accessToken["companies"] as List<dynamic>;
+    return companies.map((el) => el.toString()).toList();
+  }
+
+  Future _recoverFromStorageCredentials() async {
+    if (_credentials == null) {
+      var credentialsJson = await _storage.read(key: _keyStorage);
+      if (credentialsJson == null) {
+        throw AplicationErrors.auth.unauthenticatedAccess;
+      }
+      _credentials = oauth2.Credentials.fromJson(credentialsJson);
     }
-    var creadentials = oauth2.Credentials.fromJson(credentialsJson);
-    return creadentials;
   }
 
   Future<void> logOut() async {
@@ -74,6 +85,7 @@ class AuthService {
     };
     await client.post(_endSessionEndpoint, body: authData);
     _storage.delete(key: _keyStorage);
+    _credentials = null;
     client.close();
   }
 }
