@@ -22,6 +22,8 @@ namespace PeopleManagement.Application.Queries.Employee
                     }
                 );
 
+            query = query.Where(e => e.Employee.CompanyId == company);
+
 
             if (!string.IsNullOrEmpty(pms.Name))
             {
@@ -53,6 +55,7 @@ namespace PeopleManagement.Application.Queries.Employee
                 Status = o.Employee.Status.Id,
                 RoleId = o.Employee.RoleId,
                 RoleName = o.Role.Name.Value,
+                CompanyId = o.Employee.CompanyId
             }).ToListAsync();
 
             return result;

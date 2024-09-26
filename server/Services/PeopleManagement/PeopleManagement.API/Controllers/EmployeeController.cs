@@ -263,7 +263,6 @@ namespace PeopleManagement.API.Controllers
         [ProtectedResource("employee", "view")]
         public async Task<ActionResult<IEnumerable<EmployeeSimpleDto>>> GetEmployees([FromRoute] Guid company, [FromQuery] EmployeeParams employeeParams)
         {
-            var a = Status.GetAll<Status>();
             var result = await employeeQueries.GetEmployeeList(employeeParams, company);
             return OkResponse(result);
         }

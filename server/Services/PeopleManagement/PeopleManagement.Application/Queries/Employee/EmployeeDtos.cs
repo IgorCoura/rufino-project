@@ -4,13 +4,15 @@ using static Microsoft.EntityFrameworkCore.DbLoggerCategory;
 namespace PeopleManagement.Application.Queries.Employee
 {
     public record EmployeeSimpleDto
-    { 
+    {
+
         public Guid Id { get; init; }
-        public string Name { get; init; }
+        public string Name { get; init; } = null!;
         public string? Registration { get; init; }
         public int Status { get; init; }
         public Guid? RoleId { get; init; }
-        public string RoleName { get; init; }
+        public string RoleName { get; init; } = null!;
+        public Guid CompanyId { get; init; }
     }
 
     public record EmployeeParams

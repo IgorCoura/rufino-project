@@ -1,10 +1,12 @@
 part of "home_bloc.dart";
 
 final class HomeState extends Equatable {
-  const HomeState();
+  final Company? company;
 
-  HomeState copyWith() {
-    return const HomeState();
+  const HomeState({this.company});
+
+  HomeState copyWith({Company? company}) {
+    return HomeState(company: company ?? this.company);
   }
 
   @override
