@@ -5,7 +5,7 @@ class Employee extends Equatable {
   final String name;
   final String registration;
   final int status;
-  final String roleId;
+  final String? roleId;
   final String roleName;
 
   const Employee(this.id, this.name, this.registration, this.status,

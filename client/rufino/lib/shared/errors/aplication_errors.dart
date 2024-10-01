@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:rufino/shared/errors/types/auth_errors.dart';
 import 'package:rufino/shared/errors/types/company_errors.dart';
+import 'package:rufino/shared/errors/types/employees_errors.dart';
 
 class AplicationErrors {
   static final _factory = AplicationErrorFactory("APP");
@@ -19,8 +20,12 @@ class AplicationErrors {
   static AplicationException error(String code, String message) =>
       _factory.newError(4, "Server Erro $code : $message");
 
+  static AplicationException get connectionErro => _factory.newError(5,
+      "Erro ao tentar ser conectar com os serviços. Tente novamente mais tarde.");
+
   static AuthErrors get auth => AuthErrors();
   static CompanyErrors get company => CompanyErrors();
+  static EmployeesErrors get emplyee => EmployeesErrors();
 }
 
 class AplicationException implements Exception {
