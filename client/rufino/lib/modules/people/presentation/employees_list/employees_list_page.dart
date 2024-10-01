@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_modular/flutter_modular.dart';
 import 'package:infinite_scroll_pagination/infinite_scroll_pagination.dart';
@@ -6,6 +7,7 @@ import 'package:rufino/modules/people/presentation/domain/model/employee.dart';
 import 'package:rufino/modules/people/presentation/domain/model/status.dart';
 import 'package:rufino/modules/people/presentation/domain/model/search_params.dart';
 import 'package:rufino/modules/people/presentation/employees_list/bloc/employees_list_bloc.dart';
+import 'package:rufino/shared/components/error_message_components.dart';
 
 class EmployeesListPage extends StatelessWidget {
   final bloc = Modular.get<EmployeesListBloc>();
@@ -26,17 +28,26 @@ class EmployeesListPage extends StatelessWidget {
             Modular.to.navigate("/home");
           },
         ),
-        title: const Row(
-          children: [
-            CircleAvatar(
-              backgroundImage: AssetImage("assets/img/company_default.jpg"),
-            ),
-            SizedBox(width: 10),
-            Text(
-              'Empresa XYZ',
-              overflow: TextOverflow.ellipsis,
-            ),
-          ],
+        title: BlocBuilder<EmployeesListBloc, EmployeesListState>(
+          bloc: bloc,
+          builder: (context, state) {
+            return Row(
+              children: [
+                const CircleAvatar(
+                  backgroundImage: AssetImage("assets/img/company_default.jpg"),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    state.company != null
+                        ? state.company!.fantasyName
+                        : "Lista de Funcionarios",
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            );
+          },
         ),
       ),
       body: Center(
@@ -47,6 +58,10 @@ class EmployeesListPage extends StatelessWidget {
           child: BlocBuilder<EmployeesListBloc, EmployeesListState>(
             bloc: bloc,
             builder: (context, state) {
+              if (state.exception != null) {
+                ErrorMessageComponent.showAlertDialog(context, state.exception!,
+                    () => Modular.to.navigate("/home/"));
+              }
               return Column(
                 children: [
                   Padding(
@@ -166,11 +181,46 @@ class EmployeesListPage extends StatelessWidget {
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () {
-          // Ação do segundo botão
+          _dialogCreateEmployee(context);
         },
-        child: const Icon(Icons.add), // HeroTag único
+        child: const Icon(Icons.add),
       ),
     );
+  }
+
+  Future _dialogCreateEmployee(BuildContext context) {
+    return showDialog(
+        context: context,
+        builder: (context) {
+          return AlertDialog(
+            title: const Text('Cadastrar Funcionário'),
+            content: SizedBox(
+              width: 600,
+              child: TextField(
+                onChanged: (name) => bloc.add(ChangeNameNewEmployee(name)),
+                decoration: const InputDecoration(
+                  labelText: 'Nome do Funcionário',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  Navigator.of(context).pop();
+                },
+                child: const Text('Cancelar'),
+              ),
+              ElevatedButton(
+                onPressed: () {
+                  Navigator.of(context).pop();
+                  bloc.add(CreateNewEmployee());
+                },
+                child: const Text('Criar'),
+              ),
+            ],
+          );
+        });
   }
 
   Widget _employeesInfinityListView(List<Status> listStatus) {

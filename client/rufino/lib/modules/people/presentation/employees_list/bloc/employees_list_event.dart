@@ -36,3 +36,22 @@ class ChangeStatusSelect extends EmployeesListEvent {
 }
 
 class ChangeSortList extends EmployeesListEvent {}
+
+class ChangeNameNewEmployee extends EmployeesListEvent {
+  final String name;
+
+  ChangeNameNewEmployee(this.name);
+
+  @override
+  List<Object?> get props => [name];
+}
+
+class CreateNewEmployee extends EmployeesListEvent {}
+
+class ErrorEvent extends EmployeesListEvent {
+  final AplicationException exception;
+
+  ErrorEvent(this.exception);
+  @override
+  List<Object?> get props => [exception];
+}

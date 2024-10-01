@@ -1,4 +1,5 @@
 import 'package:flutter_modular/flutter_modular.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:rufino/domain/services/auth_service.dart';
 import 'package:rufino/domain/services/company_service.dart';
 import 'package:rufino/modules/auth/auth_module.dart';
@@ -10,6 +11,7 @@ class AppModule extends Module {
   void binds(i) {}
   @override
   void exportedBinds(i) {
+    i.addSingleton<FlutterSecureStorage>(FlutterSecureStorage.new);
     i.addSingleton<AuthService>(AuthService.new);
     i.addSingleton<CompanyService>(CompanyService.new);
   }

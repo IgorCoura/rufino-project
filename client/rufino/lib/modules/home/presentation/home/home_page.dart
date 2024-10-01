@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_modular/flutter_modular.dart';
-import 'package:rufino/domain/services/auth_service.dart';
 import 'package:rufino/modules/home/presentation/home/bloc/home_bloc.dart';
+import 'package:rufino/shared/components/error_message_components.dart';
 
 class HomePage extends StatelessWidget {
   HomePage({super.key}) {
@@ -18,6 +18,10 @@ class HomePage extends StatelessWidget {
         title: BlocBuilder<HomeBloc, HomeState>(
           bloc: bloc,
           builder: (context, state) {
+            if (state.exception != null) {
+              ErrorMessageComponent.showAlertDialog(
+                  context, state.exception!, () => Modular.to.navigate("/"));
+            }
             var title =
                 state.company == null ? "Home" : state.company!.fantasyName;
             return Row(
@@ -26,9 +30,11 @@ class HomePage extends StatelessWidget {
                   backgroundImage: AssetImage("assets/img/company_default.jpg"),
                 ),
                 const SizedBox(width: 10),
-                Text(
-                  title,
-                  overflow: TextOverflow.ellipsis,
+                Expanded(
+                  child: Text(
+                    title,
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ),
               ],
             );
@@ -76,9 +82,19 @@ class HomePage extends StatelessWidget {
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
-        child: ElevatedButton(
-          onPressed: () => Modular.to.navigate("/people/list"),
-          child: const Text("Funcionarios"),
+        child: SizedBox(
+          width: 100,
+          height: 100,
+          child: FloatingActionButton(
+            backgroundColor: Theme.of(context).colorScheme.primary,
+            onPressed: () => Modular.to.navigate("/people/list"),
+            child: Text(
+              "Funcionarios",
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.onPrimary,
+              ),
+            ),
+          ),
         ),
       ),
     );

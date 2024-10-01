@@ -7,11 +7,17 @@ class EmployeesListState extends Equatable {
   final SearchParam searchParam;
   final String? searchInput;
   final bool isLoading;
+  final AplicationException? exception;
+  final Company? company;
+  final String? nameNewEmployee;
 
   const EmployeesListState(
       {this.listStatus = Status.defaultList,
       this.searchParam = SearchParam.name,
       this.searchInput,
+      this.exception,
+      this.company,
+      this.nameNewEmployee,
       this.selectedStatus = 0,
       this.isAscSort = true,
       this.isLoading = false});
@@ -22,14 +28,20 @@ class EmployeesListState extends Equatable {
       int? selectedStatus,
       List<Status>? listStatus,
       String? searchInput,
-      bool? isLoading}) {
+      bool? isLoading,
+      AplicationException? exception,
+      Company? company,
+      String? nameNewEmployee}) {
     return EmployeesListState(
         isAscSort: isAscSort ?? this.isAscSort,
         searchParam: searchParam ?? this.searchParam,
         listStatus: listStatus ?? this.listStatus,
         selectedStatus: selectedStatus ?? this.selectedStatus,
         searchInput: searchInput ?? this.searchInput,
-        isLoading: isLoading ?? this.isLoading);
+        isLoading: isLoading ?? this.isLoading,
+        exception: exception ?? this.exception,
+        company: company ?? this.company,
+        nameNewEmployee: nameNewEmployee ?? this.nameNewEmployee);
   }
 
   @override
@@ -39,6 +51,9 @@ class EmployeesListState extends Equatable {
         selectedStatus,
         searchParam,
         searchInput,
-        isLoading
+        isLoading,
+        exception,
+        company,
+        nameNewEmployee
       ];
 }

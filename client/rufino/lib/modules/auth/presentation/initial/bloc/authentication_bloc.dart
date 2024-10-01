@@ -5,6 +5,7 @@ import 'package:equatable/equatable.dart';
 import 'package:rufino/domain/enum/auth_status.dart';
 import 'package:rufino/domain/services/auth_service.dart';
 import 'package:rufino/domain/services/company_service.dart';
+import 'package:rufino/shared/errors/aplication_errors.dart';
 
 part 'authentication_event.dart';
 part 'authentication_state.dart';
@@ -28,13 +29,17 @@ class AuthenticationBloc
     Emitter<AuthenticationState> emit,
   ) async {
     try {
+      emit(const AuthenticationState.unknown());
       await _authService.getCredentials();
       var hasCompanySeleted = await _companyService.hasCompanySeleted();
 
       if (hasCompanySeleted) {
         emit(const AuthenticationState.authenticated());
+        return;
       }
       emit(const AuthenticationState.unSelectedCompany());
+    } on AplicationException catch (ex) {
+      emit(AuthenticationState.exception(ex));
     } catch (ex) {
       emit(const AuthenticationState.unauthenticated());
     }

@@ -11,11 +11,11 @@ class AuthService {
       Uri.parse(const String.fromEnvironment("end_session_endpoint"));
   final String _identifier = const String.fromEnvironment("identifier");
   final String _secret = const String.fromEnvironment("secret");
-  final _storage = const FlutterSecureStorage();
+  final FlutterSecureStorage _storage;
   final _keyStorage = "credentials";
   oauth2.Credentials? _credentials;
 
-  AuthService();
+  AuthService(this._storage);
 
   Future<void> logIn({
     required String username,

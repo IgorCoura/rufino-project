@@ -32,6 +32,14 @@ class _InitialPageState extends State<InitialPage> {
             Modular.to.navigate('/home/');
           case AuthStatus.unauthenticated:
             Modular.to.navigate('/login');
+          case AuthStatus.failure:
+            ScaffoldMessenger.of(context)
+              ..hideCurrentSnackBar()
+              ..showMaterialBanner(MaterialBanner(
+                content: Text(
+                    "Error: ${state.exception!.code} - ${state.exception!.message}"),
+                actions: [],
+              ));
           case AuthStatus.unknown:
             break;
         }

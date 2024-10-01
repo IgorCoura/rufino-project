@@ -14,7 +14,8 @@ namespace PeopleManagement.Application.Queries.Employee
             var query = 
                 (
                     from e in _context.Employees
-                    join r in _context.Roles on e.RoleId equals r.Id
+                    join r in _context.Roles on e.RoleId equals r.Id into roleGroup
+                    from r in roleGroup.DefaultIfEmpty()
                     select new
                     {
                         Employee = e,
@@ -54,7 +55,7 @@ namespace PeopleManagement.Application.Queries.Employee
                 Registration = o.Employee.Registration == null ? "" : o.Employee.Registration!.Value,
                 Status = o.Employee.Status.Id,
                 RoleId = o.Employee.RoleId,
-                RoleName = o.Role.Name.Value,
+                RoleName = o.Role.Name.Value == null ? "" : o.Role.Name.Value,
                 CompanyId = o.Employee.CompanyId
             }).ToListAsync();
 
