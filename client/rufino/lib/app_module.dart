@@ -4,7 +4,7 @@ import 'package:rufino/domain/services/auth_service.dart';
 import 'package:rufino/domain/services/company_service.dart';
 import 'package:rufino/modules/auth/auth_module.dart';
 import 'package:rufino/modules/home/home_module.dart';
-import 'package:rufino/modules/people/presentation/people_module.dart';
+import 'package:rufino/modules/employee/employee_module.dart';
 
 class AppModule extends Module {
   @override
@@ -20,6 +20,6 @@ class AppModule extends Module {
   void routes(r) {
     r.module('/', module: AuthModule());
     r.module('/home', module: HomeModule());
-    r.module('/people', module: PeopleModule());
+    r.module('/employee', module: PeopleModule());
   }
 }

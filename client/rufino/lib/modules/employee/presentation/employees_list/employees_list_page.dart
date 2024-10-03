@@ -3,10 +3,10 @@ import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_modular/flutter_modular.dart';
 import 'package:infinite_scroll_pagination/infinite_scroll_pagination.dart';
-import 'package:rufino/modules/people/presentation/domain/model/employee.dart';
-import 'package:rufino/modules/people/presentation/domain/model/status.dart';
-import 'package:rufino/modules/people/presentation/domain/model/search_params.dart';
-import 'package:rufino/modules/people/presentation/employees_list/bloc/employees_list_bloc.dart';
+import 'package:rufino/modules/employee/domain/model/employee_with_role.dart';
+import 'package:rufino/modules/employee/domain/model/status.dart';
+import 'package:rufino/modules/employee/domain/model/search_params.dart';
+import 'package:rufino/modules/employee/presentation/employees_list/bloc/employees_list_bloc.dart';
 import 'package:rufino/shared/components/error_message_components.dart';
 
 class EmployeesListPage extends StatelessWidget {
@@ -196,13 +196,21 @@ class EmployeesListPage extends StatelessWidget {
             title: const Text('Cadastrar Funcionário'),
             content: SizedBox(
               width: 600,
-              child: TextField(
-                onChanged: (name) => bloc.add(ChangeNameNewEmployee(name)),
-                decoration: const InputDecoration(
-                  labelText: 'Nome do Funcionário',
-                  border: OutlineInputBorder(),
-                ),
-              ),
+              child: BlocBuilder<EmployeesListBloc, EmployeesListState>(
+                  bloc: bloc,
+                  builder: (context, state) {
+                    return TextField(
+                      onChanged: (name) =>
+                          bloc.add(ChangeNameNewEmployee(name)),
+                      decoration: InputDecoration(
+                        labelText: 'Nome do Funcionário',
+                        border: const OutlineInputBorder(),
+                        errorText: state.textfieldErrorMessage.isEmpty
+                            ? null
+                            : state.textfieldErrorMessage,
+                      ),
+                    );
+                  }),
             ),
             actions: [
               TextButton(
@@ -224,19 +232,14 @@ class EmployeesListPage extends StatelessWidget {
   }
 
   Widget _employeesInfinityListView(List<Status> listStatus) {
-    return PagedListView<int, Employee>(
+    return PagedListView<int, EmployeeWithRole>(
       pagingController: bloc.pagingController,
-      builderDelegate: PagedChildBuilderDelegate<Employee>(
-          itemBuilder: (context, item, index) => _employeeListItem(
-              item,
-              listStatus.singleWhere(
-                (status) => status.id == item.status,
-                orElse: () => Status.empty,
-              ))),
+      builderDelegate: PagedChildBuilderDelegate<EmployeeWithRole>(
+          itemBuilder: (context, item, index) => _employeeListItem(item)),
     );
   }
 
-  Widget _employeeListItem(Employee employee, Status status) {
+  Widget _employeeListItem(EmployeeWithRole employee) {
     return ListTile(
       leading: const CircleAvatar(
         backgroundImage: AssetImage("assets/img/avatar_default.png"),
@@ -246,10 +249,10 @@ class EmployeesListPage extends StatelessWidget {
       ),
       subtitle: Text('Função: ${employee.roleName}'),
       trailing: Text(
-        status.name,
+        employee.status.name,
         style: const TextStyle(fontSize: 14),
       ),
-      onTap: () {},
+      onTap: () => Modular.to.navigate("/employee/profile/${employee.id}"),
     );
   }
 }

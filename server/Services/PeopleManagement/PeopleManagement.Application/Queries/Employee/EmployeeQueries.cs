@@ -1,7 +1,11 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using PeopleManagement.Domain.AggregatesModel.EmployeeAggregate;
+using PeopleManagement.Domain.ErrorTools.ErrorsMessages;
+using PeopleManagement.Domain.ErrorTools;
 using PeopleManagement.Domain.SeedWord;
 using PeopleManagement.Infra.Context;
+using static Microsoft.EntityFrameworkCore.DbLoggerCategory;
+using System.Runtime.Intrinsics.Arm;
 
 namespace PeopleManagement.Application.Queries.Employee
 {
@@ -9,7 +13,7 @@ namespace PeopleManagement.Application.Queries.Employee
     {
         private PeopleManagementContext _context = peopleManagementContext;
 
-        public async Task<IEnumerable<EmployeeSimpleDto>> GetEmployeeList(EmployeeParams pms, Guid company)
+        public async Task<IEnumerable<EmployeeWithRoleDto>> GetEmployeeListWithRoles(EmployeeParams pms, Guid company)
         {
             var query = 
                 (
@@ -48,22 +52,202 @@ namespace PeopleManagement.Application.Queries.Employee
    
             query = query.Skip(pms.SizeSkip).Take(pms.PageSize);
 
-            var result = await query.Select(o => new EmployeeSimpleDto
+            var result = await query.Select(o => new EmployeeWithRoleDto
             {
                 Id = o.Employee.Id,
                 Name = o.Employee.Name.Value,
-                Registration = o.Employee.Registration == null ? "" : o.Employee.Registration!.Value,
-                Status = o.Employee.Status.Id,
+                Registration = o.Employee.Registration == null ? string.Empty : o.Employee.Registration!.Value,
+                Status = new EnumerationDto
+                {
+                    Id = o.Employee.Status.Id,
+                    Name = o.Employee.Status.Name,
+                },
                 RoleId = o.Employee.RoleId,
-                RoleName = o.Role.Name.Value == null ? "" : o.Role.Name.Value,
+                RoleName = o.Role.Name.Value == null ? string.Empty : o.Role.Name.Value,
                 CompanyId = o.Employee.CompanyId
             }).ToListAsync();
 
             return result;
         }
 
+        public async Task<EmployeeDto> GetEmployee(Guid id, Guid company)
+        {
+            var query = _context.Employees.Where(e => e.Id == id && e.CompanyId == company);
 
+            var result = await query.Select(o => new EmployeeDto
+            {
+                Id = o.Id,
+                Name = o.Name.Value,
+                Registration = o.Registration == null ? string.Empty : o.Registration!.Value,
+                Status = new EnumerationDto
+                {
+                    Id = o.Status.Id,
+                    Name = o.Status.Name,
+                },
+                CompanyId = o.CompanyId
+            }).FirstOrDefaultAsync() 
+                ?? throw new DomainException(this, DomainErrors.ObjectNotFound(nameof(Employee), id.ToString()));
 
+            return result;
+        }
+
+        public async Task<EmployeeContactDto> GetEmployeeContact(Guid id, Guid company)
+        {
+            var query = _context.Employees.Where(e => e.Id == id && e.CompanyId == company);
+
+            var result = await query.Select(o => new EmployeeContactDto
+            {
+                EmployeeId = o.Id,
+                Email = o.Contact == null ? string.Empty : o.Contact.Email,
+                Cellphone = o.Contact == null ? string.Empty : o.Contact.CellPhone,
+                CompanyId = o.CompanyId
+            }).FirstOrDefaultAsync()
+                ?? throw new DomainException(this, DomainErrors.ObjectNotFound(nameof(Employee), id.ToString()));
+
+            return result;
+        }
+
+        public async Task<EmployeeAddressDto> GetEmployeeAddress(Guid id, Guid company)
+        {
+            var query = _context.Employees.Where(e => e.Id == id && e.CompanyId == company);
+
+            var result = await query.Select(o => new EmployeeAddressDto
+            {
+                EmployeeId = o.Id,
+                Zipcode = o.Address == null ? string.Empty : o.Address.ZipCode,
+                Street = o.Address == null ? string.Empty : o.Address.Street,
+                Number = o.Address == null ? string.Empty : o.Address.Number,
+                Complement = o.Address == null ? string.Empty : o.Address.Complement,
+                Neighborhood = o.Address == null ? string.Empty : o.Address.Neighborhood,
+                City = o.Address == null ? string.Empty : o.Address.City,
+                State = o.Address == null ? string.Empty : o.Address.State,
+                Coutry = o.Address == null ? string.Empty : o.Address.Country,
+                CompanyId = o.CompanyId
+            }).FirstOrDefaultAsync()
+                ?? throw new DomainException(this, DomainErrors.ObjectNotFound(nameof(Employee), id.ToString()));
+
+            return result;
+        }
+
+        public async Task<EmployeePersonalInfoDto> GetEmployeePersonalInfo(Guid id, Guid company)
+        {
+            var query = _context.Employees.Where(e => e.Id == id && e.CompanyId == company);
+
+            var result = await query.Select(o => new EmployeePersonalInfoDto
+            {
+                EmployeeId = o.Id,
+                CompanyId = o.CompanyId,
+                Deficiency = o.PersonalInfo != null ? new EmployeeDeficiencyDto
+                {
+                    Disabilities = o.PersonalInfo.Deficiency.Disabilities.Select(x => new EnumerationDto
+                    {
+                        Id = x.Id,
+                        Name = x.Name,
+                    }).ToArray(),
+                }: EmployeeDeficiencyDto.Empty,
+                MaritalStatus = o.PersonalInfo != null ? new EnumerationDto { Id = o.PersonalInfo.MaritalStatus.Id, Name = o.PersonalInfo.MaritalStatus.Name } : EnumerationDto.Empty,
+                Gender = o.PersonalInfo != null ? new EnumerationDto { Id = o.PersonalInfo.Gender.Id, Name = o.PersonalInfo.Gender.Name } : EnumerationDto.Empty,
+                Ethinicity = o.PersonalInfo != null ? new EnumerationDto { Id = o.PersonalInfo.Ethinicity.Id, Name = o.PersonalInfo.Ethinicity.Name } : EnumerationDto.Empty,
+                EducationLevel = o.PersonalInfo != null ? new EnumerationDto { Id = o.PersonalInfo.EducationLevel.Id, Name = o.PersonalInfo.EducationLevel.Name } : EnumerationDto.Empty,
+                
+            }).FirstOrDefaultAsync()
+                ?? throw new DomainException(this, DomainErrors.ObjectNotFound(nameof(Employee), id.ToString()));
+
+            return result;
+        }
+
+        public async Task<EmployeeIdCardDto> GetEmployeeIdCard(Guid id, Guid company)
+        {
+            var query = _context.Employees.Where(e => e.Id == id && e.CompanyId == company);
+
+            var result = await query.Select(o => new EmployeeIdCardDto
+            {
+                EmployeeId = o.Id,
+                CompanyId = o.CompanyId,
+                IdCard = o.IdCard == null ? IdCardDto.Empty : new IdCardDto
+                {
+                    Cpf =   o.IdCard!.Cpf.Number,
+                    MotherName =  o.IdCard.MotherName.Value,
+                    FatherName =  o.IdCard.FatherName.Value,
+                    BirthCity =  o.IdCard.BirthCity ,
+                    BirthState = o.IdCard.BirthState,
+                    Nacionality = o.IdCard.Nacionality,
+                    DateOfBirth =  o.IdCard.DateOfBirth,
+                },
+            }).FirstOrDefaultAsync()
+                ?? throw new DomainException(this, DomainErrors.ObjectNotFound(nameof(Employee), id.ToString()));
+
+            return result;
+        }
+
+        public async Task<EmployeeVoteIdDto> GetEmployeeVoteId(Guid id, Guid company)
+        {
+            var query = _context.Employees.Where(e => e.Id == id && e.CompanyId == company);
+
+            var result = await query.Select(o => new EmployeeVoteIdDto
+            {
+                EmployeeId = o.Id,
+                CompanyId = o.CompanyId,
+                VoteIdNumber = o.VoteId != null ? o.VoteId.Number : string.Empty,
+            }).FirstOrDefaultAsync()
+                ?? throw new DomainException(this, DomainErrors.ObjectNotFound(nameof(Employee), id.ToString()));
+
+            return result;
+        } 
+        
+        public async Task<EmployeeMilitaryDocumentDto> GetEmployeeMilitaryDocument(Guid id, Guid company)
+        {
+            var query = _context.Employees.Where(e => e.Id == id && e.CompanyId == company);
+
+            var result = await query.Select(o => new EmployeeMilitaryDocumentDto
+            {
+                EmployeeId = o.Id,
+                CompanyId = o.CompanyId,
+                Number = o.MilitaryDocument != null ? o.MilitaryDocument.Number : string.Empty,
+                Type = o.MilitaryDocument != null ? o.MilitaryDocument.Type : string.Empty,
+            }).FirstOrDefaultAsync()
+                ?? throw new DomainException(this, DomainErrors.ObjectNotFound(nameof(Employee), id.ToString()));
+
+            return result;
+        }
+
+        public async Task<EmployeeDependentsDto> GetEmployeeDependents(Guid id, Guid company)
+        {
+            var query = _context.Employees.Where(e => e.Id == id && e.CompanyId == company);
+
+            var result = await query.Select(o => new EmployeeDependentsDto
+            {
+                EmployeeId = o.Id,
+                CompanyId = o.CompanyId,
+                Dependents = o.Dependents.Select(dep => new EmployeeDependentDto
+                {
+                    Name = dep.Name,
+                    IdCard = new IdCardDto
+                    {
+                        Cpf = dep.IdCard.Cpf.Number,
+                        MotherName = dep.IdCard.MotherName.Value,
+                        FatherName = dep.IdCard.FatherName.Value,
+                        BirthCity = dep.IdCard.BirthCity,
+                        BirthState = dep.IdCard.BirthState,
+                        Nacionality = dep.IdCard.Nacionality,
+                        DateOfBirth = dep.IdCard.DateOfBirth,
+                    },
+                    Gender = new EnumerationDto
+                    {
+                        Id = dep.Gender.Id,
+                        Name = dep.Gender.Name,
+                    },
+                    DependencyType = new EnumerationDto
+                    {
+                        Id = dep.DependencyType.Id,
+                        Name = dep.DependencyType.Name,
+                    },
+                }).ToArray(),
+            }).FirstOrDefaultAsync()
+                ?? throw new DomainException(this, DomainErrors.ObjectNotFound(nameof(Employee), id.ToString()));
+
+            return result;
+        }
 
     }
 }

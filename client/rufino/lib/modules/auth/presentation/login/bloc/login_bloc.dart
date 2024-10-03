@@ -16,6 +16,7 @@ class LoginBloc extends Bloc<LoginEvent, LoginState> {
     on<LoginUsernameChanged>(_onUsernameChanged);
     on<LoginPasswordChanged>(_onPasswordChanged);
     on<LoginSubmitted>(_onSubmitted);
+    on<SnackMessageWasShow>(_onSnackMessageWasShow);
   }
 
   final AuthService _authService;
@@ -54,5 +55,12 @@ class LoginBloc extends Bloc<LoginEvent, LoginState> {
     } catch (_) {
       emit(state.copyWith(status: LoginStatus.failure));
     }
+  }
+
+  void _onSnackMessageWasShow(
+    SnackMessageWasShow event,
+    Emitter<LoginState> emit,
+  ) {
+    emit(state.copyWith(status: LoginStatus.initial));
   }
 }

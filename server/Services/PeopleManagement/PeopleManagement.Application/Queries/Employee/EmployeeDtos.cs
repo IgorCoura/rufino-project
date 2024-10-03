@@ -1,20 +1,31 @@
-﻿using System.Linq.Expressions;
+﻿using PeopleManagement.Domain.AggregatesModel.EmployeeAggregate;
+using PeopleManagement.Domain.SeedWord;
+using System.Linq.Expressions;
 using static Microsoft.EntityFrameworkCore.DbLoggerCategory;
 
 namespace PeopleManagement.Application.Queries.Employee
 {
-    public record EmployeeSimpleDto
+    public record EmployeeWithRoleDto
     {
 
         public Guid Id { get; init; }
-        public string Name { get; init; } = null!;
+        public string Name { get; init; } = string.Empty;
         public string? Registration { get; init; }
-        public int Status { get; init; }
+        public EnumerationDto Status { get; init; } = EnumerationDto.Empty;
         public Guid? RoleId { get; init; }
-        public string RoleName { get; init; } = null!;
+        public string RoleName { get; init; } = string.Empty;
         public Guid CompanyId { get; init; }
     }
 
+    public record EmployeeDto
+    {
+        public Guid Id { get; init; }
+
+        public string Name { get; init; } = string.Empty;
+        public string? Registration { get; init; }
+        public EnumerationDto Status { get; init; } = EnumerationDto.Empty;
+        public Guid CompanyId { get; init; }
+    }
     public record EmployeeParams
     {
         public string? Name { get; init; }
@@ -29,5 +40,112 @@ namespace PeopleManagement.Application.Queries.Employee
     {
         ASC,
         DESC,
+    }
+
+    public record EmployeeContactDto
+    {
+        public Guid EmployeeId { get; init; }
+        public Guid CompanyId { get; init; }
+        public string Email { get; init; } = string.Empty;
+        public string Cellphone { get; init; } = string.Empty;
+    }
+
+    public record EmployeeAddressDto
+    {
+        public Guid EmployeeId { get; init; }
+        public Guid CompanyId { get; init; }
+        public string Zipcode { get; init; } = string.Empty;
+        public string Street { get; init; } = string.Empty;
+        public string Number { get; init; } = string.Empty;
+        public string Complement { get; init; } = string.Empty;
+        public string Neighborhood { get; init; } = string.Empty;
+        public string City { get; init; } = string.Empty;
+        public string State { get; init; } = string.Empty;
+        public string Coutry { get; init; } = string.Empty;
+    }
+
+    public record EmployeePersonalInfoDto
+    {
+        public Guid EmployeeId { get; init; }
+        public Guid CompanyId { get; init; }
+        public EmployeeDeficiencyDto Deficiency { get; init; } = EmployeeDeficiencyDto.Empty;
+        public EnumerationDto MaritalStatus { get; init; } = EnumerationDto.Empty;
+        public EnumerationDto Gender { get; init; } = EnumerationDto.Empty;
+        public EnumerationDto Ethinicity { get; init; } = EnumerationDto.Empty;
+        public EnumerationDto EducationLevel { get; init; } = EnumerationDto.Empty;
+    }
+
+    public record EmployeeDeficiencyDto
+    {
+        public EnumerationDto[] Disabilities { get; init; } = [];
+        public string Observation { get; init; } = string.Empty;
+
+        public static EmployeeDeficiencyDto Empty => new();
+    }
+
+    public record EmployeeIdCardDto
+    {
+        public Guid EmployeeId { get; init; }
+        public Guid CompanyId { get; init; }
+        public IdCardDto IdCard { get; init; } = IdCardDto.Empty;
+    }
+
+    public record IdCardDto
+    {
+        public string Cpf { get; init; } = string.Empty;
+        public string MotherName { get; init; } = string.Empty;
+        public string FatherName { get; init; } = string.Empty;
+        public string BirthCity { get; init; } = string.Empty;
+        public string BirthState { get; init; } = string.Empty;
+        public string Nacionality { get; init; } = string.Empty;
+        public DateOnly? DateOfBirth { get; init; } = null;
+
+        public static IdCardDto Empty => new();
+    }
+
+
+    public record EmployeeVoteIdDto
+    {
+        public Guid EmployeeId { get; init; }
+        public Guid CompanyId { get; init; }
+        public string VoteIdNumber { get; init; } = string.Empty;
+
+    }
+
+    public record EmployeeMilitaryDocumentDto
+    {
+        public Guid EmployeeId { get; init; }
+        public Guid CompanyId { get; init; }
+        public string Number { get; init; } = string.Empty;
+        public string Type { get; init; } = string.Empty;
+
+    }
+
+    public record EmployeeDependentsDto
+    {
+        public Guid EmployeeId { get; init; }
+        public Guid CompanyId { get; init; }
+        public EmployeeDependentDto[] Dependents { get; init; } = [];
+    }
+
+    public record EmployeeDependentDto
+    {
+        public string Name { get; init; } = string.Empty;
+        public IdCardDto IdCard { get; init; } = IdCardDto.Empty;
+        public EnumerationDto Gender { get; init; } = EnumerationDto.Empty;
+        public EnumerationDto DependencyType { get; init; } = EnumerationDto.Empty;
+    }
+
+    public record EnumerationDto
+    {
+        private EnumerationDto(int id, string name)
+        {
+            Id = id;
+            Name = name;
+        }
+        public EnumerationDto() { }
+        public int Id { get; init; }
+        public string Name { get; init; } = string.Empty;
+        public static EnumerationDto Empty => new(-1, "");
     }
 }

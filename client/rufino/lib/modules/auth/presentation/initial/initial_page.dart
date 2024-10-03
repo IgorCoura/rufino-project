@@ -38,7 +38,11 @@ class _InitialPageState extends State<InitialPage> {
               ..showMaterialBanner(MaterialBanner(
                 content: Text(
                     "Error: ${state.exception!.code} - ${state.exception!.message}"),
-                actions: [],
+                actions: [
+                  TextButton(
+                      onPressed: () => Modular.to.navigate('/'),
+                      child: const Text("OK"))
+                ],
               ));
           case AuthStatus.unknown:
             break;

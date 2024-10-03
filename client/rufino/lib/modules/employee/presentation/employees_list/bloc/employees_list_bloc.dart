@@ -3,10 +3,10 @@ import 'package:equatable/equatable.dart';
 import 'package:infinite_scroll_pagination/infinite_scroll_pagination.dart';
 import 'package:rufino/domain/model/company.dart';
 import 'package:rufino/domain/services/company_service.dart';
-import 'package:rufino/modules/people/presentation/domain/model/employee.dart';
-import 'package:rufino/modules/people/presentation/domain/model/search_params.dart';
-import 'package:rufino/modules/people/presentation/domain/model/status.dart';
-import 'package:rufino/modules/people/presentation/domain/services/people_management_service.dart';
+import 'package:rufino/modules/employee/domain/model/employee_with_role.dart';
+import 'package:rufino/modules/employee/domain/model/search_params.dart';
+import 'package:rufino/modules/employee/domain/model/status.dart';
+import 'package:rufino/modules/employee/domain/services/people_management_service.dart';
 import 'package:rufino/shared/errors/aplication_errors.dart';
 
 part 'employees_list_event.dart';
@@ -15,7 +15,7 @@ part 'employees_list_state.dart';
 class EmployeesListBloc extends Bloc<EmployeesListEvent, EmployeesListState> {
   final PeopleManagementService _peopleManagementService;
   final CompanyService _companyService;
-  final PagingController<int, Employee> pagingController =
+  final PagingController<int, EmployeeWithRole> pagingController =
       PagingController(firstPageKey: 0);
   final int _pageSize = 15;
   int _sizeSkip = 0;
@@ -39,7 +39,14 @@ class EmployeesListBloc extends Bloc<EmployeesListEvent, EmployeesListState> {
 
   void _onChangeNameNewEmployee(
       ChangeNameNewEmployee event, Emitter<EmployeesListState> emit) {
-    emit(state.copyWith(nameNewEmployee: event.name));
+    emit(state.copyWith(textfieldErrorMessage: ""));
+    final regex = RegExp(r"^[a-zA-ZÀ-ÿ']+(?: [a-zA-ZÀ-ÿ']+)+$");
+    if (!regex.hasMatch(event.name)) {
+      emit(state.copyWith(textfieldErrorMessage: "Nome inválido"));
+      return;
+    }
+    emit(
+        state.copyWith(nameNewEmployee: event.name, textfieldErrorMessage: ""));
   }
 
   Future _onCreateEmployee(
@@ -138,14 +145,14 @@ class EmployeesListBloc extends Bloc<EmployeesListEvent, EmployeesListState> {
     }
   }
 
-  Future<List<Employee>> _searchEmpployee() async {
+  Future<List<EmployeeWithRole>> _searchEmpployee() async {
     if (state.company == null) {
       return List.empty();
     }
     var searchInput = state.searchInput != null && state.searchInput!.isEmpty
         ? null
         : state.searchInput;
-    var employees = await _peopleManagementService.getEmployees(
+    var employees = await _peopleManagementService.getEmployeesWithRoles(
         state.company!.id,
         state.searchParam == SearchParam.name ? searchInput : null,
         state.searchParam == SearchParam.role ? searchInput : null,

@@ -23,7 +23,8 @@ class _LoginPageState extends State<LoginPage> {
         listener: (context, state) {
           if (state.status == LoginStatus.failure) {
             ErrorMessageComponent.showSnackBar(
-                context, 'Authentication Failure');
+                context, 'Falha na autenticação.');
+            bloc.add(SnackMessageWasShow());
           } else if (state.status == LoginStatus.success) {
             Modular.to.navigate("/");
           }
