@@ -87,7 +87,7 @@ class HomePage extends StatelessWidget {
           height: 100,
           child: FloatingActionButton(
             backgroundColor: Theme.of(context).colorScheme.primary,
-            onPressed: () => Modular.to.navigate("/people/list"),
+            onPressed: () => Modular.to.navigate("/employee/list"),
             child: Text(
               "Funcionarios",
               style: TextStyle(

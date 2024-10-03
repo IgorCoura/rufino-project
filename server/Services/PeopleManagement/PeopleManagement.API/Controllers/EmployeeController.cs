@@ -27,15 +27,15 @@ namespace PeopleManagement.API.Controllers
         [ProtectedResource("employee", "create")]
         public async Task<ActionResult<CreateEmployeeResponse>> Create([FromRoute] Guid company, [FromBody] CreateEmployeeModel request, [FromHeader(Name = "x-requestid")] Guid requestId)
         {
-                var command = new IdentifiedCommand<CreateEmployeeCommand, CreateEmployeeResponse>(request.ToCommand(company), requestId);
+            var command = new IdentifiedCommand<CreateEmployeeCommand, CreateEmployeeResponse>(request.ToCommand(company), requestId);
 
-                SendingCommandLog(request.Name, request, requestId);
+            SendingCommandLog(request.Name, request, requestId);
 
-                var result = await mediator.Send(command);
+            var result = await mediator.Send(command);
 
-                CommandResultLog(result, request.Name, request, requestId);
+            CommandResultLog(result, request.Name, request, requestId);
 
-                return OkResponse(result);
+            return OkResponse(result);
         }
 
         [HttpPut("Address")]
@@ -100,7 +100,7 @@ namespace PeopleManagement.API.Controllers
 
         [HttpPut("MedicalAdmissionExam")]
         [ProtectedResource("employee", "edit")]
-        public async Task<ActionResult<AlterMedicalAdmissionExamEmployeeResponse>> AlterMedicalAdmissionExam([FromRoute] Guid company, 
+        public async Task<ActionResult<AlterMedicalAdmissionExamEmployeeResponse>> AlterMedicalAdmissionExam([FromRoute] Guid company,
             [FromBody] AlterMedicalAdmissionExamEmployeeModel request, [FromHeader(Name = "x-requestid")] Guid requestId)
         {
             var command = new IdentifiedCommand<AlterMedicalAdmissionExamEmployeeCommand, AlterMedicalAdmissionExamEmployeeResponse>(request.ToCommand(company), requestId);
@@ -116,7 +116,7 @@ namespace PeopleManagement.API.Controllers
 
         [HttpPut("MilitarDocument")]
         [ProtectedResource("employee", "edit")]
-        public async Task<ActionResult<AlterMilitarDocumentEmployeeResponse>> AlterMilitarDocument([FromRoute] Guid company, 
+        public async Task<ActionResult<AlterMilitarDocumentEmployeeResponse>> AlterMilitarDocument([FromRoute] Guid company,
             [FromBody] AlterMilitarDocumentEmployeeModel request, [FromHeader(Name = "x-requestid")] Guid requestId)
         {
             var command = new IdentifiedCommand<AlterMilitarDocumentEmployeeCommand, AlterMilitarDocumentEmployeeResponse>(request.ToCommand(company), requestId);
@@ -132,7 +132,7 @@ namespace PeopleManagement.API.Controllers
 
         [HttpPut("Name")]
         [ProtectedResource("employee", "edit")]
-        public async Task<ActionResult<AlterNameEmployeeResponse>> AlterName([FromRoute] Guid company, [FromBody] AlterNameEmployeeModel request, 
+        public async Task<ActionResult<AlterNameEmployeeResponse>> AlterName([FromRoute] Guid company, [FromBody] AlterNameEmployeeModel request,
             [FromHeader(Name = "x-requestid")] Guid requestId)
         {
             var command = new IdentifiedCommand<AlterNameEmployeeCommand, AlterNameEmployeeResponse>(request.ToCommand(company), requestId);
@@ -148,7 +148,7 @@ namespace PeopleManagement.API.Controllers
 
         [HttpPut("PersonalInfo")]
         [ProtectedResource("employee", "edit")]
-        public async Task<ActionResult<AlterPersonalInfoEmployeeResponse>> AlterPersonalInfo([FromRoute] Guid company, 
+        public async Task<ActionResult<AlterPersonalInfoEmployeeResponse>> AlterPersonalInfo([FromRoute] Guid company,
             [FromBody] AlterPersonalInfoEmployeeModel request, [FromHeader(Name = "x-requestid")] Guid requestId)
         {
             var command = new IdentifiedCommand<AlterPersonalInfoEmployeeCommand, AlterPersonalInfoEmployeeResponse>(request.ToCommand(company), requestId);
@@ -164,7 +164,7 @@ namespace PeopleManagement.API.Controllers
 
         [HttpPut("Role")]
         [ProtectedResource("employee", "edit")]
-        public async Task<ActionResult<AlterRoleEmployeeResponse>> AlterRole([FromRoute] Guid company, [FromBody] AlterRoleEmployeeModel request, 
+        public async Task<ActionResult<AlterRoleEmployeeResponse>> AlterRole([FromRoute] Guid company, [FromBody] AlterRoleEmployeeModel request,
             [FromHeader(Name = "x-requestid")] Guid requestId)
         {
             var command = new IdentifiedCommand<AlterRoleEmployeeCommand, AlterRoleEmployeeResponse>(request.ToCommand(company), requestId);
@@ -180,7 +180,7 @@ namespace PeopleManagement.API.Controllers
 
         [HttpPut("VoteId")]
         [ProtectedResource("employee", "edit")]
-        public async Task<ActionResult<AlterVoteIdEmployeeResponse>> AlterVoteId([FromRoute] Guid company, [FromBody] AlterVoteIdEmployeeModel request, 
+        public async Task<ActionResult<AlterVoteIdEmployeeResponse>> AlterVoteId([FromRoute] Guid company, [FromBody] AlterVoteIdEmployeeModel request,
             [FromHeader(Name = "x-requestid")] Guid requestId)
         {
             var command = new IdentifiedCommand<AlterVoteIdEmployeeCommand, AlterVoteIdEmployeeResponse>(request.ToCommand(company), requestId);
@@ -196,7 +196,7 @@ namespace PeopleManagement.API.Controllers
 
         [HttpPut("WorkPlace")]
         [ProtectedResource("employee", "edit")]
-        public async Task<ActionResult<AlterWorkPlaceEmployeeResponse>> AlterWorkPlace([FromRoute] Guid company, 
+        public async Task<ActionResult<AlterWorkPlaceEmployeeResponse>> AlterWorkPlace([FromRoute] Guid company,
             [FromBody] AlterWorkPlaceEmployeeModel request, [FromHeader(Name = "x-requestid")] Guid requestId)
         {
             var command = new IdentifiedCommand<AlterWorkPlaceEmployeeCommand, AlterWorkPlaceEmployeeResponse>(request.ToCommand(company), requestId);
@@ -212,7 +212,7 @@ namespace PeopleManagement.API.Controllers
 
         [HttpPut("Admission/Complete")]
         [ProtectedResource("employee", "edit")]
-        public async Task<ActionResult<CompleteAdmissionEmployeeResponse>> CompleteAdmission([FromRoute] Guid company, 
+        public async Task<ActionResult<CompleteAdmissionEmployeeResponse>> CompleteAdmission([FromRoute] Guid company,
             [FromBody] CompleteAdmissionEmployeeModel request, [FromHeader(Name = "x-requestid")] Guid requestId)
         {
             var command = new IdentifiedCommand<CompleteAdmissionEmployeeCommand, CompleteAdmissionEmployeeResponse>(request.ToCommand(company), requestId);
@@ -228,7 +228,7 @@ namespace PeopleManagement.API.Controllers
 
         [HttpPost("Dependent")]
         [ProtectedResource("employee", "edit")]
-        public async Task<ActionResult<CreateDependentEmployeeResponse>> CreateDependent([FromRoute] Guid company, 
+        public async Task<ActionResult<CreateDependentEmployeeResponse>> CreateDependent([FromRoute] Guid company,
             [FromBody] CreateDependentEmployeeModel request, [FromHeader(Name = "x-requestid")] Guid requestId)
         {
             var command = new IdentifiedCommand<CreateDependentEmployeeCommand, CreateDependentEmployeeResponse>(request.ToCommand(company), requestId);
@@ -244,7 +244,7 @@ namespace PeopleManagement.API.Controllers
 
         [HttpPut("Contract/Finished")]
         [ProtectedResource("employee", "edit")]
-        public async Task<ActionResult<FinishedContractEmployeeResponse>> FinishedContract([FromRoute] Guid company, 
+        public async Task<ActionResult<FinishedContractEmployeeResponse>> FinishedContract([FromRoute] Guid company,
             [FromBody] FinishedContractEmployeeModel request, [FromHeader(Name = "x-requestid")] Guid requestId)
         {
             var command = new IdentifiedCommand<FinishedContractEmployeeCommand, FinishedContractEmployeeResponse>(request.ToCommand(company), requestId);
@@ -259,13 +259,79 @@ namespace PeopleManagement.API.Controllers
         }
 
 
-        [HttpGet("List")]
+        [HttpGet("list/roles")]
         [ProtectedResource("employee", "view")]
-        public async Task<ActionResult<IEnumerable<EmployeeSimpleDto>>> GetEmployees([FromRoute] Guid company, [FromQuery] EmployeeParams employeeParams)
+        public async Task<ActionResult<IEnumerable<EmployeeWithRoleDto>>> GetEmployeesWithRole([FromRoute] Guid company, [FromQuery] EmployeeParams employeeParams)
         {
-            var result = await employeeQueries.GetEmployeeList(employeeParams, company);
+            var result = await employeeQueries.GetEmployeeListWithRoles(employeeParams, company);
             return OkResponse(result);
         }
+
+        [HttpGet("{id}")]
+        [ProtectedResource("employee", "view")]
+        public async Task<ActionResult<EmployeeDto>> GetEmployee([FromRoute] Guid company, [FromRoute] Guid id)
+        {
+            var result = await employeeQueries.GetEmployee(id, company);
+            return OkResponse(result);
+        }
+
+        [HttpGet("contact/{id}")]
+        [ProtectedResource("employee", "view")]
+        public async Task<ActionResult<EmployeeAddressDto>> GetEmployeeContact([FromRoute] Guid company, [FromRoute] Guid id)
+        {
+            var result = await employeeQueries.GetEmployeeContact(id, company);
+            return OkResponse(result);
+        }
+
+        [HttpGet("address/{id}")]
+        [ProtectedResource("employee", "view")]
+        public async Task<ActionResult<EmployeeAddressDto>> GetEmployeeAddress([FromRoute] Guid company, [FromRoute] Guid id)
+        {
+            var result = await employeeQueries.GetEmployeeAddress(id, company);
+            return OkResponse(result);
+        }
+
+        [HttpGet("personalinfo/{id}")]
+        [ProtectedResource("employee", "view")]
+        public async Task<ActionResult<EmployeePersonalInfoDto>> GetEmployeePersonalInfo([FromRoute] Guid company, [FromRoute] Guid id)
+        {
+            var result = await employeeQueries.GetEmployeePersonalInfo(id, company);
+            return OkResponse(result);
+        }
+        
+        [HttpGet("idcard/{id}")]
+        [ProtectedResource("employee", "view")]
+        public async Task<ActionResult<EmployeeIdCardDto>> GetEmployeeIdCard([FromRoute] Guid company, [FromRoute] Guid id)
+        {
+            var result = await employeeQueries.GetEmployeeIdCard(id, company);
+            return OkResponse(result);
+        }
+
+        [HttpGet("voteid/{id}")]
+        [ProtectedResource("employee", "view")]
+        public async Task<ActionResult<EmployeeVoteIdDto>> GetEmployeeVoteId([FromRoute] Guid company, [FromRoute] Guid id)
+        {
+            var result = await employeeQueries.GetEmployeeVoteId(id, company);
+            return OkResponse(result);
+        }
+
+        [HttpGet("militarydocument/{id}")]
+        [ProtectedResource("employee", "view")]
+        public async Task<ActionResult<EmployeeMilitaryDocumentDto>> GetEmployeeMilitaryDocument([FromRoute] Guid company, [FromRoute] Guid id)
+        {
+            var result = await employeeQueries.GetEmployeeMilitaryDocument(id, company);
+            return OkResponse(result);
+        }
+        
+        [HttpGet("employeedependents/{id}")]
+        [ProtectedResource("employee", "view")]
+        public async Task<ActionResult<EmployeeDependentsDto>> GetEmployeeDependents([FromRoute] Guid company, [FromRoute] Guid id)
+        {
+            var result = await employeeQueries.GetEmployeeDependents(id, company);
+            return OkResponse(result);
+        }
+
+
 
         [HttpGet("Status")]
         [ProtectedResource("employee", "view")]

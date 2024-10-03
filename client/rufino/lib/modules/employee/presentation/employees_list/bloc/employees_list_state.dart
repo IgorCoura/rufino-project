@@ -10,6 +10,7 @@ class EmployeesListState extends Equatable {
   final AplicationException? exception;
   final Company? company;
   final String? nameNewEmployee;
+  final String textfieldErrorMessage;
 
   const EmployeesListState(
       {this.listStatus = Status.defaultList,
@@ -18,6 +19,7 @@ class EmployeesListState extends Equatable {
       this.exception,
       this.company,
       this.nameNewEmployee,
+      this.textfieldErrorMessage = "",
       this.selectedStatus = 0,
       this.isAscSort = true,
       this.isLoading = false});
@@ -31,7 +33,8 @@ class EmployeesListState extends Equatable {
       bool? isLoading,
       AplicationException? exception,
       Company? company,
-      String? nameNewEmployee}) {
+      String? nameNewEmployee,
+      String? textfieldErrorMessage}) {
     return EmployeesListState(
         isAscSort: isAscSort ?? this.isAscSort,
         searchParam: searchParam ?? this.searchParam,
@@ -41,7 +44,9 @@ class EmployeesListState extends Equatable {
         isLoading: isLoading ?? this.isLoading,
         exception: exception ?? this.exception,
         company: company ?? this.company,
-        nameNewEmployee: nameNewEmployee ?? this.nameNewEmployee);
+        nameNewEmployee: nameNewEmployee ?? this.nameNewEmployee,
+        textfieldErrorMessage:
+            textfieldErrorMessage ?? this.textfieldErrorMessage);
   }
 
   @override
@@ -54,6 +59,7 @@ class EmployeesListState extends Equatable {
         isLoading,
         exception,
         company,
-        nameNewEmployee
+        nameNewEmployee,
+        textfieldErrorMessage
       ];
 }

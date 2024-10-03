@@ -38,8 +38,6 @@ class AuthenticationBloc
         return;
       }
       emit(const AuthenticationState.unSelectedCompany());
-    } on AplicationException catch (ex) {
-      emit(AuthenticationState.exception(ex));
     } catch (ex) {
       emit(const AuthenticationState.unauthenticated());
     }
