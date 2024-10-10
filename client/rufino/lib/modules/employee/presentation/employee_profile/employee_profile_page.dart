@@ -2,8 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_modular/flutter_modular.dart';
 import 'package:rufino/modules/employee/domain/model/name.dart';
-import 'package:rufino/modules/employee/presentation/employee_profile/bloc/bloc/employee_profile_bloc.dart';
-import 'package:rufino/modules/employee/presentation/employee_profile/form_component.dart';
+import 'package:rufino/modules/employee/presentation/employee_profile/bloc/employee_profile_bloc.dart';
+import 'package:rufino/modules/employee/presentation/employee_profile/components/enumeration_list_view_component.dart';
+import 'package:rufino/modules/employee/presentation/employee_profile/components/enumeration_view_component.dart';
+import 'package:rufino/modules/employee/presentation/employee_profile/components/props_container_component.dart';
+import 'package:rufino/modules/employee/presentation/employee_profile/components/text_edit_component.dart';
 import 'package:rufino/shared/components/error_message_components.dart';
 
 class EmployeeProfilePage extends StatelessWidget {
@@ -81,24 +84,51 @@ class EmployeeProfilePage extends StatelessWidget {
                           const SizedBox(
                             height: 16,
                           ),
-                          FormComponent(
-                            modelBase: state.contact,
-                            saveFunction: () => bloc.add(SaveContactChanges()),
-                            loadingFormData: () =>
-                                bloc.add(LoadingContactEvent()),
-                            formName: "Contato",
+                          const SizedBox(
+                            height: 16,
+                          ),
+                          PropsContainerComponent(
+                            containerName: "Contatos Container",
                             isSavingData: state.isSavingData,
+                            loadingContainerData: () =>
+                                bloc.add(LoadingContactEvent()),
+                            saveContainerData: (changes) =>
+                                bloc.add(SaveContactChanges()),
+                            children: state.contact.props
+                                .map((prop) => TextEditComponent(
+                                      textProp: prop,
+                                      isLoading: state.contact.isLoading,
+                                    ))
+                                .toList(),
                           ),
                           const SizedBox(
                             height: 16,
                           ),
-                          FormComponent(
-                            modelBase: state.address,
-                            saveFunction: () => bloc.add(SaveAddressEvent()),
-                            loadingFormData: () =>
-                                bloc.add(LoadingAddressEvent()),
-                            formName: "Endereço",
+                          PropsContainerComponent(
+                            containerName: "Informações Pessoais",
                             isSavingData: state.isSavingData,
+                            loadingContainerData: () =>
+                                bloc.add(LoadingPersonalInfoEvent()),
+                            saveContainerData: (changes) =>
+                                bloc.add(SavePersonalInfoEvent(changes)),
+                            loadingLazyContainerData: () =>
+                                bloc.add(LazyLoadingPersonalInfoEvent()),
+                            isLoading: state.personalInfo.isLoading,
+                            children: [
+                              EnumerationListViewComponent(
+                                enumerationsList: state.personalInfo.deficiency,
+                                enumerationOptionsList:
+                                    state.optionsDisability ?? [],
+                              ),
+                              TextEditComponent(
+                                textProp:
+                                    state.personalInfo.deficiency.observation,
+                              ),
+                              EnumerationViewComponent(
+                                  enumeration: state.personalInfo.maritalStatus,
+                                  listEnumerationOptions:
+                                      state.optionsMaritalStatus ?? [])
+                            ],
                           ),
                         ],
                       );
@@ -173,18 +203,25 @@ class EmployeeProfilePage extends StatelessWidget {
         isSavingData
             ? const Center(child: CircularProgressIndicator())
             : isEditing
-                ? FilledButton(
-                    onPressed: () {
-                      if (_formKey.currentState != null &&
-                          _formKey.currentState!.validate()) {
-                        _formKey.currentState!.save();
-                        bloc.add(SaveNewNameEvent());
-                      }
-                    },
-                    child: const Text("Salvar"),
+                ? Row(
+                    children: [
+                      TextButton(
+                          onPressed: () => bloc.add(const EditNameEvent(false)),
+                          child: const Text("Cancelar")),
+                      FilledButton(
+                        onPressed: () {
+                          if (_formKey.currentState != null &&
+                              _formKey.currentState!.validate()) {
+                            _formKey.currentState!.save();
+                            bloc.add(SaveNewNameEvent());
+                          }
+                        },
+                        child: const Text("Salvar"),
+                      )
+                    ],
                   )
                 : TextButton(
-                    onPressed: () => bloc.add(EditNameEvent()),
+                    onPressed: () => bloc.add(const EditNameEvent(true)),
                     child: const Text("Editar"),
                   ),
       ],

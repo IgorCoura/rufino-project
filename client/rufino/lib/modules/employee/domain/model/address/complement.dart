@@ -1,6 +1,6 @@
-import 'package:rufino/modules/employee/domain/model/prop_base.dart';
+import 'package:rufino/modules/employee/domain/model/text_prop_base.dart';
 
-class Complement extends PropBase {
+class Complement extends TextPropBase {
   Complement(String value) : super("Complemento", value);
 
   static Complement get empty => Complement("");
@@ -11,5 +11,10 @@ class Complement extends PropBase {
       return "o $displayName não pode ser maior que 50 caracteres.";
     }
     return null;
+  }
+
+  @override
+  Complement copyWith({String? value}) {
+    return Complement(value ?? this.value);
   }
 }

@@ -10,6 +10,9 @@ class EmployeeProfileState extends Equatable {
   final bool isSavingData;
   final String? snackMessage;
   late final Address address;
+  late final PersonalInfo personalInfo;
+  final List<MaritalStatus>? optionsMaritalStatus;
+  final List<Disability>? optionsDisability;
 
   EmployeeProfileState({
     this.company,
@@ -21,9 +24,13 @@ class EmployeeProfileState extends Equatable {
     this.isSavingData = false,
     this.snackMessage,
     Address? address,
+    PersonalInfo? personalInfo,
+    this.optionsMaritalStatus,
+    this.optionsDisability,
   }) {
     this.contact = contact ?? Contact.loadingContact;
     this.address = address ?? Address.loading;
+    this.personalInfo = personalInfo ?? PersonalInfo.loading;
   }
 
   EmployeeProfileState copyWith({
@@ -37,6 +44,9 @@ class EmployeeProfileState extends Equatable {
     bool? isSavingData,
     String? snackMessage,
     Address? address,
+    PersonalInfo? personalInfo,
+    List<MaritalStatus>? optionsMaritalStatus,
+    List<Disability>? optionsDisability,
   }) =>
       EmployeeProfileState(
           company: company ?? this.company,
@@ -47,7 +57,12 @@ class EmployeeProfileState extends Equatable {
           exception: exception ?? this.exception,
           isSavingData: isSavingData ?? this.isSavingData,
           snackMessage: snackMessage ?? this.snackMessage,
-          address: address ?? this.address);
+          address: address ?? this.address,
+          personalInfo: personalInfo ?? this.personalInfo,
+          optionsMaritalStatus:
+              optionsMaritalStatus ?? this.optionsMaritalStatus,
+          optionsDisability: optionsDisability ?? this.optionsDisability);
+
   @override
   List<Object?> get props => [
         company,
@@ -59,5 +74,8 @@ class EmployeeProfileState extends Equatable {
         isSavingData,
         snackMessage,
         address,
+        personalInfo,
+        optionsMaritalStatus.hashCode,
+        optionsDisability.hashCode
       ];
 }

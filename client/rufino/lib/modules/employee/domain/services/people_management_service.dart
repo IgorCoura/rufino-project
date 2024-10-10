@@ -4,6 +4,9 @@ import 'package:rufino/modules/employee/domain/model/contact/contact.dart';
 import 'package:rufino/modules/employee/domain/model/employee.dart';
 import 'package:rufino/modules/employee/domain/model/employee_with_role.dart';
 import 'package:http/http.dart' as http;
+import 'package:rufino/modules/employee/domain/model/personal_info/disability.dart';
+import 'package:rufino/modules/employee/domain/model/personal_info/marital_status.dart';
+import 'package:rufino/modules/employee/domain/model/personal_info/personal_info.dart';
 import 'package:rufino/modules/employee/domain/model/status.dart';
 import 'package:rufino/shared/services/base_service.dart';
 
@@ -87,6 +90,23 @@ class PeopleManagementService extends BaseService {
     return treatUnsuccessfulResponses(response);
   }
 
+  Future<String> editEmployeePersonalInfo(
+      String employeeId, String companyId, PersonalInfo personalInfo) async {
+    var headers = await getHeadersWithRequestId();
+    Map<String, dynamic> body = personalInfo.toJson(employeeId);
+
+    var url = peopleManagementUrl.replace(
+        path: "/api/v1/$companyId/employee/address");
+
+    var response =
+        await http.put(url, headers: headers, body: jsonEncode(body));
+    if (response.statusCode == 200) {
+      var jsonResponse = jsonDecode(response.body);
+      return jsonResponse["id"];
+    }
+    return treatUnsuccessfulResponses(response);
+  }
+
   Future<Employee> getEmployee(String id, String companyId) async {
     var url =
         peopleManagementUrl.replace(path: "/api/v1/$companyId/employee/$id");
@@ -125,6 +145,21 @@ class PeopleManagementService extends BaseService {
     if (response.statusCode == 200) {
       var jsonResponse = jsonDecode(response.body);
       return Address.fromJson(jsonResponse);
+    }
+    return treatUnsuccessfulResponses(response);
+  }
+
+  Future<PersonalInfo> getEmployeePersonalInfo(
+      String id, String companyId) async {
+    var url = peopleManagementUrl.replace(
+        path: "/api/v1/$companyId/employee/personalinfo/$id");
+
+    var headers = await getHeaders();
+
+    var response = await http.get(url, headers: headers);
+    if (response.statusCode == 200) {
+      var jsonResponse = jsonDecode(response.body);
+      return PersonalInfo.fromJson(jsonResponse);
     }
     return treatUnsuccessfulResponses(response);
   }
@@ -171,6 +206,30 @@ class PeopleManagementService extends BaseService {
     if (response.statusCode == 200) {
       List<dynamic> jsonResponse = jsonDecode(response.body);
       return Status.fromListJson(jsonResponse);
+    }
+    return treatUnsuccessfulResponses(response);
+  }
+
+  Future<List<MaritalStatus>> getMaritalStatus(String companyId) async {
+    var headers = await getHeaders();
+    var url = peopleManagementUrl.replace(
+        path: "/api/v1/$companyId/employee/maritalstatus");
+    var response = await http.get(url, headers: headers);
+    if (response.statusCode == 200) {
+      List<dynamic> jsonResponse = jsonDecode(response.body);
+      return MaritalStatus.fromListJson(jsonResponse);
+    }
+    return treatUnsuccessfulResponses(response);
+  }
+
+  Future<List<Disability>> getDisability(String companyId) async {
+    var headers = await getHeaders();
+    var url = peopleManagementUrl.replace(
+        path: "/api/v1/$companyId/employee/disability");
+    var response = await http.get(url, headers: headers);
+    if (response.statusCode == 200) {
+      List<dynamic> jsonResponse = jsonDecode(response.body);
+      return Disability.fromListJson(jsonResponse);
     }
     return treatUnsuccessfulResponses(response);
   }

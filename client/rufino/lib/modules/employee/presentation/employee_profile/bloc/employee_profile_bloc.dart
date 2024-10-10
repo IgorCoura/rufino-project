@@ -6,6 +6,9 @@ import 'package:rufino/modules/employee/domain/model/Address/Address.dart';
 import 'package:rufino/modules/employee/domain/model/contact/contact.dart';
 import 'package:rufino/modules/employee/domain/model/employee.dart';
 import 'package:rufino/modules/employee/domain/model/name.dart';
+import 'package:rufino/modules/employee/domain/model/personal_info/disability.dart';
+import 'package:rufino/modules/employee/domain/model/personal_info/marital_status.dart';
+import 'package:rufino/modules/employee/domain/model/personal_info/personal_info.dart';
 import 'package:rufino/modules/employee/domain/model/status.dart';
 import 'package:rufino/modules/employee/domain/services/people_management_service.dart';
 import 'package:rufino/shared/errors/aplication_errors.dart';
@@ -29,6 +32,11 @@ class EmployeeProfileBloc
     on<SaveContactChanges>(_onSaveContactChanges);
     on<LoadingAddressEvent>(_onLoadingAddressEvent);
     on<SaveAddressEvent>(_onSaveAddressEvent);
+    on<LoadingPersonalInfoEvent>(_onLoadingPersonalInfoEvent);
+    on<SavePersonalInfoEvent>(_onSavePersonalInfoEvent);
+    on<RemoveDisabilityFromPersonalInfoEvent>(
+        _onRemoveDisabilityFromPersonalInfoEvent);
+    on<LazyLoadingPersonalInfoEvent>(_onLazyLoadingPersonalInfoEvent);
   }
 
   Future _onInitialEvent(InitialEmployeeProfileEvent event,
@@ -48,7 +56,7 @@ class EmployeeProfileBloc
 
   void _onEditNameEvent(
       EditNameEvent event, Emitter<EmployeeProfileState> emit) {
-    emit(state.copyWith(isEditingName: true));
+    emit(state.copyWith(isEditingName: event.edit));
   }
 
   void _onChangeNameEvent(
@@ -148,5 +156,55 @@ class EmployeeProfileBloc
       emit(state.copyWith(
           isLoading: false, isSavingData: false, exception: exception));
     }
+  }
+
+  Future _onLoadingPersonalInfoEvent(LoadingPersonalInfoEvent event,
+      Emitter<EmployeeProfileState> emit) async {
+    try {
+      if (state.personalInfo.isLoading) {
+        var personalInfo = await _peopleManagementService
+            .getEmployeePersonalInfo(state.employee.id, state.company!.id);
+
+        emit(state.copyWith(personalInfo: personalInfo));
+      }
+    } catch (ex, stacktrace) {
+      var exception = _peopleManagementService.treatErrors(ex, stacktrace);
+      emit(state.copyWith(
+          isLoading: false, isSavingData: false, exception: exception));
+    }
+  }
+
+  Future _onSavePersonalInfoEvent(
+      SavePersonalInfoEvent event, Emitter<EmployeeProfileState> emit) async {
+    var newPersonalInfo = state.personalInfo.copyWith();
+    for (var change in event.changes) {
+      newPersonalInfo = newPersonalInfo.copyWith(generic: change);
+    }
+    emit(state.copyWith(personalInfo: newPersonalInfo));
+  }
+
+  void _onRemoveDisabilityFromPersonalInfoEvent(
+      RemoveDisabilityFromPersonalInfoEvent event,
+      Emitter<EmployeeProfileState> emit) async {
+    var copy = List.of(state.personalInfo.deficiency.list);
+    copy.removeWhere((el) => el.id == event.id);
+    var deficiency = state.personalInfo.deficiency.copyWith(list: copy);
+    var newPersonalInfo = state.personalInfo.copyWith(deficiency: deficiency);
+    emit(state.copyWith(personalInfo: newPersonalInfo));
+  }
+
+  Future _onLazyLoadingPersonalInfoEvent(LazyLoadingPersonalInfoEvent event,
+      Emitter<EmployeeProfileState> emit) async {
+    emit(state.copyWith(
+        personalInfo: state.personalInfo.copyWith(isLazyLoading: true)));
+    var optinsMaritalStatus =
+        await _peopleManagementService.getMaritalStatus(state.company!.id);
+    var optionsDisability =
+        await _peopleManagementService.getDisability(state.company!.id);
+    emit(state.copyWith(
+      optionsMaritalStatus: optinsMaritalStatus,
+      optionsDisability: optionsDisability,
+      personalInfo: state.personalInfo.copyWith(isLazyLoading: true),
+    ));
   }
 }

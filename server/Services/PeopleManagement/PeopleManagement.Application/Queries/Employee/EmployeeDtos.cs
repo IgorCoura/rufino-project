@@ -1,9 +1,4 @@
-﻿using PeopleManagement.Domain.AggregatesModel.EmployeeAggregate;
-using PeopleManagement.Domain.SeedWord;
-using System.Linq.Expressions;
-using static Microsoft.EntityFrameworkCore.DbLoggerCategory;
-
-namespace PeopleManagement.Application.Queries.Employee
+﻿namespace PeopleManagement.Application.Queries.Employee
 {
     public record EmployeeWithRoleDto
     {
