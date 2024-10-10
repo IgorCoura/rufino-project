@@ -10,9 +10,11 @@
         public static readonly Disability Rehabilitated = new(6, nameof(Rehabilitated));
         public static readonly Disability DisabilityQuota = new(7, nameof(DisabilityQuota));
 
-        private Disability(int id, string name) : base(id, name)
+        public Disability(int id, string name) : base(id, name)
         {
         }
+
+
 
         public static implicit operator Disability(int id) => Enumeration.FromValue<Disability>(id);
         public static implicit operator Disability(string name) => Enumeration.FromDisplayName<Disability>(name);

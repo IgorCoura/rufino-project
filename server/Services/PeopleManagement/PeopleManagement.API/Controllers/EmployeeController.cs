@@ -333,7 +333,7 @@ namespace PeopleManagement.API.Controllers
 
 
 
-        [HttpGet("Status")]
+        [HttpGet("status")]
         [ProtectedResource("employee", "view")]
         public ActionResult<IEnumerable<Status>> GetStatus([FromRoute] Guid company)
         {
@@ -341,5 +341,20 @@ namespace PeopleManagement.API.Controllers
             return OkResponse(result);
         }
 
+        [HttpGet("maritalstatus")]
+        [ProtectedResource("employee", "view")]
+        public ActionResult<IEnumerable<MaritalStatus>> GetMaritalStatus([FromRoute] Guid company)
+        {
+            var result = MaritalStatus.GetAll<MaritalStatus>();
+            return OkResponse(result);
+        }
+
+        [HttpGet("disability")]
+        [ProtectedResource("employee", "view")]
+        public ActionResult<IEnumerable<Disability>> GetDisability([FromRoute] Guid company)
+        {
+            var result = Disability.GetAll<Disability>();
+            return OkResponse(result);
+        }
     }
 }

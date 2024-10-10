@@ -1,22 +1,39 @@
-import 'package:rufino/modules/employee/domain/model/model_base.dart';
+import 'package:rufino/modules/employee/domain/model/enumeration_list.dart';
+import 'package:rufino/modules/employee/domain/model/personal_info/Disability.dart';
 import 'package:rufino/modules/employee/domain/model/personal_info/observation.dart';
-import 'package:rufino/modules/employee/domain/model/prop_base.dart';
 
-class Deficiency extends ModelBase {
+class Deficiency extends EnumerationList<Disability> {
   final Observation observation;
 
-  const Deficiency(this.observation, {super.isLoading = false});
+  const Deficiency(this.observation, List<Disability> list)
+      : super("Deficiência", list);
 
-  static Deficiency get loading =>
-      Deficiency(Observation.empty, isLoading: true);
-
-  factory Deficiency.fromJson(Map<String, dynamic> json) {
-    return Deficiency(Observation(json["observation"]), isLoading: false);
+  static Deficiency fromJson(Map<String, dynamic> json) {
+    return Deficiency(Observation(json["observation"]),
+        Disability.fromListJson(json["disabilities"]));
   }
 
-  @override
-  List<ModelBase> get models => [];
+  static Deficiency get empty => Deficiency(Observation.empty, List.empty());
 
   @override
-  List<PropBase> get props => [observation];
+  Deficiency copyWith(
+      {List<Disability>? list, Observation? observation, Object? generic}) {
+    if (generic != null) {
+      switch (generic.runtimeType) {
+        case const (Observation):
+          observation = generic as Observation?;
+        case const (List<Disability>):
+          list = generic as List<Disability>?;
+      }
+    }
+
+    return Deficiency(observation ?? this.observation, list ?? this.list);
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      "disability": list.map((el) => el.id).toList(),
+      "observation": observation.value
+    };
+  }
 }

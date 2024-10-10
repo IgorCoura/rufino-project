@@ -1,6 +1,6 @@
-import 'package:rufino/modules/employee/domain/model/prop_base.dart';
+import 'package:rufino/modules/employee/domain/model/text_prop_base.dart';
 
-class Number extends PropBase {
+class Number extends TextPropBase {
   Number(String value) : super("Número", value);
 
   static Number get empty => Number("");
@@ -14,5 +14,10 @@ class Number extends PropBase {
       return "o $displayName não pode ser maior que 10 caracteres.";
     }
     return null;
+  }
+
+  @override
+  Number copyWith({String? value}) {
+    return Number(value ?? this.value);
   }
 }

@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:mask_text_input_formatter/mask_text_input_formatter.dart';
-import 'package:rufino/modules/employee/domain/model/prop_base.dart';
+import 'package:rufino/modules/employee/domain/model/text_prop_base.dart';
 
-class Zipcode extends PropBase {
+class Zipcode extends TextPropBase {
   static final maskFormatter = MaskTextInputFormatter(
       mask: '#####-###',
       filter: {"#": RegExp(r'[0-9]')},
@@ -36,5 +36,10 @@ class Zipcode extends PropBase {
       return "$displayName inválido.";
     }
     return null;
+  }
+
+  @override
+  Zipcode copyWith({String? value}) {
+    return Zipcode(value ?? this.value);
   }
 }

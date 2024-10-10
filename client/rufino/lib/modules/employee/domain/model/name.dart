@@ -1,9 +1,9 @@
-import 'package:rufino/modules/employee/domain/model/prop_base.dart';
+import 'package:rufino/modules/employee/domain/model/text_prop_base.dart';
 
-class Name extends PropBase {
-  Name(String value) : super("Nome", value);
+class Name extends TextPropBase {
+  const Name(String value) : super("Nome", value);
 
-  static Name get empty => Name("");
+  static Name get empty => const Name("");
 
   @override
   String? validate(String? value) {
@@ -15,5 +15,10 @@ class Name extends PropBase {
       return "Formato invalido";
     }
     return null;
+  }
+
+  @override
+  Name copyWith({String? value}) {
+    return Name(value ?? this.value);
   }
 }

@@ -131,27 +131,28 @@ namespace PeopleManagement.Application.Queries.Employee
 
         public async Task<EmployeePersonalInfoDto> GetEmployeePersonalInfo(Guid id, Guid company)
         {
-            var query = _context.Employees.Where(e => e.Id == id && e.CompanyId == company);
+            var query = await  _context.Employees.Where(e => e.Id == id && e.CompanyId == company).FirstOrDefaultAsync()
+                ?? throw new DomainException(this, DomainErrors.ObjectNotFound(nameof(Employee), id.ToString()));
 
-            var result = await query.Select(o => new EmployeePersonalInfoDto
+            var result = new EmployeePersonalInfoDto
             {
-                EmployeeId = o.Id,
-                CompanyId = o.CompanyId,
-                Deficiency = o.PersonalInfo != null ? new EmployeeDeficiencyDto
+                EmployeeId = query.Id,
+                CompanyId = query.CompanyId,
+                Deficiency = query.PersonalInfo != null ? new EmployeeDeficiencyDto
                 {
-                    Disabilities = o.PersonalInfo.Deficiency.Disabilities.Select(x => new EnumerationDto
+                    Disabilities = query.PersonalInfo.Deficiency.Disabilities.Select(x => new EnumerationDto
                     {
                         Id = x.Id,
                         Name = x.Name,
                     }).ToArray(),
-                }: EmployeeDeficiencyDto.Empty,
-                MaritalStatus = o.PersonalInfo != null ? new EnumerationDto { Id = o.PersonalInfo.MaritalStatus.Id, Name = o.PersonalInfo.MaritalStatus.Name } : EnumerationDto.Empty,
-                Gender = o.PersonalInfo != null ? new EnumerationDto { Id = o.PersonalInfo.Gender.Id, Name = o.PersonalInfo.Gender.Name } : EnumerationDto.Empty,
-                Ethinicity = o.PersonalInfo != null ? new EnumerationDto { Id = o.PersonalInfo.Ethinicity.Id, Name = o.PersonalInfo.Ethinicity.Name } : EnumerationDto.Empty,
-                EducationLevel = o.PersonalInfo != null ? new EnumerationDto { Id = o.PersonalInfo.EducationLevel.Id, Name = o.PersonalInfo.EducationLevel.Name } : EnumerationDto.Empty,
-                
-            }).FirstOrDefaultAsync()
-                ?? throw new DomainException(this, DomainErrors.ObjectNotFound(nameof(Employee), id.ToString()));
+                    Observation = query.PersonalInfo.Deficiency.Observation,
+                } : EmployeeDeficiencyDto.Empty,
+                MaritalStatus = query.PersonalInfo != null ? new EnumerationDto { Id = query.PersonalInfo.MaritalStatus.Id, Name = query.PersonalInfo.MaritalStatus.Name } : EnumerationDto.Empty,
+                Gender = query.PersonalInfo != null ? new EnumerationDto { Id = query.PersonalInfo.Gender.Id, Name = query.PersonalInfo.Gender.Name } : EnumerationDto.Empty,
+                Ethinicity = query.PersonalInfo != null ? new EnumerationDto { Id = query.PersonalInfo.Ethinicity.Id, Name = query.PersonalInfo.Ethinicity.Name } : EnumerationDto.Empty,
+                EducationLevel = query.PersonalInfo != null ? new EnumerationDto { Id = query.PersonalInfo.EducationLevel.Id, Name = query.PersonalInfo.EducationLevel.Name } : EnumerationDto.Empty,
+
+            };
 
             return result;
         }

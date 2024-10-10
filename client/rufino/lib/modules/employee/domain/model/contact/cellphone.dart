@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:rufino/modules/employee/domain/model/prop_base.dart';
+import 'package:rufino/modules/employee/domain/model/text_prop_base.dart';
 import 'package:mask_text_input_formatter/mask_text_input_formatter.dart';
 
-class Cellphone extends PropBase {
+class Cellphone extends TextPropBase {
   static final maskFormatter = MaskTextInputFormatter(
       mask: '(##) #####-####',
       filter: {"#": RegExp(r'[0-9]')},
@@ -38,5 +38,10 @@ class Cellphone extends PropBase {
       return "Formato invalido";
     }
     return null;
+  }
+
+  @override
+  Cellphone copyWith({String? value}) {
+    return Cellphone(value ?? this.value);
   }
 }

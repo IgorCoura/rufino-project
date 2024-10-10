@@ -1,6 +1,6 @@
-import 'package:rufino/modules/employee/domain/model/prop_base.dart';
+import 'package:rufino/modules/employee/domain/model/text_prop_base.dart';
 
-class Street extends PropBase {
+class Street extends TextPropBase {
   Street(String value) : super("Endereço", value);
 
   static Street get empty => Street("");
@@ -14,5 +14,10 @@ class Street extends PropBase {
       return "o $displayName não pode ser maior que 100 caracteres.";
     }
     return null;
+  }
+
+  @override
+  Street copyWith({String? value}) {
+    return Street(value ?? this.value);
   }
 }

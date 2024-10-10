@@ -6,8 +6,10 @@ import 'package:rufino/modules/employee/domain/model/address/number.dart';
 import 'package:rufino/modules/employee/domain/model/address/state.dart';
 import 'package:rufino/modules/employee/domain/model/address/street.dart';
 import 'package:rufino/modules/employee/domain/model/address/zipcode.dart';
+import 'package:rufino/modules/employee/domain/model/enumeration.dart';
+import 'package:rufino/modules/employee/domain/model/enumeration_collection.dart';
 import 'package:rufino/modules/employee/domain/model/model_base.dart';
-import 'package:rufino/modules/employee/domain/model/prop_base.dart';
+import 'package:rufino/modules/employee/domain/model/text_prop_base.dart';
 
 class Address extends ModelBase {
   final Zipcode zipcode;
@@ -71,9 +73,14 @@ class Address extends ModelBase {
   }
 
   @override
-  List<PropBase> get props =>
+  List<TextPropBase> get props =>
       [zipcode, street, number, complement, neighborhood, city, state, country];
 
   @override
   List<ModelBase> get models => [];
+  @override
+  List<EnumerationCollection> get enumerationCollection => [];
+
+  @override
+  List<List<Enumeration>> get enumerations => [];
 }

@@ -1,9 +1,10 @@
-import 'package:rufino/modules/employee/domain/model/prop_base.dart';
+import 'package:rufino/modules/employee/domain/model/text_prop_base.dart';
 
-class Observation extends PropBase {
-  Observation(String value) : super("Observação", value);
+class Observation extends TextPropBase {
+  const Observation(String value)
+      : super("Observações sobre a deficiência", value);
 
-  static Observation get empty => Observation("");
+  static Observation get empty => const Observation("");
 
   @override
   String? validate(String? value) {
@@ -14,5 +15,10 @@ class Observation extends PropBase {
       return "o $displayName não pode ser maior que 100 caracteres.";
     }
     return null;
+  }
+
+  @override
+  Observation copyWith({String? value}) {
+    return Observation(value ?? this.value);
   }
 }

@@ -252,7 +252,7 @@ namespace PeopleManagement.Infra.DataForTests
                         "(27) 99431-6916"
                         ),
                     PersonalInfo.Create(
-                        Deficiency.Create("", []),
+                        Deficiency.Create("Nenhuma Observação", [Disability.Auditory, Disability.Mental, Disability.Rehabilitated]),
                         MaritalStatus.Single,
                         Gender.FEMALE,
                         Ethinicity.White,

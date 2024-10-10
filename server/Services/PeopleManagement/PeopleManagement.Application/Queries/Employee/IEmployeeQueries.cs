@@ -10,6 +10,6 @@
         Task<EmployeeIdCardDto> GetEmployeeIdCard(Guid id, Guid company);
         Task<EmployeeVoteIdDto> GetEmployeeVoteId(Guid id, Guid company);
         Task<EmployeeMilitaryDocumentDto> GetEmployeeMilitaryDocument(Guid id, Guid company);
-        Task<EmployeeDependentsDto> GetEmployeeDependents(Guid id, Guid company)
+        Task<EmployeeDependentsDto> GetEmployeeDependents(Guid id, Guid company);
     }
 }

@@ -1,6 +1,6 @@
-import 'package:rufino/modules/employee/domain/model/prop_base.dart';
+import 'package:rufino/modules/employee/domain/model/text_prop_base.dart';
 
-class Email extends PropBase {
+class Email extends TextPropBase {
   Email(String value) : super("Email", value);
 
   static Email get empty => Email("");
@@ -19,5 +19,10 @@ class Email extends PropBase {
       return "Formato invalido";
     }
     return null;
+  }
+
+  @override
+  Email copyWith({String? value}) {
+    return Email(value ?? this.value);
   }
 }

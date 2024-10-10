@@ -1,6 +1,6 @@
-import 'package:rufino/modules/employee/domain/model/prop_base.dart';
+import 'package:rufino/modules/employee/domain/model/text_prop_base.dart';
 
-class Neighborhood extends PropBase {
+class Neighborhood extends TextPropBase {
   Neighborhood(String value) : super("Bairro", value);
 
   static Neighborhood get empty => Neighborhood("");
@@ -14,5 +14,10 @@ class Neighborhood extends PropBase {
       return "o $displayName não pode ser maior que 50 caracteres.";
     }
     return null;
+  }
+
+  @override
+  Neighborhood copyWith({String? value}) {
+    return Neighborhood(value ?? this.value);
   }
 }
