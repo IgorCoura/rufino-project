@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:rufino/modules/employee/domain/model/enumeration.dart';
-import 'package:rufino/modules/employee/domain/model/enumeration_list.dart';
+import 'package:rufino/modules/employee/domain/model/base/enumeration.dart';
+import 'package:rufino/modules/employee/domain/model/base/enumeration_list.dart';
 import 'package:shimmer/shimmer.dart';
 
 class ListViewFormComponent extends StatefulWidget {

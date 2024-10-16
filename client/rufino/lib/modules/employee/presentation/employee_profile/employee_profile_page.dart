@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_modular/flutter_modular.dart';
-import 'package:rufino/modules/employee/domain/model/name.dart';
+import 'package:rufino/domain/model/company.dart';
+import 'package:rufino/modules/employee/domain/model/employee/name.dart';
+import 'package:rufino/modules/employee/domain/model/personal_info/disability.dart';
 import 'package:rufino/modules/employee/presentation/employee_profile/bloc/employee_profile_bloc.dart';
+import 'package:rufino/modules/employee/presentation/employee_profile/components/base_edit_component.dart';
 import 'package:rufino/modules/employee/presentation/employee_profile/components/enumeration_list_view_component.dart';
 import 'package:rufino/modules/employee/presentation/employee_profile/components/enumeration_view_component.dart';
 import 'package:rufino/modules/employee/presentation/employee_profile/components/props_container_component.dart';
@@ -88,17 +91,34 @@ class EmployeeProfilePage extends StatelessWidget {
                             height: 16,
                           ),
                           PropsContainerComponent(
-                            containerName: "Contatos Container",
+                            containerName: "Contatos",
                             isSavingData: state.isSavingData,
                             loadingContainerData: () =>
                                 bloc.add(LoadingContactEvent()),
                             saveContainerData: (changes) =>
-                                bloc.add(SaveContactChanges()),
-                            children: state.contact.props
-                                .map((prop) => TextEditComponent(
-                                      textProp: prop,
-                                      isLoading: state.contact.isLoading,
-                                    ))
+                                bloc.add(SaveContactChanges(changes)),
+                            isLoading: state.contact.isLoading,
+                            isLazyLoading: state.contact.isLazyLoading,
+                            children: state.contact.textProps
+                                .map(
+                                    (prop) => TextEditComponent(textProp: prop))
+                                .toList(),
+                          ),
+                          const SizedBox(
+                            height: 16,
+                          ),
+                          PropsContainerComponent(
+                            containerName: "Endereço",
+                            isSavingData: state.isSavingData,
+                            isLoading: state.address.isLoading,
+                            isLazyLoading: state.address.isLazyLoading,
+                            loadingContainerData: () =>
+                                bloc.add(LoadingAddressEvent()),
+                            saveContainerData: (changes) =>
+                                bloc.add(SaveAddressEvent(changes)),
+                            children: state.address.textProps
+                                .map(
+                                    (prop) => TextEditComponent(textProp: prop))
                                 .toList(),
                           ),
                           const SizedBox(
@@ -114,21 +134,46 @@ class EmployeeProfilePage extends StatelessWidget {
                             loadingLazyContainerData: () =>
                                 bloc.add(LazyLoadingPersonalInfoEvent()),
                             isLoading: state.personalInfo.isLoading,
-                            children: [
-                              EnumerationListViewComponent(
-                                enumerationsList: state.personalInfo.deficiency,
-                                enumerationOptionsList:
-                                    state.optionsDisability ?? [],
-                              ),
-                              TextEditComponent(
-                                textProp:
-                                    state.personalInfo.deficiency.observation,
-                              ),
-                              EnumerationViewComponent(
-                                  enumeration: state.personalInfo.maritalStatus,
-                                  listEnumerationOptions:
-                                      state.optionsMaritalStatus ?? [])
-                            ],
+                            children: BaseEditComponent.combineList([
+                              state.personalInfo.propsEnumeration
+                                  .map((prop) => EnumerationViewComponent(
+                                      enumeration: prop,
+                                      listEnumerationOptions: state
+                                          .personalInfoSeletionOptions
+                                          .getSelectionOptions(
+                                              prop.runtimeType)))
+                                  .toList(),
+                              [
+                                EnumerationListViewComponent(
+                                  enumerationsList:
+                                      state.personalInfo.deficiency,
+                                  enumerationOptionsList: state
+                                      .personalInfoSeletionOptions
+                                      .getSelectionOptions(Disability),
+                                ),
+                                TextEditComponent(
+                                  textProp:
+                                      state.personalInfo.deficiency.observation,
+                                ),
+                              ],
+                            ]),
+                          ),
+                          const SizedBox(
+                            height: 16,
+                          ),
+                          PropsContainerComponent(
+                            containerName: "Identidade",
+                            isSavingData: state.isSavingData,
+                            loadingContainerData: () =>
+                                bloc.add(LoadingIdCardEvent()),
+                            saveContainerData: (changes) =>
+                                bloc.add(SaveIdCardEvent(changes)),
+                            isLoading: state.idCard.isLoading,
+                            isLazyLoading: state.idCard.isLazyLoading,
+                            children: state.idCard.textProps
+                                .map(
+                                    (prop) => TextEditComponent(textProp: prop))
+                                .toList(),
                           ),
                         ],
                       );
@@ -159,8 +204,8 @@ class EmployeeProfilePage extends StatelessWidget {
               const SizedBox(width: 10),
               Expanded(
                 child: Text(
-                  state.company != null
-                      ? state.company!.fantasyName
+                  state.company == const Company.empty()
+                      ? state.company.fantasyName
                       : "Perfil do Funcionario",
                   overflow: TextOverflow.ellipsis,
                 ),

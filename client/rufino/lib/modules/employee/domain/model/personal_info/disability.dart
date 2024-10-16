@@ -1,4 +1,4 @@
-import 'package:rufino/modules/employee/domain/model/enumeration.dart';
+import 'package:rufino/modules/employee/domain/model/base/enumeration.dart';
 
 class Disability extends Enumeration {
   static const Map<int, String> conversionMapIntToString = {
@@ -13,6 +13,7 @@ class Disability extends Enumeration {
 
   Disability(int id, String name)
       : super(id, conversionMapIntToString[id] ?? name, "Deficiência");
+  const Disability.empty() : super.empty(displayName: "Deficiência");
 
   static Disability fromJson(Map<String, dynamic> json) {
     return Disability(json["id"], json["name"]);

@@ -1,9 +1,8 @@
-import 'package:rufino/modules/employee/domain/model/text_prop_base.dart';
+import 'package:rufino/modules/employee/domain/model/base/text_prop_base.dart';
 
 class Name extends TextPropBase {
   const Name(String value) : super("Nome", value);
-
-  static Name get empty => const Name("");
+  const Name.empty() : super("Nome", "");
 
   @override
   String? validate(String? value) {

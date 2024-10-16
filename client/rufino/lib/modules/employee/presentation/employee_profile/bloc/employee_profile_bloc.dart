@@ -2,13 +2,13 @@ import 'package:bloc/bloc.dart';
 import 'package:equatable/equatable.dart';
 import 'package:rufino/domain/model/company.dart';
 import 'package:rufino/domain/services/company_service.dart';
-import 'package:rufino/modules/employee/domain/model/Address/Address.dart';
+import 'package:rufino/modules/employee/domain/model/address/address.dart';
 import 'package:rufino/modules/employee/domain/model/contact/contact.dart';
-import 'package:rufino/modules/employee/domain/model/employee.dart';
-import 'package:rufino/modules/employee/domain/model/name.dart';
-import 'package:rufino/modules/employee/domain/model/personal_info/disability.dart';
-import 'package:rufino/modules/employee/domain/model/personal_info/marital_status.dart';
+import 'package:rufino/modules/employee/domain/model/employee/employee.dart';
+import 'package:rufino/modules/employee/domain/model/employee/name.dart';
+import 'package:rufino/modules/employee/domain/model/id_card/id_card.dart';
 import 'package:rufino/modules/employee/domain/model/personal_info/personal_info.dart';
+import 'package:rufino/modules/employee/domain/model/personal_info/personal_info_seletion_options.dart';
 import 'package:rufino/modules/employee/domain/model/status.dart';
 import 'package:rufino/modules/employee/domain/services/people_management_service.dart';
 import 'package:rufino/shared/errors/aplication_errors.dart';
@@ -22,7 +22,7 @@ class EmployeeProfileBloc
   final PeopleManagementService _peopleManagementService;
 
   EmployeeProfileBloc(this._companyService, this._peopleManagementService)
-      : super(EmployeeProfileState(employee: Employee.empty)) {
+      : super(const EmployeeProfileState()) {
     on<InitialEmployeeProfileEvent>(_onInitialEvent);
     on<EditNameEvent>(_onEditNameEvent);
     on<ChangeNameEvent>(_onChangeNameEvent);
@@ -34,14 +34,14 @@ class EmployeeProfileBloc
     on<SaveAddressEvent>(_onSaveAddressEvent);
     on<LoadingPersonalInfoEvent>(_onLoadingPersonalInfoEvent);
     on<SavePersonalInfoEvent>(_onSavePersonalInfoEvent);
-    on<RemoveDisabilityFromPersonalInfoEvent>(
-        _onRemoveDisabilityFromPersonalInfoEvent);
     on<LazyLoadingPersonalInfoEvent>(_onLazyLoadingPersonalInfoEvent);
+    on<LoadingIdCardEvent>(_onLoadingIdCardEvent);
+    on<SaveIdCardEvent>(_onSaveIdCardEvent);
   }
 
   Future _onInitialEvent(InitialEmployeeProfileEvent event,
       Emitter<EmployeeProfileState> emit) async {
-    emit(EmployeeProfileState(employee: Employee.empty, isLoading: true));
+    emit(const EmployeeProfileState(isLoading: true));
     try {
       var company = await _companyService.getSelectedCompany();
       var employee = await _peopleManagementService.getEmployee(
@@ -70,30 +70,17 @@ class EmployeeProfileBloc
     );
   }
 
-  Future _onLoadingContactEvent(
-      LoadingContactEvent event, Emitter<EmployeeProfileState> emit) async {
-    try {
-      if (state.contact.isLoading) {
-        var contact = await _peopleManagementService.getEmployeeContact(
-            state.employee.id, state.company!.id);
-        emit(state.copyWith(contact: contact));
-      }
-    } catch (ex, stacktrace) {
-      var exception = _peopleManagementService.treatErrors(ex, stacktrace);
-      emit(state.copyWith(isLoading: false, exception: exception));
-    }
-  }
-
   Future _onSaveNewNameEvent(
       SaveNewNameEvent event, Emitter<EmployeeProfileState> emit) async {
     try {
       emit(state.copyWith(isSavingData: true));
       await _peopleManagementService.editEmployeeName(
-          state.employee.id, state.company!.id, state.employee.name.value);
+          state.employee.id, state.company.id, state.employee.name.value);
       emit(state.copyWith(
           isSavingData: false,
           isEditingName: false,
-          snackMessage: "Nome alterado com sucesso."));
+          snackMessage:
+              "${state.employee.name.displayName} alterado com sucesso."));
     } catch (ex, stacktrace) {
       var exception = _peopleManagementService.treatErrors(ex, stacktrace);
       emit(state.copyWith(
@@ -106,15 +93,33 @@ class EmployeeProfileBloc
     emit(state.copyWith(snackMessage: ""));
   }
 
+  Future _onLoadingContactEvent(
+      LoadingContactEvent event, Emitter<EmployeeProfileState> emit) async {
+    try {
+      if (state.contact.isLoading) {
+        var contact = await _peopleManagementService.getEmployeeContact(
+            state.employee.id, state.company.id);
+        emit(state.copyWith(contact: contact));
+      }
+    } catch (ex, stacktrace) {
+      var exception = _peopleManagementService.treatErrors(ex, stacktrace);
+      emit(state.copyWith(isLoading: false, exception: exception));
+    }
+  }
+
   Future _onSaveContactChanges(
       SaveContactChanges event, Emitter<EmployeeProfileState> emit) async {
     try {
-      emit(state.copyWith(isSavingData: true));
-      await _peopleManagementService.editEmployeeContact(
-          state.employee.id,
-          state.company!.id,
-          state.contact.cellphone.value,
-          state.contact.email.value);
+      var newContact = state.contact.copyWith();
+      for (var change in event.changes) {
+        newContact = newContact.copyWith(generic: change);
+      }
+
+      emit(state.copyWith(isSavingData: true, contact: newContact));
+
+      await _peopleManagementService.editEmployeeContact(state.employee.id,
+          state.company.id, newContact.cellphone.value, newContact.email.value);
+
       emit(state.copyWith(
           isSavingData: false,
           isEditingName: false,
@@ -131,8 +136,8 @@ class EmployeeProfileBloc
     try {
       if (state.address.isLoading) {
         var address = await _peopleManagementService.getEmployeeAddress(
-            state.employee.id, state.company!.id);
-        emit(state.copyWith(address: address));
+            state.employee.id, state.company.id);
+        emit(state.copyWith(address: address as Address?));
       }
     } catch (ex, stacktrace) {
       var exception = _peopleManagementService.treatErrors(ex, stacktrace);
@@ -144,9 +149,16 @@ class EmployeeProfileBloc
   Future _onSaveAddressEvent(
       SaveAddressEvent event, Emitter<EmployeeProfileState> emit) async {
     try {
-      emit(state.copyWith(isSavingData: true));
+      var newAdress = state.address.copyWith();
+      for (var change in event.changes) {
+        newAdress = newAdress.copyWith(generic: change);
+      }
+
+      emit(state.copyWith(isSavingData: true, address: newAdress));
+
       await _peopleManagementService.editEmployeeAddress(
-          state.employee.id, state.company!.id, state.address);
+          state.employee.id, state.company.id, newAdress);
+
       emit(state.copyWith(
           isSavingData: false,
           isEditingName: false,
@@ -163,7 +175,7 @@ class EmployeeProfileBloc
     try {
       if (state.personalInfo.isLoading) {
         var personalInfo = await _peopleManagementService
-            .getEmployeePersonalInfo(state.employee.id, state.company!.id);
+            .getEmployeePersonalInfo(state.employee.id, state.company.id);
 
         emit(state.copyWith(personalInfo: personalInfo));
       }
@@ -180,31 +192,59 @@ class EmployeeProfileBloc
     for (var change in event.changes) {
       newPersonalInfo = newPersonalInfo.copyWith(generic: change);
     }
-    emit(state.copyWith(personalInfo: newPersonalInfo));
-  }
+    emit(state.copyWith(isSavingData: true, personalInfo: newPersonalInfo));
 
-  void _onRemoveDisabilityFromPersonalInfoEvent(
-      RemoveDisabilityFromPersonalInfoEvent event,
-      Emitter<EmployeeProfileState> emit) async {
-    var copy = List.of(state.personalInfo.deficiency.list);
-    copy.removeWhere((el) => el.id == event.id);
-    var deficiency = state.personalInfo.deficiency.copyWith(list: copy);
-    var newPersonalInfo = state.personalInfo.copyWith(deficiency: deficiency);
-    emit(state.copyWith(personalInfo: newPersonalInfo));
+    await _peopleManagementService.editEmployeePersonalInfo(
+        state.employee.id, state.company.id, newPersonalInfo);
+    emit(state.copyWith(
+        isSavingData: false,
+        isEditingName: false,
+        snackMessage: "Informações pessoais alterado com sucesso."));
   }
 
   Future _onLazyLoadingPersonalInfoEvent(LazyLoadingPersonalInfoEvent event,
       Emitter<EmployeeProfileState> emit) async {
     emit(state.copyWith(
         personalInfo: state.personalInfo.copyWith(isLazyLoading: true)));
-    var optinsMaritalStatus =
-        await _peopleManagementService.getMaritalStatus(state.company!.id);
-    var optionsDisability =
-        await _peopleManagementService.getDisability(state.company!.id);
+    var personalInfoSelectionOptions = await _peopleManagementService
+        .getPersonalInfoSeletionOptions(state.company.id);
+
     emit(state.copyWith(
-      optionsMaritalStatus: optinsMaritalStatus,
-      optionsDisability: optionsDisability,
+      personalInfoSeletionOptions: personalInfoSelectionOptions,
       personalInfo: state.personalInfo.copyWith(isLazyLoading: true),
     ));
+  }
+
+  Future _onLoadingIdCardEvent(
+      LoadingIdCardEvent event, Emitter<EmployeeProfileState> emit) async {
+    try {
+      if (state.idCard.isLoading) {
+        var idCard = await _peopleManagementService.getEmployeeIdCard(
+            state.employee.id, state.company.id);
+
+        emit(state.copyWith(idCard: idCard));
+      }
+    } catch (ex, stacktrace) {
+      var exception = _peopleManagementService.treatErrors(ex, stacktrace);
+      emit(state.copyWith(
+          isLoading: false, isSavingData: false, exception: exception));
+    }
+  }
+
+  Future _onSaveIdCardEvent(
+      SaveIdCardEvent event, Emitter<EmployeeProfileState> emit) async {
+    var newIdcard = state.idCard.copyWith();
+    for (var change in event.changes) {
+      newIdcard = newIdcard.copyWith(generic: change);
+    }
+    emit(state.copyWith(isSavingData: true, idCard: newIdcard));
+
+    await _peopleManagementService.editEmployeeIdCard(
+        state.employee.id, state.company.id, newIdcard);
+
+    emit(state.copyWith(
+        isSavingData: false,
+        isEditingName: false,
+        snackMessage: "Identidade alterado com sucesso."));
   }
 }

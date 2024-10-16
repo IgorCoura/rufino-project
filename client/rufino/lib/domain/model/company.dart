@@ -9,6 +9,11 @@ class Company extends Equatable {
   final String cnpj;
 
   const Company(this.id, this.corporateName, this.fantasyName, this.cnpj);
+  const Company.empty(
+      {this.id = "",
+      this.corporateName = "",
+      this.fantasyName = "",
+      this.cnpj = ""});
 
   @override
   List<Object?> get props => [id, corporateName, fantasyName, cnpj];

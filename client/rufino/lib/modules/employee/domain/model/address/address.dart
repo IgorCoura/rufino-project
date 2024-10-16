@@ -6,10 +6,8 @@ import 'package:rufino/modules/employee/domain/model/address/number.dart';
 import 'package:rufino/modules/employee/domain/model/address/state.dart';
 import 'package:rufino/modules/employee/domain/model/address/street.dart';
 import 'package:rufino/modules/employee/domain/model/address/zipcode.dart';
-import 'package:rufino/modules/employee/domain/model/enumeration.dart';
-import 'package:rufino/modules/employee/domain/model/enumeration_collection.dart';
-import 'package:rufino/modules/employee/domain/model/model_base.dart';
-import 'package:rufino/modules/employee/domain/model/text_prop_base.dart';
+import 'package:rufino/modules/employee/domain/model/base/model_base.dart';
+import 'package:rufino/modules/employee/domain/model/base/text_prop_base.dart';
 
 class Address extends ModelBase {
   final Zipcode zipcode;
@@ -23,28 +21,80 @@ class Address extends ModelBase {
 
   const Address(this.zipcode, this.street, this.number, this.complement,
       this.neighborhood, this.city, this.state, this.country,
-      {super.isLoading});
+      {super.isLoading, super.isLazyLoading});
 
-  static Address get empty => Address(
-      Zipcode.empty,
-      Street.empty,
-      Number.empty,
-      Complement.empty,
-      Neighborhood.empty,
-      City.empty,
-      State.empty,
-      Country.empty);
+  const Address.empty({
+    this.zipcode = const Zipcode.empty(),
+    this.street = const Street.empty(),
+    this.number = const Number.empty(),
+    this.complement = const Complement.empty(),
+    this.neighborhood = const Neighborhood.empty(),
+    this.city = const City.empty(),
+    this.state = const State.empty(),
+    this.country = const Country.empty(),
+    super.isLoading,
+    super.isLazyLoading,
+  });
 
-  static Address get loading => Address(
-      Zipcode.empty,
-      Street.empty,
-      Number.empty,
-      Complement.empty,
-      Neighborhood.empty,
-      City.empty,
-      State.empty,
-      Country.empty,
-      isLoading: true);
+  const Address.loading({
+    this.zipcode = const Zipcode.empty(),
+    this.street = const Street.empty(),
+    this.number = const Number.empty(),
+    this.complement = const Complement.empty(),
+    this.neighborhood = const Neighborhood.empty(),
+    this.city = const City.empty(),
+    this.state = const State.empty(),
+    this.country = const Country.empty(),
+    super.isLoading = true,
+    super.isLazyLoading,
+  });
+
+  Address copyWith(
+      {Zipcode? zipcode,
+      Street? street,
+      Number? number,
+      Complement? complement,
+      Neighborhood? neighborhood,
+      City? city,
+      State? state,
+      Country? country,
+      Object? generic,
+      bool? isLoading,
+      bool? isLazyLoading}) {
+    if (generic != null) {
+      switch (generic.runtimeType) {
+        case const (Zipcode):
+          zipcode = generic as Zipcode?;
+        case const (Street):
+          street = generic as Street?;
+        case const (Number):
+          number = generic as Number?;
+        case const (Complement):
+          complement = generic as Complement?;
+        case const (Neighborhood):
+          neighborhood = generic as Neighborhood?;
+        case const (City):
+          city = generic as City?;
+        case const (State):
+          state = generic as State?;
+        case const (Country):
+          country = generic as Country?;
+      }
+    }
+
+    return Address(
+      zipcode ?? this.zipcode,
+      street ?? this.street,
+      number ?? this.number,
+      complement ?? this.complement,
+      neighborhood ?? this.neighborhood,
+      city ?? this.city,
+      state ?? this.state,
+      country ?? this.country,
+      isLoading: isLoading ?? this.isLoading,
+      isLazyLoading: isLazyLoading ?? this.isLazyLoading,
+    );
+  }
 
   factory Address.fromJson(Map<String, dynamic> json) {
     return Address(
@@ -73,14 +123,27 @@ class Address extends ModelBase {
   }
 
   @override
-  List<TextPropBase> get props =>
-      [zipcode, street, number, complement, neighborhood, city, state, country];
+  List<Object?> get props => [
+        zipcode,
+        street,
+        number,
+        complement,
+        neighborhood,
+        city,
+        state,
+        country,
+        isLoading,
+        isLazyLoading
+      ];
 
-  @override
-  List<ModelBase> get models => [];
-  @override
-  List<EnumerationCollection> get enumerationCollection => [];
-
-  @override
-  List<List<Enumeration>> get enumerations => [];
+  List<TextPropBase> get textProps => [
+        zipcode,
+        street,
+        number,
+        complement,
+        neighborhood,
+        city,
+        state,
+        country,
+      ];
 }

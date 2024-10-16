@@ -356,5 +356,21 @@ namespace PeopleManagement.API.Controllers
             var result = Disability.GetAll<Disability>();
             return OkResponse(result);
         }
+
+        [HttpGet("personalinfo/selectionoptions")]
+        [ProtectedResource("employee", "view")]
+        public ActionResult<IEnumerable<Disability>> GetPersonalInfoSelectionOptions([FromRoute] Guid company)
+        {
+            var result = new
+            {
+                MaritalStatus = Disability.GetAll<MaritalStatus>(),
+                Gender = Disability.GetAll<Gender>(),
+                Ethinicity = Disability.GetAll<Ethinicity>(),
+                EducationLevel = Disability.GetAll<EducationLevel>(),
+                Disability = Disability.GetAll<Disability>()
+            };
+  
+            return OkResponse(result);
+        }
     }
 }

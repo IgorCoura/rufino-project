@@ -1,9 +1,8 @@
-import 'package:rufino/modules/employee/domain/model/text_prop_base.dart';
+import 'package:rufino/modules/employee/domain/model/base/text_prop_base.dart';
 
 class Country extends TextPropBase {
-  Country(String value) : super("País", value);
-
-  static Country get empty => Country("");
+  const Country(String value) : super("País", value);
+  const Country.empty() : super("País", "");
 
   @override
   String? validate(String? value) {

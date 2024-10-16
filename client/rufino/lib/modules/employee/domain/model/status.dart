@@ -22,6 +22,7 @@ class Status extends Equatable {
   final String name;
 
   const Status(this.id, this.name);
+  const Status.empty({this.id = 0, this.name = ""});
 
   @override
   String toString() {
@@ -30,8 +31,6 @@ class Status extends Equatable {
 
   @override
   List<Object?> get props => [id, name];
-
-  static const empty = Status(0, "");
 
   static const defaultList = [Status(0, "Todos")];
 
@@ -52,7 +51,7 @@ class Status extends Equatable {
       return Status.fromNumber(id);
     }
     return listStatus.singleWhere((status) => status.id == id,
-        orElse: () => Status.empty);
+        orElse: () => const Status.empty());
   }
 
   static String _convertName(String name) {

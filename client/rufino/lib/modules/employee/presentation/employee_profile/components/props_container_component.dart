@@ -11,13 +11,13 @@ class PropsContainerComponent extends StatefulWidget {
   final bool isLoading;
   final bool isLazyLoading;
   const PropsContainerComponent(
-      {required this.containerName,
+      {required this.children,
+      required this.containerName,
       required this.isSavingData,
-      required this.loadingContainerData,
       required this.saveContainerData,
+      required this.loadingContainerData,
+      required this.isLoading,
       this.loadingLazyContainerData,
-      required this.children,
-      this.isLoading = false,
       this.isLazyLoading = false,
       super.key});
 

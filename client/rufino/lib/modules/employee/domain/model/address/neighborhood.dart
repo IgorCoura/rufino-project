@@ -1,9 +1,8 @@
-import 'package:rufino/modules/employee/domain/model/text_prop_base.dart';
+import 'package:rufino/modules/employee/domain/model/base/text_prop_base.dart';
 
 class Neighborhood extends TextPropBase {
-  Neighborhood(String value) : super("Bairro", value);
-
-  static Neighborhood get empty => Neighborhood("");
+  const Neighborhood(String value) : super("Bairro", value);
+  const Neighborhood.empty() : super("Bairro", "");
 
   @override
   String? validate(String? value) {

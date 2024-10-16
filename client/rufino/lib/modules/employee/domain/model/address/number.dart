@@ -1,9 +1,8 @@
-import 'package:rufino/modules/employee/domain/model/text_prop_base.dart';
+import 'package:rufino/modules/employee/domain/model/base/text_prop_base.dart';
 
 class Number extends TextPropBase {
-  Number(String value) : super("Número", value);
-
-  static Number get empty => Number("");
+  const Number(String value) : super("Número", value);
+  const Number.empty() : super("Número", "");
 
   @override
   String? validate(String? value) {

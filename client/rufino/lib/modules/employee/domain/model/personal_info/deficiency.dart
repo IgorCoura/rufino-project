@@ -1,5 +1,5 @@
-import 'package:rufino/modules/employee/domain/model/enumeration_list.dart';
-import 'package:rufino/modules/employee/domain/model/personal_info/Disability.dart';
+import 'package:rufino/modules/employee/domain/model/base/enumeration_list.dart';
+import 'package:rufino/modules/employee/domain/model/personal_info/disability.dart';
 import 'package:rufino/modules/employee/domain/model/personal_info/observation.dart';
 
 class Deficiency extends EnumerationList<Disability> {
@@ -8,12 +8,13 @@ class Deficiency extends EnumerationList<Disability> {
   const Deficiency(this.observation, List<Disability> list)
       : super("Deficiência", list);
 
+  const Deficiency.empty({this.observation = const Observation.empty()})
+      : super("Deficiência", const []);
+
   static Deficiency fromJson(Map<String, dynamic> json) {
     return Deficiency(Observation(json["observation"]),
         Disability.fromListJson(json["disabilities"]));
   }
-
-  static Deficiency get empty => Deficiency(Observation.empty, List.empty());
 
   @override
   Deficiency copyWith(
