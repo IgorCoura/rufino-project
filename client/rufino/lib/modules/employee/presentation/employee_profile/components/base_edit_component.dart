@@ -16,6 +16,15 @@ abstract class BaseEditComponent extends StatelessWidget {
       bool? isEditing,
       bool? isLoading});
 
+  static List<BaseEditComponent> combineList(
+      List<List<BaseEditComponent>> listOflist) {
+    List<BaseEditComponent> resultList = [];
+    for (var list in listOflist) {
+      resultList.addAll(list);
+    }
+    return resultList;
+  }
+
   @override
   Widget build(BuildContext context) {
     return const Placeholder();

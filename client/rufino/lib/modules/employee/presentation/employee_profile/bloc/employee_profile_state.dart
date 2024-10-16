@@ -1,37 +1,33 @@
 part of 'employee_profile_bloc.dart';
 
 class EmployeeProfileState extends Equatable {
-  final Company? company;
+  final Company company;
   final bool isEditingName;
   final Employee employee;
   final bool isLoading;
-  late final Contact contact;
+  final Contact contact;
   final AplicationException? exception;
   final bool isSavingData;
   final String? snackMessage;
-  late final Address address;
-  late final PersonalInfo personalInfo;
-  final List<MaritalStatus>? optionsMaritalStatus;
-  final List<Disability>? optionsDisability;
+  final Address address;
+  final PersonalInfo personalInfo;
+  final PersonalInfoSeletionOptions personalInfoSeletionOptions;
+  final IdCard idCard;
 
-  EmployeeProfileState({
-    this.company,
+  const EmployeeProfileState({
+    this.company = const Company.empty(),
     this.isEditingName = false,
-    required this.employee,
+    this.employee = const Employee.empty(),
     this.isLoading = false,
-    Contact? contact,
+    this.contact = const Contact.loading(),
     this.exception,
     this.isSavingData = false,
     this.snackMessage,
-    Address? address,
-    PersonalInfo? personalInfo,
-    this.optionsMaritalStatus,
-    this.optionsDisability,
-  }) {
-    this.contact = contact ?? Contact.loadingContact;
-    this.address = address ?? Address.loading;
-    this.personalInfo = personalInfo ?? PersonalInfo.loading;
-  }
+    this.address = const Address.loading(),
+    this.personalInfo = const PersonalInfo.loading(),
+    this.personalInfoSeletionOptions = const PersonalInfoSeletionOptions(),
+    this.idCard = const IdCard.loading(),
+  });
 
   EmployeeProfileState copyWith({
     Company? company,
@@ -45,23 +41,24 @@ class EmployeeProfileState extends Equatable {
     String? snackMessage,
     Address? address,
     PersonalInfo? personalInfo,
-    List<MaritalStatus>? optionsMaritalStatus,
-    List<Disability>? optionsDisability,
+    PersonalInfoSeletionOptions? personalInfoSeletionOptions,
+    IdCard? idCard,
   }) =>
       EmployeeProfileState(
-          company: company ?? this.company,
-          isEditingName: isEditingName ?? this.isEditingName,
-          employee: employee ?? this.employee,
-          isLoading: isLoading ?? this.isLoading,
-          contact: contact ?? this.contact,
-          exception: exception ?? this.exception,
-          isSavingData: isSavingData ?? this.isSavingData,
-          snackMessage: snackMessage ?? this.snackMessage,
-          address: address ?? this.address,
-          personalInfo: personalInfo ?? this.personalInfo,
-          optionsMaritalStatus:
-              optionsMaritalStatus ?? this.optionsMaritalStatus,
-          optionsDisability: optionsDisability ?? this.optionsDisability);
+        company: company ?? this.company,
+        isEditingName: isEditingName ?? this.isEditingName,
+        employee: employee ?? this.employee,
+        isLoading: isLoading ?? this.isLoading,
+        contact: contact ?? this.contact,
+        exception: exception ?? this.exception,
+        isSavingData: isSavingData ?? this.isSavingData,
+        snackMessage: snackMessage ?? this.snackMessage,
+        address: address ?? this.address,
+        personalInfo: personalInfo ?? this.personalInfo,
+        personalInfoSeletionOptions:
+            personalInfoSeletionOptions ?? this.personalInfoSeletionOptions,
+        idCard: idCard ?? this.idCard,
+      );
 
   @override
   List<Object?> get props => [
@@ -75,7 +72,7 @@ class EmployeeProfileState extends Equatable {
         snackMessage,
         address,
         personalInfo,
-        optionsMaritalStatus.hashCode,
-        optionsDisability.hashCode
+        personalInfoSeletionOptions,
+        idCard,
       ];
 }

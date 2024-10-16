@@ -1,5 +1,5 @@
 import 'package:equatable/equatable.dart';
-import 'package:rufino/modules/employee/domain/model/name.dart';
+import 'package:rufino/modules/employee/domain/model/employee/name.dart';
 import 'package:rufino/modules/employee/domain/model/status.dart';
 
 class Employee extends Equatable {
@@ -9,11 +9,14 @@ class Employee extends Equatable {
   final Status status;
 
   const Employee(this.id, this.name, this.registration, this.status);
+  const Employee.empty(
+      {this.id = "",
+      this.name = const Name.empty(),
+      this.registration = "",
+      this.status = const Status.empty()});
 
   Employee copyWith({String? id, Name? name}) =>
       Employee(id ?? this.id, name ?? this.name, registration, status);
-
-  static Employee get empty => Employee("", Name.empty, "", Status.empty);
 
   @override
   List<Object?> get props => [id, name, registration, status];

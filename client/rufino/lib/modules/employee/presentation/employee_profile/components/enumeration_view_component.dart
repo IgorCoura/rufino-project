@@ -1,23 +1,26 @@
 import 'package:flutter/material.dart';
-import 'package:rufino/modules/employee/domain/model/enumeration.dart';
+import 'package:rufino/modules/employee/domain/model/base/enumeration.dart';
 import 'package:rufino/modules/employee/presentation/employee_profile/components/base_edit_component.dart';
 import 'package:shimmer/shimmer.dart';
 
 class EnumerationViewComponent extends BaseEditComponent {
-  final List<Enumeration> listEnumerationOptions;
+  late final List<Enumeration> _listEnumerationOptions;
   final Enumeration enumeration;
 
   EnumerationViewComponent(
       {required this.enumeration,
-      required this.listEnumerationOptions,
+      required List<Enumeration> listEnumerationOptions,
       super.onSaveChanges,
       super.isEditing,
       super.isLoading,
       super.key}) {
+    List<Enumeration> list = [];
     if (enumeration.id > -1 &&
         listEnumerationOptions.any((e) => e.id == enumeration.id) == false) {
-      listEnumerationOptions.add(enumeration);
+      list.add(enumeration);
     }
+    list.addAll(listEnumerationOptions);
+    _listEnumerationOptions = list;
   }
 
   @override
@@ -29,7 +32,7 @@ class EnumerationViewComponent extends BaseEditComponent {
     return EnumerationViewComponent(
         enumeration: enumeration,
         onSaveChanges: onSaveChanges ?? this.onSaveChanges,
-        listEnumerationOptions: listEnumerationOptions,
+        listEnumerationOptions: _listEnumerationOptions,
         isEditing: isEditing ?? this.isEditing,
         isLoading: isLoading ?? this.isLoading);
   }
@@ -54,7 +57,7 @@ class EnumerationViewComponent extends BaseEditComponent {
           )
         : DropdownButtonFormField(
             value: enumeration,
-            items: listEnumerationOptions
+            items: _listEnumerationOptions
                 .map((e) => DropdownMenuItem(value: e, child: Text(e.name)))
                 .toList(),
             onChanged: isEditing ? (Enumeration? value) {} : null,

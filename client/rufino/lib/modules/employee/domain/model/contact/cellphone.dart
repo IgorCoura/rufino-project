@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:rufino/modules/employee/domain/model/text_prop_base.dart';
+import 'package:rufino/modules/employee/domain/model/base/text_prop_base.dart';
 import 'package:mask_text_input_formatter/mask_text_input_formatter.dart';
 
 class Cellphone extends TextPropBase {
@@ -14,7 +14,8 @@ class Cellphone extends TextPropBase {
       : super("Celular", value,
             formatter: maskFormatter, inputType: numberInputType);
 
-  static Cellphone get empty => Cellphone("");
+  const Cellphone.empty()
+      : super("Celular", "", formatter: null, inputType: null);
 
   factory Cellphone.createFormatNumber(String number) =>
       Cellphone(formatNumber(number));

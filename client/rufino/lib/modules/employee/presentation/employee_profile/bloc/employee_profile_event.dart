@@ -40,11 +40,25 @@ class LoadingContactEvent extends EmployeeProfileEvent {}
 
 class SnackMessageWasShow extends EmployeeProfileEvent {}
 
-class SaveContactChanges extends EmployeeProfileEvent {}
+class SaveContactChanges extends EmployeeProfileEvent {
+  final List<Object> changes;
+
+  const SaveContactChanges(this.changes);
+
+  @override
+  List<Object> get props => [changes];
+}
 
 class LoadingAddressEvent extends EmployeeProfileEvent {}
 
-class SaveAddressEvent extends EmployeeProfileEvent {}
+class SaveAddressEvent extends EmployeeProfileEvent {
+  final List<Object> changes;
+
+  const SaveAddressEvent(this.changes);
+
+  @override
+  List<Object> get props => [changes];
+}
 
 class LoadingPersonalInfoEvent extends EmployeeProfileEvent {}
 
@@ -57,13 +71,15 @@ class SavePersonalInfoEvent extends EmployeeProfileEvent {
   List<Object> get props => [changes];
 }
 
-class RemoveDisabilityFromPersonalInfoEvent extends EmployeeProfileEvent {
-  final int id;
+class LazyLoadingPersonalInfoEvent extends EmployeeProfileEvent {}
 
-  const RemoveDisabilityFromPersonalInfoEvent(this.id);
+class LoadingIdCardEvent extends EmployeeProfileEvent {}
+
+class SaveIdCardEvent extends EmployeeProfileEvent {
+  final List<Object> changes;
+
+  const SaveIdCardEvent(this.changes);
 
   @override
-  List<Object> get props => [id];
+  List<Object> get props => [changes];
 }
-
-class LazyLoadingPersonalInfoEvent extends EmployeeProfileEvent {}

@@ -1,4 +1,4 @@
-import 'package:rufino/modules/employee/domain/model/enumeration.dart';
+import 'package:rufino/modules/employee/domain/model/base/enumeration.dart';
 
 class MaritalStatus extends Enumeration {
   static const Map<int, String> conversionMapIntToString = {
@@ -11,8 +11,7 @@ class MaritalStatus extends Enumeration {
   MaritalStatus(int id, String name)
       : super(id, conversionMapIntToString[id] ?? name, "Estado Civil");
 
-  static MaritalStatus get empty =>
-      MaritalStatus(Enumeration.emptyId, Enumeration.emptyName);
+  const MaritalStatus.empty() : super.empty(displayName: "Estado Civil");
 
   static MaritalStatus fromJson(Map<String, dynamic> json) {
     return MaritalStatus(json["id"], json["name"]);

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:mask_text_input_formatter/mask_text_input_formatter.dart';
-import 'package:rufino/modules/employee/domain/model/text_prop_base.dart';
+import 'package:rufino/modules/employee/domain/model/base/text_prop_base.dart';
 
 class Zipcode extends TextPropBase {
   static final maskFormatter = MaskTextInputFormatter(
@@ -13,7 +13,8 @@ class Zipcode extends TextPropBase {
       : super("CEP", value,
             formatter: maskFormatter, inputType: numberInputType);
 
-  static Zipcode get empty => Zipcode("");
+  const Zipcode.empty()
+      : super("CEP", "", formatter: null, inputType: numberInputType);
 
   factory Zipcode.createFormatNumber(String number) =>
       Zipcode(formatNumber(number));

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:rufino/modules/employee/domain/model/enumeration.dart';
-import 'package:rufino/modules/employee/domain/model/enumeration_list.dart';
+import 'package:rufino/modules/employee/domain/model/base/enumeration.dart';
+import 'package:rufino/modules/employee/domain/model/base/enumeration_list.dart';
 import 'package:rufino/modules/employee/presentation/employee_profile/components/base_edit_component.dart';
 import 'package:rufino/modules/employee/presentation/employee_profile/components/list_view_form_component.dart';
 

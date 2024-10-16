@@ -1,9 +1,8 @@
-import 'package:rufino/modules/employee/domain/model/text_prop_base.dart';
+import 'package:rufino/modules/employee/domain/model/base/text_prop_base.dart';
 
 class City extends TextPropBase {
-  City(String value) : super("Cidade", value);
-
-  static City get empty => City("");
+  const City(String value) : super("Cidade", value);
+  const City.empty() : super("Cidade", "");
 
   @override
   String? validate(String? value) {

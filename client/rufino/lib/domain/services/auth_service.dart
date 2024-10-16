@@ -76,16 +76,20 @@ class AuthService {
   }
 
   Future<void> logOut() async {
-    var credentials = await getCredentials();
-    var client = oauth2.Client(credentials);
-    Map<String, String> authData = {
-      "client_id": _identifier,
-      "client_secret": _secret,
-      "refresh_token": credentials.refreshToken!
-    };
-    await client.post(_endSessionEndpoint, body: authData);
-    _storage.delete(key: _keyStorage);
-    _credentials = null;
-    client.close();
+    try {
+      var credentials = await getCredentials();
+      var client = oauth2.Client(credentials);
+      Map<String, String> authData = {
+        "client_id": _identifier,
+        "client_secret": _secret,
+        "refresh_token": credentials.refreshToken!
+      };
+      await client.post(_endSessionEndpoint, body: authData);
+      client.close();
+    } catch (_) {
+    } finally {
+      _storage.delete(key: _keyStorage);
+      _credentials = null;
+    }
   }
 }

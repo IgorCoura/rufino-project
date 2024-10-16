@@ -1,9 +1,8 @@
-import 'package:rufino/modules/employee/domain/model/text_prop_base.dart';
+import 'package:rufino/modules/employee/domain/model/base/text_prop_base.dart';
 
 class Email extends TextPropBase {
-  Email(String value) : super("Email", value);
-
-  static Email get empty => Email("");
+  const Email(String value) : super("Email", value);
+  const Email.empty() : super("Email", "");
 
   @override
   String? validate(value) {

@@ -1,9 +1,8 @@
-import 'package:rufino/modules/employee/domain/model/text_prop_base.dart';
+import 'package:rufino/modules/employee/domain/model/base/text_prop_base.dart';
 
 class Complement extends TextPropBase {
-  Complement(String value) : super("Complemento", value);
-
-  static Complement get empty => Complement("");
+  const Complement(String value) : super("Complemento", value);
+  const Complement.empty() : super("Complemento", "");
 
   @override
   String? validate(String? value) {

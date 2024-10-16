@@ -1,5 +1,5 @@
 import 'package:equatable/equatable.dart';
-import 'package:rufino/modules/employee/domain/model/enumeration.dart';
+import 'package:rufino/modules/employee/domain/model/base/enumeration.dart';
 
 abstract class EnumerationList<T extends Enumeration> extends Equatable {
   final String displayName;

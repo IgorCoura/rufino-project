@@ -8,7 +8,7 @@ namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
         public const int MAX_LENGHT_BIRTHCITY = 100;
         public const int MAX_LENGHT_BIRTHSTATE = 100;
         public const int MAX_LENGHT_NACIONALITY = 100;
-        public const int MAX_AGE = 80;
+        public const int MAX_AGE = 100;
 
         private CPF _cpf = null!;
         private Name _motherName = null!;

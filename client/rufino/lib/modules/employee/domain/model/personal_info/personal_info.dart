@@ -1,5 +1,5 @@
 import 'package:equatable/equatable.dart';
-import 'package:rufino/modules/employee/domain/model/enumeration.dart';
+import 'package:rufino/modules/employee/domain/model/base/enumeration.dart';
 import 'package:rufino/modules/employee/domain/model/personal_info/deficiency.dart';
 import 'package:rufino/modules/employee/domain/model/personal_info/education_level.dart';
 import 'package:rufino/modules/employee/domain/model/personal_info/ethinicity.dart';
@@ -19,9 +19,14 @@ class PersonalInfo extends Equatable {
       this.ethinicity, this.educationLevel,
       {this.isLoading = false, this.isLazyLoading = false});
 
-  static PersonalInfo get loading => PersonalInfo(Deficiency.empty,
-      MaritalStatus.empty, Gender.empty, Ethinicity.empty, EducationLevel.empty,
-      isLoading: true);
+  const PersonalInfo.loading(
+      {this.deficiency = const Deficiency.empty(),
+      this.maritalStatus = const MaritalStatus.empty(),
+      this.gender = const Gender.empty(),
+      this.ethinicity = const Ethinicity.empty(),
+      this.educationLevel = const EducationLevel.empty(),
+      this.isLoading = true,
+      this.isLazyLoading = false});
 
   PersonalInfo setdeficiency(Deficiency newDeficiency) => PersonalInfo(
       newDeficiency, maritalStatus, gender, ethinicity, educationLevel);
