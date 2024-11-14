@@ -2,6 +2,7 @@ import 'package:bloc/bloc.dart';
 import 'package:equatable/equatable.dart';
 import 'package:rufino/domain/model/company.dart';
 import 'package:rufino/domain/services/company_service.dart';
+import 'package:rufino/modules/employee/domain/model/medical_admission_exam/medical_admission_exam.dart';
 import 'package:rufino/modules/employee/domain/model/military_document/military_document.dart';
 import 'package:rufino/modules/employee/domain/model/vote_id/vote_id.dart';
 import 'package:rufino/modules/employee/domain/model/address/address.dart';
@@ -43,6 +44,8 @@ class EmployeeProfileBloc
     on<SaveVoteIdEvent>(_onSaveVoteIdEvent);
     on<LoadingMilitaryDocumentEvent>(_onLoadingMilitaryDocumentEvent);
     on<SaveMilitaryDocumentEvent>(_onSaveMilitaryDocumentEvent);
+    on<LoadingMedicalAdmissionExamEvent>(_onLoadingMedicalAdmissionExamEvent);
+    on<SaveMedicalAdmissionExamEvent>(_onSaveMedicalAdmissionExamEvent);
   }
 
   Future _onInitialEvent(InitialEmployeeProfileEvent event,
@@ -326,5 +329,40 @@ class EmployeeProfileBloc
         isSavingData: false,
         isEditingName: false,
         snackMessage: "Documento Militar alterado com sucesso."));
+  }
+
+  Future _onLoadingMedicalAdmissionExamEvent(
+      LoadingMedicalAdmissionExamEvent event,
+      Emitter<EmployeeProfileState> emit) async {
+    try {
+      if (state.medicalAdmissionExam.isLoading) {
+        var exam =
+            await _peopleManagementService.getEmployeeMedicalAdmissionExam(
+                state.employee.id, state.company.id);
+
+        emit(state.copyWith(medicalAdmissionExam: exam));
+      }
+    } catch (ex, stacktrace) {
+      var exception = _peopleManagementService.treatErrors(ex, stacktrace);
+      emit(state.copyWith(
+          isLoading: false, isSavingData: false, exception: exception));
+    }
+  }
+
+  Future _onSaveMedicalAdmissionExamEvent(SaveMedicalAdmissionExamEvent event,
+      Emitter<EmployeeProfileState> emit) async {
+    var newExam = state.medicalAdmissionExam.copyWith();
+    for (var change in event.changes) {
+      newExam = newExam.copyWith(generic: change);
+    }
+    emit(state.copyWith(isSavingData: true, medicalAdmissionExam: newExam));
+
+    await _peopleManagementService.editMedicalAdmissionExam(
+        state.employee.id, state.company.id, newExam);
+
+    emit(state.copyWith(
+        isSavingData: false,
+        isEditingName: false,
+        snackMessage: "Exame medico admissional foi alterado com sucesso."));
   }
 }

@@ -220,6 +220,22 @@ class EmployeeProfilePage extends StatelessWidget {
                           DependentsListComponent(
                             companyId: state.company.id,
                             employeeId: state.employee.id,
+                          ),
+                          const SizedBox(
+                            height: 16,
+                          ),
+                          PropsContainerComponent(
+                            containerName: "Exame Medico Admissional",
+                            isSavingData: state.isSavingData,
+                            saveContainerData: (changes) => bloc
+                                .add(SaveMedicalAdmissionExamEvent(changes)),
+                            loadingContainerData: () =>
+                                bloc.add(LoadingMedicalAdmissionExamEvent()),
+                            isLoading: state.medicalAdmissionExam.isLoading,
+                            children: state.medicalAdmissionExam.textProps
+                                .map(
+                                    (prop) => TextEditComponent(textProp: prop))
+                                .toList(),
                           )
                         ],
                       );

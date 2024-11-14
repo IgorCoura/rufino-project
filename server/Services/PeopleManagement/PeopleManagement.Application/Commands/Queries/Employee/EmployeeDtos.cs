@@ -144,4 +144,13 @@
         public string Name { get; init; } = string.Empty;
         public static EnumerationDto Empty => new(-1, "");
     }
+
+    public record MedicalAdmissionExamDto
+    {
+        public Guid EmployeeId { get; init; }
+        public Guid CompanyId { get; init; }
+        public DateOnly? DateExam { get; init; } 
+        public DateOnly? ValidityExam { get; init; }
+
+    }
 }

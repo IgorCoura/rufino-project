@@ -412,5 +412,13 @@ namespace PeopleManagement.API.Controllers
   
             return OkResponse(result);
         }
+
+        [HttpGet("MedicalAdmissionExam/{id}")]
+        [ProtectedResource("employee", "view")]
+        public async Task<ActionResult<EmployeeAddressDto>> GetEmployeeMedicalAdmissionExam([FromRoute] Guid company, [FromRoute] Guid id)
+        {
+            var result = await employeeQueries.GetEmployeeMedicalAdmissionExam(id, company);
+            return OkResponse(result);
+        }
     }
 }
