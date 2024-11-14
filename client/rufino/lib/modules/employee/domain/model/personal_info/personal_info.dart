@@ -3,7 +3,7 @@ import 'package:rufino/modules/employee/domain/model/base/enumeration.dart';
 import 'package:rufino/modules/employee/domain/model/personal_info/deficiency.dart';
 import 'package:rufino/modules/employee/domain/model/personal_info/education_level.dart';
 import 'package:rufino/modules/employee/domain/model/personal_info/ethinicity.dart';
-import 'package:rufino/modules/employee/domain/model/personal_info/gender.dart';
+import 'package:rufino/modules/employee/domain/model/gender.dart';
 import 'package:rufino/modules/employee/domain/model/personal_info/marital_status.dart';
 
 class PersonalInfo extends Equatable {

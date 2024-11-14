@@ -1,4 +1,4 @@
-﻿namespace PeopleManagement.Application.Queries.Employee
+﻿namespace PeopleManagement.Application.Commands.Queries.Employee
 {
     public interface IEmployeeQueries
     {
@@ -9,7 +9,7 @@
         Task<EmployeePersonalInfoDto> GetEmployeePersonalInfo(Guid id, Guid company);
         Task<EmployeeIdCardDto> GetEmployeeIdCard(Guid id, Guid company);
         Task<EmployeeVoteIdDto> GetEmployeeVoteId(Guid id, Guid company);
-        Task<EmployeeMilitaryDocumentDto> GetEmployeeMilitaryDocument(Guid id, Guid company);
+        Task<EmployeeMilitaryDocumentDto> GetEmployeeMilitaryDocument(Guid id, Guid company, bool isRequired);
         Task<EmployeeDependentsDto> GetEmployeeDependents(Guid id, Guid company);
     }
 }

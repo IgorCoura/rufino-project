@@ -1,4 +1,4 @@
-﻿namespace PeopleManagement.Application.Queries.Employee
+﻿namespace PeopleManagement.Application.Commands.Queries.Employee
 {
     public record EmployeeWithRoleDto
     {
@@ -113,6 +113,7 @@
         public Guid CompanyId { get; init; }
         public string Number { get; init; } = string.Empty;
         public string Type { get; init; } = string.Empty;
+        public bool IsRequired { get; init; } = false;
 
     }
 

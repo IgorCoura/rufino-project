@@ -16,10 +16,14 @@ namespace PeopleManagement.API.Authorization
 
             var result = await response.Content.ReadAsStringAsync();
 
+
+
             if (!response.IsSuccessStatusCode)
             {
                 return false;
             }
+
+         
 
             return await this.ValidateScopesAsync(
                     permission,
@@ -91,6 +95,7 @@ namespace PeopleManagement.API.Authorization
 
             return true;
         }
+
 
         private sealed record ScopeResponse(string Rsid, string Rsname, List<string> Scopes);
     }

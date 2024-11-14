@@ -13,6 +13,8 @@ class EmployeeProfileState extends Equatable {
   final PersonalInfo personalInfo;
   final PersonalInfoSeletionOptions personalInfoSeletionOptions;
   final IdCard idCard;
+  final VoteId voteId;
+  final MilitaryDocument militaryDocument;
 
   const EmployeeProfileState({
     this.company = const Company.empty(),
@@ -27,6 +29,8 @@ class EmployeeProfileState extends Equatable {
     this.personalInfo = const PersonalInfo.loading(),
     this.personalInfoSeletionOptions = const PersonalInfoSeletionOptions(),
     this.idCard = const IdCard.loading(),
+    this.voteId = const VoteId.loading(),
+    this.militaryDocument = const MilitaryDocument.loading(),
   });
 
   EmployeeProfileState copyWith({
@@ -43,6 +47,8 @@ class EmployeeProfileState extends Equatable {
     PersonalInfo? personalInfo,
     PersonalInfoSeletionOptions? personalInfoSeletionOptions,
     IdCard? idCard,
+    VoteId? voteId,
+    MilitaryDocument? militaryDocument,
   }) =>
       EmployeeProfileState(
         company: company ?? this.company,
@@ -58,6 +64,8 @@ class EmployeeProfileState extends Equatable {
         personalInfoSeletionOptions:
             personalInfoSeletionOptions ?? this.personalInfoSeletionOptions,
         idCard: idCard ?? this.idCard,
+        voteId: voteId ?? this.voteId,
+        militaryDocument: militaryDocument ?? this.militaryDocument,
       );
 
   @override
@@ -74,5 +82,7 @@ class EmployeeProfileState extends Equatable {
         personalInfo,
         personalInfoSeletionOptions,
         idCard,
+        voteId,
+        militaryDocument,
       ];
 }

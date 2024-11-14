@@ -1,6 +1,9 @@
+import 'package:flutter/services.dart';
 import 'package:rufino/modules/employee/domain/model/base/text_prop_base.dart';
 
 class Email extends TextPropBase {
+  static const emailInputType = TextInputType.emailAddress;
+
   const Email(String value) : super("Email", value);
   const Email.empty() : super("Email", "");
 

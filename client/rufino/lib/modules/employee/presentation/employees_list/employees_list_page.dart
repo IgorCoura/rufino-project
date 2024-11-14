@@ -7,7 +7,7 @@ import 'package:rufino/modules/employee/domain/model/employee_with_role.dart';
 import 'package:rufino/modules/employee/domain/model/status.dart';
 import 'package:rufino/modules/employee/domain/model/search_params.dart';
 import 'package:rufino/modules/employee/presentation/employees_list/bloc/employees_list_bloc.dart';
-import 'package:rufino/shared/components/error_message_components.dart';
+import 'package:rufino/shared/components/error_components.dart';
 
 class EmployeesListPage extends StatelessWidget {
   final bloc = Modular.get<EmployeesListBloc>();
@@ -59,7 +59,7 @@ class EmployeesListPage extends StatelessWidget {
             bloc: bloc,
             builder: (context, state) {
               if (state.exception != null) {
-                ErrorMessageComponent.showAlertDialog(context, state.exception!,
+                ErrorComponent.showException(context, state.exception!,
                     () => Modular.to.navigate("/home/"));
               }
               return Column(

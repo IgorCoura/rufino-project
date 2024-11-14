@@ -89,23 +89,35 @@ class IdCard extends ModelBase {
         Cpf.createFormatted(json["cpf"]),
         MotherName(json["motherName"]),
         FatherName(json["fatherName"]),
-        DateOfBirth.createFormatted(json["dateOfBirth"]),
+        json["dateOfBirth"] == null
+            ? const DateOfBirth.empty()
+            : DateOfBirth.createFormatted(json["dateOfBirth"]),
         Birthcity(json["birthCity"]),
         Birthstate(json["birthState"]),
         Nacionality(json["nacionality"]));
   }
 
-  Map<String, dynamic> toJson(String employeeId) {
-    return {
-      "employeeId": employeeId,
-      "cpf": cpf.value,
-      "motherName": motherName.value,
-      "fatherName": fatherName.value,
-      "dateOfBirth": dateOfBirth.toData(),
-      "birthCity": birthcity.value,
-      "birthState": birthstate.value,
-      "nacionality": nacionality.value,
-    };
+  Map<String, dynamic> toJson({String? employeeId}) {
+    return employeeId == null
+        ? {
+            "cpf": cpf.value,
+            "motherName": motherName.value,
+            "fatherName": fatherName.value,
+            "dateOfBirth": dateOfBirth.toData(),
+            "birthCity": birthcity.value,
+            "birthState": birthstate.value,
+            "nacionality": nacionality.value,
+          }
+        : {
+            "employeeId": employeeId,
+            "cpf": cpf.value,
+            "motherName": motherName.value,
+            "fatherName": fatherName.value,
+            "dateOfBirth": dateOfBirth.toData(),
+            "birthCity": birthcity.value,
+            "birthState": birthstate.value,
+            "nacionality": nacionality.value,
+          };
   }
 
   @override

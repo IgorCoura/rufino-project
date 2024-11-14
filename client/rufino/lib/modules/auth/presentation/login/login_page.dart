@@ -3,7 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_modular/flutter_modular.dart';
 import 'package:rufino/modules/auth/domain/enums/login_status.dart';
 import 'package:rufino/modules/auth/presentation/login/bloc/login_bloc.dart';
-import 'package:rufino/shared/components/error_message_components.dart';
+import 'package:rufino/shared/components/error_components.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -22,8 +22,7 @@ class _LoginPageState extends State<LoginPage> {
         bloc: bloc,
         listener: (context, state) {
           if (state.status == LoginStatus.failure) {
-            ErrorMessageComponent.showSnackBar(
-                context, 'Falha na autenticação.');
+            ErrorComponent.showSnackBar(context, 'Falha na autenticação.');
             bloc.add(SnackMessageWasShow());
           } else if (state.status == LoginStatus.success) {
             Modular.to.navigate("/");

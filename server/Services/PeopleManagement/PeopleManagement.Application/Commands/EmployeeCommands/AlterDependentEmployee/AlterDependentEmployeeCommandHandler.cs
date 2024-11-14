@@ -21,7 +21,7 @@ namespace PeopleManagement.Application.Commands.EmployeeCommands.AlterDependentE
             var employee = await _employeeRepository.FirstOrDefaultAsync(x => x.Id == request.EmployeeId && x.CompanyId == request.CompanyId, cancellation: cancellationToken)
                 ?? throw new DomainException(this, DomainErrors.ObjectNotFound(nameof(Employee), request.EmployeeId.ToString()));
 
-            var dependent = request.CurrentDepentent.ToDependent();
+            var dependent = request.CurrentDependent.ToDependent();
 
             employee.AlterDependet(request.OldName, dependent);                
 

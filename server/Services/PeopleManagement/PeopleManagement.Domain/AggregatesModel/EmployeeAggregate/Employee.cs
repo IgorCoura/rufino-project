@@ -92,7 +92,7 @@ namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
             get => _personalInfo;
             set 
             {
-                VerifyRequiredMilitarDocument();
+                AddEventIfMilitarDocumentIsRequired();
                 _personalInfo = value;
             }
         }
@@ -104,7 +104,7 @@ namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
                 if (value != null)
                 {
                     _idCard = value;
-                    VerifyRequiredMilitarDocument();
+                    AddEventIfMilitarDocumentIsRequired();
                     SendCreateRequestMedicalExamEvent();
                 }
                     
@@ -213,7 +213,17 @@ namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
             RequestDependentDocuments(currentDependent.DependencyType);
         }
 
-        
+        public void RemoveDependent(Name nameDependent)
+        {
+            var index = Dependents.FindIndex(x => x.Name.Equals(nameDependent));
+
+            if (index == -1)
+                throw new DomainException(this, DomainErrors.ObjectNotFound(nameof(Dependent), nameDependent.Value));
+
+            Dependents.RemoveAt(index);
+        }
+
+
         public void FinishedContract(DateOnly finishDateContract)
         {
             var index = Contracts.FindIndex(x => x.FinalDate == null);
@@ -229,6 +239,15 @@ namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
         }
 
         public bool CantSignByCellPhone => Contact?.CellPhoneIsEmpty ?? true;
+
+        public bool IsRequiredMilitarDocument()
+        {
+            if (IdCard != null && PersonalInfo != null && MilitaryDocument.IsRequired(IdCard, PersonalInfo))
+            {
+                return true;
+            }
+            return false;
+        }
 
         private void CreateContract(DateOnly dateInit, EmploymentContactType contractType)
         {
@@ -263,12 +282,13 @@ namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
             }
         }
 
-        private void VerifyRequiredMilitarDocument()
+        private void AddEventIfMilitarDocumentIsRequired()
         {
-            if(IdCard != null && PersonalInfo != null && MilitaryDocument.IsRequired(IdCard, PersonalInfo))
+            if(IsRequiredMilitarDocument())
             {
                 AddDomainEvent(RequestFilesEvent.MilitarDocument(Id, CompanyId));
             }
         }
+
     }
 }

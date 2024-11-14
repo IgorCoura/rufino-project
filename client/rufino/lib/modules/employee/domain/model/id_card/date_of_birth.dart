@@ -3,19 +3,19 @@ import 'package:mask_text_input_formatter/mask_text_input_formatter.dart';
 import 'package:rufino/modules/employee/domain/model/base/text_prop_base.dart';
 
 class DateOfBirth extends TextPropBase {
-  static final maskFormatter = MaskTextInputFormatter(
+  static final MaskTextInputFormatter maskFormatter = MaskTextInputFormatter(
       mask: '##/##/####',
       filter: {"#": RegExp(r'[0-9]')},
       type: MaskAutoCompletionType.lazy);
 
-  static const numberInputType = TextInputType.number;
+  @override
+  TextInputFormatter? get formatter => maskFormatter;
+  @override
+  TextInputType? get inputType => TextInputType.number;
 
-  DateOfBirth(String value)
-      : super("Data de nascimento", value,
-            formatter: maskFormatter, inputType: numberInputType);
+  const DateOfBirth(String value) : super("Data de nascimento", value);
 
-  const DateOfBirth.empty()
-      : super("Data de nascimento", "", formatter: null, inputType: null);
+  const DateOfBirth.empty() : super("Data de nascimento", "");
 
   factory DateOfBirth.createFormatted(String number) =>
       DateOfBirth(format(number));
@@ -30,10 +30,14 @@ class DateOfBirth extends TextPropBase {
     return maskFormatter.getMaskedText();
   }
 
-  String toData() {
+  static String convertToData(String value) {
     var itens = value.split("/");
     var number = "${itens[2]}-${itens[1]}-${itens[0]}";
     return number;
+  }
+
+  String toData() {
+    return convertToData(value);
   }
 
   @override
@@ -47,16 +51,19 @@ class DateOfBirth extends TextPropBase {
       return "O $displayName não pode ser vazio.";
     }
 
-    var dataString = toData();
-    var date = DateTime.tryParse(dataString);
+    try {
+      var dataString = convertToData(value);
+      var date = DateTime.tryParse(dataString);
 
-    var dateMin = DateTime.now();
-    var dateMax = DateTime.now().add(const Duration(days: -36500));
+      var dateMin = DateTime.now();
+      var dateMax = DateTime.now().add(const Duration(days: -36500));
 
-    if (date == null || date.isAfter(dateMin) || date.isBefore(dateMax)) {
+      if (date == null || date.isAfter(dateMin) || date.isBefore(dateMax)) {
+        return "O $displayName é invalida.";
+      }
+    } catch (_) {
       return "O $displayName é invalida.";
     }
-
     return null;
   }
 }

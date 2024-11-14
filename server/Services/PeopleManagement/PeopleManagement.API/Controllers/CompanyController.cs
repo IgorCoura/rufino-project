@@ -2,7 +2,7 @@
 using PeopleManagement.Application.Commands.CompanyCommands.CreateCompany;
 using PeopleManagement.Application.Commands.DTO;
 using PeopleManagement.Application.Commands.Identified;
-using PeopleManagement.Application.Queries.Company;
+using PeopleManagement.Application.Commands.Queries.Company;
 
 namespace PeopleManagement.API.Controllers
 {

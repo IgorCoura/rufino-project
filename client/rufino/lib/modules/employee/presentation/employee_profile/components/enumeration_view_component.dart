@@ -15,8 +15,7 @@ class EnumerationViewComponent extends BaseEditComponent {
       super.isLoading,
       super.key}) {
     List<Enumeration> list = [];
-    if (enumeration.id > -1 &&
-        listEnumerationOptions.any((e) => e.id == enumeration.id) == false) {
+    if (listEnumerationOptions.any((e) => e.id == enumeration.id) == false) {
       list.add(enumeration);
     }
     list.addAll(listEnumerationOptions);
@@ -67,7 +66,7 @@ class EnumerationViewComponent extends BaseEditComponent {
               }
             },
             validator: (value) {
-              if (value == null || value == Enumeration.emptyId) {
+              if (value == null || value.id == Enumeration.emptyId) {
                 return 'Por favor, selecione um opção.';
               }
               return null;

@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:http/http.dart';
+import 'package:oauth2/oauth2.dart';
 import 'package:rufino/domain/services/auth_service.dart';
 import 'package:rufino/shared/errors/aplication_errors.dart';
 import 'package:rufino/shared/errors/table_convert_errors.dart';
@@ -31,7 +32,10 @@ class BaseService {
   }
 
   T treatUnsuccessfulResponses<T>(Response response) {
-    if (response.statusCode == 401 || response.statusCode == 403) {
+    if (response.statusCode == 401) {
+      throw AplicationErrors.auth.unauthenticatedAccess;
+    }
+    if (response.statusCode == 403) {
       throw AplicationErrors.auth.unauthorizedAccess;
     }
     Map<String, dynamic> jsonResponse = jsonDecode(response.body);
@@ -43,6 +47,12 @@ class BaseService {
       case const (AplicationException):
         return ex as AplicationException;
       case const (HandshakeException):
+        return AplicationErrors.connectionErro;
+      case const (AuthorizationException):
+        var exception = ex as AuthorizationException;
+        if (exception.error == "invalid_grant") {
+          return AplicationErrors.auth.unauthenticatedAccess;
+        }
         return AplicationErrors.connectionErro;
       default:
         return AplicationErrors.serverError;

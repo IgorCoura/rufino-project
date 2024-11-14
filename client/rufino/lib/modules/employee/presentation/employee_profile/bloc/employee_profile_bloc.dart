@@ -2,10 +2,12 @@ import 'package:bloc/bloc.dart';
 import 'package:equatable/equatable.dart';
 import 'package:rufino/domain/model/company.dart';
 import 'package:rufino/domain/services/company_service.dart';
+import 'package:rufino/modules/employee/domain/model/military_document/military_document.dart';
+import 'package:rufino/modules/employee/domain/model/vote_id/vote_id.dart';
 import 'package:rufino/modules/employee/domain/model/address/address.dart';
 import 'package:rufino/modules/employee/domain/model/contact/contact.dart';
-import 'package:rufino/modules/employee/domain/model/employee/employee.dart';
-import 'package:rufino/modules/employee/domain/model/employee/name.dart';
+import 'package:rufino/modules/employee/domain/model/employee.dart';
+import 'package:rufino/modules/employee/domain/model/name.dart';
 import 'package:rufino/modules/employee/domain/model/id_card/id_card.dart';
 import 'package:rufino/modules/employee/domain/model/personal_info/personal_info.dart';
 import 'package:rufino/modules/employee/domain/model/personal_info/personal_info_seletion_options.dart';
@@ -37,6 +39,10 @@ class EmployeeProfileBloc
     on<LazyLoadingPersonalInfoEvent>(_onLazyLoadingPersonalInfoEvent);
     on<LoadingIdCardEvent>(_onLoadingIdCardEvent);
     on<SaveIdCardEvent>(_onSaveIdCardEvent);
+    on<LoadingVoteIdEvent>(_onLoadingVoteIdEvent);
+    on<SaveVoteIdEvent>(_onSaveVoteIdEvent);
+    on<LoadingMilitaryDocumentEvent>(_onLoadingMilitaryDocumentEvent);
+    on<SaveMilitaryDocumentEvent>(_onSaveMilitaryDocumentEvent);
   }
 
   Future _onInitialEvent(InitialEmployeeProfileEvent event,
@@ -46,6 +52,12 @@ class EmployeeProfileBloc
       var company = await _companyService.getSelectedCompany();
       var employee = await _peopleManagementService.getEmployee(
           event.employeeId, company.id);
+      if (state.militaryDocument.isLoading) {
+        var militaryDocument = await _peopleManagementService
+            .getEmployeeMilitaryDocument(employee.id, company.id);
+
+        emit(state.copyWith(militaryDocument: militaryDocument));
+      }
       emit(state.copyWith(
           company: company, employee: employee, isLoading: false));
     } catch (ex, stacktrace) {
@@ -246,5 +258,73 @@ class EmployeeProfileBloc
         isSavingData: false,
         isEditingName: false,
         snackMessage: "Identidade alterado com sucesso."));
+  }
+
+  Future _onLoadingVoteIdEvent(
+      LoadingVoteIdEvent event, Emitter<EmployeeProfileState> emit) async {
+    try {
+      if (state.voteId.isLoading) {
+        var voteId = await _peopleManagementService.getEmployeeVoteId(
+            state.employee.id, state.company.id);
+
+        emit(state.copyWith(voteId: voteId));
+      }
+    } catch (ex, stacktrace) {
+      var exception = _peopleManagementService.treatErrors(ex, stacktrace);
+
+      emit(state.copyWith(
+          isLoading: false, isSavingData: false, exception: exception));
+    }
+  }
+
+  Future _onSaveVoteIdEvent(
+      SaveVoteIdEvent event, Emitter<EmployeeProfileState> emit) async {
+    var newVoteId = state.voteId.copyWith();
+    for (var change in event.changes) {
+      newVoteId = newVoteId.copyWith(generic: change);
+    }
+    emit(state.copyWith(isSavingData: true, voteId: newVoteId));
+
+    await _peopleManagementService.editEmployeeVoteId(
+        state.employee.id, state.company.id, newVoteId);
+
+    emit(state.copyWith(
+        isSavingData: false,
+        isEditingName: false,
+        snackMessage: "Título de eleitor alterado com sucesso."));
+  }
+
+  Future _onLoadingMilitaryDocumentEvent(LoadingMilitaryDocumentEvent event,
+      Emitter<EmployeeProfileState> emit) async {
+    try {
+      if (state.militaryDocument.isLoading) {
+        var militaryDocument = await _peopleManagementService
+            .getEmployeeMilitaryDocument(state.employee.id, state.company.id);
+
+        emit(state.copyWith(militaryDocument: militaryDocument));
+      }
+    } catch (ex, stacktrace) {
+      var exception = _peopleManagementService.treatErrors(ex, stacktrace);
+      emit(state.copyWith(
+          isLoading: false, isSavingData: false, exception: exception));
+    }
+  }
+
+  Future _onSaveMilitaryDocumentEvent(SaveMilitaryDocumentEvent event,
+      Emitter<EmployeeProfileState> emit) async {
+    var newMilitaryDocument = state.militaryDocument.copyWith();
+    for (var change in event.changes) {
+      newMilitaryDocument = newMilitaryDocument.copyWith(generic: change);
+    }
+    emit(state.copyWith(
+        isSavingData: true, militaryDocument: newMilitaryDocument));
+
+    await _peopleManagementService.editEmployeeMilitaryDocument(
+        state.employee.id, state.company.id, newMilitaryDocument);
+
+    emit(state.copyWith(
+        isSavingData: false,
+        isEditingName: false,
+        snackMessage: "Documento Militar alterado com sucesso."));
   }
 }

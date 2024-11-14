@@ -3,7 +3,7 @@ using PeopleManagement.Domain.ErrorTools;
 using PeopleManagement.Domain.ErrorTools.ErrorsMessages;
 using PeopleManagement.Infra.Context;
 
-namespace PeopleManagement.Application.Queries.Company
+namespace PeopleManagement.Application.Commands.Queries.Company
 {
     public class CompanyQueries(PeopleManagementContext peopleManagementContext) : ICompanyQueries
     {
@@ -37,7 +37,7 @@ namespace PeopleManagement.Application.Queries.Company
                 CorporateName = c.CorporateName.Value,
                 FantasyName = c.FantasyName.Value,
                 Cnpj = c.Cnpj.Value
-            }).FirstOrDefaultAsync() 
+            }).FirstOrDefaultAsync()
                 ?? throw new DomainException(this, DomainErrors.ObjectNotFound(nameof(Company), id.ToString()));
 
             return companies;

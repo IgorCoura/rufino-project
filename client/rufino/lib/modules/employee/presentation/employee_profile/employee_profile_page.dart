@@ -2,15 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_modular/flutter_modular.dart';
 import 'package:rufino/domain/model/company.dart';
-import 'package:rufino/modules/employee/domain/model/employee/name.dart';
+import 'package:rufino/modules/employee/domain/model/name.dart';
 import 'package:rufino/modules/employee/domain/model/personal_info/disability.dart';
 import 'package:rufino/modules/employee/presentation/employee_profile/bloc/employee_profile_bloc.dart';
 import 'package:rufino/modules/employee/presentation/employee_profile/components/base_edit_component.dart';
+import 'package:rufino/modules/employee/presentation/employee_profile/components/dependents_list_component/dependents_list_component.dart';
 import 'package:rufino/modules/employee/presentation/employee_profile/components/enumeration_list_view_component.dart';
 import 'package:rufino/modules/employee/presentation/employee_profile/components/enumeration_view_component.dart';
 import 'package:rufino/modules/employee/presentation/employee_profile/components/props_container_component.dart';
 import 'package:rufino/modules/employee/presentation/employee_profile/components/text_edit_component.dart';
-import 'package:rufino/shared/components/error_message_components.dart';
+import 'package:rufino/shared/components/error_components.dart';
 
 class EmployeeProfilePage extends StatelessWidget {
   final _formKey = GlobalKey<FormState>();
@@ -35,8 +36,8 @@ class EmployeeProfilePage extends StatelessWidget {
               bloc: bloc,
               builder: (context, state) {
                 if (state.exception != null) {
-                  ErrorMessageComponent.showAlertDialog(context,
-                      state.exception!, () => Modular.to.navigate("/home/"));
+                  ErrorComponent.showException(context, state.exception!,
+                      () => Modular.to.navigate("/home"));
                 }
 
                 if (state.snackMessage != null &&
@@ -84,9 +85,6 @@ class EmployeeProfilePage extends StatelessWidget {
                           ),
                           _employeeName(context, state.isEditingName,
                               state.isSavingData, state.employee.name),
-                          const SizedBox(
-                            height: 16,
-                          ),
                           const SizedBox(
                             height: 16,
                           ),
@@ -175,6 +173,54 @@ class EmployeeProfilePage extends StatelessWidget {
                                     (prop) => TextEditComponent(textProp: prop))
                                 .toList(),
                           ),
+                          const SizedBox(
+                            height: 16,
+                          ),
+                          PropsContainerComponent(
+                            containerName: "Título de eleitor",
+                            isSavingData: state.isSavingData,
+                            loadingContainerData: () =>
+                                bloc.add(LoadingVoteIdEvent()),
+                            saveContainerData: (changes) =>
+                                bloc.add(SaveVoteIdEvent(changes)),
+                            isLoading: state.voteId.isLoading,
+                            isLazyLoading: state.voteId.isLazyLoading,
+                            children: [
+                              TextEditComponent(textProp: state.voteId.number)
+                            ],
+                          ),
+                          state.militaryDocument.isRequired
+                              ? Column(
+                                  children: [
+                                    const SizedBox(
+                                      height: 16,
+                                    ),
+                                    PropsContainerComponent(
+                                      containerName: "Documento Militar",
+                                      isSavingData: state.isSavingData,
+                                      loadingContainerData: () => bloc
+                                          .add(LoadingMilitaryDocumentEvent()),
+                                      saveContainerData: (changes) => bloc.add(
+                                          SaveMilitaryDocumentEvent(changes)),
+                                      isLoading:
+                                          state.militaryDocument.isLoading,
+                                      isLazyLoading:
+                                          state.militaryDocument.isLazyLoading,
+                                      children: state.militaryDocument.textProps
+                                          .map((prop) =>
+                                              TextEditComponent(textProp: prop))
+                                          .toList(),
+                                    ),
+                                  ],
+                                )
+                              : Container(),
+                          const SizedBox(
+                            height: 16,
+                          ),
+                          DependentsListComponent(
+                            companyId: state.company.id,
+                            employeeId: state.employee.id,
+                          )
                         ],
                       );
               },

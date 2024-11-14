@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_modular/flutter_modular.dart';
 import 'package:rufino/modules/auth/presentation/company_selection/bloc/company_selection_bloc.dart';
-import 'package:rufino/shared/components/error_message_components.dart';
+import 'package:rufino/shared/components/error_components.dart';
 
 class CompanySelectionPage extends StatelessWidget {
   final bloc = Modular.get<CompanySelectionBloc>();
@@ -24,7 +24,7 @@ class CompanySelectionPage extends StatelessWidget {
             }
 
             if (state.exception != null) {
-              ErrorMessageComponent.showAlertDialog(
+              ErrorComponent.showException(
                   context, state.exception!, () => Modular.to.navigate("/"));
             }
             if (state.isLoading) {
