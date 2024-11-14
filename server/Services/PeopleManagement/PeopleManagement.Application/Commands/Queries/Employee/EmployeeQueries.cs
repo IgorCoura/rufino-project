@@ -249,5 +249,21 @@ namespace PeopleManagement.Application.Commands.Queries.Employee
             return result;
         }
 
+        public async Task<MedicalAdmissionExamDto> GetEmployeeMedicalAdmissionExam(Guid id, Guid company)
+        {
+            var query = _context.Employees.Where(e => e.Id == id && e.CompanyId == company);
+
+            var result = await query.Select(o => new MedicalAdmissionExamDto
+            {
+                EmployeeId = o.Id,
+                CompanyId = o.CompanyId,
+                DateExam = o.MedicalAdmissionExam != null ? o.MedicalAdmissionExam.DateExam : null,
+                ValidityExam = o.MedicalAdmissionExam != null ? o.MedicalAdmissionExam.Validity : null,
+            }).FirstOrDefaultAsync()
+                ?? throw new DomainException(this, DomainErrors.ObjectNotFound(nameof(Employee), id.ToString()));
+
+            return result;
+        }
+
     }
 }

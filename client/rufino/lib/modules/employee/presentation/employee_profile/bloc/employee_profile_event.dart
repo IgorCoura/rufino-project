@@ -105,3 +105,14 @@ class SaveMilitaryDocumentEvent extends EmployeeProfileEvent {
   @override
   List<Object> get props => [changes];
 }
+
+class LoadingMedicalAdmissionExamEvent extends EmployeeProfileEvent {}
+
+class SaveMedicalAdmissionExamEvent extends EmployeeProfileEvent {
+  final List<Object> changes;
+
+  const SaveMedicalAdmissionExamEvent(this.changes);
+
+  @override
+  List<Object> get props => [changes];
+}

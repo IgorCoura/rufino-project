@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:rufino/modules/employee/domain/model/dependent/dependency_type.dart';
 import 'package:rufino/modules/employee/domain/model/dependent/dependent.dart';
 import 'package:rufino/modules/employee/domain/model/gender.dart';
+import 'package:rufino/modules/employee/domain/model/medical_admission_exam/medical_admission_exam.dart';
 import 'package:rufino/modules/employee/domain/model/military_document/military_document.dart';
 import 'package:rufino/modules/employee/domain/model/vote_id/vote_id.dart';
 import 'package:rufino/modules/employee/domain/model/address/address.dart';
@@ -198,6 +199,23 @@ class PeopleManagementService extends BaseService {
     return treatUnsuccessfulResponses(response);
   }
 
+  Future<String> editMedicalAdmissionExam(
+      String employeeId, String companyId, MedicalAdmissionExam value) async {
+    var headers = await getHeadersWithRequestId();
+    Map<String, dynamic> body = value.toJson(employeeId);
+
+    var url = peopleManagementUrl.replace(
+        path: "/api/v1/$companyId/employee/medicaladmissionexam");
+
+    var response =
+        await http.put(url, headers: headers, body: jsonEncode(body));
+    if (response.statusCode == 200) {
+      var jsonResponse = jsonDecode(response.body);
+      return jsonResponse["id"];
+    }
+    return treatUnsuccessfulResponses(response);
+  }
+
   Future<String> removeEmployeeDependent(
       String employeeId, String companyId, String nameDependent) async {
     var headers = await getHeadersWithRequestId();
@@ -242,6 +260,21 @@ class PeopleManagementService extends BaseService {
     if (response.statusCode == 200) {
       var jsonResponse = jsonDecode(response.body);
       return Contact.fromJson(jsonResponse);
+    }
+    return treatUnsuccessfulResponses(response);
+  }
+
+  Future<MedicalAdmissionExam> getEmployeeMedicalAdmissionExam(
+      String id, String companyId) async {
+    var url = peopleManagementUrl.replace(
+        path: "/api/v1/$companyId/employee/medicaladmissionexam/$id");
+
+    var headers = await getHeaders();
+
+    var response = await http.get(url, headers: headers);
+    if (response.statusCode == 200) {
+      var jsonResponse = jsonDecode(response.body);
+      return MedicalAdmissionExam.fromJson(jsonResponse);
     }
     return treatUnsuccessfulResponses(response);
   }

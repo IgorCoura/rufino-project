@@ -11,5 +11,6 @@
         Task<EmployeeVoteIdDto> GetEmployeeVoteId(Guid id, Guid company);
         Task<EmployeeMilitaryDocumentDto> GetEmployeeMilitaryDocument(Guid id, Guid company, bool isRequired);
         Task<EmployeeDependentsDto> GetEmployeeDependents(Guid id, Guid company);
+        Task<MedicalAdmissionExamDto> GetEmployeeMedicalAdmissionExam(Guid id, Guid company);
     }
 }
