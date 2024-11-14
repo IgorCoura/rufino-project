@@ -1,23 +1,24 @@
 import 'package:flutter/services.dart';
 import 'package:mask_text_input_formatter/mask_text_input_formatter.dart';
 import 'package:rufino/modules/employee/domain/model/base/text_prop_base.dart';
+import 'package:rufino/shared/util/voteid_validator.dart';
 
-class Zipcode extends TextPropBase {
+class NumberVoteId extends TextPropBase {
   static final MaskTextInputFormatter maskFormatter = MaskTextInputFormatter(
-      mask: '#####-###',
+      mask: '####.####.####',
       filter: {"#": RegExp(r'[0-9]')},
       type: MaskAutoCompletionType.lazy);
 
   @override
-  TextInputFormatter? get formatter => maskFormatter;
+  TextInputFormatter get formatter => maskFormatter;
   @override
   TextInputType? get inputType => TextInputType.number;
 
-  const Zipcode(String value) : super("CEP", value);
+  const NumberVoteId(String value) : super("Número", value);
+  const NumberVoteId.empty() : super("Número", "");
 
-  const Zipcode.empty() : super("CEP", "");
-
-  factory Zipcode.createFormatNumber(String number) => Zipcode(format(number));
+  factory NumberVoteId.createFormatted(String number) =>
+      NumberVoteId(format(number));
 
   static String format(String rawNumber) {
     maskFormatter.formatEditUpdate(
@@ -28,19 +29,22 @@ class Zipcode extends TextPropBase {
   }
 
   @override
-  String? validate(String? value) {
-    if (value == null || value.isEmpty) {
-      return "O $displayName não pode ser vazio.";
-    }
-    final cepRegex = RegExp(r'^\d{5}-?\d{3}$');
-    if (cepRegex.hasMatch(value) == false) {
-      return "$displayName inválido.";
-    }
-    return null;
+  NumberVoteId copyWith({String? value}) {
+    return NumberVoteId(value ?? this.value);
   }
 
   @override
-  Zipcode copyWith({String? value}) {
-    return Zipcode(value ?? this.value);
+  String? validate(String? value) {
+    value = VoteIdValidator.strip(value);
+    if (value.isEmpty) {
+      return "O $displayName não pode ser vazio.";
+    }
+    if (value.length > 12) {
+      return "o $displayName não pode ser maior que 12 caracteres.";
+    }
+    if (VoteIdValidator.isValid(value) == false) {
+      return "o $displayName não é valido.";
+    }
+    return null;
   }
 }

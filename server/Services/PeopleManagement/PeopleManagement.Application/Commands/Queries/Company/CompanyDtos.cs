@@ -1,4 +1,4 @@
-﻿namespace PeopleManagement.Application.Queries.Company
+﻿namespace PeopleManagement.Application.Commands.Queries.Company
 {
     public record CompanySimplefiedDTO
     {

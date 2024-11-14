@@ -4,11 +4,10 @@ import 'package:flutter/services.dart';
 abstract class TextPropBase extends Equatable {
   final String displayName;
   final String value;
-  final TextInputFormatter? formatter;
-  final TextInputType? inputType;
+  TextInputFormatter? get formatter => null;
+  TextInputType? get inputType => null;
 
-  const TextPropBase(this.displayName, this.value,
-      {this.formatter, this.inputType});
+  const TextPropBase(this.displayName, this.value);
 
   TextPropBase copyWith({String? value});
 

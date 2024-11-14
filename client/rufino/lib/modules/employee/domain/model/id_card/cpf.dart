@@ -4,18 +4,20 @@ import 'package:rufino/modules/employee/domain/model/base/text_prop_base.dart';
 import 'package:rufino/shared/util/cpf_validator.dart';
 
 class Cpf extends TextPropBase {
-  static final maskFormatter = MaskTextInputFormatter(
+  static final MaskTextInputFormatter maskFormatter = MaskTextInputFormatter(
       mask: '###.###.###-##',
       filter: {"#": RegExp(r'[0-9]')},
       type: MaskAutoCompletionType.lazy);
 
+  @override
+  TextInputFormatter get formatter => maskFormatter;
+  @override
+  TextInputType? get inputType => TextInputType.number;
+
   static const numberInputType = TextInputType.number;
 
-  Cpf(String value)
-      : super("CPF", value,
-            formatter: maskFormatter, inputType: numberInputType);
-  const Cpf.empty()
-      : super("CPF", "", formatter: null, inputType: numberInputType);
+  const Cpf(String value) : super("CPF", value);
+  const Cpf.empty() : super("CPF", "");
 
   factory Cpf.createFormatted(String number) => Cpf(format(number));
 

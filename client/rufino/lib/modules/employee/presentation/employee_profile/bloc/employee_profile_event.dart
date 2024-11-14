@@ -83,3 +83,25 @@ class SaveIdCardEvent extends EmployeeProfileEvent {
   @override
   List<Object> get props => [changes];
 }
+
+class LoadingVoteIdEvent extends EmployeeProfileEvent {}
+
+class SaveVoteIdEvent extends EmployeeProfileEvent {
+  final List<Object> changes;
+
+  const SaveVoteIdEvent(this.changes);
+
+  @override
+  List<Object> get props => [changes];
+}
+
+class LoadingMilitaryDocumentEvent extends EmployeeProfileEvent {}
+
+class SaveMilitaryDocumentEvent extends EmployeeProfileEvent {
+  final List<Object> changes;
+
+  const SaveMilitaryDocumentEvent(this.changes);
+
+  @override
+  List<Object> get props => [changes];
+}

@@ -10,6 +10,7 @@ class PropsContainerComponent extends StatefulWidget {
   final List<BaseEditComponent> children;
   final bool isLoading;
   final bool isLazyLoading;
+  final Function? removeButton;
   const PropsContainerComponent(
       {required this.children,
       required this.containerName,
@@ -17,6 +18,7 @@ class PropsContainerComponent extends StatefulWidget {
       required this.saveContainerData,
       required this.loadingContainerData,
       required this.isLoading,
+      this.removeButton,
       this.loadingLazyContainerData,
       this.isLazyLoading = false,
       super.key});
@@ -106,7 +108,7 @@ class _PropsContainerComponentState extends State<PropsContainerComponent> {
               ? Column(
                   children: [
                     _body(),
-                    _buttons(),
+                    _buttons(context),
                   ],
                 )
               : Container(),
@@ -158,7 +160,7 @@ class _PropsContainerComponentState extends State<PropsContainerComponent> {
     );
   }
 
-  Widget _buttons() {
+  Widget _buttons(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.all(8),
       child: widget.isSavingData
@@ -167,6 +169,21 @@ class _PropsContainerComponentState extends State<PropsContainerComponent> {
               ? Row(
                   mainAxisAlignment: MainAxisAlignment.end,
                   children: [
+                    widget.removeButton == null
+                        ? Container()
+                        : TextButton(
+                            onPressed: () => _confirmAction(
+                                context,
+                                "Remover ${widget.containerName}",
+                                "Deseja remover ${widget.containerName}",
+                                widget.removeButton!),
+                            child: Text(
+                              "Remove",
+                              style: TextStyle(
+                                color: Theme.of(context).colorScheme.error,
+                              ),
+                            ),
+                          ),
                     TextButton(
                       onPressed: () => {changeEditState(false), expand()},
                       child: const Text("Cancelar"),
@@ -185,5 +202,41 @@ class _PropsContainerComponentState extends State<PropsContainerComponent> {
                   ),
                 ),
     );
+  }
+
+  void _confirmAction(
+    BuildContext context,
+    String title,
+    String message,
+    Function onPressed,
+  ) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      showDialog(
+          barrierDismissible: false,
+          context: context,
+          builder: (_) {
+            return AlertDialog(
+              title: Text(title),
+              content: Text(message),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text("Cancelar"),
+                ),
+                TextButton(
+                  onPressed: () {
+                    onPressed();
+                    Navigator.pop(context);
+                  },
+                  child: Text(
+                    "Confirmar",
+                    style:
+                        TextStyle(color: Theme.of(context).colorScheme.error),
+                  ),
+                ),
+              ],
+            );
+          });
+    });
   }
 }

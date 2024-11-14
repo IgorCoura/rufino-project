@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_modular/flutter_modular.dart';
 import 'package:rufino/modules/home/presentation/home/bloc/home_bloc.dart';
-import 'package:rufino/shared/components/error_message_components.dart';
+import 'package:rufino/shared/components/error_components.dart';
 
 class HomePage extends StatelessWidget {
   HomePage({super.key}) {
@@ -19,7 +19,7 @@ class HomePage extends StatelessWidget {
           bloc: bloc,
           builder: (context, state) {
             if (state.exception != null) {
-              ErrorMessageComponent.showAlertDialog(
+              ErrorComponent.showException(
                   context, state.exception!, () => Modular.to.navigate("/"));
             }
             var title =

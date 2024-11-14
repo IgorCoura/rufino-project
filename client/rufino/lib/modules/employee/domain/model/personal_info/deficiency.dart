@@ -9,7 +9,7 @@ class Deficiency extends EnumerationList<Disability> {
       : super("Deficiência", list);
 
   const Deficiency.empty({this.observation = const Observation.empty()})
-      : super("Deficiência", const []);
+      : super("Deficiência", const [Disability.empty()]);
 
   static Deficiency fromJson(Map<String, dynamic> json) {
     return Deficiency(Observation(json["observation"]),

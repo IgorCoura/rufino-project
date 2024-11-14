@@ -1,5 +1,5 @@
 import 'package:equatable/equatable.dart';
-import 'package:rufino/modules/employee/domain/model/employee/name.dart';
+import 'package:rufino/modules/employee/domain/model/name.dart';
 import 'package:rufino/modules/employee/domain/model/status.dart';
 
 class Employee extends Equatable {

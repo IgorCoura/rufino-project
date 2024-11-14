@@ -1,21 +1,21 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:rufino/modules/employee/domain/model/base/text_prop_base.dart';
 import 'package:mask_text_input_formatter/mask_text_input_formatter.dart';
 
 class Cellphone extends TextPropBase {
-  static final maskFormatter = MaskTextInputFormatter(
+  static final MaskTextInputFormatter maskFormatter = MaskTextInputFormatter(
       mask: '(##) #####-####',
       filter: {"#": RegExp(r'[0-9]')},
       type: MaskAutoCompletionType.lazy);
 
-  static const numberInputType = TextInputType.number;
+  @override
+  TextInputFormatter? get formatter => maskFormatter;
+  @override
+  TextInputType? get inputType => TextInputType.number;
 
-  Cellphone(String value)
-      : super("Celular", value,
-            formatter: maskFormatter, inputType: numberInputType);
+  const Cellphone(String value) : super("Celular", value);
 
-  const Cellphone.empty()
-      : super("Celular", "", formatter: null, inputType: null);
+  const Cellphone.empty() : super("Celular", "");
 
   factory Cellphone.createFormatNumber(String number) =>
       Cellphone(formatNumber(number));

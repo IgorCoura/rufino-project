@@ -1,5 +1,5 @@
-﻿using PeopleManagement.Application.Queries.Company;
-using PeopleManagement.Application.Queries.Employee;
+﻿using PeopleManagement.Application.Commands.Queries.Company;
+using PeopleManagement.Application.Commands.Queries.Employee;
 
 namespace PeopleManagement.API.DependencyInjection
 {

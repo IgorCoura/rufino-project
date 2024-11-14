@@ -4,10 +4,8 @@ using PeopleManagement.Domain.ErrorTools.ErrorsMessages;
 using PeopleManagement.Domain.ErrorTools;
 using PeopleManagement.Domain.SeedWord;
 using PeopleManagement.Infra.Context;
-using static Microsoft.EntityFrameworkCore.DbLoggerCategory;
-using System.Runtime.Intrinsics.Arm;
 
-namespace PeopleManagement.Application.Queries.Employee
+namespace PeopleManagement.Application.Commands.Queries.Employee
 {
     public class EmployeeQueries(PeopleManagementContext peopleManagementContext) : IEmployeeQueries
     {
@@ -15,8 +13,8 @@ namespace PeopleManagement.Application.Queries.Employee
 
         public async Task<IEnumerable<EmployeeWithRoleDto>> GetEmployeeListWithRoles(EmployeeParams pms, Guid company)
         {
-            var query = 
-                (
+            var query =
+
                     from e in _context.Employees
                     join r in _context.Roles on e.RoleId equals r.Id into roleGroup
                     from r in roleGroup.DefaultIfEmpty()
@@ -25,7 +23,7 @@ namespace PeopleManagement.Application.Queries.Employee
                         Employee = e,
                         Role = r
                     }
-                );
+                ;
 
             query = query.Where(e => e.Employee.CompanyId == company);
 
@@ -49,7 +47,7 @@ namespace PeopleManagement.Application.Queries.Employee
                 ? query.OrderBy(e => e.Employee.Name)
                 : query.OrderByDescending(e => e.Employee.Name);
 
-   
+
             query = query.Skip(pms.SizeSkip).Take(pms.PageSize);
 
             var result = await query.Select(o => new EmployeeWithRoleDto
@@ -85,7 +83,7 @@ namespace PeopleManagement.Application.Queries.Employee
                     Name = o.Status.Name,
                 },
                 CompanyId = o.CompanyId
-            }).FirstOrDefaultAsync() 
+            }).FirstOrDefaultAsync()
                 ?? throw new DomainException(this, DomainErrors.ObjectNotFound(nameof(Employee), id.ToString()));
 
             return result;
@@ -131,7 +129,7 @@ namespace PeopleManagement.Application.Queries.Employee
 
         public async Task<EmployeePersonalInfoDto> GetEmployeePersonalInfo(Guid id, Guid company)
         {
-            var query = await  _context.Employees.Where(e => e.Id == id && e.CompanyId == company).FirstOrDefaultAsync()
+            var query = await _context.Employees.Where(e => e.Id == id && e.CompanyId == company).FirstOrDefaultAsync()
                 ?? throw new DomainException(this, DomainErrors.ObjectNotFound(nameof(Employee), id.ToString()));
 
             var result = new EmployeePersonalInfoDto
@@ -167,13 +165,13 @@ namespace PeopleManagement.Application.Queries.Employee
                 CompanyId = o.CompanyId,
                 IdCard = o.IdCard == null ? IdCardDto.Empty : new IdCardDto
                 {
-                    Cpf =   o.IdCard!.Cpf.Number,
-                    MotherName =  o.IdCard.MotherName.Value,
-                    FatherName =  o.IdCard.FatherName.Value,
-                    BirthCity =  o.IdCard.BirthCity ,
+                    Cpf = o.IdCard!.Cpf.Number,
+                    MotherName = o.IdCard.MotherName.Value,
+                    FatherName = o.IdCard.FatherName.Value,
+                    BirthCity = o.IdCard.BirthCity,
                     BirthState = o.IdCard.BirthState,
                     Nacionality = o.IdCard.Nacionality,
-                    DateOfBirth =  o.IdCard.DateOfBirth,
+                    DateOfBirth = o.IdCard.DateOfBirth,
                 },
             }).FirstOrDefaultAsync()
                 ?? throw new DomainException(this, DomainErrors.ObjectNotFound(nameof(Employee), id.ToString()));
@@ -194,9 +192,9 @@ namespace PeopleManagement.Application.Queries.Employee
                 ?? throw new DomainException(this, DomainErrors.ObjectNotFound(nameof(Employee), id.ToString()));
 
             return result;
-        } 
-        
-        public async Task<EmployeeMilitaryDocumentDto> GetEmployeeMilitaryDocument(Guid id, Guid company)
+        }
+
+        public async Task<EmployeeMilitaryDocumentDto> GetEmployeeMilitaryDocument(Guid id, Guid company, bool isRequired)
         {
             var query = _context.Employees.Where(e => e.Id == id && e.CompanyId == company);
 
@@ -206,6 +204,7 @@ namespace PeopleManagement.Application.Queries.Employee
                 CompanyId = o.CompanyId,
                 Number = o.MilitaryDocument != null ? o.MilitaryDocument.Number : string.Empty,
                 Type = o.MilitaryDocument != null ? o.MilitaryDocument.Type : string.Empty,
+                IsRequired = isRequired == false && o.MilitaryDocument != null || isRequired
             }).FirstOrDefaultAsync()
                 ?? throw new DomainException(this, DomainErrors.ObjectNotFound(nameof(Employee), id.ToString()));
 

@@ -1,4 +1,6 @@
-﻿namespace PeopleManagement.API.Authorization
+﻿using static PeopleManagement.API.Authorization.AuthorizationServerClient;
+
+namespace PeopleManagement.API.Authorization
 {
     public interface IAuthorizationServerClient
     {

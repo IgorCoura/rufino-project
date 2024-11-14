@@ -1,7 +1,16 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_modular/flutter_modular.dart';
 import 'package:rufino/shared/errors/aplication_errors.dart';
 
-class ErrorMessageComponent {
+class ErrorComponent {
+  static void showException(BuildContext context, AplicationException exception,
+      Function defaultCallBack) {
+    if (exception.code == AplicationErrors.auth.unauthenticatedAccess.code) {
+      showAlertDialog(context, exception, () => Modular.to.navigate("/"));
+    }
+    showAlertDialog(context, exception, () => defaultCallBack());
+  }
+
   static void showAlertDialog(
       BuildContext context, AplicationException exception, Function onPressed) {
     WidgetsBinding.instance.addPostFrameCallback((_) {

@@ -14,9 +14,12 @@ using PeopleManagement.Application.Commands.EmployeeCommands.CompleteAdmissionEm
 using PeopleManagement.Application.Commands.EmployeeCommands.CreateDependentEmployee;
 using PeopleManagement.Application.Commands.EmployeeCommands.CreateEmployee;
 using PeopleManagement.Application.Commands.EmployeeCommands.FinishedContractEmployee;
+using PeopleManagement.Application.Commands.EmployeeCommands.IsRequiredMilitaryDocumentEmployee;
+using PeopleManagement.Application.Commands.EmployeeCommands.RemoveDependentEmployee;
 using PeopleManagement.Application.Commands.Identified;
-using PeopleManagement.Application.Queries.Employee;
+using PeopleManagement.Application.Commands.Queries.Employee;
 using PeopleManagement.Domain.AggregatesModel.EmployeeAggregate;
+using static Microsoft.EntityFrameworkCore.DbLoggerCategory.Database;
 
 namespace PeopleManagement.API.Controllers
 {
@@ -68,20 +71,7 @@ namespace PeopleManagement.API.Controllers
             return OkResponse(result);
         }
 
-        [HttpPut("Dependent")]
-        [ProtectedResource("employee", "edit")]
-        public async Task<ActionResult<AlterDependentEmployeeResponse>> AlterDependent([FromRoute] Guid company, [FromBody] AlterDependentEmployeeModel request, [FromHeader(Name = "x-requestid")] Guid requestId)
-        {
-            var command = new IdentifiedCommand<AlterDependentEmployeeCommand, AlterDependentEmployeeResponse>(request.ToCommand(company), requestId);
-
-            SendingCommandLog(request.EmployeeId, request, requestId);
-
-            var result = await mediator.Send(command);
-
-            CommandResultLog(result, request.EmployeeId, request, requestId);
-
-            return OkResponse(result);
-        }
+        
 
         [HttpPut("IdCard")]
         [ProtectedResource("employee", "edit")]
@@ -226,7 +216,7 @@ namespace PeopleManagement.API.Controllers
             return OkResponse(result);
         }
 
-        [HttpPost("Dependent")]
+        [HttpPut("Dependent/Create")]
         [ProtectedResource("employee", "edit")]
         public async Task<ActionResult<CreateDependentEmployeeResponse>> CreateDependent([FromRoute] Guid company,
             [FromBody] CreateDependentEmployeeModel request, [FromHeader(Name = "x-requestid")] Guid requestId)
@@ -241,6 +231,37 @@ namespace PeopleManagement.API.Controllers
 
             return OkResponse(result);
         }
+
+        [HttpPut("Dependent/Edit")]
+        [ProtectedResource("employee", "edit")]
+        public async Task<ActionResult<AlterDependentEmployeeResponse>> AlterDependent([FromRoute] Guid company, [FromBody] AlterDependentEmployeeModel request, [FromHeader(Name = "x-requestid")] Guid requestId)
+        {
+            var command = new IdentifiedCommand<AlterDependentEmployeeCommand, AlterDependentEmployeeResponse>(request.ToCommand(company), requestId);
+
+            SendingCommandLog(request.EmployeeId, request, requestId);
+
+            var result = await mediator.Send(command);
+
+            CommandResultLog(result, request.EmployeeId, request, requestId);
+
+            return OkResponse(result);
+        }
+
+        [HttpPut("Dependent/Remove")]
+        [ProtectedResource("employee", "edit")]
+        public async Task<ActionResult<RemoveDependentEmployeeResponse>> RemoveDependent([FromRoute] Guid company, [FromBody] RemoveDependentEmployeeModel request, [FromHeader(Name = "x-requestid")] Guid requestId)
+        {
+            var command = new IdentifiedCommand<RemoveDependentEmployeeCommand, RemoveDependentEmployeeResponse>(request.ToCommand(company), requestId);
+
+            SendingCommandLog(request.EmployeeId, request, requestId);
+
+            var result = await mediator.Send(command);
+
+            CommandResultLog(result, request.EmployeeId, request, requestId);
+
+            return OkResponse(result);
+        }
+
 
         [HttpPut("Contract/Finished")]
         [ProtectedResource("employee", "edit")]
@@ -319,11 +340,14 @@ namespace PeopleManagement.API.Controllers
         [ProtectedResource("employee", "view")]
         public async Task<ActionResult<EmployeeMilitaryDocumentDto>> GetEmployeeMilitaryDocument([FromRoute] Guid company, [FromRoute] Guid id)
         {
-            var result = await employeeQueries.GetEmployeeMilitaryDocument(id, company);
+            var command = new IsRequiredMilitaryDocumentEmployeeCommand(id, company);
+            var documentIsRequired = await mediator.Send(command);
+            var result = await employeeQueries.GetEmployeeMilitaryDocument(id, company, documentIsRequired.IsRequired);
             return OkResponse(result);
         }
-        
-        [HttpGet("employeedependents/{id}")]
+
+
+        [HttpGet("dependents/{id}")]
         [ProtectedResource("employee", "view")]
         public async Task<ActionResult<EmployeeDependentsDto>> GetEmployeeDependents([FromRoute] Guid company, [FromRoute] Guid id)
         {
@@ -354,6 +378,22 @@ namespace PeopleManagement.API.Controllers
         public ActionResult<IEnumerable<Disability>> GetDisability([FromRoute] Guid company)
         {
             var result = Disability.GetAll<Disability>();
+            return OkResponse(result);
+        }
+
+        [HttpGet("gender")]
+        [ProtectedResource("employee", "view")]
+        public ActionResult<IEnumerable<Gender>> GetGender([FromRoute] Guid company)
+        {
+            var result = Disability.GetAll<Gender>();
+            return OkResponse(result);
+        }
+
+        [HttpGet("dependencytype")]
+        [ProtectedResource("employee", "view")]
+        public ActionResult<IEnumerable<DependencyType>> GetDependencyType([FromRoute] Guid company)
+        {
+            var result = Disability.GetAll<DependencyType>();
             return OkResponse(result);
         }
 

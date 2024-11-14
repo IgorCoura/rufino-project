@@ -22,7 +22,11 @@ namespace PeopleManagement.API.Authentication
 
             configuration.GetSection(KeycloakAuthenticationOptions.Section).Bind(keycloakAuthenticationOptions);
 
-            builder.AddJwtBearer(options => options.SetKeycloakOption(keycloakAuthenticationOptions));
+            builder.AddJwtBearer(options =>
+            {
+                options.SetKeycloakOption(keycloakAuthenticationOptions);
+
+            });
 
             return services;
         }
