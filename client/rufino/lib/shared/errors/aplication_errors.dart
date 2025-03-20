@@ -29,10 +29,11 @@ class AplicationErrors {
 }
 
 class AplicationException implements Exception {
-  const AplicationException(this.code, this.message);
+  const AplicationException(this.code, this.message, {this.callBackPage = ""});
 
   final String code;
   final String message;
+  final String callBackPage;
 
   @override
   String toString() => 'AplicationError(code: $code, message: $message)';
@@ -56,8 +57,9 @@ class AplicationErrorFactory {
     _codeAcronym = value.toUpperCase();
   }
 
-  newError(int code, String message) =>
-      AplicationException(_createCodeError(code), message);
+  newError(int code, String message, {String callBackPage = ""}) =>
+      AplicationException(_createCodeError(code), message,
+          callBackPage: callBackPage);
 
   String _createCodeError(int code) {
     if (code < 0) {

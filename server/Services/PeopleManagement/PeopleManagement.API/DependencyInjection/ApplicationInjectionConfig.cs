@@ -1,5 +1,6 @@
 ﻿using PeopleManagement.Application.Commands.Queries.Company;
 using PeopleManagement.Application.Commands.Queries.Employee;
+using PeopleManagement.Application.Commands.Queries.Role;
 
 namespace PeopleManagement.API.DependencyInjection
 {
@@ -12,6 +13,7 @@ namespace PeopleManagement.API.DependencyInjection
 
             service.AddScoped<IEmployeeQueries, EmployeeQueries>();
             service.AddScoped<ICompanyQueries, CompanyQueries>();
+            service.AddScoped<IRoleQueries, RoleQueries>();
 
             return service;
         }

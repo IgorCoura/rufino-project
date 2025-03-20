@@ -112,7 +112,7 @@ for folder in folders:
             files_renames.append(name)
         except Exception as e:
             list_errors.append(f"{e}")
-            continuejhj
+            continue
             count -= 1
             print(f"{folder}: {count}/{len(files)}")
     check_name_list_not_used(folder, files_renames, list_of_lines, list_names_not_found)

@@ -236,7 +236,18 @@ class EmployeeProfilePage extends StatelessWidget {
                                 .map(
                                     (prop) => TextEditComponent(textProp: prop))
                                 .toList(),
-                          )
+                          ),
+                          PropsContainerComponent(
+                              containerName: "Informações do Cargo",
+                              isSavingData: state.isSavingData,
+                              saveContainerData: (changes) {},
+                              loadingContainerData: () {},
+                              isLoading: state.role.isLoading,
+                              children: [
+                                EnumerationViewComponent(
+                                    enumeration: state.role.roleName,
+                                    listEnumerationOptions: [])
+                              ])
                         ],
                       );
               },

@@ -192,7 +192,7 @@ namespace PeopleManagement.IntegrationTests.Tests
             Assert.Equal(HttpStatusCode.OK, response.StatusCode);
             var content = await response.Content.ReadFromJsonAsync(typeof(AlterDependentEmployeeResponse)) as AlterDependentEmployeeResponse ?? throw new ArgumentNullException();
             var result = await context.Employees.AsNoTracking().FirstOrDefaultAsync(x => x.Id == content.Id) ?? throw new ArgumentNullException();
-            var expected = command.CurrentDepentent.ToDependent();
+            var expected = command.CurrentDependent.ToDependent();
             Assert.Single(result.Dependents);
             Assert.Equal(expected, result.Dependents.FirstOrDefault(x => x.Name.Equals(expected.Name)));
             await CheckRequestDocumentEvent(context, RequestFilesEvent.ChildDocument(employee.Id, employee.CompanyId), cancellationToken);

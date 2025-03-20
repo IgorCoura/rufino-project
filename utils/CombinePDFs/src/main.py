@@ -20,7 +20,7 @@ def merge_pdfs(pdf1_path, pdf2_path, output_path):
             pdf_writer.add_page(page)
 
     # Escrever o conteúdo combinado em um novo arquivo PDF
-    with open(output_path, 'wb') as merged_pdf_file:
+    with open(output_path, 'wb') as merged_pdf_file:        
         pdf_writer.write(merged_pdf_file)
 
     print(f'Os PDFs foram combinados com sucesso em: {output_path}')
@@ -49,8 +49,8 @@ base_path = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__fi
 folders_input = base_path + '/input'
 folders_output = base_path + '/output'
 
-folder_merge1 = folders_input + '/MARGE1'
-folder_merge2 = folders_input + '/MARGE2'
+folder_merge1 = folders_input + '/MARGE_RP'
+folder_merge2 = folders_input + '/MARGE_CO'
 
 list_file_merge1 = os.listdir(folder_merge1)
 list_file_merge2 = os.listdir(folder_merge2)
