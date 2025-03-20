@@ -4,6 +4,7 @@ using PeopleManagement.Domain.ErrorTools.ErrorsMessages;
 using PeopleManagement.Domain.ErrorTools;
 using PeopleManagement.Domain.SeedWord;
 using PeopleManagement.Infra.Context;
+using static PeopleManagement.Application.Commands.Queries.Base.BaseDtos;
 
 namespace PeopleManagement.Application.Commands.Queries.Employee
 {
@@ -82,7 +83,8 @@ namespace PeopleManagement.Application.Commands.Queries.Employee
                     Id = o.Status.Id,
                     Name = o.Status.Name,
                 },
-                CompanyId = o.CompanyId
+                CompanyId = o.CompanyId,
+                RoleId = o.RoleId
             }).FirstOrDefaultAsync()
                 ?? throw new DomainException(this, DomainErrors.ObjectNotFound(nameof(Employee), id.ToString()));
 

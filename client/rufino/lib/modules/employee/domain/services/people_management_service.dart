@@ -14,6 +14,7 @@ import 'package:rufino/modules/employee/domain/model/id_card/id_card.dart';
 import 'package:rufino/modules/employee/domain/model/personal_info/personal_info.dart';
 import 'package:rufino/modules/employee/domain/model/personal_info/personal_info_seletion_options.dart';
 import 'package:rufino/modules/employee/domain/model/status.dart';
+import 'package:rufino/modules/employee/domain/role/role.dart';
 import 'package:rufino/shared/services/base_service.dart';
 
 class PeopleManagementService extends BaseService {
@@ -445,6 +446,18 @@ class PeopleManagementService extends BaseService {
     if (response.statusCode == 200) {
       List<dynamic> jsonResponse = jsonDecode(response.body);
       return Gender.fromListJson(jsonResponse);
+    }
+    return treatUnsuccessfulResponses(response);
+  }
+
+  Future<Role> getRole(String companyId, String roleId) async {
+    var headers = await getHeaders();
+    var url =
+        peopleManagementUrl.replace(path: "/api/v1/$companyId/role/$roleId");
+    var response = await http.get(url, headers: headers);
+    if (response.statusCode == 200) {
+      dynamic jsonResponse = jsonDecode(response.body);
+      return Role.fromJson(jsonResponse);
     }
     return treatUnsuccessfulResponses(response);
   }

@@ -5,10 +5,12 @@ import 'package:rufino/shared/errors/aplication_errors.dart';
 class ErrorComponent {
   static void showException(BuildContext context, AplicationException exception,
       Function defaultCallBack) {
-    if (exception.code == AplicationErrors.auth.unauthenticatedAccess.code) {
-      showAlertDialog(context, exception, () => Modular.to.navigate("/"));
+    if (exception.callBackPage.isNotEmpty) {
+      showAlertDialog(context, exception,
+          () => Modular.to.navigate(exception.callBackPage));
+    } else {
+      showAlertDialog(context, exception, () => defaultCallBack());
     }
-    showAlertDialog(context, exception, () => defaultCallBack());
   }
 
   static void showAlertDialog(

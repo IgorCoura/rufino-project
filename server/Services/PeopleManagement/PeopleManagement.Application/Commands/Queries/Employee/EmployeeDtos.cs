@@ -1,4 +1,6 @@
-﻿namespace PeopleManagement.Application.Commands.Queries.Employee
+﻿using static PeopleManagement.Application.Commands.Queries.Base.BaseDtos;
+
+namespace PeopleManagement.Application.Commands.Queries.Employee
 {
     public record EmployeeWithRoleDto
     {
@@ -19,6 +21,7 @@
         public string Name { get; init; } = string.Empty;
         public string? Registration { get; init; }
         public EnumerationDto Status { get; init; } = EnumerationDto.Empty;
+        public Guid? RoleId { get; init; }
         public Guid CompanyId { get; init; }
     }
     public record EmployeeParams
@@ -132,18 +135,6 @@
         public EnumerationDto DependencyType { get; init; } = EnumerationDto.Empty;
     }
 
-    public record EnumerationDto
-    {
-        private EnumerationDto(int id, string name)
-        {
-            Id = id;
-            Name = name;
-        }
-        public EnumerationDto() { }
-        public int Id { get; init; }
-        public string Name { get; init; } = string.Empty;
-        public static EnumerationDto Empty => new(-1, "");
-    }
 
     public record MedicalAdmissionExamDto
     {

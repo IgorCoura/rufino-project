@@ -13,6 +13,7 @@ import 'package:rufino/modules/employee/domain/model/id_card/id_card.dart';
 import 'package:rufino/modules/employee/domain/model/personal_info/personal_info.dart';
 import 'package:rufino/modules/employee/domain/model/personal_info/personal_info_seletion_options.dart';
 import 'package:rufino/modules/employee/domain/model/status.dart';
+import 'package:rufino/modules/employee/domain/role/role.dart';
 import 'package:rufino/modules/employee/domain/services/people_management_service.dart';
 import 'package:rufino/shared/errors/aplication_errors.dart';
 
@@ -55,14 +56,17 @@ class EmployeeProfileBloc
       var company = await _companyService.getSelectedCompany();
       var employee = await _peopleManagementService.getEmployee(
           event.employeeId, company.id);
+      var role =
+          await _peopleManagementService.getRole(company.id, employee.roleId);
       if (state.militaryDocument.isLoading) {
         var militaryDocument = await _peopleManagementService
             .getEmployeeMilitaryDocument(employee.id, company.id);
 
         emit(state.copyWith(militaryDocument: militaryDocument));
       }
+
       emit(state.copyWith(
-          company: company, employee: employee, isLoading: false));
+          company: company, employee: employee, role: role, isLoading: false));
     } catch (ex, stacktrace) {
       var exception = _peopleManagementService.treatErrors(ex, stacktrace);
       emit(state.copyWith(isLoading: false, exception: exception));

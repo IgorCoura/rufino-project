@@ -16,6 +16,7 @@ class EmployeeProfileState extends Equatable {
   final VoteId voteId;
   final MilitaryDocument militaryDocument;
   final MedicalAdmissionExam medicalAdmissionExam;
+  final Role role;
 
   const EmployeeProfileState({
     this.company = const Company.empty(),
@@ -33,6 +34,7 @@ class EmployeeProfileState extends Equatable {
     this.voteId = const VoteId.loading(),
     this.militaryDocument = const MilitaryDocument.loading(),
     this.medicalAdmissionExam = const MedicalAdmissionExam.loading(),
+    this.role = const Role.loading(),
   });
 
   EmployeeProfileState copyWith({
@@ -52,6 +54,7 @@ class EmployeeProfileState extends Equatable {
     VoteId? voteId,
     MilitaryDocument? militaryDocument,
     MedicalAdmissionExam? medicalAdmissionExam,
+    Role? role,
   }) =>
       EmployeeProfileState(
         company: company ?? this.company,
@@ -70,6 +73,7 @@ class EmployeeProfileState extends Equatable {
         voteId: voteId ?? this.voteId,
         militaryDocument: militaryDocument ?? this.militaryDocument,
         medicalAdmissionExam: medicalAdmissionExam ?? this.medicalAdmissionExam,
+        role: role ?? this.role,
       );
 
   @override
@@ -89,5 +93,6 @@ class EmployeeProfileState extends Equatable {
         voteId,
         militaryDocument,
         medicalAdmissionExam,
+        role,
       ];
 }
