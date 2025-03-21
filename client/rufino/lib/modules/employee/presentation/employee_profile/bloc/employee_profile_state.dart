@@ -16,7 +16,12 @@ class EmployeeProfileState extends Equatable {
   final VoteId voteId;
   final MilitaryDocument militaryDocument;
   final MedicalAdmissionExam medicalAdmissionExam;
-  final Role role;
+  final RoleInfo roleInfo;
+  final List<Department> listDepartment;
+  final List<Position> listPosition;
+  final List<Role> listRolen;
+  final Workplace workplace;
+  final List<Workplace> listWorkplace;
 
   const EmployeeProfileState({
     this.company = const Company.empty(),
@@ -34,7 +39,12 @@ class EmployeeProfileState extends Equatable {
     this.voteId = const VoteId.loading(),
     this.militaryDocument = const MilitaryDocument.loading(),
     this.medicalAdmissionExam = const MedicalAdmissionExam.loading(),
-    this.role = const Role.loading(),
+    this.roleInfo = const RoleInfo.loading(),
+    this.listDepartment = const [],
+    this.listPosition = const [],
+    this.listRolen = const [],
+    this.workplace = const Workplace.empty(),
+    this.listWorkplace = const [],
   });
 
   EmployeeProfileState copyWith({
@@ -54,7 +64,12 @@ class EmployeeProfileState extends Equatable {
     VoteId? voteId,
     MilitaryDocument? militaryDocument,
     MedicalAdmissionExam? medicalAdmissionExam,
-    Role? role,
+    RoleInfo? roleInfo,
+    List<Department>? listDepartment,
+    List<Position>? listPosition,
+    List<Role>? listRolen,
+    Workplace? workplace,
+    List<Workplace>? listWorkplace,
   }) =>
       EmployeeProfileState(
         company: company ?? this.company,
@@ -73,7 +88,12 @@ class EmployeeProfileState extends Equatable {
         voteId: voteId ?? this.voteId,
         militaryDocument: militaryDocument ?? this.militaryDocument,
         medicalAdmissionExam: medicalAdmissionExam ?? this.medicalAdmissionExam,
-        role: role ?? this.role,
+        roleInfo: roleInfo ?? this.roleInfo,
+        listDepartment: listDepartment ?? this.listDepartment,
+        listPosition: listPosition ?? this.listPosition,
+        listRolen: listRolen ?? this.listRolen,
+        workplace: workplace ?? this.workplace,
+        listWorkplace: listWorkplace ?? this.listWorkplace,
       );
 
   @override
@@ -93,6 +113,11 @@ class EmployeeProfileState extends Equatable {
         voteId,
         militaryDocument,
         medicalAdmissionExam,
-        role,
+        roleInfo,
+        listDepartment.hashCode,
+        listPosition.hashCode,
+        listRolen.hashCode,
+        workplace,
+        listWorkplace.hashCode,
       ];
 }

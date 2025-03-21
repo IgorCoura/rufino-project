@@ -13,7 +13,11 @@ import 'package:rufino/modules/employee/domain/model/id_card/id_card.dart';
 import 'package:rufino/modules/employee/domain/model/personal_info/personal_info.dart';
 import 'package:rufino/modules/employee/domain/model/personal_info/personal_info_seletion_options.dart';
 import 'package:rufino/modules/employee/domain/model/status.dart';
-import 'package:rufino/modules/employee/domain/role/role.dart';
+import 'package:rufino/modules/employee/domain/model/workplace/workplace.dart';
+import 'package:rufino/modules/employee/domain/role_info/department.dart';
+import 'package:rufino/modules/employee/domain/role_info/position.dart';
+import 'package:rufino/modules/employee/domain/role_info/role.dart';
+import 'package:rufino/modules/employee/domain/role_info/role_info.dart';
 import 'package:rufino/modules/employee/domain/services/people_management_service.dart';
 import 'package:rufino/shared/errors/aplication_errors.dart';
 
@@ -47,6 +51,14 @@ class EmployeeProfileBloc
     on<SaveMilitaryDocumentEvent>(_onSaveMilitaryDocumentEvent);
     on<LoadingMedicalAdmissionExamEvent>(_onLoadingMedicalAdmissionExamEvent);
     on<SaveMedicalAdmissionExamEvent>(_onSaveMedicalAdmissionExamEvent);
+    on<LoadingRoleEvent>(_onLoadingRoleEvent);
+    on<LazyLoadingRoleInfoEvent>(_onLazyLoadingRoleInfoEvent);
+    on<ChangeRoleInfoEvent>(_onChangeRoleInfoEvent);
+    on<SaveRoleInfoEvent>(_onSaveRoleInfoEvent);
+    on<LoadingWorkplaceEvent>(_onLoadingWorkplaceEvent);
+    on<LazyLoadingWorkplaceEvent>(_onLazyLoadingWorkplaceEvent);
+    on<ChangeWorkplaceEvent>(_onChangeWorkplaceEvent);
+    on<SaveWorkplaceEvent>(_onSaveWorkplaceEvent);
   }
 
   Future _onInitialEvent(InitialEmployeeProfileEvent event,
@@ -56,8 +68,7 @@ class EmployeeProfileBloc
       var company = await _companyService.getSelectedCompany();
       var employee = await _peopleManagementService.getEmployee(
           event.employeeId, company.id);
-      var role =
-          await _peopleManagementService.getRole(company.id, employee.roleId);
+
       if (state.militaryDocument.isLoading) {
         var militaryDocument = await _peopleManagementService
             .getEmployeeMilitaryDocument(employee.id, company.id);
@@ -66,7 +77,7 @@ class EmployeeProfileBloc
       }
 
       emit(state.copyWith(
-          company: company, employee: employee, role: role, isLoading: false));
+          company: company, employee: employee, isLoading: false));
     } catch (ex, stacktrace) {
       var exception = _peopleManagementService.treatErrors(ex, stacktrace);
       emit(state.copyWith(isLoading: false, exception: exception));
@@ -368,5 +379,133 @@ class EmployeeProfileBloc
         isSavingData: false,
         isEditingName: false,
         snackMessage: "Exame medico admissional foi alterado com sucesso."));
+  }
+
+  Future _onLoadingRoleEvent(
+      LoadingRoleEvent event, Emitter<EmployeeProfileState> emit) async {
+    try {
+      var roleInfo = await _peopleManagementService.getRole(
+          state.company.id, state.employee.roleId);
+
+      emit(state.copyWith(roleInfo: roleInfo));
+    } catch (ex, stacktrace) {
+      var exception = _peopleManagementService.treatErrors(ex, stacktrace);
+      emit(state.copyWith(
+          isLoading: false, isSavingData: false, exception: exception));
+    }
+  }
+
+  Future _onLazyLoadingRoleInfoEvent(LazyLoadingRoleInfoEvent event,
+      Emitter<EmployeeProfileState> emit) async {
+    emit(
+        state.copyWith(roleInfo: state.roleInfo.copyWith(isLazyLoading: true)));
+
+    var departments =
+        await _peopleManagementService.getAllDepartment(state.company.id);
+    List<Position> positons = [];
+    if (state.roleInfo.department != const Department.empty()) {
+      positons = await _peopleManagementService.getAllPosition(
+          state.roleInfo.department.id, state.company.id);
+    }
+    List<Role> roles = [];
+    if (state.roleInfo.position != const Position.empty()) {
+      roles = await _peopleManagementService.getAllRole(
+          state.roleInfo.position.id, state.company.id);
+    }
+
+    emit(state.copyWith(
+        listDepartment: departments,
+        listPosition: positons,
+        listRolen: roles,
+        roleInfo: state.roleInfo.copyWith(isLazyLoading: false)));
+  }
+
+  Future _onChangeRoleInfoEvent(
+      ChangeRoleInfoEvent event, Emitter<EmployeeProfileState> emit) async {
+    var change = event.change;
+    if (event.change is Department) {
+      var newDepartment = change as Department;
+      var positons = await _peopleManagementService.getAllPosition(
+          newDepartment.id, state.company.id);
+      emit(state.copyWith(
+          listPosition: positons,
+          roleInfo: state.roleInfo.copyWith(
+              depertment: newDepartment,
+              position: const Position.empty(),
+              role: const Role.empty())));
+    }
+    if (event.change is Position) {
+      var newPsoition = change as Position;
+      var roles = await _peopleManagementService.getAllRole(
+          newPsoition.id, state.company.id);
+      emit(state.copyWith(
+          listRolen: roles,
+          roleInfo: state.roleInfo
+              .copyWith(position: newPsoition, role: const Role.empty())));
+    }
+    if (event.change is Role) {
+      emit(state.copyWith(
+          roleInfo: state.roleInfo.copyWith(role: change as Role)));
+    }
+  }
+
+  Future _onSaveRoleInfoEvent(
+      SaveRoleInfoEvent event, Emitter<EmployeeProfileState> emit) async {
+    emit(state.copyWith(isSavingData: true));
+
+    if (state.roleInfo.role != const Role.empty()) {
+      await _peopleManagementService.editRoleInfo(
+          state.employee.id, state.company.id, state.roleInfo.role.id);
+      emit(state.copyWith(
+          employee: state.employee.copyWith(roleId: state.roleInfo.role.id),
+          isSavingData: false,
+          isEditingName: false,
+          snackMessage: "As Informações de Função foi alterado com sucesso."));
+    } else {
+      emit(state.copyWith(
+          isSavingData: false,
+          isEditingName: false,
+          snackMessage: "Por favor, selecione um função valida."));
+    }
+  }
+
+  Future _onLoadingWorkplaceEvent(
+      LoadingWorkplaceEvent event, Emitter<EmployeeProfileState> emit) async {
+    try {
+      var workplace = await _peopleManagementService.getWorkplaceById(
+          state.employee.workplaceId, state.company.id);
+      emit(state.copyWith(workplace: workplace));
+    } catch (ex, stacktrace) {
+      var exception = _peopleManagementService.treatErrors(ex, stacktrace);
+      emit(state.copyWith(
+          isLoading: false, isSavingData: false, exception: exception));
+    }
+  }
+
+  Future _onLazyLoadingWorkplaceEvent(LazyLoadingWorkplaceEvent event,
+      Emitter<EmployeeProfileState> emit) async {
+    var workplaces =
+        await _peopleManagementService.getAllWorkplace(state.company.id);
+    emit(state.copyWith(listWorkplace: workplaces));
+  }
+
+  Future _onChangeWorkplaceEvent(
+      ChangeWorkplaceEvent event, Emitter<EmployeeProfileState> emit) async {
+    var workplace = event.change as Workplace;
+    emit(state.copyWith(workplace: workplace));
+  }
+
+  Future _onSaveWorkplaceEvent(
+      SaveWorkplaceEvent event, Emitter<EmployeeProfileState> emit) async {
+    emit(state.copyWith(isSavingData: true));
+
+    await _peopleManagementService.editWorkplace(
+        state.employee.id, state.company.id, state.workplace.id);
+
+    emit(state.copyWith(
+        employee: state.employee.copyWith(workplaceId: state.workplace.id),
+        isSavingData: false,
+        isEditingName: false,
+        snackMessage: "Local de trabalho alterado com sucesso."));
   }
 }

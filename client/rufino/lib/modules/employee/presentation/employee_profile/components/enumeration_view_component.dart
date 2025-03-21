@@ -6,10 +6,12 @@ import 'package:shimmer/shimmer.dart';
 class EnumerationViewComponent extends BaseEditComponent {
   late final List<Enumeration> _listEnumerationOptions;
   final Enumeration enumeration;
+  final Function(Object obj)? onChanged;
 
   EnumerationViewComponent(
       {required this.enumeration,
       required List<Enumeration> listEnumerationOptions,
+      this.onChanged,
       super.onSaveChanges,
       super.isEditing,
       super.isLoading,
@@ -31,6 +33,7 @@ class EnumerationViewComponent extends BaseEditComponent {
     return EnumerationViewComponent(
         enumeration: enumeration,
         onSaveChanges: onSaveChanges ?? this.onSaveChanges,
+        onChanged: onChanged,
         listEnumerationOptions: _listEnumerationOptions,
         isEditing: isEditing ?? this.isEditing,
         isLoading: isLoading ?? this.isLoading);
@@ -59,7 +62,13 @@ class EnumerationViewComponent extends BaseEditComponent {
             items: _listEnumerationOptions
                 .map((e) => DropdownMenuItem(value: e, child: Text(e.name)))
                 .toList(),
-            onChanged: isEditing ? (Enumeration? value) {} : null,
+            onChanged: isEditing
+                ? (Enumeration? value) {
+                    if (this.onChanged != null && value != null) {
+                      onChanged!(value);
+                    }
+                  }
+                : null,
             onSaved: (newValue) {
               if (onSaveChanges != null && newValue != enumeration) {
                 onSaveChanges!(newValue!);

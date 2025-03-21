@@ -1,4 +1,4 @@
-﻿namespace PeopleManagement.Application.Commands.Queries.Base
+﻿namespace PeopleManagement.Application.Queries.Base
 {
     public class BaseDtos
     {

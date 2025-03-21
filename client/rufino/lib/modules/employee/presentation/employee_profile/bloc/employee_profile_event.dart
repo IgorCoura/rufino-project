@@ -116,3 +116,31 @@ class SaveMedicalAdmissionExamEvent extends EmployeeProfileEvent {
   @override
   List<Object> get props => [changes];
 }
+
+class LoadingRoleEvent extends EmployeeProfileEvent {}
+
+class LazyLoadingRoleInfoEvent extends EmployeeProfileEvent {}
+
+class ChangeRoleInfoEvent extends EmployeeProfileEvent {
+  final Object change;
+
+  const ChangeRoleInfoEvent(this.change);
+  @override
+  List<Object> get props => [change];
+}
+
+class SaveRoleInfoEvent extends EmployeeProfileEvent {}
+
+class LoadingWorkplaceEvent extends EmployeeProfileEvent {}
+
+class LazyLoadingWorkplaceEvent extends EmployeeProfileEvent {}
+
+class ChangeWorkplaceEvent extends EmployeeProfileEvent {
+  final Object change;
+
+  const ChangeWorkplaceEvent(this.change);
+  @override
+  List<Object> get props => [change];
+}
+
+class SaveWorkplaceEvent extends EmployeeProfileEvent {}

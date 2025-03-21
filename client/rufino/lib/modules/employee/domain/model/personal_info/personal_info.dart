@@ -81,10 +81,10 @@ class PersonalInfo extends Equatable {
     return {
       "employeeId": employeeId,
       "deficiency": deficiency.toJson(),
-      "maritalStatus": maritalStatus.id,
-      "gender": gender.id,
-      "ethinicity": ethinicity.id,
-      "educationLevel": educationLevel.id,
+      "maritalStatus": int.parse(maritalStatus.id),
+      "gender": int.parse(gender.id),
+      "ethinicity": int.parse(ethinicity.id),
+      "educationLevel": int.parse(educationLevel.id),
     };
   }
 

@@ -1,6 +1,6 @@
 ﻿using Microsoft.EntityFrameworkCore;
 
-namespace PeopleManagement.Application.Commands.Queries.Company
+namespace PeopleManagement.Application.Queries.Company
 {
     public interface ICompanyQueries
     {

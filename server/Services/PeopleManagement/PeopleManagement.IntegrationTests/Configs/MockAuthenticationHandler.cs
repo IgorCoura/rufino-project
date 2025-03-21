@@ -18,7 +18,7 @@ namespace PeopleManagement.IntegrationTests.Configs
 
         public MockAuthenticationHandler(
             IOptionsMonitor<AuthenticationSchemeOptions> options, ILoggerFactory logger,
-            UrlEncoder encoder, ISystemClock clock) : base(options, logger, encoder, clock)
+            UrlEncoder encoder) : base(options, logger, encoder)
         {
         }
 
@@ -28,7 +28,7 @@ namespace PeopleManagement.IntegrationTests.Configs
         /// </summary>
         protected override Task<AuthenticateResult> HandleAuthenticateAsync()
         {
-            var token = Request.Headers["Authorization"];
+            var token = Request.Headers.Authorization;
 
             if(string.IsNullOrEmpty(token))
             {
@@ -36,7 +36,7 @@ namespace PeopleManagement.IntegrationTests.Configs
             }
 
             var authenticationTicket = new AuthenticationTicket(
-                new ClaimsPrincipal(new ClaimsIdentity([new Claim("Token", token)])),
+                new ClaimsPrincipal(new ClaimsIdentity([new Claim("Token", token!)])),
                 new AuthenticationProperties(),
                 AuthScheme);
 

@@ -73,8 +73,8 @@ class Dependent extends Equatable {
       "employeeId": employeeId,
       "name": name.value,
       "idCard": idCard.toJson(),
-      "gender": gender.id,
-      "dependencyType": type.id,
+      "gender": int.parse(gender.id),
+      "dependencyType": int.parse(type.id),
     };
   }
 
@@ -85,8 +85,8 @@ class Dependent extends Equatable {
       "currentDependent": {
         "name": name.value,
         "idCard": idCard.toJson(),
-        "gender": gender.id,
-        "dependencyType": type.id,
+        "gender": int.parse(gender.id),
+        "dependencyType": int.parse(type.id),
       }
     };
   }

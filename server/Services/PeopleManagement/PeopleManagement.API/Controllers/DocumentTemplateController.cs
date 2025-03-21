@@ -6,7 +6,7 @@ using PeopleManagement.Application.Commands.Identified;
 namespace PeopleManagement.API.Controllers
 {
     [Route("api/v1/[controller]")]
-    public class DocumentTemplateController(ILogger<CompanyController> logger, IMediator mediator) : BaseController(logger)
+    public class DocumentTemplateController(ILogger<DocumentTemplateController> logger, IMediator mediator) : BaseController(logger)
     {
         [HttpPost("Create")]
         [ProtectedResource("DocumentTemplate", "create")]

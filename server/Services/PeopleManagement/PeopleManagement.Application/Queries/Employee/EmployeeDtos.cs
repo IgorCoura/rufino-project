@@ -1,6 +1,6 @@
-﻿using static PeopleManagement.Application.Commands.Queries.Base.BaseDtos;
+﻿using static PeopleManagement.Application.Queries.Base.BaseDtos;
 
-namespace PeopleManagement.Application.Commands.Queries.Employee
+namespace PeopleManagement.Application.Queries.Employee
 {
     public record EmployeeWithRoleDto
     {
@@ -12,6 +12,7 @@ namespace PeopleManagement.Application.Commands.Queries.Employee
         public Guid? RoleId { get; init; }
         public string RoleName { get; init; } = string.Empty;
         public Guid CompanyId { get; init; }
+        public Guid? WorkplaceId { get; init; }
     }
 
     public record EmployeeDto
@@ -23,6 +24,7 @@ namespace PeopleManagement.Application.Commands.Queries.Employee
         public EnumerationDto Status { get; init; } = EnumerationDto.Empty;
         public Guid? RoleId { get; init; }
         public Guid CompanyId { get; init; }
+        public Guid? WorkplaceId { get; init; }
     }
     public record EmployeeParams
     {
@@ -140,7 +142,7 @@ namespace PeopleManagement.Application.Commands.Queries.Employee
     {
         public Guid EmployeeId { get; init; }
         public Guid CompanyId { get; init; }
-        public DateOnly? DateExam { get; init; } 
+        public DateOnly? DateExam { get; init; }
         public DateOnly? ValidityExam { get; init; }
 
     }

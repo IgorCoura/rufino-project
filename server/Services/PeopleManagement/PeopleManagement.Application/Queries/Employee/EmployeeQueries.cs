@@ -4,9 +4,9 @@ using PeopleManagement.Domain.ErrorTools.ErrorsMessages;
 using PeopleManagement.Domain.ErrorTools;
 using PeopleManagement.Domain.SeedWord;
 using PeopleManagement.Infra.Context;
-using static PeopleManagement.Application.Commands.Queries.Base.BaseDtos;
+using static PeopleManagement.Application.Queries.Base.BaseDtos;
 
-namespace PeopleManagement.Application.Commands.Queries.Employee
+namespace PeopleManagement.Application.Queries.Employee
 {
     public class EmployeeQueries(PeopleManagementContext peopleManagementContext) : IEmployeeQueries
     {
@@ -63,7 +63,8 @@ namespace PeopleManagement.Application.Commands.Queries.Employee
                 },
                 RoleId = o.Employee.RoleId,
                 RoleName = o.Role.Name.Value == null ? string.Empty : o.Role.Name.Value,
-                CompanyId = o.Employee.CompanyId
+                CompanyId = o.Employee.CompanyId,
+                WorkplaceId = o.Employee.WorkPlaceId
             }).ToListAsync();
 
             return result;
@@ -84,7 +85,8 @@ namespace PeopleManagement.Application.Commands.Queries.Employee
                     Name = o.Status.Name,
                 },
                 CompanyId = o.CompanyId,
-                RoleId = o.RoleId
+                RoleId = o.RoleId,
+                WorkplaceId = o.WorkPlaceId
             }).FirstOrDefaultAsync()
                 ?? throw new DomainException(this, DomainErrors.ObjectNotFound(nameof(Employee), id.ToString()));
 

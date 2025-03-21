@@ -1,4 +1,4 @@
-﻿namespace PeopleManagement.Application.Commands.Queries.Employee
+﻿namespace PeopleManagement.Application.Queries.Employee
 {
     public interface IEmployeeQueries
     {

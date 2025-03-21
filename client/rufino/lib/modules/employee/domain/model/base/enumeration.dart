@@ -1,9 +1,9 @@
 import 'package:equatable/equatable.dart';
 
 abstract class Enumeration extends Equatable {
-  static const int emptyId = -1;
+  static const String emptyId = "";
   static const String emptyName = "";
-  final int id;
+  final String id;
   final String name;
   final String displayName;
 
