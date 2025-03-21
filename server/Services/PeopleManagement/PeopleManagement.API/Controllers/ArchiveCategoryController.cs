@@ -7,7 +7,7 @@ using PeopleManagement.Application.Commands.Identified;
 namespace PeopleManagement.API.Controllers
 {
     [Route("api/v1/{company}/[controller]")]
-    public class ArchiveCategoryController(ILogger<CompanyController> logger, IMediator mediator) : BaseController(logger)
+    public class ArchiveCategoryController(ILogger<ArchiveCategoryController> logger, IMediator mediator) : BaseController(logger)
     {
         [HttpPost]
         [ProtectedResource("ArchiveCategory", "create")]

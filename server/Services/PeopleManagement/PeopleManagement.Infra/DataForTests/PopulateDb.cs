@@ -32,9 +32,9 @@ namespace PeopleManagement.Infra.DataForTests
                     await context.AddRangeIfNotExistsAsync(companies);
                     var departamets = CreateDepartments(companies[0].Id);
                     await context.AddRangeIfNotExistsAsync(departamets);
-                    var positions = CreatePositions(departamets[0].Id, companies[0].Id);
+                    var positions = CreatePositions(departamets.Select(x => x.Id).ToArray(), companies[0].Id);
                     await context.AddRangeIfNotExistsAsync(positions);
-                    var roles = CreateRoles(positions[0].Id, companies[0].Id);
+                    var roles = CreateRoles(positions.Select(x => x.Id).ToArray(), companies[0].Id);
                     await context.AddRangeIfNotExistsAsync(roles);
                     var workplaces = CreateWorkPlaces(companies[0].Id);
                     await context.AddRangeIfNotExistsAsync(workplaces);
@@ -97,22 +97,30 @@ namespace PeopleManagement.Infra.DataForTests
             return departments;
         }
 
-        public static Position[] CreatePositions(Guid departamentId, Guid companydId)
+        public static Position[] CreatePositions(Guid[] departamentId, Guid companydId)
         {
             var positions = new[]
             {
-                Position.Create(Guid.Parse("91836bca-26f3-48aa-9846-ad826e2392dc"), "Engenheiro de Software", "Resposavel por criar softwares", "123454", departamentId, companydId),
-                Position.Create(Guid.Parse("55826abb-b8db-4ba6-b946-c5de12d927a6"), "Engenheiro de dados", "Resposavel por analisar dados", "123465", departamentId, companydId),
+                Position.Create(Guid.Parse("91836bca-26f3-48aa-9846-ad826e2392dc"), "Engenheiro de Software", "Resposavel por criar softwares", "235846", departamentId[0], companydId),
+                Position.Create(Guid.Parse("55826abb-b8db-4ba6-b946-c5de12d927a6"), "Engenheiro de dados", "Resposavel por analisar dados", "125489", departamentId[0], companydId),
+                Position.Create(Guid.Parse("B8CA9103-6EBA-4947-A422-FEA713912F80"), "Analista de RH", "Resposavel por analisar o RH", "348596", departamentId[1], companydId),
+                Position.Create(Guid.Parse("A77201C3-2455-4E85-905F-0964DD22B8B1"), "Gerente de RH", "Resposavel pelo RH", "745825", departamentId[1], companydId),
             };
             return positions;
         }
 
-        public static Role[] CreateRoles(Guid positionId, Guid companydId)
+        public static Role[] CreateRoles(Guid[] positionId, Guid companydId)
         {
             var roles = new[]
             {
-                Role.Create(Guid.Parse("ef0dee7d-730e-4bc5-a302-bd85f6bc21cb"), "Engenheiro de Software Junior", "Resposavel por criar softwares", "123455" , Remuneration.Create(PaymentUnit.PerHour, Currency.Create(CurrencyType.BRL, "30"), "Pagamento Eng Junior" ), positionId, companydId),
-                Role.Create(Guid.Parse("797361a8-23ce-4372-9119-a932b413be84"), "Engenheiro de Software Senior", "Resposavel por criar softwares", "123456", Remuneration.Create(PaymentUnit.PerHour, Currency.Create(CurrencyType.BRL, "30"), "Pagamento Eng Senior" ), positionId, companydId),
+                Role.Create(Guid.Parse("ef0dee7d-730e-4bc5-a302-bd85f6bc21cb"), "Engenheiro de Software Junior", "Resposavel por criar softwares", "985685" , Remuneration.Create(PaymentUnit.PerHour, Currency.Create(CurrencyType.BRL, "35"), "Pagamento Eng Junior" ), positionId[0], companydId),
+                Role.Create(Guid.Parse("797361a8-23ce-4372-9119-a932b413be84"), "Engenheiro de Software Senior", "Resposavel por criar softwares", "458256", Remuneration.Create(PaymentUnit.PerHour, Currency.Create(CurrencyType.BRL, "34"), "Pagamento Eng Senior" ), positionId[0], companydId),
+                Role.Create(Guid.Parse("F1C821B8-FA47-404A-A03A-D6300F56EE1B"), "Engenheiro de Dados Junior", "Resposavel por criar dados", "456786" , Remuneration.Create(PaymentUnit.PerHour, Currency.Create(CurrencyType.BRL, "80"), "Pagamento Eng Junior" ), positionId[1], companydId),
+                Role.Create(Guid.Parse("33716EF9-7FD1-4A58-B4F2-80EC6686348B"), "Engenheiro de Dados Senior", "Resposavel por criar dados", "564329", Remuneration.Create(PaymentUnit.PerHour, Currency.Create(CurrencyType.BRL, "78"), "Pagamento Eng Senior" ), positionId[1], companydId),
+                Role.Create(Guid.Parse("60D16F67-D30D-4EDD-A4A2-D0D248F75CCF"), "Analista de RH Senior", "Resposavel por administrar RH", "452587" , Remuneration.Create(PaymentUnit.PerHour, Currency.Create(CurrencyType.BRL, "32"), "Pagamento AS Senior" ), positionId[2], companydId),
+                Role.Create(Guid.Parse("2E4F65AF-4912-4078-8C4B-2E30E97D2E60"), "Analista de RH Junior", "Resposavel por auxilair RH", "525856", Remuneration.Create(PaymentUnit.PerHour, Currency.Create(CurrencyType.BRL, "42"), "Pagamento AS Senior" ), positionId[2], companydId),
+                Role.Create(Guid.Parse("7CB25904-65E4-456A-8769-3418570638EC"), "Gerente de RH Senior", "Resposavel por gerenciar RH", "452587" , Remuneration.Create(PaymentUnit.PerHour, Currency.Create(CurrencyType.BRL, "55"), "Pagamento GE Junior" ), positionId[3], companydId),
+                Role.Create(Guid.Parse("260466D0-BD50-4C17-9284-136A6849A52A"), "Gerente de RH Junior", "Resposavel por auxilair a gerenciar RH", "525856", Remuneration.Create(PaymentUnit.PerHour, Currency.Create(CurrencyType.BRL, "49"), "Pagamento GE Junior" ), positionId[3], companydId),
             };
             return roles;
         }
@@ -122,8 +130,8 @@ namespace PeopleManagement.Infra.DataForTests
             var workplaces = new[]
             {
                 Workplace.Create(
-                    Guid.Parse("f4b10503-73c3-41ae-aeb1-f8e9880679aa"), 
-                    "Escritorio Matriz", 
+                    Guid.Parse("f4b10503-73c3-41ae-aeb1-f8e9880679aa"),
+                    "Escritorio Matriz",
                     WorkPlaceAddress.Create(
                         "14704-066",
                         "Rua Botafogo",
@@ -132,8 +140,47 @@ namespace PeopleManagement.Infra.DataForTests
                         "Jardim 3 Marias",
                         "Bebedouro",
                         "São Paulo",
-                        "Brasil"), 
+                        "Brasil"),
                     companyId),
+                Workplace.Create(
+                    Guid.Parse("a1b2c3d4-5678-90ab-cdef-1234567890ab"),
+                    "Escritorio Filial 1",
+                    WorkPlaceAddress.Create(
+                        "11030-210",
+                        "Avenida Paulista",
+                        "1000",
+                        "Sala 101",
+                        "Bela Vista",
+                        "São Paulo",
+                        "São Paulo",
+                        "Brasil"),
+                    companyId),
+                Workplace.Create(
+                    Guid.Parse("b2c3d4e5-6789-01ab-cdef-2345678901bc"),
+                    "Escritorio Filial 2",
+                    WorkPlaceAddress.Create(
+                        "20040-020",
+                        "Rua da Assembleia",
+                        "200",
+                        "Andar 15",
+                        "Centro",
+                        "Rio de Janeiro",
+                        "Rio de Janeiro",
+                        "Brasil"),
+                    companyId),
+                Workplace.Create(
+                    Guid.Parse("c3d4e5f6-7890-12ab-cdef-3456789012cd"),
+                    "Escritorio Filial 3",
+                    WorkPlaceAddress.Create(
+                        "30140-010",
+                        "Avenida Afonso Pena",
+                        "1500",
+                        "Sala 202",
+                        "Centro",
+                        "Belo Horizonte",
+                        "Minas Gerais",
+                        "Brasil"),
+                    companyId)
             };
 
             return workplaces;

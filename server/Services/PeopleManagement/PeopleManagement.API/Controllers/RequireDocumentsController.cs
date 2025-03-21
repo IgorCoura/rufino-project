@@ -6,7 +6,7 @@ using PeopleManagement.API.Authorization;
 namespace PeopleManagement.API.Controllers
 {
     [Route("api/v1/{company}/[controller]")]
-    public class RequireDocumentsController(ILogger<CompanyController> logger, IMediator mediator) : BaseController(logger)
+    public class RequireDocumentsController(ILogger<RequireDocumentsController> logger, IMediator mediator) : BaseController(logger)
     {
         private readonly IMediator _mediator = mediator;
 

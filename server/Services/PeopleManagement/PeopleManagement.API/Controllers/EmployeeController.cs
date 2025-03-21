@@ -17,14 +17,14 @@ using PeopleManagement.Application.Commands.EmployeeCommands.FinishedContractEmp
 using PeopleManagement.Application.Commands.EmployeeCommands.IsRequiredMilitaryDocumentEmployee;
 using PeopleManagement.Application.Commands.EmployeeCommands.RemoveDependentEmployee;
 using PeopleManagement.Application.Commands.Identified;
-using PeopleManagement.Application.Commands.Queries.Employee;
+using PeopleManagement.Application.Queries.Employee;
 using PeopleManagement.Domain.AggregatesModel.EmployeeAggregate;
 using static Microsoft.EntityFrameworkCore.DbLoggerCategory.Database;
 
 namespace PeopleManagement.API.Controllers
 {
     [Route("api/v1/{company}/[controller]")]
-    public class EmployeeController(ILogger<CompanyController> logger, IMediator mediator, IEmployeeQueries employeeQueries) : BaseController(logger)
+    public class EmployeeController(ILogger<EmployeeController> logger, IMediator mediator, IEmployeeQueries employeeQueries) : BaseController(logger)
     {
         [HttpPost]
         [ProtectedResource("employee", "create")]

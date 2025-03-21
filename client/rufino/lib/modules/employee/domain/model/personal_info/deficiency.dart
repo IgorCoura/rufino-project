@@ -33,7 +33,7 @@ class Deficiency extends EnumerationList<Disability> {
 
   Map<String, dynamic> toJson() {
     return {
-      "disability": list.map((el) => el.id).toList(),
+      "disability": list.map((el) => int.parse(el.id)).toList(),
       "observation": observation.value
     };
   }

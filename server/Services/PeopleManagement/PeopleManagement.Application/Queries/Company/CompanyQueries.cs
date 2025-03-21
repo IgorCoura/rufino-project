@@ -3,7 +3,7 @@ using PeopleManagement.Domain.ErrorTools;
 using PeopleManagement.Domain.ErrorTools.ErrorsMessages;
 using PeopleManagement.Infra.Context;
 
-namespace PeopleManagement.Application.Commands.Queries.Company
+namespace PeopleManagement.Application.Queries.Company
 {
     public class CompanyQueries(PeopleManagementContext peopleManagementContext) : ICompanyQueries
     {

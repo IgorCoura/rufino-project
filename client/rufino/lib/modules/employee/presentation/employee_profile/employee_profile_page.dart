@@ -10,6 +10,7 @@ import 'package:rufino/modules/employee/presentation/employee_profile/components
 import 'package:rufino/modules/employee/presentation/employee_profile/components/enumeration_list_view_component.dart';
 import 'package:rufino/modules/employee/presentation/employee_profile/components/enumeration_view_component.dart';
 import 'package:rufino/modules/employee/presentation/employee_profile/components/props_container_component.dart';
+import 'package:rufino/modules/employee/presentation/employee_profile/components/text_componet.dart';
 import 'package:rufino/modules/employee/presentation/employee_profile/components/text_edit_component.dart';
 import 'package:rufino/shared/components/error_components.dart';
 
@@ -237,17 +238,88 @@ class EmployeeProfilePage extends StatelessWidget {
                                     (prop) => TextEditComponent(textProp: prop))
                                 .toList(),
                           ),
+                          const SizedBox(
+                            height: 16,
+                          ),
                           PropsContainerComponent(
-                              containerName: "Informações do Cargo",
+                              containerName: "Informações de Função",
                               isSavingData: state.isSavingData,
-                              saveContainerData: (changes) {},
-                              loadingContainerData: () {},
-                              isLoading: state.role.isLoading,
+                              saveContainerData: (changes) =>
+                                  bloc.add(SaveRoleInfoEvent()),
+                              loadingContainerData: () =>
+                                  bloc.add(LoadingRoleEvent()),
+                              loadingLazyContainerData: () =>
+                                  bloc.add(LazyLoadingRoleInfoEvent()),
+                              isLazyLoading: state.roleInfo.isLazyLoading,
+                              isLoading: state.roleInfo.isLoading,
                               children: [
                                 EnumerationViewComponent(
-                                    enumeration: state.role.roleName,
-                                    listEnumerationOptions: [])
-                              ])
+                                  onChanged: (change) =>
+                                      bloc.add(ChangeRoleInfoEvent(change)),
+                                  enumeration: state.roleInfo.department,
+                                  listEnumerationOptions: state.listDepartment,
+                                ),
+                                TextComponet(
+                                  textBase: state.roleInfo.department
+                                      .depertmentDescription,
+                                ),
+                                EnumerationViewComponent(
+                                  onChanged: (change) =>
+                                      bloc.add(ChangeRoleInfoEvent(change)),
+                                  enumeration: state.roleInfo.position,
+                                  listEnumerationOptions: state.listPosition,
+                                ),
+                                TextComponet(
+                                  textBase: state
+                                      .roleInfo.position.positionDescription,
+                                ),
+                                TextComponet(
+                                  textBase: state.roleInfo.position.positionCbo,
+                                ),
+                                EnumerationViewComponent(
+                                  onChanged: (change) =>
+                                      bloc.add(ChangeRoleInfoEvent(change)),
+                                  enumeration: state.roleInfo.role,
+                                  listEnumerationOptions: state.listRolen,
+                                ),
+                                TextComponet(
+                                  textBase: state.roleInfo.role.roleDescription,
+                                ),
+                                TextComponet(
+                                  textBase: state.roleInfo.role.roleCbo,
+                                ),
+                                TextComponet(
+                                  textBase: state.roleInfo.role.salary,
+                                ),
+                                TextComponet(
+                                  textBase:
+                                      state.roleInfo.role.salaryDescription,
+                                ),
+                              ]),
+                          const SizedBox(
+                            height: 16,
+                          ),
+                          PropsContainerComponent(
+                            containerName: "Local de trabalho",
+                            isSavingData: state.isSavingData,
+                            saveContainerData: (changes) =>
+                                bloc.add(SaveWorkplaceEvent()),
+                            loadingContainerData: () =>
+                                bloc.add(LoadingWorkplaceEvent()),
+                            loadingLazyContainerData: () =>
+                                bloc.add(LazyLoadingWorkplaceEvent()),
+                            isLoading: state.isLoading,
+                            children: [
+                              EnumerationViewComponent(
+                                  onChanged: (obj) =>
+                                      bloc.add(ChangeWorkplaceEvent(obj)),
+                                  enumeration: state.workplace,
+                                  listEnumerationOptions: state.listWorkplace),
+                              TextComponet(
+                                textBase: state.workplace.address,
+                              ),
+                            ],
+                          )
                         ],
                       );
               },

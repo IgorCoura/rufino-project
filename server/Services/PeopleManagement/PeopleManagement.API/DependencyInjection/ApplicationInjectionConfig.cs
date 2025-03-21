@@ -1,6 +1,9 @@
-﻿using PeopleManagement.Application.Commands.Queries.Company;
-using PeopleManagement.Application.Commands.Queries.Employee;
-using PeopleManagement.Application.Commands.Queries.Role;
+﻿using PeopleManagement.Application.Queries.Company;
+using PeopleManagement.Application.Queries.Department;
+using PeopleManagement.Application.Queries.Employee;
+using PeopleManagement.Application.Queries.Position;
+using PeopleManagement.Application.Queries.Role;
+using PeopleManagement.Application.Queries.Workplace;
 
 namespace PeopleManagement.API.DependencyInjection
 {
@@ -14,6 +17,9 @@ namespace PeopleManagement.API.DependencyInjection
             service.AddScoped<IEmployeeQueries, EmployeeQueries>();
             service.AddScoped<ICompanyQueries, CompanyQueries>();
             service.AddScoped<IRoleQueries, RoleQueries>();
+            service.AddScoped<IDepartmentQueries, DepartmentQueries>();
+            service.AddScoped<IPositionQueries, PositionQueries>();
+            service.AddScoped<IWorkplaceQueries, WorkplaceQueries>();
 
             return service;
         }
