@@ -6,6 +6,7 @@ import 'package:rufino/modules/employee/domain/model/name.dart';
 import 'package:rufino/modules/employee/domain/model/personal_info/disability.dart';
 import 'package:rufino/modules/employee/presentation/employee_profile/bloc/employee_profile_bloc.dart';
 import 'package:rufino/modules/employee/presentation/employee_profile/components/base_edit_component.dart';
+import 'package:rufino/modules/employee/presentation/employee_profile/components/contracts_view_component.dart';
 import 'package:rufino/modules/employee/presentation/employee_profile/components/dependents_list_component/dependents_list_component.dart';
 import 'package:rufino/modules/employee/presentation/employee_profile/components/enumeration_list_view_component.dart';
 import 'package:rufino/modules/employee/presentation/employee_profile/components/enumeration_view_component.dart';
@@ -319,7 +320,22 @@ class EmployeeProfilePage extends StatelessWidget {
                                 textBase: state.workplace.address,
                               ),
                             ],
-                          )
+                          ),
+                          const SizedBox(
+                            height: 16,
+                          ),
+                          ContractsViewComponent(
+                            loadingContainerData: () =>
+                                bloc.add(LoadingContractsEvent()),
+                            onFineshedContract: (finalDate) =>
+                                bloc.add(FinishedContractEvent(finalDate)),
+                            onInitContract: (initDate, contractTypeId) =>
+                                bloc.add(
+                                    NewContractEvent(initDate, contractTypeId)),
+                            contracts: state.listContracts,
+                            listContractTypeOptions: state.listContractTypes,
+                            isSavingData: state.isSavingData,
+                          ),
                         ],
                       );
               },

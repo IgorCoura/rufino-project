@@ -146,4 +146,19 @@ namespace PeopleManagement.Application.Queries.Employee
         public DateOnly? ValidityExam { get; init; }
 
     }
+
+    public record EmployeeContractsDto
+    {
+        public Guid EmployeeId { get; init; }
+        public Guid CompanyId { get; init; }
+        public EmployeeContractDto[] Contracts { get; init; } = [];
+    }
+
+    public record EmployeeContractDto
+    {
+        public DateOnly InitDate { get; init; }
+        public DateOnly? FinalDate { get; init; }
+        public EnumerationDto Type { get; init; } = EnumerationDto.Empty;
+
+    }
 }

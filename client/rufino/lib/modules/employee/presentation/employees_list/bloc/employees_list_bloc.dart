@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:bloc/bloc.dart';
 import 'package:equatable/equatable.dart';
 import 'package:infinite_scroll_pagination/infinite_scroll_pagination.dart';
@@ -15,13 +17,22 @@ part 'employees_list_state.dart';
 class EmployeesListBloc extends Bloc<EmployeesListEvent, EmployeesListState> {
   final PeopleManagementService _peopleManagementService;
   final CompanyService _companyService;
-  final PagingController<int, EmployeeWithRole> pagingController =
-      PagingController(firstPageKey: 0);
   final int _pageSize = 15;
   int _sizeSkip = 0;
 
   EmployeesListBloc(this._peopleManagementService, this._companyService)
       : super(const EmployeesListState()) {
+    // pagingController = PagingController(
+    //   fetchPage: (pageKey) async {
+    //     _sizeSkip = pageKey - 1;
+    //     return _searchEmpployee();
+    //   },
+    //   getNextPageKey: (state) {
+    //     var lastKey = state.keys?.last;
+    //     var nextPageKey = (state.keys?.last ?? 0) + 1;
+    //     return nextPageKey;
+    //   },
+    // );
     on<InitialEmployeesListEvent>(_onInitialEmployeesListEvent);
     on<ChangeSortList>(_onChangeSortList);
     on<ChangeStatusSelect>(_onChangeStatusSelect);
@@ -31,6 +42,8 @@ class EmployeesListBloc extends Bloc<EmployeesListEvent, EmployeesListState> {
     on<ChangeNameNewEmployee>(_onChangeNameNewEmployee);
     on<CreateNewEmployee>(_onCreateEmployee);
     on<ErrorEvent>(_onErrorEvent);
+    on<FeatchNextPage>(_onFeatchNextPage);
+    on<RefreshPage>(_onRefreshPage);
   }
 
   void _onErrorEvent(ErrorEvent event, Emitter<EmployeesListState> emit) {
@@ -69,24 +82,41 @@ class EmployeesListBloc extends Bloc<EmployeesListEvent, EmployeesListState> {
   Future _onInitialEmployeesListEvent(
       InitialEmployeesListEvent event, Emitter<EmployeesListState> emit) async {
     emit(const EmployeesListState(isLoading: true));
+    if (state.pagingState == null) {
+      emit(state.copyWith(
+          pagingState: PagingState<int, EmployeeWithRole>(
+              isLoading: true, error: null)));
+    } else {
+      emit(state.copyWith(
+          pagingState:
+              state.pagingState!.copyWith(isLoading: true, error: null)));
+    }
+
     try {
-      pagingController.addPageRequestListener((pageKey) async {
-        try {
-          await _fetchPage(pageKey: pageKey);
-        } catch (ex, stacktrace) {
-          var exception = _peopleManagementService.treatErrors(ex, stacktrace);
-          add(ErrorEvent(exception));
-        }
-      });
+      // pagingController.addPageRequestListener((pageKey) async {
+      //   try {
+      //     await _fetchPage(pageKey: pageKey);
+      //   } catch (ex, stacktrace) {
+      //     var exception = _peopleManagementService.treatErrors(ex, stacktrace);
+      //     add(ErrorEvent(exception));
+      //   }
+      // });
+
       var company = await _companyService.getSelectedCompany();
       var listStatus = await _peopleManagementService.getStatus(company.id);
+      //var listStatus = <Status>[];
       listStatus.addAll(state.listStatus);
-      await _fetchPage();
-      pagingController.refresh();
+
       emit(state.copyWith(
           listStatus: listStatus, isLoading: false, company: company));
+      emit(state.copyWith(
+          pagingState:
+              state.pagingState!.copyWith(isLoading: false, error: null)));
     } catch (ex, stacktrace) {
       var exception = _peopleManagementService.treatErrors(ex, stacktrace);
+      emit(state.copyWith(
+          pagingState:
+              state.pagingState!.copyWith(isLoading: false, error: null)));
       emit(state.copyWith(isLoading: false, exception: exception));
     }
   }
@@ -96,8 +126,7 @@ class EmployeesListBloc extends Bloc<EmployeesListEvent, EmployeesListState> {
     var sort = state.isAscSort == false;
     emit(state.copyWith(isAscSort: sort, isLoading: true));
     try {
-      await _fetchPage();
-      pagingController.refresh();
+      add(RefreshPage());
       emit(state.copyWith(isLoading: false));
     } catch (ex, stacktrace) {
       var exception = _peopleManagementService.treatErrors(ex, stacktrace);
@@ -109,8 +138,7 @@ class EmployeesListBloc extends Bloc<EmployeesListEvent, EmployeesListState> {
       ChangeStatusSelect event, Emitter<EmployeesListState> emit) async {
     emit(state.copyWith(selectedStatus: event.selection, isLoading: true));
     try {
-      await _fetchPage();
-      pagingController.refresh();
+      add(RefreshPage());
       emit(state.copyWith(isLoading: false));
     } catch (ex, stacktrace) {
       var exception = _peopleManagementService.treatErrors(ex, stacktrace);
@@ -136,8 +164,7 @@ class EmployeesListBloc extends Bloc<EmployeesListEvent, EmployeesListState> {
       SearchEditComplet event, Emitter<EmployeesListState> emit) async {
     emit(state.copyWith(isLoading: true));
     try {
-      await _fetchPage();
-      pagingController.refresh();
+      add(RefreshPage());
       emit(state.copyWith(isLoading: false));
     } catch (ex, stacktrace) {
       var exception = _peopleManagementService.treatErrors(ex, stacktrace);
@@ -163,15 +190,62 @@ class EmployeesListBloc extends Bloc<EmployeesListEvent, EmployeesListState> {
     return employees;
   }
 
-  Future<void> _fetchPage({int? pageKey}) async {
-    _sizeSkip = pageKey ?? _sizeSkip;
-    final newItems = await _searchEmpployee();
-    final isLastPage = newItems.length < _pageSize;
-    if (isLastPage) {
-      pagingController.appendLastPage(newItems);
-    } else {
-      final nextPageKey = _sizeSkip + newItems.length;
-      pagingController.appendPage(newItems, nextPageKey);
+  // Future<List<EmployeeWithRole>> _fetchPage({int? pageKey}) async {
+  //   _sizeSkip = pageKey ?? _sizeSkip;
+  //   final newItems = await _searchEmpployee();
+  //   final isLastPage = newItems.length < _pageSize;
+  //   if (isLastPage) {
+  //     pagingController.appendLastPage(newItems);
+  //   } else {
+  //     final nextPageKey = _sizeSkip + newItems.length;
+  //     pagingController.appendPage(newItems, nextPageKey);
+  //   }
+  // }
+
+  Future _onRefreshPage(
+      RefreshPage event, Emitter<EmployeesListState> emit) async {
+    emit(
+      state.copyWith(
+        pagingState: PagingState(),
+      ),
+    );
+    _sizeSkip = 0;
+    add(FeatchNextPage());
+  }
+
+  Future _onFeatchNextPage(
+      FeatchNextPage event, Emitter<EmployeesListState> emit) async {
+    if (state.pagingState == null) {
+      return;
+    }
+
+    if (state.pagingState!.isLoading) return;
+
+    emit(state.copyWith(
+        pagingState:
+            state.pagingState!.copyWith(isLoading: true, error: null)));
+
+    try {
+      final newItems = await _searchEmpployee();
+      final isLastPage = newItems.length < _pageSize;
+      final newKey = (state.pagingState!.keys?.last ?? 0) + _pageSize;
+      _sizeSkip = newKey;
+      emit(
+        state.copyWith(
+          pagingState: state.pagingState!.copyWith(
+            isLoading: false,
+            error: null,
+            pages: [...?state.pagingState!.pages, newItems],
+            keys: [...?state.pagingState!.keys, newKey],
+            hasNextPage: !isLastPage,
+          ),
+        ),
+      );
+    } catch (ex, stacktrace) {
+      var exception = _peopleManagementService.treatErrors(ex, stacktrace);
+      emit(state.copyWith(
+          exception: exception,
+          pagingState: state.pagingState!.copyWith(isLoading: false)));
     }
   }
 }

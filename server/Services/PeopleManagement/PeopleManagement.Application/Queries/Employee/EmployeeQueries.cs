@@ -269,5 +269,29 @@ namespace PeopleManagement.Application.Queries.Employee
             return result;
         }
 
+        public async Task<EmployeeContractsDto> GetEmployeeContracts(Guid id, Guid company)
+        {
+            var query = _context.Employees.Where(e => e.Id == id && e.CompanyId == company);
+
+            var result = await query.Select(o => new EmployeeContractsDto
+            {
+                EmployeeId = o.Id,
+                CompanyId = o.CompanyId,
+                Contracts = o.Contracts.Select(c => new EmployeeContractDto{
+                    InitDate = c.InitDate,
+                    FinalDate = c.FinalDate,
+                    Type = new EnumerationDto
+                    {
+                        Id = c.ContractType.Id,
+                        Name = c.ContractType.Name,
+                    },
+                }).ToArray(),
+            }).FirstOrDefaultAsync()
+                ?? throw new DomainException(this, DomainErrors.ObjectNotFound(nameof(Employee), id.ToString()));
+
+            return result;
+        }
+
+
     }
 }

@@ -9,7 +9,7 @@ namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
 
         private DateOnly _initDate;
         private DateOnly? _finalDate = null;
-        private EmploymentContactType _contactType = null!;
+        private EmploymentContractType _contractType = null!;
 
         public DateOnly InitDate
         {
@@ -41,29 +41,29 @@ namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
                 }
             }
         }
-        public EmploymentContactType ContractType
+        public EmploymentContractType ContractType
         {
-            get => _contactType;
+            get => _contractType;
             private set 
             {
-                _contactType = value; 
+                _contractType = value; 
             }
         }      
 
         private EmploymentContract() { }
-        private EmploymentContract(DateOnly initDate, EmploymentContactType contractType)
+        private EmploymentContract(DateOnly initDate, EmploymentContractType contractType)
         {
             InitDate = initDate;
             ContractType = contractType;
         }
-        private EmploymentContract(DateOnly initDate, DateOnly? finalDate, EmploymentContactType contractType)
+        private EmploymentContract(DateOnly initDate, DateOnly? finalDate, EmploymentContractType contractType)
         {
             InitDate = initDate;
             FinalDate = finalDate;
             ContractType = contractType;
         }
 
-        public static EmploymentContract Create(DateOnly initDate, EmploymentContactType contractType) => new(initDate, contractType);
+        public static EmploymentContract Create(DateOnly initDate, EmploymentContractType contractType) => new(initDate, contractType);
         public EmploymentContract FinshedContract(DateOnly finalDate) => new(InitDate, finalDate , ContractType);
 
 

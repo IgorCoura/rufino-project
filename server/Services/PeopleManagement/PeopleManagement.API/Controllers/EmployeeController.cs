@@ -15,6 +15,7 @@ using PeopleManagement.Application.Commands.EmployeeCommands.CreateDependentEmpl
 using PeopleManagement.Application.Commands.EmployeeCommands.CreateEmployee;
 using PeopleManagement.Application.Commands.EmployeeCommands.FinishedContractEmployee;
 using PeopleManagement.Application.Commands.EmployeeCommands.IsRequiredMilitaryDocumentEmployee;
+using PeopleManagement.Application.Commands.EmployeeCommands.NewContractEmployee;
 using PeopleManagement.Application.Commands.EmployeeCommands.RemoveDependentEmployee;
 using PeopleManagement.Application.Commands.Identified;
 using PeopleManagement.Application.Queries.Employee;
@@ -279,6 +280,23 @@ namespace PeopleManagement.API.Controllers
             return OkResponse(result);
         }
 
+        [HttpPut("Contract/New")]
+        [ProtectedResource("employee", "edit")]
+        public async Task<ActionResult<NewContractEmployeeCommand>> NewContract([FromRoute] Guid company,
+            [FromBody] NewContractEmployeeModel request, [FromHeader(Name = "x-requestid")] Guid requestId)
+        {
+            var command = new IdentifiedCommand<NewContractEmployeeCommand, NewContractEmployeeResponse>(request.ToCommand(company), requestId);
+
+            SendingCommandLog(request.EmployeeId, request, requestId);
+
+            var result = await mediator.Send(command);
+
+            CommandResultLog(result, request.EmployeeId, request, requestId);
+
+            return OkResponse(result);
+        }
+
+
 
         [HttpGet("list/roles")]
         [ProtectedResource("employee", "view")]
@@ -418,6 +436,22 @@ namespace PeopleManagement.API.Controllers
         public async Task<ActionResult<EmployeeAddressDto>> GetEmployeeMedicalAdmissionExam([FromRoute] Guid company, [FromRoute] Guid id)
         {
             var result = await employeeQueries.GetEmployeeMedicalAdmissionExam(id, company);
+            return OkResponse(result);
+        }
+        
+        [HttpGet("Contracts/{id}")]
+        [ProtectedResource("employee", "view")]
+        public async Task<ActionResult<EmployeeContractsDto>> GetEmployeeContracts([FromRoute] Guid company, [FromRoute] Guid id)
+        {
+            var result = await employeeQueries.GetEmployeeContracts(id, company);
+            return OkResponse(result);
+        }
+
+        [HttpGet("Contracts/types")]
+        [ProtectedResource("employee", "view")]
+        public ActionResult<IEnumerable<EmploymentContractType>> GetContractsType([FromRoute] Guid company)
+        {
+            var result = EmploymentContractType.GetAll<EmploymentContractType>();
             return OkResponse(result);
         }
     }

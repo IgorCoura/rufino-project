@@ -1,6 +1,9 @@
 import 'dart:convert';
+import 'package:intl/intl.dart';
 import 'package:rufino/modules/employee/domain/model/dependent/dependency_type.dart';
 import 'package:rufino/modules/employee/domain/model/dependent/dependent.dart';
+import 'package:rufino/modules/employee/domain/model/employee_contract.dart';
+import 'package:rufino/modules/employee/domain/model/employee_contract_type.dart';
 import 'package:rufino/modules/employee/domain/model/gender.dart';
 import 'package:rufino/modules/employee/domain/model/medical_admission_exam/medical_admission_exam.dart';
 import 'package:rufino/modules/employee/domain/model/military_document/military_document.dart';
@@ -251,6 +254,61 @@ class PeopleManagementService extends BaseService {
 
     var url = peopleManagementUrl.replace(
         path: "/api/v1/$companyId/employee/workplace");
+
+    var response =
+        await http.put(url, headers: headers, body: jsonEncode(body));
+    if (response.statusCode == 200) {
+      var jsonResponse = jsonDecode(response.body);
+      return jsonResponse["id"];
+    }
+    return treatUnsuccessfulResponses(response);
+  }
+
+  Future<String> finishedContract(
+      String employeeId, String companyId, String finalDate) async {
+    var headers = await getHeadersWithRequestId();
+
+    // Parse the input date string in dd/MM/yyyy format
+    DateTime parsedDate = DateFormat('dd/MM/yyyy').parse(finalDate);
+
+    // Format the parsed date to yyyy-MM-dd
+    String formattedDate = DateFormat('yyyy-MM-dd').format(parsedDate);
+
+    Map<String, dynamic> body = {
+      "employeeId": employeeId,
+      "finishDateContract": formattedDate,
+    };
+
+    var url = peopleManagementUrl.replace(
+        path: "/api/v1/$companyId/employee/contract/finished");
+
+    var response =
+        await http.put(url, headers: headers, body: jsonEncode(body));
+    if (response.statusCode == 200) {
+      var jsonResponse = jsonDecode(response.body);
+      return jsonResponse["id"];
+    }
+    return treatUnsuccessfulResponses(response);
+  }
+
+  Future<String> newContract(String employeeId, String companyId,
+      String initDate, String contractTypeId) async {
+    var headers = await getHeadersWithRequestId();
+
+    // Parse the input date string in dd/MM/yyyy format
+    DateTime parsedDate = DateFormat('dd/MM/yyyy').parse(initDate);
+
+    // Format the parsed date to yyyy-MM-dd
+    String formattedDate = DateFormat('yyyy-MM-dd').format(parsedDate);
+
+    Map<String, dynamic> body = {
+      "employeeId": employeeId,
+      "initDateContract": formattedDate,
+      "contractType": int.parse(contractTypeId),
+    };
+
+    var url = peopleManagementUrl.replace(
+        path: "/api/v1/$companyId/employee/contract/new");
 
     var response =
         await http.put(url, headers: headers, body: jsonEncode(body));
@@ -563,6 +621,32 @@ class PeopleManagementService extends BaseService {
     if (response.statusCode == 200) {
       dynamic jsonResponse = jsonDecode(response.body);
       return Workplace.fromListJson(jsonResponse);
+    }
+    return treatUnsuccessfulResponses(response);
+  }
+
+  Future<List<EmployeeContract>> getEmployeeContracts(
+      String employeeId, String companyId) async {
+    var headers = await getHeaders();
+    var url = peopleManagementUrl.replace(
+        path: "/api/v1/$companyId/employee/contracts/$employeeId");
+    var response = await http.get(url, headers: headers);
+    if (response.statusCode == 200) {
+      dynamic jsonResponse = jsonDecode(response.body);
+      return EmployeeContract.fromListJson(jsonResponse["contracts"]);
+    }
+    return treatUnsuccessfulResponses(response);
+  }
+
+  Future<List<EmployeeContractType>> getEmployeeContractTypes(
+      String companyId) async {
+    var headers = await getHeaders();
+    var url = peopleManagementUrl.replace(
+        path: "/api/v1/$companyId/employee/contracts/types");
+    var response = await http.get(url, headers: headers);
+    if (response.statusCode == 200) {
+      List<dynamic> jsonResponse = jsonDecode(response.body);
+      return EmployeeContractType.fromListJson(jsonResponse);
     }
     return treatUnsuccessfulResponses(response);
   }

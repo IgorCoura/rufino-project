@@ -196,7 +196,7 @@ namespace PeopleManagement.IntegrationTests.Data
 
             var dateNow = DateOnly.FromDateTime(DateTime.UtcNow);
 
-            employee.CompleteAdmission(Guid.NewGuid().ToString()[..14], dateNow, EmploymentContactType.CLT);
+            employee.CompleteAdmission(Guid.NewGuid().ToString()[..14], dateNow, EmploymentContractType.CLT);
 
             await context.Employees.AddAsync(employee, cancellationToken);
 
@@ -229,7 +229,7 @@ namespace PeopleManagement.IntegrationTests.Data
 
             var dateNow = DateOnly.FromDateTime(DateTime.UtcNow);
 
-            employee.CompleteAdmission(Guid.NewGuid().ToString()[..14], dateNow, EmploymentContactType.CLT);
+            employee.CompleteAdmission(Guid.NewGuid().ToString()[..14], dateNow, EmploymentContractType.CLT);
 
             await context.Employees.AddAsync(employee, cancellationToken);
 

@@ -193,16 +193,28 @@ namespace PeopleManagement.Infra.DataForTests
                 FactoryEmployee(Guid.Parse("caf35a09-3ec0-48ff-9e67-0155151e81e6"), companyId, "Ana Clara", roles[0].Id, workplaceId)
                 );
             employees.Add(
+                FactoryEmployee(Guid.Parse("1c76bfcc-a6fc-4f8b-ad2c-dda955f63115"), companyId, "Beatriz Andrade", roles[1].Id, workplaceId)
+                );
+            employees.Add(
                 FactoryEmployee(Guid.Parse("4cb4b7f0-bf56-4d70-85fc-af3ad0b70508"), companyId, "Bruno Costa", roles[0].Id, workplaceId)
                 );
             employees.Add(
                 FactoryEmployee(Guid.Parse("5e9d0a53-66df-4df9-80a8-64cbe0a7171b"), companyId, "Carlos Eduardo", roles[1].Id, workplaceId)
                 );
             employees.Add(
+                FactoryEmployee(Guid.Parse("c21c2058-63de-4313-86d6-01fe67b83add"), companyId, "Cláudio Bastos", roles[0].Id, workplaceId)
+                );
+            employees.Add(
                 FactoryEmployee(Guid.Parse("dbd43fd9-70d9-4f49-a524-a13d87da1031"), companyId, "Daniela Lima", roles[1].Id, workplaceId)
                 );
             employees.Add(
+                FactoryEmployee(Guid.Parse("fa8b7242-ad92-4acc-bf5b-8c1f403b55a4"), companyId, "Débora Fonseca", roles[0].Id, workplaceId)
+                );
+            employees.Add(
                 FactoryEmployee(Guid.Parse("46fbcc36-174b-444f-9409-a874c76121ea"), companyId, "Eduardo Paiva", roles[1].Id, workplaceId)
+                );
+            employees.Add(
+                FactoryEmployee(Guid.Parse("28de6ef1-7686-44b2-a5ab-89f159d6fbfc"), companyId, "Elias Nunes", roles[0].Id, workplaceId)
                 );
             employees.Add(
                 FactoryEmployee(Guid.Parse("c8f1ae81-c596-4e5a-9ca2-2d05409bc38e"), companyId, "Fernanda Souza", roles[1].Id, workplaceId)
@@ -238,6 +250,9 @@ namespace PeopleManagement.Infra.DataForTests
                 FactoryEmployee(Guid.Parse("6f20950a-65fb-47c7-a29e-348b1fbae835"), companyId, "Ricardo Faria", roles[1].Id, workplaceId)
                 );
             employees.Add(
+                FactoryEmployee(Guid.Parse("46188819-da63-47c0-adf9-5319192208f7"), companyId, "Rogerio Marques", roles[0].Id, workplaceId)
+                );
+            employees.Add(
                 FactoryEmployee(Guid.Parse("acdb2074-278b-43e6-b389-be0d09c1069b"), companyId, "Sara Martins", roles[1].Id, workplaceId)
                 );
             employees.Add(
@@ -260,22 +275,8 @@ namespace PeopleManagement.Infra.DataForTests
                 );
             employees.Add(
                 FactoryEmployee(Guid.Parse("a5c7f15f-374e-4019-bd15-34c41bb3b56e"), companyId, "Zeca Amaral", roles[1].Id, workplaceId)
-                );
-            employees.Add(
-                FactoryEmployee(Guid.Parse("1c76bfcc-a6fc-4f8b-ad2c-dda955f63115"), companyId, "Beatriz Andrade", roles[1].Id, workplaceId)
-                );
-            employees.Add(
-                FactoryEmployee(Guid.Parse("c21c2058-63de-4313-86d6-01fe67b83add"), companyId, "Cláudio Bastos", roles[0].Id, workplaceId)
-                );
-            employees.Add(
-                FactoryEmployee(Guid.Parse("fa8b7242-ad92-4acc-bf5b-8c1f403b55a4"), companyId, "Débora Fonseca", roles[0].Id, workplaceId)
-                );
-            employees.Add(
-                FactoryEmployee(Guid.Parse("28de6ef1-7686-44b2-a5ab-89f159d6fbfc"), companyId, "Elias Nunes", roles[0].Id, workplaceId)
-                );
-            employees.Add(
-                FactoryEmployee(Guid.Parse("46188819-da63-47c0-adf9-5319192208f7"), companyId, "Rogerio Marques", roles[0].Id, workplaceId)
-                );
+                ); 
+  
 
             employees.Add(
                 FactoryEmployee(
@@ -319,7 +320,7 @@ namespace PeopleManagement.Infra.DataForTests
                     militaryDocument: null,
                     "TC0001",
                     DateOnly.Parse("2024-09-01"),
-                    EmploymentContactType.CLT
+                    EmploymentContractType.CLT
                     ));
 
             return employees.ToArray();
@@ -373,7 +374,7 @@ namespace PeopleManagement.Infra.DataForTests
         private static Employee FactoryEmployee(Guid id, Guid companyId, string Name, Guid? roleId = null, Guid? workplaceId = null,
             EmployeeAddress? address = null, EmployeeContact? contact = null, PersonalInfo? personalInfo = null, IdCard? idCard = null,
             VoteId? voteId = null, MedicalAdmissionExam? medicalAdmissionExam = null, MilitaryDocument? militaryDocument = null,
-            string? registration = null, DateOnly? dateInitContract = null, EmploymentContactType? contractType = null)
+            string? registration = null, DateOnly? dateInitContract = null, EmploymentContractType? contractType = null)
         {
             var employee = Employee.Create(id, companyId, Name);
 

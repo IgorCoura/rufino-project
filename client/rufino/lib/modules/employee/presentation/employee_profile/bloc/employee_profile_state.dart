@@ -22,30 +22,33 @@ class EmployeeProfileState extends Equatable {
   final List<Role> listRolen;
   final Workplace workplace;
   final List<Workplace> listWorkplace;
+  final List<EmployeeContract> listContracts;
+  final List<EmployeeContractType> listContractTypes;
 
-  const EmployeeProfileState({
-    this.company = const Company.empty(),
-    this.isEditingName = false,
-    this.employee = const Employee.empty(),
-    this.isLoading = false,
-    this.contact = const Contact.loading(),
-    this.exception,
-    this.isSavingData = false,
-    this.snackMessage,
-    this.address = const Address.loading(),
-    this.personalInfo = const PersonalInfo.loading(),
-    this.personalInfoSeletionOptions = const PersonalInfoSeletionOptions(),
-    this.idCard = const IdCard.loading(),
-    this.voteId = const VoteId.loading(),
-    this.militaryDocument = const MilitaryDocument.loading(),
-    this.medicalAdmissionExam = const MedicalAdmissionExam.loading(),
-    this.roleInfo = const RoleInfo.loading(),
-    this.listDepartment = const [],
-    this.listPosition = const [],
-    this.listRolen = const [],
-    this.workplace = const Workplace.empty(),
-    this.listWorkplace = const [],
-  });
+  const EmployeeProfileState(
+      {this.company = const Company.empty(),
+      this.isEditingName = false,
+      this.employee = const Employee.empty(),
+      this.isLoading = false,
+      this.contact = const Contact.loading(),
+      this.exception,
+      this.isSavingData = false,
+      this.snackMessage,
+      this.address = const Address.loading(),
+      this.personalInfo = const PersonalInfo.loading(),
+      this.personalInfoSeletionOptions = const PersonalInfoSeletionOptions(),
+      this.idCard = const IdCard.loading(),
+      this.voteId = const VoteId.loading(),
+      this.militaryDocument = const MilitaryDocument.loading(),
+      this.medicalAdmissionExam = const MedicalAdmissionExam.loading(),
+      this.roleInfo = const RoleInfo.loading(),
+      this.listDepartment = const [],
+      this.listPosition = const [],
+      this.listRolen = const [],
+      this.workplace = const Workplace.empty(),
+      this.listWorkplace = const [],
+      this.listContracts = const [],
+      this.listContractTypes = const []});
 
   EmployeeProfileState copyWith({
     Company? company,
@@ -70,6 +73,8 @@ class EmployeeProfileState extends Equatable {
     List<Role>? listRolen,
     Workplace? workplace,
     List<Workplace>? listWorkplace,
+    List<EmployeeContract>? listContracts,
+    List<EmployeeContractType>? listContractTypes,
   }) =>
       EmployeeProfileState(
         company: company ?? this.company,
@@ -94,6 +99,8 @@ class EmployeeProfileState extends Equatable {
         listRolen: listRolen ?? this.listRolen,
         workplace: workplace ?? this.workplace,
         listWorkplace: listWorkplace ?? this.listWorkplace,
+        listContracts: listContracts ?? this.listContracts,
+        listContractTypes: listContractTypes ?? this.listContractTypes,
       );
 
   @override
@@ -119,5 +126,7 @@ class EmployeeProfileState extends Equatable {
         listRolen.hashCode,
         workplace,
         listWorkplace.hashCode,
+        listContracts.hashCode,
+        listContractTypes.hashCode,
       ];
 }
