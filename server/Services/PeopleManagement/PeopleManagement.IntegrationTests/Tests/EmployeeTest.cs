@@ -424,7 +424,7 @@ namespace PeopleManagement.IntegrationTests.Tests
             await context.SaveChangesAsync(cancellationToken);
 
             var dateNow = DateOnly.FromDateTime(DateTime.UtcNow);
-            var command = new CompleteAdmissionEmployeeModel(employee.Id,"RU1902", dateNow, EmploymentContactType.CLT.Id);
+            var command = new CompleteAdmissionEmployeeModel(employee.Id,"RU1902", dateNow, EmploymentContractType.CLT.Id);
             client.InputHeaders([employee.CompanyId]);
             var response = await client.PutAsJsonAsync($"/api/v1/{employee.CompanyId}/employee/admission/complete", command);
 

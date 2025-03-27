@@ -55,3 +55,7 @@ class ErrorEvent extends EmployeesListEvent {
   @override
   List<Object?> get props => [exception];
 }
+
+class FeatchNextPage extends EmployeesListEvent {}
+
+class RefreshPage extends EmployeesListEvent {}

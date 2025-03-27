@@ -16,7 +16,7 @@ namespace PeopleManagement.Services.Services
             _archiveService = archiveService;
         }
 
-        public async Task<Employee> CompleteAdmission(Guid employeeId, Guid companyId, Registration registration, DateOnly dateInit, EmploymentContactType contractType, CancellationToken cancellationToken = default)
+        public async Task<Employee> CompleteAdmission(Guid employeeId, Guid companyId, Registration registration, DateOnly dateInit, EmploymentContractType contractType, CancellationToken cancellationToken = default)
         {
             var hasRequiresFiles = await _archiveService.HasRequiresFiles(employeeId, companyId);
             if (hasRequiresFiles)

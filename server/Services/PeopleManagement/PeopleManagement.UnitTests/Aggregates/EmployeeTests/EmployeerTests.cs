@@ -97,7 +97,7 @@ namespace PeopleManagement.UnitTests.Aggregates.EmployeeTests
 
             var dateNow = DateOnly.FromDateTime(DateTime.UtcNow);
 
-            employee.CompleteAdmission("BBC2", dateNow,  EmploymentContactType.CLT);
+            employee.CompleteAdmission("BBC2", dateNow,  EmploymentContractType.CLT);
 
 
             Assert.True(employee.Status == Status.Active);

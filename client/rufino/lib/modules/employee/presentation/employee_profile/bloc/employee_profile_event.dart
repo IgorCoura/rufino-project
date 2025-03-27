@@ -144,3 +144,22 @@ class ChangeWorkplaceEvent extends EmployeeProfileEvent {
 }
 
 class SaveWorkplaceEvent extends EmployeeProfileEvent {}
+
+class LoadingContractsEvent extends EmployeeProfileEvent {}
+
+class FinishedContractEvent extends EmployeeProfileEvent {
+  final String finalDate;
+
+  const FinishedContractEvent(this.finalDate);
+  @override
+  List<Object> get props => [finalDate];
+}
+
+class NewContractEvent extends EmployeeProfileEvent {
+  final String initDate;
+  final String contractTypeId;
+
+  const NewContractEvent(this.initDate, this.contractTypeId);
+  @override
+  List<Object> get props => [initDate, contractTypeId];
+}

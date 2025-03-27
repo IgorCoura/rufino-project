@@ -171,7 +171,7 @@ class EmployeesListPage extends StatelessWidget {
                   state.isLoading
                       ? const CircularProgressIndicator()
                       : Expanded(
-                          child: _employeesInfinityListView(state.listStatus),
+                          child: _employeesInfinityListView(state),
                         ),
                 ],
               );
@@ -231,9 +231,10 @@ class EmployeesListPage extends StatelessWidget {
         });
   }
 
-  Widget _employeesInfinityListView(List<Status> listStatus) {
+  Widget _employeesInfinityListView(EmployeesListState state) {
     return PagedListView<int, EmployeeWithRole>(
-      pagingController: bloc.pagingController,
+      state: state.pagingState ?? PagingState<int, EmployeeWithRole>(),
+      fetchNextPage: () => bloc.add(FeatchNextPage()),
       builderDelegate: PagedChildBuilderDelegate<EmployeeWithRole>(
           itemBuilder: (context, item, index) => _employeeListItem(item)),
     );

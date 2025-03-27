@@ -11,18 +11,21 @@ class EmployeesListState extends Equatable {
   final Company? company;
   final String? nameNewEmployee;
   final String textfieldErrorMessage;
+  final PagingState<int, EmployeeWithRole>? pagingState;
 
-  const EmployeesListState(
-      {this.listStatus = Status.defaultList,
-      this.searchParam = SearchParam.name,
-      this.searchInput,
-      this.exception,
-      this.company,
-      this.nameNewEmployee,
-      this.textfieldErrorMessage = "",
-      this.selectedStatus = 0,
-      this.isAscSort = true,
-      this.isLoading = false});
+  const EmployeesListState({
+    this.listStatus = Status.defaultList,
+    this.searchParam = SearchParam.name,
+    this.searchInput,
+    this.exception,
+    this.company,
+    this.nameNewEmployee,
+    this.textfieldErrorMessage = "",
+    this.selectedStatus = 0,
+    this.isAscSort = true,
+    this.isLoading = false,
+    this.pagingState,
+  });
 
   EmployeesListState copyWith(
       {bool? isAscSort,
@@ -34,7 +37,8 @@ class EmployeesListState extends Equatable {
       AplicationException? exception,
       Company? company,
       String? nameNewEmployee,
-      String? textfieldErrorMessage}) {
+      String? textfieldErrorMessage,
+      PagingState<int, EmployeeWithRole>? pagingState}) {
     return EmployeesListState(
         isAscSort: isAscSort ?? this.isAscSort,
         searchParam: searchParam ?? this.searchParam,
@@ -46,7 +50,8 @@ class EmployeesListState extends Equatable {
         company: company ?? this.company,
         nameNewEmployee: nameNewEmployee ?? this.nameNewEmployee,
         textfieldErrorMessage:
-            textfieldErrorMessage ?? this.textfieldErrorMessage);
+            textfieldErrorMessage ?? this.textfieldErrorMessage,
+        pagingState: pagingState ?? this.pagingState);
   }
 
   @override
@@ -60,6 +65,7 @@ class EmployeesListState extends Equatable {
         exception,
         company,
         nameNewEmployee,
-        textfieldErrorMessage
+        textfieldErrorMessage,
+        pagingState,
       ];
 }

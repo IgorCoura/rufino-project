@@ -2,6 +2,8 @@ import 'package:bloc/bloc.dart';
 import 'package:equatable/equatable.dart';
 import 'package:rufino/domain/model/company.dart';
 import 'package:rufino/domain/services/company_service.dart';
+import 'package:rufino/modules/employee/domain/model/employee_contract.dart';
+import 'package:rufino/modules/employee/domain/model/employee_contract_type.dart';
 import 'package:rufino/modules/employee/domain/model/medical_admission_exam/medical_admission_exam.dart';
 import 'package:rufino/modules/employee/domain/model/military_document/military_document.dart';
 import 'package:rufino/modules/employee/domain/model/vote_id/vote_id.dart';
@@ -59,6 +61,9 @@ class EmployeeProfileBloc
     on<LazyLoadingWorkplaceEvent>(_onLazyLoadingWorkplaceEvent);
     on<ChangeWorkplaceEvent>(_onChangeWorkplaceEvent);
     on<SaveWorkplaceEvent>(_onSaveWorkplaceEvent);
+    on<LoadingContractsEvent>(_onLoadingContractsEvent);
+    on<FinishedContractEvent>(_onFinishedContractEvent);
+    on<NewContractEvent>(_onNewContractEvent);
   }
 
   Future _onInitialEvent(InitialEmployeeProfileEvent event,
@@ -486,7 +491,9 @@ class EmployeeProfileBloc
       Emitter<EmployeeProfileState> emit) async {
     var workplaces =
         await _peopleManagementService.getAllWorkplace(state.company.id);
-    emit(state.copyWith(listWorkplace: workplaces));
+    emit(state.copyWith(
+      listWorkplace: workplaces,
+    ));
   }
 
   Future _onChangeWorkplaceEvent(
@@ -507,5 +514,55 @@ class EmployeeProfileBloc
         isSavingData: false,
         isEditingName: false,
         snackMessage: "Local de trabalho alterado com sucesso."));
+  }
+
+  Future _onLoadingContractsEvent(
+      LoadingContractsEvent event, Emitter<EmployeeProfileState> emit) async {
+    try {
+      var contracts = await _peopleManagementService.getEmployeeContracts(
+          state.employee.id, state.company.id);
+      var contractsType = await _peopleManagementService
+          .getEmployeeContractTypes(state.company.id);
+      emit(state.copyWith(
+          listContracts: contracts, listContractTypes: contractsType));
+    } catch (ex, stacktrace) {
+      var exception = _peopleManagementService.treatErrors(ex, stacktrace);
+      emit(state.copyWith(
+          isLoading: false, isSavingData: false, exception: exception));
+    }
+  }
+
+  Future _onFinishedContractEvent(
+      FinishedContractEvent event, Emitter<EmployeeProfileState> emit) async {
+    try {
+      emit(state.copyWith(isSavingData: true));
+
+      await _peopleManagementService.finishedContract(
+          state.employee.id, state.company.id, event.finalDate);
+
+      add(LoadingContractsEvent());
+      emit(state.copyWith(isSavingData: false));
+    } catch (ex, stacktrace) {
+      var exception = _peopleManagementService.treatErrors(ex, stacktrace);
+      emit(state.copyWith(
+          isLoading: false, isSavingData: false, exception: exception));
+    }
+  }
+
+  Future _onNewContractEvent(
+      NewContractEvent event, Emitter<EmployeeProfileState> emit) async {
+    try {
+      emit(state.copyWith(isSavingData: true));
+
+      await _peopleManagementService.newContract(state.employee.id,
+          state.company.id, event.initDate, event.contractTypeId);
+
+      add(LoadingContractsEvent());
+      emit(state.copyWith(isSavingData: false));
+    } catch (ex, stacktrace) {
+      var exception = _peopleManagementService.treatErrors(ex, stacktrace);
+      emit(state.copyWith(
+          isLoading: false, isSavingData: false, exception: exception));
+    }
   }
 }
