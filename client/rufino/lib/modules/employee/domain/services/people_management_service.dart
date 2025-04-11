@@ -1,5 +1,7 @@
 import 'dart:convert';
 import 'package:intl/intl.dart';
+import 'package:rufino/modules/employee/domain/model/archive_category/archive_category.dart';
+import 'package:rufino/modules/employee/domain/model/archive_category/event.dart';
 import 'package:rufino/modules/employee/domain/model/dependent/dependency_type.dart';
 import 'package:rufino/modules/employee/domain/model/dependent/dependent.dart';
 import 'package:rufino/modules/employee/domain/model/employee_contract.dart';
@@ -292,7 +294,7 @@ class PeopleManagementService extends BaseService {
   }
 
   Future<String> newContract(String employeeId, String companyId,
-      String initDate, String contractTypeId) async {
+      String initDate, String contractTypeId, String registration) async {
     var headers = await getHeadersWithRequestId();
 
     // Parse the input date string in dd/MM/yyyy format
@@ -303,12 +305,13 @@ class PeopleManagementService extends BaseService {
 
     Map<String, dynamic> body = {
       "employeeId": employeeId,
-      "initDateContract": formattedDate,
+      "registration": registration,
+      "dateInit": formattedDate,
       "contractType": int.parse(contractTypeId),
     };
 
     var url = peopleManagementUrl.replace(
-        path: "/api/v1/$companyId/employee/contract/new");
+        path: "/api/v1/$companyId/employee/admission/complete");
 
     var response =
         await http.put(url, headers: headers, body: jsonEncode(body));
@@ -647,6 +650,30 @@ class PeopleManagementService extends BaseService {
     if (response.statusCode == 200) {
       List<dynamic> jsonResponse = jsonDecode(response.body);
       return EmployeeContractType.fromListJson(jsonResponse);
+    }
+    return treatUnsuccessfulResponses(response);
+  }
+
+  Future<List<ArchiveCategory>> getArchiveCategories(String companyId) async {
+    var headers = await getHeaders();
+    var url =
+        peopleManagementUrl.replace(path: "/api/v1/$companyId/archivecategory");
+    var response = await http.get(url, headers: headers);
+    if (response.statusCode == 200) {
+      List<dynamic> jsonResponse = jsonDecode(response.body);
+      return ArchiveCategory.fromListJson(jsonResponse);
+    }
+    return treatUnsuccessfulResponses(response);
+  }
+
+  Future<List<Event>> getEvents(String companyId) async {
+    var headers = await getHeaders();
+    var url = peopleManagementUrl.replace(
+        path: "/api/v1/$companyId/archivecategory/event");
+    var response = await http.get(url, headers: headers);
+    if (response.statusCode == 200) {
+      List<dynamic> jsonResponse = jsonDecode(response.body);
+      return Event.fromListJson(jsonResponse);
     }
     return treatUnsuccessfulResponses(response);
   }

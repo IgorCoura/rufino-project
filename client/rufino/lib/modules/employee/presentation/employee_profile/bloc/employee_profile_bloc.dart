@@ -73,6 +73,8 @@ class EmployeeProfileBloc
       var company = await _companyService.getSelectedCompany();
       var employee = await _peopleManagementService.getEmployee(
           event.employeeId, company.id);
+      var contractsType =
+          await _peopleManagementService.getEmployeeContractTypes(company.id);
 
       if (state.militaryDocument.isLoading) {
         var militaryDocument = await _peopleManagementService
@@ -82,7 +84,10 @@ class EmployeeProfileBloc
       }
 
       emit(state.copyWith(
-          company: company, employee: employee, isLoading: false));
+          company: company,
+          employee: employee,
+          listContractTypes: contractsType,
+          isLoading: false));
     } catch (ex, stacktrace) {
       var exception = _peopleManagementService.treatErrors(ex, stacktrace);
       emit(state.copyWith(isLoading: false, exception: exception));
@@ -554,10 +559,15 @@ class EmployeeProfileBloc
     try {
       emit(state.copyWith(isSavingData: true));
 
-      await _peopleManagementService.newContract(state.employee.id,
-          state.company.id, event.initDate, event.contractTypeId);
+      await _peopleManagementService.newContract(
+          state.employee.id,
+          state.company.id,
+          event.initDate,
+          event.contractTypeId,
+          event.registration);
 
       add(LoadingContractsEvent());
+      add(InitialEmployeeProfileEvent(state.employee.id));
       emit(state.copyWith(isSavingData: false));
     } catch (ex, stacktrace) {
       var exception = _peopleManagementService.treatErrors(ex, stacktrace);

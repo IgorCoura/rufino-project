@@ -49,6 +49,41 @@ class EmployeesListPage extends StatelessWidget {
             );
           },
         ),
+        actions: [
+          Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: PopupMenuButton(
+              icon: Icon(Icons.settings),
+              itemBuilder: (BuildContext context) {
+                return const <PopupMenuEntry>[
+                  PopupMenuItem(
+                    value: "archive",
+                    child: Text('Configurações dos Arquivos'),
+                  ),
+                  PopupMenuItem(
+                    value: "documents",
+                    child: Text('Configurações dos Documentos'),
+                  ),
+                ];
+              },
+              onSelected: (value) async {
+                if (value == "logout") {
+                  // bloc.add(LogoutRequested());
+                  Modular.to.navigate("/login");
+                  return;
+                }
+                if (value == "company-section") {
+                  Modular.to.navigate("/company-selection");
+                  return;
+                }
+                if (value == "archive") {
+                  Modular.to.navigate("/employee/archive-category");
+                  return;
+                }
+              },
+            ),
+          ),
+        ],
       ),
       body: Center(
         child: ConstrainedBox(
@@ -70,6 +105,7 @@ class EmployeesListPage extends StatelessWidget {
                       var textfieldWidth = layoutConstraints.maxWidth - 200;
                       return Wrap(
                         runSpacing: 8,
+                        spacing: 8,
                         crossAxisAlignment: WrapCrossAlignment.center,
                         alignment: WrapAlignment.spaceBetween,
                         children: [

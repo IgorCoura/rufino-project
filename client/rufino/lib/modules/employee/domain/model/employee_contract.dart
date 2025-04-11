@@ -2,7 +2,7 @@ import 'package:intl/intl.dart';
 import 'package:rufino/modules/employee/domain/model/employee_contract_type.dart';
 
 class EmployeeContract {
-  final String displayName = "Contrato";
+  static final String displayName = "Contrato";
   final String initDate;
   final String? finalDate;
   final EmployeeContractType type;
@@ -18,7 +18,7 @@ class EmployeeContract {
     return listJson.map((el) => fromJson(el)).toList();
   }
 
-  String? validate(String? value) {
+  static String? validate(String? value) {
     if (value == null || value.isEmpty) {
       return "O $displayName não pode ser vazio.";
     }

@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:rufino/modules/employee/presentation/employee_profile/components/base_edit_component.dart';
+import 'package:rufino/modules/employee/presentation/components/base_edit_component.dart';
 
 class PropsContainerComponent extends StatefulWidget {
   final String containerName;

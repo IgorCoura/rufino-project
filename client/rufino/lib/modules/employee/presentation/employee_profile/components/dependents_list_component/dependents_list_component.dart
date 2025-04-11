@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_modular/flutter_modular.dart';
-import 'package:rufino/modules/employee/presentation/employee_profile/components/base_edit_component.dart';
+import 'package:rufino/modules/employee/presentation/components/base_edit_component.dart';
 import 'package:rufino/modules/employee/presentation/employee_profile/components/dependents_list_component/bloc/dependents_list_component_bloc.dart';
-import 'package:rufino/modules/employee/presentation/employee_profile/components/enumeration_view_component.dart';
-import 'package:rufino/modules/employee/presentation/employee_profile/components/props_container_component.dart';
-import 'package:rufino/modules/employee/presentation/employee_profile/components/text_edit_component.dart';
+import 'package:rufino/modules/employee/presentation/components/enumeration_view_component.dart';
+import 'package:rufino/modules/employee/presentation/components/props_container_component.dart';
+import 'package:rufino/modules/employee/presentation/components/text_edit_component.dart';
 import 'package:rufino/shared/components/error_components.dart';
 
 class DependentsListComponent extends StatelessWidget {
