@@ -2,9 +2,9 @@ import 'package:flutter/services.dart';
 import 'package:mask_text_input_formatter/mask_text_input_formatter.dart';
 import 'package:rufino/modules/employee/domain/model/base/text_prop_base.dart';
 
-class DateExam extends TextPropBase {
+class TimeSpan extends TextPropBase {
   static final MaskTextInputFormatter maskFormatter = MaskTextInputFormatter(
-      mask: 'Dias: ##/##/####',
+      mask: 'Dias: ## Tempo: ##:##:##',
       filter: {"#": RegExp(r'[0-9]')},
       type: MaskAutoCompletionType.lazy);
 
@@ -13,15 +13,13 @@ class DateExam extends TextPropBase {
   @override
   TextInputType? get inputType => TextInputType.number;
 
-  const DateExam(String value) : super("Data do exame", value);
+  const TimeSpan(String value, String displayName) : super(displayName, value);
 
-  const DateExam.empty() : super("Data do exame", "");
-
-  factory DateExam.createFormatted(String number) => DateExam(format(number));
+  factory TimeSpan.createFormatted(String number, String displayName) =>
+      TimeSpan(format(number), displayName);
 
   static String format(String rawNumber) {
-    var itens = rawNumber.split("-");
-    var number = itens[2] + itens[1] + itens[0];
+    var number = rawNumber.replaceAll(".", "").replaceAll(":", "");
     maskFormatter.formatEditUpdate(
       const TextEditingValue(text: ""),
       TextEditingValue(text: number),
@@ -29,19 +27,15 @@ class DateExam extends TextPropBase {
     return maskFormatter.getMaskedText();
   }
 
-  static String convertToData(String value) {
-    var itens = value.split("/");
+  String toJson() {
+    var itens = value.split("Tempo");
     var number = "${itens[2]}-${itens[1]}-${itens[0]}";
     return number;
   }
 
-  String toData() {
-    return convertToData(value);
-  }
-
   @override
-  DateExam copyWith({String? value}) {
-    return DateExam(value ?? this.value);
+  TimeSpan copyWith({String? value}) {
+    return TimeSpan(value ?? this.value, displayName);
   }
 
   @override
@@ -51,7 +45,7 @@ class DateExam extends TextPropBase {
     }
 
     try {
-      var dataString = convertToData(value);
+      var dataString = value;
       var date = DateTime.tryParse(dataString);
 
       var dateMin = DateTime.now().add(const Duration(days: -365));
@@ -65,4 +59,16 @@ class DateExam extends TextPropBase {
     }
     return null;
   }
+}
+
+class DocumentValidityDuration extends TimeSpan {
+  static const String contDisplayName = "Validade do documento";
+  const DocumentValidityDuration(String value) : super(value, contDisplayName);
+  const DocumentValidityDuration.empty() : super("", contDisplayName);
+}
+
+class Workload extends TimeSpan {
+  static const String contDisplayName = "Carga horária";
+  const Workload(String value) : super(value, contDisplayName);
+  const Workload.empty() : super("", contDisplayName);
 }

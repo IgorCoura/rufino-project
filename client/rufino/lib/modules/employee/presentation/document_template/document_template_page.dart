@@ -1,17 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_modular/flutter_modular.dart';
-import 'package:rufino/modules/employee/domain/model/archive_category/archive_category.dart';
-import 'package:rufino/modules/employee/domain/model/archive_category/description.dart';
-import 'package:rufino/modules/employee/presentation/archive_category/bloc/archive_category_bloc.dart';
-import 'package:rufino/modules/employee/presentation/components/enumeration_list_view_component.dart';
+import 'package:rufino/modules/employee/domain/model/document_template/document_template.dart';
 import 'package:rufino/modules/employee/presentation/components/props_container_component.dart';
-import 'package:rufino/modules/employee/presentation/components/text_edit_component.dart';
+import 'package:rufino/modules/employee/presentation/document_template/bloc/document_template_bloc.dart';
 import 'package:rufino/shared/components/error_components.dart';
 
-class ArchiveCategoryPage extends StatelessWidget {
-  final bloc = Modular.get<ArchiveCategoryBloc>();
-  ArchiveCategoryPage({super.key}) {
+class DocumentTemplatePage extends StatelessWidget {
+  final bloc = Modular.get<DocumentTemplateBloc>();
+  DocumentTemplatePage({super.key}) {
     bloc.add(InitialEvent());
   }
 
@@ -25,14 +22,14 @@ class ArchiveCategoryPage extends StatelessWidget {
             Modular.to.navigate("/employee/list");
           },
         ),
-        title: const Text('Categorias de Arquivos'),
+        title: const Text('Templates de Documentos'),
       ),
       body: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 1000),
           child: Padding(
             padding: const EdgeInsets.all(8.0),
-            child: BlocBuilder<ArchiveCategoryBloc, ArchiveCategoryState>(
+            child: BlocBuilder<DocumentTemplateBloc, DocumentTemplateState>(
               bloc: bloc,
               builder: (context, state) {
                 if (state.exception != null) {
@@ -50,15 +47,15 @@ class ArchiveCategoryPage extends StatelessWidget {
                 }
 
                 return ListView(
-                  children: state.archiveCategories.isNotEmpty
-                      ? state.archiveCategories.map((category) {
-                          return _archiveCategoryContainer(state, category);
+                  children: state.documentTemplates.isNotEmpty
+                      ? state.documentTemplates.map((template) {
+                          return _documentTemplateContainer(state, template);
                         }).toList()
                       : [
                           Center(
                               child: state.isLoading
                                   ? CircularProgressIndicator()
-                                  : const Text("Nenhuma categoria encontrada")),
+                                  : const Text("Nenhuma template encontrada")),
                         ],
                 );
               },
@@ -73,23 +70,18 @@ class ArchiveCategoryPage extends StatelessWidget {
     );
   }
 
-  Widget _archiveCategoryContainer(
-      ArchiveCategoryState state, ArchiveCategory category) {
+  Widget _documentTemplateContainer(
+      DocumentTemplateState state, DocumentTemplate template) {
     return Column(
       children: [
         PropsContainerComponent(
-            containerName: category.name,
-            isSavingData: state.isSavingData,
-            saveContainerData: (objs) => bloc.add(SaveEvent(category, objs)),
-            loadingContainerData: () {},
-            isLoading: state.isLoading,
-            children: [
-              TextEditComponent(textProp: category.description),
-              EnumerationListViewComponent(
-                enumerationsList: category.listenEvents,
-                enumerationOptionsList: state.events,
-              )
-            ]),
+          containerName: template.name.value,
+          isSavingData: state.isSavingData,
+          saveContainerData: (objs) => {},
+          loadingContainerData: () {},
+          isLoading: state.isLoading,
+          children: [],
+        ),
         const SizedBox(
           height: 8,
         ),
@@ -101,13 +93,12 @@ class ArchiveCategoryPage extends StatelessWidget {
     return showDialog(
         context: context,
         builder: (context) {
-          var archiveCategory = new ArchiveCategory.empty();
           var _formkey = GlobalKey<FormState>();
           return AlertDialog(
             title: const Text('Cadastrar de Categoria'),
             content: SizedBox(
               width: 600,
-              child: BlocBuilder<ArchiveCategoryBloc, ArchiveCategoryState>(
+              child: BlocBuilder<DocumentTemplateBloc, DocumentTemplateState>(
                   bloc: bloc,
                   builder: (context, state) {
                     return Form(
@@ -120,12 +111,12 @@ class ArchiveCategoryPage extends StatelessWidget {
                               labelText: 'Nome da Categoria de Arquivos',
                               border: const OutlineInputBorder(),
                             ),
-                            validator: archiveCategory.validateName,
-                            onSaved: (newValue) {
-                              archiveCategory = archiveCategory.copyWith(
-                                name: newValue!,
-                              );
-                            },
+                            // validator: archiveCategory.validateName,
+                            // onSaved: (newValue) {
+                            //   archiveCategory = archiveCategory.copyWith(
+                            //       // name: newValue!,
+                            //       );
+                            // },
                           ),
                           SizedBox(
                             height: 8,
@@ -135,12 +126,12 @@ class ArchiveCategoryPage extends StatelessWidget {
                               labelText: 'Descrição da Categoria',
                               border: const OutlineInputBorder(),
                             ),
-                            validator: archiveCategory.description.validate,
-                            onSaved: (newValue) {
-                              archiveCategory = archiveCategory.copyWith(
-                                description: Description(newValue!),
-                              );
-                            },
+                            // validator: archiveCategory.description.validate,
+                            // onSaved: (newValue) {
+                            //   archiveCategory = archiveCategory.copyWith(
+                            //       // description: Description(newValue!),
+                            //       );
+                            // },
                             maxLines: 5,
                             minLines: 1,
                           ),
@@ -162,7 +153,7 @@ class ArchiveCategoryPage extends StatelessWidget {
                   if (_formkey.currentState != null &&
                       _formkey.currentState!.validate()) {
                     _formkey.currentState!.save();
-                    bloc.add(CreateNewArchiveCategoryEvent(archiveCategory));
+                    // bloc.add(CreateNewArchiveCategoryEvent(archiveCategory));
                   }
                 },
                 child: const Text('Criar'),

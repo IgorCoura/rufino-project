@@ -4,6 +4,7 @@ import 'package:rufino/modules/employee/domain/model/archive_category/archive_ca
 import 'package:rufino/modules/employee/domain/model/archive_category/event.dart';
 import 'package:rufino/modules/employee/domain/model/dependent/dependency_type.dart';
 import 'package:rufino/modules/employee/domain/model/dependent/dependent.dart';
+import 'package:rufino/modules/employee/domain/model/document_template/document_template.dart';
 import 'package:rufino/modules/employee/domain/model/employee_contract.dart';
 import 'package:rufino/modules/employee/domain/model/employee_contract_type.dart';
 import 'package:rufino/modules/employee/domain/model/gender.dart';
@@ -335,6 +336,85 @@ class PeopleManagementService extends BaseService {
 
     var response =
         await http.put(url, headers: headers, body: jsonEncode(body));
+    if (response.statusCode == 200) {
+      var jsonResponse = jsonDecode(response.body);
+      return jsonResponse["id"];
+    }
+    return treatUnsuccessfulResponses(response);
+  }
+
+  Future<String> addArchiveCategoryEvent(
+      String companyId, String archiveCategoryId, List<int> eventList) async {
+    var headers = await getHeadersWithRequestId();
+    Map<String, dynamic> body = {
+      "archiveCategoryId": archiveCategoryId,
+      "eventId": eventList,
+    };
+
+    var url = peopleManagementUrl.replace(
+        path: "/api/v1/$companyId/archivecategory/event/add");
+
+    var response =
+        await http.put(url, headers: headers, body: jsonEncode(body));
+    if (response.statusCode == 200) {
+      var jsonResponse = jsonDecode(response.body);
+      return jsonResponse["id"];
+    }
+    return treatUnsuccessfulResponses(response);
+  }
+
+  Future<String> removeArchiveCategoryEvent(
+      String companyId, String archiveCategoryId, List<int> eventList) async {
+    var headers = await getHeadersWithRequestId();
+    Map<String, dynamic> body = {
+      "archiveCategoryId": archiveCategoryId,
+      "eventId": eventList,
+    };
+
+    var url = peopleManagementUrl.replace(
+        path: "/api/v1/$companyId/archivecategory/event/remove");
+
+    var response =
+        await http.put(url, headers: headers, body: jsonEncode(body));
+    if (response.statusCode == 200) {
+      var jsonResponse = jsonDecode(response.body);
+      return jsonResponse["id"];
+    }
+    return treatUnsuccessfulResponses(response);
+  }
+
+  Future<String> editDescriptionArchiveCategory(
+      String companyId, String archiveCategoryId, String description) async {
+    var headers = await getHeadersWithRequestId();
+    Map<String, dynamic> body = {
+      "archiveCategoryId": archiveCategoryId,
+      "description": description,
+    };
+
+    var url = peopleManagementUrl.replace(
+        path: "/api/v1/$companyId/archivecategory/description");
+
+    var response =
+        await http.put(url, headers: headers, body: jsonEncode(body));
+    if (response.statusCode == 200) {
+      var jsonResponse = jsonDecode(response.body);
+      return jsonResponse["id"];
+    }
+    return treatUnsuccessfulResponses(response);
+  }
+
+  Future<String> createArchiveCategory(
+      String companyId, ArchiveCategory category) async {
+    var headers = await getHeadersWithRequestId();
+    Map<String, dynamic> body = {
+      "name": category.name,
+      "description": category.description.value,
+      "listenEventsIds": [],
+    };
+    var url =
+        peopleManagementUrl.replace(path: "/api/v1/$companyId/archivecategory");
+    var response =
+        await http.post(url, headers: headers, body: jsonEncode(body));
     if (response.statusCode == 200) {
       var jsonResponse = jsonDecode(response.body);
       return jsonResponse["id"];
@@ -674,6 +754,19 @@ class PeopleManagementService extends BaseService {
     if (response.statusCode == 200) {
       List<dynamic> jsonResponse = jsonDecode(response.body);
       return Event.fromListJson(jsonResponse);
+    }
+    return treatUnsuccessfulResponses(response);
+  }
+
+  Future<List<DocumentTemplate>> getAllDocumentTemplates(
+      String companyId) async {
+    var headers = await getHeaders();
+    var url = peopleManagementUrl.replace(
+        path: "/api/v1/$companyId/documenttemplate");
+    var response = await http.get(url, headers: headers);
+    if (response.statusCode == 200) {
+      List<dynamic> jsonResponse = jsonDecode(response.body);
+      return DocumentTemplate.fromListJson(jsonResponse);
     }
     return treatUnsuccessfulResponses(response);
   }

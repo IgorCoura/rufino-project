@@ -1,10 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_modular/flutter_modular.dart';
 import 'package:infinite_scroll_pagination/infinite_scroll_pagination.dart';
 import 'package:rufino/modules/employee/domain/model/employee_with_role.dart';
-import 'package:rufino/modules/employee/domain/model/status.dart';
 import 'package:rufino/modules/employee/domain/model/search_params.dart';
 import 'package:rufino/modules/employee/presentation/employees_list/bloc/employees_list_bloc.dart';
 import 'package:rufino/shared/components/error_components.dart';
@@ -78,6 +76,11 @@ class EmployeesListPage extends StatelessWidget {
                 }
                 if (value == "archive") {
                   Modular.to.navigate("/employee/archive-category");
+                  return;
+                }
+
+                if (value == "documents") {
+                  Modular.to.navigate("/employee/document-template");
                   return;
                 }
               },

@@ -57,9 +57,17 @@ class ArchiveCategory extends ModelBase {
       'name': name,
       'description': description.value,
       'listenEvents': listenEvents.toJson(),
-      'isLoading': isLoading,
-      'isLazyLoading': isLazyLoading,
     };
+  }
+
+  String? validateName(String? value) {
+    if (value == null || value.isEmpty) {
+      return "O nome não pode ser vazio.";
+    }
+    if (value.length > 500) {
+      return "o nome não pode ser maior que 100 caracteres.";
+    }
+    return null;
   }
 
   static List<ArchiveCategory> fromListJson(List<dynamic> jsonList) {
