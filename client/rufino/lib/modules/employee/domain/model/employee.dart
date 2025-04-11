@@ -30,6 +30,10 @@ class Employee extends Equatable {
   @override
   List<Object?> get props => [id, name, registration, status];
 
+  bool canBeHired() {
+    return status.id == 1 || status.id == 5;
+  }
+
   factory Employee.fromJson(Map<String, dynamic> json) {
     return Employee(
       json["id"],
@@ -46,5 +50,20 @@ class Employee extends Equatable {
     return jsonList
         .map<Employee>((element) => Employee.fromJson(element))
         .toList();
+  }
+
+  static String? validateRegistration(String? value) {
+    if (value == null || value.isEmpty) {
+      return "O Registro não pode ser vazio.";
+    }
+
+    try {
+      if (value.length > 15) {
+        return "O Registro é invalida.";
+      }
+    } catch (_) {
+      return "O Registro é invalida.";
+    }
+    return null;
   }
 }

@@ -1,18 +1,22 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_modular/flutter_modular.dart';
+import 'package:mask_text_input_formatter/mask_text_input_formatter.dart';
 import 'package:rufino/domain/model/company.dart';
+import 'package:rufino/modules/employee/domain/model/employee.dart';
+import 'package:rufino/modules/employee/domain/model/employee_contract.dart';
+import 'package:rufino/modules/employee/domain/model/employee_contract_type.dart';
 import 'package:rufino/modules/employee/domain/model/name.dart';
 import 'package:rufino/modules/employee/domain/model/personal_info/disability.dart';
 import 'package:rufino/modules/employee/presentation/employee_profile/bloc/employee_profile_bloc.dart';
-import 'package:rufino/modules/employee/presentation/employee_profile/components/base_edit_component.dart';
+import 'package:rufino/modules/employee/presentation/components/base_edit_component.dart';
 import 'package:rufino/modules/employee/presentation/employee_profile/components/contracts_view_component.dart';
 import 'package:rufino/modules/employee/presentation/employee_profile/components/dependents_list_component/dependents_list_component.dart';
-import 'package:rufino/modules/employee/presentation/employee_profile/components/enumeration_list_view_component.dart';
-import 'package:rufino/modules/employee/presentation/employee_profile/components/enumeration_view_component.dart';
-import 'package:rufino/modules/employee/presentation/employee_profile/components/props_container_component.dart';
-import 'package:rufino/modules/employee/presentation/employee_profile/components/text_componet.dart';
-import 'package:rufino/modules/employee/presentation/employee_profile/components/text_edit_component.dart';
+import 'package:rufino/modules/employee/presentation/components/enumeration_list_view_component.dart';
+import 'package:rufino/modules/employee/presentation/components/enumeration_view_component.dart';
+import 'package:rufino/modules/employee/presentation/components/props_container_component.dart';
+import 'package:rufino/modules/employee/presentation/components/text_componet.dart';
+import 'package:rufino/modules/employee/presentation/components/text_edit_component.dart';
 import 'package:rufino/shared/components/error_components.dart';
 
 class EmployeeProfilePage extends StatelessWidget {
@@ -85,6 +89,7 @@ class EmployeeProfilePage extends StatelessWidget {
                           const SizedBox(
                             height: 16,
                           ),
+                          _hiredButton(context, state),
                           _employeeName(context, state.isEditingName,
                               state.isSavingData, state.employee.name),
                           const SizedBox(
@@ -329,9 +334,6 @@ class EmployeeProfilePage extends StatelessWidget {
                                 bloc.add(LoadingContractsEvent()),
                             onFineshedContract: (finalDate) =>
                                 bloc.add(FinishedContractEvent(finalDate)),
-                            onInitContract: (initDate, contractTypeId) =>
-                                bloc.add(
-                                    NewContractEvent(initDate, contractTypeId)),
                             contracts: state.listContracts,
                             listContractTypeOptions: state.listContractTypes,
                             isSavingData: state.isSavingData,
@@ -431,6 +433,140 @@ class EmployeeProfilePage extends StatelessWidget {
                     child: const Text("Editar"),
                   ),
       ],
+    );
+  }
+
+  Widget _hiredButton(BuildContext context, EmployeeProfileState state) {
+    return state.employee.canBeHired()
+        ? Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: FilledButton(
+              onPressed: () {
+                _confirmAction(context, state);
+              },
+              child: const Text("Contratar"),
+            ),
+          )
+        : const SizedBox();
+  }
+
+  void _confirmAction(
+    BuildContext context,
+    EmployeeProfileState state,
+  ) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      showDialog(
+          barrierDismissible: false,
+          context: context,
+          builder: (_) {
+            final dialogFormKey = GlobalKey<FormState>();
+            String dateSeleted = "";
+            String text = "";
+            String typeSelected = "";
+            return AlertDialog(
+              title: Text("Contratar Funcionário"),
+              content: SizedBox(
+                  width: 400,
+                  child: Form(
+                    key: dialogFormKey,
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        _TextFrom(context, (value) => text = value),
+                        SizedBox(
+                          height: 16,
+                        ),
+                        _dataFrom(context, EmployeeContract.validate,
+                            (value) => dateSeleted = value),
+                        SizedBox(
+                          height: 16,
+                        ),
+                        _dropDownForm(state.listContractTypes,
+                            (value) => typeSelected = value),
+                      ],
+                    ),
+                  )),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text("Cancelar"),
+                ),
+                FilledButton(
+                  onPressed: () {
+                    if (dialogFormKey.currentState != null &&
+                        dialogFormKey.currentState!.validate()) {
+                      bloc.add(
+                          NewContractEvent(dateSeleted, typeSelected, text));
+                      Navigator.pop(context);
+                    }
+                  },
+                  child: const Text("Confirmar"),
+                ),
+              ],
+            );
+          });
+    });
+  }
+
+  Widget _dataFrom(BuildContext context, Function(String?) validation,
+      Function(String value) onChange) {
+    return TextFormField(
+      inputFormatters: [
+        MaskTextInputFormatter(
+            mask: '##/##/####',
+            filter: {"#": RegExp(r'[0-9]')},
+            type: MaskAutoCompletionType.lazy)
+      ],
+      keyboardType: TextInputType.datetime,
+      controller: TextEditingController(),
+      enabled: true,
+      decoration: InputDecoration(
+        labelText: "Data de Inicio",
+        border: const OutlineInputBorder(),
+      ),
+      style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
+      validator: (value) => validation(value),
+      onChanged: onChange,
+    );
+  }
+
+  Widget _TextFrom(BuildContext context, Function(String value) onChange) {
+    return TextFormField(
+      keyboardType: TextInputType.datetime,
+      controller: TextEditingController(),
+      enabled: true,
+      decoration: InputDecoration(
+        labelText: "Identificação de Registro",
+        border: const OutlineInputBorder(),
+      ),
+      validator: Employee.validateRegistration,
+      style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
+      onChanged: onChange,
+    );
+  }
+
+  Widget _dropDownForm(List<EmployeeContractType> listContractTypeOptions,
+      Function(String value) onChange) {
+    return DropdownButtonFormField(
+      items: listContractTypeOptions
+          .map((e) => DropdownMenuItem(value: e, child: Text(e.name)))
+          .toList(),
+      onChanged: (EmployeeContractType? value) {
+        if (value != null) {
+          onChange(value.id);
+        }
+      },
+      validator: (value) {
+        if (value == null || value == EmployeeContractType.empty) {
+          return 'Por favor, selecione um opção.';
+        }
+        return null;
+      },
+      decoration: InputDecoration(
+        enabled: true,
+        labelText: "Tipo de Contrato",
+        border: const OutlineInputBorder(),
+      ),
     );
   }
 }

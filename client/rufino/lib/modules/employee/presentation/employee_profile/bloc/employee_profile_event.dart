@@ -158,8 +158,9 @@ class FinishedContractEvent extends EmployeeProfileEvent {
 class NewContractEvent extends EmployeeProfileEvent {
   final String initDate;
   final String contractTypeId;
+  final String registration;
 
-  const NewContractEvent(this.initDate, this.contractTypeId);
+  const NewContractEvent(this.initDate, this.contractTypeId, this.registration);
   @override
-  List<Object> get props => [initDate, contractTypeId];
+  List<Object> get props => [initDate, contractTypeId, registration];
 }

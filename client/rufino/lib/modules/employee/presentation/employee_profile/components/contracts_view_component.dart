@@ -6,14 +6,12 @@ import 'package:rufino/modules/employee/domain/model/employee_contract_type.dart
 class ContractsViewComponent extends StatefulWidget {
   final Function loadingContainerData;
   final Function(String finalDate) onFineshedContract;
-  final Function(String initDate, String contractTypeId) onInitContract;
   final List<EmployeeContract> contracts;
   final bool isSavingData;
   final List<EmployeeContractType> listContractTypeOptions;
   const ContractsViewComponent(
       {required this.loadingContainerData,
       required this.onFineshedContract,
-      required this.onInitContract,
       required this.contracts,
       required this.isSavingData,
       required this.listContractTypeOptions,
@@ -27,7 +25,6 @@ class _ContractsViewComponentState extends State<ContractsViewComponent> {
   bool _isExpanded = false;
   final _formKey = GlobalKey<FormState>();
   String date = "";
-  String contractTypeId = "";
 
   void expand() {
     setState(() {
@@ -54,7 +51,7 @@ class _ContractsViewComponentState extends State<ContractsViewComponent> {
                     children: widget.contracts
                         .map((el) => _bodyItem(
                             context,
-                            el.displayName,
+                            EmployeeContract.displayName,
                             el.initDate,
                             el.finalDate ?? "__________ ",
                             el.type.name))
@@ -65,9 +62,9 @@ class _ContractsViewComponentState extends State<ContractsViewComponent> {
                       : widget.contracts.any((el) => el.finalDate == null) ==
                               true
                           ? _buttonFinishedContract(context)
-                          : _buttonNewContract(context),
+                          : const SizedBox(),
                 ])
-              : Container(),
+              : const SizedBox(),
         ],
       ),
     );
@@ -83,7 +80,7 @@ class _ContractsViewComponentState extends State<ContractsViewComponent> {
               backgroundColor:
                   WidgetStatePropertyAll(Theme.of(context).colorScheme.error)),
           onPressed: () => _confirmAction(context, "Finalizar Contrato",
-              (value) => widget.contracts.last.validate(value), () {
+              (value) => EmployeeContract.validate(value), () {
             if (_formKey.currentState != null &&
                 _formKey.currentState!.validate()) {
               widget.onFineshedContract(date);
@@ -91,26 +88,6 @@ class _ContractsViewComponentState extends State<ContractsViewComponent> {
             }
           }),
           child: const Text("Finalizar Contrato"),
-        ),
-      ),
-    );
-  }
-
-  Widget _buttonNewContract(BuildContext context) {
-    return Container(
-      alignment: Alignment.centerRight,
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(0, 0, 8, 8),
-        child: FilledButton(
-          onPressed: () => _confirmAction(context, "Novo Contrato",
-              (value) => widget.contracts.last.validate(value), () {
-            if (_formKey.currentState != null &&
-                _formKey.currentState!.validate()) {
-              widget.onInitContract(date, contractTypeId);
-              Navigator.pop(context);
-            }
-          }, activeSelectionContractType: true),
-          child: const Text("Novo Contrato"),
         ),
       ),
     );
@@ -211,37 +188,20 @@ class _ContractsViewComponentState extends State<ContractsViewComponent> {
     );
   }
 
-  void _confirmAction(
-    BuildContext context,
-    String title,
-    Function(String?) validation,
-    Function() onPressed, {
-    bool activeSelectionContractType = false,
-  }) {
+  void _confirmAction(BuildContext context, String title,
+      Function(String?) validation, Function() onPressed) {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       showDialog(
           barrierDismissible: false,
           context: context,
           builder: (_) {
-            String date = "";
             return AlertDialog(
               title: Text(title),
               content: SizedBox(
                   width: 400,
                   child: Form(
                     key: _formKey,
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        _dataFrom(validation),
-                        SizedBox(
-                          height: 16,
-                        ),
-                        activeSelectionContractType
-                            ? _dropDownForm()
-                            : const SizedBox(),
-                      ],
-                    ),
+                    child: _dataFrom(validation),
                   )),
               actions: [
                 TextButton(
@@ -272,36 +232,12 @@ class _ContractsViewComponentState extends State<ContractsViewComponent> {
       controller: TextEditingController(),
       enabled: true,
       decoration: InputDecoration(
-        labelText: "Data",
+        labelText: "Data de Finalização",
         border: const OutlineInputBorder(),
       ),
       style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
       validator: (value) => validation(value),
       onChanged: (value) => {date = value},
-    );
-  }
-
-  Widget _dropDownForm() {
-    return DropdownButtonFormField(
-      items: widget.listContractTypeOptions
-          .map((e) => DropdownMenuItem(value: e, child: Text(e.name)))
-          .toList(),
-      onChanged: (EmployeeContractType? value) {
-        if (value != null) {
-          contractTypeId = value.id;
-        }
-      },
-      validator: (value) {
-        if (value == null || value == EmployeeContractType.empty) {
-          return 'Por favor, selecione um opção.';
-        }
-        return null;
-      },
-      decoration: InputDecoration(
-        enabled: true,
-        labelText: "Tipo de Contrato",
-        border: const OutlineInputBorder(),
-      ),
     );
   }
 }

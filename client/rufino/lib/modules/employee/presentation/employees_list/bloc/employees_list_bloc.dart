@@ -22,17 +22,6 @@ class EmployeesListBloc extends Bloc<EmployeesListEvent, EmployeesListState> {
 
   EmployeesListBloc(this._peopleManagementService, this._companyService)
       : super(const EmployeesListState()) {
-    // pagingController = PagingController(
-    //   fetchPage: (pageKey) async {
-    //     _sizeSkip = pageKey - 1;
-    //     return _searchEmpployee();
-    //   },
-    //   getNextPageKey: (state) {
-    //     var lastKey = state.keys?.last;
-    //     var nextPageKey = (state.keys?.last ?? 0) + 1;
-    //     return nextPageKey;
-    //   },
-    // );
     on<InitialEmployeesListEvent>(_onInitialEmployeesListEvent);
     on<ChangeSortList>(_onChangeSortList);
     on<ChangeStatusSelect>(_onChangeStatusSelect);
@@ -93,14 +82,6 @@ class EmployeesListBloc extends Bloc<EmployeesListEvent, EmployeesListState> {
     }
 
     try {
-      // pagingController.addPageRequestListener((pageKey) async {
-      //   try {
-      //     await _fetchPage(pageKey: pageKey);
-      //   } catch (ex, stacktrace) {
-      //     var exception = _peopleManagementService.treatErrors(ex, stacktrace);
-      //     add(ErrorEvent(exception));
-      //   }
-      // });
 
       var company = await _companyService.getSelectedCompany();
       var listStatus = await _peopleManagementService.getStatus(company.id);
