@@ -1,6 +1,3 @@
-import 'dart:io';
-
-import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_modular/flutter_modular.dart';
@@ -131,41 +128,43 @@ class DocumentTemplatePage extends StatelessWidget {
           BlocBuilder<DocumentTemplateBloc, DocumentTemplateState>(
         bloc: bloc,
         builder: (context, state) {
-          return state.isEditing
-              ? Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: [
-                    FloatingActionButton.extended(
-                        heroTag: "save",
-                        onPressed: () {
-                          if (_formKey.currentState != null &&
-                              _formKey.currentState!.validate()) {
-                            _formKey.currentState!.save();
+          return state.isLoading
+              ? CircularProgressIndicator()
+              : state.isEditing
+                  ? Row(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        FloatingActionButton.extended(
+                            heroTag: "save",
+                            onPressed: () {
+                              if (_formKey.currentState != null &&
+                                  _formKey.currentState!.validate()) {
+                                _formKey.currentState!.save();
 
-                            bloc.add(SaveEvent());
-                          }
-                        },
-                        label: const Text("Salvar"),
-                        icon: const Icon(Icons.save)),
-                    SizedBox(
-                      width: 8.0,
-                    ),
-                    FloatingActionButton.extended(
-                        heroTag: "cancel",
-                        onPressed: () {
-                          _formKey.currentState!.reset();
-                          bloc.add(CancelEditEvent());
-                        },
-                        label: const Text("Cancelar"),
-                        icon: const Icon(Icons.cancel)),
-                  ],
-                )
-              : FloatingActionButton.extended(
-                  heroTag: "edit",
-                  onPressed: () => bloc.add(EditEvent()),
-                  label: const Text("Editar"),
-                  icon: const Icon(Icons.edit),
-                );
+                                bloc.add(SaveEvent());
+                              }
+                            },
+                            label: const Text("Salvar"),
+                            icon: const Icon(Icons.save)),
+                        SizedBox(
+                          width: 8.0,
+                        ),
+                        FloatingActionButton.extended(
+                            heroTag: "cancel",
+                            onPressed: () {
+                              _formKey.currentState!.reset();
+                              bloc.add(CancelEditEvent());
+                            },
+                            label: const Text("Cancelar"),
+                            icon: const Icon(Icons.cancel)),
+                      ],
+                    )
+                  : FloatingActionButton.extended(
+                      heroTag: "edit",
+                      onPressed: () => bloc.add(EditEvent()),
+                      label: const Text("Editar"),
+                      icon: const Icon(Icons.edit),
+                    );
         },
       ),
     );
@@ -336,21 +335,28 @@ class DocumentTemplatePage extends StatelessWidget {
             SizedBox(
               height: 8.0,
             ),
-            state.hasFile
-                ? ElevatedButton(
-                    onPressed: () {}, child: Text("Baixar Arquivo"))
-                : ElevatedButton(
-                    onPressed: () async {
-                      FilePickerResult? result =
-                          await FilePicker.platform.pickFiles();
-
-                      if (result != null) {
-                        File file = File(result.files.single.path!);
-                      } else {
-                        // User canceled the picker
-                      }
-                    },
-                    child: Text("Enviar Arquivo")),
+            state.isLoading
+                ? CircularProgressIndicator()
+                : state.hasFile
+                    ? Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          ElevatedButton(
+                              onPressed: () => bloc.add(DownLoadFileEvent()),
+                              child: Text("Baixar Arquivo")),
+                          SizedBox(
+                            width: 8.0,
+                          ),
+                          state.isEditing
+                              ? ElevatedButton(
+                                  onPressed: () => bloc.add(SendFileEvent()),
+                                  child: Text("Alterar Arquivo"))
+                              : SizedBox(),
+                        ],
+                      )
+                    : ElevatedButton(
+                        onPressed: () => bloc.add(SendFileEvent()),
+                        child: Text("Enviar Arquivo")),
           ],
         ),
       ),
