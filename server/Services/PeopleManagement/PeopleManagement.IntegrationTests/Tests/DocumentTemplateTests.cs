@@ -8,6 +8,7 @@ using PeopleManagement.IntegrationTests.Configs;
 using PeopleManagement.IntegrationTests.Data;
 using System.Net;
 using System.Net.Http.Headers;
+using System.Text.Json;
 
 namespace PeopleManagement.IntegrationTests.Tests
 {
@@ -37,7 +38,6 @@ namespace PeopleManagement.IntegrationTests.Tests
                 TimeSpan.FromDays(365),
                 TimeSpan.FromDays(8),
                 []);
-
 
 
             client.InputHeaders([company.Id]);

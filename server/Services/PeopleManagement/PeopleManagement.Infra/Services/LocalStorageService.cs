@@ -7,7 +7,7 @@ namespace PeopleManagement.Infra.Services
 {
     public class LocalStorageService : ILocalStorageService
     {
-        public Task UnzioUploadAsync(Stream stream, string destinationDirectoryName, string sourceDestinationDirectoryPath, CancellationToken cancellationToken = default)
+        public Task UnzipUploadAsync(Stream stream, string destinationDirectoryName, string sourceDestinationDirectoryPath, CancellationToken cancellationToken = default)
         {
             var destinationDirectoryPath = VerifyAndCreateDirectoryIfNotExist(destinationDirectoryName, sourceDestinationDirectoryPath);
             try
@@ -28,6 +28,16 @@ namespace PeopleManagement.Infra.Services
             using var stream = new MemoryStream();
             ZipFile.CreateFromDirectory(originDirectoryPath, stream);
             return Task.FromResult((Stream)stream);
+        }
+
+        public Task<bool> HasFile(string originDirectoryName, string sourceOriginDirectoryPath, CancellationToken cancellationToken = default)
+        {
+            var originDirectoryPath = VerifyAndCreateDirectoryIfNotExist(originDirectoryName, sourceOriginDirectoryPath);
+            if (Directory.EnumerateFiles(originDirectoryPath).Any())
+            {
+                return Task.FromResult(true);
+            }
+            return Task.FromResult(false);
         }
 
         public Task DeleteAsync(string originDirectoryName, string sourceOriginDirectoryPath, CancellationToken cancellationToken = default)

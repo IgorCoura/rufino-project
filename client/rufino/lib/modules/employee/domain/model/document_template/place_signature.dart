@@ -1,5 +1,6 @@
 import 'package:equatable/equatable.dart';
 import 'package:rufino/modules/employee/domain/model/document_template/number.dart';
+import 'package:rufino/modules/employee/domain/model/document_template/page.dart';
 import 'package:rufino/modules/employee/domain/model/document_template/type_signature.dart';
 
 class PlaceSignature extends Equatable {
@@ -33,7 +34,32 @@ class PlaceSignature extends Equatable {
     RelativePositionLeft? relativePositionLeft,
     RelativeSizeX? relativeSizeX,
     RelativeSizeY? relativeSizeY,
+    Object? generic,
   }) {
+    if (generic != null) {
+      switch (generic.runtimeType) {
+        case const (TypeSignature):
+          typeSignature = generic as TypeSignature;
+          break;
+        case const (Page):
+          page = generic as Page;
+          break;
+        case const (RelativePositionBotton):
+          relativePositionBotton = generic as RelativePositionBotton;
+          break;
+        case const (RelativePositionLeft):
+          relativePositionLeft = generic as RelativePositionLeft;
+          break;
+        case const (RelativeSizeX):
+          relativeSizeX = generic as RelativeSizeX;
+          break;
+        case const (RelativeSizeY):
+          relativeSizeY = generic as RelativeSizeY;
+          break;
+        default:
+          break;
+      }
+    }
     return PlaceSignature(
       typeSignature: typeSignature ?? this.typeSignature,
       page: page ?? this.page,
@@ -48,12 +74,13 @@ class PlaceSignature extends Equatable {
   factory PlaceSignature.fromJson(Map<String, dynamic> json) {
     return PlaceSignature(
       typeSignature: TypeSignature.fromJson(json['typeSignature']),
-      page: Page(json['page']),
+      page: Page(json['page'].toString()),
       relativePositionBotton:
-          RelativePositionBotton(json['relativePositionBotton']),
-      relativePositionLeft: RelativePositionLeft(json['relativePositionLeft']),
-      relativeSizeX: RelativeSizeX(json['relativeSizeX']),
-      relativeSizeY: RelativeSizeY(json['relativeSizeY']),
+          RelativePositionBotton(json['relativePositionBotton'].toString()),
+      relativePositionLeft:
+          RelativePositionLeft(json['relativePositionLeft'].toString()),
+      relativeSizeX: RelativeSizeX(json['relativeSizeX'].toString()),
+      relativeSizeY: RelativeSizeY(json['relativeSizeY'].toString()),
     );
   }
 
@@ -65,12 +92,12 @@ class PlaceSignature extends Equatable {
 
   Map<String, dynamic> toJson() {
     return {
-      'type': typeSignature.id,
+      'type': typeSignature.toInt(),
       'page': page.toInt(),
-      'relativePositionBotton': relativePositionBotton.toInt(),
-      'relativePositionLeft': relativePositionLeft.toInt(),
-      'relativeSizeX': relativeSizeX.toInt(),
-      'relativeSizeY': relativeSizeY.toInt(),
+      'relativePositionBotton': relativePositionBotton.toDouble(),
+      'relativePositionLeft': relativePositionLeft.toDouble(),
+      'relativeSizeX': relativeSizeX.toDouble(),
+      'relativeSizeY': relativeSizeY.toDouble(),
     };
   }
 

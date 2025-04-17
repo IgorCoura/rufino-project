@@ -3,17 +3,17 @@
     public class DocumentTemplate: Entity, IAggregateRoot
     {
 
-        public Name Name { get; private set; } = null!;
-        public Description Description { get; private set; } = null!;
+        public Name Name { get;  set; } = null!;
+        public Description Description { get;  set; } = null!;
         public Guid CompanyId { get; private set; } 
         public DirectoryName Directory { get; private set; } = null!;
-        public FileName BodyFileName { get; private set; } = null!;
-        public FileName HeaderFileName { get; private set; } = null!;
-        public FileName FooterFileName { get; private set; } = null!;
-        public RecoverDataType RecoverDataType { get; private set; } = null!;
-        public TimeSpan? DocumentValidityDuration { get; private set; }
-        public TimeSpan? Workload { get; private set; }
-        public List<PlaceSignature> PlaceSignatures { get; private set; } = [];
+        public FileName BodyFileName { get;  set; } = null!;
+        public FileName HeaderFileName { get;  set; } = null!;
+        public FileName FooterFileName { get;  set; } = null!;
+        public RecoverDataType RecoverDataType { get;  set; } = null!;
+        public TimeSpan? DocumentValidityDuration { get;  set; }
+        public TimeSpan? Workload { get;  set; }
+        public List<PlaceSignature> PlaceSignatures { get;  set; } = [];
 
         private DocumentTemplate() { }
 

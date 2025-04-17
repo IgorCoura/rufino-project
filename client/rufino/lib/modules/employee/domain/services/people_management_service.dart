@@ -5,6 +5,9 @@ import 'package:rufino/modules/employee/domain/model/archive_category/event.dart
 import 'package:rufino/modules/employee/domain/model/dependent/dependency_type.dart';
 import 'package:rufino/modules/employee/domain/model/dependent/dependent.dart';
 import 'package:rufino/modules/employee/domain/model/document_template/document_template.dart';
+import 'package:rufino/modules/employee/domain/model/document_template/document_template_simple.dart';
+import 'package:rufino/modules/employee/domain/model/document_template/recover_data_type.dart';
+import 'package:rufino/modules/employee/domain/model/document_template/type_signature.dart';
 import 'package:rufino/modules/employee/domain/model/employee_contract.dart';
 import 'package:rufino/modules/employee/domain/model/employee_contract_type.dart';
 import 'package:rufino/modules/employee/domain/model/gender.dart';
@@ -21,10 +24,10 @@ import 'package:rufino/modules/employee/domain/model/personal_info/personal_info
 import 'package:rufino/modules/employee/domain/model/personal_info/personal_info_seletion_options.dart';
 import 'package:rufino/modules/employee/domain/model/status.dart';
 import 'package:rufino/modules/employee/domain/model/workplace/workplace.dart';
-import 'package:rufino/modules/employee/domain/role_info/department.dart';
-import 'package:rufino/modules/employee/domain/role_info/position.dart';
-import 'package:rufino/modules/employee/domain/role_info/role.dart';
-import 'package:rufino/modules/employee/domain/role_info/role_info.dart';
+import 'package:rufino/modules/employee/domain/model/role_info/department.dart';
+import 'package:rufino/modules/employee/domain/model/role_info/position.dart';
+import 'package:rufino/modules/employee/domain/model/role_info/role.dart';
+import 'package:rufino/modules/employee/domain/model/role_info/role_info.dart';
 import 'package:rufino/shared/services/base_service.dart';
 
 class PeopleManagementService extends BaseService {
@@ -422,6 +425,36 @@ class PeopleManagementService extends BaseService {
     return treatUnsuccessfulResponses(response);
   }
 
+  Future<String> createDocumentTemplate(
+      String companyId, DocumentTemplate documentTemplate) async {
+    var headers = await getHeadersWithRequestId();
+    Map<String, dynamic> body = documentTemplate.toJsonCreated();
+    var url = peopleManagementUrl.replace(
+        path: "/api/v1/$companyId/documenttemplate");
+    var response =
+        await http.post(url, headers: headers, body: jsonEncode(body));
+    if (response.statusCode == 200) {
+      var jsonResponse = jsonDecode(response.body);
+      return jsonResponse["id"];
+    }
+    return treatUnsuccessfulResponses(response);
+  }
+
+  Future<String> editDocumentTemplate(
+      String companyId, DocumentTemplate documentTemplate) async {
+    var headers = await getHeadersWithRequestId();
+    Map<String, dynamic> body = documentTemplate.toJson();
+    var url = peopleManagementUrl.replace(
+        path: "/api/v1/$companyId/documenttemplate");
+    var response =
+        await http.put(url, headers: headers, body: jsonEncode(body));
+    if (response.statusCode == 200) {
+      var jsonResponse = jsonDecode(response.body);
+      return jsonResponse["id"];
+    }
+    return treatUnsuccessfulResponses(response);
+  }
+
   Future<Employee> getEmployee(String id, String companyId) async {
     var url =
         peopleManagementUrl.replace(path: "/api/v1/$companyId/employee/$id");
@@ -767,6 +800,70 @@ class PeopleManagementService extends BaseService {
     if (response.statusCode == 200) {
       List<dynamic> jsonResponse = jsonDecode(response.body);
       return DocumentTemplate.fromListJson(jsonResponse);
+    }
+    return treatUnsuccessfulResponses(response);
+  }
+
+  Future<List<DocumentTemplateSimple>> getAllDocumentTemplatesSimple(
+      String companyId) async {
+    var headers = await getHeaders();
+    var url = peopleManagementUrl.replace(
+        path: "/api/v1/$companyId/documenttemplate/simple");
+    var response = await http.get(url, headers: headers);
+    if (response.statusCode == 200) {
+      List<dynamic> jsonResponse = jsonDecode(response.body);
+      return DocumentTemplateSimple.fromListJson(jsonResponse);
+    }
+    return treatUnsuccessfulResponses(response);
+  }
+
+  Future<DocumentTemplate> getByIdDocumentTemplates(
+      String documentTemplateId, String companyId) async {
+    var headers = await getHeaders();
+    var url = peopleManagementUrl.replace(
+        path: "/api/v1/$companyId/documenttemplate/$documentTemplateId");
+    var response = await http.get(url, headers: headers);
+    if (response.statusCode == 200) {
+      dynamic jsonResponse = jsonDecode(response.body);
+      return DocumentTemplate.fromJson(jsonResponse);
+    }
+    return treatUnsuccessfulResponses(response);
+  }
+
+  Future<List<RecoverDataType>> getAllRecoverDataType(String companyId) async {
+    var headers = await getHeaders();
+    var url = peopleManagementUrl.replace(
+        path: "/api/v1/$companyId/documenttemplate/recoverdatatype");
+    var response = await http.get(url, headers: headers);
+    if (response.statusCode == 200) {
+      List<dynamic> jsonResponse = jsonDecode(response.body);
+      return RecoverDataType.fromListJson(jsonResponse);
+    }
+    return treatUnsuccessfulResponses(response);
+  }
+
+  Future<List<TypeSignature>> getAllTypeSignature(String companyId) async {
+    var headers = await getHeaders();
+    var url = peopleManagementUrl.replace(
+        path: "/api/v1/$companyId/documenttemplate/typesignature");
+    var response = await http.get(url, headers: headers);
+    if (response.statusCode == 200) {
+      List<dynamic> jsonResponse = jsonDecode(response.body);
+      return TypeSignature.fromListJson(jsonResponse);
+    }
+    return treatUnsuccessfulResponses(response);
+  }
+
+  Future<bool> hasFileInDocumentTemplate(
+      String companyId, String documentTemplateId) async {
+    var headers = await getHeaders();
+    var url = peopleManagementUrl.replace(
+        path:
+            "/api/v1/$companyId/documenttemplate/hasfile/$documentTemplateId");
+    var response = await http.get(url, headers: headers);
+    if (response.statusCode == 200) {
+      bool jsonResponse = jsonDecode(response.body);
+      return jsonResponse;
     }
     return treatUnsuccessfulResponses(response);
   }

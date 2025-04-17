@@ -22,7 +22,7 @@ class ArchiveCategoryPage extends StatelessWidget {
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () {
-            Modular.to.navigate("/employee/list");
+            Modular.to.navigate("/employee/");
           },
         ),
         title: const Text('Categorias de Arquivos'),

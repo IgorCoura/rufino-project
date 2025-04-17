@@ -1,4 +1,5 @@
 ﻿using PeopleManagement.Domain.AggregatesModel.DocumentTemplateAggregate.Interfaces;
+using PeopleManagement.Domain.AggregatesModel.EmployeeAggregate.Events;
 
 namespace PeopleManagement.Domain.AggregatesModel.DocumentTemplateAggregate
 {
@@ -20,6 +21,8 @@ namespace PeopleManagement.Domain.AggregatesModel.DocumentTemplateAggregate
 
         public static implicit operator RecoverDataType(int id) => Enumeration.FromValue<RecoverDataType>(id);
         public static implicit operator RecoverDataType(string name) => Enumeration.FromDisplayName<RecoverDataType>(name);
+
+  
 
         public string GetSourcePath(string source)
         {

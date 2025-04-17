@@ -1,9 +1,9 @@
 import 'package:rufino/modules/employee/domain/model/base/enumeration.dart';
 import 'package:rufino/modules/employee/domain/model/base/text_base.dart';
-import 'package:rufino/modules/employee/domain/role_info/role_cbo.dart';
-import 'package:rufino/modules/employee/domain/role_info/role_description.dart';
-import 'package:rufino/modules/employee/domain/role_info/salary.dart';
-import 'package:rufino/modules/employee/domain/role_info/salary_description.dart';
+import 'package:rufino/modules/employee/domain/model/role_info/role_cbo.dart';
+import 'package:rufino/modules/employee/domain/model/role_info/role_description.dart';
+import 'package:rufino/modules/employee/domain/model/role_info/salary.dart';
+import 'package:rufino/modules/employee/domain/model/role_info/salary_description.dart';
 
 class Role extends Enumeration {
   final RoleDescription roleDescription;

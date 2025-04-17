@@ -353,7 +353,7 @@ class EmployeeProfilePage extends StatelessWidget {
       leading: IconButton(
         icon: const Icon(Icons.arrow_back),
         onPressed: () {
-          Modular.to.navigate("/employee/list");
+          Modular.to.navigate("/employee/");
         },
       ),
       title: BlocBuilder<EmployeeProfileBloc, EmployeeProfileState>(

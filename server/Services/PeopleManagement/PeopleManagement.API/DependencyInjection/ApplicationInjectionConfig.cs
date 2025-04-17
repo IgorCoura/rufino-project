@@ -1,9 +1,12 @@
-﻿using PeopleManagement.Application.Queries.Company;
+﻿using PeopleManagement.Application.Queries.ArchiveCategoryAggregate;
+using PeopleManagement.Application.Queries.Company;
 using PeopleManagement.Application.Queries.Department;
+using PeopleManagement.Application.Queries.DocumentTemplate;
 using PeopleManagement.Application.Queries.Employee;
 using PeopleManagement.Application.Queries.Position;
 using PeopleManagement.Application.Queries.Role;
 using PeopleManagement.Application.Queries.Workplace;
+using PeopleManagement.Domain.ErrorTools;
 
 namespace PeopleManagement.API.DependencyInjection
 {
@@ -20,6 +23,8 @@ namespace PeopleManagement.API.DependencyInjection
             service.AddScoped<IDepartmentQueries, DepartmentQueries>();
             service.AddScoped<IPositionQueries, PositionQueries>();
             service.AddScoped<IWorkplaceQueries, WorkplaceQueries>();
+            service.AddScoped<IArchiveCategoryQueries, ArchiveCategoryQueries>();
+            service.AddScoped<IDocumentTemplateQueries, DocumentTemplateQueries>();
 
             return service;
         }

@@ -15,6 +15,10 @@ class RecoverDataType extends Enumeration {
     return RecoverDataType((json["id"]).toString(), json["name"]);
   }
 
+  int toInt() {
+    return int.parse(id);
+  }
+
   static List<RecoverDataType> fromListJson(List<dynamic> listJson) {
     return listJson.map((el) => fromJson(el)).toList();
   }

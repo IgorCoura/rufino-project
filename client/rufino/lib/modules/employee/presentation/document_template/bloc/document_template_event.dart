@@ -8,9 +8,54 @@ sealed class DocumentTemplateEvent extends Equatable {
 }
 
 final class InitialEvent extends DocumentTemplateEvent {
-  const InitialEvent();
+  final String documentTemplateId;
+  const InitialEvent(this.documentTemplateId);
+  @override
+  List<Object> get props => [documentTemplateId];
+}
+
+final class EditEvent extends DocumentTemplateEvent {
+  const EditEvent();
 }
 
 final class SnackMessageWasShow extends DocumentTemplateEvent {
   const SnackMessageWasShow();
+}
+
+final class ChangeFieldValueEvent extends DocumentTemplateEvent {
+  final Object changeValue;
+
+  const ChangeFieldValueEvent(this.changeValue);
+  @override
+  List<Object> get props => [changeValue];
+}
+
+final class ChangePlaceSignatureValuesEvent extends DocumentTemplateEvent {
+  final Object changeValue;
+  final int index;
+  const ChangePlaceSignatureValuesEvent(this.changeValue, this.index);
+
+  @override
+  List<Object> get props => [changeValue, index];
+}
+
+final class NewPlaceSignatureEvent extends DocumentTemplateEvent {
+  const NewPlaceSignatureEvent();
+  @override
+  List<Object> get props => [];
+}
+
+final class CancelEditEvent extends DocumentTemplateEvent {
+  const CancelEditEvent();
+}
+
+final class RemovePlaceSignatureEvent extends DocumentTemplateEvent {
+  final int index;
+  const RemovePlaceSignatureEvent(this.index);
+  @override
+  List<Object> get props => [index];
+}
+
+final class SaveEvent extends DocumentTemplateEvent {
+  const SaveEvent();
 }

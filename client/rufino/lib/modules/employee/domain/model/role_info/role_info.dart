@@ -1,7 +1,7 @@
 import 'package:equatable/equatable.dart';
-import 'package:rufino/modules/employee/domain/role_info/department.dart';
-import 'package:rufino/modules/employee/domain/role_info/position.dart';
-import 'package:rufino/modules/employee/domain/role_info/role.dart';
+import 'package:rufino/modules/employee/domain/model/role_info/department.dart';
+import 'package:rufino/modules/employee/domain/model/role_info/position.dart';
+import 'package:rufino/modules/employee/domain/model/role_info/role.dart';
 
 class RoleInfo extends Equatable {
   final bool isLoading;

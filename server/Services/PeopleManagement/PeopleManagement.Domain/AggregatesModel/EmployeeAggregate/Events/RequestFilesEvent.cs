@@ -32,17 +32,27 @@ namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate.Events
         public static RequestFilesEvent SpouseDocument(Guid ownerId, Guid companyId) => new(SPOUSE_DOCUMENT, nameof(SpouseDocument), ownerId, companyId);
         public static RequestFilesEvent MedicalDismissalExam(Guid ownerId, Guid companyId) => new(MEDICAL_DISMISSAL_EXAM, nameof(MedicalDismissalExam), ownerId, companyId);
 
-        public static IEnumerable<MethodInfo> GetAll() =>
+        public static IEnumerable<MethodInfo> GetAllMethods() =>
             typeof(RequestFilesEvent).GetMethods(BindingFlags.Public | BindingFlags.Static);
+
+        public static IEnumerable<RequestFilesEvent?> GetAll()
+        {
+            var methods = GetAllMethods().Where(m => m.GetParameters().Length == 2 &&
+                                             m.GetParameters()[0].ParameterType == typeof(Guid) &&
+                                             m.GetParameters()[1].ParameterType == typeof(Guid));
+
+            var result = methods.Select(x => x.Invoke(null, [Guid.Empty, Guid.Empty]) as RequestFilesEvent ?? null);
+            return result;
+        }
         public static RequestFilesEvent? FromValue(int value)
         {
-            var methods = GetAll();
+            var methods = GetAllMethods();
             var objects = new List<RequestFilesEvent?>();
             foreach(var method in methods)
             {
                 try
                 {
-                    var result = method.Invoke(null, new object[] { Guid.Empty, Guid.Empty }) as RequestFilesEvent ?? null;
+                    var result = method.Invoke(null, [Guid.Empty, Guid.Empty]) as RequestFilesEvent ?? null;
                     objects.Add(result);
                 }
                 catch

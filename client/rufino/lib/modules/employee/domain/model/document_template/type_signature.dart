@@ -19,4 +19,8 @@ class TypeSignature extends Enumeration {
   static List<TypeSignature> fromListJson(List<dynamic> listJson) {
     return listJson.map((el) => fromJson(el)).toList();
   }
+
+  int toInt() {
+    return int.parse(id);
+  }
 }

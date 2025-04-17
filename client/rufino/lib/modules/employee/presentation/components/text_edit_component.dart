@@ -63,9 +63,6 @@ class TextEditComponent extends BaseEditComponent {
                   }
                 },
               ),
-        const SizedBox(
-          height: 16,
-        ),
       ],
     );
   }

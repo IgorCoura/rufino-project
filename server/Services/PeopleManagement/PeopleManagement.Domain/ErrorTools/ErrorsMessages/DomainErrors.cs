@@ -60,7 +60,7 @@ namespace PeopleManagement.Domain.ErrorTools.ErrorsMessages
             public static Error NotExistOpenContract() => new("PMD.EMP11", $"Não existe um contrato de trabalho aberto.", new { });
             public static Error HasRequiresFiles() => new("PMD.EMP12", $"Há documentos requeridos.", new { });
             public static Error EmployeeCantSignByCellPhone(Guid Id) => new("PMD.EMP13", $"O funcionario {Id} não tem um celular registrado para poder assinar contratos. .", new { Id });
-            public static Error StatusInvalido() => new("PMD.EMP14", $"O funcionario está com o estado inválido para realizar está função", new { Id });
+            public static Error StatusInvalido() => new("PMD.EMP14", $"O funcionario está com o estado inválido para realizar está função", new { });
         }
 
         public static class ArchiveCategory
