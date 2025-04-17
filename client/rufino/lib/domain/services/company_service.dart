@@ -29,7 +29,7 @@ class CompanyService extends BaseService {
       List<dynamic> jsonResponse = jsonDecode(response.body);
       return Company.fromListJson(jsonResponse);
     }
-    return treatUnsuccessfulResponses(response);
+    throw treatUnsuccessfulResponses(response);
   }
 
   Future selectCompany(Company company) async {

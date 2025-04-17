@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 import 'package:intl/intl.dart';
 import 'package:rufino/modules/employee/domain/model/archive_category/archive_category.dart';
 import 'package:rufino/modules/employee/domain/model/archive_category/event.dart';
@@ -49,7 +50,7 @@ class PeopleManagementService extends BaseService {
       var jsonResponse = jsonDecode(response.body);
       return jsonResponse["id"];
     }
-    return treatUnsuccessfulResponses(response);
+    throw treatUnsuccessfulResponses(response);
   }
 
   Future<String> editEmployeeName(
@@ -68,7 +69,7 @@ class PeopleManagementService extends BaseService {
       var jsonResponse = jsonDecode(response.body);
       return jsonResponse["id"];
     }
-    return treatUnsuccessfulResponses(response);
+    throw treatUnsuccessfulResponses(response);
   }
 
   Future<String> editEmployeeContact(String employeeId, String companyId,
@@ -88,7 +89,7 @@ class PeopleManagementService extends BaseService {
       var jsonResponse = jsonDecode(response.body);
       return jsonResponse["id"];
     }
-    return treatUnsuccessfulResponses(response);
+    throw treatUnsuccessfulResponses(response);
   }
 
   Future<String> editEmployeeAddress(
@@ -108,7 +109,7 @@ class PeopleManagementService extends BaseService {
       var jsonResponse = jsonDecode(response.body);
       return jsonResponse["id"];
     }
-    return treatUnsuccessfulResponses(response);
+    throw treatUnsuccessfulResponses(response);
   }
 
   Future<String> editEmployeePersonalInfo(
@@ -125,7 +126,7 @@ class PeopleManagementService extends BaseService {
       var jsonResponse = jsonDecode(response.body);
       return jsonResponse["id"];
     }
-    return treatUnsuccessfulResponses(response);
+    throw treatUnsuccessfulResponses(response);
   }
 
   Future<String> editEmployeeIdCard(
@@ -142,7 +143,7 @@ class PeopleManagementService extends BaseService {
       var jsonResponse = jsonDecode(response.body);
       return jsonResponse["id"];
     }
-    return treatUnsuccessfulResponses(response);
+    throw treatUnsuccessfulResponses(response);
   }
 
   Future<String> editEmployeeVoteId(
@@ -159,7 +160,7 @@ class PeopleManagementService extends BaseService {
       var jsonResponse = jsonDecode(response.body);
       return jsonResponse["id"];
     }
-    return treatUnsuccessfulResponses(response);
+    throw treatUnsuccessfulResponses(response);
   }
 
   Future<String> editEmployeeMilitaryDocument(
@@ -176,7 +177,7 @@ class PeopleManagementService extends BaseService {
       var jsonResponse = jsonDecode(response.body);
       return jsonResponse["id"];
     }
-    return treatUnsuccessfulResponses(response);
+    throw treatUnsuccessfulResponses(response);
   }
 
   Future<String> editEmployeeDependent(
@@ -193,7 +194,7 @@ class PeopleManagementService extends BaseService {
       var jsonResponse = jsonDecode(response.body);
       return jsonResponse["id"];
     }
-    return treatUnsuccessfulResponses(response);
+    throw treatUnsuccessfulResponses(response);
   }
 
   Future<String> createEmployeeDependent(
@@ -210,7 +211,7 @@ class PeopleManagementService extends BaseService {
       var jsonResponse = jsonDecode(response.body);
       return jsonResponse["id"];
     }
-    return treatUnsuccessfulResponses(response);
+    throw treatUnsuccessfulResponses(response);
   }
 
   Future<String> editMedicalAdmissionExam(
@@ -227,7 +228,7 @@ class PeopleManagementService extends BaseService {
       var jsonResponse = jsonDecode(response.body);
       return jsonResponse["id"];
     }
-    return treatUnsuccessfulResponses(response);
+    throw treatUnsuccessfulResponses(response);
   }
 
   Future<String> editRoleInfo(
@@ -247,7 +248,7 @@ class PeopleManagementService extends BaseService {
       var jsonResponse = jsonDecode(response.body);
       return jsonResponse["id"];
     }
-    return treatUnsuccessfulResponses(response);
+    throw treatUnsuccessfulResponses(response);
   }
 
   Future<String> editWorkplace(
@@ -267,7 +268,7 @@ class PeopleManagementService extends BaseService {
       var jsonResponse = jsonDecode(response.body);
       return jsonResponse["id"];
     }
-    return treatUnsuccessfulResponses(response);
+    throw treatUnsuccessfulResponses(response);
   }
 
   Future<String> finishedContract(
@@ -294,7 +295,7 @@ class PeopleManagementService extends BaseService {
       var jsonResponse = jsonDecode(response.body);
       return jsonResponse["id"];
     }
-    return treatUnsuccessfulResponses(response);
+    throw treatUnsuccessfulResponses(response);
   }
 
   Future<String> newContract(String employeeId, String companyId,
@@ -323,7 +324,7 @@ class PeopleManagementService extends BaseService {
       var jsonResponse = jsonDecode(response.body);
       return jsonResponse["id"];
     }
-    return treatUnsuccessfulResponses(response);
+    throw treatUnsuccessfulResponses(response);
   }
 
   Future<String> removeEmployeeDependent(
@@ -343,7 +344,7 @@ class PeopleManagementService extends BaseService {
       var jsonResponse = jsonDecode(response.body);
       return jsonResponse["id"];
     }
-    return treatUnsuccessfulResponses(response);
+    throw treatUnsuccessfulResponses(response);
   }
 
   Future<String> addArchiveCategoryEvent(
@@ -363,7 +364,7 @@ class PeopleManagementService extends BaseService {
       var jsonResponse = jsonDecode(response.body);
       return jsonResponse["id"];
     }
-    return treatUnsuccessfulResponses(response);
+    throw treatUnsuccessfulResponses(response);
   }
 
   Future<String> removeArchiveCategoryEvent(
@@ -383,7 +384,7 @@ class PeopleManagementService extends BaseService {
       var jsonResponse = jsonDecode(response.body);
       return jsonResponse["id"];
     }
-    return treatUnsuccessfulResponses(response);
+    throw treatUnsuccessfulResponses(response);
   }
 
   Future<String> editDescriptionArchiveCategory(
@@ -403,7 +404,7 @@ class PeopleManagementService extends BaseService {
       var jsonResponse = jsonDecode(response.body);
       return jsonResponse["id"];
     }
-    return treatUnsuccessfulResponses(response);
+    throw treatUnsuccessfulResponses(response);
   }
 
   Future<String> createArchiveCategory(
@@ -422,7 +423,7 @@ class PeopleManagementService extends BaseService {
       var jsonResponse = jsonDecode(response.body);
       return jsonResponse["id"];
     }
-    return treatUnsuccessfulResponses(response);
+    throw treatUnsuccessfulResponses(response);
   }
 
   Future<String> createDocumentTemplate(
@@ -437,7 +438,7 @@ class PeopleManagementService extends BaseService {
       var jsonResponse = jsonDecode(response.body);
       return jsonResponse["id"];
     }
-    return treatUnsuccessfulResponses(response);
+    throw treatUnsuccessfulResponses(response);
   }
 
   Future<String> editDocumentTemplate(
@@ -452,7 +453,7 @@ class PeopleManagementService extends BaseService {
       var jsonResponse = jsonDecode(response.body);
       return jsonResponse["id"];
     }
-    return treatUnsuccessfulResponses(response);
+    throw treatUnsuccessfulResponses(response);
   }
 
   Future<Employee> getEmployee(String id, String companyId) async {
@@ -466,7 +467,7 @@ class PeopleManagementService extends BaseService {
       var jsonResponse = jsonDecode(response.body);
       return Employee.fromJson(jsonResponse);
     }
-    return treatUnsuccessfulResponses(response);
+    throw treatUnsuccessfulResponses(response);
   }
 
   Future<Contact> getEmployeeContact(String id, String companyId) async {
@@ -480,7 +481,7 @@ class PeopleManagementService extends BaseService {
       var jsonResponse = jsonDecode(response.body);
       return Contact.fromJson(jsonResponse);
     }
-    return treatUnsuccessfulResponses(response);
+    throw treatUnsuccessfulResponses(response);
   }
 
   Future<MedicalAdmissionExam> getEmployeeMedicalAdmissionExam(
@@ -495,7 +496,7 @@ class PeopleManagementService extends BaseService {
       var jsonResponse = jsonDecode(response.body);
       return MedicalAdmissionExam.fromJson(jsonResponse);
     }
-    return treatUnsuccessfulResponses(response);
+    throw treatUnsuccessfulResponses(response);
   }
 
   Future<Address> getEmployeeAddress(String id, String companyId) async {
@@ -509,7 +510,7 @@ class PeopleManagementService extends BaseService {
       var jsonResponse = jsonDecode(response.body);
       return Address.fromJson(jsonResponse);
     }
-    return treatUnsuccessfulResponses(response);
+    throw treatUnsuccessfulResponses(response);
   }
 
   Future<PersonalInfo> getEmployeePersonalInfo(
@@ -524,7 +525,7 @@ class PeopleManagementService extends BaseService {
       var jsonResponse = jsonDecode(response.body);
       return PersonalInfo.fromJson(jsonResponse);
     }
-    return treatUnsuccessfulResponses(response);
+    throw treatUnsuccessfulResponses(response);
   }
 
   Future<IdCard> getEmployeeIdCard(String id, String companyId) async {
@@ -538,7 +539,7 @@ class PeopleManagementService extends BaseService {
       var jsonResponse = jsonDecode(response.body);
       return IdCard.fromJson(jsonResponse["idCard"]);
     }
-    return treatUnsuccessfulResponses(response);
+    throw treatUnsuccessfulResponses(response);
   }
 
   Future<VoteId> getEmployeeVoteId(String id, String companyId) async {
@@ -552,7 +553,7 @@ class PeopleManagementService extends BaseService {
       var jsonResponse = jsonDecode(response.body);
       return VoteId.fromJson(jsonResponse);
     }
-    return treatUnsuccessfulResponses(response);
+    throw treatUnsuccessfulResponses(response);
   }
 
   Future<MilitaryDocument> getEmployeeMilitaryDocument(
@@ -567,7 +568,7 @@ class PeopleManagementService extends BaseService {
       var jsonResponse = jsonDecode(response.body);
       return MilitaryDocument.fromJson(jsonResponse);
     }
-    return treatUnsuccessfulResponses(response);
+    throw treatUnsuccessfulResponses(response);
   }
 
   Future<List<Dependent>> getEmployeeDependents(
@@ -582,7 +583,7 @@ class PeopleManagementService extends BaseService {
       var jsonResponse = jsonDecode(response.body);
       return Dependent.fromListJson(jsonResponse["dependents"]);
     }
-    return treatUnsuccessfulResponses(response);
+    throw treatUnsuccessfulResponses(response);
   }
 
   Future<List<EmployeeWithRole>> getEmployeesWithRoles(
@@ -616,7 +617,7 @@ class PeopleManagementService extends BaseService {
       List<dynamic> jsonResponse = jsonDecode(response.body);
       return EmployeeWithRole.fromListJson(jsonResponse);
     }
-    return treatUnsuccessfulResponses(response);
+    throw treatUnsuccessfulResponses(response);
   }
 
   Future<List<Status>> getStatus(String companyId) async {
@@ -628,7 +629,7 @@ class PeopleManagementService extends BaseService {
       List<dynamic> jsonResponse = jsonDecode(response.body);
       return Status.fromListJson(jsonResponse);
     }
-    return treatUnsuccessfulResponses(response);
+    throw treatUnsuccessfulResponses(response);
   }
 
   Future<PersonalInfoSeletionOptions> getPersonalInfoSeletionOptions(
@@ -641,7 +642,7 @@ class PeopleManagementService extends BaseService {
       var jsonResponse = jsonDecode(response.body);
       return PersonalInfoSeletionOptions.fromJson(jsonResponse);
     }
-    return treatUnsuccessfulResponses(response);
+    throw treatUnsuccessfulResponses(response);
   }
 
   Future<List<DependencyType>> getDependencyType(String companyId) async {
@@ -653,7 +654,7 @@ class PeopleManagementService extends BaseService {
       List<dynamic> jsonResponse = jsonDecode(response.body);
       return DependencyType.fromListJson(jsonResponse);
     }
-    return treatUnsuccessfulResponses(response);
+    throw treatUnsuccessfulResponses(response);
   }
 
   Future<List<Gender>> getGender(String companyId) async {
@@ -665,7 +666,7 @@ class PeopleManagementService extends BaseService {
       List<dynamic> jsonResponse = jsonDecode(response.body);
       return Gender.fromListJson(jsonResponse);
     }
-    return treatUnsuccessfulResponses(response);
+    throw treatUnsuccessfulResponses(response);
   }
 
   Future<RoleInfo> getRole(String companyId, String roleId) async {
@@ -677,7 +678,7 @@ class PeopleManagementService extends BaseService {
       dynamic jsonResponse = jsonDecode(response.body);
       return RoleInfo.fromJson(jsonResponse);
     }
-    return treatUnsuccessfulResponses(response);
+    throw treatUnsuccessfulResponses(response);
   }
 
   Future<List<Department>> getAllDepartment(String companyId) async {
@@ -689,7 +690,7 @@ class PeopleManagementService extends BaseService {
       dynamic jsonResponse = jsonDecode(response.body);
       return Department.fromListJson(jsonResponse);
     }
-    return treatUnsuccessfulResponses(response);
+    throw treatUnsuccessfulResponses(response);
   }
 
   Future<List<Position>> getAllPosition(
@@ -702,7 +703,7 @@ class PeopleManagementService extends BaseService {
       dynamic jsonResponse = jsonDecode(response.body);
       return Position.fromListJson(jsonResponse);
     }
-    return treatUnsuccessfulResponses(response);
+    throw treatUnsuccessfulResponses(response);
   }
 
   Future<List<Role>> getAllRole(String positionId, String companyId) async {
@@ -714,7 +715,7 @@ class PeopleManagementService extends BaseService {
       dynamic jsonResponse = jsonDecode(response.body);
       return Role.fromListJson(jsonResponse);
     }
-    return treatUnsuccessfulResponses(response);
+    throw treatUnsuccessfulResponses(response);
   }
 
   Future<Workplace> getWorkplaceById(
@@ -727,7 +728,7 @@ class PeopleManagementService extends BaseService {
       dynamic jsonResponse = jsonDecode(response.body);
       return Workplace.fromJson(jsonResponse);
     }
-    return treatUnsuccessfulResponses(response);
+    throw treatUnsuccessfulResponses(response);
   }
 
   Future<List<Workplace>> getAllWorkplace(String companyId) async {
@@ -738,7 +739,7 @@ class PeopleManagementService extends BaseService {
       dynamic jsonResponse = jsonDecode(response.body);
       return Workplace.fromListJson(jsonResponse);
     }
-    return treatUnsuccessfulResponses(response);
+    throw treatUnsuccessfulResponses(response);
   }
 
   Future<List<EmployeeContract>> getEmployeeContracts(
@@ -751,7 +752,7 @@ class PeopleManagementService extends BaseService {
       dynamic jsonResponse = jsonDecode(response.body);
       return EmployeeContract.fromListJson(jsonResponse["contracts"]);
     }
-    return treatUnsuccessfulResponses(response);
+    throw treatUnsuccessfulResponses(response);
   }
 
   Future<List<EmployeeContractType>> getEmployeeContractTypes(
@@ -764,7 +765,7 @@ class PeopleManagementService extends BaseService {
       List<dynamic> jsonResponse = jsonDecode(response.body);
       return EmployeeContractType.fromListJson(jsonResponse);
     }
-    return treatUnsuccessfulResponses(response);
+    throw treatUnsuccessfulResponses(response);
   }
 
   Future<List<ArchiveCategory>> getArchiveCategories(String companyId) async {
@@ -776,7 +777,7 @@ class PeopleManagementService extends BaseService {
       List<dynamic> jsonResponse = jsonDecode(response.body);
       return ArchiveCategory.fromListJson(jsonResponse);
     }
-    return treatUnsuccessfulResponses(response);
+    throw treatUnsuccessfulResponses(response);
   }
 
   Future<List<Event>> getEvents(String companyId) async {
@@ -788,7 +789,7 @@ class PeopleManagementService extends BaseService {
       List<dynamic> jsonResponse = jsonDecode(response.body);
       return Event.fromListJson(jsonResponse);
     }
-    return treatUnsuccessfulResponses(response);
+    throw treatUnsuccessfulResponses(response);
   }
 
   Future<List<DocumentTemplate>> getAllDocumentTemplates(
@@ -801,7 +802,7 @@ class PeopleManagementService extends BaseService {
       List<dynamic> jsonResponse = jsonDecode(response.body);
       return DocumentTemplate.fromListJson(jsonResponse);
     }
-    return treatUnsuccessfulResponses(response);
+    throw treatUnsuccessfulResponses(response);
   }
 
   Future<List<DocumentTemplateSimple>> getAllDocumentTemplatesSimple(
@@ -814,7 +815,7 @@ class PeopleManagementService extends BaseService {
       List<dynamic> jsonResponse = jsonDecode(response.body);
       return DocumentTemplateSimple.fromListJson(jsonResponse);
     }
-    return treatUnsuccessfulResponses(response);
+    throw treatUnsuccessfulResponses(response);
   }
 
   Future<DocumentTemplate> getByIdDocumentTemplates(
@@ -827,7 +828,7 @@ class PeopleManagementService extends BaseService {
       dynamic jsonResponse = jsonDecode(response.body);
       return DocumentTemplate.fromJson(jsonResponse);
     }
-    return treatUnsuccessfulResponses(response);
+    throw treatUnsuccessfulResponses(response);
   }
 
   Future<List<RecoverDataType>> getAllRecoverDataType(String companyId) async {
@@ -839,7 +840,7 @@ class PeopleManagementService extends BaseService {
       List<dynamic> jsonResponse = jsonDecode(response.body);
       return RecoverDataType.fromListJson(jsonResponse);
     }
-    return treatUnsuccessfulResponses(response);
+    throw treatUnsuccessfulResponses(response);
   }
 
   Future<List<TypeSignature>> getAllTypeSignature(String companyId) async {
@@ -851,7 +852,7 @@ class PeopleManagementService extends BaseService {
       List<dynamic> jsonResponse = jsonDecode(response.body);
       return TypeSignature.fromListJson(jsonResponse);
     }
-    return treatUnsuccessfulResponses(response);
+    throw treatUnsuccessfulResponses(response);
   }
 
   Future<bool> hasFileInDocumentTemplate(
@@ -860,11 +861,50 @@ class PeopleManagementService extends BaseService {
     var url = peopleManagementUrl.replace(
         path:
             "/api/v1/$companyId/documenttemplate/hasfile/$documentTemplateId");
+
     var response = await http.get(url, headers: headers);
     if (response.statusCode == 200) {
       bool jsonResponse = jsonDecode(response.body);
       return jsonResponse;
     }
-    return treatUnsuccessfulResponses(response);
+    throw treatUnsuccessfulResponses(response);
+  }
+
+  Future<String> sendFileToDocumentTemplate(
+      String companyId, String documentTemplateId, String path) async {
+    var headers = await getHeaders();
+    var url = peopleManagementUrl.replace(
+        path: "/api/v1/$companyId/documenttemplate/upload");
+
+    var request = http.MultipartRequest("POST", url);
+    request.headers.addAll(headers);
+    request.files.add(await http.MultipartFile.fromPath('formFile', path));
+    request.fields['id'] = documentTemplateId;
+    request.fields['company'] = companyId;
+    var response = await request.send();
+    if (response.statusCode == 200) {
+      var responseBody = await response.stream.bytesToString();
+      dynamic jsonResponse = jsonDecode(responseBody);
+      return jsonResponse["id"];
+    }
+    var exception = await treatUnsuccessfulStreamedResponses(response);
+    throw exception;
+  }
+
+  Future<File> downloadFileToDocumentTemplate(
+      String companyId, String documentTemplateId, String path) async {
+    var headers = await getHeaders(contentType: "application/octet-stream");
+    var url = peopleManagementUrl.replace(
+        path:
+            "/api/v1/$companyId/documenttemplate/download/$documentTemplateId");
+
+    var response = await http.get(url, headers: headers);
+
+    if (response.statusCode == 200) {
+      var file = File(path);
+      await file.writeAsBytes(response.bodyBytes);
+      return file;
+    }
+    throw treatUnsuccessfulResponses(response);
   }
 }

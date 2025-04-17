@@ -1,5 +1,8 @@
+import 'dart:io';
+
 import 'package:bloc/bloc.dart';
 import 'package:equatable/equatable.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter_modular/flutter_modular.dart';
 import 'package:rufino/domain/services/company_service.dart';
 import 'package:rufino/modules/employee/domain/model/document_template/document_template.dart';
@@ -28,6 +31,8 @@ class DocumentTemplateBloc
     on<CancelEditEvent>(_onCancelEditEvent);
     on<RemovePlaceSignatureEvent>(_onRemovePlaceSignatureEvent);
     on<SaveEvent>(_onSaveEvent);
+    on<SendFileEvent>(_onSendFileEvent);
+    on<DownLoadFileEvent>(_onDownLoadFileEvent);
   }
 
   void _onSnackMessageWasShow(
@@ -146,6 +151,54 @@ class DocumentTemplateBloc
     } catch (ex, stacktrace) {
       var exception = _peopleManagementService.treatErrors(ex, stacktrace);
       emit(state.copyWith(isSavingData: false, exception: exception));
+    }
+  }
+
+  Future _onSendFileEvent(
+      SendFileEvent event, Emitter<DocumentTemplateState> emit) async {
+    emit(state.copyWith(isLoading: true));
+    try {
+      FilePickerResult? result = await FilePicker.platform.pickFiles();
+      if (result != null) {
+        final company = await _companyService.getSelectedCompany();
+        await _peopleManagementService.sendFileToDocumentTemplate(
+            company.id, state.documentTemplate.id, result.files.single.path!);
+      } else {
+        emit(state.copyWith(
+            isLoading: false,
+            snackMessage: "Nenhum arquivo selecionado para upload"));
+      }
+      emit(state.copyWith(
+          isLoading: false,
+          snackMessage: "Arquivo enviado com sucesso!",
+          hasFile: true));
+    } catch (ex, stacktrace) {
+      var exception = _peopleManagementService.treatErrors(ex, stacktrace);
+      emit(state.copyWith(isLoading: false, exception: exception));
+    }
+  }
+
+  Future _onDownLoadFileEvent(
+      DownLoadFileEvent event, Emitter<DocumentTemplateState> emit) async {
+    try {
+      String? savePath = await FilePicker.platform.saveFile(
+        dialogTitle: 'Save File',
+        fileName: 'document_template.zip',
+      );
+
+      if (savePath == null) {
+        emit(state.copyWith(
+            isLoading: false,
+            snackMessage: "Nenhum arquivo selecionado para download"));
+        return;
+      }
+
+      final company = await _companyService.getSelectedCompany();
+      _peopleManagementService.downloadFileToDocumentTemplate(
+          company.id, state.documentTemplate.id, savePath);
+    } catch (ex, stacktrace) {
+      var exception = _peopleManagementService.treatErrors(ex, stacktrace);
+      emit(state.copyWith(isLoading: false, exception: exception));
     }
   }
 }

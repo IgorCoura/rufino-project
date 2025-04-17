@@ -59,3 +59,11 @@ final class RemovePlaceSignatureEvent extends DocumentTemplateEvent {
 final class SaveEvent extends DocumentTemplateEvent {
   const SaveEvent();
 }
+
+final class SendFileEvent extends DocumentTemplateEvent {
+  const SendFileEvent();
+}
+
+final class DownLoadFileEvent extends DocumentTemplateEvent {
+  const DownLoadFileEvent();
+}

@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:math';
 
 import 'package:http/http.dart';
 import 'package:oauth2/oauth2.dart';
@@ -12,34 +13,59 @@ class BaseService {
   final AuthService _authService;
 
   BaseService(this._authService);
-  Future<Map<String, String>> getHeaders() async {
+  Future<Map<String, String>> getHeaders(
+      {String contentType = "application/json"}) async {
     var headers = <String, String>{};
     headers["Connection"] = "keep-alive";
+    headers["Content-Type"] = contentType;
+    headers["Accept"] = "*/*";
+    headers["Authorization"] = await _authService.getAuthorizationHeader();
+    return headers;
+  }
+
+  Future<Map<String, String>> getHeadersWithRequestId(
+      {String contentType = "application/json", String requestId = ""}) async {
+    var headers = <String, String>{};
+    headers["Connection"] = "keep-alive";
+    headers["x-requestid"] =
+        requestId.isEmpty ? const UuidV8().generate() : requestId;
     headers["Content-Type"] = "application/json";
     headers["Accept"] = "*/*";
     headers["Authorization"] = await _authService.getAuthorizationHeader();
     return headers;
   }
 
-  Future<Map<String, String>> getHeadersWithRequestId() async {
-    var headers = <String, String>{};
-    headers["Connection"] = "keep-alive";
-    headers["x-requestid"] = const UuidV8().generate();
-    headers["Content-Type"] = "application/json";
-    headers["Accept"] = "*/*";
-    headers["Authorization"] = await _authService.getAuthorizationHeader();
-    return headers;
+  AplicationException treatUnsuccessfulResponses<T>(Response response) {
+    if (response.statusCode == 401) {
+      return AplicationErrors.auth.unauthenticatedAccess;
+    }
+    if (response.statusCode == 403) {
+      return AplicationErrors.auth.unauthorizedAccess;
+    }
+    try {
+      Map<String, dynamic> jsonResponse = jsonDecode(response.body);
+      return ConvertErrors.fromResponseBodyServer(jsonResponse);
+    } catch (e) {
+      return AplicationErrors.serverError;
+    }
   }
 
-  T treatUnsuccessfulResponses<T>(Response response) {
+  Future<AplicationException> treatUnsuccessfulStreamedResponses<T>(
+      StreamedResponse response) async {
     if (response.statusCode == 401) {
       throw AplicationErrors.auth.unauthenticatedAccess;
     }
     if (response.statusCode == 403) {
       throw AplicationErrors.auth.unauthorizedAccess;
     }
-    Map<String, dynamic> jsonResponse = jsonDecode(response.body);
-    throw ConvertErrors.fromResponseBodyServer(jsonResponse);
+    var responseBody = await response.stream.bytesToString();
+
+    try {
+      Map<String, dynamic> jsonResponse = jsonDecode(responseBody);
+      return ConvertErrors.fromResponseBodyServer(jsonResponse);
+    } catch (e) {
+      return AplicationErrors.serverError;
+    }
   }
 
   AplicationException treatErrors(Object ex, StackTrace stacktrace) {
