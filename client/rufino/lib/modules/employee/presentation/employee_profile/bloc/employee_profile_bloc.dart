@@ -16,10 +16,10 @@ import 'package:rufino/modules/employee/domain/model/personal_info/personal_info
 import 'package:rufino/modules/employee/domain/model/personal_info/personal_info_seletion_options.dart';
 import 'package:rufino/modules/employee/domain/model/status.dart';
 import 'package:rufino/modules/employee/domain/model/workplace/workplace.dart';
-import 'package:rufino/modules/employee/domain/role_info/department.dart';
-import 'package:rufino/modules/employee/domain/role_info/position.dart';
-import 'package:rufino/modules/employee/domain/role_info/role.dart';
-import 'package:rufino/modules/employee/domain/role_info/role_info.dart';
+import 'package:rufino/modules/employee/domain/model/role_info/department.dart';
+import 'package:rufino/modules/employee/domain/model/role_info/position.dart';
+import 'package:rufino/modules/employee/domain/model/role_info/role.dart';
+import 'package:rufino/modules/employee/domain/model/role_info/role_info.dart';
 import 'package:rufino/modules/employee/domain/services/people_management_service.dart';
 import 'package:rufino/shared/errors/aplication_errors.dart';
 

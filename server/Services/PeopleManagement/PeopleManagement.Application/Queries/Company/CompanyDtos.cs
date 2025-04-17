@@ -5,7 +5,7 @@
         public Guid Id { get; init; }
         public string CorporateName { get; init; } = null!;
         public string FantasyName { get; init; } = null!;
-        public string Cnpj { get; init; }
+        public string Cnpj { get; init; } = null!;
 
 
     }

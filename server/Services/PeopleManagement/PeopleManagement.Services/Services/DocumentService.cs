@@ -76,7 +76,7 @@ namespace PeopleManagement.Services.Services
         private static IRecoverInfoToDocumentTemplateService GetServiceToRecoverData(RecoverDataType doc, IServiceProvider provider)
         {
             var result = provider.GetRequiredService(doc.Type) as IRecoverInfoToDocumentTemplateService 
-                ?? throw new NullReferenceException($"O Serviço de tipo {doc.Type} não foi invejtado.");
+                ?? throw new NullReferenceException($"O Serviço de tipo {doc.Type} não foi injetado.");
             return result;
         }
 

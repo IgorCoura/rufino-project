@@ -14,7 +14,7 @@ class FileName extends TextPropBase {
       return "o $displayName não pode ser maior que 20 caracteres.";
     }
 
-    if (value.endsWith(".html")) {
+    if (!value.endsWith(".html")) {
       return "o $displayName precisa ser um arquivo .html.";
     }
     return null;
@@ -32,6 +32,10 @@ class BodyFileName extends FileName {
   const BodyFileName(String value) : super(value, constDisplayName);
 
   const BodyFileName.empty() : super.empty(constDisplayName);
+  @override
+  BodyFileName copyWith({String? value}) {
+    return BodyFileName(value ?? this.value);
+  }
 }
 
 class HeaderFileName extends FileName {
@@ -40,6 +44,10 @@ class HeaderFileName extends FileName {
   const HeaderFileName(String value) : super(value, constDisplayName);
 
   const HeaderFileName.empty() : super.empty(constDisplayName);
+  @override
+  HeaderFileName copyWith({String? value}) {
+    return HeaderFileName(value ?? this.value);
+  }
 }
 
 class FooterFileName extends FileName {
@@ -48,4 +56,8 @@ class FooterFileName extends FileName {
   const FooterFileName(String value) : super(value, constDisplayName);
 
   const FooterFileName.empty() : super.empty(constDisplayName);
+  @override
+  FooterFileName copyWith({String? value}) {
+    return FooterFileName(value ?? this.value);
+  }
 }

@@ -154,6 +154,10 @@ namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
 
             if (result.IsFailure)
                 throw new DomainException(this, result);
+
+            if (Status != Status.Inactive && Status != Status.Pending)
+                throw new DomainException(this, DomainErrors.Employee.StatusInvalido());
+
             NewContract(dateInit, contractType);
             Registration = registration;            
             AddDomainEvent(RequestFilesEvent.CompleteAdmissionFiles(Id, CompanyId));
@@ -246,13 +250,6 @@ namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
                 return true;
             }
             return false;
-        }
-
-        public void CreateContract(DateOnly dateInit, EmploymentContractType contractType)
-        {
-            if(Status != Status.Inactive)
-                throw new DomainException(this, DomainErrors.Employee.StatusInvalido());
-            NewContract(dateInit, contractType);
         }
 
         private void NewContract(DateOnly dateInit, EmploymentContractType contractType)

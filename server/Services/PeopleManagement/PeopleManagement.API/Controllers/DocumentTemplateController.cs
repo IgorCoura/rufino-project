@@ -1,34 +1,54 @@
 ﻿using PeopleManagement.API.Authorization;
 using PeopleManagement.Application.Commands.DocumentTemplateCommands.CreateDocumentTemplate;
+using PeopleManagement.Application.Commands.DocumentTemplateCommands.EditDocumentTemplate;
 using PeopleManagement.Application.Commands.DocumentTemplateCommands.InsertDocumentTemplate;
 using PeopleManagement.Application.Commands.Identified;
+using PeopleManagement.Application.Queries.DocumentTemplate;
+using PeopleManagement.Domain.AggregatesModel.DocumentTemplateAggregate;
+using static PeopleManagement.Application.Queries.Base.BaseDtos;
+using static PeopleManagement.Application.Queries.DocumentTemplate.DocumentTemplateDtos;
 
 namespace PeopleManagement.API.Controllers
 {
-    [Route("api/v1/[controller]")]
-    public class DocumentTemplateController(ILogger<DocumentTemplateController> logger, IMediator mediator) : BaseController(logger)
+    [Route("api/v1/{company}/[controller]")]
+    public class DocumentTemplateController(ILogger<DocumentTemplateController> logger, IMediator mediator, IDocumentTemplateQueries documentTemplateQueries) : BaseController(logger)
     {
-        [HttpPost("Create")]
+        [HttpPost]
         [ProtectedResource("DocumentTemplate", "create")]
-        public async Task<ActionResult<CreateDocumentTemplateResponse>> Create([FromBody] CreateDocumentTemplateCommand request, [FromHeader(Name = "x-requestid")] Guid requestId)
+        public async Task<ActionResult<CreateDocumentTemplateResponse>> Create([FromBody] CreateDocumentTemplateModel request, [FromRoute] Guid company, [FromHeader(Name = "x-requestid")] Guid requestId)
         {
-            var command = new IdentifiedCommand<CreateDocumentTemplateCommand, CreateDocumentTemplateResponse>(request, requestId);
+            var command = new IdentifiedCommand<CreateDocumentTemplateCommand, CreateDocumentTemplateResponse>(request.ToCommand(company), requestId);
 
-            SendingCommandLog(request.CompanyId, request, requestId);
+            SendingCommandLog(company, request, requestId);
 
             var result = await mediator.Send(command);
 
-            CommandResultLog(result, request.CompanyId, request, requestId);
+            CommandResultLog(result, company, request, requestId);
 
             return OkResponse(result);
         }
 
-        [HttpPost("Insert")]
+        [HttpPut]
+        [ProtectedResource("DocumentTemplate", "edit")]
+        public async Task<ActionResult<EditDocumentTemplateResponse>> Edit([FromBody] EditDocumentTemplateModel request, [FromRoute] Guid company, [FromHeader(Name = "x-requestid")] Guid requestId)
+        {
+            var command = new IdentifiedCommand<EditDocumentTemplateCommand, EditDocumentTemplateResponse>(request.ToCommand(company), requestId);
+
+            SendingCommandLog(command.Id, request, requestId);
+
+            var result = await mediator.Send(command);
+
+            CommandResultLog(result, command.Id, request, requestId);
+
+            return OkResponse(result);
+        }
+
+        [HttpPost("Upload")]
         [ProtectedResource("DocumentTemplate", "send")]
-        public async Task<ActionResult<InsertDocumentTemplateResponse>> Insert(IFormFile formFile, [FromForm] Guid id, [FromForm] Guid companyId, [FromHeader(Name = "x-requestid")] Guid requestId)
+        public async Task<ActionResult<InsertDocumentTemplateResponse>> Insert(IFormFile formFile, [FromForm] Guid id, [FromForm] Guid company, [FromHeader(Name = "x-requestid")] Guid requestId)
         {
             var stream = formFile.OpenReadStream();
-            var request = new InsertDocumentTemplateCommand(id, companyId, formFile.FileName, stream);
+            var request = new InsertDocumentTemplateCommand(id, company, formFile.FileName, stream);
             var command = new IdentifiedCommand<InsertDocumentTemplateCommand, InsertDocumentTemplateResponse>(request, requestId);
 
             SendingCommandLog(request.DocumentTemplateId, request, requestId);
@@ -40,5 +60,62 @@ namespace PeopleManagement.API.Controllers
             return OkResponse(result);
         }
 
+        [HttpGet]
+        [ProtectedResource("DocumentTemplate", "view")]
+        public async Task<ActionResult<IEnumerable<DocumentTemplateDto>>> GetAll([FromRoute] Guid company)
+        {
+            var result = await documentTemplateQueries.GetAll(company);
+            return OkResponse(result);
+        }
+        
+        [HttpGet("{documentTemplateId}")]
+        [ProtectedResource("DocumentTemplate", "view")]
+        public async Task<ActionResult<DocumentTemplateDto>> GetById([FromRoute] Guid company, [FromRoute] Guid documentTemplateId)
+        {
+            var result = await documentTemplateQueries.GetById(company, documentTemplateId);
+            return OkResponse(result);
+        }
+
+        [HttpGet("Simple")]
+        [ProtectedResource("DocumentTemplate", "view")]
+        public async Task<ActionResult<IEnumerable<DocumentTemplateSimpleDto>>> GetAllSimple([FromRoute] Guid company)
+        {
+            var result = await documentTemplateQueries.GetAllSimple(company);
+            return OkResponse(result);
+        }
+
+
+        [HttpGet("TypeSignature")]
+        [ProtectedResource("DocumentTemplate", "view")]
+        public ActionResult<IEnumerable<TypeSignature>> GetAllTypeSignatures([FromRoute] Guid company)
+        {
+            var result = TypeSignature.GetAll<TypeSignature>();
+            return OkResponse(result);
+        }
+
+        [HttpGet("RecoverDataType")]
+        [ProtectedResource("DocumentTemplate", "view")]
+        public ActionResult<IEnumerable<EnumerationDto>> GetAllRecoverDataType([FromRoute] Guid company)
+        {
+            var result = RecoverDataType.GetAll<RecoverDataType>();
+            var dtos = result.Select(x => new EnumerationDto { Id = x.Id, Name = x.Name});
+            return OkResponse(dtos);
+        }
+
+        [HttpGet("HasFile/{documentTemplateId}")]
+        [ProtectedResource("DocumentTemplate", "view")]
+        public async Task<ActionResult<bool>> HasFile([FromRoute] Guid company, [FromRoute] Guid documentTemplateId)
+        {
+            var result = await documentTemplateQueries.HasFile(documentTemplateId, company);
+            return OkResponse(result);
+        }
+
+        [HttpGet("download/{documentTemplateId}")]
+        [ProtectedResource("DocumentTemplate", "view")]
+        public async Task<ActionResult<Stream>> DownloadFile([FromRoute] Guid company, [FromRoute] Guid documentTemplateId)
+        {
+            var result = await documentTemplateQueries.DownloadFile(company, documentTemplateId);
+            return OkResponse(result);
+        }
     }
-}
+} 

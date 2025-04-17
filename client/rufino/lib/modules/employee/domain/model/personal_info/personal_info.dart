@@ -44,14 +44,19 @@ class PersonalInfo extends Equatable {
       switch (generic.runtimeType) {
         case const (MaritalStatus):
           maritalStatus = generic as MaritalStatus?;
+          break;
         case const (Gender):
           gender = generic as Gender?;
+          break;
         case const (Ethinicity):
           ethinicity = generic as Ethinicity?;
+          break;
         case const (EducationLevel):
           educationLevel = generic as EducationLevel?;
+          break;
         case const (Deficiency):
           deficiency = generic as Deficiency?;
+          break;
         default:
           deficiency = this.deficiency.copyWith(generic: generic);
       }

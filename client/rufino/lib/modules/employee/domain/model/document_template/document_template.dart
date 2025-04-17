@@ -1,18 +1,17 @@
 import 'package:rufino/modules/employee/domain/model/archive_category/description.dart';
 import 'package:rufino/modules/employee/domain/model/base/model_base.dart';
 import 'package:rufino/modules/employee/domain/model/base/text_prop_base.dart';
-import 'package:rufino/modules/employee/domain/model/document_template/directory_name.dart';
+import 'package:rufino/modules/employee/domain/model/document_template/document_validity_duration.dart';
 import 'package:rufino/modules/employee/domain/model/document_template/file_name.dart';
 import 'package:rufino/modules/employee/domain/model/document_template/place_signature.dart';
 import 'package:rufino/modules/employee/domain/model/document_template/recover_data_type.dart';
-import 'package:rufino/modules/employee/domain/model/document_template/time_span.dart';
-import 'package:rufino/modules/employee/domain/model/name.dart';
+import 'package:rufino/modules/employee/domain/model/document_template/workload.dart';
+import 'package:rufino/modules/employee/domain/model/document_template/name.dart';
 
 class DocumentTemplate extends ModelBase {
   final String id;
   final Name name;
   final Description description;
-  final DirectoryName directoryName;
   final BodyFileName bodyFileName;
   final HeaderFileName headerFileName;
   final FooterFileName footerFileName;
@@ -25,7 +24,6 @@ class DocumentTemplate extends ModelBase {
     this.id,
     this.name,
     this.description,
-    this.directoryName,
     this.bodyFileName,
     this.headerFileName,
     this.footerFileName,
@@ -40,7 +38,6 @@ class DocumentTemplate extends ModelBase {
     this.id = "",
     this.name = const Name.empty(),
     this.description = const Description.empty(),
-    this.directoryName = const DirectoryName.empty(),
     this.bodyFileName = const BodyFileName.empty(),
     this.headerFileName = const HeaderFileName.empty(),
     this.footerFileName = const FooterFileName.empty(),
@@ -56,7 +53,6 @@ class DocumentTemplate extends ModelBase {
     String? id,
     Name? name,
     Description? description,
-    DirectoryName? directoryName,
     BodyFileName? bodyFileName,
     HeaderFileName? headerFileName,
     FooterFileName? footerFileName,
@@ -66,12 +62,44 @@ class DocumentTemplate extends ModelBase {
     List<PlaceSignature>? placeSignatures,
     bool? isLoading,
     bool? isLazyLoading,
+    Object? generic,
   }) {
+    if (generic != null) {
+      switch (generic.runtimeType) {
+        case const (Name):
+          name = generic as Name;
+          break;
+        case const (Description):
+          description = generic as Description;
+          break;
+
+        case const (BodyFileName):
+          bodyFileName = generic as BodyFileName;
+          break;
+        case const (HeaderFileName):
+          headerFileName = generic as HeaderFileName;
+          break;
+        case const (FooterFileName):
+          footerFileName = generic as FooterFileName;
+          break;
+        case const (RecoverDataType):
+          recoverDataType = generic as RecoverDataType;
+          break;
+        case const (DocumentValidityDuration):
+          documentValidityDuration = generic as DocumentValidityDuration;
+          break;
+        case const (Workload):
+          workload = generic as Workload;
+          break;
+        default:
+          break;
+      }
+    }
+
     return DocumentTemplate(
       id ?? this.id,
       name ?? this.name,
       description ?? this.description,
-      directoryName ?? this.directoryName,
       bodyFileName ?? this.bodyFileName,
       headerFileName ?? this.headerFileName,
       footerFileName ?? this.footerFileName,
@@ -89,13 +117,13 @@ class DocumentTemplate extends ModelBase {
       json['id'],
       Name(json['name']),
       Description(json['description']),
-      DirectoryName(json['directory']),
       BodyFileName(json['bodyFileName']),
       HeaderFileName(json['headerFileName']),
       FooterFileName(json['footerFileName']),
       RecoverDataType.fromJson(json['recoverDataType']),
-      DocumentValidityDuration(json['documentValidityDuration']),
-      Workload(json['workload']),
+      DocumentValidityDuration.createFormatted(
+          json['documentValidityDurationInDays'].toString()),
+      Workload.createFormatted(json['workloadInHours'].toString()),
       PlaceSignature.fromListJson(json['placeSignatures']),
     );
   }
@@ -106,12 +134,40 @@ class DocumentTemplate extends ModelBase {
         .toList();
   }
 
+  Map<String, dynamic> toJsonCreated() {
+    return {
+      'name': name.value,
+      'description': description.value,
+      'bodyFileName': bodyFileName.value,
+      'headerFileName': headerFileName.value,
+      'footerFileName': footerFileName.value,
+      'recoverDataType': recoverDataType.toInt(),
+      'documentValidityDurationInDays': documentValidityDuration.toDouble(),
+      'workloadInHours': workload.toDouble(),
+      'placeSignatures': placeSignatures.map((e) => e.toJson()).toList(),
+    };
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'Id': id,
+      'name': name.value,
+      'description': description.value,
+      'bodyFileName': bodyFileName.value,
+      'headerFileName': headerFileName.value,
+      'footerFileName': footerFileName.value,
+      'recoverDataType': recoverDataType.toInt(),
+      'documentValidityDurationInDays': documentValidityDuration.toDouble(),
+      'workloadInHours': workload.toDouble(),
+      'placeSignatures': placeSignatures.map((e) => e.toJson()).toList(),
+    };
+  }
+
   @override
   List<Object?> get props => [
         id,
         name,
         description,
-        directoryName,
         bodyFileName,
         headerFileName,
         footerFileName,
@@ -127,7 +183,6 @@ class DocumentTemplate extends ModelBase {
   List<TextPropBase> get textProps => [
         name,
         description,
-        directoryName,
         bodyFileName,
         headerFileName,
         footerFileName,

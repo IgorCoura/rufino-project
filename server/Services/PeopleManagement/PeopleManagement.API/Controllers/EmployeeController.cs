@@ -15,7 +15,6 @@ using PeopleManagement.Application.Commands.EmployeeCommands.CreateDependentEmpl
 using PeopleManagement.Application.Commands.EmployeeCommands.CreateEmployee;
 using PeopleManagement.Application.Commands.EmployeeCommands.FinishedContractEmployee;
 using PeopleManagement.Application.Commands.EmployeeCommands.IsRequiredMilitaryDocumentEmployee;
-using PeopleManagement.Application.Commands.EmployeeCommands.NewContractEmployee;
 using PeopleManagement.Application.Commands.EmployeeCommands.RemoveDependentEmployee;
 using PeopleManagement.Application.Commands.Identified;
 using PeopleManagement.Application.Queries.Employee;
@@ -279,23 +278,6 @@ namespace PeopleManagement.API.Controllers
 
             return OkResponse(result);
         }
-
-        [HttpPut("Contract/New")]
-        [ProtectedResource("employee", "edit")]
-        public async Task<ActionResult<NewContractEmployeeCommand>> NewContract([FromRoute] Guid company,
-            [FromBody] NewContractEmployeeModel request, [FromHeader(Name = "x-requestid")] Guid requestId)
-        {
-            var command = new IdentifiedCommand<NewContractEmployeeCommand, NewContractEmployeeResponse>(request.ToCommand(company), requestId);
-
-            SendingCommandLog(request.EmployeeId, request, requestId);
-
-            var result = await mediator.Send(command);
-
-            CommandResultLog(result, request.EmployeeId, request, requestId);
-
-            return OkResponse(result);
-        }
-
 
 
         [HttpGet("list/roles")]

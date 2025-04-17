@@ -1,7 +1,7 @@
 import 'package:rufino/modules/employee/domain/model/base/enumeration.dart';
 import 'package:rufino/modules/employee/domain/model/base/text_base.dart';
-import 'package:rufino/modules/employee/domain/role_info/position_cbo.dart';
-import 'package:rufino/modules/employee/domain/role_info/position_description.dart';
+import 'package:rufino/modules/employee/domain/model/role_info/position_cbo.dart';
+import 'package:rufino/modules/employee/domain/model/role_info/position_description.dart';
 
 class Position extends Enumeration {
   final PositionDescription positionDescription;

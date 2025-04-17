@@ -15,6 +15,7 @@ using PeopleManagement.Domain.AggregatesModel.EmployeeAggregate.Events;
 using PeopleManagement.Domain.AggregatesModel.ArchiveCategoryAggregate;
 using Microsoft.EntityFrameworkCore;
 using PeopleManagement.Domain.SeedWord;
+using PeopleManagement.Domain.AggregatesModel.DocumentTemplateAggregate;
 
 namespace PeopleManagement.Infra.DataForTests
 {
@@ -42,6 +43,8 @@ namespace PeopleManagement.Infra.DataForTests
                     await context.AddRangeIfNotExistsAsync(employees);
                     var archivesCategories = CreateArchiveCategories(companies[0].Id);
                     await context.AddRangeIfNotExistsAsync(archivesCategories);
+                    var documentTemplates = CreateDocumentTemplate(companies[0].Id);
+                    await context.AddRangeIfNotExistsAsync(documentTemplates);
                     await context.SaveChangesWithoutDispatchEventsAsync();
                 }
                 catch { }
@@ -369,6 +372,48 @@ namespace PeopleManagement.Infra.DataForTests
                 [RequestFilesEvent.MEDICAL_DISMISSAL_EXAM, RequestFilesEvent.ADMISSION_FILES, RequestFilesEvent.COMPLETE_ADMISSION_FILES, RequestFilesEvent.CHILD_DOCUMENT], companyId));
 
             return categorie.ToArray();
+        }
+
+        public static DocumentTemplate[] CreateDocumentTemplate( Guid companyId)
+        {
+            var documents = new[]
+            {
+                DocumentTemplate.Create(
+                Guid.Parse("7609E019-4D6C-4246-B8A0-1BC22C473349"),
+                "Template Nr01",
+                "Description Template Nr01",
+                companyId,
+                "NR01",
+                "index.html",
+                "header.html",
+                "footer.html",
+                RecoverDataType.NR01,
+                TimeSpan.FromDays(365),
+                TimeSpan.FromHours(8),
+                [
+                    PlaceSignature.Create(TypeSignature.Signature,1,20.5, 5.3,5.2,5.5),
+                    PlaceSignature.Create(TypeSignature.Visa,1,20,15,3,3),
+                ]
+                ),
+                DocumentTemplate.Create(
+                Guid.Parse("D857FAD2-1B5F-44A1-8428-80B7E85C25CE"),
+                "Template Nr02",
+                "Description Template Nr02",
+                companyId,
+                "NR02",
+                "index.html",
+                "header.html",
+                "footer.html",
+                RecoverDataType.NR01,
+                TimeSpan.FromDays(365),
+                TimeSpan.FromHours(8),
+                [
+                    PlaceSignature.Create(TypeSignature.Signature,1,20.5, 5.3,5.2,5.5),
+                    PlaceSignature.Create(TypeSignature.Visa,1,20,15,3,3),
+                ]
+                ),
+            };
+            return documents;
         }
 
         private static Employee FactoryEmployee(Guid id, Guid companyId, string Name, Guid? roleId = null, Guid? workplaceId = null,

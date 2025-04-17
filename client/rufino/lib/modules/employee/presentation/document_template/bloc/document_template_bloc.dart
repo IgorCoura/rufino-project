@@ -1,7 +1,11 @@
 import 'package:bloc/bloc.dart';
 import 'package:equatable/equatable.dart';
+import 'package:flutter_modular/flutter_modular.dart';
 import 'package:rufino/domain/services/company_service.dart';
 import 'package:rufino/modules/employee/domain/model/document_template/document_template.dart';
+import 'package:rufino/modules/employee/domain/model/document_template/place_signature.dart';
+import 'package:rufino/modules/employee/domain/model/document_template/recover_data_type.dart';
+import 'package:rufino/modules/employee/domain/model/document_template/type_signature.dart';
 import 'package:rufino/modules/employee/domain/services/people_management_service.dart';
 import 'package:rufino/shared/errors/aplication_errors.dart';
 
@@ -17,6 +21,13 @@ class DocumentTemplateBloc
       : super(DocumentTemplateState()) {
     on<SnackMessageWasShow>(_onSnackMessageWasShow);
     on<InitialEvent>(_onInitialEvent);
+    on<EditEvent>(_onEditEvent);
+    on<ChangeFieldValueEvent>(_onChangeFieldValueEvent);
+    on<ChangePlaceSignatureValuesEvent>(_onChangePlaceSignatureValuesEvent);
+    on<NewPlaceSignatureEvent>(_onNewPlaceSignatureEvent);
+    on<CancelEditEvent>(_onCancelEditEvent);
+    on<RemovePlaceSignatureEvent>(_onRemovePlaceSignatureEvent);
+    on<SaveEvent>(_onSaveEvent);
   }
 
   void _onSnackMessageWasShow(
@@ -30,16 +41,111 @@ class DocumentTemplateBloc
 
     try {
       final company = await _companyService.getSelectedCompany();
-      final documentTemplates =
-          await _peopleManagementService.getAllDocumentTemplates(company.id);
 
+      final recoverDataType =
+          await _peopleManagementService.getAllRecoverDataType(company.id);
+      final typeSignature =
+          await _peopleManagementService.getAllTypeSignature(company.id);
+      var documentTemplate = DocumentTemplate.empty();
+      var hasFile = false;
+      if (event.documentTemplateId != "new") {
+        documentTemplate = await _peopleManagementService
+            .getByIdDocumentTemplates(event.documentTemplateId, company.id);
+        hasFile = await _peopleManagementService.hasFileInDocumentTemplate(
+            company.id, documentTemplate.id);
+      }
       emit(state.copyWith(
-        isLoading: false,
-        documentTemplates: documentTemplates,
-      ));
+          isLoading: false,
+          hasFile: hasFile,
+          documentTemplate: documentTemplate,
+          placeSignatures: documentTemplate.placeSignatures,
+          recoverDataType: recoverDataType,
+          typeSignature: typeSignature));
+
+      if (event.documentTemplateId == "new") {
+        emit(state.copyWith(isEditing: true));
+      }
     } catch (ex, stacktrace) {
       var exception = _peopleManagementService.treatErrors(ex, stacktrace);
       emit(state.copyWith(isLoading: false, exception: exception));
+    }
+  }
+
+  void _onEditEvent(EditEvent event, Emitter<DocumentTemplateState> emit) {
+    emit(state.copyWith(isEditing: true));
+  }
+
+  void _onChangeFieldValueEvent(
+      ChangeFieldValueEvent event, Emitter<DocumentTemplateState> emit) {
+    var newDocumentTemplate =
+        state.documentTemplate.copyWith(generic: event.changeValue);
+    emit(state.copyWith(documentTemplate: newDocumentTemplate));
+  }
+
+  void _onChangePlaceSignatureValuesEvent(ChangePlaceSignatureValuesEvent event,
+      Emitter<DocumentTemplateState> emit) {
+    var index = event.index;
+    var newPlaceSignature =
+        state.placeSignatures[index].copyWith(generic: event.changeValue);
+    var newListPlaceSignature =
+        List<PlaceSignature>.from(state.placeSignatures);
+    newListPlaceSignature[index] = newPlaceSignature;
+
+    emit(state.copyWith(placeSignatures: newListPlaceSignature));
+  }
+
+  void _onNewPlaceSignatureEvent(
+      NewPlaceSignatureEvent event, Emitter<DocumentTemplateState> emit) {
+    var newPlaceSignature = PlaceSignature.empty();
+    var newListPlaceSignature =
+        List<PlaceSignature>.from(state.placeSignatures);
+    newListPlaceSignature.add(newPlaceSignature);
+    emit(state.copyWith(placeSignatures: newListPlaceSignature));
+  }
+
+  void _onCancelEditEvent(
+      CancelEditEvent event, Emitter<DocumentTemplateState> emit) {
+    emit(state.copyWith(isEditing: false));
+    if (state.documentTemplate == DocumentTemplate.empty()) {
+      Modular.to.navigate("/employee/document-template");
+    } else {
+      add(InitialEvent(state.documentTemplate.id));
+    }
+  }
+
+  void _onRemovePlaceSignatureEvent(
+      RemovePlaceSignatureEvent event, Emitter<DocumentTemplateState> emit) {
+    var newListPlaceSignature =
+        List<PlaceSignature>.from(state.placeSignatures);
+    newListPlaceSignature.removeAt(event.index);
+    emit(state.copyWith(placeSignatures: newListPlaceSignature));
+  }
+
+  Future _onSaveEvent(
+      SaveEvent event, Emitter<DocumentTemplateState> emit) async {
+    emit(state.copyWith(isSavingData: true));
+    try {
+      final company = await _companyService.getSelectedCompany();
+      var newDocumentTemplate = state.documentTemplate
+          .copyWith(placeSignatures: state.placeSignatures);
+
+      if (newDocumentTemplate.id == "") {
+        newDocumentTemplate = newDocumentTemplate.copyWith(
+            id: await _peopleManagementService.createDocumentTemplate(
+                company.id, newDocumentTemplate));
+        emit(state.copyWith(documentTemplate: newDocumentTemplate));
+      } else {
+        await _peopleManagementService.editDocumentTemplate(
+            company.id, newDocumentTemplate);
+      }
+
+      emit(state.copyWith(
+          isSavingData: false,
+          isEditing: false,
+          snackMessage: "Template de documento salvo com sucesso!"));
+    } catch (ex, stacktrace) {
+      var exception = _peopleManagementService.treatErrors(ex, stacktrace);
+      emit(state.copyWith(isSavingData: false, exception: exception));
     }
   }
 }
