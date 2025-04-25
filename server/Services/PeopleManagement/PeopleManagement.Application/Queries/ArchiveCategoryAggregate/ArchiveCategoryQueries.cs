@@ -25,7 +25,7 @@ namespace PeopleManagement.Application.Queries.ArchiveCategoryAggregate
                 ListenEvents = c.ListenEventsIds.Select(x => new EnumerationDto
                 {
                     Id = x,
-                    Name = RequestFilesEvent.FromValue(x)?.Name ?? "",
+                    Name = EmployeeEvent.FromValue(x)?.Name ?? "",
                 }).ToArray(),
                 CompanyId = c.CompanyId,
             }).ToArray();

@@ -68,11 +68,11 @@ namespace PeopleManagement.IntegrationTests.Tests
             var emplyeeActive = await context.InsertEmployeeActive(company.Id, role.Id, cancellationToken);
             await context.SaveChangesAsync(cancellationToken);
 
-            var documentWithConflict = await context.InsertDocument(emplyeeActive, documentTemplate, cancellationToken);
+            var documentWithConflict = await context.InsertDocument(emplyeeActive, documentTemplate, requiresDocuments, cancellationToken);
             await documentWithConflict.InsertOneDocumentInDocument();
             await context.SaveChangesAsync(cancellationToken);
 
-            var document = await context.InsertDocument(emplyeeActive, documentTemplate2, cancellationToken);
+            var document = await context.InsertDocument(emplyeeActive, documentTemplate2, requiresDocuments, cancellationToken);
             await context.SaveChangesAsync(cancellationToken);
 
             var date = DateTime.UtcNow;

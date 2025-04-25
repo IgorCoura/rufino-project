@@ -337,39 +337,39 @@ namespace PeopleManagement.Infra.DataForTests
             List<ArchiveCategory> categorie = [];
             categorie.Add(ArchiveCategory.Create(Guid.Parse("e3b67736-42ce-41a6-9b1f-742dee98f106"), 
                 "RG", "Cateira de Identidade",
-                [RequestFilesEvent.ADMISSION_FILES], companyId));
+                [EmployeeEvent.CREATED_EVENT], companyId));
             categorie.Add(ArchiveCategory.Create(Guid.Parse("2fb2c14f-8a8a-4a27-9803-e356ff7f355e"), "TITULO DE ELEITOR", 
                 "Titulo de eleitor comprovando seu cadastro.",
-                [RequestFilesEvent.ADMISSION_FILES], companyId));
+                [EmployeeEvent.CREATED_EVENT], companyId));
             categorie.Add(ArchiveCategory.Create(Guid.Parse("45e26e0c-eda4-43bb-9ed2-d8178a3a9db3"), "COMPROVANTE DE ENDEREÇO", 
-                "Comprovante de endereço do funcionario.", [RequestFilesEvent.ADMISSION_FILES], companyId));
+                "Comprovante de endereço do funcionario.", [EmployeeEvent.CREATED_EVENT], companyId));
 
             categorie.Add(ArchiveCategory.Create(Guid.Parse("cd51b33a-f27e-43e2-8746-38ef9c62f141"), "CONTRATO DE ADMISSAO", 
                 "Contrato assinado de adimissao do funcionario.",
-                [RequestFilesEvent.COMPLETE_ADMISSION_FILES], companyId));
+                [EmployeeEvent.COMPLETE_ADMISSION_EVENT], companyId));
             categorie.Add(ArchiveCategory.Create(Guid.Parse("e0a7a37b-d205-4bfe-abbf-e9c8bcc4909d"), "EXAME ADMISSIONAL", 
                 "Exame admissional do funcionario comprovando sua aptidão para a função.",
-                [RequestFilesEvent.COMPLETE_ADMISSION_FILES], companyId));
+                [EmployeeEvent.COMPLETE_ADMISSION_EVENT], companyId));
 
             categorie.Add(ArchiveCategory.Create(Guid.Parse("a64d9f71-0e22-4ff8-ba6d-0ba8b616cee5"), "DOCUMENTO DE IDENTIFICAÇÃO DO FILHO", 
                 "Documento de identificação do filho do funcionario com CPF.",
-                [RequestFilesEvent.CHILD_DOCUMENT], companyId));
+                [EmployeeEvent.DEPENDENT_CHILD_CHANGE_EVENT], companyId));
 
             categorie.Add(ArchiveCategory.Create(Guid.Parse("2db92b0d-1042-4c93-9d68-d03690635803"), "DOCUMENTO MILITAR", 
                 "Documento de comprovação de alistamento e dispensa dos serviços militares obrigatorios.", 
-                [RequestFilesEvent.MilitarDocument(Guid.Empty, Guid.Empty).Id], companyId));
+                [EmployeeEvent.MILITAR_DOCUMENT_CHANGE_EVENT], companyId));
 
             categorie.Add(ArchiveCategory.Create(Guid.Parse("29295921-60c7-4cba-8268-571780a4452a"), "DOCUMENTO DE IDENTIFICAÇÃO DA ESPOSA", 
                 "Documento de identificação da esposa do funcionario.",
-                [RequestFilesEvent.MILITAR_DOCUMENT], companyId));
+                [EmployeeEvent.DEPENDENT_SPOUSE_CHANGE_EVENT], companyId));
 
             categorie.Add(ArchiveCategory.Create(Guid.Parse("8c693e2a-a0fa-4198-9058-0961c5eeefff"), "EXAME DEMISSIONAL", 
                 "Exame demissional do funcionario comprovando sua aptidão para a demissão.",
-                [RequestFilesEvent.MEDICAL_DISMISSAL_EXAM], companyId));
+                [EmployeeEvent.DEMISSIONAL_EXAM_REQUEST_EVENT], companyId));
 
-            categorie.Add(ArchiveCategory.Create(Guid.Parse("494aa6a7-5f12-4e61-9ab5-4beee69e358e"), "EXAME DEMISSIONAL", 
-                "Exame demissional do funcionario comprovando sua aptidão para a demissão.",
-                [RequestFilesEvent.MEDICAL_DISMISSAL_EXAM, RequestFilesEvent.ADMISSION_FILES, RequestFilesEvent.COMPLETE_ADMISSION_FILES, RequestFilesEvent.CHILD_DOCUMENT], companyId));
+            categorie.Add(ArchiveCategory.Create(Guid.Parse("494aa6a7-5f12-4e61-9ab5-4beee69e358e"), "DOC TESTE", 
+                "Descrição Doc Teste.",
+                [EmployeeEvent.CREATED_EVENT, EmployeeEvent.COMPLETE_ADMISSION_EVENT, EmployeeEvent.DEPENDENT_CHILD_CHANGE_EVENT], companyId));
 
             return categorie.ToArray();
         }

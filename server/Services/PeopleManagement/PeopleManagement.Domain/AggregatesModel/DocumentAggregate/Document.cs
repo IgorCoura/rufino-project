@@ -1,6 +1,5 @@
 ﻿using PeopleManagement.Domain.ErrorTools;
 using PeopleManagement.Domain.ErrorTools.ErrorsMessages;
-using System.Reflection.Metadata;
 
 namespace PeopleManagement.Domain.AggregatesModel.DocumentAggregate
 {
@@ -10,22 +9,22 @@ namespace PeopleManagement.Domain.AggregatesModel.DocumentAggregate
         public Description Description { get; private set; }
         public Guid EmployeeId { get; private set; }
         public Guid CompanyId { get; private set; }
-        public Guid RoleId { get; private set; }
+        public Guid RequiredDocumentId { get; private set; }
         public List<DocumentUnit> DocumentsUnits { get; private set; } = [];
         public DocumentStatus Status { get; private set; } = DocumentStatus.RequiredDocument;
         public Guid DocumentTemplateId { get; private set; }
 
-        private Document(Guid id, Guid employeeId, Guid companyId, Guid roleId, Guid documentTemplateId, Name name, Description description) : base(id)
+        private Document(Guid id, Guid employeeId, Guid companyId, Guid requiredDocumentId, Guid documentTemplateId, Name name, Description description) : base(id)
         {
             EmployeeId = employeeId;
             CompanyId = companyId;
-            RoleId = roleId;
+            RequiredDocumentId = requiredDocumentId;
             DocumentTemplateId = documentTemplateId;
             Description = description;
             Name = name;
         }
 
-        public static Document Create(Guid id, Guid employeeId, Guid companyId, Guid roleId, Guid documentTemplateId, Name name, Description description) => new(id, employeeId, companyId, roleId, documentTemplateId, name, description);
+        public static Document Create(Guid id, Guid employeeId, Guid companyId, Guid requiredDocumentId, Guid documentTemplateId, Name name, Description description) => new(id, employeeId, companyId, requiredDocumentId, documentTemplateId, name, description);
 
         public void AddDocument(DocumentUnit document)
         {
@@ -55,6 +54,25 @@ namespace PeopleManagement.Domain.AggregatesModel.DocumentAggregate
 
             return documentUnit.GetNameWithExtension;
         }
+
+        public DocumentUnit SetDocumentUnitInformation(Guid documentUnitId, DateTime date, DateTime? validity, string content)
+        {
+            var documentUnit = DocumentsUnits.FirstOrDefault(x => x.Id == documentUnitId)
+                ?? throw new DomainException(this, DomainErrors.ObjectNotFound(nameof(DocumentUnit), documentUnitId.ToString()));
+
+            documentUnit.SetInformation(date, validity, content);
+            return documentUnit;
+        }
+
+        public DocumentUnit SetDocumentUnitInformation(Guid documentUnitId, DateTime date, TimeSpan? validity, string content)
+        {
+            var documentUnit = DocumentsUnits.FirstOrDefault(x => x.Id == documentUnitId)
+                ?? throw new DomainException(this, DomainErrors.ObjectNotFound(nameof(DocumentUnit), documentUnitId.ToString()));
+
+            documentUnit.SetInformation(date, validity, content);
+            return documentUnit;
+        }
+
 
         public void AwaitingDocumentUnitSignature(Guid documentUnitId)
         {

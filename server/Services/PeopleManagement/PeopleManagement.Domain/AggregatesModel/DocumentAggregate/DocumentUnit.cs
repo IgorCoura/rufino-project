@@ -1,12 +1,13 @@
 ﻿using PeopleManagement.Domain.ErrorTools;
 using PeopleManagement.Domain.ErrorTools.ErrorsMessages;
+using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace PeopleManagement.Domain.AggregatesModel.DocumentAggregate
 {
     public class DocumentUnit : Entity
     {
         private DateTime? _validity;
-        public string Content { get; private set; } = null!;
+        public string Content { get; private set; } = string.Empty;
         public DateTime? Validity 
         { 
             get => _validity;
@@ -19,6 +20,7 @@ namespace PeopleManagement.Domain.AggregatesModel.DocumentAggregate
                 _validity = value; 
             }
         }
+
         public Name? Name { get; private set; } = null!;
         public Extension? Extension { get; private set; } = null!;
         public DocumentUnitStatus Status { get; private set; } = DocumentUnitStatus.Pending;
@@ -27,22 +29,18 @@ namespace PeopleManagement.Domain.AggregatesModel.DocumentAggregate
         public Document Document { get; private set; } = null!;
 
         private DocumentUnit() { }
-        private DocumentUnit(Guid id, string content, DateTime date, Document securityDocument, DateTime? validity) : base(id)
+        private DocumentUnit(Guid id, Document document) : base(id)
         {
             Content = content;
-            Date = date;
-            Document = securityDocument;
-            DocumentId = securityDocument.Id;
-            Validity = validity;
+            Document = document;
+            DocumentId = document.Id;
         }
 
-        public static DocumentUnit Create(Guid id, string content, DateTime date, Document securityDocument, TimeSpan? validityDuration)
+        public static DocumentUnit Create(Guid id,  Document document)
         {
-            DateTime? validity = null;
-            if(validityDuration != null)
-                validity = date.Add((TimeSpan)validityDuration);
+            
 
-            return new(id, content, date, securityDocument, validity);
+            return new(id,  document);
         }
 
         public void InsertWithRequireValidation(Name name, Extension extension)
@@ -56,6 +54,25 @@ namespace PeopleManagement.Domain.AggregatesModel.DocumentAggregate
             Name = name;
             Extension = extension;
             Status = DocumentUnitStatus.OK;
+        }
+
+        public void SetInformation(DateTime date, DateTime? validity, string content)
+        {
+            Date = date;
+            Validity = validity;    
+            Content = content;
+        }
+
+        public void SetInformation(DateTime date, TimeSpan? validity, string content)
+        {
+            Date = date;
+            DateTime? dateTimeValidity = null;
+            if (validity is not null)
+            {
+                dateTimeValidity = date.Add((TimeSpan)validity);
+            }
+            Validity = dateTimeValidity;
+            Content = content;
         }
 
         public void Validate(bool IsValid)
@@ -87,5 +104,6 @@ namespace PeopleManagement.Domain.AggregatesModel.DocumentAggregate
         public bool RequiresVerification => Status == DocumentUnitStatus.RequiredValidaty;
         public bool IsOK => Status == DocumentUnitStatus.OK;
         public string GetNameWithExtension => $"{Name}.{Extension}";
+
     }
 }

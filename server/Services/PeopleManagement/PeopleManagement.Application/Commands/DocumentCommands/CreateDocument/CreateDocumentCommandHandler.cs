@@ -10,7 +10,7 @@ namespace PeopleManagement.Application.Commands.DocumentCommands.CreateDocument
 
         public async Task<CreateDocumentResponse> Handle(CreateDocumentCommand request, CancellationToken cancellationToken)
         {
-            var document = await _documentService.CreateDocumentUnit(request.DocumentId, request.EmployeeId, request.CompanyId, request.DocumentDate, cancellationToken);
+            var document = await _documentService.CreateDocumentUnit(request.DocumentId, request.EmployeeId, request.CompanyId, cancellationToken);
             await _documentRepository.UnitOfWork.SaveChangesAsync(cancellationToken);
             
             return document.Id;

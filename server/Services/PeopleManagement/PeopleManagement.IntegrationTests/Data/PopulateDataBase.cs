@@ -121,7 +121,7 @@ namespace PeopleManagement.IntegrationTests.Data
                         "Bauru",
                         "SP",
                         "brasileiro",
-                        DateOnly.Parse("1995/04/30")
+                        DateOnly.FromDateTime(DateTime.Now.AddYears(-30))
                     ),
                     1,
                     1)
@@ -153,10 +153,10 @@ namespace PeopleManagement.IntegrationTests.Data
             employee.Contact = EmployeeContact.Create("email@email.com", "(00) 100000001");
 
             employee.PersonalInfo = PersonalInfo.Create(Deficiency.Create("", []), MaritalStatus.Single, Gender.MALE, Ethinicity.White, EducationLevel.CompleteHigher);
-            employee.IdCard = IdCard.Create("216.456.330-12", "Maria Silva", "Marcio Andrade", "Suzano", "São Paulo", "Brasileiro", DateOnly.Parse("2000/01/01"));
+            employee.IdCard = IdCard.Create("216.456.330-12", "Maria Silva", "Marcio Andrade", "Suzano", "São Paulo", "Brasileiro", DateOnly.FromDateTime(DateTime.Now.AddYears(-20)));
             employee.VoteId = VoteId.Create("281662310124");
 
-            employee.MedicalAdmissionExam = MedicalAdmissionExam.Create(DateOnly.Parse("2024/04/20"), DateOnly.Parse("2025/04/20"));
+            employee.MedicalAdmissionExam = MedicalAdmissionExam.Create(DateOnly.FromDateTime(DateTime.Now), DateOnly.FromDateTime(DateTime.Now.AddDays(365)));
 
             employee.MilitaryDocument = MilitaryDocument.Create("2312312312", "Rersevista");
 
@@ -187,10 +187,10 @@ namespace PeopleManagement.IntegrationTests.Data
             employee.Contact = EmployeeContact.Create("email@email.com", "(00) 100000001");
 
             employee.PersonalInfo = PersonalInfo.Create(Deficiency.Create("", []), MaritalStatus.Single, Gender.MALE, Ethinicity.White, EducationLevel.CompleteHigher);
-            employee.IdCard = IdCard.Create("216.456.330-12", "Maria Silva", "Marcio Andrade", "Suzano", "São Paulo", "Brasileiro", DateOnly.Parse("2000/01/01"));
+            employee.IdCard = IdCard.Create("216.456.330-12", "Maria Silva", "Marcio Andrade", "Suzano", "São Paulo", "Brasileiro", DateOnly.FromDateTime(DateTime.Now.AddYears(-25)));
             employee.VoteId = VoteId.Create("281662310124");
 
-            employee.MedicalAdmissionExam = MedicalAdmissionExam.Create(DateOnly.Parse("2024/04/20"), DateOnly.Parse("2025/04/20"));
+            employee.MedicalAdmissionExam = MedicalAdmissionExam.Create(DateOnly.FromDateTime(DateTime.Now).AddDays(-100), DateOnly.FromDateTime(DateTime.Now.AddDays(265)));
 
             employee.MilitaryDocument = MilitaryDocument.Create("2312312312", "Rersevista");
 
@@ -220,10 +220,10 @@ namespace PeopleManagement.IntegrationTests.Data
             employee.Contact = EmployeeContact.Create("email@email.com", "(00) 100000001");
 
             employee.PersonalInfo = PersonalInfo.Create(Deficiency.Create("", []), MaritalStatus.Single, Gender.MALE, Ethinicity.White, EducationLevel.CompleteHigher);
-            employee.IdCard = IdCard.Create("216.456.330-12", "Maria Silva", "Marcio Andrade", "Suzano", "São Paulo", "Brasileiro", DateOnly.Parse("2000/01/01"));
+            employee.IdCard = IdCard.Create("216.456.330-12", "Maria Silva", "Marcio Andrade", "Suzano", "São Paulo", "Brasileiro", DateOnly.FromDateTime(DateTime.Now.AddYears(-25)));
             employee.VoteId = VoteId.Create("281662310124");
 
-            employee.MedicalAdmissionExam = MedicalAdmissionExam.Create(DateOnly.Parse("2024/04/20"), DateOnly.Parse("2025/04/20"));
+            employee.MedicalAdmissionExam = MedicalAdmissionExam.Create(DateOnly.FromDateTime(DateTime.Now), DateOnly.FromDateTime(DateTime.Now.AddDays(365)));
 
             employee.MilitaryDocument = MilitaryDocument.Create("2312312312", "Rersevista");
 
@@ -242,7 +242,7 @@ namespace PeopleManagement.IntegrationTests.Data
         public static async Task<RequireDocuments> InsertRequireDocuments(this PeopleManagementContext context, Guid companyId, Guid roleId, Guid[] documentTemplates, CancellationToken cancellationToken = default)
         {
             var id = Guid.NewGuid();
-            var requiresSecurityDocuments = RequireDocuments.Create(id, roleId, companyId, "RequireDoc", "Description DocRequire", documentTemplates);
+            var requiresSecurityDocuments = RequireDocuments.Create(id, companyId, roleId, AssociationType.Role, "Doc Role Required", "Description Doc Role Required",[], [.. documentTemplates]);
             await context.RequireDocuments.AddAsync(requiresSecurityDocuments, cancellationToken);
             return requiresSecurityDocuments;
         }
@@ -279,9 +279,9 @@ namespace PeopleManagement.IntegrationTests.Data
         }
 
 
-        public static async Task<Document> InsertDocument(this PeopleManagementContext context, Employee employeeActiveWithOutDocuments, DocumentTemplate documentTemplate, CancellationToken cancellationToken = default)
+        public static async Task<Document> InsertDocument(this PeopleManagementContext context, Employee employeeActiveWithOutDocuments, DocumentTemplate documentTemplate, RequireDocuments requireDocuments, CancellationToken cancellationToken = default)
         {
-            var securityDocument = Document.Create(Guid.NewGuid(), employeeActiveWithOutDocuments.Id, employeeActiveWithOutDocuments.CompanyId, (Guid)employeeActiveWithOutDocuments.RoleId!, documentTemplate.Id, documentTemplate.Name.ToString(), documentTemplate.Description.ToString());
+            var securityDocument = Document.Create(Guid.NewGuid(), employeeActiveWithOutDocuments.Id, employeeActiveWithOutDocuments.CompanyId, requireDocuments.Id, documentTemplate.Id, documentTemplate.Name.ToString(), documentTemplate.Description.ToString());
             await context.Documents.AddAsync(securityDocument, cancellationToken);
 
             return securityDocument;
@@ -298,7 +298,7 @@ namespace PeopleManagement.IntegrationTests.Data
             var employee = await context.InsertEmployeeActive(company.Id, role.Id);
             await context.SaveChangesAsync(cancellationToken);
 
-            var securityDocument = Document.Create(Guid.NewGuid(), employee.Id, employee.CompanyId, (Guid)employee.RoleId!, documentTemplate.Id, documentTemplate.Name.ToString(), documentTemplate.Description.ToString());
+            var securityDocument = Document.Create(Guid.NewGuid(), employee.Id, employee.CompanyId, requiresDocuments.Id, documentTemplate.Id, documentTemplate.Name.ToString(), documentTemplate.Description.ToString());
             await context.Documents.AddAsync(securityDocument, cancellationToken);
 
             return securityDocument;
@@ -317,35 +317,36 @@ namespace PeopleManagement.IntegrationTests.Data
             List<ArchiveCategory> categorie = [];
             categorie.Add(ArchiveCategory.Create(Guid.NewGuid(),
                 "RG", "Cateira de Identidade",
-                [RequestFilesEvent.ADMISSION_FILES], companyId));
+                [EmployeeEvent.CREATED_EVENT], companyId));
             categorie.Add(ArchiveCategory.Create(Guid.NewGuid(), "TITULO DE ELEITOR",
                 "Titulo de eleitor comprovando seu cadastro.",
-                [RequestFilesEvent.ADMISSION_FILES], companyId));
+                [EmployeeEvent.CREATED_EVENT], companyId));
             categorie.Add(ArchiveCategory.Create(Guid.NewGuid(), "COMPROVANTE DE ENDEREÇO",
-                "Comprovante de endereço do funcionario.", [RequestFilesEvent.ADMISSION_FILES], companyId));
+                "Comprovante de endereço do funcionario.", [EmployeeEvent.CREATED_EVENT], companyId));
 
             categorie.Add(ArchiveCategory.Create(Guid.NewGuid(), "CONTRATO DE ADMISSAO",
                 "Contrato assinado de adimissao do funcionario.",
-                [RequestFilesEvent.COMPLETE_ADMISSION_FILES], companyId));
+                [EmployeeEvent.COMPLETE_ADMISSION_EVENT], companyId));
+
             categorie.Add(ArchiveCategory.Create(Guid.NewGuid(), "EXAME ADMISSIONAL",
                 "Exame admissional do funcionario comprovando sua aptidão para a função.",
-                [RequestFilesEvent.COMPLETE_ADMISSION_FILES], companyId));
+                [EmployeeEvent.COMPLETE_ADMISSION_EVENT], companyId));
 
             categorie.Add(ArchiveCategory.Create(Guid.NewGuid(), "DOCUMENTO DE IDENTIFICAÇÃO DO FILHO",
                 "Documento de identificação do filho do funcionario com CPF.",
-                [RequestFilesEvent.CHILD_DOCUMENT], companyId));
+                [EmployeeEvent.DEPENDENT_CHILD_CHANGE_EVENT], companyId));
 
             categorie.Add(ArchiveCategory.Create(Guid.NewGuid(), "DOCUMENTO MILITAR",
                 "Documento de comprovação de alistamento e dispensa dos serviços militares obrigatorios.",
-                [RequestFilesEvent.MilitarDocument(Guid.Empty, Guid.Empty).Id], companyId));
+                [EmployeeEvent.MILITAR_DOCUMENT_CHANGE_EVENT], companyId));
 
             categorie.Add(ArchiveCategory.Create(Guid.NewGuid(), "DOCUMENTO DE IDENTIFICAÇÃO DA ESPOSA",
                 "Documento de identificação da esposa do funcionario.",
-                [RequestFilesEvent.MILITAR_DOCUMENT], companyId));
+                [EmployeeEvent.DEPENDENT_SPOUSE_CHANGE_EVENT], companyId));
 
             categorie.Add(ArchiveCategory.Create(Guid.NewGuid(), "EXAME DEMISSIONAL",
                 "Exame demissional do funcionario comprovando sua aptidão para a demissão.",
-                [RequestFilesEvent.MEDICAL_DISMISSAL_EXAM], companyId));
+                [EmployeeEvent.DEMISSIONAL_EXAM_REQUEST_EVENT], companyId));
 
             await context.AddRangeAsync(categorie, cancellationToken);
 

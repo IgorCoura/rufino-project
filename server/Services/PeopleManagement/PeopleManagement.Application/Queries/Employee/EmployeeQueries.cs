@@ -2,9 +2,9 @@
 using PeopleManagement.Domain.AggregatesModel.EmployeeAggregate;
 using PeopleManagement.Domain.ErrorTools.ErrorsMessages;
 using PeopleManagement.Domain.ErrorTools;
-using PeopleManagement.Domain.SeedWord;
 using PeopleManagement.Infra.Context;
 using static PeopleManagement.Application.Queries.Base.BaseDtos;
+using PeopleManagement.Domain.SeedWord;
 
 namespace PeopleManagement.Application.Queries.Employee
 {

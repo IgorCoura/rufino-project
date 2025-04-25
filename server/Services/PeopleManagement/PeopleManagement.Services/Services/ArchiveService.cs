@@ -5,6 +5,7 @@ using PeopleManagement.Domain.AggregatesModel.ArchiveCategoryAggregate.Interface
 using PeopleManagement.Domain.AggregatesModel.DocumentAggregate.Interfaces;
 using PeopleManagement.Domain.ErrorTools;
 using PeopleManagement.Domain.ErrorTools.ErrorsMessages;
+using System.Diagnostics;
 using ArchiveFile = PeopleManagement.Domain.AggregatesModel.ArchiveAggregate.File;
 
 namespace PeopleManagement.Services.Services
@@ -25,12 +26,15 @@ namespace PeopleManagement.Services.Services
                 Archive? archive = await _archiveRepository.FirstOrDefaultAsync(x => x.OwnerId == ownerId && x.CompanyId == companyId && x.CategoryId == category.Id, cancellation: cancellationToken);
                 if (archive is null)
                 {
+                    Debug.WriteLine($"Archive-> OwnerId: {ownerId}, EventId: {eventId}, CompanyId {companyId}");
                     var createArchive = Archive.Create(Guid.NewGuid(), category.Id, ownerId, companyId);
-                    archive = await _archiveRepository.InsertAsync(createArchive, cancellation: cancellationToken);
+                    createArchive.RequestFile();
+                    await _archiveRepository.InsertAsync(createArchive, cancellation: cancellationToken);
+                    continue;
                 }
                 archive.RequestFile();
             }
-            
+
         }   
 
 

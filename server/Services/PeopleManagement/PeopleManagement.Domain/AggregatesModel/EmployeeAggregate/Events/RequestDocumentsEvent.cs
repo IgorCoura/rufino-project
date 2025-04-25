@@ -4,15 +4,15 @@
     {
         public Guid EmployeeId { get; private set; }
         public Guid CompanyId { get; private set; }
-        public Guid RoleId { get; set; }
-        private RequestDocumentsEvent(Guid employeeId, Guid companyId, Guid roleId)
+        public Guid AssociationId { get; set; }
+        private RequestDocumentsEvent(Guid employeeId, Guid companyId, Guid associationId)
         {
             EmployeeId = employeeId;
             CompanyId = companyId;
-            RoleId = roleId;
+            AssociationId = associationId;
         }
 
-        public static RequestDocumentsEvent Create(Guid employeeId, Guid companyId, Guid roleId) => new(employeeId, companyId, roleId);
+        public static RequestDocumentsEvent Create(Guid employeeId, Guid companyId, Guid associationId) => new(employeeId, companyId, associationId);
 
     }
 }

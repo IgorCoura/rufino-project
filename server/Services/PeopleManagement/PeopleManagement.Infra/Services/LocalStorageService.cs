@@ -7,13 +7,14 @@ namespace PeopleManagement.Infra.Services
 {
     public class LocalStorageService : ILocalStorageService
     {
-        public Task UnzipUploadAsync(Stream stream, string destinationDirectoryName, string sourceDestinationDirectoryPath, CancellationToken cancellationToken = default)
+        public  Task UnzipUploadAsync(Stream stream, string destinationDirectoryName, string sourceDestinationDirectoryPath, CancellationToken cancellationToken = default)
         {
             var destinationDirectoryPath = VerifyAndCreateDirectoryIfNotExist(destinationDirectoryName, sourceDestinationDirectoryPath);
             try
             {
                 using var zipArchive = new ZipArchive(stream);
-                zipArchive.ExtractToDirectory(destinationDirectoryPath);
+                zipArchive.ExtractToDirectory(destinationDirectoryPath, overwriteFiles: true);  
+
                 return Task.CompletedTask;
             }
             catch(InvalidDataException)
@@ -25,15 +26,16 @@ namespace PeopleManagement.Infra.Services
         public Task<Stream> ZipDownloadAsync(string originDirectoryName, string sourceOriginDirectoryPath, CancellationToken cancellationToken = default)
         {           
             var originDirectoryPath = VerifyAndCreateDirectoryIfNotExist(originDirectoryName, sourceOriginDirectoryPath);
-            using var stream = new MemoryStream();
+            var stream = new MemoryStream();
             ZipFile.CreateFromDirectory(originDirectoryPath, stream);
+            stream.Position = 0;
             return Task.FromResult((Stream)stream);
         }
 
         public Task<bool> HasFile(string originDirectoryName, string sourceOriginDirectoryPath, CancellationToken cancellationToken = default)
         {
             var originDirectoryPath = VerifyAndCreateDirectoryIfNotExist(originDirectoryName, sourceOriginDirectoryPath);
-            if (Directory.EnumerateFiles(originDirectoryPath).Any())
+            if (Directory.EnumerateDirectories(originDirectoryPath).Any() || Directory.EnumerateFiles(originDirectoryPath).Any())
             {
                 return Task.FromResult(true);
             }

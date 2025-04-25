@@ -45,7 +45,7 @@ namespace PeopleManagement.API.Controllers
 
         [HttpPost("Upload")]
         [ProtectedResource("DocumentTemplate", "send")]
-        public async Task<ActionResult<InsertDocumentTemplateResponse>> Insert(IFormFile formFile, [FromForm] Guid id, [FromForm] Guid company, [FromHeader(Name = "x-requestid")] Guid requestId)
+        public async Task<ActionResult<InsertDocumentTemplateResponse>> Insert(IFormFile formFile, [FromForm] Guid id, [FromRoute] Guid company, [FromHeader(Name = "x-requestid")] Guid requestId)
         {
             var stream = formFile.OpenReadStream();
             var request = new InsertDocumentTemplateCommand(id, company, formFile.FileName, stream);
@@ -111,11 +111,11 @@ namespace PeopleManagement.API.Controllers
         }
 
         [HttpGet("download/{documentTemplateId}")]
-        [ProtectedResource("DocumentTemplate", "view")]
-        public async Task<ActionResult<Stream>> DownloadFile([FromRoute] Guid company, [FromRoute] Guid documentTemplateId)
+        public async Task<IActionResult> DownloadFile([FromRoute] Guid company, [FromRoute] Guid documentTemplateId)
         {
-            var result = await documentTemplateQueries.DownloadFile(company, documentTemplateId);
-            return OkResponse(result);
+            var stream = await documentTemplateQueries.DownloadFile( documentTemplateId, company);
+            stream.Position = 0;
+            return File(stream, "application/octet-stream", $"{documentTemplateId}.zip");
         }
     }
 } 

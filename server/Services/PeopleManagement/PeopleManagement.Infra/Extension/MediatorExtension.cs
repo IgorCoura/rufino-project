@@ -1,6 +1,7 @@
 ﻿using MediatR;
 using PeopleManagement.Domain.SeedWord;
 using PeopleManagement.Infra.Context;
+using System.Diagnostics;
 
 namespace PeopleManagement.Infra.Extension
 {
@@ -19,8 +20,13 @@ namespace PeopleManagement.Infra.Extension
             domainEntities.ToList()
                 .ForEach(entity => entity.Entity.ClearDomainEvents());
 
+
+
             foreach (var domainEvent in domainEvents)
+            {
                 await mediator.Publish(domainEvent);
+            }
+                
         }
     }
 }

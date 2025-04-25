@@ -79,8 +79,8 @@ namespace PeopleManagement.IntegrationTests.Tests
                 "",
                 "Vila Nunes",
                 "Lorena",
-            "SP",
-            "Brasil"
+                "SP",
+                "Brasil"
                 );
 
             client.InputHeaders([employee.CompanyId]);
@@ -146,14 +146,14 @@ namespace PeopleManagement.IntegrationTests.Tests
                 );
 
             client.InputHeaders([employee.CompanyId]);
-            var response = await client.PostAsJsonAsync($"/api/v1/{employee.CompanyId}/employee/dependent", command);
+            var response = await client.PutAsJsonAsync($"/api/v1/{employee.CompanyId}/employee/dependent/create", command);
 
             Assert.Equal(HttpStatusCode.OK, response.StatusCode);
             var content = await response.Content.ReadFromJsonAsync(typeof(CreateDependentEmployeeResponse)) as CreateDependentEmployeeResponse ?? throw new ArgumentNullException();
             var result = await context.Employees.AsNoTracking().FirstOrDefaultAsync(x => x.Id == content.Id) ?? throw new ArgumentNullException();
             Assert.Single(result.Dependents);
             Assert.Equal(command.ToCommand(employee.CompanyId).ToDependent(), result.Dependents.First(x => x.Name.Equals((NameEmployee)command.Name)));
-            await CheckRequestDocumentEvent(context, RequestFilesEvent.SpouseDocument(employee.Id, employee.CompanyId), cancellationToken);
+            await CheckRequestDocumentEvent(context, EmployeeEvent.DependentSpouseChangeEvent(employee.Id, employee.CompanyId), cancellationToken);
         }
 
         [Fact]
@@ -187,7 +187,7 @@ namespace PeopleManagement.IntegrationTests.Tests
                 );
 
             client.InputHeaders([employee.CompanyId]);
-            var response = await client.PutAsJsonAsync($"/api/v1/{employee.CompanyId}/employee/dependent", command);
+            var response = await client.PutAsJsonAsync($"/api/v1/{employee.CompanyId}/employee/dependent/edit", command);
 
             Assert.Equal(HttpStatusCode.OK, response.StatusCode);
             var content = await response.Content.ReadFromJsonAsync(typeof(AlterDependentEmployeeResponse)) as AlterDependentEmployeeResponse ?? throw new ArgumentNullException();
@@ -195,7 +195,7 @@ namespace PeopleManagement.IntegrationTests.Tests
             var expected = command.CurrentDependent.ToDependent();
             Assert.Single(result.Dependents);
             Assert.Equal(expected, result.Dependents.FirstOrDefault(x => x.Name.Equals(expected.Name)));
-            await CheckRequestDocumentEvent(context, RequestFilesEvent.ChildDocument(employee.Id, employee.CompanyId), cancellationToken);
+            await CheckRequestDocumentEvent(context, EmployeeEvent.DependentChildChangeEvent(employee.Id, employee.CompanyId), cancellationToken);
         }
 
         [Fact]
@@ -243,8 +243,8 @@ namespace PeopleManagement.IntegrationTests.Tests
 
             var command = new AlterMedicalAdmissionExamEmployeeModel(
                 employee.Id,
-                DateOnly.Parse("2024/04/01"),
-                DateOnly.Parse("2025/04/01"));
+                DateOnly.FromDateTime(DateTime.Now.AddDays(-30)),
+                DateOnly.FromDateTime(DateTime.Now.AddDays(335)));
 
             client.InputHeaders([employee.CompanyId]);
             var response = await client.PutAsJsonAsync($"/api/v1/{employee.CompanyId}/employee/MedicalAdmissionExam", command);
@@ -436,11 +436,9 @@ namespace PeopleManagement.IntegrationTests.Tests
             var contract = result.Contracts.OrderBy(x => x.InitDate).Last();
             Assert.Equal(command.ContractType, contract.ContractType.Id);
             Assert.Equal(DateOnly.FromDateTime(DateTime.UtcNow), contract.InitDate);
-            
-            var securityDocument = await context.Documents.AsNoTracking().FirstAsync(x  => x.EmployeeId == employee.Id && x.CompanyId == employee.CompanyId);
-            Assert.Equal(Domain.AggregatesModel.DocumentAggregate.DocumentStatus.RequiredDocument , securityDocument.Status);
 
-            await CheckRequestDocumentEvent(context, RequestFilesEvent.CompleteAdmissionFiles(employee.Id, employee.CompanyId), cancellationToken);
+
+            await CheckRequestDocumentEvent(context, EmployeeEvent.CompleteAdmissionEvent(employee.Id, employee.CompanyId), cancellationToken);
         }
 
         [Fact]
@@ -465,15 +463,15 @@ namespace PeopleManagement.IntegrationTests.Tests
             Assert.Equal(Status.Inactive, result.Status);
             var contract = result.Contracts.OrderBy(x => x.FinalDate).Last();
             Assert.Equal(command.FinishDateContract, contract.FinalDate);
-            await CheckRequestDocumentEvent(context, RequestFilesEvent.MedicalDismissalExam(employee.Id, employee.CompanyId), cancellationToken);
+            await CheckRequestDocumentEvent(context, EmployeeEvent.DemissionalExamRequestEvent(employee.Id, employee.CompanyId), cancellationToken);
         }
 
 
-        private async static Task CheckRequestDocumentEvent(PeopleManagementContext context, RequestFilesEvent documentsEvent, CancellationToken cancellationToken = default)
+        private async static Task CheckRequestDocumentEvent(PeopleManagementContext context, EmployeeEvent documentsEvent, CancellationToken cancellationToken = default)
         {
             var archivesCategories = await context.ArchiveCategories.AsNoTracking().ToListAsync(cancellationToken);
             archivesCategories = archivesCategories.Where(x => x.ListenEventsIds.Contains(documentsEvent.Id)).ToList();
-            var archives = await context.Archives.AsNoTracking().Where(x => x.OwnerId == documentsEvent.OwnerId && x.CompanyId == documentsEvent.CompanyId && x.Status == ArchiveStatus.RequiresFile).ToListAsync(cancellationToken);
+            var archives = await context.Archives.AsNoTracking().Where(x => x.OwnerId == documentsEvent.EmployeeId && x.CompanyId == documentsEvent.CompanyId && x.Status == ArchiveStatus.RequiresFile).ToListAsync(cancellationToken);
 
             foreach(var category in archivesCategories)
             {

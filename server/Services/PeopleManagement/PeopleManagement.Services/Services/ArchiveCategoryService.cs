@@ -15,7 +15,7 @@ namespace PeopleManagement.Services.Services
         {
             foreach (var eventId in ListenEventsIds)
             {
-                if (RequestFilesEvent.EventExist(eventId) == false)
+                if ( EmployeeEvent.EventExist(eventId) == false)
                     throw new DomainException(this, DomainErrors.ArchiveCategory.EventNotExist(eventId));
             }
 
@@ -31,7 +31,7 @@ namespace PeopleManagement.Services.Services
 
             foreach(var eventId in eventIds)
             {
-                if (RequestFilesEvent.EventExist(eventId) == false)
+                if (EmployeeEvent.EventExist(eventId) == false)
                     throw new DomainException(this, DomainErrors.ArchiveCategory.EventNotExist(eventId));
                 category.AddListenEvent(eventId);
             }

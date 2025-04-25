@@ -86,7 +86,7 @@ namespace PeopleManagement.API.Controllers
         [ProtectedResource("ArchiveCategory", "view")]
         public ActionResult<IEnumerable<EmploymentContractType>> GetAllEvents([FromRoute] Guid company)
         {
-            var result = RequestFilesEvent.GetAll();
+            var result = EmployeeEvent.GetAll();
             return OkResponse(result);
         }
 

@@ -32,6 +32,11 @@ namespace PeopleManagement.Infra.Mapping
                 file.Property(x => x.InsertAt)
                     .IsRequired();
             });
+            
+            builder.HasIndex(x => x.OwnerId);
+
+            builder.Property(x => x.OwnerId)
+                .IsRequired();
 
             builder.Property(x => x.Status)
                 .HasConversion(x => x.Id, x => x)

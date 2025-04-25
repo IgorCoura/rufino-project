@@ -91,7 +91,7 @@ namespace PeopleManagement.UnitTests.Aggregates.EmployeeTests
             employee.IdCard = IdCard.Create("216.456.330-12", "Maria Silva", "Marcio Andrade", "Suzano", "São Paulo", "Brasileiro", DateOnly.Parse("2000/01/01"));
             employee.VoteId = VoteId.Create("281662310124");
 
-            employee.MedicalAdmissionExam = MedicalAdmissionExam.Create(DateOnly.Parse("2024/04/20"), DateOnly.Parse("2025/04/20"));
+            employee.MedicalAdmissionExam = MedicalAdmissionExam.Create(DateOnly.FromDateTime(DateTime.Now), DateOnly.FromDateTime(DateTime.Now.AddDays(365)));
 
             employee.MilitaryDocument = MilitaryDocument.Create("2312312312", "Rersevista");
 

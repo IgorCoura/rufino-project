@@ -5,7 +5,8 @@ using PeopleManagement.Domain.ErrorTools.ErrorsMessages;
 namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
 {
     public sealed class Employee : Entity, IAggregateRoot
-    {       
+    {
+        private Name _name = null!;
         private IdCard? _idCard;
         private VoteId? _voteId;
         private PersonalInfo? _personalInfo;
@@ -15,6 +16,7 @@ namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
         private Registration? _registration = null!;//Matricula Esocial
         private MilitaryDocument? _militaryDocument;
         private Address? _address = null!;
+        private Contact? _contact = null!;
         private MedicalAdmissionExam? _medicalAdmissionExam = null!;
 
         public Registration? Registration 
@@ -25,7 +27,15 @@ namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
                 _registration = value;
             }
         }  
-        public Name Name { get; set; } = null!;
+        public Name Name 
+        { 
+            get => _name;
+            set 
+            {
+                _name = value;
+                AddDomainEvent(EmployeeEvent.NameChangeEvent(Id, CompanyId));
+            } 
+        }
         public Guid? RoleId 
         {
             get => _roleId;
@@ -34,7 +44,8 @@ namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
                 if(value != null && value != Guid.Empty)
                 {
                     _roleId = value;
-                    SendCreateRequestMedicalExamEvent();
+                    AddDomainEvent(RequestDocumentsEvent.Create(Id, CompanyId, (Guid)value));
+                    AddDomainEvent(EmployeeEvent.RoleChangeEvent(Id, CompanyId));
                 }
             }
         }
@@ -56,7 +67,7 @@ namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
                 if (value != null && value != Guid.Empty)
                 {
                     _workPlaceId = value;
-                    SendCreateRequestMedicalExamEvent();
+                    AddDomainEvent(EmployeeEvent.WorkPlaceChangeEvent(Id, CompanyId));
                 }
             }
         }
@@ -68,10 +79,19 @@ namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
                 if(value != null)
                 {
                     _address = value;
+                    AddDomainEvent(EmployeeEvent.AddressChangeEvent(Id, CompanyId));
                 }
             }
         }
-        public Contact? Contact { get; set; }
+        public Contact? Contact 
+        { 
+            get => _contact; 
+            set 
+            {
+                _contact = value;
+                AddDomainEvent(EmployeeEvent.ContactChangeEvent(Id, CompanyId));
+            } 
+        }
         public List<Dependent> Dependents { get; private set; } = [];
         public Status Status { get; private set; } = null!;
         public MedicalAdmissionExam? MedicalAdmissionExam 
@@ -81,7 +101,8 @@ namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
             {
                 if(value != null)
                 {
-                    _medicalAdmissionExam = value;                    
+                    _medicalAdmissionExam = value;
+                    AddDomainEvent(EmployeeEvent.MedicalAdmissionExamChangeEvent(Id, CompanyId));
                 }
 
             } 
@@ -92,8 +113,8 @@ namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
             get => _personalInfo;
             set 
             {
-                AddEventIfMilitarDocumentIsRequired();
                 _personalInfo = value;
+                AddDomainEvent(EmployeeEvent.PersonalInfoChangeEvent(Id, CompanyId));
             }
         }
         public IdCard? IdCard 
@@ -104,8 +125,7 @@ namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
                 if (value != null)
                 {
                     _idCard = value;
-                    AddEventIfMilitarDocumentIsRequired();
-                    SendCreateRequestMedicalExamEvent();
+                    AddDomainEvent(EmployeeEvent.IdCardChangeEvent(Id, CompanyId));
                 }
                     
             }
@@ -118,6 +138,7 @@ namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
                 if (value != null)
                 {
                     _voteId = value;
+                    AddDomainEvent(EmployeeEvent.VoteIdChangeEvent(Id, CompanyId));
                 }
             }
         }
@@ -130,21 +151,22 @@ namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
                 if (value != null)
                 {
                     _militaryDocument = value;
+                    AddDomainEvent(EmployeeEvent.MilitarDocumentChangeEvent(Id, CompanyId));
                 }
             }
         }
         private Employee() { }
         private Employee(Guid id, Guid companyId, Name name, Status status) : base(id)
         {
-            Name = name;
             CompanyId = companyId;
+            Name = name;
             Status = status;
         }
 
         public static Employee Create(Guid id, Guid companyId, Name name)
         {
             Employee employee = new(id, companyId, name, Status.Pending);
-            employee.AddDomainEvent(RequestFilesEvent.AdmissionFiles(id, companyId));
+            employee.AddDomainEvent(EmployeeEvent.CreatedEvent(id, companyId));
             return employee;
         }
 
@@ -160,8 +182,7 @@ namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
 
             NewContract(dateInit, contractType);
             Registration = registration;            
-            AddDomainEvent(RequestFilesEvent.CompleteAdmissionFiles(Id, CompanyId));
-            AddDomainEvent(RequestDocumentsEvent.Create(Id, CompanyId, RoleId!.Value));
+            AddDomainEvent(EmployeeEvent.CompleteAdmissionEvent(Id,CompanyId));
         }
 
         public Result ThereNotPendingIssues()
@@ -224,6 +245,7 @@ namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
                 throw new DomainException(this, DomainErrors.ObjectNotFound(nameof(Dependent), nameDependent.Value));
 
             Dependents.RemoveAt(index);
+            AddDomainEvent(EmployeeEvent.DependentRemovedEvent(Id, CompanyId));
         }
 
 
@@ -236,9 +258,9 @@ namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
 
             Contracts[index] = Contracts[index].FinshedContract(finishDateContract);
             Status = Status.Inactive;
+            AddDomainEvent(EmployeeEvent.FinishedContractEvent(Id, CompanyId));
             if (MedicalAdmissionExam!.NeedDismissalExam)
-                AddDomainEvent(RequestFilesEvent.MedicalDismissalExam(Id, CompanyId)); 
-
+                AddDomainEvent(EmployeeEvent.DemissionalExamRequestEvent(Id, CompanyId));
         }
 
         public bool CantSignByCellPhone => Contact?.CellPhoneIsEmpty ?? true;
@@ -265,34 +287,17 @@ namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
         {
             if (type.Equals(DependencyType.Spouse))
             {
-                AddDomainEvent(RequestFilesEvent.SpouseDocument(Id, CompanyId));
+                AddDomainEvent(EmployeeEvent.DependentSpouseChangeEvent(Id, CompanyId));
+                return;
             }
 
             if (type.Equals(DependencyType.Child))
             {
-                AddDomainEvent(RequestFilesEvent.ChildDocument(Id, CompanyId));
+                AddDomainEvent(EmployeeEvent.DependentChildChangeEvent(Id, CompanyId));
+                return;
             }
         }
 
-        private void SendCreateRequestMedicalExamEvent()
-        {
-            if(    IdCard != null 
-                && PersonalInfo != null
-                && WorkPlaceId != Guid.Empty
-                && RoleId != Guid.Empty
-                )
-            {
-                AddDomainEvent(CreateRequestMedicalExamEvent.Create(PersonalInfo, IdCard, (Guid)WorkPlaceId!, (Guid)RoleId!));
-            }
-        }
-
-        private void AddEventIfMilitarDocumentIsRequired()
-        {
-            if(IsRequiredMilitarDocument())
-            {
-                AddDomainEvent(RequestFilesEvent.MilitarDocument(Id, CompanyId));
-            }
-        }
 
     }
 }

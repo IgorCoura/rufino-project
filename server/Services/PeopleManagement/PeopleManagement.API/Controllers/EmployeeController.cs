@@ -1,4 +1,5 @@
-﻿using PeopleManagement.API.Authorization;
+﻿using Microsoft.Extensions.Logging;
+using PeopleManagement.API.Authorization;
 using PeopleManagement.Application.Commands.EmployeeCommands.AlterAddressEmployee;
 using PeopleManagement.Application.Commands.EmployeeCommands.AlterContactEmployee;
 using PeopleManagement.Application.Commands.EmployeeCommands.AlterDependentEmployee;
@@ -19,6 +20,7 @@ using PeopleManagement.Application.Commands.EmployeeCommands.RemoveDependentEmpl
 using PeopleManagement.Application.Commands.Identified;
 using PeopleManagement.Application.Queries.Employee;
 using PeopleManagement.Domain.AggregatesModel.EmployeeAggregate;
+using System.Diagnostics;
 using static Microsoft.EntityFrameworkCore.DbLoggerCategory.Database;
 
 namespace PeopleManagement.API.Controllers
@@ -268,6 +270,7 @@ namespace PeopleManagement.API.Controllers
         public async Task<ActionResult<FinishedContractEmployeeResponse>> FinishedContract([FromRoute] Guid company,
             [FromBody] FinishedContractEmployeeModel request, [FromHeader(Name = "x-requestid")] Guid requestId)
         {
+            Debug.WriteLine($"000 - FinishedContract-> OwnerId: {request.EmployeeId},  CompanyId {company}");
             var command = new IdentifiedCommand<FinishedContractEmployeeCommand, FinishedContractEmployeeResponse>(request.ToCommand(company), requestId);
 
             SendingCommandLog(request.EmployeeId, request, requestId);
