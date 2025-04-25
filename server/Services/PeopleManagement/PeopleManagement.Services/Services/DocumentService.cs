@@ -21,26 +21,42 @@ namespace PeopleManagement.Services.Services
         private readonly IDocumentTemplateRepository _documentTemplateRepository = documentTemplateRepository;
         private readonly DocumentTemplatesOptions _documentTemplatesOptions = documentTemplatesOptions;
 
-        public async Task<DocumentUnit> CreateDocumentUnit(Guid documentId, Guid employeeId, Guid companyId, DateTime documentUnitDate, 
-            CancellationToken cancellationToken = default)
+        public async Task<DocumentUnit> CreateDocumentUnit(Guid documentId, Guid employeeId, Guid companyId, CancellationToken cancellationToken = default)
         {
             var document = await _documentRepository.FirstOrDefaultAsync(x => x.Id == documentId && x.EmployeeId == employeeId 
                 && x.CompanyId == companyId, include: i => i.Include(x => x.DocumentsUnits), cancellation: cancellationToken)
                 ?? throw new DomainException(this, DomainErrors.ObjectNotFound(nameof(Document), documentId.ToString()));
 
-            var documentTemplate = await _documentTemplateRepository.FirstOrDefaultAsync(x => x.Id == document.DocumentTemplateId && x.CompanyId == companyId,
-                cancellation: cancellationToken) 
-                ?? throw new DomainException(this, DomainErrors.ObjectNotFound(nameof(DocumentTemplate), document.DocumentTemplateId.ToString()));
-
-            if(documentTemplate.Workload is not null)
-                await VerifyTimeConflictBetweenDocument(employeeId, companyId, documentId, documentUnitDate, (TimeSpan)documentTemplate.Workload, cancellationToken);
-
             var documentUnitId = Guid.NewGuid();
-            var recoverDataService = GetServiceToRecoverData(documentTemplate.RecoverDataType, _serviceProvider);
-            var content = await recoverDataService.RecoverInfo(document.EmployeeId, document.CompanyId, documentUnitDate, cancellationToken);
-            var documentUnit = DocumentUnit.Create(documentUnitId, (string)content, documentUnitDate, (Document)document, (TimeSpan?)documentTemplate.DocumentValidityDuration);
+            var documentUnit = DocumentUnit.Create(documentUnitId, (Document)document);
             document.AddDocument(documentUnit);
 
+            return documentUnit;
+        }
+
+        public async Task CreateRequiredDocuments(Guid ownerId, Guid companyId, int eventId, CancellationToken cancellationToken = default)
+        {
+            //TODO:
+            throw new NotImplementedException();
+        }
+
+
+        public async Task<DocumentUnit> SetDocumentUnitDate(Guid documentUnitId, Guid documentId, Guid employeeId, Guid companyId, DateTime documentUnitDate, CancellationToken cancellationToken = default)
+        {
+            var document = await _documentRepository.FirstOrDefaultAsync(x => x.Id == documentId && x.EmployeeId == employeeId
+                && x.CompanyId == companyId, include: i => i.Include(x => x.DocumentsUnits), cancellation: cancellationToken)
+                ?? throw new DomainException(this, DomainErrors.ObjectNotFound(nameof(Document), documentId.ToString()));
+
+            var documentTemplate = await _documentTemplateRepository.FirstOrDefaultAsync(x => x.Id == document.DocumentTemplateId && x.CompanyId == companyId,
+                cancellation: cancellationToken)
+                ?? throw new DomainException(this, DomainErrors.ObjectNotFound(nameof(DocumentTemplate), document.DocumentTemplateId.ToString()));
+
+            if (documentTemplate.Workload is not null)
+                await VerifyTimeConflictBetweenDocument(employeeId, companyId, documentId, documentUnitDate, (TimeSpan)documentTemplate.Workload, cancellationToken);
+
+            var recoverDataService = GetServiceToRecoverData(documentTemplate.RecoverDataType, _serviceProvider);
+            var content = await recoverDataService.RecoverInfo(document.EmployeeId, document.CompanyId, documentUnitDate, cancellationToken);
+            var documentUnit = document.SetDocumentUnitInformation(documentUnitId, documentUnitDate, documentTemplate.DocumentValidityDuration, content);
             return documentUnit;
         }
 
@@ -66,6 +82,7 @@ namespace PeopleManagement.Services.Services
                 x.CompanyId == companyId, include: x => x.Include(y => y.DocumentsUnits), cancellation: cancellationToken)
                 ?? throw new DomainException(this, DomainErrors.ObjectNotFound(nameof(Document), documentId.ToString()));
 
+
             var fileName = Guid.NewGuid().ToString();
 
             string fileNameWithExtesion = document.InsertUnitWithoutRequireValidation(documentUnitId, fileName, extension);
@@ -73,6 +90,7 @@ namespace PeopleManagement.Services.Services
             await _blobService.UploadAsync(stream, fileNameWithExtesion, document.CompanyId.ToString(), cancellationToken);
         }
 
+        
         private static IRecoverInfoToDocumentTemplateService GetServiceToRecoverData(RecoverDataType doc, IServiceProvider provider)
         {
             var result = provider.GetRequiredService(doc.Type) as IRecoverInfoToDocumentTemplateService 

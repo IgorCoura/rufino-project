@@ -31,6 +31,7 @@ namespace PeopleManagement.Infra.Mapping
                                 (c1, c2) => c1!.SequenceEqual(c2!),
                                 c => c.GetHashCode(),
                                 c => c.ToList()));
+
             builder.HasOne<Company>()
                 .WithMany()
                 .HasForeignKey(x => x.CompanyId)

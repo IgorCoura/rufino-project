@@ -1,0 +1,126 @@
+﻿
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>Default</title>
+    <!--Style A4-->
+    <!--https://www.smashingmagazine.com/2015/01/designing-for-print-with-css/-->
+    <link rel="stylesheet" href="styles/style.css">
+</head>
+<body>
+    <div class="main">
+        <div class="header"> 
+            <div class="header-item">
+                <img style="width:65mm;" src="img\Logo_CXS.png">
+            </div>
+            
+            <div class="header-item-content">
+                
+                CXS Projetos e Consultoria
+            
+                <div class="header-item-text">
+                    Rua Voluntários da Pátria, 560, Sala 607<br>
+                    Tel: (11) 99540-4297 / (11) 2089-0027<br>
+                    xavier@cxs.eng.br | www.cxs.eng.br
+                </div>
+            </div>
+   
+            <div class="header-item">
+                <img style="width:35mm;" src="img\Logo_NR06.png">
+            </div>
+        </div>
+        <div class="watermark">VALIDO ATÉ {{nr06-data-vencimento}}</div>
+        <div class="body">
+            
+            <div class="body-content">
+                &ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;Certifico para os devidos fins que o <strong>{{nome}}</strong> RG: {{rg}} e CPF: {{cpf}}, funcionário da empresa <strong>{{empresa}}</strong>, participou com aproveitamento satisfatório do Curso Presencial <strong>{{eventualidade}}</strong> de <strong>Uso Adequado, Guarda e Conservação de EPI’s</strong>, de acordo com a NR 06 – Portaria MTb nº 3.214 de 08/06/1978 e alteração Portaria MTb nº 877 de 24/10/2018, Evento eSocial Tabela 28 – Cod 3704, realizado em São Paulo – SP em {{nr06-data}} com carga horária de 08 horas, pela empresa CXS Projetos e Consultoria em Segurança do Trabalho Ltda.
+            </div>
+            
+            <div class="body-date">
+                <div>São Paulo, {{nr06-data}}</div>
+            </div>
+        </div>
+
+        <div class="foot">
+            
+            <div class="signature-body">
+                <div>
+                    <div class="signature-local">
+                        <img style="width:45mm; float: start; visibility: visible;" src="img\ASS-XAVIER.png">
+                    </div>
+                    <div class="signature-info">
+                        Claudio Xavier da Silva<br>
+                        Eng. Eletricista e Segurança do Trabalho<br>
+                        CREA SP 5060122554<br>
+                        RNP 260292325-7<br>
+                        Instrutor e Responsável Técnico<br>
+                    </div>
+                </div>
+                <div>
+                    <div class="signature-local"></div>
+                    <div class="signature-info">
+                        {{nome}}<br>
+                        CPF: {{cpf}}
+                    </div>
+                </div>
+            </div>
+            <div class="validity-date">Valido até: {{nr06-data-vencimento}}</div>
+        </div>
+    </div>
+    <div class="info" style="visibility: hidden;">Documento emitido e armazenado em meio digital com certificado digital emitido no âmbito da Infraestrutura de Chaves Públicas Brasileira (ICP-Brasil), normatizada por lei específica e regulamentada pela NR 01 Portaria SEPRT n.° 6.730, de 09/03/20.</div>
+    <div class="verso-body">
+        <div class="verso-main">
+            <div class="verso-title">
+                CURSO DE USO ADEQUADO, GUARDA E CONSERVAÇÃO DE EPI`s
+            </div>
+            <div>
+                <div class="verso-subtitle">CONTEÚDO PROGRAMÁTICO</div>
+                <div>
+                    _Definição de EPI`s<br>
+                    _Reconhecimento, avaliação e controle de riscos<br>
+                    _Riscos Potenciais<br>
+                    _ Medidas de controle de riscos<br>
+                    _ legislação de segurança e saúde no trabalho<br>
+                    _ Equipamentos de Proteção Coletiva e Individual<br>
+                    _Guarda, Conservação, Higiene, Seleção e Inspeção de EPI e EPC<br>
+                    _Aplicabilidade e Uso<br>
+                    _ Procedimentos de Trabalho<br>
+                    _Sistema de proteção contra queda com diferença de nível<br>
+                    _ Sinalização e Isolamento de área<br>
+                    _Montagem de sistemas de ancoragem<br>
+                    _Proteção para a cabeça<br>
+                    _ Proteção para Olhos e Face<br>
+                    _ Proteção Auditiva<br>
+                    _ Proteção Respiratória<br>
+                    _Proteção para o tronco<br>
+                    _Proteção para membros superiores e inferiores<br>
+                    _ Proteção para o corpo inteiro<br>
+                    _Responsabilidades<br>
+                </div>
+            </div>
+            <div>
+                Claudio Xavier da Silva<br>
+                CREA: 5060122554<br>
+                Engenheiro de Segurança do Trabalho<br>
+            </div>
+            <div class="verso-foot">
+                <div>
+                    ART Nº 28027230230932512 
+                </div>
+                <div>
+                    LIVRO N º82 
+                </div>
+                <div>
+                    LAUDA Nº 31
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+
+    
+
+    
+</html>
+

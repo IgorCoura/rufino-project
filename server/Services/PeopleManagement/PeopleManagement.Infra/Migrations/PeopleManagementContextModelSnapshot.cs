@@ -18,7 +18,7 @@ namespace PeopleManagement.Infra.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "8.0.5")
+                .HasAnnotation("ProductVersion", "9.0.3")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
@@ -66,6 +66,8 @@ namespace PeopleManagement.Infra.Migrations
                     b.HasIndex("CategoryId");
 
                     b.HasIndex("CompanyId");
+
+                    b.HasIndex("OwnerId");
 
                     b.ToTable("Archives");
                 });
@@ -194,7 +196,7 @@ namespace PeopleManagement.Infra.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");
 
-                    b.Property<Guid>("RoleId")
+                    b.Property<Guid>("RequiredDocumentId")
                         .HasColumnType("uuid");
 
                     b.Property<int>("Status")
@@ -211,7 +213,7 @@ namespace PeopleManagement.Infra.Migrations
 
                     b.HasIndex("EmployeeId");
 
-                    b.HasIndex("RoleId");
+                    b.HasIndex("RequiredDocumentId");
 
                     b.ToTable("Documents");
                 });
@@ -411,6 +413,12 @@ namespace PeopleManagement.Infra.Migrations
                     b.Property<Guid>("Id")
                         .HasColumnType("uuid");
 
+                    b.Property<Guid>("AssociationId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("AssociationType")
+                        .HasColumnType("integer");
+
                     b.Property<Guid>("CompanyId")
                         .HasColumnType("uuid");
 
@@ -422,26 +430,27 @@ namespace PeopleManagement.Infra.Migrations
                         .HasMaxLength(500)
                         .HasColumnType("character varying(500)");
 
-                    b.Property<List<Guid>>("DocumentsTemplatesIds")
+                    b.PrimitiveCollection<List<Guid>>("DocumentsTemplatesIds")
                         .IsRequired()
                         .HasColumnType("uuid[]");
+
+                    b.Property<string>("ListenEventsIds")
+                        .IsRequired()
+                        .HasColumnType("text");
 
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");
 
-                    b.Property<Guid>("RoleId")
-                        .HasColumnType("uuid");
-
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("timestamp with time zone");
 
                     b.HasKey("Id");
 
-                    b.HasIndex("CompanyId");
+                    b.HasIndex("AssociationId");
 
-                    b.HasIndex("RoleId");
+                    b.HasIndex("CompanyId");
 
                     b.ToTable("RequireDocuments");
                 });
@@ -703,9 +712,9 @@ namespace PeopleManagement.Infra.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
-                    b.HasOne("PeopleManagement.Domain.AggregatesModel.RoleAggregate.Role", null)
+                    b.HasOne("PeopleManagement.Domain.AggregatesModel.RequireDocumentsAggregate.RequireDocuments", null)
                         .WithMany()
-                        .HasForeignKey("RoleId")
+                        .HasForeignKey("RequiredDocumentId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
                 });
@@ -1142,12 +1151,6 @@ namespace PeopleManagement.Infra.Migrations
                     b.HasOne("PeopleManagement.Domain.AggregatesModel.CompanyAggregate.Company", null)
                         .WithMany()
                         .HasForeignKey("CompanyId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("PeopleManagement.Domain.AggregatesModel.RoleAggregate.Role", null)
-                        .WithMany()
-                        .HasForeignKey("RoleId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
                 });

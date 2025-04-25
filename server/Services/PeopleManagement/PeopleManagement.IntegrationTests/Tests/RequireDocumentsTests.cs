@@ -1,5 +1,6 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using PeopleManagement.Application.Commands.RequireDocumentsCommands.CreateRequireSecurityDocuments;
+using PeopleManagement.Domain.AggregatesModel.RequireDocumentsAggregate;
 using PeopleManagement.IntegrationTests.Configs;
 using PeopleManagement.IntegrationTests.Data;
 using System.Net;
@@ -25,8 +26,10 @@ namespace PeopleManagement.IntegrationTests.Tests
 
             var command = new CreateRequireDocumentsModel(
                     role.Id,
+                    AssociationType.Role.Id,
                     "Contract Docs",
                     "Description Contract Docs",
+                    [],
                     [documentTemplate.Id]
                 );
 

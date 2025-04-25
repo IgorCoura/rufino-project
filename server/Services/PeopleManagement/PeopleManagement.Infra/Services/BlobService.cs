@@ -36,9 +36,11 @@ namespace PeopleManagement.Infra.Services
 
         private async Task<BlobContainerClient> GetBlobContainerClient(string containerName, CancellationToken cancellationToken = default)
         {
+           
             var containerClient = blobServiceClient.GetBlobContainerClient(containerName);
             await containerClient.CreateIfNotExistsAsync(cancellationToken: cancellationToken);
             return containerClient;
+           
         }
     }
 }

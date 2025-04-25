@@ -6,6 +6,7 @@ using PeopleManagement.Domain.AggregatesModel.RoleAggregate;
 using PeopleManagement.Domain.AggregatesModel.DocumentAggregate;
 using Name = PeopleManagement.Domain.AggregatesModel.DocumentAggregate.Name;
 using Description = PeopleManagement.Domain.AggregatesModel.DocumentAggregate.Description;
+using PeopleManagement.Domain.AggregatesModel.RequireDocumentsAggregate;
 
 namespace PeopleManagement.Infra.Mapping
 {
@@ -41,9 +42,9 @@ namespace PeopleManagement.Infra.Mapping
                 .IsRequired()
                 .OnDelete(Microsoft.EntityFrameworkCore.DeleteBehavior.Restrict);
 
-            builder.HasOne<Role>()
+            builder.HasOne<RequireDocuments>()
                 .WithMany()
-                .HasForeignKey(x => x.RoleId)
+                .HasForeignKey(x => x.RequiredDocumentId)
                 .IsRequired()
                 .OnDelete(Microsoft.EntityFrameworkCore.DeleteBehavior.Restrict);
 

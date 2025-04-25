@@ -16,11 +16,11 @@ namespace PeopleManagement.API.Controllers
         {
             var command = new IdentifiedCommand<CreateRequireDocumentsCommand, CreateRequireDocumentsResponse>(request.ToCommand(company), requestId);
 
-            SendingCommandLog(request.RoleId, request, requestId);
+            SendingCommandLog(request.AssociationId, request, requestId);
 
             var result = await _mediator.Send(command);
 
-            CommandResultLog(result, request.RoleId, request, requestId);
+            CommandResultLog(result, request.AssociationId, request, requestId);
 
             return OkResponse(result);
         }

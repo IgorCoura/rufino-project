@@ -342,21 +342,49 @@ class DocumentTemplatePage extends StatelessWidget {
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           ElevatedButton(
-                              onPressed: () => bloc.add(DownLoadFileEvent()),
-                              child: Text("Baixar Arquivo")),
+                            onPressed: () => bloc.add(DownLoadFileEvent()),
+                            child: Row(
+                              children: [
+                                Icon(size: 20, Icons.download),
+                                SizedBox(
+                                  width: 4.0,
+                                ),
+                                Text("Baixar Arquivo")
+                              ],
+                            ),
+                          ),
                           SizedBox(
                             width: 8.0,
                           ),
                           state.isEditing
                               ? ElevatedButton(
                                   onPressed: () => bloc.add(SendFileEvent()),
-                                  child: Text("Alterar Arquivo"))
+                                  child: Row(
+                                    children: [
+                                      Icon(size: 20, Icons.upload),
+                                      SizedBox(
+                                        width: 4.0,
+                                      ),
+                                      Text("Alterar Arquivo")
+                                    ],
+                                  ),
+                                )
                               : SizedBox(),
                         ],
                       )
                     : ElevatedButton(
                         onPressed: () => bloc.add(SendFileEvent()),
-                        child: Text("Enviar Arquivo")),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(size: 20, Icons.upload),
+                            SizedBox(
+                              width: 4.0,
+                            ),
+                            Text("Enviar Arquivo"),
+                          ],
+                        ),
+                      ),
           ],
         ),
       ),

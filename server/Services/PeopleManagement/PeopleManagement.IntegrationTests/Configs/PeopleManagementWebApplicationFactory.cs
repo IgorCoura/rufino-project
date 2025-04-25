@@ -22,11 +22,11 @@ namespace PeopleManagement.IntegrationTests.Configs
             .WithImage("postgres:15.1-alpine")
             .WithDatabase("PeopleManagementTestDb")
             .WithUsername("admin")
-            .WithPassword("admin")
+            .WithPassword("admin")  
             .Build();
 
         private readonly AzuriteContainer _azuriteContainer = new AzuriteBuilder()
-           .WithImage("mcr.microsoft.com/azure-storage/azurite:latest")
+           .WithImage("mcr.microsoft.com/azure-storage/azurite:3.34.0")
            .Build();
 
         public async Task InitializeAsync()
@@ -54,7 +54,9 @@ namespace PeopleManagement.IntegrationTests.Configs
                         npgsqlOptionsAction: sqlOptions =>
                         {
                             sqlOptions.EnableRetryOnFailure(maxRetryCount: 15, maxRetryDelay: TimeSpan.FromSeconds(30), errorCodesToAdd: null);
-                        }).UseExceptionProcessor();
+                        }).UseExceptionProcessor()
+                        .EnableDetailedErrors()
+                        .EnableSensitiveDataLogging();
                 });
 
                 //Config AzureBlob

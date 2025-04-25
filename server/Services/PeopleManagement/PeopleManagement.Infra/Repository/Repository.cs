@@ -13,10 +13,11 @@ namespace PeopleManagement.Infra.Repository
 
         public IUnitOfWork UnitOfWork => (IUnitOfWork)_context;
 
-        public virtual async Task<T> InsertAsync(T model, CancellationToken cancellation = default)
+        public virtual async Task<T> InsertAsync(T model,  CancellationToken cancellation = default)
         {
-            var result = await _context.Set<T>().AddAsync(model);
-            return await Task.FromResult(result.Entity);
+            var result = await _context.Set<T>().AddAsync(model, cancellation);
+            
+            return result.Entity;
         }
 
         public virtual Task DeleteAsync(T model)

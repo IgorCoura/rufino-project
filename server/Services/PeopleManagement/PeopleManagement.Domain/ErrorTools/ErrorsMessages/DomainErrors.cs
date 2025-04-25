@@ -19,7 +19,8 @@ namespace PeopleManagement.Domain.ErrorTools.ErrorsMessages
         public static Error FieldCannotHaveSpecialChar(string NameField) => new("PMD17", $"O campo {NameField}, não pode ter caracteres especiais.", new {NameField});
         public static Error FieldIsFormatInvalid(string NameField) => new("PMD18", $"O campo {NameField}, está em um formato invalido.", new {NameField});        
         public static Error FieldNotBeDefaultValue(string NameField, string ValueDefault) => new("PMD19", $"O campo {NameField}, não pode ter o valor padrão {ValueDefault}.", new {NameField, ValueDefault});
-        public static Error FieldIsRequired(string NameField) => new("PMD18", $"O campo {NameField}, é obrigatório.", new { NameField });
+        public static Error FieldIsRequired(string NameField) => new("PMD20", $"O campo {NameField}, é obrigatório.", new { NameField });
+        public static Error FieldIsNotRequired(string NameField) => new("PMD21", $"O campo {NameField}, não é requirido.", new { NameField });
 
         #endregion
 

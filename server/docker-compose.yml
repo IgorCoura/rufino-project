@@ -35,7 +35,7 @@ services:
         - 8042:5432
 
   blob-azure-storage:
-    image: mcr.microsoft.com/azure-storage/azurite:latest
+    image: mcr.microsoft.com/azure-storage/azurite:3.34.0
     container_name: blob-azure-storage
     volumes:
         - ./.containers/blob_storage/data:/data
