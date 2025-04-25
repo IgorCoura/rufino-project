@@ -7,6 +7,7 @@ using PeopleManagement.Application.Commands.DocumentCommands.InsertDocumentToSig
 using PeopleManagement.Application.Commands.DocumentCommands.InsertDocumentSigned;
 using System.Text.Json.Nodes;
 using PeopleManagement.API.Authorization;
+using PeopleManagement.Application.Commands.DocumentCommands.UpdateDocumentUnitDetails;
 
 namespace PeopleManagement.API.Controllers
 {
@@ -26,6 +27,21 @@ namespace PeopleManagement.API.Controllers
             var result = await _mediator.Send(command);
 
             CommandResultLog(result, request.DocumentId, request, requestId);
+
+            return OkResponse(result);
+        }
+
+        [HttpPut("DocumentUnit")]
+        [ProtectedResource("Document", "edit")]
+        public async Task<ActionResult<UpdateDocumentUnitDetailsResponse>> UpdateDocumentUnitDetails([FromRoute] Guid company, [FromBody] UpdateDocumentUnitDetailsModel request, [FromHeader(Name = "x-requestid")] Guid requestId)
+        {
+            var command = new IdentifiedCommand<UpdateDocumentUnitDetailsCommand, UpdateDocumentUnitDetailsResponse>(request.ToCommand(company), requestId);
+
+            SendingCommandLog(request.DocumentUnitId, request, requestId);
+
+            var result = await _mediator.Send(command);
+
+            CommandResultLog(result, request.DocumentUnitId, request, requestId);
 
             return OkResponse(result);
         }

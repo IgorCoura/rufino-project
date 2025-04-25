@@ -8,11 +8,13 @@ using PeopleManagement.Domain.ErrorTools;
 using PeopleManagement.Domain.ErrorTools.ErrorsMessages;
 using Extension = PeopleManagement.Domain.AggregatesModel.DocumentAggregate.Extension;
 using PeopleManagement.Domain.AggregatesModel.DocumentTemplateAggregate.options;
+using PeopleManagement.Domain.AggregatesModel.RequireDocumentsAggregate.Interfaces;
 
 namespace PeopleManagement.Services.Services
 {
     public class DocumentService(IDocumentRepository securityDocumentRepository, IServiceProvider serviceProvider, 
-        IPdfService pdfService, IBlobService blobService, IDocumentTemplateRepository documentTemplateRepository, DocumentTemplatesOptions documentTemplatesOptions) : IDocumentService
+        IPdfService pdfService, IBlobService blobService, IDocumentTemplateRepository documentTemplateRepository,
+        DocumentTemplatesOptions documentTemplatesOptions, IRequireDocumentsRepository requireDocumentsRepository) : IDocumentService
     {
         private readonly IDocumentRepository _documentRepository = securityDocumentRepository;
         private readonly IPdfService _pdfService = pdfService;
@@ -20,6 +22,7 @@ namespace PeopleManagement.Services.Services
         private readonly IBlobService _blobService = blobService;
         private readonly IDocumentTemplateRepository _documentTemplateRepository = documentTemplateRepository;
         private readonly DocumentTemplatesOptions _documentTemplatesOptions = documentTemplatesOptions;
+        private readonly IRequireDocumentsRepository _requireDocumentsRepository = requireDocumentsRepository;
 
         public async Task<DocumentUnit> CreateDocumentUnit(Guid documentId, Guid employeeId, Guid companyId, CancellationToken cancellationToken = default)
         {
@@ -28,20 +31,30 @@ namespace PeopleManagement.Services.Services
                 ?? throw new DomainException(this, DomainErrors.ObjectNotFound(nameof(Document), documentId.ToString()));
 
             var documentUnitId = Guid.NewGuid();
-            var documentUnit = DocumentUnit.Create(documentUnitId, (Document)document);
-            document.AddDocument(documentUnit);
-
-            return documentUnit;
+            
+            return document.NewDocumentUnit(documentUnitId);
         }
 
-        public async Task CreateRequiredDocuments(Guid ownerId, Guid companyId, int eventId, CancellationToken cancellationToken = default)
+        public async Task CreateDocumentUnitsForEvent(Guid employeeId, Guid companyId, int eventId, CancellationToken cancellationToken = default)
         {
-            //TODO:
-            throw new NotImplementedException();
+            var requiedDocuments = await _requireDocumentsRepository.GetAllWithEventId(employeeId, companyId, eventId, cancellationToken);
+
+            foreach(var requiedDocument in requiedDocuments)
+            {
+                Document? document = await _documentRepository.FirstOrDefaultAsync(x => x.EmployeeId == employeeId && x.CompanyId == companyId && x.RequiredDocumentId == requiedDocument.Id, cancellation: cancellationToken);
+               
+                if(document is not null)
+                    continue;
+
+                var documentUnitId = Guid.NewGuid();
+                
+                document!.NewDocumentUnit(documentUnitId);
+            }
+
         }
 
 
-        public async Task<DocumentUnit> SetDocumentUnitDate(Guid documentUnitId, Guid documentId, Guid employeeId, Guid companyId, DateTime documentUnitDate, CancellationToken cancellationToken = default)
+        public async Task<DocumentUnit> UpdateDocumentUnitDetails(Guid documentUnitId, Guid documentId, Guid employeeId, Guid companyId, DateTime documentUnitDate, CancellationToken cancellationToken = default)
         {
             var document = await _documentRepository.FirstOrDefaultAsync(x => x.Id == documentId && x.EmployeeId == employeeId
                 && x.CompanyId == companyId, include: i => i.Include(x => x.DocumentsUnits), cancellation: cancellationToken)
@@ -56,7 +69,7 @@ namespace PeopleManagement.Services.Services
 
             var recoverDataService = GetServiceToRecoverData(documentTemplate.RecoverDataType, _serviceProvider);
             var content = await recoverDataService.RecoverInfo(document.EmployeeId, document.CompanyId, documentUnitDate, cancellationToken);
-            var documentUnit = document.SetDocumentUnitInformation(documentUnitId, documentUnitDate, documentTemplate.DocumentValidityDuration, content);
+            var documentUnit = document.UpdateDocumentUnitDetails(documentUnitId, documentUnitDate, documentTemplate.DocumentValidityDuration, content);
             return documentUnit;
         }
 
@@ -71,7 +84,9 @@ namespace PeopleManagement.Services.Services
                ?? throw new DomainException(this, DomainErrors.ObjectNotFound(nameof(DocumentTemplate), document.DocumentTemplateId.ToString()));
 
             var documentUnit = document.DocumentsUnits.First(x => x.Id == documentUnitId);
+            
             var pdfBytes = await _pdfService.ConvertHtml2Pdf(documentTemplate, documentUnit.Content, cancellationToken);
+          
             return pdfBytes;
         }
 

@@ -28,6 +28,7 @@ using NameEmployee = PeopleManagement.Domain.AggregatesModel.EmployeeAggregate.N
 using Microsoft.Extensions.Logging;
 using System.Linq;
 using PeopleManagement.Domain.AggregatesModel.CompanyAggregate;
+using static PeopleManagement.IntegrationTests.Data.PopulateDataBase;
 
 namespace PeopleManagement.IntegrationTests.Tests
 {
@@ -43,7 +44,8 @@ namespace PeopleManagement.IntegrationTests.Tests
             var context = _factory.GetContext();
             var client = _factory.CreateClient();
 
-            var company = await context.InsertCompany(cancellationToken);
+            var company = CompanyDAO.CreateFix();
+            await company.InsertInDB(context, cancellationToken);
             await context.SaveChangesAsync(cancellationToken);
 
             var id = Guid.NewGuid();
@@ -469,7 +471,7 @@ namespace PeopleManagement.IntegrationTests.Tests
 
         private async static Task CheckRequestDocumentEvent(PeopleManagementContext context, EmployeeEvent documentsEvent, CancellationToken cancellationToken = default)
         {
-            var archivesCategories = await context.ArchiveCategories.AsNoTracking().ToListAsync(cancellationToken);
+            var archivesCategories = await context.ArchiveCategories.AsNoTracking().Where(x => x.CompanyId == documentsEvent.CompanyId).ToListAsync(cancellationToken);
             archivesCategories = archivesCategories.Where(x => x.ListenEventsIds.Contains(documentsEvent.Id)).ToList();
             var archives = await context.Archives.AsNoTracking().Where(x => x.OwnerId == documentsEvent.EmployeeId && x.CompanyId == documentsEvent.CompanyId && x.Status == ArchiveStatus.RequiresFile).ToListAsync(cancellationToken);
 

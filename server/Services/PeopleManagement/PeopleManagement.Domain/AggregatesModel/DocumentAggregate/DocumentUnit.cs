@@ -31,7 +31,6 @@ namespace PeopleManagement.Domain.AggregatesModel.DocumentAggregate
         private DocumentUnit() { }
         private DocumentUnit(Guid id, Document document) : base(id)
         {
-            Content = content;
             Document = document;
             DocumentId = document.Id;
         }
@@ -56,14 +55,14 @@ namespace PeopleManagement.Domain.AggregatesModel.DocumentAggregate
             Status = DocumentUnitStatus.OK;
         }
 
-        public void SetInformation(DateTime date, DateTime? validity, string content)
+        public void UpdateDetails(DateTime date, DateTime? validity, string content)
         {
             Date = date;
             Validity = validity;    
             Content = content;
         }
 
-        public void SetInformation(DateTime date, TimeSpan? validity, string content)
+        public void UpdateDetails(DateTime date, TimeSpan? validity, string content)
         {
             Date = date;
             DateTime? dateTimeValidity = null;

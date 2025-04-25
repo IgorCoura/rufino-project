@@ -16,17 +16,16 @@ namespace PeopleManagement.Services.Services
         private readonly IArchiveCategoryRepository _archiveCategoryRepository = archiveCategoryRepository;
         private readonly IBlobService _blobService = blobService;
 
-        public async Task RequiresFiles(Guid ownerId, Guid companyId, int eventId, CancellationToken cancellationToken = default)
+        public async Task CreateFilesForEvent(Guid ownerId, Guid companyId, int eventId, CancellationToken cancellationToken = default)
         {
 
-            var categories = await _archiveCategoryRepository.GetDataAsync(ac => ((string)(object)ac.ListenEventsIds).Contains(eventId.ToString()), cancellation: cancellationToken);
+            var categories = await _archiveCategoryRepository.GetDataAsync(ac => ((string)(object)ac.ListenEventsIds).Contains(eventId.ToString()) && ac.CompanyId == companyId, cancellation: cancellationToken);
 
             foreach (var category in categories)
             {
                 Archive? archive = await _archiveRepository.FirstOrDefaultAsync(x => x.OwnerId == ownerId && x.CompanyId == companyId && x.CategoryId == category.Id, cancellation: cancellationToken);
                 if (archive is null)
                 {
-                    Debug.WriteLine($"Archive-> OwnerId: {ownerId}, EventId: {eventId}, CompanyId {companyId}");
                     var createArchive = Archive.Create(Guid.NewGuid(), category.Id, ownerId, companyId);
                     createArchive.RequestFile();
                     await _archiveRepository.InsertAsync(createArchive, cancellation: cancellationToken);

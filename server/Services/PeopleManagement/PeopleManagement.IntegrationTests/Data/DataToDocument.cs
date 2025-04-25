@@ -2,7 +2,7 @@
 
 namespace PeopleManagement.IntegrationTests.Data
 {
-    public static class DataToSecurityDocument
+    public static class DataToDocument
     {
         public static string GetContent()
         {
