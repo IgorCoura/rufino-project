@@ -67,6 +67,7 @@ namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
                 if (value != null && value != Guid.Empty)
                 {
                     _workPlaceId = value;
+                    AddDomainEvent(RequestDocumentsEvent.Create(Id, CompanyId, (Guid)value));
                     AddDomainEvent(EmployeeEvent.WorkPlaceChangeEvent(Id, CompanyId));
                 }
             }

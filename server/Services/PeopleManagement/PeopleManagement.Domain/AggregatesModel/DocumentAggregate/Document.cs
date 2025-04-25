@@ -26,9 +26,11 @@ namespace PeopleManagement.Domain.AggregatesModel.DocumentAggregate
 
         public static Document Create(Guid id, Guid employeeId, Guid companyId, Guid requiredDocumentId, Guid documentTemplateId, Name name, Description description) => new(id, employeeId, companyId, requiredDocumentId, documentTemplateId, name, description);
 
-        public void AddDocument(DocumentUnit document)
+        public DocumentUnit NewDocumentUnit(Guid documentUnitId)
         {
-            DocumentsUnits.Add(document);
+            var documentUnit = DocumentUnit.Create(documentUnitId, this);
+            DocumentsUnits.Add(documentUnit);
+            return documentUnit;
         }
 
         public void InsertUnitWithRequireValidation(Guid documentUnitId, Name name, Extension extension)
@@ -55,21 +57,21 @@ namespace PeopleManagement.Domain.AggregatesModel.DocumentAggregate
             return documentUnit.GetNameWithExtension;
         }
 
-        public DocumentUnit SetDocumentUnitInformation(Guid documentUnitId, DateTime date, DateTime? validity, string content)
+        public DocumentUnit UpdateDocumentUnitDetails(Guid documentUnitId, DateTime date, DateTime? validity, string content)
         {
             var documentUnit = DocumentsUnits.FirstOrDefault(x => x.Id == documentUnitId)
                 ?? throw new DomainException(this, DomainErrors.ObjectNotFound(nameof(DocumentUnit), documentUnitId.ToString()));
 
-            documentUnit.SetInformation(date, validity, content);
+            documentUnit.UpdateDetails(date, validity, content);
             return documentUnit;
         }
 
-        public DocumentUnit SetDocumentUnitInformation(Guid documentUnitId, DateTime date, TimeSpan? validity, string content)
+        public DocumentUnit UpdateDocumentUnitDetails(Guid documentUnitId, DateTime date, TimeSpan? validity, string content)
         {
             var documentUnit = DocumentsUnits.FirstOrDefault(x => x.Id == documentUnitId)
                 ?? throw new DomainException(this, DomainErrors.ObjectNotFound(nameof(DocumentUnit), documentUnitId.ToString()));
 
-            documentUnit.SetInformation(date, validity, content);
+            documentUnit.UpdateDetails(date, validity, content);
             return documentUnit;
         }
 

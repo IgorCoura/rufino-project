@@ -5,6 +5,7 @@ using PeopleManagement.Application.Commands.DocumentCommands.GenerateDocumentToS
 using PeopleManagement.Application.Commands.DocumentCommands.InsertDocument;
 using PeopleManagement.Application.Commands.DocumentCommands.InsertDocumentSigned;
 using PeopleManagement.Application.Commands.DocumentCommands.InsertDocumentToSign;
+using PeopleManagement.Application.Commands.DocumentCommands.UpdateDocumentUnitDetails;
 using PeopleManagement.Domain.AggregatesModel.CompanyAggregate;
 using PeopleManagement.Domain.AggregatesModel.DocumentAggregate;
 using PeopleManagement.Domain.AggregatesModel.DocumentAggregate.Interfaces;
@@ -32,17 +33,21 @@ namespace PeopleManagement.IntegrationTests.Tests
             var client = _factory.CreateClient();
 
             var document = await context.InsertDocument(cancellationToken);
+            var documentUnit = await document.InsertOneDocumentInDocument();
             await context.SaveChangesAsync(cancellationToken);
 
             var date = DateTime.UtcNow;
-            var command = new CreateDocumentModel(
+
+            var command = new UpdateDocumentUnitDetailsModel(
+                    documentUnit.Id,
                     document.Id,
                     document.EmployeeId,
-            date
+                    date
                 );
 
+
             client.InputHeaders([document.CompanyId]);
-            var response = await client.PostAsJsonAsync($"/api/v1/{document.CompanyId}/document", command);
+            var response = await client.PutAsJsonAsync($"/api/v1/{document.CompanyId}/document/documentunit", command);
 
             Assert.Equal(HttpStatusCode.OK, response.StatusCode);
             var content = await response.Content.ReadFromJsonAsync(typeof(CreateDocumentResponse)) as CreateDocumentResponse ?? throw new ArgumentNullException();
@@ -69,22 +74,23 @@ namespace PeopleManagement.IntegrationTests.Tests
             await context.SaveChangesAsync(cancellationToken);
 
             var documentWithConflict = await context.InsertDocument(emplyeeActive, documentTemplate, requiresDocuments, cancellationToken);
-            await documentWithConflict.InsertOneDocumentInDocument();
+            var documentUnitWithConflict = await documentWithConflict.InsertOneDocumentWithInfoInDocument();
             await context.SaveChangesAsync(cancellationToken);
 
             var document = await context.InsertDocument(emplyeeActive, documentTemplate2, requiresDocuments, cancellationToken);
+            var documentUnit = await document.InsertOneDocumentInDocument();
             await context.SaveChangesAsync(cancellationToken);
 
-            var date = DateTime.UtcNow;
-            var command = new CreateDocumentModel(
+            var command = new UpdateDocumentUnitDetailsModel(
+                    documentUnit.Id,
                     document.Id,
                     document.EmployeeId,
-                    date
+                    documentUnitWithConflict.Date
                 );
 
 
             client.InputHeaders([company.Id]);
-            var response = await client.PostAsJsonAsync($"/api/v1/{document.CompanyId}/document", command);
+            var response = await client.PutAsJsonAsync($"/api/v1/{document.CompanyId}/document/documentunit", command);
 
             Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
             var content = await response.Content.ReadFromJsonAsync<JsonNode>();
@@ -102,7 +108,7 @@ namespace PeopleManagement.IntegrationTests.Tests
             
             var document = await context.InsertDocument(cancellationToken);
             await context.SaveChangesAsync(cancellationToken);
-            var documentUnit = await document.InsertOneDocumentInDocument();
+            var documentUnit = await document.InsertOneDocumentWithInfoInDocument();
             await context.SaveChangesAsync(cancellationToken);
 
             client.InputHeaders([document.CompanyId]);
@@ -131,7 +137,7 @@ namespace PeopleManagement.IntegrationTests.Tests
 
             var document = await context.InsertDocument(cancellationToken);
             await context.SaveChangesAsync(cancellationToken);
-            var documentUnit = await document.InsertOneDocumentInDocument();
+            var documentUnit = await document.InsertOneDocumentWithInfoInDocument();
             await context.SaveChangesAsync(cancellationToken);
 
 
@@ -182,7 +188,7 @@ namespace PeopleManagement.IntegrationTests.Tests
 
             var document = await context.InsertDocument(cancellationToken);
             await context.SaveChangesAsync(cancellationToken);
-            var documentUnit = await document.InsertOneDocumentInDocument();
+            var documentUnit = await document.InsertOneDocumentWithInfoInDocument();
             await context.SaveChangesAsync(cancellationToken);
 
             var command = new GenerateDocumentToSignModel(documentUnit.Id, document.Id, document.EmployeeId, DateTime.UtcNow.AddDays(30), 1);
@@ -209,7 +215,7 @@ namespace PeopleManagement.IntegrationTests.Tests
 
             var document = await context.InsertDocument(cancellationToken);
             await context.SaveChangesAsync(cancellationToken);
-            var documentUnit = await document.InsertOneDocumentInDocument();
+            var documentUnit = await document.InsertOneDocumentWithInfoInDocument();
             await context.SaveChangesAsync(cancellationToken);
 
             using var content = new MultipartFormDataContent();
@@ -251,7 +257,7 @@ namespace PeopleManagement.IntegrationTests.Tests
 
             var document = await context.InsertDocument(cancellationToken);
             await context.SaveChangesAsync(cancellationToken);
-            var documentUnit = await document.InsertOneDocumentInDocument();
+            var documentUnit = await document.InsertOneDocumentWithInfoInDocument();
             await context.SaveChangesAsync(cancellationToken);
 
             var commandString = @"

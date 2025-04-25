@@ -22,6 +22,12 @@ using PeopleManagement.Domain.AggregatesModel.EmployeeAggregate.Events;
 using static Microsoft.EntityFrameworkCore.DbLoggerCategory.Database;
 using System.ComponentModel.Design;
 using System.Data;
+using Bogus;
+using Bogus.Extensions.Brazil;
+using Microsoft.AspNetCore.Http.HttpResults;
+using Microsoft.EntityFrameworkCore.Metadata.Internal;
+using Microsoft.Data.SqlClient;
+using Npgsql;
 
 namespace PeopleManagement.IntegrationTests.Data
 {
@@ -53,6 +59,137 @@ namespace PeopleManagement.IntegrationTests.Data
 
             return company;
         }
+
+        public class CompanyDAO
+        { 
+
+            public Guid Id { get; init; }
+            public string Name { get; init; }
+            public string FantasyName { get; init; }
+            public string CNPJ { get; init; }
+            public string Email { get; init; }
+            public string Phone { get; init; }
+            public string ZipCode { get; init; }
+            public string Street { get; init; }
+            public string Number { get; init; }
+            public string Complement { get; init; }
+            public string Neighborhood { get; init; }
+            public string City { get; init; }
+            public string State { get; init; }
+            public string Country { get; init; }
+
+            private CompanyDAO(Guid id, string name, string fantasyName, string cNPJ, string email,
+                string phone, string zipCode, string street, string number, string complement,
+                string neighborhood, string city, string state, string country)
+            {
+                Id = id;
+                Name = name;
+                FantasyName = fantasyName;
+                CNPJ = cNPJ;
+                Email = email;
+                Phone = phone;
+                ZipCode = zipCode;
+                Street = street;
+                Number = number;
+                Complement = complement;
+                Neighborhood = neighborhood;
+                City = city;
+                State = state;
+                Country = country;
+            }
+
+            public static CompanyDAO CreateFix(
+                Guid? id = null, 
+                string name = "Lucas e Ryan Informática Ltda", 
+                string fantasyName = "Lucas e Ryan Informática", 
+                string cNPJ = "82161379000186", 
+                string email = "auditoria@lucaseryaninformaticaltda.com.br",
+                string phone = "1637222844", 
+                string zipCode = "14093636", 
+                string street = "Rua José Otávio de Oliveira", 
+                string number = "776", 
+                string complement = "Apto 1",
+                string neighborhood = "Parque dos Flamboyans", 
+                string city = "Ribeirão Preto", 
+                string state = "SP", 
+                string country = "BRASIL")
+            {
+                id ??= Guid.NewGuid();
+                return new CompanyDAO((Guid)id, name, fantasyName, cNPJ, email,
+                    phone, zipCode, street, number, complement,
+                    neighborhood, city, state, country);
+            }
+
+            public static CompanyDAO CreateRamdon(
+              Guid? id = null,
+              string name = "",
+              string fantasyName = "",
+              string cNPJ = "",
+              string email = "",
+              string phone = "",
+              string zipCode = "",
+              string street = "",
+              string number = "",
+              string? complement = null,
+              string neighborhood = "",
+              string city = "",
+              string state = "",
+              string country = "")
+            {
+                var clientFake = new Faker<CompanyDAO>("pt_BR")
+                    .RuleFor(x => x.Id, _ => id ?? Guid.NewGuid())
+                    .RuleFor(x => x.Name, f => string.IsNullOrEmpty(name) ? f.Company.CompanyName() : name)
+                    .RuleFor(x => x.FantasyName, f => string.IsNullOrEmpty(fantasyName) ? f.Company.CompanySuffix() : fantasyName)
+                    .RuleFor(x => x.CNPJ, f => string.IsNullOrEmpty(cNPJ) ? f.Company.Cnpj() : cNPJ)
+                    .RuleFor(x => x.Email, f => string.IsNullOrEmpty(email) ? f.Internet.Email() : email)
+                    .RuleFor(x => x.Phone, f => string.IsNullOrEmpty(phone) ? f.Phone.PhoneNumber() : phone)
+                    .RuleFor(x => x.ZipCode, f => string.IsNullOrEmpty(zipCode) ? f.Address.ZipCode() : zipCode)
+                    .RuleFor(x => x.Street, f => string.IsNullOrEmpty(street) ? f.Address.StreetName() : street)
+                    .RuleFor(x => x.Number, f => string.IsNullOrEmpty(number) ? f.Address.BuildingNumber() : number)
+                    .RuleFor(x => x.Complement, f => complement is null ? f.Lorem.Word() : complement)
+                    .RuleFor(x => x.Neighborhood, f => string.IsNullOrEmpty(neighborhood) ? f.Address.CitySuffix() : neighborhood)
+                    .RuleFor(x => x.City, f => string.IsNullOrEmpty(city) ? f.Address.City() : city)
+                    .RuleFor(x => x.State, f => string.IsNullOrEmpty(state) ? f.Address.StateAbbr() : state)
+                    .RuleFor(x => x.Country, f => string.IsNullOrEmpty(country) ? f.Address.Country() : country);
+
+                return clientFake.Generate();
+            }
+
+
+            public async Task InsertInDB(PeopleManagementContext context, CancellationToken cancellationToken = default)
+            {
+                var sql = @"INSERT INTO ""Companies"" (""Id"", ""CorporateName"", ""FantasyName"", ""Cnpj"", ""Contact_Email"", ""Contact_Phone"", ""Address_ZipCode"", ""Address_Street"", ""Address_Number"", ""Address_Complement"", ""Address_Neighborhood"", ""Address_City"", ""Address_State"", ""Address_Country"", ""CreatedAt"", ""UpdatedAt"")  
+                VALUES (@Id, @CorporateName, @FantasyName, @Cnpj, @Contact_Email, @Contact_Phone, @Address_ZipCode, @Address_Street, @Address_Number, @Address_Complement, @Address_Neighborhood, @Address_City, @Address_State, @Address_Country, @CreatedAt, @UpdatedAt)";
+
+                var parameters = new[]
+                {
+                   new NpgsqlParameter("@Id", SqlDbType.UniqueIdentifier) { Value = this.Id },
+                   new NpgsqlParameter("@CorporateName", SqlDbType.NVarChar) { Value = this.Name },
+                   new NpgsqlParameter("@FantasyName", SqlDbType.NVarChar) { Value = this.FantasyName },
+                   new NpgsqlParameter("@Cnpj", SqlDbType.NVarChar) { Value = this.CNPJ },
+                   new NpgsqlParameter("@Contact_Email", SqlDbType.NVarChar) { Value = this.Email },
+                   new NpgsqlParameter("@Contact_Phone", SqlDbType.NVarChar) { Value = this.Phone },
+                   new NpgsqlParameter("@Address_ZipCode", SqlDbType.NVarChar) { Value = this.ZipCode },
+                   new NpgsqlParameter("@Address_Street", SqlDbType.NVarChar) { Value = this.Street },
+                   new NpgsqlParameter("@Address_Number", SqlDbType.NVarChar) { Value = this.Number },
+                   new NpgsqlParameter("@Address_Complement", SqlDbType.NVarChar) { Value = (object)this.Complement ?? DBNull.Value },
+                   new NpgsqlParameter("@Address_Neighborhood", SqlDbType.NVarChar) { Value = this.Neighborhood },
+                   new NpgsqlParameter("@Address_City", SqlDbType.NVarChar) { Value = this.City },
+                   new NpgsqlParameter("@Address_State", SqlDbType.NVarChar) { Value = this.State },
+                   new NpgsqlParameter("@Address_Country", SqlDbType.NVarChar) { Value = this.Country },
+                   new NpgsqlParameter("@CreatedAt", SqlDbType.DateTime) { Value = DateTime.UtcNow },
+                   new NpgsqlParameter("@UpdatedAt", SqlDbType.DateTime) { Value = DateTime.UtcNow }
+               };
+
+                await context.Database.ExecuteSqlRawAsync(sql, parameters, cancellationToken);
+            }
+
+        }
+
+
+
+
+
 
         public static async Task<Role> InsertRole(this PeopleManagementContext context, Guid companyId, CancellationToken cancellationToken = default)
         {
@@ -242,6 +379,7 @@ namespace PeopleManagement.IntegrationTests.Data
         public static async Task<RequireDocuments> InsertRequireDocuments(this PeopleManagementContext context, Guid companyId, Guid roleId, Guid[] documentTemplates, CancellationToken cancellationToken = default)
         {
             var id = Guid.NewGuid();
+            
             var requiresSecurityDocuments = RequireDocuments.Create(id, companyId, roleId, AssociationType.Role, "Doc Role Required", "Description Doc Role Required",[], [.. documentTemplates]);
             await context.RequireDocuments.AddAsync(requiresSecurityDocuments, cancellationToken);
             return requiresSecurityDocuments;
@@ -304,12 +442,17 @@ namespace PeopleManagement.IntegrationTests.Data
             return securityDocument;
         }
 
-        public static Task<DocumentUnit> InsertOneDocumentInDocument(this Document securityDocument)
+        public static Task<DocumentUnit> InsertOneDocumentWithInfoInDocument(this Document document)
         {
-            var content = DataToSecurityDocument.GetContent();
-            var document = DocumentUnit.Create(Guid.NewGuid(), content, DateTime.UtcNow, securityDocument, TimeSpan.FromHours(8));
-            securityDocument.AddDocument(document);
-            return Task.FromResult(document);
+            var content = DataToDocument.GetContent();
+            var unit = document.NewDocumentUnit(Guid.NewGuid());
+            document.UpdateDocumentUnitDetails(unit.Id, DateTime.UtcNow, TimeSpan.FromDays(365), content);
+            return Task.FromResult(unit);
+        }
+        public static Task<DocumentUnit> InsertOneDocumentInDocument(this Document document)
+        {
+            var unit = document.NewDocumentUnit(Guid.NewGuid());
+            return Task.FromResult(unit);
         }
 
         public static async Task<List<ArchiveCategory>> InsertArchiveCategory(this PeopleManagementContext context, Guid companyId, CancellationToken cancellationToken = default)
