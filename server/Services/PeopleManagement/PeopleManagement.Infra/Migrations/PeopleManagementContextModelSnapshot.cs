@@ -264,11 +264,6 @@ namespace PeopleManagement.Infra.Migrations
                     b.Property<Guid>("Id")
                         .HasColumnType("uuid");
 
-                    b.Property<string>("BodyFileName")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("character varying(20)");
-
                     b.Property<Guid>("CompanyId")
                         .HasColumnType("uuid");
 
@@ -280,31 +275,13 @@ namespace PeopleManagement.Infra.Migrations
                         .HasMaxLength(500)
                         .HasColumnType("character varying(500)");
 
-                    b.Property<string>("Directory")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)");
-
                     b.Property<TimeSpan?>("DocumentValidityDuration")
                         .HasColumnType("interval");
-
-                    b.Property<string>("FooterFileName")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("character varying(20)");
-
-                    b.Property<string>("HeaderFileName")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("character varying(20)");
 
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");
-
-                    b.Property<int>("RecoverDataType")
-                        .HasColumnType("integer");
 
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("timestamp with time zone");
@@ -433,10 +410,6 @@ namespace PeopleManagement.Infra.Migrations
                     b.PrimitiveCollection<List<Guid>>("DocumentsTemplatesIds")
                         .IsRequired()
                         .HasColumnType("uuid[]");
-
-                    b.Property<string>("ListenEventsIds")
-                        .IsRequired()
-                        .HasColumnType("text");
 
                     b.Property<string>("Name")
                         .IsRequired()
@@ -732,44 +705,82 @@ namespace PeopleManagement.Infra.Migrations
 
             modelBuilder.Entity("PeopleManagement.Domain.AggregatesModel.DocumentTemplateAggregate.DocumentTemplate", b =>
                 {
-                    b.OwnsMany("PeopleManagement.Domain.AggregatesModel.DocumentTemplateAggregate.PlaceSignature", "PlaceSignatures", b1 =>
+                    b.OwnsOne("PeopleManagement.Domain.AggregatesModel.DocumentTemplateAggregate.TemplateFileInfo", "TemplateFileInfo", b1 =>
                         {
                             b1.Property<Guid>("DocumentTemplateId")
                                 .HasColumnType("uuid");
 
-                            b1.Property<int>("Id")
-                                .ValueGeneratedOnAdd()
+                            b1.Property<string>("BodyFileName")
+                                .IsRequired()
+                                .HasMaxLength(20)
+                                .HasColumnType("character varying(20)");
+
+                            b1.Property<string>("Directory")
+                                .IsRequired()
+                                .HasMaxLength(100)
+                                .HasColumnType("character varying(100)");
+
+                            b1.Property<string>("FooterFileName")
+                                .IsRequired()
+                                .HasMaxLength(20)
+                                .HasColumnType("character varying(20)");
+
+                            b1.Property<string>("HeaderFileName")
+                                .IsRequired()
+                                .HasMaxLength(20)
+                                .HasColumnType("character varying(20)");
+
+                            b1.Property<int>("RecoverDataType")
                                 .HasColumnType("integer");
 
-                            NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b1.Property<int>("Id"));
+                            b1.HasKey("DocumentTemplateId");
 
-                            b1.Property<double>("Page")
-                                .HasColumnType("double precision");
-
-                            b1.Property<double>("RelativePositionBotton")
-                                .HasColumnType("double precision");
-
-                            b1.Property<double>("RelativePositionLeft")
-                                .HasColumnType("double precision");
-
-                            b1.Property<double>("RelativeSizeX")
-                                .HasColumnType("double precision");
-
-                            b1.Property<double>("RelativeSizeY")
-                                .HasColumnType("double precision");
-
-                            b1.Property<int>("Type")
-                                .HasColumnType("integer");
-
-                            b1.HasKey("DocumentTemplateId", "Id");
-
-                            b1.ToTable("PlaceSignature");
+                            b1.ToTable("DocumentTemplates");
 
                             b1.WithOwner()
                                 .HasForeignKey("DocumentTemplateId");
+
+                            b1.OwnsMany("PeopleManagement.Domain.AggregatesModel.DocumentTemplateAggregate.PlaceSignature", "PlaceSignatures", b2 =>
+                                {
+                                    b2.Property<Guid>("TemplateFileInfoDocumentTemplateId")
+                                        .HasColumnType("uuid");
+
+                                    b2.Property<int>("Id")
+                                        .ValueGeneratedOnAdd()
+                                        .HasColumnType("integer");
+
+                                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b2.Property<int>("Id"));
+
+                                    b2.Property<double>("Page")
+                                        .HasColumnType("double precision");
+
+                                    b2.Property<double>("RelativePositionBotton")
+                                        .HasColumnType("double precision");
+
+                                    b2.Property<double>("RelativePositionLeft")
+                                        .HasColumnType("double precision");
+
+                                    b2.Property<double>("RelativeSizeX")
+                                        .HasColumnType("double precision");
+
+                                    b2.Property<double>("RelativeSizeY")
+                                        .HasColumnType("double precision");
+
+                                    b2.Property<int>("Type")
+                                        .HasColumnType("integer");
+
+                                    b2.HasKey("TemplateFileInfoDocumentTemplateId", "Id");
+
+                                    b2.ToTable("PlaceSignature");
+
+                                    b2.WithOwner()
+                                        .HasForeignKey("TemplateFileInfoDocumentTemplateId");
+                                });
+
+                            b1.Navigation("PlaceSignatures");
                         });
 
-                    b.Navigation("PlaceSignatures");
+                    b.Navigation("TemplateFileInfo");
                 });
 
             modelBuilder.Entity("PeopleManagement.Domain.AggregatesModel.EmployeeAggregate.Employee", b =>
@@ -1153,6 +1164,34 @@ namespace PeopleManagement.Infra.Migrations
                         .HasForeignKey("CompanyId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
+
+                    b.OwnsMany("PeopleManagement.Domain.AggregatesModel.RequireDocumentsAggregate.ListenEvent", "ListenEvents", b1 =>
+                        {
+                            b1.Property<Guid>("RequireDocumentsId")
+                                .HasColumnType("uuid");
+
+                            b1.Property<int>("Id")
+                                .ValueGeneratedOnAdd()
+                                .HasColumnType("integer");
+
+                            NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b1.Property<int>("Id"));
+
+                            b1.Property<int>("EventId")
+                                .HasColumnType("integer");
+
+                            b1.Property<string>("Status")
+                                .IsRequired()
+                                .HasColumnType("text");
+
+                            b1.HasKey("RequireDocumentsId", "Id");
+
+                            b1.ToTable("ListenEvent");
+
+                            b1.WithOwner()
+                                .HasForeignKey("RequireDocumentsId");
+                        });
+
+                    b.Navigation("ListenEvents");
                 });
 
             modelBuilder.Entity("PeopleManagement.Domain.AggregatesModel.RoleAggregate.Role", b =>

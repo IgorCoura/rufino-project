@@ -47,7 +47,7 @@ namespace PeopleManagement.Services.Services
 
             using MemoryStream stream = new(documentBytes); 
 
-            await _signDocumentService.SendToSignatureWithWhatsapp(stream, documentUnitId, document, company, employee, documentTemplate.PlaceSignatures.ToArray(), dateLimitToSign, eminderEveryNDays, cancellationToken);
+            await _signDocumentService.SendToSignatureWithWhatsapp(stream, documentUnitId, document, company, employee, documentTemplate.TemplateFileInfo.PlaceSignatures.ToArray(), dateLimitToSign, eminderEveryNDays, cancellationToken);
             
             document.AwaitingDocumentUnitSignature(documentUnitId);
 
@@ -72,7 +72,7 @@ namespace PeopleManagement.Services.Services
             var documentTemplate = await _documentTemplateRepository.FirstOrDefaultAsync(x => x.Id == document.DocumentTemplateId && x.CompanyId == companyId, cancellation: cancellationToken)
                 ?? throw new DomainException(this, DomainErrors.ObjectNotFound(nameof(DocumentTemplate), document.DocumentTemplateId.ToString()));
 
-            await _signDocumentService.SendToSignatureWithWhatsapp(stream, documentUnitId, document, company, employee, documentTemplate.PlaceSignatures.ToArray(), dateLimitToSign, eminderEveryNDays, cancellationToken);
+            await _signDocumentService.SendToSignatureWithWhatsapp(stream, documentUnitId, document, company, employee, documentTemplate.TemplateFileInfo.PlaceSignatures.ToArray(), dateLimitToSign, eminderEveryNDays, cancellationToken);
 
             document.AwaitingDocumentUnitSignature(documentUnitId);
 

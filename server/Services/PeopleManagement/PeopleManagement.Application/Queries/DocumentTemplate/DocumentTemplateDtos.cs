@@ -17,13 +17,20 @@ namespace PeopleManagement.Application.Queries.DocumentTemplate
             public string Name { get; init; } = string.Empty;
             public string Description { get; init; } = string.Empty;
             public Guid CompanyId { get; init; }
+            public int? DocumentValidityDurationInDays { get; init; }
+            public int? WorkloadInHours { get; init; }
+            public TemplateFileInfoDto TemplateFileInfo { get; init; } =  TemplateFileInfoDto.Empty;
+
+        }
+
+        public record TemplateFileInfoDto
+        {
             public string BodyFileName { get; init; } = string.Empty;
             public string HeaderFileName { get; init; } = string.Empty;
             public string FooterFileName { get; init; } = string.Empty;
             public EnumerationDto RecoverDataType { get; init; } = EnumerationDto.Empty;
-            public int? DocumentValidityDurationInDays { get; init; }
-            public int? WorkloadInHours { get; init; }
             public PlaceSignatureDto[] PlaceSignatures { get; init; } = [];
+            public static TemplateFileInfoDto Empty => new();
         }
 
         public record PlaceSignatureDto

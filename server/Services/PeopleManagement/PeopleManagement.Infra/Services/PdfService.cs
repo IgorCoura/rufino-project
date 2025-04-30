@@ -17,10 +17,10 @@ namespace PeopleManagement.Infra.Services
 
             //Path
             var currentDirectory = Directory.GetCurrentDirectory();
-            var templateDirectory = Path.Combine(currentDirectory, _documentTemplatesOptions.SourceDirectory, template.Directory.ToString());;
-            var headerPath = Path.Combine(templateDirectory, template.HeaderFileName.ToString());
-            var footerPath = Path.Combine(templateDirectory, template.FooterFileName.ToString());
-            var indexHtmlPath = Path.Combine(templateDirectory, template.BodyFileName.ToString());
+            var templateDirectory = Path.Combine(currentDirectory, _documentTemplatesOptions.SourceDirectory, template.TemplateFileInfo.Directory.ToString());;
+            var headerPath = Path.Combine(templateDirectory, template.TemplateFileInfo.HeaderFileName.ToString());
+            var footerPath = Path.Combine(templateDirectory, template.TemplateFileInfo.FooterFileName.ToString());
+            var indexHtmlPath = Path.Combine(templateDirectory, template.TemplateFileInfo.BodyFileName.ToString());
 
             //Pdf Generate
             await DownloadBrowser();

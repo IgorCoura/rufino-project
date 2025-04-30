@@ -9,12 +9,15 @@ using PeopleManagement.Domain.ErrorTools.ErrorsMessages;
 using Extension = PeopleManagement.Domain.AggregatesModel.DocumentAggregate.Extension;
 using PeopleManagement.Domain.AggregatesModel.DocumentTemplateAggregate.options;
 using PeopleManagement.Domain.AggregatesModel.RequireDocumentsAggregate.Interfaces;
+using PeopleManagement.Domain.AggregatesModel.EmployeeAggregate.Interfaces;
+using PeopleManagement.Domain.AggregatesModel.EmployeeAggregate;
 
 namespace PeopleManagement.Services.Services
 {
     public class DocumentService(IDocumentRepository securityDocumentRepository, IServiceProvider serviceProvider, 
         IPdfService pdfService, IBlobService blobService, IDocumentTemplateRepository documentTemplateRepository,
-        DocumentTemplatesOptions documentTemplatesOptions, IRequireDocumentsRepository requireDocumentsRepository) : IDocumentService
+        DocumentTemplatesOptions documentTemplatesOptions, IRequireDocumentsRepository requireDocumentsRepository,
+        IEmployeeRepository employeeRepository) : IDocumentService
     {
         private readonly IDocumentRepository _documentRepository = securityDocumentRepository;
         private readonly IPdfService _pdfService = pdfService;
@@ -23,8 +26,10 @@ namespace PeopleManagement.Services.Services
         private readonly IDocumentTemplateRepository _documentTemplateRepository = documentTemplateRepository;
         private readonly DocumentTemplatesOptions _documentTemplatesOptions = documentTemplatesOptions;
         private readonly IRequireDocumentsRepository _requireDocumentsRepository = requireDocumentsRepository;
+        private readonly IEmployeeRepository _employeeRepository = employeeRepository;
 
-        public async Task<DocumentUnit> CreateDocumentUnit(Guid documentId, Guid employeeId, Guid companyId, CancellationToken cancellationToken = default)
+        public async Task<DocumentUnit> CreateDocumentUnit(Guid documentId, Guid employeeId, Guid companyId, 
+            CancellationToken cancellationToken = default)
         {
             var document = await _documentRepository.FirstOrDefaultAsync(x => x.Id == documentId && x.EmployeeId == employeeId 
                 && x.CompanyId == companyId, include: i => i.Include(x => x.DocumentsUnits), cancellation: cancellationToken)
@@ -37,13 +42,20 @@ namespace PeopleManagement.Services.Services
 
         public async Task CreateDocumentUnitsForEvent(Guid employeeId, Guid companyId, int eventId, CancellationToken cancellationToken = default)
         {
+            var employee = await _employeeRepository.FirstOrDefaultMemoryOrDatabase(x => x.Id == employeeId && x.CompanyId == companyId) ?? throw new ArgumentNullException(nameof(Employee));
             var requiedDocuments = await _requireDocumentsRepository.GetAllWithEventId(employeeId, companyId, eventId, cancellationToken);
 
             foreach(var requiedDocument in requiedDocuments)
             {
-                Document? document = await _documentRepository.FirstOrDefaultAsync(x => x.EmployeeId == employeeId && x.CompanyId == companyId && x.RequiredDocumentId == requiedDocument.Id, cancellation: cancellationToken);
+                var listenEvent = requiedDocument.ListenEvents.Find(x => x.EventId == eventId);
+
+                if (listenEvent!.Status.Contains(employee.Status.Id) == false)
+                    continue;
+
+                Document? document = await _documentRepository.FirstOrDefaultMemoryOrDatabase(x => x.EmployeeId == employeeId 
+                && x.CompanyId == companyId && x.RequiredDocumentId == requiedDocument.Id);
                
-                if(document is not null)
+                if(document is null)
                     continue;
 
                 var documentUnitId = Guid.NewGuid();
@@ -54,26 +66,31 @@ namespace PeopleManagement.Services.Services
         }
 
 
-        public async Task<DocumentUnit> UpdateDocumentUnitDetails(Guid documentUnitId, Guid documentId, Guid employeeId, Guid companyId, DateTime documentUnitDate, CancellationToken cancellationToken = default)
+        public async Task<DocumentUnit> UpdateDocumentUnitDetails(Guid documentUnitId, Guid documentId, Guid employeeId, Guid companyId, 
+            DateTime documentUnitDate, CancellationToken cancellationToken = default)
         {
             var document = await _documentRepository.FirstOrDefaultAsync(x => x.Id == documentId && x.EmployeeId == employeeId
                 && x.CompanyId == companyId, include: i => i.Include(x => x.DocumentsUnits), cancellation: cancellationToken)
                 ?? throw new DomainException(this, DomainErrors.ObjectNotFound(nameof(Document), documentId.ToString()));
 
-            var documentTemplate = await _documentTemplateRepository.FirstOrDefaultAsync(x => x.Id == document.DocumentTemplateId && x.CompanyId == companyId,
+            var documentTemplate = await _documentTemplateRepository.FirstOrDefaultAsync(x => x.Id == document.DocumentTemplateId 
+            && x.CompanyId == companyId,
                 cancellation: cancellationToken)
                 ?? throw new DomainException(this, DomainErrors.ObjectNotFound(nameof(DocumentTemplate), document.DocumentTemplateId.ToString()));
 
             if (documentTemplate.Workload is not null)
-                await VerifyTimeConflictBetweenDocument(employeeId, companyId, documentId, documentUnitDate, (TimeSpan)documentTemplate.Workload, cancellationToken);
+                await VerifyTimeConflictBetweenDocument(employeeId, companyId, documentId, documentUnitDate, 
+                    (TimeSpan)documentTemplate.Workload, cancellationToken);
 
-            var recoverDataService = GetServiceToRecoverData(documentTemplate.RecoverDataType, _serviceProvider);
+            var recoverDataService = GetServiceToRecoverData(documentTemplate.TemplateFileInfo.RecoverDataType, _serviceProvider);
             var content = await recoverDataService.RecoverInfo(document.EmployeeId, document.CompanyId, documentUnitDate, cancellationToken);
-            var documentUnit = document.UpdateDocumentUnitDetails(documentUnitId, documentUnitDate, documentTemplate.DocumentValidityDuration, content);
+            var documentUnit = document.UpdateDocumentUnitDetails(documentUnitId, documentUnitDate, documentTemplate.DocumentValidityDuration, 
+                content);
             return documentUnit;
         }
 
-        public async Task<byte[]> GeneratePdf(Guid documentUnitId, Guid documentId, Guid employeeId, Guid companyId, CancellationToken cancellationToken = default)
+        public async Task<byte[]> GeneratePdf(Guid documentUnitId, Guid documentId, Guid employeeId, Guid companyId, 
+            CancellationToken cancellationToken = default)
         {
             var document = await _documentRepository.FirstOrDefaultAsync(x => x.Id == documentId && x.EmployeeId == employeeId 
                 && x.CompanyId == companyId, include: x => x.Include(y => y.DocumentsUnits), cancellation: cancellationToken)
