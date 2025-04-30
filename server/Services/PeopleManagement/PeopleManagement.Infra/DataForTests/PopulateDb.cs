@@ -383,34 +383,37 @@ namespace PeopleManagement.Infra.DataForTests
                 "Template Nr01",
                 "Description Template Nr01",
                 companyId,
-                "NR01",
+                TimeSpan.FromDays(365),
+                TimeSpan.FromHours(8),
+                TemplateFileInfo.Create("NR01",
                 "index.html",
                 "header.html",
                 "footer.html",
-                RecoverDataType.NR01,
-                TimeSpan.FromDays(365),
-                TimeSpan.FromHours(8),
                 [
                     PlaceSignature.Create(TypeSignature.Signature,1,20.5, 5.3,5.2,5.5),
                     PlaceSignature.Create(TypeSignature.Visa,1,20,15,3,3),
-                ]
+                ],
+                RecoverDataType.NR01
+                )
                 ),
                 DocumentTemplate.Create(
                 Guid.Parse("D857FAD2-1B5F-44A1-8428-80B7E85C25CE"),
                 "Template Nr02",
                 "Description Template Nr02",
                 companyId,
+                TimeSpan.FromDays(365),
+                TimeSpan.FromHours(8),
+                TemplateFileInfo.Create(
                 "NR02",
                 "index.html",
                 "header.html",
                 "footer.html",
-                RecoverDataType.NR01,
-                TimeSpan.FromDays(365),
-                TimeSpan.FromHours(8),
                 [
                     PlaceSignature.Create(TypeSignature.Signature,1,20.5, 5.3,5.2,5.5),
                     PlaceSignature.Create(TypeSignature.Visa,1,20,15,3,3),
-                ]
+                ],
+                RecoverDataType.NR01
+                )
                 ),
             };
             return documents;

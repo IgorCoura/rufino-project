@@ -36,14 +36,21 @@ namespace PeopleManagement.Infra.Mapping
                 .HasMaxLength(Description.MAX_LENGTH)
                 .IsRequired();
 
-            builder.Property(x => x.ListenEventsIds)
-                .HasConversion(
-                            i => string.Join(",", i),
-                            s => string.IsNullOrWhiteSpace(s) ? new List<int>() : s.Split(new[] { ',' }).Select(v => int.Parse(v)).ToList(),
-                            new ValueComparer<List<int>>(
-                                (c1, c2) => c1!.SequenceEqual(c2!),
-                                c => c.GetHashCode(),
-                                c => c.ToList()));
+
+            builder.OwnsMany(x => x.ListenEvents, listenEvent =>
+            {
+                listenEvent.Property(x => x.EventId)
+                    .IsRequired();
+
+                listenEvent.Property(x => x.Status)
+                    .HasConversion(
+                                i => string.Join(",", i),
+                                s => string.IsNullOrWhiteSpace(s) ? new List<int>() : s.Split(new[] { ',' }).Select(v => int.Parse(v)).ToList(),
+                                new ValueComparer<List<int>>(
+                                    (c1, c2) => c1!.SequenceEqual(c2!),
+                                    c => c.GetHashCode(),
+                                    c => c.ToList()));
+            });
 
             builder.HasMany<DocumentTemplate>()
               .WithMany();

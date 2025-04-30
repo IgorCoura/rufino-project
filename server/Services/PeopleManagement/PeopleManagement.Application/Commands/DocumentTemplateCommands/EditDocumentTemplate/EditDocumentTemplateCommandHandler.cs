@@ -20,13 +20,13 @@ namespace PeopleManagement.Application.Commands.DocumentTemplateCommands.EditDoc
 
             documentTemplate.Name = request.Name;
             documentTemplate.Description = request.Description;
-            documentTemplate.BodyFileName = request.BodyFileName;
-            documentTemplate.HeaderFileName = request.HeaderFileName;
-            documentTemplate.FooterFileName = request.FooterFileName;
-            documentTemplate.RecoverDataType = request.RecoverDataType;
+            documentTemplate.TemplateFileInfo.BodyFileName = request.BodyFileName;
+            documentTemplate.TemplateFileInfo.HeaderFileName = request.HeaderFileName;
+            documentTemplate.TemplateFileInfo.FooterFileName = request.FooterFileName;
+            documentTemplate.TemplateFileInfo.RecoverDataType = request.RecoverDataType;
             documentTemplate.DocumentValidityDuration = request.DocumentValidityDurationInDays.HasValue ? TimeSpan.FromDays((double)request.DocumentValidityDurationInDays!) : null;
             documentTemplate.Workload = request.WorkloadInHours.HasValue ? TimeSpan.FromHours((double)request.WorkloadInHours!) : null; ;
-            documentTemplate.PlaceSignatures = request.PlaceSignatures.Select(x => x.ToPlaceSignature()).ToList();
+            documentTemplate.TemplateFileInfo.PlaceSignatures = request.PlaceSignatures.Select(x => x.ToPlaceSignature()).ToList();
 
             await _documentTemplateRepository.UnitOfWork.SaveChangesAsync(cancellationToken);
             return documentTemplate.Id;

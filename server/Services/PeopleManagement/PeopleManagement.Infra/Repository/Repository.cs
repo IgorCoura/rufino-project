@@ -2,6 +2,7 @@
 using Microsoft.EntityFrameworkCore.Query;
 using PeopleManagement.Domain.SeedWord;
 using PeopleManagement.Infra.Context;
+using System.Linq;
 using System.Linq.Expressions;
 
 namespace PeopleManagement.Infra.Repository
@@ -32,7 +33,16 @@ namespace PeopleManagement.Infra.Repository
             return Task.CompletedTask;
         }
 
-        public async Task<T?> FirstOrDefaultAsync(Guid id, Func<IQueryable<T>, IIncludableQueryable<T, object>>? include = null, CancellationToken cancellation = default)
+        public async Task<T?> FirstOrDefaultMemoryOrDatabase(Func<T, bool> filter)
+        {
+            var result =  _context.Set<T>().Local.FirstOrDefault(filter);
+            result ??=  _context.Set<T>().FirstOrDefault(filter);
+         
+            return await Task.FromResult(result);
+        }
+
+        public async Task<T?> FirstOrDefaultAsync(Guid id, Func<IQueryable<T>, IIncludableQueryable<T, object>>? include = null, 
+            CancellationToken cancellation = default)
         {
             var query = _context.Set<T>().AsQueryable();
             if (include != null)

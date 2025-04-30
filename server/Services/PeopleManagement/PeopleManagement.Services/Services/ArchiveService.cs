@@ -19,7 +19,8 @@ namespace PeopleManagement.Services.Services
         public async Task CreateFilesForEvent(Guid ownerId, Guid companyId, int eventId, CancellationToken cancellationToken = default)
         {
 
-            var categories = await _archiveCategoryRepository.GetDataAsync(ac => ((string)(object)ac.ListenEventsIds).Contains(eventId.ToString()) && ac.CompanyId == companyId, cancellation: cancellationToken);
+            var categories = await _archiveCategoryRepository.GetDataAsync(ac => ((string)(object)ac.ListenEventsIds).Contains(eventId.ToString()) 
+            && ac.CompanyId == companyId, cancellation: cancellationToken);
 
             foreach (var category in categories)
             {

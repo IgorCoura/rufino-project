@@ -47,11 +47,11 @@ namespace PeopleManagement.Infra.Migrations
                     Name = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: false),
                     Description = table.Column<string>(type: "character varying(500)", maxLength: 500, nullable: false),
                     CompanyId = table.Column<Guid>(type: "uuid", nullable: false),
-                    Directory = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: false),
-                    BodyFileName = table.Column<string>(type: "character varying(20)", maxLength: 20, nullable: false),
-                    HeaderFileName = table.Column<string>(type: "character varying(20)", maxLength: 20, nullable: false),
-                    FooterFileName = table.Column<string>(type: "character varying(20)", maxLength: 20, nullable: false),
-                    RecoverDataType = table.Column<int>(type: "integer", nullable: false),
+                    TemplateFileInfo_Directory = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: true),
+                    TemplateFileInfo_BodyFileName = table.Column<string>(type: "character varying(20)", maxLength: 20, nullable: true),
+                    TemplateFileInfo_HeaderFileName = table.Column<string>(type: "character varying(20)", maxLength: 20, nullable: true),
+                    TemplateFileInfo_FooterFileName = table.Column<string>(type: "character varying(20)", maxLength: 20, nullable: true),
+                    TemplateFileInfo_RecoverDataType = table.Column<int>(type: "integer", nullable: true),
                     DocumentValidityDuration = table.Column<TimeSpan>(type: "interval", nullable: true),
                     Workload = table.Column<TimeSpan>(type: "interval", nullable: true),
                     CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
@@ -118,7 +118,6 @@ namespace PeopleManagement.Infra.Migrations
                     AssociationId = table.Column<Guid>(type: "uuid", nullable: false),
                     CompanyId = table.Column<Guid>(type: "uuid", nullable: false),
                     DocumentsTemplatesIds = table.Column<List<Guid>>(type: "uuid[]", nullable: false),
-                    ListenEventsIds = table.Column<string>(type: "text", nullable: false),
                     CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
                     UpdatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false)
                 },
@@ -166,7 +165,7 @@ namespace PeopleManagement.Infra.Migrations
                 name: "PlaceSignature",
                 columns: table => new
                 {
-                    DocumentTemplateId = table.Column<Guid>(type: "uuid", nullable: false),
+                    TemplateFileInfoDocumentTemplateId = table.Column<Guid>(type: "uuid", nullable: false),
                     Id = table.Column<int>(type: "integer", nullable: false)
                         .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
                     Type = table.Column<int>(type: "integer", nullable: false),
@@ -178,10 +177,10 @@ namespace PeopleManagement.Infra.Migrations
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_PlaceSignature", x => new { x.DocumentTemplateId, x.Id });
+                    table.PrimaryKey("PK_PlaceSignature", x => new { x.TemplateFileInfoDocumentTemplateId, x.Id });
                     table.ForeignKey(
-                        name: "FK_PlaceSignature_DocumentTemplates_DocumentTemplateId",
-                        column: x => x.DocumentTemplateId,
+                        name: "FK_PlaceSignature_DocumentTemplates_TemplateFileInfoDocumentTe~",
+                        column: x => x.TemplateFileInfoDocumentTemplateId,
                         principalTable: "DocumentTemplates",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
@@ -264,6 +263,27 @@ namespace PeopleManagement.Infra.Migrations
                         onDelete: ReferentialAction.Cascade);
                     table.ForeignKey(
                         name: "FK_DocumentTemplateRequireDocuments_RequireDocuments_RequireDo~",
+                        column: x => x.RequireDocumentsId,
+                        principalTable: "RequireDocuments",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "ListenEvent",
+                columns: table => new
+                {
+                    RequireDocumentsId = table.Column<Guid>(type: "uuid", nullable: false),
+                    Id = table.Column<int>(type: "integer", nullable: false)
+                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
+                    EventId = table.Column<int>(type: "integer", nullable: false),
+                    Status = table.Column<string>(type: "text", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_ListenEvent", x => new { x.RequireDocumentsId, x.Id });
+                    table.ForeignKey(
+                        name: "FK_ListenEvent_RequireDocuments_RequireDocumentsId",
                         column: x => x.RequireDocumentsId,
                         principalTable: "RequireDocuments",
                         principalColumn: "Id",
@@ -647,6 +667,9 @@ namespace PeopleManagement.Infra.Migrations
 
             migrationBuilder.DropTable(
                 name: "File");
+
+            migrationBuilder.DropTable(
+                name: "ListenEvent");
 
             migrationBuilder.DropTable(
                 name: "PlaceSignature");

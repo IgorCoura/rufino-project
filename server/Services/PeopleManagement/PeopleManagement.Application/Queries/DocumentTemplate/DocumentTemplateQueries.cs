@@ -41,28 +41,32 @@ namespace PeopleManagement.Application.Queries.DocumentTemplate
                 Name = x.Name.Value,
                 Description = x.Description.Value,
                 CompanyId = x.CompanyId,
-                BodyFileName = x.BodyFileName.Value,
-                HeaderFileName = x.HeaderFileName.Value,
-                FooterFileName = x.FooterFileName.Value,
-                RecoverDataType = new EnumerationDto
-                {
-                    Id = x.RecoverDataType.Id,
-                    Name = x.RecoverDataType.Name
-                },
                 DocumentValidityDurationInDays = x.DocumentValidityDuration.HasValue ? x.DocumentValidityDuration.Value.Days : null,
                 WorkloadInHours = x.Workload.HasValue ? x.Workload.Value.Hours : null,
-                PlaceSignatures = x.PlaceSignatures.Select(p => new PlaceSignatureDto{
-                    TypeSignature = new EnumerationDto
+                TemplateFileInfo = new TemplateFileInfoDto
+                {
+                    BodyFileName = x.TemplateFileInfo.BodyFileName.Value,
+                    HeaderFileName = x.TemplateFileInfo.HeaderFileName.Value,
+                    FooterFileName = x.TemplateFileInfo.FooterFileName.Value,
+                    RecoverDataType = new EnumerationDto
                     {
-                        Id = p.Type.Id,
-                        Name = p.Type.Name
+                        Id = x.TemplateFileInfo.RecoverDataType.Id,
+                        Name = x.TemplateFileInfo.RecoverDataType.Name
                     },
-                    Page = p.Page.Value,
-                    RelativePositionBotton = p.RelativePositionBotton.Value,
-                    RelativePositionLeft = p.RelativePositionLeft.Value,
-                    RelativeSizeX = p.RelativeSizeX.Value,
-                    RelativeSizeY = p.RelativeSizeY.Value,
-                }).ToArray(),
+                    PlaceSignatures = x.TemplateFileInfo.PlaceSignatures.Select(p => new PlaceSignatureDto
+                    {
+                        TypeSignature = new EnumerationDto
+                        {
+                            Id = p.Type.Id,
+                            Name = p.Type.Name
+                        },
+                        Page = p.Page.Value,
+                        RelativePositionBotton = p.RelativePositionBotton.Value,
+                        RelativePositionLeft = p.RelativePositionLeft.Value,
+                        RelativeSizeX = p.RelativeSizeX.Value,
+                        RelativeSizeY = p.RelativeSizeY.Value,
+                    }).ToArray(),
+                }
             }).FirstOrDefaultAsync() 
             ?? throw new DomainException(this, DomainErrors.ObjectNotFound(nameof(DocumentTemplate), documentTemplateId.ToString()));
 
@@ -79,32 +83,36 @@ namespace PeopleManagement.Application.Queries.DocumentTemplate
                 Name = x.Name.Value,
                 Description = x.Description.Value,
                 CompanyId = x.CompanyId,
-                BodyFileName = x.BodyFileName.Value,
-                HeaderFileName = x.HeaderFileName.Value,
-                FooterFileName = x.FooterFileName.Value,
-                RecoverDataType = new EnumerationDto
-                {
-                    Id = x.RecoverDataType.Id,
-                    Name = x.RecoverDataType.Name
-                },
                 DocumentValidityDurationInDays = x.DocumentValidityDuration.HasValue ? x.DocumentValidityDuration.Value.Days : null,
                 WorkloadInHours = x.Workload.HasValue ? x.Workload.Value.Hours : null,
-                PlaceSignatures = x.PlaceSignatures.Select(p => new PlaceSignatureDto{
-                    TypeSignature = new EnumerationDto
+                TemplateFileInfo = new TemplateFileInfoDto
+                {
+                    BodyFileName = x.TemplateFileInfo.BodyFileName.Value,
+                    HeaderFileName = x.TemplateFileInfo.HeaderFileName.Value,
+                    FooterFileName = x.TemplateFileInfo.FooterFileName.Value,
+                    RecoverDataType = new EnumerationDto
                     {
-                        Id = p.Type.Id,
-                        Name = p.Type.Name
+                        Id = x.TemplateFileInfo.RecoverDataType.Id,
+                        Name = x.TemplateFileInfo.RecoverDataType.Name
                     },
-                    Page = p.Page.Value,
-                    RelativePositionBotton = p.RelativePositionBotton.Value,
-                    RelativePositionLeft = p.RelativePositionLeft.Value,
-                    RelativeSizeX = p.RelativeSizeX.Value,
-                    RelativeSizeY = p.RelativeSizeY.Value,
-                }).ToArray(),
+                    PlaceSignatures = x.TemplateFileInfo.PlaceSignatures.Select(p => new PlaceSignatureDto
+                    {
+                        TypeSignature = new EnumerationDto
+                        {
+                            Id = p.Type.Id,
+                            Name = p.Type.Name
+                        },
+                        Page = p.Page.Value,
+                        RelativePositionBotton = p.RelativePositionBotton.Value,
+                        RelativePositionLeft = p.RelativePositionLeft.Value,
+                        RelativeSizeX = p.RelativeSizeX.Value,
+                        RelativeSizeY = p.RelativeSizeY.Value,
+                    }).ToArray(),
+                }
             }).ToArrayAsync();
 
 
-
+                                                                                                                                                                                               
             return result;
 
         }
@@ -114,7 +122,7 @@ namespace PeopleManagement.Application.Queries.DocumentTemplate
             var documentTemplate = await _context.DocumentTemplates.Where(x => x.CompanyId == companyId && x.Id == documentTemplateId).FirstOrDefaultAsync() 
                 ?? throw new DomainException(this, DomainErrors.ObjectNotFound(nameof(DocumentTemplate), documentTemplateId.ToString()));
 
-            var hasFile = await _localStorageService.HasFile(documentTemplate.Directory.Value, _documentTemplatesOptions.SourceDirectory);
+            var hasFile = await _localStorageService.HasFile(documentTemplate.TemplateFileInfo.Directory.Value, _documentTemplatesOptions.SourceDirectory);
 
             return hasFile;
         }
@@ -124,7 +132,7 @@ namespace PeopleManagement.Application.Queries.DocumentTemplate
             var documentTemplate = await _context.DocumentTemplates.Where(x => x.CompanyId == companyId && x.Id == documentTemplateId).FirstOrDefaultAsync()
                 ?? throw new DomainException(this, DomainErrors.ObjectNotFound(nameof(DocumentTemplate), documentTemplateId.ToString()));
 
-            var file =  await  _localStorageService.ZipDownloadAsync(documentTemplate.Directory.Value, _documentTemplatesOptions.SourceDirectory);
+            var file =  await  _localStorageService.ZipDownloadAsync(documentTemplate.TemplateFileInfo.Directory.Value, _documentTemplatesOptions.SourceDirectory);
 
             return file;
         }

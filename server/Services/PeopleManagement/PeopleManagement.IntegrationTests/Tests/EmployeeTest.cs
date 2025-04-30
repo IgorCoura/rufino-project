@@ -29,6 +29,8 @@ using Microsoft.Extensions.Logging;
 using System.Linq;
 using PeopleManagement.Domain.AggregatesModel.CompanyAggregate;
 using static PeopleManagement.IntegrationTests.Data.PopulateDataBase;
+using static PeopleManagement.IntegrationTests.Data.PopulateDatabaseDirectly;
+using PeopleManagement.Domain.AggregatesModel.RequireDocumentsAggregate;
 
 namespace PeopleManagement.IntegrationTests.Tests
 {
@@ -468,20 +470,84 @@ namespace PeopleManagement.IntegrationTests.Tests
             await CheckRequestDocumentEvent(context, EmployeeEvent.DemissionalExamRequestEvent(employee.Id, employee.CompanyId), cancellationToken);
         }
 
-
-        private async static Task CheckRequestDocumentEvent(PeopleManagementContext context, EmployeeEvent documentsEvent, CancellationToken cancellationToken = default)
+        [Fact]
+        public async Task ChangeEmployeeRoleWhenEmployeeIsActiveWithSuccess()
         {
-            var archivesCategories = await context.ArchiveCategories.AsNoTracking().Where(x => x.CompanyId == documentsEvent.CompanyId).ToListAsync(cancellationToken);
-            archivesCategories = archivesCategories.Where(x => x.ListenEventsIds.Contains(documentsEvent.Id)).ToList();
-            var archives = await context.Archives.AsNoTracking().Where(x => x.OwnerId == documentsEvent.EmployeeId && x.CompanyId == documentsEvent.CompanyId && x.Status == ArchiveStatus.RequiresFile).ToListAsync(cancellationToken);
 
-            foreach(var category in archivesCategories)
+            var cancellationToken = new CancellationToken();
+
+            var context = _factory.GetContext();
+            var client = _factory.CreateClient();
+
+            var employee = await context.InsertEmployeeActive(cancellationToken);
+            await context.SaveChangesAsync(cancellationToken);
+
+            var newRole = await context.InsertRole(employee.CompanyId, cancellationToken);
+            var newDocumentTemplate = await context.InsertDocumentTemplate(employee.CompanyId, cancellationToken);
+            var newRequireDocument = await context.InsertRequireDocuments(employee.CompanyId, newRole.Id, [newDocumentTemplate.Id], cancellationToken);
+            await context.SaveChangesAsync(cancellationToken);
+
+            var command = new AlterRoleEmployeeCommand(employee.Id, employee.CompanyId, newRole.Id);
+            client.InputHeaders([employee.CompanyId]);
+            var response = await client.PutAsJsonAsync($"/api/v1/{employee.CompanyId}/employee/role", command);
+
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+            var content = await response.Content.ReadFromJsonAsync(typeof(FinishedContractEmployeeResponse)) as FinishedContractEmployeeResponse ?? throw new ArgumentNullException();
+            var result = await context.Employees.AsNoTracking().FirstOrDefaultAsync(x => x.Id == content.Id) ?? throw new ArgumentNullException();
+            Assert.Equal(newRole.Id, result.RoleId);
+
+            var document = await context.Documents.Include(x => x.DocumentsUnits).AsNoTracking()
+                    .Where(x => x.CompanyId == employee.CompanyId && x.EmployeeId == employee.Id)
+                    .ToListAsync();
+
+            Assert.Single(document);
+
+            var doc = document.First();
+
+            Assert.Equal(newRequireDocument.Id, doc.RequiredDocumentId);
+
+            Assert.Single(doc.DocumentsUnits);
+            var documentUnit = doc.DocumentsUnits.First();
+            Assert.Equal(DocumentUnitStatus.Pending, documentUnit.Status);
+        }
+
+
+        private async static Task CheckRequestDocumentEvent(PeopleManagementContext context, EmployeeEvent @event, CancellationToken cancellationToken = default)
+        {
+            var archivesCategories = await context.ArchiveCategories.AsNoTracking().Where(x => x.CompanyId == @event.CompanyId)
+                .ToListAsync(cancellationToken);
+            archivesCategories = archivesCategories.Where(x => x.ListenEventsIds.Contains(@event.Id)).ToList();
+            var archives = await context.Archives.AsNoTracking().Where(x => x.OwnerId == @event.EmployeeId 
+            && x.CompanyId == @event.CompanyId && x.Status == ArchiveStatus.RequiresFile).ToListAsync(cancellationToken);
+
+            foreach (var category in archivesCategories)
             {
                 var archivesCat = archives.Where(x => x.CategoryId == category.Id).ToList();
                 Assert.Single(archivesCat);
                 var archive = archivesCat.First();
                 Assert.Equal(ArchiveStatus.RequiresFile, archive.Status);
-            }          
+            }
+
+
+            var requireDocuments = await context.RequireDocuments.AsNoTracking().Where(x => x.CompanyId == @event.CompanyId 
+            && x.ListenEvents.Any(l => l.EventId == @event.Id)).ToListAsync(cancellationToken);
+
+            foreach (var requireDocument in requireDocuments)
+            {
+                var document = await context.Documents.Include(x => x.DocumentsUnits).AsNoTracking()
+                    .Where(x => x.RequiredDocumentId == requireDocument.Id && x.CompanyId == @event.CompanyId && x.EmployeeId == @event.EmployeeId)
+                    .ToListAsync();
+
+                Assert.Single(document);
+
+                var doc = document.First();
+
+                Assert.Single(doc.DocumentsUnits);
+                var documentUnit = doc.DocumentsUnits.First();
+                Assert.Equal(DocumentUnitStatus.Pending, documentUnit.Status);
+            }
+
+
         }
     }
 }

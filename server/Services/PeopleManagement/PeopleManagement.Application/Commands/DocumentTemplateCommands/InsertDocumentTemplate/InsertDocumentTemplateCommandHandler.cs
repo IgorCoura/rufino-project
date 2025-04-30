@@ -20,12 +20,12 @@ namespace PeopleManagement.Application.Commands.DocumentTemplateCommands.InsertD
             var documentTemplate = await _documentTemplateRepository.FirstOrDefaultAsync(x => x.Id == request.DocumentTemplateId && x.CompanyId == request.CompanyId, cancellation: cancellationToken)
                 ?? throw new DomainException(this, DomainErrors.ObjectNotFound(nameof(DocumentTemplate), request.DocumentTemplateId.ToString()));
             
-            if(await _localStorageService.HasFile(documentTemplate.Directory.ToString(), _documentTemplateOptions.SourceDirectory))
+            if(await _localStorageService.HasFile(documentTemplate.TemplateFileInfo.Directory.ToString(), _documentTemplateOptions.SourceDirectory))
             {
-                await _localStorageService.DeleteAsync(documentTemplate.Directory.ToString(), _documentTemplateOptions.SourceDirectory);
+                await _localStorageService.DeleteAsync(documentTemplate.TemplateFileInfo.Directory.ToString(), _documentTemplateOptions.SourceDirectory);
             }
 
-            await _localStorageService.UnzipUploadAsync(request.Stream, documentTemplate.Directory.ToString(), _documentTemplateOptions.SourceDirectory, cancellationToken);
+            await _localStorageService.UnzipUploadAsync(request.Stream, documentTemplate.TemplateFileInfo.Directory.ToString(), _documentTemplateOptions.SourceDirectory, cancellationToken);
 
             return documentTemplate.Id;
         }

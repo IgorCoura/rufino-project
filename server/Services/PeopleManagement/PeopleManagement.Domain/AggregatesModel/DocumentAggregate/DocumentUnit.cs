@@ -37,8 +37,6 @@ namespace PeopleManagement.Domain.AggregatesModel.DocumentAggregate
 
         public static DocumentUnit Create(Guid id,  Document document)
         {
-            
-
             return new(id,  document);
         }
 

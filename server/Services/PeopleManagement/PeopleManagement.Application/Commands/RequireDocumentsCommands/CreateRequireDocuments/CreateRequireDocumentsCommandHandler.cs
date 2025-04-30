@@ -9,7 +9,7 @@ namespace PeopleManagement.Application.Commands.RequireDocumentsCommands.CreateR
         public async Task<CreateRequireDocumentsResponse> Handle(CreateRequireDocumentsCommand request, CancellationToken cancellationToken)
         {
             var id = Guid.NewGuid();
-            var requireSecurityDocuments = request.ToRequireSecurityDocuments(id);
+            var requireSecurityDocuments = request.ToRequireDocuments(id);
             var result = await _requireDocumentsRepository.InsertAsync(requireSecurityDocuments, cancellationToken);
             await _requireDocumentsRepository.UnitOfWork.SaveChangesAsync(cancellationToken);
             return result.Id;

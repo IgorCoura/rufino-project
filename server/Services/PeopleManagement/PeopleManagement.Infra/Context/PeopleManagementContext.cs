@@ -23,22 +23,19 @@ namespace PeopleManagement.Infra.Context
     {
         public const string DEFAULT_SCHEMA = "people_management";
 
-        public DbSet<ArchiveCategory> ArchiveCategories { get; set; }
-        public DbSet<Archive> Archives { get; set; }
-        public DbSet<Company> Companies { get; set; }
-        public DbSet<Department> Departments { get; set; }
-        public DbSet<DocumentUnit> DocumentsUnits { get; set; }
-        public DbSet<DocumentTemplate> DocumentTemplates { get; set; }
+        public DbSet<ArchiveCategory> ArchiveCategories { get; set; } = null!;
+        public DbSet<Archive> Archives { get; set; } = null!;
+        public DbSet<Company> Companies { get; set; } = null!;
+        public DbSet<Department> Departments { get; set; } = null!;
+        public DbSet<DocumentUnit> DocumentsUnits { get; set; } = null!;
+        public DbSet<DocumentTemplate> DocumentTemplates { get; set; } = null!;
 
-        public DbSet<Employee> Employees { get; set; }
-        public DbSet<Position> Positions { get; set; }
-        public DbSet<RequireDocuments> RequireDocuments { get; set; }
-        public DbSet<Role> Roles { get; set; }
-        public DbSet<Document> Documents { get; set; }
-        public DbSet<Workplace> Workplaces { get; set; }
-        
-        
-       
+        public DbSet<Employee> Employees { get; set; } = null!;
+        public DbSet<Position> Positions { get; set; } = null!;
+        public DbSet<RequireDocuments> RequireDocuments { get; set; } = null!;
+        public DbSet<Role> Roles { get; set; } = null!;
+        public DbSet<Document> Documents { get; set; } = null!;
+        public DbSet<Workplace> Workplaces { get; set; } = null!;
 
         private readonly IMediator? _mediator;
         private readonly IDbContextTransaction? _currentTransaction;

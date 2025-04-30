@@ -32,13 +32,15 @@ namespace PeopleManagement.IntegrationTests.Tests
                 company.Id,
                 "NR01",
                 "Description NR01",
-                "index.html",
-                "header.html",
-                "footer.html",
-                RecoverDataType.NR01.Id,
                 365,
                 8,
-                []);
+                new TemplateFileInfoModel(
+                    "index.html",
+                    "header.html",
+                    "footer.html",
+                    RecoverDataType.NR01.Id,
+                    []
+                    ));
 
 
             client.InputHeaders([company.Id]);
@@ -47,7 +49,7 @@ namespace PeopleManagement.IntegrationTests.Tests
             Assert.Equal(HttpStatusCode.OK, response.StatusCode);
             var content = await response.Content.ReadFromJsonAsync(typeof(CreateDocumentTemplateResponse)) as CreateDocumentTemplateResponse ?? throw new ArgumentNullException();
             var result = await context.DocumentTemplates.AsNoTracking().FirstOrDefaultAsync(x => x.Id == content.Id) ?? throw new ArgumentNullException();
-            Assert.Equal(command.ToDocumentTemplate(result.Id, result.Directory.ToString()), result);
+            Assert.Equal(command.ToDocumentTemplate(result.Id, result.TemplateFileInfo!.Directory.ToString()), result);
         }
 
 
@@ -86,10 +88,10 @@ namespace PeopleManagement.IntegrationTests.Tests
             using var scope = _factory.Services.CreateScope();
             var options = scope.ServiceProvider.GetRequiredService<DocumentTemplatesOptions>();
 
-            var documentTemplatePath = Path.Combine(options.SourceDirectory, result.Directory.ToString());
+            var documentTemplatePath = Path.Combine(options.SourceDirectory, result.TemplateFileInfo!.Directory.ToString());
             Assert.True(Directory.Exists(documentTemplatePath));
 
-            var bodyFilePath = Path.Combine(documentTemplatePath, result.BodyFileName.ToString());
+            var bodyFilePath = Path.Combine(documentTemplatePath, result.TemplateFileInfo.BodyFileName.ToString());
             var bodyFile = File.OpenRead(bodyFilePath);
             Assert.NotNull(bodyFile);
             Assert.True(bodyFile.Length > 0);
