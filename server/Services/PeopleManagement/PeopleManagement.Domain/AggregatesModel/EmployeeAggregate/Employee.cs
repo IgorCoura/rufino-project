@@ -1,6 +1,7 @@
 ﻿ using PeopleManagement.Domain.AggregatesModel.EmployeeAggregate.Events;
 using PeopleManagement.Domain.ErrorTools;
 using PeopleManagement.Domain.ErrorTools.ErrorsMessages;
+using static PeopleManagement.Domain.ErrorTools.ErrorsMessages.DomainErrors;
 
 namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
 {
@@ -273,6 +274,21 @@ namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
                 return true;
             }
             return false;
+        }
+
+        public bool IsAssociation(Guid associationId)
+        {
+            var properties = typeof(Employee).GetProperties(BindingFlags.Public | BindingFlags.Instance)
+                   .Where(p => p.CanRead)
+                   .ToList();
+
+            bool hasMatchingProperty = properties.Any(property =>
+            {
+                var value = property.GetValue(this);
+                return value is Guid guidValue && guidValue == associationId;
+            });
+
+            return hasMatchingProperty;
         }
 
         private void NewContract(DateOnly dateInit, EmploymentContractType contractType)

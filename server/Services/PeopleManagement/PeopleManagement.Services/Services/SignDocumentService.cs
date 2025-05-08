@@ -28,20 +28,23 @@ namespace PeopleManagement.Services.Services
         public async Task<Guid> GenerateDocumentToSign(Guid documentUnitId, Guid documentId, Guid employeeId, Guid companyId, DateTime dateLimitToSign, 
             int eminderEveryNDays, CancellationToken cancellationToken = default)
         {
+            var document = await _documentRepository.FirstOrDefaultAsync(x => x.Id == documentId && x.EmployeeId == employeeId && x.CompanyId == companyId, cancellation: cancellationToken)
+              ?? throw new DomainException(this, DomainErrors.ObjectNotFound(nameof(Document), documentId.ToString()));
+
+            var documentTemplate = await _documentTemplateRepository.FirstOrDefaultAsync(x => x.Id == document.DocumentTemplateId && x.CompanyId == companyId, cancellation: cancellationToken)
+                ?? throw new DomainException(this, DomainErrors.ObjectNotFound(nameof(DocumentTemplate), document.DocumentTemplateId.ToString()));
+
+            if(documentTemplate.TemplateFileInfo is null)
+                throw new DomainException(this, DomainErrors.Document.DocumentNotHaveTemplate(documentId));
+
             var employee = await _employeeRepository.FirstOrDefaultAsync(x => x.Id == employeeId && x.CompanyId == companyId, cancellation: cancellationToken)
                ?? throw new DomainException(this, DomainErrors.ObjectNotFound(nameof(Employee), employeeId.ToString()));
 
             if (employee.CantSignByCellPhone)
                 throw new DomainException(this, DomainErrors.Employee.EmployeeCantSignByCellPhone(employeeId));
 
-            var document = await _documentRepository.FirstOrDefaultAsync(x => x.Id == documentId && x.EmployeeId == employeeId && x.CompanyId == companyId, cancellation: cancellationToken)
-                ?? throw new DomainException(this, DomainErrors.ObjectNotFound(nameof(Document), documentId.ToString()));
-
             var company = await _companyRepository.FirstOrDefaultAsync(x => x.Id == companyId, cancellation: cancellationToken)
                 ?? throw new DomainException(this, DomainErrors.ObjectNotFound(nameof(Company), companyId.ToString()));
-
-            var documentTemplate = await _documentTemplateRepository.FirstOrDefaultAsync(x => x.Id == document.DocumentTemplateId && x.CompanyId == companyId, cancellation: cancellationToken)
-                ?? throw new DomainException(this, DomainErrors.ObjectNotFound(nameof(DocumentTemplate), document.DocumentTemplateId.ToString()));
 
             var documentBytes = await _documentService.GeneratePdf(documentUnitId, documentId, employeeId, companyId, cancellationToken);
 
@@ -63,16 +66,19 @@ namespace PeopleManagement.Services.Services
             if (employee.CantSignByCellPhone)
                 throw new DomainException(this, DomainErrors.Employee.EmployeeCantSignByCellPhone(employeeId));
 
-            var document = await _documentRepository.FirstOrDefaultAsync(x => x.Id == documentId && x.EmployeeId == employeeId && x.CompanyId == companyId, include: x => x.Include(y => y.DocumentsUnits), cancellation: cancellationToken)
+            var document = await _documentRepository.FirstOrDefaultAsync(x => x.Id == documentId && x.EmployeeId == employeeId 
+            && x.CompanyId == companyId, include: x => x.Include(y => y.DocumentsUnits), cancellation: cancellationToken)
                 ?? throw new DomainException(this, DomainErrors.ObjectNotFound(nameof(Document), documentId.ToString()));
 
             var company = await _companyRepository.FirstOrDefaultAsync(x => x.Id == companyId, cancellation: cancellationToken)
                 ?? throw new DomainException(this, DomainErrors.ObjectNotFound(nameof(Company), companyId.ToString()));
 
-            var documentTemplate = await _documentTemplateRepository.FirstOrDefaultAsync(x => x.Id == document.DocumentTemplateId && x.CompanyId == companyId, cancellation: cancellationToken)
+            var documentTemplate = await _documentTemplateRepository.FirstOrDefaultAsync(x => x.Id == document.DocumentTemplateId 
+            && x.CompanyId == companyId, cancellation: cancellationToken)
                 ?? throw new DomainException(this, DomainErrors.ObjectNotFound(nameof(DocumentTemplate), document.DocumentTemplateId.ToString()));
 
-            await _signDocumentService.SendToSignatureWithWhatsapp(stream, documentUnitId, document, company, employee, documentTemplate.TemplateFileInfo.PlaceSignatures.ToArray(), dateLimitToSign, eminderEveryNDays, cancellationToken);
+            await _signDocumentService.SendToSignatureWithWhatsapp(stream, documentUnitId, document, company, employee, 
+                documentTemplate.TemplateFileInfo?.PlaceSignatures.ToArray() ?? [], dateLimitToSign, eminderEveryNDays, cancellationToken);
 
             document.AwaitingDocumentUnitSignature(documentUnitId);
 

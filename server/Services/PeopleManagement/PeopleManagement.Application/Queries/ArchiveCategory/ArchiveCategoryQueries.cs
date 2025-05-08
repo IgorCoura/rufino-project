@@ -1,10 +1,10 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using PeopleManagement.Domain.AggregatesModel.EmployeeAggregate.Events;
 using PeopleManagement.Infra.Context;
-using static PeopleManagement.Application.Queries.ArchiveCategoryAggregate.ArchiveCategoryDtos;
+using static PeopleManagement.Application.Queries.ArchiveCategory.ArchiveCategoryDtos;
 using static PeopleManagement.Application.Queries.Base.BaseDtos;
 
-namespace PeopleManagement.Application.Queries.ArchiveCategoryAggregate
+namespace PeopleManagement.Application.Queries.ArchiveCategory
 {
     public class ArchiveCategoryQueries(PeopleManagementContext peopleManagementContext) : IArchiveCategoryQueries
     {
@@ -12,7 +12,7 @@ namespace PeopleManagement.Application.Queries.ArchiveCategoryAggregate
 
         public async Task<IEnumerable<ArchiveCategoryDTO>> GetAll(Guid companyId)
         {
-            var query = _context.ArchiveCategories.Where(x => x.CompanyId == companyId);
+            var query = _context.ArchiveCategories.AsNoTracking().Where(x => x.CompanyId == companyId);
 
 
             var result = await query.ToArrayAsync();

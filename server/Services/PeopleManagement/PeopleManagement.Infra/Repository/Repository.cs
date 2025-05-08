@@ -37,7 +37,6 @@ namespace PeopleManagement.Infra.Repository
         {
             var result =  _context.Set<T>().Local.FirstOrDefault(filter);
             result ??=  _context.Set<T>().FirstOrDefault(filter);
-         
             return await Task.FromResult(result);
         }
 
@@ -75,7 +74,7 @@ namespace PeopleManagement.Infra.Repository
             if (take != null && take.HasValue)
                 query = query.Take(take.Value);
 
-            return await query.ToListAsync(cancellation);
+            return await query.AsTracking().ToListAsync(cancellation);
         }
 
         public async Task<bool> AnyAsync(Expression<Func<T, bool>> filter)

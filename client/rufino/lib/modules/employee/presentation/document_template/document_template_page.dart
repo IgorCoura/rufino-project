@@ -23,7 +23,7 @@ class DocumentTemplatePage extends StatelessWidget {
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () {
-            Modular.to.navigate("/employee/document-template");
+            Modular.to.pop();
           },
         ),
         title: const Text('Template de Documento'),
@@ -39,11 +39,8 @@ class DocumentTemplatePage extends StatelessWidget {
                 bloc: bloc,
                 builder: (context, state) {
                   if (state.exception != null) {
-                    ErrorComponent.showException(
-                        context,
-                        state.exception!,
-                        () =>
-                            Modular.to.navigate("/employee/document-template"));
+                    ErrorComponent.showException(context, state.exception!,
+                        () => Modular.to.popUntil((route) => route.isFirst));
                   }
                   if (state.snackMessage != null &&
                       state.snackMessage!.isNotEmpty) {

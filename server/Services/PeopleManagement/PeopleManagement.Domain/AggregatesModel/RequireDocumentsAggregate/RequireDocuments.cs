@@ -28,5 +28,26 @@ namespace PeopleManagement.Domain.AggregatesModel.RequireDocumentsAggregate
         public static RequireDocuments Create(Guid id, Guid companyId, Guid associationId, AssociationType associationType, 
             Name name, Description description, List<ListenEvent> listenEvents, List<Guid> documentsTemplatesIds) 
             => new(id, companyId, associationId, associationType, name, description, listenEvents, documentsTemplatesIds);
+
+        public void Edit(Guid id, Guid companyId, Guid associationId, AssociationType associationType,
+            Name name, Description description, List<ListenEvent> listenEvents, List<Guid> documentsTemplatesIds)
+        {
+            Id = id;
+            CompanyId = companyId;
+            AssociationId = associationId;
+            AssociationType = AssociationType;
+            Name = name;
+            Description = description;
+            ListenEvents = listenEvents;
+            DocumentsTemplatesIds = documentsTemplatesIds;
+        }
+
+
+        public bool StatusIsAccepted(int eventId, int statusId)
+        {
+            var listenEvent = ListenEvents.Find(x => x.EventId == eventId);
+
+            return listenEvent!.Status.Contains(statusId);
+        }
     }
 }

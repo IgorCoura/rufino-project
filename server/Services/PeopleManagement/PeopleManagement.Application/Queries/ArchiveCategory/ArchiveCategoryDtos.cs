@@ -1,6 +1,6 @@
 ﻿using static PeopleManagement.Application.Queries.Base.BaseDtos;
 
-namespace PeopleManagement.Application.Queries.ArchiveCategoryAggregate
+namespace PeopleManagement.Application.Queries.ArchiveCategory
 {
     public class ArchiveCategoryDtos
     {

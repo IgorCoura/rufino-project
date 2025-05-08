@@ -16,6 +16,7 @@ using PeopleManagement.Infra.Extension;
 using PeopleManagement.Infra.Mapping;
 using System.Data;
 using PeopleManagement.Domain.AggregatesModel.ArchiveCategoryAggregate;
+using System.Reflection;
 
 namespace PeopleManagement.Infra.Context
 {

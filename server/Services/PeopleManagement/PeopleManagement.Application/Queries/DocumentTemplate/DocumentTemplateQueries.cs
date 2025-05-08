@@ -16,7 +16,7 @@ namespace PeopleManagement.Application.Queries.DocumentTemplate
         private DocumentTemplatesOptions _documentTemplatesOptions = documentTemplatesOptions;
         public async Task<IEnumerable<DocumentTemplateSimpleDto>> GetAllSimple(Guid companyId)
         {
-            var query = _context.DocumentTemplates.Where(x => x.CompanyId == companyId);
+            var query = _context.DocumentTemplates.AsNoTracking().Where(x => x.CompanyId == companyId);
 
 
             var result = await query.Select(x => new DocumentTemplateSimpleDto
@@ -33,7 +33,7 @@ namespace PeopleManagement.Application.Queries.DocumentTemplate
 
         public async Task<DocumentTemplateDto> GetById(Guid companyId, Guid documentTemplateId)
         {
-            var query = _context.DocumentTemplates.Where(x => x.CompanyId == companyId && x.Id == documentTemplateId);
+            var query = _context.DocumentTemplates.AsNoTracking().Where(x => x.CompanyId == companyId && x.Id == documentTemplateId);
 
 
             var result = await query.Select(x => new DocumentTemplateDto { 
@@ -43,7 +43,7 @@ namespace PeopleManagement.Application.Queries.DocumentTemplate
                 CompanyId = x.CompanyId,
                 DocumentValidityDurationInDays = x.DocumentValidityDuration.HasValue ? x.DocumentValidityDuration.Value.Days : null,
                 WorkloadInHours = x.Workload.HasValue ? x.Workload.Value.Hours : null,
-                TemplateFileInfo = new TemplateFileInfoDto
+                TemplateFileInfo = x.TemplateFileInfo == null ? new TemplateFileInfoDto() : new TemplateFileInfoDto
                 {
                     BodyFileName = x.TemplateFileInfo.BodyFileName.Value,
                     HeaderFileName = x.TemplateFileInfo.HeaderFileName.Value,
@@ -75,7 +75,7 @@ namespace PeopleManagement.Application.Queries.DocumentTemplate
         }
         public async Task<IEnumerable<DocumentTemplateDto>> GetAll(Guid companyId)
         {
-            var query = _context.DocumentTemplates.Where(x => x.CompanyId == companyId);
+            var query = _context.DocumentTemplates.AsNoTracking().Where(x => x.CompanyId == companyId);
 
 
             var result = await query.Select(x => new DocumentTemplateDto { 
@@ -85,7 +85,7 @@ namespace PeopleManagement.Application.Queries.DocumentTemplate
                 CompanyId = x.CompanyId,
                 DocumentValidityDurationInDays = x.DocumentValidityDuration.HasValue ? x.DocumentValidityDuration.Value.Days : null,
                 WorkloadInHours = x.Workload.HasValue ? x.Workload.Value.Hours : null,
-                TemplateFileInfo = new TemplateFileInfoDto
+                TemplateFileInfo = x.TemplateFileInfo == null ? new TemplateFileInfoDto() : new TemplateFileInfoDto
                 {
                     BodyFileName = x.TemplateFileInfo.BodyFileName.Value,
                     HeaderFileName = x.TemplateFileInfo.HeaderFileName.Value,
@@ -119,8 +119,11 @@ namespace PeopleManagement.Application.Queries.DocumentTemplate
 
         public async Task<bool> HasFile(Guid documentTemplateId, Guid companyId)
         {
-            var documentTemplate = await _context.DocumentTemplates.Where(x => x.CompanyId == companyId && x.Id == documentTemplateId).FirstOrDefaultAsync() 
+            var documentTemplate = await _context.DocumentTemplates.AsNoTracking().Where(x => x.CompanyId == companyId && x.Id == documentTemplateId).FirstOrDefaultAsync() 
                 ?? throw new DomainException(this, DomainErrors.ObjectNotFound(nameof(DocumentTemplate), documentTemplateId.ToString()));
+
+            if (documentTemplate.TemplateFileInfo == null)
+                return false;
 
             var hasFile = await _localStorageService.HasFile(documentTemplate.TemplateFileInfo.Directory.Value, _documentTemplatesOptions.SourceDirectory);
 
@@ -129,8 +132,11 @@ namespace PeopleManagement.Application.Queries.DocumentTemplate
 
         public async Task<Stream> DownloadFile(Guid documentTemplateId, Guid companyId)
         {
-            var documentTemplate = await _context.DocumentTemplates.Where(x => x.CompanyId == companyId && x.Id == documentTemplateId).FirstOrDefaultAsync()
+            var documentTemplate = await _context.DocumentTemplates.AsNoTracking().Where(x => x.CompanyId == companyId && x.Id == documentTemplateId).FirstOrDefaultAsync()
                 ?? throw new DomainException(this, DomainErrors.ObjectNotFound(nameof(DocumentTemplate), documentTemplateId.ToString()));
+
+            if (documentTemplate.TemplateFileInfo == null)
+                return Stream.Null;
 
             var file =  await  _localStorageService.ZipDownloadAsync(documentTemplate.TemplateFileInfo.Directory.Value, _documentTemplatesOptions.SourceDirectory);
 

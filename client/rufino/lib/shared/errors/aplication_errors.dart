@@ -29,11 +29,27 @@ class AplicationErrors {
 }
 
 class AplicationException implements Exception {
-  const AplicationException(this.code, this.message, {this.callBackPage = ""});
+  const AplicationException(this.code, this.message,
+      {this.callBackPage = "", this.wasShown = false});
 
   final String code;
   final String message;
   final String callBackPage;
+  final bool wasShown;
+
+  AplicationException copyWith({
+    String? code,
+    String? message,
+    String? callBackPage,
+    bool? wasShown,
+  }) {
+    return AplicationException(
+      code ?? this.code,
+      message ?? this.message,
+      callBackPage: callBackPage ?? this.callBackPage,
+      wasShown: wasShown ?? this.wasShown,
+    );
+  }
 
   @override
   String toString() => 'AplicationError(code: $code, message: $message)';

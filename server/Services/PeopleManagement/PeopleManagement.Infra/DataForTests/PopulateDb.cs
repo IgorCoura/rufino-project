@@ -16,6 +16,8 @@ using PeopleManagement.Domain.AggregatesModel.ArchiveCategoryAggregate;
 using Microsoft.EntityFrameworkCore;
 using PeopleManagement.Domain.SeedWord;
 using PeopleManagement.Domain.AggregatesModel.DocumentTemplateAggregate;
+using PeopleManagement.Domain.AggregatesModel.RequireDocumentsAggregate;
+using System.ComponentModel.Design;
 
 namespace PeopleManagement.Infra.DataForTests
 {
@@ -45,7 +47,10 @@ namespace PeopleManagement.Infra.DataForTests
                     await context.AddRangeIfNotExistsAsync(archivesCategories);
                     var documentTemplates = CreateDocumentTemplate(companies[0].Id);
                     await context.AddRangeIfNotExistsAsync(documentTemplates);
+                    var requireDocuments = CreateRequireDocuments(companies[0].Id, roles[0].Id, documentTemplates);
+                    await context.AddRangeIfNotExistsAsync(requireDocuments);
                     await context.SaveChangesWithoutDispatchEventsAsync();
+                    
                 }
                 catch { }
             }
@@ -416,6 +421,41 @@ namespace PeopleManagement.Infra.DataForTests
                 )
                 ),
             };
+            return documents;
+        }
+
+        public static RequireDocuments[] CreateRequireDocuments(Guid companyId, Guid roleId, DocumentTemplate[] documentsTemplates)
+        {
+            var documentsTemplateIds = documentsTemplates.Select(x => x.Id).ToList();
+            var documents = new[]
+            {
+                RequireDocuments.Create(
+                    Guid.Parse("2D77226E-8F9F-483F-82A9-6E536864903C"),
+                    companyId,
+                    roleId,
+                    AssociationType.Role,
+                    "Requerimento de Documentos",
+                    "Descrição do requerimento de documentos",
+                    [
+                        ListenEvent.Create(EmployeeEvent.COMPLETE_ADMISSION_EVENT, [Status.Active.Id, Status.Vacation.Id]),
+                    ],
+                    documentsTemplateIds
+                    ),
+                RequireDocuments.Create(
+                    Guid.Parse("5BC970E9-B7AD-4AD2-8927-3A7C095AE0E8"),
+                    companyId,
+                    roleId,
+                    AssociationType.Role,
+                    "Requerimento de Documentos 2",
+                    "Descrição do requerimento de documentos 2",
+                    [
+                        ListenEvent.Create(EmployeeEvent.COMPLETE_ADMISSION_EVENT, [Status.Active.Id, Status.Vacation.Id]),
+                        ListenEvent.Create(EmployeeEvent.FINISHED_CONTRACT_EVENT, [Status.Active.Id, Status.Inactive.Id]),
+                    ],
+                    documentsTemplateIds
+                    )
+            };
+
             return documents;
         }
 

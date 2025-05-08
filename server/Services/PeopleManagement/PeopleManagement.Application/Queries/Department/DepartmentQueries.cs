@@ -10,7 +10,7 @@ namespace PeopleManagement.Application.Queries.Department
 
         public async Task<IEnumerable<DepartmentDto>> GetAll(Guid company)
         {
-            var query = from d in _context.Departments
+            var query = from d in _context.Departments.AsNoTracking()
                         where d.CompanyId == company
                         select new DepartmentDto
                         {
@@ -45,7 +45,7 @@ namespace PeopleManagement.Application.Queries.Department
 
         public async Task<IEnumerable<DepartmentSimpleDto>> GetAllSimple(Guid company)
         {
-            var query = from d in _context.Departments
+            var query = from d in _context.Departments.AsNoTracking()
                         where d.CompanyId == company
                         select new DepartmentSimpleDto
                         {

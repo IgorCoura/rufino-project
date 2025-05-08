@@ -58,9 +58,16 @@ class EnumerationViewComponent extends BaseEditComponent {
             ),
           )
         : DropdownButtonFormField(
+            isExpanded: true,
             value: enumeration,
             items: _listEnumerationOptions
-                .map((e) => DropdownMenuItem(value: e, child: Text(e.name)))
+                .map((e) => DropdownMenuItem(
+                    value: e,
+                    child: Text(
+                      e.name,
+                      overflow: TextOverflow.ellipsis,
+                      maxLines: 1,
+                    )))
                 .toList(),
             onChanged: isEditing
                 ? (Enumeration? value) {
