@@ -20,6 +20,7 @@ using PeopleManagement.Application.Commands.EmployeeCommands.RemoveDependentEmpl
 using PeopleManagement.Application.Commands.Identified;
 using PeopleManagement.Application.Queries.Employee;
 using PeopleManagement.Domain.AggregatesModel.EmployeeAggregate;
+using PeopleManagement.Domain.AggregatesModel.EmployeeAggregate.Events;
 using System.Diagnostics;
 using static Microsoft.EntityFrameworkCore.DbLoggerCategory.Database;
 
@@ -365,6 +366,14 @@ namespace PeopleManagement.API.Controllers
         public ActionResult<IEnumerable<Status>> GetStatus([FromRoute] Guid company)
         {
             var result = Status.GetAll<Status>();
+            return OkResponse(result);
+        }
+
+        [HttpGet("events")]
+        [ProtectedResource("employee", "view")]
+        public ActionResult<IEnumerable<EmployeeEvent>> GetEvents([FromRoute] Guid company)
+        {
+            var result = EmployeeEvent.GetAll();
             return OkResponse(result);
         }
 

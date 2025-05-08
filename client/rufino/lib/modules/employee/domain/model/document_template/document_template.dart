@@ -117,14 +117,14 @@ class DocumentTemplate extends ModelBase {
       json['id'],
       Name(json['name']),
       Description(json['description']),
-      BodyFileName(json['bodyFileName']),
-      HeaderFileName(json['headerFileName']),
-      FooterFileName(json['footerFileName']),
-      RecoverDataType.fromJson(json['recoverDataType']),
+      BodyFileName(json['templateFileInfo']['bodyFileName']),
+      HeaderFileName(json['templateFileInfo']['headerFileName']),
+      FooterFileName(json['templateFileInfo']['footerFileName']),
+      RecoverDataType.fromJson(json['templateFileInfo']['recoverDataType']),
       DocumentValidityDuration.createFormatted(
           json['documentValidityDurationInDays'].toString()),
       Workload.createFormatted(json['workloadInHours'].toString()),
-      PlaceSignature.fromListJson(json['placeSignatures']),
+      PlaceSignature.fromListJson(json['templateFileInfo']['placeSignatures']),
     );
   }
 
@@ -138,13 +138,15 @@ class DocumentTemplate extends ModelBase {
     return {
       'name': name.value,
       'description': description.value,
-      'bodyFileName': bodyFileName.value,
-      'headerFileName': headerFileName.value,
-      'footerFileName': footerFileName.value,
-      'recoverDataType': recoverDataType.toInt(),
       'documentValidityDurationInDays': documentValidityDuration.toDouble(),
       'workloadInHours': workload.toDouble(),
-      'placeSignatures': placeSignatures.map((e) => e.toJson()).toList(),
+      'templateFileInfo': {
+        'bodyFileName': bodyFileName.value,
+        'headerFileName': headerFileName.value,
+        'footerFileName': footerFileName.value,
+        'recoverDataType': recoverDataType.toInt(),
+        'placeSignatures': placeSignatures.map((e) => e.toJson()).toList(),
+      },
     };
   }
 
@@ -153,13 +155,15 @@ class DocumentTemplate extends ModelBase {
       'Id': id,
       'name': name.value,
       'description': description.value,
-      'bodyFileName': bodyFileName.value,
-      'headerFileName': headerFileName.value,
-      'footerFileName': footerFileName.value,
-      'recoverDataType': recoverDataType.toInt(),
       'documentValidityDurationInDays': documentValidityDuration.toDouble(),
       'workloadInHours': workload.toDouble(),
-      'placeSignatures': placeSignatures.map((e) => e.toJson()).toList(),
+      'templateFileInfo': {
+        'bodyFileName': bodyFileName.value,
+        'headerFileName': headerFileName.value,
+        'footerFileName': footerFileName.value,
+        'recoverDataType': recoverDataType.toInt(),
+        'placeSignatures': placeSignatures.map((e) => e.toJson()).toList(),
+      },
     };
   }
 

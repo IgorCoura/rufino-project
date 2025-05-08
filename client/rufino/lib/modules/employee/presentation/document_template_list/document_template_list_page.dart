@@ -17,7 +17,7 @@ class DocumentTemplateListPage extends StatelessWidget {
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () {
-            Modular.to.navigate('/employee/');
+            Modular.to.pop();
           },
         ),
         title: const Text('Templates de Documentos'),
@@ -33,24 +33,26 @@ class DocumentTemplateListPage extends StatelessWidget {
               builder: (context, state) {
                 if (state.exception != null) {
                   ErrorComponent.showException(context, state.exception!,
-                      () => Modular.to.navigate("/home"));
+                      () => Modular.to.popUntil((route) => route.isFirst));
                 }
                 return state.isLoading
                     ? CircularProgressIndicator()
-                    : ListView(
-                        children: state.documentTemplateList
-                            .map((element) => ListTile(
-                                  leading: const Icon(Icons.edit_document),
-                                  title: Text(element.name),
-                                  subtitle: Text(element.description),
-                                  onTap: () {
-                                    Modular.to.navigate(
-                                      '/employee/document-template/${element.id}',
-                                    );
-                                  },
-                                ))
-                            .toList(),
-                      );
+                    : state.documentTemplateList.isEmpty
+                        ? Text("Lista Vazia")
+                        : ListView(
+                            children: state.documentTemplateList
+                                .map((element) => ListTile(
+                                      leading: const Icon(Icons.edit_document),
+                                      title: Text(element.name),
+                                      subtitle: Text(element.description),
+                                      onTap: () {
+                                        Modular.to.pushNamed(
+                                          'document-template/${element.id}',
+                                        );
+                                      },
+                                    ))
+                                .toList(),
+                          );
               },
             ),
           ),
@@ -58,7 +60,7 @@ class DocumentTemplateListPage extends StatelessWidget {
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () {
-          Modular.to.navigate('/employee/document-template/new');
+          Modular.to.pushNamed('document-template/new');
         },
         child: const Icon(Icons.add),
       ),

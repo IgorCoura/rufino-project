@@ -18,6 +18,7 @@ class ErrorComponent {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       showDialog(
           barrierDismissible: false,
+          useRootNavigator: false,
           context: context,
           builder: (_) {
             return _dialogAlertUniqueMessage(context, exception, onPressed);
@@ -39,7 +40,12 @@ class ErrorComponent {
       title: Text("Error: ${error.code}"),
       content: Text(error.message),
       actions: [
-        TextButton(onPressed: () => onPressed(), child: const Text("OK"))
+        TextButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              onPressed();
+            },
+            child: const Text("OK"))
       ],
     );
   }

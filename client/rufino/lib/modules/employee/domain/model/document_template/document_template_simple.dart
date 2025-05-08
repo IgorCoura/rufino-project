@@ -4,6 +4,8 @@ class DocumentTemplateSimple {
   final String description;
 
   DocumentTemplateSimple(this.id, this.name, this.description);
+  DocumentTemplateSimple.empty(
+      {this.id = "", this.name = "", this.description = ""});
 
   factory DocumentTemplateSimple.fromJson(Map<String, dynamic> json) {
     return DocumentTemplateSimple(

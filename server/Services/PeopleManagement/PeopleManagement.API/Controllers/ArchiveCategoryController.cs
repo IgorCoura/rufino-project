@@ -4,10 +4,10 @@ using PeopleManagement.Application.Commands.ArchiveCategoryCommands.CreateArchiv
 using PeopleManagement.Application.Commands.ArchiveCategoryCommands.EditDescriptionArchiveCategory;
 using PeopleManagement.Application.Commands.ArchiveCategoryCommands.RemoveListenEvent;
 using PeopleManagement.Application.Commands.Identified;
-using PeopleManagement.Application.Queries.ArchiveCategoryAggregate;
+using PeopleManagement.Application.Queries.ArchiveCategory;
 using PeopleManagement.Domain.AggregatesModel.EmployeeAggregate;
 using PeopleManagement.Domain.AggregatesModel.EmployeeAggregate.Events;
-using static PeopleManagement.Application.Queries.ArchiveCategoryAggregate.ArchiveCategoryDtos;
+using static PeopleManagement.Application.Queries.ArchiveCategory.ArchiveCategoryDtos;
 
 namespace PeopleManagement.API.Controllers
 {

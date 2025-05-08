@@ -7,13 +7,11 @@ namespace PeopleManagement.Domain.AggregatesModel.RequireDocumentsAggregate
 {
     public class AssociationType : Enumeration
     {
-        public static readonly AssociationType Role = new(1, nameof(Role), typeof(Role));
-        public static readonly AssociationType Workplace = new(2, nameof(Workplace), typeof(Workplace));
+        public static readonly AssociationType Role = new(1, nameof(Role));
+        public static readonly AssociationType Workplace = new(2, nameof(Workplace));
 
-        public Type Type { get; private set; }
-        private AssociationType(int id, string name, Type type) : base(id, name)
+        private AssociationType(int id, string name) : base(id, name)
         {
-            Type = type;
         }
 
         public static implicit operator AssociationType(int id) => Enumeration.FromValue<AssociationType>(id);

@@ -32,7 +32,8 @@ class ArchiveCategoryBloc
       final company = await _companyService.getSelectedCompany();
       final categories =
           await _peopleManagementService.getArchiveCategories(company.id);
-      final events = await _peopleManagementService.getEvents(company.id);
+      final events =
+          await _peopleManagementService.getArchiveEvents(company.id);
 
       emit(state.copyWith(
         isLoading: false,

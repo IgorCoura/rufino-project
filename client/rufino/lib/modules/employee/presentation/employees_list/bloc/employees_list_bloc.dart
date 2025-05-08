@@ -82,7 +82,6 @@ class EmployeesListBloc extends Bloc<EmployeesListEvent, EmployeesListState> {
     }
 
     try {
-
       var company = await _companyService.getSelectedCompany();
       var listStatus = await _peopleManagementService.getStatus(company.id);
       //var listStatus = <Status>[];

@@ -43,7 +43,7 @@ class EmployeeProfilePage extends StatelessWidget {
               builder: (context, state) {
                 if (state.exception != null) {
                   ErrorComponent.showException(context, state.exception!,
-                      () => Modular.to.navigate("/home"));
+                      () => Modular.to.popUntil((route) => route.isFirst));
                 }
 
                 if (state.snackMessage != null &&
@@ -353,7 +353,7 @@ class EmployeeProfilePage extends StatelessWidget {
       leading: IconButton(
         icon: const Icon(Icons.arrow_back),
         onPressed: () {
-          Modular.to.navigate("/employee/");
+          Modular.to.pop();
         },
       ),
       title: BlocBuilder<EmployeeProfileBloc, EmployeeProfileState>(

@@ -2,7 +2,10 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:intl/intl.dart';
 import 'package:rufino/modules/employee/domain/model/archive_category/archive_category.dart';
-import 'package:rufino/modules/employee/domain/model/archive_category/event.dart';
+import 'package:rufino/modules/employee/domain/model/archive_category/event.dart'
+    as archive;
+import 'package:rufino/modules/employee/domain/model/require_document/event.dart'
+    as require_document;
 import 'package:rufino/modules/employee/domain/model/dependent/dependency_type.dart';
 import 'package:rufino/modules/employee/domain/model/dependent/dependent.dart';
 import 'package:rufino/modules/employee/domain/model/document_template/document_template.dart';
@@ -14,6 +17,10 @@ import 'package:rufino/modules/employee/domain/model/employee_contract_type.dart
 import 'package:rufino/modules/employee/domain/model/gender.dart';
 import 'package:rufino/modules/employee/domain/model/medical_admission_exam/medical_admission_exam.dart';
 import 'package:rufino/modules/employee/domain/model/military_document/military_document.dart';
+import 'package:rufino/modules/employee/domain/model/require_document/association.dart';
+import 'package:rufino/modules/employee/domain/model/require_document/association_type.dart';
+import 'package:rufino/modules/employee/domain/model/require_document/require_document.dart';
+import 'package:rufino/modules/employee/domain/model/require_document/require_document_simple.dart';
 import 'package:rufino/modules/employee/domain/model/vote_id/vote_id.dart';
 import 'package:rufino/modules/employee/domain/model/address/address.dart';
 import 'package:rufino/modules/employee/domain/model/contact/contact.dart';
@@ -456,6 +463,34 @@ class PeopleManagementService extends BaseService {
     throw treatUnsuccessfulResponses(response);
   }
 
+  Future<String> createRequireDocument(RequireDocument requireDocument) async {
+    var headers = await getHeadersWithRequestId();
+    Map<String, dynamic> body = requireDocument.toJsonCreate();
+    var url = peopleManagementUrl.replace(
+        path: "/api/v1/${requireDocument.companyId}/requiredocuments");
+    var response =
+        await http.post(url, headers: headers, body: jsonEncode(body));
+    if (response.statusCode == 200) {
+      var jsonResponse = jsonDecode(response.body);
+      return jsonResponse["id"];
+    }
+    throw treatUnsuccessfulResponses(response);
+  }
+
+  Future<String> editRequireDocument(RequireDocument requireDocument) async {
+    var headers = await getHeadersWithRequestId();
+    Map<String, dynamic> body = requireDocument.toJson();
+    var url = peopleManagementUrl.replace(
+        path: "/api/v1/${requireDocument.companyId}/requiredocuments");
+    var response =
+        await http.put(url, headers: headers, body: jsonEncode(body));
+    if (response.statusCode == 200) {
+      var jsonResponse = jsonDecode(response.body);
+      return jsonResponse["id"];
+    }
+    throw treatUnsuccessfulResponses(response);
+  }
+
   Future<Employee> getEmployee(String id, String companyId) async {
     var url =
         peopleManagementUrl.replace(path: "/api/v1/$companyId/employee/$id");
@@ -632,6 +667,18 @@ class PeopleManagementService extends BaseService {
     throw treatUnsuccessfulResponses(response);
   }
 
+  Future<List<require_document.Event>> getEvents(String companyId) async {
+    var headers = await getHeaders();
+    var url =
+        peopleManagementUrl.replace(path: "/api/v1/$companyId/employee/events");
+    var response = await http.get(url, headers: headers);
+    if (response.statusCode == 200) {
+      List<dynamic> jsonResponse = jsonDecode(response.body);
+      return require_document.Event.fromListJson(jsonResponse);
+    }
+    throw treatUnsuccessfulResponses(response);
+  }
+
   Future<PersonalInfoSeletionOptions> getPersonalInfoSeletionOptions(
       String companyId) async {
     var headers = await getHeaders();
@@ -780,14 +827,14 @@ class PeopleManagementService extends BaseService {
     throw treatUnsuccessfulResponses(response);
   }
 
-  Future<List<Event>> getEvents(String companyId) async {
+  Future<List<archive.Event>> getArchiveEvents(String companyId) async {
     var headers = await getHeaders();
     var url = peopleManagementUrl.replace(
         path: "/api/v1/$companyId/archivecategory/event");
     var response = await http.get(url, headers: headers);
     if (response.statusCode == 200) {
       List<dynamic> jsonResponse = jsonDecode(response.body);
-      return Event.fromListJson(jsonResponse);
+      return archive.Event.fromListJson(jsonResponse);
     }
     throw treatUnsuccessfulResponses(response);
   }
@@ -904,6 +951,66 @@ class PeopleManagementService extends BaseService {
       var file = File(path);
       await file.writeAsBytes(response.bodyBytes);
       return file;
+    }
+    throw treatUnsuccessfulResponses(response);
+  }
+
+  Future<List<RequireDocumentSimple>> getAllRequireDocumentsSimple(
+      String companyId) async {
+    var headers = await getHeaders();
+    var url = peopleManagementUrl.replace(
+        path: "/api/v1/$companyId/requiredocuments");
+
+    var response = await http.get(url, headers: headers);
+
+    if (response.statusCode == 200) {
+      var jsonResponse = jsonDecode(response.body);
+      return RequireDocumentSimple.fromListJson(jsonResponse);
+    }
+    throw treatUnsuccessfulResponses(response);
+  }
+
+  Future<RequireDocument> getByIdRequireDocuments(
+      String requireDocumentId, String companyId) async {
+    var headers = await getHeaders();
+    var url = peopleManagementUrl.replace(
+        path: "/api/v1/$companyId/requiredocuments/$requireDocumentId");
+
+    var response = await http.get(url, headers: headers);
+
+    if (response.statusCode == 200) {
+      var jsonResponse = jsonDecode(response.body);
+      return RequireDocument.fromJson(jsonResponse);
+    }
+    throw treatUnsuccessfulResponses(response);
+  }
+
+  Future<List<AssociationType>> getAllAssociationTypes(String companyId) async {
+    var headers = await getHeaders();
+    var url = peopleManagementUrl.replace(
+        path: "/api/v1/$companyId/requiredocuments/associationtype");
+
+    var response = await http.get(url, headers: headers);
+
+    if (response.statusCode == 200) {
+      var jsonResponse = jsonDecode(response.body);
+      return AssociationType.fromListJson(jsonResponse);
+    }
+    throw treatUnsuccessfulResponses(response);
+  }
+
+  Future<List<Association>> getAllAssociation(
+      String companyId, String associationTypeId) async {
+    var headers = await getHeaders();
+    var url = peopleManagementUrl.replace(
+        path:
+            "/api/v1/$companyId/requiredocuments/association/$associationTypeId");
+
+    var response = await http.get(url, headers: headers);
+
+    if (response.statusCode == 200) {
+      var jsonResponse = jsonDecode(response.body);
+      return Association.fromListJson(jsonResponse);
     }
     throw treatUnsuccessfulResponses(response);
   }

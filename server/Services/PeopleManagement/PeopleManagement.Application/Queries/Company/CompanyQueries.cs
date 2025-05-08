@@ -12,7 +12,7 @@ namespace PeopleManagement.Application.Queries.Company
 
         public async Task<IEnumerable<CompanySimplefiedDTO>> GetCompaniesSimplefiedsAsync(Guid[] companiesIds)
         {
-            var query = _context.Companies.Where(x => companiesIds.Contains(x.Id));
+            var query = _context.Companies.AsNoTracking().Where(x => companiesIds.Contains(x.Id));
 
 
             var companies = await query.Select(c => new CompanySimplefiedDTO
@@ -28,7 +28,7 @@ namespace PeopleManagement.Application.Queries.Company
 
         public async Task<CompanySimplefiedDTO> GetCompanySimplefiedAsync(Guid id)
         {
-            var query = _context.Companies.Where(x => x.Id == id);
+            var query = _context.Companies.AsNoTracking().Where(x => x.Id == id);
 
 
             var companies = await query.Select(c => new CompanySimplefiedDTO

@@ -3,6 +3,7 @@
     public class IdentifiedCommandHandler<T, R>(IMediator mediator, ILogger<IdentifiedCommandHandler<T, R>> logger) : IRequestHandler<IdentifiedCommand<T, R>, R>
     where T : IRequest<R> 
     {
+        //TODO: Implements DB
         private readonly List<IdentifiedCommand<T, R>> _commands = [];
         private readonly IMediator _mediator = mediator;
 

@@ -70,17 +70,10 @@ namespace PeopleManagement.Services.DomainEventHandlers
                     return;
                 }
 
-                var properties = typeof(Employee).GetProperties(BindingFlags.Public | BindingFlags.Instance)
-                   .Where(p => p.CanRead)
-                   .ToList();
 
-                bool hasMatchingProperty = properties.Any(property =>
-                {
-                    var value = property.GetValue(employee);
-                    return value is Guid guidValue && guidValue == reqDocument!.AssociationId;
-                });
+                bool isAssociation = employee.IsAssociation(reqDocument.AssociationId);
 
-                if (hasMatchingProperty == false)
+                if (isAssociation == false)
                 {
                     await _documentRepository.DeleteAsync(document);
                 }

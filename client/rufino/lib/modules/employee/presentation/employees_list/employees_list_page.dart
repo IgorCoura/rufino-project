@@ -14,8 +14,6 @@ class EmployeesListPage extends StatelessWidget {
     bloc.add(InitialEmployeesListEvent());
   }
 
-  // Paginação
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -23,7 +21,7 @@ class EmployeesListPage extends StatelessWidget {
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () {
-            Modular.to.navigate("/home");
+            Modular.to.pop();
           },
         ),
         title: BlocBuilder<EmployeesListBloc, EmployeesListState>(
@@ -62,25 +60,23 @@ class EmployeesListPage extends StatelessWidget {
                     value: "documents",
                     child: Text('Configurações dos Documentos'),
                   ),
+                  PopupMenuItem(
+                    value: "require-documents",
+                    child: Text('Requerimentos de Documentos'),
+                  ),
                 ];
               },
               onSelected: (value) async {
-                if (value == "logout") {
-                  // bloc.add(LogoutRequested());
-                  Modular.to.navigate("/login");
-                  return;
-                }
-                if (value == "company-section") {
-                  Modular.to.navigate("/company-selection");
-                  return;
-                }
                 if (value == "archive") {
-                  Modular.to.navigate("/employee/archive-category");
+                  Modular.to.pushNamed("archive-category");
                   return;
                 }
-
                 if (value == "documents") {
-                  Modular.to.navigate("/employee/document-template");
+                  Modular.to.pushNamed("document-template");
+                  return;
+                }
+                if (value == "require-documents") {
+                  Modular.to.pushNamed("require-documents");
                   return;
                 }
               },
@@ -97,8 +93,8 @@ class EmployeesListPage extends StatelessWidget {
             bloc: bloc,
             builder: (context, state) {
               if (state.exception != null) {
-                ErrorComponent.showException(context, state.exception!,
-                    () => Modular.to.navigate("/home/"));
+                ErrorComponent.showException(
+                    context, state.exception!, () => Modular.to.navigate("/"));
               }
               return Column(
                 children: [
@@ -292,7 +288,7 @@ class EmployeesListPage extends StatelessWidget {
         employee.status.name,
         style: const TextStyle(fontSize: 14),
       ),
-      onTap: () => Modular.to.navigate("/employee/profile/${employee.id}"),
+      onTap: () => Modular.to.pushNamed("profile/${employee.id}"),
     );
   }
 }

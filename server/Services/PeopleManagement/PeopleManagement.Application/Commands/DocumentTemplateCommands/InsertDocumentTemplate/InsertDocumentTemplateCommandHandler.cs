@@ -19,8 +19,11 @@ namespace PeopleManagement.Application.Commands.DocumentTemplateCommands.InsertD
         {
             var documentTemplate = await _documentTemplateRepository.FirstOrDefaultAsync(x => x.Id == request.DocumentTemplateId && x.CompanyId == request.CompanyId, cancellation: cancellationToken)
                 ?? throw new DomainException(this, DomainErrors.ObjectNotFound(nameof(DocumentTemplate), request.DocumentTemplateId.ToString()));
-            
-            if(await _localStorageService.HasFile(documentTemplate.TemplateFileInfo.Directory.ToString(), _documentTemplateOptions.SourceDirectory))
+
+            if (documentTemplate.TemplateFileInfo == null)
+                throw new DomainException(this, DomainErrors.DataNotBeNull(nameof(documentTemplate.TemplateFileInfo)));
+
+            if (await _localStorageService.HasFile(documentTemplate.TemplateFileInfo.Directory.ToString(), _documentTemplateOptions.SourceDirectory))
             {
                 await _localStorageService.DeleteAsync(documentTemplate.TemplateFileInfo.Directory.ToString(), _documentTemplateOptions.SourceDirectory);
             }

@@ -43,6 +43,26 @@ namespace PeopleManagement.IntegrationTests.Tests
             Assert.Equal(command.ToCommand(documentTemplate.CompanyId).ToRequireDocuments(result.Id), result);
         }
 
+        [Fact]
+        public async Task TestRecoverData()
+        {
+            var cancellationToken = new CancellationToken();
+
+            var context = _factory.GetContext();
+            var client = _factory.CreateClient();
+
+
+            var documentTemplate = await context.InsertDocumentTemplate(cancellationToken);
+            var role = await context.InsertRole(documentTemplate.CompanyId, cancellationToken);
+            await context.SaveChangesAsync(cancellationToken);
+
+            client.InputHeaders([documentTemplate.CompanyId]);
+            var response = await client.GetAsync($"/api/v1/{documentTemplate.CompanyId}/requiredocuments/association/1");
+
+            var content = await response.Content.ReadAsStringAsync();
+
+        }
+
     }
 
 

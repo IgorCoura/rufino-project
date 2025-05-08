@@ -37,7 +37,7 @@ class ArchiveCategoryPage extends StatelessWidget {
               builder: (context, state) {
                 if (state.exception != null) {
                   ErrorComponent.showException(context, state.exception!,
-                      () => Modular.to.navigate("/home"));
+                      () => Modular.to.popUntil((route) => route.isFirst));
                 }
                 if (state.snackMessage != null &&
                     state.snackMessage!.isNotEmpty) {

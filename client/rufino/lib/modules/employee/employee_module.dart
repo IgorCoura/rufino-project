@@ -12,6 +12,10 @@ import 'package:rufino/modules/employee/presentation/employee_profile/components
 import 'package:rufino/modules/employee/presentation/employee_profile/employee_profile_page.dart';
 import 'package:rufino/modules/employee/presentation/employees_list/bloc/employees_list_bloc.dart';
 import 'package:rufino/modules/employee/presentation/employees_list/employees_list_page.dart';
+import 'package:rufino/modules/employee/presentation/require_document/bloc/require_document_bloc.dart';
+import 'package:rufino/modules/employee/presentation/require_document/require_document_page.dart';
+import 'package:rufino/modules/employee/presentation/require_document_list/bloc/require_document_list_bloc.dart';
+import 'package:rufino/modules/employee/presentation/require_document_list/require_document_list_page.dart';
 
 class PeopleModule extends Module {
   @override
@@ -23,6 +27,8 @@ class PeopleModule extends Module {
     i.add<DependentsListComponentBloc>(DependentsListComponentBloc.new);
     i.add<DocumentTemplateBloc>(DocumentTemplateBloc.new);
     i.add<DocumentTemplateListBloc>(DocumentTemplateListBloc.new);
+    i.add<RequireDocumentListBloc>(RequireDocumentListBloc.new);
+    i.add<RequireDocumentBloc>(RequireDocumentBloc.new);
   }
 
   @override
@@ -43,5 +49,15 @@ class PeopleModule extends Module {
         child: (context) => EmployeeProfilePage(
               employeeId: r.args.params['id'],
             ));
+    r.child(
+      '/require-documents',
+      child: (context) => RequireDocumentListPage(),
+    );
+    r.child(
+      '/require-documents/:id',
+      child: (context) => RequireDocumentPage(
+        requireDocumentId: r.args.params['id'],
+      ),
+    );
   }
 }
