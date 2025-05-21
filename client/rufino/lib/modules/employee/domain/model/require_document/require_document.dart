@@ -113,7 +113,7 @@ class RequireDocument extends ModelBase {
       'description': description.value,
       'associationId': association.id,
       'associationType': associationType.toInt(),
-      'documentTemplateIds': documentTemplates.map((e) => e.id).toList(),
+      'documentsTemplatesIds': documentTemplates.map((e) => e.id).toList(),
       'listenEvents': listenEvents.map((e) => e.toJson()).toList(),
     };
   }
@@ -125,7 +125,7 @@ class RequireDocument extends ModelBase {
       'description': description.value,
       'associationId': association.id,
       'associationType': associationType.toInt(),
-      'documentTemplateIds': documentTemplates.map((e) => e.id).toList(),
+      'documentsTemplatesIds': documentTemplates.map((e) => e.id).toList(),
       'listenEvents': listenEvents.map((e) => e.toJson()).toList(),
     };
   }

@@ -1,4 +1,6 @@
-﻿namespace PeopleManagement.Application.Queries.Base
+﻿using PeopleManagement.Domain.SeedWord;
+
+namespace PeopleManagement.Application.Queries.Base
 {
     public class BaseDtos
     {
@@ -13,6 +15,11 @@
             public int Id { get; init; }
             public string Name { get; init; } = string.Empty;
             public static EnumerationDto Empty => new(-1, "");
+
+            public static implicit operator EnumerationDto(Enumeration enumeration)
+            {
+                return new EnumerationDto(enumeration.Id, enumeration.Name);
+            }   
         }
     }
 }

@@ -8,7 +8,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace PeopleManagement.Infra.Migrations
 {
     /// <inheritdoc />
-    public partial class init : Migration
+    public partial class @int : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -165,7 +165,7 @@ namespace PeopleManagement.Infra.Migrations
                 name: "PlaceSignature",
                 columns: table => new
                 {
-                    TemplateFileInfoDocumentTemplateId = table.Column<Guid>(type: "uuid", nullable: false),
+                    DocumentTemplateId = table.Column<Guid>(type: "uuid", nullable: false),
                     Id = table.Column<int>(type: "integer", nullable: false)
                         .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
                     Type = table.Column<int>(type: "integer", nullable: false),
@@ -177,10 +177,10 @@ namespace PeopleManagement.Infra.Migrations
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_PlaceSignature", x => new { x.TemplateFileInfoDocumentTemplateId, x.Id });
+                    table.PrimaryKey("PK_PlaceSignature", x => new { x.DocumentTemplateId, x.Id });
                     table.ForeignKey(
-                        name: "FK_PlaceSignature_DocumentTemplates_TemplateFileInfoDocumentTe~",
-                        column: x => x.TemplateFileInfoDocumentTemplateId,
+                        name: "FK_PlaceSignature_DocumentTemplates_DocumentTemplateId",
+                        column: x => x.DocumentTemplateId,
                         principalTable: "DocumentTemplates",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
@@ -513,11 +513,11 @@ namespace PeopleManagement.Infra.Migrations
                 {
                     Id = table.Column<Guid>(type: "uuid", nullable: false),
                     Content = table.Column<string>(type: "text", nullable: false),
-                    Validity = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
+                    Validity = table.Column<DateOnly>(type: "date", nullable: true),
                     Name = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: true),
                     Extension = table.Column<int>(type: "integer", nullable: true),
                     Status = table.Column<int>(type: "integer", nullable: false),
-                    Date = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    Date = table.Column<DateOnly>(type: "date", nullable: false),
                     DocumentId = table.Column<Guid>(type: "uuid", nullable: false),
                     CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
                     UpdatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false)

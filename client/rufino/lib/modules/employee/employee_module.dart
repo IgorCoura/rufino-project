@@ -1,6 +1,7 @@
 import 'package:flutter_modular/flutter_modular.dart';
 import 'package:rufino/app_module.dart';
-import 'package:rufino/modules/employee/domain/services/people_management_service.dart';
+import 'package:rufino/modules/employee/services/document_service.dart';
+import 'package:rufino/modules/employee/services/people_management_service.dart';
 import 'package:rufino/modules/employee/presentation/archive_category/archive_category_page.dart';
 import 'package:rufino/modules/employee/presentation/archive_category/bloc/archive_category_bloc.dart';
 import 'package:rufino/modules/employee/presentation/document_template/bloc/document_template_bloc.dart';
@@ -9,6 +10,7 @@ import 'package:rufino/modules/employee/presentation/document_template_list/bloc
 import 'package:rufino/modules/employee/presentation/document_template_list/document_template_list_page.dart';
 import 'package:rufino/modules/employee/presentation/employee_profile/bloc/employee_profile_bloc.dart';
 import 'package:rufino/modules/employee/presentation/employee_profile/components/dependents_list_component/bloc/dependents_list_component_bloc.dart';
+import 'package:rufino/modules/employee/presentation/employee_profile/components/documents_component/bloc/documents_component_bloc.dart';
 import 'package:rufino/modules/employee/presentation/employee_profile/employee_profile_page.dart';
 import 'package:rufino/modules/employee/presentation/employees_list/bloc/employees_list_bloc.dart';
 import 'package:rufino/modules/employee/presentation/employees_list/employees_list_page.dart';
@@ -20,7 +22,11 @@ import 'package:rufino/modules/employee/presentation/require_document_list/requi
 class PeopleModule extends Module {
   @override
   void binds(i) {
+    //SERVICES
     i.add<PeopleManagementService>(PeopleManagementService.new);
+    i.add<DocumentService>(DocumentService.new);
+
+    //BLOCs
     i.add<EmployeesListBloc>(EmployeesListBloc.new);
     i.add<EmployeeProfileBloc>(EmployeeProfileBloc.new);
     i.add<ArchiveCategoryBloc>(ArchiveCategoryBloc.new);
@@ -29,6 +35,7 @@ class PeopleModule extends Module {
     i.add<DocumentTemplateListBloc>(DocumentTemplateListBloc.new);
     i.add<RequireDocumentListBloc>(RequireDocumentListBloc.new);
     i.add<RequireDocumentBloc>(RequireDocumentBloc.new);
+    i.add<DocumentsComponentBloc>(DocumentsComponentBloc.new);
   }
 
   @override

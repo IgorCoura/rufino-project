@@ -29,13 +29,11 @@ namespace PeopleManagement.Domain.AggregatesModel.RequireDocumentsAggregate
             Name name, Description description, List<ListenEvent> listenEvents, List<Guid> documentsTemplatesIds) 
             => new(id, companyId, associationId, associationType, name, description, listenEvents, documentsTemplatesIds);
 
-        public void Edit(Guid id, Guid companyId, Guid associationId, AssociationType associationType,
+        public void Edit(Guid associationId, AssociationType associationType,
             Name name, Description description, List<ListenEvent> listenEvents, List<Guid> documentsTemplatesIds)
         {
-            Id = id;
-            CompanyId = companyId;
             AssociationId = associationId;
-            AssociationType = AssociationType;
+            AssociationType = associationType;
             Name = name;
             Description = description;
             ListenEvents = listenEvents;

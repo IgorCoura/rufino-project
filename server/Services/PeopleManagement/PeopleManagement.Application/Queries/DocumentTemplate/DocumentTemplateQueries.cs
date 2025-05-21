@@ -53,7 +53,7 @@ namespace PeopleManagement.Application.Queries.DocumentTemplate
                         Id = x.TemplateFileInfo.RecoverDataType.Id,
                         Name = x.TemplateFileInfo.RecoverDataType.Name
                     },
-                    PlaceSignatures = x.TemplateFileInfo.PlaceSignatures.Select(p => new PlaceSignatureDto
+                    PlaceSignatures = x.PlaceSignatures.Select(p => new PlaceSignatureDto
                     {
                         TypeSignature = new EnumerationDto
                         {
@@ -95,7 +95,7 @@ namespace PeopleManagement.Application.Queries.DocumentTemplate
                         Id = x.TemplateFileInfo.RecoverDataType.Id,
                         Name = x.TemplateFileInfo.RecoverDataType.Name
                     },
-                    PlaceSignatures = x.TemplateFileInfo.PlaceSignatures.Select(p => new PlaceSignatureDto
+                    PlaceSignatures = x.PlaceSignatures.Select(p => new PlaceSignatureDto
                     {
                         TypeSignature = new EnumerationDto
                         {

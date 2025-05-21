@@ -6,16 +6,19 @@ namespace PeopleManagement.Domain.AggregatesModel.DocumentAggregate
 {
     public class DocumentUnit : Entity
     {
-        private DateTime? _validity;
+        private DateOnly? _validity;
         public string Content { get; private set; } = string.Empty;
-        public DateTime? Validity 
+        public DateOnly? Validity 
         { 
             get => _validity;
             private set
             {
-                if (value != null && Validity > DateTime.UtcNow)
+                
+                if (value != null)
                 {
-                    throw new DomainException(this, DomainErrors.DataIsGreaterThanMax(nameof(Validity), (DateTime)value, DateTime.Now));
+                    DateOnly cValue = (DateOnly)value;
+                    if(cValue.ToDateTime(TimeOnly.MinValue) < DateTime.UtcNow)
+                        throw new DomainException(this, DomainErrors.DataIsGreaterThanMax(nameof(Validity), (DateOnly)value, DateOnly.FromDateTime(DateTime.UtcNow)));
                 }
                 _validity = value; 
             }
@@ -24,7 +27,7 @@ namespace PeopleManagement.Domain.AggregatesModel.DocumentAggregate
         public Name? Name { get; private set; } = null!;
         public Extension? Extension { get; private set; } = null!;
         public DocumentUnitStatus Status { get; private set; } = DocumentUnitStatus.Pending;
-        public DateTime Date { get; private set; }
+        public DateOnly Date { get; private set; }
         public Guid DocumentId { get; private set; }
         public Document Document { get; private set; } = null!;
 
@@ -53,22 +56,23 @@ namespace PeopleManagement.Domain.AggregatesModel.DocumentAggregate
             Status = DocumentUnitStatus.OK;
         }
 
-        public void UpdateDetails(DateTime date, DateTime? validity, string content)
+        public void UpdateDetails(DateOnly date, DateOnly? validity, string content)
         {
             Date = date;
             Validity = validity;    
             Content = content;
         }
 
-        public void UpdateDetails(DateTime date, TimeSpan? validity, string content)
+        public void UpdateDetails(DateOnly date, TimeSpan? validity, string content)
         {
             Date = date;
-            DateTime? dateTimeValidity = null;
+            DateOnly? dateValidity = null;
             if (validity is not null)
             {
-                dateTimeValidity = date.Add((TimeSpan)validity);
+                var dateTimeValidity = date.ToDateTime(TimeOnly.MinValue).Add(validity.Value);
+                dateValidity = DateOnly.FromDateTime(dateTimeValidity);
             }
-            Validity = dateTimeValidity;
+            Validity = dateValidity;
             Content = content;
         }
 
@@ -101,6 +105,7 @@ namespace PeopleManagement.Domain.AggregatesModel.DocumentAggregate
         public bool RequiresVerification => Status == DocumentUnitStatus.RequiredValidaty;
         public bool IsOK => Status == DocumentUnitStatus.OK;
         public string GetNameWithExtension => $"{Name}.{Extension}";
+        public bool CanEdit => (Name == null || Name.IsNullOrEmpty) && Extension == null;
 
     }
 }

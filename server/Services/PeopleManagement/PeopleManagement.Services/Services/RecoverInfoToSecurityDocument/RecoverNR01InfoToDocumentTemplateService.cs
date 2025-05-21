@@ -24,7 +24,7 @@ namespace PeopleManagement.Services.Services.RecoverInfoToSecurityDocument
         private readonly IDepartmentRepository _departmentRepository = departmentRepository;
         private readonly ICompanyRepository _companyRepositoty = companyRepositoty;
 
-        public async Task<string> RecoverInfo(Guid id, Guid companyId, DateTime date, CancellationToken cancellation = default)
+        public async Task<string> RecoverInfo(Guid id, Guid companyId, DateOnly date, CancellationToken cancellation = default)
         {
             var employee = await _employeeRepository.FirstOrDefaultAsync(x => x.Id == id && x.CompanyId == companyId, cancellation: cancellation)
                 ?? throw new DomainException(this, DomainErrors.ObjectNotFound(nameof(Employee), id.ToString()));
@@ -50,7 +50,7 @@ namespace PeopleManagement.Services.Services.RecoverInfoToSecurityDocument
                 ["company"] =$"{company.FantasyName}",
                 ["risks"] = GetRisks(department.Name.Value),
                 ["epis"] = GetEpis(department.Name.Value),
-                ["date"] = $"{date}"
+                ["date"] = $"{date.ToString("dd/MM/yyyy")}"
             };
             
             return result.ToString();
@@ -151,7 +151,15 @@ namespace PeopleManagement.Services.Services.RecoverInfoToSecurityDocument
                 { "ADMINISTRAÇÃO DE OBRA", risksAdm }
             };
 
-            return risks[department.ToUpper()];
+            try
+            {
+                return risks[department.ToUpper()];
+            }
+            catch
+            {
+                return new JsonArray();
+            }
+            
         }
 
         private static dynamic GetEpis(string department)
@@ -200,7 +208,14 @@ namespace PeopleManagement.Services.Services.RecoverInfoToSecurityDocument
                 }
             };
 
-            return epis[department.ToUpper()];
+            try
+            {
+                return epis[department.ToUpper()];
+            }
+            catch
+            {
+                return new JsonArray();
+            }
         }
     }
 }

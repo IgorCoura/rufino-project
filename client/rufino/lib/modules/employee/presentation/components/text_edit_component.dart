@@ -5,14 +5,15 @@ import 'package:shimmer/shimmer.dart';
 
 class TextEditComponent extends BaseEditComponent {
   final TextPropBase textProp;
+  final Function(Object value)? onChangedValue;
 
   const TextEditComponent(
       {super.onSaveChanges,
+      this.onChangedValue,
       super.isEditing,
       super.isLoading,
       super.key,
       required this.textProp});
-
   @override
   TextEditComponent copyWith(
           {Function(Object value)? onSaveChanges,
@@ -24,10 +25,12 @@ class TextEditComponent extends BaseEditComponent {
         isEditing: isEditing ?? this.isEditing,
         textProp: textProp,
         isLoading: isLoading ?? this.isLoading,
+        onChangedValue: onChangedValue,
       );
 
   @override
   Widget build(BuildContext context) {
+    TextPropBase value = textProp;
     return Column(
       children: [
         isLoading
@@ -60,6 +63,14 @@ class TextEditComponent extends BaseEditComponent {
                       newValue != textProp.value) {
                     var tempTextProp = textProp.copyWith(value: newValue);
                     onSaveChanges!(tempTextProp);
+                  }
+                },
+                onChanged: (newValue) {
+                  if (newValue != textProp.value) {
+                    value = textProp.copyWith(value: newValue);
+                    if (onChangedValue != null) {
+                      onChangedValue!(value);
+                    }
                   }
                 },
               ),

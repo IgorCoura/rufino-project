@@ -25,6 +25,34 @@ namespace PeopleManagement.Infra.Mapping
             builder.Property(x => x.Workload)
                .IsRequired(false);
 
+            builder.OwnsMany(x => x.PlaceSignatures, prop =>
+            {
+                prop.Property(x => x.Type)
+                    .HasConversion(x => x.Id, x => x)
+                    .IsRequired();
+
+                prop.Property(x => x.Page)
+                    .HasConversion(x => x.Value, x => x)
+                    .IsRequired();
+
+                prop.Property(x => x.RelativePositionBotton)
+                    .HasConversion(x => x.Value, x => x)
+                    .IsRequired();
+
+                prop.Property(x => x.RelativePositionLeft)
+                    .HasConversion(x => x.Value, x => x)
+                    .IsRequired();
+
+                prop.Property(x => x.RelativeSizeX)
+                    .HasConversion(x => x.Value, x => x)
+                    .IsRequired();
+
+                prop.Property(x => x.RelativeSizeY)
+                    .HasConversion(x => x.Value, x => x)
+                    .IsRequired();
+
+            });
+
             builder.OwnsOne(x => x.TemplateFileInfo, t =>
             {
                 t.Property(x => x.Directory)
@@ -50,34 +78,7 @@ namespace PeopleManagement.Infra.Mapping
                 t.Property(x => x.RecoverDataType)
                     .HasConversion(x => x.Id, x => x)
                     .IsRequired();
-
-                t.OwnsMany(x => x.PlaceSignatures, prop =>
-                {
-                    prop.Property(x => x.Type)
-                        .HasConversion(x => x.Id, x => x)
-                        .IsRequired();
-
-                    prop.Property(x => x.Page)
-                        .HasConversion(x => x.Value, x => x)
-                        .IsRequired();
-
-                    prop.Property(x => x.RelativePositionBotton)
-                        .HasConversion(x => x.Value, x => x)
-                        .IsRequired();
-
-                    prop.Property(x => x.RelativePositionLeft)
-                        .HasConversion(x => x.Value, x => x)
-                        .IsRequired();
-
-                    prop.Property(x => x.RelativeSizeX)
-                        .HasConversion(x => x.Value, x => x)
-                        .IsRequired();
-
-                    prop.Property(x => x.RelativeSizeY)
-                        .HasConversion(x => x.Value, x => x)
-                        .IsRequired();
-
-                });
+                
             });
 
         }

@@ -31,6 +31,8 @@ namespace PeopleManagement.Infra.Mapping
 
             builder.Property(x => x.Date)
                 .IsRequired();
+            
+
 
             
         }

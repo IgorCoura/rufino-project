@@ -2,7 +2,7 @@ import 'package:bloc/bloc.dart';
 import 'package:equatable/equatable.dart';
 import 'package:rufino/domain/services/company_service.dart';
 import 'package:rufino/modules/employee/domain/model/document_template/document_template_simple.dart';
-import 'package:rufino/modules/employee/domain/services/people_management_service.dart';
+import 'package:rufino/modules/employee/services/people_management_service.dart';
 import 'package:rufino/shared/errors/aplication_errors.dart';
 
 part 'document_template_list_event.dart';

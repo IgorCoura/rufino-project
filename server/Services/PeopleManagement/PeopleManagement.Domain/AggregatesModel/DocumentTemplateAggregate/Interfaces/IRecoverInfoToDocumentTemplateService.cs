@@ -2,6 +2,6 @@
 {
     public interface IRecoverInfoToDocumentTemplateService
     {
-        Task<string> RecoverInfo(Guid id, Guid companyId, DateTime date, CancellationToken cancellation = default);
+        Task<string> RecoverInfo(Guid id, Guid companyId, DateOnly date, CancellationToken cancellation = default);
     }
 }

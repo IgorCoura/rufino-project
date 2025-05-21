@@ -122,6 +122,7 @@ for erro in list_errors:
     print(erro)
     
 print("Nomes não encontrados")
+
 for name in list_names_not_found:
     print(name)
     

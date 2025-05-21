@@ -20,7 +20,7 @@ import 'package:rufino/modules/employee/domain/model/role_info/department.dart';
 import 'package:rufino/modules/employee/domain/model/role_info/position.dart';
 import 'package:rufino/modules/employee/domain/model/role_info/role.dart';
 import 'package:rufino/modules/employee/domain/model/role_info/role_info.dart';
-import 'package:rufino/modules/employee/domain/services/people_management_service.dart';
+import 'package:rufino/modules/employee/services/people_management_service.dart';
 import 'package:rufino/shared/errors/aplication_errors.dart';
 
 part 'employee_profile_event.dart';

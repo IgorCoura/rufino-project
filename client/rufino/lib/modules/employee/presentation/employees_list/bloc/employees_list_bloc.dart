@@ -8,7 +8,7 @@ import 'package:rufino/domain/services/company_service.dart';
 import 'package:rufino/modules/employee/domain/model/employee_with_role.dart';
 import 'package:rufino/modules/employee/domain/model/search_params.dart';
 import 'package:rufino/modules/employee/domain/model/status.dart';
-import 'package:rufino/modules/employee/domain/services/people_management_service.dart';
+import 'package:rufino/modules/employee/services/people_management_service.dart';
 import 'package:rufino/shared/errors/aplication_errors.dart';
 
 part 'employees_list_event.dart';

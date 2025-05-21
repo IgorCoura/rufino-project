@@ -11,6 +11,7 @@ services:
         ASPNETCORE_URLS: "https://+;http://+"
         ASPNETCORE_HTTPS_PORT: "443"
         ASPNETCORE_ENVIRONMENT: Developmen
+        PUPPETEER_EXECUTABLE_PATH: "/usr/bin/google-chrome-unstable"
     volumes:
         - ${APPDATA}\microsoft\UserSecrets\:/root/.microsoft/usersecrets
         - ${USERPROFILE}\.aspnet\https:/root/.aspnet/https/

@@ -18,6 +18,7 @@ using PeopleManagement.Domain.SeedWord;
 using PeopleManagement.Domain.AggregatesModel.DocumentTemplateAggregate;
 using PeopleManagement.Domain.AggregatesModel.RequireDocumentsAggregate;
 using System.ComponentModel.Design;
+using PeopleManagement.Domain.AggregatesModel.DocumentAggregate;
 
 namespace PeopleManagement.Infra.DataForTests
 {
@@ -49,6 +50,8 @@ namespace PeopleManagement.Infra.DataForTests
                     await context.AddRangeIfNotExistsAsync(documentTemplates);
                     var requireDocuments = CreateRequireDocuments(companies[0].Id, roles[0].Id, documentTemplates);
                     await context.AddRangeIfNotExistsAsync(requireDocuments);
+                    var documents = CreateDocuments(employees[0].Id, companies[0].Id, requireDocuments, documentTemplates);
+                    await context.AddRangeIfNotExistsAsync(documents);
                     await context.SaveChangesWithoutDispatchEventsAsync();
                     
                 }
@@ -197,6 +200,52 @@ namespace PeopleManagement.Infra.DataForTests
         public static Employee[] CreateEmployees(Role[] roles, Guid workplaceId, Guid companyId)
         {
             var employees = new List<Employee>();
+
+            employees.Add(
+                FactoryEmployee(
+                    Guid.Parse("18439da0-259e-45df-8ba4-197e1833e555"),
+                    companyId,
+                    "Andrea Clara Valentina Jesus",
+                    roles[0].Id,
+                    workplaceId,
+                    EmployeeAddress.Create(
+                        "29170-196",
+                        "Avenida Diamantina",
+                        "126",
+                        "",
+                        "Nova Carapina II",
+                        "Serra",
+                        "ES",
+                        "Brasil"
+                        ),
+                    EmployeeContact.Create(
+                        "andrea_clara_jesus@inpa.gov.br",
+                        "(27) 99431-6916"
+                        ),
+                    PersonalInfo.Create(
+                        Deficiency.Create("Nenhuma Observação", [Disability.Auditory, Disability.Mental, Disability.Rehabilitated]),
+                        MaritalStatus.Single,
+                        Gender.FEMALE,
+                        Ethinicity.White,
+                        EducationLevel.CompleteHigher
+                        ),
+                    IdCard.Create(
+                        "455.800.699-36",
+                        "Teresinha Isabelle Débora",
+                        "Raul Lucca Jesus",
+                        "Serra",
+                        "ES",
+                        "brasileira",
+                        DateOnly.Parse("1993-07-23")
+                        ),
+                    VoteId.Create("113377750140"),
+                    MedicalAdmissionExam.Create(DateOnly.Parse("2024-08-30"), DateOnly.Parse("2025-08-30")),
+                    militaryDocument: null,
+                    "TC0001",
+                    DateOnly.Parse("2024-09-01"),
+                    EmploymentContractType.CLT
+                    ));
+
             employees.Add(
                 FactoryEmployee(Guid.Parse("caf35a09-3ec0-48ff-9e67-0155151e81e6"), companyId, "Ana Clara", roles[0].Id, workplaceId)
                 );
@@ -286,50 +335,7 @@ namespace PeopleManagement.Infra.DataForTests
                 ); 
   
 
-            employees.Add(
-                FactoryEmployee(
-                    Guid.Parse("18439da0-259e-45df-8ba4-197e1833e555"),
-                    companyId,
-                    "Andrea Clara Valentina Jesus",
-                    roles[0].Id,
-                    workplaceId,
-                    EmployeeAddress.Create(
-                        "29170-196",
-                        "Avenida Diamantina",
-                        "126",
-                        "",
-                        "Nova Carapina II",
-                        "Serra",
-                        "ES",
-                        "Brasil"
-                        ),
-                    EmployeeContact.Create(
-                        "andrea_clara_jesus@inpa.gov.br",
-                        "(27) 99431-6916"
-                        ),
-                    PersonalInfo.Create(
-                        Deficiency.Create("Nenhuma Observação", [Disability.Auditory, Disability.Mental, Disability.Rehabilitated]),
-                        MaritalStatus.Single,
-                        Gender.FEMALE,
-                        Ethinicity.White,
-                        EducationLevel.CompleteHigher
-                        ),
-                    IdCard.Create(
-                        "455.800.699-36",
-                        "Teresinha Isabelle Débora",
-                        "Raul Lucca Jesus",
-                        "Serra",
-                        "ES",
-                        "brasileira",
-                        DateOnly.Parse("1993-07-23")
-                        ),
-                    VoteId.Create("113377750140"),
-                    MedicalAdmissionExam.Create(DateOnly.Parse("2024-08-30"), DateOnly.Parse("2025-08-30")),
-                    militaryDocument: null,
-                    "TC0001",
-                    DateOnly.Parse("2024-09-01"),
-                    EmploymentContractType.CLT
-                    ));
+            
 
             return employees.ToArray();
 
@@ -394,12 +400,13 @@ namespace PeopleManagement.Infra.DataForTests
                 "index.html",
                 "header.html",
                 "footer.html",
+                
+                RecoverDataType.NR01
+                ),
                 [
                     PlaceSignature.Create(TypeSignature.Signature,1,20.5, 5.3,5.2,5.5),
                     PlaceSignature.Create(TypeSignature.Visa,1,20,15,3,3),
-                ],
-                RecoverDataType.NR01
-                )
+                ]
                 ),
                 DocumentTemplate.Create(
                 Guid.Parse("D857FAD2-1B5F-44A1-8428-80B7E85C25CE"),
@@ -413,12 +420,12 @@ namespace PeopleManagement.Infra.DataForTests
                 "index.html",
                 "header.html",
                 "footer.html",
+                RecoverDataType.NR01
+                ),
                 [
                     PlaceSignature.Create(TypeSignature.Signature,1,20.5, 5.3,5.2,5.5),
                     PlaceSignature.Create(TypeSignature.Visa,1,20,15,3,3),
-                ],
-                RecoverDataType.NR01
-                )
+                ]
                 ),
             };
             return documents;
@@ -457,6 +464,66 @@ namespace PeopleManagement.Infra.DataForTests
             };
 
             return documents;
+        }
+
+        public static Document[] CreateDocuments(Guid employeeId, Guid companyId, RequireDocuments[] requiredDocuments, DocumentTemplate[] documentsTemplates)
+        {
+            var documentsTemplateIds = documentsTemplates.Select(x => x.Id).ToList();
+            var requiredDocumentsIds = requiredDocuments.Select(x => x.Id).ToList();
+            var documents = new[]
+            {
+                Document.Create(
+                Guid.Parse("CE0FB044-E7A6-4ABE-8A4A-EC60F666D18F"),
+                employeeId,
+                companyId,
+                requiredDocumentsIds[0],
+                documentsTemplateIds[0],
+                "Documento numero 1",
+                "Descrição do documento numero 1"
+                ),
+
+            Document.Create(
+                Guid.Parse("9024DFA3-DC09-4311-8AC3-287CD179A02A"),
+                employeeId,
+                companyId,
+                requiredDocumentsIds[1],
+                documentsTemplateIds[1],
+                "Documento numero 2",
+                "Descrição do documento numero 2"
+                ), 
+            };
+
+            documents[0].NewDocumentUnit(
+                Guid.Parse("9315E288-F25A-43EA-9B0E-8EFC3FF5CAF6")
+                );
+
+            documents[0].UpdateDocumentUnitDetails(
+                Guid.Parse("9315E288-F25A-43EA-9B0E-8EFC3FF5CAF6"),
+                DateOnly.FromDateTime(DateTime.UtcNow),
+                DateOnly.FromDateTime(DateTime.UtcNow.AddDays(120)),
+                "Conteudo do documento 1"
+                );
+
+
+            documents[0].NewDocumentUnit(
+                Guid.Parse("DB55022B-54CD-47F9-A03A-5F5CF8BA6BE4")
+                );
+
+            documents[0].UpdateDocumentUnitDetails(
+                Guid.Parse("DB55022B-54CD-47F9-A03A-5F5CF8BA6BE4"),
+                DateOnly.FromDateTime(DateTime.UtcNow),
+                DateOnly.FromDateTime(DateTime.UtcNow.AddDays(130)),
+                "Conteudo do documento 2"
+                );
+
+            documents[0].InsertUnitWithoutRequireValidation(
+                Guid.Parse("DB55022B-54CD-47F9-A03A-5F5CF8BA6BE4"),
+                "Name File 2",
+                "pdf"
+                );
+
+            return documents;
+
         }
 
         private static Employee FactoryEmployee(Guid id, Guid companyId, string Name, Guid? roleId = null, Guid? workplaceId = null,

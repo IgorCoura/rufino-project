@@ -4,6 +4,7 @@ using PeopleManagement.Domain.AggregatesModel.DocumentAggregate.Interfaces;
 using PuppeteerSharp;
 using PuppeteerSharp.Media;
 using System.Text.Json.Nodes;
+using Microsoft.EntityFrameworkCore.Metadata;
 
 namespace PeopleManagement.Infra.Services
 {
@@ -25,7 +26,7 @@ namespace PeopleManagement.Infra.Services
             //Pdf Generate
             await DownloadBrowser();
 
-            await using var browser = await Puppeteer.LaunchAsync(new LaunchOptions { Headless = true });
+            await using var browser = await Puppeteer.LaunchAsync(new LaunchOptions { Headless = true, Args = ["--no-sandbox",  "--disable-setuid-sandbox"] });
 
             await using var page = await browser.NewPageAsync();
 

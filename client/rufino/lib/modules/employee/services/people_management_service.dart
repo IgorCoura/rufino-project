@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import 'package:rufino/modules/employee/domain/model/archive_category/archive_category.dart';
 import 'package:rufino/modules/employee/domain/model/archive_category/event.dart'
     as archive;
+import 'package:rufino/modules/employee/domain/model/document/document.dart';
 import 'package:rufino/modules/employee/domain/model/require_document/event.dart'
     as require_document;
 import 'package:rufino/modules/employee/domain/model/dependent/dependency_type.dart';
@@ -37,6 +38,7 @@ import 'package:rufino/modules/employee/domain/model/role_info/position.dart';
 import 'package:rufino/modules/employee/domain/model/role_info/role.dart';
 import 'package:rufino/modules/employee/domain/model/role_info/role_info.dart';
 import 'package:rufino/shared/services/base_service.dart';
+import 'package:rufino/shared/util/data_convetion.dart';
 
 class PeopleManagementService extends BaseService {
   final Uri peopleManagementUrl =
@@ -309,16 +311,10 @@ class PeopleManagementService extends BaseService {
       String initDate, String contractTypeId, String registration) async {
     var headers = await getHeadersWithRequestId();
 
-    // Parse the input date string in dd/MM/yyyy format
-    DateTime parsedDate = DateFormat('dd/MM/yyyy').parse(initDate);
-
-    // Format the parsed date to yyyy-MM-dd
-    String formattedDate = DateFormat('yyyy-MM-dd').format(parsedDate);
-
     Map<String, dynamic> body = {
       "employeeId": employeeId,
       "registration": registration,
-      "dateInit": formattedDate,
+      "dateInit": DataConvetion.convertToDataOnly(initDate),
       "contractType": int.parse(contractTypeId),
     };
 
@@ -917,44 +913,6 @@ class PeopleManagementService extends BaseService {
     throw treatUnsuccessfulResponses(response);
   }
 
-  Future<String> sendFileToDocumentTemplate(
-      String companyId, String documentTemplateId, String path) async {
-    var headers = await getHeaders();
-    var url = peopleManagementUrl.replace(
-        path: "/api/v1/$companyId/documenttemplate/upload");
-
-    var request = http.MultipartRequest("POST", url);
-    request.headers.addAll(headers);
-    request.files.add(await http.MultipartFile.fromPath('formFile', path));
-    request.fields['id'] = documentTemplateId;
-    request.fields['company'] = companyId;
-    var response = await request.send();
-    if (response.statusCode == 200) {
-      var responseBody = await response.stream.bytesToString();
-      dynamic jsonResponse = jsonDecode(responseBody);
-      return jsonResponse["id"];
-    }
-    var exception = await treatUnsuccessfulStreamedResponses(response);
-    throw exception;
-  }
-
-  Future<File> downloadFileToDocumentTemplate(
-      String companyId, String documentTemplateId, String path) async {
-    var headers = await getHeaders(contentType: "application/octet-stream");
-    var url = peopleManagementUrl.replace(
-        path:
-            "/api/v1/$companyId/documenttemplate/download/$documentTemplateId");
-
-    var response = await http.get(url, headers: headers);
-
-    if (response.statusCode == 200) {
-      var file = File(path);
-      await file.writeAsBytes(response.bodyBytes);
-      return file;
-    }
-    throw treatUnsuccessfulResponses(response);
-  }
-
   Future<List<RequireDocumentSimple>> getAllRequireDocumentsSimple(
       String companyId) async {
     var headers = await getHeaders();
@@ -1011,6 +969,44 @@ class PeopleManagementService extends BaseService {
     if (response.statusCode == 200) {
       var jsonResponse = jsonDecode(response.body);
       return Association.fromListJson(jsonResponse);
+    }
+    throw treatUnsuccessfulResponses(response);
+  }
+
+  Future<String> loadFileToDocumentTemplate(
+      String companyId, String documentTemplateId, String path) async {
+    var headers = await getHeaders();
+    var url = peopleManagementUrl.replace(
+        path: "/api/v1/$companyId/documenttemplate/upload");
+
+    var request = http.MultipartRequest("POST", url);
+    request.headers.addAll(headers);
+    request.files.add(await http.MultipartFile.fromPath('formFile', path));
+    request.fields['id'] = documentTemplateId;
+    request.fields['company'] = companyId;
+    var response = await request.send();
+    if (response.statusCode == 200) {
+      var responseBody = await response.stream.bytesToString();
+      dynamic jsonResponse = jsonDecode(responseBody);
+      return jsonResponse["id"];
+    }
+    var exception = await treatUnsuccessfulStreamedResponses(response);
+    throw exception;
+  }
+
+  Future<File> downloadFileToDocumentTemplate(
+      String companyId, String documentTemplateId, String path) async {
+    var headers = await getHeaders(contentType: "application/octet-stream");
+    var url = peopleManagementUrl.replace(
+        path:
+            "/api/v1/$companyId/documenttemplate/download/$documentTemplateId");
+
+    var response = await http.get(url, headers: headers);
+
+    if (response.statusCode == 200) {
+      var file = File(path);
+      await file.writeAsBytes(response.bodyBytes);
+      return file;
     }
     throw treatUnsuccessfulResponses(response);
   }

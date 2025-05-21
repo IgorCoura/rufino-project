@@ -260,7 +260,7 @@ namespace PeopleManagement.IntegrationTests.Data
             var documentTemplate = DocumentTemplate.Create(Guid.NewGuid(), "DocumentTemplateName", 
                 "Description Document Template", company.Id, TimeSpan.FromDays(365) , TimeSpan.FromHours(8), 
                 TemplateFileInfo.Create(Guid.NewGuid().ToString(), "index.html",
-                "header.html", "footer.html", [], RecoverDataType.NR01));
+                "header.html", "footer.html", RecoverDataType.NR01), []);
             await context.DocumentTemplates.AddAsync(documentTemplate, cancellationToken);
             return documentTemplate;
         }
@@ -279,12 +279,13 @@ namespace PeopleManagement.IntegrationTests.Data
                     "index.html",
                     "header.html",
                     "footer.html",
-                    [
-                        PlaceSignature.Create(TypeSignature.Signature,1,20.5, 5.3,5.2,5.5),
-                        PlaceSignature.Create(TypeSignature.Visa,1,20,15,3,3),
-                    ],
+                    
                     RecoverDataType.NR01
-                    )
+                    ),
+                [
+                    PlaceSignature.Create(TypeSignature.Signature,1,20.5, 5.3,5.2,5.5),
+                    PlaceSignature.Create(TypeSignature.Visa,1,20,15,3,3),
+                ]
                 );
             await context.DocumentTemplates.AddAsync(documentTemplate, cancellationToken);
             return documentTemplate;
@@ -320,7 +321,7 @@ namespace PeopleManagement.IntegrationTests.Data
         {
             var content = DataToDocument.GetContent();
             var unit = document.NewDocumentUnit(Guid.NewGuid());
-            document.UpdateDocumentUnitDetails(unit.Id, DateTime.UtcNow, TimeSpan.FromDays(365), content);
+            document.UpdateDocumentUnitDetails(unit.Id, DateOnly.FromDateTime(DateTime.UtcNow), TimeSpan.FromDays(365), content);
             return Task.FromResult(unit);
         }
         public static Task<DocumentUnit> InsertOneDocumentInDocument(this Document document)
