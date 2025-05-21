@@ -33,16 +33,15 @@ namespace PeopleManagement.API.Controllers
         [ProtectedResource("RequireDocuments", "edit")]
         public async Task<ActionResult<EditRequireDocumentsResponse>> Edit([FromRoute] Guid company, [FromBody] EditRequireDocumentsModel request,  [FromHeader(Name = "x-requestid")] Guid requestId)
         {
-            //var command = new IdentifiedCommand<EditRequireDocumentsCommand, EditRequireDocumentsResponse>(request.ToCommand(company), requestId);
+            var command = new IdentifiedCommand<EditRequireDocumentsCommand, EditRequireDocumentsResponse>(request.ToCommand(company), requestId);
 
-            //SendingCommandLog(request.AssociationId, request, requestId);
+            SendingCommandLog(request.AssociationId, request, requestId);
 
-            //var result = await _mediator.Send(command);
+            var result = await _mediator.Send(command);
 
-            //CommandResultLog(result, request.AssociationId, request, requestId);
+            CommandResultLog(result, request.AssociationId, request, requestId);
 
-            //return OkResponse(result);
-            return Ok();
+            return OkResponse(result);
         }
 
         [HttpGet]

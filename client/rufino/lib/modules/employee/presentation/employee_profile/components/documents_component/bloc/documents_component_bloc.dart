@@ -1,0 +1,157 @@
+import 'package:bloc/bloc.dart';
+import 'package:equatable/equatable.dart';
+import 'package:file_picker/file_picker.dart';
+import 'package:rufino/modules/employee/domain/model/document/document.dart';
+import 'package:rufino/modules/employee/services/document_service.dart';
+import 'package:rufino/shared/errors/aplication_errors.dart';
+
+part 'documents_component_event.dart';
+part 'documents_component_state.dart';
+
+class DocumentsComponentBloc
+    extends Bloc<DocumentsComponentEvent, DocumentsComponentState> {
+  final DocumentService _documentService;
+
+  DocumentsComponentBloc(this._documentService)
+      : super(DocumentsComponentState()) {
+    on<InitialEvent>(_onInitialEvent);
+    on<ExpandEvent>(_onExpandEvent);
+    on<SnackMessageWasShowEvent>(_onSnackMessageWasShow);
+    on<ExpandDocumentEvent>(_onExpandDocumentEvent);
+    on<EditDocumentUnitEvent>(_onEditDocumentUnitEvent);
+    on<CreateDocumentUnitEvent>(_onCreateDocumentUnitEvent);
+    on<RefeshEvent>(_onRefeshEvent);
+    on<GenerateDocumentUnitEvent>(_onGenerateDocumentUnitEvent);
+  }
+
+  void _onInitialEvent(
+    InitialEvent event,
+    Emitter<DocumentsComponentState> emit,
+  ) async {
+    emit(state.copyWith(
+      companyId: event.companyId,
+      employeeId: event.employeeId,
+    ));
+  }
+
+  Future _onExpandEvent(
+    ExpandEvent event,
+    Emitter<DocumentsComponentState> emit,
+  ) async {
+    emit(state.copyWith(isExpanded: !state.isExpanded));
+
+    if (state.isExpanded == true) {
+      try {
+        var documents = await _documentService.getAllDocumentsSimple(
+            state.companyId, state.employeeId);
+        emit(state.copyWith(documents: documents));
+      } catch (ex, stacktrace) {
+        var exception = _documentService.treatErrors(ex, stacktrace);
+        emit(state.copyWith(isLoading: false, exception: exception));
+      }
+    }
+  }
+
+  void _onSnackMessageWasShow(
+    SnackMessageWasShowEvent event,
+    Emitter<DocumentsComponentState> emit,
+  ) {
+    emit(state.copyWith(snackMessage: ""));
+  }
+
+  Future _onExpandDocumentEvent(
+    ExpandDocumentEvent event,
+    Emitter<DocumentsComponentState> emit,
+  ) async {
+    if (event.isExpanded) {
+      add(RefeshEvent(event.documentId));
+    }
+  }
+
+  Future _onEditDocumentUnitEvent(
+    EditDocumentUnitEvent event,
+    Emitter<DocumentsComponentState> emit,
+  ) async {
+    emit(state.copyWith(isSavingData: true));
+
+    try {
+      await _documentService.editDocumentUnit(event.date, event.documentUnitId,
+          event.documentId, state.employeeId, state.companyId);
+      add(RefeshEvent(event.documentId));
+      emit(state.copyWith(
+          isSavingData: false,
+          snackMessage: "Documento atualizado com sucesso!"));
+    } catch (ex, stacktrace) {
+      var exception = _documentService.treatErrors(ex, stacktrace);
+      emit(state.copyWith(isSavingData: false, exception: exception));
+    }
+  }
+
+  Future _onCreateDocumentUnitEvent(
+    CreateDocumentUnitEvent event,
+    Emitter<DocumentsComponentState> emit,
+  ) async {
+    emit(state.copyWith(isSavingData: true));
+
+    try {
+      await _documentService.createDocumentUnit(
+          event.documentId, state.employeeId, state.companyId);
+      add(RefeshEvent(event.documentId));
+      emit(state.copyWith(isSavingData: false));
+    } catch (ex, stacktrace) {
+      var exception = _documentService.treatErrors(ex, stacktrace);
+      emit(state.copyWith(isSavingData: false, exception: exception));
+    }
+  }
+
+  Future _onRefeshEvent(
+    RefeshEvent event,
+    Emitter<DocumentsComponentState> emit,
+  ) async {
+    emit(state.copyWith(isLazyLoading: true));
+
+    try {
+      List<Document> documentsCopy = List.from(state.documents);
+
+      var documentIndex =
+          documentsCopy.indexWhere((element) => element.id == event.documentId);
+
+      documentsCopy[documentIndex] = await _documentService.getByIdDocuments(
+          state.companyId, state.employeeId, state.documents[documentIndex].id);
+
+      emit(state.copyWith(documents: documentsCopy, isLazyLoading: false));
+    } catch (ex, stacktrace) {
+      var exception = _documentService.treatErrors(ex, stacktrace);
+      emit(state.copyWith(
+          isLoading: false, exception: exception, isLazyLoading: false));
+    }
+  }
+
+  Future _onGenerateDocumentUnitEvent(
+    GenerateDocumentUnitEvent event,
+    Emitter<DocumentsComponentState> emit,
+  ) async {
+    emit(state.copyWith(isSavingData: true));
+
+    try {
+      String? savePath = await FilePicker.platform.saveFile(
+          dialogTitle: 'Salvar Documento',
+          fileName: "doc_${event.documentUnitId.substring(0, 10)}.pdf");
+
+      if (savePath == null) {
+        emit(state.copyWith(
+            isSavingData: false,
+            snackMessage: "Nenhum local de salvamento selecionado."));
+        return;
+      }
+      await _documentService.downloadDocumentGenerated(event.documentUnitId,
+          event.documentId, state.employeeId, state.companyId, savePath);
+      add(RefeshEvent(event.documentId));
+      emit(state.copyWith(
+          isSavingData: false, snackMessage: "Documento gerado com sucesso!"));
+    } catch (ex, stacktrace) {
+      var exception = _documentService.treatErrors(ex, stacktrace);
+      emit(state.copyWith(isSavingData: false, exception: exception));
+    }
+  }
+}

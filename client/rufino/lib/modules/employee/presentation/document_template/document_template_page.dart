@@ -76,16 +76,6 @@ class DocumentTemplatePage extends StatelessWidget {
                         SizedBox(
                           height: 8.0,
                         ),
-                        EnumerationViewComponent(
-                            isEditing: state.isEditing,
-                            isLoading: state.isLoading,
-                            onSaveChanges: (change) =>
-                                bloc.add(ChangeFieldValueEvent(change)),
-                            enumeration: state.documentTemplate.recoverDataType,
-                            listEnumerationOptions: state.recoverDataType),
-                        SizedBox(
-                          height: 8.0,
-                        ),
                         TextEditComponent(
                           onSaveChanges: (change) =>
                               bloc.add(ChangeFieldValueEvent(change)),
@@ -299,6 +289,13 @@ class DocumentTemplatePage extends StatelessWidget {
             SizedBox(
               height: 8.0,
             ),
+            EnumerationViewComponent(
+                isEditing: state.isEditing,
+                isLoading: state.isLoading,
+                onSaveChanges: (change) =>
+                    bloc.add(ChangeFieldValueEvent(change)),
+                enumeration: state.documentTemplate.recoverDataType,
+                listEnumerationOptions: state.recoverDataType),
             SizedBox(
               height: 8.0,
             ),

@@ -4,7 +4,7 @@ import 'package:rufino/modules/employee/domain/model/dependent/dependency_type.d
 import 'package:rufino/modules/employee/domain/model/dependent/dependent.dart';
 import 'package:rufino/modules/employee/domain/model/gender.dart';
 import 'package:rufino/modules/employee/domain/model/name.dart';
-import 'package:rufino/modules/employee/domain/services/people_management_service.dart';
+import 'package:rufino/modules/employee/services/people_management_service.dart';
 import 'package:rufino/shared/errors/aplication_errors.dart';
 
 part 'dependents_list_component_event.dart';

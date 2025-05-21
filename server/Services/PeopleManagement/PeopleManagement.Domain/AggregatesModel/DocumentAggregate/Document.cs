@@ -57,7 +57,7 @@ namespace PeopleManagement.Domain.AggregatesModel.DocumentAggregate
             return documentUnit.GetNameWithExtension;
         }
 
-        public DocumentUnit UpdateDocumentUnitDetails(Guid documentUnitId, DateTime date, DateTime? validity, string content)
+        public DocumentUnit UpdateDocumentUnitDetails(Guid documentUnitId, DateOnly date, DateOnly? validity, string content)
         {
             var documentUnit = DocumentsUnits.FirstOrDefault(x => x.Id == documentUnitId)
                 ?? throw new DomainException(this, DomainErrors.ObjectNotFound(nameof(DocumentUnit), documentUnitId.ToString()));
@@ -66,7 +66,7 @@ namespace PeopleManagement.Domain.AggregatesModel.DocumentAggregate
             return documentUnit;
         }
 
-        public DocumentUnit UpdateDocumentUnitDetails(Guid documentUnitId, DateTime date, TimeSpan? validity, string content)
+        public DocumentUnit UpdateDocumentUnitDetails(Guid documentUnitId, DateOnly date, TimeSpan? validity, string content)
         {
             var documentUnit = DocumentsUnits.FirstOrDefault(x => x.Id == documentUnitId)
                 ?? throw new DomainException(this, DomainErrors.ObjectNotFound(nameof(DocumentUnit), documentUnitId.ToString()));
@@ -109,7 +109,7 @@ namespace PeopleManagement.Domain.AggregatesModel.DocumentAggregate
 
         public void HasOverdueDocuments()
         {
-            var hasOverDueDocuments = DocumentsUnits.Any(x => x.Status == DocumentUnitStatus.OK && x.Validity > DateTime.UtcNow);
+            var hasOverDueDocuments = DocumentsUnits.Any(x => x.Status == DocumentUnitStatus.OK && x.Validity > DateOnly.FromDateTime(DateTime.UtcNow));
             DeprecateOldDocuments();
             if(hasOverDueDocuments)
                 Status = DocumentStatus.RequiredDocument;
@@ -133,6 +133,14 @@ namespace PeopleManagement.Domain.AggregatesModel.DocumentAggregate
             Status = DocumentStatus.OK;
         }
 
+
+        public bool CanEditDocumentUnit(Guid documentUnitId)
+        {
+            var document = DocumentsUnits.FirstOrDefault(x => x.Id == documentUnitId)
+               ?? throw new DomainException(this, DomainErrors.ObjectNotFound(nameof(DocumentUnit), documentUnitId.ToString()));
+
+            return document.CanEdit;
+        }
         private bool HasValidDocument()
         {
             return DocumentsUnits.Any(x => x.IsOK);

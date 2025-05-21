@@ -5,10 +5,18 @@ class FileName extends TextPropBase {
 
   const FileName.empty(String displayName) : super(displayName, "");
 
+  bool get isEmpty {
+    return value.isEmpty;
+  }
+
+  bool get isNotEmpty {
+    return value.isNotEmpty;
+  }
+
   @override
   String? validate(String? value) {
     if (value == null || value.isEmpty) {
-      return "O $displayName não pode ser vazio.";
+      return null;
     }
     if (value.length > 20) {
       return "o $displayName não pode ser maior que 20 caracteres.";

@@ -9,7 +9,7 @@ import 'package:rufino/modules/employee/domain/model/document_template/document_
 import 'package:rufino/modules/employee/domain/model/document_template/place_signature.dart';
 import 'package:rufino/modules/employee/domain/model/document_template/recover_data_type.dart';
 import 'package:rufino/modules/employee/domain/model/document_template/type_signature.dart';
-import 'package:rufino/modules/employee/domain/services/people_management_service.dart';
+import 'package:rufino/modules/employee/services/people_management_service.dart';
 import 'package:rufino/shared/errors/aplication_errors.dart';
 
 part 'document_template_event.dart';
@@ -134,6 +134,10 @@ class DocumentTemplateBloc
       var newDocumentTemplate = state.documentTemplate
           .copyWith(placeSignatures: state.placeSignatures);
 
+      if (newDocumentTemplate.isInvalidTemplateFileInfo) {
+        throw AplicationErrors.emplyee.errorInvalidTemplateFileInfo;
+      }
+
       if (newDocumentTemplate.id == "") {
         newDocumentTemplate = newDocumentTemplate.copyWith(
             id: await _peopleManagementService.createDocumentTemplate(
@@ -158,10 +162,13 @@ class DocumentTemplateBloc
       SendFileEvent event, Emitter<DocumentTemplateState> emit) async {
     emit(state.copyWith(isLoading: true));
     try {
+      if (state.documentTemplate.isEmptyTemplateFileInfo) {
+        throw AplicationErrors.emplyee.errorInvalidTemplateFileInfo;
+      }
       FilePickerResult? result = await FilePicker.platform.pickFiles();
       if (result != null) {
         final company = await _companyService.getSelectedCompany();
-        await _peopleManagementService.sendFileToDocumentTemplate(
+        await _peopleManagementService.loadFileToDocumentTemplate(
             company.id, state.documentTemplate.id, result.files.single.path!);
       } else {
         emit(state.copyWith(

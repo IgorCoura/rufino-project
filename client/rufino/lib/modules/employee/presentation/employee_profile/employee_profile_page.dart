@@ -17,6 +17,7 @@ import 'package:rufino/modules/employee/presentation/components/enumeration_view
 import 'package:rufino/modules/employee/presentation/components/props_container_component.dart';
 import 'package:rufino/modules/employee/presentation/components/text_componet.dart';
 import 'package:rufino/modules/employee/presentation/components/text_edit_component.dart';
+import 'package:rufino/modules/employee/presentation/employee_profile/components/documents_component/documents_component.dart';
 import 'package:rufino/shared/components/error_components.dart';
 
 class EmployeeProfilePage extends StatelessWidget {
@@ -337,6 +338,13 @@ class EmployeeProfilePage extends StatelessWidget {
                             contracts: state.listContracts,
                             listContractTypeOptions: state.listContractTypes,
                             isSavingData: state.isSavingData,
+                          ),
+                          const SizedBox(
+                            height: 16,
+                          ),
+                          DocumentsComponent(
+                            companyId: state.company.id,
+                            employeeId: state.employee.id,
                           ),
                         ],
                       );

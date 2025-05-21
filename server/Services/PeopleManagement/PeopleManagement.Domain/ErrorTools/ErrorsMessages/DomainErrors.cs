@@ -30,6 +30,7 @@ namespace PeopleManagement.Domain.ErrorTools.ErrorsMessages
         public static Error DataInvalid(string NameField, DateOnly Value) => new("PMD101", $"O data {NameField} com o valor {Value} é invalido.", new { NameField, Value });
         public static Error DataIsGreaterThanMax(string NameField, DateOnly Value, DateOnly DateMax) => new("PMD102", $"A data do campo {NameField} com valor {Value} não pode ser maior que a data {DateMax}.", new { NameField, Value , DateMax });
         public static Error DataIsGreaterThanMax(string NameField, DateTime Value, DateTime DateMax) => new("PMD102", $"A data do campo {NameField} com valor {Value} não pode ser maior que a data {DateMax}.", new { NameField, Value , DateMax });
+        public static Error DataIsGreaterThanMax(string NameField, DateTimeOffset Value, DateTimeOffset DateMax) => new("PMD102", $"A data do campo {NameField} com valor {Value} não pode ser maior que a data {DateMax}.", new { NameField, Value , DateMax });
         public static Error DataIsLessThanMin(string NameField, DateOnly Value, DateOnly DateMin) => new("PMD103", $"A data do campo {NameField} com valor {Value} não pode ser menor que a data {DateMin}.", new { NameField, Value , DateMin });
         public static Error DataIsLessThanMin(string NameField, DateTime Value, DateTime DateMin) => new("PMD103", $"A data do campo {NameField} com valor {Value} não pode ser menor que a data {DateMin}.", new { NameField, Value , DateMin });
         public static Error DataHasBeBetween(string NameField, DateOnly Value, DateOnly DateMin, DateOnly DateMax) => new("PMD104", $"A data do campo {NameField} com valor {Value} deve está entre {DateMin} e {DateMax}.", new { NameField, Value, DateMin, DateMax});
@@ -76,6 +77,10 @@ namespace PeopleManagement.Domain.ErrorTools.ErrorsMessages
                 $"O tempo total diaria não pode ultrapassar {TimeMax} ", new { DocIdWithConflict, DocIdHasConclict, TimeMax });
 
             public static Error DocumentNotHaveTemplate(Guid docId) => new("PMD.DOC11", $"O documento {docId} não tem um template associado.", new { docId });
+            public static Error ErrorRecoverData(Guid docId) => new("PMD.DOC12", $"Não foi possivel recuperar todos os dados para documento {docId}. Complete os dados é tente novamente mais tarde.", new { docId });
+            public static Error CantEditDocumentUnit(Guid docUnitId) => new("PMD.DOC13", $"Não é mais possivel editar a unidade de documento {docUnitId}.", new { docUnitId });
+            public static Error CantGenerateDocumentUnit(Guid docUnitId) => new("PMD.DOC13", $"Não é mais possivel gerar pdfs da unidade de documento {docUnitId}.", new { docUnitId });
+
         }
     }
 }

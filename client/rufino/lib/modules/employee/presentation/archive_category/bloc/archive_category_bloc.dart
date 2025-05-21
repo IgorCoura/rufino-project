@@ -5,7 +5,7 @@ import 'package:rufino/modules/employee/domain/model/archive_category/archive_ca
 import 'package:rufino/modules/employee/domain/model/archive_category/description.dart';
 import 'package:rufino/modules/employee/domain/model/archive_category/event.dart';
 import 'package:rufino/modules/employee/domain/model/archive_category/listen_events.dart';
-import 'package:rufino/modules/employee/domain/services/people_management_service.dart';
+import 'package:rufino/modules/employee/services/people_management_service.dart';
 import 'package:rufino/shared/errors/aplication_errors.dart';
 
 part 'archive_category_event.dart';

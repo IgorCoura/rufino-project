@@ -15,7 +15,7 @@ namespace PeopleManagement.Application.Commands.RequireDocumentsCommands.EditReq
             var requireDocument = await _requireDocumentsRepository.FirstOrDefaultAsync(x => x.Id == request.Id && x.CompanyId == request.CompanyId)
                 ?? throw new DomainException(this, DomainErrors.ObjectNotFound(nameof(RequireDocuments), request.Id.ToString()));
 
-            requireDocument.Edit(request.Id, request.CompanyId, request.AssociationId, request.AssociationType, request.Name, request.Description, 
+            requireDocument.Edit(request.AssociationId, request.AssociationType, request.Name, request.Description, 
                 request.ListenEvents.Select(x => x.ToObjectValue()).ToList(), request.DocumentsTemplatesIds);
             await _requireDocumentsRepository.UnitOfWork.SaveChangesAsync(cancellationToken);
 

@@ -18,15 +18,16 @@ namespace PeopleManagement.Application.Commands.DocumentTemplateCommands.EditDoc
             var documentTemplate = await _documentTemplateRepository.FirstOrDefaultAsync(x => x.Id == request.Id && x.CompanyId == request.CompanyId, cancellation: cancellationToken)
                 ?? throw new DomainException(this, DomainErrors.ObjectNotFound(nameof(DocumentTemplate), request.Id.ToString()));
 
-            documentTemplate.Name = request.Name;
-            documentTemplate.Description = request.Description;
-            documentTemplate.TemplateFileInfo.BodyFileName = request.BodyFileName;
-            documentTemplate.TemplateFileInfo.HeaderFileName = request.HeaderFileName;
-            documentTemplate.TemplateFileInfo.FooterFileName = request.FooterFileName;
-            documentTemplate.TemplateFileInfo.RecoverDataType = request.RecoverDataType;
-            documentTemplate.DocumentValidityDuration = request.DocumentValidityDurationInDays.HasValue ? TimeSpan.FromDays((double)request.DocumentValidityDurationInDays!) : null;
-            documentTemplate.Workload = request.WorkloadInHours.HasValue ? TimeSpan.FromHours((double)request.WorkloadInHours!) : null; ;
-            documentTemplate.TemplateFileInfo.PlaceSignatures = request.PlaceSignatures.Select(x => x.ToPlaceSignature()).ToList();
+
+            documentTemplate.Edit(
+                request.Name,
+                request.Description,
+                request.DocumentValidityDurationInDays,
+                request.WorkloadInHours,
+                request.TemplateFileInfo == null ? null : request.TemplateFileInfo?.ToTemplateFileInfo(documentTemplate.TemplateFileInfo?.Directory.Value ?? Guid.NewGuid().ToString()),
+                request.PlaceSignatures.Select(x => x.ToPlaceSignature()).ToList()
+                );
+
 
             await _documentTemplateRepository.UnitOfWork.SaveChangesAsync(cancellationToken);
             return documentTemplate.Id;

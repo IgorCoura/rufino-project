@@ -49,6 +49,30 @@ class DocumentTemplate extends ModelBase {
     super.isLazyLoading = true,
   });
 
+  bool get isInvalidTemplateFileInfo {
+    return isValidTemplateFileInfo == false;
+  }
+
+  bool get isValidTemplateFileInfo {
+    var isNotEmpty = bodyFileName.isNotEmpty &&
+        headerFileName.isNotEmpty &&
+        footerFileName.isNotEmpty &&
+        recoverDataType.isNotEmpty;
+
+    var isEmpty = bodyFileName.isEmpty &&
+        headerFileName.isEmpty &&
+        footerFileName.isEmpty &&
+        recoverDataType.isEmpty;
+    return isNotEmpty || isEmpty;
+  }
+
+  bool get isEmptyTemplateFileInfo {
+    return bodyFileName.isEmpty &&
+        headerFileName.isEmpty &&
+        footerFileName.isEmpty &&
+        recoverDataType.isEmpty;
+  }
+
   DocumentTemplate copyWith({
     String? id,
     Name? name,
@@ -135,35 +159,43 @@ class DocumentTemplate extends ModelBase {
   }
 
   Map<String, dynamic> toJsonCreated() {
+    Map<String, dynamic>? templateFileInfo = isEmptyTemplateFileInfo
+        ? null
+        : {
+            'bodyFileName': bodyFileName.value,
+            'headerFileName': headerFileName.value,
+            'footerFileName': footerFileName.value,
+            'recoverDataType': recoverDataType.toInt(),
+          };
+
     return {
       'name': name.value,
       'description': description.value,
       'documentValidityDurationInDays': documentValidityDuration.toDouble(),
       'workloadInHours': workload.toDouble(),
-      'templateFileInfo': {
-        'bodyFileName': bodyFileName.value,
-        'headerFileName': headerFileName.value,
-        'footerFileName': footerFileName.value,
-        'recoverDataType': recoverDataType.toInt(),
-        'placeSignatures': placeSignatures.map((e) => e.toJson()).toList(),
-      },
+      'templateFileInfo': templateFileInfo,
+      'placeSignatures': placeSignatures.map((e) => e.toJson()).toList(),
     };
   }
 
   Map<String, dynamic> toJson() {
+    Map<String, dynamic>? templateFileInfo = isEmptyTemplateFileInfo
+        ? null
+        : {
+            'bodyFileName': bodyFileName.value,
+            'headerFileName': headerFileName.value,
+            'footerFileName': footerFileName.value,
+            'recoverDataType': recoverDataType.toInt(),
+          };
+
     return {
       'Id': id,
       'name': name.value,
       'description': description.value,
       'documentValidityDurationInDays': documentValidityDuration.toDouble(),
       'workloadInHours': workload.toDouble(),
-      'templateFileInfo': {
-        'bodyFileName': bodyFileName.value,
-        'headerFileName': headerFileName.value,
-        'footerFileName': footerFileName.value,
-        'recoverDataType': recoverDataType.toInt(),
-        'placeSignatures': placeSignatures.map((e) => e.toJson()).toList(),
-      },
+      'templateFileInfo': templateFileInfo,
+      'placeSignatures': placeSignatures.map((e) => e.toJson()).toList(),
     };
   }
 

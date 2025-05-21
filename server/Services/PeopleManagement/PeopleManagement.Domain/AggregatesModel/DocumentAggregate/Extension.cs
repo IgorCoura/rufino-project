@@ -37,6 +37,5 @@ namespace PeopleManagement.Domain.AggregatesModel.DocumentAggregate
                 throw new DomainException(nameof(Extension), DomainErrors.ErroCreateEnumeration(nameof(Extension), value.ToString()));
             }
         }
-
     }
 }

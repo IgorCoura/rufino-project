@@ -43,6 +43,7 @@ namespace PeopleManagement.Domain.AggregatesModel.DocumentAggregate
             new(value);
 
         public override string ToString() => Value;
+        public bool IsNullOrEmpty => string.IsNullOrEmpty(Value);
         protected override IEnumerable<object?> GetEqualityComponents()
         {
             yield return Value;

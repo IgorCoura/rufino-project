@@ -230,8 +230,8 @@ namespace PeopleManagement.Infra.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<DateTime>("Date")
-                        .HasColumnType("timestamp with time zone");
+                    b.Property<DateOnly>("Date")
+                        .HasColumnType("date");
 
                     b.Property<Guid>("DocumentId")
                         .HasColumnType("uuid");
@@ -249,8 +249,8 @@ namespace PeopleManagement.Infra.Migrations
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<DateTime?>("Validity")
-                        .HasColumnType("timestamp with time zone");
+                    b.Property<DateOnly?>("Validity")
+                        .HasColumnType("date");
 
                     b.HasKey("Id");
 
@@ -705,6 +705,43 @@ namespace PeopleManagement.Infra.Migrations
 
             modelBuilder.Entity("PeopleManagement.Domain.AggregatesModel.DocumentTemplateAggregate.DocumentTemplate", b =>
                 {
+                    b.OwnsMany("PeopleManagement.Domain.AggregatesModel.DocumentTemplateAggregate.PlaceSignature", "PlaceSignatures", b1 =>
+                        {
+                            b1.Property<Guid>("DocumentTemplateId")
+                                .HasColumnType("uuid");
+
+                            b1.Property<int>("Id")
+                                .ValueGeneratedOnAdd()
+                                .HasColumnType("integer");
+
+                            NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b1.Property<int>("Id"));
+
+                            b1.Property<double>("Page")
+                                .HasColumnType("double precision");
+
+                            b1.Property<double>("RelativePositionBotton")
+                                .HasColumnType("double precision");
+
+                            b1.Property<double>("RelativePositionLeft")
+                                .HasColumnType("double precision");
+
+                            b1.Property<double>("RelativeSizeX")
+                                .HasColumnType("double precision");
+
+                            b1.Property<double>("RelativeSizeY")
+                                .HasColumnType("double precision");
+
+                            b1.Property<int>("Type")
+                                .HasColumnType("integer");
+
+                            b1.HasKey("DocumentTemplateId", "Id");
+
+                            b1.ToTable("PlaceSignature");
+
+                            b1.WithOwner()
+                                .HasForeignKey("DocumentTemplateId");
+                        });
+
                     b.OwnsOne("PeopleManagement.Domain.AggregatesModel.DocumentTemplateAggregate.TemplateFileInfo", "TemplateFileInfo", b1 =>
                         {
                             b1.Property<Guid>("DocumentTemplateId")
@@ -739,46 +776,9 @@ namespace PeopleManagement.Infra.Migrations
 
                             b1.WithOwner()
                                 .HasForeignKey("DocumentTemplateId");
-
-                            b1.OwnsMany("PeopleManagement.Domain.AggregatesModel.DocumentTemplateAggregate.PlaceSignature", "PlaceSignatures", b2 =>
-                                {
-                                    b2.Property<Guid>("TemplateFileInfoDocumentTemplateId")
-                                        .HasColumnType("uuid");
-
-                                    b2.Property<int>("Id")
-                                        .ValueGeneratedOnAdd()
-                                        .HasColumnType("integer");
-
-                                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b2.Property<int>("Id"));
-
-                                    b2.Property<double>("Page")
-                                        .HasColumnType("double precision");
-
-                                    b2.Property<double>("RelativePositionBotton")
-                                        .HasColumnType("double precision");
-
-                                    b2.Property<double>("RelativePositionLeft")
-                                        .HasColumnType("double precision");
-
-                                    b2.Property<double>("RelativeSizeX")
-                                        .HasColumnType("double precision");
-
-                                    b2.Property<double>("RelativeSizeY")
-                                        .HasColumnType("double precision");
-
-                                    b2.Property<int>("Type")
-                                        .HasColumnType("integer");
-
-                                    b2.HasKey("TemplateFileInfoDocumentTemplateId", "Id");
-
-                                    b2.ToTable("PlaceSignature");
-
-                                    b2.WithOwner()
-                                        .HasForeignKey("TemplateFileInfoDocumentTemplateId");
-                                });
-
-                            b1.Navigation("PlaceSignatures");
                         });
+
+                    b.Navigation("PlaceSignatures");
 
                     b.Navigation("TemplateFileInfo");
                 });

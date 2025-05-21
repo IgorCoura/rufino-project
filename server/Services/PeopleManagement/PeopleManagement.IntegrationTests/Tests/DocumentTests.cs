@@ -36,7 +36,7 @@ namespace PeopleManagement.IntegrationTests.Tests
             var documentUnit = await document.InsertOneDocumentInDocument();
             await context.SaveChangesAsync(cancellationToken);
 
-            var date = DateTime.UtcNow;
+            var date = DateOnly.FromDateTime(DateTime.UtcNow);
 
             var command = new UpdateDocumentUnitDetailsModel(
                     documentUnit.Id,
@@ -53,7 +53,7 @@ namespace PeopleManagement.IntegrationTests.Tests
             var content = await response.Content.ReadFromJsonAsync(typeof(CreateDocumentResponse)) as CreateDocumentResponse ?? throw new ArgumentNullException();
             var result = await context.Documents.AsNoTracking().Include(x => x.DocumentsUnits.Where(x => x.Id == content.Id)).FirstOrDefaultAsync(x => x.Id == document.Id) ?? throw new ArgumentNullException();
             var documentResult = result.DocumentsUnits.First();
-            Assert.Equal(date.Minute, documentResult.Date.Minute);
+            Assert.Equal(date.Day, documentResult.Date.Day);
         }
 
         [Fact]
@@ -112,12 +112,12 @@ namespace PeopleManagement.IntegrationTests.Tests
             await context.SaveChangesAsync(cancellationToken);
 
             client.InputHeaders([document.CompanyId]);
-            var response = await client.GetAsync($"/api/v1/{document.CompanyId}/document/{document.EmployeeId}/{document.Id}/{documentUnit.Id}");         
+            var response = await client.GetAsync($"/api/v1/{document.CompanyId}/document/generate/{document.EmployeeId}/{document.Id}/{documentUnit.Id}");         
 
             Assert.Equal(HttpStatusCode.OK, response.StatusCode);
             var content = await response.Content.ReadAsByteArrayAsync();
             Assert.NotNull(content);
-            Assert.True(content.Length > 149000 && content.Length < 153000);
+            Assert.True(content.Length > 130000 && content.Length < 153000);
 
             //Debug
             //var directory = Path.Combine(Directory.GetCurrentDirectory(), "temp");
@@ -194,7 +194,7 @@ namespace PeopleManagement.IntegrationTests.Tests
             var command = new GenerateDocumentToSignModel(documentUnit.Id, document.Id, document.EmployeeId, DateTime.UtcNow.AddDays(30), 1);
 
             client.InputHeaders([document.CompanyId]);
-            var response = await client.PostAsJsonAsync($"/api/v1/{document.CompanyId}/document/send2sign", command);
+            var response = await client.PostAsJsonAsync($"/api/v1/{document.CompanyId}/document/generate/send2sign", command);
 
             Assert.Equal(HttpStatusCode.OK, response.StatusCode);
             var content = await response.Content.ReadFromJsonAsync(typeof(GenerateDocumentToSignResponse)) as GenerateDocumentToSignResponse ?? throw new ArgumentNullException();

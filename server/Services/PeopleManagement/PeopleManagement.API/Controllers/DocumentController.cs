@@ -8,13 +8,16 @@ using PeopleManagement.Application.Commands.DocumentCommands.InsertDocumentSigne
 using System.Text.Json.Nodes;
 using PeopleManagement.API.Authorization;
 using PeopleManagement.Application.Commands.DocumentCommands.UpdateDocumentUnitDetails;
+using PeopleManagement.Application.Queries.Document;
+using static PeopleManagement.Application.Queries.Document.DocumentDtos;
 
 namespace PeopleManagement.API.Controllers
 {
     [Route("api/v1/{company}/[controller]")]
-    public class DocumentController(ILogger<DocumentController> logger, IMediator mediator) : BaseController(logger)
+    public class DocumentController(ILogger<DocumentController> logger, IMediator mediator, IDocumentQueries documentQueries) : BaseController(logger)
     {
         private readonly IMediator _mediator = mediator;
+        private readonly IDocumentQueries _documentQueries = documentQueries;
 
         [HttpPost]
         [ProtectedResource("Document", "create")]
@@ -46,7 +49,7 @@ namespace PeopleManagement.API.Controllers
             return OkResponse(result);
         }
 
-        [HttpGet("{employeeId}/{documentId}/{documentUnitId}")]
+        [HttpGet("generate/{employeeId}/{documentId}/{documentUnitId}")]
         [ProtectedResource("Document", "view")]
         public async Task<ActionResult> GeneratePdf([FromRoute] Guid documentUnitId, [FromRoute] Guid documentId, [FromRoute] Guid employeeId, [FromRoute] Guid company, [FromHeader(Name = "x-requestid")] Guid requestId)
         {
@@ -59,10 +62,10 @@ namespace PeopleManagement.API.Controllers
 
             CommandResultLog(result, request.DocumentUnitId, request, requestId);
 
-            return File(result.Pdf, "application/pdf", $"{result.Id}.pdf");
+            return File(result.Pdf, "application/pdf", $"doc_{result.Id.ToString().Substring(0,10)}.pdf");
         }
 
-        [HttpPost("send2sign")]
+        [HttpPost("generate/send2sign")]
         [ProtectedResource("Document", "send")]
         public async Task<ActionResult<GenerateDocumentToSignResponse>> GeneratePdfToSign([FromRoute] Guid company, [FromBody] GenerateDocumentToSignModel request, [FromHeader(Name = "x-requestid")] Guid requestId)
         {
@@ -131,6 +134,20 @@ namespace PeopleManagement.API.Controllers
             return OkResponse(result);
         }
 
+        [HttpGet("{employeeId}")]
+        [ProtectedResource("Document", "view")]
+        public async Task<ActionResult<IEnumerable<DocumentSimpleDto>>> GetAllSimple([FromRoute] Guid company, [FromRoute] Guid employeeId)
+        {
+            var result = await _documentQueries.GetAllSimple(employeeId, company);
+            return OkResponse(result);
+        }
 
+        [HttpGet("{employeeId}/{id}")]
+        [ProtectedResource("Document", "view")]
+        public async Task<ActionResult<DocumentDto>> GetById([FromRoute] Guid company, [FromRoute] Guid employeeId, [FromRoute] Guid id)
+        {
+            var result = await _documentQueries.GetById(id, employeeId, company);
+            return OkResponse(result);
+        }
     }
 }

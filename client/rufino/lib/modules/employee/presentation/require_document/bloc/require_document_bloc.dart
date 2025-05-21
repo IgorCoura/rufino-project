@@ -9,7 +9,7 @@ import 'package:rufino/modules/employee/domain/model/require_document/event.dart
 import 'package:rufino/modules/employee/domain/model/require_document/listen_event.dart';
 import 'package:rufino/modules/employee/domain/model/require_document/require_document.dart';
 import 'package:rufino/modules/employee/domain/model/require_document/status.dart';
-import 'package:rufino/modules/employee/domain/services/people_management_service.dart';
+import 'package:rufino/modules/employee/services/people_management_service.dart';
 import 'package:rufino/shared/errors/aplication_errors.dart';
 
 part 'require_document_event.dart';
@@ -33,6 +33,13 @@ class RequireDocumentBloc
     on<AddStatusEvent>(_onAddStatusEvent);
     on<RemoveStatusEvent>(_onRemoveStatusEvent);
     on<ChangeFieldValueEvent>(_onChangeFieldValueEvent);
+    on<SaveEvent>(_onSaveEvent);
+    on<SnackMessageWasShow>(_onSnackMessageWasShow);
+  }
+
+  void _onSnackMessageWasShow(
+      SnackMessageWasShow event, Emitter<RequireDocumentState> emit) {
+    emit(state.copyWith(snackMessage: ""));
   }
 
   Future _onInitialEvent(
@@ -40,13 +47,19 @@ class RequireDocumentBloc
     try {
       emit(state.copyWith(isLoading: true));
       var company = await _companyService.getSelectedCompany();
-      var requireDocument = await _peopleManagementService
-          .getByIdRequireDocuments(event.requireDocumentId, company.id);
+
       var associationTypes =
           await _peopleManagementService.getAllAssociationTypes(company.id);
-      var associations = await _peopleManagementService.getAllAssociation(
-          company.id, requireDocument.associationType.id);
-
+      var requireDocument = RequireDocument.empty(companyId: company.id);
+      var associations = <Association>[];
+      if (event.requireDocumentId != "new") {
+        requireDocument = await _peopleManagementService
+            .getByIdRequireDocuments(event.requireDocumentId, company.id);
+        associations = await _peopleManagementService.getAllAssociation(
+            company.id, requireDocument.associationType.id);
+      } else {
+        add(EditEvent());
+      }
       emit(state.copyWith(
           requireDocument: requireDocument,
           associationTypes: associationTypes,
@@ -62,7 +75,6 @@ class RequireDocumentBloc
       EditEvent event, Emitter<RequireDocumentState> emit) async {
     try {
       emit(state.copyWith(isLoading: true));
-
       var status = await _peopleManagementService
           .getStatus(state.requireDocument.companyId);
       var reqDocStatus = status.map((el) => Status(el.id, el.name)).toList();
