@@ -2,8 +2,8 @@ import 'package:rufino/modules/employee/domain/model/base/enumeration.dart';
 
 class DocumentStatus extends Enumeration {
   static const Map<String, String> conversionMapIntToString = {
-    "1": "Requer Documento",
-    "2": "Requer Validade",
+    "1": "Pendente",
+    "2": "Requer Validação",
     "3": "OK",
     "4": "Obsoleto",
     "5": "Aguardando Assinatura",

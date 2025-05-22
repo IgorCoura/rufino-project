@@ -10,6 +10,7 @@ using PeopleManagement.API.Authorization;
 using PeopleManagement.Application.Commands.DocumentCommands.UpdateDocumentUnitDetails;
 using PeopleManagement.Application.Queries.Document;
 using static PeopleManagement.Application.Queries.Document.DocumentDtos;
+using PeopleManagement.Application.Queries.DocumentTemplate;
 
 namespace PeopleManagement.API.Controllers
 {
@@ -148,6 +149,16 @@ namespace PeopleManagement.API.Controllers
         {
             var result = await _documentQueries.GetById(id, employeeId, company);
             return OkResponse(result);
+        }
+
+        [HttpGet("download/{employeeId}/{documentId}/{documentUnitId}")]
+        [ProtectedResource("Document", "view")]
+        public async Task<IActionResult> DownloadFile([FromRoute] Guid documentUnitId, [FromRoute] Guid documentId, [FromRoute] Guid employeeId,
+            [FromRoute] Guid company)
+        {
+            var stream = await _documentQueries.DownloadDocumentUnit(documentUnitId, documentId, employeeId, company);  
+            stream.Position = 0;
+            return File(stream, "application/octet-stream", $"{documentUnitId}.zip");
         }
     }
 }

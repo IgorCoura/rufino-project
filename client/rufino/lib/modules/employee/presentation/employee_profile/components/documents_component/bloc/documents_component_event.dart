@@ -66,3 +66,48 @@ class GenerateDocumentUnitEvent extends DocumentsComponentEvent {
   @override
   List<Object> get props => [documentId, documentUnitId];
 }
+
+class GenerateAndSend2SignEvent extends DocumentsComponentEvent {
+  final String dateLimitToSign;
+  final String eminderEveryNDays;
+  final String documentId;
+  final String documentUnitId;
+
+  const GenerateAndSend2SignEvent(
+    this.dateLimitToSign,
+    this.eminderEveryNDays,
+    this.documentId,
+    this.documentUnitId,
+  );
+  @override
+  List<Object> get props =>
+      [documentId, documentUnitId, dateLimitToSign, eminderEveryNDays];
+}
+
+class LoadDocumentUnitEvent extends DocumentsComponentEvent {
+  final String documentId;
+  final String documentUnitId;
+  const LoadDocumentUnitEvent(this.documentUnitId, this.documentId);
+  @override
+  List<Object> get props => [documentUnitId, documentId];
+}
+
+class LoadDocumentUnitToSignEvent extends DocumentsComponentEvent {
+  final String dateLimitToSign;
+  final String eminderEveryNDays;
+  final String documentId;
+  final String documentUnitId;
+  const LoadDocumentUnitToSignEvent(this.dateLimitToSign,
+      this.eminderEveryNDays, this.documentUnitId, this.documentId);
+  @override
+  List<Object> get props =>
+      [documentUnitId, documentId, dateLimitToSign, eminderEveryNDays];
+}
+
+class DownloadDocumentUnitEvent extends DocumentsComponentEvent {
+  final String documentId;
+  final String documentUnitId;
+  const DownloadDocumentUnitEvent(this.documentId, this.documentUnitId);
+  @override
+  List<Object> get props => [documentId, documentUnitId];
+}

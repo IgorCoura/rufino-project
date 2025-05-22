@@ -62,15 +62,21 @@ builder.Services.AddInfraDependencies(builder.Configuration);
 builder.Services.AddServicesDependencies(builder.Configuration);
 builder.Services.AddApplicationDependencies(builder.Configuration);
 
+
+
 builder.Services.AddControllers(opts =>
-    {
-        opts.Filters.Add(new ApplicationExceptionFilter());
-    }
-).AddJsonOptions(x => x.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles);
-// Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
+{
+    opts.Filters.Add<ApplicationExceptionFilter>();
+}).AddJsonOptions(x => x.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles);
+
+
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
+
+
+// Register ApplicationExceptionFilter with DI
+builder.Services.AddScoped<ApplicationExceptionFilter>();
 var app = builder.Build();
 
 

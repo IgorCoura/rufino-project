@@ -26,8 +26,8 @@ namespace PeopleManagement.Domain.ErrorTools.ErrorsMessages
 
         #region DataErrors 100-199
 
-        public static Error DataInvalid(string NameField, DateTime Value) => new("PMD100", $"O data {NameField} com o valor {Value} é invalido.", new { NameField, Value });
-        public static Error DataInvalid(string NameField, DateOnly Value) => new("PMD101", $"O data {NameField} com o valor {Value} é invalido.", new { NameField, Value });
+        public static Error DataInvalid(string NameField, DateTime Value) => new("PMD100", $"O campo data {NameField} com o valor {Value} é invalido.", new { NameField, Value });
+        public static Error DataInvalid(string NameField, DateOnly Value) => new("PMD101", $"O campo data {NameField} com o valor {Value} é invalido.", new { NameField, Value });
         public static Error DataIsGreaterThanMax(string NameField, DateOnly Value, DateOnly DateMax) => new("PMD102", $"A data do campo {NameField} com valor {Value} não pode ser maior que a data {DateMax}.", new { NameField, Value , DateMax });
         public static Error DataIsGreaterThanMax(string NameField, DateTime Value, DateTime DateMax) => new("PMD102", $"A data do campo {NameField} com valor {Value} não pode ser maior que a data {DateMax}.", new { NameField, Value , DateMax });
         public static Error DataIsGreaterThanMax(string NameField, DateTimeOffset Value, DateTimeOffset DateMax) => new("PMD102", $"A data do campo {NameField} com valor {Value} não pode ser maior que a data {DateMax}.", new { NameField, Value , DateMax });
@@ -80,6 +80,8 @@ namespace PeopleManagement.Domain.ErrorTools.ErrorsMessages
             public static Error ErrorRecoverData(Guid docId) => new("PMD.DOC12", $"Não foi possivel recuperar todos os dados para documento {docId}. Complete os dados é tente novamente mais tarde.", new { docId });
             public static Error CantEditDocumentUnit(Guid docUnitId) => new("PMD.DOC13", $"Não é mais possivel editar a unidade de documento {docUnitId}.", new { docUnitId });
             public static Error CantGenerateDocumentUnit(Guid docUnitId) => new("PMD.DOC13", $"Não é mais possivel gerar pdfs da unidade de documento {docUnitId}.", new { docUnitId });
+            public static Error DocumentAlreadySentToSignature(Guid docUnitId) => new("PMD.DOC14", $"A unidade de documento {docUnitId}, já foi enviado para assinatura.", new { docUnitId });
+            public static Error IsNotPending() => new("PMD.DOC14", $"Está ação só pode ser realizada quando o documento está pendente.", new {  });
 
         }
     }

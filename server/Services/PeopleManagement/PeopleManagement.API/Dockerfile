@@ -48,13 +48,13 @@ RUN apt-get update && apt-get install -y \
   fonts-kacst \
   fonts-freefont-ttf \
   --no-install-recommends
-
+  
+ENV PUPPETEER_EXECUTABLE_PATH "/usr/bin/google-chrome-unstable"
 
 #####################
 #END PUPPETEER RECIPE
 #####################
 
-ENV PUPPETEER_EXECUTABLE_PATH "/usr/bin/google-chrome-unstable"
 
 FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
 WORKDIR /src

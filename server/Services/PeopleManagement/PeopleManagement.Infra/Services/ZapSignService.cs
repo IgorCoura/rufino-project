@@ -10,6 +10,8 @@ using System.Net.Http.Json;
 using System.Text.Json.Nodes;
 using System.Net.Http.Headers;
 using Microsoft.Net.Http.Headers;
+using static System.Net.WebRequestMethods;
+using System.Threading;
 
 namespace PeopleManagement.Infra.Services
 {
@@ -19,6 +21,7 @@ namespace PeopleManagement.Infra.Services
 
         public async Task SendToSignatureWithWhatsapp(Stream documentStream, Guid documentUnitId, Document document, Company company, Employee employee, PlaceSignature[] placeSignatures, DateTime dateLimitToSign, int eminderEveryNDays, CancellationToken cancellationToken = default)
         {
+
             var documentBase64 = ConvertStreamToBase64(documentStream);
 
             var folderPath = $"{company.CorporateName}/{employee.Name}";
@@ -58,9 +61,17 @@ namespace PeopleManagement.Infra.Services
                 ["base64_pdf"] = documentBase64
             };
 
+            const int maxRetries = 6;
+            int retryCount = 0;
+            HttpResponseMessage response;
 
-
-            var response = await _httpClient.PostAsync("/api/v1/docs/", new StringContent(documentToSign.ToString()), cancellationToken);
+            do
+            {
+                response = await _httpClient.PostAsync("/api/v1/docs/", new StringContent(documentToSign.ToString()), cancellationToken);
+                retryCount++;
+                await Task.Delay(TimeSpan.FromSeconds(Math.Pow(2, retryCount)), cancellationToken); // Exponential backoff  
+            }
+            while (response.IsSuccessStatusCode == false && retryCount < maxRetries);
 
             var debug = await response.Content.ReadAsStringAsync();
 
@@ -79,7 +90,11 @@ namespace PeopleManagement.Infra.Services
                 var resultPlaceSignature = await PlaceSignature(docToken, signerToken, placeSignatures, cancellationToken);
 
                 if (resultPlaceSignature == false)
+                {
+                    await DeleteDocument(docToken, cancellationToken);
                     throw new DomainException(this, InfraErrors.SignDoc.ErrorSendDocToSign(documentUnitId));
+                }
+                    
             }
         }
 
@@ -106,6 +121,27 @@ namespace PeopleManagement.Infra.Services
             return new DocSignedModel(Guid.Parse(documentUnitId), docStream, "PDF");
         }
 
+        private async Task DeleteDocument(String doc_token, CancellationToken cancellationToken = default)
+        {
+            const int maxRetries = 6;
+            int retryCount = 0;
+            HttpResponseMessage response;
+
+            do
+            {
+                response = await _httpClient.DeleteAsync("https://api.zapsign.com.br/api/v1/docs/{{doc_token}}/");
+
+                if (response.IsSuccessStatusCode)
+                {
+                    return;
+                }
+
+                retryCount++;
+                await Task.Delay(TimeSpan.FromSeconds(Math.Pow(2, retryCount)), cancellationToken); // Exponential backoff  
+            }
+            while (retryCount < maxRetries);
+        }
+
         private async Task<bool> PlaceSignature(string docToken, string signerToken, PlaceSignature[] placeSignatures, CancellationToken cancellationToken = default)
         {
             var placeSignaturesJson = new JsonArray();
@@ -130,11 +166,27 @@ namespace PeopleManagement.Infra.Services
                 ["rubricas"] = placeSignaturesJson
             };
 
-            var response = await _httpClient.PostAsJsonAsync($"/api/v1/docs/{docToken}/place-signatures/", rubricas, cancellationToken);
-            
+            const int maxRetries = 6;
+            int retryCount = 0;
+            HttpResponseMessage response;
+
+            do
+            {
+                response = await _httpClient.PostAsJsonAsync($"/api/v1/docs/{docToken}/place-signatures/", rubricas, cancellationToken);
+
+                if (response.IsSuccessStatusCode)
+                {
+                    return true;
+                }
+
+                retryCount++;
+                await Task.Delay(TimeSpan.FromSeconds(Math.Pow(2, retryCount)), cancellationToken); // Exponential backoff  
+            }
+            while (retryCount < maxRetries);
+
             var debug = await response.Content.ReadAsStringAsync();
-            
-            return response.IsSuccessStatusCode;
+
+            return false;
         }
 
         private async Task<bool> CreateWebHookToDocSigned(string docToken, string url, string authorizationToken, CancellationToken cancellationToken = default)

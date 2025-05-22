@@ -50,7 +50,7 @@ namespace PeopleManagement.Services.DomainEventHandlers
 
         public async Task RemoveUnnecessaryDocuments(RequestDocumentsEvent notification, CancellationToken cancellationToken)
         {
-            var allEmployeeDocument = await _documentRepository.GetDataAsync(x => x.EmployeeId == notification.EmployeeId && x.CompanyId == notification.CompanyId && x.DocumentsUnits.Any(x => x.Name != null && x.Extension != null) == false, cancellation: cancellationToken);
+            var allEmployeeDocument = await _documentRepository.GetDataAsync(x => x.EmployeeId == notification.EmployeeId && x.CompanyId == notification.CompanyId, cancellation: cancellationToken);
 
             foreach (var document in allEmployeeDocument)
             {
@@ -75,7 +75,14 @@ namespace PeopleManagement.Services.DomainEventHandlers
 
                 if (isAssociation == false)
                 {
-                    await _documentRepository.DeleteAsync(document);
+                    document.MakeAsDeprecated();
+
+                    if (document.CanBeDeleted())
+                    {
+                        await _documentRepository.DeleteAsync(document);
+                        
+                    }
+                    return;
                 }
             }
         }
