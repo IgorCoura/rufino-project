@@ -45,12 +45,16 @@ namespace PeopleManagement.Domain.AggregatesModel.DocumentAggregate
 
         public void InsertWithRequireValidation(Name name, Extension extension)
         {
+            if (IsInvalidDateAndValidity)
+                throw new DomainException(this, DomainErrors.DataInvalid(nameof(Date), Date));
             Name = name;
             Extension = extension;
-            Status = DocumentUnitStatus.RequiredValidaty;
+            Status = DocumentUnitStatus.RequiresValidation;
         }
         public void InsertWithoutRequireValidation(Name name, Extension extension)
         {
+            if (IsInvalidDateAndValidity)
+                throw new DomainException(this, DomainErrors.DataInvalid(nameof(Date), Date));
             Name = name;
             Extension = extension;
             Status = DocumentUnitStatus.OK;
@@ -87,25 +91,41 @@ namespace PeopleManagement.Domain.AggregatesModel.DocumentAggregate
 
         public void Deprecate()
         {
-            if(Status == DocumentUnitStatus.OK)
+            if (Status == DocumentUnitStatus.OK ||
+                Status == DocumentUnitStatus.RequiresValidation ||
+                Status == DocumentUnitStatus.AwaitingSignature || 
+                Status == DocumentUnitStatus.Pending)
+            {
                 Status = DocumentUnitStatus.Deprecated;
+            }
         }
 
-        public void NotApplicable()
+        public void MarkAsNotApplicable()
         {
             if (Status == DocumentUnitStatus.Pending)
                 Status = DocumentUnitStatus.NotApplicable;
         }
 
-        public void AwaitingSignature()
+        public void MarkAsAwaitingSignature()
         {
+            if (IsInvalidDateAndValidity)
+                throw new DomainException(this, DomainErrors.DataInvalid(nameof(Date), Date));
+
             if (Status == DocumentUnitStatus.Pending)
                 Status = DocumentUnitStatus.AwaitingSignature;
         }
-        public bool RequiresVerification => Status == DocumentUnitStatus.RequiredValidaty;
+
+        public bool HasContent => string.IsNullOrEmpty(Content) == false;
+
+        public bool IsAwaitingSignature => Status == DocumentUnitStatus.AwaitingSignature;
+        public bool RequiresVerification => Status == DocumentUnitStatus.RequiresValidation;
         public bool IsOK => Status == DocumentUnitStatus.OK;
+        public bool IsPending => Status == DocumentUnitStatus.Pending;
         public string GetNameWithExtension => $"{Name}.{Extension}";
         public bool CanEdit => (Name == null || Name.IsNullOrEmpty) && Extension == null;
+
+        private bool IsInvalidDateAndValidity => Date == DateOnly.MinValue || Date == DateOnly.MaxValue || Validity == null || Validity == DateOnly.MinValue || Validity == DateOnly.MaxValue;
+        
 
     }
 }

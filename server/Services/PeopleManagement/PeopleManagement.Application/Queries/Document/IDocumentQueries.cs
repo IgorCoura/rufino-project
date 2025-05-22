@@ -6,5 +6,6 @@ namespace PeopleManagement.Application.Queries.Document
     {
         Task<IEnumerable<DocumentSimpleDto>> GetAllSimple(Guid employeeId, Guid companyId);
         Task<DocumentDto> GetById(Guid documentId, Guid employeeId, Guid companyId);
+        Task<Stream> DownloadDocumentUnit(Guid documentUnitId, Guid documentId, Guid employeeId, Guid companyId);
     }
 }

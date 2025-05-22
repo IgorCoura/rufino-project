@@ -6,7 +6,7 @@ class DocumentUnitStatus extends Enumeration {
     "2": "OK",
     "3": "Obsoleto",
     "4": "Inválido",
-    "5": "Requer Validade",
+    "5": "Requer Validação",
     "6": "Não Aplicável",
     "7": "Aguardando Assinatura",
   };
@@ -15,6 +15,8 @@ class DocumentUnitStatus extends Enumeration {
       : super(id, conversionMapIntToString[id] ?? name, "Status");
 
   const DocumentUnitStatus.empty() : super.empty(displayName: "Status");
+
+  bool get isPanding => id == "1";
 
   static DocumentUnitStatus fromJson(Map<String, dynamic> json) {
     return DocumentUnitStatus((json["id"]).toString(), json["name"]);

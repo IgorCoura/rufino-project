@@ -47,6 +47,9 @@ class DocumentUnit extends Equatable {
         .toList();
   }
 
+  bool get isPanding => status.isPanding;
+  bool get hasFile => getDate.isEmpty == false && extension.isEmpty == false;
+
   String get getDate {
     if (date.isEmpty || date == "0001-01-01") {
       return "__/__/____ ";
@@ -77,7 +80,7 @@ class DocumentUnit extends Equatable {
         "${dateTime.second.toString().padLeft(2, '0')}";
   }
 
-  static String? validate(String? value) {
+  static String? validateDate(String? value) {
     if (value == null || value.isEmpty) {
       return "A data não pode ser vazio.";
     }
@@ -98,6 +101,51 @@ class DocumentUnit extends Equatable {
       }
     } catch (_) {
       return "A data é invalida.";
+    }
+    return null;
+  }
+
+  static String? validateDateLimitToSign(String? value) {
+    if (value == null || value.isEmpty) {
+      return "A data não pode ser vazio.";
+    }
+
+    try {
+      // Parse the input date string in dd/MM/yyyy format
+      DateTime parsedDate = DateFormat('dd/MM/yyyy').parse(value);
+      // Format the parsed date to yyyy-MM-dd
+      String formattedDate = DateFormat('yyyy-MM-dd').format(parsedDate);
+
+      var date = DateTime.tryParse(formattedDate);
+
+      var dateMax = DateTime.now().add(const Duration(days: 1460));
+      var dateMin = DateTime.now().add(const Duration(days: 1));
+
+      if (date == null || date.isAfter(dateMax) || date.isBefore(dateMin)) {
+        return "A data é invalida.";
+      }
+    } catch (_) {
+      return "A data é invalida.";
+    }
+    return null;
+  }
+
+  static String? validateEminderEveryNDays(String? value) {
+    if (value == null || value.isEmpty) {
+      return "Não pode ser vazio.";
+    }
+
+    try {
+      var parsedValue = int.tryParse(value);
+
+      var max = 90;
+      var min = 0;
+
+      if (parsedValue == null || parsedValue > max || parsedValue < min) {
+        return "O valor é invalida.";
+      }
+    } catch (_) {
+      return "O valor  é invalida.";
     }
     return null;
   }

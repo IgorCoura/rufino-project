@@ -1,4 +1,5 @@
-﻿using PeopleManagement.Domain.ErrorTools;
+﻿using PeopleManagement.Domain.AggregatesModel.EmployeeAggregate;
+using PeopleManagement.Domain.ErrorTools;
 using PeopleManagement.Domain.ErrorTools.ErrorsMessages;
 
 namespace PeopleManagement.Domain.AggregatesModel.DocumentAggregate
@@ -11,7 +12,7 @@ namespace PeopleManagement.Domain.AggregatesModel.DocumentAggregate
         public Guid CompanyId { get; private set; }
         public Guid RequiredDocumentId { get; private set; }
         public List<DocumentUnit> DocumentsUnits { get; private set; } = [];
-        public DocumentStatus Status { get; private set; } = DocumentStatus.RequiredDocument;
+        public DocumentStatus Status { get; private set; } = DocumentStatus.RequiresDocument;
         public Guid DocumentTemplateId { get; private set; }
 
         private Document(Guid id, Guid employeeId, Guid companyId, Guid requiredDocumentId, Guid documentTemplateId, Name name, Description description) : base(id)
@@ -40,7 +41,8 @@ namespace PeopleManagement.Domain.AggregatesModel.DocumentAggregate
 
             documentUnit.InsertWithRequireValidation(name, extension);
 
-            Status = DocumentStatus.RequiredValidaty;
+            Status = DocumentStatus.RequiresValidation;
+            
         }
 
         public string InsertUnitWithoutRequireValidation(Guid documentUnitId, Name name, Extension extension)
@@ -48,11 +50,11 @@ namespace PeopleManagement.Domain.AggregatesModel.DocumentAggregate
             var documentUnit = DocumentsUnits.FirstOrDefault(x => x.Id == documentUnitId)
                 ?? throw new DomainException(this, DomainErrors.ObjectNotFound(nameof(DocumentUnit), documentUnitId.ToString()));
 
-            documentUnit.InsertWithRequireValidation(name, extension);
+            documentUnit.InsertWithoutRequireValidation(name, extension);
 
             Status = DocumentStatus.OK;
 
-            DeprecateOldDocuments(documentUnitId);
+            DeprecateDocumentsUnit(documentUnitId);
 
             return documentUnit.GetNameWithExtension;
         }
@@ -76,16 +78,16 @@ namespace PeopleManagement.Domain.AggregatesModel.DocumentAggregate
         }
 
 
-        public void AwaitingDocumentUnitSignature(Guid documentUnitId)
+        public void MarkAsAwaitingDocumentUnitSignature(Guid documentUnitId)
         {
             Status = DocumentStatus.AwaitingSignature;
             var documentUnit = DocumentsUnits.FirstOrDefault(x => x.Id == documentUnitId)
                 ?? throw new DomainException(this, DomainErrors.ObjectNotFound(nameof(DocumentUnit), documentUnitId.ToString()));
 
-            documentUnit.AwaitingSignature();
+            documentUnit.MarkAsAwaitingSignature();
         }
 
-        public void ValidateDocument(Guid documentId, bool IsValid)
+        public void ValidateDocumentUnit(Guid documentId, bool IsValid)
         {
             var document = DocumentsUnits.FirstOrDefault(x => x.Id == documentId)
                 ?? throw new DomainException(this, DomainErrors.ObjectNotFound(nameof(DocumentUnit), documentId.ToString()));
@@ -94,28 +96,22 @@ namespace PeopleManagement.Domain.AggregatesModel.DocumentAggregate
             if (IsValid)
             {
                 Status = DocumentStatus.OK;
-                DeprecateOldDocuments(documentId);
-            }
-
-            if (HasValidDocument())
-            {
-                Status = DocumentStatus.OK;
-            }
-            else
-            {
-                Status = DocumentStatus.RequiredDocument;
+                DeprecateDocumentsUnit(documentId);
             }
         }
 
         public void HasOverdueDocuments()
         {
-            var hasOverDueDocuments = DocumentsUnits.Any(x => x.Status == DocumentUnitStatus.OK && x.Validity > DateOnly.FromDateTime(DateTime.UtcNow));
-            DeprecateOldDocuments();
-            if(hasOverDueDocuments)
-                Status = DocumentStatus.RequiredDocument;
+            //TODO
         }
 
-        private void DeprecateOldDocuments(Guid? exceptionDocumentId = null)
+        public void MakeAsDeprecated()
+        {
+            Status = DocumentStatus.Deprecated;
+            DeprecateDocumentsUnit();
+        }
+
+        private void DeprecateDocumentsUnit(Guid? exceptionDocumentId = null)
         {
             DocumentsUnits.ForEach(x =>
             {
@@ -124,15 +120,22 @@ namespace PeopleManagement.Domain.AggregatesModel.DocumentAggregate
             });
         }
 
-        public void DocumentNotApplicable(Guid documentId)
+        public void MarkAsNotApplicableDocumentUnit(Guid documentId)
         {
             var document = DocumentsUnits.FirstOrDefault(x => x.Id == documentId)
                ?? throw new DomainException(this, DomainErrors.ObjectNotFound(nameof(DocumentUnit), documentId.ToString()));
 
-            document.NotApplicable();
+            document.MarkAsNotApplicable();
             Status = DocumentStatus.OK;
         }
 
+        public bool IsAwaitingSignatureDocumentUnit(Guid documentUnitId)
+        {
+            var document = DocumentsUnits.FirstOrDefault(x => x.Id == documentUnitId)
+               ?? throw new DomainException(this, DomainErrors.ObjectNotFound(nameof(DocumentUnit), documentUnitId.ToString()));
+
+            return document.IsAwaitingSignature;
+        }
 
         public bool CanEditDocumentUnit(Guid documentUnitId)
         {
@@ -141,7 +144,28 @@ namespace PeopleManagement.Domain.AggregatesModel.DocumentAggregate
 
             return document.CanEdit;
         }
-        private bool HasValidDocument()
+
+        public bool IsPendingDocumentUnit(Guid documentUnitId)
+        {
+            var document = DocumentsUnits.FirstOrDefault(x => x.Id == documentUnitId)
+               ?? throw new DomainException(this, DomainErrors.ObjectNotFound(nameof(DocumentUnit), documentUnitId.ToString()));
+
+            return document.IsPending;
+        }
+
+        public bool CanBeDeleted()
+        {
+            if(DocumentsUnits.Count == 0)
+                return true;    
+            return DocumentsUnits.Any(x => x.IsPending == false) == false;
+        }
+
+        private void ChangeStatus(DocumentStatus status)
+        {
+            Status = status;
+        }
+
+        private bool HasValidDocumentsUnit()
         {
             return DocumentsUnits.Any(x => x.IsOK);
         }

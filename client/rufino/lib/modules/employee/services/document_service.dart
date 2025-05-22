@@ -96,7 +96,7 @@ class DocumentService extends BaseService {
       "eminderEveryNDays": eminderEveryNDays,
     };
     var url = peopleManagementUrl.replace(
-        path: "/api/v1/$companyId/document/send2sign");
+        path: "/api/v1/$companyId/document/generate/send2sign");
     var response =
         await http.post(url, headers: headers, body: jsonEncode(body));
     if (response.statusCode == 200) {
@@ -125,5 +125,82 @@ class DocumentService extends BaseService {
       return file;
     }
     throw treatUnsuccessfulResponses(response);
+  }
+
+  Future<File> downloadDocumentUnit(
+    String documentUnitId,
+    String documentId,
+    String employeeId,
+    String companyId,
+    String path,
+  ) async {
+    var headers = await getHeaders(contentType: "application/octet-stream");
+    var url = peopleManagementUrl.replace(
+        path:
+            "/api/v1/$companyId/document/download/$employeeId/$documentId/$documentUnitId");
+
+    var response = await http.get(url, headers: headers);
+
+    if (response.statusCode == 200) {
+      var file = File(path);
+      await file.writeAsBytes(response.bodyBytes);
+      return file;
+    }
+    throw treatUnsuccessfulResponses(response);
+  }
+
+  Future<String> loadDocumentUnit(String documentUnitId, String documentId,
+      String employeeId, String companyId, String path) async {
+    var headers = await getHeaders();
+    var url =
+        peopleManagementUrl.replace(path: "/api/v1/$companyId/document/insert");
+
+    var request = http.MultipartRequest("POST", url);
+    request.headers.addAll(headers);
+    request.files.add(await http.MultipartFile.fromPath('formFile', path));
+    request.fields['DocumentUnitId'] = documentUnitId;
+    request.fields['DocumentId'] = documentId;
+    request.fields['EmployeeId'] = employeeId;
+    var response = await request.send();
+    if (response.statusCode == 200) {
+      var responseBody = await response.stream.bytesToString();
+      dynamic jsonResponse = jsonDecode(responseBody);
+      return jsonResponse["id"];
+    }
+    var exception = await treatUnsuccessfulStreamedResponses(response);
+    throw exception;
+  }
+
+  Future<String> loadDocumentUnitToSign(
+      String dateLimitToSign,
+      String eminderEveryNDays,
+      String documentUnitId,
+      String documentId,
+      String employeeId,
+      String companyId,
+      String path) async {
+    var headers = await getHeaders();
+    var url = peopleManagementUrl.replace(
+        path: "/api/v1/$companyId/document/insert/send2sign");
+
+    var request = http.MultipartRequest("POST", url);
+    request.headers.addAll(headers);
+    request.files.add(await http.MultipartFile.fromPath('formFile', path));
+    request.fields['DocumentUnitId'] = documentUnitId;
+    request.fields['DocumentId'] = documentId;
+    request.fields['EmployeeId'] = employeeId;
+    request.fields['DateLimitToSign'] =
+        DataConvetion.convertToIsoUTC(dateLimitToSign);
+    request.fields['EminderEveryNDays'] = eminderEveryNDays;
+
+    var response = await request.send();
+
+    if (response.statusCode == 200) {
+      var responseBody = await response.stream.bytesToString();
+      dynamic jsonResponse = jsonDecode(responseBody);
+      return jsonResponse["id"];
+    }
+    var exception = await treatUnsuccessfulStreamedResponses(response);
+    throw exception;
   }
 }

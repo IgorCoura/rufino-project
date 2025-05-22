@@ -14,7 +14,8 @@ namespace PeopleManagement.Infra.Services
         public async Task<Stream> DownloadAsync(string fileNameWithExtesion, string containerName, CancellationToken cancellationToken = default)
         {
             BlobClient blobClient = await GetBlobClientAsync(fileNameWithExtesion, containerName, cancellationToken);
-            using var stream = await blobClient.OpenReadAsync(cancellationToken: cancellationToken);
+            var stream = await blobClient.OpenReadAsync(cancellationToken: cancellationToken);
+            stream.Position = 0;
             return stream;
         }
 

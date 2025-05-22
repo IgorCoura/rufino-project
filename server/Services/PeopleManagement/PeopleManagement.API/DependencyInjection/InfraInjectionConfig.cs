@@ -39,7 +39,7 @@ namespace PeopleManagement.API.DependencyInjection
             service.AddHttpClient<ISignService, ZapSignService>(httpClient =>
             {
                 httpClient.BaseAddress = new Uri(configuration.GetSection("ZapSign")["URI"]!);
-                httpClient.DefaultRequestHeaders.Add(HeaderNames.Authorization, configuration.GetSection("ZapSign")["Token"]!);
+                httpClient.DefaultRequestHeaders.Add(HeaderNames.Authorization, "Bearer " + configuration.GetSection("ZapSign")["Token"]!);
             });
 
             return service;

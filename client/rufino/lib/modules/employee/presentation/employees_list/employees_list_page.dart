@@ -21,7 +21,7 @@ class EmployeesListPage extends StatelessWidget {
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () {
-            Modular.to.pop();
+            Modular.to.navigate("/");
           },
         ),
         title: BlocBuilder<EmployeesListBloc, EmployeesListState>(

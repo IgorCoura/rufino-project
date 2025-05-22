@@ -22,6 +22,10 @@ class DocumentsComponentBloc
     on<CreateDocumentUnitEvent>(_onCreateDocumentUnitEvent);
     on<RefeshEvent>(_onRefeshEvent);
     on<GenerateDocumentUnitEvent>(_onGenerateDocumentUnitEvent);
+    on<GenerateAndSend2SignEvent>(_onGenerateAndSend2SignEvent);
+    on<LoadDocumentUnitEvent>(_onLoadDocumentUnitEvent);
+    on<LoadDocumentUnitToSignEvent>(_onLoadDocumentUnitToSignEvent);
+    on<DownloadDocumentUnitEvent>(_onDownloadDocumentUnitEvent);
   }
 
   void _onInitialEvent(
@@ -149,6 +153,122 @@ class DocumentsComponentBloc
       add(RefeshEvent(event.documentId));
       emit(state.copyWith(
           isSavingData: false, snackMessage: "Documento gerado com sucesso!"));
+    } catch (ex, stacktrace) {
+      var exception = _documentService.treatErrors(ex, stacktrace);
+      emit(state.copyWith(isSavingData: false, exception: exception));
+    }
+  }
+
+  Future _onGenerateAndSend2SignEvent(
+    GenerateAndSend2SignEvent event,
+    Emitter<DocumentsComponentState> emit,
+  ) async {
+    emit(state.copyWith(isSavingData: true));
+
+    try {
+      await _documentService.generateAndSend2Sign(
+          event.dateLimitToSign,
+          int.parse(event.eminderEveryNDays),
+          event.documentUnitId,
+          event.documentId,
+          state.employeeId,
+          state.companyId);
+      add(RefeshEvent(event.documentId));
+      emit(state.copyWith(
+          isSavingData: false,
+          snackMessage:
+              "Documento gerado e enviado para assinatura com sucesso!"));
+    } catch (ex, stacktrace) {
+      var exception = _documentService.treatErrors(ex, stacktrace);
+      emit(state.copyWith(isSavingData: false, exception: exception));
+    }
+  }
+
+  Future _onLoadDocumentUnitToSignEvent(LoadDocumentUnitToSignEvent event,
+      Emitter<DocumentsComponentState> emit) async {
+    emit(state.copyWith(isSavingData: true));
+
+    try {
+      FilePickerResult? result = await FilePicker.platform.pickFiles();
+
+      if (result == null) {
+        emit(state.copyWith(
+            isSavingData: false,
+            snackMessage: "Nenhum arquivo selecionado para upload"));
+        return;
+      }
+
+      await _documentService.loadDocumentUnitToSign(
+          event.dateLimitToSign,
+          event.eminderEveryNDays,
+          event.documentUnitId,
+          event.documentId,
+          state.employeeId,
+          state.companyId,
+          result.files.single.path!);
+
+      emit(state.copyWith(
+          isSavingData: false, snackMessage: "Arquivo enviado com sucesso!"));
+      add(RefeshEvent(event.documentId));
+    } catch (ex, stacktrace) {
+      var exception = _documentService.treatErrors(ex, stacktrace);
+      emit(state.copyWith(isSavingData: false, exception: exception));
+    }
+  }
+
+  Future _onLoadDocumentUnitEvent(
+    LoadDocumentUnitEvent event,
+    Emitter<DocumentsComponentState> emit,
+  ) async {
+    emit(state.copyWith(isSavingData: true));
+    try {
+      FilePickerResult? result = await FilePicker.platform.pickFiles();
+
+      if (result == null) {
+        emit(state.copyWith(
+            isSavingData: false,
+            snackMessage: "Nenhum arquivo selecionado para upload"));
+        return;
+      }
+
+      await _documentService.loadDocumentUnit(
+          event.documentUnitId,
+          event.documentId,
+          state.employeeId,
+          state.companyId,
+          result.files.single.path!);
+
+      emit(state.copyWith(
+          isSavingData: false, snackMessage: "Arquivo enviado com sucesso!"));
+      add(RefeshEvent(event.documentId));
+    } catch (ex, stacktrace) {
+      var exception = _documentService.treatErrors(ex, stacktrace);
+      emit(state.copyWith(isSavingData: false, exception: exception));
+    }
+  }
+
+  Future _onDownloadDocumentUnitEvent(
+    DownloadDocumentUnitEvent event,
+    Emitter<DocumentsComponentState> emit,
+  ) async {
+    emit(state.copyWith(isSavingData: true));
+
+    try {
+      String? savePath = await FilePicker.platform.saveFile(
+          dialogTitle: 'Salvar Documento',
+          fileName: "doc_${event.documentUnitId.substring(0, 10)}.pdf");
+
+      if (savePath == null) {
+        emit(state.copyWith(
+            isSavingData: false,
+            snackMessage: "Nenhum local de salvamento selecionado."));
+        return;
+      }
+      await _documentService.downloadDocumentUnit(event.documentUnitId,
+          event.documentId, state.employeeId, state.companyId, savePath);
+      add(RefeshEvent(event.documentId));
+      emit(state.copyWith(
+          isSavingData: false, snackMessage: "Documento baixado com sucesso!"));
     } catch (ex, stacktrace) {
       var exception = _documentService.treatErrors(ex, stacktrace);
       emit(state.copyWith(isSavingData: false, exception: exception));

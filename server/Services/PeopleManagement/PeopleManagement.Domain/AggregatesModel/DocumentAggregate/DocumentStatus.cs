@@ -2,8 +2,8 @@
 {
     public class DocumentStatus : Enumeration
     {
-        public static readonly DocumentStatus RequiredDocument = new(1, nameof(RequiredDocument));
-        public static readonly DocumentStatus RequiredValidaty = new(2, nameof(RequiredValidaty));
+        public static readonly DocumentStatus RequiresDocument = new(1, nameof(RequiresDocument));
+        public static readonly DocumentStatus RequiresValidation = new(2, nameof(RequiresValidation));
         public static readonly DocumentStatus OK = new(3, nameof(OK));
         public static readonly DocumentStatus Deprecated = new(4, nameof(Deprecated));
         public static readonly DocumentStatus AwaitingSignature = new(5, nameof(AwaitingSignature));

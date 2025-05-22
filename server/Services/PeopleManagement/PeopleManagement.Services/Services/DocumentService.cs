@@ -74,8 +74,8 @@ namespace PeopleManagement.Services.Services
                 && x.CompanyId == companyId, include: i => i.Include(x => x.DocumentsUnits), cancellation: cancellationToken)
                 ?? throw new DomainException(this, DomainErrors.ObjectNotFound(nameof(Document), documentId.ToString()));
 
-            if(document.CanEditDocumentUnit(documentUnitId) == false)
-                throw new DomainException(this, DomainErrors.Document.CantEditDocumentUnit(documentId));
+            if(document.IsPendingDocumentUnit(documentUnitId) == false)
+                throw new DomainException(this, DomainErrors.Document.IsNotPending());
 
             var documentTemplate = await _documentTemplateRepository.FirstOrDefaultAsync(x => x.Id == document.DocumentTemplateId 
             && x.CompanyId == companyId,
@@ -112,8 +112,8 @@ namespace PeopleManagement.Services.Services
                 && x.CompanyId == companyId, include: x => x.Include(y => y.DocumentsUnits), cancellation: cancellationToken)
                 ?? throw new DomainException(this, DomainErrors.ObjectNotFound(nameof(Document), documentId.ToString()));
 
-            if (document.CanEditDocumentUnit(documentUnitId) == false)
-                throw new DomainException(this, DomainErrors.Document.CantGenerateDocumentUnit(documentId));
+            if (document.IsPendingDocumentUnit(documentUnitId) == false)
+                throw new DomainException(this, DomainErrors.Document.IsNotPending());
 
 
             var documentTemplate = await _documentTemplateRepository.FirstOrDefaultAsync(x => x.Id == document.DocumentTemplateId 
@@ -124,6 +124,9 @@ namespace PeopleManagement.Services.Services
                 throw new DomainException(this, DomainErrors.Document.DocumentNotHaveTemplate(documentId));
 
             var documentUnit = document.DocumentsUnits.First(x => x.Id == documentUnitId);
+
+            if (documentUnit.HasContent == false)
+                throw new DomainException(this, DomainErrors.Document.ErrorRecoverData(documentUnitId));
             
             var pdfBytes = await _pdfService.ConvertHtml2Pdf(documentTemplate, documentUnit.Content, cancellationToken);
           
@@ -137,6 +140,8 @@ namespace PeopleManagement.Services.Services
                 x.CompanyId == companyId, include: x => x.Include(y => y.DocumentsUnits), cancellation: cancellationToken)
                 ?? throw new DomainException(this, DomainErrors.ObjectNotFound(nameof(Document), documentId.ToString()));
 
+            if (document.IsPendingDocumentUnit(documentUnitId) == false)
+                throw new DomainException(this, DomainErrors.Document.IsNotPending());
 
             var fileName = Guid.NewGuid().ToString();
 

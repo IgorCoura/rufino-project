@@ -215,60 +215,82 @@ class DocumentsComponent extends StatelessWidget {
         ),
         trailing: state.isSavingData
             ? const CircularProgressIndicator()
-            : Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  TextButton(
-                    onPressed: () => _editDocumentUnitDialog(
-                        context, document, documentUnit),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      children: const [
-                        Icon(Icons.edit),
-                        Text(
-                          "Atualizar",
-                          style: TextStyle(fontSize: 10),
+            : documentUnit.isPanding
+                ? Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      TextButton(
+                        onPressed: () => _editDocumentUnitDialog(
+                            context, document, documentUnit),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: const [
+                            Icon(Icons.edit),
+                            Text(
+                              "Atualizar",
+                              style: TextStyle(fontSize: 10),
+                            ),
+                          ],
                         ),
-                      ],
-                    ),
-                  ),
-                  TextButton(
-                    onPressed: () => _showGenerateButtonsDialog(
-                        context, document, documentUnit),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      children: const [
-                        Icon(Icons.sim_card_download_outlined),
-                        Text(
-                          "Gerar",
-                          style: TextStyle(fontSize: 10),
+                      ),
+                      TextButton(
+                        onPressed: () => _showGenerateButtonsDialog(
+                            context, document, documentUnit),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: const [
+                            Icon(Icons.sim_card_download_outlined),
+                            Text(
+                              "Gerar",
+                              style: TextStyle(fontSize: 10),
+                            ),
+                          ],
                         ),
-                      ],
-                    ),
-                  ),
-                  TextButton(
-                    onPressed: () => _showSendButtonsDialog(context),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      children: const [
-                        Icon(Icons.upload_file),
-                        Text(
-                          "Enviar",
-                          style: TextStyle(fontSize: 10),
+                      ),
+                      TextButton(
+                        onPressed: () => _showSendButtonsDialog(
+                            context, document, documentUnit),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: const [
+                            Icon(Icons.upload_file),
+                            Text(
+                              "Enviar",
+                              style: TextStyle(fontSize: 10),
+                            ),
+                          ],
                         ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
+                      ),
+                    ],
+                  )
+                : documentUnit.hasFile
+                    ? TextButton(
+                        onPressed: () => bloc.add(DownloadDocumentUnitEvent(
+                          document.id,
+                          documentUnit.id,
+                        )),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: const [
+                            Icon(Icons.search),
+                            Text(
+                              "Visualizar",
+                              style: TextStyle(fontSize: 10),
+                            ),
+                          ],
+                        ),
+                      )
+                    : const SizedBox(),
       ),
     );
   }
 
-  Future<void> _showSendButtonsDialog(BuildContext context) async {
+  Future<void> _showSendButtonsDialog(BuildContext context, Document document,
+      DocumentUnit documentUnit) async {
     await showDialog(
       context: context,
       builder: (context) {
@@ -280,8 +302,8 @@ class DocumentsComponent extends StatelessWidget {
             children: [
               OutlinedButton(
                 onPressed: () {
-                  // Handle the action for the first button
                   Navigator.of(context).pop();
+                  bloc.add(LoadDocumentUnitEvent(documentUnit.id, document.id));
                 },
                 child: SizedBox(
                   width: 300,
@@ -294,8 +316,15 @@ class DocumentsComponent extends StatelessWidget {
               SizedBox(height: 8),
               OutlinedButton(
                 onPressed: () {
-                  // Handle the action for the first button
-                  Navigator.of(context).pop();
+                  _getDataToSignDialog(context,
+                      (dateLimitToSign, eminderEveryNDays) {
+                    bloc.add(LoadDocumentUnitToSignEvent(
+                      dateLimitToSign,
+                      eminderEveryNDays,
+                      documentUnit.id,
+                      document.id,
+                    ));
+                  });
                 },
                 child: SizedBox(
                   width: 300,
@@ -347,8 +376,14 @@ class DocumentsComponent extends StatelessWidget {
               SizedBox(height: 8),
               OutlinedButton(
                 onPressed: () {
-                  // Handle the action for the first button
-                  Navigator.of(context).pop();
+                  _getDataToSignDialog(
+                      context,
+                      (dateLimitToSign, eminderEveryNDays) => bloc.add(
+                          GenerateAndSend2SignEvent(
+                              dateLimitToSign,
+                              eminderEveryNDays,
+                              document.id,
+                              documentUnit.id)));
                 },
                 child: SizedBox(
                   width: 300,
@@ -403,7 +438,7 @@ class DocumentsComponent extends StatelessWidget {
                     ),
                     style: TextStyle(
                         color: Theme.of(context).colorScheme.onSurface),
-                    validator: (value) => DocumentUnit.validate(value),
+                    validator: (value) => DocumentUnit.validateDate(value),
                     onChanged: (value) => {date = value},
                   ),
                 ),
@@ -417,9 +452,102 @@ class DocumentsComponent extends StatelessWidget {
                 ),
                 FilledButton(
                   onPressed: () {
+                    if (_dialogKey.currentState != null &&
+                        _dialogKey.currentState!.validate()) {
+                      Navigator.pop(context);
+                      bloc.add(EditDocumentUnitEvent(
+                          date, document.id, documentUnit.id));
+                    }
+                  },
+                  child: const Text("Confirmar"),
+                ),
+              ],
+            );
+          });
+    });
+  }
+
+  void _getDataToSignDialog(
+    BuildContext context,
+    Function(String, String) sendData,
+  ) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      showDialog(
+          barrierDismissible: false,
+          context: context,
+          builder: (_) {
+            var _dialogKey = GlobalKey<FormState>();
+            String dateLimitToSign = "";
+            String eminderEveryNDays = "";
+            return AlertDialog(
+              title: Text("Dados para assinatura."),
+              content: SizedBox(
+                width: 400,
+                child: Form(
+                  key: _dialogKey,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      TextFormField(
+                        inputFormatters: [
+                          MaskTextInputFormatter(
+                              mask: '##/##/####',
+                              filter: {"#": RegExp(r'[0-9]')},
+                              type: MaskAutoCompletionType.lazy)
+                        ],
+                        keyboardType: TextInputType.datetime,
+                        controller: TextEditingController(),
+                        enabled: true,
+                        decoration: InputDecoration(
+                          labelText: "Data limite para assinatura",
+                          border: const OutlineInputBorder(),
+                        ),
+                        style: TextStyle(
+                            color: Theme.of(context).colorScheme.onSurface),
+                        validator: (value) =>
+                            DocumentUnit.validateDateLimitToSign(value),
+                        onChanged: (value) => {dateLimitToSign = value},
+                      ),
+                      SizedBox(height: 8),
+                      TextFormField(
+                        inputFormatters: [
+                          MaskTextInputFormatter(
+                              mask: '## dias',
+                              filter: {"#": RegExp(r'[0-9]')},
+                              type: MaskAutoCompletionType.lazy)
+                        ],
+                        keyboardType: TextInputType.datetime,
+                        controller: TextEditingController(),
+                        enabled: true,
+                        decoration: InputDecoration(
+                          labelText: "Relembrar assinatura a cada (dias)",
+                          border: const OutlineInputBorder(),
+                        ),
+                        style: TextStyle(
+                            color: Theme.of(context).colorScheme.onSurface),
+                        validator: (value) =>
+                            DocumentUnit.validateEminderEveryNDays(value),
+                        onChanged: (value) => {eminderEveryNDays = value},
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () {
                     Navigator.pop(context);
-                    bloc.add(EditDocumentUnitEvent(
-                        date, document.id, documentUnit.id));
+                  },
+                  child: const Text("Cancelar"),
+                ),
+                FilledButton(
+                  onPressed: () {
+                    if (_dialogKey.currentState != null &&
+                        _dialogKey.currentState!.validate()) {
+                      Navigator.pop(context);
+                      Navigator.pop(context);
+                      sendData(dateLimitToSign, eminderEveryNDays);
+                    }
                   },
                   child: const Text("Confirmar"),
                 ),
