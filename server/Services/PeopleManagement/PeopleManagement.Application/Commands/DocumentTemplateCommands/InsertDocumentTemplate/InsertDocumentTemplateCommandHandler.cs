@@ -6,6 +6,7 @@ using PeopleManagement.Domain.AggregatesModel.DocumentTemplateAggregate.Interfac
 using PeopleManagement.Domain.AggregatesModel.DocumentTemplateAggregate.options;
 using PeopleManagement.Domain.ErrorTools;
 using PeopleManagement.Domain.ErrorTools.ErrorsMessages;
+using PeopleManagement.Infra.Idempotency;
 
 namespace PeopleManagement.Application.Commands.DocumentTemplateCommands.InsertDocumentTemplate
 {
@@ -34,7 +35,9 @@ namespace PeopleManagement.Application.Commands.DocumentTemplateCommands.InsertD
         }
     }
 
-    public class InsertDocumentTemplateIdentifiedCommandHandler(IMediator mediator, ILogger<IdentifiedCommandHandler<InsertDocumentTemplateCommand, InsertDocumentTemplateResponse>> logger) : IdentifiedCommandHandler<InsertDocumentTemplateCommand, InsertDocumentTemplateResponse>(mediator, logger)
+    public class InsertDocumentTemplateIdentifiedCommandHandler(IMediator mediator, 
+        ILogger<IdentifiedCommandHandler<InsertDocumentTemplateCommand, InsertDocumentTemplateResponse>> logger, IRequestManager requestManager) 
+        : IdentifiedCommandHandler<InsertDocumentTemplateCommand, InsertDocumentTemplateResponse>(mediator, logger, requestManager)
     {
         protected override InsertDocumentTemplateResponse CreateResultForDuplicateRequest() => new(Guid.Empty);
 

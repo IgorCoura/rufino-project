@@ -1,6 +1,7 @@
 ﻿using PeopleManagement.Application.Commands.Identified;
 using PeopleManagement.Domain.AggregatesModel.DocumentTemplateAggregate;
 using PeopleManagement.Domain.AggregatesModel.DocumentTemplateAggregate.Interfaces;
+using PeopleManagement.Infra.Idempotency;
 
 namespace PeopleManagement.Application.Commands.DocumentTemplateCommands.CreateDocumentTemplate
 {
@@ -22,7 +23,9 @@ namespace PeopleManagement.Application.Commands.DocumentTemplateCommands.CreateD
         } 
     }
 
-    public class CreateDocumentTemplateIdentifiedCommandHandler(IMediator mediator, ILogger<IdentifiedCommandHandler<CreateDocumentTemplateCommand, CreateDocumentTemplateResponse>> logger) : IdentifiedCommandHandler<CreateDocumentTemplateCommand, CreateDocumentTemplateResponse>(mediator, logger)
+    public class CreateDocumentTemplateIdentifiedCommandHandler(IMediator mediator, 
+        ILogger<IdentifiedCommandHandler<CreateDocumentTemplateCommand, CreateDocumentTemplateResponse>> logger, IRequestManager requestManager) 
+        : IdentifiedCommandHandler<CreateDocumentTemplateCommand, CreateDocumentTemplateResponse>(mediator, logger, requestManager)
     {
         protected override CreateDocumentTemplateResponse CreateResultForDuplicateRequest() => new(Guid.Empty);
 

@@ -5,19 +5,21 @@ using PeopleManagement.Domain.ErrorTools;
 using PeopleManagement.Infra.Context;
 using static PeopleManagement.Application.Queries.Base.BaseDtos;
 using PeopleManagement.Domain.SeedWord;
+using PeopleManagement.Domain.AggregatesModel.DocumentAggregate;
 
 namespace PeopleManagement.Application.Queries.Employee
 {
-    public class EmployeeQueries(PeopleManagementContext peopleManagementContext) : IEmployeeQueries
+    public class EmployeeQueries(IDbContextFactory<PeopleManagementContext> factory) : IEmployeeQueries
     {
-        private PeopleManagementContext _context = peopleManagementContext;
+        private IDbContextFactory<PeopleManagementContext> _factory = factory;
 
-        public async Task<IEnumerable<EmployeeWithRoleDto>> GetEmployeeListWithRoles(EmployeeParams pms, Guid company)
+        public async Task<IEnumerable<EmployeeWithRoleAndDocumentStatusDto>> GetEmployeeListWithRolesAndDocumentStatus(EmployeeParams pms, Guid company)
         {
+            using var context = _factory.CreateDbContext();
             var query =
 
-                    from e in _context.Employees
-                    join r in _context.Roles on e.RoleId equals r.Id into roleGroup
+                    from e in context.Employees
+                    join r in context.Roles on e.RoleId equals r.Id into roleGroup
                     from r in roleGroup.DefaultIfEmpty()
                     select new
                     {
@@ -51,7 +53,7 @@ namespace PeopleManagement.Application.Queries.Employee
 
             query = query.Skip(pms.SizeSkip).Take(pms.PageSize);
 
-            var result = await query.Select(o => new EmployeeWithRoleDto
+            var employees = await query.Select(o => new EmployeeWithRoleAndDocumentStatusDto
             {
                 Id = o.Employee.Id,
                 Name = o.Employee.Name.Value,
@@ -64,15 +66,24 @@ namespace PeopleManagement.Application.Queries.Employee
                 RoleId = o.Employee.RoleId,
                 RoleName = o.Role.Name.Value == null ? string.Empty : o.Role.Name.Value,
                 CompanyId = o.Employee.CompanyId,
-                WorkplaceId = o.Employee.WorkPlaceId
+                WorkplaceId = o.Employee.WorkPlaceId       
             }).ToListAsync();
 
+
+            
+            var tasks = employees.Select(async r => r with
+            {
+                DocumentRepresentingStatus = await GetDocumentRepresentingStatusAsync(r.Id, company),
+            });
+
+            var result = await Task.WhenAll(tasks);
             return result;
         }
 
         public async Task<EmployeeDto> GetEmployee(Guid id, Guid company)
         {
-            var query = _context.Employees.Where(e => e.Id == id && e.CompanyId == company);
+            using var context = _factory.CreateDbContext();
+            var query = context.Employees.Where(e => e.Id == id && e.CompanyId == company);
 
             var result = await query.Select(o => new EmployeeDto
             {
@@ -95,7 +106,8 @@ namespace PeopleManagement.Application.Queries.Employee
 
         public async Task<EmployeeContactDto> GetEmployeeContact(Guid id, Guid company)
         {
-            var query = _context.Employees.Where(e => e.Id == id && e.CompanyId == company);
+            using var context = _factory.CreateDbContext();
+            var query = context.Employees.Where(e => e.Id == id && e.CompanyId == company);
 
             var result = await query.Select(o => new EmployeeContactDto
             {
@@ -111,7 +123,8 @@ namespace PeopleManagement.Application.Queries.Employee
 
         public async Task<EmployeeAddressDto> GetEmployeeAddress(Guid id, Guid company)
         {
-            var query = _context.Employees.Where(e => e.Id == id && e.CompanyId == company);
+            using var context = _factory.CreateDbContext();
+            var query = context.Employees.Where(e => e.Id == id && e.CompanyId == company);
 
             var result = await query.Select(o => new EmployeeAddressDto
             {
@@ -133,7 +146,8 @@ namespace PeopleManagement.Application.Queries.Employee
 
         public async Task<EmployeePersonalInfoDto> GetEmployeePersonalInfo(Guid id, Guid company)
         {
-            var query = await _context.Employees.Where(e => e.Id == id && e.CompanyId == company).FirstOrDefaultAsync()
+            using var context = _factory.CreateDbContext();
+            var query = await context.Employees.Where(e => e.Id == id && e.CompanyId == company).FirstOrDefaultAsync()
                 ?? throw new DomainException(this, DomainErrors.ObjectNotFound(nameof(Employee), id.ToString()));
 
             var result = new EmployeePersonalInfoDto
@@ -161,7 +175,8 @@ namespace PeopleManagement.Application.Queries.Employee
 
         public async Task<EmployeeIdCardDto> GetEmployeeIdCard(Guid id, Guid company)
         {
-            var query = _context.Employees.Where(e => e.Id == id && e.CompanyId == company);
+            using var context = _factory.CreateDbContext();
+            var query = context.Employees.Where(e => e.Id == id && e.CompanyId == company);
 
             var result = await query.Select(o => new EmployeeIdCardDto
             {
@@ -185,7 +200,8 @@ namespace PeopleManagement.Application.Queries.Employee
 
         public async Task<EmployeeVoteIdDto> GetEmployeeVoteId(Guid id, Guid company)
         {
-            var query = _context.Employees.Where(e => e.Id == id && e.CompanyId == company);
+            using var context = _factory.CreateDbContext();
+            var query = context.Employees.Where(e => e.Id == id && e.CompanyId == company);
 
             var result = await query.Select(o => new EmployeeVoteIdDto
             {
@@ -200,7 +216,8 @@ namespace PeopleManagement.Application.Queries.Employee
 
         public async Task<EmployeeMilitaryDocumentDto> GetEmployeeMilitaryDocument(Guid id, Guid company, bool isRequired)
         {
-            var query = _context.Employees.Where(e => e.Id == id && e.CompanyId == company);
+            using var context = _factory.CreateDbContext();
+            var query = context.Employees.Where(e => e.Id == id && e.CompanyId == company);
 
             var result = await query.Select(o => new EmployeeMilitaryDocumentDto
             {
@@ -217,7 +234,8 @@ namespace PeopleManagement.Application.Queries.Employee
 
         public async Task<EmployeeDependentsDto> GetEmployeeDependents(Guid id, Guid company)
         {
-            var query = _context.Employees.Where(e => e.Id == id && e.CompanyId == company);
+            using var context = _factory.CreateDbContext();
+            var query = context.Employees.Where(e => e.Id == id && e.CompanyId == company);
 
             var result = await query.Select(o => new EmployeeDependentsDto
             {
@@ -255,7 +273,8 @@ namespace PeopleManagement.Application.Queries.Employee
 
         public async Task<MedicalAdmissionExamDto> GetEmployeeMedicalAdmissionExam(Guid id, Guid company)
         {
-            var query = _context.Employees.Where(e => e.Id == id && e.CompanyId == company);
+            using var context = _factory.CreateDbContext();
+            var query = context.Employees.Where(e => e.Id == id && e.CompanyId == company);
 
             var result = await query.Select(o => new MedicalAdmissionExamDto
             {
@@ -271,7 +290,8 @@ namespace PeopleManagement.Application.Queries.Employee
 
         public async Task<EmployeeContractsDto> GetEmployeeContracts(Guid id, Guid company)
         {
-            var query = _context.Employees.Where(e => e.Id == id && e.CompanyId == company);
+            using var context = _factory.CreateDbContext();
+            var query = context.Employees.Where(e => e.Id == id && e.CompanyId == company);
 
             var result = await query.Select(o => new EmployeeContractsDto
             {
@@ -292,6 +312,45 @@ namespace PeopleManagement.Application.Queries.Employee
             return result;
         }
 
+        private async Task<EnumerationDto> GetDocumentRepresentingStatusAsync(Guid employeeId, Guid companyId, CancellationToken cancellationToken = default)
+        {
+            using var context = _factory.CreateDbContext();
+            var documents = await context.Documents.Where(x => x.EmployeeId == employeeId && x.CompanyId == companyId)
+                .OrderByDescending(x => x.CreatedAt)
+                .Select(x => new EnumerationDto
+                {
+                    Id = x.Status.Id,
+                    Name = x.Status.Name
+                })
+                .ToListAsync(cancellationToken);
+
+            var result = documents.FirstOrDefault(x => x.Id == DocumentStatus.RequiresDocument.Id);
+            if (result is not null)
+                return result;
+
+            result = documents.FirstOrDefault(x => x.Id == DocumentStatus.RequiresValidation.Id);
+            if (result is not null)
+                return result;
+
+            result = documents.FirstOrDefault(x => x.Id == DocumentStatus.AwaitingSignature.Id);
+            if (result is not null)
+                return result;
+
+            result = documents.FirstOrDefault(x => x.Id == DocumentStatus.OK.Id);
+            if (result is not null)
+                return result;
+
+            if (documents.Count == 0)
+                return new EnumerationDto
+                {
+                    Id = DocumentStatus.OK.Id,
+                    Name = DocumentStatus.OK.Name
+                };
+
+
+            return documents.First();
+
+        }
 
     }
 }

@@ -4,6 +4,6 @@ namespace PeopleManagement.Domain.AggregatesModel.DocumentAggregate.Interfaces
 {
     public interface IPdfService
     {
-        Task<byte[]> ConvertHtml2Pdf(DocumentTemplate type, string content, CancellationToken cancellationToken = default);
+        Task<byte[]> ConvertHtml2Pdf(TemplateFileInfo type, string content, CancellationToken cancellationToken = default);
     }
 }

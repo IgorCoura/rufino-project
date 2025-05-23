@@ -29,6 +29,9 @@ namespace PeopleManagement.Domain.AggregatesModel.DocumentAggregate
 
         public DocumentUnit NewDocumentUnit(Guid documentUnitId)
         {
+            if (DocumentsUnits.Any(x => x.Status == DocumentUnitStatus.Pending))
+                return DocumentsUnits.FirstOrDefault(x => x.Status == DocumentUnitStatus.Pending)!;
+
             var documentUnit = DocumentUnit.Create(documentUnitId, this);
             DocumentsUnits.Add(documentUnit);
             return documentUnit;
@@ -102,7 +105,7 @@ namespace PeopleManagement.Domain.AggregatesModel.DocumentAggregate
 
         public void HasOverdueDocuments()
         {
-            //TODO
+            //TODO: Implement this method
         }
 
         public void MakeAsDeprecated()

@@ -1,6 +1,7 @@
 ﻿using PeopleManagement.Application.Commands.EmployeeCommands.CreateDependentEmployee;
 using PeopleManagement.Application.Commands.Identified;
 using PeopleManagement.Domain.AggregatesModel.EmployeeAggregate.Interfaces;
+using PeopleManagement.Infra.Idempotency;
 
 namespace PeopleManagement.Application.Commands.EmployeeCommands.CreateEmployee
 {
@@ -24,7 +25,9 @@ namespace PeopleManagement.Application.Commands.EmployeeCommands.CreateEmployee
         }
     }
 
-    public class CreateEmployeeIdentifiedCommandHandler(IMediator mediator, ILogger<IdentifiedCommandHandler<CreateEmployeeCommand, CreateEmployeeResponse>> logger) : IdentifiedCommandHandler<CreateEmployeeCommand, CreateEmployeeResponse>(mediator, logger)
+    public class CreateEmployeeIdentifiedCommandHandler(IMediator mediator, 
+        ILogger<IdentifiedCommandHandler<CreateEmployeeCommand, CreateEmployeeResponse>> logger, IRequestManager requestManager) 
+        : IdentifiedCommandHandler<CreateEmployeeCommand, CreateEmployeeResponse>(mediator, logger, requestManager)
     {
         protected override CreateEmployeeResponse CreateResultForDuplicateRequest() => new(Guid.Empty);
     }

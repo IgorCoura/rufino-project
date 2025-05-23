@@ -1,5 +1,6 @@
 ﻿using PeopleManagement.Application.Commands.Identified;
 using PeopleManagement.Domain.AggregatesModel.ArchiveCategoryAggregate.Interfaces;
+using PeopleManagement.Infra.Idempotency;
 
 namespace PeopleManagement.Application.Commands.ArchiveCategoryCommands.AddListenEvent
 {
@@ -15,7 +16,7 @@ namespace PeopleManagement.Application.Commands.ArchiveCategoryCommands.AddListe
         }
     }
 
-    public sealed class AddListenEventIdentifiedCommandHandler(IMediator mediator, ILogger<IdentifiedCommandHandler<AddListenEventCommand, AddListenEventResponse>> logger) : IdentifiedCommandHandler<AddListenEventCommand, AddListenEventResponse>(mediator, logger)
+    public sealed class AddListenEventIdentifiedCommandHandler(IMediator mediator, ILogger<IdentifiedCommandHandler<AddListenEventCommand, AddListenEventResponse>> logger, IRequestManager requestManager) : IdentifiedCommandHandler<AddListenEventCommand, AddListenEventResponse>(mediator, logger, requestManager)
     {
         protected override AddListenEventResponse CreateResultForDuplicateRequest() => new(Guid.Empty);
 

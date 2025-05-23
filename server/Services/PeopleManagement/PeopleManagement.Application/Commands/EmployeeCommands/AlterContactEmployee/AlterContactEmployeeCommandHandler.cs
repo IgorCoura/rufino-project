@@ -5,6 +5,7 @@ using PeopleManagement.Domain.AggregatesModel.EmployeeAggregate;
 using PeopleManagement.Domain.AggregatesModel.EmployeeAggregate.Interfaces;
 using PeopleManagement.Domain.ErrorTools;
 using PeopleManagement.Domain.ErrorTools.ErrorsMessages;
+using PeopleManagement.Infra.Idempotency;
 using Contact = PeopleManagement.Domain.AggregatesModel.EmployeeAggregate.Contact;
 
 namespace PeopleManagement.Application.Commands.EmployeeCommands.AlterContactEmployee
@@ -31,7 +32,9 @@ namespace PeopleManagement.Application.Commands.EmployeeCommands.AlterContactEmp
         }
     }
 
-    public class AlterContactEmployeeIdentifiedCommandHandler(IMediator mediator, ILogger<IdentifiedCommandHandler<AlterContactEmployeeCommand, AlterContactEmployeeResponse>> logger) : IdentifiedCommandHandler<AlterContactEmployeeCommand, AlterContactEmployeeResponse>(mediator, logger)
+    public class AlterContactEmployeeIdentifiedCommandHandler(IMediator mediator, 
+        ILogger<IdentifiedCommandHandler<AlterContactEmployeeCommand, AlterContactEmployeeResponse>> logger, IRequestManager requestManager) 
+        : IdentifiedCommandHandler<AlterContactEmployeeCommand, AlterContactEmployeeResponse>(mediator, logger, requestManager)
     {
         protected override AlterContactEmployeeResponse CreateResultForDuplicateRequest() => new(Guid.Empty);
     }

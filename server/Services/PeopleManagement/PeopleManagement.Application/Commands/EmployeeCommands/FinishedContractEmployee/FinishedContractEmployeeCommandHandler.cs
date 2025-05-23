@@ -3,6 +3,7 @@ using PeopleManagement.Domain.ErrorTools.ErrorsMessages;
 using PeopleManagement.Domain.ErrorTools;
 using PeopleManagement.Application.Commands.Identified;
 using PeopleManagement.Domain.AggregatesModel.EmployeeAggregate.Interfaces;
+using PeopleManagement.Infra.Idempotency;
 
 namespace PeopleManagement.Application.Commands.EmployeeCommands.FinishedContractEmployee
 {
@@ -28,7 +29,9 @@ namespace PeopleManagement.Application.Commands.EmployeeCommands.FinishedContrac
         }
     }
 
-    public class FinishedContractEmployeeIdentifiedCommandHandler(IMediator mediator, ILogger<IdentifiedCommandHandler<FinishedContractEmployeeCommand, FinishedContractEmployeeResponse>> logger) : IdentifiedCommandHandler<FinishedContractEmployeeCommand, FinishedContractEmployeeResponse>(mediator, logger)
+    public class FinishedContractEmployeeIdentifiedCommandHandler(IMediator mediator, 
+        ILogger<IdentifiedCommandHandler<FinishedContractEmployeeCommand, FinishedContractEmployeeResponse>> logger, IRequestManager requestManager) 
+        : IdentifiedCommandHandler<FinishedContractEmployeeCommand, FinishedContractEmployeeResponse>(mediator, logger, requestManager)
     {
         protected override FinishedContractEmployeeResponse CreateResultForDuplicateRequest() => new(Guid.Empty);
     }

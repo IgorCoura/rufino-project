@@ -2,7 +2,7 @@
 {
     public interface IEmployeeQueries
     {
-        Task<IEnumerable<EmployeeWithRoleDto>> GetEmployeeListWithRoles(EmployeeParams pms, Guid company);
+        Task<IEnumerable<EmployeeWithRoleAndDocumentStatusDto>> GetEmployeeListWithRolesAndDocumentStatus(EmployeeParams pms, Guid company);
         Task<EmployeeDto> GetEmployee(Guid id, Guid company);
         Task<EmployeeContactDto> GetEmployeeContact(Guid id, Guid company);
         Task<EmployeeAddressDto> GetEmployeeAddress(Guid id, Guid company);

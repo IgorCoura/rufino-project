@@ -50,6 +50,7 @@ namespace PeopleManagement.Services.DomainEventHandlers
 
         public async Task RemoveUnnecessaryDocuments(RequestDocumentsEvent notification, CancellationToken cancellationToken)
         {
+            
             var allEmployeeDocument = await _documentRepository.GetDataAsync(x => x.EmployeeId == notification.EmployeeId && x.CompanyId == notification.CompanyId, cancellation: cancellationToken);
 
             foreach (var document in allEmployeeDocument)

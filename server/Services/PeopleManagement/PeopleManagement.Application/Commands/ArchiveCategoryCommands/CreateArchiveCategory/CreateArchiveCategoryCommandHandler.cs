@@ -1,5 +1,6 @@
 ﻿using PeopleManagement.Application.Commands.Identified;
 using PeopleManagement.Domain.AggregatesModel.ArchiveCategoryAggregate.Interfaces;
+using PeopleManagement.Infra.Idempotency;
 
 namespace PeopleManagement.Application.Commands.ArchiveCategoryCommands.CreateArchiveCategory
 {
@@ -15,7 +16,7 @@ namespace PeopleManagement.Application.Commands.ArchiveCategoryCommands.CreateAr
         }
     }
 
-    public sealed class InsertFileIdentifiedCommandHandler(IMediator mediator, ILogger<IdentifiedCommandHandler<CreateArchiveCategoryCommand, CreateArchiveCategoryResponse>> logger) : IdentifiedCommandHandler<CreateArchiveCategoryCommand, CreateArchiveCategoryResponse>(mediator, logger)
+    public sealed class InsertFileIdentifiedCommandHandler(IMediator mediator, ILogger<IdentifiedCommandHandler<CreateArchiveCategoryCommand, CreateArchiveCategoryResponse>> logger, IRequestManager requestManager) : IdentifiedCommandHandler<CreateArchiveCategoryCommand, CreateArchiveCategoryResponse>(mediator, logger, requestManager)
     {
         protected override CreateArchiveCategoryResponse CreateResultForDuplicateRequest() => new(Guid.Empty);
 

@@ -31,7 +31,10 @@ namespace PeopleManagement.Application.Commands.EmployeeCommands.AlterDependentE
         }
     }
 
-    public class AlterDependentEmployeeIdentifiedCommandHandler(IMediator mediator, ILogger<IdentifiedCommandHandler<AlterDependentEmployeeCommand, AlterDependentEmployeeResponse>> logger) : IdentifiedCommandHandler<AlterDependentEmployeeCommand, AlterDependentEmployeeResponse>(mediator, logger)
+    public class AlterDependentEmployeeIdentifiedCommandHandler(IMediator mediator, 
+        ILogger<IdentifiedCommandHandler<AlterDependentEmployeeCommand, AlterDependentEmployeeResponse>> logger, 
+        Infra.Idempotency.IRequestManager requestManager) 
+        : IdentifiedCommandHandler<AlterDependentEmployeeCommand, AlterDependentEmployeeResponse>(mediator, logger, requestManager)
     {
         protected override AlterDependentEmployeeResponse CreateResultForDuplicateRequest() => new(Guid.Empty);
     }

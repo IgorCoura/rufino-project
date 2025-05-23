@@ -3,6 +3,7 @@ using PeopleManagement.Domain.ErrorTools.ErrorsMessages;
 using PeopleManagement.Domain.ErrorTools;
 using PeopleManagement.Domain.AggregatesModel.DocumentTemplateAggregate.Interfaces;
 using PeopleManagement.Application.Commands.Identified;
+using PeopleManagement.Infra.Idempotency;
 
 namespace PeopleManagement.Application.Commands.DocumentTemplateCommands.EditDocumentTemplate
 {
@@ -34,7 +35,9 @@ namespace PeopleManagement.Application.Commands.DocumentTemplateCommands.EditDoc
         }
     }
 
-    public class EditDocumentTemplateIdentifiedCommandHandler(IMediator mediator, ILogger<IdentifiedCommandHandler<EditDocumentTemplateCommand, EditDocumentTemplateResponse>> logger) : IdentifiedCommandHandler<EditDocumentTemplateCommand, EditDocumentTemplateResponse>(mediator, logger)
+    public class EditDocumentTemplateIdentifiedCommandHandler(IMediator mediator, 
+        ILogger<IdentifiedCommandHandler<EditDocumentTemplateCommand, EditDocumentTemplateResponse>> logger, IRequestManager requestManager) 
+        : IdentifiedCommandHandler<EditDocumentTemplateCommand, EditDocumentTemplateResponse>(mediator, logger, requestManager)
     {
         protected override EditDocumentTemplateResponse CreateResultForDuplicateRequest() => new(Guid.Empty);
 

@@ -1,5 +1,6 @@
 ﻿using PeopleManagement.Application.Commands.Identified;
 using PeopleManagement.Domain.AggregatesModel.ArchiveAggregate.Interfaces;
+using PeopleManagement.Infra.Idempotency;
 using ArchiveFile = PeopleManagement.Domain.AggregatesModel.ArchiveAggregate.File;
 
 namespace PeopleManagement.Application.Commands.ArchiveCommands.InsertFile
@@ -17,7 +18,7 @@ namespace PeopleManagement.Application.Commands.ArchiveCommands.InsertFile
         }
     }
 
-    public class InsertFileIdentifiedCommandHandler(IMediator mediator, ILogger<IdentifiedCommandHandler<InsertFileCommand, InsertFileResponse>> logger) : IdentifiedCommandHandler<InsertFileCommand, InsertFileResponse>(mediator, logger)
+    public class InsertFileIdentifiedCommandHandler(IMediator mediator, ILogger<IdentifiedCommandHandler<InsertFileCommand, InsertFileResponse>> logger, IRequestManager requestManager) : IdentifiedCommandHandler<InsertFileCommand, InsertFileResponse>(mediator, logger, requestManager)
     {
         protected override InsertFileResponse CreateResultForDuplicateRequest() => new(Guid.Empty);
 

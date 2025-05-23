@@ -1,5 +1,6 @@
 ﻿using PeopleManagement.Application.Commands.Identified;
 using PeopleManagement.Domain.AggregatesModel.CompanyAggregate.Interfaces;
+using PeopleManagement.Infra.Idempotency;
 
 namespace PeopleManagement.Application.Commands.CompanyCommands.CreateCompany;
 public class CreateCompanyCommandHandler(ICompanyRepository companyReposity, ILogger<CreateCompanyCommandHandler> logger) : IRequestHandler<CreateCompanyCommand, BaseDTO>
@@ -22,7 +23,9 @@ public class CreateCompanyCommandHandler(ICompanyRepository companyReposity, ILo
 
 public class CreateCompanyIdentifiedCommandHandler : IdentifiedCommandHandler<CreateCompanyCommand, BaseDTO>
 {
-    public CreateCompanyIdentifiedCommandHandler(IMediator mediator, ILogger<IdentifiedCommandHandler<CreateCompanyCommand, BaseDTO>> logger) : base(mediator, logger)
+    public CreateCompanyIdentifiedCommandHandler(IMediator mediator, 
+        ILogger<IdentifiedCommandHandler<CreateCompanyCommand, BaseDTO>> logger, IRequestManager requestManager) 
+        : base(mediator, logger, requestManager)
     {
     }
 

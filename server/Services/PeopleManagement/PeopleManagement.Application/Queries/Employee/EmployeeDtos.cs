@@ -2,7 +2,7 @@
 
 namespace PeopleManagement.Application.Queries.Employee
 {
-    public record EmployeeWithRoleDto
+    public record EmployeeWithRoleAndDocumentStatusDto
     {
 
         public Guid Id { get; init; }
@@ -13,6 +13,7 @@ namespace PeopleManagement.Application.Queries.Employee
         public string RoleName { get; init; } = string.Empty;
         public Guid CompanyId { get; init; }
         public Guid? WorkplaceId { get; init; }
+        public EnumerationDto DocumentRepresentingStatus { get; init; } = EnumerationDto.Empty;
     }
 
     public record EmployeeDto

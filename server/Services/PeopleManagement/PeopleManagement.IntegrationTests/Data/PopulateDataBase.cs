@@ -317,10 +317,13 @@ namespace PeopleManagement.IntegrationTests.Data
             return securityDocument;
         }
 
-        public static Task<DocumentUnit> InsertOneDocumentWithInfoInDocument(this Document document)
+        public static Task<DocumentUnit> InsertOneDocumentWithInfoInDocument(this Document document, bool IsAwaitingSignature = false)
         {
             var content = DataToDocument.GetContent();
             var unit = document.NewDocumentUnit(Guid.NewGuid());
+            unit.UpdateDetails(DateOnly.FromDateTime(DateTime.Now), DateOnly.FromDateTime(DateTime.Now.AddDays(365)), "");
+            if (IsAwaitingSignature)
+                unit.MarkAsAwaitingSignature();
             document.UpdateDocumentUnitDetails(unit.Id, DateOnly.FromDateTime(DateTime.UtcNow), TimeSpan.FromDays(365), content);
             return Task.FromResult(unit);
         }

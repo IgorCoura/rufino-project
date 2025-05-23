@@ -495,6 +495,24 @@ namespace PeopleManagement.Infra.Migrations
                     b.ToTable("Workplaces");
                 });
 
+            modelBuilder.Entity("PeopleManagement.Infra.Idempotency.ClientRequest", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("Time")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("ClientRequests");
+                });
+
             modelBuilder.Entity("DocumentTemplateRequireDocuments", b =>
                 {
                     b.HasOne("PeopleManagement.Domain.AggregatesModel.DocumentTemplateAggregate.DocumentTemplate", null)

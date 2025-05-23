@@ -257,7 +257,7 @@ namespace PeopleManagement.IntegrationTests.Tests
 
             var document = await context.InsertDocument(cancellationToken);
             await context.SaveChangesAsync(cancellationToken);
-            var documentUnit = await document.InsertOneDocumentWithInfoInDocument();
+            var documentUnit = await document.InsertOneDocumentWithInfoInDocument(IsAwaitingSignature: true);
             await context.SaveChangesAsync(cancellationToken);
 
             var commandString = @"

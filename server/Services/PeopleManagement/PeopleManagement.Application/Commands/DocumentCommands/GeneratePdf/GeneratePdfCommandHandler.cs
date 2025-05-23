@@ -1,6 +1,7 @@
 ﻿
 using PeopleManagement.Application.Commands.Identified;
 using PeopleManagement.Domain.AggregatesModel.DocumentAggregate.Interfaces;
+using PeopleManagement.Infra.Idempotency;
 
 namespace PeopleManagement.Application.Commands.DocumentCommands.GeneratePdf
 {
@@ -14,7 +15,9 @@ namespace PeopleManagement.Application.Commands.DocumentCommands.GeneratePdf
             return new GeneratePdfResponse(request.DocumentUnitId, pdf);
         }
     }
-    public class CreateDocumentIdentifiedCommandHandler(IMediator mediator, ILogger<IdentifiedCommandHandler<GeneratePdfCommand, GeneratePdfResponse>> logger) : IdentifiedCommandHandler<GeneratePdfCommand, GeneratePdfResponse>(mediator, logger)
+    public class CreateDocumentIdentifiedCommandHandler(IMediator mediator, 
+        ILogger<IdentifiedCommandHandler<GeneratePdfCommand, GeneratePdfResponse>> logger, IRequestManager requestManager) 
+        : IdentifiedCommandHandler<GeneratePdfCommand, GeneratePdfResponse>(mediator, logger, requestManager)
     {
         protected override GeneratePdfResponse CreateResultForDuplicateRequest() => new(Guid.Empty, []);
 
