@@ -5,6 +5,7 @@ using PeopleManagement.Domain.AggregatesModel.EmployeeAggregate;
 using PeopleManagement.Domain.AggregatesModel.EmployeeAggregate.Interfaces;
 using PeopleManagement.Domain.ErrorTools;
 using PeopleManagement.Domain.ErrorTools.ErrorsMessages;
+using PeopleManagement.Infra.Idempotency;
 
 namespace PeopleManagement.Application.Commands.EmployeeCommands.CreateDependentEmployee
 {
@@ -32,7 +33,9 @@ namespace PeopleManagement.Application.Commands.EmployeeCommands.CreateDependent
         }
     }
 
-    public class CreateDependentEmployeeIdentifiedCommandHandler(IMediator mediator, ILogger<IdentifiedCommandHandler<CreateDependentEmployeeCommand, CreateDependentEmployeeResponse>> logger) : IdentifiedCommandHandler<CreateDependentEmployeeCommand, CreateDependentEmployeeResponse>(mediator, logger)
+    public class CreateDependentEmployeeIdentifiedCommandHandler(IMediator mediator, 
+        ILogger<IdentifiedCommandHandler<CreateDependentEmployeeCommand, CreateDependentEmployeeResponse>> logger, IRequestManager requestManager) 
+        : IdentifiedCommandHandler<CreateDependentEmployeeCommand, CreateDependentEmployeeResponse>(mediator, logger, requestManager)
     {
         protected override CreateDependentEmployeeResponse CreateResultForDuplicateRequest() => new(Guid.Empty);
     }

@@ -5,9 +5,6 @@ namespace PeopleManagement.Domain.AggregatesModel.DocumentTemplateAggregate
 {
     public class RecoverDataType : Enumeration
     {
-        private const string Header = "header.html";
-        private const string Body = "index.html";
-        private const string Footer = "footer.html";
 
         public static readonly RecoverDataType NR01 = new(1, nameof(NR01), "NR01", typeof(IRecoverNR01InfoToDocumentTemplateService));
 
@@ -23,24 +20,5 @@ namespace PeopleManagement.Domain.AggregatesModel.DocumentTemplateAggregate
         public static implicit operator RecoverDataType(string name) => Enumeration.FromDisplayName<RecoverDataType>(name);
 
   
-
-        public string GetSourcePath(string source)
-        {
-            return Path.Combine(source, TemplateName);
-        }
-        public string GetHeaderPath(string source)
-        {
-            return Path.Combine(source, TemplateName, Header);
-        }
-
-        public string GetBodyPath(string source)
-        {
-            return Path.Combine(source, TemplateName, Body);
-        }
-
-        public string GetFooterPath(string source)
-        {
-            return Path.Combine(source, TemplateName, Footer);
-        }
     }
 }

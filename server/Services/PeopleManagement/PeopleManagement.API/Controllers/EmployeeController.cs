@@ -284,11 +284,11 @@ namespace PeopleManagement.API.Controllers
         }
 
 
-        [HttpGet("list/roles")]
+        [HttpGet("list")]
         [ProtectedResource("employee", "view")]
-        public async Task<ActionResult<IEnumerable<EmployeeWithRoleDto>>> GetEmployeesWithRole([FromRoute] Guid company, [FromQuery] EmployeeParams employeeParams)
+        public async Task<ActionResult<IEnumerable<EmployeeWithRoleAndDocumentStatusDto>>> GetEmployeesWithRoleAndDocumentStatus([FromRoute] Guid company, [FromQuery] EmployeeParams employeeParams)
         {
-            var result = await employeeQueries.GetEmployeeListWithRoles(employeeParams, company);
+            var result = await employeeQueries.GetEmployeeListWithRolesAndDocumentStatus(employeeParams, company);
             return OkResponse(result);
         }
 

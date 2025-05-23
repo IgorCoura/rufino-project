@@ -617,7 +617,7 @@ class PeopleManagementService extends BaseService {
     throw treatUnsuccessfulResponses(response);
   }
 
-  Future<List<EmployeeWithRole>> getEmployeesWithRoles(
+  Future<List<EmployeeWithRole>> getEmployees(
       String companyId,
       String? name,
       String? role,
@@ -638,8 +638,7 @@ class PeopleManagementService extends BaseService {
         queryParams.map((key, value) => MapEntry(key, value.toString()));
 
     var url = peopleManagementUrl.replace(
-        path: "/api/v1/$companyId/employee/list/roles",
-        queryParameters: queryParams);
+        path: "/api/v1/$companyId/employee/list", queryParameters: queryParams);
 
     var headers = await getHeaders();
 

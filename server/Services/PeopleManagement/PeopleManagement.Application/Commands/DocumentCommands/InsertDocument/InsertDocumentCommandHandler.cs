@@ -1,6 +1,7 @@
 ﻿
 using PeopleManagement.Application.Commands.Identified;
 using PeopleManagement.Domain.AggregatesModel.DocumentAggregate.Interfaces;
+using PeopleManagement.Infra.Idempotency;
 using PuppeteerSharp;
 
 namespace PeopleManagement.Application.Commands.DocumentCommands.InsertDocument
@@ -21,7 +22,9 @@ namespace PeopleManagement.Application.Commands.DocumentCommands.InsertDocument
         }
     }
 
-    public class InsertDocumentIdentifiedCommandHandler(IMediator mediator, ILogger<IdentifiedCommandHandler<InsertDocumentCommand, InsertDocumentResponse>> logger) : IdentifiedCommandHandler<InsertDocumentCommand, InsertDocumentResponse>(mediator, logger)
+    public class InsertDocumentIdentifiedCommandHandler(IMediator mediator, 
+        ILogger<IdentifiedCommandHandler<InsertDocumentCommand, InsertDocumentResponse>> logger, IRequestManager requestManager) 
+        : IdentifiedCommandHandler<InsertDocumentCommand, InsertDocumentResponse>(mediator, logger, requestManager)
     {
         protected override InsertDocumentResponse CreateResultForDuplicateRequest() => new(Guid.Empty);
 

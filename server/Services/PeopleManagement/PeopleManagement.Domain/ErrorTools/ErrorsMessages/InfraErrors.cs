@@ -26,5 +26,10 @@
             public static Error ErrorSendDocToSign(Guid DocumentUnitId) => new("PMI.SD101", $"Um erro ocorreu ao tentar enviar o documento {DocumentUnitId} para assinar.", new { DocumentUnitId });
             public static Error ErrorInRecoverDocSigned(string DocumentUnitId) => new("PMI.SD102", $"Um erro ocorreu ao tentar recuperar o documento {DocumentUnitId} assinado.", new { DocumentUnitId });
         }
+
+        public static class Idempotency
+        {
+            public static Error RequestAlreadyExist(Guid requestId) => new("PMI.REQ101", $"A requisição {requestId}, já existe.", new { requestId });
+        }
     }
 }

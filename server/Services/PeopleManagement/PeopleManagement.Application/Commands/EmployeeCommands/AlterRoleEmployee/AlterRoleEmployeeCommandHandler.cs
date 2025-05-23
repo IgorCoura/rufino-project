@@ -6,6 +6,7 @@ using PeopleManagement.Domain.AggregatesModel.EmployeeAggregate;
 using PeopleManagement.Domain.AggregatesModel.EmployeeAggregate.Interfaces;
 using PeopleManagement.Domain.ErrorTools;
 using PeopleManagement.Domain.ErrorTools.ErrorsMessages;
+using PeopleManagement.Infra.Idempotency;
 
 namespace PeopleManagement.Application.Commands.EmployeeCommands.AlterRoleEmployee
 {
@@ -30,7 +31,9 @@ namespace PeopleManagement.Application.Commands.EmployeeCommands.AlterRoleEmploy
             return employee.Id;
         }
     }
-    public class AlterRoleEmployeeIdentifiedCommandHandler(IMediator mediator, ILogger<IdentifiedCommandHandler<AlterRoleEmployeeCommand, AlterRoleEmployeeResponse>> logger) : IdentifiedCommandHandler<AlterRoleEmployeeCommand, AlterRoleEmployeeResponse>(mediator, logger)
+    public class AlterRoleEmployeeIdentifiedCommandHandler(IMediator mediator, 
+        ILogger<IdentifiedCommandHandler<AlterRoleEmployeeCommand, AlterRoleEmployeeResponse>> logger, IRequestManager requestManager) 
+        : IdentifiedCommandHandler<AlterRoleEmployeeCommand, AlterRoleEmployeeResponse>(mediator, logger, requestManager)
     {
         protected override AlterRoleEmployeeResponse CreateResultForDuplicateRequest() => new(Guid.Empty);
     }

@@ -8,6 +8,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Internal;
 using PeopleManagement.API.Authorization;
 using PeopleManagement.Infra.Context;
 using Testcontainers.Azurite;
@@ -43,11 +44,11 @@ namespace PeopleManagement.IntegrationTests.Configs
                 //Config DataBase
                 var dbContext = services.SingleOrDefault(
                         d => d.ServiceType ==
-                            typeof(DbContextOptions<PeopleManagementContext>));
+                            typeof(IDbContextFactory<PeopleManagementContext>));
                 if (dbContext != null)
                     services.Remove(dbContext);
 
-                services.AddDbContext<PeopleManagementContext>(options =>
+                services.AddDbContextFactory<PeopleManagementContext>(options =>
                 {
                     options.UseNpgsql(
                         _dbContainer.GetConnectionString(),

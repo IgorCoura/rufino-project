@@ -53,12 +53,8 @@ class EmployeesListPage extends StatelessWidget {
               itemBuilder: (BuildContext context) {
                 return const <PopupMenuEntry>[
                   PopupMenuItem(
-                    value: "archive",
-                    child: Text('Configurações dos Arquivos'),
-                  ),
-                  PopupMenuItem(
                     value: "documents",
-                    child: Text('Configurações dos Documentos'),
+                    child: Text('Templates de Documentos'),
                   ),
                   PopupMenuItem(
                     value: "require-documents",
@@ -203,6 +199,51 @@ class EmployeesListPage extends StatelessWidget {
                       );
                     }),
                   ),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 0, 24, 0),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(54, 0, 0, 0),
+                          child: Text(
+                            "Nomes",
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(
+                              fontSize: 14,
+                            ),
+                          ),
+                        ),
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Container(
+                              width: 90,
+                              child: Text(
+                                "Documentos",
+                                textAlign: TextAlign.center,
+                                style: const TextStyle(
+                                  fontSize: 14,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 4),
+                            Container(
+                              width: 80,
+                              child: Text(
+                                "Status",
+                                textAlign: TextAlign.center,
+                                style: const TextStyle(
+                                  fontSize: 14,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                  Divider(),
                   state.isLoading
                       ? const CircularProgressIndicator()
                       : Expanded(
@@ -284,9 +325,29 @@ class EmployeesListPage extends StatelessWidget {
         employee.name,
       ),
       subtitle: Text('Função: ${employee.roleName}'),
-      trailing: Text(
-        employee.status.name,
-        style: const TextStyle(fontSize: 14),
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            alignment: Alignment.center,
+            width: 90,
+            child: Text(
+              textAlign: TextAlign.center,
+              employee.documentStatus.name,
+              style: const TextStyle(fontSize: 14),
+            ),
+          ),
+          SizedBox(width: 4),
+          Container(
+            alignment: Alignment.center,
+            width: 80,
+            child: Text(
+              textAlign: TextAlign.center,
+              employee.status.name,
+              style: const TextStyle(fontSize: 14),
+            ),
+          ),
+        ],
       ),
       onTap: () => Modular.to.pushNamed("profile/${employee.id}"),
     );

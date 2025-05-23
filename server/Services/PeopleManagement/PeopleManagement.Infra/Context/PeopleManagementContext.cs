@@ -17,6 +17,7 @@ using PeopleManagement.Infra.Mapping;
 using System.Data;
 using PeopleManagement.Domain.AggregatesModel.ArchiveCategoryAggregate;
 using System.Reflection;
+using PeopleManagement.Infra.Idempotency;
 
 namespace PeopleManagement.Infra.Context
 {
@@ -37,17 +38,13 @@ namespace PeopleManagement.Infra.Context
         public DbSet<Role> Roles { get; set; } = null!;
         public DbSet<Document> Documents { get; set; } = null!;
         public DbSet<Workplace> Workplaces { get; set; } = null!;
+        public DbSet<ClientRequest> ClientRequests { get; set; } = null!;
 
         private readonly IMediator? _mediator;
         private readonly IDbContextTransaction? _currentTransaction;
 
         public IDbContextTransaction? GetCurrentTransaction() => _currentTransaction;
         public bool HasActiveTransaction => _currentTransaction != null;
-
-        public PeopleManagementContext(DbContextOptions<PeopleManagementContext> options) : base(options)
-        {
-
-        }
 
         public PeopleManagementContext(DbContextOptions<PeopleManagementContext> options, IMediator? mediator) : base(options)
         {
@@ -59,6 +56,7 @@ namespace PeopleManagement.Infra.Context
         {
             modelBuilder.ApplyConfiguration(new ArchiveCategoryMap());
             modelBuilder.ApplyConfiguration(new ArchiveMap());
+            modelBuilder.ApplyConfiguration(new ClientRequestMap());
             modelBuilder.ApplyConfiguration(new CompanyMap());
             modelBuilder.ApplyConfiguration(new DepartmentMap());
             modelBuilder.ApplyConfiguration(new EmployeeMap());            
@@ -69,6 +67,7 @@ namespace PeopleManagement.Infra.Context
             modelBuilder.ApplyConfiguration(new DocumentUnitMap());
             modelBuilder.ApplyConfiguration(new RequireDocumentsMap());
             modelBuilder.ApplyConfiguration(new DocumentTemplateMap());
+            
         }
 
         public async Task<bool> SaveEntitiesAsync(CancellationToken cancellationToken = default)

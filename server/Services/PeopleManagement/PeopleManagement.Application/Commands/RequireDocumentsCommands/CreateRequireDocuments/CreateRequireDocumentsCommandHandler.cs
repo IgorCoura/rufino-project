@@ -1,5 +1,6 @@
-﻿using PeopleManagement.Application.Commands.Identified;
+﻿ using PeopleManagement.Application.Commands.Identified;
 using PeopleManagement.Domain.AggregatesModel.RequireDocumentsAggregate.Interfaces;
+using PeopleManagement.Infra.Idempotency;
 
 namespace PeopleManagement.Application.Commands.RequireDocumentsCommands.CreateRequireSecurityDocuments
 {
@@ -15,7 +16,9 @@ namespace PeopleManagement.Application.Commands.RequireDocumentsCommands.CreateR
             return result.Id;
         }
 
-        public class CreateRequireSecurityDocumentsIdentifiedCommandHandler(IMediator mediator, ILogger<IdentifiedCommandHandler<CreateRequireDocumentsCommand, CreateRequireDocumentsResponse>> logger) : IdentifiedCommandHandler<CreateRequireDocumentsCommand, CreateRequireDocumentsResponse>(mediator, logger)
+        public class CreateRequireSecurityDocumentsIdentifiedCommandHandler(IMediator mediator, 
+            ILogger<IdentifiedCommandHandler<CreateRequireDocumentsCommand, CreateRequireDocumentsResponse>> logger, IRequestManager requestManager) 
+            : IdentifiedCommandHandler<CreateRequireDocumentsCommand, CreateRequireDocumentsResponse>(mediator, logger, requestManager)
         {
             protected override CreateRequireDocumentsResponse CreateResultForDuplicateRequest() => new(Guid.Empty);
 

@@ -4,10 +4,12 @@ using PeopleManagement.Domain.AggregatesModel.RequireDocumentsAggregate.Interfac
 using PeopleManagement.Domain.ErrorTools.ErrorsMessages;
 using PeopleManagement.Domain.ErrorTools;
 using PeopleManagement.Domain.AggregatesModel.RequireDocumentsAggregate;
+using PeopleManagement.Infra.Idempotency;
 
 namespace PeopleManagement.Application.Commands.RequireDocumentsCommands.EditRequireSecurityDocuments
 {
-    public sealed class EditRequireDocumentsCommandHandler(IRequireDocumentsRepository requireDocumentsRepository) : IRequestHandler<EditRequireDocumentsCommand, EditRequireDocumentsResponse>
+    public sealed class EditRequireDocumentsCommandHandler(IRequireDocumentsRepository requireDocumentsRepository) 
+        : IRequestHandler<EditRequireDocumentsCommand, EditRequireDocumentsResponse>
     {
         private readonly IRequireDocumentsRepository _requireDocumentsRepository = requireDocumentsRepository;
         public async Task<EditRequireDocumentsResponse> Handle(EditRequireDocumentsCommand request, CancellationToken cancellationToken)
@@ -22,7 +24,9 @@ namespace PeopleManagement.Application.Commands.RequireDocumentsCommands.EditReq
             return requireDocument.Id;
         }
 
-        public class CreateRequireSecurityDocumentsIdentifiedCommandHandler(IMediator mediator, ILogger<IdentifiedCommandHandler<EditRequireDocumentsCommand, EditRequireDocumentsResponse>> logger) : IdentifiedCommandHandler<EditRequireDocumentsCommand, EditRequireDocumentsResponse>(mediator, logger)
+        public class CreateRequireSecurityDocumentsIdentifiedCommandHandler(IMediator mediator, 
+            ILogger<IdentifiedCommandHandler<EditRequireDocumentsCommand, EditRequireDocumentsResponse>> logger, IRequestManager requestManager) 
+            : IdentifiedCommandHandler<EditRequireDocumentsCommand, EditRequireDocumentsResponse>(mediator, logger, requestManager)
         {
             protected override EditRequireDocumentsResponse CreateResultForDuplicateRequest() => new(Guid.Empty);
 

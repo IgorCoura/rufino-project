@@ -1,6 +1,7 @@
 ﻿using PeopleManagement.Application.Commands.DocumentCommands.InsertDocumentToSign;
 using PeopleManagement.Application.Commands.Identified;
 using PeopleManagement.Domain.AggregatesModel.DocumentAggregate.Interfaces;
+using PeopleManagement.Infra.Idempotency;
 
 namespace PeopleManagement.Application.Commands.DocumentCommands.UpdateDocumentUnitDetails
 {
@@ -20,7 +21,9 @@ namespace PeopleManagement.Application.Commands.DocumentCommands.UpdateDocumentU
         }
     }
 
-    public class UpdateDocumentUnitDetailsIdentifiedCommandHandler(IMediator mediator, ILogger<IdentifiedCommandHandler<UpdateDocumentUnitDetailsCommand, UpdateDocumentUnitDetailsResponse>> logger) : IdentifiedCommandHandler<UpdateDocumentUnitDetailsCommand, UpdateDocumentUnitDetailsResponse>(mediator, logger)
+    public class UpdateDocumentUnitDetailsIdentifiedCommandHandler(IMediator mediator, 
+        ILogger<IdentifiedCommandHandler<UpdateDocumentUnitDetailsCommand, UpdateDocumentUnitDetailsResponse>> logger, IRequestManager requestManager) 
+        : IdentifiedCommandHandler<UpdateDocumentUnitDetailsCommand, UpdateDocumentUnitDetailsResponse>(mediator, logger, requestManager)
     {
         protected override UpdateDocumentUnitDetailsResponse CreateResultForDuplicateRequest() => new(Guid.Empty);
 

@@ -3,6 +3,7 @@ using PeopleManagement.Domain.AggregatesModel.EmployeeAggregate.Interfaces;
 using PeopleManagement.Domain.ErrorTools.ErrorsMessages;
 using PeopleManagement.Domain.ErrorTools;
 using PeopleManagement.Domain.AggregatesModel.EmployeeAggregate;
+using PeopleManagement.Infra.Idempotency;
 
 namespace PeopleManagement.Application.Commands.EmployeeCommands.RemoveDependentEmployee
 {
@@ -30,7 +31,9 @@ namespace PeopleManagement.Application.Commands.EmployeeCommands.RemoveDependent
         }
     }
 
-    public class RemoveDependentEmployeeIdentifiedCommandHandler(IMediator mediator, ILogger<IdentifiedCommandHandler<RemoveDependentEmployeeCommand, RemoveDependentEmployeeResponse>> logger) : IdentifiedCommandHandler<RemoveDependentEmployeeCommand, RemoveDependentEmployeeResponse>(mediator, logger)
+    public class RemoveDependentEmployeeIdentifiedCommandHandler(IMediator mediator, 
+        ILogger<IdentifiedCommandHandler<RemoveDependentEmployeeCommand, RemoveDependentEmployeeResponse>> logger, IRequestManager requestManager) 
+        : IdentifiedCommandHandler<RemoveDependentEmployeeCommand, RemoveDependentEmployeeResponse>(mediator, logger, requestManager)
     {
         protected override RemoveDependentEmployeeResponse CreateResultForDuplicateRequest() => new(Guid.Empty);
     }

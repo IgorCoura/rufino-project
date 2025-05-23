@@ -1,5 +1,6 @@
 ﻿using PeopleManagement.Application.Commands.Identified;
 using PeopleManagement.Domain.AggregatesModel.EmployeeAggregate.Interfaces;
+using PeopleManagement.Infra.Idempotency;
 
 namespace PeopleManagement.Application.Commands.EmployeeCommands.CompleteAdmissionEmployee
 {
@@ -25,7 +26,9 @@ namespace PeopleManagement.Application.Commands.EmployeeCommands.CompleteAdmissi
         }
     }
 
-    public class CompleteAdmissionEmployeeIdentifiedCommandHandler(IMediator mediator, ILogger<IdentifiedCommandHandler<CompleteAdmissionEmployeeCommand, CompleteAdmissionEmployeeResponse>> logger) : IdentifiedCommandHandler<CompleteAdmissionEmployeeCommand, CompleteAdmissionEmployeeResponse>(mediator, logger)
+    public class CompleteAdmissionEmployeeIdentifiedCommandHandler(IMediator mediator, 
+        ILogger<IdentifiedCommandHandler<CompleteAdmissionEmployeeCommand, CompleteAdmissionEmployeeResponse>> logger, IRequestManager requestManager) 
+        : IdentifiedCommandHandler<CompleteAdmissionEmployeeCommand, CompleteAdmissionEmployeeResponse>(mediator, logger, requestManager)
     {
         protected override CompleteAdmissionEmployeeResponse CreateResultForDuplicateRequest() => new(Guid.Empty);
     }

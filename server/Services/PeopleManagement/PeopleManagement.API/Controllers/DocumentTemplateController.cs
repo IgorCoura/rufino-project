@@ -45,6 +45,7 @@ namespace PeopleManagement.API.Controllers
 
         [HttpPost("Upload")]
         [ProtectedResource("DocumentTemplate", "send")]
+        [RequestSizeLimit(12_000_000)]
         public async Task<ActionResult<InsertDocumentTemplateResponse>> Insert(IFormFile formFile, [FromForm] Guid id, [FromRoute] Guid company, [FromHeader(Name = "x-requestid")] Guid requestId)
         {
             var stream = formFile.OpenReadStream();

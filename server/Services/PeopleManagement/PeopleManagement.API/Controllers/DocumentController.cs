@@ -11,6 +11,7 @@ using PeopleManagement.Application.Commands.DocumentCommands.UpdateDocumentUnitD
 using PeopleManagement.Application.Queries.Document;
 using static PeopleManagement.Application.Queries.Document.DocumentDtos;
 using PeopleManagement.Application.Queries.DocumentTemplate;
+using static Microsoft.EntityFrameworkCore.DbLoggerCategory.Database;
 
 namespace PeopleManagement.API.Controllers
 {
@@ -83,6 +84,7 @@ namespace PeopleManagement.API.Controllers
 
         [HttpPost("insert")]
         [ProtectedResource("Document", "send")]
+        [RequestSizeLimit(12_000_000)]
         public async Task<ActionResult<InsertDocumentResponse>> Insert(IFormFile formFile, [FromRoute] Guid company, [FromForm] InsertDocumentModel request,[FromHeader(Name = "x-requestid")] Guid requestId)
         {
             var extension = Path.GetExtension(formFile.FileName);
@@ -101,6 +103,7 @@ namespace PeopleManagement.API.Controllers
 
         [HttpPost("insert/send2sign")]
         [ProtectedResource("Document", "send")]
+        [RequestSizeLimit(12_000_000)]
         public async Task<ActionResult<InsertDocumentToSignResponse>> InsertToSign(IFormFile formFile,[FromRoute] Guid company, [FromForm] InsertDocumentToSignModel request, [FromHeader(Name = "x-requestid")] Guid requestId)
         {
             var extension = Path.GetExtension(formFile.FileName);
@@ -160,5 +163,7 @@ namespace PeopleManagement.API.Controllers
             stream.Position = 0;
             return File(stream, "application/octet-stream", $"{documentUnitId}.zip");
         }
+
+
     }
 }

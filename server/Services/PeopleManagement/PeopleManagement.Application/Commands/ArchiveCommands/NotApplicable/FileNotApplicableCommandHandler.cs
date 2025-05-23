@@ -3,10 +3,12 @@ using PeopleManagement.Domain.AggregatesModel.ArchiveAggregate.Interfaces;
 using PeopleManagement.Domain.ErrorTools.ErrorsMessages;
 using PeopleManagement.Domain.ErrorTools;
 using PeopleManagement.Domain.AggregatesModel.ArchiveAggregate;
+using PeopleManagement.Infra.Idempotency;
 
 namespace PeopleManagement.Application.Commands.ArchiveCommands.NotApplicable
 {
-    public sealed class FileNotApplicableCommandHandler(IArchiveRepository archiveRepository) : IRequestHandler<FileNotApplicableCommand, FileNotApplicableResponse>
+    public sealed class FileNotApplicableCommandHandler(IArchiveRepository archiveRepository) :
+        IRequestHandler<FileNotApplicableCommand, FileNotApplicableResponse>
     {
         private readonly IArchiveRepository _archiveRepository = archiveRepository;
         public async Task<FileNotApplicableResponse> Handle(FileNotApplicableCommand request, CancellationToken cancellationToken)
@@ -22,7 +24,9 @@ namespace PeopleManagement.Application.Commands.ArchiveCommands.NotApplicable
         }
     }
 
-    public sealed class FileNotApplicableIdentifiedCommandHandler(IMediator mediator, ILogger<IdentifiedCommandHandler<FileNotApplicableCommand, FileNotApplicableResponse>> logger) : IdentifiedCommandHandler<FileNotApplicableCommand, FileNotApplicableResponse>(mediator, logger)
+    public sealed class FileNotApplicableIdentifiedCommandHandler(IMediator mediator, 
+        ILogger<IdentifiedCommandHandler<FileNotApplicableCommand, FileNotApplicableResponse>> logger, IRequestManager requestManager) 
+        : IdentifiedCommandHandler<FileNotApplicableCommand, FileNotApplicableResponse>(mediator, logger, requestManager)
     {
         protected override FileNotApplicableResponse CreateResultForDuplicateRequest() => new(Guid.Empty);
 

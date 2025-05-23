@@ -198,6 +198,13 @@ class DocumentsComponentBloc
         return;
       }
 
+      if (result.files.single.size > 10 * 1024 * 1024) {
+        emit(state.copyWith(
+            isSavingData: false,
+            snackMessage: "O arquivo selecionado excede o limite de 10 MB."));
+        return;
+      }
+
       await _documentService.loadDocumentUnitToSign(
           event.dateLimitToSign,
           event.eminderEveryNDays,
@@ -228,6 +235,13 @@ class DocumentsComponentBloc
         emit(state.copyWith(
             isSavingData: false,
             snackMessage: "Nenhum arquivo selecionado para upload"));
+        return;
+      }
+
+      if (result.files.single.size > 10 * 1024 * 1024) {
+        emit(state.copyWith(
+            isSavingData: false,
+            snackMessage: "O arquivo selecionado excede o limite de 10 MB."));
         return;
       }
 

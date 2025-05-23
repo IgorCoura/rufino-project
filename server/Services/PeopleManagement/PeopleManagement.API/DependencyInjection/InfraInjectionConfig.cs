@@ -12,6 +12,7 @@ using PeopleManagement.Infra.Repository;
 using PeopleManagement.Infra.Services;
 using PeopleManagement.Domain.AggregatesModel.ArchiveCategoryAggregate.Interfaces;
 using Microsoft.Net.Http.Headers;
+using PeopleManagement.Infra.Idempotency;
 
 namespace PeopleManagement.API.DependencyInjection
 {
@@ -19,6 +20,8 @@ namespace PeopleManagement.API.DependencyInjection
     {
         public static IServiceCollection AddInfraDependencies(this IServiceCollection service, IConfiguration configuration)
         {
+            service.AddScoped<IRequestManager, RequestManager>();
+
             service.AddScoped<IArchiveCategoryRepository, ArchiveCategoryRepository>();
             service.AddScoped<IArchiveRepository, ArchiveRepository>();
             service.AddScoped<ICompanyRepository, CompanyRepository>();

@@ -4,6 +4,7 @@ using PeopleManagement.Domain.ErrorTools;
 using PeopleManagement.Domain.AggregatesModel.ArchiveCategoryAggregate.Interfaces;
 using PeopleManagement.Domain.AggregatesModel.ArchiveCategoryAggregate;
 using PeopleManagement.Application.Commands.Identified;
+using PeopleManagement.Infra.Idempotency;
 
 namespace PeopleManagement.Application.Commands.ArchiveCategoryCommands.RemoveListenEvent
 {
@@ -23,7 +24,7 @@ namespace PeopleManagement.Application.Commands.ArchiveCategoryCommands.RemoveLi
         }
     }
 
-    public sealed class RemoveListenEventIdentifiedCommandHandlers(IMediator mediator, ILogger<IdentifiedCommandHandler<RemoveListenEventCommand, RemoveListenEventResponse>> logger) : IdentifiedCommandHandler<RemoveListenEventCommand, RemoveListenEventResponse>(mediator, logger)
+    public sealed class RemoveListenEventIdentifiedCommandHandlers(IMediator mediator, ILogger<IdentifiedCommandHandler<RemoveListenEventCommand, RemoveListenEventResponse>> logger, IRequestManager requestManager) : IdentifiedCommandHandler<RemoveListenEventCommand, RemoveListenEventResponse>(mediator, logger, requestManager)
     {
         protected override RemoveListenEventResponse CreateResultForDuplicateRequest() => new(Guid.Empty);
 

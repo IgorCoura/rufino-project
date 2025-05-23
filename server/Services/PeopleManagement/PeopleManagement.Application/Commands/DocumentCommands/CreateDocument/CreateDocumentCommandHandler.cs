@@ -1,5 +1,6 @@
 ﻿using PeopleManagement.Application.Commands.Identified;
 using PeopleManagement.Domain.AggregatesModel.DocumentAggregate.Interfaces;
+using PeopleManagement.Infra.Idempotency;
 
 namespace PeopleManagement.Application.Commands.DocumentCommands.CreateDocument
 {
@@ -17,7 +18,9 @@ namespace PeopleManagement.Application.Commands.DocumentCommands.CreateDocument
         }
     }
 
-    public class CreateDocumentIdentifiedCommandHandler(IMediator mediator, ILogger<IdentifiedCommandHandler<CreateDocumentCommand, CreateDocumentResponse>> logger) : IdentifiedCommandHandler<CreateDocumentCommand, CreateDocumentResponse>(mediator, logger)
+    public class CreateDocumentIdentifiedCommandHandler(IMediator mediator, 
+        ILogger<IdentifiedCommandHandler<CreateDocumentCommand, CreateDocumentResponse>> logger, IRequestManager requestManager) 
+        : IdentifiedCommandHandler<CreateDocumentCommand, CreateDocumentResponse>(mediator, logger, requestManager)
     {
         protected override CreateDocumentResponse CreateResultForDuplicateRequest() => new(Guid.Empty);
 

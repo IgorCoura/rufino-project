@@ -6,6 +6,7 @@ using PeopleManagement.Application.Commands.EmployeeCommands.AlterDependentEmplo
 using PeopleManagement.Application.Commands.Identified;
 using PeopleManagement.Application.Commands.EmployeeCommands.AlterIdCardEmployee;
 using PeopleManagement.Domain.AggregatesModel.EmployeeAggregate.Interfaces;
+using PeopleManagement.Infra.Idempotency;
 
 namespace PeopleManagement.Application.Commands.EmployeeCommands.AlterIdCardEmployee
 {
@@ -31,7 +32,9 @@ namespace PeopleManagement.Application.Commands.EmployeeCommands.AlterIdCardEmpl
         }
     }
 
-    public class AlterIdCardEmployeeIdentifiedCommandHandler(IMediator mediator, ILogger<IdentifiedCommandHandler<AlterIdCardEmployeeCommand, AlterIdCardEmployeeResponse>> logger) : IdentifiedCommandHandler<AlterIdCardEmployeeCommand, AlterIdCardEmployeeResponse>(mediator, logger)
+    public class AlterIdCardEmployeeIdentifiedCommandHandler(IMediator mediator, 
+        ILogger<IdentifiedCommandHandler<AlterIdCardEmployeeCommand, AlterIdCardEmployeeResponse>> logger, IRequestManager requestManager) 
+        : IdentifiedCommandHandler<AlterIdCardEmployeeCommand, AlterIdCardEmployeeResponse>(mediator, logger, requestManager)
     {
         protected override AlterIdCardEmployeeResponse CreateResultForDuplicateRequest() => new(Guid.Empty);
     }

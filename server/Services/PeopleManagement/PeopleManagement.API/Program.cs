@@ -27,7 +27,7 @@ var env = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT");
 //Config DataBase
 var a = builder.Configuration.GetConnectionString("Postgresql");
 
-builder.Services.AddDbContext<PeopleManagementContext>(options =>
+builder.Services.AddDbContextFactory<PeopleManagementContext>(options =>
 {
     options.UseNpgsql(
         builder.Configuration.GetConnectionString("Postgresql"),

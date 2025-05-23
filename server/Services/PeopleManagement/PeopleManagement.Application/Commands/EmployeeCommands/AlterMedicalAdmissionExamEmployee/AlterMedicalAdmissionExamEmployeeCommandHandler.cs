@@ -5,6 +5,7 @@ using PeopleManagement.Domain.ErrorTools;
 using PeopleManagement.Application.Commands.Identified;
 using PeopleManagement.Application.Commands.EmployeeCommands.AlterMedicalAdmissionExamEmployee;
 using PeopleManagement.Domain.AggregatesModel.EmployeeAggregate.Interfaces;
+using PeopleManagement.Infra.Idempotency;
 
 namespace PeopleManagement.Application.Commands.EmployeeCommands.AlterMedicalAdmissionExamEmployee
 {
@@ -30,7 +31,10 @@ namespace PeopleManagement.Application.Commands.EmployeeCommands.AlterMedicalAdm
             return employee.Id;
         }
     }
-    public class AlterMedicalAdmissionExamEmployeeIdentifiedCommandHandler(IMediator mediator, ILogger<IdentifiedCommandHandler<AlterMedicalAdmissionExamEmployeeCommand, AlterMedicalAdmissionExamEmployeeResponse>> logger) : IdentifiedCommandHandler<AlterMedicalAdmissionExamEmployeeCommand, AlterMedicalAdmissionExamEmployeeResponse>(mediator, logger)
+    public class AlterMedicalAdmissionExamEmployeeIdentifiedCommandHandler(IMediator mediator, 
+        ILogger<IdentifiedCommandHandler<AlterMedicalAdmissionExamEmployeeCommand, AlterMedicalAdmissionExamEmployeeResponse>> logger, 
+        IRequestManager requestManager) 
+        : IdentifiedCommandHandler<AlterMedicalAdmissionExamEmployeeCommand, AlterMedicalAdmissionExamEmployeeResponse>(mediator, logger, requestManager)
     {
         protected override AlterMedicalAdmissionExamEmployeeResponse CreateResultForDuplicateRequest() => new(Guid.Empty);
     }

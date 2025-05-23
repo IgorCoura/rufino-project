@@ -3,6 +3,7 @@ using PeopleManagement.Domain.AggregatesModel.ArchiveCategoryAggregate.Interface
 using PeopleManagement.Domain.ErrorTools.ErrorsMessages;
 using PeopleManagement.Domain.ErrorTools;
 using PeopleManagement.Domain.AggregatesModel.ArchiveCategoryAggregate;
+using PeopleManagement.Infra.Idempotency;
 
 namespace PeopleManagement.Application.Commands.ArchiveCategoryCommands.EditDescriptionArchiveCategory
 {
@@ -23,7 +24,7 @@ namespace PeopleManagement.Application.Commands.ArchiveCategoryCommands.EditDesc
         }
     }
 
-    public sealed class EditDescriptionArchiveCategoryIdentifiedCommandHandler(IMediator mediator, ILogger<IdentifiedCommandHandler<EditDescriptionArchiveCategoryCommand, EditDescriptionArchiveCategoryResponse>> logger) : IdentifiedCommandHandler<EditDescriptionArchiveCategoryCommand, EditDescriptionArchiveCategoryResponse>(mediator, logger)
+    public sealed class EditDescriptionArchiveCategoryIdentifiedCommandHandler(IMediator mediator, ILogger<IdentifiedCommandHandler<EditDescriptionArchiveCategoryCommand, EditDescriptionArchiveCategoryResponse>> logger, IRequestManager requestManager) : IdentifiedCommandHandler<EditDescriptionArchiveCategoryCommand, EditDescriptionArchiveCategoryResponse>(mediator, logger, requestManager)
     {
         protected override EditDescriptionArchiveCategoryResponse CreateResultForDuplicateRequest() => new(Guid.Empty);
 

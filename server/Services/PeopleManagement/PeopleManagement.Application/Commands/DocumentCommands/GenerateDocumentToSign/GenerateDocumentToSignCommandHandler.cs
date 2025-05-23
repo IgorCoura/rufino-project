@@ -1,5 +1,6 @@
 ﻿using PeopleManagement.Application.Commands.Identified;
 using PeopleManagement.Domain.AggregatesModel.DocumentAggregate.Interfaces;
+using PeopleManagement.Infra.Idempotency;
 
 namespace PeopleManagement.Application.Commands.DocumentCommands.GenerateDocumentToSign
 {
@@ -16,7 +17,9 @@ namespace PeopleManagement.Application.Commands.DocumentCommands.GenerateDocumen
         }
     }
 
-    public class GenerateDocumentToSignIdentifiedCommandHandler(IMediator mediator, ILogger<IdentifiedCommandHandler<GenerateDocumentToSignCommand, GenerateDocumentToSignResponse>> logger) : IdentifiedCommandHandler<GenerateDocumentToSignCommand, GenerateDocumentToSignResponse>(mediator, logger)
+    public class GenerateDocumentToSignIdentifiedCommandHandler(IMediator mediator, 
+        ILogger<IdentifiedCommandHandler<GenerateDocumentToSignCommand, GenerateDocumentToSignResponse>> logger, IRequestManager requestManager) 
+        : IdentifiedCommandHandler<GenerateDocumentToSignCommand, GenerateDocumentToSignResponse>(mediator, logger, requestManager)
     {
         protected override GenerateDocumentToSignResponse CreateResultForDuplicateRequest() => new(Guid.Empty);
 

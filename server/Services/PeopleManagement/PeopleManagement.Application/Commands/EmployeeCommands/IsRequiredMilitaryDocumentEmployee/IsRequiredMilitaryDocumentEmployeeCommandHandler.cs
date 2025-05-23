@@ -3,6 +3,7 @@ using PeopleManagement.Domain.AggregatesModel.EmployeeAggregate.Interfaces;
 using PeopleManagement.Domain.ErrorTools.ErrorsMessages;
 using PeopleManagement.Domain.ErrorTools;
 using PeopleManagement.Domain.AggregatesModel.EmployeeAggregate;
+using PeopleManagement.Infra.Idempotency;
 
 namespace PeopleManagement.Application.Commands.EmployeeCommands.IsRequiredMilitaryDocumentEmployee
 {
@@ -21,7 +22,10 @@ namespace PeopleManagement.Application.Commands.EmployeeCommands.IsRequiredMilit
         }
     }
 
-    public class IsRequiredMilitaryDocumentEmployeeIdentifiedCommandHandler(IMediator mediator, ILogger<IdentifiedCommandHandler<IsRequiredMilitaryDocumentEmployeeCommand, IsRequiredMilitaryDocumentEmployeeResponse>> logger) : IdentifiedCommandHandler<IsRequiredMilitaryDocumentEmployeeCommand, IsRequiredMilitaryDocumentEmployeeResponse>(mediator, logger)
+    public class IsRequiredMilitaryDocumentEmployeeIdentifiedCommandHandler(IMediator mediator, 
+        ILogger<IdentifiedCommandHandler<IsRequiredMilitaryDocumentEmployeeCommand, IsRequiredMilitaryDocumentEmployeeResponse>> logger, 
+        IRequestManager requestManager) 
+        : IdentifiedCommandHandler<IsRequiredMilitaryDocumentEmployeeCommand, IsRequiredMilitaryDocumentEmployeeResponse>(mediator, logger, requestManager)
     {
         protected override IsRequiredMilitaryDocumentEmployeeResponse CreateResultForDuplicateRequest() => new(Guid.Empty, false);
     }

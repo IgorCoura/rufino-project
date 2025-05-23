@@ -159,7 +159,7 @@ class EmployeesListBloc extends Bloc<EmployeesListEvent, EmployeesListState> {
     var searchInput = state.searchInput != null && state.searchInput!.isEmpty
         ? null
         : state.searchInput;
-    var employees = await _peopleManagementService.getEmployeesWithRoles(
+    var employees = await _peopleManagementService.getEmployees(
         state.company!.id,
         state.searchParam == SearchParam.name ? searchInput : null,
         state.searchParam == SearchParam.role ? searchInput : null,

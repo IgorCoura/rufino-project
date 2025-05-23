@@ -167,6 +167,13 @@ class DocumentTemplateBloc
       }
       FilePickerResult? result = await FilePicker.platform.pickFiles();
       if (result != null) {
+        if (result.files.single.size > 10 * 1024 * 1024) {
+          emit(state.copyWith(
+              isSavingData: false,
+              snackMessage: "O arquivo selecionado excede o limite de 10 MB."));
+          return;
+        }
+
         final company = await _companyService.getSelectedCompany();
         await _peopleManagementService.loadFileToDocumentTemplate(
             company.id, state.documentTemplate.id, result.files.single.path!);
@@ -175,6 +182,7 @@ class DocumentTemplateBloc
             isLoading: false,
             snackMessage: "Nenhum arquivo selecionado para upload"));
       }
+
       emit(state.copyWith(
           isLoading: false,
           snackMessage: "Arquivo enviado com sucesso!",

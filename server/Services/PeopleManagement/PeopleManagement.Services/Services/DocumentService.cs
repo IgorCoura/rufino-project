@@ -128,7 +128,7 @@ namespace PeopleManagement.Services.Services
             if (documentUnit.HasContent == false)
                 throw new DomainException(this, DomainErrors.Document.ErrorRecoverData(documentUnitId));
             
-            var pdfBytes = await _pdfService.ConvertHtml2Pdf(documentTemplate, documentUnit.Content, cancellationToken);
+            var pdfBytes = await _pdfService.ConvertHtml2Pdf(documentTemplate.TemplateFileInfo, documentUnit.Content, cancellationToken);
           
             return pdfBytes;
         }
