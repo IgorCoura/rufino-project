@@ -1,6 +1,6 @@
-﻿using PeopleManagement.Domain.ErrorTools;
+﻿using PeopleManagement.Domain.AggregatesModel.DocumentAggregate.Events;
+using PeopleManagement.Domain.ErrorTools;
 using PeopleManagement.Domain.ErrorTools.ErrorsMessages;
-using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace PeopleManagement.Domain.AggregatesModel.DocumentAggregate
 {
@@ -18,9 +18,11 @@ namespace PeopleManagement.Domain.AggregatesModel.DocumentAggregate
                 {
                     DateOnly cValue = (DateOnly)value;
                     if(cValue.ToDateTime(TimeOnly.MinValue) < DateTime.UtcNow)
-                        throw new DomainException(this, DomainErrors.DataIsGreaterThanMax(nameof(Validity), (DateOnly)value, DateOnly.FromDateTime(DateTime.UtcNow)));
+                        throw new DomainException(this, DomainErrors.DataIsGreaterThanMax(nameof(Validity), 
+                            (DateOnly)value, DateOnly.FromDateTime(DateTime.UtcNow)));
                 }
-                _validity = value; 
+                _validity = value;
+                AddDomainEvent(ScheduleDocumentExpirationEvent.Create(Document.Id, Id, Document.CompanyId, (DateOnly)_validity!));
             }
         }
 
@@ -89,14 +91,17 @@ namespace PeopleManagement.Domain.AggregatesModel.DocumentAggregate
             Status = DocumentUnitStatus.Invalid;
         }
 
-        public void Deprecate()
+        public void MarkAsDeprecatedOrInvalid()
         {
-            if (Status == DocumentUnitStatus.OK ||
-                Status == DocumentUnitStatus.RequiresValidation ||
-                Status == DocumentUnitStatus.AwaitingSignature || 
-                Status == DocumentUnitStatus.Pending)
+            if (Status == DocumentUnitStatus.OK)
             {
                 Status = DocumentUnitStatus.Deprecated;
+            }
+            if(Status == DocumentUnitStatus.RequiresValidation ||
+                Status == DocumentUnitStatus.AwaitingSignature ||
+                Status == DocumentUnitStatus.Pending)
+            {
+                Status = DocumentUnitStatus.Invalid;
             }
         }
 

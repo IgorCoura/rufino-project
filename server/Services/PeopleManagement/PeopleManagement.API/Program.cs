@@ -1,5 +1,8 @@
 using EntityFramework.Exceptions.PostgreSQL;
+using Hangfire;
+using Hangfire.PostgreSql;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc.Filters;
 using Microsoft.EntityFrameworkCore;
 using PeopleManagement.API.Authentication;
 using PeopleManagement.API.Authorization;
@@ -9,7 +12,9 @@ using PeopleManagement.Application.Commands;
 using PeopleManagement.Infra.Context;
 using PeopleManagement.Infra.DataForTests;
 using PeopleManagement.Services.DomainEventHandlers;
+using System.Diagnostics;
 using System.Text.Json.Serialization;
+using PeopleManagement.Services.HangfireJobRegistrar;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -41,6 +46,16 @@ builder.Services.AddDbContextFactory<PeopleManagementContext>(options =>
 //Config Keycloak
 builder.Services.AddKeycloakAuthentication(builder.Configuration);
 builder.Services.AddKeycloakAuthorization(builder.Configuration);
+
+// Add Hangfire services and configure PostgreSQL storage  
+builder.Services.AddHangfire(configuration =>
+   configuration.UsePostgreSqlStorage(options =>
+                {
+                    options.UseNpgsqlConnection(builder.Configuration.GetConnectionString("HangfireConnection"));
+                }));
+
+builder.Services.AddHangfireServer(); // Starts the Hangfire worker
+
 
 builder.Services.AddCors(options => 
 { options.AddPolicy("CorsPolicy", builder => builder
@@ -74,19 +89,11 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
 
-
 // Register ApplicationExceptionFilter with DI
 builder.Services.AddScoped<ApplicationExceptionFilter>();
+
+
 var app = builder.Build();
-
-
-// Configure the HTTP request pipeline.
-if (env != null && env.Equals("Development"))
-{
-    app.UseSwagger();
-    app.UseSwaggerUI();
-}
-
 
 using var scope = app.Services.CreateScope();
 var services = scope.ServiceProvider;
@@ -97,7 +104,22 @@ if (context.Database.GetPendingMigrations().Any())
     context.Database.Migrate();
 }
 
-await PopulateDb.Populate(context);
+// Configure the HTTP request pipeline.
+if (env != null && env.Equals("Development"))
+{
+    app.UseHangfireDashboard(options: new DashboardOptions
+    {
+        Authorization = new[] { new HangFireAuthorizationFilter() }
+    });
+    app.UseSwagger();
+    app.UseSwaggerUI();
+    await PopulateDb.Populate(context);
+}
+
+
+var jobScheduler = scope.ServiceProvider.GetRequiredService<HangfireJobRegister>();
+jobScheduler.RegisterRecurringJobs();
+
 
 app.UseHttpsRedirection();
 
@@ -107,6 +129,10 @@ app.UseAuthorization();
 
 app.MapControllers();
 
+
+
+
 app.Run();
+
 
 public partial class Program { }

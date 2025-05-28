@@ -22,6 +22,7 @@ import 'package:rufino/modules/employee/domain/model/require_document/associatio
 import 'package:rufino/modules/employee/domain/model/require_document/association_type.dart';
 import 'package:rufino/modules/employee/domain/model/require_document/require_document.dart';
 import 'package:rufino/modules/employee/domain/model/require_document/require_document_simple.dart';
+import 'package:rufino/modules/employee/domain/model/require_document/require_document_simple_with_documents.dart';
 import 'package:rufino/modules/employee/domain/model/vote_id/vote_id.dart';
 import 'package:rufino/modules/employee/domain/model/address/address.dart';
 import 'package:rufino/modules/employee/domain/model/contact/contact.dart';

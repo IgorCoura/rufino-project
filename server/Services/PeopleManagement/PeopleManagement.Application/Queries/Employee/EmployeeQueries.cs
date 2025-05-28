@@ -315,41 +315,16 @@ namespace PeopleManagement.Application.Queries.Employee
         private async Task<EnumerationDto> GetDocumentRepresentingStatusAsync(Guid employeeId, Guid companyId, CancellationToken cancellationToken = default)
         {
             using var context = _factory.CreateDbContext();
-            var documents = await context.Documents.Where(x => x.EmployeeId == employeeId && x.CompanyId == companyId)
+            var documentsStatus = await context.Documents.Where(x => x.EmployeeId == employeeId && x.CompanyId == companyId)
                 .OrderByDescending(x => x.CreatedAt)
-                .Select(x => new EnumerationDto
-                {
-                    Id = x.Status.Id,
-                    Name = x.Status.Name
-                })
+                .Select(x => x.Status)
                 .ToListAsync(cancellationToken);
-
-            var result = documents.FirstOrDefault(x => x.Id == DocumentStatus.RequiresDocument.Id);
-            if (result is not null)
-                return result;
-
-            result = documents.FirstOrDefault(x => x.Id == DocumentStatus.RequiresValidation.Id);
-            if (result is not null)
-                return result;
-
-            result = documents.FirstOrDefault(x => x.Id == DocumentStatus.AwaitingSignature.Id);
-            if (result is not null)
-                return result;
-
-            result = documents.FirstOrDefault(x => x.Id == DocumentStatus.OK.Id);
-            if (result is not null)
-                return result;
-
-            if (documents.Count == 0)
-                return new EnumerationDto
-                {
-                    Id = DocumentStatus.OK.Id,
-                    Name = DocumentStatus.OK.Name
-                };
-
-
-            return documents.First();
-
+            var status = Domain.AggregatesModel.DocumentAggregate.Document.GetRepresentingStatus(documentsStatus);
+            return new EnumerationDto
+            {
+                Id = status.Id,
+                Name = status.Name
+            };
         }
 
     }

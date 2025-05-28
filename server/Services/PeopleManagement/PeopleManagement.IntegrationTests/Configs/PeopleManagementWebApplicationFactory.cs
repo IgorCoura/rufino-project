@@ -3,6 +3,8 @@ using Docker.DotNet.Models;
 using DotNet.Testcontainers.Builders;
 using DotNet.Testcontainers.Containers;
 using EntityFramework.Exceptions.PostgreSQL;
+using Hangfire;
+using Hangfire.PostgreSql;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc.Testing;
@@ -23,7 +25,14 @@ namespace PeopleManagement.IntegrationTests.Configs
             .WithImage("postgres:15.1-alpine")
             .WithDatabase("PeopleManagementTestDb")
             .WithUsername("admin")
-            .WithPassword("admin")  
+            .WithPassword("admin")
+            .Build();
+
+        private readonly PostgreSqlContainer _hangfireDbContainer = new PostgreSqlBuilder()
+            .WithImage("postgres:15.1-alpine")
+            .WithDatabase("HangfireTestDb")
+            .WithUsername("admin")
+            .WithPassword("admin")
             .Build();
 
         private readonly AzuriteContainer _azuriteContainer = new AzuriteBuilder()
@@ -33,6 +42,7 @@ namespace PeopleManagement.IntegrationTests.Configs
         public async Task InitializeAsync()
         {
             await _dbContainer.StartAsync();
+            await _hangfireDbContainer.StartAsync();
             await _azuriteContainer.StartAsync();
         }
 
@@ -59,6 +69,26 @@ namespace PeopleManagement.IntegrationTests.Configs
                         .EnableDetailedErrors()
                         .EnableSensitiveDataLogging();
                 });
+
+
+                //Config Hangfire
+
+                var hangfireServerDescriptor = services.SingleOrDefault(
+               d => d.ServiceType == typeof(IHostedService) &&
+                    d.ImplementationType?.Name.Contains("HangfireServer") == true);
+
+                if (hangfireServerDescriptor != null)
+                {
+                    services.Remove(hangfireServerDescriptor);
+                }
+                services.AddHangfire(configuration =>
+                configuration.UsePostgreSqlStorage(options =>
+                {
+                    options.UseNpgsqlConnection(_dbContainer.GetConnectionString());
+                }));
+
+
+                services.AddHangfireServer();
 
                 //Config AzureBlob
                 var azureBlob = services.SingleOrDefault(d => d.ServiceType == typeof(BlobServiceClient));
@@ -99,6 +129,7 @@ namespace PeopleManagement.IntegrationTests.Configs
         {
             await _dbContainer.StopAsync();
             await _azuriteContainer.StopAsync();
+            await _hangfireDbContainer.StopAsync();
         }
     }
 

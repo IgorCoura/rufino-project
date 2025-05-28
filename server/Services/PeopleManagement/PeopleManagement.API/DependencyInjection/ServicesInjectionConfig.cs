@@ -6,6 +6,8 @@ using PeopleManagement.Domain.AggregatesModel.DocumentAggregate.Interfaces;
 using PeopleManagement.Services.Services;
 using PeopleManagement.Services.Services.RecoverInfoToSecurityDocument;
 using PeopleManagement.Domain.AggregatesModel.ArchiveCategoryAggregate.Interfaces;
+using Hangfire;
+using PeopleManagement.Services.HangfireJobRegistrar;
 
 namespace PeopleManagement.API.DependencyInjection
 {
@@ -20,6 +22,9 @@ namespace PeopleManagement.API.DependencyInjection
             service.AddScoped<IDocumentService, DocumentService>();
             service.AddScoped<IArchiveCategoryService , ArchiveCategoryService>();
             service.AddScoped<ISignDocumentService , SignDocumentService>();
+            service.AddScoped<IDocumentDepreciationService , DocumentDepreciationService>();
+            service.AddScoped<HangfireJobRegister>();
+
 
             var documentTemplatesOptions = new DocumentTemplatesOptions();
             configuration.Bind("DocumentTemplatesOptions", documentTemplatesOptions);

@@ -4,6 +4,7 @@ import 'package:flutter_modular/flutter_modular.dart';
 import 'package:mask_text_input_formatter/mask_text_input_formatter.dart';
 import 'package:rufino/modules/employee/domain/model/document/document.dart';
 import 'package:rufino/modules/employee/domain/model/document/document_unit.dart';
+import 'package:rufino/modules/employee/domain/model/require_document/require_document_simple_with_documents.dart';
 import 'package:rufino/modules/employee/presentation/employee_profile/components/documents_component/bloc/documents_component_bloc.dart';
 import 'package:rufino/shared/components/error_components.dart';
 
@@ -45,15 +46,15 @@ class DocumentsComponent extends StatelessWidget {
             children: [
               _header(state),
               state.isExpanded
-                  ? state.documents.isEmpty
+                  ? state.reqDocuments.isEmpty
                       ? Padding(
                           padding: const EdgeInsets.all(8.0),
                           child: Text("Nenhum documento encontrado"),
                         )
                       : Column(
-                          children: state.documents
-                              .map((document) =>
-                                  _documentWidget(context, state, document))
+                          children: state.reqDocuments
+                              .map((reqDocument) => _reqDocumentWidget(
+                                  context, state, reqDocument))
                               .toList(),
                         )
                   : const SizedBox(),
@@ -85,6 +86,37 @@ class DocumentsComponent extends StatelessWidget {
             )
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _reqDocumentWidget(BuildContext context, DocumentsComponentState state,
+      RequireDocumentSimpleWithDocuments reqDocument) {
+    return Padding(
+      padding: const EdgeInsets.all(8.0),
+      child: ExpansionTile(
+        onExpansionChanged: (value) => {},
+        controlAffinity: ListTileControlAffinity.leading,
+        title: Text(reqDocument.name),
+        subtitle: Text("Status: ${reqDocument.status.name}"),
+        children: reqDocument.documents.isEmpty
+            ? [
+                state.isLazyLoading
+                    ? const Center(
+                        child: CircularProgressIndicator(),
+                      )
+                    : const Padding(
+                        padding: EdgeInsets.all(8.0),
+                        child: Text("Nenhum item encontrado"),
+                      ),
+              ]
+            : reqDocument.documents
+                .map((document) => _documentWidget(
+                      context,
+                      state,
+                      document,
+                    ))
+                .toList(),
       ),
     );
   }

@@ -90,22 +90,27 @@ namespace PeopleManagement.Domain.AggregatesModel.DocumentAggregate
             documentUnit.MarkAsAwaitingSignature();
         }
 
-        public void ValidateDocumentUnit(Guid documentId, bool IsValid)
+        public void ValidateDocumentUnit(Guid documentUnitId, bool IsValid)
         {
-            var document = DocumentsUnits.FirstOrDefault(x => x.Id == documentId)
-                ?? throw new DomainException(this, DomainErrors.ObjectNotFound(nameof(DocumentUnit), documentId.ToString()));
+            var document = DocumentsUnits.FirstOrDefault(x => x.Id == documentUnitId)
+                ?? throw new DomainException(this, DomainErrors.ObjectNotFound(nameof(DocumentUnit), documentUnitId.ToString()));
 
             document.Validate(IsValid);
             if (IsValid)
             {
                 Status = DocumentStatus.OK;
-                DeprecateDocumentsUnit(documentId);
+                DeprecateDocumentsUnit(documentUnitId);
             }
         }
 
-        public void HasOverdueDocuments()
+        public void MakeAsDocumentExpired(Guid documentUnitIdExpire, Guid newDocumentUnitId)
         {
-            //TODO: Implement this method
+            var documentUnit = DocumentsUnits.FirstOrDefault(x => x.Id == documentUnitIdExpire)
+                ?? throw new DomainException(this, DomainErrors.ObjectNotFound(nameof(DocumentUnit), documentUnitIdExpire.ToString()));
+
+            documentUnit.MarkAsDeprecatedOrInvalid();
+
+            NewDocumentUnit(newDocumentUnitId);
         }
 
         public void MakeAsDeprecated()
@@ -119,17 +124,18 @@ namespace PeopleManagement.Domain.AggregatesModel.DocumentAggregate
             DocumentsUnits.ForEach(x =>
             {
                 if(exceptionDocumentId == null || x.Id != exceptionDocumentId)                 
-                    x.Deprecate();
+                    x.MarkAsDeprecatedOrInvalid();
             });
         }
 
-        public void MarkAsNotApplicableDocumentUnit(Guid documentId)
+        public void MarkAsNotApplicableDocumentUnit(Guid documentUnitId)
         {
-            var document = DocumentsUnits.FirstOrDefault(x => x.Id == documentId)
-               ?? throw new DomainException(this, DomainErrors.ObjectNotFound(nameof(DocumentUnit), documentId.ToString()));
+            var document = DocumentsUnits.FirstOrDefault(x => x.Id == documentUnitId)
+               ?? throw new DomainException(this, DomainErrors.ObjectNotFound(nameof(DocumentUnit), documentUnitId.ToString()));
 
             document.MarkAsNotApplicable();
             Status = DocumentStatus.OK;
+            DeprecateDocumentsUnit(exceptionDocumentId: documentUnitId);
         }
 
         public bool IsAwaitingSignatureDocumentUnit(Guid documentUnitId)
@@ -161,6 +167,31 @@ namespace PeopleManagement.Domain.AggregatesModel.DocumentAggregate
             if(DocumentsUnits.Count == 0)
                 return true;    
             return DocumentsUnits.Any(x => x.IsPending == false) == false;
+        }
+
+        public static DocumentStatus GetRepresentingStatus(List<DocumentStatus> documentsStatus)
+        {
+            var result = documentsStatus.FirstOrDefault(x => x.Id == DocumentStatus.RequiresDocument.Id);
+            if (result is not null)
+                return result;
+
+            result = documentsStatus.FirstOrDefault(x => x.Id == DocumentStatus.RequiresValidation.Id);
+            if (result is not null)
+                return result;
+
+            result = documentsStatus.FirstOrDefault(x => x.Id == DocumentStatus.AwaitingSignature.Id);
+            if (result is not null)
+                return result;
+
+            result = documentsStatus.FirstOrDefault(x => x.Id == DocumentStatus.OK.Id);
+            if (result is not null)
+                return result;
+
+            if (documentsStatus.Count == 0)
+                return DocumentStatus.OK;
+
+
+            return documentsStatus.First();
         }
 
         private void ChangeStatus(DocumentStatus status)

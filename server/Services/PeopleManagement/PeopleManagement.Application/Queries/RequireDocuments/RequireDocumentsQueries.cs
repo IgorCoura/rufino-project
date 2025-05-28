@@ -9,15 +9,60 @@ using PeopleManagement.Domain.AggregatesModel.CompanyAggregate;
 using PeopleManagement.Domain.AggregatesModel.RequireDocumentsAggregate;
 using PeopleManagement.Domain.AggregatesModel.EmployeeAggregate.Events;
 using PeopleManagement.Domain.AggregatesModel.EmployeeAggregate;
+using static Microsoft.EntityFrameworkCore.DbLoggerCategory.Database;
+using static PeopleManagement.Application.Queries.Department.DepartmentDtos;
+using PeopleManagement.Domain.AggregatesModel.DocumentAggregate;
 
 namespace PeopleManagement.Application.Queries.RequireDocuments
 {
-    public class RequireDocumentsQueries(PeopleManagementContext peopleManagementContext) : IRequireDocumentsQueries
+    public class RequireDocumentsQueries(IDbContextFactory<PeopleManagementContext> factory) : IRequireDocumentsQueries
     {
-        private PeopleManagementContext _context = peopleManagementContext;
+        private IDbContextFactory<PeopleManagementContext> _factory = factory;
+
+        public async Task<IEnumerable<RequiredWithDocumentListDto>> GetAllWithDocumentList(Guid companyId, Guid employeeId)
+        {
+            using var context = _factory.CreateDbContext();
+            var query = from req in context.RequireDocuments.AsNoTracking()
+                        where req.CompanyId == companyId
+                        select new RequiredWithDocumentListDto
+                        {
+                            Id = req.Id,
+                            Name = req.Name.Value,
+                            Description = req.Description.Value,
+                            CompanyId = req.CompanyId,
+                            Documents = (from d in context.Documents.AsNoTracking()
+                                         where d.RequiredDocumentId == req.Id && d.EmployeeId == employeeId
+                                         select new RequireDocumentSimpleDocumentDto
+                                         {
+                                             Id = d.Id,
+                                             Name = d.Name.Value,
+                                             Description = d.Description.Value,
+                                             Status = d.Status,
+                                             EmployeeId = d.EmployeeId,
+                                             CreateAt = d.CreatedAt,
+                                             UpdateAt = d.UpdatedAt
+                                         }).ToList(),
+                           
+                        };
+
+            var reqDocumnets = await query.ToListAsync();
+
+            var tasks = reqDocumnets.Select(async x =>
+            {
+                var status = await GetDocumentRepresentingStatusAsync(x.Id, employeeId, companyId);
+                return x with
+                {
+                    DocumentsStatus = status
+                };
+            });
+
+            return await Task.WhenAll(tasks);
+
+        }
         public async Task<IEnumerable<RequireDocumentSimpleDto>> GetAllSimple(Guid companyId)
         {
-            var query = _context.RequireDocuments.AsNoTracking().Where(x => x.CompanyId == companyId);
+            using var context = _factory.CreateDbContext();
+            var query = context.RequireDocuments.AsNoTracking().Where(x => x.CompanyId == companyId);
 
             var result = await query.Select(x => new RequireDocumentSimpleDto
             {
@@ -33,7 +78,8 @@ namespace PeopleManagement.Application.Queries.RequireDocuments
 
         public async Task<RequireDocumentDto> GetById(Guid requireDocumentId, Guid companyId)
         {
-            var query = _context.RequireDocuments.AsNoTracking().Where(x => x.CompanyId == companyId && x.Id == requireDocumentId);
+            using var context = _factory.CreateDbContext();
+            var query = context.RequireDocuments.AsNoTracking().Where(x => x.CompanyId == companyId && x.Id == requireDocumentId);
                       
 
             var result = await query.Select(x => new RequireDocumentDto
@@ -48,7 +94,7 @@ namespace PeopleManagement.Application.Queries.RequireDocuments
                     Id= x.AssociationType.Id,
                     Name= x.AssociationType.Name,
                 },
-                DocumentsTemplates = _context.DocumentTemplates
+                DocumentsTemplates = context.DocumentTemplates
                                 .Where(t => x.DocumentsTemplatesIds.Contains(t.Id)).Select(d => new RequireDocumentDocumentTemplateDto
                                 {
                                     Id = d.Id,
@@ -78,13 +124,14 @@ namespace PeopleManagement.Application.Queries.RequireDocuments
 
         public async Task<IEnumerable<AssociationDto>> GetAllAssociationsByType(Guid companyId, int associationTypeId)
         {
+            using var context = _factory.CreateDbContext();
             var associationType = AssociationType.FromValue<AssociationType>(associationTypeId)
                 ?? throw new DomainException(this, DomainErrors.FieldInvalid(nameof(AssociationType), associationTypeId.ToString()));
 
             
             if(associationType == AssociationType.Role)
             {
-               var query = _context.Roles.AsNoTracking().Where(x => x.CompanyId == companyId);
+               var query = context.Roles.AsNoTracking().Where(x => x.CompanyId == companyId);
                 var result = await query.Select(x => new AssociationDto
                 {
                     Id = x.Id,
@@ -94,7 +141,7 @@ namespace PeopleManagement.Application.Queries.RequireDocuments
             }
             if (associationType == AssociationType.Workplace)
             {
-                var query = _context.Workplaces.AsNoTracking().Where(x => x.CompanyId == companyId);
+                var query = context.Workplaces.AsNoTracking().Where(x => x.CompanyId == companyId);
                 var result = await query.Select(x => new AssociationDto
                 {
                     Id = x.Id,
@@ -107,13 +154,14 @@ namespace PeopleManagement.Application.Queries.RequireDocuments
 
         public async Task<AssociationDto> GetByIdAssociationsByType(Guid companyId, Guid associationId, int associationTypeId)
         {
+            using var context = _factory.CreateDbContext();
             var associationType = AssociationType.FromValue<AssociationType>(associationTypeId)
                 ?? throw new DomainException(this, DomainErrors.FieldInvalid(nameof(AssociationType), associationTypeId.ToString()));
 
 
             if (associationType == AssociationType.Role)
             {
-                var query = _context.Roles.AsNoTracking().Where(x => x.CompanyId == companyId && x.Id == associationId);
+                var query = context.Roles.AsNoTracking().Where(x => x.CompanyId == companyId && x.Id == associationId);
                 var result = await query.Select(x => new AssociationDto
                 {
                     Id = x.Id,
@@ -124,7 +172,7 @@ namespace PeopleManagement.Application.Queries.RequireDocuments
             }
             if (associationType == AssociationType.Workplace)
             {
-                var query = _context.Workplaces.AsNoTracking().Where(x => x.CompanyId == companyId && x.Id == associationId);
+                var query = context.Workplaces.AsNoTracking().Where(x => x.CompanyId == companyId && x.Id == associationId);
                 var result = await query.Select(x => new AssociationDto
                 {
                     Id = x.Id,
@@ -134,6 +182,23 @@ namespace PeopleManagement.Application.Queries.RequireDocuments
                 return result;
             }
             throw new NotImplementedException($"The association get to {associationType.Name} not be implemented");
+        }
+
+        private async Task<EnumerationDto> GetDocumentRepresentingStatusAsync(Guid requiredDocumentId, Guid employeeId, Guid companyId, CancellationToken cancellationToken = default)
+        {
+            using var context = _factory.CreateDbContext();
+            var documentsStatus = await context.Documents.Where(x => x.RequiredDocumentId == requiredDocumentId && x.EmployeeId == employeeId && x.CompanyId == companyId)
+                .OrderByDescending(x => x.CreatedAt)
+                .Select(x => x.Status)
+                .ToListAsync(cancellationToken);
+
+            var status = Domain.AggregatesModel.DocumentAggregate.Document.GetRepresentingStatus(documentsStatus);
+            return new EnumerationDto
+            {
+                Id = status.Id,
+                Name = status.Name
+            };
+
         }
 
     }
