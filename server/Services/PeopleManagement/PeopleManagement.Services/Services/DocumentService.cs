@@ -10,7 +10,8 @@ using Extension = PeopleManagement.Domain.AggregatesModel.DocumentAggregate.Exte
 using PeopleManagement.Domain.AggregatesModel.DocumentTemplateAggregate.options;
 using PeopleManagement.Domain.AggregatesModel.RequireDocumentsAggregate.Interfaces;
 using PeopleManagement.Domain.AggregatesModel.EmployeeAggregate.Interfaces;
-using PeopleManagement.Domain.AggregatesModel.EmployeeAggregate;
+using Document = PeopleManagement.Domain.AggregatesModel.DocumentAggregate.Document;
+using Employee = PeopleManagement.Domain.AggregatesModel.EmployeeAggregate.Employee;
 
 namespace PeopleManagement.Services.Services
 {
@@ -150,7 +151,7 @@ namespace PeopleManagement.Services.Services
             await _blobService.UploadAsync(stream, fileNameWithExtesion, document.CompanyId.ToString(), cancellationToken);
         }
 
-        
+
         private static IRecoverInfoToDocumentTemplateService GetServiceToRecoverData(RecoverDataType doc, IServiceProvider provider)
         {
             var result = provider.GetRequiredService(doc.Type) as IRecoverInfoToDocumentTemplateService 
@@ -179,5 +180,7 @@ namespace PeopleManagement.Services.Services
                         TimeSpan.FromHours(_documentTemplatesOptions.MaxHoursWorkload)));
             }
         }
+
+
     }
 }

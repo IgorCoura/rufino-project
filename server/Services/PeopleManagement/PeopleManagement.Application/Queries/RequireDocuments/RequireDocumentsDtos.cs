@@ -5,6 +5,25 @@ namespace PeopleManagement.Application.Queries.RequireDocuments
 {
     public class RequireDocumentsDtos
     {
+        public record RequiredWithDocumentListDto
+        {
+            public Guid Id { get; init; }
+            public string Name { get; init; } = string.Empty;
+            public string Description { get; init; } = string.Empty;
+            public Guid CompanyId { get; init; }
+            public EnumerationDto DocumentsStatus { get; init; } = EnumerationDto.Empty;
+            public IEnumerable<RequireDocumentSimpleDocumentDto> Documents { get; init; } = [];
+        }
+        public record RequireDocumentSimpleDocumentDto
+        {
+            public Guid Id { get; init; }
+            public string Name { get; init; } = string.Empty;
+            public string Description { get; init; } = string.Empty;
+            public EnumerationDto Status { get; init; } = EnumerationDto.Empty;
+            public Guid EmployeeId { get; init; }
+            public DateTime CreateAt { get; init; }
+            public DateTime UpdateAt { get; init; }
+        };
         public record RequireDocumentSimpleDto
         {
             public Guid Id { get; init; }

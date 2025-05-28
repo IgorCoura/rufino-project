@@ -199,17 +199,17 @@ class EmployeesListPage extends StatelessWidget {
                       );
                     }),
                   ),
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 0, 24, 0),
+                  const Padding(
+                    padding: EdgeInsets.fromLTRB(16, 0, 24, 0),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Padding(
-                          padding: const EdgeInsets.fromLTRB(54, 0, 0, 0),
+                          padding: EdgeInsets.fromLTRB(54, 0, 0, 0),
                           child: Text(
                             "Nomes",
                             textAlign: TextAlign.center,
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 14,
                             ),
                           ),
@@ -217,23 +217,23 @@ class EmployeesListPage extends StatelessWidget {
                         Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Container(
+                            SizedBox(
                               width: 90,
                               child: Text(
                                 "Documentos",
                                 textAlign: TextAlign.center,
-                                style: const TextStyle(
+                                style: TextStyle(
                                   fontSize: 14,
                                 ),
                               ),
                             ),
-                            const SizedBox(width: 4),
-                            Container(
+                            SizedBox(width: 4),
+                            SizedBox(
                               width: 80,
                               child: Text(
                                 "Status",
                                 textAlign: TextAlign.center,
-                                style: const TextStyle(
+                                style: TextStyle(
                                   fontSize: 14,
                                 ),
                               ),

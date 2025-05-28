@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:http/http.dart' as http;
 import 'package:rufino/modules/employee/domain/model/document/document.dart';
+import 'package:rufino/modules/employee/domain/model/require_document/require_document_simple_with_documents.dart';
 import 'package:rufino/shared/services/base_service.dart';
 import 'package:rufino/shared/util/data_convetion.dart';
 
@@ -202,5 +203,21 @@ class DocumentService extends BaseService {
     }
     var exception = await treatUnsuccessfulStreamedResponses(response);
     throw exception;
+  }
+
+  Future<List<RequireDocumentSimpleWithDocuments>>
+      getAllRequireDocumentsSimpleWithDocuments(
+          String companyId, String employeeId) async {
+    var headers = await getHeaders();
+    var url = peopleManagementUrl.replace(
+        path: "/api/v1/$companyId/requiredocuments/withdocuments/$employeeId");
+
+    var response = await http.get(url, headers: headers);
+
+    if (response.statusCode == 200) {
+      var jsonResponse = jsonDecode(response.body);
+      return RequireDocumentSimpleWithDocuments.fromListJson(jsonResponse);
+    }
+    throw treatUnsuccessfulResponses(response);
   }
 }

@@ -9,7 +9,7 @@ class DocumentsComponentState extends Equatable {
   final bool isExpanded;
   final String? snackMessage;
   final AplicationException? exception;
-  final List<Document> documents;
+  final List<RequireDocumentSimpleWithDocuments> reqDocuments;
 
   const DocumentsComponentState(
       {this.companyId = "",
@@ -20,7 +20,7 @@ class DocumentsComponentState extends Equatable {
       this.isExpanded = false,
       this.snackMessage = "",
       this.exception,
-      this.documents = const []});
+      this.reqDocuments = const []});
 
   DocumentsComponentState copyWith({
     String? companyId,
@@ -31,7 +31,7 @@ class DocumentsComponentState extends Equatable {
     bool? isExpanded,
     String? snackMessage,
     AplicationException? exception,
-    List<Document>? documents,
+    List<RequireDocumentSimpleWithDocuments>? reqDocuments,
   }) {
     return DocumentsComponentState(
       companyId: companyId ?? this.companyId,
@@ -42,7 +42,7 @@ class DocumentsComponentState extends Equatable {
       isExpanded: isExpanded ?? this.isExpanded,
       snackMessage: snackMessage ?? this.snackMessage,
       exception: exception ?? this.exception,
-      documents: documents ?? this.documents,
+      reqDocuments: reqDocuments ?? this.reqDocuments,
     );
   }
 
@@ -56,6 +56,6 @@ class DocumentsComponentState extends Equatable {
         isExpanded,
         snackMessage,
         exception,
-        documents.hashCode,
+        reqDocuments.hashCode,
       ];
 }

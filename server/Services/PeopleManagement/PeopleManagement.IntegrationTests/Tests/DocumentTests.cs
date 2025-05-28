@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Hangfire;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using PeopleManagement.Application.Commands.DocumentCommands.CreateDocument;
 using PeopleManagement.Application.Commands.DocumentCommands.GenerateDocumentToSign;
@@ -25,7 +26,7 @@ namespace PeopleManagement.IntegrationTests.Tests
     {
         private readonly PeopleManagementWebApplicationFactory _factory = factory;
         [Fact]
-        public async Task CreateDocumentWithSuccess()
+        public async Task CreateDocumentUnitWithSuccess()
         {
             var cancellationToken = new CancellationToken();
 
@@ -57,7 +58,44 @@ namespace PeopleManagement.IntegrationTests.Tests
         }
 
         [Fact]
-        public async Task CreateDocumentWithTimeConflict()
+        public async Task CreateDocumentUnitAndVerifyIfJobWasCreatedWithSuccess()
+        {
+            var cancellationToken = new CancellationToken();
+
+            var context = _factory.GetContext();
+            var client = _factory.CreateClient();
+
+            var document = await context.InsertDocument(cancellationToken);
+            var documentUnit = await document.InsertOneDocumentInDocument();
+            await context.SaveChangesAsync(cancellationToken);
+
+            var date = DateOnly.FromDateTime(DateTime.UtcNow);
+
+            var command = new UpdateDocumentUnitDetailsModel(
+                    documentUnit.Id,
+                    document.Id,
+                    document.EmployeeId,
+                    date
+                );
+
+
+            client.InputHeaders([document.CompanyId]);
+            var response = await client.PutAsJsonAsync($"/api/v1/{document.CompanyId}/document/documentunit", command);
+
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+            var content = await response.Content.ReadFromJsonAsync(typeof(CreateDocumentResponse)) as CreateDocumentResponse ?? throw new ArgumentNullException();
+            var result = await context.Documents.AsNoTracking().Include(x => x.DocumentsUnits.Where(x => x.Id == content.Id)).FirstOrDefaultAsync(x => x.Id == document.Id) ?? throw new ArgumentNullException();
+            var documentResult = result.DocumentsUnits.First();
+            Assert.Equal(date.Day, documentResult.Date.Day);
+
+            JobStorage jobStorage = _factory.Services.GetRequiredService<JobStorage>();
+            var scheduledCount = jobStorage.GetMonitoringApi().ScheduledCount();
+            Assert.Equal(1, scheduledCount);
+        }
+
+
+        [Fact]
+        public async Task CreateDocumentUnitWithTimeConflict()
         {
             var cancellationToken = new CancellationToken();
 
@@ -97,6 +135,7 @@ namespace PeopleManagement.IntegrationTests.Tests
             var erroCode = content!["errors"]!["DocumentService"]![0]!["Code"]!;
             Assert.Equal("PMD.DOC10", erroCode.ToString());
         }
+
 
         [Fact]
         public async Task GeneratePdfWithSuccess()

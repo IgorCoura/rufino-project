@@ -31,7 +31,7 @@ namespace PeopleManagement.API.Controllers
 
         [HttpPut]
         [ProtectedResource("RequireDocuments", "edit")]
-        public async Task<ActionResult<EditRequireDocumentsResponse>> Edit([FromRoute] Guid company, [FromBody] EditRequireDocumentsModel request,  [FromHeader(Name = "x-requestid")] Guid requestId)
+        public async Task<ActionResult<EditRequireDocumentsResponse>> Edit([FromRoute] Guid company, [FromBody] EditRequireDocumentsModel request, [FromHeader(Name = "x-requestid")] Guid requestId)
         {
             var command = new IdentifiedCommand<EditRequireDocumentsCommand, EditRequireDocumentsResponse>(request.ToCommand(company), requestId);
 
@@ -74,6 +74,14 @@ namespace PeopleManagement.API.Controllers
         public ActionResult<IEnumerable<AssociationType>> GetAllAssociationsType([FromRoute] Guid company)
         {
             var result = AssociationType.GetAll<AssociationType>();
+            return OkResponse(result);
+        }
+
+        [HttpGet("withdocuments/{employeeId}")]
+        [ProtectedResource("RequireDocuments", "view")]
+        public async Task<ActionResult<IEnumerable<RequiredWithDocumentListDto>>> GetAllWithDocumentList([FromRoute] Guid company, [FromRoute] Guid employeeId)
+        {
+            var result = await _requireDocumentsQueries.GetAllWithDocumentList(company, employeeId);
             return OkResponse(result);
         }
 

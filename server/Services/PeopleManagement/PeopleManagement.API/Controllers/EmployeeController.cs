@@ -1,4 +1,5 @@
-﻿using Microsoft.Extensions.Logging;
+﻿using Hangfire;
+using Microsoft.Extensions.Logging;
 using PeopleManagement.API.Authorization;
 using PeopleManagement.Application.Commands.EmployeeCommands.AlterAddressEmployee;
 using PeopleManagement.Application.Commands.EmployeeCommands.AlterContactEmployee;

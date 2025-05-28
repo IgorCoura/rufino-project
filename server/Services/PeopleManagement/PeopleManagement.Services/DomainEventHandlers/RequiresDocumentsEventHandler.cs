@@ -15,7 +15,9 @@ using System.Threading;
 
 namespace PeopleManagement.Services.DomainEventHandlers
 {
-    public class RequiresDocumentsEventHandler(IRequireDocumentsRepository requireDocumentsRepository, IDocumentTemplateRepository documentTemplateRepository, IDocumentRepository documentRepository, IEmployeeRepository employeeRepository) : INotificationHandler<RequestDocumentsEvent>
+    public class RequiresDocumentsEventHandler(IRequireDocumentsRepository requireDocumentsRepository, 
+        IDocumentTemplateRepository documentTemplateRepository, IDocumentRepository documentRepository, IEmployeeRepository employeeRepository) 
+        : INotificationHandler<RequestDocumentsEvent>
     {
         private readonly IRequireDocumentsRepository _requireDocumentsRepository = requireDocumentsRepository;
         private readonly IDocumentRepository _documentRepository = documentRepository;
