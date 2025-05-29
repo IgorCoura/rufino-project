@@ -48,11 +48,11 @@ namespace PeopleManagement.Application.Queries.DocumentTemplate
                     BodyFileName = x.TemplateFileInfo.BodyFileName.Value,
                     HeaderFileName = x.TemplateFileInfo.HeaderFileName.Value,
                     FooterFileName = x.TemplateFileInfo.FooterFileName.Value,
-                    RecoverDataType = new EnumerationDto
+                    RecoversDataType = x.TemplateFileInfo.RecoversDataType.Select( re => new EnumerationDto
                     {
-                        Id = x.TemplateFileInfo.RecoverDataType.Id,
-                        Name = x.TemplateFileInfo.RecoverDataType.Name
-                    },
+                        Id = re.Id,
+                        Name = re.Name
+                    }).ToArray(),
                     PlaceSignatures = x.PlaceSignatures.Select(p => new PlaceSignatureDto
                     {
                         TypeSignature = new EnumerationDto
@@ -90,11 +90,11 @@ namespace PeopleManagement.Application.Queries.DocumentTemplate
                     BodyFileName = x.TemplateFileInfo.BodyFileName.Value,
                     HeaderFileName = x.TemplateFileInfo.HeaderFileName.Value,
                     FooterFileName = x.TemplateFileInfo.FooterFileName.Value,
-                    RecoverDataType = new EnumerationDto
+                    RecoversDataType = x.TemplateFileInfo.RecoversDataType.Select(re => new EnumerationDto
                     {
-                        Id = x.TemplateFileInfo.RecoverDataType.Id,
-                        Name = x.TemplateFileInfo.RecoverDataType.Name
-                    },
+                        Id = re.Id,
+                        Name = re.Name
+                    }).ToArray(),
                     PlaceSignatures = x.PlaceSignatures.Select(p => new PlaceSignatureDto
                     {
                         TypeSignature = new EnumerationDto

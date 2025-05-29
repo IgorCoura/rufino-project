@@ -28,7 +28,7 @@ namespace PeopleManagement.Application.Queries.DocumentTemplate
             public string BodyFileName { get; init; } = string.Empty;
             public string HeaderFileName { get; init; } = string.Empty;
             public string FooterFileName { get; init; } = string.Empty;
-            public EnumerationDto RecoverDataType { get; init; } = EnumerationDto.Empty;
+            public EnumerationDto[] RecoversDataType { get; init; } = [];
             public PlaceSignatureDto[] PlaceSignatures { get; init; } = [];
             public static TemplateFileInfoDto Empty => new();
         }

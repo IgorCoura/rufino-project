@@ -15,6 +15,8 @@
             CompanyId = companyId;
         }
 
+
+        // Event IDs: from 1 to 1000, cannot be greater to avoid conflict with the RecurringEvents of the RequireDocuments
         public const int CREATED_EVENT = 1;
         public const int NAME_CHANGE_EVENT = 2;
         public const int ROLE_CHANGE_EVENT = 3;

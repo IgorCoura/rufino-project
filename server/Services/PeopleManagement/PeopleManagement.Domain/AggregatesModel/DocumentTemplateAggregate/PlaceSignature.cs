@@ -4,12 +4,14 @@
     {
         
 
-        public TypeSignature Type { get; private set; }
-        public Number Page { get; private set; }
-        public Number RelativePositionBotton { get; private set; }
-        public Number RelativePositionLeft { get; private set; }
-        public Number RelativeSizeX { get; private set; }
-        public Number RelativeSizeY { get; private set; }
+        public TypeSignature Type { get; private set; } = null!;
+        public Number Page { get; private set; } = null!;
+        public Number RelativePositionBotton { get; private set; } = null!;
+        public Number RelativePositionLeft { get; private set; } = null!;
+        public Number RelativeSizeX { get; private set; } = null!;
+        public Number RelativeSizeY { get; private set; } = null!;
+
+        private PlaceSignature() { }
         private PlaceSignature(TypeSignature type, Number page, Number relativePositionBotton, Number relativePositionLeft, Number relativeSizeX, Number relativeSizeY)
         {
             Type = type;

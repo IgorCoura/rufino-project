@@ -25,6 +25,7 @@ namespace PeopleManagement.IntegrationTests.Tests
     public class DocumentTests(PeopleManagementWebApplicationFactory factory) : IClassFixture<PeopleManagementWebApplicationFactory>
     {
         private readonly PeopleManagementWebApplicationFactory _factory = factory;
+
         [Fact]
         public async Task CreateDocumentUnitWithSuccess()
         {

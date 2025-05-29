@@ -21,10 +21,10 @@ namespace PeopleManagement.Application.Commands.DocumentTemplateCommands.CreateD
         public CreateDocumentTemplateCommand ToCommand(Guid company) => new (company, Name, Description, DocumentValidityDurationInDays, WorkloadInHours, TemplateFileInfo, PlaceSignatures);
     }
 
-    public record TemplateFileInfoModel(string BodyFileName, string HeaderFileName, string FooterFileName, int RecoverDataType)
+    public record TemplateFileInfoModel(string BodyFileName, string HeaderFileName, string FooterFileName, int[] RecoversDataType)
     {
-        public TemplateFileInfo ToTemplateFileInfo(string directoryName) => TemplateFileInfo.Create(directoryName, BodyFileName, HeaderFileName, FooterFileName, 
-            RecoverDataType);
+        public TemplateFileInfo ToTemplateFileInfo(string directoryName) => TemplateFileInfo.Create(directoryName, BodyFileName, HeaderFileName, FooterFileName,
+            RecoversDataType.Select(x => RecoverDataType.FromValue<RecoverDataType>(x)).ToList());
     }
 
     public record PlaceSignatureModel(int Type, int Page, double RelativePositionBotton, double RelativePositionLeft, double RelativeSizeX, double RelativeSizeY)

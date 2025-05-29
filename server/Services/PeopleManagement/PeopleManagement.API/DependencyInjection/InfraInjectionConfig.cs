@@ -13,6 +13,7 @@ using PeopleManagement.Infra.Services;
 using PeopleManagement.Domain.AggregatesModel.ArchiveCategoryAggregate.Interfaces;
 using Microsoft.Net.Http.Headers;
 using PeopleManagement.Infra.Idempotency;
+using PeopleManagement.Domain.AggregatesModel.WorkplaceAggregate.Interfaces;
 
 namespace PeopleManagement.API.DependencyInjection
 {
@@ -32,6 +33,7 @@ namespace PeopleManagement.API.DependencyInjection
             service.AddScoped<IRequireDocumentsRepository, RequireDocumentsRepository>();
             service.AddScoped<IRoleRepository, RoleRepository>();
             service.AddScoped<IDocumentRepository, DocumentRepository>();
+            service.AddScoped<IWorkplaceRepository, WorkplaceRepository>();
 
             service.AddScoped<IPdfService, PdfService>();
             service.AddScoped<IBlobService, BlobAzureService>();

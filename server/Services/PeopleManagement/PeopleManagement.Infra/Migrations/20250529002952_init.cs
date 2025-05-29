@@ -64,7 +64,7 @@ namespace PeopleManagement.Infra.Migrations
                     TemplateFileInfo_BodyFileName = table.Column<string>(type: "character varying(20)", maxLength: 20, nullable: true),
                     TemplateFileInfo_HeaderFileName = table.Column<string>(type: "character varying(20)", maxLength: 20, nullable: true),
                     TemplateFileInfo_FooterFileName = table.Column<string>(type: "character varying(20)", maxLength: 20, nullable: true),
-                    TemplateFileInfo_RecoverDataType = table.Column<int>(type: "integer", nullable: true),
+                    TemplateFileInfo_RecoversDataType = table.Column<string>(type: "text", nullable: true),
                     DocumentValidityDuration = table.Column<TimeSpan>(type: "interval", nullable: true),
                     Workload = table.Column<TimeSpan>(type: "interval", nullable: true),
                     CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
