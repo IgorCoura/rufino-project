@@ -38,7 +38,7 @@ namespace PeopleManagement.IntegrationTests.Tests
                     "index.html",
                     "header.html",
                     "footer.html",
-                    RecoverDataType.NR01.Id
+                    [RecoverDataType.Employee.Id, RecoverDataType.PGR.Id]
                     
                     ), []);
 

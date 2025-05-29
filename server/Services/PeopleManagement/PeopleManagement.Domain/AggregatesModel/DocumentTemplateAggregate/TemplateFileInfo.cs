@@ -7,18 +7,18 @@
         public FileName HeaderFileName { get; set; } = null!;
         public FileName FooterFileName { get; set; } = null!;
 
-        public RecoverDataType RecoverDataType { get; set; } = null!;
+        public List<RecoverDataType> RecoversDataType { get; set; } = null!;
 
         private TemplateFileInfo() { }
 
         private TemplateFileInfo(DirectoryName directory, FileName bodyFileName, FileName headerFileName,
-            FileName footerFileName,  RecoverDataType recoverDataType)
+            FileName footerFileName, List<RecoverDataType> recoversDataType)
         {
             Directory = directory;
             BodyFileName = bodyFileName;
             HeaderFileName = headerFileName;
             FooterFileName = footerFileName;
-            RecoverDataType = recoverDataType;
+            RecoversDataType = recoversDataType;
         }
 
         public static TemplateFileInfo Create(
@@ -26,14 +26,14 @@
            FileName bodyFileName,
            FileName headerFileName,
            FileName footerFileName,
-           RecoverDataType recoverDataType)
+           List<RecoverDataType> recoversDataType)
         {
             return new TemplateFileInfo(
                 directory,
                 bodyFileName,
                 headerFileName,
                 footerFileName,
-                recoverDataType);
+                recoversDataType);
         }
 
         protected override IEnumerable<object?> GetEqualityComponents()
@@ -42,7 +42,7 @@
             yield return BodyFileName;
             yield return HeaderFileName;
             yield return FooterFileName;
-            yield return RecoverDataType;
+            yield return RecoversDataType;
         }
     }
 }

@@ -1,5 +1,7 @@
-﻿using Microsoft.EntityFrameworkCore.Metadata.Builders;
+﻿using Microsoft.EntityFrameworkCore.ChangeTracking;
+using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using PeopleManagement.Domain.AggregatesModel.DocumentTemplateAggregate;
+using System.Text.Json;
 
 namespace PeopleManagement.Infra.Mapping
 {
@@ -75,10 +77,17 @@ namespace PeopleManagement.Infra.Mapping
                     .HasMaxLength(FileName.MAX_LENGTH)
                     .IsRequired();
 
-                t.Property(x => x.RecoverDataType)
-                    .HasConversion(x => x.Id, x => x)
-                    .IsRequired();
-                
+                t.Property(x => x.RecoversDataType)
+                   .HasConversion(
+                        v => JsonSerializer.Serialize(v.Select(r => r.Id), JsonSerializerOptions.Default), // salvar apenas a lista de Ids
+                        v => JsonSerializer.Deserialize<List<int>>(v, JsonSerializerOptions.Default)!
+                                    .Select(id => RecoverDataType.FromValue<RecoverDataType>(id))
+                                    .ToList(),
+                        new ValueComparer<List<RecoverDataType>>(
+                            (c1, c2) => c1!.SequenceEqual(c2!),
+                            c => c.Aggregate(0, (a, v) => HashCode.Combine(a, v.GetHashCode())),
+                            c => c.ToList()));
+
             });
 
         }

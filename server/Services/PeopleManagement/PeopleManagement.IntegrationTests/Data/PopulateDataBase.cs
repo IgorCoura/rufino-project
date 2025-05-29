@@ -260,7 +260,7 @@ namespace PeopleManagement.IntegrationTests.Data
             var documentTemplate = DocumentTemplate.Create(Guid.NewGuid(), "DocumentTemplateName", 
                 "Description Document Template", company.Id, TimeSpan.FromDays(365) , TimeSpan.FromHours(8), 
                 TemplateFileInfo.Create(Guid.NewGuid().ToString(), "index.html",
-                "header.html", "footer.html", RecoverDataType.NR01), []);
+                "header.html", "footer.html", [RecoverDataType.Employee, RecoverDataType.PGR]), []);
             await context.DocumentTemplates.AddAsync(documentTemplate, cancellationToken);
             return documentTemplate;
         }
@@ -279,8 +279,8 @@ namespace PeopleManagement.IntegrationTests.Data
                     "index.html",
                     "header.html",
                     "footer.html",
-                    
-                    RecoverDataType.NR01
+
+                    [RecoverDataType.PGR]
                     ),
                 [
                     PlaceSignature.Create(TypeSignature.Signature,1,20.5, 5.3,5.2,5.5),

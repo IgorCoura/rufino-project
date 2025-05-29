@@ -785,8 +785,9 @@ namespace PeopleManagement.Infra.Migrations
                                 .HasMaxLength(20)
                                 .HasColumnType("character varying(20)");
 
-                            b1.Property<int>("RecoverDataType")
-                                .HasColumnType("integer");
+                            b1.Property<string>("RecoversDataType")
+                                .IsRequired()
+                                .HasColumnType("text");
 
                             b1.HasKey("DocumentTemplateId");
 

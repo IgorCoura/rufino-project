@@ -400,8 +400,7 @@ namespace PeopleManagement.Infra.DataForTests
                 "index.html",
                 "header.html",
                 "footer.html",
-                
-                RecoverDataType.NR01
+                [RecoverDataType.Employee, RecoverDataType.PGR]
                 ),
                 [
                     PlaceSignature.Create(TypeSignature.Signature,1,20.5, 5.3,5.2,5.5),
@@ -420,7 +419,7 @@ namespace PeopleManagement.Infra.DataForTests
                 "index.html",
                 "header.html",
                 "footer.html",
-                RecoverDataType.NR01
+                [RecoverDataType.Employee, RecoverDataType.PGR]
                 ),
                 [
                     PlaceSignature.Create(TypeSignature.Signature,1,20.5, 5.3,5.2,5.5),

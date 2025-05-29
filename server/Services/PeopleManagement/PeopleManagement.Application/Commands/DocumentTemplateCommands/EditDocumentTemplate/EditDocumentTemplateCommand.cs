@@ -13,10 +13,10 @@ namespace PeopleManagement.Application.Commands.DocumentTemplateCommands.EditDoc
     {
         public EditDocumentTemplateCommand ToCommand(Guid company) => new(Id, company, Name, Description, TemplateFileInfo, DocumentValidityDurationInDays, WorkloadInHours, PlaceSignatures);
     }
-    public record EditTemplateFileInfoModel(string BodyFileName, string HeaderFileName, string FooterFileName, int RecoverDataType)
+    public record EditTemplateFileInfoModel(string BodyFileName, string HeaderFileName, string FooterFileName, int[] RecoversDataType)
     {
         public TemplateFileInfo ToTemplateFileInfo(string directoryName) => TemplateFileInfo.Create(directoryName, BodyFileName, HeaderFileName, FooterFileName,
-            RecoverDataType);
+            RecoversDataType.Select(x => RecoverDataType.FromValue<RecoverDataType>(x)).ToList());
     }
     public record EditPlaceSignatureModel(int Type, int Page, double RelativePositionBotton, double RelativePositionLeft, double RelativeSizeX, double RelativeSizeY)
     {

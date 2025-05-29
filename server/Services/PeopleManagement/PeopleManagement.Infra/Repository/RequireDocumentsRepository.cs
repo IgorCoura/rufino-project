@@ -29,5 +29,14 @@ namespace PeopleManagement.Infra.Repository
             return await query.ToListAsync(cancellationToken);
            
         }
+
+        public async Task<IEnumerable<RequireDocuments>> GetAllWithEventId(int eventId,
+           CancellationToken cancellationToken = default)
+        {
+            var query = _context.RequireDocuments
+                .Where(rd => rd.ListenEvents.Any(le => le.EventId == eventId));
+
+            return await query.ToListAsync(cancellationToken);
+        }
     }
 }

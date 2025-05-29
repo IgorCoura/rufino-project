@@ -5,11 +5,16 @@ namespace PeopleManagement.Domain.AggregatesModel.DocumentTemplateAggregate
 {
     public class RecoverDataType : Enumeration
     {
+        public static readonly RecoverDataType Company = new(1, nameof(Company), "Company", typeof(IRecoverCompanyInfoToDocumentTemplateService));
+        public static readonly RecoverDataType Departament = new(2, nameof(Departament), "Departament", typeof(IRecoverDepartamentInfoToDocumentTemplateService));
+        public static readonly RecoverDataType Employee = new(3, nameof(Employee), "Employee", typeof(IRecoverEmployeeInfoToDocumentTemplateService));
+        public static readonly RecoverDataType PGR = new(4, nameof(PGR), "PGR", typeof(IRecoverPGRInfoToDocumentTemplateService));
+        public static readonly RecoverDataType Position = new(5, nameof(Position), "Position", typeof(IRecoverPositionInfoToDocumentTemplateService));
+        public static readonly RecoverDataType Role = new(6, nameof(Role), "Role", typeof(IRecoverRoleInfoToDocumentTemplateService));
+        public static readonly RecoverDataType Workplace = new(7, nameof(Workplace), "Role", typeof(IRecoverWorkplaceInfoToDocumentTemplateService));
 
-        public static readonly RecoverDataType NR01 = new(1, nameof(NR01), "NR01", typeof(IRecoverNR01InfoToDocumentTemplateService));
-
-        public string TemplateName { get; private set; }
-        public Type Type { get; private set; }
+        public string TemplateName { get; private set; } = null!;
+        public Type Type { get; private set; } = null!;
         private RecoverDataType(int id, string name, string templateName, Type type) : base(id, name)
         {
             TemplateName = templateName;

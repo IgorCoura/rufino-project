@@ -12,13 +12,17 @@ using PeopleManagement.Domain.AggregatesModel.RequireDocumentsAggregate.Interfac
 using PeopleManagement.Domain.AggregatesModel.EmployeeAggregate.Interfaces;
 using Document = PeopleManagement.Domain.AggregatesModel.DocumentAggregate.Document;
 using Employee = PeopleManagement.Domain.AggregatesModel.EmployeeAggregate.Employee;
+using Microsoft.Extensions.Logging;
+using System.Threading;
+using System.Text.Json.Nodes;
+using PeopleManagement.Domain.Utils;
 
 namespace PeopleManagement.Services.Services
 {
     public class DocumentService(IDocumentRepository securityDocumentRepository, IServiceProvider serviceProvider, 
         IPdfService pdfService, IBlobService blobService, IDocumentTemplateRepository documentTemplateRepository,
         DocumentTemplatesOptions documentTemplatesOptions, IRequireDocumentsRepository requireDocumentsRepository,
-        IEmployeeRepository employeeRepository) : IDocumentService
+        IEmployeeRepository employeeRepository, ILogger<DocumentService> logger) : IDocumentService
     {
         private readonly IDocumentRepository _documentRepository = securityDocumentRepository;
         private readonly IPdfService _pdfService = pdfService;
@@ -28,6 +32,7 @@ namespace PeopleManagement.Services.Services
         private readonly DocumentTemplatesOptions _documentTemplatesOptions = documentTemplatesOptions;
         private readonly IRequireDocumentsRepository _requireDocumentsRepository = requireDocumentsRepository;
         private readonly IEmployeeRepository _employeeRepository = employeeRepository;
+        private readonly ILogger<DocumentService> _logger = logger;
 
         public async Task<DocumentUnit> CreateDocumentUnit(Guid documentId, Guid employeeId, Guid companyId, 
             CancellationToken cancellationToken = default)
@@ -45,10 +50,12 @@ namespace PeopleManagement.Services.Services
         {
             var employee = await _employeeRepository.FirstOrDefaultMemoryOrDatabase(x => x.Id == employeeId && x.CompanyId == companyId) 
                 ?? throw new ArgumentNullException(nameof(Employee));
+
             var requiedDocuments = await _requireDocumentsRepository.GetAllWithEventId(employeeId, companyId, eventId, cancellationToken);
 
             foreach(var requiedDocument in requiedDocuments)
             {
+               
                 var isAccepted = requiedDocument.StatusIsAccepted(eventId, employee.Status.Id);
 
                 if (isAccepted == false)
@@ -58,7 +65,11 @@ namespace PeopleManagement.Services.Services
                 && x.CompanyId == companyId && x.RequiredDocumentId == requiedDocument.Id);
                
                 if(document is null)
+                {
+                    _logger.LogError("Document not found for employee {EmployeeId} and required document {RequiredDocumentId}. Skipping document creation.",
+                        employeeId, requiedDocument.Id);
                     continue;
+                }
 
                 var documentUnitId = Guid.NewGuid();
                 
@@ -87,18 +98,21 @@ namespace PeopleManagement.Services.Services
                 await VerifyTimeConflictBetweenDocument(employeeId, companyId, documentId, documentUnitDate, 
                     (TimeSpan)documentTemplate.Workload, cancellationToken);
 
-            string content = "";
+            string? content = "";
             if(documentTemplate.TemplateFileInfo is not null)
             {
-                var recoverDataService = GetServiceToRecoverData(documentTemplate.TemplateFileInfo.RecoverDataType, _serviceProvider);
-                try
-                {
-                    content = await recoverDataService.RecoverInfo(document.EmployeeId, document.CompanyId, documentUnitDate, cancellationToken);
-                }
-                catch
+                content = await RecoverInfoToDocument(
+                    documentTemplate.TemplateFileInfo.RecoversDataType,
+                    employeeId,
+                    companyId,
+                    jsonObjects: [documentUnitDate.ToJsonObject()],
+                    cancellationToken: cancellationToken);
+
+                if (content == null)
                 {
                     throw new DomainException(this, DomainErrors.Document.ErrorRecoverData(documentId));
                 }
+                
             }
 
             var documentUnit = document.UpdateDocumentUnitDetails(documentUnitId, documentUnitDate, documentTemplate.DocumentValidityDuration, 
@@ -149,6 +163,30 @@ namespace PeopleManagement.Services.Services
             string fileNameWithExtesion = document.InsertUnitWithoutRequireValidation(documentUnitId, fileName, extension);
 
             await _blobService.UploadAsync(stream, fileNameWithExtesion, document.CompanyId.ToString(), cancellationToken);
+        }
+
+
+        private async Task<string?> RecoverInfoToDocument(List<RecoverDataType> recoverDataTypes, Guid employeeId, Guid companyId, 
+            JsonObject[]? jsonObjects = null, CancellationToken cancellationToken = default)
+        {
+            var objects  = new List<JsonObject>();
+            if(jsonObjects != null)
+                objects.AddRange(jsonObjects);
+            foreach (var recoverDataType in recoverDataTypes)
+            {
+                try
+                {
+                    var recoverDataService = GetServiceToRecoverData(recoverDataType, _serviceProvider);
+                    var jsonObject = await recoverDataService.RecoverInfo(employeeId, companyId, cancellationToken);
+                    objects.Add(jsonObject);
+                }
+                catch(Exception ex)
+                {
+                    return null;                    
+                }
+            }
+            var result = objects.MergeListJsonObjects();
+            return result.ToString();
         }
 
 

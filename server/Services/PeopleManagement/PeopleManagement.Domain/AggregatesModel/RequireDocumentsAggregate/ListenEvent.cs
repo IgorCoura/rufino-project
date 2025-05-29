@@ -23,6 +23,11 @@ namespace PeopleManagement.Domain.AggregatesModel.RequireDocumentsAggregate
             return new(eventId, status);
         }
 
+        public static string ConvertArrayToString(ListenEvent[] items)
+        {
+            return string.Join(", ", items.Select(item => $"{item.EventId}"));
+        }
+
         protected override IEnumerable<object?> GetEqualityComponents()
         {
             yield return EventId;

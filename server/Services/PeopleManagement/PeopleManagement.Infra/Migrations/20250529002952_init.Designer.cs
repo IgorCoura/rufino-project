@@ -13,7 +13,7 @@ using PeopleManagement.Infra.Context;
 namespace PeopleManagement.Infra.Migrations
 {
     [DbContext(typeof(PeopleManagementContext))]
-    [Migration("20250522195201_init")]
+    [Migration("20250529002952_init")]
     partial class init
     {
         /// <inheritdoc />
@@ -788,8 +788,9 @@ namespace PeopleManagement.Infra.Migrations
                                 .HasMaxLength(20)
                                 .HasColumnType("character varying(20)");
 
-                            b1.Property<int>("RecoverDataType")
-                                .HasColumnType("integer");
+                            b1.Property<string>("RecoversDataType")
+                                .IsRequired()
+                                .HasColumnType("text");
 
                             b1.HasKey("DocumentTemplateId");
 

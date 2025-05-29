@@ -5,6 +5,7 @@ namespace PeopleManagement.Infra.Services
 {
     public static partial class HtmlService
     {
+
         public static Task<string> InsertValuesInHtmlTemplate(JsonNode? values, string html)
         {
             var result = ReplaceListTags(html, values);

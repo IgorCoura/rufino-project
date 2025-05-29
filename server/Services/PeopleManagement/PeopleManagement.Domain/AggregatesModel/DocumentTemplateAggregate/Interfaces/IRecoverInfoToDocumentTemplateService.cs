@@ -1,7 +1,9 @@
-﻿namespace PeopleManagement.Domain.AggregatesModel.DocumentTemplateAggregate.Interfaces
+﻿using System.Text.Json.Nodes;
+
+namespace PeopleManagement.Domain.AggregatesModel.DocumentTemplateAggregate.Interfaces
 {
     public interface IRecoverInfoToDocumentTemplateService
     {
-        Task<string> RecoverInfo(Guid id, Guid companyId, DateOnly date, CancellationToken cancellation = default);
+        Task<JsonObject> RecoverInfo(Guid employeeId, Guid companyId, CancellationToken cancellation = default);
     }
 }
