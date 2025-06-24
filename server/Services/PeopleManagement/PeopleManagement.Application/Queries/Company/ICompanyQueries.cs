@@ -6,5 +6,6 @@ namespace PeopleManagement.Application.Queries.Company
     {
         Task<IEnumerable<CompanySimplefiedDTO>> GetCompaniesSimplefiedsAsync(Guid[] companiesIds);
         Task<CompanySimplefiedDTO> GetCompanySimplefiedAsync(Guid id);
+        Task<CompanyDto> GetCompanyAsync(Guid id);
     }
 }

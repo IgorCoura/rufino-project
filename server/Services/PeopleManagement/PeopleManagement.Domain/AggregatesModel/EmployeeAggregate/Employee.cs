@@ -291,6 +291,16 @@ namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
             return hasMatchingProperty;
         }
 
+        public Guid[] GetAllPossibleAssociationIds()
+        {
+            var list = new List<Guid>();
+            if (RoleId != null)
+                list.Add((Guid)RoleId);
+            if (WorkPlaceId != null)
+                list.Add((Guid)WorkPlaceId);
+            return list.ToArray();
+        }
+
         private void NewContract(DateOnly dateInit, EmploymentContractType contractType)
         {
             if (Contracts.Any(x => x.FinalDate == null))

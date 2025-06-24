@@ -4,7 +4,7 @@ import 'package:bloc/bloc.dart';
 import 'package:equatable/equatable.dart';
 import 'package:infinite_scroll_pagination/infinite_scroll_pagination.dart';
 import 'package:rufino/domain/model/company.dart';
-import 'package:rufino/domain/services/company_service.dart';
+import 'package:rufino/domain/services/company_global_service.dart';
 import 'package:rufino/modules/employee/domain/model/employee_with_role.dart';
 import 'package:rufino/modules/employee/domain/model/search_params.dart';
 import 'package:rufino/modules/employee/domain/model/status.dart';
@@ -16,7 +16,7 @@ part 'employees_list_state.dart';
 
 class EmployeesListBloc extends Bloc<EmployeesListEvent, EmployeesListState> {
   final PeopleManagementService _peopleManagementService;
-  final CompanyService _companyService;
+  final CompanyGlobalService _companyService;
   final int _pageSize = 15;
   int _sizeSkip = 0;
 

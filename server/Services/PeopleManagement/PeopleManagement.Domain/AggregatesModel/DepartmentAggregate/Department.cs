@@ -15,5 +15,11 @@
         }
 
         public static Department Create(Guid id, Name name, Description description, Guid companyId) => new(id, name, description, companyId);
+
+        public void Edit(Name name, Description description)
+        {
+            Name = name;
+            Description = description;
+        }
     }
 }

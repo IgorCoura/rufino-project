@@ -100,11 +100,13 @@ list_errors = []
 list_names_not_found = []
 
 for folder in folders:
+    print(f"Processando pasta: {folder}")
     files_base = folders_base +"/" +folder
     files = os.listdir(files_base)
     files_renames = []
     count = len(files)
     for file in files:
+        print(f"Processando arquivo: {file}")
         try:
             name = put_name_files(files_base, folder, file, list_of_lines)
             if name == None:

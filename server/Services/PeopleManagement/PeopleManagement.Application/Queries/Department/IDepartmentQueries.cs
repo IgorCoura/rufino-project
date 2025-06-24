@@ -5,5 +5,6 @@ namespace PeopleManagement.Application.Queries.Department
     public interface IDepartmentQueries
     {
         Task<IEnumerable<DepartmentDto>> GetAll(Guid company);
+        Task<DepartmentSimpleDto> GetById(Guid departmentId, Guid companyId);
     }
 }

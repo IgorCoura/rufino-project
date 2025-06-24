@@ -21,5 +21,11 @@
 
         public static Position Create(Guid id, Name name, Description description, CBO cBO, Guid departmentId, Guid companyId) => new(id, name, description, cBO, departmentId, companyId);
 
+        public void Edit(Name name, Description description, CBO cBO)
+        {
+            Name = name;
+            Description = description;
+            CBO = cBO;
+        }
     }
 }

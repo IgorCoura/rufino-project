@@ -2,7 +2,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:equatable/equatable.dart';
 import 'package:rufino/domain/model/company.dart';
 import 'package:rufino/domain/services/auth_service.dart';
-import 'package:rufino/domain/services/company_service.dart';
+import 'package:rufino/domain/services/company_global_service.dart';
 import 'package:rufino/shared/errors/aplication_errors.dart';
 
 part 'company_selection_event.dart';
@@ -17,7 +17,7 @@ class CompanySelectionBloc
     on<ChangeSelectionOptionEvent>(_onChangeSelectionOptionEvent);
   }
 
-  final CompanyService _companyService;
+  final CompanyGlobalService _companyService;
   final AuthService _authService;
 
   void _onInitialCompanyEvent(

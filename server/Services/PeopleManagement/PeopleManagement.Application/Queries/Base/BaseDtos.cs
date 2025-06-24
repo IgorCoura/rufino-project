@@ -1,4 +1,6 @@
-﻿using PeopleManagement.Domain.SeedWord;
+﻿using PeopleManagement.Domain.AggregatesModel.DocumentTemplateAggregate;
+using PeopleManagement.Domain.SeedWord;
+using System.Text.Json;
 
 namespace PeopleManagement.Application.Queries.Base
 {
@@ -19,7 +21,9 @@ namespace PeopleManagement.Application.Queries.Base
             public static implicit operator EnumerationDto(Enumeration enumeration)
             {
                 return new EnumerationDto(enumeration.Id, enumeration.Name);
-            }   
+            }
+
+           
         }
     }
 }

@@ -1,7 +1,7 @@
 import 'package:bloc/bloc.dart';
 import 'package:equatable/equatable.dart';
 import 'package:flutter_modular/flutter_modular.dart';
-import 'package:rufino/domain/services/company_service.dart';
+import 'package:rufino/domain/services/company_global_service.dart';
 import 'package:rufino/modules/employee/domain/model/document_template/document_template_simple.dart';
 import 'package:rufino/modules/employee/domain/model/require_document/association.dart';
 import 'package:rufino/modules/employee/domain/model/require_document/association_type.dart';
@@ -9,6 +9,7 @@ import 'package:rufino/modules/employee/domain/model/require_document/event.dart
 import 'package:rufino/modules/employee/domain/model/require_document/listen_event.dart';
 import 'package:rufino/modules/employee/domain/model/require_document/require_document.dart';
 import 'package:rufino/modules/employee/domain/model/require_document/status.dart';
+import 'package:rufino/modules/employee/services/document_template_service.dart';
 import 'package:rufino/modules/employee/services/people_management_service.dart';
 import 'package:rufino/shared/errors/aplication_errors.dart';
 
@@ -18,9 +19,11 @@ part 'require_document_state.dart';
 class RequireDocumentBloc
     extends Bloc<RequireDocumentEvent, RequireDocumentState> {
   final PeopleManagementService _peopleManagementService;
-  final CompanyService _companyService;
+  final DocumentTemplateService _documentTemplateService;
+  final CompanyGlobalService _companyService;
 
-  RequireDocumentBloc(this._companyService, this._peopleManagementService)
+  RequireDocumentBloc(this._companyService, this._peopleManagementService,
+      this._documentTemplateService)
       : super(RequireDocumentState()) {
     on<InitialEvent>(_onInitialEvent);
     on<EditEvent>(_onEditEvent);
@@ -80,7 +83,7 @@ class RequireDocumentBloc
       var reqDocStatus = status.map((el) => Status(el.id, el.name)).toList();
       var events = await _peopleManagementService
           .getEvents(state.requireDocument.companyId);
-      var documentTemplates = await _peopleManagementService
+      var documentTemplates = await _documentTemplateService
           .getAllDocumentTemplatesSimple(state.requireDocument.companyId);
 
       emit(state.copyWith(

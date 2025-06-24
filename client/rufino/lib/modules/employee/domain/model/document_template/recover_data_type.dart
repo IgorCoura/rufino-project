@@ -3,7 +3,13 @@ import 'package:rufino/modules/employee/domain/model/base/enumeration.dart';
 class RecoverDataType extends Enumeration {
   static const Map<String, String> conversionMapIntToString = {
     "0": "",
-    "1": "NR01",
+    "1": "Dados da Empresa",
+    "2": "Dados do Departamento",
+    "3": "Dados do Funcionário",
+    "4": "Dados do PGR",
+    "5": "Dados da Cargo",
+    "6": "Dados da Função",
+    "7": "Dados da Local de Trabalho",
   };
 
   RecoverDataType(String id, String name)
@@ -29,8 +35,6 @@ class RecoverDataType extends Enumeration {
   }
 
   static List<RecoverDataType> fromListJson(List<dynamic> listJson) {
-    var list = [RecoverDataType("0", "")];
-    list.addAll(listJson.map((el) => fromJson(el)).toList());
-    return list;
+    return listJson.map((el) => fromJson(el)).toList();
   }
 }

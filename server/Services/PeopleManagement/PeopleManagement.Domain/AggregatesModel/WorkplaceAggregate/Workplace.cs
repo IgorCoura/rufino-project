@@ -15,6 +15,12 @@
         }
 
         public static Workplace Create(Guid id, Name name, Address address, Guid companyId) => new(id, name, address, companyId);
+
+        public void Edit(Name name, Address address)
+        {
+            Name = name;
+            Address = address;
+        }
     }
 }
  

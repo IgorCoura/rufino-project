@@ -1,4 +1,6 @@
 ﻿using Microsoft.EntityFrameworkCore;
+using PeopleManagement.Domain.ErrorTools;
+using PeopleManagement.Domain.ErrorTools.ErrorsMessages;
 using PeopleManagement.Infra.Context;
 using static PeopleManagement.Application.Queries.Position.PositionDtos;
 
@@ -23,6 +25,23 @@ namespace PeopleManagement.Application.Queries.Position
             var result = await query.ToArrayAsync();
             return result;
         }
+        public async Task<PositionSimpleDto> GetById(Guid positionId, Guid company)
+        {
+            var query = from d in _context.Positions
+                        where d.Id == positionId && d.CompanyId == company
+                        select new PositionSimpleDto
+                        {
+                            Id = d.Id,
+                            Name = d.Name.Value,
+                            Description = d.Description.Value,
+                            CBO = d.CBO.Value,
+                        };
+
+            var result = await query.FirstOrDefaultAsync()
+                ?? throw new DomainException(this, DomainErrors.ObjectNotFound(nameof(Position), positionId.ToString()));
+            return result;
+        }
+        
 
     }
 }

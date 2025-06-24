@@ -1,6 +1,6 @@
 import 'package:bloc/bloc.dart';
 import 'package:equatable/equatable.dart';
-import 'package:rufino/domain/services/company_service.dart';
+import 'package:rufino/domain/services/company_global_service.dart';
 import 'package:rufino/modules/employee/domain/model/archive_category/archive_category.dart';
 import 'package:rufino/modules/employee/domain/model/archive_category/description.dart';
 import 'package:rufino/modules/employee/domain/model/archive_category/event.dart';
@@ -14,7 +14,7 @@ part 'archive_category_state.dart';
 class ArchiveCategoryBloc
     extends Bloc<ArchiveCategoryEvent, ArchiveCategoryState> {
   final PeopleManagementService _peopleManagementService;
-  final CompanyService _companyService;
+  final CompanyGlobalService _companyService;
 
   ArchiveCategoryBloc(this._peopleManagementService, this._companyService)
       : super(ArchiveCategoryState()) {

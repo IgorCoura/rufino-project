@@ -6,14 +6,14 @@ import 'package:rufino/shared/errors/aplication_errors.dart';
 import 'package:rufino/shared/services/base_service.dart';
 import 'package:http/http.dart' as http;
 
-class CompanyService extends BaseService {
+class CompanyGlobalService extends BaseService {
   final Uri peopleManagementUrl =
       Uri.https(const String.fromEnvironment("people_management_url"));
   final FlutterSecureStorage _storage;
 
   Company? _selectedCompany;
 
-  CompanyService(this._storage, super.authService);
+  CompanyGlobalService(this._storage, super.authService);
 
   Future<List<Company>> getCompanies(List<String> companiesIds) async {
     Map<String, dynamic> queryParams = {"id": companiesIds};
@@ -28,6 +28,23 @@ class CompanyService extends BaseService {
     if (response.statusCode == 200) {
       List<dynamic> jsonResponse = jsonDecode(response.body);
       return Company.fromListJson(jsonResponse);
+    }
+    throw treatUnsuccessfulResponses(response);
+  }
+
+  Future<Company> getCompany(companyId) async {
+    Map<String, dynamic> queryParams = {"id": companyId};
+
+    var url = peopleManagementUrl.replace(
+        path: "/api/v1/company", queryParameters: queryParams);
+
+    var headers = await getHeaders();
+
+    var response = await http.get(url, headers: headers);
+
+    if (response.statusCode == 200) {
+      Map<String, dynamic> jsonResponse = jsonDecode(response.body);
+      return Company.fromMap(jsonResponse);
     }
     throw treatUnsuccessfulResponses(response);
   }
@@ -51,6 +68,7 @@ class CompanyService extends BaseService {
   Future<bool> hasCompanySeleted() async {
     if (_selectedCompany == null) {
       try {
+        await refreshSelectedCompany();
         await getSelectedCompany();
         return true;
       } catch (ex) {
@@ -58,5 +76,11 @@ class CompanyService extends BaseService {
       }
     }
     return true;
+  }
+
+  Future refreshSelectedCompany() async {
+    var selectedCompany = await getSelectedCompany();
+    var refreshedCompany = await getCompany(selectedCompany.id);
+    await selectCompany(refreshedCompany);
   }
 }

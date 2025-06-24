@@ -13,6 +13,8 @@ namespace PeopleManagement.Services.Services
         public async Task DepreciateExpirateDocument(Guid documentUnitId, Guid documentId, Guid companyId,
             CancellationToken cancellationToken = default)
         {
+            _logger.LogInformation("Depreciating document with ID {DocumentId} for company {CompanyId}.", documentId, companyId);
+
             Document? document = await _documentRepository.FirstOrDefaultAsync(x => x.Id == documentId &&
                 x.CompanyId == companyId, include: x => x.Include(y => y.DocumentsUnits.Where(x => x.Id == documentUnitId)),
                 cancellation: cancellationToken);
@@ -25,6 +27,8 @@ namespace PeopleManagement.Services.Services
 
             var newDocumentUnitId = Guid.NewGuid();
             document.MakeAsDocumentExpired(documentUnitId, newDocumentUnitId);
+
+            _logger.LogInformation("Document with ID {DocumentId} has been marked as expired for company {CompanyId}.", documentId, companyId);
         }
 
 

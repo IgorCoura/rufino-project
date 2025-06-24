@@ -6,6 +6,9 @@ using static PeopleManagement.Application.Queries.Base.BaseDtos;
 using static PeopleManagement.Application.Queries.DocumentTemplate.DocumentTemplateDtos;
 using PeopleManagement.Domain.AggregatesModel.DocumentTemplateAggregate.Interfaces;
 using PeopleManagement.Domain.AggregatesModel.DocumentTemplateAggregate.options;
+using PeopleManagement.Domain.AggregatesModel.EmployeeAggregate.Events;
+using PeopleManagement.Domain.AggregatesModel.RequireDocumentsAggregate.Events;
+using PeopleManagement.Domain.AggregatesModel.DocumentTemplateAggregate;
 
 namespace PeopleManagement.Application.Queries.DocumentTemplate
 {
@@ -33,27 +36,25 @@ namespace PeopleManagement.Application.Queries.DocumentTemplate
 
         public async Task<DocumentTemplateDto> GetById(Guid companyId, Guid documentTemplateId)
         {
-            var query = _context.DocumentTemplates.AsNoTracking().Where(x => x.CompanyId == companyId && x.Id == documentTemplateId);
+            var entity = await _context.DocumentTemplates.AsNoTracking().Where(x => x.CompanyId == companyId && x.Id == documentTemplateId).FirstOrDefaultAsync()
+            ?? throw new DomainException(this, DomainErrors.ObjectNotFound(nameof(DocumentTemplate), documentTemplateId.ToString()));
 
 
-            var result = await query.Select(x => new DocumentTemplateDto { 
-                Id = x.Id,
-                Name = x.Name.Value,
-                Description = x.Description.Value,
-                CompanyId = x.CompanyId,
-                DocumentValidityDurationInDays = x.DocumentValidityDuration.HasValue ? x.DocumentValidityDuration.Value.Days : null,
-                WorkloadInHours = x.Workload.HasValue ? x.Workload.Value.Hours : null,
-                TemplateFileInfo = x.TemplateFileInfo == null ? new TemplateFileInfoDto() : new TemplateFileInfoDto
+            var result = new DocumentTemplateDto
+            {
+                Id = entity.Id,
+                Name = entity.Name.Value,
+                Description = entity.Description.Value,
+                CompanyId = entity.CompanyId,
+                DocumentValidityDurationInDays = entity.DocumentValidityDuration.HasValue ? entity.DocumentValidityDuration.Value.Days : null,
+                WorkloadInHours = entity.Workload.HasValue ? entity.Workload.Value.Hours : null,
+                TemplateFileInfo = entity.TemplateFileInfo == null ? new TemplateFileInfoDto() : new TemplateFileInfoDto
                 {
-                    BodyFileName = x.TemplateFileInfo.BodyFileName.Value,
-                    HeaderFileName = x.TemplateFileInfo.HeaderFileName.Value,
-                    FooterFileName = x.TemplateFileInfo.FooterFileName.Value,
-                    RecoversDataType = x.TemplateFileInfo.RecoversDataType.Select( re => new EnumerationDto
-                    {
-                        Id = re.Id,
-                        Name = re.Name
-                    }).ToArray(),
-                    PlaceSignatures = x.PlaceSignatures.Select(p => new PlaceSignatureDto
+                    BodyFileName = entity.TemplateFileInfo.BodyFileName.Value,
+                    HeaderFileName = entity.TemplateFileInfo.HeaderFileName.Value,
+                    FooterFileName = entity.TemplateFileInfo.FooterFileName.Value,
+                    RecoversDataType = entity.TemplateFileInfo.RecoversDataType.Select(x => (EnumerationDto)x).ToArray(),
+                    PlaceSignatures = entity.PlaceSignatures.Select(p => new PlaceSignatureDto
                     {
                         TypeSignature = new EnumerationDto
                         {
@@ -67,18 +68,18 @@ namespace PeopleManagement.Application.Queries.DocumentTemplate
                         RelativeSizeY = p.RelativeSizeY.Value,
                     }).ToArray(),
                 }
-            }).FirstOrDefaultAsync() 
-            ?? throw new DomainException(this, DomainErrors.ObjectNotFound(nameof(DocumentTemplate), documentTemplateId.ToString()));
+            };
 
             return result;
 
         }
         public async Task<IEnumerable<DocumentTemplateDto>> GetAll(Guid companyId)
         {
-            var query = _context.DocumentTemplates.AsNoTracking().Where(x => x.CompanyId == companyId);
+            var query = await _context.DocumentTemplates.AsNoTracking().Where(x => x.CompanyId == companyId).ToArrayAsync();
 
 
-            var result = await query.Select(x => new DocumentTemplateDto { 
+            var result =  query.Select(x => new DocumentTemplateDto
+            {
                 Id = x.Id,
                 Name = x.Name.Value,
                 Description = x.Description.Value,
@@ -90,11 +91,7 @@ namespace PeopleManagement.Application.Queries.DocumentTemplate
                     BodyFileName = x.TemplateFileInfo.BodyFileName.Value,
                     HeaderFileName = x.TemplateFileInfo.HeaderFileName.Value,
                     FooterFileName = x.TemplateFileInfo.FooterFileName.Value,
-                    RecoversDataType = x.TemplateFileInfo.RecoversDataType.Select(re => new EnumerationDto
-                    {
-                        Id = re.Id,
-                        Name = re.Name
-                    }).ToArray(),
+                    RecoversDataType = x.TemplateFileInfo.RecoversDataType.Select(x => (EnumerationDto)x).ToArray(),
                     PlaceSignatures = x.PlaceSignatures.Select(p => new PlaceSignatureDto
                     {
                         TypeSignature = new EnumerationDto
@@ -109,8 +106,7 @@ namespace PeopleManagement.Application.Queries.DocumentTemplate
                         RelativeSizeY = p.RelativeSizeY.Value,
                     }).ToArray(),
                 }
-            }).ToArrayAsync();
-
+            });
 
                                                                                                                                                                                                
             return result;
@@ -141,6 +137,26 @@ namespace PeopleManagement.Application.Queries.DocumentTemplate
             var file =  await  _localStorageService.ZipDownloadAsync(documentTemplate.TemplateFileInfo.Directory.Value, _documentTemplatesOptions.SourceDirectory);
 
             return file;
+        }
+
+        public Task<List<EnumerationDto>> GetAllEvents()
+        {
+            var employeeEvents = EmployeeEvent.GetAll().Select(x => {
+                if(x == null)
+                    return null;
+                return new EnumerationDto { Id = x.Id, Name = x.Name, };
+            });
+
+            var recurringEvents = RecurringEvents.GetAll().Select(x =>
+            {
+                if (x == null)
+                    return null;
+                return new EnumerationDto { Id = x.Id, Name = x.Name, };
+            });
+
+            var allEvents = employeeEvents.Concat(recurringEvents).Where(x => x != null).Select(x => (EnumerationDto)x!).ToList() ?? [];
+
+            return Task.FromResult(allEvents);
         }
 
     }

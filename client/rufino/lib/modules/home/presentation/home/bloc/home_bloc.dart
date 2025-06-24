@@ -2,7 +2,7 @@ import 'package:bloc/bloc.dart';
 import 'package:equatable/equatable.dart';
 import 'package:rufino/domain/model/company.dart';
 import 'package:rufino/domain/services/auth_service.dart';
-import 'package:rufino/domain/services/company_service.dart';
+import 'package:rufino/domain/services/company_global_service.dart';
 import 'package:rufino/shared/errors/aplication_errors.dart';
 
 part 'home_event.dart';
@@ -15,7 +15,7 @@ class HomeBloc extends Bloc<HomeEvent, HomeState> {
   }
 
   final AuthService _authService;
-  final CompanyService _companyService;
+  final CompanyGlobalService _companyService;
 
   Future _onInitialHomeEvent(
       InitialHomeEvent event, Emitter<HomeState> emit) async {

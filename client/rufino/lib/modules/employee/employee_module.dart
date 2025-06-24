@@ -1,6 +1,7 @@
 import 'package:flutter_modular/flutter_modular.dart';
 import 'package:rufino/app_module.dart';
 import 'package:rufino/modules/employee/services/document_service.dart';
+import 'package:rufino/modules/employee/services/document_template_service.dart';
 import 'package:rufino/modules/employee/services/people_management_service.dart';
 import 'package:rufino/modules/employee/presentation/archive_category/archive_category_page.dart';
 import 'package:rufino/modules/employee/presentation/archive_category/bloc/archive_category_bloc.dart';
@@ -25,6 +26,7 @@ class PeopleModule extends Module {
     //SERVICES
     i.add<PeopleManagementService>(PeopleManagementService.new);
     i.add<DocumentService>(DocumentService.new);
+    i.add<DocumentTemplateService>(DocumentTemplateService.new);
 
     //BLOCs
     i.add<EmployeesListBloc>(EmployeesListBloc.new);

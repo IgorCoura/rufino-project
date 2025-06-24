@@ -113,7 +113,8 @@ if (env != null && env.Equals("Development"))
     });
     app.UseSwagger();
     app.UseSwaggerUI();
-    await PopulateDb.Populate(context);
+    var log = services.GetRequiredService<ILogger<Program>>();
+    await PopulateDb.Populate(context, log);
 }
 
 

@@ -84,7 +84,7 @@ def fetch_and_parse_urls(fourth_column_data):
                     # Extract Consumer
                     consumer = ""
                     tipo = "NFC-e"
-                    url_data.append((tipo, codigo, data, valor, consumer, fonte))
+                    url_data.append((tipo, f"\"{codigo}\"", data, valor, consumer, fonte))
                 except Exception as e:
                     print(f"Failed to process URL {line}: {e}")
         return url_data
@@ -103,7 +103,7 @@ if __name__ == "__main__":
     
     print("INICIO")
       
-    input_path = os.path.join(os.getcwd(), "input", "QRbot_202503311740343.csv")
+    input_path = os.path.join(os.getcwd(), "input", "CUPONS_FISCAIS.csv")
     output_path = os.path.join(os.getcwd(), "output", "NFC-e_CF-e.csv")
     
     

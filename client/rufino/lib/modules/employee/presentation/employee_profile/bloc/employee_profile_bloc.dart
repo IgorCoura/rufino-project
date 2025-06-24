@@ -1,7 +1,7 @@
 import 'package:bloc/bloc.dart';
 import 'package:equatable/equatable.dart';
 import 'package:rufino/domain/model/company.dart';
-import 'package:rufino/domain/services/company_service.dart';
+import 'package:rufino/domain/services/company_global_service.dart';
 import 'package:rufino/modules/employee/domain/model/employee_contract.dart';
 import 'package:rufino/modules/employee/domain/model/employee_contract_type.dart';
 import 'package:rufino/modules/employee/domain/model/medical_admission_exam/medical_admission_exam.dart';
@@ -28,7 +28,7 @@ part 'employee_profile_state.dart';
 
 class EmployeeProfileBloc
     extends Bloc<EmployeeProfileEvent, EmployeeProfileState> {
-  final CompanyService _companyService;
+  final CompanyGlobalService _companyService;
   final PeopleManagementService _peopleManagementService;
 
   EmployeeProfileBloc(this._companyService, this._peopleManagementService)

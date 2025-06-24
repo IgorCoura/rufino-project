@@ -4,7 +4,7 @@ import 'package:bloc/bloc.dart';
 import 'package:equatable/equatable.dart';
 import 'package:rufino/domain/enum/auth_status.dart';
 import 'package:rufino/domain/services/auth_service.dart';
-import 'package:rufino/domain/services/company_service.dart';
+import 'package:rufino/domain/services/company_global_service.dart';
 import 'package:rufino/shared/errors/aplication_errors.dart';
 
 part 'authentication_event.dart';
@@ -14,7 +14,7 @@ class AuthenticationBloc
     extends Bloc<AuthenticationEvent, AuthenticationState> {
   AuthenticationBloc(
       {required AuthService authService,
-      required CompanyService companyService})
+      required CompanyGlobalService companyService})
       : _authService = authService,
         _companyService = companyService,
         super(const AuthenticationState.unknown()) {
@@ -22,7 +22,7 @@ class AuthenticationBloc
   }
 
   final AuthService _authService;
-  final CompanyService _companyService;
+  final CompanyGlobalService _companyService;
 
   Future<void> _onSubscriptionRequested(
     AuthenticationSubscriptionRequested event,

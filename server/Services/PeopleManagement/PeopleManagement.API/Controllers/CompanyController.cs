@@ -1,5 +1,6 @@
 ﻿using PeopleManagement.API.Authorization;
 using PeopleManagement.Application.Commands.CompanyCommands.CreateCompany;
+using PeopleManagement.Application.Commands.CompanyCommands.EditCompany;
 using PeopleManagement.Application.Commands.DTO;
 using PeopleManagement.Application.Commands.Identified;
 using PeopleManagement.Application.Queries.Company;
@@ -36,6 +37,31 @@ namespace PeopleManagement.API.Controllers
             
         }
 
+        [HttpPut]
+        [ProtectedResource("company", "edit")]
+        public async Task<ActionResult<EditCompanyResponse>> EditCompany([FromBody] EditCompanyCommand request, [FromHeader(Name = "x-requestid")] string requestId)
+        {
+
+            if (Guid.TryParse(requestId, out Guid guid) && guid != Guid.Empty)
+            {
+                var command = new IdentifiedCommand<EditCompanyCommand, EditCompanyResponse>(request, guid);
+
+                SendingCommandLog(request.Cnpj, request, guid);
+
+                var result = await _mediator.Send(command);
+
+                CommandResultLog(result, request.Cnpj, request, guid);
+
+                return OkResponse(result);
+            }
+            else
+            {
+                return BadRequestResponse("Invalid request Id");
+            }
+
+
+        }
+
         [HttpGet]
         [ProtectedResource("company", "view")]
         public async Task<ActionResult<CompanySimplefiedDTO>> GetCompany([FromQuery] Guid id)
@@ -46,9 +72,17 @@ namespace PeopleManagement.API.Controllers
 
         [HttpGet("list")]
         [ProtectedResource("company", "view")]
-        public async Task<ActionResult<IEnumerable<CompanySimplefiedDTO>>> GetCompanies([FromQuery] Guid[] id)
+        public async Task<ActionResult<IEnumerable<CompanySimplefiedDTO>>> GetCompaniesSimplefied([FromQuery] Guid[] id)
         {
             var companies = await companyQueries.GetCompaniesSimplefiedsAsync(id);
+            return OkResponse(companies);
+        }
+
+        [HttpGet("complete")]
+        [ProtectedResource("company", "view")]
+        public async Task<ActionResult<CompanyDto>> GetCompaniesComplete([FromQuery] Guid id)
+        {
+            var companies = await companyQueries.GetCompanyAsync(id);
             return OkResponse(companies);
         }
     }

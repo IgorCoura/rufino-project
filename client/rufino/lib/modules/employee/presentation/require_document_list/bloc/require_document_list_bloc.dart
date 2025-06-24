@@ -1,6 +1,6 @@
 import 'package:bloc/bloc.dart';
 import 'package:equatable/equatable.dart';
-import 'package:rufino/domain/services/company_service.dart';
+import 'package:rufino/domain/services/company_global_service.dart';
 import 'package:rufino/modules/employee/domain/model/require_document/require_document_simple.dart';
 import 'package:rufino/modules/employee/services/people_management_service.dart';
 import 'package:rufino/shared/errors/aplication_errors.dart';
@@ -11,7 +11,7 @@ part 'require_document_list_state.dart';
 class RequireDocumentListBloc
     extends Bloc<RequireDocumentListEvent, RequireDocumentListState> {
   final PeopleManagementService _peopleManagementService;
-  final CompanyService _companyService;
+  final CompanyGlobalService _companyService;
   RequireDocumentListBloc(this._companyService, this._peopleManagementService)
       : super(RequireDocumentListState()) {
     on<InitialEvent>(_onInitialEvent);
