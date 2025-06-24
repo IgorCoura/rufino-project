@@ -22,8 +22,15 @@ namespace PeopleManagement.Application.Queries.RequireDocuments
         public async Task<IEnumerable<RequiredWithDocumentListDto>> GetAllWithDocumentList(Guid companyId, Guid employeeId)
         {
             using var context = _factory.CreateDbContext();
+            var employeeQuery = 
+                from em in context.Employees.AsNoTracking()
+                where em.Id == employeeId 
+                select em.GetAllPossibleAssociationIds();
+
+            var allPossibleAssociationIds = await employeeQuery.FirstOrDefaultAsync() ?? [];
+
             var query = from req in context.RequireDocuments.AsNoTracking()
-                        where req.CompanyId == companyId
+                        where req.CompanyId == companyId && allPossibleAssociationIds.Contains(req.AssociationId)
                         select new RequiredWithDocumentListDto
                         {
                             Id = req.Id,

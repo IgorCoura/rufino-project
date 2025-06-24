@@ -42,7 +42,6 @@ class ErrorComponent {
       actions: [
         TextButton(
             onPressed: () {
-              Navigator.of(context).pop();
               onPressed();
             },
             child: const Text("OK"))

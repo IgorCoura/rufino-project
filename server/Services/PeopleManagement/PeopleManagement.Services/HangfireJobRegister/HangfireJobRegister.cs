@@ -1,14 +1,17 @@
 ﻿using Hangfire;
+using Microsoft.Extensions.Logging;
 using PeopleManagement.Domain.AggregatesModel.RequireDocumentsAggregate.Events;
 using PeopleManagement.Domain.AggregatesModel.RequireDocumentsAggregate.Interfaces;
 
 namespace PeopleManagement.Services.HangfireJobRegistrar
 {
-    public class HangfireJobRegister(IRecurringJobManager recurringJobManager)
+    public class HangfireJobRegister(IRecurringJobManager recurringJobManager, ILogger<HangfireJobRegister> logger) 
     {
         private readonly IRecurringJobManager _recurringJobManager = recurringJobManager;
+        private readonly ILogger<HangfireJobRegister> _logger = logger;
         public void RegisterRecurringJobs()
         {
+            _logger.LogInformation("Register Recurring Jobs Init");
 
             _recurringJobManager.AddOrUpdate<IRecurringDocumentService>(
                 "january-job",
@@ -89,6 +92,8 @@ namespace PeopleManagement.Services.HangfireJobRegistrar
                "yearly-job",
                x => x.RecurringCreateDocumentUnits(RecurringEvents.YearlyEvent, CancellationToken.None),
                Cron.Yearly); // Cron expression for yearly at midnight
+
+            _logger.LogInformation("Register Recurring Jobs Complete");
         }
     }
 }

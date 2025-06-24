@@ -21,7 +21,7 @@ class FileName extends TextPropBase {
     if (value.length > 20) {
       return "o $displayName não pode ser maior que 20 caracteres.";
     }
-
+    value = value.toLowerCase();
     if (!value.endsWith(".html")) {
       return "o $displayName precisa ser um arquivo .html.";
     }

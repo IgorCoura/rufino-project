@@ -5,6 +5,7 @@ import 'package:rufino/modules/employee/domain/model/document_template/document_
 import 'package:rufino/modules/employee/domain/model/document_template/file_name.dart';
 import 'package:rufino/modules/employee/domain/model/document_template/place_signature.dart';
 import 'package:rufino/modules/employee/domain/model/document_template/recover_data_type.dart';
+import 'package:rufino/modules/employee/domain/model/document_template/recovers_data_type.dart';
 import 'package:rufino/modules/employee/domain/model/document_template/workload.dart';
 import 'package:rufino/modules/employee/domain/model/document_template/name.dart';
 
@@ -15,7 +16,7 @@ class DocumentTemplate extends ModelBase {
   final BodyFileName bodyFileName;
   final HeaderFileName headerFileName;
   final FooterFileName footerFileName;
-  final RecoverDataType recoverDataType;
+  final RecoversDataType recoversDataType;
   final DocumentValidityDuration documentValidityDuration;
   final Workload workload;
   final List<PlaceSignature> placeSignatures;
@@ -27,7 +28,7 @@ class DocumentTemplate extends ModelBase {
     this.bodyFileName,
     this.headerFileName,
     this.footerFileName,
-    this.recoverDataType,
+    this.recoversDataType,
     this.documentValidityDuration,
     this.workload,
     this.placeSignatures, {
@@ -41,7 +42,7 @@ class DocumentTemplate extends ModelBase {
     this.bodyFileName = const BodyFileName.empty(),
     this.headerFileName = const HeaderFileName.empty(),
     this.footerFileName = const FooterFileName.empty(),
-    this.recoverDataType = const RecoverDataType.empty(),
+    this.recoversDataType = const RecoversDataType.empty(),
     this.documentValidityDuration = const DocumentValidityDuration.empty(),
     this.workload = const Workload.empty(),
     this.placeSignatures = const [],
@@ -57,12 +58,12 @@ class DocumentTemplate extends ModelBase {
     var isNotEmpty = bodyFileName.isNotEmpty &&
         headerFileName.isNotEmpty &&
         footerFileName.isNotEmpty &&
-        recoverDataType.isNotEmpty;
+        recoversDataType.isNotEmpty;
 
     var isEmpty = bodyFileName.isEmpty &&
         headerFileName.isEmpty &&
         footerFileName.isEmpty &&
-        recoverDataType.isEmpty;
+        recoversDataType.isEmpty;
     return isNotEmpty || isEmpty;
   }
 
@@ -70,7 +71,7 @@ class DocumentTemplate extends ModelBase {
     return bodyFileName.isEmpty &&
         headerFileName.isEmpty &&
         footerFileName.isEmpty &&
-        recoverDataType.isEmpty;
+        recoversDataType.isEmpty;
   }
 
   DocumentTemplate copyWith({
@@ -80,7 +81,7 @@ class DocumentTemplate extends ModelBase {
     BodyFileName? bodyFileName,
     HeaderFileName? headerFileName,
     FooterFileName? footerFileName,
-    RecoverDataType? recoverDataType,
+    RecoversDataType? recoversDataType,
     DocumentValidityDuration? documentValidityDuration,
     Workload? workload,
     List<PlaceSignature>? placeSignatures,
@@ -106,8 +107,8 @@ class DocumentTemplate extends ModelBase {
         case const (FooterFileName):
           footerFileName = generic as FooterFileName;
           break;
-        case const (RecoverDataType):
-          recoverDataType = generic as RecoverDataType;
+        case const (RecoversDataType):
+          recoversDataType = generic as RecoversDataType;
           break;
         case const (DocumentValidityDuration):
           documentValidityDuration = generic as DocumentValidityDuration;
@@ -127,7 +128,7 @@ class DocumentTemplate extends ModelBase {
       bodyFileName ?? this.bodyFileName,
       headerFileName ?? this.headerFileName,
       footerFileName ?? this.footerFileName,
-      recoverDataType ?? this.recoverDataType,
+      recoversDataType ?? this.recoversDataType,
       documentValidityDuration ?? this.documentValidityDuration,
       workload ?? this.workload,
       placeSignatures ?? this.placeSignatures,
@@ -144,7 +145,7 @@ class DocumentTemplate extends ModelBase {
       BodyFileName(json['templateFileInfo']['bodyFileName']),
       HeaderFileName(json['templateFileInfo']['headerFileName']),
       FooterFileName(json['templateFileInfo']['footerFileName']),
-      RecoverDataType.fromJson(json['templateFileInfo']['recoverDataType']),
+      RecoversDataType.fromJson(json['templateFileInfo']),
       DocumentValidityDuration.createFormatted(
           json['documentValidityDurationInDays'].toString()),
       Workload.createFormatted(json['workloadInHours'].toString()),
@@ -165,7 +166,7 @@ class DocumentTemplate extends ModelBase {
             'bodyFileName': bodyFileName.value,
             'headerFileName': headerFileName.value,
             'footerFileName': footerFileName.value,
-            'recoverDataType': recoverDataType.toInt(),
+            'recoversDataType': recoversDataType.toJson(),
           };
 
     return {
@@ -185,7 +186,7 @@ class DocumentTemplate extends ModelBase {
             'bodyFileName': bodyFileName.value,
             'headerFileName': headerFileName.value,
             'footerFileName': footerFileName.value,
-            'recoverDataType': recoverDataType.toInt(),
+            'recoversDataType': recoversDataType.toJson(),
           };
 
     return {
@@ -207,7 +208,7 @@ class DocumentTemplate extends ModelBase {
         bodyFileName,
         headerFileName,
         footerFileName,
-        recoverDataType,
+        recoversDataType.hashCode,
         documentValidityDuration,
         workload,
         placeSignatures.hashCode,

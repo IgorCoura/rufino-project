@@ -1,4 +1,7 @@
 ﻿using Microsoft.EntityFrameworkCore;
+using PeopleManagement.Application.Commands.ArchiveCategoryCommands.CreateArchiveCategory;
+using PeopleManagement.Domain.ErrorTools;
+using PeopleManagement.Domain.ErrorTools.ErrorsMessages;
 using PeopleManagement.Infra.Context;
 using static PeopleManagement.Application.Queries.Department.DepartmentDtos;
 
@@ -59,6 +62,22 @@ namespace PeopleManagement.Application.Queries.Department
             var result = await query.ToArrayAsync();
             return result;
         }
+        public async Task<DepartmentSimpleDto> GetById(Guid departmentId, Guid companyId)
+        {
+            var query = from d in _context.Departments.AsNoTracking()
+                        where d.Id == departmentId && d.CompanyId == companyId
+                        select new DepartmentSimpleDto
+                        {
+                            Id = d.Id,
+                            Name = d.Name.Value,
+                            Description = d.Description.Value,
+                            CompanyId = d.CompanyId,
+                        };
 
+            var result = await query.FirstOrDefaultAsync() 
+                ?? throw new DomainException(this, DomainErrors.ObjectNotFound(nameof(Department), departmentId.ToString()));
+            return result;
+        }
+       
     }
 }

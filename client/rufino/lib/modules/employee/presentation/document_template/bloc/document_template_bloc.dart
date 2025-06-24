@@ -1,15 +1,13 @@
-import 'dart:io';
-
 import 'package:bloc/bloc.dart';
 import 'package:equatable/equatable.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter_modular/flutter_modular.dart';
-import 'package:rufino/domain/services/company_service.dart';
+import 'package:rufino/domain/services/company_global_service.dart';
 import 'package:rufino/modules/employee/domain/model/document_template/document_template.dart';
 import 'package:rufino/modules/employee/domain/model/document_template/place_signature.dart';
 import 'package:rufino/modules/employee/domain/model/document_template/recover_data_type.dart';
 import 'package:rufino/modules/employee/domain/model/document_template/type_signature.dart';
-import 'package:rufino/modules/employee/services/people_management_service.dart';
+import 'package:rufino/modules/employee/services/document_template_service.dart';
 import 'package:rufino/shared/errors/aplication_errors.dart';
 
 part 'document_template_event.dart';
@@ -17,10 +15,10 @@ part 'document_template_state.dart';
 
 class DocumentTemplateBloc
     extends Bloc<DocumentTemplateEvent, DocumentTemplateState> {
-  final PeopleManagementService _peopleManagementService;
-  final CompanyService _companyService;
+  final DocumentTemplateService _documentTemplateService;
+  final CompanyGlobalService _companyService;
 
-  DocumentTemplateBloc(this._peopleManagementService, this._companyService)
+  DocumentTemplateBloc(this._documentTemplateService, this._companyService)
       : super(DocumentTemplateState()) {
     on<SnackMessageWasShow>(_onSnackMessageWasShow);
     on<InitialEvent>(_onInitialEvent);
@@ -48,15 +46,15 @@ class DocumentTemplateBloc
       final company = await _companyService.getSelectedCompany();
 
       final recoverDataType =
-          await _peopleManagementService.getAllRecoverDataType(company.id);
+          await _documentTemplateService.getAllRecoverDataType(company.id);
       final typeSignature =
-          await _peopleManagementService.getAllTypeSignature(company.id);
+          await _documentTemplateService.getAllTypeSignature(company.id);
       var documentTemplate = DocumentTemplate.empty();
       var hasFile = false;
       if (event.documentTemplateId != "new") {
-        documentTemplate = await _peopleManagementService
+        documentTemplate = await _documentTemplateService
             .getByIdDocumentTemplates(event.documentTemplateId, company.id);
-        hasFile = await _peopleManagementService.hasFileInDocumentTemplate(
+        hasFile = await _documentTemplateService.hasFileInDocumentTemplate(
             company.id, documentTemplate.id);
       }
       emit(state.copyWith(
@@ -71,7 +69,7 @@ class DocumentTemplateBloc
         emit(state.copyWith(isEditing: true));
       }
     } catch (ex, stacktrace) {
-      var exception = _peopleManagementService.treatErrors(ex, stacktrace);
+      var exception = _documentTemplateService.treatErrors(ex, stacktrace);
       emit(state.copyWith(isLoading: false, exception: exception));
     }
   }
@@ -140,11 +138,11 @@ class DocumentTemplateBloc
 
       if (newDocumentTemplate.id == "") {
         newDocumentTemplate = newDocumentTemplate.copyWith(
-            id: await _peopleManagementService.createDocumentTemplate(
+            id: await _documentTemplateService.createDocumentTemplate(
                 company.id, newDocumentTemplate));
         emit(state.copyWith(documentTemplate: newDocumentTemplate));
       } else {
-        await _peopleManagementService.editDocumentTemplate(
+        await _documentTemplateService.editDocumentTemplate(
             company.id, newDocumentTemplate);
       }
 
@@ -153,7 +151,7 @@ class DocumentTemplateBloc
           isEditing: false,
           snackMessage: "Template de documento salvo com sucesso!"));
     } catch (ex, stacktrace) {
-      var exception = _peopleManagementService.treatErrors(ex, stacktrace);
+      var exception = _documentTemplateService.treatErrors(ex, stacktrace);
       emit(state.copyWith(isSavingData: false, exception: exception));
     }
   }
@@ -175,7 +173,7 @@ class DocumentTemplateBloc
         }
 
         final company = await _companyService.getSelectedCompany();
-        await _peopleManagementService.loadFileToDocumentTemplate(
+        await _documentTemplateService.loadFileToDocumentTemplate(
             company.id, state.documentTemplate.id, result.files.single.path!);
       } else {
         emit(state.copyWith(
@@ -188,7 +186,7 @@ class DocumentTemplateBloc
           snackMessage: "Arquivo enviado com sucesso!",
           hasFile: true));
     } catch (ex, stacktrace) {
-      var exception = _peopleManagementService.treatErrors(ex, stacktrace);
+      var exception = _documentTemplateService.treatErrors(ex, stacktrace);
       emit(state.copyWith(isLoading: false, exception: exception));
     }
   }
@@ -209,10 +207,10 @@ class DocumentTemplateBloc
       }
 
       final company = await _companyService.getSelectedCompany();
-      _peopleManagementService.downloadFileToDocumentTemplate(
+      _documentTemplateService.downloadFileToDocumentTemplate(
           company.id, state.documentTemplate.id, savePath);
     } catch (ex, stacktrace) {
-      var exception = _peopleManagementService.treatErrors(ex, stacktrace);
+      var exception = _documentTemplateService.treatErrors(ex, stacktrace);
       emit(state.copyWith(isLoading: false, exception: exception));
     }
   }

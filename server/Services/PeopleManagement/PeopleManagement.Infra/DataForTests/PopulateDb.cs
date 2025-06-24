@@ -19,44 +19,46 @@ using PeopleManagement.Domain.AggregatesModel.DocumentTemplateAggregate;
 using PeopleManagement.Domain.AggregatesModel.RequireDocumentsAggregate;
 using System.ComponentModel.Design;
 using PeopleManagement.Domain.AggregatesModel.DocumentAggregate;
+using Microsoft.Extensions.Logging;
 
 namespace PeopleManagement.Infra.DataForTests
 {
     public static class PopulateDb
     {
-        public async static Task Populate(PeopleManagementContext context)
+        public async static Task Populate(PeopleManagementContext context, ILogger logger)
         {
-            var env = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT");
-
-            if (env != null && env.Equals("Development"))
+            
+            try
             {
-                try
-                {
-                    var companies = CreateCompanies();
-                    await context.AddRangeIfNotExistsAsync(companies);
-                    var departamets = CreateDepartments(companies[0].Id);
-                    await context.AddRangeIfNotExistsAsync(departamets);
-                    var positions = CreatePositions(departamets.Select(x => x.Id).ToArray(), companies[0].Id);
-                    await context.AddRangeIfNotExistsAsync(positions);
-                    var roles = CreateRoles(positions.Select(x => x.Id).ToArray(), companies[0].Id);
-                    await context.AddRangeIfNotExistsAsync(roles);
-                    var workplaces = CreateWorkPlaces(companies[0].Id);
-                    await context.AddRangeIfNotExistsAsync(workplaces);
-                    var employees = CreateEmployees(roles, workplaces[0].Id, companies[0].Id);
-                    await context.AddRangeIfNotExistsAsync(employees);
-                    var archivesCategories = CreateArchiveCategories(companies[0].Id);
-                    await context.AddRangeIfNotExistsAsync(archivesCategories);
-                    var documentTemplates = CreateDocumentTemplate(companies[0].Id);
-                    await context.AddRangeIfNotExistsAsync(documentTemplates);
-                    var requireDocuments = CreateRequireDocuments(companies[0].Id, roles[0].Id, documentTemplates);
-                    await context.AddRangeIfNotExistsAsync(requireDocuments);
-                    var documents = CreateDocuments(employees[0].Id, companies[0].Id, requireDocuments, documentTemplates);
-                    await context.AddRangeIfNotExistsAsync(documents);
-                    await context.SaveChangesWithoutDispatchEventsAsync();
+                var companies = CreateCompanies();
+                await context.AddRangeIfNotExistsAsync(companies);
+                var departamets = CreateDepartments(companies[0].Id);
+                await context.AddRangeIfNotExistsAsync(departamets);
+                var positions = CreatePositions(departamets.Select(x => x.Id).ToArray(), companies[0].Id);
+                await context.AddRangeIfNotExistsAsync(positions);
+                var roles = CreateRoles(positions.Select(x => x.Id).ToArray(), companies[0].Id);
+                await context.AddRangeIfNotExistsAsync(roles);
+                var workplaces = CreateWorkPlaces(companies[0].Id);
+                await context.AddRangeIfNotExistsAsync(workplaces);
+                var employees = CreateEmployees(roles, workplaces[0].Id, companies[0].Id);
+                await context.AddRangeIfNotExistsAsync(employees);
+                var archivesCategories = CreateArchiveCategories(companies[0].Id);
+                await context.AddRangeIfNotExistsAsync(archivesCategories);
+                var documentTemplates = CreateDocumentTemplate(companies[0].Id);
+                await context.AddRangeIfNotExistsAsync(documentTemplates);
+                var requireDocuments = CreateRequireDocuments(companies[0].Id, roles[0].Id, documentTemplates);
+                await context.AddRangeIfNotExistsAsync(requireDocuments);
+                var documents = CreateDocuments(employees[0].Id, companies[0].Id, requireDocuments, documentTemplates);
+                await context.AddRangeIfNotExistsAsync(documents);
+                await context.SaveChangesWithoutDispatchEventsAsync();
                     
-                }
-                catch { }
             }
+            catch(Exception ex) 
+            {
+                context.ChangeTracker.Clear();
+                logger.LogDebug($"---PopulateDb Exception: {ex.Message}---");
+            }
+            
         }
 
         public static Company[] CreateCompanies()
@@ -503,6 +505,7 @@ namespace PeopleManagement.Infra.DataForTests
                 "Conteudo do documento 1"
                 );
 
+            documents[0].InsertUnitWithoutRequireValidation(Guid.Parse("9315E288-F25A-43EA-9B0E-8EFC3FF5CAF6"), "Name", ".PDF");
 
             documents[0].NewDocumentUnit(
                 Guid.Parse("DB55022B-54CD-47F9-A03A-5F5CF8BA6BE4")
@@ -569,7 +572,6 @@ namespace PeopleManagement.Infra.DataForTests
             if (itemsToAdd.Count > 0)
             {
                 await context.Set<T>().AddRangeAsync(itemsToAdd);
-                await context.SaveChangesAsync();
             }
         }
     }

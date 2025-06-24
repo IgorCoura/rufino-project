@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_modular/flutter_modular.dart';
 import 'package:rufino/modules/employee/domain/model/document_template/place_signature.dart';
+import 'package:rufino/modules/employee/presentation/components/enumeration_list_view_component.dart';
 import 'package:rufino/modules/employee/presentation/components/enumeration_view_component.dart';
 import 'package:rufino/modules/employee/presentation/components/text_edit_component.dart';
 import 'package:rufino/modules/employee/presentation/document_template/bloc/document_template_bloc.dart';
@@ -289,13 +290,14 @@ class DocumentTemplatePage extends StatelessWidget {
             SizedBox(
               height: 8.0,
             ),
-            EnumerationViewComponent(
-                isEditing: state.isEditing,
-                isLoading: state.isLoading,
-                onSaveChanges: (change) =>
-                    bloc.add(ChangeFieldValueEvent(change)),
-                enumeration: state.documentTemplate.recoverDataType,
-                listEnumerationOptions: state.recoverDataType),
+            EnumerationListViewComponent(
+              isEditing: state.isEditing,
+              isLoading: state.isLoading,
+              onSaveChanges: (change) =>
+                  bloc.add(ChangeFieldValueEvent(change)),
+              enumerationsList: state.documentTemplate.recoversDataType,
+              enumerationOptionsList: state.recoverDataType,
+            ),
             SizedBox(
               height: 8.0,
             ),

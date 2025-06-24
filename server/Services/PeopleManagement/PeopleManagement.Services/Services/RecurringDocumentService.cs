@@ -22,6 +22,8 @@ namespace PeopleManagement.Services.Services
 
         public async Task RecurringCreateDocumentUnits(RecurringEvents recurringEvent, CancellationToken cancellationToken = default)
         {
+            _logger.LogInformation($"Recurring CreateDocument Units Init - event: {recurringEvent}");
+
             var requiedDocuments = await _requireDocumentsRepository.GetAllWithEventId(recurringEvent.Id, cancellationToken);
 
             foreach (var requiedDocument in requiedDocuments)
@@ -54,6 +56,8 @@ namespace PeopleManagement.Services.Services
                 }
                 
             }
+
+            _logger.LogInformation($"Recurring CreateDocument Units Complete - event: {recurringEvent}");
 
         }
     }

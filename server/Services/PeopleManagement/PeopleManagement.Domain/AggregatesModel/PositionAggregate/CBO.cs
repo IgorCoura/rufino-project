@@ -21,10 +21,10 @@ namespace PeopleManagement.Domain.AggregatesModel.PositionAggregate
                 value = new string(temp).Replace(" ", "");
 
                 if (string.IsNullOrEmpty(value))
-                    throw new DomainException(this, DomainErrors.FieldNotBeNullOrEmpty(nameof(Name)));
+                    throw new DomainException(this, DomainErrors.FieldNotBeNullOrEmpty(nameof(CBO)));
 
                 if (value.Length > MAX_LENGTH)
-                    throw new DomainException(this, DomainErrors.FieldInvalid(nameof(Name), value));
+                    throw new DomainException(this, DomainErrors.FieldInvalid(nameof(CBO), value));
 
 
                 _value = value;

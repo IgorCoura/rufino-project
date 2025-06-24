@@ -42,5 +42,29 @@ namespace PeopleManagement.Application.Queries.Company
 
             return companies;
         }
+
+        public async Task<CompanyDto> GetCompanyAsync(Guid id)
+        {
+            var query = _context.Companies.AsNoTracking().Where(x => x.Id == id);
+            var company = await query.Select(c => new CompanyDto
+            {
+                Id = c.Id,
+                CorporateName = c.CorporateName.Value,
+                FantasyName = c.FantasyName.Value,
+                Cnpj = c.Cnpj.Value,
+                Email = c.Contact.Email,
+                Phone = c.Contact.Phone,
+                ZipCode = c.Address.ZipCode,
+                Street = c.Address.Street,
+                Number = c.Address.Number,
+                Complement = c.Address.Complement,
+                Neighborhood = c.Address.Neighborhood,
+                City = c.Address.City,
+                State = c.Address.State,
+                Country = c.Address.Country
+            }).FirstOrDefaultAsync()
+                ?? throw new DomainException(this, DomainErrors.ObjectNotFound(nameof(Company), id.ToString()));
+            return company;
+        }
     }
 }

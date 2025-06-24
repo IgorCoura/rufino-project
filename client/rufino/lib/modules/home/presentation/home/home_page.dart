@@ -61,6 +61,10 @@ class HomePage extends StatelessWidget {
                   child: Text('Alterar Empresa'),
                 ),
                 PopupMenuItem(
+                  value: "company-edit",
+                  child: Text('Editar Empresa'),
+                ),
+                PopupMenuItem(
                   value: "logout",
                   child: Text('Log out'),
                 ),
@@ -73,29 +77,68 @@ class HomePage extends StatelessWidget {
                 return;
               }
               if (value == "company-section") {
-                Modular.to.navigate("/company-selection");
+                Modular.to.navigate("/company");
+                return;
+              }
+              if (value == "company-edit") {
+                Modular.to.navigate("/company/edit/${bloc.state.company?.id}");
                 return;
               }
             },
           ),
         ],
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: SizedBox(
-          width: 100,
-          height: 100,
-          child: FloatingActionButton(
-            backgroundColor: Theme.of(context).colorScheme.primary,
-            onPressed: () => Modular.to.navigate("/employee/"),
-            child: Text(
-              "Funcionarios",
-              style: TextStyle(
-                color: Theme.of(context).colorScheme.onPrimary,
+      body: Row(
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: SizedBox(
+              height: 100,
+              child: FilledButton(
+                onPressed: () => Modular.to.navigate("/employee/"),
+                child: Text(
+                  "Funcionarios",
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.onPrimary,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
               ),
             ),
           ),
-        ),
+          Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: SizedBox(
+              height: 100,
+              child: FilledButton(
+                onPressed: () => Modular.to.navigate("/workplace/"),
+                child: Text(
+                  "Locais de Trabalho",
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.onPrimary,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: SizedBox(
+              height: 100,
+              child: FilledButton(
+                onPressed: () => Modular.to.navigate("/department/"),
+                child: Text(
+                  "Departamentos",
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.onPrimary,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

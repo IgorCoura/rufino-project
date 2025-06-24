@@ -1,5 +1,6 @@
 ﻿using Hangfire;
 using MediatR;
+using Microsoft.Extensions.Logging;
 using PeopleManagement.Domain.AggregatesModel.ArchiveAggregate.Interfaces;
 using PeopleManagement.Domain.AggregatesModel.DocumentAggregate.Events;
 using PeopleManagement.Domain.AggregatesModel.DocumentAggregate.Interfaces;
@@ -9,11 +10,13 @@ namespace PeopleManagement.Services.DomainEventHandlers
 {
 
 
-    public class ScheduleDocumentExpirationHandler(IBackgroundJobClient backgroundJobClient) : INotificationHandler<ScheduleDocumentExpirationEvent>
+    public class ScheduleDocumentExpirationHandler(IBackgroundJobClient backgroundJobClient, ILogger<ScheduleDocumentExpirationHandler> logger) : INotificationHandler<ScheduleDocumentExpirationEvent>
     {
         private readonly IBackgroundJobClient _backgroundJobClient = backgroundJobClient;
+        private readonly ILogger<ScheduleDocumentExpirationHandler> _logger = logger;
         public Task Handle(ScheduleDocumentExpirationEvent notification, CancellationToken cancellationToken)
         {
+            _logger.LogInformation($"Schedule document expiration event - Expiration: {notification.Expiration}, DocumentUnit: {notification.DocumentUnitId}");
             _backgroundJobClient.Schedule<IDocumentDepreciationService>(x => x.DepreciateExpirateDocument(notification.DocumentUnitId, 
                 notification.DocumentId, notification.CompanyId, cancellationToken), new DateTimeOffset(notification.Expiration, new TimeOnly(3, 0), TimeSpan.Zero));
 

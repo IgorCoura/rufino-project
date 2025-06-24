@@ -68,7 +68,7 @@ namespace PeopleManagement.API.Controllers
             var result = await documentTemplateQueries.GetAll(company);
             return OkResponse(result);
         }
-        
+
         [HttpGet("{documentTemplateId}")]
         [ProtectedResource("DocumentTemplate", "view")]
         public async Task<ActionResult<DocumentTemplateDto>> GetById([FromRoute] Guid company, [FromRoute] Guid documentTemplateId)
@@ -99,7 +99,7 @@ namespace PeopleManagement.API.Controllers
         public ActionResult<IEnumerable<EnumerationDto>> GetAllRecoverDataType([FromRoute] Guid company)
         {
             var result = RecoverDataType.GetAll<RecoverDataType>();
-            var dtos = result.Select(x => new EnumerationDto { Id = x.Id, Name = x.Name});
+            var dtos = result.Select(x => new EnumerationDto { Id = x.Id, Name = x.Name });
             return OkResponse(dtos);
         }
 
@@ -111,12 +111,19 @@ namespace PeopleManagement.API.Controllers
             return OkResponse(result);
         }
 
-        [HttpGet("download/{documentTemplateId}")]
+        [HttpGet("Download/{documentTemplateId}")]
         public async Task<IActionResult> DownloadFile([FromRoute] Guid company, [FromRoute] Guid documentTemplateId)
         {
-            var stream = await documentTemplateQueries.DownloadFile( documentTemplateId, company);
+            var stream = await documentTemplateQueries.DownloadFile(documentTemplateId, company);
             stream.Position = 0;
             return File(stream, "application/octet-stream", $"{documentTemplateId}.zip");
+        }
+
+        [HttpGet("Events")]
+        public async Task<ActionResult<EnumerationDto>> GetAllEvents([FromRoute] Guid company)
+        {
+            var result = await documentTemplateQueries.GetAllEvents();
+            return OkResponse(result);
         }
     }
 } 
