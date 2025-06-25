@@ -91,7 +91,7 @@ namespace PeopleManagement.IntegrationTests.Tests
 
             JobStorage jobStorage = _factory.Services.GetRequiredService<JobStorage>();
             var scheduledCount = jobStorage.GetMonitoringApi().ScheduledCount();
-            Assert.Equal(1, scheduledCount);
+            Assert.Equal(2, scheduledCount);
         }
 
 

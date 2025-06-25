@@ -91,33 +91,57 @@ namespace PeopleManagement.Domain.AggregatesModel.DocumentAggregate
             Status = DocumentUnitStatus.Invalid;
         }
 
-        public void MarkAsDeprecatedOrInvalid()
+        public bool MarkAsDeprecatedOrInvalid()
         {
             if (Status == DocumentUnitStatus.OK)
             {
                 Status = DocumentUnitStatus.Deprecated;
+                return true;
             }
             if(Status == DocumentUnitStatus.RequiresValidation ||
                 Status == DocumentUnitStatus.AwaitingSignature ||
                 Status == DocumentUnitStatus.Pending)
             {
                 Status = DocumentUnitStatus.Invalid;
+                return true;
             }
+            return false;
         }
 
-        public void MarkAsNotApplicable()
+        public bool MarkAsNotApplicable()
         {
             if (Status == DocumentUnitStatus.Pending)
+            {
                 Status = DocumentUnitStatus.NotApplicable;
+                return true;
+            }
+                
+            return false;
         }
 
-        public void MarkAsAwaitingSignature()
+        public bool MarkAsWarning()
+        {
+            if (Status == DocumentUnitStatus.OK)
+            {
+                Status = DocumentUnitStatus.Warning;
+                return true;
+            }
+            return false;
+        }
+
+
+        public bool MarkAsAwaitingSignature()
         {
             if (IsInvalidDateAndValidity)
                 throw new DomainException(this, DomainErrors.DataInvalid(nameof(Date), Date));
 
             if (Status == DocumentUnitStatus.Pending)
+            {
+                
                 Status = DocumentUnitStatus.AwaitingSignature;
+                return true;    
+            }
+            return false;
         }
 
         public bool HasContent => string.IsNullOrEmpty(Content) == false;

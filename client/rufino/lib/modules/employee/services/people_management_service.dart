@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 import 'package:rufino/modules/employee/domain/model/archive_category/archive_category.dart';
 import 'package:rufino/modules/employee/domain/model/archive_category/event.dart'
     as archive;
+import 'package:rufino/modules/employee/domain/model/document_signing_options.dart';
 import 'package:rufino/modules/employee/domain/model/require_document/event.dart'
     as require_document;
 import 'package:rufino/modules/employee/domain/model/dependent/dependency_type.dart';
@@ -65,6 +66,25 @@ class PeopleManagementService extends BaseService {
     };
     var url =
         peopleManagementUrl.replace(path: "/api/v1/$companyId/employee/name");
+
+    var response =
+        await http.put(url, headers: headers, body: jsonEncode(body));
+    if (response.statusCode == 200) {
+      var jsonResponse = jsonDecode(response.body);
+      return jsonResponse["id"];
+    }
+    throw treatUnsuccessfulResponses(response);
+  }
+
+  Future<String> editDocumentSigningOptions(String employeeId, String companyId,
+      DocumentSigningOptions option) async {
+    var headers = await getHeadersWithRequestId();
+    Map<String, String> body = {
+      "employeeId": employeeId,
+      "documentSigningOptions": option.id,
+    };
+    var url = peopleManagementUrl.replace(
+        path: "/api/v1/$companyId/employee/DocumentSigningOptions");
 
     var response =
         await http.put(url, headers: headers, body: jsonEncode(body));
@@ -622,6 +642,19 @@ class PeopleManagementService extends BaseService {
     if (response.statusCode == 200) {
       List<dynamic> jsonResponse = jsonDecode(response.body);
       return Status.fromListJson(jsonResponse);
+    }
+    throw treatUnsuccessfulResponses(response);
+  }
+
+  Future<List<DocumentSigningOptions>> getDocumentSigningOptions(
+      String companyId) async {
+    var headers = await getHeaders();
+    var url = peopleManagementUrl.replace(
+        path: "/api/v1/$companyId/employee/DocumentSigningOptions");
+    var response = await http.get(url, headers: headers);
+    if (response.statusCode == 200) {
+      List<dynamic> jsonResponse = jsonDecode(response.body);
+      return DocumentSigningOptions.fromListJson(jsonResponse);
     }
     throw treatUnsuccessfulResponses(response);
   }

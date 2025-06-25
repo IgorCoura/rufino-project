@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_modular/flutter_modular.dart';
 import 'package:mask_text_input_formatter/mask_text_input_formatter.dart';
 import 'package:rufino/domain/model/company.dart';
+import 'package:rufino/modules/employee/domain/model/document_signing_options.dart';
 import 'package:rufino/modules/employee/domain/model/employee.dart';
 import 'package:rufino/modules/employee/domain/model/employee_contract.dart';
 import 'package:rufino/modules/employee/domain/model/employee_contract_type.dart';
@@ -22,6 +23,7 @@ import 'package:rufino/shared/components/error_components.dart';
 
 class EmployeeProfilePage extends StatelessWidget {
   final _formKey = GlobalKey<FormState>();
+  final _formDocumentSigningOptionsKey = GlobalKey<FormState>();
   final bloc = Modular.get<EmployeeProfileBloc>();
   final String employeeId;
 
@@ -93,6 +95,10 @@ class EmployeeProfilePage extends StatelessWidget {
                           _hiredButton(context, state),
                           _employeeName(context, state.isEditingName,
                               state.isSavingData, state.employee.name),
+                          const SizedBox(
+                            height: 16,
+                          ),
+                          _documentSigningOptions(context, state),
                           const SizedBox(
                             height: 16,
                           ),
@@ -438,6 +444,58 @@ class EmployeeProfilePage extends StatelessWidget {
                   )
                 : TextButton(
                     onPressed: () => bloc.add(const EditNameEvent(true)),
+                    child: const Text("Editar"),
+                  ),
+      ],
+    );
+  }
+
+  Widget _documentSigningOptions(
+      BuildContext context, EmployeeProfileState state) {
+    return Row(
+      children: [
+        Expanded(
+          child: Form(
+            key: _formDocumentSigningOptionsKey,
+            child: EnumerationViewComponent(
+              isEditing: state.isDocumentSigningOptionsName,
+              isLoading: state.isLoading,
+              enumeration: state.employee.documentSigningOptions,
+              listEnumerationOptions: state.listDocumentSigningOptions,
+              onChanged: (change) => bloc.add(ChangeDocumentSigningOptionsEvent(
+                  change as DocumentSigningOptions)),
+            ),
+          ),
+        ),
+        const SizedBox(
+          width: 8,
+        ),
+        state.isSavingData
+            ? const Center(child: CircularProgressIndicator())
+            : state.isDocumentSigningOptionsName
+                ? Row(
+                    children: [
+                      TextButton(
+                          onPressed: () => bloc.add(
+                              const EditDocumentSigningOptionsEvent(false)),
+                          child: const Text("Cancelar")),
+                      FilledButton(
+                        onPressed: () {
+                          if (_formDocumentSigningOptionsKey.currentState !=
+                                  null &&
+                              _formDocumentSigningOptionsKey.currentState!
+                                  .validate()) {
+                            _formDocumentSigningOptionsKey.currentState!.save();
+                            bloc.add(SaveDocumentSigningOptionsEvent());
+                          }
+                        },
+                        child: const Text("Salvar"),
+                      )
+                    ],
+                  )
+                : TextButton(
+                    onPressed: () =>
+                        bloc.add(const EditDocumentSigningOptionsEvent(true)),
                     child: const Text("Editar"),
                   ),
       ],

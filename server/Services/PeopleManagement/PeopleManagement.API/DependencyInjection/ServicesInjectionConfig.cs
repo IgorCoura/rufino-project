@@ -33,8 +33,12 @@ namespace PeopleManagement.API.DependencyInjection
             service.AddScoped<IRecurringDocumentService, RecurringDocumentService>();
 
             var documentTemplatesOptions = new DocumentTemplatesOptions();
-            configuration.Bind("DocumentTemplatesOptions", documentTemplatesOptions);
+            configuration.Bind(DocumentTemplatesOptions.ConfigurationSection, documentTemplatesOptions);
             service.AddSingleton(documentTemplatesOptions);
+
+            var documentOptions = new DocumentOptions();
+            configuration.Bind(DocumentOptions.ConfigurationSection, documentOptions);
+            service.AddSingleton(documentOptions);
 
             return service;
         }

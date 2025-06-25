@@ -12,6 +12,7 @@ using System.Net.Http.Headers;
 using Microsoft.Net.Http.Headers;
 using static System.Net.WebRequestMethods;
 using System.Threading;
+using PeopleManagement.Domain.SeedWord;
 
 namespace PeopleManagement.Infra.Services
 {
@@ -19,7 +20,21 @@ namespace PeopleManagement.Infra.Services
     {
         private readonly HttpClient _httpClient = httpClient;
 
-        public async Task SendToSignatureWithWhatsapp(Stream documentStream, Guid documentUnitId, Document document, Company company, Employee employee, PlaceSignature[] placeSignatures, DateTime dateLimitToSign, int eminderEveryNDays, CancellationToken cancellationToken = default)
+        public async Task SendToSignatureWithWhatsapp(Stream documentStream, Guid documentUnitId, Document document, Company company, 
+            Employee employee, PlaceSignature[] placeSignatures, DateTime dateLimitToSign, int eminderEveryNDays, CancellationToken cancellationToken = default)
+        {
+            var signerOptions = new SignerOptions(SignatureType.DigitalSignatureAndWhatsapp, false, true, true);
+            await SendToSignature(signerOptions, documentStream, documentUnitId, document, company, employee, placeSignatures, dateLimitToSign, eminderEveryNDays, cancellationToken);
+        }
+        public async Task SendToSignatureWithSelfie(Stream documentStream, Guid documentUnitId, Document document, Company company,
+            Employee employee, PlaceSignature[] placeSignatures, DateTime dateLimitToSign, int eminderEveryNDays, CancellationToken cancellationToken = default)
+        {
+            var signerOptions = new SignerOptions(SignatureType.DigitalSignature, true, true, true);
+            await SendToSignature(signerOptions, documentStream, documentUnitId, document, company, employee, placeSignatures, dateLimitToSign, eminderEveryNDays, cancellationToken);
+        }
+        private async Task SendToSignature(SignerOptions signerOptions, Stream documentStream, Guid documentUnitId, Document document, 
+            Company company, Employee employee, PlaceSignature[] placeSignatures, DateTime dateLimitToSign, int eminderEveryNDays, 
+            CancellationToken cancellationToken = default)
         {
 
             var documentBase64 = ConvertStreamToBase64(documentStream);
@@ -31,16 +46,16 @@ namespace PeopleManagement.Infra.Services
                 new JsonObject
                 {
                     ["name"] = $"{employee.Name}",
-                    ["auth_mode"] = "assinaturaTela-tokenWhatsapp",
+                    ["auth_mode"] = $"{signerOptions.AuthMode.JsonName}",
                     ["email"] = $"{employee.Contact!.Email}",
                     ["send_automatic_email"] = true,
                     ["send_automatic_whatsapp"] = true,
                     ["send_automatic_whatsapp_signed_file"] = true,
                     ["phone_country"] = $"55",
                     ["phone_number"] = $"{employee.Contact!.CellPhone}",
-                    ["lock_email"] = true,
+                    ["lock_email"] = signerOptions.LockEmail,
                     ["blank_email"] = true,
-                    ["lock_phone"] = true,
+                    ["lock_phone"] = signerOptions.LockEmail,
                     ["blank_phone"] = true,
                     ["lock_name"] = true,
                     ["cpf"] = $"{employee.IdCard!.Cpf}",
@@ -85,7 +100,7 @@ namespace PeopleManagement.Infra.Services
             if (string.IsNullOrEmpty(docToken) || string.IsNullOrEmpty(signerToken))
                 throw new DomainException(this, InfraErrors.SignDoc.ErrorSendDocToSign(documentUnitId));
 
-            if(placeSignatures.Length > 0)
+            if (placeSignatures.Length > 0)
             {
                 var resultPlaceSignature = await PlaceSignature(docToken, signerToken, placeSignatures, cancellationToken);
 
@@ -94,7 +109,7 @@ namespace PeopleManagement.Infra.Services
                     await DeleteDocument(docToken, cancellationToken);
                     throw new DomainException(this, InfraErrors.SignDoc.ErrorSendDocToSign(documentUnitId));
                 }
-                    
+
             }
         }
 
@@ -187,6 +202,19 @@ namespace PeopleManagement.Infra.Services
             var debug = await response.Content.ReadAsStringAsync();
 
             return false;
+        }
+
+        private record SignerOptions(SignatureType AuthMode, bool RequireSelfiePhoto, bool LockPhone, bool LockEmail)
+        {
+
+        }
+
+        private class SignatureType(int id, string name, string jsonName) : Enumeration(id, name)
+        {
+            public string JsonName { get; } = jsonName;
+
+            public static readonly SignatureType DigitalSignature = new(1, nameof(DigitalSignature), "assinaturaTela");
+            public static readonly SignatureType DigitalSignatureAndWhatsapp = new(2, nameof(DigitalSignatureAndWhatsapp), "assinaturaTela-tokenWhatsapp");
         }
 
         private async Task<bool> CreateWebHookToDocSigned(string docToken, string url, string authorizationToken, CancellationToken cancellationToken = default)

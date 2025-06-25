@@ -15,6 +15,7 @@ using PeopleManagement.Application.Commands.EmployeeCommands.AlterWorkPlaceEmplo
 using PeopleManagement.Application.Commands.EmployeeCommands.CompleteAdmissionEmployee;
 using PeopleManagement.Application.Commands.EmployeeCommands.CreateDependentEmployee;
 using PeopleManagement.Application.Commands.EmployeeCommands.CreateEmployee;
+using PeopleManagement.Application.Commands.EmployeeCommands.DocumentSigningOptions;
 using PeopleManagement.Application.Commands.EmployeeCommands.FinishedContractEmployee;
 using PeopleManagement.Application.Commands.EmployeeCommands.IsRequiredMilitaryDocumentEmployee;
 using PeopleManagement.Application.Commands.EmployeeCommands.RemoveDependentEmployee;
@@ -22,6 +23,7 @@ using PeopleManagement.Application.Commands.Identified;
 using PeopleManagement.Application.Queries.Employee;
 using PeopleManagement.Domain.AggregatesModel.EmployeeAggregate;
 using PeopleManagement.Domain.AggregatesModel.EmployeeAggregate.Events;
+using PeopleManagement.Domain.SeedWord;
 using System.Diagnostics;
 using static Microsoft.EntityFrameworkCore.DbLoggerCategory.Database;
 
@@ -272,7 +274,6 @@ namespace PeopleManagement.API.Controllers
         public async Task<ActionResult<FinishedContractEmployeeResponse>> FinishedContract([FromRoute] Guid company,
             [FromBody] FinishedContractEmployeeModel request, [FromHeader(Name = "x-requestid")] Guid requestId)
         {
-            Debug.WriteLine($"000 - FinishedContract-> OwnerId: {request.EmployeeId},  CompanyId {company}");
             var command = new IdentifiedCommand<FinishedContractEmployeeCommand, FinishedContractEmployeeResponse>(request.ToCommand(company), requestId);
 
             SendingCommandLog(request.EmployeeId, request, requestId);
@@ -284,6 +285,22 @@ namespace PeopleManagement.API.Controllers
             return OkResponse(result);
         }
 
+        [HttpPut("DocumentSigningOptions")]
+        [ProtectedResource("employee", "edit")]
+        public async Task<ActionResult<DocumentSigningOptionsResponse>> DocumentSigningOptions([FromRoute] Guid company,
+            [FromBody] DocumentSigningOptionsModel request, [FromHeader(Name = "x-requestid")] Guid requestId)
+        {
+            var command = new IdentifiedCommand<DocumentSigningOptionsCommand, DocumentSigningOptionsResponse>(request.ToCommand(company), requestId);
+
+            SendingCommandLog(request.EmployeeId, request, requestId);
+
+            var result = await mediator.Send(command);
+
+            CommandResultLog(result, request.EmployeeId, request, requestId);
+
+            return OkResponse(result);
+        }
+         
 
         [HttpGet("list")]
         [ProtectedResource("employee", "view")]
@@ -399,6 +416,14 @@ namespace PeopleManagement.API.Controllers
         public ActionResult<IEnumerable<Gender>> GetGender([FromRoute] Guid company)
         {
             var result = Disability.GetAll<Gender>();
+            return OkResponse(result);
+        }
+
+        [HttpGet("DocumentSigningOptions")]
+        [ProtectedResource("employee", "view")]
+        public ActionResult<IEnumerable<Gender>> GetDocumentSigningOptions([FromRoute] Guid company)
+        {
+            var result = Enumeration.GetAll<DocumentSigningOptions>();
             return OkResponse(result);
         }
 

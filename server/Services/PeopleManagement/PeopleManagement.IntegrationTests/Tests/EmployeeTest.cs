@@ -457,11 +457,12 @@ namespace PeopleManagement.IntegrationTests.Tests
             var employee = await context.InsertEmployeeActive(cancellationToken);
             await context.SaveChangesAsync(cancellationToken);
 
-            var command = new FinishedContractEmployeeModel(employee.Id, DateOnly.Parse("30/05/2024"));
+            var command = new FinishedContractEmployeeModel(employee.Id, DateOnly.FromDateTime(DateTime.Now));
             client.InputHeaders([employee.CompanyId]);
             var response = await client.PutAsJsonAsync($"/api/v1/{employee.CompanyId}/employee/contract/finished", command);
 
             Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+            var debug = await response.Content.ReadAsStringAsync();
             var content = await response.Content.ReadFromJsonAsync(typeof(FinishedContractEmployeeResponse)) as FinishedContractEmployeeResponse ?? throw new ArgumentNullException();
             var result = await context.Employees.AsNoTracking().FirstOrDefaultAsync(x => x.Id == content.Id) ?? throw new ArgumentNullException();
             Assert.Equal(Status.Inactive, result.Status);

@@ -1,16 +1,17 @@
-﻿using PeopleManagement.Domain.AggregatesModel.DocumentAggregate;
-using PeopleManagement.Domain.AggregatesModel.DocumentAggregate.Interfaces;
-using PeopleManagement.Domain.ErrorTools.ErrorsMessages;
-using PeopleManagement.Domain.ErrorTools;
-using PeopleManagement.Domain.AggregatesModel.CompanyAggregate.Interfaces;
+﻿using Microsoft.EntityFrameworkCore;
 using PeopleManagement.Domain.AggregatesModel.CompanyAggregate;
-using PeopleManagement.Domain.AggregatesModel.EmployeeAggregate.Interfaces;
-using PeopleManagement.Domain.AggregatesModel.DocumentTemplateAggregate.Interfaces;
+using PeopleManagement.Domain.AggregatesModel.CompanyAggregate.Interfaces;
+using PeopleManagement.Domain.AggregatesModel.DocumentAggregate;
+using PeopleManagement.Domain.AggregatesModel.DocumentAggregate.Interfaces;
 using PeopleManagement.Domain.AggregatesModel.DocumentTemplateAggregate;
+using PeopleManagement.Domain.AggregatesModel.DocumentTemplateAggregate.Interfaces;
+using PeopleManagement.Domain.AggregatesModel.EmployeeAggregate;
+using PeopleManagement.Domain.AggregatesModel.EmployeeAggregate.Interfaces;
+using PeopleManagement.Domain.ErrorTools;
+using PeopleManagement.Domain.ErrorTools.ErrorsMessages;
+using System.Text.Json.Nodes;
 using Document = PeopleManagement.Domain.AggregatesModel.DocumentAggregate.Document;
 using Employee = PeopleManagement.Domain.AggregatesModel.EmployeeAggregate.Employee;
-using Microsoft.EntityFrameworkCore;
-using System.Text.Json.Nodes;
 
 namespace PeopleManagement.Services.Services
 {
@@ -46,9 +47,6 @@ namespace PeopleManagement.Services.Services
             var employee = await _employeeRepository.FirstOrDefaultAsync(x => x.Id == employeeId && x.CompanyId == companyId, cancellation: cancellationToken)
                ?? throw new DomainException(this, DomainErrors.ObjectNotFound(nameof(Employee), employeeId.ToString()));
 
-            if (employee.CantSignByCellPhone)
-                throw new DomainException(this, DomainErrors.Employee.EmployeeCantSignByCellPhone(employeeId));
-
             var company = await _companyRepository.FirstOrDefaultAsync(x => x.Id == companyId, cancellation: cancellationToken)
                 ?? throw new DomainException(this, DomainErrors.ObjectNotFound(nameof(Company), companyId.ToString()));
 
@@ -56,7 +54,7 @@ namespace PeopleManagement.Services.Services
 
             using MemoryStream stream = new(documentBytes); 
 
-            await _signDocumentService.SendToSignatureWithWhatsapp(stream, documentUnitId, document, company, employee, documentTemplate.PlaceSignatures.ToArray(), dateLimitToSign, eminderEveryNDays, cancellationToken);
+            await SendToSignature(stream, documentUnitId, document, company, employee, documentTemplate.PlaceSignatures.ToArray(), dateLimitToSign, eminderEveryNDays, cancellationToken);
             
             document.MarkAsAwaitingDocumentUnitSignature(documentUnitId);
 
@@ -76,9 +74,6 @@ namespace PeopleManagement.Services.Services
             var employee = await _employeeRepository.FirstOrDefaultAsync(x => x.Id == employeeId && x.CompanyId == companyId, cancellation: cancellationToken)
                 ?? throw new DomainException(this, DomainErrors.ObjectNotFound(nameof(Employee), employeeId.ToString()));
 
-            if (employee.CantSignByCellPhone)
-                throw new DomainException(this, DomainErrors.Employee.EmployeeCantSignByCellPhone(employeeId));
-
             var company = await _companyRepository.FirstOrDefaultAsync(x => x.Id == companyId, cancellation: cancellationToken)
                 ?? throw new DomainException(this, DomainErrors.ObjectNotFound(nameof(Company), companyId.ToString()));
 
@@ -86,7 +81,7 @@ namespace PeopleManagement.Services.Services
             && x.CompanyId == companyId, cancellation: cancellationToken)
                 ?? throw new DomainException(this, DomainErrors.ObjectNotFound(nameof(DocumentTemplate), document.DocumentTemplateId.ToString()));
 
-            await _signDocumentService.SendToSignatureWithWhatsapp(stream, documentUnitId, document, company, employee, 
+            await SendToSignature(stream, documentUnitId, document, company, employee, 
                 documentTemplate.PlaceSignatures.ToArray() ?? [], dateLimitToSign, eminderEveryNDays, cancellationToken);
 
             document.MarkAsAwaitingDocumentUnitSignature(documentUnitId);
@@ -113,6 +108,27 @@ namespace PeopleManagement.Services.Services
             await _blobService.UploadAsync(docSigned.DocStream, fileNameWithExtesion, document.CompanyId.ToString(), cancellationToken);
 
             return docSigned.DocumentUnitId;
+        }
+
+        private async Task SendToSignature(Stream stream, Guid documentUnitId, Document document, Company company,
+            Employee employee, PlaceSignature[] placeSignatures, DateTime dateLimitToSign, int eminderEveryNDays, CancellationToken cancellationToken = default)
+        {
+            var documentSigningOptions = employee.DocumentSigningOptions;
+            if (documentSigningOptions == DocumentSigningOptions.DigitalSignatureAndWhatsapp)
+            {
+                await _signDocumentService.SendToSignatureWithWhatsapp(stream, documentUnitId, document, company, employee,
+                placeSignatures, dateLimitToSign, eminderEveryNDays, cancellationToken);
+                return;
+            }
+
+            if(documentSigningOptions == DocumentSigningOptions.DigitalSignatureAndSelfie)
+            {
+                await _signDocumentService.SendToSignatureWithSelfie(stream, documentUnitId, document, company, employee,
+                placeSignatures, dateLimitToSign, eminderEveryNDays, cancellationToken);
+                return;
+            }
+
+            throw new DomainException(this, DomainErrors.Employee.InvalidDocumentDigitalSigningOptions(employee.Id));
         }
     }
 }

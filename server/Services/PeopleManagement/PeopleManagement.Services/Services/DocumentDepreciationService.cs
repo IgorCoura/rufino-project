@@ -32,5 +32,26 @@ namespace PeopleManagement.Services.Services
         }
 
 
+        public async Task WarningExpirateDocument(Guid documentUnitId, Guid documentId, Guid companyId,
+            CancellationToken cancellationToken = default)
+        {
+            _logger.LogInformation("Warning expirate document with ID {DocumentId} for company {CompanyId}.", documentId, companyId);
+
+            Document? document = await _documentRepository.FirstOrDefaultAsync(x => x.Id == documentId &&
+                x.CompanyId == companyId, include: x => x.Include(y => y.DocumentsUnits.Where(x => x.Id == documentUnitId)),
+                cancellation: cancellationToken);
+
+            if (document is null)
+            {
+                _logger.LogError("Document with ID {DocumentId} not found for company {CompanyId}.", documentId, companyId);
+                return;
+            }
+
+            var newDocumentUnitId = Guid.NewGuid();
+            document.MakeAsWarning(documentUnitId, newDocumentUnitId);
+
+            _logger.LogInformation("Document with ID {DocumentId} has been marked as warning for company {CompanyId}.", documentId, companyId);
+        }
+
     }
 }

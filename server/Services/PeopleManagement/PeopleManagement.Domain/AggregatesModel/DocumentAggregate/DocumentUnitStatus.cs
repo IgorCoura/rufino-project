@@ -9,6 +9,7 @@
         public static readonly DocumentUnitStatus RequiresValidation = new(5, nameof(RequiresValidation));
         public static readonly DocumentUnitStatus NotApplicable = new(6, nameof(NotApplicable));
         public static readonly DocumentUnitStatus AwaitingSignature = new (7, nameof(AwaitingSignature));
+        public static readonly DocumentUnitStatus Warning = new (8, nameof(Warning));
         private DocumentUnitStatus(int id, string name) : base(id, name)
         {
         }

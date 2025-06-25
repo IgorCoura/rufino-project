@@ -1,4 +1,5 @@
 import 'package:equatable/equatable.dart';
+import 'package:rufino/modules/employee/domain/model/document_signing_options.dart';
 import 'package:rufino/modules/employee/domain/model/name.dart';
 import 'package:rufino/modules/employee/domain/model/status.dart';
 
@@ -10,9 +11,17 @@ class Employee extends Equatable {
   final String roleId;
   final String companyId;
   final String workplaceId;
+  final DocumentSigningOptions documentSigningOptions;
 
-  const Employee(this.id, this.name, this.registration, this.status,
-      this.companyId, this.roleId, this.workplaceId);
+  const Employee(
+      this.id,
+      this.name,
+      this.registration,
+      this.status,
+      this.companyId,
+      this.roleId,
+      this.workplaceId,
+      this.documentSigningOptions);
   const Employee.empty(
       {this.id = "",
       this.name = const Name.empty(),
@@ -20,15 +29,28 @@ class Employee extends Equatable {
       this.status = const Status.empty(),
       this.companyId = "",
       this.roleId = "",
-      this.workplaceId = ""});
+      this.workplaceId = "",
+      this.documentSigningOptions = const DocumentSigningOptions.empty()});
 
   Employee copyWith(
-          {String? id, Name? name, String? roleId, String? workplaceId}) =>
-      Employee(id ?? this.id, name ?? this.name, registration, status,
-          companyId, roleId ?? this.roleId, workplaceId ?? this.workplaceId);
+          {String? id,
+          Name? name,
+          String? roleId,
+          String? workplaceId,
+          DocumentSigningOptions? documentSigningOptions}) =>
+      Employee(
+          id ?? this.id,
+          name ?? this.name,
+          registration,
+          status,
+          companyId,
+          roleId ?? this.roleId,
+          workplaceId ?? this.workplaceId,
+          documentSigningOptions ?? this.documentSigningOptions);
 
   @override
-  List<Object?> get props => [id, name, registration, status];
+  List<Object?> get props =>
+      [id, name, registration, status, documentSigningOptions];
 
   bool canBeHired() {
     return status.id == 1 || status.id == 5;
@@ -43,6 +65,7 @@ class Employee extends Equatable {
       json["companyId"],
       json["roleId"],
       json["workplaceId"],
+      DocumentSigningOptions.fromJson(json["documentSigningOptions"]),
     );
   }
 

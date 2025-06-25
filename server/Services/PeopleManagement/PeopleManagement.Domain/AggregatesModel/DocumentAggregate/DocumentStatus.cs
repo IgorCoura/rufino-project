@@ -7,6 +7,7 @@
         public static readonly DocumentStatus OK = new(3, nameof(OK));
         public static readonly DocumentStatus Deprecated = new(4, nameof(Deprecated));
         public static readonly DocumentStatus AwaitingSignature = new(5, nameof(AwaitingSignature));
+        public static readonly DocumentStatus Warning = new(6, nameof(Warning));
 
         private DocumentStatus(int id, string name) : base(id, name)
         {

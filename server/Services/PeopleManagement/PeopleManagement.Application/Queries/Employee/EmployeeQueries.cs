@@ -95,6 +95,11 @@ namespace PeopleManagement.Application.Queries.Employee
                     Id = o.Status.Id,
                     Name = o.Status.Name,
                 },
+                DocumentSigningOptions = new EnumerationDto
+                {
+                    Id = o.DocumentSigningOptions.Id,
+                    Name = o.DocumentSigningOptions.Name,
+                },
                 CompanyId = o.CompanyId,
                 RoleId = o.RoleId,
                 WorkplaceId = o.WorkPlaceId

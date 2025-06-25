@@ -2,6 +2,7 @@ import 'package:bloc/bloc.dart';
 import 'package:equatable/equatable.dart';
 import 'package:rufino/domain/model/company.dart';
 import 'package:rufino/domain/services/company_global_service.dart';
+import 'package:rufino/modules/employee/domain/model/document_signing_options.dart';
 import 'package:rufino/modules/employee/domain/model/employee_contract.dart';
 import 'package:rufino/modules/employee/domain/model/employee_contract_type.dart';
 import 'package:rufino/modules/employee/domain/model/medical_admission_exam/medical_admission_exam.dart';
@@ -36,8 +37,11 @@ class EmployeeProfileBloc
     on<InitialEmployeeProfileEvent>(_onInitialEvent);
     on<EditNameEvent>(_onEditNameEvent);
     on<ChangeNameEvent>(_onChangeNameEvent);
-    on<LoadingContactEvent>(_onLoadingContactEvent);
     on<SaveNewNameEvent>(_onSaveNewNameEvent);
+    on<EditDocumentSigningOptionsEvent>(_onEditDocumentSigningOptionsEvent);
+    on<ChangeDocumentSigningOptionsEvent>(_onChangeDocumentSigningOptionsEvent);
+    on<SaveDocumentSigningOptionsEvent>(_onSaveDocumentSigningOptionsEvent);
+    on<LoadingContactEvent>(_onLoadingContactEvent);
     on<SnackMessageWasShow>(_onSnackMessageWasShow);
     on<SaveContactChanges>(_onSaveContactChanges);
     on<LoadingAddressEvent>(_onLoadingAddressEvent);
@@ -73,6 +77,8 @@ class EmployeeProfileBloc
       var company = await _companyService.getSelectedCompany();
       var employee = await _peopleManagementService.getEmployee(
           event.employeeId, company.id);
+      var documentSigningOptions =
+          await _peopleManagementService.getDocumentSigningOptions(company.id);
       var contractsType =
           await _peopleManagementService.getEmployeeContractTypes(company.id);
 
@@ -87,6 +93,7 @@ class EmployeeProfileBloc
           company: company,
           employee: employee,
           listContractTypes: contractsType,
+          listDocumentSigningOptions: documentSigningOptions,
           isLoading: false));
     } catch (ex, stacktrace) {
       var exception = _peopleManagementService.treatErrors(ex, stacktrace);
@@ -121,6 +128,46 @@ class EmployeeProfileBloc
           isEditingName: false,
           snackMessage:
               "${state.employee.name.displayName} alterado com sucesso."));
+    } catch (ex, stacktrace) {
+      var exception = _peopleManagementService.treatErrors(ex, stacktrace);
+      emit(state.copyWith(
+          isLoading: false, isSavingData: false, exception: exception));
+    }
+  }
+
+  void _onEditDocumentSigningOptionsEvent(EditDocumentSigningOptionsEvent event,
+      Emitter<EmployeeProfileState> emit) {
+    emit(state.copyWith(isDocumentSigningOptionsName: event.edit));
+  }
+
+  void _onChangeDocumentSigningOptionsEvent(
+      ChangeDocumentSigningOptionsEvent event,
+      Emitter<EmployeeProfileState> emit) {
+    emit(
+      state.copyWith(
+        employee: state.employee.copyWith(
+          documentSigningOptions: event.option,
+        ),
+      ),
+    );
+  }
+
+  Future _onSaveDocumentSigningOptionsEvent(
+      SaveDocumentSigningOptionsEvent event,
+      Emitter<EmployeeProfileState> emit) async {
+    try {
+      emit(state.copyWith(isSavingData: true));
+
+      await _peopleManagementService.editDocumentSigningOptions(
+          state.employee.id,
+          state.company.id,
+          state.employee.documentSigningOptions);
+
+      emit(state.copyWith(
+          isSavingData: false,
+          isEditingName: false,
+          snackMessage:
+              "${state.employee.documentSigningOptions.displayName} alterado com sucesso."));
     } catch (ex, stacktrace) {
       var exception = _peopleManagementService.treatErrors(ex, stacktrace);
       emit(state.copyWith(
