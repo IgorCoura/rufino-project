@@ -1,8 +1,6 @@
 using EntityFramework.Exceptions.PostgreSQL;
 using Hangfire;
 using Hangfire.PostgreSql;
-using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Mvc.Filters;
 using Microsoft.EntityFrameworkCore;
 using PeopleManagement.API.Authentication;
 using PeopleManagement.API.Authorization;

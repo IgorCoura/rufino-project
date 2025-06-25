@@ -83,11 +83,13 @@ namespace PeopleManagement.Domain.AggregatesModel.DocumentAggregate
 
         public void MarkAsAwaitingDocumentUnitSignature(Guid documentUnitId)
         {
-            Status = DocumentStatus.AwaitingSignature;
+            
             var documentUnit = DocumentsUnits.FirstOrDefault(x => x.Id == documentUnitId)
                 ?? throw new DomainException(this, DomainErrors.ObjectNotFound(nameof(DocumentUnit), documentUnitId.ToString()));
 
-            documentUnit.MarkAsAwaitingSignature();
+            var isAwaitingSignature = documentUnit.MarkAsAwaitingSignature();
+            if(isAwaitingSignature)
+                Status = DocumentStatus.AwaitingSignature;
         }
 
         public void ValidateDocumentUnit(Guid documentUnitId, bool IsValid)
@@ -103,15 +105,35 @@ namespace PeopleManagement.Domain.AggregatesModel.DocumentAggregate
             }
         }
 
-        public void MakeAsDocumentExpired(Guid documentUnitIdExpire, Guid newDocumentUnitId)
+        public bool MakeAsDocumentExpired(Guid documentUnitIdExpire, Guid newDocumentUnitId)
         {
             var documentUnit = DocumentsUnits.FirstOrDefault(x => x.Id == documentUnitIdExpire)
                 ?? throw new DomainException(this, DomainErrors.ObjectNotFound(nameof(DocumentUnit), documentUnitIdExpire.ToString()));
 
-            documentUnit.MarkAsDeprecatedOrInvalid();
-
-            NewDocumentUnit(newDocumentUnitId);
+            var isDeprecatedOrInvalid = documentUnit.MarkAsDeprecatedOrInvalid();
+            if (isDeprecatedOrInvalid)
+            {
+                NewDocumentUnit(newDocumentUnitId);
+                return true;
+            }
+            return false;
         }
+
+        public bool MakeAsWarning(Guid documentUnitIdExpire, Guid newDocumentUnitId)
+        {
+            var documentUnit = DocumentsUnits.FirstOrDefault(x => x.Id == documentUnitIdExpire)
+                ?? throw new DomainException(this, DomainErrors.ObjectNotFound(nameof(DocumentUnit), documentUnitIdExpire.ToString()));
+
+            var isMarkAsWarning =  documentUnit.MarkAsWarning();
+
+            if(isMarkAsWarning)
+            {
+                Status = DocumentStatus.Warning;
+                return true;
+            }
+            return false;
+        }
+
 
         public void MakeAsDeprecated()
         {
@@ -128,14 +150,19 @@ namespace PeopleManagement.Domain.AggregatesModel.DocumentAggregate
             });
         }
 
-        public void MarkAsNotApplicableDocumentUnit(Guid documentUnitId)
+        public bool MarkAsNotApplicableDocumentUnit(Guid documentUnitId)
         {
             var document = DocumentsUnits.FirstOrDefault(x => x.Id == documentUnitId)
                ?? throw new DomainException(this, DomainErrors.ObjectNotFound(nameof(DocumentUnit), documentUnitId.ToString()));
 
-            document.MarkAsNotApplicable();
-            Status = DocumentStatus.OK;
-            DeprecateDocumentsUnit(exceptionDocumentId: documentUnitId);
+            var isNotApplicable = document.MarkAsNotApplicable();
+            if(isNotApplicable)
+            {
+                Status = DocumentStatus.OK;
+                DeprecateDocumentsUnit(exceptionDocumentId: documentUnitId);
+                return true;
+            }
+            return false;
         }
 
         public bool IsAwaitingSignatureDocumentUnit(Guid documentUnitId)
@@ -194,14 +221,5 @@ namespace PeopleManagement.Domain.AggregatesModel.DocumentAggregate
             return documentsStatus.First();
         }
 
-        private void ChangeStatus(DocumentStatus status)
-        {
-            Status = status;
-        }
-
-        private bool HasValidDocumentsUnit()
-        {
-            return DocumentsUnits.Any(x => x.IsOK);
-        }
     }
 }

@@ -36,6 +36,26 @@ class ChangeNameEvent extends EmployeeProfileEvent {
   List<Object> get props => [name];
 }
 
+class EditDocumentSigningOptionsEvent extends EmployeeProfileEvent {
+  final bool edit;
+
+  const EditDocumentSigningOptionsEvent(this.edit);
+
+  @override
+  List<Object> get props => [edit];
+}
+
+class SaveDocumentSigningOptionsEvent extends EmployeeProfileEvent {}
+
+class ChangeDocumentSigningOptionsEvent extends EmployeeProfileEvent {
+  final DocumentSigningOptions option;
+
+  const ChangeDocumentSigningOptionsEvent(this.option);
+
+  @override
+  List<Object> get props => [option];
+}
+
 class LoadingContactEvent extends EmployeeProfileEvent {}
 
 class SnackMessageWasShow extends EmployeeProfileEvent {}

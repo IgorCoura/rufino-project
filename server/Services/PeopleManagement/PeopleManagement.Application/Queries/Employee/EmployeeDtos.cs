@@ -23,6 +23,7 @@ namespace PeopleManagement.Application.Queries.Employee
         public string Name { get; init; } = string.Empty;
         public string? Registration { get; init; }
         public EnumerationDto Status { get; init; } = EnumerationDto.Empty;
+        public EnumerationDto DocumentSigningOptions { get; init; } = EnumerationDto.Empty;
         public Guid? RoleId { get; init; }
         public Guid CompanyId { get; init; }
         public Guid? WorkplaceId { get; init; }

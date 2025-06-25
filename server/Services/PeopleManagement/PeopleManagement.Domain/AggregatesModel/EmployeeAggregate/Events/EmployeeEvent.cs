@@ -34,6 +34,8 @@
         public const int DEPENDENT_REMOVED_EVENT = 14;
         public const int FINISHED_CONTRACT_EVENT = 15;
         public const int DEMISSIONAL_EXAM_REQUEST_EVENT = 16;
+        public const int DOCUMENT_SIGNING_OPTIONS_CHANGE_EVENT = 17;
+
 
 
         public static EmployeeEvent CreatedEvent(Guid employeeId, Guid companyId) => new(CREATED_EVENT, nameof(CreatedEvent), employeeId, companyId);
@@ -53,6 +55,7 @@
         public static EmployeeEvent DependentRemovedEvent(Guid employeeId, Guid companyId) => new(DEPENDENT_REMOVED_EVENT, nameof(DependentRemovedEvent), employeeId, companyId);
         public static EmployeeEvent FinishedContractEvent(Guid employeeId, Guid companyId) => new(FINISHED_CONTRACT_EVENT, nameof(FinishedContractEvent), employeeId, companyId);
         public static EmployeeEvent DemissionalExamRequestEvent(Guid employeeId, Guid companyId) => new(DEMISSIONAL_EXAM_REQUEST_EVENT, nameof(DemissionalExamRequestEvent), employeeId, companyId);
+        public static EmployeeEvent DocumentSigningOptionsChangeEvent(Guid employeeId, Guid companyId) => new(DOCUMENT_SIGNING_OPTIONS_CHANGE_EVENT, nameof(DocumentSigningOptionsChangeEvent), employeeId, companyId);
 
         public static IEnumerable<EmployeeEvent?> GetAll()
         {

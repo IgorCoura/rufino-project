@@ -239,6 +239,10 @@ namespace PeopleManagement.Infra.Mapping
                     .IsRequired();
             });
 
+            builder.Property(x => x.DocumentSigningOptions)
+                .HasConversion(x => x.Id, x => x)
+                    .IsRequired();
+
             builder.HasOne<Company>()
                 .WithMany()
                 .HasForeignKey(x => x.CompanyId)

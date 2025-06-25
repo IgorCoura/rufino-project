@@ -19,6 +19,7 @@ namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
         private Address? _address = null!;
         private Contact? _contact = null!;
         private MedicalAdmissionExam? _medicalAdmissionExam = null!;
+        private DocumentSigningOptions _documentSigningOptions = DocumentSigningOptions.PhysicalSignature;
 
         public Registration? Registration 
         { 
@@ -157,6 +158,20 @@ namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
                 }
             }
         }
+
+        public DocumentSigningOptions DocumentSigningOptions
+        {
+            get => _documentSigningOptions;
+            set
+            {
+                if(value == DocumentSigningOptions.DigitalSignatureAndWhatsapp && CantSignByCellPhone == false)
+                {
+                    throw new DomainException(this, DomainErrors.Employee.EmployeeCantSignByCellPhone(Id));
+                }
+                _documentSigningOptions = value;
+                AddDomainEvent(EmployeeEvent.DocumentSigningOptionsChangeEvent(Id, CompanyId));
+            }
+        }
         private Employee() { }
         private Employee(Guid id, Guid companyId, Name name, Status status) : base(id)
         {
@@ -265,7 +280,7 @@ namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
                 AddDomainEvent(EmployeeEvent.DemissionalExamRequestEvent(Id, CompanyId));
         }
 
-        public bool CantSignByCellPhone => Contact?.CellPhoneIsEmpty ?? true;
+        public bool CantSignByCellPhone => !(Contact?.CellPhoneIsEmpty ?? true);
 
         public bool IsRequiredMilitarDocument()
         {

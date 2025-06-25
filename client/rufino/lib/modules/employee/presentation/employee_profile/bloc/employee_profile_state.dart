@@ -3,6 +3,7 @@ part of 'employee_profile_bloc.dart';
 class EmployeeProfileState extends Equatable {
   final Company company;
   final bool isEditingName;
+  final bool isDocumentSigningOptionsName;
   final Employee employee;
   final bool isLoading;
   final Contact contact;
@@ -24,6 +25,7 @@ class EmployeeProfileState extends Equatable {
   final List<Workplace> listWorkplace;
   final List<EmployeeContract> listContracts;
   final List<EmployeeContractType> listContractTypes;
+  final List<DocumentSigningOptions> listDocumentSigningOptions;
 
   const EmployeeProfileState(
       {this.company = const Company.empty(),
@@ -48,7 +50,9 @@ class EmployeeProfileState extends Equatable {
       this.workplace = const Workplace.empty(),
       this.listWorkplace = const [],
       this.listContracts = const [],
-      this.listContractTypes = const []});
+      this.listContractTypes = const [],
+      this.listDocumentSigningOptions = const [],
+      this.isDocumentSigningOptionsName = false});
 
   EmployeeProfileState copyWith({
     Company? company,
@@ -75,6 +79,8 @@ class EmployeeProfileState extends Equatable {
     List<Workplace>? listWorkplace,
     List<EmployeeContract>? listContracts,
     List<EmployeeContractType>? listContractTypes,
+    List<DocumentSigningOptions>? listDocumentSigningOptions,
+    bool? isDocumentSigningOptionsName,
   }) =>
       EmployeeProfileState(
         company: company ?? this.company,
@@ -101,6 +107,10 @@ class EmployeeProfileState extends Equatable {
         listWorkplace: listWorkplace ?? this.listWorkplace,
         listContracts: listContracts ?? this.listContracts,
         listContractTypes: listContractTypes ?? this.listContractTypes,
+        listDocumentSigningOptions:
+            listDocumentSigningOptions ?? this.listDocumentSigningOptions,
+        isDocumentSigningOptionsName:
+            isDocumentSigningOptionsName ?? this.isDocumentSigningOptionsName,
       );
 
   @override
@@ -128,5 +138,7 @@ class EmployeeProfileState extends Equatable {
         listWorkplace.hashCode,
         listContracts.hashCode,
         listContractTypes.hashCode,
+        listDocumentSigningOptions.hashCode,
+        isDocumentSigningOptionsName,
       ];
 }

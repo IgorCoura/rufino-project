@@ -13,7 +13,7 @@ using PeopleManagement.Infra.Context;
 namespace PeopleManagement.Infra.Migrations
 {
     [DbContext(typeof(PeopleManagementContext))]
-    [Migration("20250529002952_init")]
+    [Migration("20250625172616_init")]
     partial class init
     {
         /// <inheritdoc />
@@ -307,6 +307,9 @@ namespace PeopleManagement.Infra.Migrations
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("DocumentSigningOptions")
+                        .HasColumnType("integer");
 
                     b.Property<string>("Name")
                         .IsRequired()

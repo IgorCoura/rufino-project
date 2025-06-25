@@ -399,6 +399,7 @@ namespace PeopleManagement.Infra.Migrations
                     VoteId = table.Column<string>(type: "character varying(12)", maxLength: 12, nullable: true),
                     MilitaryDocument_Number = table.Column<string>(type: "character varying(20)", maxLength: 20, nullable: true),
                     MilitaryDocument_Type = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: true),
+                    DocumentSigningOptions = table.Column<int>(type: "integer", nullable: false),
                     CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
                     UpdatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false)
                 },
