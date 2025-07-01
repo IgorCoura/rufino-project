@@ -13,12 +13,14 @@ using Microsoft.Net.Http.Headers;
 using static System.Net.WebRequestMethods;
 using System.Threading;
 using PeopleManagement.Domain.SeedWord;
+using Microsoft.Extensions.Logging;
 
 namespace PeopleManagement.Infra.Services
 {
-    public class ZapSignService(HttpClient httpClient) : ISignService
+    public class ZapSignService(HttpClient httpClient, ILogger<ZapSignService> logger) : ISignService
     {
         private readonly HttpClient _httpClient = httpClient;
+        private readonly ILogger<ZapSignService> _logger = logger;
 
         public async Task SendToSignatureWithWhatsapp(Stream documentStream, Guid documentUnitId, Document document, Company company, 
             Employee employee, PlaceSignature[] placeSignatures, DateTime dateLimitToSign, int eminderEveryNDays, CancellationToken cancellationToken = default)
@@ -36,7 +38,8 @@ namespace PeopleManagement.Infra.Services
             Company company, Employee employee, PlaceSignature[] placeSignatures, DateTime dateLimitToSign, int eminderEveryNDays, 
             CancellationToken cancellationToken = default)
         {
-
+            _logger.LogInformation("Sending document to ZapSign for signature. DocumentUnitId: {DocumentUnitId}, EmployeeId: {EmployeeId}, CompanyId: {CompanyId}",
+                documentUnitId, employee.Id, company.Id);
             var documentBase64 = ConvertStreamToBase64(documentStream);
 
             var folderPath = $"{company.CorporateName}/{employee.Name}";
@@ -106,11 +109,15 @@ namespace PeopleManagement.Infra.Services
 
                 if (resultPlaceSignature == false)
                 {
+                    _logger.LogError("Failed to place signatures on document. DocumentUnitId: {DocumentUnitId}, EmployeeId: {EmployeeId}, CompanyId: {CompanyId}",
+                        documentUnitId, employee.Id, company.Id);
                     await DeleteDocument(docToken, cancellationToken);
                     throw new DomainException(this, InfraErrors.SignDoc.ErrorSendDocToSign(documentUnitId));
                 }
 
             }
+            _logger.LogInformation("Document sent to ZapSign for signature successfully. DocumentUnitId: {DocumentUnitId}, EmployeeId: {EmployeeId}, CompanyId: {CompanyId}",
+                documentUnitId, employee.Id, company.Id);
         }
 
         public async Task<DocSignedModel?> GetFileFromDocSignedEvent(JsonNode contentBody, CancellationToken cancellationToken = default)

@@ -1,5 +1,8 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:flutter_json/flutter_json.dart';
 import 'package:flutter_modular/flutter_modular.dart';
 import 'package:rufino/modules/employee/domain/model/document_template/place_signature.dart';
 import 'package:rufino/modules/employee/presentation/components/enumeration_list_view_component.dart';
@@ -103,6 +106,29 @@ class DocumentTemplatePage extends StatelessWidget {
                           height: 8.0,
                         ),
                         _placeSignaturesFields(state),
+                        SizedBox(
+                          height: 8.0,
+                        ),
+                        ExpansionTile(
+                          onExpansionChanged: (value) {
+                            if (value) {
+                              bloc.add(LoadDataModelEvent(value));
+                            }
+                          },
+                          title: Text("Detalhes dos Modelos de dados."),
+                          children: [
+                            Padding(
+                              padding: const EdgeInsets.all(8.0),
+                              child: SizedBox(
+                                height: 300,
+                                child: JsonWidget(
+                                  json: json.decode(state.recoverDataModels),
+                                  initialExpandDepth: 3,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
                       ],
                     ),
                   );

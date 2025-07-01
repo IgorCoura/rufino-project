@@ -5,15 +5,19 @@ using PuppeteerSharp;
 using PuppeteerSharp.Media;
 using System.Text.Json.Nodes;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.Extensions.Logging;
 
 namespace PeopleManagement.Infra.Services
 {
-    public class PdfService(DocumentTemplatesOptions documentTemplatesOptions) : IPdfService
+    public class PdfService(DocumentTemplatesOptions documentTemplatesOptions, ILogger<PdfService> logger) : IPdfService
     {
         private readonly DocumentTemplatesOptions _documentTemplatesOptions = documentTemplatesOptions;
+        private readonly ILogger<PdfService> _logger = logger;
 
         public async Task<byte[]> ConvertHtml2Pdf(TemplateFileInfo template, string values, CancellationToken cancellationToken = default)
         {
+            _logger.LogInformation("Converting HTML to PDF for directory: {TemplateName}", template.Directory);
+
             var jsonValues = JsonValue.Parse(values);
 
             //Path
@@ -24,9 +28,12 @@ namespace PeopleManagement.Infra.Services
             var indexHtmlPath = Path.Combine(templateDirectory, template.BodyFileName.ToString());
 
             //Pdf Generate
+            _logger.LogInformation("Downloading browser for PDF generation.");
             await DownloadBrowser();
 
             await using var browser = await Puppeteer.LaunchAsync(new LaunchOptions { Headless = true, Args = ["--no-sandbox",  "--disable-setuid-sandbox"] });
+
+            _logger.LogInformation("Browser downloaded successfully. Opening new page for PDF generation.");
 
             await using var page = await browser.NewPageAsync();
 
@@ -34,8 +41,10 @@ namespace PeopleManagement.Infra.Services
 
             var contentPage = await page.GetContentAsync();
 
+            _logger.LogInformation("Inserting values into HTML template.");
             var newContentPage = await HtmlService.InsertValuesInHtmlTemplate(jsonValues, contentPage); 
 
+            _logger.LogInformation("Setting content for the page with inserted values.");
             await page.SetContentAsync(newContentPage);
 
             var pdfOptions = new PdfOptions
@@ -50,7 +59,7 @@ namespace PeopleManagement.Infra.Services
 
             var pdfBytes = await page.PdfDataAsync(pdfOptions);
             await browser.CloseAsync();
-
+            _logger.LogInformation("PDF generation completed successfully.");
             return pdfBytes;
         }
 
@@ -63,6 +72,7 @@ namespace PeopleManagement.Infra.Services
 
         private static async Task DownloadBrowser()
         {
+            
             var browserFetcher = new BrowserFetcher();
             await browserFetcher.DownloadAsync();
         }

@@ -20,6 +20,13 @@ class RoleInfo extends Equatable {
       this.isLoading = true,
       this.isLazyLoading = false});
 
+  const RoleInfo.empty()
+      : role = const Role.empty(),
+        position = const Position.empty(),
+        department = const Department.empty(),
+        isLoading = false,
+        isLazyLoading = false;
+
   RoleInfo copyWith(
       {Role? role,
       Position? position,

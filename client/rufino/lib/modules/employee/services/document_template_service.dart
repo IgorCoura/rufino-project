@@ -107,6 +107,26 @@ class DocumentTemplateService extends BaseService {
     throw treatUnsuccessfulResponses(response);
   }
 
+  Future<String> getRecoverDataModels(String companyId) async {
+    var headers = await getHeaders();
+    var url = peopleManagementUrl.replace(
+        path: "/api/v1/$companyId/documenttemplate/RecoverDataModels");
+    var response = await http.get(url, headers: headers);
+    if (response.statusCode == 200) {
+      var result = _sanitizeJson(response.body);
+      return result;
+    }
+    throw treatUnsuccessfulResponses(response);
+  }
+
+  String _sanitizeJson(String jsonString) {
+    try {
+      return jsonString.trim().replaceAll(RegExp(r'[\r\n]+'), '');
+    } catch (e) {
+      return '{}'; // Return empty JSON object if sanitization fails
+    }
+  }
+
   Future<bool> hasFileInDocumentTemplate(
       String companyId, String documentTemplateId) async {
     var headers = await getHeaders();

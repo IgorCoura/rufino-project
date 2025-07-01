@@ -74,17 +74,17 @@ class _LoginPageState extends State<LoginPage> {
 
                     const SizedBox(height: 20),
 
-                    // Botão de "Esqueci a Senha"
-                    Align(
-                      alignment: Alignment.centerRight,
-                      child: TextButton(
-                        onPressed: () {
-                          //TODO: Esqueci a senha
-                        },
-                        child: const Text('Esqueci a senha?'),
-                      ),
-                    ),
-                    const SizedBox(height: 20),
+                    // // Botão de "Esqueci a Senha"
+                    // Align(
+                    //   alignment: Alignment.centerRight,
+                    //   child: TextButton(
+                    //     onPressed: () {
+                    //       //TODO: Esqueci a senha
+                    //     },
+                    //     child: const Text('Esqueci a senha?'),
+                    //   ),
+                    // ),
+                    // const SizedBox(height: 20),
 
                     // Botão de Login
 

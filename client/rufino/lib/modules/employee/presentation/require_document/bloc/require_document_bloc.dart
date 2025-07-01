@@ -101,8 +101,8 @@ class RequireDocumentBloc
   void _onCancelEditEvent(
       CancelEditEvent event, Emitter<RequireDocumentState> emit) {
     emit(state.copyWith(isEditing: false));
-    if (state.requireDocument == RequireDocument.empty()) {
-      Modular.to.navigate("/employee/document-template");
+    if (state.requireDocument.id.isEmpty) {
+      Modular.to.navigate("/employee/require-documents");
     } else {
       add(InitialEvent(state.requireDocument.id));
     }

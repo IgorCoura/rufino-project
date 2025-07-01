@@ -441,6 +441,10 @@ class EmployeeProfileBloc
   Future _onLoadingRoleEvent(
       LoadingRoleEvent event, Emitter<EmployeeProfileState> emit) async {
     try {
+      if (state.employee.roleId.isEmpty) {
+        emit(state.copyWith(roleInfo: const RoleInfo.empty()));
+        return;
+      }
       var roleInfo = await _peopleManagementService.getRole(
           state.company.id, state.employee.roleId);
 
@@ -529,6 +533,10 @@ class EmployeeProfileBloc
   Future _onLoadingWorkplaceEvent(
       LoadingWorkplaceEvent event, Emitter<EmployeeProfileState> emit) async {
     try {
+      if (state.employee.workplaceId.isEmpty) {
+        emit(state.copyWith(workplace: const Workplace.empty()));
+        return;
+      }
       var workplace = await _peopleManagementService.getWorkplaceById(
           state.employee.workplaceId, state.company.id);
       emit(state.copyWith(workplace: workplace));
@@ -571,10 +579,11 @@ class EmployeeProfileBloc
   Future _onLoadingContractsEvent(
       LoadingContractsEvent event, Emitter<EmployeeProfileState> emit) async {
     try {
+      var company = await _companyService.getSelectedCompany();
       var contracts = await _peopleManagementService.getEmployeeContracts(
-          state.employee.id, state.company.id);
-      var contractsType = await _peopleManagementService
-          .getEmployeeContractTypes(state.company.id);
+          state.employee.id, company.id);
+      var contractsType =
+          await _peopleManagementService.getEmployeeContractTypes(company.id);
       emit(state.copyWith(
           listContracts: contracts, listContractTypes: contractsType));
     } catch (ex, stacktrace) {
@@ -592,7 +601,7 @@ class EmployeeProfileBloc
       await _peopleManagementService.finishedContract(
           state.employee.id, state.company.id, event.finalDate);
 
-      add(LoadingContractsEvent());
+      add(InitialEmployeeProfileEvent(state.employee.id));
       emit(state.copyWith(isSavingData: false));
     } catch (ex, stacktrace) {
       var exception = _peopleManagementService.treatErrors(ex, stacktrace);
@@ -613,7 +622,6 @@ class EmployeeProfileBloc
           event.contractTypeId,
           event.registration);
 
-      add(LoadingContractsEvent());
       add(InitialEmployeeProfileEvent(state.employee.id));
       emit(state.copyWith(isSavingData: false));
     } catch (ex, stacktrace) {

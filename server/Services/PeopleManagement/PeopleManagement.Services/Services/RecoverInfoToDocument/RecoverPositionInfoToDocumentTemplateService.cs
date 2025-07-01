@@ -17,13 +17,34 @@ namespace PeopleManagement.Services.Services.RecoverInfoToDocument
 
             var positionJson = new JsonObject
             {
-                ["Id"] = position.Id.ToString(),
-                ["Name"] = position.Name.ToString(),
-                ["Description"] = position.Description.ToString(),
-                ["CBO"] = position.CBO.ToString()
+                ["Position"] = new JsonObject
+                {
+                    ["Id"] = position.Id.ToString(),
+                    ["Name"] = position.Name.ToString(),
+                    ["Description"] = position.Description.ToString(),
+                    ["CBO"] = position.CBO.ToString()
+                }
             };
 
             return positionJson;
         }
+
+        public static JsonObject GetModel()
+        {
+           
+            var json = new JsonObject
+            {
+                ["Position"] = new JsonObject
+                {
+                    ["Id"] = Guid.Empty.ToString(),
+                    ["Name"] = "position.Name",
+                    ["Description"] = "position.Description",
+                    ["CBO"] = "position.CBO"
+                }
+            };
+
+            return json;
+        }
+
     }
 }

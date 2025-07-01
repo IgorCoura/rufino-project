@@ -17,12 +17,30 @@ namespace PeopleManagement.Services.Services.RecoverInfoToDocument
 
             var departmentJson = new JsonObject
             {
-                ["Id"] = department.Id.ToString(),
-                ["Name"] = department.Name.ToString(),
-                ["Description"] = department.Description.ToString()
+                ["Department"] = new JsonObject
+                {
+                    ["Id"] = department.Id.ToString(),
+                    ["Name"] = department.Name.ToString(),
+                    ["Description"] = department.Description.ToString()
+                }
             };
 
             return departmentJson;
+        }
+
+        public static JsonObject GetModel()
+        {
+            var json = new JsonObject
+            {
+                ["Department"] = new JsonObject
+                {
+                    ["Id"] = Guid.Empty.ToString(),
+                    ["Name"] = "department.Name",
+                    ["Description"] = "department.Description"
+                }
+            };
+
+            return json;
         }
     }
 }

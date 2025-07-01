@@ -193,16 +193,20 @@ class SalaryType extends Equatable {
 }
 
 class MonetaryValue extends Equatable {
-  final String value;
+  final String _value;
 
-  const MonetaryValue(this.value);
+  String get value => _value.replaceAll(",", ".");
 
-  const MonetaryValue.empty() : value = "";
+  const MonetaryValue(this._value);
+
+  const MonetaryValue.empty() : _value = "";
 
   static String? validate(String? value) {
     if (value == null || value.isEmpty) {
       return "Não pode ser vazio.";
     }
+
+    value = value.replaceAll(",", ".");
 
     final regex = RegExp(r'^\d+(\.\d{1,2})?$');
     if (!regex.hasMatch(value)) {

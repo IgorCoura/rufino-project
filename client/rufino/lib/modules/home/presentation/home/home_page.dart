@@ -129,7 +129,7 @@ class HomePage extends StatelessWidget {
               child: FilledButton(
                 onPressed: () => Modular.to.navigate("/department/"),
                 child: Text(
-                  "Departamentos",
+                  "Setores",
                   style: TextStyle(
                     color: Theme.of(context).colorScheme.onPrimary,
                   ),

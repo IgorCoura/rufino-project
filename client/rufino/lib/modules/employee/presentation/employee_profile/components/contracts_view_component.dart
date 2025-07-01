@@ -46,24 +46,32 @@ class _ContractsViewComponentState extends State<ContractsViewComponent> {
         children: [
           _header(),
           _isExpanded
-              ? Column(children: [
-                  Column(
-                    children: widget.contracts
-                        .map((el) => _bodyItem(
-                            context,
-                            EmployeeContract.displayName,
-                            el.initDate,
-                            el.finalDate ?? "__________ ",
-                            el.type.name))
-                        .toList(),
-                  ),
-                  widget.isSavingData
-                      ? const CircularProgressIndicator()
-                      : widget.contracts.any((el) => el.finalDate == null) ==
-                              true
-                          ? _buttonFinishedContract(context)
-                          : const SizedBox(),
-                ])
+              ? widget.contracts.isEmpty
+                  ? Padding(
+                      padding: EdgeInsets.all(8),
+                      child: Text(
+                        "Nenhum contrato encontrado.",
+                      ),
+                    )
+                  : Column(children: [
+                      Column(
+                        children: widget.contracts
+                            .map((el) => _bodyItem(
+                                context,
+                                EmployeeContract.displayName,
+                                el.initDate,
+                                el.finalDate ?? "__________ ",
+                                el.type.name))
+                            .toList(),
+                      ),
+                      widget.isSavingData
+                          ? const CircularProgressIndicator()
+                          : widget.contracts
+                                      .any((el) => el.finalDate == null) ==
+                                  true
+                              ? _buttonFinishedContract(context)
+                              : const SizedBox(),
+                    ])
               : const SizedBox(),
         ],
       ),

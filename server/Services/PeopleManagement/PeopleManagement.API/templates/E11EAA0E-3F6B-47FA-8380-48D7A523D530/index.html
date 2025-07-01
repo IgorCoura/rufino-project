@@ -11,7 +11,7 @@
     <div class="main">
         <div class="header">
             <div>ORDEM DE SERVIÇO</div>
-            <div>{{company.CorporateName}}</div>
+            <div>{{company.corporatename}}</div>
         </div>
         <div class="body">
             <div class="table-data">
@@ -22,7 +22,7 @@
                             Nome:
                         </div>
                         <div class="table-data-content-line-text">
-                            {{Employee.Name}}
+                            {{employee.name}}
                         </div>
                     </div>
                     <div class="table-data-content-line">
@@ -31,15 +31,15 @@
                                 CPF:
                             </div>
                             <div class="table-data-content-line-text">
-                                {{cpf}}
+                                {{employee.idcard.cpf}}
                             </div>
-                        </div>
+                        </div>  
                         <div class="table-data-content-line-inline" style="flex:1">
                             <div class="table-data-content-line-title">
                                 Matricula: 
                             </div>
                             <div class="table-data-content-line-text">
-                                {{registration}}
+                                {{employee.registration}}
                             </div>
                         </div>                                            
                     </div>
@@ -49,7 +49,7 @@
                                 Setor: 
                             </div>
                             <div class="table-data-content-line-text">
-                                {{department}}
+                                {{department.name}}
                             </div>
                         </div>
                         <div class="table-data-content-line-inline" style="flex:1">
@@ -57,7 +57,7 @@
                                 Cargo:
                             </div>
                             <div class="table-data-content-line-text">
-                                {{position}}
+                                {{position.name}}
                             </div>
                         </div>
                         <div class="table-data-content-line-inline" style="flex:1">
@@ -65,9 +65,26 @@
                                 CBO:
                             </div>
                             <div class="table-data-content-line-text">
-                                {{cbo}}
+                                {{position.cbo}}
                             </div>
                         </div>
+                        <div class="table-data-content-line-inline" style="flex:1">
+                            <div class="table-data-content-line-title">
+                                Função:
+                            </div>
+                            <div class="table-data-content-line-text">
+                                {{role.name}}
+                            </div>
+                        </div>
+                        <div class="table-data-content-line-inline" style="flex:1">
+                            <div class="table-data-content-line-title">
+                                CBO:
+                            </div>
+                            <div class="table-data-content-line-text">
+                                {{role.cbo}}
+                            </div>
+                        </div>                        
+                        
                     </div>
                 </div>
             </div>
@@ -75,7 +92,7 @@
             <div class="table-data">
                 <div class="table-data-title">Descrição da atividade</div>
                 <div class="table-data-content">
-                    {{description}}
+                    {{descricao}}
                 </div>
             </div>
             <div class="table-data">
@@ -154,46 +171,27 @@
             </div>
             <div class="table-data">
                 <div class="table-data-title">IDENTIFICAÇÃO DOS RISCOS AMBIENTAIS</div>
-                <list:risks class="table-data-content">
-                    <div class="table-data-content-line">
-                        <div class="table-data-content-line-title">
-                            {{name}}
+                <div class="table-data-content">
+                    <list:PGR.risks>
+                        <div class="table-data-content-line">
+                            <div class="table-data-content-line-title">
+                                {{name}}:
+                            </div>
                         </div>
-                    </div>
-                    <div class="table-data-content-line">
-                        <div class="table-data-content-line-text">
-                            - Fonte: {{content.source}}.
-                            <br>- Medidas administrativas: {{content.precautions}}.                                                        
+                        <div class="table-data-content-line">
+                            <div class="table-data-content-line-text">
+                                - Fonte: {{source}}.
+                                <br>- {{precautions}}                            
+                            </div>
                         </div>
-                    </div>
-                </list:risks>        
-            </div>
-            <div class="table-data">
-                <div class="table-data-title">IDENTIFICAÇÃO DOS RISCOS AMBIENTAIS</div>
-                <list:riskstest class="table-data-content">
-                    <div class="table-data-content-line">
-                        <div class="table-data-content-line-title">
-                            {{name}}
-                        </div>
-                    </div>
-                    <div class="table-data-content-line">
-                        <div class="table-data-content-line-text">
-                            <list:riskscontent>
-                                {{content}}
-                            </list:riskscontent>
-                        </div>
-                    </div>
-                </list:riskstest>        
+                    </list:PGR.risks> 
+                </div>     
             </div>
             <div class="table-data">
                 <div class="table-data-title">EQUIPAMENTOS DE PROTEÇÃO INDIVIDUAL (EPI)</div>
-                <div class="table-data-content">
-                    <div class="table-data-content">
-                        <list:epis>
-                            {{epi}}<br>
-                        </list:epis>
-                    </div>
-                </div>
+                <list:PGR.epis class="table-data-content">
+                    - {{epis}}<br>
+                </list:PGR.epis>
             </div>
             <div class="table-data">
                 <div class="table-data-title">DECLARAÇÃO DO TRABALHADOR EXECUTANTE DA OPERAÇÃO/ATIVIDADE</div>
@@ -201,20 +199,20 @@
                     Declaro ter recebido informações, orientações e uma cópia desta <span>ORDEM DE SERVIÇO DE SEGURANÇA E MEDICINA DO TRABALHO</span>, de acordo com a NR01 aprovada pela portaria nº3.214/78, para permitir um trabalho seguro nas atividades da função acima mencionada. Assim com <span>DECLARO</span>, estar ciente que a não obediência das normas estabelecidas neste <span>PROCEDIMENTO</span>, estarei sujeito a penalidades disciplinares, conforme regulamento interno da Empresa e <span>NORMAS REGULAMENTADORAS</span>
                 </div>
             </div>
-            <div class="date">Suzano, {{date}}</div>
+            <div class="date">Suzano, {{data}}</div>
             <div class="signature-body">
                 <div>
                     <div class="signature-local">
                         <img style="height:25mm; float: start; visibility: visible;" src="img\assinatura_jamildo.png" class="assinatura"> <!-- adicionado a classe .assinatura -->
                     </div>
                     <div class="signature-info">
-                        {{company}}
+                        {{company.corporatename}}
                     </div>
                 </div>
                 <div>
                     <div class="signature-local"></div>
                     <div class="signature-info">
-                        {{name}}
+                        {{employee.name}}
                     </div>
                 </div>
             </div>

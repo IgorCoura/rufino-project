@@ -28,7 +28,7 @@ class RequireDocumentPage extends StatelessWidget {
               Modular.to.pop();
             },
           ),
-          title: const Text('Template de Documento'),
+          title: const Text('Requerimento de Documentos'),
         ),
         body: Align(
           alignment: Alignment.topCenter,

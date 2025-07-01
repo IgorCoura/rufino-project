@@ -64,14 +64,17 @@ namespace PeopleManagement.Infra.Services
             {
                 try
                 {
-                    var value = json[key];
+                    // Perform case-insensitive lookup
+                    var value = json.AsObject()
+                                    .FirstOrDefault(kvp => string.Equals(kvp.Key, key, StringComparison.OrdinalIgnoreCase))
+                                    .Value;
 
-                    if(value == null)
+                    if (value == null)
                     {
                         return null;
                     }
 
-                    if(value is JsonObject jsonValue)
+                    if (value is JsonObject jsonValue)
                     {
                         return GetValueFromJson(keys.Skip(1).ToArray(), jsonValue);
                     }
@@ -92,5 +95,6 @@ namespace PeopleManagement.Infra.Services
         private static partial Regex HtmlListRegex();
         [GeneratedRegex("{{(.*?)}}")]
         private static partial Regex HtmlParamRegex();
+
     }
 }

@@ -1,5 +1,6 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:equatable/equatable.dart';
+import 'package:flutter_modular/flutter_modular.dart';
 import 'package:rufino/domain/model/company.dart';
 import 'package:rufino/domain/services/auth_service.dart';
 import 'package:rufino/domain/services/company_global_service.dart';
@@ -26,6 +27,10 @@ class CompanySelectionBloc
     try {
       var companiesIds = await _authService.getCompaniesIds();
       var companies = await _companyService.getCompanies(companiesIds);
+      if (companies.isEmpty) {
+        Modular.to.navigate('/company/create');
+        return;
+      }
       if (companies.length == 1) {
         await _companyService.selectCompany(companies.first);
         emit(state.copyWith(hasSelectedCompany: true));

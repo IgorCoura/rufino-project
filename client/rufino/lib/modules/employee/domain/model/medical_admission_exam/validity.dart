@@ -17,9 +17,12 @@ class Validity extends TextPropBase {
 
   const Validity.empty() : super("Validade do exame", "");
 
-  factory Validity.createFormatted(String number) => Validity(format(number));
+  factory Validity.createFormatted(String? number) => Validity(format(number));
 
-  static String format(String rawNumber) {
+  static String format(String? rawNumber) {
+    if (rawNumber == null || rawNumber.isEmpty) {
+      return "";
+    }
     var itens = rawNumber.split("-");
     var number = itens[2] + itens[1] + itens[0];
     maskFormatter.formatEditUpdate(
