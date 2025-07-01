@@ -52,6 +52,12 @@ class WorkplacesPage extends StatelessWidget {
           },
         ),
       ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () {
+          Modular.to.pushNamed('/workplace/edit/');
+        },
+        child: const Icon(Icons.add),
+      ),
     );
   }
 }

@@ -4,7 +4,7 @@ sealed class EmployeeProfileEvent extends Equatable {
   const EmployeeProfileEvent();
 
   @override
-  List<Object> get props => [];
+  List<Object?> get props => [];
 }
 
 class InitialEmployeeProfileEvent extends EmployeeProfileEvent {
@@ -165,7 +165,14 @@ class ChangeWorkplaceEvent extends EmployeeProfileEvent {
 
 class SaveWorkplaceEvent extends EmployeeProfileEvent {}
 
-class LoadingContractsEvent extends EmployeeProfileEvent {}
+class LoadingContractsEvent extends EmployeeProfileEvent {
+  final String? employeeId;
+
+  const LoadingContractsEvent({this.employeeId});
+
+  @override
+  List<Object?> get props => [employeeId];
+}
 
 class FinishedContractEvent extends EmployeeProfileEvent {
   final String finalDate;

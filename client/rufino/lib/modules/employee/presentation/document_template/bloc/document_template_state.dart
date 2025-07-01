@@ -11,6 +11,7 @@ class DocumentTemplateState extends Equatable {
   final List<RecoverDataType> recoverDataType;
   final List<TypeSignature> typeSignature;
   final bool hasFile;
+  final String recoverDataModels;
 
   const DocumentTemplateState({
     this.isLoading = false,
@@ -23,6 +24,7 @@ class DocumentTemplateState extends Equatable {
     this.typeSignature = const [],
     this.placeSignatures = const [],
     this.hasFile = false,
+    this.recoverDataModels = "{}",
   });
 
   DocumentTemplateState copyWith({
@@ -36,6 +38,7 @@ class DocumentTemplateState extends Equatable {
     List<RecoverDataType>? recoverDataType,
     List<TypeSignature>? typeSignature,
     bool? hasFile,
+    dynamic recoverDataModels,
   }) {
     return DocumentTemplateState(
       isLoading: isLoading ?? this.isLoading,
@@ -48,6 +51,7 @@ class DocumentTemplateState extends Equatable {
       typeSignature: typeSignature ?? this.typeSignature,
       placeSignatures: placeSignatures ?? this.placeSignatures,
       hasFile: hasFile ?? this.hasFile,
+      recoverDataModels: recoverDataModels ?? this.recoverDataModels,
     );
   }
 
@@ -63,5 +67,6 @@ class DocumentTemplateState extends Equatable {
         typeSignature.hashCode,
         placeSignatures.hashCode,
         hasFile,
+        recoverDataModels,
       ];
 }

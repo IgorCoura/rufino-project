@@ -27,7 +27,7 @@ class _InitialPageState extends State<InitialPage> {
       listener: (context, state) {
         switch (state.status) {
           case AuthStatus.unSelectedCompany:
-            Modular.to.navigate('/company/selection');
+            Modular.to.navigate('/company/');
           case AuthStatus.authenticated:
             Modular.to.navigate('/home/');
           case AuthStatus.unauthenticated:

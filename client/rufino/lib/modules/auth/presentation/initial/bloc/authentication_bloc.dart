@@ -31,6 +31,7 @@ class AuthenticationBloc
     try {
       emit(const AuthenticationState.unknown());
       await _authService.getCredentials();
+
       var hasCompanySeleted = await _companyService.hasCompanySeleted();
 
       if (hasCompanySeleted) {

@@ -105,14 +105,14 @@ if (context.Database.GetPendingMigrations().Any())
 // Configure the HTTP request pipeline.
 if (env != null && env.Equals("Development"))
 {
-    app.UseHangfireDashboard(options: new DashboardOptions
-    {
-        Authorization = new[] { new HangFireAuthorizationFilter() }
-    });
-    app.UseSwagger();
-    app.UseSwaggerUI();
-    var log = services.GetRequiredService<ILogger<Program>>();
-    await PopulateDb.Populate(context, log);
+    //app.UseHangfireDashboard(options: new DashboardOptions
+    //{
+    //    Authorization = new[] { new HangFireAuthorizationFilter() }
+    //});
+    //app.UseSwagger();
+    //app.UseSwaggerUI();
+    //var log = services.GetRequiredService<ILogger<Program>>();
+    //await PopulateDb.Populate(context, log);
 }
 
 

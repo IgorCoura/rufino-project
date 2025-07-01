@@ -19,7 +19,14 @@ class RecoversDataType extends EnumerationList<RecoverDataType> {
   }
 
   List<int> toJson() {
-    return list.map((e) => e.toInt()).toList();
+    var result = <int>[];
+    for (var e in list) {
+      if (e.toInt() == 0) {
+        continue; // Assuming 0 is the empty type
+      }
+      result.add(e.toInt());
+    }
+    return result;
   }
 
   bool get isEmpty {

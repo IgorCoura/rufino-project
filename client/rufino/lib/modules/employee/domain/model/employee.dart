@@ -63,8 +63,8 @@ class Employee extends Equatable {
       json["registration"],
       Status.fromJson(json["status"]),
       json["companyId"],
-      json["roleId"],
-      json["workplaceId"],
+      json["roleId"] ?? "",
+      json["workplaceId"] ?? "",
       DocumentSigningOptions.fromJson(json["documentSigningOptions"]),
     );
   }

@@ -31,6 +31,7 @@ class DocumentTemplateBloc
     on<SaveEvent>(_onSaveEvent);
     on<SendFileEvent>(_onSendFileEvent);
     on<DownLoadFileEvent>(_onDownLoadFileEvent);
+    on<LoadDataModelEvent>(_onLoadDataModelEvent);
   }
 
   void _onSnackMessageWasShow(
@@ -57,6 +58,7 @@ class DocumentTemplateBloc
         hasFile = await _documentTemplateService.hasFileInDocumentTemplate(
             company.id, documentTemplate.id);
       }
+      add(LoadDataModelEvent(true));
       emit(state.copyWith(
           isLoading: false,
           hasFile: hasFile,
@@ -209,6 +211,22 @@ class DocumentTemplateBloc
       final company = await _companyService.getSelectedCompany();
       _documentTemplateService.downloadFileToDocumentTemplate(
           company.id, state.documentTemplate.id, savePath);
+    } catch (ex, stacktrace) {
+      var exception = _documentTemplateService.treatErrors(ex, stacktrace);
+      emit(state.copyWith(isLoading: false, exception: exception));
+    }
+  }
+
+  Future _onLoadDataModelEvent(
+      LoadDataModelEvent event, Emitter<DocumentTemplateState> emit) async {
+    try {
+      if (event.isExpanded) {
+        final company = await _companyService.getSelectedCompany();
+        var recoverDataModels =
+            await _documentTemplateService.getRecoverDataModels(company.id);
+        emit(state.copyWith(
+            isLoading: false, recoverDataModels: recoverDataModels));
+      }
     } catch (ex, stacktrace) {
       var exception = _documentTemplateService.treatErrors(ex, stacktrace);
       emit(state.copyWith(isLoading: false, exception: exception));

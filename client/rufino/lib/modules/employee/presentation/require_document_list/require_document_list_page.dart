@@ -17,7 +17,7 @@ class RequireDocumentListPage extends StatelessWidget {
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () {
-            Modular.to.pop();
+            Modular.to.navigate('/employee');
           },
         ),
         title: const Text('Requerimentos de Documentos'),

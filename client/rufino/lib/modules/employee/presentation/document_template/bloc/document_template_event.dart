@@ -67,3 +67,11 @@ final class SendFileEvent extends DocumentTemplateEvent {
 final class DownLoadFileEvent extends DocumentTemplateEvent {
   const DownLoadFileEvent();
 }
+
+final class LoadDataModelEvent extends DocumentTemplateEvent {
+  final bool isExpanded;
+  const LoadDataModelEvent(this.isExpanded);
+
+  @override
+  List<Object> get props => [isExpanded];
+}

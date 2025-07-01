@@ -27,6 +27,38 @@ namespace PeopleManagement.Services.Services.RecoverInfoToDocument
 
             return result;
         }
+
+        public static JsonObject GetModel()
+        {
+            var risk = new JsonArray()
+                    {
+                        riskRadiacao, riskRuido, riskPoeirasMinerias, riskCargas, riskPe, riskPostura, riskBater, riskProjecao, riskQueda, riskChoque
+                    };
+            var epi = new JsonArray()
+                {
+                    "Protetor Solar",
+                    "Protetor auricular tipo plug de inserção",
+                    "Máscara PFF2",
+                    "Luva Tátil",
+                    "Calçado de Segurança",
+                    "Óculos de proteção",
+                    "Capacete de segurança",
+                    "Cinturão de segurança com talabarte e trava-queda",
+                    "Luva emborrachada"
+                };
+            var json = new JsonObject
+            {
+                ["PGR"] = new JsonObject
+                {
+                    ["risks"] = risk,
+                    ["epis"] = epi,
+                }
+            };
+
+            return json;
+        }
+
+
         private static JsonObject riskRadiacao => new JsonObject
         {
             ["name"] = "Radiação não ionizante",
