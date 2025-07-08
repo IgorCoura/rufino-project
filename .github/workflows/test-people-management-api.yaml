@@ -1,5 +1,5 @@
 
-name: Publish people-management-api
+name: Test People Management API
 
 on:
   workflow_dispatch:
