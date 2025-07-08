@@ -29,9 +29,10 @@ jobs:
       - name: Build and push
         uses: docker/build-push-action@v3
         with:
-          context: ./server/Services/PeopleManagement
+          context: ./server/Services/PeopleManagement/PeopleManagement.API
           file: ./server/Services/PeopleManagement/PeopleManagement.API/Dockerfile
           push: true
           # As tags devem incluir o endereço completo do registro
           # Substitua 'seu-repositorio' pelo nome do seu repositório no Magalu Cloud CR, se aplicável
           tags: container-registry.br-se1.magalu.cloud/rufino-project/people-management-api:latest
+
