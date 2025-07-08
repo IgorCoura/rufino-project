@@ -1,21 +1,22 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
-using PeopleManagement.Domain.AggregatesModel.DocumentTemplateAggregate;
-using PeopleManagement.Domain.AggregatesModel.DocumentTemplateAggregate.Interfaces;
+using Microsoft.Extensions.Logging;
 using PeopleManagement.Domain.AggregatesModel.DocumentAggregate;
 using PeopleManagement.Domain.AggregatesModel.DocumentAggregate.Interfaces;
+using PeopleManagement.Domain.AggregatesModel.DocumentTemplateAggregate;
+using PeopleManagement.Domain.AggregatesModel.DocumentTemplateAggregate.Interfaces;
+using PeopleManagement.Domain.AggregatesModel.DocumentTemplateAggregate.options;
+using PeopleManagement.Domain.AggregatesModel.EmployeeAggregate.Interfaces;
+using PeopleManagement.Domain.AggregatesModel.RequireDocumentsAggregate.Interfaces;
 using PeopleManagement.Domain.ErrorTools;
 using PeopleManagement.Domain.ErrorTools.ErrorsMessages;
-using Extension = PeopleManagement.Domain.AggregatesModel.DocumentAggregate.Extension;
-using PeopleManagement.Domain.AggregatesModel.DocumentTemplateAggregate.options;
-using PeopleManagement.Domain.AggregatesModel.RequireDocumentsAggregate.Interfaces;
-using PeopleManagement.Domain.AggregatesModel.EmployeeAggregate.Interfaces;
+using PeopleManagement.Domain.Utils;
+using System.Collections.Generic;
+using System.Text.Json.Nodes;
+using System.Threading;
 using Document = PeopleManagement.Domain.AggregatesModel.DocumentAggregate.Document;
 using Employee = PeopleManagement.Domain.AggregatesModel.EmployeeAggregate.Employee;
-using Microsoft.Extensions.Logging;
-using System.Threading;
-using System.Text.Json.Nodes;
-using PeopleManagement.Domain.Utils;
+using Extension = PeopleManagement.Domain.AggregatesModel.DocumentAggregate.Extension;
 
 namespace PeopleManagement.Services.Services
 {
@@ -62,7 +63,7 @@ namespace PeopleManagement.Services.Services
                     continue;
 
                 Document? document = await _documentRepository.FirstOrDefaultMemoryOrDatabase(x => x.EmployeeId == employeeId 
-                && x.CompanyId == companyId && x.RequiredDocumentId == requiedDocument.Id);
+                && x.CompanyId == companyId && x.RequiredDocumentId == requiedDocument.Id, include: i => i.Include(x => x.DocumentsUnits));
                
                 if(document is null)
                 {
@@ -99,13 +100,22 @@ namespace PeopleManagement.Services.Services
                     (TimeSpan)documentTemplate.Workload, cancellationToken);
 
             string? content = "";
+            var documentUnit = document.UpdateDocumentUnitDetails(documentUnitId, documentUnitDate, documentTemplate.DocumentValidityDuration,
+                content);
+
+            
             if(documentTemplate.TemplateFileInfo is not null)
             {
                 content = await RecoverInfoToDocument(
                     documentTemplate.TemplateFileInfo.RecoversDataType,
                     employeeId,
                     companyId,
-                    jsonObjects: [documentUnitDate.ToJsonObject()],
+                    jsonObjects: [
+                        new JsonObject{
+                            ["date"] = $"{documentUnitDate}",
+                            ["validity"] = $"{documentUnit.Validity}"
+                        },
+                        ],
                     cancellationToken: cancellationToken);
 
                 if (content == null)
@@ -115,8 +125,9 @@ namespace PeopleManagement.Services.Services
                 
             }
 
-            var documentUnit = document.UpdateDocumentUnitDetails(documentUnitId, documentUnitDate, documentTemplate.DocumentValidityDuration, 
+            documentUnit = document.UpdateDocumentUnitDetails(documentUnitId, documentUnitDate, documentTemplate.DocumentValidityDuration,
                 content);
+
             return documentUnit;
         }
 
@@ -171,13 +182,22 @@ namespace PeopleManagement.Services.Services
         {
             var objects  = new List<JsonObject>();
             if(jsonObjects != null)
-                objects.AddRange(jsonObjects);
+            {
+                var recoverDataService = GetServiceToRecoverData(RecoverDataType.ComplementaryInfo, _serviceProvider);
+                var jsonObject = await recoverDataService.RecoverInfo(employeeId, companyId, jsonObjects: jsonObjects, cancellation: cancellationToken);
+                objects.Add(jsonObject);
+            }
+                
             foreach (var recoverDataType in recoverDataTypes)
             {
                 try
                 {
+                    if(recoverDataType == RecoverDataType.ComplementaryInfo)
+                    {
+                        continue;
+                    }
                     var recoverDataService = GetServiceToRecoverData(recoverDataType, _serviceProvider);
-                    var jsonObject = await recoverDataService.RecoverInfo(employeeId, companyId, cancellationToken);
+                    var jsonObject = await recoverDataService.RecoverInfo(employeeId, companyId, cancellation: cancellationToken);
                     objects.Add(jsonObject);
                 }
                 catch(Exception ex)

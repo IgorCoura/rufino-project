@@ -5,13 +5,14 @@ using PeopleManagement.Domain.AggregatesModel.DepartmentAggregate;
 using PeopleManagement.Domain.AggregatesModel.PositionAggregate;
 using PeopleManagement.Domain.ErrorTools.ErrorsMessages;
 using PeopleManagement.Domain.ErrorTools;
+using PeopleManagement.Domain.Utils;
 
 namespace PeopleManagement.Services.Services.RecoverInfoToDocument
 {
     public class RecoverPGRInfoToDocumentTemplateService(IDepartmentRepository departmentRepository) : IRecoverPGRInfoToDocumentTemplateService
     {
         private readonly IDepartmentRepository _departmentRepository = departmentRepository;
-        public async Task<JsonObject> RecoverInfo(Guid employeeId, Guid companyId, CancellationToken cancellation = default)
+        public async Task<JsonObject> RecoverInfo(Guid employeeId, Guid companyId, JsonObject[]? jsonObjects = null, CancellationToken cancellation = default)
         {
             var department = await _departmentRepository.GetDepartmentFromEmployeeId(employeeId, companyId, cancellation)
                 ?? throw new DomainException(this, DomainErrors.ObjectNotFound(nameof(Department), employeeId.ToString()));
@@ -32,26 +33,18 @@ namespace PeopleManagement.Services.Services.RecoverInfoToDocument
         {
             var risk = new JsonArray()
                     {
-                        riskRadiacao, riskRuido, riskPoeirasMinerias, riskCargas, riskPe, riskPostura, riskBater, riskProjecao, riskQueda, riskChoque
+                        riskRadiacao.Clone(), riskRuido.Clone(), riskPoeirasMinerias.Clone(), riskCargas.Clone(), riskPe.Clone(), riskPostura.Clone(), 
+                        riskBater.Clone(), riskProjecao.Clone(), riskQueda.Clone(), riskChoque.Clone()
                     };
-            var epi = new JsonArray()
-                {
-                    "Protetor Solar",
-                    "Protetor auricular tipo plug de inserção",
-                    "Máscara PFF2",
-                    "Luva Tátil",
-                    "Calçado de Segurança",
-                    "Óculos de proteção",
-                    "Capacete de segurança",
-                    "Cinturão de segurança com talabarte e trava-queda",
-                    "Luva emborrachada"
-                };
+            var epis = GetEpis("ELETRICA");
+
+
             var json = new JsonObject
             {
                 ["PGR"] = new JsonObject
                 {
                     ["risks"] = risk,
-                    ["epis"] = epi,
+                    ["epis"] = epis,
                 }
             };
 
@@ -132,17 +125,19 @@ namespace PeopleManagement.Services.Services.RecoverInfoToDocument
         {
             var risksELetrica = new JsonArray()
             {
-                riskRadiacao, riskRuido, riskPoeirasMinerias, riskCargas, riskPe, riskPostura, riskBater, riskProjecao, riskQueda, riskChoque
+                riskRadiacao.Clone(), riskRuido.Clone(), riskPoeirasMinerias.Clone(), riskCargas.Clone(), riskPe.Clone(), riskPostura.Clone(), 
+                riskBater.Clone(), riskProjecao.Clone(), riskQueda.Clone(), riskChoque.Clone()
             };
 
             var risksHidraulica = new JsonArray()
             {
-                riskRadiacao, riskRuido, riskPoeirasMinerias, riskCargas, riskPe, riskPostura, riskBater, riskProjecao, riskQueda
+                riskRadiacao.Clone(), riskRuido.Clone(), riskPoeirasMinerias.Clone(), riskCargas.Clone(), riskPe.Clone(), riskPostura.Clone(), 
+                riskBater.Clone(), riskProjecao.Clone(), riskQueda.Clone()
             };
 
             var risksAdm = new JsonArray()
             {
-                riskRuido, riskPoeirasMinerias, riskCargas, riskPostura, riskBater
+                riskRuido.Clone(), riskPoeirasMinerias.Clone(), riskCargas.Clone(), riskPostura.Clone(), riskBater.Clone()
             };
 
             var risks = new Dictionary<string, dynamic>
@@ -163,48 +158,95 @@ namespace PeopleManagement.Services.Services.RecoverInfoToDocument
 
         }
 
-        private static dynamic GetEpis(string department)
+        private static JsonArray GetEpis(string department)
         {
+            var sunscreen = new JsonObject
+            {
+                ["name"] = "Protetor Solar"
+            };
+
+            var earPlug = new JsonObject
+            {
+                ["name"] = "Protetor auricular tipo plug de inserção"
+            };
+
+            var maskPFF2 = new JsonObject
+            {
+                ["name"] = "Máscara PFF2"
+            };
+
+            var tactileGlove = new JsonObject
+            {
+                ["name"] = "Luva Tátil"
+            };
+
+            var safetyShoes = new JsonObject
+            {
+                ["name"] = "Calçado de Segurança"
+            };
+
+            var safetyGlasses = new JsonObject
+            {
+                ["name"] = "Óculos de proteção"
+            };
+
+            var safetyHelmet = new JsonObject
+            {
+                ["name"] = "Capacete de segurança"
+            };
+
+            var safetyHarness = new JsonObject
+            {
+                ["name"] = "Cinturão de segurança com talabarte e trava-queda"
+            };
+
+            var rubberGlove = new JsonObject
+            {
+                ["name"] = "Luva emborrachada"
+            };
+
+
+
             var epis = new Dictionary<string, dynamic>
             {
                 {
                     "ELETRICA",
                     new JsonArray()
                 {
-                    "Protetor Solar",
-                    "Protetor auricular tipo plug de inserção",
-                    "Máscara PFF2",
-                    "Luva Tátil",
-                    "Calçado de Segurança",
-                    "Óculos de proteção",
-                    "Capacete de segurança",
-                    "Cinturão de segurança com talabarte e trava-queda",
-                    "Luva emborrachada"
+                    sunscreen.Clone(),
+                    earPlug.Clone(),
+                    maskPFF2.Clone(),
+                    tactileGlove.Clone(),
+                    safetyShoes.Clone(),
+                    safetyGlasses.Clone(),
+                    safetyHelmet.Clone(),
+                    safetyHarness.Clone(),
+                    rubberGlove.Clone()
                 }
                 },
                 {
                     "HIDRAULICA",
                     new JsonArray()
                 {
-                    "Protetor Solar",
-                    "Protetor auricular tipo plug de inserção",
-                    "Máscara PFF2",
-                    "Luva Tátil",
-                    "Calçado de Segurança",
-                    "Óculos de proteção",
-                    "Capacete de segurança",
-                    "Cinturão de segurança com talabarte e trava-queda"
+                    sunscreen.Clone(),
+                    earPlug.Clone(),
+                    maskPFF2.Clone(),
+                    tactileGlove.Clone(),
+                    safetyShoes.Clone(),
+                    safetyGlasses.Clone(),
+                    safetyHelmet.Clone(),
+                    safetyHarness.Clone(),
                 }
                 },
                 {
                     "ADMINISTRAÇÃO DE OBRA",
                     new JsonArray()
                 {
-                    "Protetor auricular tipo plug de inserção",
-                    "Máscara PFF2",
-                    "Luva Tátil",
-                    "Calçado de Segurança",
-                    "Capacete de segurança"
+                    earPlug.Clone(),
+                    maskPFF2.Clone(),
+                    tactileGlove.Clone(),
+                    safetyShoes.Clone(),
+                    safetyHelmet.Clone(),
                 }
                 }
             };

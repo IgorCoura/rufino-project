@@ -80,7 +80,13 @@ namespace PeopleManagement.Domain.AggregatesModel.DocumentAggregate
             return documentUnit;
         }
 
+        public DocumentUnit GetDocumentUnit(Guid documentUnitId)
+        {
+            var documentUnit = DocumentsUnits.FirstOrDefault(x => x.Id == documentUnitId)
+                ?? throw new DomainException(this, DomainErrors.ObjectNotFound(nameof(DocumentUnit), documentUnitId.ToString()));
 
+            return documentUnit;
+        }
         public void MarkAsAwaitingDocumentUnitSignature(Guid documentUnitId)
         {
             

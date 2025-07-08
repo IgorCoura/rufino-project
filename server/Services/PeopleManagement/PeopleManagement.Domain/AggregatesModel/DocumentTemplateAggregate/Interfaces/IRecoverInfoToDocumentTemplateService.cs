@@ -4,6 +4,6 @@ namespace PeopleManagement.Domain.AggregatesModel.DocumentTemplateAggregate.Inte
 {
     public interface IRecoverInfoToDocumentTemplateService
     {
-        Task<JsonObject> RecoverInfo(Guid employeeId, Guid companyId, CancellationToken cancellation = default);
+        Task<JsonObject> RecoverInfo(Guid employeeId, Guid companyId, JsonObject[]? jsonObjects = null, CancellationToken cancellation = default);
     }
 }

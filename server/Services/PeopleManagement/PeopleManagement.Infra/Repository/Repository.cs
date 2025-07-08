@@ -4,6 +4,7 @@ using PeopleManagement.Domain.SeedWord;
 using PeopleManagement.Infra.Context;
 using System.Linq;
 using System.Linq.Expressions;
+using static Microsoft.EntityFrameworkCore.DbLoggerCategory;
 
 namespace PeopleManagement.Infra.Repository
 {
@@ -33,10 +34,20 @@ namespace PeopleManagement.Infra.Repository
             return Task.CompletedTask;
         }
 
-        public async Task<T?> FirstOrDefaultMemoryOrDatabase(Func<T, bool> filter)
+        public async Task<T?> FirstOrDefaultMemoryOrDatabase(Func<T, bool> filter, Func<IQueryable<T>, IIncludableQueryable<T, object>>? include = null)
         {
             var result =  _context.Set<T>().Local.FirstOrDefault(filter);
-            result ??=  _context.Set<T>().FirstOrDefault(filter);
+
+            if(result is null)
+            {
+                var query = _context.Set<T>().AsQueryable();
+                if (include != null)
+                    query = include(query);
+
+                result ??= query.FirstOrDefault(filter);
+            }
+            
+
             return await Task.FromResult(result);
         }
 
