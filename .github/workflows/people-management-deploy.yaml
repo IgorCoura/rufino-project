@@ -50,7 +50,7 @@ jobs:
         run: dotnet test --no-build --verbosity normal --logger trx  ./server/Services/PeopleManagement/PeopleManagement.IntegrationTests/PeopleManagement.IntegrationTests.csproj
 
       - name: Upload Test Results Artifact
-              uses: actions/upload-artifact@v4
-              if: always()
-              with:
-                name: test-results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-results
