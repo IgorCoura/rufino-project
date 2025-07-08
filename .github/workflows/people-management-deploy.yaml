@@ -23,4 +23,4 @@ jobs:
         run: dotnet build --no-restore ./server/Services/PeopleManagement/PeopleManagement.IntegrationTests/PeopleManagement.IntegrationTests.csproj
   
       - name: Test
-        run: dotnet test --no-build --verbosity normal
+        run: dotnet test --no-build --verbosity normal ./server/Services/PeopleManagement/PeopleManagement.IntegrationTests/PeopleManagement.IntegrationTests.csproj
