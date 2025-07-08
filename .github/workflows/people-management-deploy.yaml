@@ -1,4 +1,4 @@
-name: Publish Docker image authenticate-api
+name: Publish people-management-api
 
 on:
   push:
