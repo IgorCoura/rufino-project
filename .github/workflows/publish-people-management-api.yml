@@ -29,7 +29,7 @@ jobs:
       - name: Build and push
         uses: docker/build-push-action@v3
         with:
-          context: ./server/Services/PeopleManagement/.
+          context: ./server/Services/PeopleManagement
           file: ./server/Services/PeopleManagement/PeopleManagement.API/Dockerfile
           push: true
           # As tags devem incluir o endereço completo do registro
