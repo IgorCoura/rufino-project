@@ -1,3 +1,4 @@
+
 name: Publish people-management-api
 
 on:
@@ -7,25 +8,22 @@ on:
     paths:
       - 'server/Services/PeopleManagement/**'
 
-
 jobs:
-  test:
+  build:
     runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      
-      - name: Setup .NET
-        uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: 8.0.x
-          
-      - name: Restore dependencies
-        run: dotnet restore ./server/Services/PeopleManagement/PeopleManagement.IntegrationTests/PeopleManagement.IntegrationTests.csproj
-
-      - name: Build
-        run: dotnet build --no-restore ./server/Services/PeopleManagement/PeopleManagement.IntegrationTests/PeopleManagement.IntegrationTests.csproj
-        
-      - name: Test
-        run: dotnet test --no-build --verbosity normal ./server/Services/PeopleManagement/PeopleManagement.IntegrationTests/PeopleManagement.IntegrationTests.csproj
-
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+  
+      - name: Restore dependencies
+        run: dotnet restore ./server/Services/PeopleManagement/PeopleManagement.IntegrationTests/PeopleManagement.IntegrationTests.csproj
+  
+      - name: Build
+        run: dotnet build --no-restore ./server/Services/PeopleManagement/PeopleManagement.IntegrationTests/PeopleManagement.IntegrationTests.csproj
+  
+      - name: Test
+        run: dotnet test --no-build --verbosity normal ./server/Services/PeopleManagement/PeopleManagement.IntegrationTests/PeopleManagement.IntegrationTests.csproj
 
