@@ -47,7 +47,7 @@ jobs:
         run: dotnet build --no-restore ./server/Services/PeopleManagement/PeopleManagement.IntegrationTests/PeopleManagement.IntegrationTests.csproj
   
       - name: Test
-        run: dotnet test --no-build --verbosity --logger trx  ./server/Services/PeopleManagement/PeopleManagement.IntegrationTests/PeopleManagement.IntegrationTests.csproj
+        run: dotnet test --no-build --verbosity normal --logger trx  ./server/Services/PeopleManagement/PeopleManagement.IntegrationTests/PeopleManagement.IntegrationTests.csproj
 
       - name: Upload Test Results Artifact
         uses: actions/upload-artifact@v4
