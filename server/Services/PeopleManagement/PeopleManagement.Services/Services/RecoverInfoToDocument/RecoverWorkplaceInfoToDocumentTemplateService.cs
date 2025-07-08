@@ -12,7 +12,7 @@ namespace PeopleManagement.Services.Services.RecoverInfoToDocument
     public class RecoverWorkplaceInfoToDocumentTemplateService(IWorkplaceRepository workplaceRepository) : IRecoverWorkplaceInfoToDocumentTemplateService
     {
         private readonly IWorkplaceRepository _workplaceRepository = workplaceRepository;
-        public async Task<JsonObject> RecoverInfo(Guid employeeId, Guid companyId, CancellationToken cancellation = default)
+        public async Task<JsonObject> RecoverInfo(Guid employeeId, Guid companyId, JsonObject[]? jsonObjects = null, CancellationToken cancellation = default)
         {
             var workplace = await _workplaceRepository.GetWorkplaceFromEmployeeId(employeeId, companyId, cancellation)
                 ?? throw new DomainException(this, DomainErrors.ObjectNotFound(nameof(Workplace), employeeId.ToString()!));

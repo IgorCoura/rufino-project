@@ -10,6 +10,7 @@ class RecoverDataType extends Enumeration {
     "5": "Dados da Cargo",
     "6": "Dados da Função",
     "7": "Dados da Local de Trabalho",
+    "8": "Dados Complementares",
   };
 
   RecoverDataType(String id, String name)

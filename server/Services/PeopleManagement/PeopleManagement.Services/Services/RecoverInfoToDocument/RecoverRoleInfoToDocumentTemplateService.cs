@@ -12,7 +12,7 @@ namespace PeopleManagement.Services.Services.RecoverInfoToDocument
     public class RecoverRoleInfoToDocumentTemplateService(IRoleRepository roleRepository) : IRecoverRoleInfoToDocumentTemplateService
     {
         private readonly IRoleRepository _roleRepository = roleRepository;
-        public async Task<JsonObject> RecoverInfo(Guid employeeId, Guid companyId, CancellationToken cancellation = default)
+        public async Task<JsonObject> RecoverInfo(Guid employeeId, Guid companyId, JsonObject[]? jsonObjects = null, CancellationToken cancellation = default)
         {
             var role = await _roleRepository.GetRoleFromEmployeeId(employeeId, companyId, cancellation)
                 ?? throw new DomainException(this, DomainErrors.ObjectNotFound(nameof(Role), employeeId.ToString()!));

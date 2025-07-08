@@ -34,13 +34,22 @@ namespace PeopleManagement.Domain.Utils
             return result;
         }
 
-        public static JsonObject ToJsonObject(this DateOnly date)
+        public static JsonObject ToJsonObject(this DateOnly? date)
         {
+            if(date == null)
+            {
+                return new JsonObject
+                {
+                    ["date"] = null
+                };
+            }
             return new JsonObject
             {
-                ["date"] = $"{date.ToString("dd/MM/yyyy")}"
+                ["date"] = $"{date}"
             };
         }
+
+
 
         public static JsonObject Clone(this JsonObject original)
         {

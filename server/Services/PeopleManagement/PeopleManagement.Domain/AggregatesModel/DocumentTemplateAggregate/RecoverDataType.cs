@@ -12,6 +12,7 @@ namespace PeopleManagement.Domain.AggregatesModel.DocumentTemplateAggregate
         public static readonly RecoverDataType Position = new(5, nameof(Position), "Position", typeof(IRecoverPositionInfoToDocumentTemplateService));
         public static readonly RecoverDataType Role = new(6, nameof(Role), "Role", typeof(IRecoverRoleInfoToDocumentTemplateService));
         public static readonly RecoverDataType Workplace = new(7, nameof(Workplace), "Workplace", typeof(IRecoverWorkplaceInfoToDocumentTemplateService));
+        public static readonly RecoverDataType ComplementaryInfo = new(8, nameof(ComplementaryInfo), "ComplementaryInfo", typeof(IRecoverComplementaryInfoToDocumentTemplateService));
 
         public string TemplateName { get; private set; } = null!;
         public Type Type { get; private set; } = null!;

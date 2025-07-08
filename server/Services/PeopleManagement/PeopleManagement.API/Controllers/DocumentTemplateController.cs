@@ -143,6 +143,7 @@ namespace PeopleManagement.API.Controllers
             objects.Add(RecoverPositionInfoToDocumentTemplateService.GetModel());
             objects.Add(RecoverRoleInfoToDocumentTemplateService.GetModel());
             objects.Add(RecoverWorkplaceInfoToDocumentTemplateService.GetModel());
+            objects.Add(RecoverComplementaryInfoToDocumentTemplateService.GetModel());
      
 
             return OkResponse(objects);

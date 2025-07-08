@@ -15,7 +15,7 @@ namespace PeopleManagement.Services.Services.RecoverInfoToDocument
     public class RecoverCompanyInfoToDocumentTemplateService(ICompanyRepository companyRepository) : IRecoverCompanyInfoToDocumentTemplateService
     {
         private readonly ICompanyRepository _companyRepository = companyRepository;
-        public async Task<JsonObject> RecoverInfo(Guid employeeId, Guid companyId, CancellationToken cancellation = default)
+        public async Task<JsonObject> RecoverInfo(Guid employeeId, Guid companyId, JsonObject[]? jsonObjects = null, CancellationToken cancellation = default)
         {
             var company = await _companyRepository.FirstOrDefaultAsync(x => x.Id == companyId, cancellation: cancellation)
                ?? throw new DomainException(this, DomainErrors.ObjectNotFound(nameof(Company), companyId.ToString()));
@@ -97,5 +97,7 @@ namespace PeopleManagement.Services.Services.RecoverInfoToDocument
                 ["Phone"] = contact.Phone
             };
         }
+
+      
     }
 }

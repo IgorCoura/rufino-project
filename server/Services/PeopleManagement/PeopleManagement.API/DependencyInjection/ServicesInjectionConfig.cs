@@ -22,6 +22,7 @@ namespace PeopleManagement.API.DependencyInjection
             service.AddScoped<IRecoverPositionInfoToDocumentTemplateService, RecoverPositionInfoToDocumentTemplateService>();
             service.AddScoped<IRecoverRoleInfoToDocumentTemplateService, RecoverRoleInfoToDocumentTemplateService>();
             service.AddScoped<IRecoverWorkplaceInfoToDocumentTemplateService, RecoverWorkplaceInfoToDocumentTemplateService>();
+            service.AddScoped<IRecoverComplementaryInfoToDocumentTemplateService, RecoverComplementaryInfoToDocumentTemplateService>();
 
             service.AddScoped<IArchiveService, ArchiveService>();
             service.AddScoped<ICompleteAdmissionService, CompleteAdmissionService>();

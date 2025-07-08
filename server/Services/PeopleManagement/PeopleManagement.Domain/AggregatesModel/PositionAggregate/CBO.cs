@@ -30,6 +30,8 @@ namespace PeopleManagement.Domain.AggregatesModel.PositionAggregate
                 _value = value;
             }
         }
+
+        
         private CBO(string value)
         {
             Value = value;
@@ -38,10 +40,12 @@ namespace PeopleManagement.Domain.AggregatesModel.PositionAggregate
         public static implicit operator CBO(string value) =>
             new(value);
 
+        
+
         protected override IEnumerable<object?> GetEqualityComponents()
         {
             yield return Value;
         }
-
+        public override string ToString() => Value;
     }
 }
