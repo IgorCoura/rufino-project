@@ -6,7 +6,6 @@ on:
     paths:
       - 'server/Services/PeopleManagement/PeopleManagement.API/**'
   pull_request:
-    types: [closed]
     branches: [ "main" ]
     paths:
       - 'server/Services/PeopleManagement/PeopleManagement.API/**'
