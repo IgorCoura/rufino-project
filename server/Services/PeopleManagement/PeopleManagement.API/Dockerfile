@@ -58,7 +58,7 @@ ENV PUPPETEER_EXECUTABLE_PATH "/usr/bin/google-chrome-unstable"
 
 FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
 WORKDIR /src
-COPY ["./PeopleManagement.API/PeopleManagement.API.csproj", "."]
+COPY ["PeopleManagement.API.csproj", "."]
 RUN dotnet restore "./PeopleManagement.API.csproj"
 COPY . .
 WORKDIR "/src/."
