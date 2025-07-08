@@ -1,0 +1,325 @@
+﻿<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>Default</title>
+    <!--Style A4-->
+    <!--https://www.smashingmagazine.com/2015/01/designing-for-print-with-css/-->
+    <link rel="stylesheet" href="styles/style.css">
+</head>
+<body>
+    <div class="main">
+        <div class="header">
+            <div>ORDEM DE SERVIÇO</div>
+            <div>{{empresa}}</div>
+        </div>
+        <div class="body">
+            <div class="table-data">
+                <div class="table-data-title">Empregado</div>
+                <div class="table-data-content">
+                    <div class="table-data-content-line">
+                        <div class="table-data-content-line-title">
+                            Nome:
+                        </div>
+                        <div class="table-data-content-line-text">
+                            {{nome}}
+                        </div>
+                    </div>
+                    <div class="table-data-content-line">
+                        <div class="table-data-content-line-inline" style="flex:1">
+                            <div class="table-data-content-line-title">
+                                CPF:
+                            </div>
+                            <div class="table-data-content-line-text">
+                                {{cpf}}
+                            </div>
+                        </div>
+                        <div class="table-data-content-line-inline" style="flex:1">
+                            <div class="table-data-content-line-title">
+                                Nº Identidade: 
+                            </div>
+                            <div class="table-data-content-line-text">
+                                {{rg}}
+                            </div>
+                        </div>   
+                        <div class="table-data-content-line-inline" style="flex:1">
+                            <div class="table-data-content-line-title">
+                                Matricula: 
+                            </div>
+                            <div class="table-data-content-line-text">
+                                {{matricula}}
+                            </div>
+                        </div>                                            
+                    </div>
+                    <div class="table-data-content-line">
+                        <div class="table-data-content-line-inline" style="flex:1">
+                            <div class="table-data-content-line-title">
+                                Setor: 
+                            </div>
+                            <div class="table-data-content-line-text">
+                                {{setor}}
+                            </div>
+                        </div>
+                        <div class="table-data-content-line-inline" style="flex:1">
+                            <div class="table-data-content-line-title">
+                                Cargo:
+                            </div>
+                            <div class="table-data-content-line-text">
+                                {{cargo}}
+                            </div>
+                        </div>
+                        <div class="table-data-content-line-inline" style="flex:1">
+                            <div class="table-data-content-line-title">
+                                CBO:
+                            </div>
+                            <div class="table-data-content-line-text">
+                                {{cbo}}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="table-data">
+                <div class="table-data-title">Descrição da atividade</div>
+                <div class="table-data-content">
+                    {{descricao}}
+                </div>
+            </div>
+            <div class="table-data">
+                <div class="table-data-title">Objetivo</div>
+                <div class="table-data-content">
+                    A ordem de serviço é um documento exigido pelo Ministério do Trabalho e Emprego e tem como objetivo a prevenção de
+                    acidentes através da antecipação e reconhecimento dos riscos inerentes as atividades relacionadas a função a ser exercida
+                </div>
+            </div>
+            <div class="table-data">
+                <div class="table-data-title">Obrigações</div>
+                <div class="table-data-content">
+                    1. É obrigatório o uso dos EPI's e EPC's conforme riscos associados. 
+                    <br>2. É obrigatório o empregado responsabilizar-se pela guarda e conservação dos EPI's fornecidos, comunicando ao
+                    empregador qualquer alteração que o torne impróprio para o uso e cumprir as determinações da empresa sobre o uso
+                    adequado.
+                    <br>3. Cumprir as disposições legais e regulamentares sobre saúde e segurança do trabalho.
+                    <br>4. Executar as atividades mediante a aplicação da APR (Análise Preliminar de Riscos ) e PT ( Permissão de trabalho ). 
+                </div>
+            </div>
+            <div class="table-data">
+                <div class="table-data-title">Proibições</div>
+                <div class="table-data-content">
+                    1. É proibido o uso de adornos (pulseiras, correntes, alianças, pierces); 
+                    <br>2. É proibido fumar em local de trabalho ou nas dependências da empresa; 
+                    <br>3. É proibido iniciar as atividades sem emissão da APR e PT; 
+                    <br>4. É proibido transitar pela obra sem capacete, calçado apropriado e uniforme; 
+                    <br>5. É proibido portar ou consumir bebidas alcoólicas ou qualquer outro tipo de entorpecentes durante o horário de trabalho; 
+                    <br>6. É proibido o transporte de ferramentas manuais nos bolsos. Utilize sempre bolsas porta - ferramentas e/ou cintos apropriados; 
+                    <br>7. É proibido ligar máquinas e equipamentos que não seja por intermédio de conjunto plugue e tomada.
+                </div>
+            </div>
+            <div class="table-data">
+                <div class="table-data-title">Punições</div>
+                <div class="table-data-content">
+                    1. O não cumprimento ao disposto nesta Ordem de Serviço constitui ato faltoso, sujeito à punições como advertência,
+                    suspenção ou até dispensa por justa causa previsto nas formas da Lei 6.514, capítulo V seção l, art. 158 da CLT;
+                    <br>2. Na perda ou danos dos EPI's por uso indevido será passivo de medidas administrativas.
+                </div>
+            </div>
+            <div class="table-data">
+                <div class="table-data-title">Procedimentos em Caso de Emergências: Acidentes</div>
+                <div class="table-data-content">
+                    1. Comunicar o superior imediato.
+                    <br>2. Acionar o Resgate 193, SAMU 192
+                    <br>3. Prestar Primeiros Socorros SOMENTE se for apto (treinado e certificado) para este procedimento.
+                    <br>4. Comunicar imediatamente a área de Segurança do Trabalho e à Supervisão.
+                </div>
+            </div>
+            <div class="table-data">
+                <div class="table-data-title">Procedimentos em Caso de Emergências: Incêndio</div>
+                <div class="table-data-content">
+                    1. Comunicar o superior imediato.
+                    <br>2. Seguir as orientações do superior e/ou brigadistas local.
+                    <br>3. Se houver Bombeiro local comunicar de imediato.
+                    <br>4. Seguir sinalização de Rota de Fuga.
+                    <br>5. Seguir Plano de Emergência local.
+                    <br>6. Acionar Corpo de Bombeiro 193.
+                </div>
+            </div>
+            <div class="table-data">
+                <div class="table-data-title">ASO - Atestado de Saúde Ocupacional</div>
+                <div class="table-data-content">
+                    Para exercer a função descrita nesta OS o colaborador deverá estar apto e com seu ASO com validade máxima de 01 ano,
+                    de acordo com PCMSO da Empresa , bem como os demais exames complementares.
+                </div>
+            </div>
+            <div class="table-data">
+                <div class="table-data-title">Direito de Recusa</div>
+                <div class="table-data-content">
+                    No decorrer da atividade se for identificado risco não previsto nesta OS, paralisar o trabalho imediatamente e comunicar a
+                    supervisão. Qual deverá providenciar as ações preventivas necessárias NR 1 Portaria MTP nº 4.219 de 20 de dezembro de
+                    2022 Item 1.4.3: O trabalhador poderá interromper suas atividades quando constatar uma situação de trabalho onde, a seu
+                    ver, envolva um risco grave e iminente para a sua vida e saúde, informando imediatamente ao seu superior hierárquico.
+                </div>
+            </div>
+            <div class="table-data">
+                <div class="table-data-title">IDENTIFICAÇÃO DOS RISCOS AMBIENTAIS</div>
+                <div class="table-data-content">
+                    <div class="table-data-content-line">
+                        <div class="table-data-content-line-title">
+                            Radiação não ionizante:
+                        </div>
+                    </div>
+                    <div class="table-data-content-line">
+                        <div class="table-data-content-line-text">
+                            - Fonte: Trabalho a céu aberto.
+                            <br>- Medidas administrativas: Existência de abrigos, capazes de proteger os trabalhadores contra
+                            intempéries climáticos.                            
+                        </div>
+                    </div>
+                    <div class="table-data-content-line">
+                        <div class="table-data-content-line-title">
+                            Ruído:
+                        </div>
+                    </div>
+                    <div class="table-data-content-line">
+                        <div class="table-data-content-line-text">
+                            - Fonte: Máquinas da Obra.
+                            <br>- Medidas administrativas: Treinamento de integração, fornecimento de EPI.                        
+                        </div>
+                    </div>
+                    <div class="table-data-content-line">
+                        <div class="table-data-content-line-title">
+                            Poeiras Minerias:
+                        </div>
+                    </div>
+                    <div class="table-data-content-line">
+                        <div class="table-data-content-line-text">
+                            - Fonte: Ambiente de Obra.
+                            <br>- Medidas administrativas: Procedimentos, orientações e treinamento para a execução do trabalho.                          
+                        </div>
+                    </div>
+                    <div class="table-data-content-line">
+                        <div class="table-data-content-line-title">
+                            Levantamento e transporte manual de cargas e volumes:
+                        </div>
+                    </div>
+                    <div class="table-data-content-line">
+                        <div class="table-data-content-line-text">
+                            - Fonte: Movimentação de materias.
+                            <br>- Medidas administrativas: Ginástica Laboral, treinamento Ergonômico e DDS.
+                        </div>
+                    </div>
+                    <div class="table-data-content-line">
+                        <div class="table-data-content-line-title">
+                            Postura de pé por longos períodos:
+                        </div>
+                    </div>
+                    <div class="table-data-content-line">
+                        <div class="table-data-content-line-text">
+                            - Fonte: Processos de Trabalho.
+                            <br>- Medidas administrativas: Ginástica Laboral, treinamento Ergonômico e DDS.
+                        </div>
+                    </div>
+                    <div class="table-data-content-line">
+                        <div class="table-data-content-line-title">
+                            Postura inadequada:
+                        </div>
+                    </div>
+                    <div class="table-data-content-line">
+                        <div class="table-data-content-line-text">
+                            - Fonte: Processos de Trabalho.
+                            <br>- Medidas administrativas: Ginástica Laboral, treinamento Ergonômico e DDS.
+                        </div>
+                    </div>
+                    <div class="table-data-content-line">
+                        <div class="table-data-content-line-title">
+                            Bater Contra:
+                        </div>
+                    </div>
+                    <div class="table-data-content-line">
+                        <div class="table-data-content-line-text">
+                            - Fonte: Ambiente de Obra, Mobiliário e Equipamentos.
+                            <br>- Medidas administrativas: Manter o ambiente de trabalho organizado, evitando colocar objetos e
+                            mobiliário nas áreas de circulação de pessoas.
+                        </div>
+                    </div>
+                    <div class="table-data-content-line">
+                        <div class="table-data-content-line-title">
+                            Choque elétrico:
+                        </div>
+                    </div>
+                    <div class="table-data-content-line">
+                        <div class="table-data-content-line-text">
+                            - Fonte: Processos de Trabalho.
+                            <br>- Medidas administrativas: Procedimentos, orientações, treinamento e competência para a execução do trabalho. Fornecimento de EPI.
+                        </div>
+                    </div>
+                    <div class="table-data-content-line">
+                        <div class="table-data-content-line-title">
+                            Projeção de partículas:
+                        </div>
+                    </div>
+                    <div class="table-data-content-line">
+                        <div class="table-data-content-line-text">
+                            - Fonte: Ambiente de Obra.
+                            <br>- Medidas administrativas: Procedimentos, orientações, treinamento e competência para a execução do
+                            trabalho, fornecimento de EPI.                            
+                        </div>
+                    </div>
+                    <div class="table-data-content-line">
+                        <div class="table-data-content-line-title">
+                            Queda de diferença de nível maior que dois metros:
+                        </div>
+                    </div>
+                    <div class="table-data-content-line">
+                        <div class="table-data-content-line-text">
+                            - Fonte: Trabalho realizado em altura.
+                            <br>- Medidas administrativas: Treinamento de Trabalho em Altura NR-35 e fornecimento de EPIs.
+                            Realização de exames específicos conforme o PCMSO.                     
+                        </div>
+                    </div>   
+                </div>     
+            </div>
+            <div class="table-data">
+                <div class="table-data-title">EQUIPAMENTOS DE PROTEÇÃO INDIVIDUAL (EPI)</div>
+                <div class="table-data-content">
+                    - Protetor Solar.
+                    <br>- Protetor auricular tipo plug de inserção.
+                    <br>- Máscara PFF2.
+                    <br>- Luva Tátil.
+                    <br>- Calçado de Segurança.
+                    <br>- Óculos de proteção.
+                    <br>- Capacete de segurança.
+                    <br>- Cinturão de segurança com talabarte e trava-queda.
+                    <br>- Luva emborrachada.
+                </div>
+            </div>
+            <div class="table-data">
+                <div class="table-data-title">DECLARAÇÃO DO TRABALHADOR EXECUTANTE DA OPERAÇÃO/ATIVIDADE</div>
+                <div class="table-data-content">
+                    Declaro ter recebido informações, orientações e uma cópia desta <span>ORDEM DE SERVIÇO DE SEGURANÇA E MEDICINA DO TRABALHO</span>, de acordo com a NR01 aprovada pela portaria nº3.214/78, para permitir um trabalho seguro nas atividades da função acima mencionada. Assim com <span>DECLARO</span>, estar ciente que a não obediência das normas estabelecidas neste <span>PROCEDIMENTO</span>, estarei sujeito a penalidades disciplinares, conforme regulamento interno da Empresa e <span>NORMAS REGULAMENTADORAS</span>
+                </div>
+            </div>
+            <div class="date">Suzano, {{data}}</div>
+            <div class="signature-body">
+                <div>
+                    <div class="signature-local">
+                        <img style="height:25mm; float: start; visibility: visible;" src="img\assinatura_jamildo.png" class="assinatura"> <!-- adicionado a classe .assinatura -->
+                    </div>
+                    <div class="signature-info">
+                        {{empresa}}
+                    </div>
+                </div>
+                <div>
+                    <div class="signature-local"></div>
+                    <div class="signature-info">
+                        {{nome}}
+                    </div>
+                </div>
+            </div>
+            
+        </div>
+    </div>
+</body>
+    
+</html>
+
