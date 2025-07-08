@@ -47,5 +47,24 @@ jobs:
         run: dotnet build --no-restore ./server/Services/PeopleManagement/PeopleManagement.IntegrationTests/PeopleManagement.IntegrationTests.csproj
   
       - name: Test
-        run: dotnet test --no-build --verbosity diagnostic  ./server/Services/PeopleManagement/PeopleManagement.IntegrationTests/PeopleManagement.IntegrationTests.csproj
+        run: dotnet test --no-build --verbosity --logger trx  ./server/Services/PeopleManagement/PeopleManagement.IntegrationTests/PeopleManagement.IntegrationTests.csproj
+
+      - name: Upload Test Results Artifact
+        uses: actions/upload-artifact@v4
+        if: always() # Garante que o artefato seja enviado mesmo se os testes falharem
+        with:
+          name: test-results
+          path: ./server/Services/PeopleManagement/PeopleManagement.IntegrationTests/TestResults/*.trx
+      
+      - name: Publish Test Results to GitHub
+        uses: dorny/test-reporter@v1
+        if: always() # Publica o relatório mesmo se houver falhas
+        with:
+          name: .NET Tests
+          path: ./server/Services/PeopleManagement/PeopleManagement.IntegrationTests/TestResults/*.trx
+          reporter: dotnet-trx
+          # Opcional: mostrar apenas os testes falhos na summary
+          # show-failed-tests-only: true 
+          # Opcional: mostrar a saída de console dos testes (útil para debug)
+          # show-test-output: true 
 
