@@ -1,0 +1,19 @@
+apiVersion: networking.k8s.io/v1  # Versão da API de rede usada para definir Ingress
+kind: Ingress                     # Define que este recurso é um Ingress
+metadata:
+  name: keycloak                  # Nome do Ingress que será criado
+spec:
+  tls:
+    - hosts:
+        - keycloak.example.com    # Domínio que será protegido por TLS (HTTPS)
+  rules:                          # Regras de roteamento HTTP
+    - host: keycloak.example.com  # Define o host ao qual essa regra se aplica
+      http:
+        paths:
+          - path: /               # Todos os caminhos iniciando com "/" serão capturados
+            pathType: Prefix      # Tipo de correspondência: prefixo do caminho
+            backend:              # Define o backend para onde o tráfego será enviado
+              service:
+                name: keycloak    # Nome do Service dentro do cluster (porta 8080)
+                port:
+                  number: 8080
