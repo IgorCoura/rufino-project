@@ -1,5 +1,6 @@
 using EntityFramework.Exceptions.PostgreSQL;
 using Hangfire;
+using Hangfire.Dashboard;
 using Hangfire.PostgreSql;
 using Microsoft.EntityFrameworkCore;
 using PeopleManagement.API.Authentication;
@@ -10,9 +11,9 @@ using PeopleManagement.Application.Commands;
 using PeopleManagement.Infra.Context;
 using PeopleManagement.Infra.DataForTests;
 using PeopleManagement.Services.DomainEventHandlers;
+using PeopleManagement.Services.HangfireJobRegistrar;
 using System.Diagnostics;
 using System.Text.Json.Serialization;
-using PeopleManagement.Services.HangfireJobRegistrar;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -105,15 +106,22 @@ if (context.Database.GetPendingMigrations().Any())
 // Configure the HTTP request pipeline.
 if (env != null && env.Equals("Development"))
 {
+    
+    var log = services.GetRequiredService<ILogger<Program>>();
+    await PopulateDb.Populate(context, log);
+
     app.UseHangfireDashboard(options: new DashboardOptions
     {
         Authorization = new[] { new HangFireAuthorizationFilter() }
     });
-    app.UseSwagger();
-    app.UseSwaggerUI();
-    var log = services.GetRequiredService<ILogger<Program>>();
-    await PopulateDb.Populate(context, log);
 }
+
+
+
+
+app.UseSwagger();
+app.UseSwaggerUI();
+
 
 
 var jobScheduler = scope.ServiceProvider.GetRequiredService<HangfireJobRegister>();
