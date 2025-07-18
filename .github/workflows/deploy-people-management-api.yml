@@ -46,5 +46,5 @@ jobs:
           resourceGroup: RufinoGroup
           containerAppName: people-management-api
           environmentVariables: |
-            HASH_VERSION: ${{github.sha}}
+            HASH_VERSION=${{github.sha}}
 
