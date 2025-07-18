@@ -31,10 +31,6 @@ class CompanySelectionBloc
         Modular.to.navigate('/company/create');
         return;
       }
-      if (companies.length == 1) {
-        await _companyService.selectCompany(companies.first);
-        emit(state.copyWith(hasSelectedCompany: true));
-      }
       emit(state.copyWith(
           companies: companies,
           selectedCompany: companies.first.id,

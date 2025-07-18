@@ -18,7 +18,7 @@ class CorporateNameProp extends Equatable {
     if (value == null || value.isEmpty) {
       return "Não pode ser vazio.";
     }
-    var regex = RegExp(r"^[a-zA-ZÀ-ÿ']+(?: [a-zA-ZÀ-ÿ']+)+$");
+    var regex = RegExp(r"^[a-zA-ZÀ-ÿ'_\\/-]+(?: [a-zA-ZÀ-ÿ'_\\/-]+)+$");
     if (regex.hasMatch(value) == false) {
       return "Formato invalido.";
     }
