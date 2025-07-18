@@ -40,7 +40,7 @@ jobs:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
       - name: Deploy to Azure Container Apps
-        uses: azure/container-apps-deploy-action@v1
+        uses: azure/container-apps-deploy-action@v2
         with:
           imageToDeploy: container-registry.br-se1.magalu.cloud/rufino-project/people-management-api:latest
           resourceGroup: RufinoGroup
