@@ -35,6 +35,7 @@ services:
     ports:
         - 8042:5432
 
+
   blob-azure-storage:
     image: mcr.microsoft.com/azure-storage/azurite:3.34.0
     container_name: blob-azure-storage
@@ -64,6 +65,7 @@ services:
     ports:
       - 8082:8082
       - 8080:8080
+      - 9000:9000
     depends_on:
       - keycloak.db
                     
