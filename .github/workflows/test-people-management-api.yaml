@@ -1,0 +1,57 @@
+
+name: Test People Management API
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ "main" ]
+    paths:
+      - 'server/Services/PeopleManagement/**'
+
+jobs:
+  test-unit:
+    runs-on: ubuntu-latest
+    env:
+      ASPNETCORE_ENVIRONMENT: Test
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+  
+      - name: Restore dependencies
+        run: dotnet restore ./server/Services/PeopleManagement/PeopleManagement.UnitTests/PeopleManagement.UnitTests.csproj
+  
+      - name: Build
+        run: dotnet build --no-restore ./server/Services/PeopleManagement/PeopleManagement.UnitTests/PeopleManagement.UnitTests.csproj
+  
+      - name: Test
+        run: dotnet test --no-build --verbosity diagnostic  ./server/Services/PeopleManagement/PeopleManagement.UnitTests/PeopleManagement.UnitTests.csproj
+  
+  test:
+    runs-on: ubuntu-latest
+    env:
+      ASPNETCORE_ENVIRONMENT: Test
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+  
+      - name: Restore dependencies
+        run: dotnet restore ./server/Services/PeopleManagement/PeopleManagement.IntegrationTests/PeopleManagement.IntegrationTests.csproj
+  
+      - name: Build
+        run: dotnet build --no-restore ./server/Services/PeopleManagement/PeopleManagement.IntegrationTests/PeopleManagement.IntegrationTests.csproj
+  
+      - name: Test
+        run: dotnet test --no-build --verbosity normal --logger trx  ./server/Services/PeopleManagement/PeopleManagement.IntegrationTests/PeopleManagement.IntegrationTests.csproj
+
+      - name: Upload Test Results Artifact
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-results
+          path: ./server/Services/PeopleManagement/PeopleManagement.IntegrationTests/TestResults/*.trx

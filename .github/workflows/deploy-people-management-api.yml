@@ -1,0 +1,48 @@
+name: Deploy People Management API
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ "main" ]
+    paths:
+      - 'server/Services/PeopleManagement/**'
+          
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Login to Magalu Cloud Container Registry
+        uses: docker/login-action@v3
+        with:
+          # O endereço do seu Container Registry da Magalu Cloud
+          registry: container-registry.br-se1.magalu.cloud
+          # Use os segredos do GitHub para suas credenciais do Magalu Cloud CR
+          username: ${{ secrets.MAGALU_CR_USERNAME }}
+          password: ${{ secrets.MAGALU_CR_PASSWORD }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: ./server
+          file: ./server/Services/PeopleManagement/PeopleManagement.API/Dockerfile
+          push: true
+          tags: container-registry.br-se1.magalu.cloud/rufino-project/people-management-api:latest
+
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Deploy to Azure Container Apps
+        uses: azure/container-apps-deploy-action@v1
+        with:
+          imageToDeploy: container-registry.br-se1.magalu.cloud/rufino-project/people-management-api:latest
+          resourceGroup: RufinoGroup
+          containerAppName: people-management-api
+
