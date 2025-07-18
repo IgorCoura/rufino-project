@@ -1,12 +1,7 @@
 name: Publish Docker image api-gateway
 
 on:
-  push:
-    branches: [ "main" ]
-    paths:
-      - 'back-end/api-gateway/**'
-  pull_request:
-    branches: [ "main" ]
+   workflow_dispatch:
           
 jobs:
   build:
