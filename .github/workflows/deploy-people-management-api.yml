@@ -46,15 +46,15 @@ jobs:
           resourceGroup: RufinoGroup
           containerAppName: people-management-api
           environmentVariables: |
-            ConnectionStrings__Postgresql = ${{CONNECTION_STRING_POSTGRESQL}}
-            ConnectionStrings__HangfireConnection = ${{CONNECTION_STRING_HANGFIRECONNECTION}}
+            ConnectionStrings__Postgresql = ${{secrets.CONNECTION_STRING_POSTGRESQL}}
+            ConnectionStrings__HangfireConnection = ${{secrets.CONNECTION_STRING_HANGFIRECONNECTION}}
             ASPNETCORE_ENVIRONMENT = Production
             PUPPETEER_EXECUTABLE_PATH = /usr/bin/google-chrome-unstable
-            Keycloak__realm = ${{KEYCLOAK_REALM}}
-            Keycloak__AuthServerUrl = ${{KEYCLOAK_AUTHSERVERURL}}
+            Keycloak__realm = ${{variables.KEYCLOAK_REALM}}
+            Keycloak__AuthServerUrl = ${{variables.KEYCLOAK_AUTHSERVERURL}}
             Keycloak__SslRequired = "none"
-            Keycloak__Resource = ${{KEYCLOAK_RESOURCE}}
+            Keycloak__Resource = ${{variables.KEYCLOAK_RESOURCE}}
             Keycloak__VerifyTokenAudience = true
-            Keycloak__Credentials__secret = ${{KEYCLOAK__CREDENTIALS__SECRET}}
+            Keycloak__Credentials__secret = ${{secrets.KEYCLOAK__CREDENTIALS__SECRET}}
             VERSION_HASH = ${{github.sha}}
 
