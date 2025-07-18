@@ -45,4 +45,6 @@ jobs:
           imageToDeploy: container-registry.br-se1.magalu.cloud/rufino-project/people-management-api:latest
           resourceGroup: RufinoGroup
           containerAppName: people-management-api
+          environmentVariables: |
+            HASH_VERSION: ${{github.sha}}
 
