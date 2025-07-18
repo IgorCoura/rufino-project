@@ -32,7 +32,7 @@ jobs:
           context: ./server
           file: ./server/Services/PeopleManagement/PeopleManagement.API/Dockerfile
           push: true
-          tags: container-registry.br-se1.magalu.cloud/rufino-project/people-management-api:${{github.sha}}
+          tags: container-registry.br-se1.magalu.cloud/rufino-project/people-management-api:latest
 
       - name: Azure Login
         uses: azure/login@v2
@@ -42,7 +42,7 @@ jobs:
       - name: Deploy to Azure Container Apps
         uses: azure/container-apps-deploy-action@v1
         with:
-          imageToDeploy: container-registry.br-se1.magalu.cloud/rufino-project/people-management-api:${{github.sha}}
+          imageToDeploy: container-registry.br-se1.magalu.cloud/rufino-project/people-management-api:latest
           resourceGroup: RufinoGroup
           containerAppName: people-management-api
 
