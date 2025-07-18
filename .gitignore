@@ -10,6 +10,10 @@ utils/CombinePDFs/output/
 
 server/data/*
 
+client/rufino/secrets/*
+server/Services/PeopleManagement/PeopleManagement.API/appsettings.json
+server/Services/PeopleManagement/PeopleManagement.API/appsettings.Development.json
+
 
 # Created by https://www.toptal.com/developers/gitignore/api/csharp,dotnetcore,aspnetcore
 # Edit at https://www.toptal.com/developers/gitignore?templates=csharp,dotnetcore,aspnetcore
