@@ -10,7 +10,7 @@ namespace PeopleManagement.API.Controllers
         [HttpGet]
         public IActionResult GetTest()
         {
-            return Ok("It's ok.");
+            return Ok("It's ok. v1");
         }
 
         [HttpGet("auth")]
