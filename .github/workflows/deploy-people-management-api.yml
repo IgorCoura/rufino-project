@@ -42,7 +42,8 @@ jobs:
       - name: Deploy to Azure Container Apps
         uses: azure/container-apps-deploy-action@v1
         with:
-          imageToBuild: rufino-project/people-management-api:latest
+          imageToDeploy: container-registry.br-se1.magalu.cloud/rufino-project/people-management-api:latest
           resourceGroup: RufinoGroup
           containerAppName: people-management-api
+          TargetLabel: ${{github.sha}}
 
