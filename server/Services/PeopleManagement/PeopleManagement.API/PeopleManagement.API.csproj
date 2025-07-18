@@ -5,7 +5,6 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <UserSecretsId>People-Management-Api-1d8757db-36cf-4318-a310-61b681d9ca7f</UserSecretsId>
     <DockerDefaultTargetOS>Linux</DockerDefaultTargetOS>
-    <DockerfileContext>..\..\..</DockerfileContext>
     <DockerComposeProjectPath>..\..\..\docker-compose.dcproj</DockerComposeProjectPath>
   </PropertyGroup>
   <ItemGroup>
