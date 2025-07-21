@@ -45,6 +45,6 @@ jobs:
           imageToDeploy: container-registry.br-se1.magalu.cloud/rufino-project/people-management-api:latest
           resourceGroup: RufinoGroup
           containerAppName: people-management-api
-          environmentVariables: "ConnectionStrings__Postgresql=conection.ConnectionStringsostgresqlConnection" "ConnectionStrings__HangfireConnection=conection.ConnectionStringsHangfireConnection" "ASPNETCORE_ENVIRONMENT=Production"
+          environmentVariables: ConnectionStrings__Postgresql=conection.ConnectionStringsostgresqlConnection ConnectionStrings__HangfireConnection=conection.ConnectionStringsHangfireConnection ASPNETCORE_ENVIRONMENT=Production
 
 
