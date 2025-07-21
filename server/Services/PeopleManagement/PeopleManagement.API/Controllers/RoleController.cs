@@ -55,7 +55,7 @@ namespace PeopleManagement.API.Controllers
         }
 
         [HttpGet("paymentUnit")]
-        [ProtectedResource("employee", "view")]
+        [ProtectedResource("role", "view")]
         public ActionResult<IEnumerable<PaymentUnit>> GetPaymentUnit([FromRoute] Guid company)
         {
             var result = Enumeration.GetAll<PaymentUnit>();
@@ -63,8 +63,8 @@ namespace PeopleManagement.API.Controllers
         }
 
         [HttpGet("currencyType")]
-        [ProtectedResource("employee", "view")]
-        public ActionResult<IEnumerable<CurrencyType>> GetCurrencyTypee([FromRoute] Guid company)
+        [ProtectedResource("role", "view")]
+        public ActionResult<IEnumerable<CurrencyType>> GetCurrencyType([FromRoute] Guid company)
         {
             var result = Enumeration.GetAll<CurrencyType>();
             return OkResponse(result);
