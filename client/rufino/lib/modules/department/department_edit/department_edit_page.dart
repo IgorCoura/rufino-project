@@ -77,6 +77,7 @@ class DepartmentEditPage extends StatelessWidget {
                             labelText: 'Descrição',
                             border: OutlineInputBorder(),
                           ),
+                          maxLines: 10,
                           onSaved: (value) => bloc.add(
                             ChangePropEvent(value: Description(value!)),
                           ),

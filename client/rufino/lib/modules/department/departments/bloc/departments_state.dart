@@ -6,7 +6,7 @@ class DepartmentsState extends Equatable {
   final List<Department> department;
 
   const DepartmentsState({
-    this.isLoading = false,
+    this.isLoading = true,
     this.exception,
     this.department = const [],
   });

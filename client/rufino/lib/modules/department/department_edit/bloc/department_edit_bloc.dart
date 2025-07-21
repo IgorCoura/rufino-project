@@ -66,8 +66,7 @@ class DepartmentEditBloc
       }
 
       emit(state.copyWith(
-          isSavingData: false,
-          snackMessage: "Departamento salva com sucesso!"));
+          isSavingData: false, snackMessage: "Setor salvo com sucesso!"));
     } catch (ex, stacktrace) {
       var exception = _companyService.treatErrors(ex, stacktrace);
       emit(state.copyWith(isSavingData: false, exception: exception));
