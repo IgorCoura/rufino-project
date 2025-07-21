@@ -26,13 +26,13 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      # - name: Build and push
-      #   uses: docker/build-push-action@v6
-      #   with:
-      #     context: ./server
-      #     file: ./server/Services/PeopleManagement/PeopleManagement.API/Dockerfile
-      #     push: true
-      #     tags: container-registry.br-se1.magalu.cloud/rufino-project/people-management-api:latest
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: ./server
+          file: ./server/Services/PeopleManagement/PeopleManagement.API/Dockerfile
+          push: true
+          tags: container-registry.br-se1.magalu.cloud/rufino-project/people-management-api:latest
 
       - name: Azure Login
         uses: azure/login@v2
