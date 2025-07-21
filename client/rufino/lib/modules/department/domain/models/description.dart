@@ -12,8 +12,8 @@ class Description extends Equatable {
       return "Não pode ser vazio.";
     }
 
-    if (value.length > 500) {
-      return "Não pode ser maior que 500 caracteres.";
+    if (value.length > 2000) {
+      return "Não pode ser maior que 2000 caracteres.";
     }
     return null;
   }
@@ -34,8 +34,8 @@ class SecundaryDescription extends Equatable {
       return "Não pode ser vazio.";
     }
 
-    if (value.length > 500) {
-      return "Não pode ser maior que 500 caracteres.";
+    if (value.length > 2000) {
+      return "Não pode ser maior que 2000 caracteres.";
     }
     return null;
   }
