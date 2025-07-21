@@ -45,6 +45,6 @@ jobs:
           imageToDeploy: container-registry.br-se1.magalu.cloud/rufino-project/people-management-api:latest
           resourceGroup: RufinoGroup
           containerAppName: people-management-api
-          environmentVariables: ConnectionStrings__Postgresql=conection.ConnectionStringsostgresqlConnection ConnectionStrings__HangfireConnection=conection.ConnectionStringsHangfireConnection ASPNETCORE_ENVIRONMENT=Production PUPPETEER_EXECUTABLE_PATH=/usr/bin/google-chrome-unstable Keycloak__realm=${{env.KEYCLOAK_REALM}} Keycloak__AuthServerUrl=${{env.KEYCLOAK_AUTHSERVERURL}} Keycloak__SslRequired=none Keycloak__Resource=${{env.KEYCLOAK_RESOURCE}} Keycloak__VerifyTokenAudience=true Keycloak__Credentials__secret=${{secrets.KEYCLOAK__CREDENTIALS__SECRET}} VERSION_HASH=${{github.sha}}
+          environmentVariables: ConnectionStrings__Postgresql=conection.ConnectionStringsostgresqlConnection ConnectionStrings__HangfireConnection=conection.ConnectionStringsHangfireConnection ASPNETCORE_ENVIRONMENT=Production PUPPETEER_EXECUTABLE_PATH=/usr/bin/google-chrome-unstable Keycloak__realm=${{vars.KEYCLOAK_REALM}} Keycloak__AuthServerUrl=${{vars.KEYCLOAK_AUTHSERVERURL}} Keycloak__SslRequired=none Keycloak__Resource=${{vars.KEYCLOAK_RESOURCE}} Keycloak__VerifyTokenAudience=true Keycloak__Credentials__secret=${{secrets.KEYCLOAK__CREDENTIALS__SECRET}} VERSION_HASH=${{github.sha}}
 
 
