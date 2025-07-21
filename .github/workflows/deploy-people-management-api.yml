@@ -26,13 +26,13 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Build and push
-        uses: docker/build-push-action@v6
-        with:
-          context: ./server
-          file: ./server/Services/PeopleManagement/PeopleManagement.API/Dockerfile
-          push: true
-          tags: container-registry.br-se1.magalu.cloud/rufino-project/people-management-api:latest
+      # - name: Build and push
+      #   uses: docker/build-push-action@v6
+      #   with:
+      #     context: ./server
+      #     file: ./server/Services/PeopleManagement/PeopleManagement.API/Dockerfile
+      #     push: true
+      #     tags: container-registry.br-se1.magalu.cloud/rufino-project/people-management-api:latest
 
       - name: Azure Login
         uses: azure/login@v2
@@ -45,6 +45,6 @@ jobs:
           imageToDeploy: container-registry.br-se1.magalu.cloud/rufino-project/people-management-api:latest
           resourceGroup: RufinoGroup
           containerAppName: people-management-api
-          environmentVariables: ConnectionStrings__Postgresql=conection.ConnectionStringsostgresqlConnection ConnectionStrings__HangfireConnection=conection.ConnectionStringsHangfireConnection ASPNETCORE_ENVIRONMENT=Production PUPPETEER_EXECUTABLE_PATH=/usr/bin/google-chrome-unstable Keycloak__realm=${{vars.KEYCLOAK_REALM}} Keycloak__AuthServerUrl=${{vars.KEYCLOAK_AUTHSERVERURL}} Keycloak__SslRequired=none Keycloak__Resource=${{vars.KEYCLOAK_RESOURCE}} Keycloak__VerifyTokenAudience=true Keycloak__Credentials__secret=${{secrets.KEYCLOAK__CREDENTIALS__SECRET}} VERSION_HASH=${{github.sha}}
+          environmentVariables: ConnectionStrings__Postgresql=conection.ConnectionStringsostgresqlConnection ConnectionStrings__HangfireConnection=${{secrets.CONNECTION_STRING_HANGFIRECONNECTION}} ASPNETCORE_ENVIRONMENT=Production PUPPETEER_EXECUTABLE_PATH=/usr/bin/google-chrome-unstable Keycloak__realm=${{vars.KEYCLOAK_REALM}} Keycloak__AuthServerUrl=${{vars.KEYCLOAK_AUTHSERVERURL}} Keycloak__SslRequired=none Keycloak__Resource=${{vars.KEYCLOAK_RESOURCE}} Keycloak__VerifyTokenAudience=true Keycloak__Credentials__secret=${{secrets.KEYCLOAK__CREDENTIALS__SECRET}} VERSION_HASH=${{github.sha}}
 
 
