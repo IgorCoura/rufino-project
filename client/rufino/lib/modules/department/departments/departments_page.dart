@@ -8,6 +8,13 @@ class DepartmentsPage extends StatelessWidget {
   final _bloc = Modular.get<DepartmentsBloc>();
   DepartmentsPage({super.key}) {
     _bloc.add(LoadEvent());
+
+    // Adiciona um listener para atualizar quando a navegação para '/department/' ocorrer
+    Modular.to.addListener(() {
+      if (Modular.to.path == '/department/') {
+        _bloc.add(LoadEvent());
+      }
+    });
   }
 
   @override
@@ -29,6 +36,12 @@ class DepartmentsPage extends StatelessWidget {
             if (state.exception != null) {
               ErrorComponent.showException(
                   context, state.exception!, () => Modular.to.navigate("/"));
+            }
+            if (state.isLoading) {
+              return const CircularProgressIndicator();
+            }
+            if (state.department.isEmpty) {
+              return const Text("Nenhum setor cadastrado.");
             }
             return ListView(
                 children: state.department
@@ -86,8 +99,16 @@ class DepartmentsPage extends StatelessWidget {
           )
         ],
       ),
-      title: Text(title),
-      subtitle: Text(description),
+      title: Text(
+        title,
+        style: TextStyle(
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+      subtitle: Text(
+        description,
+        style: TextStyle(fontSize: 12),
+      ),
       children: children,
     );
   }
@@ -123,8 +144,16 @@ class DepartmentsPage extends StatelessWidget {
               )
             ],
           ),
-          title: Text(title),
-          subtitle: Text(description),
+          title: Text(
+            title,
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          subtitle: Text(
+            description,
+            style: TextStyle(fontSize: 12),
+          ),
           children: children,
         ),
       ),
@@ -134,8 +163,16 @@ class DepartmentsPage extends StatelessWidget {
   Widget _roleWidget(
       String id, String positionId, String title, String description) {
     return ListTile(
-      title: Text(title),
-      subtitle: Text(description),
+      title: Text(
+        title,
+        style: TextStyle(
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+      subtitle: Text(
+        description,
+        style: TextStyle(fontSize: 12),
+      ),
       onTap: () {
         Modular.to.pushNamed('/department/role/edit/$positionId/$id');
       },
