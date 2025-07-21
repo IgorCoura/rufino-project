@@ -3,6 +3,9 @@ using PeopleManagement.Application.Commands.Identified;
 using PeopleManagement.Application.Commands.RoleCommands.CreateRole;
 using PeopleManagement.Application.Commands.RoleCommands.EditRole;
 using PeopleManagement.Application.Queries.Role;
+using PeopleManagement.Domain.AggregatesModel.EmployeeAggregate;
+using PeopleManagement.Domain.AggregatesModel.RoleAggregate;
+using PeopleManagement.Domain.SeedWord;
 using static PeopleManagement.Application.Queries.Role.RoleDtos;
 
 namespace PeopleManagement.API.Controllers
@@ -48,6 +51,22 @@ namespace PeopleManagement.API.Controllers
         public async Task<ActionResult<RoleDto>> GetAllSimpleRoles([FromRoute] Guid company, [FromRoute] Guid positionId)
         {
             var result = await roleQueries.GetAllSimpleRoles(positionId, company);
+            return OkResponse(result);
+        }
+
+        [HttpGet("paymentUnit")]
+        [ProtectedResource("employee", "view")]
+        public ActionResult<IEnumerable<PaymentUnit>> GetPaymentUnit([FromRoute] Guid company)
+        {
+            var result = Enumeration.GetAll<PaymentUnit>();
+            return OkResponse(result);
+        }
+
+        [HttpGet("currencyType")]
+        [ProtectedResource("employee", "view")]
+        public ActionResult<IEnumerable<CurrencyType>> GetCurrencyTypee([FromRoute] Guid company)
+        {
+            var result = Enumeration.GetAll<CurrencyType>();
             return OkResponse(result);
         }
     }
