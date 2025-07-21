@@ -5,7 +5,7 @@ namespace PeopleManagement.Domain.AggregatesModel.RoleAggregate
 {
     public class Description : ValueObject
     {
-        public const int MAX_LENGTH = 500;
+        public const int MAX_LENGTH = 2000;
 
         private string _value = string.Empty;
 
