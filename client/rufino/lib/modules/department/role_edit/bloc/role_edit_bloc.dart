@@ -25,9 +25,16 @@ class RoleEditBloc extends Bloc<RoleEditEvent, RoleEditState> {
       InitializeEvent event, Emitter<RoleEditState> emit) async {
     try {
       emit(state.copyWith(isLoading: true, positionId: event.departmentId));
+      final company = await _companyService.getSelectedCompany();
+      final salaryType = await _roleService.getSalaryType(company.id);
+      final PaymentUnit = await _roleService.getPaymentUnit(company.id);
+
+      emit(state.copyWith(
+        paymentUnits: PaymentUnit,
+        salaryTypes: salaryType,
+      ));
 
       if (event.id != null && event.id!.isNotEmpty) {
-        final company = await _companyService.getSelectedCompany();
         final model = await _roleService.getById(company.id, event.id!);
         emit(state.copyWith(role: model));
       } else {

@@ -7,16 +7,8 @@ class RoleEditState extends Equatable {
   final String? snackMessage;
   final Role role;
   final String positionId;
-  final List<PaymentUnit> paymentUnits = const [
-    PaymentUnit("1", ""),
-    PaymentUnit("2", ""),
-    PaymentUnit("3", ""),
-  ];
-  final List<SalaryType> salaryTypes = const [
-    SalaryType("1", "BRL"),
-    SalaryType("2", "USD"),
-    SalaryType("3", "EUR"),
-  ];
+  final List<PaymentUnit> paymentUnits;
+  final List<SalaryType> salaryTypes;
 
   const RoleEditState({
     this.isSavingData = false,
@@ -25,6 +17,8 @@ class RoleEditState extends Equatable {
     this.snackMessage,
     this.role = const Role.empty(),
     this.positionId = "",
+    this.paymentUnits = const [],
+    this.salaryTypes = const [],
   });
 
   RoleEditState copyWith({
@@ -34,6 +28,8 @@ class RoleEditState extends Equatable {
     String? snackMessage,
     Role? role,
     String? positionId,
+    List<PaymentUnit>? paymentUnits,
+    List<SalaryType>? salaryTypes,
   }) {
     return RoleEditState(
       isSavingData: isSavingData ?? this.isSavingData,
@@ -42,6 +38,8 @@ class RoleEditState extends Equatable {
       snackMessage: snackMessage ?? this.snackMessage,
       role: role ?? this.role,
       positionId: positionId ?? this.positionId,
+      paymentUnits: paymentUnits ?? this.paymentUnits,
+      salaryTypes: salaryTypes ?? this.salaryTypes,
     );
   }
 
@@ -53,5 +51,7 @@ class RoleEditState extends Equatable {
         snackMessage,
         role,
         positionId,
+        paymentUnits,
+        salaryTypes,
       ];
 }
