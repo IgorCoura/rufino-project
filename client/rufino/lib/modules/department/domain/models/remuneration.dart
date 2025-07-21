@@ -99,6 +99,10 @@ class PaymentUnit extends Equatable {
     );
   }
 
+  static List<PaymentUnit> fromJsonList(List<dynamic> jsonList) {
+    return jsonList.map((json) => PaymentUnit.fromJson(json)).toList();
+  }
+
   Map<String, dynamic> toJson() {
     return {
       'id': id,
@@ -179,6 +183,10 @@ class SalaryType extends Equatable {
       (json['id']).toString(),
       json['name'] as String,
     );
+  }
+
+  static List<SalaryType> fromJsonList(List<dynamic> jsonList) {
+    return jsonList.map((json) => SalaryType.fromJson(json)).toList();
   }
 
   Map<String, dynamic> toJson() {
