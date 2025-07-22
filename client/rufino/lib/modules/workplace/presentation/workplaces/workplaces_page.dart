@@ -8,6 +8,12 @@ class WorkplacesPage extends StatelessWidget {
   final bloc = Modular.get<WorkplaceBloc>();
   WorkplacesPage({super.key}) {
     bloc.add(WorkplaceLoadEvent());
+
+    Modular.to.addListener(() {
+      if (Modular.to.path == '/workplace/') {
+        bloc.add(WorkplaceLoadEvent());
+      }
+    });
   }
 
   @override
@@ -29,6 +35,12 @@ class WorkplacesPage extends StatelessWidget {
             if (state.exception != null) {
               ErrorComponent.showException(
                   context, state.exception!, () => Modular.to.navigate("/"));
+            }
+            if (state.isLoading) {
+              return const CircularProgressIndicator();
+            }
+            if (state.workplace.isEmpty) {
+              return const Text("Nenhum local de trabalho cadastrado.");
             }
             return ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 1000),
