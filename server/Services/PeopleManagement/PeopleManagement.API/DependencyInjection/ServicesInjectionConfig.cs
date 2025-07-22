@@ -8,6 +8,7 @@ using PeopleManagement.Domain.AggregatesModel.ArchiveCategoryAggregate.Interface
 using PeopleManagement.Services.HangfireJobRegistrar;
 using PeopleManagement.Domain.AggregatesModel.RequireDocumentsAggregate.Interfaces;
 using PeopleManagement.Services.Services.RecoverInfoToDocument;
+using PeopleManagement.Domain.Options;
 
 namespace PeopleManagement.API.DependencyInjection
 {
@@ -34,12 +35,16 @@ namespace PeopleManagement.API.DependencyInjection
             service.AddScoped<IRecurringDocumentService, RecurringDocumentService>();
 
             var documentTemplatesOptions = new DocumentTemplatesOptions();
-            configuration.Bind(DocumentTemplatesOptions.ConfigurationSection, documentTemplatesOptions);
+            configuration.GetSection(DocumentTemplatesOptions.ConfigurationSection).Bind(documentTemplatesOptions);
             service.AddSingleton(documentTemplatesOptions);
 
             var documentOptions = new DocumentOptions();
-            configuration.Bind(DocumentOptions.ConfigurationSection, documentOptions);
+            configuration.GetSection(DocumentOptions.ConfigurationSection).Bind(documentOptions);
             service.AddSingleton(documentOptions);
+
+            var localStorageOptions = new LocalStorageOptions();
+            configuration.GetSection(LocalStorageOptions.ConfigurationSection).Bind(localStorageOptions);
+            service.AddSingleton(localStorageOptions);
 
             return service;
         }

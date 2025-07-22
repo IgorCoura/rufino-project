@@ -6,12 +6,14 @@ using PuppeteerSharp.Media;
 using System.Text.Json.Nodes;
 using Microsoft.EntityFrameworkCore.Metadata;
 using Microsoft.Extensions.Logging;
+using PeopleManagement.Domain.Options;
 
 namespace PeopleManagement.Infra.Services
 {
-    public class PdfService(DocumentTemplatesOptions documentTemplatesOptions, ILogger<PdfService> logger) : IPdfService
+    public class PdfService(LocalStorageOptions localStorageOptions,DocumentTemplatesOptions documentTemplatesOptions, ILogger<PdfService> logger) : IPdfService
     {
         private readonly DocumentTemplatesOptions _documentTemplatesOptions = documentTemplatesOptions;
+        private readonly LocalStorageOptions _localStorageOptions = localStorageOptions;
         private readonly ILogger<PdfService> _logger = logger;
 
         public async Task<byte[]> ConvertHtml2Pdf(TemplateFileInfo template, string values, CancellationToken cancellationToken = default)
@@ -21,7 +23,7 @@ namespace PeopleManagement.Infra.Services
             var jsonValues = JsonValue.Parse(values);
 
             //Path
-            var currentDirectory = Directory.GetCurrentDirectory();
+            var currentDirectory = localStorageOptions.RootPath;
             var templateDirectory = Path.Combine(currentDirectory, _documentTemplatesOptions.SourceDirectory, template.Directory.ToString());;
             var headerPath = Path.Combine(templateDirectory, template.HeaderFileName.ToString());
             var footerPath = Path.Combine(templateDirectory, template.FooterFileName.ToString());

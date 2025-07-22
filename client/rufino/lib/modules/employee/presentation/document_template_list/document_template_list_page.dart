@@ -8,6 +8,12 @@ class DocumentTemplateListPage extends StatelessWidget {
   final bloc = Modular.get<DocumentTemplateListBloc>();
   DocumentTemplateListPage({super.key}) {
     bloc.add(const InitialEvent());
+
+    Modular.to.addListener(() {
+      if (Modular.to.path == '/employee/document-template/') {
+        bloc.add(InitialEvent());
+      }
+    });
   }
 
   @override
@@ -43,8 +49,18 @@ class DocumentTemplateListPage extends StatelessWidget {
                             children: state.documentTemplateList
                                 .map((element) => ListTile(
                                       leading: const Icon(Icons.edit_document),
-                                      title: Text(element.name),
-                                      subtitle: Text(element.description),
+                                      title: Text(
+                                        element.name,
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                      subtitle: Text(
+                                        element.description,
+                                        style: const TextStyle(
+                                          fontSize: 12,
+                                        ),
+                                      ),
                                       onTap: () {
                                         Modular.to.pushNamed(
                                           'document-template/${element.id}',
