@@ -4,6 +4,7 @@ using PeopleManagement.Application.Commands.DocumentTemplateCommands.InsertDocum
 using PeopleManagement.Domain.AggregatesModel.CompanyAggregate;
 using PeopleManagement.Domain.AggregatesModel.DocumentTemplateAggregate;
 using PeopleManagement.Domain.AggregatesModel.DocumentTemplateAggregate.options;
+using PeopleManagement.Domain.Options;
 using PeopleManagement.IntegrationTests.Configs;
 using PeopleManagement.IntegrationTests.Data;
 using System.Net;
@@ -86,9 +87,10 @@ namespace PeopleManagement.IntegrationTests.Tests
             var result = await context.DocumentTemplates.AsNoTracking().FirstOrDefaultAsync(x => x.Id == contentResponse.Id) ?? throw new ArgumentNullException();
 
             using var scope = _factory.Services.CreateScope();
+            var localStorageOptions = scope.ServiceProvider.GetRequiredService<LocalStorageOptions>();
             var options = scope.ServiceProvider.GetRequiredService<DocumentTemplatesOptions>();
 
-            var documentTemplatePath = Path.Combine(options.SourceDirectory, result.TemplateFileInfo!.Directory.ToString());
+            var documentTemplatePath = Path.Combine(localStorageOptions.RootPath, options.SourceDirectory, result.TemplateFileInfo!.Directory.ToString());
             Assert.True(Directory.Exists(documentTemplatePath));
 
             var bodyFilePath = Path.Combine(documentTemplatePath, result.TemplateFileInfo.BodyFileName.ToString());
