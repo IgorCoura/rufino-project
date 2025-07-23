@@ -8,6 +8,12 @@ class RequireDocumentListPage extends StatelessWidget {
   final RequireDocumentListBloc bloc = Modular.get<RequireDocumentListBloc>();
   RequireDocumentListPage({super.key}) {
     bloc.add(const InitialEvent());
+
+    Modular.to.addListener(() {
+      if (Modular.to.path == '/employee/require-documents/') {
+        bloc.add(const InitialEvent());
+      }
+    });
   }
 
   @override
