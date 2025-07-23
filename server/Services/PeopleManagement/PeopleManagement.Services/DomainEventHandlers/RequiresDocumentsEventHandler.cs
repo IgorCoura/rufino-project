@@ -35,37 +35,40 @@ namespace PeopleManagement.Services.DomainEventHandlers
 
             await RemoveUnnecessaryDocuments(notification, cancellationToken);
 
-            RequireDocuments? requiresDocuments = await _requireDocumentsRepository.FirstOrDefaultAsync(x => 
+            var requiresDocuments = (await _requireDocumentsRepository.GetDataAsync(x => 
                 x.AssociationId == notification.AssociationId && x.CompanyId == notification.CompanyId,
-                cancellation: cancellationToken);
+                cancellation: cancellationToken)).ToList();
 
-            if (requiresDocuments is null)
+            if (requiresDocuments.Count <= 0)
             {
                 _logger.LogWarning("No required documents found for association {AssociationId} in company {CompanyId}.",
                     notification.AssociationId, notification.CompanyId);
                 return;
             }
 
-            foreach (var templateId in requiresDocuments.DocumentsTemplatesIds)
+            foreach(var requireDocument in requiresDocuments)
             {
-                Document? document = await _documentRepository.FirstOrDefaultAsync(x => x.DocumentTemplateId == templateId, cancellation: cancellationToken);
-
-                if (document is not null)
-                    continue;
-
-                DocumentTemplate? documentTemplate = await _documentTemplateRepository.FirstOrDefaultAsync(x => 
-                x.Id == templateId && x.CompanyId == notification.CompanyId, cancellation: cancellationToken);
-
-                if(documentTemplate is null)
+                foreach (var templateId in requireDocument.DocumentsTemplatesIds)
                 {
-                    _logger.LogError("Document template with ID {TemplateId} not found for company {CompanyId}.",
-                        templateId, notification.CompanyId);
-                    continue;
-                }
+                    Document? document = await _documentRepository.FirstOrDefaultAsync(x => x.DocumentTemplateId == templateId, cancellation: cancellationToken);
 
-                var documentId = Guid.NewGuid();
-                document = Document.Create(documentId, notification.EmployeeId, notification.CompanyId, requiresDocuments.Id, templateId, documentTemplate.Name.Value, documentTemplate.Description.Value);
-                await _documentRepository.InsertAsync(document, cancellationToken);
+                    if (document is not null)
+                        continue;
+
+                    DocumentTemplate? documentTemplate = await _documentTemplateRepository.FirstOrDefaultAsync(x =>
+                    x.Id == templateId && x.CompanyId == notification.CompanyId, cancellation: cancellationToken);
+
+                    if (documentTemplate is null)
+                    {
+                        _logger.LogError("Document template with ID {TemplateId} not found for company {CompanyId}.",
+                            templateId, notification.CompanyId);
+                        continue;
+                    }
+
+                    var documentId = Guid.NewGuid();
+                    document = Document.Create(documentId, notification.EmployeeId, notification.CompanyId, requireDocument.Id, templateId, documentTemplate.Name.Value, documentTemplate.Description.Value);
+                    await _documentRepository.InsertAsync(document, cancellationToken);
+                }
             }
         }
 

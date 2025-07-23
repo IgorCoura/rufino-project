@@ -65,7 +65,7 @@ namespace PeopleManagement.Infra.DataForTests
         {
             var comapnies = new[] {
                 Company.Create(
-                    Guid.Parse("665cdd0d-392c-47f7-b13c-de9b3be48a94"),
+                    Guid.Parse("0f0bea88-cc0e-482b-b89a-e10999f8cb5e"),
                     "Anderson e Fátima Entulhos ME",
                     "Anderson e Fátima Entulhos",
                     "83.559.705/0001-70",
@@ -81,7 +81,7 @@ namespace PeopleManagement.Infra.DataForTests
                         "Brasil"
                     ) ),
                 Company.Create(
-                    Guid.Parse("47985f1b-b005-4686-9d1d-8fd25c671928"),
+                    Guid.Parse("a9a93d5d-0985-4b80-9377-ad59f06d2a95"),
                     "Laura e Maya Mudanças Ltda",
                     "Laura e Maya Mudanças",
                     "78.718.423/0001-39",
@@ -240,7 +240,7 @@ namespace PeopleManagement.Infra.DataForTests
                         "brasileira",
                         DateOnly.Parse("1993-07-23")
                         ),
-                    VoteId.Create("113377750140"),
+                    VoteId.Create("163053550736"),
                     MedicalAdmissionExam.Create(DateOnly.Parse("2024-08-30"), DateOnly.Parse("2025-08-30")),
                     militaryDocument: null,
                     "TC0001",
