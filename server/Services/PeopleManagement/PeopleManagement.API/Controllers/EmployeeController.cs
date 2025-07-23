@@ -110,7 +110,7 @@ namespace PeopleManagement.API.Controllers
             return OkResponse(result);
         }
 
-        [HttpPut("MilitarDocument")]
+        [HttpPut("MilitaryDocument")]
         [ProtectedResource("employee", "edit")]
         public async Task<ActionResult<AlterMilitarDocumentEmployeeResponse>> AlterMilitarDocument([FromRoute] Guid company,
             [FromBody] AlterMilitarDocumentEmployeeModel request, [FromHeader(Name = "x-requestid")] Guid requestId)
