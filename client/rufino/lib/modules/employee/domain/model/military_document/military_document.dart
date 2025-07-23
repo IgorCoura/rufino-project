@@ -57,8 +57,8 @@ class MilitaryDocument extends ModelBase {
   Map<String, dynamic> toJson(String employeeId) {
     return {
       "employeeId": employeeId,
-      "number": number.value,
-      "type": type.value,
+      "documentNumber": number.value,
+      "documentType": type.value,
     };
   }
 

@@ -393,20 +393,26 @@ class EmployeeProfileBloc
 
   Future _onSaveMilitaryDocumentEvent(SaveMilitaryDocumentEvent event,
       Emitter<EmployeeProfileState> emit) async {
-    var newMilitaryDocument = state.militaryDocument.copyWith();
-    for (var change in event.changes) {
-      newMilitaryDocument = newMilitaryDocument.copyWith(generic: change);
+    try {
+      var newMilitaryDocument = state.militaryDocument.copyWith();
+      for (var change in event.changes) {
+        newMilitaryDocument = newMilitaryDocument.copyWith(generic: change);
+      }
+      emit(state.copyWith(
+          isSavingData: true, militaryDocument: newMilitaryDocument));
+
+      await _peopleManagementService.editEmployeeMilitaryDocument(
+          state.employee.id, state.company.id, newMilitaryDocument);
+
+      emit(state.copyWith(
+          isSavingData: false,
+          isEditingName: false,
+          snackMessage: "Documento Militar alterado com sucesso."));
+    } catch (ex, stacktrace) {
+      var exception = _peopleManagementService.treatErrors(ex, stacktrace);
+      emit(state.copyWith(
+          isLoading: false, isSavingData: false, exception: exception));
     }
-    emit(state.copyWith(
-        isSavingData: true, militaryDocument: newMilitaryDocument));
-
-    await _peopleManagementService.editEmployeeMilitaryDocument(
-        state.employee.id, state.company.id, newMilitaryDocument);
-
-    emit(state.copyWith(
-        isSavingData: false,
-        isEditingName: false,
-        snackMessage: "Documento Militar alterado com sucesso."));
   }
 
   Future _onLoadingMedicalAdmissionExamEvent(

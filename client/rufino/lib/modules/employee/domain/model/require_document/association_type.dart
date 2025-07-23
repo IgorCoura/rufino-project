@@ -2,7 +2,7 @@ import 'package:rufino/modules/employee/domain/model/base/enumeration.dart';
 
 class AssociationType extends Enumeration {
   static const Map<String, String> conversionMapIntToString = {
-    "1": "Cargo",
+    "1": "Função",
     "2": "Local de Trabalho",
   };
 
