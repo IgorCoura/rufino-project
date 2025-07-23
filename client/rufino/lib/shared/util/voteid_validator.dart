@@ -50,6 +50,8 @@ class VoteIdValidator {
       return false;
     }
 
+    String uf = '${value[8]}${value[9]}';
+
     String aux = value.substring(0, 8);
     int sum = 0;
 
@@ -64,11 +66,15 @@ class VoteIdValidator {
 
     if (rest > 9) {
       rest = 0;
+    } else if (rest == 0) {
+      if (uf == '01' || uf == '02') {
+        rest = 1;
+      }
     }
 
-    String digit = rest.toString();
+    String z1 = rest.toString();
 
-    aux = '${value[8]}${value[9]}$digit';
+    aux = '${value[8]}${value[9]}$z1';
     sum = 0;
 
     for (int i = 0; i < 3; i++) {
@@ -79,9 +85,15 @@ class VoteIdValidator {
 
     if (rest > 9) {
       rest = 0;
+    } else if (rest == 0) {
+      if (uf == '01' || uf == '02') {
+        rest = 1;
+      }
     }
 
-    digit += rest.toString();
+    String z2 = rest.toString();
+
+    String digit = '$z1$z2';
 
     return value.endsWith(digit);
   }

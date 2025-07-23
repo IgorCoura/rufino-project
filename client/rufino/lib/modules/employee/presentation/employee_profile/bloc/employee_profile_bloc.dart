@@ -354,19 +354,25 @@ class EmployeeProfileBloc
 
   Future _onSaveVoteIdEvent(
       SaveVoteIdEvent event, Emitter<EmployeeProfileState> emit) async {
-    var newVoteId = state.voteId.copyWith();
-    for (var change in event.changes) {
-      newVoteId = newVoteId.copyWith(generic: change);
+    try {
+      var newVoteId = state.voteId.copyWith();
+      for (var change in event.changes) {
+        newVoteId = newVoteId.copyWith(generic: change);
+      }
+      emit(state.copyWith(isSavingData: true, voteId: newVoteId));
+
+      await _peopleManagementService.editEmployeeVoteId(
+          state.employee.id, state.company.id, newVoteId);
+
+      emit(state.copyWith(
+          isSavingData: false,
+          isEditingName: false,
+          snackMessage: "Título de eleitor alterado com sucesso."));
+    } catch (ex, stacktrace) {
+      var exception = _peopleManagementService.treatErrors(ex, stacktrace);
+      emit(state.copyWith(
+          isLoading: false, isSavingData: false, exception: exception));
     }
-    emit(state.copyWith(isSavingData: true, voteId: newVoteId));
-
-    await _peopleManagementService.editEmployeeVoteId(
-        state.employee.id, state.company.id, newVoteId);
-
-    emit(state.copyWith(
-        isSavingData: false,
-        isEditingName: false,
-        snackMessage: "Título de eleitor alterado com sucesso."));
   }
 
   Future _onLoadingMilitaryDocumentEvent(LoadingMilitaryDocumentEvent event,

@@ -52,6 +52,7 @@ namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
                     throw new DomainException(this.GetType().Name, DomainErrors.FieldInvalid(nameof(VoteId), value));
             }
 
+            string uf = value[8..10];
             aux = value[..8];
             sum = 0;
 
@@ -62,6 +63,13 @@ namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
 
             if (rest > 9)
                 rest = 0;
+            else if (rest == 0)
+            {
+                if(uf == "01" || uf == "02")
+                {
+                    rest = 1;
+                }
+            }
 
             digit = rest.ToString();
 
@@ -75,6 +83,14 @@ namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
 
             if (rest > 9)
                 rest = 0;
+            else if (rest == 0)
+            {
+                if (uf == "01" || uf == "02")
+                {
+                    rest = 1;
+                }
+            }
+
 
             digit += rest.ToString();
 
