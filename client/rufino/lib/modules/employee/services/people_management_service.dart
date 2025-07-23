@@ -192,7 +192,7 @@ class PeopleManagementService extends BaseService {
     Map<String, dynamic> body = value.toJson(employeeId);
 
     var url = peopleManagementUrl.replace(
-        path: "/api/v1/$companyId/employee/militarydocument");
+        path: "/api/v1/$companyId/employee/MilitaryDocument");
 
     var response =
         await http.put(url, headers: headers, body: jsonEncode(body));
