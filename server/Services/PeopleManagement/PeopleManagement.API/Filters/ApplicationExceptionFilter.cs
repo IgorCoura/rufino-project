@@ -35,7 +35,7 @@ namespace PeopleManagement.API.Filters
                 _logger.LogInformation("DomainException: {Message}", context.Exception.Message);
                 return;
             }
-            _logger.LogError(context.Exception, "An error occurred: {Message}", context.Exception.Message);
+            _logger.LogError(context.Exception, "--------------An error occurred: {Message}--------------", context.Exception.Message);
         }
 
         private static Error? GetDbError(Exception exception)

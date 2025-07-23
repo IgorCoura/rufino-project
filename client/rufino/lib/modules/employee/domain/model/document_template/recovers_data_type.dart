@@ -30,7 +30,9 @@ class RecoversDataType extends EnumerationList<RecoverDataType> {
   }
 
   bool get isEmpty {
-    return list.isEmpty;
+    return list.isEmpty ||
+        (list.length == 1 &&
+            list.first.toInt() == 0); // Assuming 0 is the empty type
   }
 
   bool get isNotEmpty {
