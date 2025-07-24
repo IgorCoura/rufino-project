@@ -5,13 +5,13 @@ using PeopleManagement.Domain.AggregatesModel.DocumentTemplateAggregate;
 namespace PeopleManagement.Application.Commands.DocumentTemplateCommands.EditDocumentTemplate
 {
 
-    public record EditDocumentTemplateCommand(Guid Id, Guid CompanyId, string Name, string Description, EditTemplateFileInfoModel? TemplateFileInfo, double? DocumentValidityDurationInDays, double? WorkloadInHours, EditPlaceSignatureModel[] PlaceSignatures) : IRequest<EditDocumentTemplateResponse>
+    public record EditDocumentTemplateCommand(Guid Id, Guid CompanyId, string Name, string Description, EditTemplateFileInfoModel? TemplateFileInfo, double? DocumentValidityDurationInDays, double? WorkloadInHours, EditPlaceSignatureModel[] PlaceSignatures, Guid DocumentGroupId) : IRequest<EditDocumentTemplateResponse>
     {
     }
 
-    public record EditDocumentTemplateModel(Guid Id, string Name, string Description, EditTemplateFileInfoModel? TemplateFileInfo, double? DocumentValidityDurationInDays, double? WorkloadInHours, EditPlaceSignatureModel[] PlaceSignatures)
+    public record EditDocumentTemplateModel(Guid Id, string Name, string Description, EditTemplateFileInfoModel? TemplateFileInfo, double? DocumentValidityDurationInDays, double? WorkloadInHours, EditPlaceSignatureModel[] PlaceSignatures, Guid DocumentGroupId)
     {
-        public EditDocumentTemplateCommand ToCommand(Guid company) => new(Id, company, Name, Description, TemplateFileInfo, DocumentValidityDurationInDays, WorkloadInHours, PlaceSignatures);
+        public EditDocumentTemplateCommand ToCommand(Guid company) => new(Id, company, Name, Description, TemplateFileInfo, DocumentValidityDurationInDays, WorkloadInHours, PlaceSignatures, DocumentGroupId);
     }
     public record EditTemplateFileInfoModel(string BodyFileName, string HeaderFileName, string FooterFileName, int[] RecoversDataType)
     {

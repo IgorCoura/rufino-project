@@ -60,6 +60,10 @@ class EmployeesListPage extends StatelessWidget {
                     value: "require-documents",
                     child: Text('Requerimentos de Documentos'),
                   ),
+                  PopupMenuItem(
+                    value: "document-groups",
+                    child: Text('Grupos de Documentos'),
+                  ),
                 ];
               },
               onSelected: (value) async {
@@ -73,6 +77,10 @@ class EmployeesListPage extends StatelessWidget {
                 }
                 if (value == "require-documents") {
                   Modular.to.pushNamed("require-documents");
+                  return;
+                }
+                if (value == "document-groups") {
+                  Modular.to.pushNamed("document-group");
                   return;
                 }
               },

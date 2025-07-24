@@ -27,6 +27,7 @@ namespace PeopleManagement.IntegrationTests.Tests
             var client = _factory.CreateClient();
 
             var company = await context.InsertCompany(cancellationToken);
+            var documentGroup = await context.InsertDocumentGroup(company.Id, cancellationToken);
             await context.SaveChangesAsync(cancellationToken);
 
             var command = new CreateDocumentTemplateCommand(
@@ -41,7 +42,7 @@ namespace PeopleManagement.IntegrationTests.Tests
                     "footer.html",
                     [RecoverDataType.Employee.Id, RecoverDataType.PGR.Id]
                     
-                    ), []);
+                    ), [], documentGroup.Id);
 
 
             client.InputHeaders([company.Id]);

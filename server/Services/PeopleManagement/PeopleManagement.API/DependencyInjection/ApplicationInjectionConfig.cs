@@ -2,6 +2,7 @@
 using PeopleManagement.Application.Queries.Company;
 using PeopleManagement.Application.Queries.Department;
 using PeopleManagement.Application.Queries.Document;
+using PeopleManagement.Application.Queries.DocumentGroup;
 using PeopleManagement.Application.Queries.DocumentTemplate;
 using PeopleManagement.Application.Queries.Employee;
 using PeopleManagement.Application.Queries.Position;
@@ -29,6 +30,7 @@ namespace PeopleManagement.API.DependencyInjection
             service.AddScoped<IDocumentTemplateQueries, DocumentTemplateQueries>();
             service.AddScoped<IRequireDocumentsQueries, RequireDocumentsQueries>();
             service.AddScoped<IDocumentQueries, DocumentQueries>();
+            service.AddScoped<IDocumentGroupQueries, DocumentGroupQueries>();
 
             return service;
         }

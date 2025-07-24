@@ -18,6 +18,7 @@ using System.Data;
 using PeopleManagement.Domain.AggregatesModel.ArchiveCategoryAggregate;
 using System.Reflection;
 using PeopleManagement.Infra.Idempotency;
+using PeopleManagement.Domain.AggregatesModel.DocumentGroupAggregate;
 
 namespace PeopleManagement.Infra.Context
 {
@@ -29,9 +30,9 @@ namespace PeopleManagement.Infra.Context
         public DbSet<Archive> Archives { get; set; } = null!;
         public DbSet<Company> Companies { get; set; } = null!;
         public DbSet<Department> Departments { get; set; } = null!;
+        public DbSet<DocumentGroup> DocumentGroups { get; set; } = null!;
         public DbSet<DocumentUnit> DocumentsUnits { get; set; } = null!;
         public DbSet<DocumentTemplate> DocumentTemplates { get; set; } = null!;
-
         public DbSet<Employee> Employees { get; set; } = null!;
         public DbSet<Position> Positions { get; set; } = null!;
         public DbSet<RequireDocuments> RequireDocuments { get; set; } = null!;
@@ -59,6 +60,7 @@ namespace PeopleManagement.Infra.Context
             modelBuilder.ApplyConfiguration(new ClientRequestMap());
             modelBuilder.ApplyConfiguration(new CompanyMap());
             modelBuilder.ApplyConfiguration(new DepartmentMap());
+            modelBuilder.ApplyConfiguration(new DocumentGroupMap());
             modelBuilder.ApplyConfiguration(new EmployeeMap());            
             modelBuilder.ApplyConfiguration(new PositionMap());
             modelBuilder.ApplyConfiguration(new RoleMap());

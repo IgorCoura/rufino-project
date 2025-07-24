@@ -1,6 +1,7 @@
 import 'package:rufino/modules/employee/domain/model/archive_category/description.dart';
 import 'package:rufino/modules/employee/domain/model/base/model_base.dart';
 import 'package:rufino/modules/employee/domain/model/base/text_prop_base.dart';
+import 'package:rufino/modules/employee/domain/model/document_group/document_group.dart';
 import 'package:rufino/modules/employee/domain/model/document_template/document_validity_duration.dart';
 import 'package:rufino/modules/employee/domain/model/document_template/file_name.dart';
 import 'package:rufino/modules/employee/domain/model/document_template/place_signature.dart';
@@ -20,6 +21,7 @@ class DocumentTemplate extends ModelBase {
   final DocumentValidityDuration documentValidityDuration;
   final Workload workload;
   final List<PlaceSignature> placeSignatures;
+  final DocumentGroup documentGroup;
 
   const DocumentTemplate(
     this.id,
@@ -31,7 +33,8 @@ class DocumentTemplate extends ModelBase {
     this.recoversDataType,
     this.documentValidityDuration,
     this.workload,
-    this.placeSignatures, {
+    this.placeSignatures,
+    this.documentGroup, {
     super.isLoading = false,
     super.isLazyLoading = false,
   });
@@ -46,6 +49,7 @@ class DocumentTemplate extends ModelBase {
     this.documentValidityDuration = const DocumentValidityDuration.empty(),
     this.workload = const Workload.empty(),
     this.placeSignatures = const [],
+    this.documentGroup = const DocumentGroup.empty(),
     super.isLoading = true,
     super.isLazyLoading = true,
   });
@@ -85,6 +89,7 @@ class DocumentTemplate extends ModelBase {
     DocumentValidityDuration? documentValidityDuration,
     Workload? workload,
     List<PlaceSignature>? placeSignatures,
+    DocumentGroup? documentGroup,
     bool? isLoading,
     bool? isLazyLoading,
     Object? generic,
@@ -116,6 +121,9 @@ class DocumentTemplate extends ModelBase {
         case const (Workload):
           workload = generic as Workload;
           break;
+        case const (DocumentGroup):
+          documentGroup = generic as DocumentGroup;
+          break;
         default:
           break;
       }
@@ -132,6 +140,7 @@ class DocumentTemplate extends ModelBase {
       documentValidityDuration ?? this.documentValidityDuration,
       workload ?? this.workload,
       placeSignatures ?? this.placeSignatures,
+      documentGroup ?? this.documentGroup,
       isLoading: isLoading ?? this.isLoading,
       isLazyLoading: isLazyLoading ?? this.isLazyLoading,
     );
@@ -150,6 +159,7 @@ class DocumentTemplate extends ModelBase {
           json['documentValidityDurationInDays'].toString()),
       Workload.createFormatted(json['workloadInHours'].toString()),
       PlaceSignature.fromListJson(json['templateFileInfo']['placeSignatures']),
+      DocumentGroup.fromJson(json['documentGroup']),
     );
   }
 
@@ -176,6 +186,7 @@ class DocumentTemplate extends ModelBase {
       'workloadInHours': workload.toDouble(),
       'templateFileInfo': templateFileInfo,
       'placeSignatures': placeSignatures.map((e) => e.toJson()).toList(),
+      'documentGroupId': documentGroup.id,
     };
   }
 
@@ -197,6 +208,7 @@ class DocumentTemplate extends ModelBase {
       'workloadInHours': workload.toDouble(),
       'templateFileInfo': templateFileInfo,
       'placeSignatures': placeSignatures.map((e) => e.toJson()).toList(),
+      'documentGroupId': documentGroup.id,
     };
   }
 
@@ -212,6 +224,7 @@ class DocumentTemplate extends ModelBase {
         documentValidityDuration,
         workload,
         placeSignatures.hashCode,
+        documentGroup,
         isLoading,
         isLazyLoading,
       ];
