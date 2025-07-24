@@ -1,25 +1,26 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using PeopleManagement.Domain.AggregatesModel.ArchiveAggregate;
+using PeopleManagement.Domain.AggregatesModel.ArchiveCategoryAggregate;
 using PeopleManagement.Domain.AggregatesModel.CompanyAggregate;
 using PeopleManagement.Domain.AggregatesModel.DepartmentAggregate;
-using PeopleManagement.Domain.AggregatesModel.EmployeeAggregate;
-using PeopleManagement.Domain.AggregatesModel.PositionAggregate;
-using PeopleManagement.Domain.AggregatesModel.RoleAggregate;
 using PeopleManagement.Domain.AggregatesModel.DocumentAggregate;
+using PeopleManagement.Domain.AggregatesModel.DocumentGroupAggregate;
+using PeopleManagement.Domain.AggregatesModel.DocumentTemplateAggregate;
+using PeopleManagement.Domain.AggregatesModel.EmployeeAggregate;
+using PeopleManagement.Domain.AggregatesModel.EmployeeAggregate.Events;
+using PeopleManagement.Domain.AggregatesModel.PositionAggregate;
+using PeopleManagement.Domain.AggregatesModel.RequireDocumentsAggregate;
+using PeopleManagement.Domain.AggregatesModel.RoleAggregate;
 using PeopleManagement.Domain.AggregatesModel.WorkplaceAggregate;
 using PeopleManagement.Infra.Context;
+using System.Data;
 using AddressCompany = PeopleManagement.Domain.AggregatesModel.CompanyAggregate.Address;
 using AddressWorkplace = PeopleManagement.Domain.AggregatesModel.WorkplaceAggregate.Address;
 using ContactCompany = PeopleManagement.Domain.AggregatesModel.CompanyAggregate.Contact;
-using EmplyeeAddress = PeopleManagement.Domain.AggregatesModel.EmployeeAggregate.Address;
-using FileArchive = PeopleManagement.Domain.AggregatesModel.ArchiveAggregate.File;
-using ExtensionArchive = PeopleManagement.Domain.AggregatesModel.ArchiveAggregate.Extension;
 using EmployeeContact = PeopleManagement.Domain.AggregatesModel.EmployeeAggregate.Contact;
-using PeopleManagement.Domain.AggregatesModel.DocumentTemplateAggregate;
-using PeopleManagement.Domain.AggregatesModel.RequireDocumentsAggregate;
-using PeopleManagement.Domain.AggregatesModel.ArchiveCategoryAggregate;
-using PeopleManagement.Domain.AggregatesModel.EmployeeAggregate.Events;
-using System.Data;
+using EmplyeeAddress = PeopleManagement.Domain.AggregatesModel.EmployeeAggregate.Address;
+using ExtensionArchive = PeopleManagement.Domain.AggregatesModel.ArchiveAggregate.Extension;
+using FileArchive = PeopleManagement.Domain.AggregatesModel.ArchiveAggregate.File;
 
 namespace PeopleManagement.IntegrationTests.Data
 {
@@ -257,16 +258,25 @@ namespace PeopleManagement.IntegrationTests.Data
             CancellationToken cancellationToken = default)
         {
             var company = await context.InsertCompany(cancellationToken);
+            var documentGroup = await context.InsertDocumentGroup(company.Id, cancellationToken);
             var documentTemplate = DocumentTemplate.Create(Guid.NewGuid(), "DocumentTemplateName", 
                 "Description Document Template", company.Id, TimeSpan.FromDays(365) , TimeSpan.FromHours(8), 
                 TemplateFileInfo.Create(Guid.NewGuid().ToString(), "index.html",
-                "header.html", "footer.html", [RecoverDataType.Employee, RecoverDataType.PGR]), []);
+                "header.html", "footer.html", [RecoverDataType.Employee, RecoverDataType.PGR]), [], documentGroup.Id);
             await context.DocumentTemplates.AddAsync(documentTemplate, cancellationToken);
             return documentTemplate;
         }
 
+        public static async Task<DocumentGroup> InsertDocumentGroup(this PeopleManagementContext context, Guid companyId, CancellationToken cancellationToken = default)
+        {
+            var documentGroup = DocumentGroup.Create(Guid.NewGuid(), "Document Group Name", "Description Document Group", companyId);
+            await context.DocumentGroups.AddAsync(documentGroup, cancellationToken);
+            return documentGroup;
+        }
+
         public static async Task<DocumentTemplate> InsertDocumentTemplate(this PeopleManagementContext context, Guid companyId,  CancellationToken cancellationToken = default)
         {
+            var documentGroup = await context.InsertDocumentGroup(companyId, cancellationToken);
             var documentTemplate = DocumentTemplate.Create(
                 Guid.NewGuid(),
                 "Template Nr01", 
@@ -285,7 +295,8 @@ namespace PeopleManagement.IntegrationTests.Data
                 [
                     PlaceSignature.Create(TypeSignature.Signature,1,20.5, 5.3,5.2,5.5),
                     PlaceSignature.Create(TypeSignature.Visa,1,20,15,3,3),
-                ]
+                ],
+                documentGroup.Id
                 );
             await context.DocumentTemplates.AddAsync(documentTemplate, cancellationToken);
             return documentTemplate;

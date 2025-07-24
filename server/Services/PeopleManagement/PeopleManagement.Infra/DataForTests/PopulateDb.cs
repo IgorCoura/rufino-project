@@ -20,6 +20,7 @@ using PeopleManagement.Domain.AggregatesModel.RequireDocumentsAggregate;
 using System.ComponentModel.Design;
 using PeopleManagement.Domain.AggregatesModel.DocumentAggregate;
 using Microsoft.Extensions.Logging;
+using PeopleManagement.Domain.AggregatesModel.DocumentGroupAggregate;
 
 namespace PeopleManagement.Infra.DataForTests
 {
@@ -44,7 +45,9 @@ namespace PeopleManagement.Infra.DataForTests
                 await context.AddRangeIfNotExistsAsync(employees);
                 var archivesCategories = CreateArchiveCategories(companies[0].Id);
                 await context.AddRangeIfNotExistsAsync(archivesCategories);
-                var documentTemplates = CreateDocumentTemplate(companies[0].Id);
+                var documentGroups = CreateDocumentGroups(companies[0].Id);
+                await context.AddRangeIfNotExistsAsync(documentGroups);
+                var documentTemplates = CreateDocumentTemplate(companies[0].Id, documentGroups);
                 await context.AddRangeIfNotExistsAsync(documentTemplates);
                 var requireDocuments = CreateRequireDocuments(companies[0].Id, roles[0].Id, documentTemplates);
                 await context.AddRangeIfNotExistsAsync(requireDocuments);
@@ -387,7 +390,7 @@ namespace PeopleManagement.Infra.DataForTests
             return categorie.ToArray();
         }
 
-        public static DocumentTemplate[] CreateDocumentTemplate( Guid companyId)
+        public static DocumentTemplate[] CreateDocumentTemplate(Guid companyId, DocumentGroup[] documentGroup)
         {
             var documents = new[]
             {
@@ -407,7 +410,8 @@ namespace PeopleManagement.Infra.DataForTests
                 [
                     PlaceSignature.Create(TypeSignature.Signature,1,20.5, 5.3,5.2,5.5),
                     PlaceSignature.Create(TypeSignature.Visa,1,20,15,3,3),
-                ]
+                ],
+                documentGroup[0].Id
                 ),
                 DocumentTemplate.Create(
                 Guid.Parse("D857FAD2-1B5F-44A1-8428-80B7E85C25CE"),
@@ -426,10 +430,31 @@ namespace PeopleManagement.Infra.DataForTests
                 [
                     PlaceSignature.Create(TypeSignature.Signature,1,20.5, 5.3,5.2,5.5),
                     PlaceSignature.Create(TypeSignature.Visa,1,20,15,3,3),
-                ]
+                ],
+                documentGroup[0].Id
                 ),
             };
             return documents;
+        }
+
+        public static DocumentGroup[] CreateDocumentGroups(Guid companyId)
+        { 
+            var documentGroups = new[]
+            {
+                DocumentGroup.Create(
+                    Guid.Parse("F1D697EA-D6FB-4029-B096-497462272E1C"),
+                    "Grupo de Documentos 1",
+                    "Descrição do Grupo de Documentos 1",
+                    companyId
+                ),
+                DocumentGroup.Create(
+                    Guid.Parse("99CCC817-2735-43D8-9035-6312782F969C"),
+                    "Grupo de Documentos 2",
+                    "Descrição do Grupo de Documentos 2",
+                    companyId
+                )
+            };
+            return documentGroups;
         }
 
         public static RequireDocuments[] CreateRequireDocuments(Guid companyId, Guid roleId, DocumentTemplate[] documentsTemplates)

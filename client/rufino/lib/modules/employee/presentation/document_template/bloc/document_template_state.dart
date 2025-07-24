@@ -10,6 +10,7 @@ class DocumentTemplateState extends Equatable {
   final List<PlaceSignature> placeSignatures;
   final List<RecoverDataType> recoverDataType;
   final List<TypeSignature> typeSignature;
+  final List<DocumentGroup> documentGroups;
   final bool hasFile;
   final String recoverDataModels;
 
@@ -23,6 +24,7 @@ class DocumentTemplateState extends Equatable {
     this.recoverDataType = const [],
     this.typeSignature = const [],
     this.placeSignatures = const [],
+    this.documentGroups = const [],
     this.hasFile = false,
     this.recoverDataModels = "{}",
   });
@@ -37,6 +39,7 @@ class DocumentTemplateState extends Equatable {
     List<PlaceSignature>? placeSignatures,
     List<RecoverDataType>? recoverDataType,
     List<TypeSignature>? typeSignature,
+    List<DocumentGroup>? documentGroups,
     bool? hasFile,
     dynamic recoverDataModels,
   }) {
@@ -50,6 +53,7 @@ class DocumentTemplateState extends Equatable {
       recoverDataType: recoverDataType ?? this.recoverDataType,
       typeSignature: typeSignature ?? this.typeSignature,
       placeSignatures: placeSignatures ?? this.placeSignatures,
+      documentGroups: documentGroups ?? this.documentGroups,
       hasFile: hasFile ?? this.hasFile,
       recoverDataModels: recoverDataModels ?? this.recoverDataModels,
     );
@@ -68,5 +72,6 @@ class DocumentTemplateState extends Equatable {
         placeSignatures.hashCode,
         hasFile,
         recoverDataModels,
+        documentGroups.hashCode,
       ];
 }

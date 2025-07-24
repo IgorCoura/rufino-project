@@ -9,7 +9,7 @@ class DocumentsComponentState extends Equatable {
   final bool isExpanded;
   final String? snackMessage;
   final AplicationException? exception;
-  final List<RequireDocumentSimpleWithDocuments> reqDocuments;
+  final List<DocumentGroupWithDocuments> reqDocuments;
 
   const DocumentsComponentState(
       {this.companyId = "",
@@ -31,7 +31,7 @@ class DocumentsComponentState extends Equatable {
     bool? isExpanded,
     String? snackMessage,
     AplicationException? exception,
-    List<RequireDocumentSimpleWithDocuments>? reqDocuments,
+    List<DocumentGroupWithDocuments>? reqDocuments,
   }) {
     return DocumentsComponentState(
       companyId: companyId ?? this.companyId,
