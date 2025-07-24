@@ -4,7 +4,7 @@ import 'package:flutter_modular/flutter_modular.dart';
 import 'package:mask_text_input_formatter/mask_text_input_formatter.dart';
 import 'package:rufino/modules/employee/domain/model/document/document.dart';
 import 'package:rufino/modules/employee/domain/model/document/document_unit.dart';
-import 'package:rufino/modules/employee/domain/model/require_document/require_document_simple_with_documents.dart';
+import 'package:rufino/modules/employee/domain/model/document_group/document_group_with_documents.dart';
 import 'package:rufino/modules/employee/presentation/employee_profile/components/documents_component/bloc/documents_component_bloc.dart';
 import 'package:rufino/shared/components/error_components.dart';
 
@@ -91,7 +91,7 @@ class DocumentsComponent extends StatelessWidget {
   }
 
   Widget _reqDocumentWidget(BuildContext context, DocumentsComponentState state,
-      RequireDocumentSimpleWithDocuments reqDocument) {
+      DocumentGroupWithDocuments reqDocument) {
     return Padding(
       padding: const EdgeInsets.all(8.0),
       child: ExpansionTile(

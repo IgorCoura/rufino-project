@@ -1,5 +1,8 @@
 import 'package:flutter_modular/flutter_modular.dart';
 import 'package:rufino/app_module.dart';
+import 'package:rufino/modules/employee/presentation/document_group/bloc/document_group_bloc.dart';
+import 'package:rufino/modules/employee/presentation/document_group/document_group_page.dart';
+import 'package:rufino/modules/employee/services/document_group_service.dart';
 import 'package:rufino/modules/employee/services/document_service.dart';
 import 'package:rufino/modules/employee/services/document_template_service.dart';
 import 'package:rufino/modules/employee/services/people_management_service.dart';
@@ -27,6 +30,7 @@ class PeopleModule extends Module {
     i.add<PeopleManagementService>(PeopleManagementService.new);
     i.add<DocumentService>(DocumentService.new);
     i.add<DocumentTemplateService>(DocumentTemplateService.new);
+    i.add<DocumentGroupService>(DocumentGroupService.new);
 
     //BLOCs
     i.add<EmployeesListBloc>(EmployeesListBloc.new);
@@ -38,6 +42,7 @@ class PeopleModule extends Module {
     i.add<RequireDocumentListBloc>(RequireDocumentListBloc.new);
     i.add<RequireDocumentBloc>(RequireDocumentBloc.new);
     i.add<DocumentsComponentBloc>(DocumentsComponentBloc.new);
+    i.add<DocumentGroupBloc>(DocumentGroupBloc.new);
   }
 
   @override
@@ -67,6 +72,10 @@ class PeopleModule extends Module {
       child: (context) => RequireDocumentPage(
         requireDocumentId: r.args.params['id'],
       ),
+    );
+    r.child(
+      '/document-group/',
+      child: (context) => DocumentGroupPage(),
     );
   }
 }

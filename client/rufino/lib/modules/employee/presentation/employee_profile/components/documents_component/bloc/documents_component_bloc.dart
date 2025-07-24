@@ -1,9 +1,8 @@
 import 'package:bloc/bloc.dart';
 import 'package:equatable/equatable.dart';
 import 'package:file_picker/file_picker.dart';
-import 'package:rufino/modules/employee/domain/model/document/document.dart';
-import 'package:rufino/modules/employee/domain/model/require_document/require_document.dart';
-import 'package:rufino/modules/employee/domain/model/require_document/require_document_simple_with_documents.dart';
+import 'package:rufino/modules/employee/domain/model/document_group/document_group_with_documents.dart';
+import 'package:rufino/modules/employee/services/document_group_service.dart';
 import 'package:rufino/modules/employee/services/document_service.dart';
 import 'package:rufino/shared/errors/aplication_errors.dart';
 
@@ -13,8 +12,9 @@ part 'documents_component_state.dart';
 class DocumentsComponentBloc
     extends Bloc<DocumentsComponentEvent, DocumentsComponentState> {
   final DocumentService _documentService;
+  final DocumentGroupService _documentGroupService;
 
-  DocumentsComponentBloc(this._documentService)
+  DocumentsComponentBloc(this._documentService, this._documentGroupService)
       : super(DocumentsComponentState()) {
     on<InitialEvent>(_onInitialEvent);
     on<ExpandEvent>(_onExpandEvent);
@@ -48,11 +48,10 @@ class DocumentsComponentBloc
 
     if (state.isExpanded == true) {
       try {
-        var reqDocuments =
-            await _documentService.getAllRequireDocumentsSimpleWithDocuments(
-                state.companyId, state.employeeId);
+        var documentGroup = await _documentGroupService.getAllWithDocuments(
+            state.companyId, state.employeeId);
 
-        emit(state.copyWith(reqDocuments: reqDocuments));
+        emit(state.copyWith(reqDocuments: documentGroup));
       } catch (ex, stacktrace) {
         var exception = _documentService.treatErrors(ex, stacktrace);
         emit(state.copyWith(isLoading: false, exception: exception));
@@ -119,23 +118,23 @@ class DocumentsComponentBloc
     emit(state.copyWith(isLazyLoading: true));
 
     try {
-      List<RequireDocumentSimpleWithDocuments> reqDocumentsCopy =
+      List<DocumentGroupWithDocuments> documentGroupCopy =
           List.from(state.reqDocuments);
 
-      for (var reqDocument in reqDocumentsCopy) {
-        var documentIndex = reqDocument.documents
+      for (var documentGroup in documentGroupCopy) {
+        var documentIndex = documentGroup.documents
             .indexWhere((element) => element.id == event.documentId);
 
         if (documentIndex != -1) {
-          reqDocument.documents[documentIndex] =
+          documentGroup.documents[documentIndex] =
               await _documentService.getByIdDocuments(state.companyId,
-                  state.employeeId, reqDocument.documents[documentIndex].id);
+                  state.employeeId, documentGroup.documents[documentIndex].id);
           break;
         }
       }
 
-      emit(
-          state.copyWith(reqDocuments: reqDocumentsCopy, isLazyLoading: false));
+      emit(state.copyWith(
+          reqDocuments: documentGroupCopy, isLazyLoading: false));
     } catch (ex, stacktrace) {
       var exception = _documentService.treatErrors(ex, stacktrace);
       emit(state.copyWith(

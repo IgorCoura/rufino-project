@@ -1,6 +1,10 @@
 ﻿using Microsoft.EntityFrameworkCore.ChangeTracking;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
+using PeopleManagement.Domain.AggregatesModel.CompanyAggregate;
+using PeopleManagement.Domain.AggregatesModel.DocumentGroupAggregate;
 using PeopleManagement.Domain.AggregatesModel.DocumentTemplateAggregate;
+using Name = PeopleManagement.Domain.AggregatesModel.DocumentTemplateAggregate.Name;
+using Description = PeopleManagement.Domain.AggregatesModel.DocumentTemplateAggregate.Description;
 using System.Text.Json;
 
 namespace PeopleManagement.Infra.Mapping
@@ -89,6 +93,18 @@ namespace PeopleManagement.Infra.Mapping
                             c => c.ToList()));
 
             });
+
+            builder.HasOne<Company>()
+                .WithMany()
+                .HasForeignKey(x => x.CompanyId)
+                .IsRequired()
+                .OnDelete(Microsoft.EntityFrameworkCore.DeleteBehavior.Restrict);
+
+            builder.HasOne<DocumentGroup>()
+                .WithMany()
+                .HasForeignKey(x => x.DocumentGroupId)
+                .IsRequired()
+                .OnDelete(Microsoft.EntityFrameworkCore.DeleteBehavior.Restrict);
 
         }
     }
