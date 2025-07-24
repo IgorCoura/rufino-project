@@ -19,8 +19,17 @@ namespace PeopleManagement.Application.Queries.DocumentTemplate
             public Guid CompanyId { get; init; }
             public int? DocumentValidityDurationInDays { get; init; }
             public int? WorkloadInHours { get; init; }
+            public DocumentGroupDocumentTemplateDto DocumentGroup { get; init; } = DocumentGroupDocumentTemplateDto.Empty;
             public TemplateFileInfoDto TemplateFileInfo { get; init; } =  TemplateFileInfoDto.Empty;
 
+        }
+
+        public record DocumentGroupDocumentTemplateDto
+        {
+            public Guid Id { get; init; }
+            public string Name { get; init; } = string.Empty;
+            public string Description { get; init; } = string.Empty;
+            public static DocumentGroupDocumentTemplateDto Empty => new();
         }
 
         public record TemplateFileInfoDto

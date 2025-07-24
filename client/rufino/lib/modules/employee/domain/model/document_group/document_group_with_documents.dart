@@ -2,19 +2,18 @@ import 'package:equatable/equatable.dart';
 import 'package:rufino/modules/employee/domain/model/document/document.dart';
 import 'package:rufino/modules/employee/domain/model/document/document_status.dart';
 
-class RequireDocumentSimpleWithDocuments extends Equatable {
+class DocumentGroupWithDocuments extends Equatable {
   final String id;
   final String name;
   final String description;
   final DocumentStatus status;
   final List<Document> documents;
 
-  const RequireDocumentSimpleWithDocuments(
+  const DocumentGroupWithDocuments(
       this.id, this.name, this.description, this.documents, this.status);
 
-  factory RequireDocumentSimpleWithDocuments.fromJson(
-      Map<String, dynamic> json) {
-    return RequireDocumentSimpleWithDocuments(
+  factory DocumentGroupWithDocuments.fromJson(Map<String, dynamic> json) {
+    return DocumentGroupWithDocuments(
       json['id'] as String,
       json['name'] as String,
       json['description'] as String,
@@ -25,10 +24,9 @@ class RequireDocumentSimpleWithDocuments extends Equatable {
     );
   }
 
-  static List<RequireDocumentSimpleWithDocuments> fromListJson(
-      List<dynamic> listJson) {
+  static List<DocumentGroupWithDocuments> fromListJson(List<dynamic> listJson) {
     return listJson
-        .map((el) => RequireDocumentSimpleWithDocuments.fromJson(el))
+        .map((el) => DocumentGroupWithDocuments.fromJson(el))
         .toList();
   }
 

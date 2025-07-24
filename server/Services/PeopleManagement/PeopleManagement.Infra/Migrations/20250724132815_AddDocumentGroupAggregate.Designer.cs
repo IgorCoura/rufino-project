@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using PeopleManagement.Infra.Context;
@@ -12,9 +13,11 @@ using PeopleManagement.Infra.Context;
 namespace PeopleManagement.Infra.Migrations
 {
     [DbContext(typeof(PeopleManagementContext))]
-    partial class PeopleManagementContextModelSnapshot : ModelSnapshot
+    [Migration("20250724132815_AddDocumentGroupAggregate")]
+    partial class AddDocumentGroupAggregate
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -306,9 +309,6 @@ namespace PeopleManagement.Infra.Migrations
                         .HasMaxLength(500)
                         .HasColumnType("character varying(500)");
 
-                    b.Property<Guid>("DocumentGroupId")
-                        .HasColumnType("uuid");
-
                     b.Property<TimeSpan?>("DocumentValidityDuration")
                         .HasColumnType("interval");
 
@@ -324,10 +324,6 @@ namespace PeopleManagement.Infra.Migrations
                         .HasColumnType("interval");
 
                     b.HasKey("Id");
-
-                    b.HasIndex("CompanyId");
-
-                    b.HasIndex("DocumentGroupId");
 
                     b.ToTable("DocumentTemplates");
                 });
@@ -773,18 +769,6 @@ namespace PeopleManagement.Infra.Migrations
 
             modelBuilder.Entity("PeopleManagement.Domain.AggregatesModel.DocumentTemplateAggregate.DocumentTemplate", b =>
                 {
-                    b.HasOne("PeopleManagement.Domain.AggregatesModel.CompanyAggregate.Company", null)
-                        .WithMany()
-                        .HasForeignKey("CompanyId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("PeopleManagement.Domain.AggregatesModel.DocumentGroupAggregate.DocumentGroup", null)
-                        .WithMany()
-                        .HasForeignKey("DocumentGroupId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
                     b.OwnsMany("PeopleManagement.Domain.AggregatesModel.DocumentTemplateAggregate.PlaceSignature", "PlaceSignatures", b1 =>
                         {
                             b1.Property<Guid>("DocumentTemplateId")

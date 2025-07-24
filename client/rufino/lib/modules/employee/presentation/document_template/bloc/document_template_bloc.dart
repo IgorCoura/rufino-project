@@ -3,10 +3,12 @@ import 'package:equatable/equatable.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter_modular/flutter_modular.dart';
 import 'package:rufino/domain/services/company_global_service.dart';
+import 'package:rufino/modules/employee/domain/model/document_group/document_group.dart';
 import 'package:rufino/modules/employee/domain/model/document_template/document_template.dart';
 import 'package:rufino/modules/employee/domain/model/document_template/place_signature.dart';
 import 'package:rufino/modules/employee/domain/model/document_template/recover_data_type.dart';
 import 'package:rufino/modules/employee/domain/model/document_template/type_signature.dart';
+import 'package:rufino/modules/employee/services/document_group_service.dart';
 import 'package:rufino/modules/employee/services/document_template_service.dart';
 import 'package:rufino/shared/errors/aplication_errors.dart';
 
@@ -17,8 +19,10 @@ class DocumentTemplateBloc
     extends Bloc<DocumentTemplateEvent, DocumentTemplateState> {
   final DocumentTemplateService _documentTemplateService;
   final CompanyGlobalService _companyService;
+  final DocumentGroupService _documentGroupService;
 
-  DocumentTemplateBloc(this._documentTemplateService, this._companyService)
+  DocumentTemplateBloc(this._documentTemplateService, this._companyService,
+      this._documentGroupService)
       : super(DocumentTemplateState()) {
     on<SnackMessageWasShow>(_onSnackMessageWasShow);
     on<InitialEvent>(_onInitialEvent);
@@ -51,6 +55,7 @@ class DocumentTemplateBloc
       final typeSignature =
           await _documentTemplateService.getAllTypeSignature(company.id);
       var documentTemplate = DocumentTemplate.empty();
+      var documentGroups = await _documentGroupService.getAll(company.id);
       var hasFile = false;
       if (event.documentTemplateId != "new") {
         documentTemplate = await _documentTemplateService
@@ -65,6 +70,7 @@ class DocumentTemplateBloc
           documentTemplate: documentTemplate,
           placeSignatures: documentTemplate.placeSignatures,
           recoverDataType: recoverDataType,
+          documentGroups: documentGroups,
           typeSignature: typeSignature));
 
       if (event.documentTemplateId == "new") {

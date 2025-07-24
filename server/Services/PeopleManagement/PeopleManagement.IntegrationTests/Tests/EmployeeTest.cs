@@ -277,7 +277,7 @@ namespace PeopleManagement.IntegrationTests.Tests
                 "Reservista");
 
             client.InputHeaders([employee.CompanyId]);
-            var response = await client.PutAsJsonAsync($"/api/v1/{employee.CompanyId}/employee/MilitarDocument", command);
+            var response = await client.PutAsJsonAsync($"/api/v1/{employee.CompanyId}/employee/MilitaryDocument", command);
 
             Assert.Equal(HttpStatusCode.OK, response.StatusCode);
             var content = await response.Content.ReadFromJsonAsync(typeof(AlterMilitarDocumentEmployeeResponse)) as AlterMilitarDocumentEmployeeResponse ?? throw new ArgumentNullException();

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_json/flutter_json.dart';
 import 'package:flutter_modular/flutter_modular.dart';
+import 'package:rufino/modules/employee/domain/model/document_group/document_group.dart';
 import 'package:rufino/modules/employee/domain/model/document_template/place_signature.dart';
 import 'package:rufino/modules/employee/presentation/components/enumeration_list_view_component.dart';
 import 'package:rufino/modules/employee/presentation/components/enumeration_view_component.dart';
@@ -97,6 +98,35 @@ class DocumentTemplatePage extends StatelessWidget {
                           isEditing: state.isEditing,
                           isLoading: state.isLoading,
                           textProp: state.documentTemplate.workload,
+                        ),
+                        SizedBox(
+                          height: 8.0,
+                        ),
+                        DropdownButtonFormField(
+                          value: state.documentGroups.any((e) =>
+                                  e.id ==
+                                  state.documentTemplate.documentGroup.id)
+                              ? state.documentTemplate.documentGroup.id
+                              : null,
+                          items: state.documentGroups
+                              .map((e) => DropdownMenuItem(
+                                    value: e.id,
+                                    child: Text(e.name.value),
+                                  ))
+                              .toList(),
+                          onChanged: state.isEditing
+                              ? (change) {
+                                  var documentGroup = state.documentGroups
+                                      .firstWhere((e) => e.id == change);
+                                  bloc.add(
+                                      ChangeFieldValueEvent(documentGroup));
+                                }
+                              : null,
+                          onSaved: (newValue) {},
+                          decoration: InputDecoration(
+                            labelText: "Grupo de Documento",
+                            border: const OutlineInputBorder(),
+                          ),
                         ),
                         SizedBox(
                           height: 8.0,
