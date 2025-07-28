@@ -83,6 +83,9 @@ class RequireDocumentBloc
       var reqDocStatus = status.map((el) => Status(el.id, el.name)).toList();
       var events = await _peopleManagementService
           .getEvents(state.requireDocument.companyId);
+      var eventsRequireDocuments = await _peopleManagementService
+          .getRequireDocumentEvents(state.requireDocument.companyId);
+      events = events..addAll(eventsRequireDocuments);
       var documentTemplates = await _documentTemplateService
           .getAllDocumentTemplatesSimple(state.requireDocument.companyId);
 
