@@ -80,6 +80,16 @@ namespace PeopleManagement.Domain.AggregatesModel.RequireDocumentsAggregate
             return result.ToArray();
         }
 
-        
+        public static string GetEventName(int id)
+        {
+            var employeeEvent = EmployeeEvent.FromValue(id);
+
+            if (employeeEvent is not null)
+                return employeeEvent.Name;
+
+            var recurringEvents = RecurringEvents.FromValue(id);
+
+            return recurringEvents?.Name ?? "";
+        }
     }
 }

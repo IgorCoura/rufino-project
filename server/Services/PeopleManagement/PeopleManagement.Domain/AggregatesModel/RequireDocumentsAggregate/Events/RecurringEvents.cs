@@ -1,5 +1,4 @@
-﻿
-namespace PeopleManagement.Domain.AggregatesModel.RequireDocumentsAggregate.Events
+﻿namespace PeopleManagement.Domain.AggregatesModel.RequireDocumentsAggregate.Events
 {
     public class RecurringEvents : INotification
     {
@@ -50,11 +49,9 @@ namespace PeopleManagement.Domain.AggregatesModel.RequireDocumentsAggregate.Even
 
         public static IEnumerable<RecurringEvents?> GetAll()
         {
-            var methods = GetAllMethods().Where(m => m.GetParameters().Length == 2 &&
-                                                m.GetParameters()[0].ParameterType == typeof(Guid) &&
-                                                m.GetParameters()[1].ParameterType == typeof(Guid));
+            var methods = GetAllMethods();
 
-            var result = methods.Select(x => x.Invoke(null, [Guid.Empty, Guid.Empty]) as RecurringEvents ?? null);
+            var result = methods.Select(m => m.Invoke(null, null) as RecurringEvents);
             return result;
         }
         public static RecurringEvents? FromValue(int value)
@@ -65,7 +62,7 @@ namespace PeopleManagement.Domain.AggregatesModel.RequireDocumentsAggregate.Even
             {
                 try
                 {
-                    var result = method.Invoke(null, [Guid.Empty, Guid.Empty]) as RecurringEvents ?? null;
+                    var result = method.Invoke(null, null) as RecurringEvents ?? null;
                     objects.Add(result);
                 }
                 catch
@@ -88,7 +85,7 @@ namespace PeopleManagement.Domain.AggregatesModel.RequireDocumentsAggregate.Even
         }
 
         private static IEnumerable<MethodInfo> GetAllMethods() =>
-            typeof(RecurringEvents).GetMethods(BindingFlags.Public | BindingFlags.Static);
+            typeof(RecurringEvents).GetMethods(BindingFlags.Public | BindingFlags.Static).Where(x => x.ReturnType == typeof(RecurringEvents) && x.GetParameters().Length == 0);
 
     }
     
