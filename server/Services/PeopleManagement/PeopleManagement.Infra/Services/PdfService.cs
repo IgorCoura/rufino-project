@@ -43,7 +43,7 @@ namespace PeopleManagement.Infra.Services
 
             _logger.LogInformation("Navigating page to HTML template at path: {IndexHtmlPath}", indexHtmlPath);
 
-            await page.GoToAsync("file:" + indexHtmlPath);
+            await page.GoToAsync("file://" + indexHtmlPath);
 
             var contentPage = await page.GetContentAsync();
 
