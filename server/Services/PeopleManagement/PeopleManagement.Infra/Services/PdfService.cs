@@ -19,6 +19,8 @@ namespace PeopleManagement.Infra.Services
         public async Task<byte[]> ConvertHtml2Pdf(TemplateFileInfo template, string values, CancellationToken cancellationToken = default)
         {
             _logger.LogInformation("Converting HTML to PDF for directory: {TemplateName}", template.Directory);
+            string cDirectory = Directory.GetCurrentDirectory();
+            _logger.LogInformation("---Current Directory: {currentDirectory}---", cDirectory);
 
             var jsonValues = JsonValue.Parse(values);
 
