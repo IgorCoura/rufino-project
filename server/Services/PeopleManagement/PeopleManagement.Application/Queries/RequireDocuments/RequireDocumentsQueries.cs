@@ -12,6 +12,7 @@ using PeopleManagement.Domain.AggregatesModel.EmployeeAggregate;
 using static Microsoft.EntityFrameworkCore.DbLoggerCategory.Database;
 using static PeopleManagement.Application.Queries.Department.DepartmentDtos;
 using PeopleManagement.Domain.AggregatesModel.DocumentAggregate;
+using RequireDoc = PeopleManagement.Domain.AggregatesModel.RequireDocumentsAggregate.RequireDocuments;
 
 namespace PeopleManagement.Application.Queries.RequireDocuments
 {
@@ -113,7 +114,7 @@ namespace PeopleManagement.Application.Queries.RequireDocuments
                     Event = new EnumerationDto
                     {
                         Id = x.EventId,
-                        Name = EmployeeEvent.FromValue(x.EventId)!.Name
+                        Name = RequireDoc.GetEventName(x.EventId)
                     },
                     Status = x.Status
                 }).ToArray()
