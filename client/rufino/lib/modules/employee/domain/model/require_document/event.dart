@@ -22,6 +22,22 @@ class Event extends Equatable {
     "demissionalexamrequestevent": "Evento de Solicitação de Exame Demissional",
     "documentsigningoptionschangeevent":
         "Evento de Alteração de Opções de Assinatura de Documentos",
+    "januaryevent": "Evento Recorrente de Janeiro",
+    "februaryevent": "Evento Recorrente de Fevereiro",
+    "marchevent": "Evento Recorrente de Março",
+    "aprilevent": "Evento Recorrente de Abril",
+    "mayevent": "Evento Recorrente de Maio",
+    "juneevent": "Evento Recorrente de Junho",
+    "julyevent": "Evento Recorrente de Julho",
+    "augustevent": "Evento Recorrente de Agosto",
+    "septemberevent": "Evento Recorrente de Setembro",
+    "octoberevent": "Evento Recorrente de Outubro",
+    "novemberevent": "Evento Recorrente de Novembro",
+    "decemberevent": "Evento Recorrente de Dezembro",
+    "dailyevent": "Evento Recorrente Diário",
+    "weeklyevent": "Evento Recorrente Semanal",
+    "monthlyevent": "Evento Recorrente Mensal",
+    "yearlyevent": "Evento Recorrente Anual",
   };
 
   static const Map<int, String> conversionMapIntToString = {

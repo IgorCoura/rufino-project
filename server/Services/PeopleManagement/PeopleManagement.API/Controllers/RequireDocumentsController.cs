@@ -1,10 +1,12 @@
-﻿using PeopleManagement.Application.Commands.Identified;
+﻿using PeopleManagement.API.Authorization;
+using PeopleManagement.Application.Commands.Identified;
 using PeopleManagement.Application.Commands.RequireDocumentsCommands.CreateRequireSecurityDocuments;
-using PeopleManagement.API.Authorization;
-using static PeopleManagement.Application.Queries.RequireDocuments.RequireDocumentsDtos;
-using PeopleManagement.Application.Queries.RequireDocuments;
-using PeopleManagement.Domain.AggregatesModel.RequireDocumentsAggregate;
 using PeopleManagement.Application.Commands.RequireDocumentsCommands.EditRequireSecurityDocuments;
+using PeopleManagement.Application.Queries.RequireDocuments;
+using PeopleManagement.Domain.AggregatesModel.EmployeeAggregate.Events;
+using PeopleManagement.Domain.AggregatesModel.RequireDocumentsAggregate;
+using PeopleManagement.Domain.AggregatesModel.RequireDocumentsAggregate.Events;
+using static PeopleManagement.Application.Queries.RequireDocuments.RequireDocumentsDtos;
 
 namespace PeopleManagement.API.Controllers
 {
@@ -85,6 +87,14 @@ namespace PeopleManagement.API.Controllers
             return OkResponse(result);
         }
 
+
+        [HttpGet("events")]
+        [ProtectedResource("RequireDocuments", "view")]
+        public ActionResult<IEnumerable<EmployeeEvent>> GetEvents([FromRoute] Guid company)
+        {
+            var result = RecurringEvents.GetAll();
+            return OkResponse(result);
+        }
 
     }
 }

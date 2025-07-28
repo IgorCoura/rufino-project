@@ -664,6 +664,21 @@ class PeopleManagementService extends BaseService {
     var url =
         peopleManagementUrl.replace(path: "/api/v1/$companyId/employee/events");
     var response = await http.get(url, headers: headers);
+
+    if (response.statusCode == 200) {
+      List<dynamic> jsonResponse = jsonDecode(response.body);
+      return require_document.Event.fromListJson(jsonResponse);
+    }
+    throw treatUnsuccessfulResponses(response);
+  }
+
+  Future<List<require_document.Event>> getRequireDocumentEvents(
+      String companyId) async {
+    var headers = await getHeaders();
+    var url = peopleManagementUrl.replace(
+        path: "/api/v1/$companyId/requiredocuments/events");
+    var response = await http.get(url, headers: headers);
+
     if (response.statusCode == 200) {
       List<dynamic> jsonResponse = jsonDecode(response.body);
       return require_document.Event.fromListJson(jsonResponse);
