@@ -90,9 +90,9 @@ namespace PeopleManagement.API.Controllers
 
         [HttpGet("events")]
         [ProtectedResource("RequireDocuments", "view")]
-        public ActionResult<IEnumerable<EmployeeEvent>> GetEvents([FromRoute] Guid company)
+        public ActionResult<RecurringEvents[]> GetEvents([FromRoute] Guid company)
         {
-            var result = RecurringEvents.GetAll();
+            var result = RecurringEvents.GetAll().ToArray();
             return OkResponse(result);
         }
 
