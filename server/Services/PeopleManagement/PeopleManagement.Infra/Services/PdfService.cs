@@ -41,9 +41,11 @@ namespace PeopleManagement.Infra.Services
 
             await using var page = await browser.NewPageAsync();
 
-            _logger.LogInformation("Navigating page to HTML template at path: {IndexHtmlPath}", indexHtmlPath);
+            var path = "file://" + indexHtmlPath;
 
-            await page.GoToAsync("file://" + indexHtmlPath);
+            _logger.LogInformation("Navigating page to HTML template at path: {path}", path);
+
+            await page.GoToAsync(path);
 
             var contentPage = await page.GetContentAsync();
 
