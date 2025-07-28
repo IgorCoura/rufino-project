@@ -18,11 +18,29 @@ namespace PeopleManagement.Services.DomainEventHandlers
         public Task Handle(ScheduleDocumentExpirationEvent notification, CancellationToken cancellationToken)
         {
             _logger.LogInformation($"Schedule document expiration event - Expiration: {notification.Expiration}, DocumentUnit: {notification.DocumentUnitId}");
+
+            if(notification.Expiration < DateOnly.FromDateTime(DateTime.UtcNow))
+            {
+                _backgroundJobClient.Schedule<IDocumentDepreciationService>(x => x.DepreciateExpirateDocument(notification.DocumentUnitId,
+                notification.DocumentId, notification.CompanyId, cancellationToken), TimeSpan.FromHours(1));
+                return Task.CompletedTask;
+            }
+
             _backgroundJobClient.Schedule<IDocumentDepreciationService>(x => x.DepreciateExpirateDocument(notification.DocumentUnitId, 
                 notification.DocumentId, notification.CompanyId, cancellationToken), new DateTimeOffset(notification.Expiration, new TimeOnly(3, 0), TimeSpan.Zero));
 
+            var warningExpirateDay = notification.Expiration.AddDays(documentOptions.WarningDaysBeforeDocumentExpiration * -1);
+
+            if(warningExpirateDay < DateOnly.FromDateTime(DateTime.UtcNow))
+            {
+                _backgroundJobClient.Schedule<IDocumentDepreciationService>(
+                    x => x.WarningExpirateDocument(notification.DocumentUnitId, notification.DocumentId, notification.CompanyId, cancellationToken),
+                    TimeSpan.FromHours(1));
+                return Task.CompletedTask;
+            }
+
             _backgroundJobClient.Schedule<IDocumentDepreciationService>(x => x.WarningExpirateDocument(notification.DocumentUnitId,
-                notification.DocumentId, notification.CompanyId, cancellationToken), new DateTimeOffset(notification.Expiration.AddDays(documentOptions.WarningDaysBeforeDocumentExpiration * -1), new TimeOnly(3, 0), TimeSpan.Zero));
+                notification.DocumentId, notification.CompanyId, cancellationToken), new DateTimeOffset(warningExpirateDay, new TimeOnly(3, 0), TimeSpan.Zero));
 
             return Task.CompletedTask;
         }
