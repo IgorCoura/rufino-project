@@ -21,8 +21,7 @@ namespace PeopleManagement.Domain.AggregatesModel.DocumentAggregate
                         throw new DomainException(this, DomainErrors.DataIsGreaterThanMax(nameof(Validity), 
                             (DateOnly)value, DateOnly.FromDateTime(DateTime.UtcNow)));
                 }
-                _validity = value;
-                AddDomainEvent(ScheduleDocumentExpirationEvent.Create(Document.Id, Id, Document.CompanyId, (DateOnly)_validity!));
+                _validity = value;               
             }
         }
 
@@ -60,6 +59,7 @@ namespace PeopleManagement.Domain.AggregatesModel.DocumentAggregate
             Name = name;
             Extension = extension;
             Status = DocumentUnitStatus.OK;
+            AddDomainEvent(ScheduleDocumentExpirationEvent.Create(Document.Id, Id, Document.CompanyId, (DateOnly)_validity!));
         }
 
         public void UpdateDetails(DateOnly date, DateOnly? validity, string content)
@@ -87,6 +87,7 @@ namespace PeopleManagement.Domain.AggregatesModel.DocumentAggregate
             if(IsValid && Name != null && Extension != null)
             {
                 Status = DocumentUnitStatus.OK;
+                AddDomainEvent(ScheduleDocumentExpirationEvent.Create(Document.Id, Id, Document.CompanyId, (DateOnly)_validity!));
             }
             Status = DocumentUnitStatus.Invalid;
         }
