@@ -119,7 +119,7 @@ class DocumentUnit extends Equatable {
       var date = DateTime.tryParse(formattedDate);
 
       var dateMax = DateTime.now().add(const Duration(days: 1460));
-      var dateMin = DateTime.now().add(const Duration(days: 1));
+      var dateMin = DateTime.now();
 
       if (date == null || date.isAfter(dateMax) || date.isBefore(dateMin)) {
         return "A data é invalida.";
