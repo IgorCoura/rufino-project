@@ -91,10 +91,16 @@ namespace PeopleManagement.Infra.Services
             }
             while (response.IsSuccessStatusCode == false && retryCount < maxRetries);
 
-            var debug = await response.Content.ReadAsStringAsync();
+            
 
             if (response.IsSuccessStatusCode == false)
+            {
+                var debug = await response.Content.ReadAsStringAsync();
+                _logger.LogError("Failed to send document to ZapSign for signature. DocumentUnitId: {DocumentUnitId}, EmployeeId: {EmployeeId}, CompanyId: {CompanyId}, Response: {Response}",
+                    documentUnitId, employee.Id, company.Id, debug);
                 throw new DomainException(this, InfraErrors.SignDoc.ErrorSendDocToSign(documentUnitId));
+            }
+                
 
             var content = await response.Content.ReadFromJsonAsync<JsonNode>();
             var docToken = content?["token"]?.ToString() ?? "";
