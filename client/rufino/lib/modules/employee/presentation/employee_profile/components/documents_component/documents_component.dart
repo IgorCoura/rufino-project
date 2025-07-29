@@ -46,17 +46,22 @@ class DocumentsComponent extends StatelessWidget {
             children: [
               _header(state),
               state.isExpanded
-                  ? state.reqDocuments.isEmpty
-                      ? Padding(
-                          padding: const EdgeInsets.all(8.0),
-                          child: Text("Nenhum documento encontrado"),
+                  ? state.isLoading
+                      ? const Padding(
+                          padding: EdgeInsets.all(8.0),
+                          child: Center(child: CircularProgressIndicator()),
                         )
-                      : Column(
-                          children: state.reqDocuments
-                              .map((reqDocument) => _reqDocumentWidget(
-                                  context, state, reqDocument))
-                              .toList(),
-                        )
+                      : state.reqDocuments.isEmpty
+                          ? Padding(
+                              padding: const EdgeInsets.all(8.0),
+                              child: Text("Nenhum documento encontrado"),
+                            )
+                          : Column(
+                              children: state.reqDocuments
+                                  .map((reqDocument) => _reqDocumentWidget(
+                                      context, state, reqDocument))
+                                  .toList(),
+                            )
                   : const SizedBox(),
             ],
           ),

@@ -3,7 +3,7 @@
     public class DocumentTemplatesOptions
     {
         public const string ConfigurationSection = "DocumentTemplatesOptions";
-        public string SourceDirectory { get; private set; } = "templates";
-        public int MaxHoursWorkload { get; private set; } = 8;
+        public string SourceDirectory { get;  set; } = "templates";
+        public int MaxHoursWorkload { get;  set; } = 8;
     }
 }

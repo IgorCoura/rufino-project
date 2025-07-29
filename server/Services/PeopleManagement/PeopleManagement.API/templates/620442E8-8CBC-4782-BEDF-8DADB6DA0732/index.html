@@ -11,7 +11,7 @@
     <div class="main">
         <div class="header">
             <div>ORDEM DE SERVIÇO</div>
-            <div>{{empresa}}</div>
+            <div>{{company.corporatename}}</div>
         </div>
         <div class="body">
             <div class="table-data">
@@ -22,7 +22,7 @@
                             Nome:
                         </div>
                         <div class="table-data-content-line-text">
-                            {{nome}}
+                            {{employee.name}}
                         </div>
                     </div>
                     <div class="table-data-content-line">
@@ -31,23 +31,15 @@
                                 CPF:
                             </div>
                             <div class="table-data-content-line-text">
-                                {{cpf}}
+                                {{employee.idcard.cpf}}
                             </div>
-                        </div>
-                        <div class="table-data-content-line-inline" style="flex:1">
-                            <div class="table-data-content-line-title">
-                                Nº Identidade: 
-                            </div>
-                            <div class="table-data-content-line-text">
-                                {{rg}}
-                            </div>
-                        </div>   
+                        </div>  
                         <div class="table-data-content-line-inline" style="flex:1">
                             <div class="table-data-content-line-title">
                                 Matricula: 
                             </div>
                             <div class="table-data-content-line-text">
-                                {{matricula}}
+                                {{employee.registration}}
                             </div>
                         </div>                                            
                     </div>
@@ -57,7 +49,7 @@
                                 Setor: 
                             </div>
                             <div class="table-data-content-line-text">
-                                {{setor}}
+                                {{department.name}}
                             </div>
                         </div>
                         <div class="table-data-content-line-inline" style="flex:1">
@@ -65,7 +57,7 @@
                                 Cargo:
                             </div>
                             <div class="table-data-content-line-text">
-                                {{cargo}}
+                                {{position.name}}
                             </div>
                         </div>
                         <div class="table-data-content-line-inline" style="flex:1">
@@ -73,9 +65,26 @@
                                 CBO:
                             </div>
                             <div class="table-data-content-line-text">
-                                {{cbo}}
+                                {{position.cbo}}
                             </div>
                         </div>
+                        <div class="table-data-content-line-inline" style="flex:1">
+                            <div class="table-data-content-line-title">
+                                Função:
+                            </div>
+                            <div class="table-data-content-line-text">
+                                {{role.name}}
+                            </div>
+                        </div>
+                        <div class="table-data-content-line-inline" style="flex:1">
+                            <div class="table-data-content-line-title">
+                                CBO:
+                            </div>
+                            <div class="table-data-content-line-text">
+                                {{role.cbo}}
+                            </div>
+                        </div>                        
+                        
                     </div>
                 </div>
             </div>
@@ -83,7 +92,7 @@
             <div class="table-data">
                 <div class="table-data-title">Descrição da atividade</div>
                 <div class="table-data-content">
-                    {{descricao}}
+                    {{role.descricao}}
                 </div>
             </div>
             <div class="table-data">
@@ -163,135 +172,26 @@
             <div class="table-data">
                 <div class="table-data-title">IDENTIFICAÇÃO DOS RISCOS AMBIENTAIS</div>
                 <div class="table-data-content">
-                    <div class="table-data-content-line">
-                        <div class="table-data-content-line-title">
-                            Radiação não ionizante:
+                    <list:PGR.risks>
+                        <div class="table-data-content-line">
+                            <div class="table-data-content-line-title">
+                                {{name}}:
+                            </div>
                         </div>
-                    </div>
-                    <div class="table-data-content-line">
-                        <div class="table-data-content-line-text">
-                            - Fonte: Trabalho a céu aberto.
-                            <br>- Medidas administrativas: Existência de abrigos, capazes de proteger os trabalhadores contra
-                            intempéries climáticos.                            
+                        <div class="table-data-content-line">
+                            <div class="table-data-content-line-text">
+                                - Fonte: {{source}}.
+                                <br>- {{precautions}}                            
+                            </div>
                         </div>
-                    </div>
-                    <div class="table-data-content-line">
-                        <div class="table-data-content-line-title">
-                            Ruído:
-                        </div>
-                    </div>
-                    <div class="table-data-content-line">
-                        <div class="table-data-content-line-text">
-                            - Fonte: Máquinas da Obra.
-                            <br>- Medidas administrativas: Treinamento de integração, fornecimento de EPI.                        
-                        </div>
-                    </div>
-                    <div class="table-data-content-line">
-                        <div class="table-data-content-line-title">
-                            Poeiras Minerias:
-                        </div>
-                    </div>
-                    <div class="table-data-content-line">
-                        <div class="table-data-content-line-text">
-                            - Fonte: Ambiente de Obra.
-                            <br>- Medidas administrativas: Procedimentos, orientações e treinamento para a execução do trabalho.                          
-                        </div>
-                    </div>
-                    <div class="table-data-content-line">
-                        <div class="table-data-content-line-title">
-                            Levantamento e transporte manual de cargas e volumes:
-                        </div>
-                    </div>
-                    <div class="table-data-content-line">
-                        <div class="table-data-content-line-text">
-                            - Fonte: Movimentação de materias.
-                            <br>- Medidas administrativas: Ginástica Laboral, treinamento Ergonômico e DDS.
-                        </div>
-                    </div>
-                    <div class="table-data-content-line">
-                        <div class="table-data-content-line-title">
-                            Postura de pé por longos períodos:
-                        </div>
-                    </div>
-                    <div class="table-data-content-line">
-                        <div class="table-data-content-line-text">
-                            - Fonte: Processos de Trabalho.
-                            <br>- Medidas administrativas: Ginástica Laboral, treinamento Ergonômico e DDS.
-                        </div>
-                    </div>
-                    <div class="table-data-content-line">
-                        <div class="table-data-content-line-title">
-                            Postura inadequada:
-                        </div>
-                    </div>
-                    <div class="table-data-content-line">
-                        <div class="table-data-content-line-text">
-                            - Fonte: Processos de Trabalho.
-                            <br>- Medidas administrativas: Ginástica Laboral, treinamento Ergonômico e DDS.
-                        </div>
-                    </div>
-                    <div class="table-data-content-line">
-                        <div class="table-data-content-line-title">
-                            Bater Contra:
-                        </div>
-                    </div>
-                    <div class="table-data-content-line">
-                        <div class="table-data-content-line-text">
-                            - Fonte: Ambiente de Obra, Mobiliário e Equipamentos.
-                            <br>- Medidas administrativas: Manter o ambiente de trabalho organizado, evitando colocar objetos e
-                            mobiliário nas áreas de circulação de pessoas.
-                        </div>
-                    </div>
-                    <div class="table-data-content-line">
-                        <div class="table-data-content-line-title">
-                            Choque elétrico:
-                        </div>
-                    </div>
-                    <div class="table-data-content-line">
-                        <div class="table-data-content-line-text">
-                            - Fonte: Processos de Trabalho.
-                            <br>- Medidas administrativas: Procedimentos, orientações, treinamento e competência para a execução do trabalho. Fornecimento de EPI.
-                        </div>
-                    </div>
-                    <div class="table-data-content-line">
-                        <div class="table-data-content-line-title">
-                            Projeção de partículas:
-                        </div>
-                    </div>
-                    <div class="table-data-content-line">
-                        <div class="table-data-content-line-text">
-                            - Fonte: Ambiente de Obra.
-                            <br>- Medidas administrativas: Procedimentos, orientações, treinamento e competência para a execução do
-                            trabalho, fornecimento de EPI.                            
-                        </div>
-                    </div>
-                    <div class="table-data-content-line">
-                        <div class="table-data-content-line-title">
-                            Queda de diferença de nível maior que dois metros:
-                        </div>
-                    </div>
-                    <div class="table-data-content-line">
-                        <div class="table-data-content-line-text">
-                            - Fonte: Trabalho realizado em altura.
-                            <br>- Medidas administrativas: Treinamento de Trabalho em Altura NR-35 e fornecimento de EPIs.
-                            Realização de exames específicos conforme o PCMSO.                     
-                        </div>
-                    </div>   
+                    </list:PGR.risks> 
                 </div>     
             </div>
             <div class="table-data">
                 <div class="table-data-title">EQUIPAMENTOS DE PROTEÇÃO INDIVIDUAL (EPI)</div>
-                <div class="table-data-content">
-                    - Protetor Solar.
-                    <br>- Protetor auricular tipo plug de inserção.
-                    <br>- Máscara PFF2.
-                    <br>- Luva Tátil.
-                    <br>- Calçado de Segurança.
-                    <br>- Óculos de proteção.
-                    <br>- Capacete de segurança.
-                    <br>- Cinturão de segurança com talabarte e trava-queda.
-                    <br>- Luva emborrachada.
-                </div>
+                <list:PGR.epis class="table-data-content">
+                    - {{name}}<br>
+                </list:PGR.epis>
             </div>
             <div class="table-data">
                 <div class="table-data-title">DECLARAÇÃO DO TRABALHADOR EXECUTANTE DA OPERAÇÃO/ATIVIDADE</div>
@@ -299,20 +199,20 @@
                     Declaro ter recebido informações, orientações e uma cópia desta <span>ORDEM DE SERVIÇO DE SEGURANÇA E MEDICINA DO TRABALHO</span>, de acordo com a NR01 aprovada pela portaria nº3.214/78, para permitir um trabalho seguro nas atividades da função acima mencionada. Assim com <span>DECLARO</span>, estar ciente que a não obediência das normas estabelecidas neste <span>PROCEDIMENTO</span>, estarei sujeito a penalidades disciplinares, conforme regulamento interno da Empresa e <span>NORMAS REGULAMENTADORAS</span>
                 </div>
             </div>
-            <div class="date">Suzano, {{data}}</div>
+            <div class="date">Suzano, {{date}}</div>
             <div class="signature-body">
                 <div>
                     <div class="signature-local">
                         <img style="height:25mm; float: start; visibility: visible;" src="img\assinatura_jamildo.png" class="assinatura"> <!-- adicionado a classe .assinatura -->
                     </div>
                     <div class="signature-info">
-                        {{empresa}}
+                        {{company.corporatename}}
                     </div>
                 </div>
                 <div>
                     <div class="signature-local"></div>
                     <div class="signature-info">
-                        {{nome}}
+                        {{employee.name}}
                     </div>
                 </div>
             </div>
