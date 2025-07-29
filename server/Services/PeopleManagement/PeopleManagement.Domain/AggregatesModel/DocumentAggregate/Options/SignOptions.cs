@@ -4,6 +4,6 @@
     {
         public const string ConfigurationSection = "SignOptions";
 
-        public string WeebHookUrl { get; private set; } = "https://localhost:55020/api/v1/document/insert/signer";
+        public string WeebHookUrl { get; set; } = "https://localhost:55020/api/v1/document/insert/signer";
     }
 }
