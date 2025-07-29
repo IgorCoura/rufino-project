@@ -1,4 +1,5 @@
 ﻿using Microsoft.AspNetCore.Authorization;
+using System.Security.Claims;
 
 
 namespace PeopleManagement.API.Authorization
@@ -17,7 +18,13 @@ namespace PeopleManagement.API.Authorization
             var parameter = _httpContextAccessor?.HttpContext?.GetRouteValue(requirement.ParamRouteName)?.ToString();
             var claims = context.User.FindAll(x => x.Type.Contains(requirement.ClaimType, StringComparison.OrdinalIgnoreCase)).Select(x => x.Value.ToString()).ToList() ?? [];
 
-            if (claims.Count <= 0)
+            if (string.IsNullOrEmpty(parameter))
+            {
+                context.Succeed(requirement);
+                return Task.CompletedTask;
+            }
+
+            if(claims.Count <= 0)
             {
                 context.Fail();
                 return Task.CompletedTask;

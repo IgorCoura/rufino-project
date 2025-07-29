@@ -122,7 +122,7 @@ namespace PeopleManagement.API.Controllers
         }
 
 
-        [HttpPost("insert/signer")]
+        [HttpPost("/api/v1/[controller]/insert/signer")]
         [ProtectedResource("Document", "send")]
         public async Task<ActionResult<InsertDocumentSignedResponse>> InsertDocSigner([FromBody] JsonNode request, [FromHeader(Name = "x-requestid")] Guid requestId)
         {
