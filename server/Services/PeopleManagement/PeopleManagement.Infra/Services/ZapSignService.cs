@@ -1,26 +1,26 @@
-﻿using PeopleManagement.Domain.AggregatesModel.CompanyAggregate;
+﻿using Microsoft.Extensions.Logging;
+using Microsoft.Net.Http.Headers;
+using PeopleManagement.Domain.AggregatesModel.CompanyAggregate;
 using PeopleManagement.Domain.AggregatesModel.DocumentAggregate;
 using PeopleManagement.Domain.AggregatesModel.DocumentAggregate.Interfaces;
 using PeopleManagement.Domain.AggregatesModel.DocumentAggregate.Models;
+using PeopleManagement.Domain.AggregatesModel.DocumentAggregate.Options;
 using PeopleManagement.Domain.AggregatesModel.DocumentTemplateAggregate;
 using PeopleManagement.Domain.AggregatesModel.EmployeeAggregate;
-using PeopleManagement.Domain.ErrorTools.ErrorsMessages;
 using PeopleManagement.Domain.ErrorTools;
+using PeopleManagement.Domain.ErrorTools.ErrorsMessages;
+using PeopleManagement.Domain.SeedWord;
 using System.Net.Http.Json;
 using System.Text.Json.Nodes;
-using System.Net.Http.Headers;
-using Microsoft.Net.Http.Headers;
-using static System.Net.WebRequestMethods;
-using System.Threading;
-using PeopleManagement.Domain.SeedWord;
-using Microsoft.Extensions.Logging;
 
 namespace PeopleManagement.Infra.Services
 {
-    public class ZapSignService(HttpClient httpClient, ILogger<ZapSignService> logger) : ISignService
+    public class ZapSignService(HttpClient httpClient, ILogger<ZapSignService> logger , IAuthorizationService authorizationService, SignOptions signOptions) : ISignService
     {
         private readonly HttpClient _httpClient = httpClient;
         private readonly ILogger<ZapSignService> _logger = logger;
+        private readonly IAuthorizationService _authorizationService = authorizationService;
+        private readonly SignOptions _signOptions = signOptions;
 
         public async Task SendToSignatureWithWhatsapp(Stream documentStream, Guid documentUnitId, Document document, Company company, 
             Employee employee, PlaceSignature[] placeSignatures, DateTime dateLimitToSign, int eminderEveryNDays, CancellationToken cancellationToken = default)
@@ -43,6 +43,9 @@ namespace PeopleManagement.Infra.Services
             var documentBase64 = ConvertStreamToBase64(documentStream);
 
             var folderPath = $"{company.CorporateName}/{employee.Name}";
+
+
+            
 
             var signerArray = new JsonArray
             {
@@ -109,6 +112,7 @@ namespace PeopleManagement.Infra.Services
             if (string.IsNullOrEmpty(docToken) || string.IsNullOrEmpty(signerToken))
                 throw new DomainException(this, InfraErrors.SignDoc.ErrorSendDocToSign(documentUnitId));
 
+
             if (placeSignatures.Length > 0)
             {
                 var resultPlaceSignature = await PlaceSignature(docToken, signerToken, placeSignatures, cancellationToken);
@@ -122,8 +126,18 @@ namespace PeopleManagement.Infra.Services
                 }
 
             }
-            _logger.LogInformation("Document sent to ZapSign for signature successfully. DocumentUnitId: {DocumentUnitId}, EmployeeId: {EmployeeId}, CompanyId: {CompanyId}",
-                documentUnitId, employee.Id, company.Id);
+
+            var hookResult = await CreateWebHookToDocSigned(docToken,  cancellationToken);
+
+            if(hookResult == false)
+            {
+                
+                await DeleteDocument(docToken, cancellationToken);
+                throw new DomainException(this, InfraErrors.SignDoc.ErrorSendDocToSign(documentUnitId));
+            }
+
+
+            _logger.LogInformation("Document sent to ZapSign for signature successfully. DocumentUnitId: {DocumentUnitId}, EmployeeId: {EmployeeId}, CompanyId: {CompanyId}", documentUnitId, employee.Id, company.Id);
         }
 
         public async Task<DocSignedModel?> GetFileFromDocSignedEvent(JsonNode contentBody, CancellationToken cancellationToken = default)
@@ -157,7 +171,7 @@ namespace PeopleManagement.Infra.Services
 
             do
             {
-                response = await _httpClient.DeleteAsync("https://api.zapsign.com.br/api/v1/docs/{{doc_token}}/");
+                response = await _httpClient.DeleteAsync($"/api/v1/docs/{doc_token}");
 
                 if (response.IsSuccessStatusCode)
                 {
@@ -168,6 +182,8 @@ namespace PeopleManagement.Infra.Services
                 await Task.Delay(TimeSpan.FromSeconds(Math.Pow(2, retryCount)), cancellationToken); // Exponential backoff  
             }
             while (retryCount < maxRetries);
+            var debug = await response.Content.ReadAsStringAsync();
+            _logger.LogError("Failed to delete document to ZapSign . DocToken: {doc_token}, Response: {Response}", doc_token, debug);
         }
 
         private async Task<bool> PlaceSignature(string docToken, string signerToken, PlaceSignature[] placeSignatures, CancellationToken cancellationToken = default)
@@ -230,28 +246,43 @@ namespace PeopleManagement.Infra.Services
             public static readonly SignatureType DigitalSignatureAndWhatsapp = new(2, nameof(DigitalSignatureAndWhatsapp), "assinaturaTela-tokenWhatsapp");
         }
 
-        private async Task<bool> CreateWebHookToDocSigned(string docToken, string url, string authorizationToken, CancellationToken cancellationToken = default)
+        private async Task<bool> CreateWebHookToDocSigned(string docToken, CancellationToken cancellationToken = default)
         {
-            var headers = new JsonObject
+            try
             {
-                ["name"] = "Authorization",
-                ["value"] = $"{authorizationToken}"
-            };
+                var authorizationToken = await _authorizationService.GetAuthorizationToken();
 
-            var headersArray = new JsonArray();
-            headersArray.Add(headers);
+                var header = new JsonObject
+                {
+                    ["name"] = "Authorization",
+                    ["value"] = $"Bearer {authorizationToken}"
+                };
 
-            var body = new JsonObject
+                var headersArray = new JsonArray() { header };
+
+                var body = new JsonObject
+                {
+                    ["url"] = $"{_signOptions.WeebHookUrl}",
+                    ["type"] = "doc_signed",
+                    ["doc_token"] = $"{docToken}",
+                    ["headers"] = headersArray
+                };
+                var response = await _httpClient.PostAsJsonAsync("/api/v1/user/company/webhook", body, cancellationToken);
+                var content = await response.Content.ReadAsStringAsync();
+                if(response.IsSuccessStatusCode == false)
+                    _logger.LogInformation("Failed to create webhook for document signed event. DocToken: {DocToken}, Url: {Url}, Response: {Response}",
+                        docToken, _signOptions.WeebHookUrl, content);
+                return response.IsSuccessStatusCode;
+            }
+            catch(Exception ex)
             {
-                ["url"] = $"{url}",
-                ["type"] = "doc_signed",
-                ["doc_token"] = $"{docToken}",
-                ["headers"] = headersArray
-            };
-            var response = await _httpClient.PostAsJsonAsync("api/v1/user/company/webhook/", body, cancellationToken);
-            return response.IsSuccessStatusCode;
+                _logger.LogError(ex, "Error creating webhook for document signed event. DocToken: {DocToken}, Url: {Url}", docToken, _signOptions.WeebHookUrl);
+                return false;
+            }
+            
         }
 
+       
         private static string ConvertStreamToBase64(Stream stream)
         {
             if (stream.CanSeek)

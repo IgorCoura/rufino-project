@@ -49,6 +49,8 @@ namespace PeopleManagement.API.DependencyInjection
                 httpClient.DefaultRequestHeaders.Add(HeaderNames.Authorization, "Bearer " + configuration.GetSection("ZapSign")["Token"]!);
             });
 
+            service.AddHttpClient<IAuthorizationService, AuthorizationService>();
+
             return service;
         }
     }

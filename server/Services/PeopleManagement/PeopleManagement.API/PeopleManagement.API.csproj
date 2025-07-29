@@ -31,4 +31,7 @@
     <ProjectReference Include="..\PeopleManagement.Infra\PeopleManagement.Infra.csproj" />
     <ProjectReference Include="..\PeopleManagement.Services\PeopleManagement.Services.csproj" />
   </ItemGroup>
+  <ItemGroup>
+    <Folder Include="app_docs\" />
+  </ItemGroup>
 </Project>

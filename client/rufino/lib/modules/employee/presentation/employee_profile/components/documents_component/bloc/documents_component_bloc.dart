@@ -44,14 +44,14 @@ class DocumentsComponentBloc
     ExpandEvent event,
     Emitter<DocumentsComponentState> emit,
   ) async {
-    emit(state.copyWith(isExpanded: !state.isExpanded));
+    emit(state.copyWith(isExpanded: !state.isExpanded, isLoading: true));
 
     if (state.isExpanded == true) {
       try {
         var documentGroup = await _documentGroupService.getAllWithDocuments(
             state.companyId, state.employeeId);
 
-        emit(state.copyWith(reqDocuments: documentGroup));
+        emit(state.copyWith(reqDocuments: documentGroup, isLoading: false));
       } catch (ex, stacktrace) {
         var exception = _documentService.treatErrors(ex, stacktrace);
         emit(state.copyWith(isLoading: false, exception: exception));

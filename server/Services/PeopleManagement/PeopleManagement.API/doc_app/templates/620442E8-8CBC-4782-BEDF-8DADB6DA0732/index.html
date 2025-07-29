@@ -33,20 +33,20 @@
                             <div class="table-data-content-line-text">
                                 {{employee.idcard.cpf}}
                             </div>
-                        </div>
+                        </div>  
                         <div class="table-data-content-line-inline" style="flex:1">
                             <div class="table-data-content-line-title">
-                                Matricula:
+                                Matricula: 
                             </div>
                             <div class="table-data-content-line-text">
                                 {{employee.registration}}
                             </div>
-                        </div>
+                        </div>                                            
                     </div>
                     <div class="table-data-content-line">
                         <div class="table-data-content-line-inline" style="flex:1">
                             <div class="table-data-content-line-title">
-                                Setor:
+                                Setor: 
                             </div>
                             <div class="table-data-content-line-text">
                                 {{department.name}}
@@ -83,8 +83,8 @@
                             <div class="table-data-content-line-text">
                                 {{role.cbo}}
                             </div>
-                        </div>
-
+                        </div>                        
+                        
                     </div>
                 </div>
             </div>
@@ -92,7 +92,7 @@
             <div class="table-data">
                 <div class="table-data-title">Descrição da atividade</div>
                 <div class="table-data-content">
-                    {{role.description}}
+                    {{role.descricao}}
                 </div>
             </div>
             <div class="table-data">
@@ -105,23 +105,23 @@
             <div class="table-data">
                 <div class="table-data-title">Obrigações</div>
                 <div class="table-data-content">
-                    1. É obrigatório o uso dos EPI's e EPC's conforme riscos associados.
+                    1. É obrigatório o uso dos EPI's e EPC's conforme riscos associados. 
                     <br>2. É obrigatório o empregado responsabilizar-se pela guarda e conservação dos EPI's fornecidos, comunicando ao
                     empregador qualquer alteração que o torne impróprio para o uso e cumprir as determinações da empresa sobre o uso
                     adequado.
                     <br>3. Cumprir as disposições legais e regulamentares sobre saúde e segurança do trabalho.
-                    <br>4. Executar as atividades mediante a aplicação da APR (Análise Preliminar de Riscos ) e PT ( Permissão de trabalho ).
+                    <br>4. Executar as atividades mediante a aplicação da APR (Análise Preliminar de Riscos ) e PT ( Permissão de trabalho ). 
                 </div>
             </div>
             <div class="table-data">
                 <div class="table-data-title">Proibições</div>
                 <div class="table-data-content">
-                    1. É proibido o uso de adornos (pulseiras, correntes, alianças, pierces);
-                    <br>2. É proibido fumar em local de trabalho ou nas dependências da empresa;
-                    <br>3. É proibido iniciar as atividades sem emissão da APR e PT;
-                    <br>4. É proibido transitar pela obra sem capacete, calçado apropriado e uniforme;
-                    <br>5. É proibido portar ou consumir bebidas alcoólicas ou qualquer outro tipo de entorpecentes durante o horário de trabalho;
-                    <br>6. É proibido o transporte de ferramentas manuais nos bolsos. Utilize sempre bolsas porta - ferramentas e/ou cintos apropriados;
+                    1. É proibido o uso de adornos (pulseiras, correntes, alianças, pierces); 
+                    <br>2. É proibido fumar em local de trabalho ou nas dependências da empresa; 
+                    <br>3. É proibido iniciar as atividades sem emissão da APR e PT; 
+                    <br>4. É proibido transitar pela obra sem capacete, calçado apropriado e uniforme; 
+                    <br>5. É proibido portar ou consumir bebidas alcoólicas ou qualquer outro tipo de entorpecentes durante o horário de trabalho; 
+                    <br>6. É proibido o transporte de ferramentas manuais nos bolsos. Utilize sempre bolsas porta - ferramentas e/ou cintos apropriados; 
                     <br>7. É proibido ligar máquinas e equipamentos que não seja por intermédio de conjunto plugue e tomada.
                 </div>
             </div>
@@ -181,11 +181,11 @@
                         <div class="table-data-content-line">
                             <div class="table-data-content-line-text">
                                 - Fonte: {{source}}.
-                                <br>- {{precautions}}
+                                <br>- {{precautions}}                            
                             </div>
                         </div>
-                    </list:PGR.risks>
-                </div>
+                    </list:PGR.risks> 
+                </div>     
             </div>
             <div class="table-data">
                 <div class="table-data-title">EQUIPAMENTOS DE PROTEÇÃO INDIVIDUAL (EPI)</div>
@@ -199,7 +199,7 @@
                     Declaro ter recebido informações, orientações e uma cópia desta <span>ORDEM DE SERVIÇO DE SEGURANÇA E MEDICINA DO TRABALHO</span>, de acordo com a NR01 aprovada pela portaria nº3.214/78, para permitir um trabalho seguro nas atividades da função acima mencionada. Assim com <span>DECLARO</span>, estar ciente que a não obediência das normas estabelecidas neste <span>PROCEDIMENTO</span>, estarei sujeito a penalidades disciplinares, conforme regulamento interno da Empresa e <span>NORMAS REGULAMENTADORAS</span>
                 </div>
             </div>
-            <div class="date">Suzano, {{complementaryinfo.fulldateptbr}}</div>
+            <div class="date">Suzano, {{date}}</div>
             <div class="signature-body">
                 <div>
                     <div class="signature-local">
@@ -216,10 +216,10 @@
                     </div>
                 </div>
             </div>
-
+            
         </div>
     </div>
 </body>
-
+    
 </html>
 
