@@ -27,8 +27,8 @@ namespace PeopleManagement.API.Controllers
             return Ok("It's ok. Endpoint with Authorize just to admin");
         }
 
-        [HttpGet("auth/role/{company}")]
-        [ProtectedResource("teste", ["sc1", "sc2", "sc3"])]
+        [HttpGet("auth/company/{company}")]
+        [ProtectedResource("teste")]
         public IActionResult GetTestAuthRole(string company)
         {
             return Ok($"It's ok. Endpoint with Authorize just to admin - {company}");
