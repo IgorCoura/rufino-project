@@ -56,7 +56,7 @@ namespace PeopleManagement.Services.Services
                 }
                 
             }
-
+            await _documentRepository.UnitOfWork.SaveChangesAsync(cancellationToken);
             _logger.LogInformation($"Recurring CreateDocument Units Complete - event: {recurringEvent}");
 
         }

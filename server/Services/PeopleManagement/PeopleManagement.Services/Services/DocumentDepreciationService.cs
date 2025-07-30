@@ -28,6 +28,8 @@ namespace PeopleManagement.Services.Services
             var newDocumentUnitId = Guid.NewGuid();
             document.MakeAsDocumentExpired(documentUnitId, newDocumentUnitId);
 
+            await _documentRepository.UnitOfWork.SaveChangesAsync(cancellationToken);
+
             _logger.LogInformation("Document with ID {DocumentId} has been marked as expired for company {CompanyId}.", documentId, companyId);
         }
 
@@ -49,6 +51,8 @@ namespace PeopleManagement.Services.Services
 
             var newDocumentUnitId = Guid.NewGuid();
             document.MakeAsWarning(documentUnitId, newDocumentUnitId);
+
+            await _documentRepository.UnitOfWork.SaveChangesAsync(cancellationToken);
 
             _logger.LogInformation("Document with ID {DocumentId} has been marked as warning for company {CompanyId}.", documentId, companyId);
         }

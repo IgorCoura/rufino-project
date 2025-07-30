@@ -17,21 +17,22 @@ namespace PeopleManagement.Services.DomainEventHandlers
         private readonly ILogger<ScheduleDocumentExpirationHandler> _logger = logger;
         public Task Handle(ScheduleDocumentExpirationEvent notification, CancellationToken cancellationToken)
         {
+
             _logger.LogInformation($"Schedule document expiration event - Expiration: {notification.Expiration}, DocumentUnit: {notification.DocumentUnitId}");
 
-            if(notification.Expiration < DateOnly.FromDateTime(DateTime.Now))
+            if (notification.Expiration < DateOnly.FromDateTime(DateTime.Now))
             {
                 _backgroundJobClient.Schedule<IDocumentDepreciationService>(x => x.DepreciateExpirateDocument(notification.DocumentUnitId,
                 notification.DocumentId, notification.CompanyId, cancellationToken), TimeSpan.FromHours(1));
                 return Task.CompletedTask;
             }
 
-            _backgroundJobClient.Schedule<IDocumentDepreciationService>(x => x.DepreciateExpirateDocument(notification.DocumentUnitId, 
+            _backgroundJobClient.Schedule<IDocumentDepreciationService>(x => x.DepreciateExpirateDocument(notification.DocumentUnitId,
                 notification.DocumentId, notification.CompanyId, cancellationToken), new DateTimeOffset(notification.Expiration, new TimeOnly(5, 0), TimeSpan.Zero));
 
             var warningExpirateDay = notification.Expiration.AddDays(documentOptions.WarningDaysBeforeDocumentExpiration * -1);
 
-            if(warningExpirateDay < DateOnly.FromDateTime(DateTime.Now))
+            if (warningExpirateDay < DateOnly.FromDateTime(DateTime.Now))
             {
                 _backgroundJobClient.Schedule<IDocumentDepreciationService>(
                     x => x.WarningExpirateDocument(notification.DocumentUnitId, notification.DocumentId, notification.CompanyId, cancellationToken),
