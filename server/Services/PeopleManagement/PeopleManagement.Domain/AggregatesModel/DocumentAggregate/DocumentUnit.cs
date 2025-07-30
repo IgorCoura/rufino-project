@@ -94,7 +94,7 @@ namespace PeopleManagement.Domain.AggregatesModel.DocumentAggregate
 
         public bool MarkAsDeprecatedOrInvalid()
         {
-            if (Status == DocumentUnitStatus.OK)
+            if (Status == DocumentUnitStatus.OK || Status == DocumentUnitStatus.Warning)
             {
                 Status = DocumentUnitStatus.Deprecated;
                 return true;
