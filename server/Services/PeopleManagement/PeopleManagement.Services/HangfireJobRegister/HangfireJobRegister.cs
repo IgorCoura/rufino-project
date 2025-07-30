@@ -93,6 +93,13 @@ namespace PeopleManagement.Services.HangfireJobRegistrar
                x => x.RecurringCreateDocumentUnits(RecurringEvents.YearlyEvent, CancellationToken.None),
                Cron.Yearly); // Cron expression for yearly at midnight
 
+            _recurringJobManager.AddOrUpdate<IRecurringDocumentService>(
+               "Minutely-job",
+               x => x.RecurringCreateDocumentUnits(RecurringEvents.YearlyEvent, CancellationToken.None),
+               Cron.Minutely); // Cron expression for yearly at midnight
+
+
+
             _logger.LogInformation("Register Recurring Jobs Complete");
         }
     }

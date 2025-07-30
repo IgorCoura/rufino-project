@@ -1,11 +1,11 @@
 ﻿using PeopleManagement.Domain.AggregatesModel.DocumentTemplateAggregate;
-using PeopleManagement.Domain.AggregatesModel.DocumentTemplateAggregate.options;
 using PeopleManagement.Domain.AggregatesModel.DocumentAggregate.Interfaces;
 using PuppeteerSharp;
 using PuppeteerSharp.Media;
 using System.Text.Json.Nodes;
 using Microsoft.EntityFrameworkCore.Metadata;
 using Microsoft.Extensions.Logging;
+using PeopleManagement.Domain.AggregatesModel.DocumentTemplateAggregate.options;
 
 namespace PeopleManagement.Infra.Services
 {
