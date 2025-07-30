@@ -1,6 +1,7 @@
 using EntityFramework.Exceptions.PostgreSQL;
 using Hangfire;
 using Hangfire.Dashboard;
+using Hangfire.Dashboard.BasicAuthorization;
 using Hangfire.PostgreSql;
 using Microsoft.EntityFrameworkCore;
 using PeopleManagement.API.Authentication;
@@ -103,6 +104,9 @@ if (context.Database.GetPendingMigrations().Any())
     context.Database.Migrate();
 }
 
+
+
+
 // Configure the HTTP request pipeline.
 if (env != null && env.Equals("Development"))
 {
@@ -110,16 +114,34 @@ if (env != null && env.Equals("Development"))
     var log = services.GetRequiredService<ILogger<Program>>();
     await PopulateDb.Populate(context, log);
 
-    app.UseHangfireDashboard(options: new DashboardOptions
-    {
-        Authorization = new[] { new HangFireAuthorizationFilter() }
-    });
 }
 
 
+app.UseHangfireDashboard("/hangfire", new DashboardOptions
+{
+    Authorization = new[] { new BasicAuthAuthorizationFilter(new BasicAuthAuthorizationFilterOptions
+    {
+        RequireSsl = false,
+        SslRedirect = false,
+        LoginCaseSensitive = true,
+        Users = new []
+        {
+            new BasicAuthAuthorizationUser
+            {
+                Login = builder.Configuration["HangfireDashboard:AdminLogin"],
+                PasswordClear = builder.Configuration["HangfireDashboard:AdminPassword"]
+            }
+        }
+
+    }) }
+});
 
 
-app.UseSwagger();
+
+
+
+
+    app.UseSwagger();
 app.UseSwaggerUI();
 
 
