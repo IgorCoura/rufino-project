@@ -2,14 +2,20 @@
 {
     public class RecurringEvents : INotification
     {
-        public int Id { get; private set; }
-        public string Name { get; private set; }
+        public int Id { get; private set; } = 0;
+        public string Name { get; private set; } = string.Empty;
+
+        public RecurringEvents()
+        {
+
+        }
 
         private RecurringEvents(int id, string name)
         {
             Id = id;
             Name = name;
         }
+
 
 
         // Event IDs: from 1000 to 2000, cannot be lesser or greater to avoid conflict.
