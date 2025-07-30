@@ -128,8 +128,8 @@ app.UseHangfireDashboard("/hangfire", new DashboardOptions
         {
             new BasicAuthAuthorizationUser
             {
-                Login = builder.Configuration["HangfireDashboard:AdminLogin"],
-                PasswordClear = builder.Configuration["HangfireDashboard:AdminPassword"]
+                Login = builder.Configuration["HangfireDashboard:Login"],
+                PasswordClear = builder.Configuration["HangfireDashboard:Password"]
             }
         }
 
