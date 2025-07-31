@@ -12,12 +12,14 @@ namespace PeopleManagement.Services.Services
         IRequireDocumentsRepository requireDocumentsRepository, 
         IDocumentRepository documentRepository, 
         IEmployeeRepository employeeRepository, 
+        ISignService signService,
         ILogger<RecurringDocumentService> logger) 
         : IRecurringDocumentService
     {
         private readonly IRequireDocumentsRepository _requireDocumentsRepository = requireDocumentsRepository;
         private readonly IDocumentRepository _documentRepository = documentRepository;
         private readonly IEmployeeRepository _employeeRepository = employeeRepository;
+        private readonly ISignService _signService = signService;
         private readonly ILogger<RecurringDocumentService> _logger = logger;
 
         public async Task RecurringCreateDocumentUnits(RecurringEvents recurringEvent, CancellationToken cancellationToken = default)
@@ -59,6 +61,11 @@ namespace PeopleManagement.Services.Services
             await _documentRepository.UnitOfWork.SaveChangesAsync(cancellationToken);
             _logger.LogInformation($"Recurring CreateDocument Units Complete - event: {recurringEvent}");
 
+        }
+
+        public async Task RefreshWebHook(CancellationToken cancellationToken = default)
+        {
+            await _signService.RefreshWebHookDocSignedEvent(cancellationToken);
         }
     }
 }

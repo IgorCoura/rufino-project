@@ -13,5 +13,12 @@ namespace PeopleManagement.Domain.AggregatesModel.DocumentAggregate.Interfaces
         Task SendToSignatureWithSelfie(Stream documentStream, Guid documentUnitId, Document document, Company company,
             Employee employee, PlaceSignature[] placeSignatures, DateTime dateLimitToSign, int eminderEveryNDays, CancellationToken cancellationToken = default);
         Task<DocSignedModel?> GetFileFromDocSignedEvent(JsonNode contentBody, CancellationToken cancellationToken = default);
+
+        Task<string?> CreateWebHookToDocSignedEvent(string? docToken = null, CancellationToken cancellationToken = default);
+
+        Task<bool> DeleteWebHook(string id, CancellationToken cancellationToken = default);
+        Task RefreshWebHookDocSignedEvent(CancellationToken cancellationToken = default);
+
+
     }
 }

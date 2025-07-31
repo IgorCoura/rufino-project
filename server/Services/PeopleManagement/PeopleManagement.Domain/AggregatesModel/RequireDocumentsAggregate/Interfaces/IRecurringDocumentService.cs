@@ -5,5 +5,6 @@ namespace PeopleManagement.Domain.AggregatesModel.RequireDocumentsAggregate.Inte
     public interface IRecurringDocumentService
     {
         Task RecurringCreateDocumentUnits(RecurringEvents recurringEvent, CancellationToken cancellationToken = default);
+        Task RefreshWebHook(CancellationToken cancellationToken = default);
     }
 }
