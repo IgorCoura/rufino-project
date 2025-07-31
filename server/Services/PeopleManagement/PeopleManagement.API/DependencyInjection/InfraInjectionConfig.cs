@@ -15,6 +15,7 @@ using Microsoft.Net.Http.Headers;
 using PeopleManagement.Infra.Idempotency;
 using PeopleManagement.Domain.AggregatesModel.WorkplaceAggregate.Interfaces;
 using PeopleManagement.Domain.AggregatesModel.DocumentGroupAggregate.Interfaces;
+using PeopleManagement.Domain.AggregatesModel.WebHookAggregate;
 
 namespace PeopleManagement.API.DependencyInjection
 {
@@ -36,6 +37,7 @@ namespace PeopleManagement.API.DependencyInjection
             service.AddScoped<IDocumentRepository, DocumentRepository>();
             service.AddScoped<IWorkplaceRepository, WorkplaceRepository>();
             service.AddScoped<IDocumentGroupRepository, DocumentGroupRepository>();
+            service.AddScoped<IWebHookRepository, WebHookRepository>();
 
             service.AddScoped<IPdfService, PdfService>();
             service.AddScoped<IBlobService, BlobAzureService>();

@@ -16,9 +16,9 @@ using PeopleManagement.Infra.Extension;
 using PeopleManagement.Infra.Mapping;
 using System.Data;
 using PeopleManagement.Domain.AggregatesModel.ArchiveCategoryAggregate;
-using System.Reflection;
 using PeopleManagement.Infra.Idempotency;
 using PeopleManagement.Domain.AggregatesModel.DocumentGroupAggregate;
+using PeopleManagement.Domain.AggregatesModel.WebHookAggregate;
 
 namespace PeopleManagement.Infra.Context
 {
@@ -40,6 +40,7 @@ namespace PeopleManagement.Infra.Context
         public DbSet<Document> Documents { get; set; } = null!;
         public DbSet<Workplace> Workplaces { get; set; } = null!;
         public DbSet<ClientRequest> ClientRequests { get; set; } = null!;
+        public DbSet<WebHook>   WebHooks { get; set; } = null!;
 
         private readonly IMediator? _mediator;
         private readonly IDbContextTransaction? _currentTransaction;
@@ -69,7 +70,8 @@ namespace PeopleManagement.Infra.Context
             modelBuilder.ApplyConfiguration(new DocumentUnitMap());
             modelBuilder.ApplyConfiguration(new RequireDocumentsMap());
             modelBuilder.ApplyConfiguration(new DocumentTemplateMap());
-            
+            modelBuilder.ApplyConfiguration(new WebHookMap());
+
         }
 
         public async Task<bool> SaveEntitiesAsync(CancellationToken cancellationToken = default)

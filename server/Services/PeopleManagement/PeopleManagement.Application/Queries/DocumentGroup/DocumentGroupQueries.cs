@@ -3,6 +3,7 @@ using PeopleManagement.Domain.AggregatesModel.DocumentAggregate;
 using PeopleManagement.Infra.Context;
 using static PeopleManagement.Application.Queries.DocumentGroup.DocumentGroupDtos;
 using static PeopleManagement.Application.Queries.RequireDocuments.RequireDocumentsDtos;
+using DocumentEntity = PeopleManagement.Domain.AggregatesModel.DocumentAggregate.Document;
 
 
 namespace PeopleManagement.Application.Queries.DocumentGroup
@@ -43,7 +44,7 @@ namespace PeopleManagement.Application.Queries.DocumentGroup
                             Name = grouped.Key.Name.Value,
                             Description = grouped.Key.Description.Value,
                             CompanyId = grouped.Key.CompanyId,
-                            DocumentsStatus = Domain.AggregatesModel.DocumentAggregate.Document.GetRepresentingStatus(grouped.OrderByDescending(x => x.CreatedAt).Select(x => x.Status).ToList()),
+                            DocumentsStatus = Base.BaseDtos.EnumerationDto.Empty,
                             Documents = grouped.Select(d => new DocumentDocumentGroupDto
                             {
                                 Id = d.Id,
@@ -60,9 +61,17 @@ namespace PeopleManagement.Application.Queries.DocumentGroup
                             }).OrderByDescending(x => x.CreateAt).ToList()
                         };
 
+            var result = await query.ToListAsync();
 
+            result = result.Select(record =>
+            {
+                return record with
+                {
+                    DocumentsStatus = DocumentEntity.GetRepresentingStatus(record.Documents.Select(x =>(DocumentStatus)x.Status.Id).ToList())
+                };
+            }).ToList();    
 
-            return await query.ToListAsync();
+            return result;
         }
 
     }

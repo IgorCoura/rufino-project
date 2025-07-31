@@ -1,4 +1,6 @@
-﻿using Microsoft.Extensions.Logging;
+﻿using Azure.Core;
+using MediatR;
+using Microsoft.Extensions.Logging;
 using Microsoft.Net.Http.Headers;
 using PeopleManagement.Domain.AggregatesModel.CompanyAggregate;
 using PeopleManagement.Domain.AggregatesModel.DocumentAggregate;
@@ -7,20 +9,26 @@ using PeopleManagement.Domain.AggregatesModel.DocumentAggregate.Models;
 using PeopleManagement.Domain.AggregatesModel.DocumentAggregate.Options;
 using PeopleManagement.Domain.AggregatesModel.DocumentTemplateAggregate;
 using PeopleManagement.Domain.AggregatesModel.EmployeeAggregate;
+using PeopleManagement.Domain.AggregatesModel.WebHookAggregate;
 using PeopleManagement.Domain.ErrorTools;
 using PeopleManagement.Domain.ErrorTools.ErrorsMessages;
 using PeopleManagement.Domain.SeedWord;
+using PeopleManagement.Infra.Context;
+using PeopleManagement.Infra.Repository;
+using PuppeteerSharp;
 using System.Net.Http.Json;
+using System.Text.Json;
 using System.Text.Json.Nodes;
 
 namespace PeopleManagement.Infra.Services
 {
-    public class ZapSignService(HttpClient httpClient, ILogger<ZapSignService> logger , IAuthorizationService authorizationService, SignOptions signOptions) : ISignService
+    public class ZapSignService(HttpClient httpClient, ILogger<ZapSignService> logger , IAuthorizationService authorizationService, SignOptions signOptions, IWebHookRepository webHookRepository) : ISignService
     {
         private readonly HttpClient _httpClient = httpClient;
         private readonly ILogger<ZapSignService> _logger = logger;
         private readonly IAuthorizationService _authorizationService = authorizationService;
         private readonly SignOptions _signOptions = signOptions;
+        private readonly IWebHookRepository _webHookRepository = webHookRepository;
 
         public async Task SendToSignatureWithWhatsapp(Stream documentStream, Guid documentUnitId, Document document, Company company, 
             Employee employee, PlaceSignature[] placeSignatures, DateTime dateLimitToSign, int eminderEveryNDays, CancellationToken cancellationToken = default)
@@ -42,7 +50,9 @@ namespace PeopleManagement.Infra.Services
                 documentUnitId, employee.Id, company.Id);
             var documentBase64 = ConvertStreamToBase64(documentStream);
 
-            var folderPath = $"{company.CorporateName}/{employee.Name}";
+            var corporateName = company.CorporateName.Value.Replace("/", "");
+
+            var folderPath = $"{corporateName}/{employee.Name}";
 
 
             
@@ -126,16 +136,6 @@ namespace PeopleManagement.Infra.Services
                 }
 
             }
-
-            var hookResult = await CreateWebHookToDocSigned(docToken,  cancellationToken);
-
-            if(hookResult == false)
-            {
-                
-                await DeleteDocument(docToken, cancellationToken);
-                throw new DomainException(this, InfraErrors.SignDoc.ErrorSendDocToSign(documentUnitId));
-            }
-
 
             _logger.LogInformation("Document sent to ZapSign for signature successfully. DocumentUnitId: {DocumentUnitId}, EmployeeId: {EmployeeId}, CompanyId: {CompanyId}", documentUnitId, employee.Id, company.Id);
         }
@@ -246,7 +246,7 @@ namespace PeopleManagement.Infra.Services
             public static readonly SignatureType DigitalSignatureAndWhatsapp = new(2, nameof(DigitalSignatureAndWhatsapp), "assinaturaTela-tokenWhatsapp");
         }
 
-        private async Task<bool> CreateWebHookToDocSigned(string docToken, CancellationToken cancellationToken = default)
+        public async Task<string?> CreateWebHookToDocSignedEvent(string? docToken = null, CancellationToken cancellationToken = default)
         {
             try
             {
@@ -264,25 +264,142 @@ namespace PeopleManagement.Infra.Services
                 {
                     ["url"] = $"{_signOptions.WeebHookUrl}",
                     ["type"] = "doc_signed",
-                    ["doc_token"] = $"{docToken}",
                     ["headers"] = headersArray
                 };
-                var response = await _httpClient.PostAsJsonAsync("/api/v1/user/company/webhook", body, cancellationToken);
+
+                if (docToken != null)
+                {
+                    body = new JsonObject
+                    {
+                        ["url"] = $"{_signOptions.WeebHookUrl}",
+                        ["type"] = "doc_signed",
+                        ["doc_token"] = $"{docToken}",
+                        ["headers"] = headersArray
+                    };
+                }
+
+
+                const int maxRetries = 16;
+                int retryCount = 0;
+                HttpResponseMessage response;
+
+                do
+                {
+                    response = await _httpClient.PostAsJsonAsync("/api/v1/user/company/webhook", body, cancellationToken);
+
+                    if (response.IsSuccessStatusCode)
+                    {
+                        var json = await response.Content.ReadFromJsonAsync<JsonNode>(cancellationToken: cancellationToken);
+                        var id = json?["id"]?.ToString();
+                        return id;
+                    }
+
+                    retryCount++;
+                    await Task.Delay(TimeSpan.FromSeconds(Math.Pow(2, retryCount)), cancellationToken); // Exponential backoff  
+                }
+                while (retryCount < maxRetries);
+
+
                 var content = await response.Content.ReadAsStringAsync();
                 if(response.IsSuccessStatusCode == false)
                     _logger.LogInformation("Failed to create webhook for document signed event. DocToken: {DocToken}, Url: {Url}, Response: {Response}",
                         docToken, _signOptions.WeebHookUrl, content);
-                return response.IsSuccessStatusCode;
+                return null;
             }
             catch(Exception ex)
             {
                 _logger.LogError(ex, "Error creating webhook for document signed event. DocToken: {DocToken}, Url: {Url}", docToken, _signOptions.WeebHookUrl);
-                return false;
+                return null;
             }
             
         }
 
-       
+        public async Task<bool> DeleteWebHook(string id, CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                var body = new JsonObject
+                {
+                    ["id"] = id
+                };
+
+                var request = new HttpRequestMessage(HttpMethod.Delete, "/api/v1/user/company/webhook/delete/")
+                {
+                    Content = new StringContent(body.ToString(), System.Text.Encoding.UTF8, "application/json")
+                };
+
+               
+                const int maxRetries = 16;
+                int retryCount = 0;
+                HttpResponseMessage response;
+
+                do
+                {
+                    response = await _httpClient.SendAsync(request, cancellationToken);
+
+                    if (response.IsSuccessStatusCode)
+                    {
+                        return true;
+                    }
+
+                    retryCount++;
+                    await Task.Delay(TimeSpan.FromSeconds(Math.Pow(2, retryCount)), cancellationToken); // Exponential backoff  
+                }
+                while (retryCount < maxRetries);
+
+                var content = await response.Content.ReadAsStringAsync(cancellationToken);
+                if (!response.IsSuccessStatusCode)
+                {
+                    _logger.LogError("Failed to delete webhook. Id: {Id}, Response: {Response}", id, content);
+                    return false;
+                }
+
+                _logger.LogInformation("Webhook deleted successfully. Id: {Id}", id);
+                return true;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error deleting webhook. Id: {Id}", id);
+                return false;
+            }
+        }
+
+        public async Task RefreshWebHookDocSignedEvent(CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                var webHookId = await CreateWebHookToDocSignedEvent(cancellationToken: cancellationToken);
+
+                if (string.IsNullOrEmpty(webHookId))
+                {
+                    _logger.LogError("Failed to create or refresh webhook for document signed event.");
+                    return;
+                }
+
+                var webHook = await _webHookRepository.FirstOrDefaultAsync(x => x.Event == WebHookEvent.DocSigned, cancellation: cancellationToken);
+
+                if (webHook is not null && string.IsNullOrEmpty(webHook.WebHookId) == false)
+                {
+                    await DeleteWebHook(webHook.WebHookId, cancellationToken);
+                    webHook.WebHookId = webHookId;
+                }
+                else if (webHook is null)
+                {
+                    webHook = new WebHook(Guid.NewGuid(), webHookId, WebHookEvent.DocSigned);
+                    await _webHookRepository.InsertAsync(webHook);
+                }
+                else
+                {
+                    webHook.WebHookId = webHookId;
+                }
+                await _webHookRepository.UnitOfWork.SaveChangesAsync(cancellationToken);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error refreshing webhook for document signed event.");
+            }
+        }
+
         private static string ConvertStreamToBase64(Stream stream)
         {
             if (stream.CanSeek)
@@ -304,7 +421,15 @@ namespace PeopleManagement.Infra.Services
 
             return "signature";
         }
+
+        
     }
 
     
+
+    
+
+    
+
+   
 }

@@ -12,7 +12,7 @@ namespace PeopleManagement.Domain.AggregatesModel.DocumentAggregate
         public Guid CompanyId { get; private set; }
         public Guid RequiredDocumentId { get; private set; }
         public List<DocumentUnit> DocumentsUnits { get; private set; } = [];
-        public DocumentStatus Status { get; private set; } = DocumentStatus.RequiresDocument;
+        public DocumentStatus Status { get; private set; } = DocumentStatus.OK;
         public Guid DocumentTemplateId { get; private set; }
 
         private Document(Guid id, Guid employeeId, Guid companyId, Guid requiredDocumentId, Guid documentTemplateId, Name name, Description description) : base(id)
@@ -119,6 +119,7 @@ namespace PeopleManagement.Domain.AggregatesModel.DocumentAggregate
             var isDeprecatedOrInvalid = documentUnit.MarkAsDeprecatedOrInvalid();
             if (isDeprecatedOrInvalid)
             {
+                Status = DocumentStatus.RequiresDocument;
                 NewDocumentUnit(newDocumentUnitId);
                 return true;
             }
@@ -204,25 +205,11 @@ namespace PeopleManagement.Domain.AggregatesModel.DocumentAggregate
 
         public static DocumentStatus GetRepresentingStatus(List<DocumentStatus> documentsStatus)
         {
-            var result = documentsStatus.FirstOrDefault(x => x.Id == DocumentStatus.RequiresDocument.Id);
-            if (result is not null)
-                return result;
+            var result = documentsStatus.OrderBy(x => DocumentStatus.GetOrder(x))
+                .ToList();
 
-            result = documentsStatus.FirstOrDefault(x => x.Id == DocumentStatus.RequiresValidation.Id);
-            if (result is not null)
-                return result;
-
-            result = documentsStatus.FirstOrDefault(x => x.Id == DocumentStatus.AwaitingSignature.Id);
-            if (result is not null)
-                return result;
-
-            result = documentsStatus.FirstOrDefault(x => x.Id == DocumentStatus.OK.Id);
-            if (result is not null)
-                return result;
-
-            if (documentsStatus.Count == 0)
+            if (result.Count == 0)
                 return DocumentStatus.OK;
-
 
             return documentsStatus.First();
         }
