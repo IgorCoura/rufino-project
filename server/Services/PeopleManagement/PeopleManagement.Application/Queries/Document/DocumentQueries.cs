@@ -52,11 +52,20 @@ namespace PeopleManagement.Application.Queries.Document
                 DocumentTemplateId = x.DocumentTemplateId,
                 CreateAt = x.CreatedAt,
                 UpdateAt = x.UpdatedAt,
-                DocumentsUnits = x.DocumentsUnits.Select(x => (DocumentUnitDto)x).ToList()
-            }).SingleOrDefaultAsync() 
+                DocumentsUnits = x.DocumentsUnits
+                    .Select(x => (DocumentUnitDto)x)
+                    .ToList()
+            }).SingleOrDefaultAsync()
             ?? throw new DomainException(this, DomainErrors.ObjectNotFound(nameof(Document), documentId.ToString()));
 
-            return  result;
+            var sortedResult = result with
+            {
+                DocumentsUnits = result.DocumentsUnits
+                    .OrderBy(x => DocumentUnitStatus.GetOrder(x.Status.Id))
+                    .ThenByDescending(x => x.CreateAt)
+                    .ToList()
+            };
+            return sortedResult;
         }
 
         public async Task<Stream> DownloadDocumentUnit(Guid documentUnitId, Guid documentId, Guid employeeId, Guid companyId)
@@ -72,5 +81,6 @@ namespace PeopleManagement.Application.Queries.Document
 
             return file;
         }
+        
     }
 }
