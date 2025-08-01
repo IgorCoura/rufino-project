@@ -1,4 +1,5 @@
-﻿using PeopleManagement.Domain.AggregatesModel.EmployeeAggregate;
+﻿using PeopleManagement.Domain.AggregatesModel.DocumentAggregate.Events;
+using PeopleManagement.Domain.AggregatesModel.EmployeeAggregate;
 using PeopleManagement.Domain.ErrorTools;
 using PeopleManagement.Domain.ErrorTools.ErrorsMessages;
 
@@ -111,22 +112,17 @@ namespace PeopleManagement.Domain.AggregatesModel.DocumentAggregate
             }
         }
 
-        public bool MakeAsDocumentExpired(Guid documentUnitIdExpire, Guid newDocumentUnitId)
+        public bool MakeAsDocumentDeprecated(Guid documentUnitIdExpire, Guid newDocumentUnitId)
         {
             var documentUnit = DocumentsUnits.FirstOrDefault(x => x.Id == documentUnitIdExpire)
                 ?? throw new DomainException(this, DomainErrors.ObjectNotFound(nameof(DocumentUnit), documentUnitIdExpire.ToString()));
 
             var isDeprecatedOrInvalid = documentUnit.MarkAsDeprecatedOrInvalid();
-            if (isDeprecatedOrInvalid)
-            {
-                Status = DocumentStatus.RequiresDocument;
-                NewDocumentUnit(newDocumentUnitId);
-                return true;
-            }
-            return false;
+            Status = DocumentStatus.Deprecated;
+            return isDeprecatedOrInvalid;
         }
 
-        public bool MakeAsWarning(Guid documentUnitIdExpire, Guid newDocumentUnitId)
+        public bool MakeAsWarning(Guid documentUnitIdExpire)
         {
             var documentUnit = DocumentsUnits.FirstOrDefault(x => x.Id == documentUnitIdExpire)
                 ?? throw new DomainException(this, DomainErrors.ObjectNotFound(nameof(DocumentUnit), documentUnitIdExpire.ToString()));
