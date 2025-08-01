@@ -93,6 +93,8 @@ namespace PeopleManagement.Services.DomainEventHandlers
                     }
                 }
 
+
+
                 if (document.CanBeDeleted())
                 {
                     await _documentRepository.DeleteAsync(document);
