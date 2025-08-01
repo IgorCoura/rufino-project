@@ -5,9 +5,10 @@ using PeopleManagement.Domain.AggregatesModel.RequireDocumentsAggregate.Interfac
 
 namespace PeopleManagement.Services.HangfireJobRegistrar
 {
-    public class HangfireJobRegister(IRecurringJobManager recurringJobManager, ILogger<HangfireJobRegister> logger) 
+    public class HangfireJobRegister(IRecurringJobManager recurringJobManager, IBackgroundJobClient backgroundJobClient, ILogger<HangfireJobRegister> logger) 
     {
         private readonly IRecurringJobManager _recurringJobManager = recurringJobManager;
+        private readonly IBackgroundJobClient _backgroundJobClient = backgroundJobClient;
         private readonly ILogger<HangfireJobRegister> _logger = logger;
         public void RegisterRecurringJobs()
         {
@@ -94,11 +95,16 @@ namespace PeopleManagement.Services.HangfireJobRegistrar
                Cron.Yearly); // Cron expression for yearly at midnight
 
             _recurringJobManager.AddOrUpdate<IRecurringDocumentService>(
-               "Minutely-job",
+               "minutely-job",
                x => x.RecurringCreateDocumentUnits(RecurringEvents.YearlyEvent, CancellationToken.None),
                Cron.Minutely); // Cron expression for yearly at midnight
 
+            _recurringJobManager.AddOrUpdate<IRecurringDocumentService>(
+               "refresh-webhook-job",
+               x => x.RefreshWebHook(CancellationToken.None),
+               Cron.Daily); // Cron
 
+            _backgroundJobClient.Enqueue<IRecurringDocumentService>(_backgroundJobClient => _backgroundJobClient.RefreshWebHook(CancellationToken.None));
 
             _logger.LogInformation("Register Recurring Jobs Complete");
         }
