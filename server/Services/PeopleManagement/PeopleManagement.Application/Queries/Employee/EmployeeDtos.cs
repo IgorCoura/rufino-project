@@ -163,4 +163,10 @@ namespace PeopleManagement.Application.Queries.Employee
         public EnumerationDto Type { get; init; } = EnumerationDto.Empty;
 
     }
+
+    public record class EmployeeImageDto
+    {
+        public string Extension { get; init; } = string.Empty;
+        public Stream? stream { get; init; }
+    }
 }

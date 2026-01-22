@@ -117,11 +117,6 @@ class DocumentTemplateBloc
   void _onCancelEditEvent(
       CancelEditEvent event, Emitter<DocumentTemplateState> emit) {
     emit(state.copyWith(isEditing: false));
-    if (state.documentTemplate == DocumentTemplate.empty()) {
-      Modular.to.navigate("/employee/document-template");
-    } else {
-      add(InitialEvent(state.documentTemplate.id));
-    }
   }
 
   void _onRemovePlaceSignatureEvent(

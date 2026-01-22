@@ -13,5 +13,6 @@
         Task<EmployeeDependentsDto> GetEmployeeDependents(Guid id, Guid company);
         Task<MedicalAdmissionExamDto> GetEmployeeMedicalAdmissionExam(Guid id, Guid company);
         Task<EmployeeContractsDto> GetEmployeeContracts(Guid id, Guid company);
+        Task<EmployeeImageDto> DownloadImage(Guid id, Guid company);
     }
 }

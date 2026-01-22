@@ -1,17 +1,20 @@
 ﻿using Microsoft.EntityFrameworkCore;
+using PeopleManagement.Domain.AggregatesModel.CompanyAggregate;
+using PeopleManagement.Domain.AggregatesModel.DocumentAggregate;
+using PeopleManagement.Domain.AggregatesModel.DocumentAggregate.Interfaces;
 using PeopleManagement.Domain.AggregatesModel.EmployeeAggregate;
-using PeopleManagement.Domain.ErrorTools.ErrorsMessages;
 using PeopleManagement.Domain.ErrorTools;
+using PeopleManagement.Domain.ErrorTools.ErrorsMessages;
+using PeopleManagement.Domain.SeedWord;
 using PeopleManagement.Infra.Context;
 using static PeopleManagement.Application.Queries.Base.BaseDtos;
-using PeopleManagement.Domain.SeedWord;
-using PeopleManagement.Domain.AggregatesModel.DocumentAggregate;
 
 namespace PeopleManagement.Application.Queries.Employee
 {
-    public class EmployeeQueries(IDbContextFactory<PeopleManagementContext> factory) : IEmployeeQueries
+    public class EmployeeQueries(IDbContextFactory<PeopleManagementContext> factory, IBlobService blobService) : IEmployeeQueries
     {
         private IDbContextFactory<PeopleManagementContext> _factory = factory;
+        private IBlobService _blobService = blobService;
 
         public async Task<IEnumerable<EmployeeWithRoleAndDocumentStatusDto>> GetEmployeeListWithRolesAndDocumentStatus(EmployeeParams pms, Guid company)
         {
@@ -317,6 +320,22 @@ namespace PeopleManagement.Application.Queries.Employee
             return result;
         }
 
+        public async Task<EmployeeImageDto> DownloadImage(Guid id, Guid company)
+        {
+            using var context = _factory.CreateDbContext();
+            var employee = await context.Employees.Where(e => e.Id == id && e.CompanyId == company).FirstOrDefaultAsync()
+                ?? throw new DomainException(this, DomainErrors.ObjectNotFound(nameof(Employee), id.ToString()));
+
+            var img = employee.GetImage();
+
+            Stream? file = await _blobService.DownloadAsync(img.GetNameWithExtension, employee.CompanyId.ToString());
+
+            return new EmployeeImageDto { 
+                stream = file,
+                Extension = img.Extension.ToString(),
+            };
+        }
+
         private async Task<EnumerationDto> GetDocumentRepresentingStatusAsync(Guid employeeId, Guid companyId, CancellationToken cancellationToken = default)
         {
             using var context = _factory.CreateDbContext();
@@ -331,6 +350,8 @@ namespace PeopleManagement.Application.Queries.Employee
                 Name = status.Name
             };
         }
+
+
 
     }
 }
