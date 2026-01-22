@@ -64,6 +64,7 @@ namespace PeopleManagement.Domain.ErrorTools.ErrorsMessages
             public static Error EmployeeCantSignByCellPhone(Guid Id) => new("PMD.EMP13", $"O funcionario {Id} não tem um celular registrado para poder assinar por Whatsapp.", new { Id });
             public static Error StatusInvalido() => new("PMD.EMP14", $"O funcionario está com o estado inválido para realizar está função", new { });
             public static Error InvalidDocumentDigitalSigningOptions(Guid Id) => new("PMD.EMP15", $"O funcionario {Id} não tem uma opção de assinatura digital valida.", new { Id });
+            public static Error ImageNotSet(Guid Id) => new("PMD.EMP16", $"O funcionario {Id} não tem uma image.", new { Id });
         }
 
         public static class ArchiveCategory

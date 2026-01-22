@@ -65,17 +65,40 @@ class CompanyGlobalService extends BaseService {
     return _selectedCompany!;
   }
 
-  Future<bool> hasCompanySeleted() async {
-    if (_selectedCompany == null) {
-      try {
-        await refreshSelectedCompany();
-        await getSelectedCompany();
-        return true;
-      } catch (ex) {
-        return false;
-      }
+  Future<bool> hasCompanySeleted(List<String> validCompanies) async {
+    if (_selectedCompany != null &&
+        validCompanies.contains(_selectedCompany?.id)) {
+      return true;
     }
-    return true;
+    try {
+      await refreshSelectedCompany();
+      if (validCompanies.contains(_selectedCompany?.id)) {
+        return true;
+      }
+      return false;
+    } catch (ex) {
+      return false;
+    }
+  }
+
+  Future<bool> verifyAndSelectCompany(List<String> validCompanies) async {
+    if (_selectedCompany != null &&
+        validCompanies.contains(_selectedCompany?.id)) {
+      var refreshedCompany = await getCompany(_selectedCompany!.id);
+      await selectCompany(refreshedCompany);
+      return true;
+    }
+    try {
+      var selectedCompany = await getSelectedCompany();
+      var refreshedCompany = await getCompany(selectedCompany.id);
+      await selectCompany(refreshedCompany);
+      if (validCompanies.contains(_selectedCompany?.id)) {
+        return true;
+      }
+      return false;
+    } catch (ex) {
+      return false;
+    }
   }
 
   Future refreshSelectedCompany() async {

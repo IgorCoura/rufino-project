@@ -28,7 +28,7 @@ class DocumentTemplatePage extends StatelessWidget {
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () {
-            Modular.to.pop();
+            Modular.to.navigate("/employee/document-template");
           },
         ),
         title: const Text('Template de Documento'),
@@ -196,8 +196,8 @@ class DocumentTemplatePage extends StatelessWidget {
                         FloatingActionButton.extended(
                             heroTag: "cancel",
                             onPressed: () {
-                              _formKey.currentState!.reset();
-                              bloc.add(CancelEditEvent());
+                              Modular.to
+                                  .navigate("/employee/document-template");
                             },
                             label: const Text("Cancelar"),
                             icon: const Icon(Icons.cancel)),

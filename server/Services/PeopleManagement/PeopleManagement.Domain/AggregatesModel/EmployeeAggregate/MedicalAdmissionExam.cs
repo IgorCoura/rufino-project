@@ -38,6 +38,7 @@ namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
                 _validity = value;
             }
         }
+        private MedicalAdmissionExam() { }
 
 
         private MedicalAdmissionExam(DateOnly dateExam, DateOnly validity)
@@ -46,7 +47,9 @@ namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
             Validity = validity;
         }
 
-        public static MedicalAdmissionExam Create(DateOnly dateExam, DateOnly validity) => new(dateExam, validity);
+        public static MedicalAdmissionExam Create(DateOnly dateExam, DateOnly validity) {
+            return new(dateExam, validity);
+        }
 
         public bool IsValid => _validity > DateOnly.FromDateTime(DateTime.UtcNow);
 
