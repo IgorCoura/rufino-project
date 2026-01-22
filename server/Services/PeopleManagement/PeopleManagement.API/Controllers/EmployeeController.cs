@@ -1,10 +1,12 @@
 ﻿using Hangfire;
 using Microsoft.Extensions.Logging;
 using PeopleManagement.API.Authorization;
+using PeopleManagement.Application.Commands.DocumentCommands.InsertDocument;
 using PeopleManagement.Application.Commands.EmployeeCommands.AlterAddressEmployee;
 using PeopleManagement.Application.Commands.EmployeeCommands.AlterContactEmployee;
 using PeopleManagement.Application.Commands.EmployeeCommands.AlterDependentEmployee;
 using PeopleManagement.Application.Commands.EmployeeCommands.AlterIdCardEmployee;
+using PeopleManagement.Application.Commands.EmployeeCommands.AlterImageEmployee;
 using PeopleManagement.Application.Commands.EmployeeCommands.AlterMedicalAdmissionExamEmployee;
 using PeopleManagement.Application.Commands.EmployeeCommands.AlterMilitarDocumentEmployee;
 using PeopleManagement.Application.Commands.EmployeeCommands.AlterNameEmployee;
@@ -301,7 +303,26 @@ namespace PeopleManagement.API.Controllers
 
             return OkResponse(result);
         }
-         
+
+        [HttpPut("image/{employeeId}")]
+        [ProtectedResource("Document", "send")]
+        [RequestSizeLimit(12_000_000)]
+        public async Task<ActionResult<InsertDocumentResponse>> Insert(IFormFile formFile, [FromRoute] Guid company, [FromForm] AlterImageEmployeeModel request, [FromHeader(Name = "x-requestid")] Guid requestId)
+        {
+            var extension = Path.GetExtension(formFile.FileName);
+            var stream = formFile.OpenReadStream();
+
+            var command = new IdentifiedCommand<AlterImageEmployeeCommand, AlterImageEmployeeResponse>(request.ToCommand(company, extension, stream), requestId);
+
+            SendingCommandLog(request.EmployeeId, request, requestId);
+
+            var result = await mediator.Send(command);
+
+            CommandResultLog(result, request.EmployeeId, request, requestId);
+
+            return OkResponse(result);
+        }
+
 
         [HttpGet("list")]
         [ProtectedResource("employee", "view")]
@@ -474,6 +495,15 @@ namespace PeopleManagement.API.Controllers
         {
             var result = EmploymentContractType.GetAll<EmploymentContractType>();
             return OkResponse(result);
+        }
+
+        [HttpGet("image/{employeeId}")]
+        [ProtectedResource("Document", "view")]
+        public async Task<IActionResult> DownloadFile([FromRoute] Guid employeeId,
+            [FromRoute] Guid company)
+        {
+            var img = await employeeQueries.DownloadImage(employeeId, company);
+            return File(img.stream, "application/octet-stream", $"img-{employeeId}.{img.Extension}");
         }
     }
 }

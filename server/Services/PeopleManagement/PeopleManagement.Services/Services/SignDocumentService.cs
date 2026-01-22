@@ -61,7 +61,7 @@ namespace PeopleManagement.Services.Services
             return documentUnitId;                                                     
         }
 
-        public async Task<Guid> InsertDocumentToSign(Guid documentUnitId, Guid documentId, Guid employeeId, Guid companyId, Extension extension, Stream stream,
+        public async Task<Guid> InsertDocumentToSign(Guid documentUnitId, Guid documentId, Guid employeeId, Guid companyId, Domain.AggregatesModel.DocumentAggregate.Extension extension, Stream stream,
             DateTime dateLimitToSign, int eminderEveryNDays, CancellationToken cancellationToken = default)
         {
             var document = await _documentRepository.FirstOrDefaultAsync(x => x.Id == documentId && x.EmployeeId == employeeId
@@ -130,5 +130,7 @@ namespace PeopleManagement.Services.Services
 
             throw new DomainException(this, DomainErrors.Employee.InvalidDocumentDigitalSigningOptions(employee.Id));
         }
+
+     
     }
 }
