@@ -7,6 +7,7 @@ namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
 {
     public sealed class Employee : Entity, IAggregateRoot
     {
+        private Image? _image = null;
         private Name _name = null!;
         private IdCard? _idCard;
         private VoteId? _voteId;
@@ -14,13 +15,14 @@ namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
         private Guid? _roleId;
         private Guid? _workPlaceId;
         private Guid _companyId;
-        private Registration? _registration = null!;//Matricula Esocial
+        private Registration? _registration = null;//Matricula Esocial
         private MilitaryDocument? _militaryDocument;
-        private Address? _address = null!;
-        private Contact? _contact = null!;
-        private MedicalAdmissionExam? _medicalAdmissionExam = null!;
+        private Address? _address = null;
+        private Contact? _contact = null;
+        private MedicalAdmissionExam? _medicalAdmissionExam = null;
         private DocumentSigningOptions _documentSigningOptions = DocumentSigningOptions.PhysicalSignature;
-
+        
+     
         public Registration? Registration 
         { 
             get => _registration;
@@ -172,6 +174,19 @@ namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
                 AddDomainEvent(EmployeeEvent.DocumentSigningOptionsChangeEvent(Id, CompanyId));
             }
         }
+
+        public void SetImage(Extension extension)
+        {
+            _image = Image.Create($"employee-image-{Id}", extension);
+        }
+
+        public Image GetImage()
+        {
+            if (_image == null)
+                throw new DomainException(this, DomainErrors.Employee.ImageNotSet(Id));
+            return _image;
+        }
+
         private Employee() { }
         private Employee(Guid id, Guid companyId, Name name, Status status) : base(id)
         {
@@ -211,6 +226,9 @@ namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
 
             if (WorkPlaceId == null || WorkPlaceId == Guid.Empty)
                 result.AddError(DomainErrors.FieldIsRequired(nameof(WorkPlaceId)));
+
+            if (_image == null)
+                result.AddError(DomainErrors.FieldIsRequired(nameof(Image)));
 
             if (Address == null)
                 result.AddError(DomainErrors.FieldIsRequired(nameof(Address)));

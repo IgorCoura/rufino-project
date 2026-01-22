@@ -51,7 +51,7 @@ namespace PeopleManagement.Services.DomainEventHandlers
             {
                 foreach (var templateId in requireDocument.DocumentsTemplatesIds)
                 {
-                    Document? document = await _documentRepository.FirstOrDefaultAsync(x => x.DocumentTemplateId == templateId, cancellation: cancellationToken);
+                    Document? document = await _documentRepository.FirstOrDefaultAsync(x => x.DocumentTemplateId == templateId && x.EmployeeId == notification.EmployeeId, cancellation: cancellationToken);
 
                     if (document is not null)
                         continue;

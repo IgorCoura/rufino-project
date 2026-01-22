@@ -32,7 +32,10 @@ class AuthenticationBloc
       emit(const AuthenticationState.unknown());
       await _authService.getCredentials();
 
-      var hasCompanySeleted = await _companyService.hasCompanySeleted();
+      var validCompanies = await _authService.getCompaniesIds();
+
+      var hasCompanySeleted =
+          await _companyService.verifyAndSelectCompany(validCompanies);
 
       if (hasCompanySeleted) {
         emit(const AuthenticationState.authenticated());
@@ -41,6 +44,7 @@ class AuthenticationBloc
       emit(const AuthenticationState.unSelectedCompany());
     } catch (ex) {
       emit(const AuthenticationState.unauthenticated());
+      throw AplicationErrors.internalError;
     }
   }
 }
