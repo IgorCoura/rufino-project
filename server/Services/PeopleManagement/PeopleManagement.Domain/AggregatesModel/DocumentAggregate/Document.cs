@@ -35,6 +35,7 @@ namespace PeopleManagement.Domain.AggregatesModel.DocumentAggregate
 
             var documentUnit = DocumentUnit.Create(documentUnitId, this);
             DocumentsUnits.Add(documentUnit);
+            Status = DocumentStatus.RequiresDocument;
             return documentUnit;
         }
 
