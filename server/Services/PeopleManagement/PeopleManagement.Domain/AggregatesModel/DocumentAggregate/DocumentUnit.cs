@@ -154,7 +154,7 @@ namespace PeopleManagement.Domain.AggregatesModel.DocumentAggregate
         public string GetNameWithExtension => $"{Name}.{Extension}";
         public bool CanEdit => (Name == null || Name.IsNullOrEmpty) && Extension == null;
 
-        private bool IsInvalidDateAndValidity => Date == DateOnly.MinValue || Date == DateOnly.MaxValue || Validity == null || Validity == DateOnly.MinValue || Validity == DateOnly.MaxValue;
+        private bool IsInvalidDateAndValidity => Date == DateOnly.MinValue || Date == DateOnly.MaxValue || (Validity != null && (Validity == DateOnly.MinValue || Validity == DateOnly.MaxValue));
         
 
     }
