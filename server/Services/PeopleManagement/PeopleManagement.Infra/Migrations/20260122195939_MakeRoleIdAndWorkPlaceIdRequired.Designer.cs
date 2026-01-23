@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using PeopleManagement.Infra.Context;
@@ -12,9 +13,11 @@ using PeopleManagement.Infra.Context;
 namespace PeopleManagement.Infra.Migrations
 {
     [DbContext(typeof(PeopleManagementContext))]
-    partial class PeopleManagementContextModelSnapshot : ModelSnapshot
+    [Migration("20260122195939_MakeRoleIdAndWorkPlaceIdRequired")]
+    partial class MakeRoleIdAndWorkPlaceIdRequired
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -1143,27 +1146,6 @@ namespace PeopleManagement.Infra.Migrations
                                 .HasForeignKey("EmployeeId");
                         });
 
-                    b.OwnsOne("PeopleManagement.Domain.AggregatesModel.EmployeeAggregate.Image", "_image", b1 =>
-                        {
-                            b1.Property<Guid>("EmployeeId")
-                                .HasColumnType("uuid");
-
-                            b1.Property<int>("Extension")
-                                .HasColumnType("integer");
-
-                            b1.Property<string>("FileName")
-                                .IsRequired()
-                                .HasMaxLength(255)
-                                .HasColumnType("character varying(255)");
-
-                            b1.HasKey("EmployeeId");
-
-                            b1.ToTable("Employees");
-
-                            b1.WithOwner()
-                                .HasForeignKey("EmployeeId");
-                        });
-
                     b.OwnsOne("PeopleManagement.Domain.AggregatesModel.EmployeeAggregate.MedicalAdmissionExam", "MedicalAdmissionExam", b1 =>
                         {
                             b1.Property<Guid>("EmployeeId")
@@ -1271,8 +1253,6 @@ namespace PeopleManagement.Infra.Migrations
                     b.Navigation("MilitaryDocument");
 
                     b.Navigation("PersonalInfo");
-
-                    b.Navigation("_image");
                 });
 
             modelBuilder.Entity("PeopleManagement.Domain.AggregatesModel.PositionAggregate.Position", b =>

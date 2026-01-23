@@ -1,17 +1,18 @@
 ﻿using Microsoft.EntityFrameworkCore;
-using PeopleManagement.Domain.AggregatesModel.DocumentTemplateAggregate;
-using PeopleManagement.Domain.ErrorTools.ErrorsMessages;
-using PeopleManagement.Domain.ErrorTools;
-using PeopleManagement.Infra.Context;
-using static PeopleManagement.Application.Queries.Base.BaseDtos;
-using static PeopleManagement.Application.Queries.RequireDocuments.RequireDocumentsDtos;
+using PeopleManagement.Application.Util;
 using PeopleManagement.Domain.AggregatesModel.CompanyAggregate;
-using PeopleManagement.Domain.AggregatesModel.RequireDocumentsAggregate;
-using PeopleManagement.Domain.AggregatesModel.EmployeeAggregate.Events;
-using PeopleManagement.Domain.AggregatesModel.EmployeeAggregate;
-using static Microsoft.EntityFrameworkCore.DbLoggerCategory.Database;
-using static PeopleManagement.Application.Queries.Department.DepartmentDtos;
 using PeopleManagement.Domain.AggregatesModel.DocumentAggregate;
+using PeopleManagement.Domain.AggregatesModel.DocumentTemplateAggregate;
+using PeopleManagement.Domain.AggregatesModel.EmployeeAggregate;
+using PeopleManagement.Domain.AggregatesModel.EmployeeAggregate.Events;
+using PeopleManagement.Domain.AggregatesModel.RequireDocumentsAggregate;
+using PeopleManagement.Domain.ErrorTools;
+using PeopleManagement.Domain.ErrorTools.ErrorsMessages;
+using PeopleManagement.Infra.Context;
+using static Microsoft.EntityFrameworkCore.DbLoggerCategory.Database;
+using static PeopleManagement.Application.Queries.Base.BaseDtos;
+using static PeopleManagement.Application.Queries.Department.DepartmentDtos;
+using static PeopleManagement.Application.Queries.RequireDocuments.RequireDocumentsDtos;
 using RequireDoc = PeopleManagement.Domain.AggregatesModel.RequireDocumentsAggregate.RequireDocuments;
 
 namespace PeopleManagement.Application.Queries.RequireDocuments
@@ -200,7 +201,7 @@ namespace PeopleManagement.Application.Queries.RequireDocuments
                 .Select(x => x.Status)
                 .ToListAsync(cancellationToken);
 
-            var status = Domain.AggregatesModel.DocumentAggregate.Document.GetRepresentingStatus(documentsStatus);
+            var status = DocumentStatusUtil.GetDocumentGroupStatus(documentsStatus);
             return new EnumerationDto
             {
                 Id = status.Id,

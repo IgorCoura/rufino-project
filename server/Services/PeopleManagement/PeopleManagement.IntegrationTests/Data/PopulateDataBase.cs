@@ -94,9 +94,12 @@ namespace PeopleManagement.IntegrationTests.Data
             var company = await context.InsertCompany(cancellationToken);
             await context.InsertArchiveCategory(company.Id, cancellationToken);
 
+            var role = await context.InsertRole(company.Id, cancellationToken);
+            var workplace = await context.InsertWorkplace(company.Id, cancellationToken);
+
             var id = Guid.NewGuid();
 
-            var employee = Employee.Create(id, company.Id, "Rosdevaldo Pereira");
+            var employee = Employee.Create(id, company.Id, "Rosdevaldo Pereira", role.Id, workplace.Id);
 
             await context.Employees.AddAsync(employee, cancellationToken);
 
@@ -108,9 +111,12 @@ namespace PeopleManagement.IntegrationTests.Data
             var company = await context.InsertCompany(cancellationToken);
             await context.InsertArchiveCategory(company.Id, cancellationToken);
 
+            var role = await context.InsertRole(company.Id, cancellationToken);
+            var workplace = await context.InsertWorkplace(company.Id, cancellationToken);
+
             var id = Guid.NewGuid();
 
-            var employee = Employee.Create(id, company.Id, "Rosdevaldo Pereira");
+            var employee = Employee.Create(id, company.Id, "Rosdevaldo Pereira", role.Id, workplace.Id);
             employee.AddDependent(
                 Dependent.Create(
                     "Roberto Kaique",
@@ -147,9 +153,7 @@ namespace PeopleManagement.IntegrationTests.Data
             await context.SaveChangesAsync(cancellationToken);
 
             var id = Guid.NewGuid();
-            var employee = Employee.Create(id, company.Id, "Rosdevaldo Pereira");
-            employee.RoleId = role.Id;
-            employee.WorkPlaceId = workplace.Id;
+            var employee = Employee.Create(id, company.Id, "Rosdevaldo Pereira", role.Id, workplace.Id);
 
             employee.Address = EmplyeeAddress.Create("69015-756", "Rua 11", "936", "", "Colônia Terra Nova", "Manaus", "Amazonia", "Brasil");
             employee.Contact = EmployeeContact.Create("email@email.com", "(00) 100000001");
@@ -183,9 +187,7 @@ namespace PeopleManagement.IntegrationTests.Data
             await context.SaveChangesAsync(cancellationToken);
 
             var id = Guid.NewGuid();
-            var employee = Employee.Create(id, company.Id, "Rosdevaldo Pereira");
-            employee.RoleId = role.Id;
-            employee.WorkPlaceId = workplace.Id;
+            var employee = Employee.Create(id, company.Id, "Rosdevaldo Pereira", role.Id, workplace.Id);
 
             employee.Address = EmplyeeAddress.Create("69015-756", "Rua 11", "936", "", "Colônia Terra Nova", "Manaus", "Amazonia", "Brasil");
             employee.Contact = EmployeeContact.Create("email@email.com", "(00) 100000001");
@@ -213,12 +215,10 @@ namespace PeopleManagement.IntegrationTests.Data
         public static async Task<Employee> InsertEmployeeActive(this PeopleManagementContext context, Guid companyId, Guid roleId, CancellationToken cancellationToken = default)
         {
             var id = Guid.NewGuid();
-            var employee = Employee.Create(id, companyId, "Rosdevaldo Pereira");
             var workplace = await context.InsertWorkplace(companyId, cancellationToken);
             await context.InsertArchiveCategory(companyId, cancellationToken); 
 
-            employee.RoleId = roleId;
-            employee.WorkPlaceId = workplace.Id;
+            var employee = Employee.Create(id, companyId, "Rosdevaldo Pereira", roleId, workplace.Id);
 
             employee.Address = EmplyeeAddress.Create("69015-756", "Rua 11", "936", "", "Colônia Terra Nova", "Manaus", "Amazonia", "Brasil");
             employee.Contact = EmployeeContact.Create("email@email.com", "(00) 100000001");

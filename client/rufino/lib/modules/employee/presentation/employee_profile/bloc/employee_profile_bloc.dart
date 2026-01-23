@@ -1,5 +1,6 @@
 import 'package:bloc/bloc.dart';
 import 'package:equatable/equatable.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:rufino/domain/model/company.dart';
 import 'package:rufino/domain/services/company_global_service.dart';
 import 'package:rufino/modules/employee/domain/model/document_signing_options.dart';
@@ -68,6 +69,8 @@ class EmployeeProfileBloc
     on<LoadingContractsEvent>(_onLoadingContractsEvent);
     on<FinishedContractEvent>(_onFinishedContractEvent);
     on<NewContractEvent>(_onNewContractEvent);
+    on<EditAvatarImageEvent>(_onEditAvatarImageEvent);
+    on<LoadEmployeeImageEvent>(_onLoadEmployeeImageEvent);
   }
 
   Future _onInitialEvent(InitialEmployeeProfileEvent event,
@@ -95,6 +98,9 @@ class EmployeeProfileBloc
           listContractTypes: contractsType,
           listDocumentSigningOptions: documentSigningOptions,
           isLoading: false));
+
+      // Carregar imagem do funcionário
+      add(LoadEmployeeImageEvent());
     } catch (ex, stacktrace) {
       var exception = _peopleManagementService.treatErrors(ex, stacktrace);
       emit(state.copyWith(isLoading: false, exception: exception));
@@ -640,6 +646,76 @@ class EmployeeProfileBloc
       var exception = _peopleManagementService.treatErrors(ex, stacktrace);
       emit(state.copyWith(
           isLoading: false, isSavingData: false, exception: exception));
+    }
+  }
+
+  Future _onEditAvatarImageEvent(
+      EditAvatarImageEvent event, Emitter<EmployeeProfileState> emit) async {
+    try {
+      // Abrir janela de seleção de arquivo
+      FilePickerResult? result = await FilePicker.platform.pickFiles(
+        type: FileType.image,
+        withData: true,
+      );
+
+      if (result != null && result.files.single.bytes != null) {
+        emit(state.copyWith(isSavingData: true));
+
+        final file = result.files.single;
+        final bytes = file.bytes!;
+        final fileName = file.name;
+
+        // Validar tamanho da imagem (exemplo: máximo 5MB)
+        if (bytes.length > 5 * 1024 * 1024) {
+          emit(state.copyWith(
+            isSavingData: false,
+            snackMessage: "Imagem muito grande. Tamanho máximo: 5MB",
+          ));
+          return;
+        }
+
+        // Enviar imagem para o servidor
+        await _peopleManagementService.uploadEmployeeImage(
+          state.company.id,
+          state.employee.id,
+          bytes,
+          fileName,
+        );
+
+        // Carregar a imagem atualizada
+        final imageBytes = await _peopleManagementService.getEmployeeImage(
+          state.company.id,
+          state.employee.id,
+        );
+
+        emit(state.copyWith(
+          isSavingData: false,
+          employeeImage: imageBytes,
+          snackMessage: "Foto do avatar atualizada com sucesso",
+        ));
+      }
+    } catch (ex, stacktrace) {
+      var exception = _peopleManagementService.treatErrors(ex, stacktrace);
+      emit(state.copyWith(
+        isSavingData: false,
+        exception: exception,
+      ));
+    }
+  }
+
+  Future _onLoadEmployeeImageEvent(
+      LoadEmployeeImageEvent event, Emitter<EmployeeProfileState> emit) async {
+    try {
+      final imageBytes = await _peopleManagementService.getEmployeeImage(
+        state.company.id,
+        state.employee.id,
+      );
+
+      if (imageBytes != null) {
+        emit(state.copyWith(employeeImage: imageBytes));
+      }
+    } catch (ex, stacktrace) {
+      // Se não houver imagem ou ocorrer erro, apenas ignora
     }
   }
 }

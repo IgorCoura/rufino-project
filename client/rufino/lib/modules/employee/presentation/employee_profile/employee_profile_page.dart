@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_modular/flutter_modular.dart';
@@ -75,10 +77,44 @@ class EmployeeProfilePage extends StatelessWidget {
                           const SizedBox(
                             height: 16,
                           ),
-                          const CircleAvatar(
-                            radius: 80,
-                            backgroundImage:
-                                AssetImage("assets/img/avatar_default.png"),
+                          Stack(
+                            children: [
+                              CircleAvatar(
+                                radius: 80,
+                                backgroundImage: state.employeeImage != null
+                                    ? MemoryImage(Uint8List.fromList(
+                                        state.employeeImage!))
+                                    : const AssetImage(
+                                            "assets/img/avatar_default.png")
+                                        as ImageProvider,
+                              ),
+                              Positioned(
+                                bottom: 0,
+                                right: 0,
+                                child: Container(
+                                  decoration: BoxDecoration(
+                                    color: Theme.of(context).primaryColor,
+                                    shape: BoxShape.circle,
+                                    border: Border.all(
+                                      color: Colors.white,
+                                      width: 2,
+                                    ),
+                                  ),
+                                  child: IconButton(
+                                    onPressed: () {
+                                      bloc.add(EditAvatarImageEvent());
+                                    },
+                                    icon: const Icon(
+                                      Icons.edit,
+                                      size: 20,
+                                      color: Colors.white,
+                                    ),
+                                    padding: const EdgeInsets.all(8.0),
+                                    constraints: const BoxConstraints(),
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
                           const SizedBox(
                             height: 16,

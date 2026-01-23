@@ -41,10 +41,13 @@ class PeopleManagementService extends BaseService {
 
   PeopleManagementService(super._authService);
 
-  Future<String> createEmployee(String companyId, String name) async {
+  Future<String> createEmployee(
+      String companyId, String name, String roleId, String workPlaceId) async {
     var headers = await getHeadersWithRequestId();
     Map<String, String> body = {
       "name": name,
+      "roleId": roleId,
+      "workPlaceId": workPlaceId,
     };
     var url = peopleManagementUrl.replace(path: "/api/v1/$companyId/employee");
 
@@ -902,6 +905,47 @@ class PeopleManagementService extends BaseService {
     if (response.statusCode == 200) {
       var jsonResponse = jsonDecode(response.body);
       return Association.fromListJson(jsonResponse);
+    }
+    throw treatUnsuccessfulResponses(response);
+  }
+
+  Future<String> uploadEmployeeImage(String companyId, String employeeId,
+      List<int> imageBytes, String fileName) async {
+    var headers = await getHeadersWithRequestId();
+
+    var url = peopleManagementUrl.replace(
+        path: "/api/v1/$companyId/employee/image/$employeeId");
+
+    var request = http.MultipartRequest('PUT', url);
+    request.headers.addAll(headers);
+    request.files.add(http.MultipartFile.fromBytes(
+      'formFile',
+      imageBytes,
+      filename: fileName,
+    ));
+
+    var streamedResponse = await request.send();
+    var response = await http.Response.fromStream(streamedResponse);
+
+    if (response.statusCode == 200) {
+      var jsonResponse = jsonDecode(response.body);
+      return jsonResponse["id"];
+    }
+    throw treatUnsuccessfulResponses(response);
+  }
+
+  Future<List<int>?> getEmployeeImage(
+      String companyId, String employeeId) async {
+    var headers = await getHeaders();
+    var url = peopleManagementUrl.replace(
+        path: "/api/v1/$companyId/employee/image/$employeeId");
+
+    var response = await http.get(url, headers: headers);
+
+    if (response.statusCode == 200) {
+      return response.bodyBytes;
+    } else if (response.statusCode == 404) {
+      return null;
     }
     throw treatUnsuccessfulResponses(response);
   }

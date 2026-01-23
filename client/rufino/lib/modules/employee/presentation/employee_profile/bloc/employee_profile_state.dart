@@ -26,6 +26,7 @@ class EmployeeProfileState extends Equatable {
   final List<EmployeeContract> listContracts;
   final List<EmployeeContractType> listContractTypes;
   final List<DocumentSigningOptions> listDocumentSigningOptions;
+  final List<int>? employeeImage;
 
   const EmployeeProfileState(
       {this.company = const Company.empty(),
@@ -52,7 +53,8 @@ class EmployeeProfileState extends Equatable {
       this.listContracts = const [],
       this.listContractTypes = const [],
       this.listDocumentSigningOptions = const [],
-      this.isDocumentSigningOptionsName = false});
+      this.isDocumentSigningOptionsName = false,
+      this.employeeImage});
 
   EmployeeProfileState copyWith({
     Company? company,
@@ -81,6 +83,7 @@ class EmployeeProfileState extends Equatable {
     List<EmployeeContractType>? listContractTypes,
     List<DocumentSigningOptions>? listDocumentSigningOptions,
     bool? isDocumentSigningOptionsName,
+    List<int>? employeeImage,
   }) =>
       EmployeeProfileState(
         company: company ?? this.company,
@@ -111,6 +114,7 @@ class EmployeeProfileState extends Equatable {
             listDocumentSigningOptions ?? this.listDocumentSigningOptions,
         isDocumentSigningOptionsName:
             isDocumentSigningOptionsName ?? this.isDocumentSigningOptionsName,
+        employeeImage: employeeImage ?? this.employeeImage,
       );
 
   @override
@@ -140,5 +144,6 @@ class EmployeeProfileState extends Equatable {
         listContractTypes.hashCode,
         listDocumentSigningOptions.hashCode,
         isDocumentSigningOptionsName,
+        employeeImage,
       ];
 }

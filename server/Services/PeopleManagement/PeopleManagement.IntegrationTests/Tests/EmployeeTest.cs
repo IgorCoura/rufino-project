@@ -48,11 +48,13 @@ namespace PeopleManagement.IntegrationTests.Tests
 
             var company = CompanyDAO.CreateFix();
             await company.InsertInDB(context, cancellationToken);
+            var role = await context.InsertRole(company.Id, cancellationToken);
+            var workplace = await context.InsertWorkplace(company.Id, cancellationToken);
             await context.SaveChangesAsync(cancellationToken);
 
             var id = Guid.NewGuid();
 
-            var employee = new CreateEmployeeModel("Rosdevaldo Pereira");
+            var employee = new CreateEmployeeModel("Rosdevaldo Pereira", role.Id, workplace.Id);
 
             client.InputHeaders([company.Id]);
             var response = await client.PostAsJsonAsync($"/api/v1/{company.Id}/employee", employee);

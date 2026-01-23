@@ -44,7 +44,7 @@ namespace PeopleManagement.Services.Services
                 throw new DomainException(this, DomainErrors.ObjectNotFound(nameof(Archive), ownerId.ToString()));
             
             archive.AddFile(file);
-            await _blobService.UploadAsync(stream, file.GetNameWithExtension, archive.CompanyId.ToString(), cancellation);
+            await _blobService.UploadAsync(stream, file.GetNameWithExtension, archive.CompanyId.ToString(),overwrite: false, cancellationToken: cancellation);
             return archive.Id;
         }
 

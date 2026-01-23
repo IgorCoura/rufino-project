@@ -173,7 +173,7 @@ namespace PeopleManagement.Services.Services
 
             string fileNameWithExtesion = document.InsertUnitWithoutRequireValidation(documentUnitId, fileName, extension);
 
-            await _blobService.UploadAsync(stream, fileNameWithExtesion, document.CompanyId.ToString(), cancellationToken);
+            await _blobService.UploadAsync(stream, fileNameWithExtesion, document.CompanyId.ToString(), overwrite: false, cancellationToken: cancellationToken);
         }
 
 

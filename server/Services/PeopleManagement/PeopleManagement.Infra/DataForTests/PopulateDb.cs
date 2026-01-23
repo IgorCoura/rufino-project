@@ -244,7 +244,7 @@ namespace PeopleManagement.Infra.DataForTests
                         DateOnly.Parse("1993-07-23")
                         ),
                     VoteId.Create("163053550736"),
-                    MedicalAdmissionExam.Create(DateOnly.Parse("2024-08-30"), DateOnly.Parse("2025-08-30")),
+                    MedicalAdmissionExam.Create(DateOnly.FromDateTime(DateTime.Now), DateOnly.FromDateTime(DateTime.Now).AddYears(1)),
                     militaryDocument: null,
                     "TC0001",
                     DateOnly.Parse("2024-09-01"),
@@ -553,18 +553,17 @@ namespace PeopleManagement.Infra.DataForTests
 
         }
 
-        private static Employee FactoryEmployee(Guid id, Guid companyId, string Name, Guid? roleId = null, Guid? workplaceId = null,
+        private static Employee FactoryEmployee(Guid id, Guid companyId, string Name, Guid roleId, Guid workplaceId,
             EmployeeAddress? address = null, EmployeeContact? contact = null, PersonalInfo? personalInfo = null, IdCard? idCard = null,
             VoteId? voteId = null, MedicalAdmissionExam? medicalAdmissionExam = null, MilitaryDocument? militaryDocument = null,
             string? registration = null, DateOnly? dateInitContract = null, EmploymentContractType? contractType = null)
         {
-            var employee = Employee.Create(id, companyId, Name);
+            
+            var employee = Employee.Create(id, companyId, Name, roleId, workplaceId);
 
 
             try
             {
-                employee.RoleId = roleId;
-                employee.WorkPlaceId = workplaceId;
                 employee.Address = address;
                 employee.Contact = contact;
                 employee.PersonalInfo = personalInfo;
