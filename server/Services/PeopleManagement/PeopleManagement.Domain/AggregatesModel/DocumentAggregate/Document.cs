@@ -35,7 +35,7 @@ namespace PeopleManagement.Domain.AggregatesModel.DocumentAggregate
 
             var documentUnit = DocumentUnit.Create(documentUnitId, this);
             DocumentsUnits.Add(documentUnit);
-            Status = DocumentStatus.RequiresDocument;
+            RefreshDocumentStatus();
             return documentUnit;
         }
 
@@ -46,8 +46,8 @@ namespace PeopleManagement.Domain.AggregatesModel.DocumentAggregate
 
             documentUnit.InsertWithRequireValidation(name, extension);
 
-            Status = DocumentStatus.RequiresValidation;
-            
+            RefreshDocumentStatus();
+
         }
 
         public string InsertUnitWithoutRequireValidation(Guid documentUnitId, Name name, Extension extension)
@@ -57,10 +57,9 @@ namespace PeopleManagement.Domain.AggregatesModel.DocumentAggregate
 
             documentUnit.InsertWithoutRequireValidation(name, extension);
 
-            Status = DocumentStatus.OK;
 
             DeprecateDocumentsUnit(documentUnitId);
-
+            RefreshDocumentStatus();
             return documentUnit.GetNameWithExtension;
         }
 
@@ -95,9 +94,8 @@ namespace PeopleManagement.Domain.AggregatesModel.DocumentAggregate
             var documentUnit = DocumentsUnits.FirstOrDefault(x => x.Id == documentUnitId)
                 ?? throw new DomainException(this, DomainErrors.ObjectNotFound(nameof(DocumentUnit), documentUnitId.ToString()));
 
-            var isAwaitingSignature = documentUnit.MarkAsAwaitingSignature();
-            if(isAwaitingSignature)
-                Status = DocumentStatus.AwaitingSignature;
+            documentUnit.MarkAsAwaitingSignature();
+            RefreshDocumentStatus();
         }
 
         public void ValidateDocumentUnit(Guid documentUnitId, bool IsValid)
@@ -108,9 +106,9 @@ namespace PeopleManagement.Domain.AggregatesModel.DocumentAggregate
             document.Validate(IsValid);
             if (IsValid)
             {
-                Status = DocumentStatus.OK;
                 DeprecateDocumentsUnit(documentUnitId);
             }
+            RefreshDocumentStatus();
         }
 
         public bool MakeAsDocumentDeprecated(Guid documentUnitIdExpire, Guid newDocumentUnitId)
@@ -119,7 +117,7 @@ namespace PeopleManagement.Domain.AggregatesModel.DocumentAggregate
                 ?? throw new DomainException(this, DomainErrors.ObjectNotFound(nameof(DocumentUnit), documentUnitIdExpire.ToString()));
 
             var isDeprecatedOrInvalid = documentUnit.MarkAsDeprecatedOrInvalid();
-            Status = DocumentStatus.Deprecated;
+            RefreshDocumentStatus();
             return isDeprecatedOrInvalid;
         }
 
@@ -141,8 +139,8 @@ namespace PeopleManagement.Domain.AggregatesModel.DocumentAggregate
 
         public void MakeAsDeprecated()
         {
-            Status = DocumentStatus.Deprecated;
             DeprecateDocumentsUnit();
+            RefreshDocumentStatus();
         }
 
         private void DeprecateDocumentsUnit(Guid? exceptionDocumentId = null)
@@ -152,6 +150,7 @@ namespace PeopleManagement.Domain.AggregatesModel.DocumentAggregate
                 if(exceptionDocumentId == null || x.Id != exceptionDocumentId)                 
                     x.MarkAsDeprecatedOrInvalid();
             });
+            RefreshDocumentStatus();
         }
 
         public bool MarkAsNotApplicableDocumentUnit(Guid documentUnitId)
@@ -162,8 +161,8 @@ namespace PeopleManagement.Domain.AggregatesModel.DocumentAggregate
             var isNotApplicable = document.MarkAsNotApplicable();
             if(isNotApplicable)
             {
-                Status = DocumentStatus.OK;
                 DeprecateDocumentsUnit(exceptionDocumentId: documentUnitId);
+                RefreshDocumentStatus();
                 return true;
             }
             return false;
@@ -200,16 +199,54 @@ namespace PeopleManagement.Domain.AggregatesModel.DocumentAggregate
             return DocumentsUnits.Any(x => x.IsPending == false) == false;
         }
 
-        public static DocumentStatus GetRepresentingStatus(List<DocumentStatus> documentsStatus)
+        private void RefreshDocumentStatus()
         {
-            var result = documentsStatus.OrderBy(x => DocumentStatus.GetOrder(x))
-                .ToList();
+            if (DocumentsUnits.Count == 0)
+            {
+                Status = DocumentStatus.OK;
+                return;
+            }
 
-            if (result.Count == 0)
-                return DocumentStatus.OK;
+            if (DocumentsUnits.Any(x => x.Status == DocumentUnitStatus.OK))
+            {
+                Status = DocumentStatus.OK;
+                return;
+            }
 
-            return documentsStatus.First();
+            if (DocumentsUnits.Any(x => x.Status == DocumentUnitStatus.RequiresValidation))
+            {
+                Status = DocumentStatus.RequiresValidation;
+                return;
+            }
+
+            if (DocumentsUnits.Any(x => x.Status == DocumentUnitStatus.AwaitingSignature))
+            {
+                Status = DocumentStatus.AwaitingSignature;
+                return;
+            }
+
+            if (DocumentsUnits.Any(x => x.Status == DocumentUnitStatus.Warning))
+            {
+                Status = DocumentStatus.Warning;
+                return;
+            }
+
+            if (DocumentsUnits.Any(x => x.Status == DocumentUnitStatus.NotApplicable))
+            {
+                Status = DocumentStatus.OK;
+                return;
+            }
+
+            if (DocumentsUnits.Any(x => x.Status == DocumentUnitStatus.Deprecated))
+            {
+                Status = DocumentStatus.Deprecated;
+                return;
+            }
+
+            Status = DocumentStatus.RequiresDocument;
         }
+
+
 
     }
 }

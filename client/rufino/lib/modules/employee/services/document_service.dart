@@ -3,7 +3,6 @@ import 'dart:io';
 
 import 'package:http/http.dart' as http;
 import 'package:rufino/modules/employee/domain/model/document/document.dart';
-import 'package:rufino/modules/employee/domain/model/document_group/document_group_with_documents.dart';
 import 'package:rufino/shared/services/base_service.dart';
 import 'package:rufino/shared/util/data_convetion.dart';
 

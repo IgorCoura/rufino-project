@@ -1,14 +1,23 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_modular/flutter_modular.dart';
 import 'package:infinite_scroll_pagination/infinite_scroll_pagination.dart';
 import 'package:rufino/modules/employee/domain/model/employee_with_role.dart';
+import 'package:rufino/modules/employee/domain/model/role_info/department.dart';
+import 'package:rufino/modules/employee/domain/model/role_info/position.dart';
+import 'package:rufino/modules/employee/domain/model/role_info/role.dart';
 import 'package:rufino/modules/employee/domain/model/search_params.dart';
+import 'package:rufino/modules/employee/domain/model/workplace/address_workplace.dart';
+import 'package:rufino/modules/employee/domain/model/workplace/workplace.dart';
+import 'package:rufino/modules/employee/presentation/components/enumeration_view_component.dart';
 import 'package:rufino/modules/employee/presentation/employees_list/bloc/employees_list_bloc.dart';
 import 'package:rufino/shared/components/error_components.dart';
 
 class EmployeesListPage extends StatelessWidget {
   final bloc = Modular.get<EmployeesListBloc>();
+  final _dialogKey = GlobalKey<FormState>();
 
   EmployeesListPage({super.key}) {
     bloc.add(InitialEmployeesListEvent());
@@ -265,6 +274,7 @@ class EmployeesListPage extends StatelessWidget {
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () {
+          bloc.add(LoadInfoToCreateEmployee());
           _dialogCreateEmployee(context);
         },
         child: const Icon(Icons.add),
@@ -283,15 +293,64 @@ class EmployeesListPage extends StatelessWidget {
               child: BlocBuilder<EmployeesListBloc, EmployeesListState>(
                   bloc: bloc,
                   builder: (context, state) {
-                    return TextField(
-                      onChanged: (name) =>
-                          bloc.add(ChangeNameNewEmployee(name)),
-                      decoration: InputDecoration(
-                        labelText: 'Nome do Funcionário',
-                        border: const OutlineInputBorder(),
-                        errorText: state.textfieldErrorMessage.isEmpty
-                            ? null
-                            : state.textfieldErrorMessage,
+                    return Form(
+                      key: _dialogKey,
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          TextFormField(
+                            onChanged: (name) =>
+                                bloc.add(ChangeNameNewEmployee(name)),
+                            decoration: InputDecoration(
+                              labelText: 'Nome do Funcionário',
+                              border: const OutlineInputBorder(),
+                              errorText: state.textfieldErrorMessage.isEmpty
+                                  ? null
+                                  : state.textfieldErrorMessage,
+                            ),
+                            validator: (value) {
+                              if (value == null || value.isEmpty) {
+                                return 'Por favor, insira um nome.';
+                              }
+                              return null;
+                            },
+                          ),
+                          SizedBox(height: 16),
+                          EnumerationViewComponent(
+                              onChanged: (obj) =>
+                                  bloc.add(ChangeWorkplace(obj as Workplace)),
+                              isLoading: state.isLoadingInfoToCreateEmployee,
+                              isEditing: true,
+                              enumeration: state.workplace,
+                              listEnumerationOptions: state.workplaces),
+                          SizedBox(height: 16),
+                          EnumerationViewComponent(
+                            onChanged: (obj) =>
+                                bloc.add(ChangeDepartment(obj as Department)),
+                            isLoading: state.isLoadingInfoToCreateEmployee,
+                            isEditing: true,
+                            enumeration: state.department,
+                            listEnumerationOptions: state.departments,
+                          ),
+                          SizedBox(height: 16),
+                          EnumerationViewComponent(
+                            onChanged: (obj) =>
+                                bloc.add(ChangePosition(obj as Position)),
+                            isLoading: state.isLoadingInfoToCreateEmployee,
+                            isEditing: true,
+                            enumeration: state.position,
+                            listEnumerationOptions: state.positions,
+                          ),
+                          SizedBox(height: 16),
+                          EnumerationViewComponent(
+                            onChanged: (obj) =>
+                                bloc.add(ChangeRole(obj as Role)),
+                            isLoading: state.isLoadingInfoToCreateEmployee,
+                            isEditing: true,
+                            enumeration: state.role,
+                            listEnumerationOptions: state.roles,
+                          ),
+                        ],
                       ),
                     );
                   }),
@@ -305,8 +364,10 @@ class EmployeesListPage extends StatelessWidget {
               ),
               ElevatedButton(
                 onPressed: () {
-                  Navigator.of(context).pop();
-                  bloc.add(CreateNewEmployee());
+                  if (_dialogKey.currentState?.validate() ?? false) {
+                    Navigator.of(context).pop();
+                    bloc.add(CreateNewEmployee());
+                  }
                 },
                 child: const Text('Criar'),
               ),
@@ -326,8 +387,10 @@ class EmployeesListPage extends StatelessWidget {
 
   Widget _employeeListItem(EmployeeWithRole employee) {
     return ListTile(
-      leading: const CircleAvatar(
-        backgroundImage: AssetImage("assets/img/avatar_default.png"),
+      leading: CircleAvatar(
+        backgroundImage: employee.image != null
+            ? MemoryImage(Uint8List.fromList(employee.image!))
+            : const AssetImage("assets/img/avatar_default.png") as ImageProvider,
       ),
       title: Text(
         employee.name,

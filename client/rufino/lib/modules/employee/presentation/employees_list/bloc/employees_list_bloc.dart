@@ -6,8 +6,12 @@ import 'package:infinite_scroll_pagination/infinite_scroll_pagination.dart';
 import 'package:rufino/domain/model/company.dart';
 import 'package:rufino/domain/services/company_global_service.dart';
 import 'package:rufino/modules/employee/domain/model/employee_with_role.dart';
+import 'package:rufino/modules/employee/domain/model/role_info/department.dart';
+import 'package:rufino/modules/employee/domain/model/role_info/position.dart';
+import 'package:rufino/modules/employee/domain/model/role_info/role.dart';
 import 'package:rufino/modules/employee/domain/model/search_params.dart';
 import 'package:rufino/modules/employee/domain/model/status.dart';
+import 'package:rufino/modules/employee/domain/model/workplace/workplace.dart';
 import 'package:rufino/modules/employee/services/people_management_service.dart';
 import 'package:rufino/shared/errors/aplication_errors.dart';
 
@@ -33,6 +37,12 @@ class EmployeesListBloc extends Bloc<EmployeesListEvent, EmployeesListState> {
     on<ErrorEvent>(_onErrorEvent);
     on<FeatchNextPage>(_onFeatchNextPage);
     on<RefreshPage>(_onRefreshPage);
+    on<LoadInfoToCreateEmployee>(_onLoadInfoToCreateEmployee);
+    on<ChangeDepartment>(_onChangeDepartment);
+    on<ChangePosition>(_onChangePosition);
+    on<ChangeRole>(_onChangeRole);
+    on<ChangeWorkplace>(_onChangeWorkplace);
+    on<LoadSingleEmployeeImage>(_onLoadSingleEmployeeImage);
   }
 
   void _onErrorEvent(ErrorEvent event, Emitter<EmployeesListState> emit) {
@@ -55,9 +65,12 @@ class EmployeesListBloc extends Bloc<EmployeesListEvent, EmployeesListState> {
       CreateNewEmployee event, Emitter<EmployeesListState> emit) async {
     emit(state.copyWith(isLoading: true));
     try {
-      if (state.company != null && state.nameNewEmployee != null) {
-        await _peopleManagementService.createEmployee(
-            state.company!.id, state.nameNewEmployee!);
+      if (state.company != null &&
+          state.nameNewEmployee != null &&
+          state.role != null &&
+          state.workplace != null) {
+        await _peopleManagementService.createEmployee(state.company!.id,
+            state.nameNewEmployee!, state.role!.id, state.workplace!.id);
         emit(state.copyWith(isLoading: false));
       } else {
         throw AplicationErrors.emplyee.errorTryCreateEmployee;
@@ -210,6 +223,8 @@ class EmployeesListBloc extends Bloc<EmployeesListEvent, EmployeesListState> {
       final isLastPage = newItems.length < _pageSize;
       final newKey = (state.pagingState!.keys?.last ?? 0) + _pageSize;
       _sizeSkip = newKey;
+
+      // Adicionar funcionários imediatamente sem imagens
       emit(
         state.copyWith(
           pagingState: state.pagingState!.copyWith(
@@ -221,11 +236,138 @@ class EmployeesListBloc extends Bloc<EmployeesListEvent, EmployeesListState> {
           ),
         ),
       );
+
+      // Disparar eventos assíncronos para carregar imagens de cada funcionário
+      for (var employee in newItems) {
+        add(LoadSingleEmployeeImage(employee.id));
+      }
     } catch (ex, stacktrace) {
       var exception = _peopleManagementService.treatErrors(ex, stacktrace);
       emit(state.copyWith(
           exception: exception,
           pagingState: state.pagingState!.copyWith(isLoading: false)));
+    }
+  }
+
+  Future _onLoadInfoToCreateEmployee(
+      LoadInfoToCreateEmployee event, Emitter<EmployeesListState> emit) async {
+    emit(state.copyWith(isLoadingInfoToCreateEmployee: true));
+    var departments =
+        await _peopleManagementService.getAllDepartment(state.company!.id);
+    var workplaces =
+        await _peopleManagementService.getAllWorkplace(state.company!.id);
+    emit(state.copyWith(
+        departments: departments,
+        workplaces: workplaces,
+        isLoadingInfoToCreateEmployee: false));
+  }
+
+  Future _onChangeDepartment(
+      ChangeDepartment event, Emitter<EmployeesListState> emit) async {
+    emit(state.copyWith(
+        department: event.department, isLoadingInfoToCreateEmployee: true));
+
+    try {
+      List<Position> positions = [];
+      if (event.department == const Department.empty()) {
+        emit(state.copyWith(
+          positions: positions,
+          position: const Position.empty(),
+          roles: [],
+          role: const Role.empty(),
+          isLoadingInfoToCreateEmployee: false,
+        ));
+        return;
+      }
+      positions = await _peopleManagementService.getAllPosition(
+          event.department.id, state.company!.id);
+
+      emit(state.copyWith(
+        positions: positions,
+        position: const Position.empty(),
+        roles: [],
+        role: const Role.empty(),
+        isLoadingInfoToCreateEmployee: false,
+      ));
+    } catch (ex, stacktrace) {
+      var exception = _peopleManagementService.treatErrors(ex, stacktrace);
+      emit(state.copyWith(
+          isLoadingInfoToCreateEmployee: false, exception: exception));
+    }
+  }
+
+  Future _onChangePosition(
+      ChangePosition event, Emitter<EmployeesListState> emit) async {
+    emit(state.copyWith(isLoadingInfoToCreateEmployee: false));
+
+    try {
+      List<Role> roles = [];
+      if (event.position == const Position.empty()) {
+        emit(state.copyWith(
+          position: event.position,
+          roles: roles,
+          role: const Role.empty(),
+          isLoadingInfoToCreateEmployee: false,
+        ));
+        return;
+      }
+      roles = await _peopleManagementService.getAllRole(
+          event.position.id, state.company!.id);
+
+      emit(state.copyWith(
+        position: event.position,
+        roles: roles,
+        role: const Role.empty(),
+        isLoadingInfoToCreateEmployee: false,
+      ));
+    } catch (ex, stacktrace) {
+      var exception = _peopleManagementService.treatErrors(ex, stacktrace);
+      emit(state.copyWith(
+          isLoadingInfoToCreateEmployee: false, exception: exception));
+    }
+  }
+
+  void _onChangeRole(ChangeRole event, Emitter<EmployeesListState> emit) {
+    emit(state.copyWith(role: event.role));
+  }
+
+  void _onChangeWorkplace(
+      ChangeWorkplace event, Emitter<EmployeesListState> emit) {
+    emit(state.copyWith(workplace: event.workplace));
+  }
+
+  Future _onLoadSingleEmployeeImage(
+      LoadSingleEmployeeImage event, Emitter<EmployeesListState> emit) async {
+    try {
+      // Carregar imagem do servidor
+      final imageBytes = await _peopleManagementService.getEmployeeImage(
+        state.company!.id,
+        event.employeeId,
+      );
+
+      if (imageBytes == null) {
+        return; // Sem imagem para este funcionário
+      }
+
+      // Encontrar e atualizar o funcionário nas páginas
+      if (state.pagingState?.pages != null) {
+        final updatedPages = state.pagingState!.pages!.map((page) {
+          return page.map((employee) {
+            if (employee.id == event.employeeId) {
+              return employee.copyWith(image: imageBytes);
+            }
+            return employee;
+          }).toList();
+        }).toList();
+
+        emit(state.copyWith(
+          pagingState: state.pagingState!.copyWith(
+            pages: updatedPages,
+          ),
+        ));
+      }
+    } catch (ex, stacktrace) {
+      // Ignora erros silenciosamente - funcionário ficará com imagem padrão
     }
   }
 }

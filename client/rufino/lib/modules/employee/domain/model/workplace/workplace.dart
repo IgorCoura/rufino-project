@@ -4,7 +4,7 @@ import 'package:rufino/modules/employee/domain/model/workplace/address_workplace
 class Workplace extends Enumeration {
   final AddressWorkplace address;
   const Workplace(String id, String name, this.address)
-      : super(id, name, "Nome do local de trabalho");
+      : super(id, name, "Local de trabalho");
 
   const Workplace.empty({this.address = const AddressWorkplace.empty()})
       : super.empty(displayName: "Nome do local de trabalho");

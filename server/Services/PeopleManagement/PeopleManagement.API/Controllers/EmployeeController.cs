@@ -307,12 +307,13 @@ namespace PeopleManagement.API.Controllers
         [HttpPut("image/{employeeId}")]
         [ProtectedResource("Document", "send")]
         [RequestSizeLimit(12_000_000)]
-        public async Task<ActionResult<InsertDocumentResponse>> Insert(IFormFile formFile, [FromRoute] Guid company, [FromForm] AlterImageEmployeeModel request, [FromHeader(Name = "x-requestid")] Guid requestId)
+        public async Task<ActionResult<InsertDocumentResponse>> Insert(IFormFile formFile, [FromRoute] Guid company, [FromRoute] Guid employeeid, [FromHeader(Name = "x-requestid")] Guid requestId)
         {
             var extension = Path.GetExtension(formFile.FileName);
             var stream = formFile.OpenReadStream();
+            var request = new AlterImageEmployeeCommand(employeeid, company, extension, stream);
 
-            var command = new IdentifiedCommand<AlterImageEmployeeCommand, AlterImageEmployeeResponse>(request.ToCommand(company, extension, stream), requestId);
+            var command = new IdentifiedCommand<AlterImageEmployeeCommand, AlterImageEmployeeResponse>(request, requestId);
 
             SendingCommandLog(request.EmployeeId, request, requestId);
 

@@ -27,12 +27,12 @@
         {
             return status.Id switch
             {
+                DEPRECATED => 0,
+                WARNING => 3,
                 REQUIRES_VALIDATION => 0,
                 AWAITING_SIGNATURE => 1,
                 REQUIRES_DOCUMENT => 2,
-                WARNING => 3,
                 OKAY => 4,
-                DEPRECATED => 5,
                 _ => 6 // Invalid
             };
         }
