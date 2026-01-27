@@ -71,6 +71,7 @@ class EmployeeProfileBloc
     on<NewContractEvent>(_onNewContractEvent);
     on<EditAvatarImageEvent>(_onEditAvatarImageEvent);
     on<LoadEmployeeImageEvent>(_onLoadEmployeeImageEvent);
+    on<MarkAsInactiveEvent>(_onMarkAsInactiveEvent);
   }
 
   Future _onInitialEvent(InitialEmployeeProfileEvent event,
@@ -716,6 +717,35 @@ class EmployeeProfileBloc
       }
     } catch (ex, stacktrace) {
       // Se não houver imagem ou ocorrer erro, apenas ignora
+    }
+  }
+
+  Future _onMarkAsInactiveEvent(
+      MarkAsInactiveEvent event, Emitter<EmployeeProfileState> emit) async {
+    emit(state.copyWith(isSavingData: true));
+    try {
+      await _peopleManagementService.markEmployeeAsInactive(
+        state.employee.id,
+        state.company.id,
+      );
+
+      // Recarrega o employee para obter o status atualizado
+      var updatedEmployee = await _peopleManagementService.getEmployee(
+        state.employee.id,
+        state.company.id,
+      );
+
+      emit(state.copyWith(
+        isSavingData: false,
+        employee: updatedEmployee,
+        snackMessage: "Funcionário marcado como inativo com sucesso!",
+      ));
+    } catch (ex, stacktrace) {
+      var exception = _peopleManagementService.treatErrors(ex, stacktrace);
+      emit(state.copyWith(
+        isSavingData: false,
+        exception: exception,
+      ));
     }
   }
 }

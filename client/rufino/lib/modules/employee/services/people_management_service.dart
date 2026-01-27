@@ -367,6 +367,24 @@ class PeopleManagementService extends BaseService {
     throw treatUnsuccessfulResponses(response);
   }
 
+  Future<void> markEmployeeAsInactive(
+      String employeeId, String companyId) async {
+    var headers = await getHeadersWithRequestId();
+    Map<String, dynamic> body = {
+      "employeeId": employeeId,
+    };
+
+    var url = peopleManagementUrl.replace(
+        path: "/api/v1/$companyId/Employee/mark-as-inactive");
+
+    var response =
+        await http.put(url, headers: headers, body: jsonEncode(body));
+    if (response.statusCode == 200) {
+      return;
+    }
+    throw treatUnsuccessfulResponses(response);
+  }
+
   Future<String> addArchiveCategoryEvent(
       String companyId, String archiveCategoryId, List<int> eventList) async {
     var headers = await getHeadersWithRequestId();

@@ -301,6 +301,14 @@ namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
                 AddDomainEvent(EmployeeEvent.DemissionalExamRequestEvent(Id, CompanyId));
         }
 
+        public void MarkAsInactive()
+        {
+            if (Status != Status.Pending)
+                throw new DomainException(this, DomainErrors.Employee.CannotMarkAsInactive(Status.ToString()));
+
+            Status = Status.Inactive;
+        }
+
         public bool CantSignByCellPhone => !(Contact?.CellPhoneIsEmpty ?? true);
 
         public bool IsRequiredMilitarDocument()
