@@ -8,6 +8,7 @@ import 'package:rufino/modules/department/domain/models/remuneration.dart';
 import 'package:rufino/modules/department/role_edit/bloc/role_edit_bloc.dart';
 import 'package:rufino/shared/components/box_with_label.dart';
 import 'package:rufino/shared/components/error_components.dart';
+import 'package:shimmer/shimmer.dart';
 
 class RoleEditPage extends StatelessWidget {
   final _formKey = GlobalKey<FormState>();
@@ -43,188 +44,204 @@ class RoleEditPage extends StatelessWidget {
                     });
                   }
 
-                  return Form(
-                    key: _formKey,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      children: [
-                        Text(
-                          'Função',
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 24,
-                          ),
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      Text(
+                        'Função',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 24,
                         ),
-                        const SizedBox(height: 16),
-                        TextFormField(
-                          controller: TextEditingController(
-                              text: state.role.name.value),
-                          decoration: const InputDecoration(
-                            labelText: 'Nome',
-                            border: OutlineInputBorder(),
-                          ),
-                          onSaved: (value) => bloc.add(
-                            ChangePropEvent(value: Name(value!)),
-                          ),
-                          validator: (value) {
-                            return Name.validate(value);
-                          },
-                        ),
-                        const SizedBox(height: 16),
-                        TextFormField(
-                          controller: TextEditingController(
-                              text: state.role.description.value),
-                          decoration: const InputDecoration(
-                            labelText: 'Descrição',
-                            border: OutlineInputBorder(),
-                          ),
-                          onSaved: (value) => bloc.add(
-                            ChangePropEvent(value: Description(value!)),
-                          ),
-                          validator: (value) {
-                            return Description.validate(value);
-                          },
-                        ),
-                        const SizedBox(height: 16),
-                        TextFormField(
-                          controller:
-                              TextEditingController(text: state.role.cbo.value),
-                          decoration: const InputDecoration(
-                            labelText: 'CBO',
-                            border: OutlineInputBorder(),
-                          ),
-                          onSaved: (value) => bloc.add(
-                            ChangePropEvent(value: CBO(value!)),
-                          ),
-                          validator: (value) {
-                            return CBO.validate(value);
-                          },
-                        ),
-                        const SizedBox(height: 16),
-                        BoxWithLabel(
-                            label: "Remuneração",
-                            child: Column(
-                              children: [
-                                DropdownButtonFormField(
-                                  value: state.paymentUnits.any((e) =>
-                                          e.id ==
-                                          state
-                                              .role.remuneration.paymentUnit.id)
-                                      ? state.role.remuneration.paymentUnit.id
-                                      : null,
-                                  items: state.paymentUnits
-                                      .map((e) => DropdownMenuItem(
-                                            value: e.id,
-                                            child: Text(e.name),
-                                          ))
-                                      .toList(),
-                                  onChanged: (value) {},
-                                  onSaved: (newValue) {
-                                    bloc.add(ChangePropEvent(
-                                        value: PaymentUnit(newValue!, "")));
-                                  },
-                                  decoration: InputDecoration(
-                                    labelText: "Unidade de Pagamento",
-                                    border: const OutlineInputBorder(),
+                      ),
+                      const SizedBox(height: 16),
+                      state.isLoading
+                          ? _buildLoadingView(context)
+                          : Form(
+                              key: _formKey,
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.center,
+                                children: [
+                                  TextFormField(
+                                    controller: TextEditingController(
+                                        text: state.role.name.value),
+                                    decoration: const InputDecoration(
+                                      labelText: 'Nome',
+                                      border: OutlineInputBorder(),
+                                    ),
+                                    onSaved: (value) => bloc.add(
+                                      ChangePropEvent(value: Name(value!)),
+                                    ),
+                                    validator: (value) {
+                                      return Name.validate(value);
+                                    },
                                   ),
-                                ),
-                                const SizedBox(height: 16),
-                                TextFormField(
-                                  controller: TextEditingController(
-                                      text: state.role.remuneration.baseSalary
-                                          .value.value
-                                          .toString()),
-                                  decoration: const InputDecoration(
-                                    labelText: 'Valor',
-                                    border: OutlineInputBorder(),
+                                  const SizedBox(height: 16),
+                                  TextFormField(
+                                    controller: TextEditingController(
+                                        text: state.role.description.value),
+                                    decoration: const InputDecoration(
+                                      labelText: 'Descrição',
+                                      border: OutlineInputBorder(),
+                                    ),
+                                    onSaved: (value) => bloc.add(
+                                      ChangePropEvent(
+                                          value: Description(value!)),
+                                    ),
+                                    validator: (value) {
+                                      return Description.validate(value);
+                                    },
                                   ),
-                                  onSaved: (value) => bloc.add(
-                                    ChangePropEvent(
-                                        value: MonetaryValue(value!)),
+                                  const SizedBox(height: 16),
+                                  TextFormField(
+                                    controller: TextEditingController(
+                                        text: state.role.cbo.value),
+                                    decoration: const InputDecoration(
+                                      labelText: 'CBO',
+                                      border: OutlineInputBorder(),
+                                    ),
+                                    onSaved: (value) => bloc.add(
+                                      ChangePropEvent(value: CBO(value!)),
+                                    ),
+                                    validator: (value) {
+                                      return CBO.validate(value);
+                                    },
                                   ),
-                                  validator: MonetaryValue.validate,
-                                ),
-                                const SizedBox(height: 16),
-                                DropdownButtonFormField(
-                                  value: state.salaryTypes.any((e) =>
-                                          e.id ==
-                                          state.role.remuneration.baseSalary
-                                              .type.id)
-                                      ? state
-                                          .role.remuneration.baseSalary.type.id
-                                      : null,
-                                  items: state.salaryTypes
-                                      .map((e) => DropdownMenuItem(
-                                            value: e.id,
-                                            child: Text(e.name),
-                                          ))
-                                      .toList(),
-                                  onChanged: (value) {},
-                                  onSaved: (newValue) {
-                                    bloc.add(ChangePropEvent(
-                                        value: SalaryType(newValue!, "")));
-                                  },
-                                  decoration: InputDecoration(
-                                    labelText: "Tipo de Monetário",
-                                    border: const OutlineInputBorder(),
+                                  const SizedBox(height: 16),
+                                  BoxWithLabel(
+                                      label: "Remuneração",
+                                      child: Column(
+                                        children: [
+                                          DropdownButtonFormField(
+                                            value: state.paymentUnits.any((e) =>
+                                                    e.id ==
+                                                    state.role.remuneration
+                                                        .paymentUnit.id)
+                                                ? state.role.remuneration
+                                                    .paymentUnit.id
+                                                : null,
+                                            items: state.paymentUnits
+                                                .map((e) => DropdownMenuItem(
+                                                      value: e.id,
+                                                      child: Text(e.name),
+                                                    ))
+                                                .toList(),
+                                            onChanged: (value) {},
+                                            onSaved: (newValue) {
+                                              bloc.add(ChangePropEvent(
+                                                  value: PaymentUnit(
+                                                      newValue!, "")));
+                                            },
+                                            decoration: InputDecoration(
+                                              labelText: "Unidade de Pagamento",
+                                              border:
+                                                  const OutlineInputBorder(),
+                                            ),
+                                          ),
+                                          const SizedBox(height: 16),
+                                          TextFormField(
+                                            controller: TextEditingController(
+                                                text: state.role.remuneration
+                                                    .baseSalary.value.value
+                                                    .toString()),
+                                            decoration: const InputDecoration(
+                                              labelText: 'Valor',
+                                              border: OutlineInputBorder(),
+                                            ),
+                                            onSaved: (value) => bloc.add(
+                                              ChangePropEvent(
+                                                  value: MonetaryValue(value!)),
+                                            ),
+                                            validator: MonetaryValue.validate,
+                                          ),
+                                          const SizedBox(height: 16),
+                                          DropdownButtonFormField(
+                                            value: state.salaryTypes.any((e) =>
+                                                    e.id ==
+                                                    state.role.remuneration
+                                                        .baseSalary.type.id)
+                                                ? state.role.remuneration
+                                                    .baseSalary.type.id
+                                                : null,
+                                            items: state.salaryTypes
+                                                .map((e) => DropdownMenuItem(
+                                                      value: e.id,
+                                                      child: Text(e.name),
+                                                    ))
+                                                .toList(),
+                                            onChanged: (value) {},
+                                            onSaved: (newValue) {
+                                              bloc.add(ChangePropEvent(
+                                                  value: SalaryType(
+                                                      newValue!, "")));
+                                            },
+                                            decoration: InputDecoration(
+                                              labelText: "Tipo de Monetário",
+                                              border:
+                                                  const OutlineInputBorder(),
+                                            ),
+                                          ),
+                                          const SizedBox(height: 16),
+                                          TextFormField(
+                                            controller: TextEditingController(
+                                                text: state.role.remuneration
+                                                    .description.value),
+                                            decoration: const InputDecoration(
+                                              labelText: 'Descrição',
+                                              border: OutlineInputBorder(),
+                                            ),
+                                            onSaved: (value) => bloc.add(
+                                              ChangePropEvent(
+                                                  value: SecundaryDescription(
+                                                      value!)),
+                                            ),
+                                            validator: (value) {
+                                              return Description.validate(
+                                                  value);
+                                            },
+                                          ),
+                                        ],
+                                      )),
+                                  const SizedBox(height: 16),
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      FilledButton(
+                                        style: FilledButton.styleFrom(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 32,
+                                            vertical: 16,
+                                          ),
+                                        ),
+                                        onPressed: () {
+                                          if (_formKey.currentState
+                                                  ?.validate() ??
+                                              false) {
+                                            _formKey.currentState?.save();
+                                            bloc.add(SaveChangesEvent());
+                                          }
+                                        },
+                                        child: const Text('Salvar'),
+                                      ),
+                                      const SizedBox(width: 16),
+                                      TextButton(
+                                        style: TextButton.styleFrom(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 32,
+                                            vertical: 16,
+                                          ),
+                                        ),
+                                        onPressed: () {
+                                          Modular.to.navigate('/department/');
+                                        },
+                                        child: const Text('Cancelar'),
+                                      ),
+                                    ],
                                   ),
-                                ),
-                                const SizedBox(height: 16),
-                                TextFormField(
-                                  controller: TextEditingController(
-                                      text: state
-                                          .role.remuneration.description.value),
-                                  decoration: const InputDecoration(
-                                    labelText: 'Descrição',
-                                    border: OutlineInputBorder(),
-                                  ),
-                                  onSaved: (value) => bloc.add(
-                                    ChangePropEvent(
-                                        value: SecundaryDescription(value!)),
-                                  ),
-                                  validator: (value) {
-                                    return Description.validate(value);
-                                  },
-                                ),
-                              ],
-                            )),
-                        const SizedBox(height: 16),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            FilledButton(
-                              style: FilledButton.styleFrom(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 32,
-                                  vertical: 16,
-                                ),
+                                ],
                               ),
-                              onPressed: () {
-                                if (_formKey.currentState?.validate() ??
-                                    false) {
-                                  _formKey.currentState?.save();
-                                  bloc.add(SaveChangesEvent());
-                                }
-                              },
-                              child: const Text('Salvar'),
                             ),
-                            const SizedBox(width: 16),
-                            TextButton(
-                              style: TextButton.styleFrom(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 32,
-                                  vertical: 16,
-                                ),
-                              ),
-                              onPressed: () {
-                                Modular.to.navigate('/department/');
-                              },
-                              child: const Text('Cancelar'),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
+                    ],
                   );
                 },
               ),
@@ -232,6 +249,82 @@ class RoleEditPage extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildLoadingView(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        Shimmer.fromColors(
+          baseColor: Theme.of(context).colorScheme.surface,
+          highlightColor: Theme.of(context).colorScheme.onSurface,
+          child: TextFormField(
+            enabled: false,
+            decoration: const InputDecoration(
+              border: OutlineInputBorder(),
+            ),
+          ),
+        ),
+        const SizedBox(height: 16),
+        Shimmer.fromColors(
+          baseColor: Theme.of(context).colorScheme.surface,
+          highlightColor: Theme.of(context).colorScheme.onSurface,
+          child: TextFormField(
+            enabled: false,
+            decoration: const InputDecoration(
+              border: OutlineInputBorder(),
+            ),
+          ),
+        ),
+        const SizedBox(height: 16),
+        Shimmer.fromColors(
+          baseColor: Theme.of(context).colorScheme.surface,
+          highlightColor: Theme.of(context).colorScheme.onSurface,
+          child: TextFormField(
+            enabled: false,
+            decoration: const InputDecoration(
+              border: OutlineInputBorder(),
+            ),
+          ),
+        ),
+        const SizedBox(height: 16),
+        Shimmer.fromColors(
+          baseColor: Theme.of(context).colorScheme.surface,
+          highlightColor: Theme.of(context).colorScheme.onSurface,
+          child: Container(
+            padding: const EdgeInsets.all(16.0),
+            decoration: BoxDecoration(
+              border: Border.all(color: Colors.grey),
+              borderRadius: BorderRadius.circular(4),
+            ),
+            child: Column(
+              children: [
+                TextFormField(
+                  enabled: false,
+                  decoration: const InputDecoration(
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                TextFormField(
+                  enabled: false,
+                  decoration: const InputDecoration(
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                TextFormField(
+                  enabled: false,
+                  decoration: const InputDecoration(
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

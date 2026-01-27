@@ -20,6 +20,7 @@ using PeopleManagement.Application.Commands.EmployeeCommands.CreateEmployee;
 using PeopleManagement.Application.Commands.EmployeeCommands.DocumentSigningOptions;
 using PeopleManagement.Application.Commands.EmployeeCommands.FinishedContractEmployee;
 using PeopleManagement.Application.Commands.EmployeeCommands.IsRequiredMilitaryDocumentEmployee;
+using PeopleManagement.Application.Commands.EmployeeCommands.MarkEmployeeAsInactive;
 using PeopleManagement.Application.Commands.EmployeeCommands.RemoveDependentEmployee;
 using PeopleManagement.Application.Commands.Identified;
 using PeopleManagement.Application.Queries.Employee;
@@ -294,6 +295,22 @@ namespace PeopleManagement.API.Controllers
             [FromBody] DocumentSigningOptionsModel request, [FromHeader(Name = "x-requestid")] Guid requestId)
         {
             var command = new IdentifiedCommand<DocumentSigningOptionsCommand, DocumentSigningOptionsResponse>(request.ToCommand(company), requestId);
+
+            SendingCommandLog(request.EmployeeId, request, requestId);
+
+            var result = await mediator.Send(command);
+
+            CommandResultLog(result, request.EmployeeId, request, requestId);
+
+            return OkResponse(result);
+        }
+
+
+        [HttpPut("mark-as-inactive")]
+        [ProtectedResource("employee", "edit")]
+        public async Task<ActionResult<MarkEmployeeAsInactiveResponse>> MarkAsInactive([FromRoute] Guid company, [FromBody] MarkEmployeeAsInactiveModel request, [FromHeader(Name = "x-requestid")] Guid requestId)
+        {
+            var command = new IdentifiedCommand<MarkEmployeeAsInactiveCommand, MarkEmployeeAsInactiveResponse>(request.ToCommand(company), requestId);
 
             SendingCommandLog(request.EmployeeId, request, requestId);
 

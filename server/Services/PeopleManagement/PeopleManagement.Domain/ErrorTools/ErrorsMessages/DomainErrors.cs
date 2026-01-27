@@ -65,6 +65,7 @@ namespace PeopleManagement.Domain.ErrorTools.ErrorsMessages
             public static Error StatusInvalido() => new("PMD.EMP14", $"O funcionario está com o estado inválido para realizar está função", new { });
             public static Error InvalidDocumentDigitalSigningOptions(Guid Id) => new("PMD.EMP15", $"O funcionario {Id} não tem uma opção de assinatura digital valida.", new { Id });
             public static Error ImageNotSet(Guid Id) => new("PMD.EMP16", $"O funcionario {Id} não tem uma image.", new { Id });
+            public static Error CannotMarkAsInactive(string currentStatus) => new("PMD.EMP17", $"Não é possível marcar o funcionário como inativo. O status atual '{currentStatus}' não permite esta operação. Apenas funcionários com status 'Pending' podem ser marcados como inativos.", new { currentStatus });
         }
 
         public static class ArchiveCategory
