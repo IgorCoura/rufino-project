@@ -9,7 +9,6 @@ import 'package:rufino/modules/employee/domain/model/role_info/department.dart';
 import 'package:rufino/modules/employee/domain/model/role_info/position.dart';
 import 'package:rufino/modules/employee/domain/model/role_info/role.dart';
 import 'package:rufino/modules/employee/domain/model/search_params.dart';
-import 'package:rufino/modules/employee/domain/model/workplace/address_workplace.dart';
 import 'package:rufino/modules/employee/domain/model/workplace/workplace.dart';
 import 'package:rufino/modules/employee/presentation/components/enumeration_view_component.dart';
 import 'package:rufino/modules/employee/presentation/employees_list/bloc/employees_list_bloc.dart';
@@ -390,7 +389,8 @@ class EmployeesListPage extends StatelessWidget {
       leading: CircleAvatar(
         backgroundImage: employee.image != null
             ? MemoryImage(Uint8List.fromList(employee.image!))
-            : const AssetImage("assets/img/avatar_default.png") as ImageProvider,
+            : const AssetImage("assets/img/avatar_default.png")
+                as ImageProvider,
       ),
       title: Text(
         employee.name,

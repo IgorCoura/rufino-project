@@ -7,19 +7,22 @@ class TextEditComponent extends BaseEditComponent {
   final TextPropBase textProp;
   final Function(Object value)? onChangedValue;
 
-  const TextEditComponent(
-      {super.onSaveChanges,
-      this.onChangedValue,
-      super.isEditing,
-      super.isLoading,
-      super.key,
-      required this.textProp});
+  const TextEditComponent({
+    super.onSaveChanges,
+    this.onChangedValue,
+    super.isEditing,
+    super.isLoading,
+    super.key,
+    required this.textProp,
+  });
+
   @override
-  TextEditComponent copyWith(
-          {Function(Object value)? onSaveChanges,
-          bool? isEditing,
-          bool? isLoading,
-          GlobalKey<FormState>? formKey}) =>
+  TextEditComponent copyWith({
+    Function(Object value)? onSaveChanges,
+    bool? isEditing,
+    bool? isLoading,
+    GlobalKey<FormState>? formKey,
+  }) =>
       TextEditComponent(
         onSaveChanges: onSaveChanges ?? this.onSaveChanges,
         isEditing: isEditing ?? this.isEditing,
@@ -30,10 +33,68 @@ class TextEditComponent extends BaseEditComponent {
 
   @override
   Widget build(BuildContext context) {
-    TextPropBase value = textProp;
+    return _TextEditComponentStateful(
+      textProp: textProp,
+      onSaveChanges: onSaveChanges,
+      onChangedValue: onChangedValue,
+      isEditing: isEditing,
+      isLoading: isLoading,
+    );
+  }
+}
+
+class _TextEditComponentStateful extends StatefulWidget {
+  final TextPropBase textProp;
+  final Function(Object value)? onChangedValue;
+  final Function(Object value)? onSaveChanges;
+  final bool isEditing;
+  final bool isLoading;
+
+  const _TextEditComponentStateful({
+    this.onSaveChanges,
+    this.onChangedValue,
+    this.isEditing = false,
+    this.isLoading = false,
+    required this.textProp,
+  });
+
+  @override
+  State<_TextEditComponentStateful> createState() =>
+      _TextEditComponentStatefulState();
+}
+
+class _TextEditComponentStatefulState
+    extends State<_TextEditComponentStateful> {
+  late TextEditingController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = TextEditingController(text: widget.textProp.value);
+  }
+
+  @override
+  void didUpdateWidget(_TextEditComponentStateful oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Só atualiza o texto se o valor externo mudou E é diferente do texto atual
+    if (oldWidget.textProp.value != widget.textProp.value &&
+        _controller.text != widget.textProp.value) {
+      _controller.text = widget.textProp.value;
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    TextPropBase value = widget.textProp;
     return Column(
       children: [
-        isLoading
+        widget.isLoading
             ? Shimmer.fromColors(
                 baseColor: Theme.of(context).colorScheme.surface,
                 highlightColor: Theme.of(context).colorScheme.onSurface,
@@ -45,31 +106,33 @@ class TextEditComponent extends BaseEditComponent {
                 ),
               )
             : TextFormField(
-                inputFormatters:
-                    textProp.formatter != null ? [textProp.formatter!] : null,
-                keyboardType: textProp.inputType,
-                controller: TextEditingController(text: textProp.value),
-                enabled: isEditing,
+                inputFormatters: widget.textProp.formatter != null
+                    ? [widget.textProp.formatter!]
+                    : null,
+                keyboardType: widget.textProp.inputType,
+                controller: _controller,
+                enabled: widget.isEditing,
                 decoration: InputDecoration(
-                  labelText: textProp.displayName,
+                  labelText: widget.textProp.displayName,
                   border: const OutlineInputBorder(),
                 ),
                 style:
                     TextStyle(color: Theme.of(context).colorScheme.onSurface),
-                validator: (value) => textProp.validate(value),
+                validator: (value) => widget.textProp.validate(value),
                 onSaved: (newValue) {
                   if (newValue != null &&
-                      onSaveChanges != null &&
-                      newValue != textProp.value) {
-                    var tempTextProp = textProp.copyWith(value: newValue);
-                    onSaveChanges!(tempTextProp);
+                      widget.onSaveChanges != null &&
+                      newValue != widget.textProp.value) {
+                    var tempTextProp =
+                        widget.textProp.copyWith(value: newValue);
+                    widget.onSaveChanges!(tempTextProp);
                   }
                 },
                 onChanged: (newValue) {
-                  if (newValue != textProp.value) {
-                    value = textProp.copyWith(value: newValue);
-                    if (onChangedValue != null) {
-                      onChangedValue!(value);
+                  if (newValue != widget.textProp.value) {
+                    value = widget.textProp.copyWith(value: newValue);
+                    if (widget.onChangedValue != null) {
+                      widget.onChangedValue!(value);
                     }
                   }
                 },

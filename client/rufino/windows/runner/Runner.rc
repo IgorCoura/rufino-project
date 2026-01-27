@@ -93,7 +93,7 @@ BEGIN
             VALUE "FileDescription", "rufino" "\0"
             VALUE "FileVersion", VERSION_AS_STRING "\0"
             VALUE "InternalName", "rufino" "\0"
-            VALUE "LegalCopyright", "Copyright (C) 2024 br.com.rufinoempreiteira. All rights reserved." "\0"
+            VALUE "LegalCopyright", "Copyright (C) 2026 br.com.rufinoempreiteira. All rights reserved." "\0"
             VALUE "OriginalFilename", "rufino.exe" "\0"
             VALUE "ProductName", "rufino" "\0"
             VALUE "ProductVersion", VERSION_AS_STRING "\0"
