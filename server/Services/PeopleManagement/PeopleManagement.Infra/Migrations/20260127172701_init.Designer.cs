@@ -13,8 +13,8 @@ using PeopleManagement.Infra.Context;
 namespace PeopleManagement.Infra.Migrations
 {
     [DbContext(typeof(PeopleManagementContext))]
-    [Migration("20260122231506_AddImageMappingToEmployee")]
-    partial class AddImageMappingToEmployee
+    [Migration("20260127172701_init")]
+    partial class init
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
