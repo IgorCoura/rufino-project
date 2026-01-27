@@ -8,7 +8,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace PeopleManagement.Infra.Migrations
 {
     /// <inheritdoc />
-    public partial class Init : Migration
+    public partial class init : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -53,26 +53,18 @@ namespace PeopleManagement.Infra.Migrations
                 });
 
             migrationBuilder.CreateTable(
-                name: "DocumentTemplates",
+                name: "WebHooks",
                 columns: table => new
                 {
                     Id = table.Column<Guid>(type: "uuid", nullable: false),
-                    Name = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: false),
-                    Description = table.Column<string>(type: "character varying(500)", maxLength: 500, nullable: false),
-                    CompanyId = table.Column<Guid>(type: "uuid", nullable: false),
-                    TemplateFileInfo_Directory = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: true),
-                    TemplateFileInfo_BodyFileName = table.Column<string>(type: "character varying(20)", maxLength: 20, nullable: true),
-                    TemplateFileInfo_HeaderFileName = table.Column<string>(type: "character varying(20)", maxLength: 20, nullable: true),
-                    TemplateFileInfo_FooterFileName = table.Column<string>(type: "character varying(20)", maxLength: 20, nullable: true),
-                    TemplateFileInfo_RecoversDataType = table.Column<string>(type: "text", nullable: true),
-                    DocumentValidityDuration = table.Column<TimeSpan>(type: "interval", nullable: true),
-                    Workload = table.Column<TimeSpan>(type: "interval", nullable: true),
+                    WebHookId = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: false),
+                    Event = table.Column<int>(type: "integer", nullable: false),
                     CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
                     UpdatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false)
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_DocumentTemplates", x => x.Id);
+                    table.PrimaryKey("PK_WebHooks", x => x.Id);
                 });
 
             migrationBuilder.CreateTable(
@@ -104,7 +96,7 @@ namespace PeopleManagement.Infra.Migrations
                 {
                     Id = table.Column<Guid>(type: "uuid", nullable: false),
                     Name = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: false),
-                    Description = table.Column<string>(type: "character varying(500)", maxLength: 500, nullable: false),
+                    Description = table.Column<string>(type: "character varying(2000)", maxLength: 2000, nullable: false),
                     CompanyId = table.Column<Guid>(type: "uuid", nullable: false),
                     CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
                     UpdatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false)
@@ -114,6 +106,28 @@ namespace PeopleManagement.Infra.Migrations
                     table.PrimaryKey("PK_Departments", x => x.Id);
                     table.ForeignKey(
                         name: "FK_Departments_Companies_CompanyId",
+                        column: x => x.CompanyId,
+                        principalTable: "Companies",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Restrict);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "DocumentGroups",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "uuid", nullable: false),
+                    Name = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: false),
+                    Description = table.Column<string>(type: "character varying(1000)", maxLength: 1000, nullable: false),
+                    CompanyId = table.Column<Guid>(type: "uuid", nullable: false),
+                    CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    UpdatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_DocumentGroups", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_DocumentGroups_Companies_CompanyId",
                         column: x => x.CompanyId,
                         principalTable: "Companies",
                         principalColumn: "Id",
@@ -175,31 +189,6 @@ namespace PeopleManagement.Infra.Migrations
                 });
 
             migrationBuilder.CreateTable(
-                name: "PlaceSignature",
-                columns: table => new
-                {
-                    DocumentTemplateId = table.Column<Guid>(type: "uuid", nullable: false),
-                    Id = table.Column<int>(type: "integer", nullable: false)
-                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
-                    Type = table.Column<int>(type: "integer", nullable: false),
-                    Page = table.Column<double>(type: "double precision", nullable: false),
-                    RelativePositionBotton = table.Column<double>(type: "double precision", nullable: false),
-                    RelativePositionLeft = table.Column<double>(type: "double precision", nullable: false),
-                    RelativeSizeX = table.Column<double>(type: "double precision", nullable: false),
-                    RelativeSizeY = table.Column<double>(type: "double precision", nullable: false)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_PlaceSignature", x => new { x.DocumentTemplateId, x.Id });
-                    table.ForeignKey(
-                        name: "FK_PlaceSignature_DocumentTemplates_DocumentTemplateId",
-                        column: x => x.DocumentTemplateId,
-                        principalTable: "DocumentTemplates",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
-                });
-
-            migrationBuilder.CreateTable(
                 name: "Archives",
                 columns: table => new
                 {
@@ -234,7 +223,7 @@ namespace PeopleManagement.Infra.Migrations
                 {
                     Id = table.Column<Guid>(type: "uuid", nullable: false),
                     Name = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: false),
-                    Description = table.Column<string>(type: "character varying(500)", maxLength: 500, nullable: false),
+                    Description = table.Column<string>(type: "character varying(2000)", maxLength: 2000, nullable: false),
                     CBO = table.Column<string>(type: "character varying(6)", maxLength: 6, nullable: false),
                     DepartmentId = table.Column<Guid>(type: "uuid", nullable: false),
                     CompanyId = table.Column<Guid>(type: "uuid", nullable: false),
@@ -259,27 +248,39 @@ namespace PeopleManagement.Infra.Migrations
                 });
 
             migrationBuilder.CreateTable(
-                name: "DocumentTemplateRequireDocuments",
+                name: "DocumentTemplates",
                 columns: table => new
                 {
-                    DocumentTemplateId = table.Column<Guid>(type: "uuid", nullable: false),
-                    RequireDocumentsId = table.Column<Guid>(type: "uuid", nullable: false)
+                    Id = table.Column<Guid>(type: "uuid", nullable: false),
+                    Name = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: false),
+                    Description = table.Column<string>(type: "character varying(500)", maxLength: 500, nullable: false),
+                    CompanyId = table.Column<Guid>(type: "uuid", nullable: false),
+                    TemplateFileInfo_Directory = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: true),
+                    TemplateFileInfo_BodyFileName = table.Column<string>(type: "character varying(20)", maxLength: 20, nullable: true),
+                    TemplateFileInfo_HeaderFileName = table.Column<string>(type: "character varying(20)", maxLength: 20, nullable: true),
+                    TemplateFileInfo_FooterFileName = table.Column<string>(type: "character varying(20)", maxLength: 20, nullable: true),
+                    TemplateFileInfo_RecoversDataType = table.Column<string>(type: "text", nullable: true),
+                    DocumentValidityDuration = table.Column<TimeSpan>(type: "interval", nullable: true),
+                    Workload = table.Column<TimeSpan>(type: "interval", nullable: true),
+                    DocumentGroupId = table.Column<Guid>(type: "uuid", nullable: false),
+                    CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    UpdatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false)
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_DocumentTemplateRequireDocuments", x => new { x.DocumentTemplateId, x.RequireDocumentsId });
+                    table.PrimaryKey("PK_DocumentTemplates", x => x.Id);
                     table.ForeignKey(
-                        name: "FK_DocumentTemplateRequireDocuments_DocumentTemplates_Document~",
-                        column: x => x.DocumentTemplateId,
-                        principalTable: "DocumentTemplates",
+                        name: "FK_DocumentTemplates_Companies_CompanyId",
+                        column: x => x.CompanyId,
+                        principalTable: "Companies",
                         principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
+                        onDelete: ReferentialAction.Restrict);
                     table.ForeignKey(
-                        name: "FK_DocumentTemplateRequireDocuments_RequireDocuments_RequireDo~",
-                        column: x => x.RequireDocumentsId,
-                        principalTable: "RequireDocuments",
+                        name: "FK_DocumentTemplates_DocumentGroups_DocumentGroupId",
+                        column: x => x.DocumentGroupId,
+                        principalTable: "DocumentGroups",
                         principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
+                        onDelete: ReferentialAction.Restrict);
                 });
 
             migrationBuilder.CreateTable(
@@ -332,12 +333,12 @@ namespace PeopleManagement.Infra.Migrations
                 {
                     Id = table.Column<Guid>(type: "uuid", nullable: false),
                     Name = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: false),
-                    Description = table.Column<string>(type: "character varying(500)", maxLength: 500, nullable: false),
+                    Description = table.Column<string>(type: "character varying(2000)", maxLength: 2000, nullable: false),
                     CBO = table.Column<string>(type: "character varying(6)", maxLength: 6, nullable: false),
                     Remuneration_PaymentUnit = table.Column<int>(type: "integer", nullable: false),
                     Remuneration_BaseSalary_Type = table.Column<int>(type: "integer", nullable: false),
                     Remuneration_BaseSalary_Value = table.Column<string>(type: "character varying(21)", maxLength: 21, nullable: false),
-                    Remuneration_Description = table.Column<string>(type: "character varying(500)", maxLength: 500, nullable: false),
+                    Remuneration_Description = table.Column<string>(type: "character varying(2000)", maxLength: 2000, nullable: false),
                     PositionId = table.Column<Guid>(type: "uuid", nullable: false),
                     CompanyId = table.Column<Guid>(type: "uuid", nullable: false),
                     CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
@@ -361,15 +362,64 @@ namespace PeopleManagement.Infra.Migrations
                 });
 
             migrationBuilder.CreateTable(
+                name: "DocumentTemplateRequireDocuments",
+                columns: table => new
+                {
+                    DocumentTemplateId = table.Column<Guid>(type: "uuid", nullable: false),
+                    RequireDocumentsId = table.Column<Guid>(type: "uuid", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_DocumentTemplateRequireDocuments", x => new { x.DocumentTemplateId, x.RequireDocumentsId });
+                    table.ForeignKey(
+                        name: "FK_DocumentTemplateRequireDocuments_DocumentTemplates_Document~",
+                        column: x => x.DocumentTemplateId,
+                        principalTable: "DocumentTemplates",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_DocumentTemplateRequireDocuments_RequireDocuments_RequireDo~",
+                        column: x => x.RequireDocumentsId,
+                        principalTable: "RequireDocuments",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "PlaceSignature",
+                columns: table => new
+                {
+                    DocumentTemplateId = table.Column<Guid>(type: "uuid", nullable: false),
+                    Id = table.Column<int>(type: "integer", nullable: false)
+                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
+                    Type = table.Column<int>(type: "integer", nullable: false),
+                    Page = table.Column<double>(type: "double precision", nullable: false),
+                    RelativePositionBotton = table.Column<double>(type: "double precision", nullable: false),
+                    RelativePositionLeft = table.Column<double>(type: "double precision", nullable: false),
+                    RelativeSizeX = table.Column<double>(type: "double precision", nullable: false),
+                    RelativeSizeY = table.Column<double>(type: "double precision", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_PlaceSignature", x => new { x.DocumentTemplateId, x.Id });
+                    table.ForeignKey(
+                        name: "FK_PlaceSignature_DocumentTemplates_DocumentTemplateId",
+                        column: x => x.DocumentTemplateId,
+                        principalTable: "DocumentTemplates",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
                 name: "Employees",
                 columns: table => new
                 {
                     Id = table.Column<Guid>(type: "uuid", nullable: false),
                     Registration = table.Column<string>(type: "character varying(15)", maxLength: 15, nullable: true),
                     Name = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: false),
-                    RoleId = table.Column<Guid>(type: "uuid", nullable: true),
+                    RoleId = table.Column<Guid>(type: "uuid", nullable: false),
                     CompanyId = table.Column<Guid>(type: "uuid", nullable: false),
-                    WorkPlaceId = table.Column<Guid>(type: "uuid", nullable: true),
+                    WorkPlaceId = table.Column<Guid>(type: "uuid", nullable: false),
                     Address_ZipCode = table.Column<string>(type: "character varying(8)", maxLength: 8, nullable: true),
                     Address_Street = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: true),
                     Address_Number = table.Column<string>(type: "character varying(10)", maxLength: 10, nullable: true),
@@ -400,6 +450,8 @@ namespace PeopleManagement.Infra.Migrations
                     MilitaryDocument_Number = table.Column<string>(type: "character varying(20)", maxLength: 20, nullable: true),
                     MilitaryDocument_Type = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: true),
                     DocumentSigningOptions = table.Column<int>(type: "integer", nullable: false),
+                    _image_FileName = table.Column<string>(type: "character varying(255)", maxLength: 255, nullable: true),
+                    _image_Extension = table.Column<int>(type: "integer", nullable: true),
                     CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
                     UpdatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false)
                 },
@@ -573,6 +625,11 @@ namespace PeopleManagement.Infra.Migrations
                 column: "CompanyId");
 
             migrationBuilder.CreateIndex(
+                name: "IX_DocumentGroups_CompanyId",
+                table: "DocumentGroups",
+                column: "CompanyId");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_Documents_CompanyId",
                 table: "Documents",
                 column: "CompanyId");
@@ -601,6 +658,16 @@ namespace PeopleManagement.Infra.Migrations
                 name: "IX_DocumentTemplateRequireDocuments_RequireDocumentsId",
                 table: "DocumentTemplateRequireDocuments",
                 column: "RequireDocumentsId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_DocumentTemplates_CompanyId",
+                table: "DocumentTemplates",
+                column: "CompanyId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_DocumentTemplates_DocumentGroupId",
+                table: "DocumentTemplates",
+                column: "DocumentGroupId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_Employees_CompanyId",
@@ -659,6 +726,12 @@ namespace PeopleManagement.Infra.Migrations
                 column: "PositionId");
 
             migrationBuilder.CreateIndex(
+                name: "IX_WebHooks_Event",
+                table: "WebHooks",
+                column: "Event",
+                unique: true);
+
+            migrationBuilder.CreateIndex(
                 name: "IX_Workplaces_CompanyId",
                 table: "Workplaces",
                 column: "CompanyId");
@@ -692,6 +765,9 @@ namespace PeopleManagement.Infra.Migrations
                 name: "PlaceSignature");
 
             migrationBuilder.DropTable(
+                name: "WebHooks");
+
+            migrationBuilder.DropTable(
                 name: "Documents");
 
             migrationBuilder.DropTable(
@@ -708,6 +784,9 @@ namespace PeopleManagement.Infra.Migrations
 
             migrationBuilder.DropTable(
                 name: "ArchiveCategories");
+
+            migrationBuilder.DropTable(
+                name: "DocumentGroups");
 
             migrationBuilder.DropTable(
                 name: "Roles");
