@@ -5,7 +5,7 @@ namespace PeopleManagement.UnitTests.Aggregates.EmployeeTests
 {
     public class EmployeerTests
     {
-        private static Employee GetValidEmployee => Employee.Create(Guid.NewGuid(), Guid.NewGuid(), "Ritinha Valvense");
+        private static Employee GetValidEmployee => Employee.Create(Guid.NewGuid(), Guid.NewGuid(), "Ritinha Valvense", Guid.NewGuid(), Guid.NewGuid());
 
         [Theory]
         [InlineData("Rogerio Junior")]
@@ -13,8 +13,10 @@ namespace PeopleManagement.UnitTests.Aggregates.EmployeeTests
         {
             var id = Guid.NewGuid();
             var companyId = Guid.NewGuid();
+            var roleId = Guid.NewGuid();
+            var workPlaceId = Guid.NewGuid();
 
-            var employeer = Employee.Create(id, companyId, name);
+            var employeer = Employee.Create(id, companyId, name, roleId, workPlaceId);
 
 
             Assert.Equal(id, employeer.Id);

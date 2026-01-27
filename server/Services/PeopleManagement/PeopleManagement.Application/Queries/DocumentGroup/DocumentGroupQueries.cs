@@ -1,6 +1,9 @@
 ﻿using Microsoft.EntityFrameworkCore;
+using PeopleManagement.Application.Util;
 using PeopleManagement.Domain.AggregatesModel.DocumentAggregate;
+using PeopleManagement.Domain.AggregatesModel.EmployeeAggregate;
 using PeopleManagement.Infra.Context;
+using static PeopleManagement.Application.Queries.Base.BaseDtos;
 using static PeopleManagement.Application.Queries.DocumentGroup.DocumentGroupDtos;
 using static PeopleManagement.Application.Queries.RequireDocuments.RequireDocumentsDtos;
 using DocumentEntity = PeopleManagement.Domain.AggregatesModel.DocumentAggregate.Document;
@@ -63,16 +66,20 @@ namespace PeopleManagement.Application.Queries.DocumentGroup
 
             var result = await query.ToListAsync();
 
+
+
             result = result.Select(record =>
             {
                 return record with
                 {
-                    DocumentsStatus = DocumentEntity.GetRepresentingStatus(record.Documents.Select(x =>(DocumentStatus)x.Status.Id).ToList())
+                    DocumentsStatus = DocumentStatusUtil.GetDocumentGroupStatus(record.Documents.Select(x =>(DocumentStatus)x.Status.Id).ToList())
                 };
             }).ToList();    
 
             return result;
         }
+
+       
 
     }
 }

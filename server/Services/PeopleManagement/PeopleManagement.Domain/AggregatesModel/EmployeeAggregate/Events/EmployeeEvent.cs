@@ -48,7 +48,7 @@
         public static EmployeeEvent PersonalInfoChangeEvent(Guid employeeId, Guid companyId) => new(PERSONAL_INFO_CHANGE_EVENT, nameof(PersonalInfoChangeEvent), employeeId, companyId);
         public static EmployeeEvent IdCardChangeEvent(Guid employeeId, Guid companyId) => new(ID_CARD_CHANGE_EVENT, nameof(IdCardChangeEvent), employeeId, companyId);
         public static EmployeeEvent VoteIdChangeEvent(Guid employeeId, Guid companyId) => new(VOTE_ID_CHANGE_EVENT, nameof(VoteIdChangeEvent), employeeId, companyId);
-        public static EmployeeEvent MilitarDocumentChangeEvent(Guid employeeId, Guid companyId) => new(VOTE_ID_CHANGE_EVENT, nameof(VoteIdChangeEvent), employeeId, companyId);
+        public static EmployeeEvent MilitarDocumentChangeEvent(Guid employeeId, Guid companyId) => new(MILITAR_DOCUMENT_CHANGE_EVENT, nameof(MilitarDocumentChangeEvent), employeeId, companyId);
         public static EmployeeEvent CompleteAdmissionEvent(Guid employeeId, Guid companyId) => new(COMPLETE_ADMISSION_EVENT, nameof(CompleteAdmissionEvent), employeeId, companyId);
         public static EmployeeEvent DependentChildChangeEvent(Guid employeeId, Guid companyId) => new(DEPENDENT_CHILD_CHANGE_EVENT, nameof(DependentChildChangeEvent), employeeId, companyId);
         public static EmployeeEvent DependentSpouseChangeEvent(Guid employeeId, Guid companyId) => new(DEPENDENT_SPOUSE_CHANGE_EVENT, nameof(DependentSpouseChangeEvent), employeeId, companyId);

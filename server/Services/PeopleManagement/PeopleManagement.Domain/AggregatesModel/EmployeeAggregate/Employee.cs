@@ -12,8 +12,8 @@ namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
         private IdCard? _idCard;
         private VoteId? _voteId;
         private PersonalInfo? _personalInfo;
-        private Guid? _roleId;
-        private Guid? _workPlaceId;
+        private Guid _roleId;
+        private Guid _workPlaceId;
         private Guid _companyId;
         private Registration? _registration = null;//Matricula Esocial
         private MilitaryDocument? _militaryDocument;
@@ -40,15 +40,15 @@ namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
                 AddDomainEvent(EmployeeEvent.NameChangeEvent(Id, CompanyId));
             } 
         }
-        public Guid? RoleId 
+        public Guid RoleId 
         {
             get => _roleId;
             set
             {
-                if(value != null && value != Guid.Empty)
+                if(value != Guid.Empty)
                 {
                     _roleId = value;
-                    AddDomainEvent(RequestDocumentsEvent.Create(Id, CompanyId, (Guid)value));
+                    AddDomainEvent(RequestDocumentsEvent.Create(Id, CompanyId, value));
                     AddDomainEvent(EmployeeEvent.RoleChangeEvent(Id, CompanyId));
                 }
             }
@@ -63,15 +63,15 @@ namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
                 _companyId = value;
             }
         }
-        public Guid? WorkPlaceId 
+        public Guid WorkPlaceId 
         {
             get => _workPlaceId;
             set
             {
-                if (value != null && value != Guid.Empty)
+                if (value != Guid.Empty)
                 {
                     _workPlaceId = value;
-                    AddDomainEvent(RequestDocumentsEvent.Create(Id, CompanyId, (Guid)value));
+                    AddDomainEvent(RequestDocumentsEvent.Create(Id, CompanyId, value));
                     AddDomainEvent(EmployeeEvent.WorkPlaceChangeEvent(Id, CompanyId));
                 }
             }
@@ -177,7 +177,7 @@ namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
 
         public void SetImage(Extension extension)
         {
-            _image = Image.Create($"employee-image-{Id}", extension);
+            _image = Image.Create($"employee-image-{Id}.", extension);
         }
 
         public Image GetImage()
@@ -188,16 +188,19 @@ namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
         }
 
         private Employee() { }
-        private Employee(Guid id, Guid companyId, Name name, Status status) : base(id)
+        private Employee(Guid id, Guid companyId, Name name, Guid roleId, Guid workPlaceId, Status status) : base(id)
         {
             CompanyId = companyId;
             Name = name;
+            RoleId = roleId;
+            WorkPlaceId = workPlaceId;
             Status = status;
         }
 
-        public static Employee Create(Guid id, Guid companyId, Name name)
+        public static Employee Create(Guid id, Guid companyId, Name name, Guid roleId, Guid workPlaceId)
         {
-            Employee employee = new(id, companyId, name, Status.Pending);
+            
+            Employee employee = new(id, companyId, name, roleId, workPlaceId, Status.Pending);
             employee.AddDomainEvent(EmployeeEvent.CreatedEvent(id, companyId));
             return employee;
         }
@@ -221,10 +224,10 @@ namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
         {
             var result = Result.Success(this.GetType().Name);
 
-            if (RoleId == null || RoleId == Guid.Empty)
+            if (RoleId == Guid.Empty)
                 result.AddError(DomainErrors.FieldIsRequired(nameof(RoleId)));
 
-            if (WorkPlaceId == null || WorkPlaceId == Guid.Empty)
+            if (WorkPlaceId == Guid.Empty)
                 result.AddError(DomainErrors.FieldIsRequired(nameof(WorkPlaceId)));
 
             if (_image == null)
@@ -327,10 +330,8 @@ namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
         public Guid[] GetAllPossibleAssociationIds()
         {
             var list = new List<Guid>();
-            if (RoleId != null)
-                list.Add((Guid)RoleId);
-            if (WorkPlaceId != null)
-                list.Add((Guid)WorkPlaceId);
+            list.Add(RoleId);
+            list.Add(WorkPlaceId);
             return list.ToArray();
         }
 

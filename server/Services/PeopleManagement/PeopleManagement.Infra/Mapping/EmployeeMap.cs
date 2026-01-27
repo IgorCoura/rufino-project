@@ -12,6 +12,7 @@ using System.Text.Json;
 using Address = PeopleManagement.Domain.AggregatesModel.EmployeeAggregate.Address;
 using Contact = PeopleManagement.Domain.AggregatesModel.EmployeeAggregate.Contact;
 using Name = PeopleManagement.Domain.AggregatesModel.EmployeeAggregate.Name;
+using ImageExtension = PeopleManagement.Domain.AggregatesModel.EmployeeAggregate.Extension;
 
 namespace PeopleManagement.Infra.Mapping
 {
@@ -243,6 +244,17 @@ namespace PeopleManagement.Infra.Mapping
                 .HasConversion(x => x.Id, x => x)
                     .IsRequired();
 
+            builder.OwnsOne(typeof(Image), "_image", image =>
+            {
+                image.Property<string>("FileName")
+                    .HasMaxLength(255);
+
+                image.Property<ImageExtension>("Extension")
+                    .HasConversion(
+                        v => v.Id,
+                        v => Enumeration.FromValue<ImageExtension>(v));
+            });
+
             builder.HasOne<Company>()
                 .WithMany()
                 .HasForeignKey(x => x.CompanyId)
@@ -252,13 +264,13 @@ namespace PeopleManagement.Infra.Mapping
             builder.HasOne<Role>()
                 .WithMany()
                 .HasForeignKey(x => x.RoleId)
-                .IsRequired(false)
+                .IsRequired()
                 .OnDelete(Microsoft.EntityFrameworkCore.DeleteBehavior.Restrict);
 
             builder.HasOne<Workplace>()
                 .WithMany()
                 .HasForeignKey(x => x.WorkPlaceId)
-                .IsRequired(false)
+                .IsRequired()
                 .OnDelete(Microsoft.EntityFrameworkCore.DeleteBehavior.Restrict);
 
         }

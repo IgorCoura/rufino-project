@@ -24,7 +24,7 @@ namespace PeopleManagement.Application.Commands.EmployeeCommands.AlterImageEmplo
 
             var img = employee.GetImage();
 
-            await _blobService.UploadAsync(request.Stream, img.GetNameWithExtension, employee.CompanyId.ToString(), cancellationToken: cancellationToken);
+            await _blobService.UploadAsync(request.Stream, img.GetNameWithExtension, employee.CompanyId.ToString(), overwrite: true, cancellationToken: cancellationToken); 
 
             await _employeeRepository.UnitOfWork.SaveChangesAsync(cancellationToken);
 

@@ -46,7 +46,7 @@ namespace PeopleManagement.Domain.AggregatesModel.DocumentAggregate
 
         public void InsertWithRequireValidation(Name name, Extension extension)
         {
-            if (IsInvalidDateAndValidity)
+            if (HasInvalidDateOrValidity)
                 throw new DomainException(this, DomainErrors.DataInvalid(nameof(Date), Date));
             Name = name;
             Extension = extension;
@@ -54,12 +54,13 @@ namespace PeopleManagement.Domain.AggregatesModel.DocumentAggregate
         }
         public void InsertWithoutRequireValidation(Name name, Extension extension)
         {
-            if (IsInvalidDateAndValidity)
+            if (HasInvalidDateOrValidity)
                 throw new DomainException(this, DomainErrors.DataInvalid(nameof(Date), Date));
             Name = name;
             Extension = extension;
             Status = DocumentUnitStatus.OK;
-            AddDomainEvent(ScheduleDocumentExpirationEvent.Create(Document.Id, Id, Document.CompanyId, (DateOnly)_validity!));
+            if(Validity is not null)
+                AddDomainEvent(ScheduleDocumentExpirationEvent.Create(Document.Id, Id, Document.CompanyId, (DateOnly)Validity));
         }
 
         public void UpdateDetails(DateOnly date, DateOnly? validity, string content)
@@ -73,7 +74,7 @@ namespace PeopleManagement.Domain.AggregatesModel.DocumentAggregate
         {
             Date = date;
             DateOnly? dateValidity = null;
-            if (validity is not null)
+            if (validity is not null && validity != TimeSpan.Zero)
             {
                 var dateTimeValidity = date.ToDateTime(TimeOnly.MinValue).Add(validity.Value);
                 dateValidity = DateOnly.FromDateTime(dateTimeValidity);
@@ -87,7 +88,8 @@ namespace PeopleManagement.Domain.AggregatesModel.DocumentAggregate
             if(IsValid && Name != null && Extension != null)
             {
                 Status = DocumentUnitStatus.OK;
-                AddDomainEvent(ScheduleDocumentExpirationEvent.Create(Document.Id, Id, Document.CompanyId, (DateOnly)_validity!));
+                if(Validity is not null)
+                    AddDomainEvent(ScheduleDocumentExpirationEvent.Create(Document.Id, Id, Document.CompanyId, (DateOnly)Validity!));
             }
             Status = DocumentUnitStatus.Invalid;
         }
@@ -133,7 +135,7 @@ namespace PeopleManagement.Domain.AggregatesModel.DocumentAggregate
 
         public bool MarkAsAwaitingSignature()
         {
-            if (IsInvalidDateAndValidity)
+            if (HasInvalidDateOrValidity)
                 throw new DomainException(this, DomainErrors.DataInvalid(nameof(Date), Date));
 
             if (Status == DocumentUnitStatus.Pending)
@@ -154,7 +156,7 @@ namespace PeopleManagement.Domain.AggregatesModel.DocumentAggregate
         public string GetNameWithExtension => $"{Name}.{Extension}";
         public bool CanEdit => (Name == null || Name.IsNullOrEmpty) && Extension == null;
 
-        private bool IsInvalidDateAndValidity => Date == DateOnly.MinValue || Date == DateOnly.MaxValue || Validity == null || Validity == DateOnly.MinValue || Validity == DateOnly.MaxValue;
+        private bool HasInvalidDateOrValidity => Date == DateOnly.MinValue || Date == DateOnly.MaxValue || (Validity != null && (Validity == DateOnly.MinValue || Validity == DateOnly.MaxValue));
         
 
     }

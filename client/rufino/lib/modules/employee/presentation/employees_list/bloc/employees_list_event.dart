@@ -59,3 +59,50 @@ class ErrorEvent extends EmployeesListEvent {
 class FeatchNextPage extends EmployeesListEvent {}
 
 class RefreshPage extends EmployeesListEvent {}
+
+class LoadInfoToCreateEmployee extends EmployeesListEvent {}
+
+class ChangeDepartment extends EmployeesListEvent {
+  final Department department;
+
+  ChangeDepartment(this.department);
+
+  @override
+  List<Object?> get props => [department];
+}
+
+class ChangePosition extends EmployeesListEvent {
+  final Position position;
+
+  ChangePosition(this.position);
+
+  @override
+  List<Object?> get props => [position];
+}
+
+class ChangeRole extends EmployeesListEvent {
+  final Role role;
+
+  ChangeRole(this.role);
+
+  @override
+  List<Object?> get props => [role];
+}
+
+class ChangeWorkplace extends EmployeesListEvent {
+  final Workplace workplace;
+
+  ChangeWorkplace(this.workplace);
+
+  @override
+  List<Object?> get props => [workplace];
+}
+
+class LoadSingleEmployeeImage extends EmployeesListEvent {
+  final String employeeId;
+
+  LoadSingleEmployeeImage(this.employeeId);
+
+  @override
+  List<Object?> get props => [employeeId];
+}
