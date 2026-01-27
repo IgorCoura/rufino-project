@@ -72,6 +72,7 @@ class EmployeesListBloc extends Bloc<EmployeesListEvent, EmployeesListState> {
         await _peopleManagementService.createEmployee(state.company!.id,
             state.nameNewEmployee!, state.role!.id, state.workplace!.id);
         emit(state.copyWith(isLoading: false));
+        add(RefreshPage());
       } else {
         throw AplicationErrors.emplyee.errorTryCreateEmployee;
       }

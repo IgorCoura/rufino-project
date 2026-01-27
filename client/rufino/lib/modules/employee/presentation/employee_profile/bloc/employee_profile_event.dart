@@ -195,3 +195,5 @@ class NewContractEvent extends EmployeeProfileEvent {
 class EditAvatarImageEvent extends EmployeeProfileEvent {}
 
 class LoadEmployeeImageEvent extends EmployeeProfileEvent {}
+
+class MarkAsInactiveEvent extends EmployeeProfileEvent {}

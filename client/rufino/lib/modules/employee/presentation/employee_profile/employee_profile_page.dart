@@ -542,14 +542,57 @@ class EmployeeProfilePage extends StatelessWidget {
     return state.employee.canBeHired()
         ? Padding(
             padding: const EdgeInsets.all(16.0),
-            child: FilledButton(
-              onPressed: () {
-                _confirmAction(context, state);
-              },
-              child: const Text("Contratar"),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                FilledButton(
+                  onPressed: () {
+                    _confirmAction(context, state);
+                  },
+                  child: const Text("Contratar"),
+                ),
+                if (state.employee.status.id == 1) ...[
+                  const SizedBox(width: 16),
+                  TextButton(
+                    onPressed: () {
+                      _confirmMarkAsInactive(context, state);
+                    },
+                    child: const Text("Marcar como Inativo"),
+                  ),
+                ],
+              ],
             ),
           )
         : const SizedBox();
+  }
+
+  void _confirmMarkAsInactive(
+    BuildContext context,
+    EmployeeProfileState state,
+  ) {
+    showDialog(
+      context: context,
+      builder: (_) {
+        return AlertDialog(
+          title: const Text("Confirmar Ação"),
+          content: const Text(
+              "Tem certeza que deseja marcar este funcionário como inativo?"),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text("Cancelar"),
+            ),
+            FilledButton(
+              onPressed: () {
+                Navigator.pop(context);
+                bloc.add(MarkAsInactiveEvent());
+              },
+              child: const Text("Confirmar"),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   void _confirmAction(
