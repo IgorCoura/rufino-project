@@ -191,3 +191,7 @@ class NewContractEvent extends EmployeeProfileEvent {
   @override
   List<Object> get props => [initDate, contractTypeId, registration];
 }
+
+class EditAvatarImageEvent extends EmployeeProfileEvent {}
+
+class LoadEmployeeImageEvent extends EmployeeProfileEvent {}

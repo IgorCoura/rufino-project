@@ -11,7 +11,7 @@ namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
         }
 
         public static implicit operator Extension(int id) => Enumeration.FromValue<Extension>(id);
-        public static implicit operator Extension(string name) => Enumeration.FromDisplayName<Extension>(name);
+        public static implicit operator Extension(string name) => Enumeration.FromDisplayName<Extension>(name.Replace(".",""));
 
         
     }

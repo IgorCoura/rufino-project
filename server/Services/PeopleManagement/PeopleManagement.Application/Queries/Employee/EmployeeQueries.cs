@@ -1,4 +1,5 @@
 ﻿using Microsoft.EntityFrameworkCore;
+using PeopleManagement.Application.Util;
 using PeopleManagement.Domain.AggregatesModel.CompanyAggregate;
 using PeopleManagement.Domain.AggregatesModel.DocumentAggregate;
 using PeopleManagement.Domain.AggregatesModel.DocumentAggregate.Interfaces;
@@ -343,7 +344,7 @@ namespace PeopleManagement.Application.Queries.Employee
                 .OrderByDescending(x => x.CreatedAt)
                 .Select(x => x.Status)
                 .ToListAsync(cancellationToken);
-            var status = Domain.AggregatesModel.DocumentAggregate.Document.GetRepresentingStatus(documentsStatus);
+            var status = DocumentStatusUtil.GetDocumentGroupStatus(documentsStatus);
             return new EnumerationDto
             {
                 Id = status.Id,

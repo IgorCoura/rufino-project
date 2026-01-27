@@ -62,7 +62,7 @@ class DocumentTemplatePage extends StatelessWidget {
                     child: Column(
                       children: [
                         TextEditComponent(
-                          onSaveChanges: (change) =>
+                          onChangedValue: (change) =>
                               bloc.add(ChangeFieldValueEvent(change)),
                           isEditing: state.isEditing,
                           isLoading: state.isLoading,
@@ -103,7 +103,7 @@ class DocumentTemplatePage extends StatelessWidget {
                           height: 8.0,
                         ),
                         DropdownButtonFormField(
-                          value: state.documentGroups.any((e) =>
+                          initialValue: state.documentGroups.any((e) =>
                                   e.id ==
                                   state.documentTemplate.documentGroup.id)
                               ? state.documentTemplate.documentGroup.id

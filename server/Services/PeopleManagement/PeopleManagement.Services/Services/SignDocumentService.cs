@@ -105,7 +105,7 @@ namespace PeopleManagement.Services.Services
 
             string fileNameWithExtesion = document.InsertUnitWithoutRequireValidation(docSigned.DocumentUnitId, Guid.NewGuid().ToString(), docSigned.Extension);
 
-            await _blobService.UploadAsync(docSigned.DocStream, fileNameWithExtesion, document.CompanyId.ToString(), cancellationToken);
+            await _blobService.UploadAsync(docSigned.DocStream, fileNameWithExtesion, document.CompanyId.ToString(), overwrite: false, cancellationToken: cancellationToken);
 
             return docSigned.DocumentUnitId;
         }

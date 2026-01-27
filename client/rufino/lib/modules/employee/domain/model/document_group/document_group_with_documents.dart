@@ -1,12 +1,12 @@
 import 'package:equatable/equatable.dart';
 import 'package:rufino/modules/employee/domain/model/document/document.dart';
-import 'package:rufino/modules/employee/domain/model/document/document_status.dart';
+import 'package:rufino/modules/employee/domain/model/document_group/document_group_status.dart';
 
 class DocumentGroupWithDocuments extends Equatable {
   final String id;
   final String name;
   final String description;
-  final DocumentStatus status;
+  final DocumentGroupStatus status;
   final List<Document> documents;
 
   const DocumentGroupWithDocuments(
@@ -20,7 +20,8 @@ class DocumentGroupWithDocuments extends Equatable {
       (json['documents'] as List<dynamic>)
           .map((el) => Document.fromJsonSimple(el))
           .toList(),
-      DocumentStatus.fromJson(json['documentsStatus'] as Map<String, dynamic>),
+      DocumentGroupStatus.fromJson(
+          json['documentsStatus'] as Map<String, dynamic>),
     );
   }
 

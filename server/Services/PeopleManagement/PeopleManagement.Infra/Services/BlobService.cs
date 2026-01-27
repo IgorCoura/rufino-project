@@ -5,10 +5,10 @@ namespace PeopleManagement.Infra.Services
 {
     public class BlobAzureService(BlobServiceClient blobServiceClient) : IBlobService
     {
-        public async Task UploadAsync(Stream stream, string fileNameWithExtesion, string containerName, CancellationToken cancellationToken = default)
+        public async Task UploadAsync(Stream stream, string fileNameWithExtesion, string containerName, bool overwrite = false, CancellationToken cancellationToken = default)
         {
             BlobClient blobClient = await GetBlobClientAsync(fileNameWithExtesion, containerName, cancellationToken);
-            await blobClient.UploadAsync(stream,  cancellationToken);
+            await blobClient.UploadAsync(stream, overwrite,  cancellationToken);
         }
 
         public async Task<Stream> DownloadAsync(string fileNameWithExtesion, string containerName, CancellationToken cancellationToken = default)

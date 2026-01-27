@@ -44,7 +44,6 @@ class AuthenticationBloc
       emit(const AuthenticationState.unSelectedCompany());
     } catch (ex) {
       emit(const AuthenticationState.unauthenticated());
-      throw AplicationErrors.internalError;
     }
   }
 }
