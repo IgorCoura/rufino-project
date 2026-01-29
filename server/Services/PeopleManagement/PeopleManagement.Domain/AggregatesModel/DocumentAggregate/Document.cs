@@ -98,16 +98,24 @@ namespace PeopleManagement.Domain.AggregatesModel.DocumentAggregate
             RefreshDocumentStatus();
         }
 
-        public void ValidateDocumentUnit(Guid documentUnitId, bool IsValid)
+        public void MarkAsInvalidDocumentUnit(Guid documentUnitId)
         {
             var document = DocumentsUnits.FirstOrDefault(x => x.Id == documentUnitId)
                 ?? throw new DomainException(this, DomainErrors.ObjectNotFound(nameof(DocumentUnit), documentUnitId.ToString()));
 
-            document.Validate(IsValid);
-            if (IsValid)
-            {
-                DeprecateDocumentsUnit(documentUnitId);
-            }
+            document.MaskAsInvalid();
+
+            RefreshDocumentStatus();
+        }
+
+        public void MarkAsValidDocumentUnit(Guid documentUnitId)
+        {
+            var document = DocumentsUnits.FirstOrDefault(x => x.Id == documentUnitId)
+                ?? throw new DomainException(this, DomainErrors.ObjectNotFound(nameof(DocumentUnit), documentUnitId.ToString()));
+
+            document.MaskAsValid();
+  
+            DeprecateDocumentsUnit(documentUnitId);
             RefreshDocumentStatus();
         }
 

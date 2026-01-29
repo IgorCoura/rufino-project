@@ -3,7 +3,7 @@ using PeopleManagement.Domain.SeedWord;
 using PeopleManagement.Infra.Context;
 using System.Diagnostics;
 
-namespace PeopleManagement.Infra.Extension
+namespace PeopleManagement.Infra.ExtensionClass
 {
     static class MediatorExtension
     {

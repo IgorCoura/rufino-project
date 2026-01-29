@@ -1,8 +1,10 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿using Hangfire;
+using Microsoft.EntityFrameworkCore;
 using PeopleManagement.Domain.AggregatesModel.CompanyAggregate;
 using PeopleManagement.Domain.AggregatesModel.CompanyAggregate.Interfaces;
 using PeopleManagement.Domain.AggregatesModel.DocumentAggregate;
 using PeopleManagement.Domain.AggregatesModel.DocumentAggregate.Interfaces;
+using PeopleManagement.Domain.AggregatesModel.DocumentAggregate.Models;
 using PeopleManagement.Domain.AggregatesModel.DocumentTemplateAggregate;
 using PeopleManagement.Domain.AggregatesModel.DocumentTemplateAggregate.Interfaces;
 using PeopleManagement.Domain.AggregatesModel.EmployeeAggregate;
@@ -15,16 +17,21 @@ using Employee = PeopleManagement.Domain.AggregatesModel.EmployeeAggregate.Emplo
 
 namespace PeopleManagement.Services.Services
 {
-    public class SignDocumentService(ISignService signDocumentService, IDocumentRepository documentRepository, ICompanyRepository companyRepository, 
-        IEmployeeRepository employeeRepository, IDocumentTemplateRepository documentTemplateRepository, IBlobService blobService, IDocumentService documentService) : ISignDocumentService
+    public class SignDocumentService(IDocumentSignatureService documentSignatureService, IDocumentRepository documentRepository, 
+        ICompanyRepository companyRepository, IEmployeeRepository employeeRepository, IDocumentTemplateRepository documentTemplateRepository, 
+        IBlobService blobService,IDocumentService documentService , IWebHookManagementService webHookManagementService, IFileDownloadService fileDownloadService,
+        IBackgroundJobClient backgroundJobClient) : ISignDocumentService
     {
-        private readonly ISignService _signDocumentService = signDocumentService;
+        private readonly IDocumentSignatureService _documentSignatureService = documentSignatureService;
         private readonly IDocumentRepository _documentRepository = documentRepository;
         private readonly ICompanyRepository _companyRepository = companyRepository;
         private readonly IEmployeeRepository _employeeRepository = employeeRepository;
         private readonly IDocumentTemplateRepository _documentTemplateRepository = documentTemplateRepository;
         private readonly IBlobService _blobService = blobService;
         private readonly IDocumentService _documentService = documentService;
+        private readonly IWebHookManagementService _webHookManagementService = webHookManagementService;
+        private readonly IFileDownloadService _fileDownloadService = fileDownloadService;
+        private readonly IBackgroundJobClient _backgroundJobClient = backgroundJobClient;
 
         public async Task<Guid> GenerateDocumentToSign(Guid documentUnitId, Guid documentId, Guid employeeId, Guid companyId, DateTime dateLimitToSign, 
             int eminderEveryNDays, CancellationToken cancellationToken = default)
@@ -89,25 +96,40 @@ namespace PeopleManagement.Services.Services
             return documentUnitId;
         }
 
-        public async Task<Guid> InsertDocumentSigned(JsonNode contentBody, CancellationToken cancellationToken = default)
-        {
-            var docSigned = await _signDocumentService.GetFileFromDocSignedEvent(contentBody, cancellationToken);
+        public async Task<Guid> ReceiveWebhookDocument(JsonNode contentBody, CancellationToken cancellationToken = default)
+        {          
+            var webhookEvent = await _webHookManagementService.ParseWebhookEvent(contentBody, cancellationToken);
 
-            if (docSigned == null)
+            if (webhookEvent == null)
                 return Guid.Empty;
 
-            var document = await _documentRepository.FirstOrDefaultAsync(x => x.DocumentsUnits.Any(x => x.Id == docSigned.DocumentUnitId), include: x => x.Include(y => y.DocumentsUnits), cancellation: cancellationToken)
-                ?? throw new DomainException(this, DomainErrors.ObjectNotFound(nameof(DocumentUnit), docSigned.DocumentUnitId.ToString()));
+            var document = await _documentRepository.FirstOrDefaultAsync(x => x.DocumentsUnits.Any(x => x.Id == webhookEvent.DocumentUnitId), include: x => x.Include(y => y.DocumentsUnits), cancellation: cancellationToken)
+                ?? throw new DomainException(this, DomainErrors.ObjectNotFound(nameof(DocumentUnit), webhookEvent.DocumentUnitId.ToString()));
 
-            if (document.IsAwaitingSignatureDocumentUnit(docSigned.DocumentUnitId) == false)
+            if (document.IsAwaitingSignatureDocumentUnit(webhookEvent.DocumentUnitId) == false)
                 return Guid.Empty;
 
+            if (webhookEvent.Status == WebhookDocumentStatus.DocRefused 
+                || webhookEvent.Status == WebhookDocumentStatus.DocDeleted
+                || webhookEvent.Status == WebhookDocumentStatus.DocExpired)
+            {
+                document.MarkAsInvalidDocumentUnit(webhookEvent.DocumentUnitId);
+                return webhookEvent.DocumentUnitId;
+            }
 
-            string fileNameWithExtesion = document.InsertUnitWithoutRequireValidation(docSigned.DocumentUnitId, Guid.NewGuid().ToString(), docSigned.Extension);
+            if (webhookEvent.Status == WebhookDocumentStatus.DocSigned)
+            {
+                var file = await _fileDownloadService.DownloadFileFromUrlAsync(webhookEvent.Url, cancellationToken);
 
-            await _blobService.UploadAsync(docSigned.DocStream, fileNameWithExtesion, document.CompanyId.ToString(), overwrite: false, cancellationToken: cancellationToken);
+                string fileNameWithExtesion = document.InsertUnitWithoutRequireValidation(webhookEvent.DocumentUnitId, Guid.NewGuid().ToString(), file.FileExtension);
 
-            return docSigned.DocumentUnitId;
+                await _blobService.UploadAsync(file.FileStream, fileNameWithExtesion, document.CompanyId.ToString(), overwrite: false, cancellationToken: cancellationToken);
+
+                return webhookEvent.DocumentUnitId;
+            }
+
+            return Guid.Empty;
+            
         }
 
         private async Task SendToSignature(Stream stream, Guid documentUnitId, Document document, Company company,
@@ -116,19 +138,46 @@ namespace PeopleManagement.Services.Services
             var documentSigningOptions = employee.DocumentSigningOptions;
             if (documentSigningOptions == DocumentSigningOptions.DigitalSignatureAndWhatsapp)
             {
-                await _signDocumentService.SendToSignatureWithWhatsapp(stream, documentUnitId, document, company, employee,
+                await _documentSignatureService.SendToSignatureWithWhatsapp(stream, documentUnitId, document, company, employee,
                 placeSignatures, dateLimitToSign, eminderEveryNDays, cancellationToken);
+                
+                _backgroundJobClient.Schedule<ISignDocumentService>(
+                    x => x.InvalidateUnsignedDocument(documentUnitId, document.Id, company.Id, cancellationToken),
+                    dateLimitToSign.AddDays(1));
+                
                 return;
             }
 
             if(documentSigningOptions == DocumentSigningOptions.DigitalSignatureAndSelfie)
             {
-                await _signDocumentService.SendToSignatureWithSelfie(stream, documentUnitId, document, company, employee,
+                await _documentSignatureService.SendToSignatureWithSelfie(stream, documentUnitId, document, company, employee,
                 placeSignatures, dateLimitToSign, eminderEveryNDays, cancellationToken);
+                
+                _backgroundJobClient.Schedule<ISignDocumentService>(
+                    x => x.InvalidateUnsignedDocument(documentUnitId, document.Id, company.Id, cancellationToken),
+                    dateLimitToSign.AddDays(1));
+                
                 return;
             }
 
             throw new DomainException(this, DomainErrors.Employee.InvalidDocumentDigitalSigningOptions(employee.Id));
+        }
+
+        public async Task InvalidateUnsignedDocument(Guid documentUnitId, Guid documentId, Guid companyId, CancellationToken cancellationToken = default)
+        {
+            var document = await _documentRepository.FirstOrDefaultAsync(
+                x => x.Id == documentId && x.CompanyId == companyId,
+                include: x => x.Include(y => y.DocumentsUnits),
+                cancellation: cancellationToken);
+
+            if (document is null)
+                return;
+
+            if (document.IsAwaitingSignatureDocumentUnit(documentUnitId))
+            {
+                document.MarkAsInvalidDocumentUnit(documentUnitId);
+                await _documentRepository.UnitOfWork.SaveChangesAsync(cancellationToken);
+            }
         }
 
      
