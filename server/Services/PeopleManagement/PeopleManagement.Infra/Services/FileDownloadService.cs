@@ -23,23 +23,14 @@ namespace PeopleManagement.Infra.Services
             response.EnsureSuccessStatusCode();
 
             var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
-            var extension = GetFileExtension(url, response.Content.Headers.ContentType?.MediaType);
+            var extension = GetFileExtension(response.Content.Headers.ContentType?.MediaType);
 
             return new FileDownloadModel(stream, extension);
         }
 
-        private static Extension GetFileExtension(string url, string? contentType)
+        private static Extension GetFileExtension(string? contentType)
         {
-            string extensionString;
-
-            var urlExtension = Path.GetExtension(url).TrimStart('.');
-            if (!string.IsNullOrWhiteSpace(urlExtension))
-            {
-                extensionString = urlExtension.ToUpper();
-                return Extension.CreateFromDisplayName(extensionString);
-            }
-
-            extensionString = contentType?.ToLower() switch
+            var extensionString = contentType?.ToLower() switch
             {
                 "application/pdf" => "PDF",
                 "image/jpeg" => "JPEG",
@@ -48,7 +39,7 @@ namespace PeopleManagement.Infra.Services
                 _ => "PDF"
             };
 
-            return Extension.CreateFromDisplayName(extensionString);
+            return (Extension)extensionString;
         }
     }
 }
