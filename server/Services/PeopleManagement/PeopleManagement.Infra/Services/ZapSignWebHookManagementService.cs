@@ -188,7 +188,7 @@ namespace PeopleManagement.Infra.Services
 
         public async Task<WebhookDocumentEventModel?> ParseWebhookEvent(JsonNode contentBody, CancellationToken cancellationToken = default)
         {
-            var status = contentBody?["status"]?.ToString() ?? "";
+            var status = contentBody?["event_type"]?.ToString() ?? "";
             var documentUnitId = contentBody?["external_id"]?.ToString() ?? "";
 
             if (string.IsNullOrEmpty(documentUnitId) || !Guid.TryParse(documentUnitId, out var parsedDocumentUnitId))
