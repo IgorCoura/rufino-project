@@ -20,7 +20,7 @@ namespace PeopleManagement.Application.Commands.DocumentCommands.ReceiveWebhookD
         ILogger<IdentifiedCommandHandler<ReceiveWebhookDocumentCommand, ReceiveWebhookDocumentResponse>> logger, IRequestManager requestManager) 
         : IdentifiedCommandHandler<ReceiveWebhookDocumentCommand, ReceiveWebhookDocumentResponse>(mediator, logger, requestManager)
     {
-        protected override ReceiveWebhookDocumentResponse CreateResultForDuplicateRequest() => new(Guid.Empty);
+        protected override ReceiveWebhookDocumentResponse CreateResultForDuplicateRequest() => new(string.Empty);
 
     }
 }
