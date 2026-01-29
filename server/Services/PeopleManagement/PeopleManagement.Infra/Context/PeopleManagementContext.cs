@@ -12,13 +12,13 @@ using PeopleManagement.Domain.AggregatesModel.RoleAggregate;
 using PeopleManagement.Domain.AggregatesModel.DocumentAggregate;
 using PeopleManagement.Domain.AggregatesModel.WorkplaceAggregate;
 using PeopleManagement.Domain.SeedWord;
-using PeopleManagement.Infra.Extension;
 using PeopleManagement.Infra.Mapping;
 using System.Data;
 using PeopleManagement.Domain.AggregatesModel.ArchiveCategoryAggregate;
 using PeopleManagement.Infra.Idempotency;
 using PeopleManagement.Domain.AggregatesModel.DocumentGroupAggregate;
 using PeopleManagement.Domain.AggregatesModel.WebHookAggregate;
+using PeopleManagement.Infra.ExtensionClass;
 
 namespace PeopleManagement.Infra.Context
 {

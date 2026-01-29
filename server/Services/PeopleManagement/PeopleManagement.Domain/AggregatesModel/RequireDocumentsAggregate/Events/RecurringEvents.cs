@@ -10,7 +10,7 @@
 
         }
 
-        private RecurringEvents(int id, string name)
+        public RecurringEvents(int id, string name)
         {
             Id = id;
             Name = name;
@@ -35,6 +35,7 @@
         public const int WEEKLY = 1014;
         public const int MONTHLY = 1015;
         public const int YEARLY = 1016;
+        public const int MINUTELY = 1017;
 
         public static RecurringEvents JanuaryEvent => new(JANUARY, nameof(JanuaryEvent));
         public static RecurringEvents FebruaryEvent => new(FEBRUARY, nameof(FebruaryEvent));
@@ -52,6 +53,7 @@
         public static RecurringEvents WeeklyEvent => new(WEEKLY, nameof(WeeklyEvent));
         public static RecurringEvents MonthlyEvent => new(MONTHLY, nameof(MonthlyEvent));
         public static RecurringEvents YearlyEvent => new(YEARLY, nameof(YearlyEvent));
+        public static RecurringEvents MinutelyEvent => new(MINUTELY, nameof(MinutelyEvent));
 
         public static IEnumerable<RecurringEvents?> GetAll()
         {

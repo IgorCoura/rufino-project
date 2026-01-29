@@ -4,7 +4,7 @@ using PeopleManagement.Application.Commands.DocumentCommands.GeneratePdf;
 using PeopleManagement.Application.Commands.DocumentCommands.InsertDocument;
 using PeopleManagement.Application.Commands.DocumentCommands.GenerateDocumentToSign;
 using PeopleManagement.Application.Commands.DocumentCommands.InsertDocumentToSign;
-using PeopleManagement.Application.Commands.DocumentCommands.InsertDocumentSigned;
+using PeopleManagement.Application.Commands.DocumentCommands.ReceiveWebhookDocument;
 using System.Text.Json.Nodes;
 using PeopleManagement.API.Authorization;
 using PeopleManagement.Application.Commands.DocumentCommands.UpdateDocumentUnitDetails;
@@ -122,12 +122,12 @@ namespace PeopleManagement.API.Controllers
         }
 
 
-        [HttpPost("/api/v1/[controller]/insert/signer")]
-        [ProtectedResource("Document", "send")]
-        public async Task<ActionResult<InsertDocumentSignedResponse>> InsertDocSigner([FromBody] JsonNode request, [FromHeader(Name = "x-requestid")] Guid requestId)
+        [HttpPost("/api/v1/[controller]/webhook")]
+        [ProtectedResource("Document", "webhook")]
+        public async Task<ActionResult<ReceiveWebhookDocumentResponse>> ReceiveWebhook([FromBody] JsonNode request, [FromHeader(Name = "x-requestid")] Guid requestId)
         {
-            var command = new InsertDocumentSignedCommand(request);
-            var identifiedCommand = new IdentifiedCommand<InsertDocumentSignedCommand, InsertDocumentSignedResponse>(command, requestId);
+            var command = new ReceiveWebhookDocumentCommand(request);
+            var identifiedCommand = new IdentifiedCommand<ReceiveWebhookDocumentCommand, ReceiveWebhookDocumentResponse>(command, requestId);
 
             SendingCommandLog(request["external_id"], request, requestId);
 

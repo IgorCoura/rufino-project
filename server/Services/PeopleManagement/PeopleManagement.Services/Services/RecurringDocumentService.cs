@@ -12,19 +12,26 @@ namespace PeopleManagement.Services.Services
         IRequireDocumentsRepository requireDocumentsRepository, 
         IDocumentRepository documentRepository, 
         IEmployeeRepository employeeRepository, 
-        ISignService signService,
         ILogger<RecurringDocumentService> logger) 
         : IRecurringDocumentService
     {
         private readonly IRequireDocumentsRepository _requireDocumentsRepository = requireDocumentsRepository;
         private readonly IDocumentRepository _documentRepository = documentRepository;
         private readonly IEmployeeRepository _employeeRepository = employeeRepository;
-        private readonly ISignService _signService = signService;
         private readonly ILogger<RecurringDocumentService> _logger = logger;
 
-        public async Task RecurringCreateDocumentUnits(RecurringEvents recurringEvent, CancellationToken cancellationToken = default)
+        public async Task RecurringCreateDocumentUnits(int recurringEventId, CancellationToken cancellationToken = default)
         {
-            _logger.LogInformation($"Recurring CreateDocument Units Init - event: {recurringEvent}");
+            var recurringEvent = RecurringEvents.FromValue(recurringEventId);
+            
+            if (recurringEvent == null)
+            {
+                _logger.LogError("RecurringEvent with ID {RecurringEventId} not found", recurringEventId);
+                return;
+            }
+
+            _logger.LogInformation("Recurring CreateDocument Units Init - event: {EventName} (ID: {EventId})", 
+                recurringEvent.Name, recurringEvent.Id);
 
             var requiedDocuments = await _requireDocumentsRepository.GetAllWithEventId(recurringEvent.Id, cancellationToken);
 
@@ -59,13 +66,10 @@ namespace PeopleManagement.Services.Services
                 
             }
             await _documentRepository.UnitOfWork.SaveChangesAsync(cancellationToken);
-            _logger.LogInformation($"Recurring CreateDocument Units Complete - event: {recurringEvent}");
+            _logger.LogInformation("Recurring CreateDocument Units Complete - event: {EventName} (ID: {EventId})", 
+                recurringEvent.Name, recurringEvent.Id);
 
         }
 
-        public async Task RefreshWebHook(CancellationToken cancellationToken = default)
-        {
-            await _signService.RefreshWebHookDocSignedEvent(cancellationToken);
-        }
     }
 }

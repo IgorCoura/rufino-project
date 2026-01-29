@@ -84,7 +84,8 @@ namespace PeopleManagement.Domain.ErrorTools.ErrorsMessages
             public static Error CantEditDocumentUnit(Guid docUnitId) => new("PMD.DOC13", $"Não é mais possivel editar a unidade de documento {docUnitId}.", new { docUnitId });
             public static Error CantGenerateDocumentUnit(Guid docUnitId) => new("PMD.DOC13", $"Não é mais possivel gerar pdfs da unidade de documento {docUnitId}.", new { docUnitId });
             public static Error DocumentAlreadySentToSignature(Guid docUnitId) => new("PMD.DOC14", $"A unidade de documento {docUnitId}, já foi enviado para assinatura.", new { docUnitId });
-            public static Error IsNotPending() => new("PMD.DOC14", $"Está ação só pode ser realizada quando o documento está pendente.", new {  });
+            public static Error IsNotPending() => new("PMD.DOC15", $"Está ação só pode ser realizada quando o documento está pendente.", new {  });
+            public static Error DocumentUnitMissingNameOrExtension(Guid docUnitId) => new("PMD.DOC16", $"A unidade de documento {docUnitId} não pode ser marcada como válida porque está faltando o nome ou a extensão.", new { docUnitId });
 
         }
     }

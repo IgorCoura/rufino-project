@@ -72,6 +72,9 @@ builder.Services.AddMediatR(cfg =>
 
 builder.Services.AddHttpClient();
 
+// Add memory cache for authorization token caching
+builder.Services.AddMemoryCache();
+
 // Add services to the container.
 builder.Services.AddInfraDependencies(builder.Configuration);
 builder.Services.AddServicesDependencies(builder.Configuration);
