@@ -165,6 +165,7 @@ namespace PeopleManagement.IntegrationTests.Data
             employee.MedicalAdmissionExam = MedicalAdmissionExam.Create(DateOnly.FromDateTime(DateTime.Now), DateOnly.FromDateTime(DateTime.Now.AddDays(365)));
 
             employee.MilitaryDocument = MilitaryDocument.Create("2312312312", "Rersevista");
+            employee.SetImage(Domain.AggregatesModel.EmployeeAggregate.Extension.JPG);
 
             await context.Employees.AddAsync(employee, cancellationToken);
 
@@ -199,6 +200,7 @@ namespace PeopleManagement.IntegrationTests.Data
             employee.MedicalAdmissionExam = MedicalAdmissionExam.Create(DateOnly.FromDateTime(DateTime.Now).AddDays(-100), DateOnly.FromDateTime(DateTime.Now.AddDays(265)));
 
             employee.MilitaryDocument = MilitaryDocument.Create("2312312312", "Rersevista");
+            employee.SetImage(Domain.AggregatesModel.EmployeeAggregate.Extension.JPG);
 
             var dateNow = DateOnly.FromDateTime(DateTime.UtcNow);
 
@@ -230,6 +232,7 @@ namespace PeopleManagement.IntegrationTests.Data
             employee.MedicalAdmissionExam = MedicalAdmissionExam.Create(DateOnly.FromDateTime(DateTime.Now), DateOnly.FromDateTime(DateTime.Now.AddDays(365)));
 
             employee.MilitaryDocument = MilitaryDocument.Create("2312312312", "Rersevista");
+            employee.SetImage(Domain.AggregatesModel.EmployeeAggregate.Extension.JPG);
 
             var dateNow = DateOnly.FromDateTime(DateTime.UtcNow);
 

@@ -312,7 +312,7 @@ namespace PeopleManagement.IntegrationTests.Tests
                     ""status"": ""signed"",
                     ""lang"": ""pt-br"",
                     ""original_file"": ""https://zapsign.s3.amazonaws.com/2022/1/pdf/63d19807-cbfa-4b51-8571-215ad0f4eb98/ca42e7be-c932-482c-b70b-92ad7aea04be.pdf"",
-                    ""signed_file"": ""https://zapsign.s3.amazonaws.com/2022/1/pdf/63d19807-cbfa-4b51-8571-215ad0f4eb98/ca42e7be-c932-482c-b70b-92ad7aea04be.pdf"",
+                    ""signed_file"": ""https://zapsign.s3.amazonaws.com/2026/1/pdf/51b09505-61a6-4dd9-86ee-5c62169b219f/fd3937ce-d078-4707-a385-5f98eb1d96e1.pdf?AWSAccessKeyId=AKIASUFZJ7JCTI2ZRGWX&Signature=Jsc1TkFeJGAiC14zFHXiu7GuzUk%3D&Expires=1769653026"",
                     ""created_through"": ""web"",
                     ""deleted"": false,
                     ""deleted_at"": null,
@@ -395,7 +395,7 @@ namespace PeopleManagement.IntegrationTests.Tests
             var command = new StringContent(jsonNode.ToString());
             command.Headers.ContentType = new MediaTypeHeaderValue("application/json");
             client.InputHeaders([document.CompanyId]);
-            var response = await client.PostAsync($"/api/v1/{document.CompanyId}/document/insert/signer", command);
+            var response = await client.PostAsync($"/api/v1/document/webhook", command);
 
             var response231 = await response.Content.ReadAsStringAsync();
 
