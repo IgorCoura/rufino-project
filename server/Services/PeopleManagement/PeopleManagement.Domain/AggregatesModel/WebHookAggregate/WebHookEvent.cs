@@ -2,7 +2,7 @@
 {
     public class WebHookEvent : Enumeration
     {
-
+        public static readonly WebHookEvent AllEvents = new(0, "");
         public static readonly WebHookEvent DocCreated = new(1, "doc_created");
         public static readonly WebHookEvent CreatedSigner = new(2, "created_signer");
         public static readonly WebHookEvent DocDeleted = new(3, "doc_deleted");

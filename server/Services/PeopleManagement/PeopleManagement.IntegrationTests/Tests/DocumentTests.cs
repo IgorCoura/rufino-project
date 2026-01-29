@@ -4,8 +4,8 @@ using Microsoft.EntityFrameworkCore;
 using PeopleManagement.Application.Commands.DocumentCommands.CreateDocument;
 using PeopleManagement.Application.Commands.DocumentCommands.GenerateDocumentToSign;
 using PeopleManagement.Application.Commands.DocumentCommands.InsertDocument;
-using PeopleManagement.Application.Commands.DocumentCommands.InsertDocumentSigned;
 using PeopleManagement.Application.Commands.DocumentCommands.InsertDocumentToSign;
+using PeopleManagement.Application.Commands.DocumentCommands.ReceiveWebhookDocument;
 using PeopleManagement.Application.Commands.DocumentCommands.UpdateDocumentUnitDetails;
 using PeopleManagement.Domain.AggregatesModel.CompanyAggregate;
 using PeopleManagement.Domain.AggregatesModel.DocumentAggregate;
@@ -400,7 +400,7 @@ namespace PeopleManagement.IntegrationTests.Tests
             var response231 = await response.Content.ReadAsStringAsync();
 
             Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-            var contentResponse = await response.Content.ReadFromJsonAsync<InsertDocumentSignedResponse>() ?? throw new ArgumentNullException();
+            var contentResponse = await response.Content.ReadFromJsonAsync<ReceiveWebhookDocumentResponse>() ?? throw new ArgumentNullException();
             var result = await context.Documents.AsNoTracking().Include(x => x.DocumentsUnits.Where(x => x.Id == contentResponse.Id)).FirstOrDefaultAsync(x => x.Id == document.Id) ?? throw new ArgumentNullException();
             var documentResponse = result.DocumentsUnits.First();
             Assert.Equal(Extension.PDF, documentResponse.Extension);

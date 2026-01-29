@@ -83,15 +83,23 @@ namespace PeopleManagement.Domain.AggregatesModel.DocumentAggregate
             Content = content;
         }
 
-        public void Validate(bool IsValid)
+        public void MaskAsInvalid()
         {
-            if(IsValid && Name != null && Extension != null)
+            Status = DocumentUnitStatus.Invalid;
+        }
+
+        public void MaskAsValid()
+        {
+            if (Name != null && Extension != null)
             {
                 Status = DocumentUnitStatus.OK;
-                if(Validity is not null)
+                if (Validity is not null)
                     AddDomainEvent(ScheduleDocumentExpirationEvent.Create(Document.Id, Id, Document.CompanyId, (DateOnly)Validity!));
             }
-            Status = DocumentUnitStatus.Invalid;
+            else
+            {
+                throw new DomainException(this, DomainErrors.Document.DocumentUnitMissingNameOrExtension(Id));
+            }
         }
 
         public bool MarkAsDeprecatedOrInvalid()
