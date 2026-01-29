@@ -96,25 +96,25 @@ namespace PeopleManagement.Services.Services
             return documentUnitId;
         }
 
-        public async Task<Guid> ReceiveWebhookDocument(JsonNode contentBody, CancellationToken cancellationToken = default)
+        public async Task<string> ReceiveWebhookDocument(JsonNode contentBody, CancellationToken cancellationToken = default)
         {          
             var webhookEvent = await _webHookManagementService.ParseWebhookEvent(contentBody, cancellationToken);
 
             if (webhookEvent == null)
-                return Guid.Empty;
+                return "O contentBody recebido está vaziu.";
 
             var document = await _documentRepository.FirstOrDefaultAsync(x => x.DocumentsUnits.Any(x => x.Id == webhookEvent.DocumentUnitId), include: x => x.Include(y => y.DocumentsUnits), cancellation: cancellationToken)
                 ?? throw new DomainException(this, DomainErrors.ObjectNotFound(nameof(DocumentUnit), webhookEvent.DocumentUnitId.ToString()));
 
             if (document.IsAwaitingSignatureDocumentUnit(webhookEvent.DocumentUnitId) == false)
-                return Guid.Empty;
+                return $"O documentUnit {webhookEvent.DocumentUnitId}, não está aguardando assinatura";
 
             if (webhookEvent.Status == WebhookDocumentStatus.DocRefused 
                 || webhookEvent.Status == WebhookDocumentStatus.DocDeleted
                 || webhookEvent.Status == WebhookDocumentStatus.DocExpired)
             {
                 document.MarkAsInvalidDocumentUnit(webhookEvent.DocumentUnitId);
-                return webhookEvent.DocumentUnitId;
+                return $"O status do documentUnit {webhookEvent.DocumentUnitId}, foi alterado com sucesso para INVALID.";
             }
 
             if (webhookEvent.Status == WebhookDocumentStatus.DocSigned)
@@ -125,10 +125,10 @@ namespace PeopleManagement.Services.Services
 
                 await _blobService.UploadAsync(file.FileStream, fileNameWithExtesion, document.CompanyId.ToString(), overwrite: false, cancellationToken: cancellationToken);
 
-                return webhookEvent.DocumentUnitId;
+                return $"O status do documentUnit {webhookEvent.DocumentUnitId}, foi alterado com sucesso para OK.";
             }
 
-            return Guid.Empty;
+            return "O status não é valido.";
             
         }
 
