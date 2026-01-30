@@ -172,7 +172,7 @@ class EmployeeProfileBloc
 
       emit(state.copyWith(
           isSavingData: false,
-          isEditingName: false,
+          isDocumentSigningOptionsName: false,
           snackMessage:
               "${state.employee.documentSigningOptions.displayName} alterado com sucesso."));
     } catch (ex, stacktrace) {

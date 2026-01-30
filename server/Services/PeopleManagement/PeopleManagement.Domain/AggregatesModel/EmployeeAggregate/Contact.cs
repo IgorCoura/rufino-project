@@ -19,9 +19,6 @@ namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
             get => _email; 
             private set
             {
-                if (value == null)
-                    throw new DomainException(this.GetType().Name, DomainErrors.FieldNotBeNull(nameof(Email)));
-
                 if (string.IsNullOrWhiteSpace(value))
                 {
                     _email = string.Empty;
@@ -42,9 +39,6 @@ namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
             get => _cellphone;
             private set
             {
-                if (value == null)
-                    throw new DomainException(this.GetType().Name, DomainErrors.FieldNotBeNull(nameof(CellPhone)));
-
 
                 var charValue = value.Select(x => char.IsDigit(x) ? x : ' ').ToArray();
                 var number = new string(charValue).Replace(" ", "");
