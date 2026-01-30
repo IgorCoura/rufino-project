@@ -10,7 +10,7 @@ class Email extends TextPropBase {
   @override
   String? validate(value) {
     if (value == null || value.isEmpty) {
-      return "O $displayName não pode ser vazio.";
+      return null; // Permite campo vazio
     }
     if (value.length > 100) {
       return "o $displayName não pode ser maior que 100 caracteres.";
