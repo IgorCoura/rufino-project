@@ -59,11 +59,11 @@ namespace PeopleManagement.Services.Services
 
             var documentBytes = await _documentService.GeneratePdf(documentUnitId, documentId, employeeId, companyId, cancellationToken);
 
-            using MemoryStream stream = new(documentBytes); 
+            using MemoryStream stream = new(documentBytes);
+
+            document.MarkAsAwaitingDocumentUnitSignature(documentUnitId);
 
             await SendToSignature(stream, documentUnitId, document, company, employee, documentTemplate.PlaceSignatures.ToArray(), dateLimitToSign, eminderEveryNDays, cancellationToken);
-            
-            document.MarkAsAwaitingDocumentUnitSignature(documentUnitId);
 
             return documentUnitId;                                                     
         }
@@ -88,10 +88,10 @@ namespace PeopleManagement.Services.Services
             && x.CompanyId == companyId, cancellation: cancellationToken)
                 ?? throw new DomainException(this, DomainErrors.ObjectNotFound(nameof(DocumentTemplate), document.DocumentTemplateId.ToString()));
 
+            document.MarkAsAwaitingDocumentUnitSignature(documentUnitId);
+
             await SendToSignature(stream, documentUnitId, document, company, employee, 
                 documentTemplate.PlaceSignatures.ToArray() ?? [], dateLimitToSign, eminderEveryNDays, cancellationToken);
-
-            document.MarkAsAwaitingDocumentUnitSignature(documentUnitId);
 
             return documentUnitId;
         }
@@ -114,6 +114,8 @@ namespace PeopleManagement.Services.Services
                 || webhookEvent.Status == WebhookDocumentStatus.DocExpired)
             {
                 document.MarkAsInvalidDocumentUnit(webhookEvent.DocumentUnitId);
+                var documentUnitId = Guid.NewGuid();
+                document.NewDocumentUnit(documentUnitId);
                 return $"O status do documentUnit {webhookEvent.DocumentUnitId}, foi alterado com sucesso para INVALID.";
             }
 
