@@ -13,6 +13,8 @@ namespace PeopleManagement.Domain.AggregatesModel.DocumentAggregate.Interfaces
         
         Task SendToSignatureWithSelfie(Stream documentStream, Guid documentUnitId, Document document, Company company,
             Employee employee, PlaceSignature[] placeSignatures, DateTime dateLimitToSign, int eminderEveryNDays, CancellationToken cancellationToken = default);
+        Task SendToSignatureWithSMS(Stream documentStream, Guid documentUnitId, Document document, Company company,
+            Employee employee, PlaceSignature[] placeSignatures, DateTime dateLimitToSign, int eminderEveryNDays, CancellationToken cancellationToken = default);
 
     }
 }
