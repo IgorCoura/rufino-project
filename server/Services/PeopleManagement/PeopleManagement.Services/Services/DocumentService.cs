@@ -62,19 +62,16 @@ namespace PeopleManagement.Services.Services
                 if (isAccepted == false)
                     continue;
 
-                Document? document = await _documentRepository.FirstOrDefaultMemoryOrDatabase(x => x.EmployeeId == employeeId 
+                var documents = await _documentRepository.GetDataAsync(x => x.EmployeeId == employeeId 
                 && x.CompanyId == companyId && x.RequiredDocumentId == requiedDocument.Id, include: i => i.Include(x => x.DocumentsUnits));
                
-                if(document is null)
+                foreach(Document document in documents)
                 {
-                    _logger.LogError("Document not found for employee {EmployeeId} and required document {RequiredDocumentId}. Skipping document creation.",
-                        employeeId, requiedDocument.Id);
-                    continue;
+                    var documentUnitId = Guid.NewGuid();
+
+                    document!.NewDocumentUnit(documentUnitId);
                 }
 
-                var documentUnitId = Guid.NewGuid();
-                
-                document!.NewDocumentUnit(documentUnitId);
             }
 
         }

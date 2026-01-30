@@ -48,7 +48,10 @@ namespace PeopleManagement.Services.Services
             var documentTemplate = await _documentTemplateRepository.FirstOrDefaultAsync(x => x.Id == document.DocumentTemplateId && x.CompanyId == companyId, cancellation: cancellationToken)
                 ?? throw new DomainException(this, DomainErrors.ObjectNotFound(nameof(DocumentTemplate), document.DocumentTemplateId.ToString()));
 
-            if(documentTemplate.TemplateFileInfo is null)
+            if (documentTemplate.IsSignable == false)
+                throw new DomainException(this, DomainErrors.Document.NotSignable(documentUnitId));
+
+            if (documentTemplate.TemplateFileInfo is null)
                 throw new DomainException(this, DomainErrors.Document.DocumentNotHaveTemplate(documentId));
 
             var employee = await _employeeRepository.FirstOrDefaultAsync(x => x.Id == employeeId && x.CompanyId == companyId, cancellation: cancellationToken)
@@ -87,6 +90,9 @@ namespace PeopleManagement.Services.Services
             var documentTemplate = await _documentTemplateRepository.FirstOrDefaultAsync(x => x.Id == document.DocumentTemplateId 
             && x.CompanyId == companyId, cancellation: cancellationToken)
                 ?? throw new DomainException(this, DomainErrors.ObjectNotFound(nameof(DocumentTemplate), document.DocumentTemplateId.ToString()));
+
+            if(documentTemplate.IsSignable == false)
+                throw new DomainException(this, DomainErrors.Document.NotSignable(documentUnitId));
 
             document.MarkAsAwaitingDocumentUnitSignature(documentUnitId);
 
