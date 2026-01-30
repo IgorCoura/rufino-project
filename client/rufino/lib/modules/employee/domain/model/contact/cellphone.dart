@@ -31,7 +31,7 @@ class Cellphone extends TextPropBase {
   @override
   String? validate(String? value) {
     if (value == null || value.isEmpty) {
-      return "O $displayName não pode ser vazio.";
+      return null; // Permite campo vazio
     }
     var regex = RegExp(
         r"^(?:\+55\s?)?(?:\(?\d{2}\)?\s?)?(?:9\d{4}-?\d{4}|[2-8]\d{3}-?\d{4})$");
