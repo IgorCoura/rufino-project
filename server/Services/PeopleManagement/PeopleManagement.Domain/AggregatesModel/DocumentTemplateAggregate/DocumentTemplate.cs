@@ -50,5 +50,7 @@ namespace PeopleManagement.Domain.AggregatesModel.DocumentTemplateAggregate
             PlaceSignatures = placeSignatures;
             DocumentGroupId = documentGroupId;
         }
+
+        public bool IsSignable => PlaceSignatures.Count > 0;
     }
 }

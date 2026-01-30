@@ -196,7 +196,7 @@ namespace PeopleManagement.Infra.Services
 
             public static readonly SignatureType DigitalSignature = new(1, nameof(DigitalSignature), "assinaturaTela");
             public static readonly SignatureType DigitalSignatureAndWhatsapp = new(2, nameof(DigitalSignatureAndWhatsapp), "assinaturaTela-tokenWhatsapp");
-            public static readonly SignatureType DigitalSignatureAndSMS = new(3, nameof(DigitalSignatureAndSMS), "assinaturaTela-tokenWhatsapp");
+            public static readonly SignatureType DigitalSignatureAndSMS = new(3, nameof(DigitalSignatureAndSMS), "assinaturaTela-tokenSms");
         }
 
         private static string ConvertStreamToBase64(Stream stream)
