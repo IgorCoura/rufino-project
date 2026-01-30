@@ -5,6 +5,7 @@
         public static readonly DocumentSigningOptions PhysicalSignature = new (1, nameof(PhysicalSignature));
         public static readonly DocumentSigningOptions DigitalSignatureAndWhatsapp = new (2, nameof(DigitalSignatureAndWhatsapp));
         public static readonly DocumentSigningOptions DigitalSignatureAndSelfie = new (3, nameof(DigitalSignatureAndSelfie));
+        public static readonly DocumentSigningOptions DigitalSignatureAndSMS= new (4, nameof(DigitalSignatureAndSMS));
         private DocumentSigningOptions(int id, string name) : base(id, name)
         {
         }
