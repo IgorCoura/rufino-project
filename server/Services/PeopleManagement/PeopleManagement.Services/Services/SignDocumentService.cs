@@ -162,6 +162,18 @@ namespace PeopleManagement.Services.Services
                 return;
             }
 
+            if (documentSigningOptions == DocumentSigningOptions.DigitalSignatureAndSMS)
+            {
+                await _documentSignatureService.SendToSignatureWithSMS(stream, documentUnitId, document, company, employee,
+                placeSignatures, dateLimitToSign, eminderEveryNDays, cancellationToken);
+
+                _backgroundJobClient.Schedule<ISignDocumentService>(
+                    x => x.InvalidateUnsignedDocument(documentUnitId, document.Id, company.Id, cancellationToken),
+                    dateLimitToSign.AddDays(1));
+
+                return;
+            }
+
             throw new DomainException(this, DomainErrors.Employee.InvalidDocumentDigitalSigningOptions(employee.Id));
         }
 
