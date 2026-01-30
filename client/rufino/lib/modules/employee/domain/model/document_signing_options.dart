@@ -4,8 +4,9 @@ class DocumentSigningOptions extends Enumeration {
   static const Map<String, String> conversionMapIntToString = {
     "0": "",
     "1": "Assinatura Fisica",
-    "2": "Assinatura Digital com Whatsapp",
-    "3": "Assinatura Digital com Selfie",
+    "2": "Assinatura Digital e Whatsapp",
+    "3": "Assinatura Digital e Selfie",
+    "4": "Assinatura Digital e SMS",
   };
 
   DocumentSigningOptions(String id, String name)
