@@ -45,44 +45,75 @@ services:
         - 10000:10000
     command: "azurite-blob --blobHost 0.0.0.0 -l /data"
 
-  keycloak:
-    image: quay.io/keycloak/keycloak:25.0.4
-    command: start-dev
-    environment:
-      KC_HOSTNAME: http://192.168.15.8:8080
-      KC_HOSTNAME_BACKCHANNEL_DYNAMIC: true
-      KC_HTTP_ENABLED: true
-      KC_HOSTNAME_STRICT_HTTPS: false
-      KC_HEALTH_ENABLED: true
-      KC_METRICS_ENABLED: true
-      KEYCLOAK_ADMIN: Admin
-      KEYCLOAK_ADMIN_PASSWORD: Admin
-      KC_DB: postgres
-      KC_DB_URL: jdbc:postgresql://keycloak.db/keycloakDb
-      KC_DB_USERNAME: admin
-      KC_DB_PASSWORD: 5up3rS3nh@
-      KC_FEATURES: hostname:v2
-    ports:
-      - 8082:8082
-      - 8080:8080
-      - 9000:9000
-    depends_on:
-      - keycloak.db
+  # keycloak:
+  #   image: quay.io/keycloak/keycloak:25.0.4
+  #   command: start-dev
+  #   environment:
+  #     KC_HOSTNAME: http://192.168.15.8:8080
+  #     KC_HOSTNAME_BACKCHANNEL_DYNAMIC: true
+  #     KC_HTTP_ENABLED: true
+  #     KC_HOSTNAME_STRICT_HTTPS: false
+  #     KC_HEALTH_ENABLED: true
+  #     KC_METRICS_ENABLED: true
+  #     KEYCLOAK_ADMIN: Admin
+  #     KEYCLOAK_ADMIN_PASSWORD: Admin
+  #     KC_DB: postgres
+  #     KC_DB_URL: jdbc:postgresql://keycloak.db/keycloakDb
+  #     KC_DB_USERNAME: admin
+  #     KC_DB_PASSWORD: 5up3rS3nh@
+  #     KC_FEATURES: hostname:v2
+  #   ports:
+  #     - 8082:8082
+  #     - 8080:8080
+  #     - 9000:9000
+  #   depends_on:
+  #     - keycloak.db
                     
-  keycloak.db:
-    image: postgres:16.4-alpine
-    restart: always
-    volumes:
-      - keycloak-db:/var/lib/postgresql/data
-    environment:
-      POSTGRES_DB: keycloakDb
-      POSTGRES_USER: admin
-      POSTGRES_PASSWORD: 5up3rS3nh@
-      PGDATA: /var/lib/postgresql/data/pgdata
-    ports:
-        - 8081:5432
+  # keycloak.db:
+  #   image: postgres:16.4-alpine
+  #   restart: always
+  #   volumes:
+  #     - keycloak-db:/var/lib/postgresql/data
+  #   environment:
+  #     POSTGRES_DB: keycloakDb
+  #     POSTGRES_USER: admin
+  #     POSTGRES_PASSWORD: 5up3rS3nh@
+  #     PGDATA: /var/lib/postgresql/data/pgdata
+  #   ports:
+  #       - 8081:5432
+
+  # evolution-api:
+  #   container_name: evolution_api
+  #   image: evoapicloud/evolution-api:v2.3.7
+  #   restart: always
+  #   ports:
+  #     - "8090:8090"
+  #   env_file:
+  #     - .env
+  #   volumes:
+  #     - evolution_store:/evolution/store
+  #     - evolution_instances:/evolution/instances
+  #   depends_on:
+  #     - evolution.db
+
+  # evolution.db:
+  #   image: postgres:16.4-alpine
+  #   restart: always
+  #   volumes:
+  #     - evolution-db:/var/lib/postgresql/data
+  #   environment:
+  #       POSTGRES_USER: "admin"
+  #       POSTGRES_PASSWORD: "5up3rS3nha"
+  #       POSTGRES_DB: "evolution_db"
+  #       PGDATA: /var/lib/postgresql/data/pgdata
+  #   ports:
+  #       - 5432:5432
+
 
 volumes:
   peoplemanagement-db:
-  keycloak-db:
+  # keycloak-db:
+  # evolution-db:
+  # evolution_store:
+  # evolution_instances:
   

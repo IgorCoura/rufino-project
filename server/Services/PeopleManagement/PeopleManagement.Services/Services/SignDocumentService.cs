@@ -20,7 +20,7 @@ namespace PeopleManagement.Services.Services
     public class SignDocumentService(IDocumentSignatureService documentSignatureService, IDocumentRepository documentRepository, 
         ICompanyRepository companyRepository, IEmployeeRepository employeeRepository, IDocumentTemplateRepository documentTemplateRepository, 
         IBlobService blobService,IDocumentService documentService , IWebHookManagementService webHookManagementService, IFileDownloadService fileDownloadService,
-        IBackgroundJobClient backgroundJobClient) : ISignDocumentService
+        IBackgroundJobClient backgroundJobClient, IDocumentSignatureReminderService documentSignatureReminderService) : ISignDocumentService
     {
         private readonly IDocumentSignatureService _documentSignatureService = documentSignatureService;
         private readonly IDocumentRepository _documentRepository = documentRepository;
@@ -32,6 +32,7 @@ namespace PeopleManagement.Services.Services
         private readonly IWebHookManagementService _webHookManagementService = webHookManagementService;
         private readonly IFileDownloadService _fileDownloadService = fileDownloadService;
         private readonly IBackgroundJobClient _backgroundJobClient = backgroundJobClient;
+        private readonly IDocumentSignatureReminderService _documentSignatureReminderService = documentSignatureReminderService;
 
         public async Task<Guid> GenerateDocumentToSign(Guid documentUnitId, Guid documentId, Guid employeeId, Guid companyId, DateTime dateLimitToSign, 
             int eminderEveryNDays, CancellationToken cancellationToken = default)
@@ -143,44 +144,50 @@ namespace PeopleManagement.Services.Services
         private async Task SendToSignature(Stream stream, Guid documentUnitId, Document document, Company company,
             Employee employee, PlaceSignature[] placeSignatures, DateTime dateLimitToSign, int eminderEveryNDays, CancellationToken cancellationToken = default)
         {
+            DocumentSignatureModel result;
             var documentSigningOptions = employee.DocumentSigningOptions;
+
             if (documentSigningOptions == DocumentSigningOptions.DigitalSignatureAndWhatsapp)
             {
-                await _documentSignatureService.SendToSignatureWithWhatsapp(stream, documentUnitId, document, company, employee,
-                placeSignatures, dateLimitToSign, eminderEveryNDays, cancellationToken);
-                
+                result = await _documentSignatureService.SendToSignatureWithWhatsapp(stream, documentUnitId, document, company, employee,
+                    placeSignatures, dateLimitToSign, eminderEveryNDays, cancellationToken);
+
                 _backgroundJobClient.Schedule<ISignDocumentService>(
                     x => x.InvalidateUnsignedDocument(documentUnitId, document.Id, company.Id, cancellationToken),
                     dateLimitToSign.AddDays(1));
-                
-                return;
             }
-
-            if(documentSigningOptions == DocumentSigningOptions.DigitalSignatureAndSelfie)
+            else if(documentSigningOptions == DocumentSigningOptions.DigitalSignatureAndSelfie)
             {
-                await _documentSignatureService.SendToSignatureWithSelfie(stream, documentUnitId, document, company, employee,
-                placeSignatures, dateLimitToSign, eminderEveryNDays, cancellationToken);
-                
+                result = await _documentSignatureService.SendToSignatureWithSelfie(stream, documentUnitId, document, company, employee,
+                    placeSignatures, dateLimitToSign, eminderEveryNDays, cancellationToken);
+
                 _backgroundJobClient.Schedule<ISignDocumentService>(
                     x => x.InvalidateUnsignedDocument(documentUnitId, document.Id, company.Id, cancellationToken),
                     dateLimitToSign.AddDays(1));
-                
-                return;
             }
-
-            if (documentSigningOptions == DocumentSigningOptions.DigitalSignatureAndSMS)
+            else if (documentSigningOptions == DocumentSigningOptions.DigitalSignatureAndSMS)
             {
-                await _documentSignatureService.SendToSignatureWithSMS(stream, documentUnitId, document, company, employee,
-                placeSignatures, dateLimitToSign, eminderEveryNDays, cancellationToken);
+                result = await _documentSignatureService.SendToSignatureWithSMS(stream, documentUnitId, document, company, employee,
+                    placeSignatures, dateLimitToSign, eminderEveryNDays, cancellationToken);
 
                 _backgroundJobClient.Schedule<ISignDocumentService>(
                     x => x.InvalidateUnsignedDocument(documentUnitId, document.Id, company.Id, cancellationToken),
                     dateLimitToSign.AddDays(1));
-
-                return;
+            }
+            else
+            {
+                throw new DomainException(this, DomainErrors.Employee.InvalidDocumentDigitalSigningOptions(employee.Id));
             }
 
-            throw new DomainException(this, DomainErrors.Employee.InvalidDocumentDigitalSigningOptions(employee.Id));
+            var documentUnit = document.DocumentsUnits.FirstOrDefault(x => x.Id == documentUnitId);
+            if (documentUnit is not null)
+            {
+                documentUnit.SetSignatureInfo(result.DocumentToken, result.SignerUrl);
+                await _documentRepository.UnitOfWork.SaveChangesAsync(cancellationToken);
+            }
+
+            _backgroundJobClient.Enqueue(() => 
+                _documentSignatureReminderService.SendImmediateSignatureNotification(documentUnitId, employee.Id, CancellationToken.None));
         }
 
         public async Task InvalidateUnsignedDocument(Guid documentUnitId, Guid documentId, Guid companyId, CancellationToken cancellationToken = default)

@@ -1,0 +1,33 @@
+apiVersion: 2023-05-01
+type: Microsoft.App/containerApps
+name: evolution-api
+properties:
+  environmentId: /subscriptions/{subscription-id}/resourceGroups/{resource-group}/providers/Microsoft.App/managedEnvironments/{environment-name}
+  configuration:
+    ingress:
+      external: true
+      targetPort: 8080
+      transport: auto
+    registries: []
+  template:
+    containers:
+      - name: evolution-api
+        image: evoapicloud/evolution-api:v2.3.7
+        resources:
+          cpu: 0.5
+          memory: 1Gi
+        env:
+          # As variáveis de ambiente do arquivo server\.env devem ser definidas aqui
+          # ou configuradas através de secrets no Azure Container Apps
+          - name: ENVIRONMENT
+            value: "production"
+    scale:
+      minReplicas: 0
+      maxReplicas: 3
+    volumes:
+      - name: evolution-store
+        storageType: AzureFile
+        storageName: evolution-store
+      - name: evolution-instances
+        storageType: AzureFile
+        storageName: evolution-instances

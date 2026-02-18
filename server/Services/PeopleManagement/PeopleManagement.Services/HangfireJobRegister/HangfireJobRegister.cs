@@ -5,6 +5,7 @@ using Microsoft.Extensions.Logging;
 using PeopleManagement.Domain.AggregatesModel.DocumentAggregate.Interfaces;
 using PeopleManagement.Domain.AggregatesModel.RequireDocumentsAggregate.Events;
 using PeopleManagement.Domain.AggregatesModel.RequireDocumentsAggregate.Interfaces;
+using PeopleManagement.Services.Services;
 
 namespace PeopleManagement.Services.HangfireJobRegistrar
 {
@@ -117,6 +118,25 @@ namespace PeopleManagement.Services.HangfireJobRegistrar
                Cron.Daily);
 
             _backgroundJobClient.Enqueue<IWebHookManagementService>(x => x.RefreshWebHookEvent(CancellationToken.None));
+
+            RecurringJob.AddOrUpdate<IDocumentSignatureReminderService>(
+                "signature-reminders-morning",
+                service => service.SendConsolidatedSignatureReminders(CancellationToken.None),
+                "0 9 * * *",
+                new RecurringJobOptions
+                {
+                    TimeZone = TimeZoneInfo.FindSystemTimeZoneById("E. South America Standard Time")
+                });
+
+            RecurringJob.AddOrUpdate<IDocumentSignatureReminderService>(
+                "signature-reminders-afternoon",
+                service => service.SendConsolidatedSignatureReminders(CancellationToken.None),
+                "0 15 * * *",
+                new RecurringJobOptions
+                {
+                    TimeZone = TimeZoneInfo.FindSystemTimeZoneById("E. South America Standard Time")
+                });
+
 
             _logger.LogInformation("Register Recurring Jobs Complete");
         }
