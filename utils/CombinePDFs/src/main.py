@@ -71,8 +71,9 @@ folders_output = base_path + '/output'
 # folder_merge1 = folders_input + 'RP'
 # folder_merge2 = folders_input + 'CO'
 
-get_and_merge_pdfs('RP', ['CO','RP13','CO13'], folders_input, folders_output)
-get_and_merge_pdfs('RF', ['COFE'], folders_input, folders_output)
+get_and_merge_pdfs('RP', ['CO'], folders_input, folders_output)
+#get_and_merge_pdfs('RP', ['CO','RP13','CO13'], folders_input, folders_output)
+#get_and_merge_pdfs('RF', ['COFE'], folders_input, folders_output)
 
 # list_file_merge1 = os.listdir(folder_merge1)
 # list_file_merge2 = os.listdir(folder_merge2)

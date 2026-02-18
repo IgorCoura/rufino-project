@@ -15,5 +15,7 @@
     <None Include="docker-compose.yml" />
     <None Include=".dockerignore" />
     <None Include="GlobalUsings.cs" />
+    <None Include="Services\PeopleManagement\README.md" />
+    <None Include="Services\PeopleManagement\WHATSAPP_SERVICE.md" />
   </ItemGroup>
 </Project>

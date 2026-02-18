@@ -27,26 +27,26 @@ namespace PeopleManagement.Infra.Services
             _logger = logger;
         }
 
-        public async Task SendToSignatureWithWhatsapp(Stream documentStream, Guid documentUnitId, Document document, Company company, 
+        public async Task<DocumentSignatureModel> SendToSignatureWithWhatsapp(Stream documentStream, Guid documentUnitId, Document document, Company company,
             Employee employee, PlaceSignature[] placeSignatures, DateTime dateLimitToSign, int eminderEveryNDays, CancellationToken cancellationToken = default)
         {
             var signerOptions = new SignerOptions(SignatureType.DigitalSignatureAndWhatsapp, false, true, true);
-            await SendToSignature(signerOptions, documentStream, documentUnitId, document, company, employee, placeSignatures, dateLimitToSign, eminderEveryNDays, cancellationToken);
+            return await SendToSignature(signerOptions, documentStream, documentUnitId, document, company, employee, placeSignatures, dateLimitToSign, eminderEveryNDays, cancellationToken);
         }
-        public async Task SendToSignatureWithSMS(Stream documentStream, Guid documentUnitId, Document document, Company company, 
+        public async Task<DocumentSignatureModel> SendToSignatureWithSMS(Stream documentStream, Guid documentUnitId, Document document, Company company,
             Employee employee, PlaceSignature[] placeSignatures, DateTime dateLimitToSign, int eminderEveryNDays, CancellationToken cancellationToken = default)
         {
             var signerOptions = new SignerOptions(SignatureType.DigitalSignatureAndSMS, false, true, true);
-            await SendToSignature(signerOptions, documentStream, documentUnitId, document, company, employee, placeSignatures, dateLimitToSign, eminderEveryNDays, cancellationToken);
+            return await SendToSignature(signerOptions, documentStream, documentUnitId, document, company, employee, placeSignatures, dateLimitToSign, eminderEveryNDays, cancellationToken);
         }
 
-        public async Task SendToSignatureWithSelfie(Stream documentStream, Guid documentUnitId, Document document, Company company,
+        public async Task<DocumentSignatureModel> SendToSignatureWithSelfie(Stream documentStream, Guid documentUnitId, Document document, Company company,
             Employee employee, PlaceSignature[] placeSignatures, DateTime dateLimitToSign, int eminderEveryNDays, CancellationToken cancellationToken = default)
         {
             var signerOptions = new SignerOptions(SignatureType.DigitalSignature, true, true, true);
-            await SendToSignature(signerOptions, documentStream, documentUnitId, document, company, employee, placeSignatures, dateLimitToSign, eminderEveryNDays, cancellationToken);
+            return await SendToSignature(signerOptions, documentStream, documentUnitId, document, company, employee, placeSignatures, dateLimitToSign, eminderEveryNDays, cancellationToken);
         }
-        private async Task SendToSignature(SignerOptions signerOptions, Stream documentStream, Guid documentUnitId, Document document, 
+        private async Task<DocumentSignatureModel> SendToSignature(SignerOptions signerOptions, Stream documentStream, Guid documentUnitId, Document document,
             Company company, Employee employee, PlaceSignature[] placeSignatures, DateTime dateLimitToSign, int eminderEveryNDays, 
             CancellationToken cancellationToken = default)
         {
@@ -108,8 +108,9 @@ namespace PeopleManagement.Infra.Services
             var content = await response.Content.ReadFromJsonAsync<JsonNode>(cancellationToken: cancellationToken);
             var docToken = content?["token"]?.ToString() ?? "";
             var signerToken = content?["signers"]?[0]?["token"]?.ToString() ?? "";
+            var signerUrl = content?["signers"]?[0]?["sign_url"]?.ToString() ?? "";
 
-            if (string.IsNullOrEmpty(docToken) || string.IsNullOrEmpty(signerToken))
+            if (string.IsNullOrEmpty(docToken) || string.IsNullOrEmpty(signerToken) || string.IsNullOrEmpty(signerUrl))
                 throw new DomainException(this, InfraErrors.SignDoc.ErrorSendDocToSign(documentUnitId));
 
             if (placeSignatures.Length > 0)
@@ -125,8 +126,10 @@ namespace PeopleManagement.Infra.Services
                 }
             }
 
-            _logger.LogInformation("Document sent to ZapSign for signature successfully. DocumentUnitId: {DocumentUnitId}, EmployeeId: {EmployeeId}, CompanyId: {CompanyId}", 
-                documentUnitId, employee.Id, company.Id);
+            _logger.LogInformation("Document sent to ZapSign for signature successfully. DocumentUnitId: {DocumentUnitId}, EmployeeId: {EmployeeId}, CompanyId: {CompanyId}, DocumentToken: {DocumentToken}, SignerUrl: {SignerUrl}", 
+                documentUnitId, employee.Id, company.Id, docToken, signerUrl);
+
+            return new DocumentSignatureModel(docToken, signerUrl);
         }
 
         private async Task DeleteDocument(string docToken, CancellationToken cancellationToken = default)

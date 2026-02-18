@@ -31,10 +31,18 @@ namespace PeopleManagement.Infra.Mapping
 
             builder.Property(x => x.Date)
                 .IsRequired();
-            
+
+            builder.Property(x => x.SignatureDocumentToken)
+                .HasMaxLength(500)
+                .IsRequired(false);
+
+            builder.Property(x => x.SignatureUrl)
+                .HasMaxLength(1000)
+                .IsRequired(false);
 
 
-            
+
+
         }
     }
 }

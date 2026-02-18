@@ -31,6 +31,7 @@ namespace PeopleManagement.API.DependencyInjection
             service.AddScoped<IArchiveCategoryService, ArchiveCategoryService>();
             service.AddScoped<ISignDocumentService, SignDocumentService>();
             service.AddScoped<IDocumentDepreciationService, DocumentDepreciationService>();
+            service.AddScoped<IDocumentSignatureReminderService, DocumentSignatureReminderService>();
             service.AddScoped<HangfireJobRegister>();
             service.AddScoped<IRecurringDocumentService, RecurringDocumentService>();
 
