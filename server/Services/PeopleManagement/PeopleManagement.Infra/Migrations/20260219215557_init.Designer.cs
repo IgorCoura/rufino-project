@@ -13,8 +13,8 @@ using PeopleManagement.Infra.Context;
 namespace PeopleManagement.Infra.Migrations
 {
     [DbContext(typeof(PeopleManagementContext))]
-    [Migration("20260218221733_AddSignatureInfoToDocumentUnit")]
-    partial class AddSignatureInfoToDocumentUnit
+    [Migration("20260219215557_init")]
+    partial class init
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -247,10 +247,12 @@ namespace PeopleManagement.Infra.Migrations
                         .HasColumnType("character varying(100)");
 
                     b.Property<string>("SignatureDocumentToken")
-                        .HasColumnType("text");
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
 
                     b.Property<string>("SignatureUrl")
-                        .HasColumnType("text");
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
 
                     b.Property<int>("Status")
                         .HasColumnType("integer");

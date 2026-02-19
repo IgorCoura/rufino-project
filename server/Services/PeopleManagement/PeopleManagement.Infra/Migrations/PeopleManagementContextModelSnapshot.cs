@@ -244,10 +244,12 @@ namespace PeopleManagement.Infra.Migrations
                         .HasColumnType("character varying(100)");
 
                     b.Property<string>("SignatureDocumentToken")
-                        .HasColumnType("text");
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
 
                     b.Property<string>("SignatureUrl")
-                        .HasColumnType("text");
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
 
                     b.Property<int>("Status")
                         .HasColumnType("integer");

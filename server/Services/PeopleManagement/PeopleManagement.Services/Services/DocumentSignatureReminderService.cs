@@ -134,13 +134,13 @@ namespace PeopleManagement.Services.Services
                     x => x.Id == employeeId,
                     cancellation: cancellationToken);
 
-                if (employee == null || employee.Contact == null || string.IsNullOrEmpty(employee.Contact.CellPhone))
+                if (employee is null || employee.Contact == null || string.IsNullOrEmpty(employee.Contact.CellPhone))
                 {
                     _logger.LogWarning("Employee or contact not found for EmployeeId: {EmployeeId}", employeeId);
                     return;
                 }
 
-                var phoneNumber = employee.Contact.CellPhone;
+                var phoneNumber = employee.Contact.GetCellPhoneWithCoutryNumber();
                 var message = $"Olá {employee.Name}! 👋\n\n" +
                               $"Você recebeu um novo documento para assinatura: *{document.Name}*\n\n" +
                               $"Por favor, acesse o link abaixo para assinar:\n" +
