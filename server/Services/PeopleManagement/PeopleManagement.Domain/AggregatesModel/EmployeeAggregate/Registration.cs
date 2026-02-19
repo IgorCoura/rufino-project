@@ -12,10 +12,10 @@ namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
             get => _value;
             private set
             {
-                value = value.ToUpper().Trim();
-
                 if (string.IsNullOrWhiteSpace(value))
                     throw new DomainException(this.GetType().Name, DomainErrors.FieldNotBeNullOrEmpty(nameof(Registration)));
+
+                value = value.ToUpper().Trim();
 
                 if (value.Length > MAX_LENGTH)
                     throw new DomainException(this.GetType().Name, DomainErrors.FieldCannotBeLarger(nameof(Registration), MAX_LENGTH));

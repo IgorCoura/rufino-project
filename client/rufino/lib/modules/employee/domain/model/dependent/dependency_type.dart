@@ -2,8 +2,8 @@ import 'package:rufino/modules/employee/domain/model/base/enumeration.dart';
 
 class DependencyType extends Enumeration {
   static const Map<String, String> conversionMapIntToString = {
-    "1": "Cônjuge",
-    "2": "Filho(a)",
+    "1": "Filho(a)",
+    "2": "Cônjuge",
   };
 
   DependencyType(String id, String name)

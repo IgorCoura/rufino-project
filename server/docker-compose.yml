@@ -82,7 +82,38 @@ services:
     ports:
         - 8081:5432
 
+  # evolution-api:
+  #   container_name: evolution_api
+  #   image: evoapicloud/evolution-api:v2.3.7
+  #   restart: always
+  #   ports:
+  #     - "8090:8090"
+  #   env_file:
+  #     - .env
+  #   volumes:
+  #     - evolution_store:/evolution/store
+  #     - evolution_instances:/evolution/instances
+  #   depends_on:
+  #     - evolution.db
+
+  # evolution.db:
+  #   image: postgres:16.4-alpine
+  #   restart: always
+  #   volumes:
+  #     - evolution-db:/var/lib/postgresql/data
+  #   environment:
+  #       POSTGRES_USER: "admin"
+  #       POSTGRES_PASSWORD: "5up3rS3nha"
+  #       POSTGRES_DB: "evolution_db"
+  #       PGDATA: /var/lib/postgresql/data/pgdata
+  #   ports:
+  #       - 5432:5432
+
+
 volumes:
   peoplemanagement-db:
   keycloak-db:
+  # evolution-db:
+  # evolution_store:
+  # evolution_instances:
   
