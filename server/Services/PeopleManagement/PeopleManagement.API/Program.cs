@@ -13,6 +13,7 @@ using PeopleManagement.Infra.Context;
 using PeopleManagement.Infra.DataForTests;
 using PeopleManagement.Services.DomainEventHandlers;
 using PeopleManagement.Services.HangfireJobRegistrar;
+using PeopleManagement.Services.Services;
 using System.Diagnostics;
 using System.Text.Json.Serialization;
 
@@ -144,13 +145,14 @@ app.UseHangfireDashboard("/hangfire", new DashboardOptions
 
 
 
-    app.UseSwagger();
+app.UseSwagger();
 app.UseSwaggerUI();
 
 
 
 var jobScheduler = scope.ServiceProvider.GetRequiredService<HangfireJobRegister>();
 jobScheduler.RegisterRecurringJobs();
+
 
 
 app.UseHttpsRedirection();

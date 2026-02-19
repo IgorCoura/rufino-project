@@ -18,6 +18,8 @@ using PeopleManagement.Domain.AggregatesModel.WorkplaceAggregate.Interfaces;
 using PeopleManagement.Domain.AggregatesModel.DocumentGroupAggregate.Interfaces;
 using PeopleManagement.Domain.AggregatesModel.WebHookAggregate;
 using PeopleManagement.Infra.Policies;
+using PeopleManagement.Domain.Services;
+using PeopleManagement.Domain.Options;
 
 namespace PeopleManagement.API.DependencyInjection
 {
@@ -47,6 +49,9 @@ namespace PeopleManagement.API.DependencyInjection
             service.AddScoped<IFileDownloadService, FileDownloadService>();
 
             service.AddSingleton(x => new BlobServiceClient(configuration.GetConnectionString("BlobStorage")));
+
+            // Configure WhatsApp Options
+            service.Configure<WhatsAppOptions>(configuration.GetSection(WhatsAppOptions.SectionName));
 
             service.AddHttpClient<IDocumentSignatureService, ZapSignDocumentSignatureService>((serviceProvider, httpClient) =>
             {
@@ -87,6 +92,22 @@ namespace PeopleManagement.API.DependencyInjection
             .AddPolicyHandler((serviceProvider, request) =>
             {
                 var logger = serviceProvider.GetRequiredService<ILogger<AuthorizationService>>();
+                var context = new Polly.Context { ["Logger"] = logger };
+
+                return HttpPolicyFactory.GetCombinedPolicy(retryCount: 3, timeoutSeconds: 30);
+            })
+            .SetHandlerLifetime(TimeSpan.FromMinutes(5));
+
+            service.AddHttpClient<IWhatsAppService, WhatsAppService>((serviceProvider, httpClient) =>
+            {
+                var whatsAppOptions = configuration.GetSection(WhatsAppOptions.SectionName);
+                httpClient.BaseAddress = new Uri(whatsAppOptions["BaseUrl"]!);
+                httpClient.DefaultRequestHeaders.Add("apiKey", whatsAppOptions["ApiKey"]!);
+                httpClient.Timeout = TimeSpan.FromSeconds(30);
+            })
+            .AddPolicyHandler((serviceProvider, request) =>
+            {
+                var logger = serviceProvider.GetRequiredService<ILogger<WhatsAppService>>();
                 var context = new Polly.Context { ["Logger"] = logger };
 
                 return HttpPolicyFactory.GetCombinedPolicy(retryCount: 3, timeoutSeconds: 30);

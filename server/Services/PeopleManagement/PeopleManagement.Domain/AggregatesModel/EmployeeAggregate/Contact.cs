@@ -74,6 +74,13 @@ namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
         public bool CellPhoneIsEmpty => CellPhone == string.Empty;
         public bool EmailIsEmpty => Email == string.Empty;
 
+        public string GetCellPhoneWithCoutryNumber()
+        {
+            if (CellPhoneIsEmpty)
+                return string.Empty;
+            return "55" + CellPhone;
+        }
+
         protected override IEnumerable<object> GetEqualityComponents()
         {
             yield return Email; 

@@ -9,7 +9,7 @@ class Observation extends TextPropBase {
   @override
   String? validate(String? value) {
     if (value == null || value.isEmpty) {
-      return "O $displayName não pode ser vazio.";
+      return null;
     }
     if (value.length > 100) {
       return "o $displayName não pode ser maior que 100 caracteres.";

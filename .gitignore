@@ -12,6 +12,13 @@ server/data/*
 
 client/rufino/secrets/*
 
+# Environment variables
+*.env
+.env
+.env.*
+!.env.example
+!*template.env
+
 
 
 # Created by https://www.toptal.com/developers/gitignore/api/csharp,dotnetcore,aspnetcore

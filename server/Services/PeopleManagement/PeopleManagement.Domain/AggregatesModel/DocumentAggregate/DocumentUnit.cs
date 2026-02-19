@@ -31,6 +31,8 @@ namespace PeopleManagement.Domain.AggregatesModel.DocumentAggregate
         public DateOnly Date { get; private set; }
         public Guid DocumentId { get; private set; }
         public Document Document { get; private set; } = null!;
+        public string? SignatureDocumentToken { get; private set; }
+        public string? SignatureUrl { get; private set; }
 
         private DocumentUnit() { }
         private DocumentUnit(Guid id, Document document) : base(id)
@@ -165,7 +167,12 @@ namespace PeopleManagement.Domain.AggregatesModel.DocumentAggregate
         public bool CanEdit => (Name == null || Name.IsNullOrEmpty) && Extension == null;
 
         private bool HasInvalidDateOrValidity => Date == DateOnly.MinValue || Date == DateOnly.MaxValue || (Validity != null && (Validity == DateOnly.MinValue || Validity == DateOnly.MaxValue));
-        
+
+        public void SetSignatureInfo(string documentToken, string signatureUrl)
+        {
+            SignatureDocumentToken = documentToken;
+            SignatureUrl = signatureUrl;
+        }
 
     }
 }
