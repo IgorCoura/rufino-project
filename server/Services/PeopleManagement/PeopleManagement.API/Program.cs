@@ -31,8 +31,6 @@ builder.WebHost.ConfigureKestrel(serverOptions =>
 var env = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT");
 
 //Config DataBase
-var a = builder.Configuration.GetConnectionString("Postgresql");
-
 builder.Services.AddDbContextFactory<PeopleManagementContext>(options =>
 {
     options.UseNpgsql(
@@ -103,13 +101,11 @@ using var scope = app.Services.CreateScope();
 var services = scope.ServiceProvider;
 
 var context = services.GetRequiredService<PeopleManagementContext>();
+context.Database.ExecuteSqlRaw($"CREATE SCHEMA IF NOT EXISTS {PeopleManagementContext.DEFAULT_SCHEMA}");
 if (context.Database.GetPendingMigrations().Any())
 {
     context.Database.Migrate();
 }
-
-
-
 
 // Configure the HTTP request pipeline.
 if (env != null && env.Equals("Development"))
