@@ -56,6 +56,7 @@ namespace PeopleManagement.Infra.Context
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
+            modelBuilder.HasDefaultSchema(DEFAULT_SCHEMA);
             modelBuilder.ApplyConfiguration(new ArchiveCategoryMap());
             modelBuilder.ApplyConfiguration(new ArchiveMap());
             modelBuilder.ApplyConfiguration(new ClientRequestMap());
