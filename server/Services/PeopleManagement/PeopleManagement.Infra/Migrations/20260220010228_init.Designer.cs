@@ -13,7 +13,7 @@ using PeopleManagement.Infra.Context;
 namespace PeopleManagement.Infra.Migrations
 {
     [DbContext(typeof(PeopleManagementContext))]
-    [Migration("20260219215557_init")]
+    [Migration("20260220010228_init")]
     partial class init
     {
         /// <inheritdoc />
@@ -21,6 +21,7 @@ namespace PeopleManagement.Infra.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
+                .HasDefaultSchema("people_management")
                 .HasAnnotation("ProductVersion", "9.0.3")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
@@ -38,7 +39,7 @@ namespace PeopleManagement.Infra.Migrations
 
                     b.HasIndex("RequireDocumentsId");
 
-                    b.ToTable("DocumentTemplateRequireDocuments");
+                    b.ToTable("DocumentTemplateRequireDocuments", "people_management");
                 });
 
             modelBuilder.Entity("PeopleManagement.Domain.AggregatesModel.ArchiveAggregate.Archive", b =>
@@ -72,7 +73,7 @@ namespace PeopleManagement.Infra.Migrations
 
                     b.HasIndex("OwnerId");
 
-                    b.ToTable("Archives");
+                    b.ToTable("Archives", "people_management");
                 });
 
             modelBuilder.Entity("PeopleManagement.Domain.AggregatesModel.ArchiveCategoryAggregate.ArchiveCategory", b =>
@@ -107,7 +108,7 @@ namespace PeopleManagement.Infra.Migrations
 
                     b.HasIndex("CompanyId");
 
-                    b.ToTable("ArchiveCategories");
+                    b.ToTable("ArchiveCategories", "people_management");
                 });
 
             modelBuilder.Entity("PeopleManagement.Domain.AggregatesModel.CompanyAggregate.Company", b =>
@@ -138,7 +139,7 @@ namespace PeopleManagement.Infra.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("Companies");
+                    b.ToTable("Companies", "people_management");
                 });
 
             modelBuilder.Entity("PeopleManagement.Domain.AggregatesModel.DepartmentAggregate.Department", b =>
@@ -169,7 +170,7 @@ namespace PeopleManagement.Infra.Migrations
 
                     b.HasIndex("CompanyId");
 
-                    b.ToTable("Departments");
+                    b.ToTable("Departments", "people_management");
                 });
 
             modelBuilder.Entity("PeopleManagement.Domain.AggregatesModel.DocumentAggregate.Document", b =>
@@ -218,7 +219,7 @@ namespace PeopleManagement.Infra.Migrations
 
                     b.HasIndex("RequiredDocumentId");
 
-                    b.ToTable("Documents");
+                    b.ToTable("Documents", "people_management");
                 });
 
             modelBuilder.Entity("PeopleManagement.Domain.AggregatesModel.DocumentAggregate.DocumentUnit", b =>
@@ -267,7 +268,7 @@ namespace PeopleManagement.Infra.Migrations
 
                     b.HasIndex("DocumentId");
 
-                    b.ToTable("DocumentsUnits");
+                    b.ToTable("DocumentsUnits", "people_management");
                 });
 
             modelBuilder.Entity("PeopleManagement.Domain.AggregatesModel.DocumentGroupAggregate.DocumentGroup", b =>
@@ -298,7 +299,7 @@ namespace PeopleManagement.Infra.Migrations
 
                     b.HasIndex("CompanyId");
 
-                    b.ToTable("DocumentGroups");
+                    b.ToTable("DocumentGroups", "people_management");
                 });
 
             modelBuilder.Entity("PeopleManagement.Domain.AggregatesModel.DocumentTemplateAggregate.DocumentTemplate", b =>
@@ -340,7 +341,7 @@ namespace PeopleManagement.Infra.Migrations
 
                     b.HasIndex("DocumentGroupId");
 
-                    b.ToTable("DocumentTemplates");
+                    b.ToTable("DocumentTemplates", "people_management");
                 });
 
             modelBuilder.Entity("PeopleManagement.Domain.AggregatesModel.EmployeeAggregate.Employee", b =>
@@ -393,7 +394,7 @@ namespace PeopleManagement.Infra.Migrations
 
                     b.HasIndex("WorkPlaceId");
 
-                    b.ToTable("Employees");
+                    b.ToTable("Employees", "people_management");
                 });
 
             modelBuilder.Entity("PeopleManagement.Domain.AggregatesModel.PositionAggregate.Position", b =>
@@ -434,7 +435,7 @@ namespace PeopleManagement.Infra.Migrations
 
                     b.HasIndex("DepartmentId");
 
-                    b.ToTable("Positions");
+                    b.ToTable("Positions", "people_management");
                 });
 
             modelBuilder.Entity("PeopleManagement.Domain.AggregatesModel.RequireDocumentsAggregate.RequireDocuments", b =>
@@ -477,7 +478,7 @@ namespace PeopleManagement.Infra.Migrations
 
                     b.HasIndex("CompanyId");
 
-                    b.ToTable("RequireDocuments");
+                    b.ToTable("RequireDocuments", "people_management");
                 });
 
             modelBuilder.Entity("PeopleManagement.Domain.AggregatesModel.RoleAggregate.Role", b =>
@@ -518,7 +519,7 @@ namespace PeopleManagement.Infra.Migrations
 
                     b.HasIndex("PositionId");
 
-                    b.ToTable("Roles");
+                    b.ToTable("Roles", "people_management");
                 });
 
             modelBuilder.Entity("PeopleManagement.Domain.AggregatesModel.WebHookAggregate.WebHook", b =>
@@ -545,7 +546,7 @@ namespace PeopleManagement.Infra.Migrations
                     b.HasIndex("Event")
                         .IsUnique();
 
-                    b.ToTable("WebHooks");
+                    b.ToTable("WebHooks", "people_management");
                 });
 
             modelBuilder.Entity("PeopleManagement.Domain.AggregatesModel.WorkplaceAggregate.Workplace", b =>
@@ -571,7 +572,7 @@ namespace PeopleManagement.Infra.Migrations
 
                     b.HasIndex("CompanyId");
 
-                    b.ToTable("Workplaces");
+                    b.ToTable("Workplaces", "people_management");
                 });
 
             modelBuilder.Entity("PeopleManagement.Infra.Idempotency.ClientRequest", b =>
@@ -589,7 +590,7 @@ namespace PeopleManagement.Infra.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("ClientRequests");
+                    b.ToTable("ClientRequests", "people_management");
                 });
 
             modelBuilder.Entity("DocumentTemplateRequireDocuments", b =>
@@ -650,7 +651,7 @@ namespace PeopleManagement.Infra.Migrations
 
                             b1.HasIndex("ArchiveId");
 
-                            b1.ToTable("File");
+                            b1.ToTable("File", "people_management");
 
                             b1.WithOwner()
                                 .HasForeignKey("ArchiveId");
@@ -717,7 +718,7 @@ namespace PeopleManagement.Infra.Migrations
 
                             b1.HasKey("CompanyId");
 
-                            b1.ToTable("Companies");
+                            b1.ToTable("Companies", "people_management");
 
                             b1.WithOwner()
                                 .HasForeignKey("CompanyId");
@@ -740,7 +741,7 @@ namespace PeopleManagement.Infra.Migrations
 
                             b1.HasKey("CompanyId");
 
-                            b1.ToTable("Companies");
+                            b1.ToTable("Companies", "people_management");
 
                             b1.WithOwner()
                                 .HasForeignKey("CompanyId");
@@ -854,7 +855,7 @@ namespace PeopleManagement.Infra.Migrations
 
                             b1.HasKey("DocumentTemplateId", "Id");
 
-                            b1.ToTable("PlaceSignature");
+                            b1.ToTable("PlaceSignature", "people_management");
 
                             b1.WithOwner()
                                 .HasForeignKey("DocumentTemplateId");
@@ -891,7 +892,7 @@ namespace PeopleManagement.Infra.Migrations
 
                             b1.HasKey("DocumentTemplateId");
 
-                            b1.ToTable("DocumentTemplates");
+                            b1.ToTable("DocumentTemplates", "people_management");
 
                             b1.WithOwner()
                                 .HasForeignKey("DocumentTemplateId");
@@ -969,7 +970,7 @@ namespace PeopleManagement.Infra.Migrations
 
                             b1.HasKey("EmployeeId");
 
-                            b1.ToTable("Employees");
+                            b1.ToTable("Employees", "people_management");
 
                             b1.WithOwner()
                                 .HasForeignKey("EmployeeId");
@@ -992,7 +993,7 @@ namespace PeopleManagement.Infra.Migrations
 
                             b1.HasKey("EmployeeId");
 
-                            b1.ToTable("Employees");
+                            b1.ToTable("Employees", "people_management");
 
                             b1.WithOwner()
                                 .HasForeignKey("EmployeeId");
@@ -1022,7 +1023,7 @@ namespace PeopleManagement.Infra.Migrations
 
                             b1.HasKey("EmployeeId", "Id");
 
-                            b1.ToTable("Dependent");
+                            b1.ToTable("Dependent", "people_management");
 
                             b1.WithOwner()
                                 .HasForeignKey("EmployeeId");
@@ -1070,7 +1071,7 @@ namespace PeopleManagement.Infra.Migrations
 
                                     b2.HasKey("DependentEmployeeId", "DependentId");
 
-                                    b2.ToTable("Dependent");
+                                    b2.ToTable("Dependent", "people_management");
 
                                     b2.WithOwner()
                                         .HasForeignKey("DependentEmployeeId", "DependentId");
@@ -1120,7 +1121,7 @@ namespace PeopleManagement.Infra.Migrations
 
                             b1.HasKey("EmployeeId");
 
-                            b1.ToTable("Employees");
+                            b1.ToTable("Employees", "people_management");
 
                             b1.WithOwner()
                                 .HasForeignKey("EmployeeId");
@@ -1148,7 +1149,7 @@ namespace PeopleManagement.Infra.Migrations
 
                             b1.HasKey("EmployeeId", "Id");
 
-                            b1.ToTable("EmploymentContract");
+                            b1.ToTable("EmploymentContract", "people_management");
 
                             b1.WithOwner()
                                 .HasForeignKey("EmployeeId");
@@ -1169,7 +1170,7 @@ namespace PeopleManagement.Infra.Migrations
 
                             b1.HasKey("EmployeeId");
 
-                            b1.ToTable("Employees");
+                            b1.ToTable("Employees", "people_management");
 
                             b1.WithOwner()
                                 .HasForeignKey("EmployeeId");
@@ -1188,7 +1189,7 @@ namespace PeopleManagement.Infra.Migrations
 
                             b1.HasKey("EmployeeId");
 
-                            b1.ToTable("Employees");
+                            b1.ToTable("Employees", "people_management");
 
                             b1.WithOwner()
                                 .HasForeignKey("EmployeeId");
@@ -1211,7 +1212,7 @@ namespace PeopleManagement.Infra.Migrations
 
                             b1.HasKey("EmployeeId");
 
-                            b1.ToTable("Employees");
+                            b1.ToTable("Employees", "people_management");
 
                             b1.WithOwner()
                                 .HasForeignKey("EmployeeId");
@@ -1236,7 +1237,7 @@ namespace PeopleManagement.Infra.Migrations
 
                             b1.HasKey("EmployeeId");
 
-                            b1.ToTable("Employees");
+                            b1.ToTable("Employees", "people_management");
 
                             b1.WithOwner()
                                 .HasForeignKey("EmployeeId");
@@ -1257,7 +1258,7 @@ namespace PeopleManagement.Infra.Migrations
 
                                     b2.HasKey("PersonalInfoEmployeeId");
 
-                                    b2.ToTable("Employees");
+                                    b2.ToTable("Employees", "people_management");
 
                                     b2.WithOwner()
                                         .HasForeignKey("PersonalInfoEmployeeId");
@@ -1329,7 +1330,7 @@ namespace PeopleManagement.Infra.Migrations
 
                             b1.HasKey("RequireDocumentsId", "Id");
 
-                            b1.ToTable("ListenEvent");
+                            b1.ToTable("ListenEvent", "people_management");
 
                             b1.WithOwner()
                                 .HasForeignKey("RequireDocumentsId");
@@ -1367,7 +1368,7 @@ namespace PeopleManagement.Infra.Migrations
 
                             b1.HasKey("RoleId");
 
-                            b1.ToTable("Roles");
+                            b1.ToTable("Roles", "people_management");
 
                             b1.WithOwner()
                                 .HasForeignKey("RoleId");
@@ -1387,7 +1388,7 @@ namespace PeopleManagement.Infra.Migrations
 
                                     b2.HasKey("RemunerationRoleId");
 
-                                    b2.ToTable("Roles");
+                                    b2.ToTable("Roles", "people_management");
 
                                     b2.WithOwner()
                                         .HasForeignKey("RemunerationRoleId");
@@ -1456,7 +1457,7 @@ namespace PeopleManagement.Infra.Migrations
 
                             b1.HasKey("WorkplaceId");
 
-                            b1.ToTable("Workplaces");
+                            b1.ToTable("Workplaces", "people_management");
 
                             b1.WithOwner()
                                 .HasForeignKey("WorkplaceId");
