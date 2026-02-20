@@ -31,6 +31,8 @@ namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
             }
         }
 
+        public string FirstName => _value.Split(' ').FirstOrDefault() ?? string.Empty;
+
         private Name(){
         }
 

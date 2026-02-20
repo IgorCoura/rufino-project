@@ -1,4 +1,5 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿using MediatR;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using PeopleManagement.Domain.AggregatesModel.DocumentAggregate;
@@ -6,7 +7,9 @@ using PeopleManagement.Domain.AggregatesModel.DocumentAggregate.Interfaces;
 using PeopleManagement.Domain.AggregatesModel.DocumentTemplateAggregate;
 using PeopleManagement.Domain.AggregatesModel.DocumentTemplateAggregate.Interfaces;
 using PeopleManagement.Domain.AggregatesModel.DocumentTemplateAggregate.options;
+using PeopleManagement.Domain.AggregatesModel.EmployeeAggregate.Events;
 using PeopleManagement.Domain.AggregatesModel.EmployeeAggregate.Interfaces;
+using PeopleManagement.Domain.AggregatesModel.RequireDocumentsAggregate;
 using PeopleManagement.Domain.AggregatesModel.RequireDocumentsAggregate.Interfaces;
 using PeopleManagement.Domain.ErrorTools;
 using PeopleManagement.Domain.ErrorTools.ErrorsMessages;
@@ -52,25 +55,51 @@ namespace PeopleManagement.Services.Services
             var employee = await _employeeRepository.FirstOrDefaultMemoryOrDatabase(x => x.Id == employeeId && x.CompanyId == companyId) 
                 ?? throw new ArgumentNullException(nameof(Employee));
 
-            var requiedDocuments = await _requireDocumentsRepository.GetAllWithEventId(employeeId, companyId, eventId, cancellationToken);
+            //var requiedDocuments = await _requireDocumentsRepository.GetAllWithEventId(employeeId, companyId, eventId, cancellationToken);
+            var requiedDocuments = await _requireDocumentsRepository.GetAllByCompanyEventAndAssociations(companyId, eventId, employee.GetAllPossibleAssociationIds(), cancellationToken);
 
-            foreach(var requiedDocument in requiedDocuments)
-            {
-               
+            foreach (var requiedDocument in requiedDocuments)
+            {       
                 var isAccepted = requiedDocument.StatusIsAccepted(eventId, employee.Status.Id);
 
                 if (isAccepted == false)
                     continue;
 
-                var documents = await _documentRepository.GetDataAsync(x => x.EmployeeId == employeeId 
-                && x.CompanyId == companyId && x.RequiredDocumentId == requiedDocument.Id, include: i => i.Include(x => x.DocumentsUnits));
-               
-                foreach(Document document in documents)
+                foreach(var templateId in requiedDocument.DocumentsTemplatesIds)
                 {
-                    var documentUnitId = Guid.NewGuid();
+                    Document? document = await _documentRepository.FirstOrDefaultAsync(x => x.DocumentTemplateId == templateId 
+                    && x.EmployeeId == employee.Id, cancellation: cancellationToken);
 
-                    document!.NewDocumentUnit(documentUnitId);
+                    if(document is null)
+                    {
+                        DocumentTemplate? documentTemplate = await _documentTemplateRepository.FirstOrDefaultAsync(x =>
+                         x.Id == templateId && x.CompanyId == companyId, cancellation: cancellationToken);
+
+                        if (documentTemplate is null)
+                        {
+                            _logger.LogError("Document template with ID {TemplateId} not found for company {CompanyId}.",
+                                templateId, companyId);
+                            continue;
+                        }
+
+                        var documentId = Guid.NewGuid();
+                        document = Document.Create(documentId, employee.Id, companyId, requiedDocument.Id, templateId, documentTemplate.Name.Value, documentTemplate.Description.Value);
+                        await _documentRepository.InsertAsync(document, cancellationToken);
+                    }
+
+                    var documentUnitId = Guid.NewGuid();
+                    document.NewDocumentUnit(documentUnitId);
                 }
+
+                //var documents = await _documentRepository.GetDataAsync(x => x.EmployeeId == employeeId 
+                //&& x.CompanyId == companyId && x.RequiredDocumentId == requiedDocument.Id, include: i => i.Include(x => x.DocumentsUnits));
+               
+                //foreach(Document document in documents)
+                //{
+                //    var documentUnitId = Guid.NewGuid();
+
+                //    document!.NewDocumentUnit(documentUnitId);
+                //}
 
             }
 
@@ -235,6 +264,8 @@ namespace PeopleManagement.Services.Services
                         TimeSpan.FromHours(_documentTemplatesOptions.MaxHoursWorkload)));
             }
         }
+
+
 
 
     }
