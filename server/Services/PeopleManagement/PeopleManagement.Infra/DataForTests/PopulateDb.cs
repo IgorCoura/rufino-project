@@ -69,17 +69,17 @@ namespace PeopleManagement.Infra.DataForTests
             var comapnies = new[] {
                 Company.Create(
                     Guid.Parse("0f0bea88-cc0e-482b-b89a-e10999f8cb5e"),
-                    "Anderson e Fátima Entulhos ME",
-                    "Anderson e Fátima Entulhos",
-                    "83.559.705/0001-70",
-                    CompanyContact.Create("compras@andersonefatimaentulhosme.com.br", "(17) 98301-7063"),
+                    "RUFINO - EMPREITEIRA DE ELETRICA E HIDRAULICA S/S LTDA",
+                    "RUFINO EMPREITEIRA",
+                    "02.624.917/0001-92",
+                    CompanyContact.Create("rufino@rufinoempreiteira.com.br", "(17) 99571-5009"),
                     CompanyAddress.Create(
-                        "14704-066",
-                        "Rua Botafogo",
-                        "504",
-                        "",
-                        "Jardim 3 Marias",
-                        "Bebedouro",
+                        "08655-730",
+                        "Rua Carim Jorge",
+                        "325",
+                        "CASA 2",
+                        "Jardim Nova America",
+                        "Suzano",
                         "São Paulo",
                         "Brasil"
                     ) ),
@@ -107,8 +107,9 @@ namespace PeopleManagement.Infra.DataForTests
         {
             var departments = new[]
             {
-                Department.Create(Guid.Parse("6ee46bc9-f952-4092-bc53-37a9929f5c2d"),"Tecnologia", "Departamento de tecnologia.", companyId),
-                Department.Create(Guid.Parse("748440fc-9458-498e-8baa-c0b299315ba8"), "Recursos Humanos", "Departamento de recursos humanos.", companyId),
+                Department.Create(Guid.Parse("6ee46bc9-f952-4092-bc53-37a9929f5c2d"),"HIDRAULICA", "Setor de hidraulica.", companyId),
+                Department.Create(Guid.Parse("748440fc-9458-498e-8baa-c0b299315ba8"), "ELETRICA", "Setor de eletrica.", companyId),
+                Department.Create(Guid.Parse("1e7ad13f-90a9-41b8-b143-95060c7dafd8"), "ADMINISTRAÇÃO DE OBRA", "Setor de administração de obra.", companyId),
             };
             return departments;
         }
@@ -117,10 +118,13 @@ namespace PeopleManagement.Infra.DataForTests
         {
             var positions = new[]
             {
-                Position.Create(Guid.Parse("91836bca-26f3-48aa-9846-ad826e2392dc"), "Engenheiro de Software", "Resposavel por criar softwares", "235846", departamentId[0], companydId),
-                Position.Create(Guid.Parse("55826abb-b8db-4ba6-b946-c5de12d927a6"), "Engenheiro de dados", "Resposavel por analisar dados", "125489", departamentId[0], companydId),
-                Position.Create(Guid.Parse("B8CA9103-6EBA-4947-A422-FEA713912F80"), "Analista de RH", "Resposavel por analisar o RH", "348596", departamentId[1], companydId),
-                Position.Create(Guid.Parse("A77201C3-2455-4E85-905F-0964DD22B8B1"), "Gerente de RH", "Resposavel pelo RH", "745825", departamentId[1], companydId),
+                Position.Create(Guid.Parse("91836bca-26f3-48aa-9846-ad826e2392dc"), "ENCARREGADO DE HIDRAULICA", "Coordena e supervisiona as atividades relacionadas a área hidráulica. Participa ativamente do planejamento das atividades hidráulicas, auxiliando na elaboração de cronogramas, definição de recursos necessários e contribuindo para a aquisição de materiais e equipamentos. Assegurando que todas as tarefas sejam realizadas de acordo com as normas de segurança, qualidade e prazos estabelecidos. Realiza instalação, manutenção e inspeção de sistemas hidráulicos (tubulações de água, gás, esgoto e outros líquidos). Em situações de problemas técnicos ou imprevistos, é de sua responsabilidade identificar, propor e auxiliar com soluções adequadas para garantir o bom andamento dos trabalhos, siga as normas de segurança e esteja ciente dos riscos envolvidos nas atividades de hidráulica. Outra atribuição é manter registros e documentação das atividades realizadas, elaborando relatório de progresso, incidentes de segurança e outras informações relevantes.", "724110", departamentId[0], companydId),
+                Position.Create(Guid.Parse("55826abb-b8db-4ba6-b946-c5de12d927a6"), "ENCANADOR", "Responsável pela instalação, manutenção e inspeção de sistemas hidráulicos (tubulações de água, gás, esgoto e outros líquidos) em conformidade com as normas técnicas e de segurança vigentes, organização e transporte de materiais e ferramentas. Deve executar os projetos fornecidos, garantindo a correta implantação. Realiza as manutenções preventivas, corretivas e preditivas em sistemas hidráulicos já existentes. Deve executar testes de funcionamento e avaliação da eficiência dos sistemas. Também é responsável por dimensionar os materiais e equipamentos necessários, calcular os custos e o tempo de execução para os serviços. Ainda, é incumbido de manter o local de trabalho limpo e organizado, garantindo a segurança e eficiência dos serviços sob sua responsabilidade.", "724110", departamentId[0], companydId),
+                Position.Create(Guid.Parse("B8CA9103-6EBA-4947-A422-FEA713912F80"), "AJUDANTE DE HIDRAULICA", "Auxilia na instalação, manutenção e inspeção de sistemas hidráulicos (tubulações de água, gás, esgoto e outros líquidos). Realiza a limpeza e preparação das áreas de trabalho antes e após a conclusão das tarefas. Executa tarefas simples de manutenção preventiva e instalações de sistemas hidráulicos, com a orientação do Encanador responsável. Mantem o local de trabalho limpo e organizado, recolhendo resíduos, limpando ferramentas e garantindo a segurança do ambiente.", "724110", departamentId[0], companydId),
+                Position.Create(Guid.Parse("A77201C3-2455-4E85-905F-0964DD22B8B1"), "ALMOXARIFE", "Responsável por recepcionar, conferir e armazenar produtos, materiais e ferramentas, bem como efetuar os lançamentos das movimentações de entradas e saídas para controle de estoques. Distribui produtos e materiais a serem expedidos. Organiza e mantem a limpeza do almoxarifado para facilitar a movimentação dos itens armazenados e a serem armazenados. Também é incumbido de controlar a entrega de ferramentas e equipamentos de proteção individual (EPIs). Receber, armazenar e organizar a documentação da obra. Realizar a limpeza e manutenção preventiva das ferramentas para garantir o seu bom funcionamento.", "414105", departamentId[2], companydId),
+                Position.Create(Guid.Parse("4c27ee6a-135d-4a9b-ae5c-ca386edfa62b"), "ENCARREGADO DE ELÉTRICA", "Coordena e supervisiona as atividades relacionadas a área elétrica. Participa ativamente do planejamento das atividades elétricas, auxiliando na elaboração de cronogramas, definição de recursos necessários e contribuindo para a aquisição de materiais e equipamentos. Assegurando que todas as tarefas sejam realizadas de acordo com as normas de segurança, qualidade e prazos estabelecidos. Realiza instalação, manutenção e inspeção de sistemas elétricos de baixa tensão. Em situações de problemas técnicos ou imprevistos, é de sua responsabilidade identificar, propor e auxiliar com soluções adequadas para garantir o bom andamento dos trabalhos, siga as normas de segurança e esteja ciente dos riscos envolvidos nas atividades elétricas. Outra atribuição é manter registros e documentação das atividades realizadas, elaborando relatório de progresso, incidentes de segurança e outras informações relevantes.", "715615", departamentId[1], companydId),
+                Position.Create(Guid.Parse("fae69065-7b6d-44ff-a95a-caa9aeef7896"), "ELETRICISTA", "Responsável pela instalação, manutenção e inspeção de sistemas elétricos de baixa tensão em conformidade com as normas técnicas e de segurança vigentes. Deve executar os projetos fornecidos, garantindo a correta implantação das instalações elétricas. Realiza manutenções preventivas, corretivas e preditivas em sistemas elétricos existentes, incluindo limpeza e lubrificação de componentes, testes de funcionamento e avaliação da eficiência energética dos sistemas. Também é responsável por dimensionar os materiais e equipamentos necessários, calcular os custos e o tempo de execução. Ainda, é incumbido de manter o local de trabalho limpo e organizado, garantindo a segurança e eficiência dos sistemas elétricos sob sua responsabilidade.", "715615", departamentId[1], companydId),
+                Position.Create(Guid.Parse("648dbfc6-06ad-410a-9207-515d4a0f6c60"), "AJUDANTE DE ELETRICA", "Auxilia na montagem de infraestruturas elétricas, passagem de cabos, organização e transporte de materiais e ferramentas. Realiza a limpeza e preparação das áreas de trabalho antes e após a conclusão das tarefas. Executa tarefas simples de manutenção preventiva e instalação de equipamentos elétricos e sistemas de iluminação, com a orientação do Eletricista responsável. Presta apoio ao Eletricista durante a realização de testes e medições nos sistemas elétricos.", "715615", departamentId[1], companydId),
             };
             return positions;
         }
@@ -129,14 +133,13 @@ namespace PeopleManagement.Infra.DataForTests
         {
             var roles = new[]
             {
-                Role.Create(Guid.Parse("ef0dee7d-730e-4bc5-a302-bd85f6bc21cb"), "Engenheiro de Software Junior", "Resposavel por criar softwares", "985685" , Remuneration.Create(PaymentUnit.PerHour, Currency.Create(CurrencyType.BRL, "35"), "Pagamento Eng Junior" ), positionId[0], companydId),
-                Role.Create(Guid.Parse("797361a8-23ce-4372-9119-a932b413be84"), "Engenheiro de Software Senior", "Resposavel por criar softwares", "458256", Remuneration.Create(PaymentUnit.PerHour, Currency.Create(CurrencyType.BRL, "34"), "Pagamento Eng Senior" ), positionId[0], companydId),
-                Role.Create(Guid.Parse("F1C821B8-FA47-404A-A03A-D6300F56EE1B"), "Engenheiro de Dados Junior", "Resposavel por criar dados", "456786" , Remuneration.Create(PaymentUnit.PerHour, Currency.Create(CurrencyType.BRL, "80"), "Pagamento Eng Junior" ), positionId[1], companydId),
-                Role.Create(Guid.Parse("33716EF9-7FD1-4A58-B4F2-80EC6686348B"), "Engenheiro de Dados Senior", "Resposavel por criar dados", "564329", Remuneration.Create(PaymentUnit.PerHour, Currency.Create(CurrencyType.BRL, "78"), "Pagamento Eng Senior" ), positionId[1], companydId),
-                Role.Create(Guid.Parse("60D16F67-D30D-4EDD-A4A2-D0D248F75CCF"), "Analista de RH Senior", "Resposavel por administrar RH", "452587" , Remuneration.Create(PaymentUnit.PerHour, Currency.Create(CurrencyType.BRL, "32"), "Pagamento AS Senior" ), positionId[2], companydId),
-                Role.Create(Guid.Parse("2E4F65AF-4912-4078-8C4B-2E30E97D2E60"), "Analista de RH Junior", "Resposavel por auxilair RH", "525856", Remuneration.Create(PaymentUnit.PerHour, Currency.Create(CurrencyType.BRL, "42"), "Pagamento AS Senior" ), positionId[2], companydId),
-                Role.Create(Guid.Parse("7CB25904-65E4-456A-8769-3418570638EC"), "Gerente de RH Senior", "Resposavel por gerenciar RH", "452587" , Remuneration.Create(PaymentUnit.PerHour, Currency.Create(CurrencyType.BRL, "55"), "Pagamento GE Junior" ), positionId[3], companydId),
-                Role.Create(Guid.Parse("260466D0-BD50-4C17-9284-136A6849A52A"), "Gerente de RH Junior", "Resposavel por auxilair a gerenciar RH", "525856", Remuneration.Create(PaymentUnit.PerHour, Currency.Create(CurrencyType.BRL, "49"), "Pagamento GE Junior" ), positionId[3], companydId),
+                Role.Create(Guid.Parse("ef0dee7d-730e-4bc5-a302-bd85f6bc21cb"), "ENCARREGADO DE HIDRAULICA", "Coordena e supervisiona as atividades relacionadas a área hidráulica. Participa ativamente do planejamento das atividades hidráulicas, auxiliando na elaboração de cronogramas, definição de recursos necessários e contribuindo para a aquisição de materiais e equipamentos. Assegurando que todas as tarefas sejam realizadas de acordo com as normas de segurança, qualidade e prazos estabelecidos. Realiza instalação, manutenção e inspeção de sistemas hidráulicos (tubulações de água, gás, esgoto e outros líquidos). Em situações de problemas técnicos ou imprevistos, é de sua responsabilidade identificar, propor e auxiliar com soluções adequadas para garantir o bom andamento dos trabalhos, siga as normas de segurança e esteja ciente dos riscos envolvidos nas atividades de hidráulica. Outra atribuição é manter registros e documentação das atividades realizadas, elaborando relatório de progresso, incidentes de segurança e outras informações relevantes.", "724110", Remuneration.Create(PaymentUnit.PerHour, Currency.Create(CurrencyType.BRL, "12.25"), "Pagamento por hora" ), positionId[0], companydId),
+                Role.Create(Guid.Parse("797361a8-23ce-4372-9119-a932b413be84"), "ENCANADOR", "Responsável pela instalação, manutenção e inspeção de sistemas hidráulicos (tubulações de água, gás, esgoto e outros líquidos) em conformidade com as normas técnicas e de segurança vigentes, organização e transporte de materiais e ferramentas. Deve executar os projetos fornecidos, garantindo a correta implantação. Realiza as manutenções preventivas, corretivas e preditivas em sistemas hidráulicos já existentes. Deve executar testes de funcionamento e avaliação da eficiência dos sistemas. Também é responsável por dimensionar os materiais e equipamentos necessários, calcular os custos e o tempo de execução para os serviços. Ainda, é incumbido de manter o local de trabalho limpo e organizado, garantindo a segurança e eficiência dos serviços sob sua responsabilidade.", "724110", Remuneration.Create(PaymentUnit.PerHour, Currency.Create(CurrencyType.BRL, "11.25"), "Pagamento por hora" ), positionId[1], companydId),
+                Role.Create(Guid.Parse("F1C821B8-FA47-404A-A03A-D6300F56EE1B"), "AJUDANTE DE HIDRAULICA", "Auxilia na instalação, manutenção e inspeção de sistemas hidráulicos (tubulações de água, gás, esgoto e outros líquidos). Realiza a limpeza e preparação das áreas de trabalho antes e após a conclusão das tarefas. Executa tarefas simples de manutenção preventiva e instalações de sistemas hidráulicos, com a orientação do Encanador responsável. Mantem o local de trabalho limpo e organizado, recolhendo resíduos, limpando ferramentas e garantindo a segurança do ambiente.", "724110", Remuneration.Create(PaymentUnit.PerHour, Currency.Create(CurrencyType.BRL, "9.25"), "Pagamento por hora" ), positionId[2], companydId),
+                Role.Create(Guid.Parse("33716EF9-7FD1-4A58-B4F2-80EC6686348B"), "ALMOXARIFE", "Responsável por recepcionar, conferir e armazenar produtos, materiais e ferramentas, bem como efetuar os lançamentos das movimentações de entradas e saídas para controle de estoques. Distribui produtos e materiais a serem expedidos. Organiza e mantem a limpeza do almoxarifado para facilitar a movimentação dos itens armazenados e a serem armazenados. Também é incumbido de controlar a entrega de ferramentas e equipamentos de proteção individual (EPIs). Receber, armazenar e organizar a documentação da obra. Realizar a limpeza e manutenção preventiva das ferramentas para garantir o seu bom funcionamento.", "414105", Remuneration.Create(PaymentUnit.PerHour, Currency.Create(CurrencyType.BRL, "10.25"), "Pagamento por hora" ), positionId[3], companydId),
+                Role.Create(Guid.Parse("60D16F67-D30D-4EDD-A4A2-D0D248F75CCF"), "ENCARREGADO DE ELÉTRICA", "Coordena e supervisiona as atividades relacionadas a área elétrica. Participa ativamente do planejamento das atividades elétricas, auxiliando na elaboração de cronogramas, definição de recursos necessários e contribuindo para a aquisição de materiais e equipamentos. Assegurando que todas as tarefas sejam realizadas de acordo com as normas de segurança, qualidade e prazos estabelecidos. Realiza instalação, manutenção e inspeção de sistemas elétricos de baixa tensão. Em situações de problemas técnicos ou imprevistos, é de sua responsabilidade identificar, propor e auxiliar com soluções adequadas para garantir o bom andamento dos trabalhos, siga as normas de segurança e esteja ciente dos riscos envolvidos nas atividades elétricas. Outra atribuição é manter registros e documentação das atividades realizadas, elaborando relatório de progresso, incidentes de segurança e outras informações relevantes.", "715615", Remuneration.Create(PaymentUnit.PerHour, Currency.Create(CurrencyType.BRL, "12.25"), "Pagamento por hora" ), positionId[4], companydId),
+                Role.Create(Guid.Parse("2E4F65AF-4912-4078-8C4B-2E30E97D2E60"), "ELETRICISTA", "Responsável pela instalação, manutenção e inspeção de sistemas elétricos de baixa tensão em conformidade com as normas técnicas e de segurança vigentes. Deve executar os projetos fornecidos, garantindo a correta implantação das instalações elétricas. Realiza manutenções preventivas, corretivas e preditivas em sistemas elétricos existentes, incluindo limpeza e lubrificação de componentes, testes de funcionamento e avaliação da eficiência energética dos sistemas. Também é responsável por dimensionar os materiais e equipamentos necessários, calcular os custos e o tempo de execução. Ainda, é incumbido de manter o local de trabalho limpo e organizado, garantindo a segurança e eficiência dos sistemas elétricos sob sua responsabilidade.", "715615", Remuneration.Create(PaymentUnit.PerHour, Currency.Create(CurrencyType.BRL, "11.25"), "Pagamento por hora" ), positionId[5], companydId),
+                Role.Create(Guid.Parse("7CB25904-65E4-456A-8769-3418570638EC"), "AJUDANTE DE ELETRICA", "Auxilia na montagem de infraestruturas elétricas, passagem de cabos, organização e transporte de materiais e ferramentas. Realiza a limpeza e preparação das áreas de trabalho antes e após a conclusão das tarefas. Executa tarefas simples de manutenção preventiva e instalação de equipamentos elétricos e sistemas de iluminação, com a orientação do Eletricista responsável. Presta apoio ao Eletricista durante a realização de testes e medições nos sistemas elétricos.", "715615", Remuneration.Create(PaymentUnit.PerHour, Currency.Create(CurrencyType.BRL, "9.25"), "Pagamento por hora" ), positionId[6], companydId),
             };
             return roles;
         }
@@ -147,56 +150,30 @@ namespace PeopleManagement.Infra.DataForTests
             {
                 Workplace.Create(
                     Guid.Parse("f4b10503-73c3-41ae-aeb1-f8e9880679aa"),
-                    "Escritorio Matriz",
+                    "Sede",
                     WorkPlaceAddress.Create(
-                        "14704-066",
-                        "Rua Botafogo",
-                        "504",
-                        "",
-                        "Jardim 3 Marias",
-                        "Bebedouro",
+                        "08655-730",
+                        "Rua Carim Jorge",
+                        "325",
+                        "Casa 2",
+                        "Jardim Nova America",
+                        "Suzano",
                         "São Paulo",
                         "Brasil"),
                     companyId),
                 Workplace.Create(
                     Guid.Parse("a1b2c3d4-5678-90ab-cdef-1234567890ab"),
-                    "Escritorio Filial 1",
+                    "TRIADE - Century Plaza Prime Spe LTDA",
                     WorkPlaceAddress.Create(
-                        "11030-210",
-                        "Avenida Paulista",
-                        "1000",
-                        "Sala 101",
-                        "Bela Vista",
-                        "São Paulo",
+                        "12041-008",
+                        "Rua Benedito Freire Pinto",
+                        "65",
+                        "",
+                        "Residencial e Comercial Bosque Flamboya",
+                        "Taubate",
                         "São Paulo",
                         "Brasil"),
                     companyId),
-                Workplace.Create(
-                    Guid.Parse("b2c3d4e5-6789-01ab-cdef-2345678901bc"),
-                    "Escritorio Filial 2",
-                    WorkPlaceAddress.Create(
-                        "20040-020",
-                        "Rua da Assembleia",
-                        "200",
-                        "Andar 15",
-                        "Centro",
-                        "Rio de Janeiro",
-                        "Rio de Janeiro",
-                        "Brasil"),
-                    companyId),
-                Workplace.Create(
-                    Guid.Parse("c3d4e5f6-7890-12ab-cdef-3456789012cd"),
-                    "Escritorio Filial 3",
-                    WorkPlaceAddress.Create(
-                        "30140-010",
-                        "Avenida Afonso Pena",
-                        "1500",
-                        "Sala 202",
-                        "Centro",
-                        "Belo Horizonte",
-                        "Minas Gerais",
-                        "Brasil"),
-                    companyId)
             };
 
             return workplaces;
@@ -210,7 +187,7 @@ namespace PeopleManagement.Infra.DataForTests
                 FactoryEmployee(
                     Guid.Parse("18439da0-259e-45df-8ba4-197e1833e555"),
                     companyId,
-                    "Andrea Clara Valentina Jesus",
+                    "Igor de Brito Coura",
                     roles[0].Id,
                     workplaceId,
                     EmployeeAddress.Create(
@@ -224,13 +201,13 @@ namespace PeopleManagement.Infra.DataForTests
                         "Brasil"
                         ),
                     EmployeeContact.Create(
-                        "andrea_clara_jesus@inpa.gov.br",
-                        "(27) 99431-6916"
+                        "igor-coura@hotmail.com",
+                        "11968608425"
                         ),
                     PersonalInfo.Create(
                         Deficiency.Create("Nenhuma Observação", [Disability.Auditory, Disability.Mental, Disability.Rehabilitated]),
                         MaritalStatus.Single,
-                        Gender.FEMALE,
+                        Gender.MALE,
                         Ethinicity.White,
                         EducationLevel.CompleteHigher
                         ),
@@ -245,7 +222,7 @@ namespace PeopleManagement.Infra.DataForTests
                         ),
                     VoteId.Create("163053550736"),
                     MedicalAdmissionExam.Create(DateOnly.FromDateTime(DateTime.Now), DateOnly.FromDateTime(DateTime.Now).AddYears(1)),
-                    militaryDocument: null,
+                    militaryDocument: MilitaryDocument.Create("1234567", "Reservista"),
                     "TC0001",
                     DateOnly.Parse("2024-09-01"),
                     EmploymentContractType.CLT
@@ -351,43 +328,63 @@ namespace PeopleManagement.Infra.DataForTests
         public static ArchiveCategory[] CreateArchiveCategories(Guid companyId)
         {
             List<ArchiveCategory> categorie = [];
-            categorie.Add(ArchiveCategory.Create(Guid.Parse("e3b67736-42ce-41a6-9b1f-742dee98f106"), 
-                "RG", "Cateira de Identidade",
-                [EmployeeEvent.CREATED_EVENT], companyId));
-            categorie.Add(ArchiveCategory.Create(Guid.Parse("2fb2c14f-8a8a-4a27-9803-e356ff7f355e"), "TITULO DE ELEITOR", 
-                "Titulo de eleitor comprovando seu cadastro.",
-                [EmployeeEvent.CREATED_EVENT], companyId));
-            categorie.Add(ArchiveCategory.Create(Guid.Parse("45e26e0c-eda4-43bb-9ed2-d8178a3a9db3"), "COMPROVANTE DE ENDEREÇO", 
-                "Comprovante de endereço do funcionario.", [EmployeeEvent.CREATED_EVENT], companyId));
+            //categorie.Add(ArchiveCategory.Create(Guid.Parse("e3b67736-42ce-41a6-9b1f-742dee98f106"), 
+            //    "RG", "Cateira de Identidade",
+            //    [EmployeeEvent.CREATED_EVENT], companyId));
+            //categorie.Add(ArchiveCategory.Create(Guid.Parse("2fb2c14f-8a8a-4a27-9803-e356ff7f355e"), "TITULO DE ELEITOR", 
+            //    "Titulo de eleitor comprovando seu cadastro.",
+            //    [EmployeeEvent.CREATED_EVENT], companyId));
+            //categorie.Add(ArchiveCategory.Create(Guid.Parse("45e26e0c-eda4-43bb-9ed2-d8178a3a9db3"), "COMPROVANTE DE ENDEREÇO", 
+            //    "Comprovante de endereço do funcionario.", [EmployeeEvent.CREATED_EVENT], companyId));
 
-            categorie.Add(ArchiveCategory.Create(Guid.Parse("cd51b33a-f27e-43e2-8746-38ef9c62f141"), "CONTRATO DE ADMISSAO", 
-                "Contrato assinado de adimissao do funcionario.",
-                [EmployeeEvent.COMPLETE_ADMISSION_EVENT], companyId));
-            categorie.Add(ArchiveCategory.Create(Guid.Parse("e0a7a37b-d205-4bfe-abbf-e9c8bcc4909d"), "EXAME ADMISSIONAL", 
-                "Exame admissional do funcionario comprovando sua aptidão para a função.",
-                [EmployeeEvent.COMPLETE_ADMISSION_EVENT], companyId));
+            //categorie.Add(ArchiveCategory.Create(Guid.Parse("cd51b33a-f27e-43e2-8746-38ef9c62f141"), "CONTRATO DE ADMISSAO", 
+            //    "Contrato assinado de adimissao do funcionario.",
+            //    [EmployeeEvent.COMPLETE_ADMISSION_EVENT], companyId));
+            //categorie.Add(ArchiveCategory.Create(Guid.Parse("e0a7a37b-d205-4bfe-abbf-e9c8bcc4909d"), "EXAME ADMISSIONAL", 
+            //    "Exame admissional do funcionario comprovando sua aptidão para a função.",
+            //    [EmployeeEvent.COMPLETE_ADMISSION_EVENT], companyId));
 
-            categorie.Add(ArchiveCategory.Create(Guid.Parse("a64d9f71-0e22-4ff8-ba6d-0ba8b616cee5"), "DOCUMENTO DE IDENTIFICAÇÃO DO FILHO", 
-                "Documento de identificação do filho do funcionario com CPF.",
-                [EmployeeEvent.DEPENDENT_CHILD_CHANGE_EVENT], companyId));
+            //categorie.Add(ArchiveCategory.Create(Guid.Parse("a64d9f71-0e22-4ff8-ba6d-0ba8b616cee5"), "DOCUMENTO DE IDENTIFICAÇÃO DO FILHO", 
+            //    "Documento de identificação do filho do funcionario com CPF.",
+            //    [EmployeeEvent.DEPENDENT_CHILD_CHANGE_EVENT], companyId));
 
-            categorie.Add(ArchiveCategory.Create(Guid.Parse("2db92b0d-1042-4c93-9d68-d03690635803"), "DOCUMENTO MILITAR", 
-                "Documento de comprovação de alistamento e dispensa dos serviços militares obrigatorios.", 
-                [EmployeeEvent.MILITAR_DOCUMENT_CHANGE_EVENT], companyId));
+            //categorie.Add(ArchiveCategory.Create(Guid.Parse("2db92b0d-1042-4c93-9d68-d03690635803"), "DOCUMENTO MILITAR", 
+            //    "Documento de comprovação de alistamento e dispensa dos serviços militares obrigatorios.", 
+            //    [EmployeeEvent.MILITAR_DOCUMENT_CHANGE_EVENT], companyId));
 
-            categorie.Add(ArchiveCategory.Create(Guid.Parse("29295921-60c7-4cba-8268-571780a4452a"), "DOCUMENTO DE IDENTIFICAÇÃO DA ESPOSA", 
-                "Documento de identificação da esposa do funcionario.",
-                [EmployeeEvent.DEPENDENT_SPOUSE_CHANGE_EVENT], companyId));
+            //categorie.Add(ArchiveCategory.Create(Guid.Parse("29295921-60c7-4cba-8268-571780a4452a"), "DOCUMENTO DE IDENTIFICAÇÃO DA ESPOSA", 
+            //    "Documento de identificação da esposa do funcionario.",
+            //    [EmployeeEvent.DEPENDENT_SPOUSE_CHANGE_EVENT], companyId));
 
-            categorie.Add(ArchiveCategory.Create(Guid.Parse("8c693e2a-a0fa-4198-9058-0961c5eeefff"), "EXAME DEMISSIONAL", 
-                "Exame demissional do funcionario comprovando sua aptidão para a demissão.",
-                [EmployeeEvent.DEMISSIONAL_EXAM_REQUEST_EVENT], companyId));
+            //categorie.Add(ArchiveCategory.Create(Guid.Parse("8c693e2a-a0fa-4198-9058-0961c5eeefff"), "EXAME DEMISSIONAL", 
+            //    "Exame demissional do funcionario comprovando sua aptidão para a demissão.",
+            //    [EmployeeEvent.DEMISSIONAL_EXAM_REQUEST_EVENT], companyId));
 
-            categorie.Add(ArchiveCategory.Create(Guid.Parse("494aa6a7-5f12-4e61-9ab5-4beee69e358e"), "DOC TESTE", 
-                "Descrição Doc Teste.",
-                [EmployeeEvent.CREATED_EVENT, EmployeeEvent.COMPLETE_ADMISSION_EVENT, EmployeeEvent.DEPENDENT_CHILD_CHANGE_EVENT], companyId));
+            //categorie.Add(ArchiveCategory.Create(Guid.Parse("494aa6a7-5f12-4e61-9ab5-4beee69e358e"), "DOC TESTE", 
+            //    "Descrição Doc Teste.",
+            //    [EmployeeEvent.CREATED_EVENT, EmployeeEvent.COMPLETE_ADMISSION_EVENT, EmployeeEvent.DEPENDENT_CHILD_CHANGE_EVENT], companyId));
 
             return categorie.ToArray();
+        }
+
+        public static DocumentGroup[] CreateDocumentGroups(Guid companyId)
+        {
+            var documentGroups = new[]
+            {
+                DocumentGroup.Create(
+                    Guid.Parse("F1D697EA-D6FB-4029-B096-497462272E1C"),
+                    "Documentos Básico",
+                    "Documentos de pessoais de comprovação da regularidade com a cidadania brasileira.",
+                    companyId
+                ),
+                DocumentGroup.Create(
+                    Guid.Parse("99CCC817-2735-43D8-9035-6312782F969C"),
+                    "Documentos de Segurança do Trabalho",
+                    "Documentos de comprobatorio de regularidade com as regulamentações de segurança do trabalho.",
+                    companyId
+                )
+            };
+            return documentGroups;
         }
 
         public static DocumentTemplate[] CreateDocumentTemplate(Guid companyId, DocumentGroup[] documentGroup)
@@ -396,66 +393,42 @@ namespace PeopleManagement.Infra.DataForTests
             {
                 DocumentTemplate.Create(
                 Guid.Parse("7609E019-4D6C-4246-B8A0-1BC22C473349"),
-                "Template Nr01",
-                "Description Template Nr01",
+                "Carteira de Identidade",
+                "A Carteira de Identidade é o documento oficial que identifica uma pessoa perante o governo e a sociedade. Podendo ser o RG ou a CNH.",
                 companyId,
-                TimeSpan.FromDays(365),
-                TimeSpan.FromHours(8),
-                TemplateFileInfo.Create("NR01",
-                "index.html",
-                "header.html",
-                "footer.html",
-                [RecoverDataType.Employee, RecoverDataType.PGR]
-                ),
-                [
-                    PlaceSignature.Create(TypeSignature.Signature,1,20.5, 5.3,5.2,5.5),
-                    PlaceSignature.Create(TypeSignature.Visa,1,20,15,3,3),
-                ],
+                TimeSpan.Zero,
+                TimeSpan.Zero,
+                null,
+                [],
                 documentGroup[0].Id
                 ),
+
                 DocumentTemplate.Create(
                 Guid.Parse("D857FAD2-1B5F-44A1-8428-80B7E85C25CE"),
-                "Template Nr02",
-                "Description Template Nr02",
+                "Ordem de serviço",
+                "Uma Ordem de Serviço (OS) é um documento formal que autoriza e registra a execução de um trabalho ou prestação de serviço.",
                 companyId,
                 TimeSpan.FromDays(365),
-                TimeSpan.FromHours(8),
+                TimeSpan.FromHours(0),
                 TemplateFileInfo.Create(
-                "NR02",
+                "NR01",
                 "index.html",
                 "header.html",
                 "footer.html",
-                [RecoverDataType.Employee, RecoverDataType.PGR]
+                [RecoverDataType.Company, RecoverDataType.Employee, RecoverDataType.PGR, RecoverDataType.Departament, 
+                    RecoverDataType.Position, RecoverDataType.Role, RecoverDataType.ComplementaryInfo]
                 ),
                 [
                     PlaceSignature.Create(TypeSignature.Signature,1,20.5, 5.3,5.2,5.5),
                     PlaceSignature.Create(TypeSignature.Visa,1,20,15,3,3),
                 ],
-                documentGroup[0].Id
+                documentGroup[1].Id
                 ),
             };
             return documents;
         }
 
-        public static DocumentGroup[] CreateDocumentGroups(Guid companyId)
-        { 
-            var documentGroups = new[]
-            {
-                DocumentGroup.Create(
-                    Guid.Parse("F1D697EA-D6FB-4029-B096-497462272E1C"),
-                    "Grupo de Documentos 1",
-                    "Descrição do Grupo de Documentos 1",
-                    companyId
-                ),
-                DocumentGroup.Create(
-                    Guid.Parse("99CCC817-2735-43D8-9035-6312782F969C"),
-                    "Grupo de Documentos 2",
-                    "Descrição do Grupo de Documentos 2",
-                    companyId
-                )
-            };
-            return documentGroups;
-        }
+        
 
         public static RequireDocuments[] CreateRequireDocuments(Guid companyId, Guid roleId, DocumentTemplate[] documentsTemplates)
         {
@@ -467,25 +440,25 @@ namespace PeopleManagement.Infra.DataForTests
                     companyId,
                     roleId,
                     AssociationType.Role,
-                    "Requerimento de Documentos",
-                    "Descrição do requerimento de documentos",
+                    "Requerimento de Carteira de Identidade",
+                    "Descrição requerimento de Carteira de Identidade",
                     [
-                        ListenEvent.Create(EmployeeEvent.COMPLETE_ADMISSION_EVENT, [Status.Active.Id, Status.Vacation.Id]),
+                        ListenEvent.Create(EmployeeEvent.NAME_CHANGE_EVENT, [Status.Active.Id, Status.Vacation.Id, Status.Pending.Id, Status.Away.Id]),
+                        ListenEvent.Create(EmployeeEvent.ID_CARD_CHANGE_EVENT, [Status.Active.Id, Status.Vacation.Id, Status.Pending.Id, Status.Away.Id]),
                     ],
-                    documentsTemplateIds
+                    [documentsTemplateIds[0]]
                     ),
                 RequireDocuments.Create(
                     Guid.Parse("5BC970E9-B7AD-4AD2-8927-3A7C095AE0E8"),
                     companyId,
                     roleId,
                     AssociationType.Role,
-                    "Requerimento de Documentos 2",
-                    "Descrição do requerimento de documentos 2",
+                    "Requerimento da Ordem de serviço",
+                    "Descrição requerimento da Ordem de serviço",
                     [
-                        ListenEvent.Create(EmployeeEvent.COMPLETE_ADMISSION_EVENT, [Status.Active.Id, Status.Vacation.Id]),
-                        ListenEvent.Create(EmployeeEvent.FINISHED_CONTRACT_EVENT, [Status.Active.Id, Status.Inactive.Id]),
+                        ListenEvent.Create(EmployeeEvent.COMPLETE_ADMISSION_EVENT, [Status.Active.Id]),
                     ],
-                    documentsTemplateIds
+                    [documentsTemplateIds[1]]
                     )
             };
 
@@ -494,60 +467,60 @@ namespace PeopleManagement.Infra.DataForTests
 
         public static Document[] CreateDocuments(Guid employeeId, Guid companyId, RequireDocuments[] requiredDocuments, DocumentTemplate[] documentsTemplates)
         {
-            var documentsTemplateIds = documentsTemplates.Select(x => x.Id).ToList();
-            var requiredDocumentsIds = requiredDocuments.Select(x => x.Id).ToList();
-            var documents = new[]
-            {
-                Document.Create(
-                Guid.Parse("CE0FB044-E7A6-4ABE-8A4A-EC60F666D18F"),
-                employeeId,
-                companyId,
-                requiredDocumentsIds[0],
-                documentsTemplateIds[0],
-                "Documento numero 1",
-                "Descrição do documento numero 1"
-                ),
+            //var documentsTemplateIds = documentsTemplates.Select(x => x.Id).ToList();
+            //var requiredDocumentsIds = requiredDocuments.Select(x => x.Id).ToList();
+            var documents = new Document[] { };
+            //{
+            //    Document.Create(
+            //    Guid.Parse("CE0FB044-E7A6-4ABE-8A4A-EC60F666D18F"),
+            //    employeeId,
+            //    companyId,
+            //    requiredDocumentsIds[0],
+            //    documentsTemplateIds[0],
+            //    "Documento numero 1",
+            //    "Descrição do documento numero 1"
+            //    ),
 
-            Document.Create(
-                Guid.Parse("9024DFA3-DC09-4311-8AC3-287CD179A02A"),
-                employeeId,
-                companyId,
-                requiredDocumentsIds[1],
-                documentsTemplateIds[1],
-                "Documento numero 2",
-                "Descrição do documento numero 2"
-                ), 
-            };
+            //Document.Create(
+            //    Guid.Parse("9024DFA3-DC09-4311-8AC3-287CD179A02A"),
+            //    employeeId,
+            //    companyId,
+            //    requiredDocumentsIds[1],
+            //    documentsTemplateIds[1],
+            //    "Documento numero 2",
+            //    "Descrição do documento numero 2"
+            //    ), 
+            //};
 
-            documents[0].NewDocumentUnit(
-                Guid.Parse("9315E288-F25A-43EA-9B0E-8EFC3FF5CAF6")
-                );
+            //documents[0].NewDocumentUnit(
+            //    Guid.Parse("9315E288-F25A-43EA-9B0E-8EFC3FF5CAF6")
+            //    );
 
-            documents[0].UpdateDocumentUnitDetails(
-                Guid.Parse("9315E288-F25A-43EA-9B0E-8EFC3FF5CAF6"),
-                DateOnly.FromDateTime(DateTime.UtcNow),
-                DateOnly.FromDateTime(DateTime.UtcNow.AddDays(120)),
-                "Conteudo do documento 1"
-                );
+            //documents[0].UpdateDocumentUnitDetails(
+            //    Guid.Parse("9315E288-F25A-43EA-9B0E-8EFC3FF5CAF6"),
+            //    DateOnly.FromDateTime(DateTime.UtcNow),
+            //    DateOnly.FromDateTime(DateTime.UtcNow.AddDays(120)),
+            //    "Conteudo do documento 1"
+            //    );
 
-            documents[0].InsertUnitWithoutRequireValidation(Guid.Parse("9315E288-F25A-43EA-9B0E-8EFC3FF5CAF6"), "Name", ".PDF");
+            //documents[0].InsertUnitWithoutRequireValidation(Guid.Parse("9315E288-F25A-43EA-9B0E-8EFC3FF5CAF6"), "Name", ".PDF");
 
-            documents[0].NewDocumentUnit(
-                Guid.Parse("DB55022B-54CD-47F9-A03A-5F5CF8BA6BE4")
-                );
+            //documents[0].NewDocumentUnit(
+            //    Guid.Parse("DB55022B-54CD-47F9-A03A-5F5CF8BA6BE4")
+            //    );
 
-            documents[0].UpdateDocumentUnitDetails(
-                Guid.Parse("DB55022B-54CD-47F9-A03A-5F5CF8BA6BE4"),
-                DateOnly.FromDateTime(DateTime.UtcNow),
-                DateOnly.FromDateTime(DateTime.UtcNow.AddDays(130)),
-                "Conteudo do documento 2"
-                );
+            //documents[0].UpdateDocumentUnitDetails(
+            //    Guid.Parse("DB55022B-54CD-47F9-A03A-5F5CF8BA6BE4"),
+            //    DateOnly.FromDateTime(DateTime.UtcNow),
+            //    DateOnly.FromDateTime(DateTime.UtcNow.AddDays(130)),
+            //    "Conteudo do documento 2"
+            //    );
 
-            documents[0].InsertUnitWithoutRequireValidation(
-                Guid.Parse("DB55022B-54CD-47F9-A03A-5F5CF8BA6BE4"),
-                "Name File 2",
-                "pdf"
-                );
+            //documents[0].InsertUnitWithoutRequireValidation(
+            //    Guid.Parse("DB55022B-54CD-47F9-A03A-5F5CF8BA6BE4"),
+            //    "Name File 2",
+            //    "pdf"
+            //    );
 
             return documents;
 
