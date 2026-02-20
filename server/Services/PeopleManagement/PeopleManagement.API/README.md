@@ -141,7 +141,12 @@ Crie ou edite o arquivo em `PeopleManagement.API/appsettings.Development.json`:
   "HangfireDashboard": {
     "Login": "admin",
     "Password": "sua_senha_segura"
-  }
+  },
+  "WhatsApp": {
+    "BaseUrl": "https://evolution-api.bravemoss-5385f69a.eastus.azurecontainerapps.io/",
+    "Instance": "IGOR"
+    "ApiKey": "sua_api_key"
+  },
 }
 ```
 
@@ -211,6 +216,7 @@ docker run -d -p 8080:80 \
 | `ZapSign__Token` | Token de API do ZapSign | `seu-token` |
 | `HangfireDashboard__Login` | Login do dashboard Hangfire | `admin` |
 | `HangfireDashboard__Password` | Senha do dashboard Hangfire | `senha-segura` |
+
 
 ### Opcionais
 

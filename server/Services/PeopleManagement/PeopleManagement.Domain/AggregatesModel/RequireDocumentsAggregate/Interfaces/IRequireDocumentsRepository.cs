@@ -6,5 +6,7 @@
             CancellationToken cancellationToken = default);
         Task<IEnumerable<RequireDocuments>> GetAllWithEventId(int eventId,
            CancellationToken cancellationToken = default);
+        Task<IEnumerable<RequireDocuments>> GetAllByCompanyEventAndAssociations(Guid companyId, int eventId, Guid[] associationIds,
+           CancellationToken cancellationToken = default);
     }
 }
