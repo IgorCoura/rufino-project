@@ -56,5 +56,51 @@ namespace PeopleManagement.Infra.Services
                 throw;
             }
         }
+
+        public async Task SendMediaMessageAsync(
+            string phoneNumber, 
+            string mediaType, 
+            string mimeType, 
+            string caption, 
+            string media, 
+            string fileName, 
+            CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                var url = $"/message/sendMedia/{_options.Instance}";
+
+                var requestBody = new
+                {
+                    number = phoneNumber,
+                    mediatype = mediaType,
+                    mimetype = mimeType,
+                    caption = caption,
+                    media = media,
+                    fileName = fileName
+                };
+
+                _logger.LogInformation("Sending WhatsApp media message to {PhoneNumber} with type {MediaType}", 
+                    phoneNumber, mediaType);
+
+                var response = await _httpClient.PostAsJsonAsync(url, requestBody, cancellationToken);
+
+                response.EnsureSuccessStatusCode();
+
+                var responseContent = await response.Content.ReadAsStringAsync(cancellationToken);
+                _logger.LogInformation("WhatsApp media message sent successfully to {PhoneNumber}. Response: {Response}", 
+                    phoneNumber, responseContent);
+            }
+            catch (HttpRequestException ex)
+            {
+                _logger.LogError(ex, "Failed to send WhatsApp media message to {PhoneNumber}", phoneNumber);
+                throw;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Unexpected error while sending WhatsApp media message to {PhoneNumber}", phoneNumber);
+                throw;
+            }
+        }
     }
 }
