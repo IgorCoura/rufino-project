@@ -13,8 +13,12 @@ namespace PeopleManagement.Infra.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
+            migrationBuilder.EnsureSchema(
+                name: "people_management");
+
             migrationBuilder.CreateTable(
                 name: "ClientRequests",
+                schema: "people_management",
                 columns: table => new
                 {
                     Id = table.Column<Guid>(type: "uuid", nullable: false),
@@ -28,6 +32,7 @@ namespace PeopleManagement.Infra.Migrations
 
             migrationBuilder.CreateTable(
                 name: "Companies",
+                schema: "people_management",
                 columns: table => new
                 {
                     Id = table.Column<Guid>(type: "uuid", nullable: false),
@@ -54,6 +59,7 @@ namespace PeopleManagement.Infra.Migrations
 
             migrationBuilder.CreateTable(
                 name: "WebHooks",
+                schema: "people_management",
                 columns: table => new
                 {
                     Id = table.Column<Guid>(type: "uuid", nullable: false),
@@ -69,6 +75,7 @@ namespace PeopleManagement.Infra.Migrations
 
             migrationBuilder.CreateTable(
                 name: "ArchiveCategories",
+                schema: "people_management",
                 columns: table => new
                 {
                     Id = table.Column<Guid>(type: "uuid", nullable: false),
@@ -85,6 +92,7 @@ namespace PeopleManagement.Infra.Migrations
                     table.ForeignKey(
                         name: "FK_ArchiveCategories_Companies_CompanyId",
                         column: x => x.CompanyId,
+                        principalSchema: "people_management",
                         principalTable: "Companies",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Restrict);
@@ -92,6 +100,7 @@ namespace PeopleManagement.Infra.Migrations
 
             migrationBuilder.CreateTable(
                 name: "Departments",
+                schema: "people_management",
                 columns: table => new
                 {
                     Id = table.Column<Guid>(type: "uuid", nullable: false),
@@ -107,6 +116,7 @@ namespace PeopleManagement.Infra.Migrations
                     table.ForeignKey(
                         name: "FK_Departments_Companies_CompanyId",
                         column: x => x.CompanyId,
+                        principalSchema: "people_management",
                         principalTable: "Companies",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Restrict);
@@ -114,6 +124,7 @@ namespace PeopleManagement.Infra.Migrations
 
             migrationBuilder.CreateTable(
                 name: "DocumentGroups",
+                schema: "people_management",
                 columns: table => new
                 {
                     Id = table.Column<Guid>(type: "uuid", nullable: false),
@@ -129,6 +140,7 @@ namespace PeopleManagement.Infra.Migrations
                     table.ForeignKey(
                         name: "FK_DocumentGroups_Companies_CompanyId",
                         column: x => x.CompanyId,
+                        principalSchema: "people_management",
                         principalTable: "Companies",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Restrict);
@@ -136,6 +148,7 @@ namespace PeopleManagement.Infra.Migrations
 
             migrationBuilder.CreateTable(
                 name: "RequireDocuments",
+                schema: "people_management",
                 columns: table => new
                 {
                     Id = table.Column<Guid>(type: "uuid", nullable: false),
@@ -154,6 +167,7 @@ namespace PeopleManagement.Infra.Migrations
                     table.ForeignKey(
                         name: "FK_RequireDocuments_Companies_CompanyId",
                         column: x => x.CompanyId,
+                        principalSchema: "people_management",
                         principalTable: "Companies",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Restrict);
@@ -161,6 +175,7 @@ namespace PeopleManagement.Infra.Migrations
 
             migrationBuilder.CreateTable(
                 name: "Workplaces",
+                schema: "people_management",
                 columns: table => new
                 {
                     Id = table.Column<Guid>(type: "uuid", nullable: false),
@@ -183,6 +198,7 @@ namespace PeopleManagement.Infra.Migrations
                     table.ForeignKey(
                         name: "FK_Workplaces_Companies_CompanyId",
                         column: x => x.CompanyId,
+                        principalSchema: "people_management",
                         principalTable: "Companies",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Restrict);
@@ -190,6 +206,7 @@ namespace PeopleManagement.Infra.Migrations
 
             migrationBuilder.CreateTable(
                 name: "Archives",
+                schema: "people_management",
                 columns: table => new
                 {
                     Id = table.Column<Guid>(type: "uuid", nullable: false),
@@ -206,12 +223,14 @@ namespace PeopleManagement.Infra.Migrations
                     table.ForeignKey(
                         name: "FK_Archives_ArchiveCategories_CategoryId",
                         column: x => x.CategoryId,
+                        principalSchema: "people_management",
                         principalTable: "ArchiveCategories",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Restrict);
                     table.ForeignKey(
                         name: "FK_Archives_Companies_CompanyId",
                         column: x => x.CompanyId,
+                        principalSchema: "people_management",
                         principalTable: "Companies",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Restrict);
@@ -219,6 +238,7 @@ namespace PeopleManagement.Infra.Migrations
 
             migrationBuilder.CreateTable(
                 name: "Positions",
+                schema: "people_management",
                 columns: table => new
                 {
                     Id = table.Column<Guid>(type: "uuid", nullable: false),
@@ -236,12 +256,14 @@ namespace PeopleManagement.Infra.Migrations
                     table.ForeignKey(
                         name: "FK_Positions_Companies_CompanyId",
                         column: x => x.CompanyId,
+                        principalSchema: "people_management",
                         principalTable: "Companies",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Restrict);
                     table.ForeignKey(
                         name: "FK_Positions_Departments_DepartmentId",
                         column: x => x.DepartmentId,
+                        principalSchema: "people_management",
                         principalTable: "Departments",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Restrict);
@@ -249,6 +271,7 @@ namespace PeopleManagement.Infra.Migrations
 
             migrationBuilder.CreateTable(
                 name: "DocumentTemplates",
+                schema: "people_management",
                 columns: table => new
                 {
                     Id = table.Column<Guid>(type: "uuid", nullable: false),
@@ -272,12 +295,14 @@ namespace PeopleManagement.Infra.Migrations
                     table.ForeignKey(
                         name: "FK_DocumentTemplates_Companies_CompanyId",
                         column: x => x.CompanyId,
+                        principalSchema: "people_management",
                         principalTable: "Companies",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Restrict);
                     table.ForeignKey(
                         name: "FK_DocumentTemplates_DocumentGroups_DocumentGroupId",
                         column: x => x.DocumentGroupId,
+                        principalSchema: "people_management",
                         principalTable: "DocumentGroups",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Restrict);
@@ -285,6 +310,7 @@ namespace PeopleManagement.Infra.Migrations
 
             migrationBuilder.CreateTable(
                 name: "ListenEvent",
+                schema: "people_management",
                 columns: table => new
                 {
                     RequireDocumentsId = table.Column<Guid>(type: "uuid", nullable: false),
@@ -299,6 +325,7 @@ namespace PeopleManagement.Infra.Migrations
                     table.ForeignKey(
                         name: "FK_ListenEvent_RequireDocuments_RequireDocumentsId",
                         column: x => x.RequireDocumentsId,
+                        principalSchema: "people_management",
                         principalTable: "RequireDocuments",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
@@ -306,6 +333,7 @@ namespace PeopleManagement.Infra.Migrations
 
             migrationBuilder.CreateTable(
                 name: "File",
+                schema: "people_management",
                 columns: table => new
                 {
                     Id = table.Column<int>(type: "integer", nullable: false)
@@ -322,6 +350,7 @@ namespace PeopleManagement.Infra.Migrations
                     table.ForeignKey(
                         name: "FK_File_Archives_ArchiveId",
                         column: x => x.ArchiveId,
+                        principalSchema: "people_management",
                         principalTable: "Archives",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
@@ -329,6 +358,7 @@ namespace PeopleManagement.Infra.Migrations
 
             migrationBuilder.CreateTable(
                 name: "Roles",
+                schema: "people_management",
                 columns: table => new
                 {
                     Id = table.Column<Guid>(type: "uuid", nullable: false),
@@ -350,12 +380,14 @@ namespace PeopleManagement.Infra.Migrations
                     table.ForeignKey(
                         name: "FK_Roles_Companies_CompanyId",
                         column: x => x.CompanyId,
+                        principalSchema: "people_management",
                         principalTable: "Companies",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Restrict);
                     table.ForeignKey(
                         name: "FK_Roles_Positions_PositionId",
                         column: x => x.PositionId,
+                        principalSchema: "people_management",
                         principalTable: "Positions",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Restrict);
@@ -363,6 +395,7 @@ namespace PeopleManagement.Infra.Migrations
 
             migrationBuilder.CreateTable(
                 name: "DocumentTemplateRequireDocuments",
+                schema: "people_management",
                 columns: table => new
                 {
                     DocumentTemplateId = table.Column<Guid>(type: "uuid", nullable: false),
@@ -374,12 +407,14 @@ namespace PeopleManagement.Infra.Migrations
                     table.ForeignKey(
                         name: "FK_DocumentTemplateRequireDocuments_DocumentTemplates_Document~",
                         column: x => x.DocumentTemplateId,
+                        principalSchema: "people_management",
                         principalTable: "DocumentTemplates",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
                     table.ForeignKey(
                         name: "FK_DocumentTemplateRequireDocuments_RequireDocuments_RequireDo~",
                         column: x => x.RequireDocumentsId,
+                        principalSchema: "people_management",
                         principalTable: "RequireDocuments",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
@@ -387,6 +422,7 @@ namespace PeopleManagement.Infra.Migrations
 
             migrationBuilder.CreateTable(
                 name: "PlaceSignature",
+                schema: "people_management",
                 columns: table => new
                 {
                     DocumentTemplateId = table.Column<Guid>(type: "uuid", nullable: false),
@@ -405,6 +441,7 @@ namespace PeopleManagement.Infra.Migrations
                     table.ForeignKey(
                         name: "FK_PlaceSignature_DocumentTemplates_DocumentTemplateId",
                         column: x => x.DocumentTemplateId,
+                        principalSchema: "people_management",
                         principalTable: "DocumentTemplates",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
@@ -412,6 +449,7 @@ namespace PeopleManagement.Infra.Migrations
 
             migrationBuilder.CreateTable(
                 name: "Employees",
+                schema: "people_management",
                 columns: table => new
                 {
                     Id = table.Column<Guid>(type: "uuid", nullable: false),
@@ -461,18 +499,21 @@ namespace PeopleManagement.Infra.Migrations
                     table.ForeignKey(
                         name: "FK_Employees_Companies_CompanyId",
                         column: x => x.CompanyId,
+                        principalSchema: "people_management",
                         principalTable: "Companies",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Restrict);
                     table.ForeignKey(
                         name: "FK_Employees_Roles_RoleId",
                         column: x => x.RoleId,
+                        principalSchema: "people_management",
                         principalTable: "Roles",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Restrict);
                     table.ForeignKey(
                         name: "FK_Employees_Workplaces_WorkPlaceId",
                         column: x => x.WorkPlaceId,
+                        principalSchema: "people_management",
                         principalTable: "Workplaces",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Restrict);
@@ -480,6 +521,7 @@ namespace PeopleManagement.Infra.Migrations
 
             migrationBuilder.CreateTable(
                 name: "Dependent",
+                schema: "people_management",
                 columns: table => new
                 {
                     EmployeeId = table.Column<Guid>(type: "uuid", nullable: false),
@@ -502,6 +544,7 @@ namespace PeopleManagement.Infra.Migrations
                     table.ForeignKey(
                         name: "FK_Dependent_Employees_EmployeeId",
                         column: x => x.EmployeeId,
+                        principalSchema: "people_management",
                         principalTable: "Employees",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
@@ -509,6 +552,7 @@ namespace PeopleManagement.Infra.Migrations
 
             migrationBuilder.CreateTable(
                 name: "Documents",
+                schema: "people_management",
                 columns: table => new
                 {
                     Id = table.Column<Guid>(type: "uuid", nullable: false),
@@ -528,24 +572,28 @@ namespace PeopleManagement.Infra.Migrations
                     table.ForeignKey(
                         name: "FK_Documents_Companies_CompanyId",
                         column: x => x.CompanyId,
+                        principalSchema: "people_management",
                         principalTable: "Companies",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Restrict);
                     table.ForeignKey(
                         name: "FK_Documents_DocumentTemplates_DocumentTemplateId",
                         column: x => x.DocumentTemplateId,
+                        principalSchema: "people_management",
                         principalTable: "DocumentTemplates",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Restrict);
                     table.ForeignKey(
                         name: "FK_Documents_Employees_EmployeeId",
                         column: x => x.EmployeeId,
+                        principalSchema: "people_management",
                         principalTable: "Employees",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Restrict);
                     table.ForeignKey(
                         name: "FK_Documents_RequireDocuments_RequiredDocumentId",
                         column: x => x.RequiredDocumentId,
+                        principalSchema: "people_management",
                         principalTable: "RequireDocuments",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Restrict);
@@ -553,6 +601,7 @@ namespace PeopleManagement.Infra.Migrations
 
             migrationBuilder.CreateTable(
                 name: "EmploymentContract",
+                schema: "people_management",
                 columns: table => new
                 {
                     EmployeeId = table.Column<Guid>(type: "uuid", nullable: false),
@@ -568,6 +617,7 @@ namespace PeopleManagement.Infra.Migrations
                     table.ForeignKey(
                         name: "FK_EmploymentContract_Employees_EmployeeId",
                         column: x => x.EmployeeId,
+                        principalSchema: "people_management",
                         principalTable: "Employees",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
@@ -575,6 +625,7 @@ namespace PeopleManagement.Infra.Migrations
 
             migrationBuilder.CreateTable(
                 name: "DocumentsUnits",
+                schema: "people_management",
                 columns: table => new
                 {
                     Id = table.Column<Guid>(type: "uuid", nullable: false),
@@ -596,6 +647,7 @@ namespace PeopleManagement.Infra.Migrations
                     table.ForeignKey(
                         name: "FK_DocumentsUnits_Documents_DocumentId",
                         column: x => x.DocumentId,
+                        principalSchema: "people_management",
                         principalTable: "Documents",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
@@ -603,138 +655,165 @@ namespace PeopleManagement.Infra.Migrations
 
             migrationBuilder.CreateIndex(
                 name: "IX_ArchiveCategories_CompanyId",
+                schema: "people_management",
                 table: "ArchiveCategories",
                 column: "CompanyId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_Archives_CategoryId",
+                schema: "people_management",
                 table: "Archives",
                 column: "CategoryId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_Archives_CompanyId",
+                schema: "people_management",
                 table: "Archives",
                 column: "CompanyId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_Archives_OwnerId",
+                schema: "people_management",
                 table: "Archives",
                 column: "OwnerId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_Departments_CompanyId",
+                schema: "people_management",
                 table: "Departments",
                 column: "CompanyId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_DocumentGroups_CompanyId",
+                schema: "people_management",
                 table: "DocumentGroups",
                 column: "CompanyId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_Documents_CompanyId",
+                schema: "people_management",
                 table: "Documents",
                 column: "CompanyId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_Documents_DocumentTemplateId",
+                schema: "people_management",
                 table: "Documents",
                 column: "DocumentTemplateId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_Documents_EmployeeId",
+                schema: "people_management",
                 table: "Documents",
                 column: "EmployeeId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_Documents_RequiredDocumentId",
+                schema: "people_management",
                 table: "Documents",
                 column: "RequiredDocumentId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_DocumentsUnits_DocumentId",
+                schema: "people_management",
                 table: "DocumentsUnits",
                 column: "DocumentId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_DocumentTemplateRequireDocuments_RequireDocumentsId",
+                schema: "people_management",
                 table: "DocumentTemplateRequireDocuments",
                 column: "RequireDocumentsId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_DocumentTemplates_CompanyId",
+                schema: "people_management",
                 table: "DocumentTemplates",
                 column: "CompanyId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_DocumentTemplates_DocumentGroupId",
+                schema: "people_management",
                 table: "DocumentTemplates",
                 column: "DocumentGroupId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_Employees_CompanyId",
+                schema: "people_management",
                 table: "Employees",
                 column: "CompanyId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_Employees_Registration",
+                schema: "people_management",
                 table: "Employees",
                 column: "Registration",
                 unique: true);
 
             migrationBuilder.CreateIndex(
                 name: "IX_Employees_RoleId",
+                schema: "people_management",
                 table: "Employees",
                 column: "RoleId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_Employees_WorkPlaceId",
+                schema: "people_management",
                 table: "Employees",
                 column: "WorkPlaceId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_File_ArchiveId",
+                schema: "people_management",
                 table: "File",
                 column: "ArchiveId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_Positions_CompanyId",
+                schema: "people_management",
                 table: "Positions",
                 column: "CompanyId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_Positions_DepartmentId",
+                schema: "people_management",
                 table: "Positions",
                 column: "DepartmentId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_RequireDocuments_AssociationId",
+                schema: "people_management",
                 table: "RequireDocuments",
                 column: "AssociationId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_RequireDocuments_CompanyId",
+                schema: "people_management",
                 table: "RequireDocuments",
                 column: "CompanyId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_Roles_CompanyId",
+                schema: "people_management",
                 table: "Roles",
                 column: "CompanyId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_Roles_PositionId",
+                schema: "people_management",
                 table: "Roles",
                 column: "PositionId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_WebHooks_Event",
+                schema: "people_management",
                 table: "WebHooks",
                 column: "Event",
                 unique: true);
 
             migrationBuilder.CreateIndex(
                 name: "IX_Workplaces_CompanyId",
+                schema: "people_management",
                 table: "Workplaces",
                 column: "CompanyId");
         }
@@ -743,67 +822,88 @@ namespace PeopleManagement.Infra.Migrations
         protected override void Down(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.DropTable(
-                name: "ClientRequests");
+                name: "ClientRequests",
+                schema: "people_management");
 
             migrationBuilder.DropTable(
-                name: "Dependent");
+                name: "Dependent",
+                schema: "people_management");
 
             migrationBuilder.DropTable(
-                name: "DocumentsUnits");
+                name: "DocumentsUnits",
+                schema: "people_management");
 
             migrationBuilder.DropTable(
-                name: "DocumentTemplateRequireDocuments");
+                name: "DocumentTemplateRequireDocuments",
+                schema: "people_management");
 
             migrationBuilder.DropTable(
-                name: "EmploymentContract");
+                name: "EmploymentContract",
+                schema: "people_management");
 
             migrationBuilder.DropTable(
-                name: "File");
+                name: "File",
+                schema: "people_management");
 
             migrationBuilder.DropTable(
-                name: "ListenEvent");
+                name: "ListenEvent",
+                schema: "people_management");
 
             migrationBuilder.DropTable(
-                name: "PlaceSignature");
+                name: "PlaceSignature",
+                schema: "people_management");
 
             migrationBuilder.DropTable(
-                name: "WebHooks");
+                name: "WebHooks",
+                schema: "people_management");
 
             migrationBuilder.DropTable(
-                name: "Documents");
+                name: "Documents",
+                schema: "people_management");
 
             migrationBuilder.DropTable(
-                name: "Archives");
+                name: "Archives",
+                schema: "people_management");
 
             migrationBuilder.DropTable(
-                name: "DocumentTemplates");
+                name: "DocumentTemplates",
+                schema: "people_management");
 
             migrationBuilder.DropTable(
-                name: "Employees");
+                name: "Employees",
+                schema: "people_management");
 
             migrationBuilder.DropTable(
-                name: "RequireDocuments");
+                name: "RequireDocuments",
+                schema: "people_management");
 
             migrationBuilder.DropTable(
-                name: "ArchiveCategories");
+                name: "ArchiveCategories",
+                schema: "people_management");
 
             migrationBuilder.DropTable(
-                name: "DocumentGroups");
+                name: "DocumentGroups",
+                schema: "people_management");
 
             migrationBuilder.DropTable(
-                name: "Roles");
+                name: "Roles",
+                schema: "people_management");
 
             migrationBuilder.DropTable(
-                name: "Workplaces");
+                name: "Workplaces",
+                schema: "people_management");
 
             migrationBuilder.DropTable(
-                name: "Positions");
+                name: "Positions",
+                schema: "people_management");
 
             migrationBuilder.DropTable(
-                name: "Departments");
+                name: "Departments",
+                schema: "people_management");
 
             migrationBuilder.DropTable(
-                name: "Companies");
+                name: "Companies",
+                schema: "people_management");
         }
     }
 }
