@@ -28,6 +28,7 @@ namespace PeopleManagement.Infra.Services
             try
             {
                 var url = $"/message/sendText/{_options.Instance}";
+                var fullUrl = $"{_httpClient.BaseAddress}{url.TrimStart('/')}";
 
                 var requestBody = new
                 {
@@ -35,9 +36,28 @@ namespace PeopleManagement.Infra.Services
                     text = message,
                 };
 
-                _logger.LogInformation("Sending WhatsApp message to {PhoneNumber}", phoneNumber);
+                var bodyJson = JsonSerializer.Serialize(requestBody);
+                var apiKeyMasked = _options.ApiKey?.Length > 8 
+                    ? $"{_options.ApiKey[..4]}...{_options.ApiKey[^4..]}" 
+                    : "***";
+
+                _logger.LogInformation(
+                    "Sending WhatsApp message - URL: {FullUrl}, Instance: {Instance}, ApiKey: {ApiKey}, Body: {Body}",
+                    fullUrl,
+                    _options.Instance,
+                    apiKeyMasked,
+                    bodyJson);
 
                 var response = await _httpClient.PostAsJsonAsync(url, requestBody, cancellationToken);
+
+                if (!response.IsSuccessStatusCode)
+                {
+                    var errorContent = await response.Content.ReadAsStringAsync(cancellationToken);
+                    _logger.LogError(
+                        "WhatsApp API returned error - StatusCode: {StatusCode}, Response: {ErrorContent}",
+                        response.StatusCode,
+                        errorContent);
+                }
 
                 response.EnsureSuccessStatusCode();
 
