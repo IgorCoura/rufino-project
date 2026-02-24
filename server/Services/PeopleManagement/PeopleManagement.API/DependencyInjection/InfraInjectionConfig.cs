@@ -20,6 +20,7 @@ using PeopleManagement.Domain.AggregatesModel.WebHookAggregate;
 using PeopleManagement.Infra.Policies;
 using PeopleManagement.Domain.Services;
 using PeopleManagement.Domain.Options;
+using PeopleManagement.Services.Services;
 
 namespace PeopleManagement.API.DependencyInjection
 {
@@ -47,6 +48,7 @@ namespace PeopleManagement.API.DependencyInjection
             service.AddScoped<IBlobService, BlobAzureService>();
             service.AddScoped<ILocalStorageService, LocalStorageService>();
             service.AddScoped<IFileDownloadService, FileDownloadService>();
+            service.AddScoped<IWhatsAppHealthCheckService, WhatsAppHealthCheckService>();
 
             service.AddSingleton(x => new BlobServiceClient(configuration.GetConnectionString("BlobStorage")));
 
