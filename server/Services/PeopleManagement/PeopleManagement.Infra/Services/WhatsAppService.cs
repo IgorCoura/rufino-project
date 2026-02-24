@@ -47,7 +47,7 @@ namespace PeopleManagement.Infra.Services
             }
             catch (HttpRequestException ex)
             {
-                _logger.LogError(ex, "Failed to send WhatsApp message to {PhoneNumber}", phoneNumber);
+                _logger.LogError(ex, "Failed to send WhatsApp message to {PhoneNumber}. Message {Menssage}", phoneNumber, ex.Message);
                 throw;
             }
             catch (Exception ex)
