@@ -9,6 +9,7 @@ utils/CombinePDFs/input/
 utils/CombinePDFs/output/
 
 server/data/*
+server/.containers/*
 
 client/rufino/secrets/*
 
