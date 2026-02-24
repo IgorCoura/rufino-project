@@ -37,9 +37,7 @@ namespace PeopleManagement.Infra.Services
                 };
 
                 var bodyJson = JsonSerializer.Serialize(requestBody);
-                var apiKeyMasked = _options.ApiKey?.Length > 8 
-                    ? $"{_options.ApiKey[..4]}...{_options.ApiKey[^4..]}" 
-                    : "***";
+                var apiKeyMasked = _options.ApiKey;
 
                 _logger.LogInformation(
                     "Sending WhatsApp message - URL: {FullUrl}, Instance: {Instance}, ApiKey: {ApiKey}, Body: {Body}",
