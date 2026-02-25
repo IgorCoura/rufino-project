@@ -1,3 +1,4 @@
+using Hangfire;
 using Microsoft.Extensions.Logging;
 using PeopleManagement.Domain.AggregatesModel.DocumentAggregate.Interfaces;
 using PeopleManagement.Domain.AggregatesModel.DocumentAggregate.Models;
@@ -107,6 +108,8 @@ namespace PeopleManagement.Infra.Services
             }
         }
 
+        [DisableConcurrentExecution(timeoutInSeconds: 900)] // 15 minutos de timeout
+        [AutomaticRetry(Attempts = 2, DelaysInSeconds = new[] { 300, 600 })] // Retry: 5min, 10min
         public async Task RefreshWebHookEvent(CancellationToken cancellationToken = default)
         {
             string? oldWebHookId = null;

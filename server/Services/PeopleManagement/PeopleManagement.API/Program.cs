@@ -31,6 +31,18 @@ builder.WebHost.ConfigureKestrel(serverOptions =>
 var env = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT");
 
 //Config DataBase
+builder.Services.AddDbContext<PeopleManagementContext>(options =>
+{
+    options.UseNpgsql(
+        builder.Configuration.GetConnectionString("Postgresql"),
+        npgsqlOptionsAction: sqlOptions =>
+        {
+            sqlOptions.EnableRetryOnFailure(maxRetryCount: 15, maxRetryDelay: TimeSpan.FromSeconds(30), errorCodesToAdd: null);
+        })
+        .UseExceptionProcessor();
+}, ServiceLifetime.Scoped);
+
+// Adicionar factory para as queries que precisam criar múltiplas instâncias
 builder.Services.AddDbContextFactory<PeopleManagementContext>(options =>
 {
     options.UseNpgsql(
@@ -40,7 +52,7 @@ builder.Services.AddDbContextFactory<PeopleManagementContext>(options =>
             sqlOptions.EnableRetryOnFailure(maxRetryCount: 15, maxRetryDelay: TimeSpan.FromSeconds(30), errorCodesToAdd: null);
         })
         .UseExceptionProcessor();
-});
+}, ServiceLifetime.Scoped); // Adicione este segundo parâmetro
 
 //Config Keycloak
 builder.Services.AddKeycloakAuthentication(builder.Configuration);

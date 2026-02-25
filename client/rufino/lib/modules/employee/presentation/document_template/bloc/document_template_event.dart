@@ -75,3 +75,11 @@ final class LoadDataModelEvent extends DocumentTemplateEvent {
   @override
   List<Object> get props => [isExpanded];
 }
+
+final class ToggleUsePreviousPeriodEvent extends DocumentTemplateEvent {
+  final bool value;
+  const ToggleUsePreviousPeriodEvent(this.value);
+
+  @override
+  List<Object> get props => [value];
+}

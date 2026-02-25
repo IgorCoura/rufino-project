@@ -131,6 +131,29 @@ class DocumentTemplatePage extends StatelessWidget {
                         SizedBox(
                           height: 8.0,
                         ),
+                        SwitchListTile(
+                          title: const Text("Competência de Período Anterior"),
+                          subtitle: const Text(
+                            "Quando ativado, o documento usará a competência do período anterior para agrupamento e depreciação.",
+                            style: TextStyle(fontSize: 12),
+                          ),
+                          value: state.documentTemplate.usePreviousPeriod,
+                          onChanged: state.isEditing
+                              ? (value) =>
+                                  bloc.add(ToggleUsePreviousPeriodEvent(value))
+                              : null,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(4),
+                            side: BorderSide(
+                              color: Theme.of(context).colorScheme.outline,
+                            ),
+                          ),
+                          contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 4),
+                        ),
+                        SizedBox(
+                          height: 8.0,
+                        ),
                         _fileNameTextFields(state),
                         SizedBox(
                           height: 8.0,

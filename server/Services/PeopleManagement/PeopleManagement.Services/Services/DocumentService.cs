@@ -57,65 +57,114 @@ namespace PeopleManagement.Services.Services
         public async Task CreateDocumentUnitsForEvent(Guid employeeId, Guid companyId, int eventId, CancellationToken cancellationToken = default)
         {
             var employee = await _employeeRepository.FirstOrDefaultMemoryOrDatabase(x => x.Id == employeeId && x.CompanyId == companyId) 
-                ?? throw new ArgumentNullException(nameof(Employee));
+                ?? throw new DomainException(this, DomainErrors.ObjectNotFound(nameof(Employee), employeeId.ToString()));
 
-            //var requiedDocuments = await _requireDocumentsRepository.GetAllWithEventId(employeeId, companyId, eventId, cancellationToken);
-            var requiedDocuments = await _requireDocumentsRepository.GetAllByCompanyEventAndAssociations(companyId, eventId, employee.GetAllPossibleAssociationIds(), cancellationToken);
+            var requiredDocuments = await _requireDocumentsRepository.GetAllByCompanyEventAndAssociations(
+                companyId, eventId, employee.GetAllPossibleAssociationIds(), cancellationToken);
 
-            var recurringEvent = RecurringEvents.FromValue(eventId);
-            var eventFrequency = recurringEvent?.GetFrequency() ?? RecurringEventFrequency.None;
-            var periodType = ConvertFrequencyToPeriodType(eventFrequency);
-            DateTime? referenceDate = periodType != null ? TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, TimeZoneInfo.FindSystemTimeZoneById(_timeZone.TimeZoneId)) : null;
+            if (!requiredDocuments.Any())
+            {
+                _logger.LogInformation("No required documents found for employee {EmployeeId} and event {EventId}.", employeeId, eventId);
+                return;
+            }
 
-            foreach (var requiedDocument in requiedDocuments)
-            {       
-                var isAccepted = requiedDocument.StatusIsAccepted(eventId, employee.Status.Id);
+            var (periodType, referenceDate) = GetPeriodInfoFromEvent(eventId);
 
-                if (isAccepted == false)
+            // Coletar todos os templateIds necessários para uma única query
+            var allTemplateIds = requiredDocuments
+                .Where(rd => rd.StatusIsAccepted(eventId, employee.Status.Id))
+                .SelectMany(rd => rd.DocumentsTemplatesIds)
+                .Distinct()
+                .ToList();
+
+            if (!allTemplateIds.Any())
+            {
+                _logger.LogInformation("No accepted document templates for employee {EmployeeId} and event {EventId}.", employeeId, eventId);
+                return;
+            }
+
+            // Carregar todos os documentos e templates de uma vez
+            var existingDocuments = await _documentRepository.GetDataAsync(
+                x => allTemplateIds.Contains(x.DocumentTemplateId) && x.EmployeeId == employee.Id,
+                cancellation: cancellationToken);
+
+            var existingDocumentsByTemplateId = existingDocuments.ToDictionary(d => d.DocumentTemplateId);
+
+            // Obter apenas os templateIds que não têm documentos criados
+            var templateIdsWithoutDocuments = allTemplateIds
+                .Except(existingDocumentsByTemplateId.Keys)
+                .ToList();
+
+            // Carregar apenas os templates necessários (que não têm documentos)
+            var documentTemplates = templateIdsWithoutDocuments.Any()
+                ? await _documentTemplateRepository.GetDataAsync(
+                    x => templateIdsWithoutDocuments.Contains(x.Id) && x.CompanyId == companyId,
+                    cancellation: cancellationToken)
+                : [];
+
+            var documentTemplatesByTemplateId = documentTemplates.ToDictionary(dt => dt.Id);
+
+            var documentsToInsert = new List<Document>();
+
+            foreach (var requiredDocument in requiredDocuments)
+            {
+                if (!requiredDocument.StatusIsAccepted(eventId, employee.Status.Id))
                     continue;
 
-                foreach(var templateId in requiedDocument.DocumentsTemplatesIds)
+                foreach (var templateId in requiredDocument.DocumentsTemplatesIds)
                 {
-                    Document? document = await _documentRepository.FirstOrDefaultAsync(x => x.DocumentTemplateId == templateId 
-                    && x.EmployeeId == employee.Id, cancellation: cancellationToken);
-
-                    if(document is null)
+                    // Tentar obter documento existente ou criar novo
+                    if (!existingDocumentsByTemplateId.TryGetValue(templateId, out var document))
                     {
-                        DocumentTemplate? documentTemplate = await _documentTemplateRepository.FirstOrDefaultAsync(x =>
-                         x.Id == templateId && x.CompanyId == companyId, cancellation: cancellationToken);
-
-                        if (documentTemplate is null)
+                        if (!documentTemplatesByTemplateId.TryGetValue(templateId, out var documentTemplate))
                         {
-                            _logger.LogError("Document template with ID {TemplateId} not found for company {CompanyId}.",
-                                templateId, companyId);
+                            _logger.LogWarning("Document template {TemplateId} not found for company {CompanyId}. Skipping.", templateId, companyId);
                             continue;
                         }
 
                         var documentId = Guid.NewGuid();
-                        document = Document.Create(documentId, employee.Id, companyId, requiedDocument.Id, templateId, 
-                            documentTemplate.Name.Value, documentTemplate.Description.Value, 
+                        document = Document.Create(
+                            documentId, 
+                            employee.Id, 
+                            companyId, 
+                            requiredDocument.Id, 
+                            templateId,
+                            documentTemplate.Name.Value, 
+                            documentTemplate.Description.Value,
                             documentTemplate.UsePreviousPeriod);
-                        await _documentRepository.InsertAsync(document, cancellationToken);
+
+                        documentsToInsert.Add(document);
+                        existingDocumentsByTemplateId[templateId] = document; // Adicionar ao dicionário para evitar duplicatas
                     }
 
                     var documentUnitId = Guid.NewGuid();
                     document.NewDocumentUnit(documentUnitId, periodType, referenceDate);
                 }
+            }
 
-                //var documents = await _documentRepository.GetDataAsync(x => x.EmployeeId == employeeId 
-                //&& x.CompanyId == companyId && x.RequiredDocumentId == requiedDocument.Id, include: i => i.Include(x => x.DocumentsUnits));
-
-                //foreach(Document document in documents)
-                //{
-                //    var documentUnitId = Guid.NewGuid();
-
-                //    document!.NewDocumentUnit(documentUnitId);
-                //}
-
+            // Inserir todos os novos documentos de uma vez
+            if (documentsToInsert.Any())
+            {
+                await _documentRepository.InsertRangeAsync(documentsToInsert, cancellationToken);
+       
+                _logger.LogInformation("Created {Count} new documents for employee {EmployeeId} and event {EventId}.", 
+                    documentsToInsert.Count, employeeId, eventId);
             }
 
         }
 
+        private (PeriodType? periodType, DateTime? referenceDate) GetPeriodInfoFromEvent(int eventId)
+        {
+            var recurringEvent = RecurringEvents.FromValue(eventId);
+            var eventFrequency = recurringEvent?.GetFrequency() ?? RecurringEventFrequency.None;
+            var periodType = ConvertFrequencyToPeriodType(eventFrequency);
+            
+            DateTime? referenceDate = periodType != null 
+                ? TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, TimeZoneInfo.FindSystemTimeZoneById(_timeZone.TimeZoneId)) 
+                : null;
+
+            return (periodType, referenceDate);
+        }
 
         public async Task<DocumentUnit> UpdateDocumentUnitDetails(Guid documentUnitId, Guid documentId, Guid employeeId, Guid companyId,
             DateOnly documentUnitDate, CancellationToken cancellationToken = default)

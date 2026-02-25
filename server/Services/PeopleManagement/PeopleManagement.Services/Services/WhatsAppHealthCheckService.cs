@@ -1,3 +1,4 @@
+using Hangfire;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using PeopleManagement.Domain.Options;
@@ -24,6 +25,8 @@ namespace PeopleManagement.Services.Services
             _timeZone = TimeZoneInfo.FindSystemTimeZoneById(timeZoneOptions.Value.TimeZoneId);
         }
 
+        [DisableConcurrentExecution(timeoutInSeconds: 600)] // 10 minutos de timeout
+        [AutomaticRetry(Attempts = 2, DelaysInSeconds = new[] { 60, 300 })] // Retry: 1min, 5min
         public async Task SendHealthCheckMessage(CancellationToken cancellationToken = default)
         {
             try

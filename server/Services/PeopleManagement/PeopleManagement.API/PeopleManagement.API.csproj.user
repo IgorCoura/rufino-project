@@ -4,7 +4,7 @@
     <DebuggerFlavor>ProjectDebugger</DebuggerFlavor>
   </PropertyGroup>
   <PropertyGroup>
-    <ActiveDebugProfile>PeopleManagement.API</ActiveDebugProfile>
+    <ActiveDebugProfile>Docker</ActiveDebugProfile>
     <NameOfLastUsedPublishProfile>C:\Users\IGOR-NOT\Desktop\Codigos\CodigosSSD\rufino-project\server\Services\PeopleManagement\PeopleManagement.API\Properties\PublishProfiles\https___container-registry.br-se1.magalu.cloud.pubxml</NameOfLastUsedPublishProfile>
   </PropertyGroup>
 </Project>

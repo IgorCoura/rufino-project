@@ -18,6 +18,8 @@ namespace PeopleManagement.Application.Queries.Document
             public Guid RequiredDocumentId { get; init; }
             public Guid DocumentTemplateId { get; init; }
             public bool UsePreviousPeriod { get; init; }
+            public bool IsSignable { get; init; }
+            public bool CanGenerateDocument { get; init; }
             public DateTime CreateAt { get; init; }
             public DateTime UpdateAt { get; init; }
         };
@@ -32,6 +34,8 @@ namespace PeopleManagement.Application.Queries.Document
             public Guid RequiredDocumentId { get; init; }
             public Guid DocumentTemplateId { get; init; }
             public bool UsePreviousPeriod { get; init; }
+            public bool IsSignable { get; init; }
+            public bool CanGenerateDocument { get; init; }
             public List<DocumentUnitDto> DocumentsUnits { get; init; } = [];
             public EnumerationDto Status { get; init; } = EnumerationDto.Empty;
             public DateTime CreateAt { get; init; }

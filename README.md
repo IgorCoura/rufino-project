@@ -70,8 +70,8 @@ Services/PeopleManagement/
 |---|---|
 | `Employee` | Colaborador com dados pessoais, contrato, CNH, dependentes, exame admissional |
 | `Company` | Empresa com CNPJ, endereço, contato |
-| `Document` | Documento com unidades e controle de status |
-| `DocumentTemplate` | Template de documento com locais de assinatura e recuperação dinâmica de dados |
+| `Document` | Documento com unidades, controle de status e períodos/competências |
+| `DocumentTemplate` | Template de documento com locais de assinatura, recuperação dinâmica de dados e controle de período anterior |
 | `Role` | Função com CBO, remuneração e moeda |
 | `Workplace` | Local de trabalho |
 | `Department` | Departamento |
@@ -96,7 +96,56 @@ O app Flutter utiliza **flutter_modular** para injeção de dependência e rotea
 
 ---
 
-## 🛠️ Stack Tecnológica
+## � Gestão de Períodos e Competências
+
+O sistema suporta a gestão de **períodos/competências** associados a documentos, permitindo controle temporal de documentação recorrente.
+
+### Conceitos
+
+| Conceito | Descrição |
+|---|---|
+| **Period (Período)** | Competência temporal associada a uma unidade de documento. Pode ser Diário, Semanal, Mensal ou Anual. |
+| **UsePreviousPeriod** | Flag do template de documento que indica se o documento deve usar a competência do período anterior para agrupamento e depreciação. |
+| **PeriodType** | Enumeração: `Daily (1)`, `Weekly (2)`, `Monthly (3)`, `Yearly (4)` |
+
+### DTOs da API
+
+#### `DocumentTemplateDto` / `CreateDocumentTemplateCommand` / `EditDocumentTemplateCommand`
+```json
+{
+  "usePreviousPeriod": false  // boolean — controla uso do período anterior
+}
+```
+
+#### `DocumentUnitDto`
+```json
+{
+  "period": {                  // PeriodDto? — competência da unidade de documento
+    "type": { "id": 3, "name": "Monthly" },
+    "day": null,
+    "week": null,
+    "month": 6,
+    "year": 2026
+  }
+}
+```
+
+#### `DocumentDto` / `DocumentSimpleDto`
+```json
+{
+  "usePreviousPeriod": false  // boolean — herdado do template
+}
+```
+
+### Regras de Negócio
+
+- Quando `UsePreviousPeriod == true`, o método `DeprecateDocumentsUnit()` agrupa documentos por período
+- O `Period` é calculado automaticamente pelo backend baseado em `PeriodType` e `referenceDate`
+- Documentos com período exibem badge visual indicando a competência
+
+---
+
+## �🛠️ Stack Tecnológica
 
 ### Backend
 | Tecnologia | Uso |

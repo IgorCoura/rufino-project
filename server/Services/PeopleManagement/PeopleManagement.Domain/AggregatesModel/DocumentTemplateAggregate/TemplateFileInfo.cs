@@ -44,5 +44,12 @@
             yield return FooterFileName;
             yield return RecoversDataType;
         }
+
+        public bool IsValid =>
+            !string.IsNullOrWhiteSpace(Directory?.Value) 
+            && !string.IsNullOrWhiteSpace(BodyFileName?.Value)
+            && !string.IsNullOrWhiteSpace(HeaderFileName?.Value)
+            && !string.IsNullOrWhiteSpace(FooterFileName?.Value);
+
     }
 }
