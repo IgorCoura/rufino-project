@@ -17,46 +17,65 @@ namespace PeopleManagement.Application.Queries.Document
         private readonly IBlobService _blobService = blobService;
         public async Task<IEnumerable<DocumentSimpleDto>> GetAllSimple(Guid employeeId, Guid companyId)
         {
-            var query = _context.Documents.Where(x => x.EmployeeId == employeeId && x.CompanyId == companyId);
+            var query = from document in _context.Documents
+                        join template in _context.DocumentTemplates on document.DocumentTemplateId equals template.Id
+                        where document.EmployeeId == employeeId && document.CompanyId == companyId
+                        select new { Document = document, Template = template };
 
-            var result = query.Select(x => new DocumentSimpleDto
+            var data = await query.ToListAsync();
+
+            var result = data.Select(x => new DocumentSimpleDto
             {
-                Id = x.Id,
-                Name = x.Name.Value,
-                Description = x.Description.Value,
-                Status = x.Status,
-                EmployeeId = x.EmployeeId,
-                CompanyId  = x.CompanyId,
-                RequiredDocumentId = x.RequiredDocumentId,
-                DocumentTemplateId = x.DocumentTemplateId,
-                CreateAt = x.CreatedAt,
-                UpdateAt = x.UpdatedAt
-            }).ToListAsync();
+                Id = x.Document.Id,
+                Name = x.Document.Name.Value,
+                Description = x.Document.Description.Value,
+                Status = x.Document.Status,
+                EmployeeId = x.Document.EmployeeId,
+                CompanyId  = x.Document.CompanyId,
+                RequiredDocumentId = x.Document.RequiredDocumentId,
+                DocumentTemplateId = x.Document.DocumentTemplateId,
+                UsePreviousPeriod = x.Document.UsePreviousPeriod,
+                IsSignable = x.Template.IsSignable,
+                CanGenerateDocument = x.Template.CanGenerateDocuments,
+                CreateAt = x.Document.CreatedAt,
+                UpdateAt = x.Document.UpdatedAt
+            }).ToList();
 
-            return await result;
+            return result;
         }
 
         public async Task<DocumentDto> GetById(Guid documentId, Guid employeeId, Guid companyId)
         {
-            var query = _context.Documents.Where(x => x.Id == documentId && x.EmployeeId == employeeId && x.CompanyId == companyId);
+            var document = await _context.Documents
+                .Include(x => x.DocumentsUnits)
+                .Where(x => x.Id == documentId && x.EmployeeId == employeeId && x.CompanyId == companyId)
+                .SingleOrDefaultAsync()
+                ?? throw new DomainException(this, DomainErrors.ObjectNotFound(nameof(Document), documentId.ToString()));
 
-            var result = await query.Select(x => new DocumentDto
+            var template = await _context.DocumentTemplates
+                .Where(x => x.Id == document.DocumentTemplateId)
+                .SingleOrDefaultAsync()
+                ?? throw new DomainException(this, DomainErrors.ObjectNotFound(nameof(DocumentTemplate), document.DocumentTemplateId.ToString()));
+
+            var result = new DocumentDto
             {
-                Id = x.Id,
-                Name = x.Name.Value,
-                Description = x.Description.Value,
-                Status = x.Status,
-                EmployeeId = x.EmployeeId,
-                CompanyId = x.CompanyId,
-                RequiredDocumentId = x.RequiredDocumentId,
-                DocumentTemplateId = x.DocumentTemplateId,
-                CreateAt = x.CreatedAt,
-                UpdateAt = x.UpdatedAt,
-                DocumentsUnits = x.DocumentsUnits
+                Id = document.Id,
+                Name = document.Name.Value,
+                Description = document.Description.Value,
+                Status = document.Status,
+                EmployeeId = document.EmployeeId,
+                CompanyId = document.CompanyId,
+                RequiredDocumentId = document.RequiredDocumentId,
+                DocumentTemplateId = document.DocumentTemplateId,
+                UsePreviousPeriod = document.UsePreviousPeriod,
+                IsSignable = template.IsSignable,
+                CanGenerateDocument = template.CanGenerateDocuments,
+                CreateAt = document.CreatedAt,
+                UpdateAt = document.UpdatedAt,
+                DocumentsUnits = document.DocumentsUnits
                     .Select(x => (DocumentUnitDto)x)
                     .ToList()
-            }).SingleOrDefaultAsync()
-            ?? throw new DomainException(this, DomainErrors.ObjectNotFound(nameof(Document), documentId.ToString()));
+            };
 
             var sortedResult = result with
             {

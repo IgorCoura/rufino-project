@@ -22,6 +22,7 @@ class DocumentTemplate extends ModelBase {
   final Workload workload;
   final List<PlaceSignature> placeSignatures;
   final DocumentGroup documentGroup;
+  final bool usePreviousPeriod;
 
   const DocumentTemplate(
     this.id,
@@ -35,6 +36,7 @@ class DocumentTemplate extends ModelBase {
     this.workload,
     this.placeSignatures,
     this.documentGroup, {
+    this.usePreviousPeriod = false,
     super.isLoading = false,
     super.isLazyLoading = false,
   });
@@ -50,6 +52,7 @@ class DocumentTemplate extends ModelBase {
     this.workload = const Workload.empty(),
     this.placeSignatures = const [],
     this.documentGroup = const DocumentGroup.empty(),
+    this.usePreviousPeriod = false,
     super.isLoading = true,
     super.isLazyLoading = true,
   });
@@ -90,6 +93,7 @@ class DocumentTemplate extends ModelBase {
     Workload? workload,
     List<PlaceSignature>? placeSignatures,
     DocumentGroup? documentGroup,
+    bool? usePreviousPeriod,
     bool? isLoading,
     bool? isLazyLoading,
     Object? generic,
@@ -141,6 +145,7 @@ class DocumentTemplate extends ModelBase {
       workload ?? this.workload,
       placeSignatures ?? this.placeSignatures,
       documentGroup ?? this.documentGroup,
+      usePreviousPeriod: usePreviousPeriod ?? this.usePreviousPeriod,
       isLoading: isLoading ?? this.isLoading,
       isLazyLoading: isLazyLoading ?? this.isLazyLoading,
     );
@@ -160,6 +165,7 @@ class DocumentTemplate extends ModelBase {
       Workload.createFormatted(json['workloadInHours'].toString()),
       PlaceSignature.fromListJson(json['templateFileInfo']['placeSignatures']),
       DocumentGroup.fromJson(json['documentGroup']),
+      usePreviousPeriod: json['usePreviousPeriod'] as bool? ?? false,
     );
   }
 
@@ -187,6 +193,7 @@ class DocumentTemplate extends ModelBase {
       'templateFileInfo': templateFileInfo,
       'placeSignatures': placeSignatures.map((e) => e.toJson()).toList(),
       'documentGroupId': documentGroup.id,
+      'usePreviousPeriod': usePreviousPeriod,
     };
   }
 
@@ -209,6 +216,7 @@ class DocumentTemplate extends ModelBase {
       'templateFileInfo': templateFileInfo,
       'placeSignatures': placeSignatures.map((e) => e.toJson()).toList(),
       'documentGroupId': documentGroup.id,
+      'usePreviousPeriod': usePreviousPeriod,
     };
   }
 
@@ -225,6 +233,7 @@ class DocumentTemplate extends ModelBase {
         workload,
         placeSignatures.hashCode,
         documentGroup,
+        usePreviousPeriod,
         isLoading,
         isLazyLoading,
       ];

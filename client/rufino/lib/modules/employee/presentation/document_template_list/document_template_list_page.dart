@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_modular/flutter_modular.dart';
+import 'package:rufino/modules/employee/presentation/components/period_components.dart';
 import 'package:rufino/modules/employee/presentation/document_template_list/bloc/document_template_list_bloc.dart';
 import 'package:rufino/shared/components/error_components.dart';
 
@@ -49,11 +50,21 @@ class DocumentTemplateListPage extends StatelessWidget {
                             children: state.documentTemplateList
                                 .map((element) => ListTile(
                                       leading: const Icon(Icons.edit_document),
-                                      title: Text(
-                                        element.name,
-                                        style: const TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                        ),
+                                      title: Row(
+                                        children: [
+                                          Expanded(
+                                            child: Text(
+                                              element.name,
+                                              style: const TextStyle(
+                                                fontWeight: FontWeight.bold,
+                                              ),
+                                            ),
+                                          ),
+                                          UsePreviousPeriodBadge(
+                                            usePreviousPeriod:
+                                                element.usePreviousPeriod,
+                                          ),
+                                        ],
                                       ),
                                       subtitle: Text(
                                         element.description,

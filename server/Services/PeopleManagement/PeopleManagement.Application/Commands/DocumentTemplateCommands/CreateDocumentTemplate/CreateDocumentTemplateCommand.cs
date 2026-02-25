@@ -3,23 +3,24 @@
 namespace PeopleManagement.Application.Commands.DocumentTemplateCommands.CreateDocumentTemplate
 {
     public record CreateDocumentTemplateCommand(Guid CompanyId, string Name, string Description, double? DocumentValidityDurationInDays, double? WorkloadInHours, 
-        TemplateFileInfoModel? TemplateFileInfo, PlaceSignatureModel[] PlaceSignatures, Guid DocumentGroupId) : IRequest<CreateDocumentTemplateResponse>
+        TemplateFileInfoModel? TemplateFileInfo, PlaceSignatureModel[] PlaceSignatures, Guid DocumentGroupId, bool UsePreviousPeriod = false) : IRequest<CreateDocumentTemplateResponse>
     {
         public DocumentTemplate ToDocumentTemplate(Guid Id, string directoryName) => DocumentTemplate.Create(Id, 
             Name, 
             Description, 
             CompanyId, 
-            DocumentValidityDurationInDays == null ? null : TimeSpan.FromDays((double)DocumentValidityDurationInDays),
-            WorkloadInHours == null ? null: TimeSpan.FromHours((double)WorkloadInHours), 
+            DocumentValidityDurationInDays,
+            WorkloadInHours, 
             TemplateFileInfo == null ? null : TemplateFileInfo!.ToTemplateFileInfo(directoryName), 
             PlaceSignatures.Select(x => x.ToPlaceSignature()).ToList(),
-            DocumentGroupId);
+            DocumentGroupId,
+            UsePreviousPeriod);
     }
 
     public record CreateDocumentTemplateModel(string Name, string Description, double? DocumentValidityDurationInDays, double? WorkloadInHours, 
-        TemplateFileInfoModel? TemplateFileInfo, PlaceSignatureModel[] PlaceSignatures, Guid documentGroupId)
+        TemplateFileInfoModel? TemplateFileInfo, PlaceSignatureModel[] PlaceSignatures, Guid documentGroupId, bool UsePreviousPeriod = false)
     {
-        public CreateDocumentTemplateCommand ToCommand(Guid company) => new (company, Name, Description, DocumentValidityDurationInDays, WorkloadInHours, TemplateFileInfo, PlaceSignatures, documentGroupId);
+        public CreateDocumentTemplateCommand ToCommand(Guid company) => new (company, Name, Description, DocumentValidityDurationInDays, WorkloadInHours, TemplateFileInfo, PlaceSignatures, documentGroupId, UsePreviousPeriod);
     }
 
     public record TemplateFileInfoModel(string BodyFileName, string HeaderFileName, string FooterFileName, int[] RecoversDataType)

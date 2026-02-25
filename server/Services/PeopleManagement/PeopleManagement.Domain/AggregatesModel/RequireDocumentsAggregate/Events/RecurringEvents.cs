@@ -95,7 +95,29 @@
         private static IEnumerable<MethodInfo> GetAllMethods() =>
             typeof(RecurringEvents).GetMethods(BindingFlags.Public | BindingFlags.Static).Where(x => x.ReturnType == typeof(RecurringEvents) && x.GetParameters().Length == 0);
 
+        public RecurringEventFrequency GetFrequency()
+        {
+            return Id switch
+            {
+                DAILY => RecurringEventFrequency.Daily,
+                WEEKLY => RecurringEventFrequency.Weekly,
+                MONTHLY => RecurringEventFrequency.Monthly,
+                YEARLY => RecurringEventFrequency.Yearly,
+                >= JANUARY and <= DECEMBER => RecurringEventFrequency.Monthly,
+                MINUTELY => RecurringEventFrequency.None,
+                _ => RecurringEventFrequency.None
+            };
+        }
     }
-    
+
+    public enum RecurringEventFrequency
+    {
+        None = 0,
+        Daily = 1,
+        Weekly = 2,
+        Monthly = 3,
+        Yearly = 4
+    }
+
 
 }

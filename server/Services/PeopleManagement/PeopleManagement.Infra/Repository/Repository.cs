@@ -22,6 +22,11 @@ namespace PeopleManagement.Infra.Repository
             return result.Entity;
         }
 
+        public virtual async Task InsertRangeAsync(IEnumerable<T> models, CancellationToken cancellation = default)
+        {
+            await _context.Set<T>().AddRangeAsync(models, cancellation);
+        }
+
         public virtual Task DeleteAsync(T model)
         {
             _context.Set<T>().Remove(model);

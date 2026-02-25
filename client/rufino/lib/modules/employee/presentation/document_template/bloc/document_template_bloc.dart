@@ -36,6 +36,7 @@ class DocumentTemplateBloc
     on<SendFileEvent>(_onSendFileEvent);
     on<DownLoadFileEvent>(_onDownLoadFileEvent);
     on<LoadDataModelEvent>(_onLoadDataModelEvent);
+    on<ToggleUsePreviousPeriodEvent>(_onToggleUsePreviousPeriodEvent);
   }
 
   void _onSnackMessageWasShow(
@@ -232,5 +233,12 @@ class DocumentTemplateBloc
       var exception = _documentTemplateService.treatErrors(ex, stacktrace);
       emit(state.copyWith(isLoading: false, exception: exception));
     }
+  }
+
+  void _onToggleUsePreviousPeriodEvent(
+      ToggleUsePreviousPeriodEvent event, Emitter<DocumentTemplateState> emit) {
+    var newDocumentTemplate =
+        state.documentTemplate.copyWith(usePreviousPeriod: event.value);
+    emit(state.copyWith(documentTemplate: newDocumentTemplate));
   }
 }

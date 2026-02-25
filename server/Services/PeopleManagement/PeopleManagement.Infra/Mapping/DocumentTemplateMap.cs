@@ -1,6 +1,7 @@
 ﻿using Microsoft.EntityFrameworkCore.ChangeTracking;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using PeopleManagement.Domain.AggregatesModel.CompanyAggregate;
+using PeopleManagement.Domain.AggregatesModel.DocumentAggregate;
 using PeopleManagement.Domain.AggregatesModel.DocumentGroupAggregate;
 using PeopleManagement.Domain.AggregatesModel.DocumentTemplateAggregate;
 using Name = PeopleManagement.Domain.AggregatesModel.DocumentTemplateAggregate.Name;
@@ -30,6 +31,9 @@ namespace PeopleManagement.Infra.Mapping
 
             builder.Property(x => x.Workload)
                .IsRequired(false);
+
+            builder.Property(x => x.UsePreviousPeriod)
+                .IsRequired();
 
             builder.OwnsMany(x => x.PlaceSignatures, prop =>
             {

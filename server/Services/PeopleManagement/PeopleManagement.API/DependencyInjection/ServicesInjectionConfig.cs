@@ -9,6 +9,7 @@ using PeopleManagement.Services.HangfireJobRegistrar;
 using PeopleManagement.Domain.AggregatesModel.RequireDocumentsAggregate.Interfaces;
 using PeopleManagement.Services.Services.RecoverInfoToDocument;
 using PeopleManagement.Domain.AggregatesModel.DocumentAggregate.Options;
+using PeopleManagement.Domain.Options;
 
 namespace PeopleManagement.API.DependencyInjection
 {
@@ -50,6 +51,10 @@ namespace PeopleManagement.API.DependencyInjection
             var signOptions = new SignOptions();
             configuration.GetSection(SignOptions.ConfigurationSection).Bind(signOptions);
             service.AddSingleton(signOptions);
+
+            var timeZoneOptions = new TimeZoneOptions();
+            configuration.GetSection(TimeZoneOptions.SectionName).Bind(timeZoneOptions);
+            service.AddSingleton(timeZoneOptions);
 
             return service;
         }

@@ -1,4 +1,6 @@
-﻿using Microsoft.Extensions.Logging;
+﻿using Hangfire;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using PeopleManagement.Domain.AggregatesModel.DocumentAggregate;
 using PeopleManagement.Domain.AggregatesModel.DocumentAggregate.Interfaces;
 using PeopleManagement.Domain.AggregatesModel.EmployeeAggregate;
@@ -9,17 +11,17 @@ using PeopleManagement.Domain.AggregatesModel.RequireDocumentsAggregate.Interfac
 namespace PeopleManagement.Services.Services
 {
     public class RecurringDocumentService(
-        IRequireDocumentsRepository requireDocumentsRepository, 
-        IDocumentRepository documentRepository, 
         IEmployeeRepository employeeRepository, 
+        IServiceProvider serviceProvider,
         ILogger<RecurringDocumentService> logger) 
         : IRecurringDocumentService
     {
-        private readonly IRequireDocumentsRepository _requireDocumentsRepository = requireDocumentsRepository;
-        private readonly IDocumentRepository _documentRepository = documentRepository;
         private readonly IEmployeeRepository _employeeRepository = employeeRepository;
         private readonly ILogger<RecurringDocumentService> _logger = logger;
+        private readonly IServiceProvider _serviceProvider = serviceProvider;
 
+        [DisableConcurrentExecution(timeoutInSeconds: 3600)] // 1 hora de timeout
+        [AutomaticRetry(Attempts = 3, DelaysInSeconds = new[] { 60, 300, 900 })] // Retry: 1min, 5min, 15min
         public async Task RecurringCreateDocumentUnits(int recurringEventId, CancellationToken cancellationToken = default)
         {
             var recurringEvent = RecurringEvents.FromValue(recurringEventId);
@@ -33,39 +35,18 @@ namespace PeopleManagement.Services.Services
             _logger.LogInformation("Recurring CreateDocument Units Init - event: {EventName} (ID: {EventId})", 
                 recurringEvent.Name, recurringEvent.Id);
 
-            var requiedDocuments = await _requireDocumentsRepository.GetAllWithEventId(recurringEvent.Id, cancellationToken);
+            var allEmployees = await _employeeRepository.GetDataAsync(cancellation: cancellationToken);
 
-            foreach (var requiedDocument in requiedDocuments)
+            await Parallel.ForEachAsync(allEmployees, cancellationToken, async (employee, ct) =>
             {
-                var documents = await _documentRepository.GetDataAsync(x => x.RequiredDocumentId == requiedDocument.Id,
-                    cancellation: cancellationToken);
-
-                foreach (var document in documents) {
-           
-
-                    Employee? employee = await _employeeRepository.FirstOrDefaultAsync(x => x.Id == document.EmployeeId 
-                        && x.CompanyId == document.CompanyId, cancellation: cancellationToken);
-
-                    if(employee is null)
-                    {
-                        _logger.LogError("Employee with ID {EmployeeId} not found for document {DocumentId}. Skipping document creation.",
-                            document.EmployeeId, document.Id);
-                        continue;
-                    }
-
-                    var isAccepted = requiedDocument.StatusIsAccepted(recurringEvent.Id, employee.Status.Id);
-
-                    if (isAccepted == false)
-                        continue;
-
-                    var documentUnitId = Guid.NewGuid();
-
-                    document!.NewDocumentUnit(documentUnitId);
-
-                }
+                // Criar um novo scope com DbContext isolado para cada employee
+                using var scope = _serviceProvider.CreateScope();
+                var scopedDocumentService = scope.ServiceProvider.GetRequiredService<IDocumentService>();
+                var scopedDocumentRepository = scope.ServiceProvider.GetRequiredService<IDocumentRepository>();
+                await scopedDocumentService.CreateDocumentUnitsForEvent(employee.Id, employee.CompanyId, recurringEvent.Id);
+                await scopedDocumentRepository.UnitOfWork.SaveChangesAsync();
                 
-            }
-            await _documentRepository.UnitOfWork.SaveChangesAsync(cancellationToken);
+            });
             _logger.LogInformation("Recurring CreateDocument Units Complete - event: {EventName} (ID: {EventId})", 
                 recurringEvent.Name, recurringEvent.Id);
 
