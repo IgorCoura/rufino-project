@@ -10,6 +10,7 @@ namespace PeopleManagement.Services.Services
     public interface IDocumentSignatureReminderService
     {
         Task SendConsolidatedSignatureReminders(CancellationToken cancellationToken = default);
+        Task SendConsolidatedSignatureReminders(Guid employeeId, CancellationToken cancellationToken = default);
         Task SendImmediateSignatureNotification(Guid documentUnitId, Guid employeeId, CancellationToken cancellationToken = default);
     }
 
@@ -34,12 +35,23 @@ namespace PeopleManagement.Services.Services
 
         public async Task SendConsolidatedSignatureReminders(CancellationToken cancellationToken = default)
         {
+            await SendConsolidatedSignatureRemindersInternal(null, cancellationToken);
+        }
+
+        public async Task SendConsolidatedSignatureReminders(Guid employeeId, CancellationToken cancellationToken = default)
+        {
+            await SendConsolidatedSignatureRemindersInternal(employeeId, cancellationToken);
+        }
+
+        private async Task SendConsolidatedSignatureRemindersInternal(Guid? employeeId, CancellationToken cancellationToken = default)
+        {
             try
             {
                 _logger.LogInformation("Starting consolidated signature reminders job");
 
                 var documents = await _documentRepository.GetDataAsync(
-                    filter: x => x.DocumentsUnits.Any(du => du.Status == DocumentUnitStatus.AwaitingSignature),
+                    filter: x => x.DocumentsUnits.Any(du => du.Status == DocumentUnitStatus.AwaitingSignature) 
+                                 && (!employeeId.HasValue || x.EmployeeId == employeeId.Value),
                     include: q => q.Include(d => d.DocumentsUnits),
                     cancellation: cancellationToken);
 

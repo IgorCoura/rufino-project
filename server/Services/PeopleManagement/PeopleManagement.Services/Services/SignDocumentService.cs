@@ -149,7 +149,7 @@ namespace PeopleManagement.Services.Services
 
                     var documentName = documentTemplate?.Name ?? "Documento";
                     var caption = $"📄 Olá {employee.Name.FirstName}!\n\n" +
-                                  $"Seu documento '{documentName}' foi assinado com sucesso.\n" +
+                                  $"Seu documento '{documentName.Value}' foi assinado com sucesso.\n" +
                                   $"Segue anexo o arquivo assinado para sua consulta.";
 
                     try
@@ -168,6 +168,9 @@ namespace PeopleManagement.Services.Services
                         // Log do erro mas não falha o processo de assinatura
                         System.Diagnostics.Debug.WriteLine($"Erro ao enviar documento via WhatsApp: {ex.Message}");
                     }
+
+                    _backgroundJobClient.Enqueue(() => 
+                        _documentSignatureReminderService.SendConsolidatedSignatureReminders(employee.Id, CancellationToken.None));
                 }
 
                 return $"O status do documentUnit {webhookEvent.DocumentUnitId}, foi alterado com sucesso para OK.";
