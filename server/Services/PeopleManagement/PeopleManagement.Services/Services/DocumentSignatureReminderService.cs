@@ -1,3 +1,4 @@
+using Hangfire;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using PeopleManagement.Domain.AggregatesModel.DocumentAggregate;
@@ -33,6 +34,8 @@ namespace PeopleManagement.Services.Services
             _logger = logger;
         }
 
+        [DisableConcurrentExecution(timeoutInSeconds: 1800)] // 30 minutos de timeout
+        [AutomaticRetry(Attempts = 2, DelaysInSeconds = new[] { 120, 600 })] // Retry: 2min, 10min
         public async Task SendConsolidatedSignatureReminders(CancellationToken cancellationToken = default)
         {
             await SendConsolidatedSignatureRemindersInternal(null, cancellationToken);

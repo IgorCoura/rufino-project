@@ -5,6 +5,7 @@ import 'package:mask_text_input_formatter/mask_text_input_formatter.dart';
 import 'package:rufino/modules/employee/domain/model/document/document.dart';
 import 'package:rufino/modules/employee/domain/model/document/document_unit.dart';
 import 'package:rufino/modules/employee/domain/model/document_group/document_group_with_documents.dart';
+import 'package:rufino/modules/employee/presentation/components/period_components.dart';
 import 'package:rufino/modules/employee/presentation/employee_profile/components/documents_component/bloc/documents_component_bloc.dart';
 import 'package:rufino/shared/components/error_components.dart';
 
@@ -102,8 +103,16 @@ class DocumentsComponent extends StatelessWidget {
       child: ExpansionTile(
         onExpansionChanged: (value) => {},
         controlAffinity: ListTileControlAffinity.leading,
-        title: Text(reqDocument.name),
-        subtitle: Text("Status: ${reqDocument.status.name}"),
+        title: Row(
+          children: [
+            _statusBadge(reqDocument.status.name,
+                _getDocumentGroupStatusColor(reqDocument.status.id)),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(reqDocument.name),
+            ),
+          ],
+        ),
         children: reqDocument.documents.isEmpty
             ? [
                 state.isLazyLoading
@@ -142,8 +151,22 @@ class DocumentsComponent extends StatelessWidget {
           onExpansionChanged: (value) =>
               bloc.add(ExpandDocumentEvent(document.id, value)),
           controlAffinity: ListTileControlAffinity.leading,
-          title: Text(document.name),
-          subtitle: Text("Status: ${document.status.name}"),
+          title: Row(
+            children: [
+              _statusBadge(document.status.name,
+                  _getDocumentStatusColor(document.status.id)),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(document.name),
+              ),
+              if (document.usePreviousPeriod) ...[
+                const SizedBox(width: 8),
+                UsePreviousPeriodBadge(
+                  usePreviousPeriod: document.usePreviousPeriod,
+                ),
+              ],
+            ],
+          ),
           trailing: TextButton(
             onPressed: () => bloc.add(CreateDocumentUnitEvent(document.id)),
             child: Column(
@@ -173,7 +196,13 @@ class DocumentsComponent extends StatelessWidget {
                           child: Text("Nenhum item encontrado"),
                         ),
                 ]
-              : document.documentsUnits
+              : (List<DocumentUnit>.from(document.documentsUnits)
+                    ..sort((a, b) {
+                      if (a.createAt.isEmpty) return 1;
+                      if (b.createAt.isEmpty) return -1;
+                      return DateTime.parse(b.createAt)
+                          .compareTo(DateTime.parse(a.createAt));
+                    }))
                   .map((documentUnit) => _documentUnitWidget(
                       context, document, documentUnit, state))
                   .toList(),
@@ -187,67 +216,71 @@ class DocumentsComponent extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.all(8.0),
       child: ListTile(
-        leading: Text(documentUnit.status.name),
+        leading: _statusBadge(documentUnit.status.name,
+            _getDocumentUnitStatusColor(documentUnit.status.id)),
         title: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  "ID: ",
-                  style: TextStyle(overflow: TextOverflow.ellipsis),
-                ),
-                Text(documentUnit.id.substring(0, 5)),
-              ],
+            Icon(Icons.access_time, size: 14),
+            const SizedBox(width: 4),
+            Text(
+              "Criado: ",
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.bold,
+              ),
             ),
-            SizedBox(width: 8),
-            Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  "Criado: ",
-                  style: TextStyle(overflow: TextOverflow.ellipsis),
-                ),
-                Text(
-                  documentUnit.getCreateAt,
-                  style: TextStyle(overflow: TextOverflow.ellipsis),
-                ),
-              ],
+            Text(
+              documentUnit.getCreateAt,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+              ),
             ),
-            SizedBox(width: 8),
           ],
         ),
         subtitle: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  "Data: ",
-                  style: TextStyle(overflow: TextOverflow.ellipsis),
-                ),
-                Text(
-                  documentUnit.getDate,
-                  style: TextStyle(overflow: TextOverflow.ellipsis),
-                ),
-              ],
+            Icon(Icons.event, size: 14),
+            const SizedBox(width: 4),
+            Text(
+              "Data: ",
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.bold,
+              ),
             ),
-            SizedBox(width: 8),
-            Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  "Vencimento: ",
-                  style: TextStyle(overflow: TextOverflow.ellipsis),
+            Text(
+              documentUnit.getDate,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            if (documentUnit.validity.isNotEmpty) ...[
+              const SizedBox(width: 16),
+              Icon(Icons.event_busy, size: 14),
+              const SizedBox(width: 4),
+              Text(
+                "Vencimento: ",
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
                 ),
-                Text(
-                  documentUnit.getValidity,
-                  style: TextStyle(overflow: TextOverflow.ellipsis),
+              ),
+              Text(
+                documentUnit.getValidity,
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
                 ),
-              ],
-            )
+              ),
+            ],
+            if (documentUnit.hasPeriod) ...[
+              const SizedBox(width: 16),
+              PeriodBadgeComponent(period: documentUnit.period),
+            ],
           ],
         ),
         trailing: state.isSavingData
@@ -265,42 +298,46 @@ class DocumentsComponent extends StatelessWidget {
                           children: const [
                             Icon(Icons.edit),
                             Text(
-                              "Atualizar",
+                              "Editar",
                               style: TextStyle(fontSize: 10),
                             ),
                           ],
                         ),
                       ),
-                      TextButton(
-                        onPressed: () => _showGenerateButtonsDialog(
-                            context, document, documentUnit),
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          crossAxisAlignment: CrossAxisAlignment.center,
-                          children: const [
-                            Icon(Icons.sim_card_download_outlined),
-                            Text(
-                              "Gerar",
-                              style: TextStyle(fontSize: 10),
+                      if (documentUnit.date.isNotEmpty &&
+                          documentUnit.date != "0001-01-01") ...[
+                        if (document.canGenerateDocument)
+                          TextButton(
+                            onPressed: () => _showGenerateButtonsDialog(
+                                context, document, documentUnit),
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              crossAxisAlignment: CrossAxisAlignment.center,
+                              children: const [
+                                Icon(Icons.sim_card_download_outlined),
+                                Text(
+                                  "Gerar",
+                                  style: TextStyle(fontSize: 10),
+                                ),
+                              ],
                             ),
-                          ],
+                          ),
+                        TextButton(
+                          onPressed: () => _showSendButtonsDialog(
+                              context, document, documentUnit),
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            crossAxisAlignment: CrossAxisAlignment.center,
+                            children: const [
+                              Icon(Icons.upload_file),
+                              Text(
+                                "Enviar",
+                                style: TextStyle(fontSize: 10),
+                              ),
+                            ],
+                          ),
                         ),
-                      ),
-                      TextButton(
-                        onPressed: () => _showSendButtonsDialog(
-                            context, document, documentUnit),
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          crossAxisAlignment: CrossAxisAlignment.center,
-                          children: const [
-                            Icon(Icons.upload_file),
-                            Text(
-                              "Enviar",
-                              style: TextStyle(fontSize: 10),
-                            ),
-                          ],
-                        ),
-                      ),
+                      ],
                     ],
                   )
                 : documentUnit.hasFile
@@ -350,26 +387,28 @@ class DocumentsComponent extends StatelessWidget {
                   )),
                 ),
               ),
-              SizedBox(height: 8),
-              OutlinedButton(
-                onPressed: () {
-                  _getDataToSignDialog(context,
-                      (dateLimitToSign, eminderEveryNDays) {
-                    bloc.add(LoadDocumentUnitToSignEvent(
-                      dateLimitToSign,
-                      eminderEveryNDays,
-                      documentUnit.id,
-                      document.id,
-                    ));
-                  });
-                },
-                child: SizedBox(
-                  width: 300,
-                  child: Center(
-                    child: const Text("Enviar arquivo para ser assinado"),
+              if (document.isSignable) ...[
+                SizedBox(height: 8),
+                OutlinedButton(
+                  onPressed: () {
+                    _getDataToSignDialog(context,
+                        (dateLimitToSign, eminderEveryNDays) {
+                      bloc.add(LoadDocumentUnitToSignEvent(
+                        dateLimitToSign,
+                        eminderEveryNDays,
+                        documentUnit.id,
+                        document.id,
+                      ));
+                    });
+                  },
+                  child: SizedBox(
+                    width: 300,
+                    child: Center(
+                      child: const Text("Enviar arquivo para ser assinado"),
+                    ),
                   ),
                 ),
-              ),
+              ],
             ],
           ),
           actions: [
@@ -410,25 +449,27 @@ class DocumentsComponent extends StatelessWidget {
                   )),
                 ),
               ),
-              SizedBox(height: 8),
-              OutlinedButton(
-                onPressed: () {
-                  _getDataToSignDialog(
-                      context,
-                      (dateLimitToSign, eminderEveryNDays) => bloc.add(
-                          GenerateAndSend2SignEvent(
-                              dateLimitToSign,
-                              eminderEveryNDays,
-                              document.id,
-                              documentUnit.id)));
-                },
-                child: SizedBox(
-                  width: 300,
-                  child: Center(
-                    child: const Text("Gerar arquivo e enviar para assinar"),
+              if (document.isSignable) ...[
+                SizedBox(height: 8),
+                OutlinedButton(
+                  onPressed: () {
+                    _getDataToSignDialog(
+                        context,
+                        (dateLimitToSign, eminderEveryNDays) => bloc.add(
+                            GenerateAndSend2SignEvent(
+                                dateLimitToSign,
+                                eminderEveryNDays,
+                                document.id,
+                                documentUnit.id)));
+                  },
+                  child: SizedBox(
+                    width: 300,
+                    child: Center(
+                      child: const Text("Gerar arquivo e enviar para assinar"),
+                    ),
                   ),
                 ),
-              ),
+              ],
             ],
           ),
           actions: [
@@ -454,7 +495,7 @@ class DocumentsComponent extends StatelessWidget {
             var _dialogKey = GlobalKey<FormState>();
             String date = "";
             return AlertDialog(
-              title: Text("Atualizar data do documento"),
+              title: Text("Editar data do documento"),
               content: SizedBox(
                 width: 400,
                 child: Form(
@@ -592,5 +633,84 @@ class DocumentsComponent extends StatelessWidget {
             );
           });
     });
+  }
+
+  Color _getDocumentGroupStatusColor(String statusId) {
+    switch (statusId) {
+      case "1":
+        return Colors.green;
+      case "2":
+        return Colors.orange;
+      case "3":
+        return Colors.red;
+      default:
+        return Colors.grey;
+    }
+  }
+
+  Color _getDocumentStatusColor(String statusId) {
+    switch (statusId) {
+      case "1":
+        return Colors.orange;
+      case "2":
+        return Colors.amber;
+      case "3":
+        return Colors.green;
+      case "4":
+        return Colors.grey;
+      case "5":
+        return Colors.blue;
+      default:
+        return Colors.grey;
+    }
+  }
+
+  Color _getDocumentUnitStatusColor(String statusId) {
+    switch (statusId) {
+      case "1":
+        return Colors.orange;
+      case "2":
+        return Colors.green;
+      case "3":
+        return Colors.grey;
+      case "4":
+        return Colors.red;
+      case "5":
+        return Colors.amber;
+      case "6":
+        return Colors.blueGrey;
+      case "7":
+        return Colors.blue;
+      default:
+        return Colors.grey;
+    }
+  }
+
+  Widget _statusBadge(String statusName, Color color) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          decoration: BoxDecoration(
+            color: color.withOpacity(0.15),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: color, width: 1),
+          ),
+          constraints: const BoxConstraints(minWidth: 0),
+          child: FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Text(
+              statusName,
+              style: TextStyle(
+                color: color,
+                fontWeight: FontWeight.bold,
+                fontSize: 12,
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
   }
 }
