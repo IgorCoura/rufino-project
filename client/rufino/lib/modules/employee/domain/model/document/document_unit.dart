@@ -1,6 +1,7 @@
 import 'package:equatable/equatable.dart';
 import 'package:intl/intl.dart';
 import 'package:rufino/modules/employee/domain/model/document/document_unit_status.dart';
+import 'package:rufino/modules/employee/domain/model/document/period.dart';
 
 class DocumentUnit extends Equatable {
   final String id;
@@ -10,11 +11,21 @@ class DocumentUnit extends Equatable {
   final String extension;
   final DocumentUnitStatus status;
   final String date;
+  final Period? period;
   final String createAt;
   final String updateAt;
 
-  const DocumentUnit(this.id, this.content, this.validity, this.name,
-      this.extension, this.status, this.date, this.createAt, this.updateAt);
+  const DocumentUnit(
+      this.id,
+      this.content,
+      this.validity,
+      this.name,
+      this.extension,
+      this.status,
+      this.date,
+      this.period,
+      this.createAt,
+      this.updateAt);
 
   const DocumentUnit.empty()
       : id = "",
@@ -24,6 +35,7 @@ class DocumentUnit extends Equatable {
         extension = "",
         status = const DocumentUnitStatus.empty(),
         date = "",
+        period = null,
         createAt = "",
         updateAt = "";
 
@@ -36,6 +48,9 @@ class DocumentUnit extends Equatable {
       json['extension'] ?? "",
       DocumentUnitStatus.fromJson(json['status'] as Map<String, dynamic>),
       json['date'] as String,
+      json['period'] != null
+          ? Period.fromJson(json['period'] as Map<String, dynamic>)
+          : null,
       json['createAt'] as String,
       json['updateAt'] as String,
     );
@@ -150,6 +165,13 @@ class DocumentUnit extends Equatable {
     return null;
   }
 
+  bool get hasPeriod => period != null;
+
+  String get getPeriodFormatted {
+    if (period == null) return "";
+    return period!.formattedPeriod;
+  }
+
   @override
   List<Object?> get props => [
         id,
@@ -159,6 +181,7 @@ class DocumentUnit extends Equatable {
         extension,
         status,
         date,
+        period,
         createAt,
         updateAt,
       ];

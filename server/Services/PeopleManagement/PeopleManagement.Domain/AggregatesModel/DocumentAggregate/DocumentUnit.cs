@@ -27,6 +27,7 @@ namespace PeopleManagement.Domain.AggregatesModel.DocumentAggregate
 
         public Name? Name { get; private set; } = null!;
         public Extension? Extension { get; private set; } = null!;
+        public Period? Period { get; private set; }
         public DocumentUnitStatus Status { get; private set; } = DocumentUnitStatus.Pending;
         public DateOnly Date { get; private set; }
         public Guid DocumentId { get; private set; }
@@ -44,6 +45,22 @@ namespace PeopleManagement.Domain.AggregatesModel.DocumentAggregate
         public static DocumentUnit Create(Guid id,  Document document)
         {
             return new(id,  document);
+        }
+
+        public static DocumentUnit Create(Guid id, Document document, PeriodType? periodType, DateTime? referenceDate)
+        {
+            var documentUnit = new DocumentUnit(id, document);
+
+            if (periodType is not null && referenceDate.HasValue)
+            {
+                documentUnit.Period = document.UsePreviousPeriod
+                    ? Period.CreatePreviousPeriod(periodType, referenceDate.Value)
+                    : Period.Create(periodType, referenceDate.Value);
+                DateOnly? validity = null;
+                documentUnit.UpdateDetails(DateOnly.FromDateTime((DateTime)referenceDate), validity, "");
+            }
+
+            return documentUnit;
         }
 
         public void InsertWithRequireValidation(Name name, Extension extension)
@@ -165,6 +182,11 @@ namespace PeopleManagement.Domain.AggregatesModel.DocumentAggregate
         public bool IsPending => Status == DocumentUnitStatus.Pending;
         public string GetNameWithExtension => $"{Name}.{Extension}";
         public bool CanEdit => (Name == null || Name.IsNullOrEmpty) && Extension == null;
+
+        public bool IsPeriodDaily => Period?.IsDaily ?? false;
+        public bool IsPeriodWeekly => Period?.IsWeekly ?? false;
+        public bool IsPeriodMonthly => Period?.IsMonthly ?? false;
+        public bool IsPeriodYearly => Period?.IsYearly ?? false;
 
         private bool HasInvalidDateOrValidity => Date == DateOnly.MinValue || Date == DateOnly.MaxValue || (Validity != null && (Validity == DateOnly.MinValue || Validity == DateOnly.MaxValue));
 

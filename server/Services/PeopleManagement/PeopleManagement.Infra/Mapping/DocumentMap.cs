@@ -30,6 +30,9 @@ namespace PeopleManagement.Infra.Mapping
                 .HasMaxLength(Description.MAX_LENGTH)
                 .IsRequired();
 
+            builder.Property(x => x.UsePreviousPeriod)
+                .IsRequired();
+
             builder.HasOne<DocumentTemplate>()
                 .WithMany()
                 .HasForeignKey(x => x.DocumentTemplateId)

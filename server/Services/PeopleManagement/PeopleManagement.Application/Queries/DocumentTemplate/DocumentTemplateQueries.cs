@@ -60,6 +60,7 @@ namespace PeopleManagement.Application.Queries.DocumentTemplate
                     CompanyId = entity.DocumentTemplates.CompanyId,
                     DocumentValidityDurationInDays = entity.DocumentTemplates.DocumentValidityDuration.HasValue ? entity.DocumentTemplates.DocumentValidityDuration.Value.Days : null,
                     WorkloadInHours = entity.DocumentTemplates.Workload.HasValue ? entity.DocumentTemplates.Workload.Value.Hours : null,
+                    UsePreviousPeriod = entity.DocumentTemplates.UsePreviousPeriod,
                     TemplateFileInfo = entity.DocumentTemplates.TemplateFileInfo == null ? new TemplateFileInfoDto() : new TemplateFileInfoDto
                     {
                         BodyFileName = entity.DocumentTemplates.TemplateFileInfo.BodyFileName.Value,
@@ -106,6 +107,7 @@ namespace PeopleManagement.Application.Queries.DocumentTemplate
                 CompanyId = x.CompanyId,
                 DocumentValidityDurationInDays = x.DocumentValidityDuration.HasValue ? x.DocumentValidityDuration.Value.Days : null,
                 WorkloadInHours = x.Workload.HasValue ? x.Workload.Value.Hours : null,
+                UsePreviousPeriod = x.UsePreviousPeriod,
                 TemplateFileInfo = x.TemplateFileInfo == null ? new TemplateFileInfoDto() : new TemplateFileInfoDto
                 {
                     BodyFileName = x.TemplateFileInfo.BodyFileName.Value,

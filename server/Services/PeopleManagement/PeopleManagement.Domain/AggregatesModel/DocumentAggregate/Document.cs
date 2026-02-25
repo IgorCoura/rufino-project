@@ -2,6 +2,7 @@
 using PeopleManagement.Domain.AggregatesModel.EmployeeAggregate;
 using PeopleManagement.Domain.ErrorTools;
 using PeopleManagement.Domain.ErrorTools.ErrorsMessages;
+using System.Reflection.Metadata.Ecma335;
 
 namespace PeopleManagement.Domain.AggregatesModel.DocumentAggregate
 {
@@ -15,8 +16,10 @@ namespace PeopleManagement.Domain.AggregatesModel.DocumentAggregate
         public List<DocumentUnit> DocumentsUnits { get; private set; } = [];
         public DocumentStatus Status { get; private set; } = DocumentStatus.OK;
         public Guid DocumentTemplateId { get; private set; }
+        public bool UsePreviousPeriod { get; private set; }
 
-        private Document(Guid id, Guid employeeId, Guid companyId, Guid requiredDocumentId, Guid documentTemplateId, Name name, Description description) : base(id)
+        private Document(Guid id, Guid employeeId, Guid companyId, Guid requiredDocumentId, Guid documentTemplateId, Name name, Description description,
+            bool usePreviousPeriod = false) : base(id)
         {
             EmployeeId = employeeId;
             CompanyId = companyId;
@@ -24,16 +27,18 @@ namespace PeopleManagement.Domain.AggregatesModel.DocumentAggregate
             DocumentTemplateId = documentTemplateId;
             Description = description;
             Name = name;
+            UsePreviousPeriod = usePreviousPeriod;
         }
 
-        public static Document Create(Guid id, Guid employeeId, Guid companyId, Guid requiredDocumentId, Guid documentTemplateId, Name name, Description description) => new(id, employeeId, companyId, requiredDocumentId, documentTemplateId, name, description);
+        public static Document Create(Guid id, Guid employeeId, Guid companyId, Guid requiredDocumentId, Guid documentTemplateId, Name name, Description description,
+            bool usePreviousPeriod = false) => new(id, employeeId, companyId, requiredDocumentId, documentTemplateId, name, description, usePreviousPeriod);
 
-        public DocumentUnit NewDocumentUnit(Guid documentUnitId)
+        public DocumentUnit NewDocumentUnit(Guid documentUnitId, PeriodType? periodType = null, DateTime? referenceDate = null)
         {
             if (DocumentsUnits.Any(x => x.Status == DocumentUnitStatus.Pending))
                 return DocumentsUnits.FirstOrDefault(x => x.Status == DocumentUnitStatus.Pending)!;
 
-            var documentUnit = DocumentUnit.Create(documentUnitId, this);
+            var documentUnit = DocumentUnit.Create(documentUnitId, this, periodType, referenceDate);
             DocumentsUnits.Add(documentUnit);
             RefreshDocumentStatus();
             return documentUnit;
@@ -47,7 +52,6 @@ namespace PeopleManagement.Domain.AggregatesModel.DocumentAggregate
             documentUnit.InsertWithRequireValidation(name, extension);
 
             RefreshDocumentStatus();
-
         }
 
         public string InsertUnitWithoutRequireValidation(Guid documentUnitId, Name name, Extension extension)
@@ -153,11 +157,51 @@ namespace PeopleManagement.Domain.AggregatesModel.DocumentAggregate
 
         private void DeprecateDocumentsUnit(Guid? exceptionDocumentId = null)
         {
-            DocumentsUnits.ForEach(x =>
+            if (this.UsePreviousPeriod == true)
             {
-                if(exceptionDocumentId == null || x.Id != exceptionDocumentId)                 
-                    x.MarkAsDeprecatedOrInvalid();
-            });
+                // Agrupa DocumentUnits por Period
+                var groupedByPeriod = DocumentsUnits
+                    .Where(x => x.Period != null)
+                    .GroupBy(x => x.Period);
+
+                foreach (var periodGroup in groupedByPeriod)
+                {
+                    // Encontra o DocumentUnit OK mais recente no período (baseado na data de criação/Id)
+                    var okDocuments = periodGroup.Where(x => x.IsOK).OrderByDescending(x => x.Date).ThenByDescending(x => x.Id).ToList();
+
+                    if (okDocuments.Count > 1)
+                    {
+                        // Mantém apenas o mais recente, deprecia os outros
+                        var mostRecent = okDocuments.First();
+                        foreach (var doc in okDocuments.Skip(1))
+                        {
+                            if (exceptionDocumentId == null || doc.Id != exceptionDocumentId)
+                            {
+                                doc.MarkAsDeprecatedOrInvalid();
+                            }
+                        }
+                    }
+                }
+
+                // Deprecia os documentos sem período ou que não são OK
+                DocumentsUnits.ForEach(x =>
+                {
+                    if (x.Period == null && !x.IsOK)
+                    {
+                        if (exceptionDocumentId == null || x.Id != exceptionDocumentId)
+                            x.MarkAsDeprecatedOrInvalid();
+                    }
+                });
+            }
+            else
+            {
+                DocumentsUnits.ForEach(x =>
+                {
+                    if (exceptionDocumentId == null || x.Id != exceptionDocumentId)
+                        x.MarkAsDeprecatedOrInvalid();
+                });
+            }
+
             RefreshDocumentStatus();
         }
 
