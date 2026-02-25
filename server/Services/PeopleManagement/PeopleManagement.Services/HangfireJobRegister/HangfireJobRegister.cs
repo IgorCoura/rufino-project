@@ -30,82 +30,146 @@ namespace PeopleManagement.Services.HangfireJobRegistrar
             _recurringJobManager.AddOrUpdate<IRecurringDocumentService>(
                 "january-job",
                 x => x.RecurringCreateDocumentUnits(RecurringEvents.JANUARY, CancellationToken.None),
-                "0 0 1 1 *");
+                "0 0 1 1 *",
+                new RecurringJobOptions
+                {
+                    TimeZone = TimeZoneInfo.FindSystemTimeZoneById(_timeZoneOptions.TimeZoneId)
+                });
 
             _recurringJobManager.AddOrUpdate<IRecurringDocumentService>(
                 "february-job",
                 x => x.RecurringCreateDocumentUnits(RecurringEvents.FEBRUARY, CancellationToken.None),
-                "0 0 1 2 *");
+                "0 0 1 2 *",
+                new RecurringJobOptions
+                {
+                    TimeZone = TimeZoneInfo.FindSystemTimeZoneById(_timeZoneOptions.TimeZoneId)
+                });
 
             _recurringJobManager.AddOrUpdate<IRecurringDocumentService>(
                 "march-job",
                 x => x.RecurringCreateDocumentUnits(RecurringEvents.MARCH, CancellationToken.None),
-                "0 0 1 3 *");
+                "0 0 1 3 *",
+                new RecurringJobOptions
+                {
+                    TimeZone = TimeZoneInfo.FindSystemTimeZoneById(_timeZoneOptions.TimeZoneId)
+                });
 
             _recurringJobManager.AddOrUpdate<IRecurringDocumentService>(
                 "april-job",
                 x => x.RecurringCreateDocumentUnits(RecurringEvents.APRIL, CancellationToken.None),
-                "0 0 1 4 *");
+                "0 0 1 4 *",
+                new RecurringJobOptions
+                {
+                    TimeZone = TimeZoneInfo.FindSystemTimeZoneById(_timeZoneOptions.TimeZoneId)
+                });
 
             _recurringJobManager.AddOrUpdate<IRecurringDocumentService>(
                 "may-job",
                 x => x.RecurringCreateDocumentUnits(RecurringEvents.MAY, CancellationToken.None),
-                "0 0 1 5 *");
+                "0 0 1 5 *",
+                new RecurringJobOptions
+                {
+                    TimeZone = TimeZoneInfo.FindSystemTimeZoneById(_timeZoneOptions.TimeZoneId)
+                });
 
             _recurringJobManager.AddOrUpdate<IRecurringDocumentService>(
                 "june-job",
                 x => x.RecurringCreateDocumentUnits(RecurringEvents.JUNE, CancellationToken.None),
-                "0 0 1 6 *");
+                "0 0 1 6 *",
+                new RecurringJobOptions
+                {
+                    TimeZone = TimeZoneInfo.FindSystemTimeZoneById(_timeZoneOptions.TimeZoneId)
+                });
 
             _recurringJobManager.AddOrUpdate<IRecurringDocumentService>(
                 "july-job",
                 x => x.RecurringCreateDocumentUnits(RecurringEvents.JULY, CancellationToken.None),
-                "0 0 1 7 *");
+                "0 0 1 7 *",
+                new RecurringJobOptions
+                {
+                    TimeZone = TimeZoneInfo.FindSystemTimeZoneById(_timeZoneOptions.TimeZoneId)
+                });
 
             _recurringJobManager.AddOrUpdate<IRecurringDocumentService>(
                 "august-job",
                 x => x.RecurringCreateDocumentUnits(RecurringEvents.AUGUST, CancellationToken.None),
-                "0 0 1 8 *");
+                "0 0 1 8 *",
+                new RecurringJobOptions
+                {
+                    TimeZone = TimeZoneInfo.FindSystemTimeZoneById(_timeZoneOptions.TimeZoneId)
+                });
 
             _recurringJobManager.AddOrUpdate<IRecurringDocumentService>(
                 "september-job",
                 x => x.RecurringCreateDocumentUnits(RecurringEvents.SEPTEMBER, CancellationToken.None),
-                "0 0 1 9 *");
+                "0 0 1 9 *",
+                new RecurringJobOptions
+                {
+                    TimeZone = TimeZoneInfo.FindSystemTimeZoneById(_timeZoneOptions.TimeZoneId)
+                });
 
             _recurringJobManager.AddOrUpdate<IRecurringDocumentService>(
                 "october-job",
                 x => x.RecurringCreateDocumentUnits(RecurringEvents.OCTOBER, CancellationToken.None),
-                "0 0 1 10 *");
+                "0 0 1 10 *",
+                new RecurringJobOptions
+                {
+                    TimeZone = TimeZoneInfo.FindSystemTimeZoneById(_timeZoneOptions.TimeZoneId)
+                });
 
             _recurringJobManager.AddOrUpdate<IRecurringDocumentService>(
                 "november-job",
                 x => x.RecurringCreateDocumentUnits(RecurringEvents.NOVEMBER, CancellationToken.None),
-                "0 0 1 11 *");
+                "0 0 1 11 *",
+                new RecurringJobOptions
+                {
+                    TimeZone = TimeZoneInfo.FindSystemTimeZoneById(_timeZoneOptions.TimeZoneId)
+                });
 
             _recurringJobManager.AddOrUpdate<IRecurringDocumentService>(
                 "december-job",
                 x => x.RecurringCreateDocumentUnits(RecurringEvents.DECEMBER, CancellationToken.None),
-                "0 0 1 12 *");
+                "0 0 1 12 *",
+                new RecurringJobOptions
+                {
+                    TimeZone = TimeZoneInfo.FindSystemTimeZoneById(_timeZoneOptions.TimeZoneId)
+                });
 
             _recurringJobManager.AddOrUpdate<IRecurringDocumentService>(
                "daily-job",
                x => x.RecurringCreateDocumentUnits(RecurringEvents.DAILY, CancellationToken.None),
-               Cron.Daily);
+               Cron.Daily,
+               new RecurringJobOptions
+               {
+                   TimeZone = TimeZoneInfo.FindSystemTimeZoneById(_timeZoneOptions.TimeZoneId)
+               });
 
             _recurringJobManager.AddOrUpdate<IRecurringDocumentService>(
                "weekly-job",
                x => x.RecurringCreateDocumentUnits(RecurringEvents.WEEKLY, CancellationToken.None),
-               Cron.Weekly);
+               Cron.Weekly,
+               new RecurringJobOptions
+               {
+                   TimeZone = TimeZoneInfo.FindSystemTimeZoneById(_timeZoneOptions.TimeZoneId)
+               });
 
             _recurringJobManager.AddOrUpdate<IRecurringDocumentService>(
                "monthly-job",
                x => x.RecurringCreateDocumentUnits(RecurringEvents.MONTHLY, CancellationToken.None),
-               Cron.Monthly);
+               Cron.Monthly,
+               new RecurringJobOptions
+               {
+                   TimeZone = TimeZoneInfo.FindSystemTimeZoneById(_timeZoneOptions.TimeZoneId)
+               });
 
             _recurringJobManager.AddOrUpdate<IRecurringDocumentService>(
                "yearly-job",
                x => x.RecurringCreateDocumentUnits(RecurringEvents.YEARLY, CancellationToken.None),
-               Cron.Yearly);
+               Cron.Yearly,
+               new RecurringJobOptions
+               {
+                   TimeZone = TimeZoneInfo.FindSystemTimeZoneById(_timeZoneOptions.TimeZoneId)
+               });
 
             // Configure the HTTP request pipeline.
             if (_environment != null && _environment.Equals("Development"))
@@ -113,13 +177,21 @@ namespace PeopleManagement.Services.HangfireJobRegistrar
                 _recurringJobManager.AddOrUpdate<IRecurringDocumentService>(
                "minutely-job",
                x => x.RecurringCreateDocumentUnits(RecurringEvents.MINUTELY, CancellationToken.None),
-               Cron.Minutely);
+               Cron.Minutely,
+               new RecurringJobOptions
+               {
+                   TimeZone = TimeZoneInfo.FindSystemTimeZoneById(_timeZoneOptions.TimeZoneId)
+               });
             }
 
             _recurringJobManager.AddOrUpdate<IWebHookManagementService>(
                "refresh-webhook-job",
                x => x.RefreshWebHookEvent(CancellationToken.None),
-               Cron.Daily);
+               Cron.Daily,
+               new RecurringJobOptions
+               {
+                   TimeZone = TimeZoneInfo.FindSystemTimeZoneById(_timeZoneOptions.TimeZoneId)
+               });
 
             _backgroundJobClient.Enqueue<IWebHookManagementService>(x => x.RefreshWebHookEvent(CancellationToken.None));
 
