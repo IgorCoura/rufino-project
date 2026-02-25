@@ -5,6 +5,7 @@ using Microsoft.Extensions.Logging;
 using PeopleManagement.Domain.AggregatesModel.DocumentAggregate.Interfaces;
 using PeopleManagement.Domain.AggregatesModel.RequireDocumentsAggregate.Events;
 using PeopleManagement.Domain.AggregatesModel.RequireDocumentsAggregate.Interfaces;
+using PeopleManagement.Domain.Options;
 using PeopleManagement.Domain.Services;
 using PeopleManagement.Services.Services;
 
@@ -14,12 +15,14 @@ namespace PeopleManagement.Services.HangfireJobRegistrar
         IRecurringJobManager recurringJobManager, 
         IBackgroundJobClient backgroundJobClient, 
         IWebHostEnvironment environment,
-        ILogger<HangfireJobRegister> logger) 
+        ILogger<HangfireJobRegister> logger,
+        TimeZoneOptions timeZoneOptions) 
     {
         private readonly IRecurringJobManager _recurringJobManager = recurringJobManager;
         private readonly IBackgroundJobClient _backgroundJobClient = backgroundJobClient;
         private readonly IWebHostEnvironment _environment = environment;
         private readonly ILogger<HangfireJobRegister> _logger = logger;
+        private readonly TimeZoneOptions _timeZoneOptions = timeZoneOptions;
         public void RegisterRecurringJobs()
         {
             _logger.LogInformation("Register Recurring Jobs Init");
@@ -126,7 +129,7 @@ namespace PeopleManagement.Services.HangfireJobRegistrar
                 "0 12 * * *",
                 new RecurringJobOptions
                 {
-                    TimeZone = TimeZoneInfo.FindSystemTimeZoneById("E. South America Standard Time")
+                    TimeZone = TimeZoneInfo.FindSystemTimeZoneById(_timeZoneOptions.TimeZoneId)
                 });
 
             RecurringJob.AddOrUpdate<IDocumentSignatureReminderService>(
@@ -135,25 +138,25 @@ namespace PeopleManagement.Services.HangfireJobRegistrar
                 "0 19 * * *",
                 new RecurringJobOptions
                 {
-                    TimeZone = TimeZoneInfo.FindSystemTimeZoneById("E. South America Standard Time")
+                    TimeZone = TimeZoneInfo.FindSystemTimeZoneById(_timeZoneOptions.TimeZoneId)
                 });
 
             RecurringJob.AddOrUpdate<IWhatsAppHealthCheckService>(
                 "signature-reminders-morning",
                 service => service.SendHealthCheckMessage(CancellationToken.None),
-                "0 12 * * *",
+                "0 10 * * *",
                 new RecurringJobOptions
                 {
-                    TimeZone = TimeZoneInfo.FindSystemTimeZoneById("E. South America Standard Time")
+                    TimeZone = TimeZoneInfo.FindSystemTimeZoneById(_timeZoneOptions.TimeZoneId)
                 });
 
             RecurringJob.AddOrUpdate<IWhatsAppHealthCheckService>(
                 "signature-reminders-afternoon",
                 service => service.SendHealthCheckMessage(CancellationToken.None),
-                "0 19 * * *",
+                "0 17 * * *",
                 new RecurringJobOptions
                 {
-                    TimeZone = TimeZoneInfo.FindSystemTimeZoneById("E. South America Standard Time")
+                    TimeZone = TimeZoneInfo.FindSystemTimeZoneById(_timeZoneOptions.TimeZoneId)
                 });
 
             _logger.LogInformation("Register Recurring Jobs Complete");
