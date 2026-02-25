@@ -2,6 +2,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using PeopleManagement.Domain.AggregatesModel.DocumentAggregate;
 using PeopleManagement.Domain.AggregatesModel.DocumentAggregate.Interfaces;
 using PeopleManagement.Domain.AggregatesModel.DocumentTemplateAggregate;
@@ -10,9 +11,11 @@ using PeopleManagement.Domain.AggregatesModel.DocumentTemplateAggregate.options;
 using PeopleManagement.Domain.AggregatesModel.EmployeeAggregate.Events;
 using PeopleManagement.Domain.AggregatesModel.EmployeeAggregate.Interfaces;
 using PeopleManagement.Domain.AggregatesModel.RequireDocumentsAggregate;
+using PeopleManagement.Domain.AggregatesModel.RequireDocumentsAggregate.Events;
 using PeopleManagement.Domain.AggregatesModel.RequireDocumentsAggregate.Interfaces;
 using PeopleManagement.Domain.ErrorTools;
 using PeopleManagement.Domain.ErrorTools.ErrorsMessages;
+using PeopleManagement.Domain.Options;
 using PeopleManagement.Domain.Utils;
 using System.Collections.Generic;
 using System.Text.Json.Nodes;
@@ -26,7 +29,7 @@ namespace PeopleManagement.Services.Services
     public class DocumentService(IDocumentRepository securityDocumentRepository, IServiceProvider serviceProvider, 
         IPdfService pdfService, IBlobService blobService, IDocumentTemplateRepository documentTemplateRepository,
         DocumentTemplatesOptions documentTemplatesOptions, IRequireDocumentsRepository requireDocumentsRepository,
-        IEmployeeRepository employeeRepository, ILogger<DocumentService> logger) : IDocumentService
+        IEmployeeRepository employeeRepository, IOptions<TimeZoneOptions> timeZoneOptions, ILogger<DocumentService> logger) : IDocumentService
     {
         private readonly IDocumentRepository _documentRepository = securityDocumentRepository;
         private readonly IPdfService _pdfService = pdfService;
@@ -37,6 +40,7 @@ namespace PeopleManagement.Services.Services
         private readonly IRequireDocumentsRepository _requireDocumentsRepository = requireDocumentsRepository;
         private readonly IEmployeeRepository _employeeRepository = employeeRepository;
         private readonly ILogger<DocumentService> _logger = logger;
+        private readonly TimeZoneOptions _timeZone = timeZoneOptions.Value;
 
         public async Task<DocumentUnit> CreateDocumentUnit(Guid documentId, Guid employeeId, Guid companyId, 
             CancellationToken cancellationToken = default)
@@ -46,7 +50,7 @@ namespace PeopleManagement.Services.Services
                 ?? throw new DomainException(this, DomainErrors.ObjectNotFound(nameof(Document), documentId.ToString()));
 
             var documentUnitId = Guid.NewGuid();
-            
+
             return document.NewDocumentUnit(documentUnitId);
         }
 
@@ -57,6 +61,11 @@ namespace PeopleManagement.Services.Services
 
             //var requiedDocuments = await _requireDocumentsRepository.GetAllWithEventId(employeeId, companyId, eventId, cancellationToken);
             var requiedDocuments = await _requireDocumentsRepository.GetAllByCompanyEventAndAssociations(companyId, eventId, employee.GetAllPossibleAssociationIds(), cancellationToken);
+
+            var recurringEvent = RecurringEvents.FromValue(eventId);
+            var eventFrequency = recurringEvent?.GetFrequency() ?? RecurringEventFrequency.None;
+            var periodType = ConvertFrequencyToPeriodType(eventFrequency);
+            DateTime? referenceDate = periodType != null ? TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, TimeZoneInfo.FindSystemTimeZoneById(_timeZone.TimeZoneId)) : null;
 
             foreach (var requiedDocument in requiedDocuments)
             {       
@@ -83,17 +92,19 @@ namespace PeopleManagement.Services.Services
                         }
 
                         var documentId = Guid.NewGuid();
-                        document = Document.Create(documentId, employee.Id, companyId, requiedDocument.Id, templateId, documentTemplate.Name.Value, documentTemplate.Description.Value);
+                        document = Document.Create(documentId, employee.Id, companyId, requiedDocument.Id, templateId, 
+                            documentTemplate.Name.Value, documentTemplate.Description.Value, 
+                            documentTemplate.UsePreviousPeriod);
                         await _documentRepository.InsertAsync(document, cancellationToken);
                     }
 
                     var documentUnitId = Guid.NewGuid();
-                    document.NewDocumentUnit(documentUnitId);
+                    document.NewDocumentUnit(documentUnitId, periodType, referenceDate);
                 }
 
                 //var documents = await _documentRepository.GetDataAsync(x => x.EmployeeId == employeeId 
                 //&& x.CompanyId == companyId && x.RequiredDocumentId == requiedDocument.Id, include: i => i.Include(x => x.DocumentsUnits));
-               
+
                 //foreach(Document document in documents)
                 //{
                 //    var documentUnitId = Guid.NewGuid();
@@ -263,6 +274,19 @@ namespace PeopleManagement.Services.Services
                     throw new DomainException(this, DomainErrors.Document.TimeConflictBetweenDocuments(documentId, document.Id, 
                         TimeSpan.FromHours(_documentTemplatesOptions.MaxHoursWorkload)));
             }
+        }
+
+        private static PeriodType? ConvertFrequencyToPeriodType(RecurringEventFrequency frequency)
+        {
+            return frequency switch
+            {
+                RecurringEventFrequency.Daily => PeriodType.Daily,
+                RecurringEventFrequency.Weekly => PeriodType.Weekly,
+                RecurringEventFrequency.Monthly => PeriodType.Monthly,
+                RecurringEventFrequency.Yearly => PeriodType.Yearly,
+                RecurringEventFrequency.None => null,
+                _ => null
+            };
         }
 
 

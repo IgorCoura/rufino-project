@@ -40,6 +40,25 @@ namespace PeopleManagement.Infra.Mapping
                 .HasMaxLength(1000)
                 .IsRequired(false);
 
+            builder.OwnsOne(x => x.Period, period =>
+            {
+                period.Property(c => c.Type)
+                    .HasConversion(x => x.Id, x => x)
+                    .IsRequired(false);
+
+                period.Property(c => c.Year)
+                    .IsRequired();
+
+                period.Property(c => c.Month)
+                    .IsRequired();
+
+                period.Property(c => c.Day)
+                    .IsRequired(false);
+
+                period.Property(c => c.Week)
+                    .IsRequired(false);
+            });
+
 
 
 

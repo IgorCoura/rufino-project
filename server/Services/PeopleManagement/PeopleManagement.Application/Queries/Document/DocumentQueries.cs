@@ -29,6 +29,7 @@ namespace PeopleManagement.Application.Queries.Document
                 CompanyId  = x.CompanyId,
                 RequiredDocumentId = x.RequiredDocumentId,
                 DocumentTemplateId = x.DocumentTemplateId,
+                UsePreviousPeriod = x.UsePreviousPeriod,
                 CreateAt = x.CreatedAt,
                 UpdateAt = x.UpdatedAt
             }).ToListAsync();
@@ -50,6 +51,7 @@ namespace PeopleManagement.Application.Queries.Document
                 CompanyId = x.CompanyId,
                 RequiredDocumentId = x.RequiredDocumentId,
                 DocumentTemplateId = x.DocumentTemplateId,
+                UsePreviousPeriod = x.UsePreviousPeriod,
                 CreateAt = x.CreatedAt,
                 UpdateAt = x.UpdatedAt,
                 DocumentsUnits = x.DocumentsUnits
