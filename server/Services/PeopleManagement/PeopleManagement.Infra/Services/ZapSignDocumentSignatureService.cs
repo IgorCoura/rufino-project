@@ -46,6 +46,21 @@ namespace PeopleManagement.Infra.Services
             var signerOptions = new SignerOptions(SignatureType.DigitalSignature, true, true, true);
             return await SendToSignature(signerOptions, documentStream, documentUnitId, document, company, employee, placeSignatures, dateLimitToSign, eminderEveryNDays, cancellationToken);
         }
+
+        public async Task<DocumentSignatureModel> SendToSignatureWithOnlyWhatsapp(Stream documentStream, Guid documentUnitId, Document document, Company company,
+            Employee employee, PlaceSignature[] placeSignatures, DateTime dateLimitToSign, int eminderEveryNDays, CancellationToken cancellationToken = default)
+        {
+            var signerOptions = new SignerOptions(SignatureType.OnlyWhatsapp, false, true, true);
+            return await SendToSignature(signerOptions, documentStream, documentUnitId, document, company, employee, placeSignatures, dateLimitToSign, eminderEveryNDays, cancellationToken);
+        }
+
+        public async Task<DocumentSignatureModel> SendToSignatureWithOnlySMS(Stream documentStream, Guid documentUnitId, Document document, Company company,
+            Employee employee, PlaceSignature[] placeSignatures, DateTime dateLimitToSign, int eminderEveryNDays, CancellationToken cancellationToken = default)
+        {
+            var signerOptions = new SignerOptions(SignatureType.OnlySMS, false, true, true);
+            return await SendToSignature(signerOptions, documentStream, documentUnitId, document, company, employee, placeSignatures, dateLimitToSign, eminderEveryNDays, cancellationToken);
+        }
+
         private async Task<DocumentSignatureModel> SendToSignature(SignerOptions signerOptions, Stream documentStream, Guid documentUnitId, Document document,
             Company company, Employee employee, PlaceSignature[] placeSignatures, DateTime dateLimitToSign, int eminderEveryNDays, 
             CancellationToken cancellationToken = default)
@@ -200,6 +215,9 @@ namespace PeopleManagement.Infra.Services
             public static readonly SignatureType DigitalSignature = new(1, nameof(DigitalSignature), "assinaturaTela");
             public static readonly SignatureType DigitalSignatureAndWhatsapp = new(2, nameof(DigitalSignatureAndWhatsapp), "assinaturaTela-tokenWhatsapp");
             public static readonly SignatureType DigitalSignatureAndSMS = new(3, nameof(DigitalSignatureAndSMS), "assinaturaTela-tokenSms");
+            public static readonly SignatureType OnlySMS = new(4, nameof(OnlySMS), "tokenSms");
+            public static readonly SignatureType OnlyWhatsapp = new(5, nameof(OnlyWhatsapp), "tokenWhatsapp");
+
         }
 
         private static string ConvertStreamToBase64(Stream stream)

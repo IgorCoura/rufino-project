@@ -1,6 +1,8 @@
 ﻿using MediatR;
 using PeopleManagement.Domain.AggregatesModel.DocumentAggregate;
 using PeopleManagement.Domain.AggregatesModel.DocumentGroupAggregate;
+using PeopleManagement.Domain.ErrorTools;
+using PeopleManagement.Domain.ErrorTools.ErrorsMessages;
 
 namespace PeopleManagement.Domain.AggregatesModel.DocumentTemplateAggregate
 {
@@ -13,13 +15,14 @@ namespace PeopleManagement.Domain.AggregatesModel.DocumentTemplateAggregate
         public TemplateFileInfo? TemplateFileInfo { get; private set; }
         public TimeSpan? DocumentValidityDuration { get; private set; }
         public TimeSpan? Workload { get; private set; }
+        public bool AcceptsSignature { get; private set; }
         public List<PlaceSignature> PlaceSignatures { get; private set; } = [];
         public Guid DocumentGroupId { get; private set; }
         public bool UsePreviousPeriod { get; private set; }
 
         private DocumentTemplate() { }
         private DocumentTemplate(Guid id, Name name, Description description, Guid companyId, TimeSpan? documentValidityDuration, 
-            TimeSpan? workload, TemplateFileInfo? templateFileInfo, List<PlaceSignature> placeSignatures, Guid documentGroupId,
+            TimeSpan? workload, TemplateFileInfo? templateFileInfo, bool acceptsSignature, List<PlaceSignature> placeSignatures, Guid documentGroupId,
             bool usePreviousPeriod) : base(id)
         {
             Name = name;
@@ -28,25 +31,26 @@ namespace PeopleManagement.Domain.AggregatesModel.DocumentTemplateAggregate
             DocumentValidityDuration = documentValidityDuration;
             Workload = workload;
             TemplateFileInfo = templateFileInfo;
-            PlaceSignatures = placeSignatures;  
+            AcceptsSignature = acceptsSignature;
+            SetPlaceSignatures(placeSignatures);
             DocumentGroupId = documentGroupId;
             UsePreviousPeriod = usePreviousPeriod;
         }
 
         public static DocumentTemplate Create(Guid id, Name name, Description description, Guid companyId, TimeSpan? documentValidityDuration, 
-            TimeSpan? workload, TemplateFileInfo? templateFileInfo, List<PlaceSignature> placeSignatures, Guid documentGroupId,
+            TimeSpan? workload, TemplateFileInfo? templateFileInfo, bool acceptsSignature, List<PlaceSignature> placeSignatures, Guid documentGroupId,
             bool usePreviousPeriod = false)
-            => new(id, name, description, companyId, documentValidityDuration, workload, templateFileInfo, placeSignatures, documentGroupId, usePreviousPeriod);
+            => new(id, name, description, companyId, documentValidityDuration, workload, templateFileInfo, acceptsSignature, placeSignatures, documentGroupId, usePreviousPeriod);
         public static DocumentTemplate Create(Guid id, Name name, Description description, Guid companyId, double? documentValidityDurationInDays,
-            double? workloadInHours, TemplateFileInfo? templateFileInfo, List<PlaceSignature> placeSignatures, Guid documentGroupId,
+            double? workloadInHours, TemplateFileInfo? templateFileInfo, bool acceptsSignature, List<PlaceSignature> placeSignatures, Guid documentGroupId,
             bool usePreviousPeriod = false)
         {
             TimeSpan? documentValidityDuration = documentValidityDurationInDays.HasValue ? TimeSpan.FromDays((double)documentValidityDurationInDays!) : null;
             TimeSpan? workload = workloadInHours.HasValue ? TimeSpan.FromHours((double)workloadInHours!) : null;
-            return new(id, name, description, companyId, documentValidityDuration, workload, templateFileInfo, placeSignatures, documentGroupId, usePreviousPeriod);
+            return new(id, name, description, companyId, documentValidityDuration, workload, templateFileInfo, acceptsSignature, placeSignatures, documentGroupId, usePreviousPeriod);
         }
         public void Edit(Name name, Description description, double? documentValidityDurationInDays,
-            double? workloadInHours, TemplateFileInfo? templateFileInfo, List<PlaceSignature> placeSignatures, Guid documentGroupId,
+            double? workloadInHours, TemplateFileInfo? templateFileInfo, bool acceptsSignature, List<PlaceSignature> placeSignatures, Guid documentGroupId,
             bool usePreviousPeriod = false)
         {
             Name = name;
@@ -54,12 +58,22 @@ namespace PeopleManagement.Domain.AggregatesModel.DocumentTemplateAggregate
             DocumentValidityDuration = documentValidityDurationInDays.HasValue ? TimeSpan.FromDays((double)documentValidityDurationInDays!) : null;
             Workload = workloadInHours.HasValue ? TimeSpan.FromHours((double)workloadInHours!) : null;
             TemplateFileInfo = templateFileInfo;
-            PlaceSignatures = placeSignatures;
+            AcceptsSignature = acceptsSignature;
+            SetPlaceSignatures(placeSignatures);
             DocumentGroupId = documentGroupId;
             UsePreviousPeriod = usePreviousPeriod;
         }
 
-        public bool IsSignable => PlaceSignatures.Count > 0;
+        private void SetPlaceSignatures(List<PlaceSignature> placeSignatures)
+        {
+            if (placeSignatures.Count > 0 && !AcceptsSignature)
+            {
+                throw new DomainException(this, DomainErrors.DocumentTemplate.TemplateDoesNotAcceptSignature(Id));
+            }
+            PlaceSignatures = placeSignatures;
+        }
+
+        public bool IsSignable => AcceptsSignature && PlaceSignatures.Count > 0;
         public bool CanGenerateDocuments => TemplateFileInfo?.IsValid ?? false;
     }
 }
