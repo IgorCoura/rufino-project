@@ -73,7 +73,7 @@ namespace PeopleManagement.Domain.AggregatesModel.DocumentTemplateAggregate
             PlaceSignatures = placeSignatures;
         }
 
-        public bool IsSignable => AcceptsSignature && PlaceSignatures.Count > 0;
+        public bool IsSignable => AcceptsSignature;
         public bool CanGenerateDocuments => TemplateFileInfo?.IsValid ?? false;
     }
 }
