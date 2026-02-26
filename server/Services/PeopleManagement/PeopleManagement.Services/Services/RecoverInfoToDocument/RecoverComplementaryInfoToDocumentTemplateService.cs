@@ -9,7 +9,7 @@ namespace PeopleManagement.Services.Services.RecoverInfoToDocument
         {
             var dateObject = DateTime.Now;
             var dateValidityObject = DateTime.Now;
-            if (jsonObjects == null || jsonObjects.Length > 0)
+            if (jsonObjects != null && jsonObjects.Length > 0)
             {
                 var dateString = jsonObjects!.FirstOrDefault(x => x.ContainsKey("date"))?["date"]?.ToString();
                 dateObject = DateTime.TryParse(dateString, out var parsedDate)
