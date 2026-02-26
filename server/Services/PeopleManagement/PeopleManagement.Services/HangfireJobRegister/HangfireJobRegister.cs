@@ -214,7 +214,7 @@ namespace PeopleManagement.Services.HangfireJobRegistrar
                 });
 
             RecurringJob.AddOrUpdate<IWhatsAppHealthCheckService>(
-                "signature-reminders-morning",
+                "health-check-message-morning",
                 service => service.SendHealthCheckMessage(CancellationToken.None),
                 "0 10 * * *",
                 new RecurringJobOptions
@@ -223,7 +223,7 @@ namespace PeopleManagement.Services.HangfireJobRegistrar
                 });
 
             RecurringJob.AddOrUpdate<IWhatsAppHealthCheckService>(
-                "signature-reminders-afternoon",
+                "health-check-message-afternoon",
                 service => service.SendHealthCheckMessage(CancellationToken.None),
                 "0 17 * * *",
                 new RecurringJobOptions
