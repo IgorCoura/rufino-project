@@ -16,6 +16,12 @@ namespace PeopleManagement.Domain.AggregatesModel.DocumentAggregate.Interfaces
         Task<DocumentSignatureModel> SendToSignatureWithSMS(Stream documentStream, Guid documentUnitId, Document document, Company company,
             Employee employee, PlaceSignature[] placeSignatures, DateTime dateLimitToSign, int eminderEveryNDays, CancellationToken cancellationToken = default);
 
+        Task<DocumentSignatureModel> SendToSignatureWithOnlyWhatsapp(Stream documentStream, Guid documentUnitId, Document document, Company company,
+            Employee employee, PlaceSignature[] placeSignatures, DateTime dateLimitToSign, int eminderEveryNDays, CancellationToken cancellationToken = default);
+
+        Task<DocumentSignatureModel> SendToSignatureWithOnlySMS(Stream documentStream, Guid documentUnitId, Document document, Company company,
+            Employee employee, PlaceSignature[] placeSignatures, DateTime dateLimitToSign, int eminderEveryNDays, CancellationToken cancellationToken = default);
+
     }
 }
 

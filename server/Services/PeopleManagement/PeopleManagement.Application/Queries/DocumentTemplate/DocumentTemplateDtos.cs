@@ -19,6 +19,7 @@ namespace PeopleManagement.Application.Queries.DocumentTemplate
             public Guid CompanyId { get; init; }
             public int? DocumentValidityDurationInDays { get; init; }
             public int? WorkloadInHours { get; init; }
+            public bool AcceptsSignature { get; init; }
             public bool UsePreviousPeriod { get; init; }
             public DocumentGroupDocumentTemplateDto DocumentGroup { get; init; } = DocumentGroupDocumentTemplateDto.Empty;
             public TemplateFileInfoDto TemplateFileInfo { get; init; } =  TemplateFileInfoDto.Empty;

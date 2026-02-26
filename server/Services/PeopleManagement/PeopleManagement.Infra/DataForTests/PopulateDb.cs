@@ -399,6 +399,7 @@ namespace PeopleManagement.Infra.DataForTests
                 TimeSpan.Zero,
                 TimeSpan.Zero,
                 null,
+                false,
                 [],
                 documentGroup[0].Id
                 ),
@@ -418,6 +419,7 @@ namespace PeopleManagement.Infra.DataForTests
                 [RecoverDataType.Company, RecoverDataType.Employee, RecoverDataType.PGR, RecoverDataType.Departament, 
                     RecoverDataType.Position, RecoverDataType.Role, RecoverDataType.ComplementaryInfo]
                 ),
+                true,
                 [
                     PlaceSignature.Create(TypeSignature.Signature,1,20.5, 5.3,5.2,5.5),
                     PlaceSignature.Create(TypeSignature.Visa,1,20,15,3,3),

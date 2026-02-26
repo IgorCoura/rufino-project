@@ -37,6 +37,7 @@ class DocumentTemplateBloc
     on<DownLoadFileEvent>(_onDownLoadFileEvent);
     on<LoadDataModelEvent>(_onLoadDataModelEvent);
     on<ToggleUsePreviousPeriodEvent>(_onToggleUsePreviousPeriodEvent);
+    on<ToggleAcceptsSignatureEvent>(_onToggleAcceptsSignatureEvent);
   }
 
   void _onSnackMessageWasShow(
@@ -133,8 +134,10 @@ class DocumentTemplateBloc
     emit(state.copyWith(isSavingData: true));
     try {
       final company = await _companyService.getSelectedCompany();
-      var newDocumentTemplate = state.documentTemplate
-          .copyWith(placeSignatures: state.placeSignatures);
+      var newDocumentTemplate = state.documentTemplate.copyWith(
+          placeSignatures: state.placeSignatures,
+          acceptsSignature: state.documentTemplate.acceptsSignature,
+          usePreviousPeriod: state.documentTemplate.usePreviousPeriod);
 
       if (newDocumentTemplate.isInvalidTemplateFileInfo) {
         throw AplicationErrors.emplyee.errorInvalidTemplateFileInfo;
@@ -239,6 +242,13 @@ class DocumentTemplateBloc
       ToggleUsePreviousPeriodEvent event, Emitter<DocumentTemplateState> emit) {
     var newDocumentTemplate =
         state.documentTemplate.copyWith(usePreviousPeriod: event.value);
+    emit(state.copyWith(documentTemplate: newDocumentTemplate));
+  }
+
+  void _onToggleAcceptsSignatureEvent(
+      ToggleAcceptsSignatureEvent event, Emitter<DocumentTemplateState> emit) {
+    var newDocumentTemplate =
+        state.documentTemplate.copyWith(acceptsSignature: event.value);
     emit(state.copyWith(documentTemplate: newDocumentTemplate));
   }
 }

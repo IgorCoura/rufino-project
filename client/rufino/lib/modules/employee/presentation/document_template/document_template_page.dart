@@ -154,14 +154,39 @@ class DocumentTemplatePage extends StatelessWidget {
                         SizedBox(
                           height: 8.0,
                         ),
+                        SwitchListTile(
+                          title: const Text("Aceita Assinatura"),
+                          subtitle: const Text(
+                            "Quando ativado, documentos gerados a partir deste template poderão ser assinados.",
+                            style: TextStyle(fontSize: 12),
+                          ),
+                          value: state.documentTemplate.acceptsSignature,
+                          onChanged: state.isEditing
+                              ? (value) =>
+                                  bloc.add(ToggleAcceptsSignatureEvent(value))
+                              : null,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(4),
+                            side: BorderSide(
+                              color: Theme.of(context).colorScheme.outline,
+                            ),
+                          ),
+                          contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 4),
+                        ),
+                        SizedBox(
+                          height: 8.0,
+                        ),
                         _fileNameTextFields(state),
                         SizedBox(
                           height: 8.0,
                         ),
-                        _placeSignaturesFields(state),
-                        SizedBox(
-                          height: 8.0,
-                        ),
+                        if (state.documentTemplate.acceptsSignature)
+                          _placeSignaturesFields(state),
+                        if (state.documentTemplate.acceptsSignature)
+                          SizedBox(
+                            height: 8.0,
+                          ),
                         ExpansionTile(
                           onExpansionChanged: (value) {
                             if (value) {

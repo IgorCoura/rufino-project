@@ -83,3 +83,11 @@ final class ToggleUsePreviousPeriodEvent extends DocumentTemplateEvent {
   @override
   List<Object> get props => [value];
 }
+
+final class ToggleAcceptsSignatureEvent extends DocumentTemplateEvent {
+  final bool value;
+  const ToggleAcceptsSignatureEvent(this.value);
+
+  @override
+  List<Object> get props => [value];
+}

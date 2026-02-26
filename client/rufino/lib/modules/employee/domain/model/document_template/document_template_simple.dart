@@ -3,14 +3,16 @@ class DocumentTemplateSimple {
   final String name;
   final String description;
   final bool usePreviousPeriod;
+  final bool acceptsSignature;
 
   DocumentTemplateSimple(this.id, this.name, this.description,
-      {this.usePreviousPeriod = false});
+      {this.usePreviousPeriod = false, this.acceptsSignature = true});
   DocumentTemplateSimple.empty(
       {this.id = "",
       this.name = "",
       this.description = "",
-      this.usePreviousPeriod = false});
+      this.usePreviousPeriod = false,
+      this.acceptsSignature = true});
 
   factory DocumentTemplateSimple.fromJson(Map<String, dynamic> json) {
     return DocumentTemplateSimple(
@@ -18,6 +20,7 @@ class DocumentTemplateSimple {
       json['name'] as String,
       json['description'] as String,
       usePreviousPeriod: json['usePreviousPeriod'] as bool? ?? false,
+      acceptsSignature: json['acceptsSignature'] as bool? ?? true,
     );
   }
 
