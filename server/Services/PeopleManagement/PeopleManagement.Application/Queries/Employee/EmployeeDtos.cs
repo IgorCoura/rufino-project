@@ -33,6 +33,7 @@ namespace PeopleManagement.Application.Queries.Employee
         public string? Name { get; init; }
         public string? Role { get; init; }
         public int? Status { get; init; }
+        public int? DocumentRepresentingStatus { get; init; }
         public int PageSize { get; init; } = 10;
         public int SizeSkip { get; init; } = 0;
         public SortOrder SortOrder { get; init; } = SortOrder.ASC;

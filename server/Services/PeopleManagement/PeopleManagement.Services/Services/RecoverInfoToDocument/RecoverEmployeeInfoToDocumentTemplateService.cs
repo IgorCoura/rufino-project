@@ -37,6 +37,7 @@ namespace PeopleManagement.Services.Services.RecoverInfoToDocument
                     ["IdCard"] = ConvertIdCardToJsonObject(employee.IdCard),
                     ["VoteId"] = ConvertVoteIdToJsonObject(employee.VoteId),
                     ["MilitaryDocument"] = ConvertMilitaryDocumentToJsonObject(employee.MilitaryDocument)
+                    ["InitialDate"] = employee.Contracts.Where(x => x.IsActive).OrderByDescending(x => x.InitDate).FirstOrDefault()?.InitDate.ToString("dd-MM-yyyy") ?? "",
                 }
             };
 
