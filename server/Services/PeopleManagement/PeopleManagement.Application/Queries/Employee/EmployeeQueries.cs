@@ -50,10 +50,14 @@ namespace PeopleManagement.Application.Queries.Employee
                 query = query.Where(e => e.Employee.Status == (Status)pms.Status);
             }
 
+            if (pms.DocumentRepresentingStatus.HasValue)
+            {
+                query = query.Where(e => e.Employee.DocumentRepresentingStatus.Id == pms.DocumentRepresentingStatus.Value);
+            }
+
             query = pms.SortOrder == SortOrder.ASC
                 ? query.OrderBy(e => e.Employee.Name)
                 : query.OrderByDescending(e => e.Employee.Name);
-
 
             query = query.Skip(pms.SizeSkip).Take(pms.PageSize);
 
@@ -70,18 +74,15 @@ namespace PeopleManagement.Application.Queries.Employee
                 RoleId = o.Employee.RoleId,
                 RoleName = o.Role.Name.Value == null ? string.Empty : o.Role.Name.Value,
                 CompanyId = o.Employee.CompanyId,
-                WorkplaceId = o.Employee.WorkPlaceId       
+                WorkplaceId = o.Employee.WorkPlaceId,
+                DocumentRepresentingStatus = new EnumerationDto
+                {
+                    Id = o.Employee.DocumentRepresentingStatus.Id,
+                    Name = o.Employee.DocumentRepresentingStatus.Name,
+                }
             }).ToListAsync();
 
-
-            
-            var tasks = employees.Select(async r => r with
-            {
-                DocumentRepresentingStatus = await GetDocumentRepresentingStatusAsync(r.Id, company),
-            });
-
-            var result = await Task.WhenAll(tasks);
-            return result;
+            return employees;
         }
 
         public async Task<EmployeeDto> GetEmployee(Guid id, Guid company)
@@ -336,23 +337,5 @@ namespace PeopleManagement.Application.Queries.Employee
                 Extension = img.Extension.ToString(),
             };
         }
-
-        private async Task<EnumerationDto> GetDocumentRepresentingStatusAsync(Guid employeeId, Guid companyId, CancellationToken cancellationToken = default)
-        {
-            using var context = _factory.CreateDbContext();
-            var documentsStatus = await context.Documents.Where(x => x.EmployeeId == employeeId && x.CompanyId == companyId)
-                .OrderByDescending(x => x.CreatedAt)
-                .Select(x => x.Status)
-                .ToListAsync(cancellationToken);
-            var status = DocumentStatusUtil.GetDocumentGroupStatus(documentsStatus);
-            return new EnumerationDto
-            {
-                Id = status.Id,
-                Name = status.Name
-            };
-        }
-
-
-
     }
 }
