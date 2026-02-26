@@ -32,6 +32,9 @@ namespace PeopleManagement.Infra.Mapping
             builder.Property(x => x.Workload)
                .IsRequired(false);
 
+            builder.Property(x => x.AcceptsSignature)
+                .IsRequired();
+
             builder.Property(x => x.UsePreviousPeriod)
                 .IsRequired();
 

@@ -7,6 +7,8 @@ class DocumentSigningOptions extends Enumeration {
     "2": "Assinatura Digital e Whatsapp",
     "3": "Assinatura Digital e Selfie",
     "4": "Assinatura Digital e SMS",
+    "5": "Apenas SMS",
+    "6": "Apenas Whatsapp",
   };
 
   DocumentSigningOptions(String id, String name)

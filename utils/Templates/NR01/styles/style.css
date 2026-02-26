@@ -8,10 +8,10 @@
 }
 
 @page{
-    @bottom-right {
+    {% comment %} @bottom-right {
         font-size: 2.5mm;
         content:  "Página " counter(page)"/"counter(pages);
-    }
+    } {% endcomment %}
 
 }
 

@@ -3,7 +3,7 @@
 namespace PeopleManagement.Application.Commands.DocumentTemplateCommands.CreateDocumentTemplate
 {
     public record CreateDocumentTemplateCommand(Guid CompanyId, string Name, string Description, double? DocumentValidityDurationInDays, double? WorkloadInHours, 
-        TemplateFileInfoModel? TemplateFileInfo, PlaceSignatureModel[] PlaceSignatures, Guid DocumentGroupId, bool UsePreviousPeriod = false) : IRequest<CreateDocumentTemplateResponse>
+        TemplateFileInfoModel? TemplateFileInfo, bool AcceptsSignature, PlaceSignatureModel[] PlaceSignatures, Guid DocumentGroupId, bool UsePreviousPeriod = false) : IRequest<CreateDocumentTemplateResponse>
     {
         public DocumentTemplate ToDocumentTemplate(Guid Id, string directoryName) => DocumentTemplate.Create(Id, 
             Name, 
@@ -11,16 +11,17 @@ namespace PeopleManagement.Application.Commands.DocumentTemplateCommands.CreateD
             CompanyId, 
             DocumentValidityDurationInDays,
             WorkloadInHours, 
-            TemplateFileInfo == null ? null : TemplateFileInfo!.ToTemplateFileInfo(directoryName), 
+            TemplateFileInfo == null ? null : TemplateFileInfo!.ToTemplateFileInfo(directoryName),
+            AcceptsSignature,
             PlaceSignatures.Select(x => x.ToPlaceSignature()).ToList(),
             DocumentGroupId,
             UsePreviousPeriod);
     }
 
     public record CreateDocumentTemplateModel(string Name, string Description, double? DocumentValidityDurationInDays, double? WorkloadInHours, 
-        TemplateFileInfoModel? TemplateFileInfo, PlaceSignatureModel[] PlaceSignatures, Guid documentGroupId, bool UsePreviousPeriod = false)
+        TemplateFileInfoModel? TemplateFileInfo, bool AcceptsSignature, PlaceSignatureModel[] PlaceSignatures, Guid documentGroupId, bool UsePreviousPeriod = false)
     {
-        public CreateDocumentTemplateCommand ToCommand(Guid company) => new (company, Name, Description, DocumentValidityDurationInDays, WorkloadInHours, TemplateFileInfo, PlaceSignatures, documentGroupId, UsePreviousPeriod);
+        public CreateDocumentTemplateCommand ToCommand(Guid company) => new (company, Name, Description, DocumentValidityDurationInDays, WorkloadInHours, TemplateFileInfo, AcceptsSignature, PlaceSignatures, documentGroupId, UsePreviousPeriod);
     }
 
     public record TemplateFileInfoModel(string BodyFileName, string HeaderFileName, string FooterFileName, int[] RecoversDataType)

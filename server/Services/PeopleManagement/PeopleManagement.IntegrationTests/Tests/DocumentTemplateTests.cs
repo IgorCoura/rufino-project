@@ -40,8 +40,11 @@ namespace PeopleManagement.IntegrationTests.Tests
                     "header.html",
                     "footer.html",
                     [RecoverDataType.Employee.Id, RecoverDataType.PGR.Id]
-                    
-                    ), [], documentGroup.Id);
+
+                    ), 
+                false,
+                [], 
+                documentGroup.Id);
 
 
             client.InputHeaders([company.Id]);
