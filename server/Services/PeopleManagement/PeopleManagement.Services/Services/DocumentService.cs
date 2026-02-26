@@ -288,7 +288,9 @@ namespace PeopleManagement.Services.Services
                 }
                 catch(Exception ex)
                 {
-                    return null;                    
+                    _logger.LogWarning(ex, "Failed to recover data of type {RecoverDataType} for employee {EmployeeId} in company {CompanyId}. Skipping this data type.",
+                        recoverDataType.Name, employeeId, companyId);
+                    continue;                    
                 }
             }
             var result = objects.MergeListJsonObjects();
