@@ -8,13 +8,25 @@ namespace PeopleManagement.Domain.AggregatesModel.DocumentAggregate
 {
     public class Document: Entity, IAggregateRoot
     {
+        private DocumentStatus _documentStatus = DocumentStatus.OK;
         public Name Name { get; private set; }
         public Description Description { get; private set; }
         public Guid EmployeeId { get; private set; }
         public Guid CompanyId { get; private set; }
         public Guid RequiredDocumentId { get; private set; }
         public List<DocumentUnit> DocumentsUnits { get; private set; } = [];
-        public DocumentStatus Status { get; private set; } = DocumentStatus.OK;
+        public DocumentStatus Status {
+            get => _documentStatus;
+            private set 
+            { 
+                if(_documentStatus != value)
+                {
+                    var oldValue = _documentStatus;
+                    _documentStatus = value;
+                    AddDomainEvent(new DocumentStatusChangedDomainEvent(this.Id, this.EmployeeId, this.CompanyId, oldValue, value));
+                }
+            } 
+        } 
         public Guid DocumentTemplateId { get; private set; }
         public bool UsePreviousPeriod { get; private set; }
 
