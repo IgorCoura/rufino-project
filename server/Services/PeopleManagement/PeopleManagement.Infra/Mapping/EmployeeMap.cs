@@ -244,6 +244,10 @@ namespace PeopleManagement.Infra.Mapping
                 .HasConversion(x => x.Id, x => x)
                     .IsRequired();
 
+            builder.Property(x => x.DocumentRepresentingStatus)
+                .HasConversion(x => x.Id, x => x)
+                .IsRequired();
+
             builder.OwnsOne(typeof(Image), "_image", image =>
             {
                 image.Property<string>("FileName")

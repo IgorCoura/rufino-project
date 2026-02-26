@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_modular/flutter_modular.dart';
 import 'package:infinite_scroll_pagination/infinite_scroll_pagination.dart';
+import 'package:rufino/modules/employee/domain/model/employee_document_status.dart';
 import 'package:rufino/modules/employee/domain/model/employee_with_role.dart';
 import 'package:rufino/modules/employee/domain/model/role_info/department.dart';
 import 'package:rufino/modules/employee/domain/model/role_info/position.dart';
@@ -121,7 +122,9 @@ class EmployeesListPage extends StatelessWidget {
                         alignment: WrapAlignment.spaceBetween,
                         children: [
                           SizedBox(
-                            width: textfieldWidth <= 500 ? 700 : textfieldWidth,
+                            width: textfieldWidth <= 500
+                                ? layoutConstraints.maxWidth
+                                : textfieldWidth,
                             child: Row(
                               children: [
                                 Expanded(
@@ -180,15 +183,50 @@ class EmployeesListPage extends StatelessWidget {
                           ConstrainedBox(
                             constraints: const BoxConstraints(maxWidth: 140),
                             child: DropdownButtonFormField(
+                              isExpanded: true,
                               padding: const EdgeInsets.all(4),
                               value: state.selectedStatus,
                               items: state.listStatus
                                   .map((e) => DropdownMenuItem(
-                                      value: e.id, child: Text(e.name)))
+                                      value: e.id,
+                                      child: Text(
+                                        e.name,
+                                        overflow: TextOverflow.ellipsis,
+                                      )))
                                   .toList(),
                               onChanged: (selection) =>
                                   bloc.add(ChangeStatusSelect(selection)),
                               hint: const Text("status"),
+                              decoration: const InputDecoration(
+                                border: OutlineInputBorder(
+                                    borderRadius:
+                                        BorderRadius.all(Radius.circular(30))),
+                                enabledBorder: OutlineInputBorder(
+                                    borderRadius:
+                                        BorderRadius.all(Radius.circular(30))),
+                                focusedBorder: OutlineInputBorder(
+                                    borderRadius:
+                                        BorderRadius.all(Radius.circular(30))),
+                              ),
+                            ),
+                          ),
+                          ConstrainedBox(
+                            constraints: const BoxConstraints(maxWidth: 170),
+                            child: DropdownButtonFormField<String>(
+                              isExpanded: true,
+                              padding: const EdgeInsets.all(4),
+                              value: state.selectedDocumentStatus,
+                              items: state.listDocumentStatus
+                                  .map((e) => DropdownMenuItem<String>(
+                                      value: e.id,
+                                      child: Text(
+                                        e.name,
+                                        overflow: TextOverflow.ellipsis,
+                                      )))
+                                  .toList(),
+                              onChanged: (selection) => bloc
+                                  .add(ChangeDocumentStatusSelect(selection)),
+                              hint: const Text("Documentos"),
                               decoration: const InputDecoration(
                                 border: OutlineInputBorder(
                                     borderRadius:

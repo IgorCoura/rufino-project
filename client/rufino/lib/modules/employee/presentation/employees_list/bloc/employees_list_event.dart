@@ -35,6 +35,15 @@ class ChangeStatusSelect extends EmployeesListEvent {
   List<Object?> get props => [selection];
 }
 
+class ChangeDocumentStatusSelect extends EmployeesListEvent {
+  final String? selection;
+
+  ChangeDocumentStatusSelect(this.selection);
+
+  @override
+  List<Object?> get props => [selection];
+}
+
 class ChangeSortList extends EmployeesListEvent {}
 
 class ChangeNameNewEmployee extends EmployeesListEvent {

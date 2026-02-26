@@ -21,6 +21,7 @@ namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
         private Contact? _contact = null;
         private MedicalAdmissionExam? _medicalAdmissionExam = null;
         private DocumentSigningOptions _documentSigningOptions = DocumentSigningOptions.PhysicalSignature;
+        private EmployeeDocumentStatus _documentRepresentingStatus = EmployeeDocumentStatus.Okay;
         
      
         public Registration? Registration 
@@ -173,6 +174,17 @@ namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
                 _documentSigningOptions = value;
                 AddDomainEvent(EmployeeEvent.DocumentSigningOptionsChangeEvent(Id, CompanyId));
             }
+        }
+
+        public EmployeeDocumentStatus DocumentRepresentingStatus
+        {
+            get => _documentRepresentingStatus;
+            private set => _documentRepresentingStatus = value;
+        }
+
+        public void UpdateDocumentRepresentingStatus(EmployeeDocumentStatus newStatus)
+        {
+            DocumentRepresentingStatus = newStatus;
         }
 
         public void SetImage(Extension extension)

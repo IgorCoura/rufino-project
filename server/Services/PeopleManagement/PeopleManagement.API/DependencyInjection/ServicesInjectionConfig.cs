@@ -10,6 +10,7 @@ using PeopleManagement.Domain.AggregatesModel.RequireDocumentsAggregate.Interfac
 using PeopleManagement.Services.Services.RecoverInfoToDocument;
 using PeopleManagement.Domain.AggregatesModel.DocumentAggregate.Options;
 using PeopleManagement.Domain.Options;
+using PeopleManagement.Domain.Services;
 
 namespace PeopleManagement.API.DependencyInjection
 {
@@ -35,6 +36,9 @@ namespace PeopleManagement.API.DependencyInjection
             service.AddScoped<IDocumentSignatureReminderService, DocumentSignatureReminderService>();
             service.AddScoped<HangfireJobRegister>();
             service.AddScoped<IRecurringDocumentService, RecurringDocumentService>();
+
+            // Domain Services
+            service.AddScoped<IEmployeeDocumentStatusService, EmployeeDocumentStatusService>();
 
             var documentTemplatesOptions = new DocumentTemplatesOptions();
             configuration.GetSection(DocumentTemplatesOptions.ConfigurationSection).Bind(documentTemplatesOptions);

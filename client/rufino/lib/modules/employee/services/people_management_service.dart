@@ -9,6 +9,7 @@ import 'package:rufino/modules/employee/domain/model/require_document/event.dart
 import 'package:rufino/modules/employee/domain/model/dependent/dependency_type.dart';
 import 'package:rufino/modules/employee/domain/model/dependent/dependent.dart';
 import 'package:rufino/modules/employee/domain/model/employee_contract.dart';
+import 'package:rufino/modules/employee/domain/model/employee_document_status.dart';
 import 'package:rufino/modules/employee/domain/model/employee_contract_type.dart';
 import 'package:rufino/modules/employee/domain/model/gender.dart';
 import 'package:rufino/modules/employee/domain/model/medical_admission_exam/medical_admission_exam.dart';
@@ -627,6 +628,7 @@ class PeopleManagementService extends BaseService {
       String? name,
       String? role,
       int? status,
+      int? documentRepresentingStatus,
       int sortOrder,
       int pageSize,
       int sizeSkip) async {
@@ -634,6 +636,7 @@ class PeopleManagementService extends BaseService {
       "name": name,
       "role": role,
       "status": status,
+      "documentRepresentingStatus": documentRepresentingStatus,
       "sortOrder": sortOrder,
       "pageSize": pageSize,
       "sizeSkip": sizeSkip
@@ -663,6 +666,19 @@ class PeopleManagementService extends BaseService {
     if (response.statusCode == 200) {
       List<dynamic> jsonResponse = jsonDecode(response.body);
       return Status.fromListJson(jsonResponse);
+    }
+    throw treatUnsuccessfulResponses(response);
+  }
+
+  Future<List<EmployeeDocumentStatus>> getDocumentStatus(
+      String companyId) async {
+    var headers = await getHeaders();
+    var url = peopleManagementUrl.replace(
+        path: "/api/v1/$companyId/employee/DocumentStatus");
+    var response = await http.get(url, headers: headers);
+    if (response.statusCode == 200) {
+      List<dynamic> jsonResponse = jsonDecode(response.body);
+      return EmployeeDocumentStatus.fromListJson(jsonResponse);
     }
     throw treatUnsuccessfulResponses(response);
   }
