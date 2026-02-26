@@ -4,6 +4,8 @@ class EmployeesListState extends Equatable {
   final bool isAscSort;
   final List<Status> listStatus;
   final int selectedStatus;
+  final List<EmployeeDocumentStatus> listDocumentStatus;
+  final String selectedDocumentStatus;
   final SearchParam searchParam;
   final String? searchInput;
   final bool isLoading;
@@ -24,6 +26,8 @@ class EmployeesListState extends Equatable {
 
   const EmployeesListState({
     this.listStatus = Status.defaultList,
+    this.listDocumentStatus = EmployeeDocumentStatus.defaultList,
+    this.selectedDocumentStatus = "-1",
     this.searchParam = SearchParam.name,
     this.searchInput,
     this.exception,
@@ -50,6 +54,8 @@ class EmployeesListState extends Equatable {
     SearchParam? searchParam,
     int? selectedStatus,
     List<Status>? listStatus,
+    List<EmployeeDocumentStatus>? listDocumentStatus,
+    String? selectedDocumentStatus,
     String? searchInput,
     bool? isLoading,
     AplicationException? exception,
@@ -65,12 +71,17 @@ class EmployeesListState extends Equatable {
     Position? position,
     Role? role,
     Workplace? workplace,
-    List<Workplace>? workplaces,    Map<String, List<int>>? employeeImages,  }) {
+    List<Workplace>? workplaces,
+    Map<String, List<int>>? employeeImages,
+  }) {
     return EmployeesListState(
         isAscSort: isAscSort ?? this.isAscSort,
         searchParam: searchParam ?? this.searchParam,
         listStatus: listStatus ?? this.listStatus,
         selectedStatus: selectedStatus ?? this.selectedStatus,
+        listDocumentStatus: listDocumentStatus ?? this.listDocumentStatus,
+        selectedDocumentStatus:
+            selectedDocumentStatus ?? this.selectedDocumentStatus,
         searchInput: searchInput ?? this.searchInput,
         isLoading: isLoading ?? this.isLoading,
         exception: exception ?? this.exception,
@@ -96,6 +107,8 @@ class EmployeesListState extends Equatable {
         isAscSort,
         listStatus,
         selectedStatus,
+        listDocumentStatus,
+        selectedDocumentStatus,
         searchParam,
         searchInput,
         isLoading,

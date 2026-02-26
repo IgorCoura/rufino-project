@@ -5,6 +5,7 @@ import 'package:equatable/equatable.dart';
 import 'package:infinite_scroll_pagination/infinite_scroll_pagination.dart';
 import 'package:rufino/domain/model/company.dart';
 import 'package:rufino/domain/services/company_global_service.dart';
+import 'package:rufino/modules/employee/domain/model/employee_document_status.dart';
 import 'package:rufino/modules/employee/domain/model/employee_with_role.dart';
 import 'package:rufino/modules/employee/domain/model/role_info/department.dart';
 import 'package:rufino/modules/employee/domain/model/role_info/position.dart';
@@ -29,6 +30,7 @@ class EmployeesListBloc extends Bloc<EmployeesListEvent, EmployeesListState> {
     on<InitialEmployeesListEvent>(_onInitialEmployeesListEvent);
     on<ChangeSortList>(_onChangeSortList);
     on<ChangeStatusSelect>(_onChangeStatusSelect);
+    on<ChangeDocumentStatusSelect>(_onChangeDocumentStatusSelect);
     on<ChangeSearchParam>(_onChangeSearchParam);
     on<ChangeSearchInput>(_onChangeSearchInput);
     on<SearchEditComplet>(_onSearchEditComplet);
@@ -101,8 +103,15 @@ class EmployeesListBloc extends Bloc<EmployeesListEvent, EmployeesListState> {
       //var listStatus = <Status>[];
       listStatus.addAll(state.listStatus);
 
+      var listDocumentStatus =
+          await _peopleManagementService.getDocumentStatus(company.id);
+      listDocumentStatus.addAll(state.listDocumentStatus);
+
       emit(state.copyWith(
-          listStatus: listStatus, isLoading: false, company: company));
+          listStatus: listStatus,
+          listDocumentStatus: listDocumentStatus,
+          isLoading: false,
+          company: company));
       emit(state.copyWith(
           pagingState:
               state.pagingState!.copyWith(isLoading: false, error: null)));
@@ -131,6 +140,19 @@ class EmployeesListBloc extends Bloc<EmployeesListEvent, EmployeesListState> {
   Future _onChangeStatusSelect(
       ChangeStatusSelect event, Emitter<EmployeesListState> emit) async {
     emit(state.copyWith(selectedStatus: event.selection, isLoading: true));
+    try {
+      add(RefreshPage());
+      emit(state.copyWith(isLoading: false));
+    } catch (ex, stacktrace) {
+      var exception = _peopleManagementService.treatErrors(ex, stacktrace);
+      emit(state.copyWith(isLoading: false, exception: exception));
+    }
+  }
+
+  Future _onChangeDocumentStatusSelect(ChangeDocumentStatusSelect event,
+      Emitter<EmployeesListState> emit) async {
+    emit(state.copyWith(
+        selectedDocumentStatus: event.selection, isLoading: true));
     try {
       add(RefreshPage());
       emit(state.copyWith(isLoading: false));
@@ -173,11 +195,15 @@ class EmployeesListBloc extends Bloc<EmployeesListEvent, EmployeesListState> {
     var searchInput = state.searchInput != null && state.searchInput!.isEmpty
         ? null
         : state.searchInput;
+    var documentStatus = state.selectedDocumentStatus == "-1"
+        ? null
+        : int.tryParse(state.selectedDocumentStatus);
     var employees = await _peopleManagementService.getEmployees(
         state.company!.id,
         state.searchParam == SearchParam.name ? searchInput : null,
         state.searchParam == SearchParam.role ? searchInput : null,
         state.selectedStatus == 0 ? null : state.selectedStatus,
+        documentStatus,
         state.isAscSort ? 0 : 1,
         _pageSize,
         _sizeSkip);

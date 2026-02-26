@@ -1,6 +1,6 @@
 import 'package:equatable/equatable.dart';
 
-import 'package:rufino/modules/employee/domain/model/document_group/document_group_status.dart';
+import 'package:rufino/modules/employee/domain/model/employee_document_status.dart';
 import 'package:rufino/modules/employee/domain/model/status.dart';
 
 class EmployeeWithRole extends Equatable {
@@ -10,11 +10,12 @@ class EmployeeWithRole extends Equatable {
   final Status status;
   final String? roleId;
   final String roleName;
-  final DocumentGroupStatus documentStatus;
+  final EmployeeDocumentStatus documentStatus;
   final List<int>? image;
 
   const EmployeeWithRole(this.id, this.name, this.registration, this.status,
-      this.roleId, this.roleName, this.documentStatus, {this.image});
+      this.roleId, this.roleName, this.documentStatus,
+      {this.image});
 
   EmployeeWithRole copyWith({
     String? id,
@@ -23,7 +24,7 @@ class EmployeeWithRole extends Equatable {
     Status? status,
     String? roleId,
     String? roleName,
-    DocumentGroupStatus? documentStatus,
+    EmployeeDocumentStatus? documentStatus,
     List<int>? image,
   }) {
     return EmployeeWithRole(
@@ -50,7 +51,7 @@ class EmployeeWithRole extends Equatable {
       Status.fromJson(json["status"]),
       json["roleId"],
       json["roleName"] ?? "",
-      DocumentGroupStatus.fromJson(json["documentRepresentingStatus"]),
+      EmployeeDocumentStatus.fromJson(json["documentRepresentingStatus"]),
     );
   }
 
