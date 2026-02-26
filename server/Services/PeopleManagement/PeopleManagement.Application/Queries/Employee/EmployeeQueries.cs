@@ -347,7 +347,7 @@ namespace PeopleManagement.Application.Queries.Employee
             var status = DocumentStatusUtil.GetDocumentGroupStatus(documentsStatus);
             return new EnumerationDto
             {
-                Id = status.Id,s
+                Id = status.Id,
                 Name = status.Name
             };
         }
