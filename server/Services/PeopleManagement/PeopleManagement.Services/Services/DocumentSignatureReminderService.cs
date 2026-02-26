@@ -96,7 +96,7 @@ namespace PeopleManagement.Services.Services
                         }
 
                         var pendingDocuments = employeeGroup.ToList();
-                        var phoneNumber = employee.Contact.CellPhone;
+                        var phoneNumber = employee.Contact.GetCellPhoneWithCoutryNumber();
 
                         var message = BuildConsolidatedMessage(employee.Name, pendingDocuments);
 
