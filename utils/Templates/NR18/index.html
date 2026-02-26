@@ -1,0 +1,143 @@
+﻿<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>Default</title>
+    <!--Style A4-->
+    <!--https://www.smashingmagazine.com/2015/01/designing-for-print-with-css/-->
+    <link rel="stylesheet" href="styles/style.css">
+</head>
+<body>
+    <div class="main">
+        <div class="header"> 
+            <div class="header-item">
+                <img style="width:65mm;" src="img\Logo_CXS.png">
+            </div>
+            
+            <div class="header-item-content">
+                
+                    CXS Projetos e Consultoria
+            
+                <div class="header-item-text">
+                    Rua Voluntários da Pátria, 560, Sala 607<br>
+                    Tel: (11) 99540-4297 / (11) 2089-0027<br>
+                    xavier@cxs.eng.br | www.cxs.eng.br
+                </div>
+            </div>
+   
+            <div class="header-item">
+                <img style="width:35mm;" src="img\Logo_NR18.png">
+            </div>
+        </div>
+        <div class="watermark">VALIDO ATÉ {{complementaryInfo.Validity}}</div>
+        <div class="body">    
+            <div class="body-content">
+                &ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;Certifico para os devidos fins que o <strong>{{employee.name}}</strong> CPF de n° {{employee.idcard.cpf}}, participou com aproveitamento satisfatório do Curso Presencial <strong id="eventualidade">{{eventualidade}}</strong> de <strong>INTEGRAÇÃO DE SEGURANÇA</strong>, de acordo com a NR 18 – Portaria
+                MTb nº 3.214 202 de 08/06/1978 e alteração Portaria SEPRT nº 8.873 de 23/07/2021, realizado em São Paulo no dia {{complementaryInfo.FullDatePtBr}}  com
+                carga horária de 08 horas, pela empresa CXS Projetos e Consultoria em Segurança do Trabalho Ltda
+            </div>
+            <div class="body-date">
+                <div>São Paulo, {{complementaryInfo.FullDatePtBr}}</div>
+            </div>
+        </div>
+
+        <div class="foot">
+            
+            <div class="signature-body">
+                <div>
+                    <div class="signature-local">
+                        <img style="height: 30mm;float: start; visibility: visible;" src="img\ASS-XAVIER.png">
+                    </div>
+                    <div class="signature-info">
+                        Claudio Xavier da Silva<br>
+                        Eng. Eletricista e Segurança do Trabalho<br>
+                        CREA SP 5060122554<br>
+                        RNP 260292325-7<br>
+                        Instrutor e Responsável Técnico<br>
+                    </div>
+                </div>
+                <div>
+                    <div class="signature-local"></div>
+                    <div class="signature-info">
+                        {{employee.name}}<br>
+                        CPF: {{employee.idcard.cpf}}
+                    </div>
+                </div>
+            </div>
+            <div class="validity-date">Valido até: {{complementaryInfo.Validity}}</div>
+        </div>
+    </div>
+    <div class="info" style="visibility: hidden;">Documento emitido e armazenado em meio digital com certificado digital emitido no âmbito da Infraestrutura de Chaves Públicas Brasileira (ICP-Brasil), normatizada por lei específica e regulamentada pela NR 01 Portaria SEPRT n.° 6.730, de 09/03/20.</div>
+
+    <div class="verso-main">
+        <div class="verso-title">
+            CURSO DE INTEGRAÇÃO DE SEGURANÇA
+        </div>
+        <div>
+            <div class="verso-subtitle">CONTEÚDO PROGRAMÁTICO</div>
+            <div class="verso-content-item">
+                <div class="verso-content-item">_Prevenção de atos inseguros no desempenho do trabalho</div>
+                <div class="verso-content-item">_Divulgação de obrigações e proibições que os devam conhecer</div>
+                <div class="verso-content-item">_Dar conhecimento aos empregados de que serão passíveis de punição, pelo descumprimento das normas de segurança legais adotadas pelo MTB e internas estabelecidas pela empresa</div>
+                <div class="verso-content-item">_Alertar sobre os riscos profissionais que eventualmente possam existir no local de trabalho e os meios adotados pela empresa para prevenir e limitar tais riscos – Riscos Físicos, Químicos; Ergonômicos; de Acidente; Biológicos</div>
+                <div class="verso-content-item">_Informar sobre as medidas adotadas pela empresa para eliminar ou neutralizar os riscos da atividade e as condições inseguras</div>
+                <div class="verso-content-item">_Divulgar os procedimentos que devem ser adotados em caso de emergência e acidente de trabalho</div>
+                <div class="verso-content-item">_Orientar sobre a necessidade e a importância e obrigatoriedade dos exames médicos</div>
+                <div class="verso-content-item">_Noções de Meio Ambiente</div>
+                <div class="verso-content-item">_Utilização de Extintor de Incêndio</div>
+                <div class="verso-content-item">_Informar sobre as atividades da CIPA e suas funções na obra</div>
+            </div>
+        </div>
+        <div>
+            Claudio Xavier da Silva<br>
+            CREA: 5060122554<br>
+            Engenheiro de Segurança do Trabalho<br>
+        </div>
+        <div class="verso-foot">
+            <div>
+                ART Nº 28027230231119372
+            </div>
+            <div>
+                LIVRO N º90 
+            </div>
+            <div>
+                LAUDA Nº 02
+            </div>
+        </div>
+    </div>
+
+    <!-- Div invisível com o valor da eventualidade -->
+    <div id="employee-initialdate-valor" style="display: none;">{{Employee.InitialDate}}</div>
+
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            const dateStr = document.getElementById("employee-initialdate-valor").textContent.trim();
+            let textoFinal = "";
+
+            // Converte a data inicial do funcionário para objeto Date
+            const partes = dateStr.split("/");
+            // Suporta formato dd/MM/yyyy
+            const dataInicial = new Date(partes[2], partes[1] - 1, partes[0]);
+            const hoje = new Date();
+
+            // Calcula a diferença em meses
+            const diffMeses = (hoje.getFullYear() - dataInicial.getFullYear()) * 12
+                            + (hoje.getMonth() - dataInicial.getMonth());
+
+            if (diffMeses > 1) {
+                textoFinal = "PERIÓDICO";
+            } else {
+                textoFinal = "ADMISSIONAL";
+            }
+
+            // Altera o conteúdo do <strong> com id 'eventualidade'
+            document.getElementById("eventualidade").textContent = textoFinal;
+        });
+    </script>
+</body>
+
+    
+
+    
+</html>
+
