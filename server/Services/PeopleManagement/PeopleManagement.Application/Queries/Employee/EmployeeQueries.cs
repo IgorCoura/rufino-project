@@ -50,9 +50,9 @@ namespace PeopleManagement.Application.Queries.Employee
                 query = query.Where(e => e.Employee.Status == (Status)pms.Status);
             }
 
-            if (pms.DocumentRepresentingStatus.HasValue)
+            if (pms.DocumentRepresentingStatus.HasValue && Enumeration.TryFromValue<EmployeeDocumentStatus>((int)pms.DocumentRepresentingStatus) != null)
             {
-                query = query.Where(e => e.Employee.DocumentRepresentingStatus.Id == pms.DocumentRepresentingStatus.Value);
+                query = query.Where(e => e.Employee.DocumentRepresentingStatus == (EmployeeDocumentStatus)pms.DocumentRepresentingStatus);
             }
 
             query = pms.SortOrder == SortOrder.ASC

@@ -515,6 +515,14 @@ namespace PeopleManagement.API.Controllers
             return OkResponse(result);
         }
 
+        [HttpGet("DocumentStatus")]
+        [ProtectedResource("employee", "view")]
+        public ActionResult<IEnumerable<EmployeeDocumentStatus>> GetDocumentStatus([FromRoute] Guid company)
+        {
+            var result = EmployeeDocumentStatus.GetAll<EmployeeDocumentStatus>();
+            return OkResponse(result);
+        }
+
         [HttpGet("image/{employeeId}")]
         [ProtectedResource("Document", "view")]
         public async Task<IActionResult> DownloadFile([FromRoute] Guid employeeId,
