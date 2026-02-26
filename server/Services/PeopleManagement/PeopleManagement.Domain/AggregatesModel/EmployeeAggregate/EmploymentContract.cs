@@ -66,7 +66,7 @@ namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
         public static EmploymentContract Create(DateOnly initDate, EmploymentContractType contractType) => new(initDate, contractType);
         public EmploymentContract FinshedContract(DateOnly finalDate) => new(InitDate, finalDate , ContractType);
 
-
+        public bool IsActive => FinalDate == null || FinalDate > DateOnly.FromDateTime(DateTime.UtcNow);  
         protected override IEnumerable<object?> GetEqualityComponents()
         {
             yield return InitDate;
