@@ -75,9 +75,9 @@ namespace PeopleManagement.Domain.ErrorTools.ErrorsMessages
 
         public static class Document
         {
-            public static Error TimeConflictBetweenDocuments(Guid DocIdWithConflict, Guid DocIdHasConclict, TimeSpan TimeMax) => new("PMD.DOC10", 
-                $"Há um conflito de tempo gasta entre o documento sendo criado {DocIdWithConflict} e o já existente {DocIdHasConclict}." +
-                $"O tempo total diaria não pode ultrapassar {TimeMax} ", new { DocIdWithConflict, DocIdHasConclict, TimeMax });
+            public static Error TimeConflictBetweenDocuments(Guid DocIdWithConflict, Guid DocIdHasConflict, TimeSpan TimeMax) => new("PMD.DOC10", 
+                $"Há um conflito de tempo gasta entre o documento sendo criado {DocIdWithConflict} e o já existente {DocIdHasConflict}." +
+                $"O tempo total diaria não pode ultrapassar {TimeMax} ", new { DocIdWithConflict, DocIdHasConflict, TimeMax });
 
             public static Error DocumentNotHaveTemplate(Guid docId) => new("PMD.DOC11", $"O documento {docId} não tem um template associado.", new { docId });
             public static Error ErrorRecoverData(Guid docId) => new("PMD.DOC12", $"Não foi possivel recuperar todos os dados para documento {docId}. Complete os dados é tente novamente mais tarde.", new { docId });
@@ -88,6 +88,11 @@ namespace PeopleManagement.Domain.ErrorTools.ErrorsMessages
             public static Error DocumentUnitMissingNameOrExtension(Guid docUnitId) => new("PMD.DOC16", $"A unidade de documento {docUnitId} não pode ser marcada como válida porque está faltando o nome ou a extensão.", new { docUnitId });
             public static Error NotSignable(Guid docUnitId) => new("PMD.DOC17", $"A unidade de documento {docUnitId} não é assinavel.", new { docUnitId });
 
+        }
+
+        public static class DocumentTemplate
+        {
+            public static Error TemplateDoesNotAcceptSignature(Guid templateId) => new("PMD.DOCT10", $"O template {templateId} não aceita assinatura. Não é possível definir locais de assinatura.", new { templateId });
         }
     }
 }

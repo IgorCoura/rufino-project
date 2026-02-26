@@ -213,6 +213,24 @@ namespace PeopleManagement.Services.Services
                     x => x.InvalidateUnsignedDocument(documentUnitId, document.Id, company.Id, cancellationToken),
                     dateLimitToSign.AddDays(1));
             }
+            else if (documentSigningOptions == DocumentSigningOptions.OnlyWhatsapp)
+            {
+                result = await _documentSignatureService.SendToSignatureWithOnlyWhatsapp(stream, documentUnitId, document, company, employee,
+                    placeSignatures, dateLimitToSign, eminderEveryNDays, cancellationToken);
+
+                _backgroundJobClient.Schedule<ISignDocumentService>(
+                    x => x.InvalidateUnsignedDocument(documentUnitId, document.Id, company.Id, cancellationToken),
+                    dateLimitToSign.AddDays(1));
+            }
+            else if (documentSigningOptions == DocumentSigningOptions.OnlySMS)
+            {
+                result = await _documentSignatureService.SendToSignatureWithOnlySMS(stream, documentUnitId, document, company, employee,
+                    placeSignatures, dateLimitToSign, eminderEveryNDays, cancellationToken);
+
+                _backgroundJobClient.Schedule<ISignDocumentService>(
+                    x => x.InvalidateUnsignedDocument(documentUnitId, document.Id, company.Id, cancellationToken),
+                    dateLimitToSign.AddDays(1));
+            }
             else
             {
                 throw new DomainException(this, DomainErrors.Employee.InvalidDocumentDigitalSigningOptions(employee.Id));
