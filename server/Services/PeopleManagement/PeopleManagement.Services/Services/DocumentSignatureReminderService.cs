@@ -100,7 +100,7 @@ namespace PeopleManagement.Services.Services
 
                         var message = BuildConsolidatedMessage(employee.Name, pendingDocuments);
 
-                        _whatsAppQueueService.EnqueueTextMessage(phoneNumber, message, 5);
+                        _whatsAppQueueService.EnqueueTextMessage(phoneNumber, message);
 
                         _logger.LogInformation(
                             "Consolidated signature reminder sent to EmployeeId: {EmployeeId}, Documents count: {Count}",
@@ -162,7 +162,7 @@ namespace PeopleManagement.Services.Services
                               $"{documentUnit.SignatureUrl}\n\n" +
                               $"Você receberá lembretes periódicos até a assinatura ser concluída.";
 
-                _whatsAppQueueService.EnqueueTextMessage(phoneNumber, message, 5);
+                _whatsAppQueueService.EnqueueTextMessage(phoneNumber, message);
 
                 _logger.LogInformation(
                     "Immediate signature notification sent for DocumentUnitId: {DocumentUnitId}, EmployeeId: {EmployeeId}",
