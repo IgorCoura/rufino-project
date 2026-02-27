@@ -39,7 +39,7 @@ namespace PeopleManagement.Services.Services
                     _healthCheckNumber,
                     now);
 
-                _whatsAppQueueService.EnqueueTextMessage(_healthCheckNumber, message, 0);
+                _whatsAppQueueService.EnqueueTextMessage(_healthCheckNumber, message);
 
                 _logger.LogInformation(
                     "WhatsApp health check message sent successfully to {PhoneNumber}",

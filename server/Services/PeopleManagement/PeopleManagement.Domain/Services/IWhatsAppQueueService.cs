@@ -2,7 +2,7 @@ namespace PeopleManagement.Domain.Services
 {
     public interface IWhatsAppQueueService
     {
-        string EnqueueTextMessage(string phoneNumber, string message, int delaySeconds = 0);
+        string EnqueueTextMessage(string phoneNumber, string message);
 
         string EnqueueMediaMessage(
             string phoneNumber,
@@ -10,7 +10,6 @@ namespace PeopleManagement.Domain.Services
             string mimeType,
             string caption,
             string media,
-            string fileName,
-            int delaySeconds = 0);
+            string fileName);
     }
 }
