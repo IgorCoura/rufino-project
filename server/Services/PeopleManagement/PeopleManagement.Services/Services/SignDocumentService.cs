@@ -22,7 +22,7 @@ namespace PeopleManagement.Services.Services
     public class SignDocumentService(IDocumentSignatureService documentSignatureService, IDocumentRepository documentRepository, 
         ICompanyRepository companyRepository, IEmployeeRepository employeeRepository, IDocumentTemplateRepository documentTemplateRepository, 
         IBlobService blobService,IDocumentService documentService , IWebHookManagementService webHookManagementService, IFileDownloadService fileDownloadService,
-        IBackgroundJobClient backgroundJobClient, IDocumentSignatureReminderService documentSignatureReminderService, IWhatsAppService whatsAppService) : ISignDocumentService
+        IBackgroundJobClient backgroundJobClient, IDocumentSignatureReminderService documentSignatureReminderService, IWhatsAppQueueService whatsAppQueueService) : ISignDocumentService
     {
         private readonly IDocumentSignatureService _documentSignatureService = documentSignatureService;
         private readonly IDocumentRepository _documentRepository = documentRepository;
@@ -35,7 +35,7 @@ namespace PeopleManagement.Services.Services
         private readonly IFileDownloadService _fileDownloadService = fileDownloadService;
         private readonly IBackgroundJobClient _backgroundJobClient = backgroundJobClient;
         private readonly IDocumentSignatureReminderService _documentSignatureReminderService = documentSignatureReminderService;
-        private readonly IWhatsAppService _whatsAppService = whatsAppService;
+        private readonly IWhatsAppQueueService _whatsAppQueueService = whatsAppQueueService;
 
         public async Task<Guid> GenerateDocumentToSign(Guid documentUnitId, Guid documentId, Guid employeeId, Guid companyId, DateTime dateLimitToSign, 
             int eminderEveryNDays, CancellationToken cancellationToken = default)
@@ -137,6 +137,8 @@ namespace PeopleManagement.Services.Services
 
                 await _blobService.UploadAsync(file.FileStream, fileNameWithExtesion, document.CompanyId.ToString(), overwrite: false, cancellationToken: cancellationToken);
 
+                await _employeeRepository.UnitOfWork.SaveChangesAsync(cancellationToken);
+
                 var employee = await _employeeRepository.FirstOrDefaultAsync(
                     x => x.Id == document.EmployeeId && x.CompanyId == document.CompanyId, 
                     cancellation: cancellationToken);
@@ -154,14 +156,14 @@ namespace PeopleManagement.Services.Services
 
                     try
                     {
-                        await _whatsAppService.SendMediaMessageAsync(
+                        _whatsAppQueueService.EnqueueMediaMessage(
                             phoneNumber: employee.Contact.GetCellPhoneWithCoutryNumber(),
                             mediaType: "document",
                             mimeType: "application/pdf" ,
                             caption: caption,
                             media: webhookEvent.Url,
                             fileName: fileNameWithExtesion,
-                            cancellationToken: cancellationToken);
+                            delaySeconds: 5);
                     }
                     catch (Exception ex)
                     {
