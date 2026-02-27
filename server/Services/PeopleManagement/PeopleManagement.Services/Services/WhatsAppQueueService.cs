@@ -1,18 +1,27 @@
 using Hangfire;
+using Microsoft.Extensions.Options;
+using PeopleManagement.Domain.Options;
 using PeopleManagement.Domain.Services;
 
 namespace PeopleManagement.Services.Services
 {
     public class WhatsAppQueueService : IWhatsAppQueueService
     {
-        private const string QueueName = "whatsapp";
+        private readonly WhatsAppQueueOptions _options;
 
-        public string EnqueueTextMessage(string phoneNumber, string message, int delaySeconds = 0)
+        public WhatsAppQueueService(IOptions<WhatsAppQueueOptions> options)
         {
+            _options = options.Value;
+        }
+
+        public string EnqueueTextMessage(string phoneNumber, string message)
+        {
+            var effectiveDelay = Math.Max(0, _options.DelaySeconds);
+
             return BackgroundJob.Schedule<IWhatsAppService>(
-                QueueName,
+                _options.QueueName,
                 service => service.SendTextMessageAsync(phoneNumber, message, CancellationToken.None),
-                TimeSpan.FromSeconds(delaySeconds));
+                TimeSpan.FromSeconds(effectiveDelay));
         }
 
         public string EnqueueMediaMessage(
@@ -21,11 +30,12 @@ namespace PeopleManagement.Services.Services
             string mimeType,
             string caption,
             string media,
-            string fileName,
-            int delaySeconds = 0)
+            string fileName)
         {
+            var effectiveDelay = Math.Max(0, _options.DelaySeconds);
+
             return BackgroundJob.Schedule<IWhatsAppService>(
-                QueueName,
+                _options.QueueName,
                 service => service.SendMediaMessageAsync(
                     phoneNumber,
                     mediaType,
@@ -34,7 +44,7 @@ namespace PeopleManagement.Services.Services
                     media,
                     fileName,
                     CancellationToken.None),
-                TimeSpan.FromSeconds(delaySeconds));
+                TimeSpan.FromSeconds(effectiveDelay));
         }
     }
 }
