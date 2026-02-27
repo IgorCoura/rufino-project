@@ -8,18 +8,18 @@ namespace PeopleManagement.Services.Services
 {
     public class WhatsAppHealthCheckService : IWhatsAppHealthCheckService
     {
-        private readonly IWhatsAppService _whatsAppService;
+        private readonly IWhatsAppQueueService _whatsAppQueueService;
         private readonly ILogger<WhatsAppHealthCheckService> _logger;
         private readonly string _healthCheckNumber;
         private readonly TimeZoneInfo _timeZone;
 
         public WhatsAppHealthCheckService(
-            IWhatsAppService whatsAppService,
+            IWhatsAppQueueService whatsAppQueueService,
             IOptions<WhatsAppOptions> options,
             IOptions<TimeZoneOptions> timeZoneOptions,
             ILogger<WhatsAppHealthCheckService> logger)
         {
-            _whatsAppService = whatsAppService;
+            _whatsAppQueueService = whatsAppQueueService;
             _logger = logger;
             _healthCheckNumber = options.Value.HealthCheckNumber;
             _timeZone = TimeZoneInfo.FindSystemTimeZoneById(timeZoneOptions.Value.TimeZoneId);
@@ -27,7 +27,7 @@ namespace PeopleManagement.Services.Services
 
         [DisableConcurrentExecution(timeoutInSeconds: 600)] // 10 minutos de timeout
         [AutomaticRetry(Attempts = 2, DelaysInSeconds = new[] { 60, 300 })] // Retry: 1min, 5min
-        public async Task SendHealthCheckMessage(CancellationToken cancellationToken = default)
+        public Task SendHealthCheckMessage(CancellationToken cancellationToken = default)
         {
             try
             {
@@ -39,7 +39,7 @@ namespace PeopleManagement.Services.Services
                     _healthCheckNumber,
                     now);
 
-                await _whatsAppService.SendTextMessageAsync(_healthCheckNumber, message, cancellationToken);
+                _whatsAppQueueService.EnqueueTextMessage(_healthCheckNumber, message, 0);
 
                 _logger.LogInformation(
                     "WhatsApp health check message sent successfully to {PhoneNumber}",
@@ -51,6 +51,8 @@ namespace PeopleManagement.Services.Services
                     "Error sending WhatsApp health check message to {PhoneNumber}",
                     _healthCheckNumber);
             }
+
+            return Task.CompletedTask;
         }
     }
 }
