@@ -53,14 +53,19 @@ namespace PeopleManagement.Domain.AggregatesModel.DocumentAggregate
 
             if (periodType is not null && referenceDate.HasValue)
             {
-                documentUnit.Period = document.UsePreviousPeriod
-                    ? Period.CreatePreviousPeriod(periodType, referenceDate.Value)
-                    : Period.Create(periodType, referenceDate.Value);
+                documentUnit.SetPeriod((PeriodType)periodType, (DateTime)referenceDate);
                 DateOnly? validity = null;
                 documentUnit.UpdateDetails(DateOnly.FromDateTime((DateTime)referenceDate), validity, "");
             }
 
             return documentUnit;
+        }
+
+        public void SetPeriod(PeriodType periodType, DateTime referenceDate)
+        {
+            Period = Document.UsePreviousPeriod
+                ? Period.CreatePreviousPeriod(periodType, referenceDate)
+                : Period.Create(periodType, referenceDate);
         }
 
         public void InsertWithRequireValidation(Name name, Extension extension)
@@ -100,6 +105,20 @@ namespace PeopleManagement.Domain.AggregatesModel.DocumentAggregate
             }
             Validity = dateValidity;
             Content = content;
+        }
+
+        public void UpdateDetails(DateOnly date, TimeSpan? validity, string content, PeriodType periodType)
+        {
+            Date = date;
+            DateOnly? dateValidity = null;
+            if (validity is not null && validity != TimeSpan.Zero)
+            {
+                var dateTimeValidity = date.ToDateTime(TimeOnly.MinValue).Add(validity.Value);
+                dateValidity = DateOnly.FromDateTime(dateTimeValidity);
+            }
+            Validity = dateValidity;
+            Content = content;
+            SetPeriod(periodType, date.ToDateTime(TimeOnly.MinValue));
         }
 
         public void MaskAsInvalid()

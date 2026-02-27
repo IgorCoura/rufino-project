@@ -97,6 +97,15 @@ namespace PeopleManagement.Domain.AggregatesModel.DocumentAggregate
             return documentUnit;
         }
 
+        public DocumentUnit UpdateDocumentUnitDetails(Guid documentUnitId, DateOnly date, TimeSpan? validity, string content, PeriodType periodType)
+        {
+            var documentUnit = DocumentsUnits.FirstOrDefault(x => x.Id == documentUnitId)
+                ?? throw new DomainException(this, DomainErrors.ObjectNotFound(nameof(DocumentUnit), documentUnitId.ToString()));
+
+            documentUnit.UpdateDetails(date, validity, content, periodType);
+            return documentUnit;
+        }
+
         public DocumentUnit GetDocumentUnit(Guid documentUnitId)
         {
             var documentUnit = DocumentsUnits.FirstOrDefault(x => x.Id == documentUnitId)

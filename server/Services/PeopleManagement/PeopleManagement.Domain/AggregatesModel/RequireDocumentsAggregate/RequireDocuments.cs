@@ -69,8 +69,14 @@ namespace PeopleManagement.Domain.AggregatesModel.RequireDocumentsAggregate
         public void ListenEventsIsValid(List<ListenEvent> listenEvents)
         {
             var invalidEvents = GetInvalidEventId(listenEvents);
+
             if (invalidEvents.Length > 0)
                 throw new DomainException(this, DomainErrors.FieldInvalid(nameof(ListenEvent), ListenEvent.ConvertArrayToString(invalidEvents)));
+
+            var recurringEventsWithDifferentFrequency = GetRecurringEventsWithDifferentFrequency(listenEvents);
+
+            if (recurringEventsWithDifferentFrequency.Length > 0)
+                throw new DomainException(this, DomainErrors.FieldInvalid(nameof(ListenEvent), string.Join(", ", recurringEventsWithDifferentFrequency)));
 
         }
 
@@ -78,6 +84,28 @@ namespace PeopleManagement.Domain.AggregatesModel.RequireDocumentsAggregate
         {
             var result = listenEvents.Where(x => !EventIsValid(x.EventId)) ?? [];
             return result.ToArray();
+        }
+
+        public static int[] GetRecurringEventsWithDifferentFrequency(List<ListenEvent> listenEvents)
+        {
+            var recurringEvents = listenEvents
+                .Select(x => RecurringEvents.FromValue(x.EventId))
+                .Where(x => x is not null)
+                .Select(x => x!)
+                .ToList();
+
+            var hasDifferentFrequencies = recurringEvents
+                .Select(x => x.GetFrequency())
+                .Distinct()
+                .Count() > 1;
+
+            if (!hasDifferentFrequencies)
+                return [];
+
+            return recurringEvents
+                .Select(x => x.Id)
+                .Distinct()
+                .ToArray();
         }
 
         public static string GetEventName(int id)
