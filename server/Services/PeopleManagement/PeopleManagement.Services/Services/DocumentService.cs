@@ -185,11 +185,29 @@ namespace PeopleManagement.Services.Services
                 await VerifyTimeConflictBetweenDocument(employeeId, companyId, documentId, documentUnitDate, 
                     (TimeSpan)documentTemplate.Workload, cancellationToken);
 
-            string? content = "";
-            var documentUnit = document.UpdateDocumentUnitDetails(documentUnitId, documentUnitDate, documentTemplate.DocumentValidityDuration,
-                content);
+            var requiredDocument = await _requireDocumentsRepository.FirstOrDefaultAsync(x => x.Id == document.RequiredDocumentId 
+                && x.CompanyId == companyId, cancellation: cancellationToken)
+                ?? throw new DomainException(this, DomainErrors.ObjectNotFound(nameof(RequireDocuments), document.RequiredDocumentId.ToString()));
 
-            
+            var recurringEventFrequency = RecurringEvents.GetUniqueRecurringEventsFrequency(requiredDocument.ListenEvents.Select(x => x.EventId));
+            var periodType = ConvertFrequencyToPeriodType(recurringEventFrequency);
+            string? content = "";
+
+            DocumentUnit? documentUnit = null;
+
+            if(periodType != null)
+            {
+                documentUnit = document.UpdateDocumentUnitDetails(documentUnitId, documentUnitDate, documentTemplate.DocumentValidityDuration,
+                content, periodType);
+
+            }
+            else
+            {
+                documentUnit = document.UpdateDocumentUnitDetails(documentUnitId, documentUnitDate, documentTemplate.DocumentValidityDuration,
+                content);
+            }
+
+
             if(documentTemplate.TemplateFileInfo is not null)
             {
                 content = await RecoverInfoToDocument(
