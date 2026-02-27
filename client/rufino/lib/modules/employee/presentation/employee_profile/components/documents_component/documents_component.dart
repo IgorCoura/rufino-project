@@ -556,7 +556,7 @@ class DocumentsComponent extends StatelessWidget {
           builder: (_) {
             var _dialogKey = GlobalKey<FormState>();
             String dateLimitToSign = "";
-            String eminderEveryNDays = "";
+            final dateLimitController = TextEditingController();
             return AlertDialog(
               title: Text("Dados para assinatura."),
               content: SizedBox(
@@ -574,7 +574,7 @@ class DocumentsComponent extends StatelessWidget {
                               type: MaskAutoCompletionType.lazy)
                         ],
                         keyboardType: TextInputType.datetime,
-                        controller: TextEditingController(),
+                        controller: dateLimitController,
                         enabled: true,
                         decoration: InputDecoration(
                           labelText: "Data limite para assinatura",
@@ -586,26 +586,45 @@ class DocumentsComponent extends StatelessWidget {
                             DocumentUnit.validateDateLimitToSign(value),
                         onChanged: (value) => {dateLimitToSign = value},
                       ),
-                      SizedBox(height: 8),
-                      TextFormField(
-                        inputFormatters: [
-                          MaskTextInputFormatter(
-                              mask: '## dias',
-                              filter: {"#": RegExp(r'[0-9]')},
-                              type: MaskAutoCompletionType.lazy)
+                      const SizedBox(height: 8),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: [
+                          OutlinedButton(
+                            onPressed: () {
+                              final futureDate =
+                                  DateTime.now().add(Duration(days: 3));
+                              final formattedDate =
+                                  "${futureDate.day.toString().padLeft(2, '0')}/${futureDate.month.toString().padLeft(2, '0')}/${futureDate.year}";
+                              dateLimitController.text = formattedDate;
+                              dateLimitToSign = formattedDate;
+                            },
+                            child: const Text("3 dias"),
+                          ),
+                          OutlinedButton(
+                            onPressed: () {
+                              final futureDate =
+                                  DateTime.now().add(Duration(days: 5));
+                              final formattedDate =
+                                  "${futureDate.day.toString().padLeft(2, '0')}/${futureDate.month.toString().padLeft(2, '0')}/${futureDate.year}";
+                              dateLimitController.text = formattedDate;
+                              dateLimitToSign = formattedDate;
+                            },
+                            child: const Text("5 dias"),
+                          ),
+                          OutlinedButton(
+                            onPressed: () {
+                              final futureDate =
+                                  DateTime.now().add(Duration(days: 10));
+                              final formattedDate =
+                                  "${futureDate.day.toString().padLeft(2, '0')}/${futureDate.month.toString().padLeft(2, '0')}/${futureDate.year}";
+                              dateLimitController.text = formattedDate;
+                              dateLimitToSign = formattedDate;
+                            },
+                            child: const Text("10 dias"),
+                          ),
                         ],
-                        keyboardType: TextInputType.datetime,
-                        controller: TextEditingController(),
-                        enabled: true,
-                        decoration: InputDecoration(
-                          labelText: "Relembrar assinatura a cada (dias)",
-                          border: const OutlineInputBorder(),
-                        ),
-                        style: TextStyle(
-                            color: Theme.of(context).colorScheme.onSurface),
-                        validator: (value) =>
-                            DocumentUnit.validateEminderEveryNDays(value),
-                        onChanged: (value) => {eminderEveryNDays = value},
                       ),
                     ],
                   ),
@@ -624,7 +643,7 @@ class DocumentsComponent extends StatelessWidget {
                         _dialogKey.currentState!.validate()) {
                       Navigator.pop(context);
                       Navigator.pop(context);
-                      sendData(dateLimitToSign, eminderEveryNDays);
+                      sendData(dateLimitToSign, "0");
                     }
                   },
                   child: const Text("Confirmar"),

@@ -193,7 +193,7 @@ namespace PeopleManagement.Services.Services
             var periodType = ConvertFrequencyToPeriodType(recurringEventFrequency);
             string? content = "";
 
-            DocumentUnit? documentUnit = null;
+            DocumentUnit documentUnit;
 
             if(periodType != null)
             {
