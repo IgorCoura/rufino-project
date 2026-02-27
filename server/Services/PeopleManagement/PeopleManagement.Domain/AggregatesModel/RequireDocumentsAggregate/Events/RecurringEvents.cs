@@ -92,6 +92,19 @@
             return false;
         }
 
+        public static RecurringEventFrequency GetUniqueRecurringEventsFrequency(IEnumerable<int> values)
+        {
+            if (values == null)
+                return RecurringEventFrequency.None;
+
+            return values
+                .Distinct()
+                .Select(FromValue)
+                .Where(x => x != null)
+                .Select(x => x!.GetFrequency())
+                .ToList().FirstOrDefault();
+        }
+
         private static IEnumerable<MethodInfo> GetAllMethods() =>
             typeof(RecurringEvents).GetMethods(BindingFlags.Public | BindingFlags.Static).Where(x => x.ReturnType == typeof(RecurringEvents) && x.GetParameters().Length == 0);
 
