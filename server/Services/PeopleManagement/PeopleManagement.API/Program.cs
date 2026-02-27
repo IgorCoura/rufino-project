@@ -9,6 +9,7 @@ using PeopleManagement.API.Authorization;
 using PeopleManagement.API.DependencyInjection;
 using PeopleManagement.API.Filters;
 using PeopleManagement.Application.Commands;
+using PeopleManagement.Domain.Options;
 using PeopleManagement.Infra.Context;
 using PeopleManagement.Infra.DataForTests;
 using PeopleManagement.Services.DomainEventHandlers;
@@ -29,6 +30,8 @@ builder.WebHost.ConfigureKestrel(serverOptions =>
 });
 
 var env = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT");
+var whatsAppQueueOptions = builder.Configuration.GetSection(WhatsAppQueueOptions.SectionName).Get<WhatsAppQueueOptions>()
+    ?? new WhatsAppQueueOptions();
 
 //Config DataBase
 builder.Services.AddDbContext<PeopleManagementContext>(options =>
@@ -74,7 +77,7 @@ builder.Services.AddHangfireServer(options =>
 builder.Services.AddHangfireServer(options =>
 {
     options.ServerName = "whatsapp-serial-worker";
-    options.Queues = new[] { "whatsapp" };
+    options.Queues = new[] { whatsAppQueueOptions.QueueName };
     options.WorkerCount = 1;
 });
 

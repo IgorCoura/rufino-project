@@ -162,8 +162,7 @@ namespace PeopleManagement.Services.Services
                             mimeType: "application/pdf" ,
                             caption: caption,
                             media: webhookEvent.Url,
-                            fileName: fileNameWithExtesion,
-                            delaySeconds: 5);
+                            fileName: fileNameWithExtesion);
                     }
                     catch (Exception ex)
                     {

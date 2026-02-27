@@ -61,6 +61,8 @@ namespace PeopleManagement.API.DependencyInjection
             configuration.GetSection(TimeZoneOptions.SectionName).Bind(timeZoneOptions);
             service.AddSingleton(timeZoneOptions);
 
+            service.Configure<WhatsAppQueueOptions>(configuration.GetSection(WhatsAppQueueOptions.SectionName));
+
             return service;
         }
     }
