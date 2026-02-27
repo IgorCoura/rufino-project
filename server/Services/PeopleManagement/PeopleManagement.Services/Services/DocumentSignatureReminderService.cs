@@ -17,18 +17,18 @@ namespace PeopleManagement.Services.Services
 
     public class DocumentSignatureReminderService : IDocumentSignatureReminderService
     {
-        private readonly IWhatsAppService _whatsAppService;
+        private readonly IWhatsAppQueueService _whatsAppQueueService;
         private readonly IDocumentRepository _documentRepository;
         private readonly IEmployeeRepository _employeeRepository;
         private readonly ILogger<DocumentSignatureReminderService> _logger;
 
         public DocumentSignatureReminderService(
-            IWhatsAppService whatsAppService,
+            IWhatsAppQueueService whatsAppQueueService,
             IDocumentRepository documentRepository,
             IEmployeeRepository employeeRepository,
             ILogger<DocumentSignatureReminderService> logger)
         {
-            _whatsAppService = whatsAppService;
+            _whatsAppQueueService = whatsAppQueueService;
             _documentRepository = documentRepository;
             _employeeRepository = employeeRepository;
             _logger = logger;
@@ -100,7 +100,7 @@ namespace PeopleManagement.Services.Services
 
                         var message = BuildConsolidatedMessage(employee.Name, pendingDocuments);
 
-                        await _whatsAppService.SendTextMessageAsync(phoneNumber, message, cancellationToken);
+                        _whatsAppQueueService.EnqueueTextMessage(phoneNumber, message, 5);
 
                         _logger.LogInformation(
                             "Consolidated signature reminder sent to EmployeeId: {EmployeeId}, Documents count: {Count}",
@@ -162,7 +162,7 @@ namespace PeopleManagement.Services.Services
                               $"{documentUnit.SignatureUrl}\n\n" +
                               $"Você receberá lembretes periódicos até a assinatura ser concluída.";
 
-                await _whatsAppService.SendTextMessageAsync(phoneNumber, message, cancellationToken);
+                _whatsAppQueueService.EnqueueTextMessage(phoneNumber, message, 5);
 
                 _logger.LogInformation(
                     "Immediate signature notification sent for DocumentUnitId: {DocumentUnitId}, EmployeeId: {EmployeeId}",

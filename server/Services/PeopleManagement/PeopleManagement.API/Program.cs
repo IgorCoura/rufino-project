@@ -65,7 +65,18 @@ builder.Services.AddHangfire(configuration =>
                     options.UseNpgsqlConnection(builder.Configuration.GetConnectionString("HangfireConnection"));
                 }));
 
-builder.Services.AddHangfireServer(); // Starts the Hangfire worker
+builder.Services.AddHangfireServer(options =>
+{
+    options.ServerName = "default-worker";
+    options.Queues = new[] { "default" };
+});
+
+builder.Services.AddHangfireServer(options =>
+{
+    options.ServerName = "whatsapp-serial-worker";
+    options.Queues = new[] { "whatsapp" };
+    options.WorkerCount = 1;
+});
 
 
 builder.Services.AddCors(options => 
