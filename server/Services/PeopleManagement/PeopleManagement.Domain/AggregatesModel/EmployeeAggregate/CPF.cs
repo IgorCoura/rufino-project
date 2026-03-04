@@ -90,6 +90,7 @@ namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
 
         public static implicit operator CPF(string input) =>
             new(input);
+        public string ToMaskedString() => $"{_number[..3]}.{_number[3..6]}.{_number[6..9]}-{_number[9..]}";
 
         protected override IEnumerable<object> GetEqualityComponents()
         {
