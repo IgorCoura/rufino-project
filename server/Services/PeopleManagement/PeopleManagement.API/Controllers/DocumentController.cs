@@ -1,7 +1,9 @@
 ﻿using PeopleManagement.Application.Commands.Identified;
 using PeopleManagement.Application.Commands.DocumentCommands.CreateDocument;
 using PeopleManagement.Application.Commands.DocumentCommands.GeneratePdf;
+using PeopleManagement.Application.Commands.DocumentCommands.GeneratePdfRange;
 using PeopleManagement.Application.Commands.DocumentCommands.InsertDocument;
+using System.IO.Compression;
 using PeopleManagement.Application.Commands.DocumentCommands.GenerateDocumentToSign;
 using PeopleManagement.Application.Commands.DocumentCommands.InsertDocumentToSign;
 using PeopleManagement.Application.Commands.DocumentCommands.ReceiveWebhookDocument;
@@ -12,7 +14,6 @@ using PeopleManagement.Application.Queries.Document;
 using static PeopleManagement.Application.Queries.Document.DocumentDtos;
 using PeopleManagement.Application.Queries.DocumentTemplate;
 using static Microsoft.EntityFrameworkCore.DbLoggerCategory.Database;
-
 namespace PeopleManagement.API.Controllers
 {
     [Route("api/v1/{company}/[controller]")]
@@ -65,6 +66,33 @@ namespace PeopleManagement.API.Controllers
             CommandResultLog(result, request.DocumentUnitId, request, requestId);
 
             return File(result.Pdf, "application/pdf", $"doc_{result.Id.ToString().Substring(0,10)}.pdf");
+        }
+
+        [HttpPost("generate/range/{employeeId}")]
+        [ProtectedResource("Document", "view")]
+        public async Task<IActionResult> GeneratePdfRange([FromRoute] Guid company, [FromRoute] Guid employeeId, [FromBody] List<GeneratePdfRangeItem> request)
+        {
+            var command = new GeneratePdfRangeCommand(request, employeeId, company);
+
+            SendingCommandLog(employeeId, request, Guid.Empty);
+
+            var result = await _mediator.Send(command);
+
+            CommandResultLog(result, employeeId, request, Guid.Empty);
+
+            var memoryStream = new MemoryStream();
+            using (var archive = new ZipArchive(memoryStream, ZipArchiveMode.Create, leaveOpen: true))
+            {
+                foreach (var item in result.Results)
+                {
+                    var entry = archive.CreateEntry($"{item.DocumentId}/{item.DocumentUnitId}.pdf", CompressionLevel.Fastest);
+                    using var entryStream = entry.Open();
+                    await entryStream.WriteAsync(item.Pdf);
+                }
+            }
+
+            memoryStream.Position = 0;
+            return File(memoryStream, "application/octet-stream", "documents.zip");
         }
 
         [HttpPost("generate/send2sign")]
@@ -148,9 +176,9 @@ namespace PeopleManagement.API.Controllers
 
         [HttpGet("{employeeId}/{id}")]
         [ProtectedResource("Document", "view")]
-        public async Task<ActionResult<DocumentDto>> GetById([FromRoute] Guid company, [FromRoute] Guid employeeId, [FromRoute] Guid id)
+        public async Task<ActionResult<DocumentDto>> GetById([FromRoute] Guid company, [FromRoute] Guid employeeId, [FromRoute] Guid id, [FromQuery] DocumentUnitParams unitParams)
         {
-            var result = await _documentQueries.GetById(id, employeeId, company);
+            var result = await _documentQueries.GetById(id, employeeId, company, unitParams);
             return OkResponse(result);
         }
 
@@ -162,6 +190,14 @@ namespace PeopleManagement.API.Controllers
             var stream = await _documentQueries.DownloadDocumentUnit(documentUnitId, documentId, employeeId, company);  
             stream.Position = 0;
             return File(stream, "application/octet-stream", $"{documentUnitId}.zip");
+        }
+
+        [HttpPost("download/range/{employeeId}")]
+        [ProtectedResource("Document", "view")]
+        public async Task<IActionResult> DownloadRange([FromRoute] Guid company, [FromRoute] Guid employeeId, [FromBody] List<DownloadRangeDocumentItem> request)
+        {
+            var stream = await _documentQueries.DownloadDocumentUnitRange(request, employeeId, company);
+            return File(stream, "application/octet-stream", "documents.zip");
         }
 
 

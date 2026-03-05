@@ -6,6 +6,21 @@ import 'package:rufino/modules/employee/domain/model/document/document.dart';
 import 'package:rufino/shared/services/base_service.dart';
 import 'package:rufino/shared/util/data_convetion.dart';
 
+class DocumentRangeItem {
+  final String documentId;
+  final List<String> documentUnitIds;
+
+  const DocumentRangeItem({
+    required this.documentId,
+    required this.documentUnitIds,
+  });
+
+  Map<String, dynamic> toJson() => {
+        'documentId': documentId,
+        'documentUnitIds': documentUnitIds,
+      };
+}
+
 class DocumentService extends BaseService {
   final Uri peopleManagementUrl =
       Uri.https(const String.fromEnvironment("people_management_url"));
@@ -66,10 +81,21 @@ class DocumentService extends BaseService {
   }
 
   Future<Document> getByIdDocuments(
-      String companyId, String employeeId, String documentId) async {
+      String companyId, String employeeId, String documentId,
+      {int pageNumber = 1, int pageSize = 10, int? statusId}) async {
     var headers = await getHeaders();
+
+    Map<String, String> queryParams = {
+      'PageNumber': pageNumber.toString(),
+      'PageSize': pageSize.toString(),
+    };
+    if (statusId != null) {
+      queryParams['StatusId'] = statusId.toString();
+    }
+
     var url = peopleManagementUrl.replace(
-        path: "/api/v1/$companyId/document/$employeeId/$documentId");
+        path: "/api/v1/$companyId/document/$employeeId/$documentId",
+        queryParameters: queryParams);
 
     var response = await http.get(url, headers: headers);
 
@@ -202,5 +228,51 @@ class DocumentService extends BaseService {
     }
     var exception = await treatUnsuccessfulStreamedResponses(response);
     throw exception;
+  }
+
+  /// POST /api/v1/{companyId}/document/generate/range/{employeeId}
+  /// Body: List<DocumentRangeItem> -> returns ZIP bytes
+  Future<File> generatePdfRange(
+    List<DocumentRangeItem> items,
+    String employeeId,
+    String companyId,
+    String savePath,
+  ) async {
+    var headers = await getHeadersWithRequestId();
+    var url = peopleManagementUrl.replace(
+        path: "/api/v1/$companyId/document/generate/range/$employeeId");
+
+    var body = jsonEncode(items.map((e) => e.toJson()).toList());
+    var response = await http.post(url, headers: headers, body: body);
+
+    if (response.statusCode == 200) {
+      var file = File(savePath);
+      await file.writeAsBytes(response.bodyBytes);
+      return file;
+    }
+    throw treatUnsuccessfulResponses(response);
+  }
+
+  /// POST /api/v1/{companyId}/document/download/range/{employeeId}
+  /// Body: List<DocumentRangeItem> -> returns ZIP bytes
+  Future<File> downloadRange(
+    List<DocumentRangeItem> items,
+    String employeeId,
+    String companyId,
+    String savePath,
+  ) async {
+    var headers = await getHeadersWithRequestId();
+    var url = peopleManagementUrl.replace(
+        path: "/api/v1/$companyId/document/download/range/$employeeId");
+
+    var body = jsonEncode(items.map((e) => e.toJson()).toList());
+    var response = await http.post(url, headers: headers, body: body);
+
+    if (response.statusCode == 200) {
+      var file = File(savePath);
+      await file.writeAsBytes(response.bodyBytes);
+      return file;
+    }
+    throw treatUnsuccessfulResponses(response);
   }
 }

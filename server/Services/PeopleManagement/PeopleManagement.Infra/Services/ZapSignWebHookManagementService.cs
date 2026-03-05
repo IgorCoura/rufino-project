@@ -42,7 +42,7 @@ namespace PeopleManagement.Infra.Services
 
                 var body = new JsonObject
                 {
-                    ["url"] = _signOptions.WeebHookUrl,
+                    ["url"] = _signOptions.WebHookUrl,
                     ["type"] = "",
                     ["headers"] = new JsonArray
                     {
@@ -60,7 +60,7 @@ namespace PeopleManagement.Infra.Services
                 {
                     var content = await response.Content.ReadAsStringAsync(cancellationToken);
                     _logger.LogWarning("Failed to create webhook. Url: {Url}, StatusCode: {StatusCode}, Response: {Response}",
-                        _signOptions.WeebHookUrl, response.StatusCode, content);
+                        _signOptions.WebHookUrl, response.StatusCode, content);
                     return null;
                 }
 
@@ -69,7 +69,7 @@ namespace PeopleManagement.Infra.Services
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error creating webhook. Url: {Url}", _signOptions.WeebHookUrl);
+                _logger.LogError(ex, "Error creating webhook. Url: {Url}", _signOptions.WebHookUrl);
                 return null;
             }
         }
