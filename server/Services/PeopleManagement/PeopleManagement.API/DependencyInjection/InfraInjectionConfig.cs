@@ -45,6 +45,7 @@ namespace PeopleManagement.API.DependencyInjection
             service.AddScoped<IWebHookRepository, WebHookRepository>();
 
             service.AddScoped<IPdfService, PdfService>();
+            service.AddSingleton<IBrowserProvider, BrowserProvider>();
             service.AddScoped<IBlobService, BlobAzureService>();
             service.AddScoped<ILocalStorageService, LocalStorageService>();
             service.AddScoped<IFileDownloadService, FileDownloadService>();

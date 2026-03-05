@@ -8,6 +8,7 @@ using PeopleManagement.Domain.AggregatesModel.DocumentTemplateAggregate.options;
 using PeopleManagement.Infra.Services;
 using PeopleManagement.Domain.AggregatesModel.DocumentAggregate.Interfaces;
 using PeopleManagement.Domain.AggregatesModel.DocumentAggregate;
+using System.IO.Compression;
 
 namespace PeopleManagement.Application.Queries.Document
 {
@@ -44,20 +45,43 @@ namespace PeopleManagement.Application.Queries.Document
             return result;
         }
 
-        public async Task<DocumentDto> GetById(Guid documentId, Guid employeeId, Guid companyId)
+        public async Task<DocumentDto> GetById(Guid documentId, Guid employeeId, Guid companyId, DocumentUnitParams unitParams)
         {
             var document = await _context.Documents
-                .Include(x => x.DocumentsUnits)
+                .AsNoTracking()
                 .Where(x => x.Id == documentId && x.EmployeeId == employeeId && x.CompanyId == companyId)
                 .SingleOrDefaultAsync()
                 ?? throw new DomainException(this, DomainErrors.ObjectNotFound(nameof(Document), documentId.ToString()));
 
             var template = await _context.DocumentTemplates
+                .AsNoTracking()
                 .Where(x => x.Id == document.DocumentTemplateId)
                 .SingleOrDefaultAsync()
                 ?? throw new DomainException(this, DomainErrors.ObjectNotFound(nameof(DocumentTemplate), document.DocumentTemplateId.ToString()));
 
-            var result = new DocumentDto
+            var unitsQuery = _context.Entry(document)
+                .Collection(x => x.DocumentsUnits)
+                .Query()
+                .AsNoTracking();
+
+            if (unitParams.StatusId.HasValue)
+                unitsQuery = unitsQuery.Where(x => x.Status == (DocumentUnitStatus)unitParams.StatusId);
+
+            var totalUnitsCount = await unitsQuery.CountAsync();
+
+            var units = await unitsQuery.ToListAsync();
+
+            var skip = (unitParams.PageNumber - 1) * unitParams.PageSize;
+
+            var pagedUnits = units
+                .OrderBy(x => DocumentUnitStatus.GetOrder(x.Status))
+                .ThenByDescending(x => x.CreatedAt)
+                .Skip(skip)
+                .Take(unitParams.PageSize)
+                .Select(x => (DocumentUnitDto)x)
+                .ToList();
+
+            return new DocumentDto
             {
                 Id = document.Id,
                 Name = document.Name.Value,
@@ -72,19 +96,9 @@ namespace PeopleManagement.Application.Queries.Document
                 CanGenerateDocument = template.CanGenerateDocuments,
                 CreateAt = document.CreatedAt,
                 UpdateAt = document.UpdatedAt,
-                DocumentsUnits = document.DocumentsUnits
-                    .Select(x => (DocumentUnitDto)x)
-                    .ToList()
+                TotalUnitsCount = totalUnitsCount,
+                DocumentsUnits = pagedUnits
             };
-
-            var sortedResult = result with
-            {
-                DocumentsUnits = result.DocumentsUnits
-                    .OrderBy(x => DocumentUnitStatus.GetOrder(x.Status.Id))
-                    .ThenByDescending(x => x.CreateAt)
-                    .ToList()
-            };
-            return sortedResult;
         }
 
         public async Task<Stream> DownloadDocumentUnit(Guid documentUnitId, Guid documentId, Guid employeeId, Guid companyId)
@@ -100,6 +114,46 @@ namespace PeopleManagement.Application.Queries.Document
 
             return file;
         }
-        
+
+        public async Task<Stream> DownloadDocumentUnitRange(IEnumerable<DownloadRangeDocumentItem> items, Guid employeeId, Guid companyId)
+        {
+            var itemsList = items.ToList();
+            var documentIds = itemsList.Select(x => x.DocumentId).ToList();
+            var unitIdsByDocument = itemsList.ToDictionary(x => x.DocumentId, x => x.DocumentUnitIds.ToHashSet());
+
+            var documents = await _context.Documents.AsNoTracking()
+                .Include(x => x.DocumentsUnits)
+                .Where(x => documentIds.Contains(x.Id) && x.EmployeeId == employeeId && x.CompanyId == companyId)
+                .ToListAsync();
+
+            var downloadTasks = documents
+                .Where(doc => unitIdsByDocument.TryGetValue(doc.Id, out _))
+                .SelectMany(doc =>
+                    doc.DocumentsUnits
+                        .Where(unit => unitIdsByDocument[doc.Id].Contains(unit.Id))
+                        .Select(unit => new
+                        {
+                            EntryName = $"{doc.Id}/{unit.GetNameWithExtension}",
+                            Task = _blobService.DownloadAsync(unit.GetNameWithExtension, companyId.ToString())
+                        }))
+                .ToList();
+
+            var streams = await Task.WhenAll(downloadTasks.Select(x => x.Task));
+
+            var memoryStream = new MemoryStream();
+            using (var archive = new ZipArchive(memoryStream, ZipArchiveMode.Create, leaveOpen: true))
+            {
+                for (int i = 0; i < downloadTasks.Count; i++)
+                {
+                    var entry = archive.CreateEntry(downloadTasks[i].EntryName, CompressionLevel.Fastest);
+                    using var entryStream = entry.Open();
+                    await streams[i].CopyToAsync(entryStream);
+                }
+            }
+
+            memoryStream.Position = 0;
+            return memoryStream;
+        }
+
     }
 }

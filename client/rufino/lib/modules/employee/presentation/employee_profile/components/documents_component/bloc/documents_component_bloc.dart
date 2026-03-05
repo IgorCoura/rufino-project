@@ -28,6 +28,11 @@ class DocumentsComponentBloc
     on<LoadDocumentUnitEvent>(_onLoadDocumentUnitEvent);
     on<LoadDocumentUnitToSignEvent>(_onLoadDocumentUnitToSignEvent);
     on<DownloadDocumentUnitEvent>(_onDownloadDocumentUnitEvent);
+    on<ChangeDocumentUnitPaginationEvent>(_onChangeDocumentUnitPaginationEvent);
+    on<ToggleRangeSelectionModeEvent>(_onToggleRangeSelectionModeEvent);
+    on<ToggleDocumentUnitSelectionEvent>(_onToggleDocumentUnitSelectionEvent);
+    on<ExecuteRangeGenerateEvent>(_onExecuteRangeGenerateEvent);
+    on<ExecuteRangeDownloadEvent>(_onExecuteRangeDownloadEvent);
   }
 
   void _onInitialEvent(
@@ -103,8 +108,16 @@ class DocumentsComponentBloc
     try {
       await _documentService.createDocumentUnit(
           event.documentId, state.employeeId, state.companyId);
+
+      final updatedPagination =
+          Map<String, DocumentUnitPagination>.from(state.paginationMap);
+      final current =
+          updatedPagination[event.documentId] ?? const DocumentUnitPagination();
+      updatedPagination[event.documentId] = current.copyWith(pageNumber: 1);
+
+      emit(state.copyWith(
+          isSavingData: false, paginationMap: updatedPagination));
       add(RefeshEvent(event.documentId));
-      emit(state.copyWith(isSavingData: false));
     } catch (ex, stacktrace) {
       var exception = _documentService.treatErrors(ex, stacktrace);
       emit(state.copyWith(isSavingData: false, exception: exception));
@@ -118,6 +131,8 @@ class DocumentsComponentBloc
     emit(state.copyWith(isLazyLoading: true));
 
     try {
+      final pagination = state.getPagination(event.documentId);
+
       List<DocumentGroupWithDocuments> documentGroupCopy =
           List.from(state.reqDocuments);
 
@@ -128,7 +143,10 @@ class DocumentsComponentBloc
         if (documentIndex != -1) {
           documentGroup.documents[documentIndex] =
               await _documentService.getByIdDocuments(state.companyId,
-                  state.employeeId, documentGroup.documents[documentIndex].id);
+                  state.employeeId, documentGroup.documents[documentIndex].id,
+                  pageNumber: pagination.pageNumber,
+                  pageSize: pagination.pageSize,
+                  statusId: pagination.statusId);
           break;
         }
       }
@@ -294,6 +312,226 @@ class DocumentsComponentBloc
       add(RefeshEvent(event.documentId));
       emit(state.copyWith(
           isSavingData: false, snackMessage: "Documento baixado com sucesso!"));
+    } catch (ex, stacktrace) {
+      var exception = _documentService.treatErrors(ex, stacktrace);
+      emit(state.copyWith(isSavingData: false, exception: exception));
+    }
+  }
+
+  Future _onChangeDocumentUnitPaginationEvent(
+    ChangeDocumentUnitPaginationEvent event,
+    Emitter<DocumentsComponentState> emit,
+  ) async {
+    final updatedPagination =
+        Map<String, DocumentUnitPagination>.from(state.paginationMap);
+    final current =
+        updatedPagination[event.documentId] ?? const DocumentUnitPagination();
+
+    updatedPagination[event.documentId] = DocumentUnitPagination(
+      pageNumber: event.pageNumber ?? current.pageNumber,
+      pageSize: event.pageSize ?? current.pageSize,
+      statusId:
+          event.clearStatusFilter ? null : (event.statusId ?? current.statusId),
+    );
+
+    emit(state.copyWith(paginationMap: updatedPagination));
+    add(RefeshEvent(event.documentId));
+  }
+
+  void _onToggleRangeSelectionModeEvent(
+    ToggleRangeSelectionModeEvent event,
+    Emitter<DocumentsComponentState> emit,
+  ) {
+    final newMode = !state.isSelectingRange;
+    emit(state.copyWith(
+      isSelectingRange: newMode,
+      selectedDocumentUnits: newMode ? state.selectedDocumentUnits : const [],
+    ));
+  }
+
+  void _onToggleDocumentUnitSelectionEvent(
+    ToggleDocumentUnitSelectionEvent event,
+    Emitter<DocumentsComponentState> emit,
+  ) {
+    final currentList =
+        List<SelectedDocumentUnit>.from(state.selectedDocumentUnits);
+    final existingIndex = currentList
+        .indexWhere((item) => item.documentUnitId == event.documentUnitId);
+
+    if (existingIndex != -1) {
+      currentList.removeAt(existingIndex);
+    } else {
+      currentList.add(SelectedDocumentUnit(
+        documentId: event.documentId,
+        documentUnitId: event.documentUnitId,
+        documentName: event.documentName,
+        documentUnitDate: event.documentUnitDate,
+        canGenerate: event.canGenerate,
+        hasFile: event.hasFile,
+      ));
+    }
+    emit(state.copyWith(selectedDocumentUnits: currentList));
+  }
+
+  Future _onExecuteRangeGenerateEvent(
+    ExecuteRangeGenerateEvent event,
+    Emitter<DocumentsComponentState> emit,
+  ) async {
+    if (state.selectedDocumentUnits.isEmpty) {
+      emit(state.copyWith(snackMessage: "Nenhum documento selecionado."));
+      return;
+    }
+
+    emit(state.copyWith(isSavingData: true));
+
+    try {
+      // Separate items that can be generated from those that cannot
+      final canGenerate = state.selectedDocumentUnits
+          .where((item) => item.canGenerate)
+          .toList();
+      final cannotGenerate = state.selectedDocumentUnits
+          .where((item) => !item.canGenerate)
+          .toList();
+
+      if (canGenerate.isEmpty) {
+        emit(state.copyWith(
+          isSavingData: false,
+          snackMessage: "Nenhum dos documentos selecionados pode ser gerado.",
+        ));
+        return;
+      }
+
+      String? savePath = await FilePicker.platform.saveFile(
+        dialogTitle: 'Salvar Documentos Gerados',
+        fileName: "documentos_gerados.zip",
+      );
+
+      if (savePath == null) {
+        emit(state.copyWith(
+          isSavingData: false,
+          snackMessage: "Nenhum local de salvamento selecionado.",
+        ));
+        return;
+      }
+
+      // Group by documentId
+      final Map<String, List<String>> groupedItems = {};
+      for (var item in canGenerate) {
+        groupedItems.putIfAbsent(item.documentId, () => []);
+        groupedItems[item.documentId]!.add(item.documentUnitId);
+      }
+
+      final rangeItems = groupedItems.entries
+          .map((entry) => DocumentRangeItem(
+                documentId: entry.key,
+                documentUnitIds: entry.value,
+              ))
+          .toList();
+
+      await _documentService.generatePdfRange(
+        rangeItems,
+        state.employeeId,
+        state.companyId,
+        savePath,
+      );
+
+      String message = "Documentos gerados com sucesso!";
+      if (cannotGenerate.isNotEmpty) {
+        final failedNames = cannotGenerate
+            .map((item) => "${item.documentName} (${item.documentUnitDate})")
+            .join(", ");
+        message =
+            "Documentos gerados com sucesso, exceto: $failedNames — estes não possuem template para geração.";
+      }
+
+      emit(state.copyWith(
+        isSavingData: false,
+        isSelectingRange: false,
+        selectedDocumentUnits: const [],
+        snackMessage: message,
+      ));
+    } catch (ex, stacktrace) {
+      var exception = _documentService.treatErrors(ex, stacktrace);
+      emit(state.copyWith(isSavingData: false, exception: exception));
+    }
+  }
+
+  Future _onExecuteRangeDownloadEvent(
+    ExecuteRangeDownloadEvent event,
+    Emitter<DocumentsComponentState> emit,
+  ) async {
+    if (state.selectedDocumentUnits.isEmpty) {
+      emit(state.copyWith(snackMessage: "Nenhum documento selecionado."));
+      return;
+    }
+
+    emit(state.copyWith(isSavingData: true));
+
+    try {
+      // Separate items that have files from those that do not
+      final canDownload =
+          state.selectedDocumentUnits.where((item) => item.hasFile).toList();
+      final cannotDownload =
+          state.selectedDocumentUnits.where((item) => !item.hasFile).toList();
+
+      if (canDownload.isEmpty) {
+        emit(state.copyWith(
+          isSavingData: false,
+          snackMessage:
+              "Nenhum dos documentos selecionados possui arquivo para download.",
+        ));
+        return;
+      }
+
+      String? savePath = await FilePicker.platform.saveFile(
+        dialogTitle: 'Salvar Documentos',
+        fileName: "documentos_download.zip",
+      );
+
+      if (savePath == null) {
+        emit(state.copyWith(
+          isSavingData: false,
+          snackMessage: "Nenhum local de salvamento selecionado.",
+        ));
+        return;
+      }
+
+      // Group by documentId
+      final Map<String, List<String>> groupedItems = {};
+      for (var item in canDownload) {
+        groupedItems.putIfAbsent(item.documentId, () => []);
+        groupedItems[item.documentId]!.add(item.documentUnitId);
+      }
+
+      final rangeItems = groupedItems.entries
+          .map((entry) => DocumentRangeItem(
+                documentId: entry.key,
+                documentUnitIds: entry.value,
+              ))
+          .toList();
+
+      await _documentService.downloadRange(
+        rangeItems,
+        state.employeeId,
+        state.companyId,
+        savePath,
+      );
+
+      String message = "Documentos baixados com sucesso!";
+      if (cannotDownload.isNotEmpty) {
+        final failedNames = cannotDownload
+            .map((item) => "${item.documentName} (${item.documentUnitDate})")
+            .join(", ");
+        message =
+            "Documentos baixados com sucesso, exceto: $failedNames — estes não possuem arquivo para download.";
+      }
+
+      emit(state.copyWith(
+        isSavingData: false,
+        isSelectingRange: false,
+        selectedDocumentUnits: const [],
+        snackMessage: message,
+      ));
     } catch (ex, stacktrace) {
       var exception = _documentService.treatErrors(ex, stacktrace);
       emit(state.copyWith(isSavingData: false, exception: exception));

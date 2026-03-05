@@ -1,9 +1,12 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_modular/flutter_modular.dart';
 import 'package:mask_text_input_formatter/mask_text_input_formatter.dart';
 import 'package:rufino/modules/employee/domain/model/document/document.dart';
 import 'package:rufino/modules/employee/domain/model/document/document_unit.dart';
+import 'package:rufino/modules/employee/domain/model/document/document_unit_status.dart';
 import 'package:rufino/modules/employee/domain/model/document_group/document_group_with_documents.dart';
 import 'package:rufino/modules/employee/presentation/components/period_components.dart';
 import 'package:rufino/modules/employee/presentation/employee_profile/components/documents_component/bloc/documents_component_bloc.dart';
@@ -58,10 +61,13 @@ class DocumentsComponent extends StatelessWidget {
                               child: Text("Nenhum documento encontrado"),
                             )
                           : Column(
-                              children: state.reqDocuments
-                                  .map((reqDocument) => _reqDocumentWidget(
-                                      context, state, reqDocument))
-                                  .toList(),
+                              children: [
+                                ...state.reqDocuments.map((reqDocument) =>
+                                    _reqDocumentWidget(
+                                        context, state, reqDocument)),
+                                if (state.isSelectingRange)
+                                  _rangeActionBar(context, state),
+                              ],
                             )
                   : const SizedBox(),
             ],
@@ -78,21 +84,259 @@ class DocumentsComponent extends StatelessWidget {
         border: state.isExpanded ? const Border(bottom: BorderSide()) : null,
         borderRadius: BorderRadius.circular(5),
       ),
-      child: InkWell(
-        onTap: () => bloc.add(ExpandEvent()),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(
-              "Documentos",
-              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+      child: Row(
+        children: [
+          Expanded(
+            child: InkWell(
+              onTap: () => bloc.add(ExpandEvent()),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    "Documentos",
+                    style: const TextStyle(
+                        fontWeight: FontWeight.bold, fontSize: 16),
+                  ),
+                  const Icon(
+                    Icons.arrow_drop_down_sharp,
+                  ),
+                ],
+              ),
             ),
-            const Icon(
-              Icons.arrow_drop_down_sharp,
-            )
-          ],
-        ),
+          ),
+          if (state.isExpanded && state.reqDocuments.isNotEmpty)
+            _rangeSelectionButton(state),
+        ],
       ),
+    );
+  }
+
+  Widget _rangeSelectionButton(DocumentsComponentState state) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (state.isSelectingRange &&
+            state.selectedDocumentUnits.isNotEmpty) ...[
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(
+              color: Colors.blue.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Text(
+              "${state.selectedDocumentUnits.length} selecionado(s)",
+              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
+            ),
+          ),
+          const SizedBox(width: 4),
+        ],
+        TextButton.icon(
+          onPressed: state.isSavingData
+              ? null
+              : () => bloc.add(const ToggleRangeSelectionModeEvent()),
+          icon: Icon(
+            state.isSelectingRange ? Icons.close : Icons.checklist,
+            size: 18,
+          ),
+          label: Text(
+            state.isSelectingRange ? "Cancelar" : "Selecionar",
+            style: const TextStyle(fontSize: 12),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _rangeActionBar(BuildContext context, DocumentsComponentState state) {
+    final selectedCount = state.selectedDocumentUnits.length;
+    final canGenerateCount =
+        state.selectedDocumentUnits.where((e) => e.canGenerate).length;
+    final canDownloadCount =
+        state.selectedDocumentUnits.where((e) => e.hasFile).length;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.primaryContainer.withOpacity(0.3),
+        border: const Border(top: BorderSide()),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.info_outline, size: 16),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  "$selectedCount selecionado(s) · "
+                  "$canGenerateCount pode(m) gerar · "
+                  "$canDownloadCount pode(m) baixar",
+                  style: const TextStyle(fontSize: 13),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              OutlinedButton.icon(
+                onPressed: selectedCount == 0 || state.isSavingData
+                    ? null
+                    : () => _confirmRangeAction(
+                          context,
+                          state,
+                          isGenerate: true,
+                        ),
+                icon: state.isSavingData
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.sim_card_download_outlined, size: 18),
+                label: const Text("Gerar Selecionados"),
+              ),
+              const SizedBox(width: 8),
+              OutlinedButton.icon(
+                onPressed: selectedCount == 0 || state.isSavingData
+                    ? null
+                    : () => _confirmRangeAction(
+                          context,
+                          state,
+                          isGenerate: false,
+                        ),
+                icon: state.isSavingData
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.download, size: 18),
+                label: const Text("Baixar Selecionados"),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _confirmRangeAction(
+    BuildContext context,
+    DocumentsComponentState state, {
+    required bool isGenerate,
+  }) {
+    final selected = state.selectedDocumentUnits;
+    final canExecute = isGenerate
+        ? selected.where((e) => e.canGenerate).toList()
+        : selected.where((e) => e.hasFile).toList();
+    final cannotExecute = isGenerate
+        ? selected.where((e) => !e.canGenerate).toList()
+        : selected.where((e) => !e.hasFile).toList();
+
+    final actionName = isGenerate ? "gerar" : "baixar";
+    final actionNamePast = isGenerate ? "geração" : "download";
+
+    showDialog(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: Text(
+            "Confirmar $actionNamePast",
+            style: const TextStyle(fontSize: 18),
+          ),
+          content: SizedBox(
+            width: 500,
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (canExecute.isNotEmpty) ...[
+                    Text(
+                      "Os seguintes documentos serão processados (${canExecute.length}):",
+                      style: const TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: 4),
+                    ...canExecute.map((item) => Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 2),
+                          child: Row(
+                            children: [
+                              const Icon(Icons.check_circle,
+                                  color: Colors.green, size: 16),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  "${item.documentName} — ${item.documentUnitDate}",
+                                  style: const TextStyle(fontSize: 13),
+                                ),
+                              ),
+                            ],
+                          ),
+                        )),
+                  ],
+                  if (cannotExecute.isNotEmpty) ...[
+                    const SizedBox(height: 12),
+                    Text(
+                      "Os seguintes documentos NÃO podem $actionName (${cannotExecute.length}):",
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: Colors.red,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    ...cannotExecute.map((item) => Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 2),
+                          child: Row(
+                            children: [
+                              const Icon(Icons.cancel,
+                                  color: Colors.red, size: 16),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  "${item.documentName} — ${item.documentUnitDate}",
+                                  style: const TextStyle(fontSize: 13),
+                                ),
+                              ),
+                            ],
+                          ),
+                        )),
+                  ],
+                  if (canExecute.isEmpty) ...[
+                    const SizedBox(height: 12),
+                    Text(
+                      "Nenhum documento selecionado pode ser processado para $actionNamePast.",
+                      style: const TextStyle(color: Colors.red),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text("Cancelar"),
+            ),
+            if (canExecute.isNotEmpty)
+              FilledButton(
+                onPressed: () {
+                  Navigator.pop(dialogContext);
+                  if (isGenerate) {
+                    bloc.add(const ExecuteRangeGenerateEvent());
+                  } else {
+                    bloc.add(const ExecuteRangeDownloadEvent());
+                  }
+                },
+                child: Text(
+                  "Confirmar ${isGenerate ? 'Geração' : 'Download'}",
+                ),
+              ),
+          ],
+        );
+      },
     );
   }
 
@@ -185,27 +429,17 @@ class DocumentsComponent extends StatelessWidget {
                     ],
             ),
           ),
-          children: document.documentsUnits.isEmpty
-              ? [
-                  state.isLazyLoading
-                      ? const Center(
-                          child: CircularProgressIndicator(),
-                        )
-                      : const Padding(
-                          padding: EdgeInsets.all(8.0),
-                          child: Text("Nenhum item encontrado"),
-                        ),
-                ]
-              : (List<DocumentUnit>.from(document.documentsUnits)
-                    ..sort((a, b) {
-                      if (a.createAt.isEmpty) return 1;
-                      if (b.createAt.isEmpty) return -1;
-                      return DateTime.parse(b.createAt)
-                          .compareTo(DateTime.parse(a.createAt));
-                    }))
-                  .map((documentUnit) => _documentUnitWidget(
-                      context, document, documentUnit, state))
-                  .toList(),
+          children: [
+            if (state.isLazyLoading)
+              const Center(
+                child: Padding(
+                  padding: EdgeInsets.all(8.0),
+                  child: CircularProgressIndicator(),
+                ),
+              )
+            else
+              _documentUnitsPaginatedSection(context, state, document),
+          ],
         ),
       ),
     );
@@ -213,11 +447,32 @@ class DocumentsComponent extends StatelessWidget {
 
   Widget _documentUnitWidget(BuildContext context, Document document,
       DocumentUnit documentUnit, DocumentsComponentState state) {
+    final isSelected = state.isDocumentUnitSelected(documentUnit.id);
     return Padding(
       padding: const EdgeInsets.all(8.0),
       child: ListTile(
-        leading: _statusBadge(documentUnit.status.name,
-            _getDocumentUnitStatusColor(documentUnit.status.id)),
+        leading: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (state.isSelectingRange)
+              Checkbox(
+                value: isSelected,
+                onChanged: (_) => bloc.add(ToggleDocumentUnitSelectionEvent(
+                  documentId: document.id,
+                  documentUnitId: documentUnit.id,
+                  documentName: document.name,
+                  documentUnitDate: documentUnit.getDate,
+                  canGenerate: document.canGenerateDocument &&
+                      documentUnit.isPanding &&
+                      documentUnit.date.isNotEmpty &&
+                      documentUnit.date != "0001-01-01",
+                  hasFile: documentUnit.hasFile,
+                )),
+              ),
+            _statusBadge(documentUnit.status.name,
+                _getDocumentUnitStatusColor(documentUnit.status.id)),
+          ],
+        ),
         title: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -705,6 +960,249 @@ class DocumentsComponent extends StatelessWidget {
     }
   }
 
+  Widget _documentUnitsPaginatedSection(
+      BuildContext context, DocumentsComponentState state, Document document) {
+    final pagination = state.getPagination(document.id);
+    final total = document.totalUnitsCount;
+    final pageSize = pagination.pageSize;
+    final currentPage = pagination.pageNumber;
+    final totalPages = total == 0 ? 1 : (total / pageSize).ceil();
+    final rangeStart = total == 0 ? 0 : (currentPage - 1) * pageSize + 1;
+    final rangeEnd = math.min(currentPage * pageSize, total);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        // ── Lista de unidades paginadas ──────────────────────────────────
+        if (document.documentsUnits.isEmpty)
+          const Padding(
+            padding: EdgeInsets.all(8.0),
+            child: Text("Nenhum item encontrado para o filtro selecionado."),
+          )
+        else
+          ...document.documentsUnits
+              .map((du) => _documentUnitWidget(context, document, du, state)),
+
+        // ── Barra inferior: filtro | paginação | tamanho ─────────────────
+        const Divider(height: 1),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 8.0),
+          child: Row(
+            children: [
+              // ── Esquerda: filtro de status ──────────────────────────────
+              Expanded(
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Text(
+                        "Status:",
+                        style: TextStyle(
+                            fontSize: 13, fontWeight: FontWeight.w500),
+                      ),
+                      const SizedBox(width: 8),
+                      DropdownButton<int?>(
+                        value: pagination.statusId,
+                        hint:
+                            const Text("Todos", style: TextStyle(fontSize: 13)),
+                        isDense: true,
+                        items: [
+                          const DropdownMenuItem<int?>(
+                            value: null,
+                            child:
+                                Text("Todos", style: TextStyle(fontSize: 13)),
+                          ),
+                          ...DocumentUnitStatus.conversionMapIntToString.entries
+                              .map(
+                            (e) => DropdownMenuItem<int?>(
+                              value: int.parse(e.key),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Container(
+                                    width: 10,
+                                    height: 10,
+                                    decoration: BoxDecoration(
+                                      color: _getDocumentUnitStatusColor(e.key),
+                                      shape: BoxShape.circle,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 6),
+                                  Text(e.value,
+                                      style: const TextStyle(fontSize: 13)),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
+                        onChanged: (v) {
+                          bloc.add(ChangeDocumentUnitPaginationEvent(
+                            documentId: document.id,
+                            statusId: v,
+                            clearStatusFilter: v == null,
+                            pageNumber: 1,
+                          ));
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+
+              // ── Centro: controles de paginação ─────────────────────────
+              if (total > 0)
+                Expanded(
+                  child: Center(
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          "$rangeStart–$rangeEnd de $total",
+                          style: const TextStyle(fontSize: 13),
+                        ),
+                        const SizedBox(width: 8),
+                        IconButton(
+                          icon: const Icon(Icons.first_page),
+                          tooltip: "Primeira página",
+                          iconSize: 20,
+                          visualDensity: VisualDensity.compact,
+                          onPressed: currentPage > 1
+                              ? () =>
+                                  bloc.add(ChangeDocumentUnitPaginationEvent(
+                                    documentId: document.id,
+                                    pageNumber: 1,
+                                  ))
+                              : null,
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.chevron_left),
+                          tooltip: "Página anterior",
+                          iconSize: 20,
+                          visualDensity: VisualDensity.compact,
+                          onPressed: currentPage > 1
+                              ? () =>
+                                  bloc.add(ChangeDocumentUnitPaginationEvent(
+                                    documentId: document.id,
+                                    pageNumber: currentPage - 1,
+                                  ))
+                              : null,
+                        ),
+                        ...List.generate(totalPages, (i) => i + 1).map((page) {
+                          final isActive = page == currentPage;
+                          return GestureDetector(
+                            onTap: () =>
+                                bloc.add(ChangeDocumentUnitPaginationEvent(
+                              documentId: document.id,
+                              pageNumber: page,
+                            )),
+                            child: Container(
+                              margin: const EdgeInsets.symmetric(horizontal: 2),
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 8, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: isActive
+                                    ? Theme.of(context).colorScheme.primary
+                                    : Colors.transparent,
+                                borderRadius: BorderRadius.circular(4),
+                                border: Border.all(
+                                  color: isActive
+                                      ? Theme.of(context).colorScheme.primary
+                                      : Colors.grey.shade400,
+                                ),
+                              ),
+                              child: Text(
+                                "$page",
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  color: isActive
+                                      ? Theme.of(context).colorScheme.onPrimary
+                                      : null,
+                                  fontWeight: isActive
+                                      ? FontWeight.bold
+                                      : FontWeight.normal,
+                                ),
+                              ),
+                            ),
+                          );
+                        }),
+                        IconButton(
+                          icon: const Icon(Icons.chevron_right),
+                          tooltip: "Próxima página",
+                          iconSize: 20,
+                          visualDensity: VisualDensity.compact,
+                          onPressed: currentPage < totalPages
+                              ? () =>
+                                  bloc.add(ChangeDocumentUnitPaginationEvent(
+                                    documentId: document.id,
+                                    pageNumber: currentPage + 1,
+                                  ))
+                              : null,
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.last_page),
+                          tooltip: "Última página",
+                          iconSize: 20,
+                          visualDensity: VisualDensity.compact,
+                          onPressed: currentPage < totalPages
+                              ? () =>
+                                  bloc.add(ChangeDocumentUnitPaginationEvent(
+                                    documentId: document.id,
+                                    pageNumber: totalPages,
+                                  ))
+                              : null,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+
+              // ── Direita: tamanho da página ─────────────────────────────
+              Expanded(
+                child: Align(
+                  alignment: Alignment.centerRight,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Text(
+                        "Por página:",
+                        style: TextStyle(
+                            fontSize: 13, fontWeight: FontWeight.w500),
+                      ),
+                      const SizedBox(width: 8),
+                      DropdownButton<int>(
+                        value: pageSize,
+                        isDense: true,
+                        items: [5, 10, 20, 50]
+                            .map(
+                              (s) => DropdownMenuItem<int>(
+                                value: s,
+                                child: Text("$s",
+                                    style: const TextStyle(fontSize: 13)),
+                              ),
+                            )
+                            .toList(),
+                        onChanged: (v) {
+                          if (v != null) {
+                            bloc.add(ChangeDocumentUnitPaginationEvent(
+                              documentId: document.id,
+                              pageSize: v,
+                              pageNumber: 1,
+                            ));
+                          }
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
   Widget _statusBadge(String statusName, Color color) {
     return Row(
       mainAxisSize: MainAxisSize.min,
@@ -733,3 +1231,7 @@ class DocumentsComponent extends StatelessWidget {
     );
   }
 }
+
+// ---------------------------------------------------------------------------
+// Nenhum widget extra necessário — paginação agora é server-side via BLoC
+// ---------------------------------------------------------------------------
