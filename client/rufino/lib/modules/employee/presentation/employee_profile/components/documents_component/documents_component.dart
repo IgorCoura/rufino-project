@@ -559,6 +559,21 @@ class DocumentsComponent extends StatelessWidget {
                           ],
                         ),
                       ),
+                      TextButton(
+                        onPressed: () => _showNotApplicableConfirmDialog(
+                            context, document, documentUnit),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: const [
+                            Icon(Icons.block),
+                            Text(
+                              "N/A",
+                              style: TextStyle(fontSize: 10),
+                            ),
+                          ],
+                        ),
+                      ),
                       if (documentUnit.date.isNotEmpty &&
                           documentUnit.date != "0001-01-01") ...[
                         if (document.canGenerateDocument)
@@ -733,6 +748,38 @@ class DocumentsComponent extends StatelessWidget {
                 Navigator.of(context).pop();
               },
               child: const Text("Cancelar"),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<void> _showNotApplicableConfirmDialog(BuildContext context,
+      Document document, DocumentUnit documentUnit) async {
+    await showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: Center(child: const Text("Confirmar ação")),
+          content: const Text(
+            "Tem certeza que deseja marcar este documento como não aplicável?",
+            textAlign: TextAlign.center,
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+              child: const Text("Cancelar"),
+            ),
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                bloc.add(SetDocumentUnitNotApplicableEvent(
+                    document.id, documentUnit.id));
+              },
+              child: const Text("Confirmar"),
             ),
           ],
         );

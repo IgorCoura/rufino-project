@@ -33,6 +33,7 @@ class DocumentsComponentBloc
     on<ToggleDocumentUnitSelectionEvent>(_onToggleDocumentUnitSelectionEvent);
     on<ExecuteRangeGenerateEvent>(_onExecuteRangeGenerateEvent);
     on<ExecuteRangeDownloadEvent>(_onExecuteRangeDownloadEvent);
+    on<SetDocumentUnitNotApplicableEvent>(_onSetDocumentUnitNotApplicableEvent);
   }
 
   void _onInitialEvent(
@@ -532,6 +533,29 @@ class DocumentsComponentBloc
         selectedDocumentUnits: const [],
         snackMessage: message,
       ));
+    } catch (ex, stacktrace) {
+      var exception = _documentService.treatErrors(ex, stacktrace);
+      emit(state.copyWith(isSavingData: false, exception: exception));
+    }
+  }
+
+  Future _onSetDocumentUnitNotApplicableEvent(
+    SetDocumentUnitNotApplicableEvent event,
+    Emitter<DocumentsComponentState> emit,
+  ) async {
+    emit(state.copyWith(isSavingData: true));
+
+    try {
+      await _documentService.setDocumentUnitNotApplicable(
+        event.documentUnitId,
+        event.documentId,
+        state.employeeId,
+        state.companyId,
+      );
+      add(RefeshEvent(event.documentId));
+      emit(state.copyWith(
+          isSavingData: false,
+          snackMessage: "Documento marcado como não aplicável com sucesso!"));
     } catch (ex, stacktrace) {
       var exception = _documentService.treatErrors(ex, stacktrace);
       emit(state.copyWith(isSavingData: false, exception: exception));

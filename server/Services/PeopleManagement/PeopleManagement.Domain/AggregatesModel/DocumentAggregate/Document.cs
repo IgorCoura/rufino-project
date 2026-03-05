@@ -47,7 +47,7 @@ namespace PeopleManagement.Domain.AggregatesModel.DocumentAggregate
 
         public DocumentUnit NewDocumentUnit(Guid documentUnitId, PeriodType? periodType = null, DateTime? referenceDate = null)
         {
-            if (DocumentsUnits.Any(x => x.Status == DocumentUnitStatus.Pending))
+            if (DocumentsUnits.Any(x => x.Status == DocumentUnitStatus.Pending) && !DocumentsUnits.Any(x => x.Period != null))
                 return DocumentsUnits.FirstOrDefault(x => x.Status == DocumentUnitStatus.Pending)!;
 
             var documentUnit = DocumentUnit.Create(documentUnitId, this, periodType, referenceDate);
@@ -85,6 +85,7 @@ namespace PeopleManagement.Domain.AggregatesModel.DocumentAggregate
                 ?? throw new DomainException(this, DomainErrors.ObjectNotFound(nameof(DocumentUnit), documentUnitId.ToString()));
 
             documentUnit.UpdateDetails(date, validity, content);
+
             return documentUnit;
         }
 
@@ -94,6 +95,7 @@ namespace PeopleManagement.Domain.AggregatesModel.DocumentAggregate
                 ?? throw new DomainException(this, DomainErrors.ObjectNotFound(nameof(DocumentUnit), documentUnitId.ToString()));
 
             documentUnit.UpdateDetails(date, validity, content);
+            RefreshDocumentStatus();
             return documentUnit;
         }
 
@@ -103,6 +105,7 @@ namespace PeopleManagement.Domain.AggregatesModel.DocumentAggregate
                 ?? throw new DomainException(this, DomainErrors.ObjectNotFound(nameof(DocumentUnit), documentUnitId.ToString()));
 
             documentUnit.UpdateDetails(date, validity, content, periodType);
+            RefreshDocumentStatus();
             return documentUnit;
         }
 
@@ -144,6 +147,21 @@ namespace PeopleManagement.Domain.AggregatesModel.DocumentAggregate
             RefreshDocumentStatus();
         }
 
+        public bool MarkAsNotApplicableDocumentUnit(Guid documentUnitId)
+        {
+            var document = DocumentsUnits.FirstOrDefault(x => x.Id == documentUnitId)
+               ?? throw new DomainException(this, DomainErrors.ObjectNotFound(nameof(DocumentUnit), documentUnitId.ToString()));
+
+            var isNotApplicable = document.MarkAsNotApplicable();
+            if (isNotApplicable)
+            {
+                DeprecateDocumentsUnit(exceptionDocumentId: documentUnitId);
+                RefreshDocumentStatus();
+                return true;
+            }
+            return false;
+        }
+
         public bool MakeAsDocumentDeprecated(Guid documentUnitIdExpire, Guid newDocumentUnitId)
         {
             var documentUnit = DocumentsUnits.FirstOrDefault(x => x.Id == documentUnitIdExpire)
@@ -178,7 +196,7 @@ namespace PeopleManagement.Domain.AggregatesModel.DocumentAggregate
 
         private void DeprecateDocumentsUnit(Guid? exceptionDocumentId = null)
         {
-            if (this.UsePreviousPeriod == true)
+            if (DocumentsUnits.Any(x => x.Period != null))
             {
                 // Agrupa DocumentUnits por Period
                 var groupedByPeriod = DocumentsUnits
@@ -226,20 +244,7 @@ namespace PeopleManagement.Domain.AggregatesModel.DocumentAggregate
             RefreshDocumentStatus();
         }
 
-        public bool MarkAsNotApplicableDocumentUnit(Guid documentUnitId)
-        {
-            var document = DocumentsUnits.FirstOrDefault(x => x.Id == documentUnitId)
-               ?? throw new DomainException(this, DomainErrors.ObjectNotFound(nameof(DocumentUnit), documentUnitId.ToString()));
-
-            var isNotApplicable = document.MarkAsNotApplicable();
-            if(isNotApplicable)
-            {
-                DeprecateDocumentsUnit(exceptionDocumentId: documentUnitId);
-                RefreshDocumentStatus();
-                return true;
-            }
-            return false;
-        }
+        
 
         public bool IsAwaitingSignatureDocumentUnit(Guid documentUnitId)
         {
@@ -281,21 +286,21 @@ namespace PeopleManagement.Domain.AggregatesModel.DocumentAggregate
                 return;
             }
 
-            var unitsWithPeriod = DocumentsUnits.Where(x => x.Period != null).ToList();
-            var unitsWithoutPeriod = DocumentsUnits.Where(x => x.Period == null).ToList();
 
-            if (unitsWithPeriod.Count > 0)
+
+            if (DocumentsUnits.Any(x=> x.Period != null))
             {
-                var periodStatuses = unitsWithPeriod
+                var periodStatuses = DocumentsUnits
                     .GroupBy(x => x.Period)
                     .Select(g => GetStatusFromGroup(g));
                 if (periodStatuses.Any(x => x == DocumentStatus.RequiresDocument))
                     Status = DocumentStatus.RequiresDocument;
-                if (periodStatuses.Any(x => x == DocumentStatus.RequiresValidation))
+                else if(periodStatuses.Any(x => x == DocumentStatus.RequiresValidation))
                     Status = DocumentStatus.RequiresValidation;
-                if (periodStatuses.Any(x => x == DocumentStatus.Warning))
+                else if (periodStatuses.Any(x => x == DocumentStatus.Warning))
                     Status = DocumentStatus.Warning;    
-                Status = DocumentStatus.OK;
+                else 
+                    Status = DocumentStatus.OK;
             } 
             else
             {

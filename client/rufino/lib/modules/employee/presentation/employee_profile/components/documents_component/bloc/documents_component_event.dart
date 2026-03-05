@@ -163,3 +163,12 @@ class ExecuteRangeGenerateEvent extends DocumentsComponentEvent {
 class ExecuteRangeDownloadEvent extends DocumentsComponentEvent {
   const ExecuteRangeDownloadEvent();
 }
+
+class SetDocumentUnitNotApplicableEvent extends DocumentsComponentEvent {
+  final String documentId;
+  final String documentUnitId;
+
+  const SetDocumentUnitNotApplicableEvent(this.documentId, this.documentUnitId);
+  @override
+  List<Object> get props => [documentId, documentUnitId];
+}
