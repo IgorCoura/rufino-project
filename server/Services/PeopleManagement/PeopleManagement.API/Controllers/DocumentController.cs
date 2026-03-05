@@ -14,6 +14,9 @@ using PeopleManagement.Application.Queries.Document;
 using static PeopleManagement.Application.Queries.Document.DocumentDtos;
 using PeopleManagement.Application.Queries.DocumentTemplate;
 using static Microsoft.EntityFrameworkCore.DbLoggerCategory.Database;
+using PeopleManagement.Application.Commands.DocumentCommands.MarkAsInvalidDocumentUnit;
+using PeopleManagement.Application.Commands.DocumentCommands.MarkAsValidDocumentUnit;
+using PeopleManagement.Application.Commands.DocumentCommands.MarkAsNotApplicableDocumentUnit;
 namespace PeopleManagement.API.Controllers
 {
     [Route("api/v1/{company}/[controller]")]
@@ -198,6 +201,51 @@ namespace PeopleManagement.API.Controllers
         {
             var stream = await _documentQueries.DownloadDocumentUnitRange(request, employeeId, company);
             return File(stream, "application/octet-stream", "documents.zip");
+        }
+
+        [HttpPut("DocumentUnit/invalid")]
+        [ProtectedResource("Document", "edit")]
+        public async Task<ActionResult<MarkAsInvalidDocumentUnitResponse>> MarkAsInvalid([FromRoute] Guid company, [FromBody] MarkAsInvalidDocumentUnitModel request, [FromHeader(Name = "x-requestid")] Guid requestId)
+        {
+            var command = new IdentifiedCommand<MarkAsInvalidDocumentUnitCommand, MarkAsInvalidDocumentUnitResponse>(request.ToCommand(company), requestId);
+
+            SendingCommandLog(request.DocumentUnitId, request, requestId);
+
+            var result = await _mediator.Send(command);
+
+            CommandResultLog(result, request.DocumentUnitId, request, requestId);
+
+            return OkResponse(result);
+        }
+
+        [HttpPut("DocumentUnit/valid")]
+        [ProtectedResource("Document", "edit")]
+        public async Task<ActionResult<MarkAsValidDocumentUnitResponse>> MarkAsValid([FromRoute] Guid company, [FromBody] MarkAsValidDocumentUnitModel request, [FromHeader(Name = "x-requestid")] Guid requestId)
+        {
+            var command = new IdentifiedCommand<MarkAsValidDocumentUnitCommand, MarkAsValidDocumentUnitResponse>(request.ToCommand(company), requestId);
+
+            SendingCommandLog(request.DocumentUnitId, request, requestId);
+
+            var result = await _mediator.Send(command);
+
+            CommandResultLog(result, request.DocumentUnitId, request, requestId);
+
+            return OkResponse(result);
+        }
+
+        [HttpPut("DocumentUnit/not-applicable")]
+        [ProtectedResource("Document", "edit")]
+        public async Task<ActionResult<MarkAsNotApplicableDocumentUnitResponse>> MarkAsNotApplicable([FromRoute] Guid company, [FromBody] MarkAsNotApplicableDocumentUnitModel request, [FromHeader(Name = "x-requestid")] Guid requestId)
+        {
+            var command = new IdentifiedCommand<MarkAsNotApplicableDocumentUnitCommand, MarkAsNotApplicableDocumentUnitResponse>(request.ToCommand(company), requestId);
+
+            SendingCommandLog(request.DocumentUnitId, request, requestId);
+
+            var result = await _mediator.Send(command);
+
+            CommandResultLog(result, request.DocumentUnitId, request, requestId);
+
+            return OkResponse(result);
         }
 
 
