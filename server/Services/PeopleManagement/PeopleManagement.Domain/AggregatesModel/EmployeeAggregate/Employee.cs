@@ -257,8 +257,8 @@ namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
             if (Contact == null)
                 result.AddError(DomainErrors.FieldIsRequired(nameof(Contact)));
 
-            if (VoteId == null)
-                result.AddError(DomainErrors.FieldIsRequired(nameof(VoteId)));
+            //if (VoteId == null)
+            //    result.AddError(DomainErrors.FieldIsRequired(nameof(VoteId)));
 
             //if (IdCard != null && PersonalInfo != null && MilitaryDocument.IsRequired(IdCard, PersonalInfo) && MilitaryDocument == null)
             //    result.AddError(DomainErrors.FieldIsRequired(nameof(MilitaryDocument)));
