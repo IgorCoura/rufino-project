@@ -29,7 +29,6 @@ namespace PeopleManagement.Infra.Services
         private async Task<BlobClient> GetBlobClientAsync(string fileNameWithExtesion, string containerName, CancellationToken cancellationToken = default)
         { 
             var containerClient = await GetBlobContainerClient(containerName, cancellationToken);
-
             BlobClient blobClient = containerClient.GetBlobClient(fileNameWithExtesion);
 
             return blobClient;

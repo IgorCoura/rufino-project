@@ -272,6 +272,7 @@ namespace PeopleManagement.Domain.AggregatesModel.DocumentAggregate
             return DocumentsUnits.Any(x => x.IsPending == false) == false;
         }
 
+        
         private void RefreshDocumentStatus()
         {
             if (DocumentsUnits.Count == 0)
@@ -280,43 +281,53 @@ namespace PeopleManagement.Domain.AggregatesModel.DocumentAggregate
                 return;
             }
 
-            if (DocumentsUnits.Any(x => x.Status == DocumentUnitStatus.OK))
+            var unitsWithPeriod = DocumentsUnits.Where(x => x.Period != null).ToList();
+            var unitsWithoutPeriod = DocumentsUnits.Where(x => x.Period == null).ToList();
+
+            if (unitsWithPeriod.Count > 0)
             {
+                var periodStatuses = unitsWithPeriod
+                    .GroupBy(x => x.Period)
+                    .Select(g => GetStatusFromGroup(g));
+                if (periodStatuses.Any(x => x == DocumentStatus.RequiresDocument))
+                    Status = DocumentStatus.RequiresDocument;
+                if (periodStatuses.Any(x => x == DocumentStatus.RequiresValidation))
+                    Status = DocumentStatus.RequiresValidation;
+                if (periodStatuses.Any(x => x == DocumentStatus.Warning))
+                    Status = DocumentStatus.Warning;    
                 Status = DocumentStatus.OK;
-                return;
-            }
-
-            if (DocumentsUnits.Any(x => x.Status == DocumentUnitStatus.RequiresValidation))
+            } 
+            else
             {
-                Status = DocumentStatus.RequiresValidation;
-                return;
+                var status = GetStatusFromGroup(DocumentsUnits);
+                Status = status;
             }
+        }
 
-            if (DocumentsUnits.Any(x => x.Status == DocumentUnitStatus.AwaitingSignature))
-            {
-                Status = DocumentStatus.AwaitingSignature;
-                return;
-            }
+        private static DocumentStatus GetStatusFromGroup(IEnumerable<DocumentUnit> units)
+        {
+            if (!units.Any())
+                return DocumentStatus.OK;
 
-            if (DocumentsUnits.Any(x => x.Status == DocumentUnitStatus.Warning))
-            {
-                Status = DocumentStatus.Warning;
-                return;
-            }
+            if (units.Any(x => x.Status == DocumentUnitStatus.OK))
+                return DocumentStatus.OK;
 
-            if (DocumentsUnits.Any(x => x.Status == DocumentUnitStatus.NotApplicable))
-            {
-                Status = DocumentStatus.OK;
-                return;
-            }
+            if (units.Any(x => x.Status == DocumentUnitStatus.RequiresValidation))
+                return DocumentStatus.RequiresValidation;
 
-            if (DocumentsUnits.Any(x => x.Status == DocumentUnitStatus.Deprecated))
-            {
-                Status = DocumentStatus.Deprecated;
-                return;
-            }
+            if (units.Any(x => x.Status == DocumentUnitStatus.AwaitingSignature))
+                return DocumentStatus.AwaitingSignature;
 
-            Status = DocumentStatus.RequiresDocument;
+            if (units.Any(x => x.Status == DocumentUnitStatus.Warning))
+                return DocumentStatus.Warning;
+
+            if (units.Any(x => x.Status == DocumentUnitStatus.NotApplicable))
+                return DocumentStatus.OK;
+
+            if (units.Any(x => x.Status == DocumentUnitStatus.Deprecated))
+                return DocumentStatus.Deprecated;
+
+            return DocumentStatus.RequiresDocument;
         }
 
 

@@ -45,6 +45,7 @@ namespace PeopleManagement.API.DependencyInjection
             service.AddScoped<IWebHookRepository, WebHookRepository>();
 
             service.AddScoped<IPdfService, PdfService>();
+            service.AddSingleton<IBrowserProvider, BrowserProvider>();
             service.AddScoped<IBlobService, BlobAzureService>();
             service.AddScoped<ILocalStorageService, LocalStorageService>();
             service.AddScoped<IFileDownloadService, FileDownloadService>();
@@ -57,8 +58,8 @@ namespace PeopleManagement.API.DependencyInjection
 
             service.AddHttpClient<IDocumentSignatureService, ZapSignDocumentSignatureService>((serviceProvider, httpClient) =>
             {
-                httpClient.BaseAddress = new Uri(configuration.GetSection("ZapSign")["URI"]!);
-                httpClient.DefaultRequestHeaders.Add(HeaderNames.Authorization, "Bearer " + configuration.GetSection("ZapSign")["Token"]!);
+                httpClient.BaseAddress = new Uri(configuration.GetSection("SignOptions")["BaseUrl"]!);
+                httpClient.DefaultRequestHeaders.Add(HeaderNames.Authorization, "Bearer " + configuration.GetSection("SignOptions")["AccessToken"]!);
                 httpClient.Timeout = TimeSpan.FromMinutes(2);
             })
             .AddPolicyHandler((serviceProvider, request) =>
@@ -72,8 +73,8 @@ namespace PeopleManagement.API.DependencyInjection
 
             service.AddHttpClient<IWebHookManagementService, ZapSignWebHookManagementService>((serviceProvider, httpClient) =>
             {
-                httpClient.BaseAddress = new Uri(configuration.GetSection("ZapSign")["URI"]!);
-                httpClient.DefaultRequestHeaders.Add(HeaderNames.Authorization, "Bearer " + configuration.GetSection("ZapSign")["Token"]!);
+                httpClient.BaseAddress = new Uri(configuration.GetSection("SignOptions")["BaseUrl"]!);
+                httpClient.DefaultRequestHeaders.Add(HeaderNames.Authorization, "Bearer " + configuration.GetSection("SignOptions")["AccessToken"]!);
                 httpClient.Timeout = TimeSpan.FromMinutes(2);
             })
             .AddPolicyHandler((serviceProvider, request) =>
@@ -86,6 +87,7 @@ namespace PeopleManagement.API.DependencyInjection
                     HttpPolicyFactory.GetAggressiveRetryPolicy(retryCount: 16));
             })
             .SetHandlerLifetime(TimeSpan.FromMinutes(5));
+
 
             service.AddHttpClient<IAuthorizationService, AuthorizationService>((serviceProvider, httpClient) =>
             {

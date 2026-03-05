@@ -259,8 +259,61 @@ namespace PeopleManagement.Services.Services
                 throw new DomainException(this, DomainErrors.Document.ErrorRecoverData(documentUnitId));
             
             var pdfBytes = await _pdfService.ConvertHtml2Pdf(documentTemplate.TemplateFileInfo, documentUnit.Content, cancellationToken);
-          
+
             return pdfBytes;
+        }
+
+        public async Task<IReadOnlyList<(Guid DocumentUnitId, Guid DocumentId, byte[] Pdf)>> GeneratePdfRange(
+            IEnumerable<(Guid DocumentId, IEnumerable<Guid> DocumentUnitIds)> items,
+            Guid employeeId, Guid companyId, CancellationToken cancellationToken = default)
+        {
+            var itemsList = items.ToList();
+            var documentIds = itemsList.Select(x => x.DocumentId).ToList();
+            var unitIdsByDocument = itemsList.ToDictionary(x => x.DocumentId, x => x.DocumentUnitIds.ToHashSet());
+
+            var documents = (await _documentRepository.GetDataAsync(
+                x => documentIds.Contains(x.Id) && x.EmployeeId == employeeId && x.CompanyId == companyId,
+                include: x => x.Include(y => y.DocumentsUnits),
+                cancellation: cancellationToken)).ToList();
+
+            var templateIds = documents.Select(d => d.DocumentTemplateId).Distinct().ToList();
+            var templateById = (await _documentTemplateRepository.GetDataAsync(
+                x => templateIds.Contains(x.Id) && x.CompanyId == companyId,
+                cancellation: cancellationToken)).ToDictionary(t => t.Id);
+
+            var pdfItems = new List<(Guid DocumentUnitId, Guid DocumentId, TemplateFileInfo Template, string Content)>();
+
+            foreach (var document in documents)
+            {
+                if (!unitIdsByDocument.TryGetValue(document.Id, out var unitIds)) continue;
+
+                if (!templateById.TryGetValue(document.DocumentTemplateId, out var template))
+                    throw new DomainException(this, DomainErrors.ObjectNotFound(nameof(DocumentTemplate), document.DocumentTemplateId.ToString()));
+
+                if (template.TemplateFileInfo is null)
+                    throw new DomainException(this, DomainErrors.Document.DocumentNotHaveTemplate(document.Id));
+
+                foreach (var unit in document.DocumentsUnits.Where(u => unitIds.Contains(u.Id)))
+                {
+                    if (!document.IsPendingDocumentUnit(unit.Id))
+                        throw new DomainException(this, DomainErrors.Document.IsNotPending());
+
+                    if (!unit.HasContent)
+                        throw new DomainException(this, DomainErrors.Document.ErrorRecoverData(unit.Id));
+
+                    pdfItems.Add((unit.Id, document.Id, template.TemplateFileInfo, unit.Content));
+                }
+            }
+
+            var pdfResults = await _pdfService.ConvertHtml2PdfRange(
+                pdfItems.Select(x => (x.DocumentUnitId, x.Template, x.Content)),
+                cancellationToken);
+
+            var documentIdByUnit = pdfItems.ToDictionary(x => x.DocumentUnitId, x => x.DocumentId);
+
+            return pdfResults
+                .Select(r => (r.DocumentUnitId, documentIdByUnit[r.DocumentUnitId], r.Pdf))
+                .ToList();
         }
 
         public async Task InsertFileWithoutRequireValidation(Guid documentUnitId, Guid documentId, Guid employeeId, Guid companyId,
