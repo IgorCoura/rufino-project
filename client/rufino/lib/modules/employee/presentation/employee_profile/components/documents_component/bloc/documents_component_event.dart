@@ -111,3 +111,55 @@ class DownloadDocumentUnitEvent extends DocumentsComponentEvent {
   @override
   List<Object> get props => [documentId, documentUnitId];
 }
+
+class ChangeDocumentUnitPaginationEvent extends DocumentsComponentEvent {
+  final String documentId;
+  final int? pageNumber;
+  final int? pageSize;
+  final int? statusId;
+  final bool clearStatusFilter;
+
+  const ChangeDocumentUnitPaginationEvent({
+    required this.documentId,
+    this.pageNumber,
+    this.pageSize,
+    this.statusId,
+    this.clearStatusFilter = false,
+  });
+  @override
+  List<Object> get props => [documentId, clearStatusFilter];
+}
+
+// ── Range selection events ───────────────────────────────────────────────────
+
+class ToggleRangeSelectionModeEvent extends DocumentsComponentEvent {
+  const ToggleRangeSelectionModeEvent();
+}
+
+class ToggleDocumentUnitSelectionEvent extends DocumentsComponentEvent {
+  final String documentId;
+  final String documentUnitId;
+  final String documentName;
+  final String documentUnitDate;
+  final bool canGenerate;
+  final bool hasFile;
+
+  const ToggleDocumentUnitSelectionEvent({
+    required this.documentId,
+    required this.documentUnitId,
+    required this.documentName,
+    required this.documentUnitDate,
+    required this.canGenerate,
+    required this.hasFile,
+  });
+  @override
+  List<Object> get props => [documentId, documentUnitId];
+}
+
+class ExecuteRangeGenerateEvent extends DocumentsComponentEvent {
+  const ExecuteRangeGenerateEvent();
+}
+
+class ExecuteRangeDownloadEvent extends DocumentsComponentEvent {
+  const ExecuteRangeDownloadEvent();
+}

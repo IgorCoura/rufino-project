@@ -37,6 +37,7 @@ namespace PeopleManagement.Application.Queries.Document
             public bool IsSignable { get; init; }
             public bool CanGenerateDocument { get; init; }
             public List<DocumentUnitDto> DocumentsUnits { get; init; } = [];
+            public int TotalUnitsCount { get; init; }
             public EnumerationDto Status { get; init; } = EnumerationDto.Empty;
             public DateTime CreateAt { get; init; }
             public DateTime UpdateAt { get; init; }
@@ -89,6 +90,15 @@ namespace PeopleManagement.Application.Queries.Document
             public int? Month { get; init; }
             public int Year { get; init; }
         }
+
+        public record DocumentUnitParams
+        {
+            public int? StatusId { get; init; }
+            public int PageSize { get; init; } = 10;
+            public int PageNumber { get; init; } = 1;
+        }
+
+        public record DownloadRangeDocumentItem(Guid DocumentId, IEnumerable<Guid> DocumentUnitIds);
 
     }
 }

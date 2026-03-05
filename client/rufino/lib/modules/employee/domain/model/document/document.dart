@@ -15,6 +15,7 @@ class Document extends Equatable {
   final bool canGenerateDocument;
   final DocumentStatus status;
   final List<DocumentUnit> documentsUnits;
+  final int totalUnitsCount;
   final String createAt;
   final String updateAt;
 
@@ -31,6 +32,7 @@ class Document extends Equatable {
       this.canGenerateDocument,
       this.status,
       this.documentsUnits,
+      this.totalUnitsCount,
       this.createAt,
       this.updateAt);
 
@@ -47,6 +49,7 @@ class Document extends Equatable {
         canGenerateDocument = false,
         status = const DocumentStatus.empty(),
         documentsUnits = const [],
+        totalUnitsCount = 0,
         createAt = "",
         updateAt = "";
 
@@ -64,6 +67,7 @@ class Document extends Equatable {
       json['canGenerateDocument'] as bool? ?? false,
       DocumentStatus.fromJson(json['status'] as Map<String, dynamic>),
       List<DocumentUnit>.empty(),
+      0,
       json['createAt'] as String,
       json['updateAt'] as String,
     );
@@ -85,6 +89,7 @@ class Document extends Equatable {
       (json['documentsUnits'] as List<dynamic>)
           .map((e) => DocumentUnit.fromJson(e as Map<String, dynamic>))
           .toList(),
+      json['totalUnitsCount'] as int? ?? 0,
       json['createAt'] as String,
       json['updateAt'] as String,
     );
@@ -116,6 +121,7 @@ class Document extends Equatable {
         canGenerateDocument,
         status,
         documentsUnits.hashCode,
+        totalUnitsCount,
         createAt,
         updateAt,
       ];
