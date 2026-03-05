@@ -74,8 +74,7 @@ namespace PeopleManagement.Application.Queries.Document
             var skip = (unitParams.PageNumber - 1) * unitParams.PageSize;
 
             var pagedUnits = units
-                .OrderBy(x => DocumentUnitStatus.GetOrder(x.Status))
-                .ThenByDescending(x => x.CreatedAt)
+                .OrderByDescending(x => x.Date)
                 .Skip(skip)
                 .Take(unitParams.PageSize)
                 .Select(x => (DocumentUnitDto)x)

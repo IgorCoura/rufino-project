@@ -275,4 +275,28 @@ class DocumentService extends BaseService {
     }
     throw treatUnsuccessfulResponses(response);
   }
+
+  /// PUT /api/v1/{companyId}/Document/DocumentUnit/not-applicable
+  /// Sets a document unit as not applicable
+  Future<void> setDocumentUnitNotApplicable(
+    String documentUnitId,
+    String documentId,
+    String employeeId,
+    String companyId,
+  ) async {
+    var headers = await getHeadersWithRequestId();
+    Map<String, dynamic> body = {
+      "documentUnitId": documentUnitId,
+      "documentId": documentId,
+      "employeeId": employeeId,
+    };
+    var url = peopleManagementUrl.replace(
+        path: "/api/v1/$companyId/Document/DocumentUnit/not-applicable");
+    var response =
+        await http.put(url, headers: headers, body: jsonEncode(body));
+    if (response.statusCode == 200) {
+      return;
+    }
+    throw treatUnsuccessfulResponses(response);
+  }
 }
