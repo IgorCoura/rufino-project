@@ -1,4 +1,4 @@
-name: Deploy People Management API
+name: Deploy Image PeopleManagementApi
 
 on:
   workflow_dispatch:
