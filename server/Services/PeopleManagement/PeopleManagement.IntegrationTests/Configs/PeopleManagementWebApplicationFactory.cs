@@ -1,6 +1,7 @@
-﻿using Azure.Storage.Blobs;
-using Docker.DotNet.Models;
-using DotNet.Testcontainers.Builders;
+﻿using Amazon;
+using Amazon.Runtime;
+using Amazon.S3;
+using Testcontainers.LocalStack;
 using DotNet.Testcontainers.Containers;
 using EntityFramework.Exceptions.PostgreSQL;
 using Hangfire;
@@ -13,7 +14,6 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Internal;
 using PeopleManagement.API.Authorization;
 using PeopleManagement.Infra.Context;
-using Testcontainers.Azurite;
 using Testcontainers.PostgreSql;
 
 namespace PeopleManagement.IntegrationTests.Configs
@@ -35,15 +35,14 @@ namespace PeopleManagement.IntegrationTests.Configs
             .WithPassword("admin")
             .Build();
 
-        private readonly AzuriteContainer _azuriteContainer = new AzuriteBuilder()
-           .WithImage("mcr.microsoft.com/azure-storage/azurite:3.34.0")
+        private readonly LocalStackContainer _localStackContainer = new LocalStackBuilder()
            .Build();
 
         public async Task InitializeAsync()
         {
             await _dbContainer.StartAsync();
             await _hangfireDbContainer.StartAsync();
-            await _azuriteContainer.StartAsync();
+            await _localStackContainer.StartAsync();
         }
 
         protected override void ConfigureWebHost(IWebHostBuilder builder)
@@ -90,12 +89,20 @@ namespace PeopleManagement.IntegrationTests.Configs
 
                 services.AddHangfireServer();
 
-                //Config AzureBlob
-                var azureBlob = services.SingleOrDefault(d => d.ServiceType == typeof(BlobServiceClient));
-                if(azureBlob != null)
-                    services.Remove(azureBlob);
+                //Config S3
+                var amazonS3 = services.SingleOrDefault(d => d.ServiceType == typeof(IAmazonS3));
+                if (amazonS3 != null)
+                    services.Remove(amazonS3);
 
-                services.AddSingleton(_ => new BlobServiceClient(_azuriteContainer.GetConnectionString()));
+                services.AddSingleton<IAmazonS3>(_ =>
+                {
+                    var config = new AmazonS3Config
+                    {
+                        ServiceURL = _localStackContainer.GetConnectionString(),
+                        ForcePathStyle = true
+                    };
+                    return new AmazonS3Client(new BasicAWSCredentials("test", "test"), config);
+                });
 
                 //Auth
 
@@ -128,7 +135,7 @@ namespace PeopleManagement.IntegrationTests.Configs
         async Task IAsyncLifetime.DisposeAsync()
         {
             await _dbContainer.StopAsync();
-            await _azuriteContainer.StopAsync();
+            await _localStackContainer.StopAsync();
             await _hangfireDbContainer.StopAsync();
         }
     }

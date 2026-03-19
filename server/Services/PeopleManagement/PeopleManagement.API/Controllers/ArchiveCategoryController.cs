@@ -30,7 +30,7 @@ namespace PeopleManagement.API.Controllers
         }
 
         [HttpPut("description")]
-        [ProtectedResource("ArchiveCategory", "create")]
+        [ProtectedResource("ArchiveCategory", "edit")]
         public async Task<ActionResult<EditDescriptionArchiveCategoryResponse>> EditDescription([FromRoute] Guid company, [FromBody] EditDescriptionArchiveCategoryModel request, [FromHeader(Name = "x-requestid")] Guid requestId)
         {
             var command = new IdentifiedCommand<EditDescriptionArchiveCategoryCommand, EditDescriptionArchiveCategoryResponse>(request.ToCommand(company), requestId);

@@ -322,7 +322,7 @@ namespace PeopleManagement.API.Controllers
         }
 
         [HttpPut("image/{employeeId}")]
-        [ProtectedResource("Document", "send")]
+        [ProtectedResource("employee", "send")]
         [RequestSizeLimit(12_000_000)]
         public async Task<ActionResult<InsertDocumentResponse>> Insert(IFormFile formFile, [FromRoute] Guid company, [FromRoute] Guid employeeid, [FromHeader(Name = "x-requestid")] Guid requestId)
         {
@@ -524,7 +524,7 @@ namespace PeopleManagement.API.Controllers
         }
 
         [HttpGet("image/{employeeId}")]
-        [ProtectedResource("Document", "view")]
+        [ProtectedResource("employee", "view")]
         public async Task<IActionResult> DownloadFile([FromRoute] Guid employeeId,
             [FromRoute] Guid company)
         {
