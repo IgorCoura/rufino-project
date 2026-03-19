@@ -3,10 +3,10 @@ name: Test People Management API
 
 on:
   workflow_dispatch:
-  push:
-    branches: [ "main" ]
-    paths:
-      - 'server/Services/PeopleManagement/**'
+  # push:
+  #   branches: [ "main" ]
+  #   paths:
+  #     - 'server/Services/PeopleManagement/**'
 
 jobs:
   test-unit:
