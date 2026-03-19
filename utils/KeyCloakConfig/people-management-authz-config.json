@@ -1,0 +1,354 @@
+{
+  "allowRemoteResourceManagement": true,
+  "policyEnforcementMode": "ENFORCING",
+  "resources": [
+    {
+      "name": "Default Resource",
+      "type": "urn:people-management-api:resources:default",
+      "ownerManagedAccess": false,
+      "attributes": {},
+      "uris": [
+        "/*"
+      ]
+    },
+    {
+      "name": "teste",
+      "ownerManagedAccess": false,
+      "displayName": "Teste",
+      "attributes": {},
+      "uris": [],
+      "icon_uri": ""
+    },
+    {
+      "name": "employee",
+      "ownerManagedAccess": false,
+      "displayName": "Employee",
+      "attributes": {},
+      "uris": [],
+      "scopes": [
+        {
+          "name": "view"
+        },
+        {
+          "name": "edit"
+        },
+        {
+          "name": "create"
+        }
+      ],
+      "icon_uri": ""
+    },
+    {
+      "name": "company",
+      "ownerManagedAccess": false,
+      "displayName": "company",
+      "attributes": {},
+      "uris": [],
+      "scopes": [
+        {
+          "name": "view"
+        },
+        {
+          "name": "edit"
+        },
+        {
+          "name": "create"
+        }
+      ],
+      "icon_uri": ""
+    },
+    {
+      "name": "Department",
+      "ownerManagedAccess": false,
+      "displayName": "Department",
+      "attributes": {},
+      "uris": [],
+      "scopes": [
+        {
+          "name": "view"
+        },
+        {
+          "name": "edit"
+        },
+        {
+          "name": "create"
+        }
+      ],
+      "icon_uri": ""
+    },
+    {
+      "name": "Document",
+      "ownerManagedAccess": false,
+      "displayName": "Document",
+      "attributes": {},
+      "uris": [],
+      "scopes": [
+        {
+          "name": "webhook"
+        },
+        {
+          "name": "send"
+        },
+        {
+          "name": "view"
+        },
+        {
+          "name": "edit"
+        },
+        {
+          "name": "create"
+        }
+      ],
+      "icon_uri": ""
+    },
+    {
+      "name": "DocumentTemplate",
+      "ownerManagedAccess": false,
+      "displayName": "DocumentTemplate",
+      "attributes": {},
+      "uris": [],
+      "scopes": [
+        {
+          "name": "send"
+        },
+        {
+          "name": "view"
+        },
+        {
+          "name": "edit"
+        },
+        {
+          "name": "create"
+        }
+      ],
+      "icon_uri": ""
+    },
+    {
+      "name": "position",
+      "ownerManagedAccess": false,
+      "displayName": "position",
+      "attributes": {},
+      "uris": [],
+      "scopes": [
+        {
+          "name": "view"
+        },
+        {
+          "name": "edit"
+        },
+        {
+          "name": "create"
+        }
+      ],
+      "icon_uri": ""
+    },
+    {
+      "name": "RequireDocuments",
+      "ownerManagedAccess": false,
+      "displayName": "RequireDocuments",
+      "attributes": {},
+      "uris": [],
+      "scopes": [
+        {
+          "name": "view"
+        },
+        {
+          "name": "edit"
+        },
+        {
+          "name": "create"
+        }
+      ],
+      "icon_uri": ""
+    },
+    {
+      "name": "role",
+      "ownerManagedAccess": false,
+      "displayName": "role",
+      "attributes": {},
+      "uris": [],
+      "scopes": [
+        {
+          "name": "view"
+        },
+        {
+          "name": "edit"
+        },
+        {
+          "name": "create"
+        }
+      ],
+      "icon_uri": ""
+    },
+    {
+      "name": "Workplace",
+      "ownerManagedAccess": false,
+      "displayName": "Workplace",
+      "attributes": {},
+      "uris": [],
+      "scopes": [
+        {
+          "name": "view"
+        },
+        {
+          "name": "edit"
+        },
+        {
+          "name": "create"
+        }
+      ],
+      "icon_uri": ""
+    },
+    {
+      "name": "DocumentGroup",
+      "ownerManagedAccess": false,
+      "displayName": "Document Group",
+      "attributes": {},
+      "uris": [],
+      "scopes": [
+        {
+          "name": "view"
+        },
+        {
+          "name": "edit"
+        },
+        {
+          "name": "create"
+        }
+      ],
+      "icon_uri": ""
+    }
+  ],
+  "policies": [
+    {
+      "name": "Document Send Policy",
+      "description": "",
+      "type": "role",
+      "logic": "POSITIVE",
+      "decisionStrategy": "UNANIMOUS",
+      "config": {
+        "fetchRoles": "false",
+        "roles": "[{\"id\":\"people-management-api/admin\",\"required\":false},{\"id\":\"people-management-api/zapsign-webhook\",\"required\":false}]"
+      }
+    },
+    {
+      "name": "Default Policy",
+      "description": "A policy that grants access only for users within this realm",
+      "type": "js",
+      "logic": "POSITIVE",
+      "decisionStrategy": "AFFIRMATIVE",
+      "config": {
+        "code": "// by default, grants any permission associated with this policy\n$evaluation.grant();\n"
+      }
+    },
+    {
+      "name": "Admin Policy",
+      "type": "role",
+      "logic": "POSITIVE",
+      "decisionStrategy": "UNANIMOUS",
+      "config": {
+        "roles": "[{\"id\":\"people-management-api/admin\",\"required\":false}]"
+      }
+    },
+    {
+      "name": "Document Other Permission",
+      "description": "",
+      "type": "scope",
+      "logic": "POSITIVE",
+      "decisionStrategy": "UNANIMOUS",
+      "config": {
+        "resources": "[\"Document\"]",
+        "scopes": "[\"edit\",\"view\",\"create\"]",
+        "applyPolicies": "[\"Admin Policy\"]"
+      }
+    },
+    {
+      "name": "Document Send Permission",
+      "description": "",
+      "type": "scope",
+      "logic": "POSITIVE",
+      "decisionStrategy": "UNANIMOUS",
+      "config": {
+        "resources": "[\"Document\"]",
+        "scopes": "[\"webhook\",\"send\"]",
+        "applyPolicies": "[\"Document Send Policy\"]"
+      }
+    },
+    {
+      "name": "Default Permission",
+      "description": "A permission that applies to the default resource type",
+      "type": "resource",
+      "logic": "POSITIVE",
+      "decisionStrategy": "UNANIMOUS",
+      "config": {
+        "defaultResourceType": "urn:people-management-api:resources:default",
+        "applyPolicies": "[\"Default Policy\"]"
+      }
+    },
+    {
+      "name": "Teste Permission",
+      "description": "",
+      "type": "resource",
+      "logic": "POSITIVE",
+      "decisionStrategy": "UNANIMOUS",
+      "config": {
+        "resources": "[\"teste\"]",
+        "applyPolicies": "[\"Admin Policy\"]"
+      }
+    },
+    {
+      "name": "Company Permission",
+      "description": "",
+      "type": "resource",
+      "logic": "POSITIVE",
+      "decisionStrategy": "UNANIMOUS",
+      "config": {
+        "resources": "[\"company\"]",
+        "applyPolicies": "[\"Admin Policy\"]"
+      }
+    },
+    {
+      "name": "Employee Permission",
+      "description": "",
+      "type": "resource",
+      "logic": "POSITIVE",
+      "decisionStrategy": "UNANIMOUS",
+      "config": {
+        "resources": "[\"employee\"]",
+        "applyPolicies": "[\"Admin Policy\"]"
+      }
+    },
+    {
+      "name": "Admin Permission",
+      "description": "",
+      "type": "resource",
+      "logic": "POSITIVE",
+      "decisionStrategy": "UNANIMOUS",
+      "config": {
+        "resources": "[\"teste\",\"employee\",\"role\",\"DocumentGroup\",\"company\",\"RequireDocuments\",\"position\",\"Workplace\",\"Department\",\"DocumentTemplate\"]",
+        "applyPolicies": "[\"Admin Policy\"]"
+      }
+    }
+  ],
+  "scopes": [
+    {
+      "name": "create",
+      "displayName": "Create"
+    },
+    {
+      "name": "view",
+      "displayName": "View"
+    },
+    {
+      "name": "edit",
+      "displayName": "Edit"
+    },
+    {
+      "name": "send"
+    },
+    {
+      "name": "webhook"
+    }
+  ],
+  "decisionStrategy": "UNANIMOUS"
+}
