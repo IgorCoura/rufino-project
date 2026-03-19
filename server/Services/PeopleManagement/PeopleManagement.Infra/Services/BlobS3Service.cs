@@ -1,15 +1,21 @@
 using Amazon.S3;
 using Amazon.S3.Model;
 using Amazon.S3.Util;
+using Microsoft.Extensions.Options;
 using PeopleManagement.Domain.AggregatesModel.DocumentAggregate.Interfaces;
+using PeopleManagement.Domain.Options;
 
 namespace PeopleManagement.Infra.Services
 {
-    public class BlobS3Service(IAmazonS3 s3Client) : IBlobService
+    public class BlobS3Service(IAmazonS3 s3Client, IOptions<S3Options> options) : IBlobService
     {
+        private readonly S3Options _options = options.Value;
         public async Task UploadAsync(Stream stream, string fileNameWithExtesion, string containerName, bool overwrite = false, CancellationToken cancellationToken = default)
         {
             await EnsureBucketExistsAsync(containerName, cancellationToken);
+
+            if (!overwrite && await ObjectExistsAsync(fileNameWithExtesion, containerName, cancellationToken))
+                return;
 
             using var memoryStream = new MemoryStream();
             await stream.CopyToAsync(memoryStream, cancellationToken);
@@ -20,8 +26,8 @@ namespace PeopleManagement.Infra.Services
                 BucketName = containerName,
                 Key = fileNameWithExtesion,
                 InputStream = memoryStream,
-                AutoCloseStream = false,
-                UseChunkEncoding = false
+                AutoCloseStream = _options.AutoCloseStream,
+                UseChunkEncoding = _options.UseChunkEncoding
             };
 
             await s3Client.PutObjectAsync(request, cancellationToken);
@@ -55,6 +61,23 @@ namespace PeopleManagement.Infra.Services
             var exists = await AmazonS3Util.DoesS3BucketExistV2Async(s3Client, bucketName);
             if (!exists)
                 await s3Client.PutBucketAsync(new PutBucketRequest { BucketName = bucketName }, cancellationToken);
+        }
+
+        private async Task<bool> ObjectExistsAsync(string key, string bucketName, CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                await s3Client.GetObjectMetadataAsync(new GetObjectMetadataRequest
+                {
+                    BucketName = bucketName,
+                    Key = key
+                }, cancellationToken);
+                return true;
+            }
+            catch (AmazonS3Exception ex) when (ex.StatusCode == System.Net.HttpStatusCode.NotFound)
+            {
+                return false;
+            }
         }
     }
 }
