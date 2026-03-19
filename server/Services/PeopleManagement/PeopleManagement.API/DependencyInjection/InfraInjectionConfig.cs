@@ -1,5 +1,6 @@
 ﻿using Amazon.Runtime;
 using Amazon.S3;
+using Microsoft.Extensions.Options;
 using Microsoft.Net.Http.Headers;
 using Polly;
 using PeopleManagement.Domain.AggregatesModel.ArchiveAggregate.Interfaces;
@@ -52,16 +53,19 @@ namespace PeopleManagement.API.DependencyInjection
             service.AddScoped<IFileDownloadService, FileDownloadService>();
             service.AddScoped<IWhatsAppHealthCheckService, WhatsAppHealthCheckService>();
 
-            service.AddSingleton<IAmazonS3>(_ =>
+            // Configure S3 Options
+            service.Configure<S3Options>(configuration.GetSection(S3Options.SectionName));
+
+            service.AddSingleton<IAmazonS3>(sp =>
             {
-                var s3Section = configuration.GetSection("S3");
+                var s3Options = sp.GetRequiredService<IOptions<S3Options>>().Value;
                 var config = new AmazonS3Config
                 {
-                    ServiceURL = s3Section["ServiceURL"],
-                    ForcePathStyle = true,
-                    AuthenticationRegion = "garage"
+                    ServiceURL = s3Options.ServiceURL,
+                    ForcePathStyle = s3Options.ForcePathStyle,
+                    AuthenticationRegion = s3Options.AuthenticationRegion
                 };
-                return new AmazonS3Client(new BasicAWSCredentials(s3Section["AccessKey"], s3Section["SecretKey"]), config);
+                return new AmazonS3Client(new BasicAWSCredentials(s3Options.AccessKey, s3Options.SecretKey), config);
             });
 
             // Configure WhatsApp Options
