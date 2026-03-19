@@ -1,4 +1,5 @@
-﻿using Azure.Storage.Blobs;
+﻿using Amazon.Runtime;
+using Amazon.S3;
 using Microsoft.Net.Http.Headers;
 using Polly;
 using PeopleManagement.Domain.AggregatesModel.ArchiveAggregate.Interfaces;
@@ -46,12 +47,22 @@ namespace PeopleManagement.API.DependencyInjection
 
             service.AddScoped<IPdfService, PdfService>();
             service.AddSingleton<IBrowserProvider, BrowserProvider>();
-            service.AddScoped<IBlobService, BlobAzureService>();
+            service.AddScoped<IBlobService, BlobS3Service>();
             service.AddScoped<ILocalStorageService, LocalStorageService>();
             service.AddScoped<IFileDownloadService, FileDownloadService>();
             service.AddScoped<IWhatsAppHealthCheckService, WhatsAppHealthCheckService>();
 
-            service.AddSingleton(x => new BlobServiceClient(configuration.GetConnectionString("BlobStorage")));
+            service.AddSingleton<IAmazonS3>(_ =>
+            {
+                var s3Section = configuration.GetSection("S3");
+                var config = new AmazonS3Config
+                {
+                    ServiceURL = s3Section["ServiceURL"],
+                    ForcePathStyle = true,
+                    AuthenticationRegion = "garage"
+                };
+                return new AmazonS3Client(new BasicAWSCredentials(s3Section["AccessKey"], s3Section["SecretKey"]), config);
+            });
 
             // Configure WhatsApp Options
             service.Configure<WhatsAppOptions>(configuration.GetSection(WhatsAppOptions.SectionName));

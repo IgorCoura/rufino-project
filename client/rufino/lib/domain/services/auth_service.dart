@@ -61,8 +61,9 @@ class AuthService {
   Future<List<String>> getCompaniesIds() async {
     var accessTokenString = await getToken();
     var accessToken = JwtDecoder.decode(accessTokenString);
-    var companies = accessToken["companies"] as List<dynamic>;
-    return companies.map((el) => el.toString()).toList();
+    var companies = accessToken["companies"];
+    var companyIds = companies as List<dynamic>;
+    return companyIds.map((el) => el.toString()).toList();
   }
 
   Future _recoverFromStorageCredentials() async {
