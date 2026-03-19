@@ -36,7 +36,7 @@ namespace PeopleManagement.Services.Services.RecoverInfoToDocument
                         riskRadiacao.Clone(), riskRuido.Clone(), riskPoeirasMinerias.Clone(), riskCargas.Clone(), riskPe.Clone(), riskPostura.Clone(), 
                         riskBater.Clone(), riskProjecao.Clone(), riskQueda.Clone(), riskChoque.Clone()
                     };
-            var epis = GetEpis("ELETRICA");
+            var epis = GetEpis("ELÉTRICA");
 
 
             var json = new JsonObject
@@ -56,63 +56,56 @@ namespace PeopleManagement.Services.Services.RecoverInfoToDocument
         {
             ["name"] = "Radiação não ionizante",
             ["source"] = "Trabalho a céu aberto",
-            ["precautions"] = "Existência de abrigos, capazes de proteger os trabalhadores contra intempéries climáticos",
+            ["precautions"] = "Existência de abrigos, capazes de proteger os trabalhadores contra intempéries climáticos e realizar o controle de exposição.",
         };
 
         private static JsonObject  riskRuido => new JsonObject
         {
             ["name"] = "Ruído",
-            ["source"] = "Máquinas da Obra",
-            ["precautions"] = "Treinamento de integração, fornecimento de EPI",
+            ["source"] = "Ferramentas elétricas, máquinas pesadas, demolições, movimentação de materiais e tráfego de veículos e pessoas.",
+            ["precautions"] = "Treinamento de integração, fornecimento de EPI.",
         };
 
         private static JsonObject riskPoeirasMinerias => new JsonObject
         {
             ["name"] = "Poeiras Minerias",
-            ["source"] = "Ambiente de Obra",
-            ["precautions"] = "Procedimentos, orientações e treinamento para a execução do trabalho",
+            ["source"] = "Demolição, corte de materiais, manipulação de produtos, equipamentos pesados e movimentação de pessoas, exacerbada por ventos e condições climáticas.",
+            ["precautions"] = "Procedimentos, orientações e treinamento para\r\na execução do trabalho.",
+        };
+
+        private static JsonObject riskVapores => new JsonObject
+        {
+            ["name"] = "Vapores",
+            ["source"] = "Utilização de adesivo plástico para PVC ou substâncias similares.",
+            ["precautions"] = "Procedimentos, orientações, treinamento e competência para a execução do trabalho. Fornecimento de EPI.",
         };
 
         private static JsonObject riskCargas => new JsonObject
         {
             ["name"] = "Levantamento e transporte manual de cargas e volumes",
-            ["source"] = "Movimentação de materias",
-            ["precautions"] = "Ginástica Laboral, treinamento Ergonômico e DDS",
+            ["source"] = "Movimentação de materiais e equipamentos.",
+            ["precautions"] = "Procedimentos e orientações para a execução do trabalho.",
         };
 
         private static JsonObject riskPe => new JsonObject
         {
             ["name"] = "Postura de pé por longos períodos",
-            ["source"] = "Processos de Trabalho",
-            ["precautions"] = "Ginástica Laboral, treinamento Ergonômico e DDS",
+            ["source"] = "Processos de Trabalho.",
+            ["precautions"] = "Adoção de intervalos para descaço e revezamento postural entre trabalho em pé e sentado.",
         };
 
         private static JsonObject riskPostura => new JsonObject
         {
             ["name"] = "Postura inadequada",
-            ["source"] = "Processos de Trabalho",
-            ["precautions"] = "Ginástica Laboral, treinamento Ergonômico e DDS",
+            ["source"] = "Processos de Trabalho.",
+            ["precautions"] = "Adoção de intervalos para descaço e alongamento.",
         };
 
         private static JsonObject riskBater => new JsonObject
         {
             ["name"] = "Bater Contra",
-            ["source"] = "Ambiente de Obra, Mobiliário e Equipamentos",
-            ["precautions"] = "Manter o ambiente de trabalho organizado, evitando colocar objetos e mobiliário nas áreas de circulação de pessoas",
-        };
-
-        private static JsonObject riskChoque => new JsonObject
-        {
-            ["name"] = "Choque elétrico",
-            ["source"] = "Processos de Trabalho",
-            ["precautions"] = "Procedimentos, orientações, treinamento e competência para a execução do trabalho. Fornecimento de EPI",
-        };
-
-        private static JsonObject riskProjecao => new JsonObject
-        {
-            ["name"] = "Projeção de partículas",
-            ["source"] = "Ambiente de Obra",
-            ["precautions"] = "Procedimentos, orientações, treinamento e competência para a execução do trabalho, fornecimento de EPI",
+            ["source"] = "Ambiente de Obra Mobiliário e Equipamentos.",
+            ["precautions"] = "Manter o ambiente de trabalho organizado, evitando colocar objetos e mobiliário nas áreas de circulação de pessoas.",
         };
 
         private static JsonObject riskQueda => new JsonObject
@@ -121,30 +114,54 @@ namespace PeopleManagement.Services.Services.RecoverInfoToDocument
             ["source"] = "Trabalho realizado emaltura",
             ["precautions"] = "Treinamento de Trabalho emAltura NR-35 e fornecimento de EPIs. Realização de exames específicos conforme o PCMSO",
         };
+
+        private static JsonObject riskProjecao => new JsonObject
+        {
+            ["name"] = "Projeção de partículas",
+            ["source"] = "Ferramentas, Maquinários e Movimentação de Produtos.",
+            ["precautions"] = "Procedimentos, orientações, treinamento e competência para a execução do trabalho, fornecimento de EPI.",
+        };
+
+        private static JsonObject riskChoque => new JsonObject
+        {
+            ["name"] = "Choque elétrico",
+            ["source"] = "Processos de trabalho em circuitos elétricos energizados.",
+            ["precautions"] = "Procedimentos, orientações, treinamento e\r\ncompetência para a execução do trabalho.\r\nFornecimento de EPI.",
+        };
+
+        
+
+        
         private static JsonArray GetRisks(string department)
         {
             var risksELetrica = new JsonArray()
             {
                 riskRadiacao.Clone(), riskRuido.Clone(), riskPoeirasMinerias.Clone(), riskCargas.Clone(), riskPe.Clone(), riskPostura.Clone(), 
-                riskBater.Clone(), riskProjecao.Clone(), riskQueda.Clone(), riskChoque.Clone()
+                riskBater.Clone(), riskQueda.Clone(), riskProjecao.Clone(),  riskChoque.Clone()
             };
 
             var risksHidraulica = new JsonArray()
             {
-                riskRadiacao.Clone(), riskRuido.Clone(), riskPoeirasMinerias.Clone(), riskCargas.Clone(), riskPe.Clone(), riskPostura.Clone(), 
-                riskBater.Clone(), riskProjecao.Clone(), riskQueda.Clone()
+                riskRadiacao.Clone(), riskRuido.Clone(), riskPoeirasMinerias.Clone(), riskVapores.Clone(), riskCargas.Clone(), riskPe.Clone(), 
+                riskPostura.Clone(), riskBater.Clone(), riskQueda.Clone(), riskProjecao.Clone(), 
             };
 
-            var risksAdm = new JsonArray()
+            var risksAlm = new JsonArray()
             {
                 riskRuido.Clone(), riskPoeirasMinerias.Clone(), riskCargas.Clone(), riskPostura.Clone(), riskBater.Clone()
             };
 
+            var risksAdm = new JsonArray()
+            {
+                riskRuido.Clone(), riskPoeirasMinerias.Clone(), riskBater.Clone()
+            };
+
             var risks = new Dictionary<string, dynamic>
             {
-                { "ELETRICA", risksELetrica },
-                { "HIDRAULICA", risksHidraulica },
-                { "ADMINISTRAÇÃO DE OBRA", risksAdm }
+                { "ELÉTRICA", risksELetrica },
+                { "HIDRÁULICA", risksHidraulica },
+                { "ADMINISTRAÇÃO DE OBRA", risksAdm },
+                { "ALMOXARIFADO", risksAlm }
             };
 
             try
@@ -205,49 +222,65 @@ namespace PeopleManagement.Services.Services.RecoverInfoToDocument
                 ["name"] = "Luva emborrachada"
             };
 
+            var safetyShoesWithIsolation = new JsonObject
+            {
+                ["name"] = "Calçado de segurança com isolamento para baixa tensão"
+            };
 
 
             var epis = new Dictionary<string, dynamic>
             {
                 {
-                    "ELETRICA",
+                    "ELÉTRICA",
                     new JsonArray()
-                {
-                    sunscreen.Clone(),
-                    earPlug.Clone(),
-                    maskPFF2.Clone(),
-                    tactileGlove.Clone(),
-                    safetyShoes.Clone(),
-                    safetyGlasses.Clone(),
-                    safetyHelmet.Clone(),
-                    safetyHarness.Clone(),
-                    rubberGlove.Clone()
-                }
+                    {
+                        sunscreen.Clone(),
+                        earPlug.Clone(),
+                        maskPFF2.Clone(),
+                        tactileGlove.Clone(),
+                        safetyGlasses.Clone(),
+                        safetyHelmet.Clone(),
+                        safetyHarness.Clone(),
+                        rubberGlove.Clone(),
+                        safetyShoesWithIsolation.Clone()
+                    }
                 },
                 {
-                    "HIDRAULICA",
+                    "HIDRÁULICA",
                     new JsonArray()
+                    {
+                        sunscreen.Clone(),
+                        earPlug.Clone(),
+                        maskPFF2.Clone(),
+                        tactileGlove.Clone(),
+                        safetyShoes.Clone(),
+                        safetyGlasses.Clone(),
+                        safetyHelmet.Clone(),
+                        safetyHarness.Clone(),
+                    }
+                },
                 {
-                    sunscreen.Clone(),
-                    earPlug.Clone(),
-                    maskPFF2.Clone(),
-                    tactileGlove.Clone(),
-                    safetyShoes.Clone(),
-                    safetyGlasses.Clone(),
-                    safetyHelmet.Clone(),
-                    safetyHarness.Clone(),
-                }
+                    "ALMOXARIFADO",
+                    new JsonArray()
+                    {
+                        earPlug.Clone(),
+                        maskPFF2.Clone(),
+                        tactileGlove.Clone(),
+                        safetyShoes.Clone(),
+                        safetyHelmet.Clone(),
+                        safetyGlasses.Clone(),
+                    }
                 },
                 {
                     "ADMINISTRAÇÃO DE OBRA",
                     new JsonArray()
-                {
-                    earPlug.Clone(),
-                    maskPFF2.Clone(),
-                    tactileGlove.Clone(),
-                    safetyShoes.Clone(),
-                    safetyHelmet.Clone(),
-                }
+                    {
+                        earPlug.Clone(),
+                        maskPFF2.Clone(),
+                        safetyShoes.Clone(),
+                        safetyHelmet.Clone(),
+                        safetyGlasses.Clone(),
+                    }
                 }
             };
 

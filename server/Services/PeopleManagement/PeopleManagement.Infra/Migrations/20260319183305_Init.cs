@@ -8,7 +8,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace PeopleManagement.Infra.Migrations
 {
     /// <inheritdoc />
-    public partial class InitialCreate : Migration
+    public partial class Init : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -285,7 +285,9 @@ namespace PeopleManagement.Infra.Migrations
                     TemplateFileInfo_RecoversDataType = table.Column<string>(type: "text", nullable: true),
                     DocumentValidityDuration = table.Column<TimeSpan>(type: "interval", nullable: true),
                     Workload = table.Column<TimeSpan>(type: "interval", nullable: true),
+                    AcceptsSignature = table.Column<bool>(type: "boolean", nullable: false),
                     DocumentGroupId = table.Column<Guid>(type: "uuid", nullable: false),
+                    UsePreviousPeriod = table.Column<bool>(type: "boolean", nullable: false),
                     CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
                     UpdatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false)
                 },
@@ -488,6 +490,7 @@ namespace PeopleManagement.Infra.Migrations
                     MilitaryDocument_Number = table.Column<string>(type: "character varying(20)", maxLength: 20, nullable: true),
                     MilitaryDocument_Type = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: true),
                     DocumentSigningOptions = table.Column<int>(type: "integer", nullable: false),
+                    DocumentRepresentingStatus = table.Column<int>(type: "integer", nullable: false),
                     _image_FileName = table.Column<string>(type: "character varying(255)", maxLength: 255, nullable: true),
                     _image_Extension = table.Column<int>(type: "integer", nullable: true),
                     CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
@@ -563,6 +566,7 @@ namespace PeopleManagement.Infra.Migrations
                     RequiredDocumentId = table.Column<Guid>(type: "uuid", nullable: false),
                     Status = table.Column<int>(type: "integer", nullable: false),
                     DocumentTemplateId = table.Column<Guid>(type: "uuid", nullable: false),
+                    UsePreviousPeriod = table.Column<bool>(type: "boolean", nullable: false),
                     CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
                     UpdatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false)
                 },
@@ -633,6 +637,11 @@ namespace PeopleManagement.Infra.Migrations
                     Validity = table.Column<DateOnly>(type: "date", nullable: true),
                     Name = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: true),
                     Extension = table.Column<int>(type: "integer", nullable: true),
+                    Period_Type = table.Column<int>(type: "integer", nullable: true),
+                    Period_Day = table.Column<int>(type: "integer", nullable: true),
+                    Period_Week = table.Column<int>(type: "integer", nullable: true),
+                    Period_Month = table.Column<int>(type: "integer", nullable: true),
+                    Period_Year = table.Column<int>(type: "integer", nullable: true),
                     Status = table.Column<int>(type: "integer", nullable: false),
                     Date = table.Column<DateOnly>(type: "date", nullable: false),
                     DocumentId = table.Column<Guid>(type: "uuid", nullable: false),
