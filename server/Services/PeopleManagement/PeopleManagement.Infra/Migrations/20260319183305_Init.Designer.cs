@@ -13,8 +13,8 @@ using PeopleManagement.Infra.Context;
 namespace PeopleManagement.Infra.Migrations
 {
     [DbContext(typeof(PeopleManagementContext))]
-    [Migration("20260226162654_AddDocumentRepresentingStatusToEmployee")]
-    partial class AddDocumentRepresentingStatusToEmployee
+    [Migration("20260319183305_Init")]
+    partial class Init
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
