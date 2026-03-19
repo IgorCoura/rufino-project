@@ -2,10 +2,10 @@ name: Deploy Image PeopleManagementApi
 
 on:
   workflow_dispatch:
-  push:
-    branches: [ "main" ]
-    paths:
-      - 'server/Services/PeopleManagement/**'
+  # push:
+  #   branches: [ "main" ]
+  #   paths:
+  #     - 'server/Services/PeopleManagement/**'
           
 jobs:
   build:
