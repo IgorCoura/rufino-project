@@ -8,7 +8,7 @@ namespace PeopleManagement.Infra.Services
         public async Task UploadAsync(Stream stream, string fileNameWithExtesion, string containerName, bool overwrite = false, CancellationToken cancellationToken = default)
         {
             BlobClient blobClient = await GetBlobClientAsync(fileNameWithExtesion, containerName, cancellationToken);
-            await blobClient.UploadAsync(stream, overwrite,  cancellationToken);
+            await blobClient.UploadAsync(stream, overwrite, cancellationToken);
         }
 
         public async Task<Stream> DownloadAsync(string fileNameWithExtesion, string containerName, CancellationToken cancellationToken = default)
@@ -22,25 +22,21 @@ namespace PeopleManagement.Infra.Services
         public async Task DeleteAsync(string fileNameWithExtesion, string containerName, CancellationToken cancellationToken = default)
         {
             BlobClient blobClient = await GetBlobClientAsync(fileNameWithExtesion, containerName, cancellationToken);
-
             await blobClient.DeleteIfExistsAsync(cancellationToken: cancellationToken);
         }
 
         private async Task<BlobClient> GetBlobClientAsync(string fileNameWithExtesion, string containerName, CancellationToken cancellationToken = default)
-        { 
+        {
             var containerClient = await GetBlobContainerClient(containerName, cancellationToken);
             BlobClient blobClient = containerClient.GetBlobClient(fileNameWithExtesion);
-
             return blobClient;
         }
 
         private async Task<BlobContainerClient> GetBlobContainerClient(string containerName, CancellationToken cancellationToken = default)
         {
-           
             var containerClient = blobServiceClient.GetBlobContainerClient(containerName);
             await containerClient.CreateIfNotExistsAsync(cancellationToken: cancellationToken);
             return containerClient;
-           
         }
     }
 }
