@@ -15,21 +15,14 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
-  late final TextEditingController _usernameController;
-  late final TextEditingController _passwordController;
-
   @override
   void initState() {
     super.initState();
-    _usernameController = TextEditingController();
-    _passwordController = TextEditingController();
     widget.viewModel.addListener(_onStatusChanged);
   }
 
   @override
   void dispose() {
-    _usernameController.dispose();
-    _passwordController.dispose();
     widget.viewModel.removeListener(_onStatusChanged);
     super.dispose();
   }
@@ -72,11 +65,7 @@ class _LoginScreenState extends State<LoginScreen> {
             padding: const EdgeInsets.all(AppSpacing.md),
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 450),
-              child: _LoginForm(
-                viewModel: widget.viewModel,
-                usernameController: _usernameController,
-                passwordController: _passwordController,
-              ),
+              child: _LoginForm(viewModel: widget.viewModel),
             ),
           ),
         ),
@@ -86,15 +75,9 @@ class _LoginScreenState extends State<LoginScreen> {
 }
 
 class _LoginForm extends StatelessWidget {
-  const _LoginForm({
-    required this.viewModel,
-    required this.usernameController,
-    required this.passwordController,
-  });
+  const _LoginForm({required this.viewModel});
 
   final LoginViewModel viewModel;
-  final TextEditingController usernameController;
-  final TextEditingController passwordController;
 
   @override
   Widget build(BuildContext context) {
@@ -124,19 +107,17 @@ class _LoginForm extends StatelessWidget {
             const SizedBox(height: AppSpacing.xxl),
             TextField(
               key: const ValueKey('username_field'),
-              controller: usernameController,
+              controller: viewModel.usernameController,
               decoration: const InputDecoration(
                 labelText: 'Usuário',
                 border: OutlineInputBorder(),
                 prefixIcon: Icon(Icons.person_outline),
               ),
               textInputAction: TextInputAction.next,
-              onChanged: viewModel.onUsernameChanged,
             ),
             const SizedBox(height: AppSpacing.md),
             _PasswordField(
-              controller: passwordController,
-              onChanged: viewModel.onPasswordChanged,
+              controller: viewModel.passwordController,
               onSubmitted: (_) => viewModel.submit(),
             ),
             const SizedBox(height: AppSpacing.lg),
@@ -151,12 +132,10 @@ class _LoginForm extends StatelessWidget {
 class _PasswordField extends StatefulWidget {
   const _PasswordField({
     required this.controller,
-    required this.onChanged,
     required this.onSubmitted,
   });
 
   final TextEditingController controller;
-  final ValueChanged<String> onChanged;
   final ValueChanged<String> onSubmitted;
 
   @override
@@ -183,7 +162,6 @@ class _PasswordFieldState extends State<_PasswordField> {
         ),
       ),
       textInputAction: TextInputAction.done,
-      onChanged: widget.onChanged,
       onSubmitted: widget.onSubmitted,
     );
   }

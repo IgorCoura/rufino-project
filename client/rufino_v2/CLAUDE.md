@@ -1314,54 +1314,334 @@ const SizedBox(height: 10)
 
 ---
 
-### Responsive Layout
+### Responsive & Adaptive Layout
 
-**Never use `MediaQuery.of(context).size` for layout breakpoints.** Always use `LayoutBuilder`.
+Flutter targets smartphones, tablets, desktop, and web from a single codebase. Every screen must adapt to all of these. This section defines the mandatory patterns.
 
-#### Breakpoints
+Official references:
+- https://docs.flutter.dev/ui/adaptive-responsive
+- https://docs.flutter.dev/ui/adaptive-responsive/large-screens
+- https://docs.flutter.dev/ui/adaptive-responsive/safearea-mediaquery
+
+---
+
+#### Three-Step Framework: Abstract → Measure → Branch
+
+1. **Abstract** — identify widgets that change shape across sizes (navigation, dialogs, list layouts, form widths).
+2. **Measure** — pick the right tool to read available space.
+3. **Branch** — swap the layout at defined breakpoints.
+
+---
+
+#### Breakpoints (Material 3 Window Size Classes)
+
+Define once in `core/theme/app_breakpoints.dart`:
 
 ```dart
-// core/theme/app_breakpoints.dart
 abstract final class AppBreakpoints {
-  static const double mobile  = 600;
-  static const double tablet  = 840;
-  static const double desktop = 1200;
+  /// Compact: < 600dp — smartphones in portrait.
+  static const double compact = 600;
+
+  /// Medium: 600–840dp — tablets, large phones in landscape.
+  static const double medium = 840;
+
+  /// Expanded: ≥ 840dp — desktops, wide tablets, web.
+  static const double expanded = 840;
+
+  /// Large: ≥ 1200dp — wide desktop / maximised browser.
+  static const double large = 1200;
 }
 ```
 
+| Class | Width range | Typical device | Layout style |
+|-------|------------|----------------|-------------|
+| Compact | < 600dp | Smartphone portrait | Single column |
+| Medium | 600–840dp | Tablet / large phone landscape | Two columns possible |
+| Expanded | 840–1200dp | Desktop, tablet landscape | Multi-column / side panels |
+| Large | ≥ 1200dp | Wide desktop / maximised browser | Wide multi-column, max-width cap |
+
+---
+
+#### Measuring Available Space
+
+Two tools — choose based on scope:
+
+| Tool | When to use | Why |
+|------|-------------|-----|
+| `MediaQuery.sizeOf(context)` | Full-screen layout decisions (navigation, page structure) | Reads the whole app window; only triggers rebuild on size changes |
+| `LayoutBuilder` | Local widget constraints (a card, a form column, a list) | Reads parent constraints, not the whole window; correct for widgets in scroll views or columns |
+
+```dart
+// ✅ Full-screen decision — use MediaQuery.sizeOf
+final width = MediaQuery.sizeOf(context).width;
+final isExpanded = width >= AppBreakpoints.expanded;
+
+// ✅ Local widget decision — use LayoutBuilder
+LayoutBuilder(
+  builder: (context, constraints) {
+    final isWide = constraints.maxWidth >= AppBreakpoints.medium;
+    return isWide ? _TwoColumnForm() : _SingleColumnForm();
+  },
+)
+
+// ❌ Never use MediaQuery.of(context).size — it rebuilds on ANY MediaQuery change
+if (MediaQuery.of(context).size.width >= 600) { ... }
+```
+
+---
+
+#### SafeArea — Always Use It
+
+Wrap Scaffold body content in `SafeArea` to avoid notches, camera cutouts, status bars, and OS navigation bars. Material `Scaffold` does **not** do this automatically for body content.
+
+```dart
+// ✅ Correct — content never hides behind system chrome
+Scaffold(
+  body: SafeArea(
+    child: YourContent(),
+  ),
+)
+
+// ✅ Selective — header extends under notch, body is protected
+Scaffold(
+  body: Column(
+    children: [
+      HeroHeader(), // intentionally full-bleed
+      Expanded(
+        child: SafeArea(
+          top: false, // header already handled top
+          child: ContentList(),
+        ),
+      ),
+    ],
+  ),
+)
+```
+
+**Rules:**
+- `SafeArea` modifies `MediaQuery.padding` for its children, so nested `SafeArea` widgets do **not** double-apply padding.
+- Never add manual top/bottom `EdgeInsets` to compensate for system chrome — use `SafeArea` instead.
+
+---
+
+#### Content Width Limit
+
+On large screens, full-width content becomes hard to read. **Always cap content width** for list screens and form screens:
+
+```dart
+// Forms — max 600dp, centered
+Center(
+  child: ConstrainedBox(
+    constraints: const BoxConstraints(maxWidth: 600),
+    child: formContent,
+  ),
+)
+
+// List/detail screens — max 960dp
+Center(
+  child: ConstrainedBox(
+    constraints: const BoxConstraints(maxWidth: 960),
+    child: listContent,
+  ),
+)
+```
+
+---
+
 #### Adaptive Navigation Pattern
+
+Switch the navigation component based on available width:
+
+```dart
+// In the root Scaffold (e.g., home screen or shell route)
+final width = MediaQuery.sizeOf(context).width;
+final isCompact  = width < AppBreakpoints.compact;
+final isExpanded = width >= AppBreakpoints.expanded;
+
+return Scaffold(
+  body: Row(
+    children: [
+      if (!isCompact)
+        NavigationRail(
+          extended: isExpanded,   // show labels when wide
+          destinations: destinations,
+          selectedIndex: selectedIndex,
+          onDestinationSelected: onDestinationSelected,
+        ),
+      Expanded(child: currentPage),
+    ],
+  ),
+  bottomNavigationBar: isCompact
+      ? NavigationBar(
+          destinations: destinations,
+          selectedIndex: selectedIndex,
+          onDestinationSelected: onDestinationSelected,
+        )
+      : null,
+);
+```
+
+| Width | Navigation | Page horizontal padding |
+|-------|-----------|------------------------|
+| < 600dp (compact) | `NavigationBar` (bottom) | `AppSpacing.md` (16dp) |
+| 600–840dp (medium) | `NavigationRail` collapsed | `AppSpacing.lg` (24dp) |
+| ≥ 840dp (expanded) | `NavigationRail` extended | `AppSpacing.xl` (32dp) |
+
+---
+
+#### List Screens — Adaptive Layout
+
+Prefer `GridView` over `ListView` on larger screens so space is used efficiently:
 
 ```dart
 LayoutBuilder(
   builder: (context, constraints) {
-    final isMobile = constraints.maxWidth < AppBreakpoints.mobile;
-    return Scaffold(
-      body: Row(
-        children: [
-          if (!isMobile)
-            NavigationRail(
-              destinations: destinations,
-              selectedIndex: selectedIndex,
-            ),
-          Expanded(child: currentPage),
-        ],
-      ),
-      bottomNavigationBar: isMobile
-          ? NavigationBar(
-              destinations: destinations,
-              selectedIndex: selectedIndex,
-            )
-          : null,
+    // On wide screens, use a grid; on narrow screens, a list
+    if (constraints.maxWidth >= AppBreakpoints.medium) {
+      return GridView.builder(
+        padding: const EdgeInsets.all(AppSpacing.md),
+        gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+          maxCrossAxisExtent: 320, // each card is at most 320dp wide
+          mainAxisSpacing: AppSpacing.sm,
+          crossAxisSpacing: AppSpacing.sm,
+          childAspectRatio: 3,
+        ),
+        itemCount: items.length,
+        itemBuilder: (context, index) => ItemCard(item: items[index]),
+      );
+    }
+    return ListView.separated(
+      padding: const EdgeInsets.all(AppSpacing.md),
+      itemCount: items.length,
+      separatorBuilder: (_, __) => const SizedBox(height: AppSpacing.sm),
+      itemBuilder: (context, index) => ItemCard(item: items[index]),
     );
   },
 )
 ```
 
-| Screen width | Navigation component | Page padding |
-|---|---|---|
-| < 600dp (mobile) | `NavigationBar` (bottom) | `16dp` horizontal |
-| 600–840dp (tablet) | `NavigationRail` (side, collapsed) | `24dp` horizontal |
-| > 840dp (desktop) | `NavigationRail` (side, extended) | `32dp` horizontal |
+---
+
+#### Form Screens — Adaptive Layout
+
+On small screens: single-column scrollable form.
+On medium+ screens: center the form and cap its width.
+
+```dart
+LayoutBuilder(
+  builder: (context, constraints) {
+    final isWide = constraints.maxWidth >= AppBreakpoints.medium;
+    Widget form = Form(
+      key: formKey,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: formFields,
+      ),
+    );
+    if (isWide) {
+      form = Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 600),
+          child: form,
+        ),
+      );
+    }
+    return SingleChildScrollView(
+      padding: EdgeInsets.symmetric(
+        horizontal: isWide ? AppSpacing.xl : AppSpacing.md,
+        vertical: AppSpacing.md,
+      ),
+      child: form,
+    );
+  },
+)
+```
+
+---
+
+#### Lists with a FloatingActionButton — Bottom Clearance
+
+**Bug:** On screens with a `FloatingActionButton`, the last item in a `ListView` can be hidden behind the FAB and unreachable by tapping.
+
+**Fix:** Add bottom padding equal to the FAB height + margin + extra room:
+
+```dart
+// ✅ Standard FAB (56dp) + 16dp margin + 8dp room = 80dp
+ListView.separated(
+  padding: const EdgeInsets.fromLTRB(
+    AppSpacing.md, AppSpacing.md, AppSpacing.md, AppSpacing.md + 80,
+  ),
+  ...
+)
+
+// ✅ Extended FAB (48dp) + 16dp margin + 8dp room = 72dp
+ListView(
+  padding: const EdgeInsets.fromLTRB(
+    AppSpacing.md, AppSpacing.md, AppSpacing.md, AppSpacing.md + 72,
+  ),
+  ...
+)
+```
+
+| FAB type | Extra bottom padding |
+|----------|---------------------|
+| Standard `FloatingActionButton` | `AppSpacing.md + 80` |
+| `FloatingActionButton.extended` | `AppSpacing.md + 72` |
+
+This rule applies to every `ListView`, `GridView`, or `CustomScrollView` inside a `Scaffold` that has a `FloatingActionButton`.
+
+---
+
+#### Never Lock Orientation
+
+Do **not** lock the app to portrait. Allow all orientations on all platforms. Foldable Android devices and iPads are used in landscape constantly; locking causes letterboxing.
+
+```dart
+// ❌ Never do this
+SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
+
+// ✅ Support all orientations — design layouts that work in both
+```
+
+---
+
+#### Desktop / Web — Input Handling
+
+On desktop and web, users interact with mouse and keyboard. Add these behaviors to custom interactive elements:
+
+**Mouse cursor and hover:**
+```dart
+MouseRegion(
+  cursor: SystemMouseCursors.click,
+  onEnter: (_) => setState(() => _hovered = true),
+  onExit:  (_) => setState(() => _hovered = false),
+  child: GestureDetector(onTap: onTap, child: widget),
+)
+```
+
+**Keyboard focus and tab traversal:**
+Built-in M3 components support tab navigation out of the box. For custom interactive widgets, use `FocusableActionDetector`.
+
+**Visual density** — tighten UI on desktop where mouse precision is higher:
+```dart
+ThemeData(
+  visualDensity: VisualDensity.adaptivePlatformDensity,
+  // or for fine-grained control:
+  // visualDensity: VisualDensity(horizontal: -1, vertical: -1),
+)
+```
+
+---
+
+#### LayoutBuilder vs MediaQuery — Decision Table
+
+| Scenario | Use |
+|----------|-----|
+| Switching top-level navigation (bottom bar ↔ rail) | `MediaQuery.sizeOf(context)` |
+| Switching layout inside a scrollable list | `LayoutBuilder` |
+| Form column layout (single ↔ two column) | `LayoutBuilder` |
+| Reading accessibility settings (text scale, high contrast) | `MediaQuery.of(context)` (full object needed) |
+| Capping content width | `ConstrainedBox(constraints: BoxConstraints(maxWidth: N))` |
 
 ---
 
@@ -1595,18 +1875,21 @@ Container(
 )
 ```
 
-#### Use `LayoutBuilder`, Not `MediaQuery.size`
+#### Use `LayoutBuilder` or `MediaQuery.sizeOf`, Not `MediaQuery.of().size`
 
 ```dart
-// Correct
+// ✅ Full-screen layout decision — MediaQuery.sizeOf (only triggers on size change)
+final isExpanded = MediaQuery.sizeOf(context).width >= AppBreakpoints.expanded;
+
+// ✅ Local widget layout — LayoutBuilder (reads parent constraints)
 LayoutBuilder(
   builder: (context, constraints) {
-    final isWide = constraints.maxWidth >= AppBreakpoints.tablet;
+    final isWide = constraints.maxWidth >= AppBreakpoints.medium;
     return isWide ? WideLayout() : NarrowLayout();
   },
 )
 
-// Never
+// ❌ Never — triggers rebuild on ANY MediaQuery property change
 if (MediaQuery.of(context).size.width >= 600) { ... }
 ```
 

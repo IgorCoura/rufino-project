@@ -1,4 +1,4 @@
-import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart';
 
 import '../../../../domain/repositories/company_repository.dart';
 import '../../../../domain/repositories/department_repository.dart';
@@ -20,16 +20,24 @@ class DepartmentFormViewModel extends ChangeNotifier {
   final CompanyRepository _companyRepository;
   final DepartmentRepository _departmentRepository;
 
+  // ─── TextEditingControllers owned by this ViewModel ────────────────────────
+
+  /// Controller for the department name field.
+  final nameController = TextEditingController();
+
+  /// Controller for the department description field.
+  final descriptionController = TextEditingController();
+
+  // ─── State ─────────────────────────────────────────────────────────────────
+
   String _id = '';
-  String _name = '';
-  String _description = '';
   DepartmentFormStatus _status = DepartmentFormStatus.idle;
   String? _errorMessage;
 
   /// The id of the department being edited, empty when creating a new one.
   String get id => _id;
-  String get name => _name;
-  String get description => _description;
+
+  /// Current status of the form operation.
   DepartmentFormStatus get status => _status;
 
   /// Whether the form is currently loading existing data from the API.
@@ -44,15 +52,25 @@ class DepartmentFormViewModel extends ChangeNotifier {
   /// Human-readable error message set when [status] is [DepartmentFormStatus.error].
   String? get errorMessage => _errorMessage;
 
-  void setName(String v) {
-    _name = v;
+  // ─── Validators ────────────────────────────────────────────────────────────
+
+  /// Validates the department name: required, max 100 characters.
+  String? validateName(String? v) {
+    if (v == null || v.isEmpty) return 'Não pode ser vazio.';
+    if (v.length > 100) return 'Não pode ser maior que 100 caracteres.';
+    return null;
   }
 
-  void setDescription(String v) {
-    _description = v;
+  /// Validates the department description: required, max 2000 characters.
+  String? validateDescription(String? v) {
+    if (v == null || v.isEmpty) return 'Não pode ser vazio.';
+    if (v.length > 2000) return 'Não pode ser maior que 2000 caracteres.';
+    return null;
   }
 
-  /// Loads an existing department by [departmentId] and populates the form fields.
+  // ─── Operations ────────────────────────────────────────────────────────────
+
+  /// Loads an existing department by [departmentId] and populates the form controllers.
   Future<void> loadDepartment(String departmentId) async {
     if (departmentId.isEmpty) return;
 
@@ -60,23 +78,26 @@ class DepartmentFormViewModel extends ChangeNotifier {
     _status = DepartmentFormStatus.loading;
     notifyListeners();
 
-    final companyResult = await _companyRepository.getSelectedCompany();
-    final companyId = companyResult.valueOrNull?.id ?? '';
+    try {
+      final companyResult = await _companyRepository.getSelectedCompany();
+      final companyId = companyResult.valueOrNull?.id ?? '';
 
-    final result =
-        await _departmentRepository.getDepartmentById(companyId, departmentId);
-    result.fold(
-      onSuccess: (department) {
-        _name = department.name;
-        _description = department.description;
-        _status = DepartmentFormStatus.idle;
-      },
-      onError: (_) {
-        _status = DepartmentFormStatus.error;
-        _errorMessage = 'Falha ao carregar dados do setor.';
-      },
-    );
-    notifyListeners();
+      final result = await _departmentRepository.getDepartmentById(
+          companyId, departmentId);
+      result.fold(
+        onSuccess: (department) {
+          nameController.text = department.name;
+          descriptionController.text = department.description;
+          _status = DepartmentFormStatus.idle;
+        },
+        onError: (_) {
+          _status = DepartmentFormStatus.error;
+          _errorMessage = 'Falha ao carregar dados do setor.';
+        },
+      );
+    } finally {
+      notifyListeners();
+    }
   }
 
   /// Validates and submits the form, creating or updating a department.
@@ -88,29 +109,40 @@ class DepartmentFormViewModel extends ChangeNotifier {
     _errorMessage = null;
     notifyListeners();
 
-    final companyResult = await _companyRepository.getSelectedCompany();
-    final companyId = companyResult.valueOrNull?.id ?? '';
+    try {
+      final companyResult = await _companyRepository.getSelectedCompany();
+      final companyId = companyResult.valueOrNull?.id ?? '';
 
-    final result = _id.isEmpty
-        ? await _departmentRepository.createDepartment(
-            companyId,
-            name: _name,
-            description: _description,
-          )
-        : await _departmentRepository.updateDepartment(
-            companyId,
-            id: _id,
-            name: _name,
-            description: _description,
-          );
+      final result = _id.isEmpty
+          ? await _departmentRepository.createDepartment(
+              companyId,
+              name: nameController.text,
+              description: descriptionController.text,
+            )
+          : await _departmentRepository.updateDepartment(
+              companyId,
+              id: _id,
+              name: nameController.text,
+              description: descriptionController.text,
+            );
 
-    result.fold(
-      onSuccess: (_) => _status = DepartmentFormStatus.saved,
-      onError: (_) {
-        _status = DepartmentFormStatus.error;
-        _errorMessage = 'Falha ao salvar setor. Verifique os dados e tente novamente.';
-      },
-    );
-    notifyListeners();
+      result.fold(
+        onSuccess: (_) => _status = DepartmentFormStatus.saved,
+        onError: (_) {
+          _status = DepartmentFormStatus.error;
+          _errorMessage =
+              'Falha ao salvar setor. Verifique os dados e tente novamente.';
+        },
+      );
+    } finally {
+      notifyListeners();
+    }
+  }
+
+  @override
+  void dispose() {
+    nameController.dispose();
+    descriptionController.dispose();
+    super.dispose();
   }
 }

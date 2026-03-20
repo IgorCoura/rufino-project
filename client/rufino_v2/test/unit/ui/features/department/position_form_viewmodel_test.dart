@@ -45,16 +45,16 @@ void main() {
       expect(viewModel.status, PositionFormStatus.idle);
     });
 
-    test('loadPosition populates fields from repository', () async {
+    test('loadPosition populates controllers from repository', () async {
       departmentRepository.setPosition(_fakePosition);
 
       await viewModel.loadPosition('pos-1');
 
       expect(viewModel.isNew, false);
       expect(viewModel.status, PositionFormStatus.idle);
-      expect(viewModel.name, 'Analista');
-      expect(viewModel.description, 'Analista financeiro');
-      expect(viewModel.cbo, '123456');
+      expect(viewModel.nameController.text, 'Analista');
+      expect(viewModel.descriptionController.text, 'Analista financeiro');
+      expect(viewModel.cboController.text, '123456');
     });
 
     test('loadPosition transitions to error when repository fails', () async {
@@ -73,10 +73,11 @@ void main() {
       expect(viewModel.status, PositionFormStatus.idle);
     });
 
-    test('save for new position transitions to saved and calls createPosition', () async {
-      viewModel.setName('Gerente');
-      viewModel.setDescription('Gerente de TI');
-      viewModel.setCbo('654321');
+    test('save for new position transitions to saved and calls createPosition',
+        () async {
+      viewModel.nameController.text = 'Gerente';
+      viewModel.descriptionController.text = 'Gerente de TI';
+      viewModel.cboController.text = '654321';
 
       await viewModel.save();
 
@@ -88,7 +89,7 @@ void main() {
       departmentRepository.setPosition(_fakePosition);
       await viewModel.loadPosition('pos-1');
 
-      viewModel.setName('Analista Sênior');
+      viewModel.nameController.text = 'Analista Sênior';
 
       await viewModel.save();
 
@@ -97,9 +98,9 @@ void main() {
 
     test('save transitions to error when repository fails', () async {
       departmentRepository.setShouldFail(true);
-      viewModel.setName('Gerente');
-      viewModel.setDescription('Desc');
-      viewModel.setCbo('123456');
+      viewModel.nameController.text = 'Gerente';
+      viewModel.descriptionController.text = 'Desc';
+      viewModel.cboController.text = '123456';
 
       await viewModel.save();
 
@@ -110,9 +111,9 @@ void main() {
     test('save transitions through saving state before completing', () async {
       final statuses = <PositionFormStatus>[];
       viewModel.addListener(() => statuses.add(viewModel.status));
-      viewModel.setName('Gerente');
-      viewModel.setDescription('Desc');
-      viewModel.setCbo('123456');
+      viewModel.nameController.text = 'Gerente';
+      viewModel.descriptionController.text = 'Desc';
+      viewModel.cboController.text = '123456';
 
       await viewModel.save();
 

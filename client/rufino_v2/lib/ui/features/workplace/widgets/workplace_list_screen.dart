@@ -68,7 +68,9 @@ class _WorkplaceListScreenState extends State<WorkplaceListScreen> {
           return RefreshIndicator(
             onRefresh: widget.viewModel.loadWorkplaces,
             child: ListView.separated(
-              padding: const EdgeInsets.all(AppSpacing.md),
+              padding: const EdgeInsets.fromLTRB(
+                AppSpacing.md, AppSpacing.md, AppSpacing.md, AppSpacing.md + 80,
+              ),
               itemCount: widget.viewModel.workplaces.length,
               separatorBuilder: (_, __) =>
                   const SizedBox(height: AppSpacing.sm),

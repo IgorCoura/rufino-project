@@ -1,4 +1,4 @@
-import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart';
 
 import '../../../../domain/repositories/company_repository.dart';
 import '../../../../domain/repositories/department_repository.dart';
@@ -23,17 +23,27 @@ class PositionFormViewModel extends ChangeNotifier {
   final DepartmentRepository _departmentRepository;
   final String _departmentId;
 
+  // ─── TextEditingControllers owned by this ViewModel ────────────────────────
+
+  /// Controller for the position name field.
+  final nameController = TextEditingController();
+
+  /// Controller for the position description field.
+  final descriptionController = TextEditingController();
+
+  /// Controller for the CBO code field.
+  final cboController = TextEditingController();
+
+  // ─── State ─────────────────────────────────────────────────────────────────
+
   String _id = '';
-  String _name = '';
-  String _description = '';
-  String _cbo = '';
   PositionFormStatus _status = PositionFormStatus.idle;
   String? _errorMessage;
 
+  /// The id of the position being edited, empty when creating a new one.
   String get id => _id;
-  String get name => _name;
-  String get description => _description;
-  String get cbo => _cbo;
+
+  /// Current status of the form operation.
   PositionFormStatus get status => _status;
 
   /// Whether the form is currently loading existing data from the API.
@@ -48,19 +58,32 @@ class PositionFormViewModel extends ChangeNotifier {
   /// Human-readable error message set when [status] is [PositionFormStatus.error].
   String? get errorMessage => _errorMessage;
 
-  void setName(String v) {
-    _name = v;
+  // ─── Validators ────────────────────────────────────────────────────────────
+
+  /// Validates the position name: required, max 100 characters.
+  String? validateName(String? v) {
+    if (v == null || v.isEmpty) return 'Não pode ser vazio.';
+    if (v.length > 100) return 'Não pode ser maior que 100 caracteres.';
+    return null;
   }
 
-  void setDescription(String v) {
-    _description = v;
+  /// Validates the position description: required, max 2000 characters.
+  String? validateDescription(String? v) {
+    if (v == null || v.isEmpty) return 'Não pode ser vazio.';
+    if (v.length > 2000) return 'Não pode ser maior que 2000 caracteres.';
+    return null;
   }
 
-  void setCbo(String v) {
-    _cbo = v;
+  /// Validates the CBO code: required, max 6 characters.
+  String? validateCbo(String? v) {
+    if (v == null || v.isEmpty) return 'Não pode ser vazio.';
+    if (v.length > 6) return 'Não pode ser maior que 6 caracteres.';
+    return null;
   }
 
-  /// Loads an existing position by [positionId] and populates the form fields.
+  // ─── Operations ────────────────────────────────────────────────────────────
+
+  /// Loads an existing position by [positionId] and populates the form controllers.
   Future<void> loadPosition(String positionId) async {
     if (positionId.isEmpty) return;
 
@@ -68,24 +91,27 @@ class PositionFormViewModel extends ChangeNotifier {
     _status = PositionFormStatus.loading;
     notifyListeners();
 
-    final companyResult = await _companyRepository.getSelectedCompany();
-    final companyId = companyResult.valueOrNull?.id ?? '';
+    try {
+      final companyResult = await _companyRepository.getSelectedCompany();
+      final companyId = companyResult.valueOrNull?.id ?? '';
 
-    final result =
-        await _departmentRepository.getPositionById(companyId, positionId);
-    result.fold(
-      onSuccess: (position) {
-        _name = position.name;
-        _description = position.description;
-        _cbo = position.cbo;
-        _status = PositionFormStatus.idle;
-      },
-      onError: (_) {
-        _status = PositionFormStatus.error;
-        _errorMessage = 'Falha ao carregar dados do cargo.';
-      },
-    );
-    notifyListeners();
+      final result =
+          await _departmentRepository.getPositionById(companyId, positionId);
+      result.fold(
+        onSuccess: (position) {
+          nameController.text = position.name;
+          descriptionController.text = position.description;
+          cboController.text = position.cbo;
+          _status = PositionFormStatus.idle;
+        },
+        onError: (_) {
+          _status = PositionFormStatus.error;
+          _errorMessage = 'Falha ao carregar dados do cargo.';
+        },
+      );
+    } finally {
+      notifyListeners();
+    }
   }
 
   /// Validates and submits the form, creating or updating a position.
@@ -97,32 +123,44 @@ class PositionFormViewModel extends ChangeNotifier {
     _errorMessage = null;
     notifyListeners();
 
-    final companyResult = await _companyRepository.getSelectedCompany();
-    final companyId = companyResult.valueOrNull?.id ?? '';
+    try {
+      final companyResult = await _companyRepository.getSelectedCompany();
+      final companyId = companyResult.valueOrNull?.id ?? '';
 
-    final result = _id.isEmpty
-        ? await _departmentRepository.createPosition(
-            companyId,
-            _departmentId,
-            name: _name,
-            description: _description,
-            cbo: _cbo,
-          )
-        : await _departmentRepository.updatePosition(
-            companyId,
-            id: _id,
-            name: _name,
-            description: _description,
-            cbo: _cbo,
-          );
+      final result = _id.isEmpty
+          ? await _departmentRepository.createPosition(
+              companyId,
+              _departmentId,
+              name: nameController.text,
+              description: descriptionController.text,
+              cbo: cboController.text,
+            )
+          : await _departmentRepository.updatePosition(
+              companyId,
+              id: _id,
+              name: nameController.text,
+              description: descriptionController.text,
+              cbo: cboController.text,
+            );
 
-    result.fold(
-      onSuccess: (_) => _status = PositionFormStatus.saved,
-      onError: (_) {
-        _status = PositionFormStatus.error;
-        _errorMessage = 'Falha ao salvar cargo. Verifique os dados e tente novamente.';
-      },
-    );
-    notifyListeners();
+      result.fold(
+        onSuccess: (_) => _status = PositionFormStatus.saved,
+        onError: (_) {
+          _status = PositionFormStatus.error;
+          _errorMessage =
+              'Falha ao salvar cargo. Verifique os dados e tente novamente.';
+        },
+      );
+    } finally {
+      notifyListeners();
+    }
+  }
+
+  @override
+  void dispose() {
+    nameController.dispose();
+    descriptionController.dispose();
+    cboController.dispose();
+    super.dispose();
   }
 }

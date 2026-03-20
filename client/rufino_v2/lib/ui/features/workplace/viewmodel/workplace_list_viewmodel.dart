@@ -1,3 +1,5 @@
+import 'dart:collection';
+
 import 'package:flutter/foundation.dart';
 
 import '../../../../domain/entities/workplace.dart';
@@ -26,7 +28,8 @@ class WorkplaceListViewModel extends ChangeNotifier {
   String? _errorMessage;
 
   /// The workplaces loaded from the API, empty while loading or on error.
-  List<Workplace> get workplaces => _workplaces;
+  UnmodifiableListView<Workplace> get workplaces =>
+      UnmodifiableListView(_workplaces);
 
   /// Whether the list is currently being fetched.
   bool get isLoading => _status == WorkplaceListStatus.loading;
@@ -43,28 +46,30 @@ class WorkplaceListViewModel extends ChangeNotifier {
     _errorMessage = null;
     notifyListeners();
 
-    final companyResult = await _companyRepository.getSelectedCompany();
-    final companyId = companyResult.valueOrNull?.id;
+    try {
+      final companyResult = await _companyRepository.getSelectedCompany();
+      final companyId = companyResult.valueOrNull?.id;
 
-    if (companyId == null) {
-      _status = WorkplaceListStatus.error;
-      _errorMessage = 'Nenhuma empresa selecionada.';
-      notifyListeners();
-      return;
-    }
-
-    final result = await _workplaceRepository.getWorkplaces(companyId);
-    result.fold(
-      onSuccess: (data) {
-        _workplaces = data;
-        _status = WorkplaceListStatus.idle;
-      },
-      onError: (_) {
-        _workplaces = [];
+      if (companyId == null) {
         _status = WorkplaceListStatus.error;
-        _errorMessage = 'Falha ao carregar locais de trabalho.';
-      },
-    );
-    notifyListeners();
+        _errorMessage = 'Nenhuma empresa selecionada.';
+        return;
+      }
+
+      final result = await _workplaceRepository.getWorkplaces(companyId);
+      result.fold(
+        onSuccess: (data) {
+          _workplaces = data;
+          _status = WorkplaceListStatus.idle;
+        },
+        onError: (_) {
+          _workplaces = [];
+          _status = WorkplaceListStatus.error;
+          _errorMessage = 'Falha ao carregar locais de trabalho.';
+        },
+      );
+    } finally {
+      notifyListeners();
+    }
   }
 }

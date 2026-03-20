@@ -26,41 +26,23 @@ class PositionFormScreen extends StatefulWidget {
 
 class _PositionFormScreenState extends State<PositionFormScreen> {
   final _formKey = GlobalKey<FormState>();
-  late final TextEditingController _nameController;
-  late final TextEditingController _descriptionController;
-  late final TextEditingController _cboController;
 
   @override
   void initState() {
     super.initState();
-    _nameController = TextEditingController();
-    _descriptionController = TextEditingController();
-    _cboController = TextEditingController();
-    widget.viewModel.addListener(_onStatusChanged);
-
+    widget.viewModel.addListener(_onViewModelChanged);
     if (widget.positionId != null) {
-      widget.viewModel
-          .loadPosition(widget.positionId!)
-          .then((_) => _syncControllers());
+      widget.viewModel.loadPosition(widget.positionId!);
     }
-  }
-
-  void _syncControllers() {
-    _nameController.text = widget.viewModel.name;
-    _descriptionController.text = widget.viewModel.description;
-    _cboController.text = widget.viewModel.cbo;
   }
 
   @override
   void dispose() {
-    _nameController.dispose();
-    _descriptionController.dispose();
-    _cboController.dispose();
-    widget.viewModel.removeListener(_onStatusChanged);
+    widget.viewModel.removeListener(_onViewModelChanged);
     super.dispose();
   }
 
-  void _onStatusChanged() {
+  void _onViewModelChanged() {
     if (!mounted) return;
     switch (widget.viewModel.status) {
       case PositionFormStatus.saved:
@@ -88,9 +70,6 @@ class _PositionFormScreenState extends State<PositionFormScreen> {
 
   void _onSave() {
     if (!(_formKey.currentState?.validate() ?? false)) return;
-    widget.viewModel.setName(_nameController.text);
-    widget.viewModel.setDescription(_descriptionController.text);
-    widget.viewModel.setCbo(_cboController.text);
     widget.viewModel.save();
   }
 
@@ -112,11 +91,8 @@ class _PositionFormScreenState extends State<PositionFormScreen> {
             return const Center(child: CircularProgressIndicator());
           }
           return _PositionFormBody(
+            viewModel: widget.viewModel,
             formKey: _formKey,
-            nameController: _nameController,
-            descriptionController: _descriptionController,
-            cboController: _cboController,
-            isSaving: widget.viewModel.isSaving,
             onSave: _onSave,
             onCancel: () => context.go('/department'),
           );
@@ -128,20 +104,14 @@ class _PositionFormScreenState extends State<PositionFormScreen> {
 
 class _PositionFormBody extends StatelessWidget {
   const _PositionFormBody({
+    required this.viewModel,
     required this.formKey,
-    required this.nameController,
-    required this.descriptionController,
-    required this.cboController,
-    required this.isSaving,
     required this.onSave,
     required this.onCancel,
   });
 
+  final PositionFormViewModel viewModel;
   final GlobalKey<FormState> formKey;
-  final TextEditingController nameController;
-  final TextEditingController descriptionController;
-  final TextEditingController cboController;
-  final bool isSaving;
   final VoidCallback onSave;
   final VoidCallback onCancel;
 
@@ -163,22 +133,16 @@ class _PositionFormBody extends StatelessWidget {
                 ),
                 const SizedBox(height: AppSpacing.md),
                 TextFormField(
-                  controller: nameController,
+                  controller: viewModel.nameController,
                   decoration: const InputDecoration(
                     labelText: 'Nome',
                     border: OutlineInputBorder(),
                   ),
-                  validator: (v) {
-                    if (v == null || v.isEmpty) return 'Não pode ser vazio.';
-                    if (v.length > 100) {
-                      return 'Não pode ser maior que 100 caracteres.';
-                    }
-                    return null;
-                  },
+                  validator: viewModel.validateName,
                 ),
                 const SizedBox(height: AppSpacing.md),
                 TextFormField(
-                  controller: descriptionController,
+                  controller: viewModel.descriptionController,
                   decoration: const InputDecoration(
                     labelText: 'Descrição',
                     border: OutlineInputBorder(),
@@ -186,35 +150,24 @@ class _PositionFormBody extends StatelessWidget {
                   minLines: 3,
                   maxLines: null,
                   keyboardType: TextInputType.multiline,
-                  validator: (v) {
-                    if (v == null || v.isEmpty) return 'Não pode ser vazio.';
-                    if (v.length > 2000) {
-                      return 'Não pode ser maior que 2000 caracteres.';
-                    }
-                    return null;
-                  },
+                  validator: viewModel.validateDescription,
                 ),
                 const SizedBox(height: AppSpacing.md),
                 TextFormField(
-                  controller: cboController,
+                  controller: viewModel.cboController,
                   decoration: const InputDecoration(
                     labelText: 'CBO',
                     border: OutlineInputBorder(),
-                    helperText: 'Código Brasileiro de Ocupações (máx. 6 caracteres)',
+                    helperText:
+                        'Código Brasileiro de Ocupações (máx. 6 caracteres)',
                   ),
                   maxLength: 6,
                   keyboardType: TextInputType.number,
-                  validator: (v) {
-                    if (v == null || v.isEmpty) return 'Não pode ser vazio.';
-                    if (v.length > 6) {
-                      return 'Não pode ser maior que 6 caracteres.';
-                    }
-                    return null;
-                  },
+                  validator: viewModel.validateCbo,
                 ),
                 const SizedBox(height: AppSpacing.xl),
                 _FormActions(
-                  isSaving: isSaving,
+                  isSaving: viewModel.isSaving,
                   onSave: onSave,
                   onCancel: onCancel,
                 ),

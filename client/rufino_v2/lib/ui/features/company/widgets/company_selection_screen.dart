@@ -55,7 +55,9 @@ class _CompanySelectionScreenState extends State<CompanySelectionScreen> {
       body: SafeArea(
         child: Center(
           child: Padding(
-            padding: const EdgeInsets.all(AppSpacing.md),
+            padding: const EdgeInsets.fromLTRB(
+              AppSpacing.md, AppSpacing.md, AppSpacing.md, AppSpacing.md + 72,
+            ),
             child: ListenableBuilder(
               listenable: widget.viewModel,
               builder: (context, _) {

@@ -77,14 +77,15 @@ void main() {
       await viewModel.initialize(roleId: 'role-1');
 
       expect(viewModel.isNew, false);
-      expect(viewModel.name, 'Analista Jr');
-      expect(viewModel.cbo, '123456');
+      expect(viewModel.nameController.text, 'Analista Jr');
+      expect(viewModel.cboController.text, '123456');
       expect(viewModel.paymentUnitId, '5');
       expect(viewModel.salaryTypeId, '1');
-      expect(viewModel.baseSalaryValue, '3500.00');
+      expect(viewModel.salaryValueController.text, '3500.00');
     });
 
-    test('initialize transitions to error when lookup data fetch fails', () async {
+    test('initialize transitions to error when lookup data fetch fails',
+        () async {
       departmentRepository.setShouldFail(true);
 
       await viewModel.initialize();
@@ -95,13 +96,13 @@ void main() {
 
     test('save for new role transitions to saved and calls createRole', () async {
       await viewModel.initialize();
-      viewModel.setName('Dev Jr');
-      viewModel.setDescription('Desenvolvedor júnior');
-      viewModel.setCbo('317110');
+      viewModel.nameController.text = 'Dev Jr';
+      viewModel.descriptionController.text = 'Desenvolvedor júnior';
+      viewModel.cboController.text = '317110';
       viewModel.setPaymentUnitId('5');
       viewModel.setSalaryTypeId('1');
-      viewModel.setBaseSalaryValue('4000.00');
-      viewModel.setRemunerationDescription('Salário fixo');
+      viewModel.salaryValueController.text = '4000.00';
+      viewModel.remunerationDescriptionController.text = 'Salário fixo';
 
       await viewModel.save();
 
@@ -113,7 +114,7 @@ void main() {
       departmentRepository.setRole(_fakeRole);
       await viewModel.initialize(roleId: 'role-1');
 
-      viewModel.setName('Analista Pleno');
+      viewModel.nameController.text = 'Analista Pleno';
 
       await viewModel.save();
 
@@ -121,19 +122,17 @@ void main() {
     });
 
     test('save transitions to error when repository fails', () async {
-      // Initialize succeeds with default setUp (shouldFail is false)
       await viewModel.initialize();
 
-      // Now make the repository fail only for the save call
       departmentRepository.setShouldFail(true);
 
-      viewModel.setName('Dev');
-      viewModel.setDescription('Desc');
-      viewModel.setCbo('123456');
+      viewModel.nameController.text = 'Dev';
+      viewModel.descriptionController.text = 'Desc';
+      viewModel.cboController.text = '123456';
       viewModel.setPaymentUnitId('5');
       viewModel.setSalaryTypeId('1');
-      viewModel.setBaseSalaryValue('3000.00');
-      viewModel.setRemunerationDescription('Desc remuneração');
+      viewModel.salaryValueController.text = '3000.00';
+      viewModel.remunerationDescriptionController.text = 'Desc remuneração';
 
       await viewModel.save();
 
@@ -159,13 +158,13 @@ void main() {
       final statuses = <RoleFormStatus>[];
       viewModel.addListener(() => statuses.add(viewModel.status));
 
-      viewModel.setName('Dev');
-      viewModel.setDescription('Desc');
-      viewModel.setCbo('123456');
+      viewModel.nameController.text = 'Dev';
+      viewModel.descriptionController.text = 'Desc';
+      viewModel.cboController.text = '123456';
       viewModel.setPaymentUnitId('5');
       viewModel.setSalaryTypeId('1');
-      viewModel.setBaseSalaryValue('3000.00');
-      viewModel.setRemunerationDescription('Desc');
+      viewModel.salaryValueController.text = '3000.00';
+      viewModel.remunerationDescriptionController.text = 'Desc';
 
       await viewModel.save();
 

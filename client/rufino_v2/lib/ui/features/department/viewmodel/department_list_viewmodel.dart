@@ -1,3 +1,5 @@
+import 'dart:collection';
+
 import 'package:flutter/foundation.dart';
 
 import '../../../../domain/entities/department.dart';
@@ -26,7 +28,8 @@ class DepartmentListViewModel extends ChangeNotifier {
   String? _errorMessage;
 
   /// The departments loaded from the API, empty while loading or on error.
-  List<Department> get departments => _departments;
+  UnmodifiableListView<Department> get departments =>
+      UnmodifiableListView(_departments);
 
   /// Whether the list is currently being fetched.
   bool get isLoading => _status == DepartmentListStatus.loading;
@@ -43,28 +46,30 @@ class DepartmentListViewModel extends ChangeNotifier {
     _errorMessage = null;
     notifyListeners();
 
-    final companyResult = await _companyRepository.getSelectedCompany();
-    final companyId = companyResult.valueOrNull?.id;
+    try {
+      final companyResult = await _companyRepository.getSelectedCompany();
+      final companyId = companyResult.valueOrNull?.id;
 
-    if (companyId == null) {
-      _status = DepartmentListStatus.error;
-      _errorMessage = 'Nenhuma empresa selecionada.';
-      notifyListeners();
-      return;
-    }
-
-    final result = await _departmentRepository.getDepartments(companyId);
-    result.fold(
-      onSuccess: (data) {
-        _departments = data;
-        _status = DepartmentListStatus.idle;
-      },
-      onError: (_) {
-        _departments = [];
+      if (companyId == null) {
         _status = DepartmentListStatus.error;
-        _errorMessage = 'Falha ao carregar setores.';
-      },
-    );
-    notifyListeners();
+        _errorMessage = 'Nenhuma empresa selecionada.';
+        return;
+      }
+
+      final result = await _departmentRepository.getDepartments(companyId);
+      result.fold(
+        onSuccess: (data) {
+          _departments = data;
+          _status = DepartmentListStatus.idle;
+        },
+        onError: (_) {
+          _departments = [];
+          _status = DepartmentListStatus.error;
+          _errorMessage = 'Falha ao carregar setores.';
+        },
+      );
+    } finally {
+      notifyListeners();
+    }
   }
 }
