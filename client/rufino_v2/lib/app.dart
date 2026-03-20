@@ -11,10 +11,16 @@ import 'core/theme/app_theme.dart';
 import 'core/theme/theme_notifier.dart';
 import 'data/repositories/auth_repository_impl.dart';
 import 'data/repositories/company_repository_impl.dart';
+import 'data/repositories/department_repository_impl.dart';
+import 'data/repositories/workplace_repository_impl.dart';
 import 'data/services/auth_api_service.dart';
 import 'data/services/company_api_service.dart';
+import 'data/services/department_api_service.dart';
+import 'data/services/workplace_api_service.dart';
 import 'domain/repositories/auth_repository.dart';
 import 'domain/repositories/company_repository.dart';
+import 'domain/repositories/department_repository.dart';
+import 'domain/repositories/workplace_repository.dart';
 import 'ui/features/auth/viewmodel/login_viewmodel.dart';
 import 'ui/features/auth/viewmodel/splash_viewmodel.dart';
 import 'ui/features/auth/widgets/login_screen.dart';
@@ -23,8 +29,20 @@ import 'ui/features/company/viewmodel/company_form_viewmodel.dart';
 import 'ui/features/company/viewmodel/company_selection_viewmodel.dart';
 import 'ui/features/company/widgets/company_form_screen.dart';
 import 'ui/features/company/widgets/company_selection_screen.dart';
+import 'ui/features/department/viewmodel/department_form_viewmodel.dart';
+import 'ui/features/department/viewmodel/department_list_viewmodel.dart';
+import 'ui/features/department/viewmodel/position_form_viewmodel.dart';
+import 'ui/features/department/viewmodel/role_form_viewmodel.dart';
+import 'ui/features/department/widgets/department_form_screen.dart';
+import 'ui/features/department/widgets/department_list_screen.dart';
+import 'ui/features/department/widgets/position_form_screen.dart';
+import 'ui/features/department/widgets/role_form_screen.dart';
 import 'ui/features/home/viewmodel/home_viewmodel.dart';
 import 'ui/features/home/widgets/home_screen.dart';
+import 'ui/features/workplace/viewmodel/workplace_form_viewmodel.dart';
+import 'ui/features/workplace/viewmodel/workplace_list_viewmodel.dart';
+import 'ui/features/workplace/widgets/workplace_form_screen.dart';
+import 'ui/features/workplace/widgets/workplace_list_screen.dart';
 
 class App extends StatelessWidget {
   const App({super.key});
@@ -57,6 +75,12 @@ class App extends StatelessWidget {
       getAuthHeader: authApiService.getAuthorizationHeader,
     );
 
+    final departmentApiService = DepartmentApiService(
+      client: httpClient,
+      baseUrl: AppConfig.peopleManagementUrl,
+      getAuthHeader: authApiService.getAuthorizationHeader,
+    );
+
     // Repositories
     final AuthRepository authRepository = AuthRepositoryImpl(
       authApiService: authApiService,
@@ -65,11 +89,25 @@ class App extends StatelessWidget {
       companyApiService: companyApiService,
       storage: secureStorage,
     );
+    final DepartmentRepository departmentRepository = DepartmentRepositoryImpl(
+      apiService: departmentApiService,
+    );
+
+    final workplaceApiService = WorkplaceApiService(
+      client: httpClient,
+      baseUrl: AppConfig.peopleManagementUrl,
+      getAuthHeader: authApiService.getAuthorizationHeader,
+    );
+    final WorkplaceRepository workplaceRepository = WorkplaceRepositoryImpl(
+      apiService: workplaceApiService,
+    );
 
     return [
       ChangeNotifierProvider(create: (_) => ThemeNotifier()),
       Provider<AuthRepository>.value(value: authRepository),
       Provider<CompanyRepository>.value(value: companyRepository),
+      Provider<DepartmentRepository>.value(value: departmentRepository),
+      Provider<WorkplaceRepository>.value(value: workplaceRepository),
     ];
   }
 }
@@ -140,6 +178,112 @@ class _AppRouterState extends State<_AppRouter> {
             ),
           ),
         ),
+
+        // ─── Department ───────────────────────────────────────────────────
+        GoRoute(
+          path: '/department',
+          builder: (context, state) => DepartmentListScreen(
+            viewModel: DepartmentListViewModel(
+              companyRepository: context.read<CompanyRepository>(),
+              departmentRepository: context.read<DepartmentRepository>(),
+            ),
+          ),
+        ),
+        GoRoute(
+          path: '/department/create',
+          builder: (context, state) => DepartmentFormScreen(
+            viewModel: DepartmentFormViewModel(
+              companyRepository: context.read<CompanyRepository>(),
+              departmentRepository: context.read<DepartmentRepository>(),
+            ),
+          ),
+        ),
+        GoRoute(
+          path: '/department/edit/:id',
+          builder: (context, state) => DepartmentFormScreen(
+            viewModel: DepartmentFormViewModel(
+              companyRepository: context.read<CompanyRepository>(),
+              departmentRepository: context.read<DepartmentRepository>(),
+            ),
+            departmentId: state.pathParameters['id'],
+          ),
+        ),
+
+        // ─── Position ─────────────────────────────────────────────────────
+        GoRoute(
+          path: '/department/position/create/:departmentId',
+          builder: (context, state) => PositionFormScreen(
+            viewModel: PositionFormViewModel(
+              companyRepository: context.read<CompanyRepository>(),
+              departmentRepository: context.read<DepartmentRepository>(),
+              departmentId: state.pathParameters['departmentId']!,
+            ),
+          ),
+        ),
+        GoRoute(
+          path: '/department/position/edit/:departmentId/:id',
+          builder: (context, state) => PositionFormScreen(
+            viewModel: PositionFormViewModel(
+              companyRepository: context.read<CompanyRepository>(),
+              departmentRepository: context.read<DepartmentRepository>(),
+              departmentId: state.pathParameters['departmentId']!,
+            ),
+            positionId: state.pathParameters['id'],
+          ),
+        ),
+
+        // ─── Role ─────────────────────────────────────────────────────────
+        GoRoute(
+          path: '/department/role/create/:positionId',
+          builder: (context, state) => RoleFormScreen(
+            viewModel: RoleFormViewModel(
+              companyRepository: context.read<CompanyRepository>(),
+              departmentRepository: context.read<DepartmentRepository>(),
+              positionId: state.pathParameters['positionId']!,
+            ),
+          ),
+        ),
+        GoRoute(
+          path: '/department/role/edit/:positionId/:id',
+          builder: (context, state) => RoleFormScreen(
+            viewModel: RoleFormViewModel(
+              companyRepository: context.read<CompanyRepository>(),
+              departmentRepository: context.read<DepartmentRepository>(),
+              positionId: state.pathParameters['positionId']!,
+            ),
+            roleId: state.pathParameters['id'],
+          ),
+        ),
+
+        // ─── Workplace ────────────────────────────────────────────────────
+        GoRoute(
+          path: '/workplace',
+          builder: (context, state) => WorkplaceListScreen(
+            viewModel: WorkplaceListViewModel(
+              companyRepository: context.read<CompanyRepository>(),
+              workplaceRepository: context.read<WorkplaceRepository>(),
+            ),
+          ),
+        ),
+        GoRoute(
+          path: '/workplace/create',
+          builder: (context, state) => WorkplaceFormScreen(
+            viewModel: WorkplaceFormViewModel(
+              companyRepository: context.read<CompanyRepository>(),
+              workplaceRepository: context.read<WorkplaceRepository>(),
+            ),
+          ),
+        ),
+        GoRoute(
+          path: '/workplace/edit/:id',
+          builder: (context, state) => WorkplaceFormScreen(
+            viewModel: WorkplaceFormViewModel(
+              companyRepository: context.read<CompanyRepository>(),
+              workplaceRepository: context.read<WorkplaceRepository>(),
+            ),
+            workplaceId: state.pathParameters['id'],
+          ),
+        ),
       ],
     );
   }
@@ -148,6 +292,7 @@ class _AppRouterState extends State<_AppRouter> {
   Widget build(BuildContext context) {
     final themeMode = context.watch<ThemeNotifier>().mode;
     return MaterialApp.router(
+      debugShowCheckedModeBanner: false,
       title: 'Rufino',
       theme: AppTheme.light(),
       darkTheme: AppTheme.dark(),

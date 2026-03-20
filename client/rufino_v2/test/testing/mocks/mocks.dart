@@ -1,6 +1,10 @@
 import 'package:mocktail/mocktail.dart';
 import 'package:rufino_v2/domain/repositories/auth_repository.dart';
 import 'package:rufino_v2/domain/repositories/company_repository.dart';
+import 'package:rufino_v2/domain/repositories/department_repository.dart';
+import 'package:rufino_v2/domain/repositories/workplace_repository.dart';
 
 class MockAuthRepository extends Mock implements AuthRepository {}
 class MockCompanyRepository extends Mock implements CompanyRepository {}
+class MockDepartmentRepository extends Mock implements DepartmentRepository {}
+class MockWorkplaceRepository extends Mock implements WorkplaceRepository {}
