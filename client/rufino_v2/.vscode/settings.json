@@ -1,0 +1,18 @@
+{
+    "chat.mcp.discovery.enabled": {
+        "claude-desktop": false,
+        "windsurf": false,
+        "cursor-global": false,
+        "cursor-workspace": false
+    },
+    "mcp.servers": {
+        "postgres-rufino": {
+            "command": "npx",
+            "args": [
+                "-y",
+                "@modelcontextprotocol/server-postgres",
+                "postgresql://rufinodb:b307ae7e-1d60-4792-89cb-ebb2b81ed5c7@rufino-db.postgres.database.azure.com:5432/PeopleManagementDb"
+            ]
+        }
+    }
+}
