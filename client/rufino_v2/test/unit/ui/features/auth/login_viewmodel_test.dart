@@ -27,8 +27,8 @@ void main() {
       when(() => mockRepository.login(username: any(named: 'username'), password: any(named: 'password')))
           .thenAnswer((_) async => const Result.success(null));
 
-      viewModel.onUsernameChanged('user');
-      viewModel.onPasswordChanged('password');
+      viewModel.usernameController.text = 'user';
+      viewModel.passwordController.text = 'password';
 
       final statuses = <LoginStatus>[];
       viewModel.addListener(() => statuses.add(viewModel.status));
@@ -43,8 +43,8 @@ void main() {
       when(() => mockRepository.login(username: any(named: 'username'), password: any(named: 'password')))
           .thenAnswer((_) async => Result.error(Exception('auth error')));
 
-      viewModel.onUsernameChanged('user');
-      viewModel.onPasswordChanged('wrong');
+      viewModel.usernameController.text = 'user';
+      viewModel.passwordController.text = 'wrong';
 
       await viewModel.submit();
 
@@ -62,8 +62,8 @@ void main() {
       when(() => mockRepository.login(username: any(named: 'username'), password: any(named: 'password')))
           .thenAnswer((_) async => Result.error(Exception('error')));
 
-      viewModel.onUsernameChanged('user');
-      viewModel.onPasswordChanged('pass');
+      viewModel.usernameController.text = 'user';
+      viewModel.passwordController.text = 'pass';
       await viewModel.submit();
 
       expect(viewModel.status, LoginStatus.failure);

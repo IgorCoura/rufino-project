@@ -27,48 +27,21 @@ class RoleFormScreen extends StatefulWidget {
 
 class _RoleFormScreenState extends State<RoleFormScreen> {
   final _formKey = GlobalKey<FormState>();
-  late final TextEditingController _nameController;
-  late final TextEditingController _descriptionController;
-  late final TextEditingController _cboController;
-  late final TextEditingController _salaryValueController;
-  late final TextEditingController _remunerationDescriptionController;
 
   @override
   void initState() {
     super.initState();
-    _nameController = TextEditingController();
-    _descriptionController = TextEditingController();
-    _cboController = TextEditingController();
-    _salaryValueController = TextEditingController();
-    _remunerationDescriptionController = TextEditingController();
-
-    widget.viewModel.addListener(_onStatusChanged);
-    widget.viewModel
-        .initialize(roleId: widget.roleId)
-        .then((_) => _syncControllers());
-  }
-
-  void _syncControllers() {
-    _nameController.text = widget.viewModel.name;
-    _descriptionController.text = widget.viewModel.description;
-    _cboController.text = widget.viewModel.cbo;
-    _salaryValueController.text = widget.viewModel.baseSalaryValue;
-    _remunerationDescriptionController.text =
-        widget.viewModel.remunerationDescription;
+    widget.viewModel.addListener(_onViewModelChanged);
+    widget.viewModel.initialize(roleId: widget.roleId);
   }
 
   @override
   void dispose() {
-    _nameController.dispose();
-    _descriptionController.dispose();
-    _cboController.dispose();
-    _salaryValueController.dispose();
-    _remunerationDescriptionController.dispose();
-    widget.viewModel.removeListener(_onStatusChanged);
+    widget.viewModel.removeListener(_onViewModelChanged);
     super.dispose();
   }
 
-  void _onStatusChanged() {
+  void _onViewModelChanged() {
     if (!mounted) return;
     switch (widget.viewModel.status) {
       case RoleFormStatus.saved:
@@ -96,12 +69,6 @@ class _RoleFormScreenState extends State<RoleFormScreen> {
 
   void _onSave() {
     if (!(_formKey.currentState?.validate() ?? false)) return;
-    widget.viewModel.setName(_nameController.text);
-    widget.viewModel.setDescription(_descriptionController.text);
-    widget.viewModel.setCbo(_cboController.text);
-    widget.viewModel.setBaseSalaryValue(_salaryValueController.text);
-    widget.viewModel.setRemunerationDescription(
-        _remunerationDescriptionController.text);
     widget.viewModel.save();
   }
 
@@ -123,15 +90,8 @@ class _RoleFormScreenState extends State<RoleFormScreen> {
             return const Center(child: CircularProgressIndicator());
           }
           return _RoleFormBody(
-            formKey: _formKey,
-            nameController: _nameController,
-            descriptionController: _descriptionController,
-            cboController: _cboController,
-            salaryValueController: _salaryValueController,
-            remunerationDescriptionController:
-                _remunerationDescriptionController,
             viewModel: widget.viewModel,
-            isSaving: widget.viewModel.isSaving,
+            formKey: _formKey,
             onSave: _onSave,
             onCancel: () => context.go('/department'),
           );
@@ -143,26 +103,14 @@ class _RoleFormScreenState extends State<RoleFormScreen> {
 
 class _RoleFormBody extends StatelessWidget {
   const _RoleFormBody({
-    required this.formKey,
-    required this.nameController,
-    required this.descriptionController,
-    required this.cboController,
-    required this.salaryValueController,
-    required this.remunerationDescriptionController,
     required this.viewModel,
-    required this.isSaving,
+    required this.formKey,
     required this.onSave,
     required this.onCancel,
   });
 
-  final GlobalKey<FormState> formKey;
-  final TextEditingController nameController;
-  final TextEditingController descriptionController;
-  final TextEditingController cboController;
-  final TextEditingController salaryValueController;
-  final TextEditingController remunerationDescriptionController;
   final RoleFormViewModel viewModel;
-  final bool isSaving;
+  final GlobalKey<FormState> formKey;
   final VoidCallback onSave;
   final VoidCallback onCancel;
 
@@ -184,22 +132,16 @@ class _RoleFormBody extends StatelessWidget {
                 ),
                 const SizedBox(height: AppSpacing.md),
                 TextFormField(
-                  controller: nameController,
+                  controller: viewModel.nameController,
                   decoration: const InputDecoration(
                     labelText: 'Nome',
                     border: OutlineInputBorder(),
                   ),
-                  validator: (v) {
-                    if (v == null || v.isEmpty) return 'Não pode ser vazio.';
-                    if (v.length > 100) {
-                      return 'Não pode ser maior que 100 caracteres.';
-                    }
-                    return null;
-                  },
+                  validator: viewModel.validateName,
                 ),
                 const SizedBox(height: AppSpacing.md),
                 TextFormField(
-                  controller: descriptionController,
+                  controller: viewModel.descriptionController,
                   decoration: const InputDecoration(
                     labelText: 'Descrição',
                     border: OutlineInputBorder(),
@@ -207,17 +149,11 @@ class _RoleFormBody extends StatelessWidget {
                   minLines: 3,
                   maxLines: null,
                   keyboardType: TextInputType.multiline,
-                  validator: (v) {
-                    if (v == null || v.isEmpty) return 'Não pode ser vazio.';
-                    if (v.length > 2000) {
-                      return 'Não pode ser maior que 2000 caracteres.';
-                    }
-                    return null;
-                  },
+                  validator: viewModel.validateDescription,
                 ),
                 const SizedBox(height: AppSpacing.md),
                 TextFormField(
-                  controller: cboController,
+                  controller: viewModel.cboController,
                   decoration: const InputDecoration(
                     labelText: 'CBO',
                     border: OutlineInputBorder(),
@@ -226,24 +162,15 @@ class _RoleFormBody extends StatelessWidget {
                   ),
                   maxLength: 6,
                   keyboardType: TextInputType.number,
-                  validator: (v) {
-                    if (v == null || v.isEmpty) return 'Não pode ser vazio.';
-                    if (v.length > 6) {
-                      return 'Não pode ser maior que 6 caracteres.';
-                    }
-                    return null;
-                  },
+                  validator: viewModel.validateCbo,
                 ),
                 const SizedBox(height: AppSpacing.lg),
                 _RemunerationSection(
-                  salaryValueController: salaryValueController,
-                  remunerationDescriptionController:
-                      remunerationDescriptionController,
                   viewModel: viewModel,
                 ),
                 const SizedBox(height: AppSpacing.xl),
                 _FormActions(
-                  isSaving: isSaving,
+                  isSaving: viewModel.isSaving,
                   onSave: onSave,
                   onCancel: onCancel,
                 ),
@@ -257,14 +184,8 @@ class _RoleFormBody extends StatelessWidget {
 }
 
 class _RemunerationSection extends StatelessWidget {
-  const _RemunerationSection({
-    required this.salaryValueController,
-    required this.remunerationDescriptionController,
-    required this.viewModel,
-  });
+  const _RemunerationSection({required this.viewModel});
 
-  final TextEditingController salaryValueController;
-  final TextEditingController remunerationDescriptionController;
   final RoleFormViewModel viewModel;
 
   @override
@@ -291,25 +212,18 @@ class _RemunerationSection extends StatelessWidget {
           onChanged: (v) {
             if (v != null) viewModel.setPaymentUnitId(v);
           },
-          validator: (v) =>
-              (v == null || v.isEmpty) ? 'Selecione uma opção.' : null,
+          validator: viewModel.validatePaymentUnit,
         ),
         const SizedBox(height: AppSpacing.md),
         TextFormField(
-          controller: salaryValueController,
+          controller: viewModel.salaryValueController,
           decoration: const InputDecoration(
             labelText: 'Valor',
             border: OutlineInputBorder(),
             prefixText: 'R\$ ',
           ),
           keyboardType: const TextInputType.numberWithOptions(decimal: true),
-          validator: (v) {
-            if (v == null || v.isEmpty) return 'Não pode ser vazio.';
-            final normalized = v.replaceAll(',', '.');
-            final regex = RegExp(r'^\d+(\.\d{1,2})?$');
-            if (!regex.hasMatch(normalized)) return 'Valor inválido.';
-            return null;
-          },
+          validator: viewModel.validateSalaryValue,
         ),
         const SizedBox(height: AppSpacing.md),
         DropdownButtonFormField<String>(
@@ -326,12 +240,11 @@ class _RemunerationSection extends StatelessWidget {
           onChanged: (v) {
             if (v != null) viewModel.setSalaryTypeId(v);
           },
-          validator: (v) =>
-              (v == null || v.isEmpty) ? 'Selecione uma opção.' : null,
+          validator: viewModel.validateSalaryType,
         ),
         const SizedBox(height: AppSpacing.md),
         TextFormField(
-          controller: remunerationDescriptionController,
+          controller: viewModel.remunerationDescriptionController,
           decoration: const InputDecoration(
             labelText: 'Descrição da Remuneração',
             border: OutlineInputBorder(),
@@ -339,13 +252,7 @@ class _RemunerationSection extends StatelessWidget {
           minLines: 2,
           maxLines: null,
           keyboardType: TextInputType.multiline,
-          validator: (v) {
-            if (v == null || v.isEmpty) return 'Não pode ser vazio.';
-            if (v.length > 2000) {
-              return 'Não pode ser maior que 2000 caracteres.';
-            }
-            return null;
-          },
+          validator: viewModel.validateRemunerationDescription,
         ),
       ],
     );

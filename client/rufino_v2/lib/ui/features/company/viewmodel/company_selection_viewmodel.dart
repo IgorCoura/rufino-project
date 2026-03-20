@@ -1,3 +1,5 @@
+import 'dart:collection';
+
 import 'package:flutter/foundation.dart';
 
 import '../../../../domain/entities/company.dart';
@@ -28,7 +30,7 @@ class CompanySelectionViewModel extends ChangeNotifier {
   CompanySelectionStatus _status = CompanySelectionStatus.loading;
   String? _errorMessage;
 
-  List<Company> get companies => _companies;
+  UnmodifiableListView<Company> get companies => UnmodifiableListView(_companies);
   Company? get selectedCompany => _selectedCompany;
   CompanySelectionStatus get status => _status;
   String? get errorMessage => _errorMessage;
@@ -41,33 +43,35 @@ class CompanySelectionViewModel extends ChangeNotifier {
     _errorMessage = null;
     notifyListeners();
 
-    final idsResult = await _authRepository.getCompanyIds();
-    if (idsResult.isError) {
-      _status = CompanySelectionStatus.error;
-      _errorMessage = 'Falha ao carregar empresas.';
-      notifyListeners();
-      return;
-    }
-
-    final ids = idsResult.valueOrNull!;
-    final companiesResult = await _companyRepository.getCompanies(ids);
-
-    companiesResult.fold(
-      onSuccess: (list) {
-        _companies = list;
-        if (list.isEmpty) {
-          _status = CompanySelectionStatus.noCompanies;
-        } else {
-          _selectedCompany = list.first;
-          _status = CompanySelectionStatus.loaded;
-        }
-      },
-      onError: (e) {
+    try {
+      final idsResult = await _authRepository.getCompanyIds();
+      if (idsResult.isError) {
         _status = CompanySelectionStatus.error;
         _errorMessage = 'Falha ao carregar empresas.';
-      },
-    );
-    notifyListeners();
+        return;
+      }
+
+      final ids = idsResult.valueOrNull!;
+      final companiesResult = await _companyRepository.getCompanies(ids);
+
+      companiesResult.fold(
+        onSuccess: (list) {
+          _companies = list;
+          if (list.isEmpty) {
+            _status = CompanySelectionStatus.noCompanies;
+          } else {
+            _selectedCompany = list.first;
+            _status = CompanySelectionStatus.loaded;
+          }
+        },
+        onError: (_) {
+          _status = CompanySelectionStatus.error;
+          _errorMessage = 'Falha ao carregar empresas.';
+        },
+      );
+    } finally {
+      notifyListeners();
+    }
   }
 
   void onCompanySelected(Company company) {
@@ -81,15 +85,17 @@ class CompanySelectionViewModel extends ChangeNotifier {
     _status = CompanySelectionStatus.selecting;
     notifyListeners();
 
-    final result = await _companyRepository.selectCompany(_selectedCompany!);
-
-    result.fold(
-      onSuccess: (_) => _status = CompanySelectionStatus.selected,
-      onError: (_) {
-        _status = CompanySelectionStatus.error;
-        _errorMessage = 'Falha ao selecionar empresa.';
-      },
-    );
-    notifyListeners();
+    try {
+      final result = await _companyRepository.selectCompany(_selectedCompany!);
+      result.fold(
+        onSuccess: (_) => _status = CompanySelectionStatus.selected,
+        onError: (_) {
+          _status = CompanySelectionStatus.error;
+          _errorMessage = 'Falha ao selecionar empresa.';
+        },
+      );
+    } finally {
+      notifyListeners();
+    }
   }
 }

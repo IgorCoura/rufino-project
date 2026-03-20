@@ -24,24 +24,24 @@ void main() {
       await viewModel.loadCompany('company-1');
 
       expect(viewModel.status, CompanyFormStatus.idle);
-      expect(viewModel.corporateName, 'Acme Corp S.A.');
-      expect(viewModel.fantasyName, 'Acme');
+      expect(viewModel.corporateNameController.text, 'Acme Corp S.A.');
+      expect(viewModel.fantasyNameController.text, 'Acme');
     });
 
     test('save for new company transitions to saved', () async {
-      viewModel.setCorporateName('Nova Empresa');
-      viewModel.setFantasyName('Nova');
-      viewModel.setCnpj('12345678000190');
-      viewModel.setEmail('teste@email.com');
-      viewModel.setPhone('11999999999');
-      viewModel.setZipCode('01310100');
-      viewModel.setStreet('Rua Teste');
-      viewModel.setNumber('100');
-      viewModel.setComplement('');
-      viewModel.setNeighborhood('Centro');
-      viewModel.setCity('São Paulo');
-      viewModel.setState('SP');
-      viewModel.setCountry('Brasil');
+      viewModel.corporateNameController.text = 'Nova Empresa';
+      viewModel.fantasyNameController.text = 'Nova';
+      viewModel.cnpjController.text = '12345678000190';
+      viewModel.emailController.text = 'teste@email.com';
+      viewModel.phoneController.text = '11999999999';
+      viewModel.zipCodeController.text = '01310100';
+      viewModel.streetController.text = 'Rua Teste';
+      viewModel.numberController.text = '100';
+      viewModel.complementController.text = '';
+      viewModel.neighborhoodController.text = 'Centro';
+      viewModel.cityController.text = 'São Paulo';
+      viewModel.stateController.text = 'SP';
+      viewModel.countryController.text = 'Brasil';
 
       await viewModel.save();
 

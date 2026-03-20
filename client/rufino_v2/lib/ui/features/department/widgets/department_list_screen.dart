@@ -70,7 +70,9 @@ class _DepartmentListScreenState extends State<DepartmentListScreen> {
           return RefreshIndicator(
             onRefresh: widget.viewModel.loadDepartments,
             child: ListView(
-              padding: const EdgeInsets.all(AppSpacing.md),
+              padding: const EdgeInsets.fromLTRB(
+                AppSpacing.md, AppSpacing.md, AppSpacing.md, AppSpacing.md + 80,
+              ),
               children: widget.viewModel.departments
                   .map((department) => _DepartmentTile(
                         department: department,

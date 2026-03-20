@@ -26,37 +26,23 @@ class DepartmentFormScreen extends StatefulWidget {
 
 class _DepartmentFormScreenState extends State<DepartmentFormScreen> {
   final _formKey = GlobalKey<FormState>();
-  late final TextEditingController _nameController;
-  late final TextEditingController _descriptionController;
 
   @override
   void initState() {
     super.initState();
-    _nameController = TextEditingController();
-    _descriptionController = TextEditingController();
-    widget.viewModel.addListener(_onStatusChanged);
-
+    widget.viewModel.addListener(_onViewModelChanged);
     if (widget.departmentId != null) {
-      widget.viewModel
-          .loadDepartment(widget.departmentId!)
-          .then((_) => _syncControllers());
+      widget.viewModel.loadDepartment(widget.departmentId!);
     }
-  }
-
-  void _syncControllers() {
-    _nameController.text = widget.viewModel.name;
-    _descriptionController.text = widget.viewModel.description;
   }
 
   @override
   void dispose() {
-    _nameController.dispose();
-    _descriptionController.dispose();
-    widget.viewModel.removeListener(_onStatusChanged);
+    widget.viewModel.removeListener(_onViewModelChanged);
     super.dispose();
   }
 
-  void _onStatusChanged() {
+  void _onViewModelChanged() {
     if (!mounted) return;
     switch (widget.viewModel.status) {
       case DepartmentFormStatus.saved:
@@ -84,8 +70,6 @@ class _DepartmentFormScreenState extends State<DepartmentFormScreen> {
 
   void _onSave() {
     if (!(_formKey.currentState?.validate() ?? false)) return;
-    widget.viewModel.setName(_nameController.text);
-    widget.viewModel.setDescription(_descriptionController.text);
     widget.viewModel.save();
   }
 
@@ -107,10 +91,8 @@ class _DepartmentFormScreenState extends State<DepartmentFormScreen> {
             return const Center(child: CircularProgressIndicator());
           }
           return _DepartmentFormBody(
+            viewModel: widget.viewModel,
             formKey: _formKey,
-            nameController: _nameController,
-            descriptionController: _descriptionController,
-            isSaving: widget.viewModel.isSaving,
             onSave: _onSave,
             onCancel: () => context.pop(),
           );
@@ -122,18 +104,14 @@ class _DepartmentFormScreenState extends State<DepartmentFormScreen> {
 
 class _DepartmentFormBody extends StatelessWidget {
   const _DepartmentFormBody({
+    required this.viewModel,
     required this.formKey,
-    required this.nameController,
-    required this.descriptionController,
-    required this.isSaving,
     required this.onSave,
     required this.onCancel,
   });
 
+  final DepartmentFormViewModel viewModel;
   final GlobalKey<FormState> formKey;
-  final TextEditingController nameController;
-  final TextEditingController descriptionController;
-  final bool isSaving;
   final VoidCallback onSave;
   final VoidCallback onCancel;
 
@@ -155,22 +133,16 @@ class _DepartmentFormBody extends StatelessWidget {
                 ),
                 const SizedBox(height: AppSpacing.md),
                 TextFormField(
-                  controller: nameController,
+                  controller: viewModel.nameController,
                   decoration: const InputDecoration(
                     labelText: 'Nome',
                     border: OutlineInputBorder(),
                   ),
-                  validator: (v) {
-                    if (v == null || v.isEmpty) return 'Não pode ser vazio.';
-                    if (v.length > 100) {
-                      return 'Não pode ser maior que 100 caracteres.';
-                    }
-                    return null;
-                  },
+                  validator: viewModel.validateName,
                 ),
                 const SizedBox(height: AppSpacing.md),
                 TextFormField(
-                  controller: descriptionController,
+                  controller: viewModel.descriptionController,
                   decoration: const InputDecoration(
                     labelText: 'Descrição',
                     border: OutlineInputBorder(),
@@ -178,17 +150,11 @@ class _DepartmentFormBody extends StatelessWidget {
                   minLines: 3,
                   maxLines: null,
                   keyboardType: TextInputType.multiline,
-                  validator: (v) {
-                    if (v == null || v.isEmpty) return 'Não pode ser vazio.';
-                    if (v.length > 2000) {
-                      return 'Não pode ser maior que 2000 caracteres.';
-                    }
-                    return null;
-                  },
+                  validator: viewModel.validateDescription,
                 ),
                 const SizedBox(height: AppSpacing.xl),
                 _FormActions(
-                  isSaving: isSaving,
+                  isSaving: viewModel.isSaving,
                   onSave: onSave,
                   onCancel: onCancel,
                 ),

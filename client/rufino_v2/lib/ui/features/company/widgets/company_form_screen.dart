@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:mask_text_input_formatter/mask_text_input_formatter.dart';
 
 import '../../../../core/theme/app_spacing.dart';
 import '../viewmodel/company_form_viewmodel.dart';
@@ -22,65 +21,17 @@ class CompanyFormScreen extends StatefulWidget {
 class _CompanyFormScreenState extends State<CompanyFormScreen> {
   final _formKey = GlobalKey<FormState>();
 
-  late final Map<String, TextEditingController> _controllers;
-  final _cnpjFormatter = MaskTextInputFormatter(
-    mask: '##.###.###/####-##',
-    filter: {'#': RegExp(r'[0-9]')},
-  );
-  final _phoneFormatter = MaskTextInputFormatter(
-    mask: '(##) #####-####',
-    filter: {'#': RegExp(r'[0-9]')},
-  );
-  final _zipCodeFormatter = MaskTextInputFormatter(
-    mask: '#####-###',
-    filter: {'#': RegExp(r'[0-9]')},
-  );
-
   @override
   void initState() {
     super.initState();
-    _controllers = {
-      'corporateName': TextEditingController(),
-      'fantasyName': TextEditingController(),
-      'cnpj': TextEditingController(),
-      'email': TextEditingController(),
-      'phone': TextEditingController(),
-      'zipCode': TextEditingController(),
-      'street': TextEditingController(),
-      'number': TextEditingController(),
-      'complement': TextEditingController(),
-      'neighborhood': TextEditingController(),
-      'city': TextEditingController(),
-      'state': TextEditingController(),
-      'country': TextEditingController(),
-    };
     widget.viewModel.addListener(_onStatusChanged);
     if (widget.companyId != null) {
-      widget.viewModel.loadCompany(widget.companyId!).then((_) => _syncControllers());
+      widget.viewModel.loadCompany(widget.companyId!);
     }
-  }
-
-  void _syncControllers() {
-    _controllers['corporateName']!.text = widget.viewModel.corporateName;
-    _controllers['fantasyName']!.text = widget.viewModel.fantasyName;
-    _controllers['cnpj']!.text = widget.viewModel.cnpj;
-    _controllers['email']!.text = widget.viewModel.email;
-    _controllers['phone']!.text = widget.viewModel.phone;
-    _controllers['zipCode']!.text = widget.viewModel.zipCode;
-    _controllers['street']!.text = widget.viewModel.street;
-    _controllers['number']!.text = widget.viewModel.number;
-    _controllers['complement']!.text = widget.viewModel.complement;
-    _controllers['neighborhood']!.text = widget.viewModel.neighborhood;
-    _controllers['city']!.text = widget.viewModel.city;
-    _controllers['state']!.text = widget.viewModel.state;
-    _controllers['country']!.text = widget.viewModel.country;
   }
 
   @override
   void dispose() {
-    for (final c in _controllers.values) {
-      c.dispose();
-    }
     widget.viewModel.removeListener(_onStatusChanged);
     super.dispose();
   }
@@ -112,19 +63,6 @@ class _CompanyFormScreenState extends State<CompanyFormScreen> {
 
   void _onSave() {
     if (!(_formKey.currentState?.validate() ?? false)) return;
-    widget.viewModel.setCorporateName(_controllers['corporateName']!.text);
-    widget.viewModel.setFantasyName(_controllers['fantasyName']!.text);
-    widget.viewModel.setCnpj(_cnpjFormatter.getUnmaskedText());
-    widget.viewModel.setEmail(_controllers['email']!.text);
-    widget.viewModel.setPhone(_phoneFormatter.getUnmaskedText());
-    widget.viewModel.setZipCode(_zipCodeFormatter.getUnmaskedText());
-    widget.viewModel.setStreet(_controllers['street']!.text);
-    widget.viewModel.setNumber(_controllers['number']!.text);
-    widget.viewModel.setComplement(_controllers['complement']!.text);
-    widget.viewModel.setNeighborhood(_controllers['neighborhood']!.text);
-    widget.viewModel.setCity(_controllers['city']!.text);
-    widget.viewModel.setState(_controllers['state']!.text);
-    widget.viewModel.setCountry(_controllers['country']!.text);
     widget.viewModel.save();
   }
 
@@ -146,12 +84,8 @@ class _CompanyFormScreenState extends State<CompanyFormScreen> {
             return const Center(child: CircularProgressIndicator());
           }
           return _CompanyFormBody(
+            viewModel: widget.viewModel,
             formKey: _formKey,
-            controllers: _controllers,
-            cnpjFormatter: _cnpjFormatter,
-            phoneFormatter: _phoneFormatter,
-            zipCodeFormatter: _zipCodeFormatter,
-            isSaving: widget.viewModel.isSaving,
             onSave: _onSave,
             onCancel: () => context.go('/company'),
           );
@@ -163,22 +97,14 @@ class _CompanyFormScreenState extends State<CompanyFormScreen> {
 
 class _CompanyFormBody extends StatelessWidget {
   const _CompanyFormBody({
+    required this.viewModel,
     required this.formKey,
-    required this.controllers,
-    required this.cnpjFormatter,
-    required this.phoneFormatter,
-    required this.zipCodeFormatter,
-    required this.isSaving,
     required this.onSave,
     required this.onCancel,
   });
 
+  final CompanyFormViewModel viewModel;
   final GlobalKey<FormState> formKey;
-  final Map<String, TextEditingController> controllers;
-  final MaskTextInputFormatter cnpjFormatter;
-  final MaskTextInputFormatter phoneFormatter;
-  final MaskTextInputFormatter zipCodeFormatter;
-  final bool isSaving;
   final VoidCallback onSave;
   final VoidCallback onCancel;
 
@@ -200,31 +126,26 @@ class _CompanyFormBody extends StatelessWidget {
                 ),
                 const SizedBox(height: AppSpacing.md),
                 _FormField(
-                  controller: controllers['corporateName']!,
+                  controller: viewModel.corporateNameController,
                   label: 'Razão Social',
-                  validator: _validateRequired,
+                  validator: viewModel.validateRequired,
                 ),
                 const SizedBox(height: AppSpacing.md),
                 _FormField(
-                  controller: controllers['fantasyName']!,
+                  controller: viewModel.fantasyNameController,
                   label: 'Nome Fantasia',
-                  validator: _validateRequired,
+                  validator: viewModel.validateRequired,
                 ),
                 const SizedBox(height: AppSpacing.md),
                 TextFormField(
-                  controller: controllers['cnpj']!,
+                  controller: viewModel.cnpjController,
                   decoration: const InputDecoration(
                     labelText: 'CNPJ',
                     border: OutlineInputBorder(),
                   ),
-                  inputFormatters: [cnpjFormatter],
+                  inputFormatters: [viewModel.cnpjFormatter],
                   keyboardType: TextInputType.number,
-                  validator: (v) {
-                    if (v == null || v.isEmpty) return 'Não pode ser vazio.';
-                    final digits = cnpjFormatter.getUnmaskedText();
-                    if (digits.length != 14) return 'CNPJ inválido.';
-                    return null;
-                  },
+                  validator: viewModel.validateCnpj,
                 ),
                 const SizedBox(height: AppSpacing.lg),
                 Text(
@@ -233,21 +154,21 @@ class _CompanyFormBody extends StatelessWidget {
                 ),
                 const SizedBox(height: AppSpacing.md),
                 _FormField(
-                  controller: controllers['email']!,
+                  controller: viewModel.emailController,
                   label: 'Email',
                   keyboardType: TextInputType.emailAddress,
-                  validator: _validateEmail,
+                  validator: viewModel.validateEmail,
                 ),
                 const SizedBox(height: AppSpacing.md),
                 TextFormField(
-                  controller: controllers['phone']!,
+                  controller: viewModel.phoneController,
                   decoration: const InputDecoration(
                     labelText: 'Telefone',
                     border: OutlineInputBorder(),
                   ),
-                  inputFormatters: [phoneFormatter],
+                  inputFormatters: [viewModel.phoneFormatter],
                   keyboardType: TextInputType.phone,
-                  validator: _validateRequired,
+                  validator: viewModel.validateRequired,
                 ),
                 const SizedBox(height: AppSpacing.lg),
                 Text(
@@ -256,64 +177,59 @@ class _CompanyFormBody extends StatelessWidget {
                 ),
                 const SizedBox(height: AppSpacing.md),
                 TextFormField(
-                  controller: controllers['zipCode']!,
+                  controller: viewModel.zipCodeController,
                   decoration: const InputDecoration(
                     labelText: 'CEP',
                     border: OutlineInputBorder(),
                   ),
-                  inputFormatters: [zipCodeFormatter],
+                  inputFormatters: [viewModel.zipCodeFormatter],
                   keyboardType: TextInputType.number,
-                  validator: (v) {
-                    if (v == null || v.isEmpty) return 'Não pode ser vazio.';
-                    final digits = zipCodeFormatter.getUnmaskedText();
-                    if (digits.length != 8) return 'CEP inválido.';
-                    return null;
-                  },
+                  validator: viewModel.validateZipCode,
                 ),
                 const SizedBox(height: AppSpacing.md),
                 _FormField(
-                  controller: controllers['street']!,
+                  controller: viewModel.streetController,
                   label: 'Rua',
-                  validator: _validateRequired,
+                  validator: viewModel.validateRequired,
                 ),
                 const SizedBox(height: AppSpacing.md),
                 _FormField(
-                  controller: controllers['number']!,
+                  controller: viewModel.numberController,
                   label: 'Número',
-                  validator: _validateRequired,
+                  validator: viewModel.validateRequired,
                 ),
                 const SizedBox(height: AppSpacing.md),
                 _FormField(
-                  controller: controllers['complement']!,
+                  controller: viewModel.complementController,
                   label: 'Complemento',
                 ),
                 const SizedBox(height: AppSpacing.md),
                 _FormField(
-                  controller: controllers['neighborhood']!,
+                  controller: viewModel.neighborhoodController,
                   label: 'Bairro',
-                  validator: _validateRequired,
+                  validator: viewModel.validateRequired,
                 ),
                 const SizedBox(height: AppSpacing.md),
                 _FormField(
-                  controller: controllers['city']!,
+                  controller: viewModel.cityController,
                   label: 'Cidade',
-                  validator: _validateRequired,
+                  validator: viewModel.validateRequired,
                 ),
                 const SizedBox(height: AppSpacing.md),
                 _FormField(
-                  controller: controllers['state']!,
+                  controller: viewModel.stateController,
                   label: 'Estado',
-                  validator: _validateRequired,
+                  validator: viewModel.validateRequired,
                 ),
                 const SizedBox(height: AppSpacing.md),
                 _FormField(
-                  controller: controllers['country']!,
+                  controller: viewModel.countryController,
                   label: 'País',
-                  validator: _validateRequired,
+                  validator: viewModel.validateRequired,
                 ),
                 const SizedBox(height: AppSpacing.xl),
                 _FormActions(
-                  isSaving: isSaving,
+                  isSaving: viewModel.isSaving,
                   onSave: onSave,
                   onCancel: onCancel,
                 ),
@@ -323,18 +239,6 @@ class _CompanyFormBody extends StatelessWidget {
         ),
       ),
     );
-  }
-
-  static String? _validateRequired(String? value) {
-    if (value == null || value.isEmpty) return 'Não pode ser vazio.';
-    return null;
-  }
-
-  static String? _validateEmail(String? value) {
-    if (value == null || value.isEmpty) return 'Não pode ser vazio.';
-    final regex = RegExp(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$');
-    if (!regex.hasMatch(value)) return 'Email inválido.';
-    return null;
   }
 }
 

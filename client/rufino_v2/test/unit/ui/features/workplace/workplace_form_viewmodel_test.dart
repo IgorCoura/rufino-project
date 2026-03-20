@@ -53,23 +53,23 @@ void main() {
       expect(viewModel.isNew, isTrue);
       expect(viewModel.isLoading, isFalse);
       expect(viewModel.isSaving, isFalse);
-      expect(viewModel.name, '');
+      expect(viewModel.nameController.text, '');
     });
 
-    test('loadWorkplace populates all fields from repository', () async {
+    test('loadWorkplace populates all controllers from repository', () async {
       workplaceRepository.setWorkplace(_fakeWorkplace);
 
       await viewModel.loadWorkplace('wp-1');
 
       expect(viewModel.isNew, isFalse);
-      expect(viewModel.name, 'Sede Principal');
-      expect(viewModel.zipCode, '01310100');
-      expect(viewModel.street, 'Av. Paulista');
-      expect(viewModel.number, '1000');
-      expect(viewModel.neighborhood, 'Bela Vista');
-      expect(viewModel.city, 'São Paulo');
-      expect(viewModel.state, 'SP');
-      expect(viewModel.country, 'Brasil');
+      expect(viewModel.nameController.text, 'Sede Principal');
+      expect(viewModel.zipCodeController.text, '01310100');
+      expect(viewModel.streetController.text, 'Av. Paulista');
+      expect(viewModel.numberController.text, '1000');
+      expect(viewModel.neighborhoodController.text, 'Bela Vista');
+      expect(viewModel.cityController.text, 'São Paulo');
+      expect(viewModel.stateController.text, 'SP');
+      expect(viewModel.countryController.text, 'Brasil');
     });
 
     test('loadWorkplace transitions to error when repository fails', () async {
@@ -90,16 +90,15 @@ void main() {
 
     test('save for new workplace transitions to saved and calls createWorkplace',
         () async {
-      viewModel
-        ..setName('Filial SP')
-        ..setZipCode('01310100')
-        ..setStreet('Av. Paulista')
-        ..setNumber('1000')
-        ..setComplement('')
-        ..setNeighborhood('Bela Vista')
-        ..setCity('São Paulo')
-        ..setState('SP')
-        ..setCountry('Brasil');
+      viewModel.nameController.text = 'Filial SP';
+      viewModel.zipCodeController.text = '01310100';
+      viewModel.streetController.text = 'Av. Paulista';
+      viewModel.numberController.text = '1000';
+      viewModel.complementController.text = '';
+      viewModel.neighborhoodController.text = 'Bela Vista';
+      viewModel.cityController.text = 'São Paulo';
+      viewModel.stateController.text = 'SP';
+      viewModel.countryController.text = 'Brasil';
 
       await viewModel.save();
 
@@ -112,7 +111,7 @@ void main() {
       workplaceRepository.setWorkplace(_fakeWorkplace);
       await viewModel.loadWorkplace('wp-1');
 
-      viewModel.setName('Sede Atualizada');
+      viewModel.nameController.text = 'Sede Atualizada';
       await viewModel.save();
 
       expect(viewModel.status, WorkplaceFormStatus.saved);

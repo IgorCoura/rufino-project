@@ -1,4 +1,4 @@
-import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart';
 
 import '../../../../domain/repositories/company_repository.dart';
 import '../../../../domain/repositories/workplace_repository.dart';
@@ -20,30 +20,45 @@ class WorkplaceFormViewModel extends ChangeNotifier {
   final CompanyRepository _companyRepository;
   final WorkplaceRepository _workplaceRepository;
 
+  // ─── TextEditingControllers owned by this ViewModel ────────────────────────
+
+  /// Controller for the workplace name field.
+  final nameController = TextEditingController();
+
+  /// Controller for the ZIP code field.
+  final zipCodeController = TextEditingController();
+
+  /// Controller for the street field.
+  final streetController = TextEditingController();
+
+  /// Controller for the number field.
+  final numberController = TextEditingController();
+
+  /// Controller for the complement field (optional).
+  final complementController = TextEditingController();
+
+  /// Controller for the neighborhood field.
+  final neighborhoodController = TextEditingController();
+
+  /// Controller for the city field.
+  final cityController = TextEditingController();
+
+  /// Controller for the state field.
+  final stateController = TextEditingController();
+
+  /// Controller for the country field.
+  final countryController = TextEditingController();
+
+  // ─── State ─────────────────────────────────────────────────────────────────
+
   String _id = '';
-  String _name = '';
-  String _zipCode = '';
-  String _street = '';
-  String _number = '';
-  String _complement = '';
-  String _neighborhood = '';
-  String _city = '';
-  String _state = '';
-  String _country = '';
   WorkplaceFormStatus _status = WorkplaceFormStatus.idle;
   String? _errorMessage;
 
   /// The id of the workplace being edited, empty when creating a new one.
   String get id => _id;
-  String get name => _name;
-  String get zipCode => _zipCode;
-  String get street => _street;
-  String get number => _number;
-  String get complement => _complement;
-  String get neighborhood => _neighborhood;
-  String get city => _city;
-  String get state => _state;
-  String get country => _country;
+
+  /// Current status of the form operation.
   WorkplaceFormStatus get status => _status;
 
   /// Whether the form is currently loading existing data from the API.
@@ -58,17 +73,73 @@ class WorkplaceFormViewModel extends ChangeNotifier {
   /// Human-readable error message set when [status] is [WorkplaceFormStatus.error].
   String? get errorMessage => _errorMessage;
 
-  void setName(String v) => _name = v;
-  void setZipCode(String v) => _zipCode = v;
-  void setStreet(String v) => _street = v;
-  void setNumber(String v) => _number = v;
-  void setComplement(String v) => _complement = v;
-  void setNeighborhood(String v) => _neighborhood = v;
-  void setCity(String v) => _city = v;
-  void setState(String v) => _state = v;
-  void setCountry(String v) => _country = v;
+  // ─── Validators ────────────────────────────────────────────────────────────
 
-  /// Loads an existing workplace by [workplaceId] and populates the form fields.
+  /// Validates the workplace name: required, max 100 characters.
+  String? validateName(String? v) {
+    if (v == null || v.isEmpty) return 'Não pode ser vazio.';
+    if (v.length > 100) return 'Não pode ser maior que 100 caracteres.';
+    return null;
+  }
+
+  /// Validates the ZIP code: required, exactly 8 digits.
+  String? validateZipCode(String? v) {
+    if (v == null || v.isEmpty) return 'Não pode ser vazio.';
+    final digits = v.replaceAll(RegExp(r'\D'), '');
+    if (digits.length != 8) return 'CEP inválido.';
+    return null;
+  }
+
+  /// Validates the street: required, max 100 characters.
+  String? validateStreet(String? v) {
+    if (v == null || v.isEmpty) return 'Não pode ser vazio.';
+    if (v.length > 100) return 'Máx. 100 caracteres.';
+    return null;
+  }
+
+  /// Validates the number: required.
+  String? validateNumber(String? v) {
+    if (v == null || v.isEmpty) return 'Não pode ser vazio.';
+    return null;
+  }
+
+  /// Validates the complement: optional, max 50 characters.
+  String? validateComplement(String? v) {
+    if (v != null && v.length > 50) return 'Máx. 50 caracteres.';
+    return null;
+  }
+
+  /// Validates the neighborhood: required, max 50 characters.
+  String? validateNeighborhood(String? v) {
+    if (v == null || v.isEmpty) return 'Não pode ser vazio.';
+    if (v.length > 50) return 'Máx. 50 caracteres.';
+    return null;
+  }
+
+  /// Validates the city: required, max 50 characters.
+  String? validateCity(String? v) {
+    if (v == null || v.isEmpty) return 'Não pode ser vazio.';
+    if (v.length > 50) return 'Máx. 50 caracteres.';
+    return null;
+  }
+
+  /// Validates the state: required, max 50 characters.
+  String? validateState(String? v) {
+    if (v == null || v.isEmpty) return 'Não pode ser vazio.';
+    if (v.length > 50) return 'Máx. 50 caracteres.';
+    return null;
+  }
+
+  /// Validates the country: required, max 50 characters.
+  String? validateCountry(String? v) {
+    if (v == null || v.isEmpty) return 'Não pode ser vazio.';
+    if (v.length > 50) return 'Máx. 50 caracteres.';
+    return null;
+  }
+
+  // ─── Operations ────────────────────────────────────────────────────────────
+
+  /// Loads an existing workplace by [workplaceId] and populates the form controllers.
   Future<void> loadWorkplace(String workplaceId) async {
     if (workplaceId.isEmpty) return;
 
@@ -76,30 +147,33 @@ class WorkplaceFormViewModel extends ChangeNotifier {
     _status = WorkplaceFormStatus.loading;
     notifyListeners();
 
-    final companyResult = await _companyRepository.getSelectedCompany();
-    final companyId = companyResult.valueOrNull?.id ?? '';
+    try {
+      final companyResult = await _companyRepository.getSelectedCompany();
+      final companyId = companyResult.valueOrNull?.id ?? '';
 
-    final result =
-        await _workplaceRepository.getWorkplaceById(companyId, workplaceId);
-    result.fold(
-      onSuccess: (workplace) {
-        _name = workplace.name;
-        _zipCode = workplace.address.zipCode;
-        _street = workplace.address.street;
-        _number = workplace.address.number;
-        _complement = workplace.address.complement;
-        _neighborhood = workplace.address.neighborhood;
-        _city = workplace.address.city;
-        _state = workplace.address.state;
-        _country = workplace.address.country;
-        _status = WorkplaceFormStatus.idle;
-      },
-      onError: (_) {
-        _status = WorkplaceFormStatus.error;
-        _errorMessage = 'Falha ao carregar dados do local de trabalho.';
-      },
-    );
-    notifyListeners();
+      final result =
+          await _workplaceRepository.getWorkplaceById(companyId, workplaceId);
+      result.fold(
+        onSuccess: (workplace) {
+          nameController.text = workplace.name;
+          zipCodeController.text = workplace.address.zipCode;
+          streetController.text = workplace.address.street;
+          numberController.text = workplace.address.number;
+          complementController.text = workplace.address.complement;
+          neighborhoodController.text = workplace.address.neighborhood;
+          cityController.text = workplace.address.city;
+          stateController.text = workplace.address.state;
+          countryController.text = workplace.address.country;
+          _status = WorkplaceFormStatus.idle;
+        },
+        onError: (_) {
+          _status = WorkplaceFormStatus.error;
+          _errorMessage = 'Falha ao carregar dados do local de trabalho.';
+        },
+      );
+    } finally {
+      notifyListeners();
+    }
   }
 
   /// Validates and submits the form, creating or updating a workplace.
@@ -111,44 +185,61 @@ class WorkplaceFormViewModel extends ChangeNotifier {
     _errorMessage = null;
     notifyListeners();
 
-    final companyResult = await _companyRepository.getSelectedCompany();
-    final companyId = companyResult.valueOrNull?.id ?? '';
+    try {
+      final companyResult = await _companyRepository.getSelectedCompany();
+      final companyId = companyResult.valueOrNull?.id ?? '';
 
-    final result = _id.isEmpty
-        ? await _workplaceRepository.createWorkplace(
-            companyId,
-            name: _name,
-            zipCode: _zipCode,
-            street: _street,
-            number: _number,
-            complement: _complement,
-            neighborhood: _neighborhood,
-            city: _city,
-            state: _state,
-            country: _country,
-          )
-        : await _workplaceRepository.updateWorkplace(
-            companyId,
-            id: _id,
-            name: _name,
-            zipCode: _zipCode,
-            street: _street,
-            number: _number,
-            complement: _complement,
-            neighborhood: _neighborhood,
-            city: _city,
-            state: _state,
-            country: _country,
-          );
+      final result = _id.isEmpty
+          ? await _workplaceRepository.createWorkplace(
+              companyId,
+              name: nameController.text,
+              zipCode: zipCodeController.text,
+              street: streetController.text,
+              number: numberController.text,
+              complement: complementController.text,
+              neighborhood: neighborhoodController.text,
+              city: cityController.text,
+              state: stateController.text,
+              country: countryController.text,
+            )
+          : await _workplaceRepository.updateWorkplace(
+              companyId,
+              id: _id,
+              name: nameController.text,
+              zipCode: zipCodeController.text,
+              street: streetController.text,
+              number: numberController.text,
+              complement: complementController.text,
+              neighborhood: neighborhoodController.text,
+              city: cityController.text,
+              state: stateController.text,
+              country: countryController.text,
+            );
 
-    result.fold(
-      onSuccess: (_) => _status = WorkplaceFormStatus.saved,
-      onError: (_) {
-        _status = WorkplaceFormStatus.error;
-        _errorMessage =
-            'Falha ao salvar local de trabalho. Verifique os dados e tente novamente.';
-      },
-    );
-    notifyListeners();
+      result.fold(
+        onSuccess: (_) => _status = WorkplaceFormStatus.saved,
+        onError: (_) {
+          _status = WorkplaceFormStatus.error;
+          _errorMessage =
+              'Falha ao salvar local de trabalho. Verifique os dados e tente novamente.';
+        },
+      );
+    } finally {
+      notifyListeners();
+    }
+  }
+
+  @override
+  void dispose() {
+    nameController.dispose();
+    zipCodeController.dispose();
+    streetController.dispose();
+    numberController.dispose();
+    complementController.dispose();
+    neighborhoodController.dispose();
+    cityController.dispose();
+    stateController.dispose();
+    countryController.dispose();
+    super.dispose();
   }
 }

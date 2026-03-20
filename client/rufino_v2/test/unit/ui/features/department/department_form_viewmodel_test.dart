@@ -45,15 +45,16 @@ void main() {
       expect(viewModel.isSaving, false);
     });
 
-    test('loadDepartment populates name and description from repository', () async {
+    test('loadDepartment populates name and description controllers from repository',
+        () async {
       departmentRepository.setDepartment(_fakeDepartment);
 
       await viewModel.loadDepartment('dept-1');
 
       expect(viewModel.isNew, false);
       expect(viewModel.status, DepartmentFormStatus.idle);
-      expect(viewModel.name, 'Financeiro');
-      expect(viewModel.description, 'Departamento financeiro');
+      expect(viewModel.nameController.text, 'Financeiro');
+      expect(viewModel.descriptionController.text, 'Departamento financeiro');
     });
 
     test('loadDepartment transitions to error when repository fails', () async {
@@ -72,9 +73,10 @@ void main() {
       expect(viewModel.status, DepartmentFormStatus.idle);
     });
 
-    test('save for new department transitions to saved and calls createDepartment', () async {
-      viewModel.setName('RH');
-      viewModel.setDescription('Recursos Humanos');
+    test('save for new department transitions to saved and calls createDepartment',
+        () async {
+      viewModel.nameController.text = 'RH';
+      viewModel.descriptionController.text = 'Recursos Humanos';
 
       await viewModel.save();
 
@@ -82,11 +84,12 @@ void main() {
       expect(departmentRepository.lastCreatedDepartmentName, 'RH');
     });
 
-    test('save for existing department transitions to saved and calls updateDepartment', () async {
+    test('save for existing department transitions to saved and calls updateDepartment',
+        () async {
       departmentRepository.setDepartment(_fakeDepartment);
       await viewModel.loadDepartment('dept-1');
 
-      viewModel.setName('Financeiro Atualizado');
+      viewModel.nameController.text = 'Financeiro Atualizado';
 
       await viewModel.save();
 
@@ -96,8 +99,8 @@ void main() {
 
     test('save transitions to error when repository fails', () async {
       departmentRepository.setShouldFail(true);
-      viewModel.setName('RH');
-      viewModel.setDescription('Recursos Humanos');
+      viewModel.nameController.text = 'RH';
+      viewModel.descriptionController.text = 'Recursos Humanos';
 
       await viewModel.save();
 
@@ -108,8 +111,8 @@ void main() {
     test('save transitions through saving state before completing', () async {
       final statuses = <DepartmentFormStatus>[];
       viewModel.addListener(() => statuses.add(viewModel.status));
-      viewModel.setName('RH');
-      viewModel.setDescription('Desc');
+      viewModel.nameController.text = 'RH';
+      viewModel.descriptionController.text = 'Desc';
 
       await viewModel.save();
 

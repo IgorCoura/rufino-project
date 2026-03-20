@@ -12,14 +12,17 @@ import 'core/theme/theme_notifier.dart';
 import 'data/repositories/auth_repository_impl.dart';
 import 'data/repositories/company_repository_impl.dart';
 import 'data/repositories/department_repository_impl.dart';
+import 'data/repositories/employee_repository_impl.dart';
 import 'data/repositories/workplace_repository_impl.dart';
 import 'data/services/auth_api_service.dart';
 import 'data/services/company_api_service.dart';
 import 'data/services/department_api_service.dart';
+import 'data/services/employee_api_service.dart';
 import 'data/services/workplace_api_service.dart';
 import 'domain/repositories/auth_repository.dart';
 import 'domain/repositories/company_repository.dart';
 import 'domain/repositories/department_repository.dart';
+import 'domain/repositories/employee_repository.dart';
 import 'domain/repositories/workplace_repository.dart';
 import 'ui/features/auth/viewmodel/login_viewmodel.dart';
 import 'ui/features/auth/viewmodel/splash_viewmodel.dart';
@@ -37,6 +40,10 @@ import 'ui/features/department/widgets/department_form_screen.dart';
 import 'ui/features/department/widgets/department_list_screen.dart';
 import 'ui/features/department/widgets/position_form_screen.dart';
 import 'ui/features/department/widgets/role_form_screen.dart';
+import 'ui/features/employee/viewmodel/employee_form_viewmodel.dart';
+import 'ui/features/employee/viewmodel/employee_list_viewmodel.dart';
+import 'ui/features/employee/widgets/employee_form_screen.dart';
+import 'ui/features/employee/widgets/employee_list_screen.dart';
 import 'ui/features/home/viewmodel/home_viewmodel.dart';
 import 'ui/features/home/widgets/home_screen.dart';
 import 'ui/features/workplace/viewmodel/workplace_form_viewmodel.dart';
@@ -102,12 +109,22 @@ class App extends StatelessWidget {
       apiService: workplaceApiService,
     );
 
+    final employeeApiService = EmployeeApiService(
+      client: httpClient,
+      baseUrl: AppConfig.peopleManagementUrl,
+      getAuthHeader: authApiService.getAuthorizationHeader,
+    );
+    final EmployeeRepository employeeRepository = EmployeeRepositoryImpl(
+      apiService: employeeApiService,
+    );
+
     return [
       ChangeNotifierProvider(create: (_) => ThemeNotifier()),
       Provider<AuthRepository>.value(value: authRepository),
       Provider<CompanyRepository>.value(value: companyRepository),
       Provider<DepartmentRepository>.value(value: departmentRepository),
       Provider<WorkplaceRepository>.value(value: workplaceRepository),
+      Provider<EmployeeRepository>.value(value: employeeRepository),
     ];
   }
 }
@@ -252,6 +269,28 @@ class _AppRouterState extends State<_AppRouter> {
               positionId: state.pathParameters['positionId']!,
             ),
             roleId: state.pathParameters['id'],
+          ),
+        ),
+
+        // ─── Employee ─────────────────────────────────────────────────────
+        GoRoute(
+          path: '/employee',
+          builder: (context, state) => EmployeeListScreen(
+            viewModel: EmployeeListViewModel(
+              companyRepository: context.read<CompanyRepository>(),
+              employeeRepository: context.read<EmployeeRepository>(),
+            ),
+          ),
+        ),
+        GoRoute(
+          path: '/employee/create',
+          builder: (context, state) => EmployeeFormScreen(
+            viewModel: EmployeeFormViewModel(
+              companyRepository: context.read<CompanyRepository>(),
+              departmentRepository: context.read<DepartmentRepository>(),
+              workplaceRepository: context.read<WorkplaceRepository>(),
+              employeeRepository: context.read<EmployeeRepository>(),
+            ),
           ),
         ),
 

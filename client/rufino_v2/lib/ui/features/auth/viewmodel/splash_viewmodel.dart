@@ -24,34 +24,32 @@ class SplashViewModel extends ChangeNotifier {
   Future<void> initialize() async {
     if (_status != SplashStatus.loading) return;
 
-    final credentialsResult = await _authRepository.hasValidCredentials();
-    if (credentialsResult.isError || credentialsResult.valueOrNull == false) {
-      _status = SplashStatus.unauthenticated;
+    try {
+      final credentialsResult = await _authRepository.hasValidCredentials();
+      if (credentialsResult.isError || credentialsResult.valueOrNull == false) {
+        _status = SplashStatus.unauthenticated;
+        return;
+      }
+
+      final idsResult = await _authRepository.getCompanyIds();
+      if (idsResult.isError) {
+        _status = SplashStatus.unauthenticated;
+        return;
+      }
+
+      final validIds = idsResult.valueOrNull!;
+      final hasCompanyResult = await _companyRepository.verifyAndSelectCompany(validIds);
+
+      if (hasCompanyResult.isError) {
+        _status = SplashStatus.error;
+        return;
+      }
+
+      _status = hasCompanyResult.valueOrNull == true
+          ? SplashStatus.authenticated
+          : SplashStatus.noCompany;
+    } finally {
       notifyListeners();
-      return;
     }
-
-    final idsResult = await _authRepository.getCompanyIds();
-    if (idsResult.isError) {
-      _status = SplashStatus.unauthenticated;
-      notifyListeners();
-      return;
-    }
-
-    final validIds = idsResult.valueOrNull!;
-    final hasCompanyResult = await _companyRepository.verifyAndSelectCompany(validIds);
-
-    if (hasCompanyResult.isError) {
-      _status = SplashStatus.error;
-      notifyListeners();
-      return;
-    }
-
-    if (hasCompanyResult.valueOrNull == true) {
-      _status = SplashStatus.authenticated;
-    } else {
-      _status = SplashStatus.noCompany;
-    }
-    notifyListeners();
   }
 }
