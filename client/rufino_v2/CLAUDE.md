@@ -1,5 +1,16 @@
 # Rufino Client — CLAUDE.md
 
+> ⚠️ **MANDATORY — Tests required on every code change**
+>
+> Every new feature, refactor, or bug fix **must** include tests. After writing or changing any code:
+> 1. Write unit tests for ViewModels, repositories, and data models.
+> 2. Write widget tests for new screens.
+> 3. Run `flutter test` before considering the task done. All tests must pass.
+>
+> No code change is complete without passing tests. This is non-negotiable.
+
+---
+
 ## Language Convention
 
 > **All code must be written in English**: class names, method names, variable names, file names, comments, and commit messages.
@@ -316,6 +327,29 @@ lib/
 
 ---
 
+#### Layer Communication Rules
+
+Dependencies are **strictly one-directional** — each layer only depends on the layer directly below it.
+
+```
+UI (Views + ViewModels)
+        ↓ depends on
+Domain (Repositories — interfaces)
+        ↓ depends on
+Data (Services + Repository implementations)
+```
+
+**Mandatory rules:**
+- Views depend on ViewModels only — never on repositories or services.
+- ViewModels depend on repositories (interfaces) only — never on services directly.
+- **Repositories must never be aware of each other.** If two data types need to be combined, that coordination belongs in a use case or the ViewModel.
+- Services hold no state — they are stateless wrappers around external APIs.
+- The data layer never depends on the UI layer.
+
+Violating any of these creates coupling that breaks testability and makes refactoring risky.
+
+---
+
 ### UI Layer (`ui/`)
 
 **View (Screen/Widget)**
@@ -350,6 +384,8 @@ class EmployeeListScreen extends StatelessWidget {
 - Converts domain data into UI state.
 - Handles user interactions and delegates to repositories.
 - Only dependency: repositories (or use cases when they exist).
+- Expose collections via `UnmodifiableListView` — never return a mutable `List` directly.
+- Always call `notifyListeners()` inside a `finally` block when paired with a loading flag — ensures the UI never gets stuck in a loading state.
 
 ```dart
 class EmployeeListViewModel extends ChangeNotifier {
@@ -359,7 +395,12 @@ class EmployeeListViewModel extends ChangeNotifier {
   final EmployeeRepository _employeeRepository;
 
   List<Employee> _employees = [];
-  List<Employee> get employees => _employees;
+
+  // ❌ Mutable — callers can push() directly into _employees
+  // List<Employee> get employees => _employees;
+
+  // ✅ Immutable view
+  UnmodifiableListView<Employee> get employees => UnmodifiableListView(_employees);
 
   bool _isLoading = false;
   bool get isLoading => _isLoading;
@@ -368,17 +409,268 @@ class EmployeeListViewModel extends ChangeNotifier {
     _isLoading = true;
     notifyListeners();
 
-    final result = await _employeeRepository.getEmployees();
-    result.fold(
-      onSuccess: (data) => _employees = data,
-      onError: (_) => _employees = [],
-    );
-
-    _isLoading = false;
-    notifyListeners();
+    try {
+      final result = await _employeeRepository.getEmployees();
+      result.fold(
+        onSuccess: (data) => _employees = data,
+        onError: (_) => _employees = [],
+      );
+    } finally {
+      _isLoading = false;
+      notifyListeners();  // always called, even if an exception escapes
+    }
   }
 }
 ```
+
+---
+
+#### Form Screens
+
+Form screens follow four mandatory rules. Violating any of them is an architectural error.
+
+**Rule 1 — ViewModel owns `TextEditingController`**
+
+Controllers are created, held, and disposed by the ViewModel — never by the `State` class.
+
+```dart
+// ❌ NEVER do this in a StatefulWidget
+class _WorkplaceFormScreenState extends State<WorkplaceFormScreen> {
+  final _nameController = TextEditingController();
+  final _zipCodeController = TextEditingController();
+  // ... 7 more controllers
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _zipCodeController.dispose();
+    super.dispose();
+  }
+}
+```
+
+```dart
+// ✅ ViewModel owns and disposes all controllers
+class WorkplaceFormViewModel extends ChangeNotifier {
+  final nameController = TextEditingController();
+  final zipCodeController = TextEditingController();
+
+  @override
+  void dispose() {
+    nameController.dispose();
+    zipCodeController.dispose();
+    super.dispose();
+  }
+}
+
+// Screen is stateless (or minimal StatefulWidget for FormKey + listener only):
+class WorkplaceFormScreen extends StatelessWidget {
+  final WorkplaceFormViewModel viewModel;
+  // ...
+  // TextField(controller: viewModel.nameController)
+}
+```
+
+---
+
+**Rule 2 — Validation logic belongs to ViewModel**
+
+Validator lambdas must not contain any logic. The screen delegates to ViewModel methods.
+
+```dart
+// ❌ Validation inline in the screen
+TextFormField(
+  validator: (value) {
+    if (value == null || value.trim().isEmpty) return 'Não pode ser vazio.';
+    return null;
+  },
+)
+```
+
+```dart
+// ✅ ViewModel exposes validator methods
+class WorkplaceFormViewModel extends ChangeNotifier {
+  String? validateRequired(String? value) {
+    if (value == null || value.trim().isEmpty) return 'Não pode ser vazio.';
+    return null;
+  }
+
+  String? validateEmail(String? value) { /* ... */ }
+}
+
+// Screen just delegates:
+TextFormField(validator: viewModel.validateRequired)
+```
+
+---
+
+**Rule 3 — `_onSave()` must be a thin delegate**
+
+Because the ViewModel owns the controllers, `controller.text` is always current. `save()` reads directly from its own controllers — the screen must not pass values in.
+
+```dart
+// ❌ Screen orchestrates data flow
+void _onSave() {
+  if (_formKey.currentState?.validate() != true) return;
+  viewModel
+    ..setName(_nameController.text)
+    ..setZipCode(_zipCodeController.text)
+    // ... 7 more setters
+    ..save();
+}
+```
+
+```dart
+// ✅ ViewModel.save() reads its own controllers
+Future<void> save() async {
+  final name = nameController.text.trim();
+  final zipCode = zipCodeController.text.trim();
+  // build entity, call repository
+}
+
+// Screen:
+void _onSave() {
+  if (_formKey.currentState?.validate() != true) return;
+  viewModel.save(); // nothing else
+}
+```
+
+---
+
+**Rule 4 — Standard `_onViewModelChanged()` listener**
+
+Every form screen uses the same listener shape. Do not invent variations.
+
+```dart
+// Screen is a minimal StatefulWidget: FormKey + listener only.
+@override
+void initState() {
+  super.initState();
+  widget.viewModel.addListener(_onViewModelChanged);
+  if (widget.workplaceId != null) {
+    widget.viewModel.loadWorkplace(widget.workplaceId!);
+  }
+}
+
+@override
+void dispose() {
+  widget.viewModel.removeListener(_onViewModelChanged);
+  super.dispose();
+}
+
+void _onViewModelChanged() {
+  if (!mounted) return;
+  switch (widget.viewModel.status) {
+    case WorkplaceFormStatus.saved:
+      context.pop();
+    case WorkplaceFormStatus.error:
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(widget.viewModel.errorMessage ?? 'Erro')),
+      );
+    default:
+      break;
+  }
+}
+```
+
+---
+
+#### Async Operations — Command Pattern
+
+For async operations that need to expose loading/success/error states to the UI, use the **Command pattern** instead of raw boolean flags.
+
+**Why**: A plain `_isLoading` boolean only covers two states. Command covers four: idle, running, completed (ok), completed (error) — and is observable via `ListenableBuilder`.
+
+**Base class** (add once to `lib/core/`):
+```dart
+/// Wraps an async operation and exposes its execution state.
+///
+/// Extend or instantiate via [Command0], [Command1], etc.
+abstract class Command<T> extends ChangeNotifier {
+  bool _running = false;
+  Result<T>? _result;
+
+  bool get running => _running;
+  bool get completed => _result is Success;
+  bool get error => _result is Failure;
+  Result<T>? get result => _result;
+
+  Future<void> _execute(Future<Result<T>> Function() action) async {
+    if (_running) return;
+    _running = true;
+    _result = null;
+    notifyListeners();
+    try {
+      _result = await action();
+    } finally {
+      _running = false;
+      notifyListeners();
+    }
+  }
+}
+
+/// Command with no arguments.
+class Command0<T> extends Command<T> {
+  Command0(this._action);
+  final Future<Result<T>> Function() _action;
+  Future<void> execute() => _execute(_action);
+}
+
+/// Command with one argument.
+class Command1<T, A> extends Command<T> {
+  Command1(this._action);
+  final Future<Result<T>> Function(A) _action;
+  Future<void> execute(A arg) => _execute(() => _action(arg));
+}
+```
+
+**ViewModel — replace `_isLoading` flag with `Command`:**
+```dart
+class HomeViewModel extends ChangeNotifier {
+  HomeViewModel({required BookingRepository bookingRepository})
+      : _bookingRepository = bookingRepository {
+    load = Command0(_load);
+  }
+
+  final BookingRepository _bookingRepository;
+  late final Command0<List<Booking>> load;
+  List<Booking> _bookings = [];
+  UnmodifiableListView<Booking> get bookings => UnmodifiableListView(_bookings);
+
+  Future<Result<List<Booking>>> _load() async {
+    final result = await _bookingRepository.getBookings();
+    result.fold(
+      onSuccess: (data) => _bookings = data,
+      onError: (_) => _bookings = [],
+    );
+    notifyListeners();
+    return result;
+  }
+}
+```
+
+**View — listen to the Command, not the ViewModel directly:**
+```dart
+ListenableBuilder(
+  listenable: viewModel.load,
+  builder: (context, child) {
+    if (viewModel.load.running) return const CircularProgressIndicator();
+    if (viewModel.load.error) {
+      return ErrorWidget(onRetry: viewModel.load.execute);
+    }
+    return child!;
+  },
+  child: BookingList(bookings: viewModel.bookings),
+)
+```
+
+**When to use Command vs. plain `_isLoading`:**
+
+| Scenario | Use |
+|----------|-----|
+| Single operation per screen (load + save) | Command |
+| Multiple independent async operations on the same screen | Multiple Commands |
+| Simple boolean toggle (e.g. checkbox) | Plain state field |
 
 ---
 
@@ -409,9 +701,14 @@ abstract class EmployeeRepository {
 }
 ```
 
-**Use Cases** *(optional — only for complex business logic)*
-- Utility class with well-defined inputs and outputs.
-- Keeps ViewModels from accumulating heavy logic.
+**Use Cases** *(optional — introduce only when ALL criteria are met)*
+
+Introduce a use case when the logic meets **at least one** of these conditions:
+1. Requires merging or coordinating data from **multiple repositories**.
+2. Logic is **exceedingly complex** and would make the ViewModel hard to test.
+3. The same logic is **reused** by multiple ViewModels.
+
+Do not add a domain layer preemptively — start with logic in the ViewModel and refactor only when the above conditions appear (YAGNI).
 
 ---
 
