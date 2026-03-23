@@ -82,7 +82,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Ana Lima'), findsOneWidget);
-      expect(find.text('Analista'), findsOneWidget);
+      expect(find.text('Função: Analista'), findsOneWidget);
     });
 
     testWidgets('shows document status and employee status columns',
@@ -92,12 +92,9 @@ void main() {
       await tester.pumpWidget(buildSubject());
       await tester.pumpAndSettle();
 
-      // Column headers
       expect(find.text('Documentos'), findsWidgets);
       expect(find.text('Status'), findsWidgets);
-
-      // Employee row values (DocumentStatus.ok → 'OK', EmployeeStatus.active → 'Ativo')
-      expect(find.text('OK'), findsOneWidget);
+      expect(find.text('OK'), findsWidgets);
       expect(find.text('Ativo'), findsOneWidget);
     });
 
@@ -109,6 +106,10 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Nenhum funcionário encontrado.'), findsOneWidget);
+      expect(
+        find.text('Ajuste os filtros ou cadastre um novo funcionário.'),
+        findsOneWidget,
+      );
     });
 
     testWidgets('shows error state when loading fails', (tester) async {
@@ -129,7 +130,8 @@ void main() {
       expect(find.byType(FloatingActionButton), findsOneWidget);
     });
 
-    testWidgets('navigates to create screen when FAB is tapped', (tester) async {
+    testWidgets('navigates to create screen when FAB is tapped',
+        (tester) async {
       employeeRepository.setEmployees([]);
 
       await tester.pumpWidget(buildSubject());
@@ -161,16 +163,17 @@ void main() {
         find.byType(DropdownButtonFormField<DocumentStatus>),
         findsOneWidget,
       );
+      expect(find.text('Busca e filtros'), findsOneWidget);
     });
 
-    testWidgets('shows column headers Nomes, Documentos, Status', (tester) async {
-      employeeRepository.setEmployees([]);
+    testWidgets('shows column legend and filter labels', (tester) async {
+      employeeRepository.setEmployees([_fakeEmployee]);
 
       await tester.pumpWidget(buildSubject());
       await tester.pumpAndSettle();
 
       expect(find.text('Nomes'), findsOneWidget);
-      // 'Documentos' appears in both the header and the filter dropdown hint
+      expect(find.text('Buscar por'), findsOneWidget);
       expect(find.text('Documentos'), findsWidgets);
     });
 

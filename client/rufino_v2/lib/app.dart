@@ -42,8 +42,10 @@ import 'ui/features/department/widgets/position_form_screen.dart';
 import 'ui/features/department/widgets/role_form_screen.dart';
 import 'ui/features/employee/viewmodel/employee_form_viewmodel.dart';
 import 'ui/features/employee/viewmodel/employee_list_viewmodel.dart';
+import 'ui/features/employee/viewmodel/employee_profile_viewmodel.dart';
 import 'ui/features/employee/widgets/employee_form_screen.dart';
 import 'ui/features/employee/widgets/employee_list_screen.dart';
+import 'ui/features/employee/widgets/employee_profile_screen.dart';
 import 'ui/features/home/viewmodel/home_viewmodel.dart';
 import 'ui/features/home/widgets/home_screen.dart';
 import 'ui/features/workplace/viewmodel/workplace_form_viewmodel.dart';
@@ -290,6 +292,18 @@ class _AppRouterState extends State<_AppRouter> {
               departmentRepository: context.read<DepartmentRepository>(),
               workplaceRepository: context.read<WorkplaceRepository>(),
               employeeRepository: context.read<EmployeeRepository>(),
+            ),
+          ),
+        ),
+        GoRoute(
+          path: '/employee/:id',
+          builder: (context, state) => EmployeeProfileScreen(
+            employeeId: state.pathParameters['id']!,
+            viewModel: EmployeeProfileViewModel(
+              companyRepository: context.read<CompanyRepository>(),
+              employeeRepository: context.read<EmployeeRepository>(),
+              departmentRepository: context.read<DepartmentRepository>(),
+              workplaceRepository: context.read<WorkplaceRepository>(),
             ),
           ),
         ),
