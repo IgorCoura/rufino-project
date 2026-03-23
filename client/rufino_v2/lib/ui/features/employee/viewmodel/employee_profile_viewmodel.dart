@@ -6,6 +6,7 @@ import '../../../../domain/entities/address.dart';
 import '../../../../domain/entities/employee.dart';
 import '../../../../domain/entities/department.dart';
 import '../../../../domain/entities/employee_contact.dart';
+import '../../../../domain/entities/employee_document.dart';
 import '../../../../domain/entities/employee_contract.dart';
 import '../../../../domain/entities/employee_dependent.dart';
 import '../../../../domain/entities/selection_option.dart';
@@ -127,6 +128,11 @@ class EmployeeProfileViewModel extends ChangeNotifier {
 
   SectionLoadStatus _workplaceInfoStatus = SectionLoadStatus.notLoaded;
   List<Workplace> _allWorkplaces = [];
+
+  // ─── Documents section ──────────────────────────────────────────────────
+
+  SectionLoadStatus _documentsStatus = SectionLoadStatus.notLoaded;
+  List<EmployeeDocument> _documents = [];
 
   // ─── Document signing options section ─────────────────────────────────────
 
@@ -300,6 +306,14 @@ class EmployeeProfileViewModel extends ChangeNotifier {
 
   /// The available document signing options.
   List<SelectionOption> get signingOptions => _signingOptions;
+
+  // ─── Public getters — section documents ────────────────────────────────────
+
+  /// The current load status of the documents section.
+  SectionLoadStatus get documentsStatus => _documentsStatus;
+
+  /// The loaded list of required documents.
+  List<EmployeeDocument> get documents => _documents;
 
   // ─── Core profile methods ──────────────────────────────────────────────────
 
@@ -1103,6 +1117,140 @@ class EmployeeProfileViewModel extends ChangeNotifier {
     );
 
     notifyListeners();
+  }
+
+  // ─── Documents section ──────────────────────────────────────────────────
+
+  /// Loads the list of required documents on first expansion.
+  Future<void> loadDocuments() async {
+    if (_documentsStatus != SectionLoadStatus.notLoaded) return;
+    final companyId = _companyId;
+    final currentProfile = _profile;
+    if (companyId == null || currentProfile == null) return;
+
+    _documentsStatus = SectionLoadStatus.loading;
+    notifyListeners();
+
+    final result =
+        await _employeeRepository.getDocuments(companyId, currentProfile.id);
+
+    result.fold(
+      onSuccess: (data) {
+        _documents = data;
+        _documentsStatus = SectionLoadStatus.loaded;
+      },
+      onError: (_) {
+        _documentsStatus = SectionLoadStatus.error;
+      },
+    );
+
+    notifyListeners();
+  }
+
+  /// Loads a specific document with paginated units and updates the list.
+  Future<void> loadDocumentUnits(
+    String documentId, {
+    int pageNumber = 1,
+    int pageSize = 10,
+    int? statusId,
+  }) async {
+    final companyId = _companyId;
+    final currentProfile = _profile;
+    if (companyId == null || currentProfile == null) return;
+
+    final result = await _employeeRepository.getDocumentById(
+      companyId,
+      currentProfile.id,
+      documentId,
+      pageNumber: pageNumber,
+      pageSize: pageSize,
+      statusId: statusId,
+    );
+
+    result.fold(
+      onSuccess: (doc) {
+        _documents =
+            _documents.map((d) => d.id == documentId ? doc : d).toList();
+      },
+      onError: (_) {},
+    );
+
+    notifyListeners();
+  }
+
+  /// Creates a new document unit and refreshes the document.
+  Future<void> createDocumentUnit(String documentId) async {
+    final companyId = _companyId;
+    final currentProfile = _profile;
+    if (companyId == null || currentProfile == null) return;
+
+    final result = await _employeeRepository.createDocumentUnit(
+      companyId,
+      currentProfile.id,
+      documentId,
+    );
+
+    result.fold(
+      onSuccess: (_) => _snackMessage = 'Documento criado com sucesso.',
+      onError: (_) => _snackMessage = 'Erro ao criar documento.',
+    );
+
+    notifyListeners();
+    await loadDocumentUnits(documentId);
+  }
+
+  /// Edits the date of a document unit and refreshes the document.
+  Future<void> editDocumentUnitDate(
+    String documentId,
+    String documentUnitId,
+    String date,
+  ) async {
+    final companyId = _companyId;
+    final currentProfile = _profile;
+    if (companyId == null || currentProfile == null) return;
+
+    final result = await _employeeRepository.editDocumentUnit(
+      companyId,
+      currentProfile.id,
+      documentId,
+      documentUnitId,
+      date,
+    );
+
+    result.fold(
+      onSuccess: (_) =>
+          _snackMessage = 'Data do documento atualizada com sucesso.',
+      onError: (_) => _snackMessage = 'Erro ao atualizar data.',
+    );
+
+    notifyListeners();
+    await loadDocumentUnits(documentId);
+  }
+
+  /// Marks a document unit as not applicable and refreshes the document.
+  Future<void> setDocumentUnitNotApplicable(
+    String documentId,
+    String documentUnitId,
+  ) async {
+    final companyId = _companyId;
+    final currentProfile = _profile;
+    if (companyId == null || currentProfile == null) return;
+
+    final result = await _employeeRepository.setDocumentUnitNotApplicable(
+      companyId,
+      currentProfile.id,
+      documentId,
+      documentUnitId,
+    );
+
+    result.fold(
+      onSuccess: (_) =>
+          _snackMessage = 'Documento marcado como não aplicável.',
+      onError: (_) => _snackMessage = 'Erro ao marcar documento.',
+    );
+
+    notifyListeners();
+    await loadDocumentUnits(documentId);
   }
 
   // ─── Document signing options section ───────────────────────────────────

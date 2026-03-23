@@ -1132,5 +1132,27 @@ void main() {
         expect(viewModel.signingOptionsStatus, SectionLoadStatus.error);
       });
     });
+
+    group('documents section', () {
+      test('loadDocuments transitions to loaded with data', () async {
+        await viewModel.load('emp-1');
+
+        await viewModel.loadDocuments();
+
+        expect(viewModel.documentsStatus, SectionLoadStatus.loaded);
+        expect(viewModel.documents, hasLength(1));
+        expect(viewModel.documents.first.name, 'Contrato de Trabalho');
+      });
+
+      test('loadDocuments sets error status when the repository call fails',
+          () async {
+        await viewModel.load('emp-1');
+        employeeRepository.setShouldFail(true);
+
+        await viewModel.loadDocuments();
+
+        expect(viewModel.documentsStatus, SectionLoadStatus.error);
+      });
+    });
   });
 }

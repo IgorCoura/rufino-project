@@ -5,6 +5,7 @@ import '../../core/result.dart';
 import '../../domain/entities/address.dart';
 import '../../domain/entities/employee.dart';
 import '../../domain/entities/employee_contact.dart';
+import '../../domain/entities/employee_document.dart';
 import '../../domain/entities/employee_contract.dart';
 import '../../domain/entities/selection_option.dart';
 import '../../domain/entities/employee_dependent.dart';
@@ -19,6 +20,7 @@ import '../../domain/repositories/employee_repository.dart';
 import '../models/employee_address_api_model.dart';
 import '../models/employee_contract_api_model.dart';
 import '../models/employee_dependent_api_model.dart';
+import '../models/employee_document_api_model.dart';
 import '../models/employee_id_card_api_model.dart';
 import '../models/employee_medical_exam_api_model.dart';
 import '../models/employee_military_document_api_model.dart';
@@ -639,6 +641,109 @@ class EmployeeRepositoryImpl implements EmployeeRepository {
     try {
       await apiService.editDocumentSigningOptions(
           companyId, employeeId, optionId);
+      return const Result<void>.success(null);
+    } on EmployeeException catch (e) {
+      return Result.error(e);
+    } catch (e) {
+      return Result.error(EmployeeNetworkException(e));
+    }
+  }
+
+  @override
+  Future<Result<List<EmployeeDocument>>> getDocuments(
+    String companyId,
+    String employeeId,
+  ) async {
+    try {
+      final models = await apiService.getDocuments(companyId, employeeId);
+      return Result.success(models.map((m) => m.toEntity()).toList());
+    } on EmployeeException catch (e) {
+      return Result.error(e);
+    } catch (e) {
+      return Result.error(EmployeeNetworkException(e));
+    }
+  }
+
+  @override
+  Future<Result<EmployeeDocument>> getDocumentById(
+    String companyId,
+    String employeeId,
+    String documentId, {
+    int pageNumber = 1,
+    int pageSize = 10,
+    int? statusId,
+  }) async {
+    try {
+      final model = await apiService.getDocumentById(
+        companyId,
+        employeeId,
+        documentId,
+        pageNumber: pageNumber,
+        pageSize: pageSize,
+        statusId: statusId,
+      );
+      return Result.success(model.toEntity());
+    } on EmployeeException catch (e) {
+      return Result.error(e);
+    } catch (e) {
+      return Result.error(EmployeeNetworkException(e));
+    }
+  }
+
+  @override
+  Future<Result<void>> createDocumentUnit(
+    String companyId,
+    String employeeId,
+    String documentId,
+  ) async {
+    try {
+      await apiService.createDocumentUnit(companyId, employeeId, documentId);
+      return const Result<void>.success(null);
+    } on EmployeeException catch (e) {
+      return Result.error(e);
+    } catch (e) {
+      return Result.error(EmployeeNetworkException(e));
+    }
+  }
+
+  @override
+  Future<Result<void>> editDocumentUnit(
+    String companyId,
+    String employeeId,
+    String documentId,
+    String documentUnitId,
+    String date,
+  ) async {
+    try {
+      final body = {
+        'documentUnitId': documentUnitId,
+        'documentId': documentId,
+        'employeeId': employeeId,
+        'documentUnitDate': DocumentUnitApiModel.dateToApi(date),
+      };
+      await apiService.editDocumentUnit(companyId, body);
+      return const Result<void>.success(null);
+    } on EmployeeException catch (e) {
+      return Result.error(e);
+    } catch (e) {
+      return Result.error(EmployeeNetworkException(e));
+    }
+  }
+
+  @override
+  Future<Result<void>> setDocumentUnitNotApplicable(
+    String companyId,
+    String employeeId,
+    String documentId,
+    String documentUnitId,
+  ) async {
+    try {
+      final body = {
+        'documentUnitId': documentUnitId,
+        'documentId': documentId,
+        'employeeId': employeeId,
+      };
+      await apiService.setDocumentUnitNotApplicable(companyId, body);
       return const Result<void>.success(null);
     } on EmployeeException catch (e) {
       return Result.error(e);

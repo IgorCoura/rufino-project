@@ -1887,5 +1887,28 @@ void main() {
       // No signing option set on profile — shows "Não informado".
       expect(find.text('Não informado'), findsWidgets);
     });
+
+    testWidgets('shows the Documentos section title', (tester) async {
+      await tester.pumpWidget(buildSubject());
+      await tester.pumpAndSettle();
+
+      expect(find.text('Documentos'), findsOneWidget);
+    });
+
+    testWidgets('expands the Documentos section and shows document data',
+        (tester) async {
+      await tester.pumpWidget(buildSubject());
+      await tester.pumpAndSettle();
+
+      await tester.scrollUntilVisible(
+        find.text('Documentos'),
+        100,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.tap(find.text('Documentos'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Contrato de Trabalho'), findsOneWidget);
+    });
   });
 }

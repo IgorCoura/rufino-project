@@ -7,6 +7,7 @@ import '../../core/errors/employee_exception.dart';
 import '../models/employee_api_model.dart';
 import '../models/employee_address_api_model.dart';
 import '../models/employee_contact_api_model.dart';
+import '../models/employee_document_api_model.dart';
 import '../models/employee_contract_api_model.dart';
 import '../models/employee_dependent_api_model.dart';
 import '../models/employee_id_card_api_model.dart';
@@ -584,6 +585,96 @@ class EmployeeApiService {
         'employeeId': employeeId,
         'documentSigningOptions': optionId,
       }),
+    );
+    _checkStatus(response);
+  }
+
+  /// Fetches the list of required documents (without units) for [employeeId].
+  Future<List<EmployeeDocumentApiModel>> getDocuments(
+    String companyId,
+    String employeeId,
+  ) async {
+    final uri =
+        Uri.https(baseUrl, '/api/v1/$companyId/document/$employeeId');
+    final response = await client.get(uri, headers: await _headers());
+    _checkStatus(response);
+    final list = jsonDecode(response.body) as List<dynamic>;
+    return list
+        .map((e) => EmployeeDocumentApiModel.fromJsonSimple(
+            e as Map<String, dynamic>))
+        .toList();
+  }
+
+  /// Fetches a single document with paginated units.
+  Future<EmployeeDocumentApiModel> getDocumentById(
+    String companyId,
+    String employeeId,
+    String documentId, {
+    int pageNumber = 1,
+    int pageSize = 10,
+    int? statusId,
+  }) async {
+    final queryParams = <String, String>{
+      'PageNumber': pageNumber.toString(),
+      'PageSize': pageSize.toString(),
+    };
+    if (statusId != null) queryParams['StatusId'] = statusId.toString();
+
+    final uri = Uri.https(
+      baseUrl,
+      '/api/v1/$companyId/document/$employeeId/$documentId',
+      queryParams,
+    );
+    final response = await client.get(uri, headers: await _headers());
+    _checkStatus(response);
+    final json = jsonDecode(response.body) as Map<String, dynamic>;
+    return EmployeeDocumentApiModel.fromJson(json);
+  }
+
+  /// Creates a new document unit for [documentId].
+  Future<void> createDocumentUnit(
+    String companyId,
+    String employeeId,
+    String documentId,
+  ) async {
+    final uri = Uri.https(baseUrl, '/api/v1/$companyId/document');
+    final response = await client.post(
+      uri,
+      headers: await _headers(),
+      body: jsonEncode({
+        'documentId': documentId,
+        'employeeId': employeeId,
+      }),
+    );
+    _checkStatus(response);
+  }
+
+  /// Updates the date of a document unit.
+  Future<void> editDocumentUnit(
+    String companyId,
+    Map<String, dynamic> body,
+  ) async {
+    final uri =
+        Uri.https(baseUrl, '/api/v1/$companyId/document/documentunit');
+    final response = await client.put(
+      uri,
+      headers: await _headers(),
+      body: jsonEncode(body),
+    );
+    _checkStatus(response);
+  }
+
+  /// Marks a document unit as not applicable.
+  Future<void> setDocumentUnitNotApplicable(
+    String companyId,
+    Map<String, dynamic> body,
+  ) async {
+    final uri = Uri.https(
+        baseUrl, '/api/v1/$companyId/Document/DocumentUnit/not-applicable');
+    final response = await client.put(
+      uri,
+      headers: await _headers(),
+      body: jsonEncode(body),
     );
     _checkStatus(response);
   }
