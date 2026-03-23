@@ -7,6 +7,7 @@ import '../../core/errors/employee_exception.dart';
 import '../models/employee_api_model.dart';
 import '../models/employee_address_api_model.dart';
 import '../models/employee_contact_api_model.dart';
+import '../models/employee_dependent_api_model.dart';
 import '../models/employee_id_card_api_model.dart';
 import '../models/employee_personal_info_api_model.dart';
 import '../models/employee_profile_api_model.dart';
@@ -420,6 +421,64 @@ class EmployeeApiService {
       uri,
       headers: await _headers(),
       body: jsonEncode(medicalExamJson),
+    );
+    _checkStatus(response);
+  }
+
+  /// Fetches the list of dependents for [employeeId].
+  Future<List<EmployeeDependentApiModel>> getDependents(
+    String companyId,
+    String employeeId,
+  ) async {
+    final uri = Uri.https(
+        baseUrl, '/api/v1/$companyId/employee/dependents/$employeeId');
+    final response = await client.get(uri, headers: await _headers());
+    _checkStatus(response);
+    final json = jsonDecode(response.body) as Map<String, dynamic>;
+    return EmployeeDependentApiModel.fromListResponse(json);
+  }
+
+  /// Creates a new dependent for [employeeId].
+  Future<void> createDependent(
+    String companyId,
+    Map<String, dynamic> body,
+  ) async {
+    final uri =
+        Uri.https(baseUrl, '/api/v1/$companyId/employee/dependent/create');
+    final response = await client.put(
+      uri,
+      headers: await _headers(),
+      body: jsonEncode(body),
+    );
+    _checkStatus(response);
+  }
+
+  /// Updates an existing dependent for [employeeId].
+  Future<void> editDependent(
+    String companyId,
+    Map<String, dynamic> body,
+  ) async {
+    final uri =
+        Uri.https(baseUrl, '/api/v1/$companyId/employee/dependent/edit');
+    final response = await client.put(
+      uri,
+      headers: await _headers(),
+      body: jsonEncode(body),
+    );
+    _checkStatus(response);
+  }
+
+  /// Removes a dependent from [employeeId].
+  Future<void> removeDependent(
+    String companyId,
+    Map<String, dynamic> body,
+  ) async {
+    final uri =
+        Uri.https(baseUrl, '/api/v1/$companyId/employee/dependent/remove');
+    final response = await client.put(
+      uri,
+      headers: await _headers(),
+      body: jsonEncode(body),
     );
     _checkStatus(response);
   }

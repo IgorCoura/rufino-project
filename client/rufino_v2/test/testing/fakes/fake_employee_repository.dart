@@ -4,6 +4,7 @@ import 'package:rufino_v2/core/result.dart';
 import 'package:rufino_v2/domain/entities/address.dart';
 import 'package:rufino_v2/domain/entities/employee.dart';
 import 'package:rufino_v2/domain/entities/employee_contact.dart';
+import 'package:rufino_v2/domain/entities/employee_dependent.dart';
 import 'package:rufino_v2/domain/entities/employee_id_card.dart';
 import 'package:rufino_v2/domain/entities/employee_personal_info.dart';
 import 'package:rufino_v2/domain/entities/employee_profile.dart';
@@ -99,6 +100,22 @@ class FakeEmployeeRepository implements EmployeeRepository {
     validityExam: '15/01/2027',
   );
 
+  List<EmployeeDependent> _dependents = const [
+    EmployeeDependent(
+      originalName: 'Maria Silva',
+      name: 'Maria Silva',
+      genderId: '2',
+      dependencyTypeId: '1',
+      cpf: '111.444.777-35',
+      motherName: 'Ana',
+      fatherName: 'João',
+      dateOfBirth: '01/01/2010',
+      birthCity: 'São Paulo',
+      birthState: 'SP',
+      nationality: 'Brasileira',
+    ),
+  ];
+
   void setEmployees(List<Employee> employees) => _employees = employees;
 
   /// The profile returned by [getEmployeeProfile].
@@ -140,6 +157,9 @@ class FakeEmployeeRepository implements EmployeeRepository {
   /// The medical exam returned by [getMedicalExam].
   void setMedicalExam(EmployeeMedicalExam exam) => _medicalExam = exam;
 
+  /// The dependents returned by [getDependents].
+  void setDependents(List<EmployeeDependent> deps) => _dependents = deps;
+
   // ─── Captured call arguments (for assertion) ──────────────────────────────
 
   String? lastCreatedName;
@@ -165,6 +185,9 @@ class FakeEmployeeRepository implements EmployeeRepository {
   String? lastSavedMedicalExamDate;
   String? lastSavedMedicalExamValidity;
   String? lastSavedRoleId;
+  EmployeeDependent? lastCreatedDependent;
+  EmployeeDependent? lastEditedDependent;
+  String? lastRemovedDependentName;
 
   // ─── Implementation ───────────────────────────────────────────────────────
 
@@ -476,6 +499,59 @@ class FakeEmployeeRepository implements EmployeeRepository {
     if (_shouldFail) {
       return Result.error(Exception('editEmployeeRole failed'));
     }
+    return const Result<void>.success(null);
+  }
+
+  @override
+  Future<Result<List<EmployeeDependent>>> getDependents(
+    String companyId,
+    String employeeId,
+  ) async {
+    if (_shouldFail) {
+      return Result.error(Exception('getDependents failed'));
+    }
+    return Result.success(_dependents);
+  }
+
+  @override
+  Future<Result<void>> createDependent(
+    String companyId,
+    String employeeId,
+    EmployeeDependent dependent,
+  ) async {
+    lastCreatedDependent = dependent;
+    if (_shouldFail) {
+      return Result.error(Exception('createDependent failed'));
+    }
+    _dependents = [..._dependents, dependent];
+    return const Result<void>.success(null);
+  }
+
+  @override
+  Future<Result<void>> editDependent(
+    String companyId,
+    String employeeId,
+    EmployeeDependent dependent,
+  ) async {
+    lastEditedDependent = dependent;
+    if (_shouldFail) {
+      return Result.error(Exception('editDependent failed'));
+    }
+    return const Result<void>.success(null);
+  }
+
+  @override
+  Future<Result<void>> removeDependent(
+    String companyId,
+    String employeeId,
+    String dependentName,
+  ) async {
+    lastRemovedDependentName = dependentName;
+    if (_shouldFail) {
+      return Result.error(Exception('removeDependent failed'));
+    }
+    _dependents =
+        _dependents.where((d) => d.originalName != dependentName).toList();
     return const Result<void>.success(null);
   }
 }

@@ -4,6 +4,7 @@ import '../../core/result.dart';
 import '../entities/address.dart';
 import '../entities/employee.dart';
 import '../entities/employee_contact.dart';
+import '../entities/employee_dependent.dart';
 import '../entities/employee_id_card.dart';
 import '../entities/employee_medical_exam.dart';
 import '../entities/employee_military_document.dart';
@@ -193,5 +194,33 @@ abstract class EmployeeRepository {
     String companyId,
     String employeeId,
     String roleId,
+  );
+
+  /// Returns the list of dependents for the employee identified by [employeeId].
+  Future<Result<List<EmployeeDependent>>> getDependents(
+    String companyId,
+    String employeeId,
+  );
+
+  /// Creates a new dependent for the employee identified by [employeeId].
+  Future<Result<void>> createDependent(
+    String companyId,
+    String employeeId,
+    EmployeeDependent dependent,
+  );
+
+  /// Updates an existing dependent for the employee identified by [employeeId].
+  Future<Result<void>> editDependent(
+    String companyId,
+    String employeeId,
+    EmployeeDependent dependent,
+  );
+
+  /// Removes a dependent by [dependentName] from the employee identified by
+  /// [employeeId].
+  Future<Result<void>> removeDependent(
+    String companyId,
+    String employeeId,
+    String dependentName,
   );
 }

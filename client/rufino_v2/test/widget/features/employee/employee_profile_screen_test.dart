@@ -474,6 +474,8 @@ void main() {
       // Física should appear with a remove button.
       expect(find.text('Física'), findsOneWidget);
 
+      await tester.ensureVisible(find.byTooltip('Remover deficiência'));
+      await tester.pumpAndSettle();
       await tester.tap(find.byTooltip('Remover deficiência'));
       await tester.pumpAndSettle();
 
@@ -1771,6 +1773,30 @@ void main() {
 
       expect(find.text('Financeiro'), findsOneWidget);
       expect(find.text('Salvar'), findsNothing);
+    });
+
+    testWidgets('shows the Dependentes section title', (tester) async {
+      await tester.pumpWidget(buildSubject());
+      await tester.pumpAndSettle();
+
+      expect(find.text('Dependentes'), findsOneWidget);
+    });
+
+    testWidgets(
+        'expands the Dependentes section and shows dependent data',
+        (tester) async {
+      await tester.pumpWidget(buildSubject());
+      await tester.pumpAndSettle();
+
+      await tester.scrollUntilVisible(
+        find.text('Dependentes'),
+        100,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.tap(find.text('Dependentes'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Maria Silva'), findsOneWidget);
     });
   });
 }

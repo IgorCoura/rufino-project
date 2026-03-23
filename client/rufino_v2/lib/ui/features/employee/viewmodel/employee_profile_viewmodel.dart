@@ -6,6 +6,8 @@ import '../../../../domain/entities/address.dart';
 import '../../../../domain/entities/employee.dart';
 import '../../../../domain/entities/department.dart';
 import '../../../../domain/entities/employee_contact.dart';
+import '../../../../domain/entities/employee_dependent.dart';
+import '../../../../domain/entities/selection_option.dart';
 import '../../../../domain/entities/employee_id_card.dart';
 import '../../../../domain/entities/employee_personal_info.dart';
 import '../../../../domain/entities/employee_profile.dart';
@@ -107,6 +109,17 @@ class EmployeeProfileViewModel extends ChangeNotifier {
   List<SalaryType> _salaryTypes = [];
   String _currentDepartmentId = '';
   String _currentPositionId = '';
+
+  // ─── Dependents section ────────────────────────────────────────────────────
+
+  SectionLoadStatus _dependentsStatus = SectionLoadStatus.notLoaded;
+  List<EmployeeDependent> _dependents = [];
+
+  /// Dependency type options (static — "Filho(a)" / "Cônjuge").
+  static const dependencyTypeOptions = [
+    SelectionOption(id: '1', name: 'Filho(a)'),
+    SelectionOption(id: '2', name: 'Cônjuge'),
+  ];
 
   // ─── Public getters — core profile ────────────────────────────────────────
 
@@ -234,6 +247,14 @@ class EmployeeProfileViewModel extends ChangeNotifier {
 
   /// Available salary type options for salary display resolution.
   List<SalaryType> get salaryTypes => _salaryTypes;
+
+  // ─── Public getters — section dependents ───────────────────────────────────
+
+  /// The current load status of the dependents section.
+  SectionLoadStatus get dependentsStatus => _dependentsStatus;
+
+  /// The loaded list of dependents.
+  List<EmployeeDependent> get dependents => _dependents;
 
   // ─── Core profile methods ──────────────────────────────────────────────────
 
@@ -975,6 +996,143 @@ class EmployeeProfileViewModel extends ChangeNotifier {
     }
   }
 
+  // ─── Dependents section ─────────────────────────────────────────────────
+
+  /// Loads the list of dependents for the current employee on first expansion.
+  ///
+  /// Also ensures the personal info options (genders) are available since the
+  /// dependent form needs them for the gender dropdown.
+  Future<void> loadDependents() async {
+    if (_dependentsStatus != SectionLoadStatus.notLoaded) return;
+    final companyId = _companyId;
+    final currentProfile = _profile;
+    if (companyId == null || currentProfile == null) return;
+
+    _dependentsStatus = SectionLoadStatus.loading;
+    notifyListeners();
+
+    final result =
+        await _employeeRepository.getDependents(companyId, currentProfile.id);
+
+    // Load gender options if not yet available.
+    if (_personalInfoOptions == null) {
+      final optionsResult =
+          await _employeeRepository.getPersonalInfoOptions(companyId);
+      optionsResult.fold(
+        onSuccess: (data) => _personalInfoOptions = data,
+        onError: (_) {},
+      );
+    }
+
+    result.fold(
+      onSuccess: (data) {
+        _dependents = data;
+        _dependentsStatus = SectionLoadStatus.loaded;
+      },
+      onError: (_) {
+        _dependentsStatus = SectionLoadStatus.error;
+      },
+    );
+
+    notifyListeners();
+  }
+
+  /// Creates a new dependent and reloads the list on success.
+  Future<void> createDependent(EmployeeDependent dependent) async {
+    final companyId = _companyId;
+    final currentProfile = _profile;
+    if (companyId == null || currentProfile == null) return;
+
+    _dependentsStatus = SectionLoadStatus.saving;
+    notifyListeners();
+
+    final result = await _employeeRepository.createDependent(
+      companyId,
+      currentProfile.id,
+      dependent,
+    );
+
+    result.fold(
+      onSuccess: (_) {
+        // Reload the list so the server-assigned data is reflected.
+        _dependentsStatus = SectionLoadStatus.notLoaded;
+        _snackMessage = 'Dependente criado com sucesso.';
+      },
+      onError: (_) {
+        _dependentsStatus = SectionLoadStatus.error;
+      },
+    );
+
+    notifyListeners();
+
+    // Reload if successful.
+    if (_dependentsStatus == SectionLoadStatus.notLoaded) {
+      await loadDependents();
+    }
+  }
+
+  /// Updates an existing dependent and reloads the list on success.
+  Future<void> editDependentData(EmployeeDependent dependent) async {
+    final companyId = _companyId;
+    final currentProfile = _profile;
+    if (companyId == null || currentProfile == null) return;
+
+    _dependentsStatus = SectionLoadStatus.saving;
+    notifyListeners();
+
+    final result = await _employeeRepository.editDependent(
+      companyId,
+      currentProfile.id,
+      dependent,
+    );
+
+    result.fold(
+      onSuccess: (_) {
+        _dependentsStatus = SectionLoadStatus.notLoaded;
+        _snackMessage = 'Dependente atualizado com sucesso.';
+      },
+      onError: (_) {
+        _dependentsStatus = SectionLoadStatus.error;
+      },
+    );
+
+    notifyListeners();
+
+    if (_dependentsStatus == SectionLoadStatus.notLoaded) {
+      await loadDependents();
+    }
+  }
+
+  /// Removes the dependent identified by [dependentName].
+  Future<void> removeDependent(String dependentName) async {
+    final companyId = _companyId;
+    final currentProfile = _profile;
+    if (companyId == null || currentProfile == null) return;
+
+    _dependentsStatus = SectionLoadStatus.saving;
+    notifyListeners();
+
+    final result = await _employeeRepository.removeDependent(
+      companyId,
+      currentProfile.id,
+      dependentName,
+    );
+
+    result.fold(
+      onSuccess: (_) {
+        _dependents =
+            _dependents.where((d) => d.originalName != dependentName).toList();
+        _snackMessage = 'Dependente removido com sucesso.';
+        _dependentsStatus = SectionLoadStatus.loaded;
+      },
+      onError: (_) {
+        _dependentsStatus = SectionLoadStatus.error;
+      },
+    );
+
+    notifyListeners();
+  }
+
   // ─── Validators ──────────────────────────────────────────────────────────
 
   // ── Contact validators ──────────────────────────────────────────────────
@@ -1294,6 +1452,19 @@ class EmployeeProfileViewModel extends ChangeNotifier {
       }
     } catch (_) {
       return 'A Validade do exame é inválida.';
+    }
+    return null;
+  }
+
+  // ── Dependent validators ─────────────────────────────────────────────────
+
+  /// Validates the dependent name field.
+  String? validateDependentName(String? value) {
+    if (value == null || value.trim().isEmpty) {
+      return 'O Nome do dependente não pode ser vazio.';
+    }
+    if (value.trim().length > 100) {
+      return 'O Nome não pode ter mais de 100 caracteres.';
     }
     return null;
   }

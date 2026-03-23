@@ -932,6 +932,67 @@ void main() {
           expect(viewModel.formatSalary(_fakeRole), contains('3500.00'));
         });
       });
+
+      group('validateDependentName', () {
+        test('returns error for empty input', () {
+          expect(viewModel.validateDependentName(''), isNotNull);
+        });
+
+        test('returns null for valid name', () {
+          expect(viewModel.validateDependentName('Maria Silva'), isNull);
+        });
+
+        test('returns error for name exceeding 100 characters', () {
+          expect(viewModel.validateDependentName('A' * 101), isNotNull);
+        });
+      });
+    });
+
+    group('dependents section', () {
+      test('loadDependents transitions from notLoaded to loaded with data',
+          () async {
+        await viewModel.load('emp-1');
+
+        await viewModel.loadDependents();
+
+        expect(viewModel.dependentsStatus, SectionLoadStatus.loaded);
+        expect(viewModel.dependents, hasLength(1));
+        expect(viewModel.dependents.first.name, 'Maria Silva');
+      });
+
+      test('loadDependents sets error status when the repository call fails',
+          () async {
+        await viewModel.load('emp-1');
+        employeeRepository.setShouldFail(true);
+
+        await viewModel.loadDependents();
+
+        expect(viewModel.dependentsStatus, SectionLoadStatus.error);
+      });
+
+      test('removeDependent removes the dependent and shows a snack message',
+          () async {
+        await viewModel.load('emp-1');
+        await viewModel.loadDependents();
+
+        await viewModel.removeDependent('Maria Silva');
+
+        expect(viewModel.dependentsStatus, SectionLoadStatus.loaded);
+        expect(viewModel.dependents, isEmpty);
+        expect(viewModel.snackMessage, contains('removido'));
+        expect(employeeRepository.lastRemovedDependentName, 'Maria Silva');
+      });
+
+      test('removeDependent sets error status when the repository call fails',
+          () async {
+        await viewModel.load('emp-1');
+        await viewModel.loadDependents();
+        employeeRepository.setShouldFail(true);
+
+        await viewModel.removeDependent('Maria Silva');
+
+        expect(viewModel.dependentsStatus, SectionLoadStatus.error);
+      });
     });
   });
 }

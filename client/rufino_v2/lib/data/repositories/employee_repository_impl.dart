@@ -5,6 +5,7 @@ import '../../core/result.dart';
 import '../../domain/entities/address.dart';
 import '../../domain/entities/employee.dart';
 import '../../domain/entities/employee_contact.dart';
+import '../../domain/entities/employee_dependent.dart';
 import '../../domain/entities/employee_id_card.dart';
 import '../../domain/entities/employee_personal_info.dart';
 import '../../domain/entities/employee_profile.dart';
@@ -14,6 +15,7 @@ import '../../domain/entities/employee_vote_id.dart';
 import '../../domain/entities/personal_info_options.dart';
 import '../../domain/repositories/employee_repository.dart';
 import '../models/employee_address_api_model.dart';
+import '../models/employee_dependent_api_model.dart';
 import '../models/employee_id_card_api_model.dart';
 import '../models/employee_medical_exam_api_model.dart';
 import '../models/employee_military_document_api_model.dart';
@@ -438,6 +440,75 @@ class EmployeeRepositoryImpl implements EmployeeRepository {
   ) async {
     try {
       await apiService.editEmployeeRole(companyId, employeeId, roleId);
+      return const Result<void>.success(null);
+    } on EmployeeException catch (e) {
+      return Result.error(e);
+    } catch (e) {
+      return Result.error(EmployeeNetworkException(e));
+    }
+  }
+
+  @override
+  Future<Result<List<EmployeeDependent>>> getDependents(
+    String companyId,
+    String employeeId,
+  ) async {
+    try {
+      final models = await apiService.getDependents(companyId, employeeId);
+      return Result.success(models.map((m) => m.toEntity()).toList());
+    } on EmployeeException catch (e) {
+      return Result.error(e);
+    } catch (e) {
+      return Result.error(EmployeeNetworkException(e));
+    }
+  }
+
+  @override
+  Future<Result<void>> createDependent(
+    String companyId,
+    String employeeId,
+    EmployeeDependent dependent,
+  ) async {
+    try {
+      final body =
+          EmployeeDependentApiModel.toCreateJson(employeeId, dependent);
+      await apiService.createDependent(companyId, body);
+      return const Result<void>.success(null);
+    } on EmployeeException catch (e) {
+      return Result.error(e);
+    } catch (e) {
+      return Result.error(EmployeeNetworkException(e));
+    }
+  }
+
+  @override
+  Future<Result<void>> editDependent(
+    String companyId,
+    String employeeId,
+    EmployeeDependent dependent,
+  ) async {
+    try {
+      final body =
+          EmployeeDependentApiModel.toUpdateJson(employeeId, dependent);
+      await apiService.editDependent(companyId, body);
+      return const Result<void>.success(null);
+    } on EmployeeException catch (e) {
+      return Result.error(e);
+    } catch (e) {
+      return Result.error(EmployeeNetworkException(e));
+    }
+  }
+
+  @override
+  Future<Result<void>> removeDependent(
+    String companyId,
+    String employeeId,
+    String dependentName,
+  ) async {
+    try {
+      final body =
+          EmployeeDependentApiModel.toRemoveJson(employeeId, dependentName);
+      await apiService.removeDependent(companyId, body);
       return const Result<void>.success(null);
     } on EmployeeException catch (e) {
       return Result.error(e);
