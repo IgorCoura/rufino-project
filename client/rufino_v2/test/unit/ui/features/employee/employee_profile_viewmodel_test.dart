@@ -758,5 +758,180 @@ void main() {
         expect(viewModel.roleInfoStatus, SectionLoadStatus.error);
       });
     });
+
+    // ─── Validators ──────────────────────────────────────────────────────────
+
+    group('validators', () {
+      group('validatePhone', () {
+        test('returns null for empty input', () {
+          expect(viewModel.validatePhone(''), isNull);
+          expect(viewModel.validatePhone(null), isNull);
+        });
+
+        test('returns null for valid 11-digit phone', () {
+          expect(viewModel.validatePhone('11987654321'), isNull);
+        });
+
+        test('returns error for invalid digit count', () {
+          expect(viewModel.validatePhone('1234'), isNotNull);
+        });
+      });
+
+      group('validateEmail', () {
+        test('returns null for empty input', () {
+          expect(viewModel.validateEmail(''), isNull);
+        });
+
+        test('returns null for valid email', () {
+          expect(viewModel.validateEmail('test@example.com'), isNull);
+        });
+
+        test('returns error for invalid email', () {
+          expect(viewModel.validateEmail('not-an-email'), isNotNull);
+        });
+      });
+
+      group('validateCep', () {
+        test('returns error for empty input', () {
+          expect(viewModel.validateCep(''), isNotNull);
+        });
+
+        test('returns null for valid 8-digit CEP', () {
+          expect(viewModel.validateCep('01310-100'), isNull);
+        });
+
+        test('returns error for short CEP', () {
+          expect(viewModel.validateCep('1234'), isNotNull);
+        });
+      });
+
+      group('isCpfValid', () {
+        test('returns true for a mathematically valid CPF', () {
+          expect(viewModel.isCpfValid('111.444.777-35'), isTrue);
+        });
+
+        test('returns false for all-same-digit CPF', () {
+          expect(viewModel.isCpfValid('000.000.000-00'), isFalse);
+          expect(viewModel.isCpfValid('111.111.111-11'), isFalse);
+        });
+
+        test('returns false for wrong check digits', () {
+          expect(viewModel.isCpfValid('123.456.789-01'), isFalse);
+        });
+      });
+
+      group('validateCpf', () {
+        test('returns error for empty input', () {
+          expect(viewModel.validateCpf(''), isNotNull);
+        });
+
+        test('returns null for valid CPF', () {
+          expect(viewModel.validateCpf('111.444.777-35'), isNull);
+        });
+
+        test('returns error for invalid CPF algorithm', () {
+          expect(viewModel.validateCpf('12345678901'), isNotNull);
+        });
+      });
+
+      group('validateDateOfBirth', () {
+        test('returns error for empty input', () {
+          expect(viewModel.validateDateOfBirth(''), isNotNull);
+        });
+
+        test('returns null for a valid past date', () {
+          expect(viewModel.validateDateOfBirth('15/06/1990'), isNull);
+        });
+
+        test('returns error for a future date', () {
+          expect(viewModel.validateDateOfBirth('01/01/2099'), isNotNull);
+        });
+      });
+
+      group('isVoteIdValid', () {
+        test('returns true for a mathematically valid vote ID', () {
+          expect(viewModel.isVoteIdValid('123456780698'), isTrue);
+        });
+
+        test('returns false for all-same-digit vote ID', () {
+          expect(viewModel.isVoteIdValid('111111111111'), isFalse);
+        });
+
+        test('returns false for wrong check digits', () {
+          expect(viewModel.isVoteIdValid('123456789012'), isFalse);
+        });
+      });
+
+      group('validateVoteIdNumber', () {
+        test('returns error for empty input', () {
+          expect(viewModel.validateVoteIdNumber(''), isNotNull);
+        });
+
+        test('returns null for valid vote ID', () {
+          expect(viewModel.validateVoteIdNumber('1234.5678.0698'), isNull);
+        });
+
+        test('returns error for invalid vote ID', () {
+          expect(viewModel.validateVoteIdNumber('1234.5678.9012'), isNotNull);
+        });
+      });
+
+      group('validateMilitaryNumber', () {
+        test('returns error for empty input', () {
+          expect(viewModel.validateMilitaryNumber(''), isNotNull);
+        });
+
+        test('returns null for valid number', () {
+          expect(viewModel.validateMilitaryNumber('RM-12345'), isNull);
+        });
+
+        test('returns error for number exceeding 20 characters', () {
+          expect(
+            viewModel.validateMilitaryNumber('A' * 21),
+            isNotNull,
+          );
+        });
+      });
+
+      group('validateMilitaryType', () {
+        test('returns error for empty input', () {
+          expect(viewModel.validateMilitaryType(''), isNotNull);
+        });
+
+        test('returns null for valid type', () {
+          expect(viewModel.validateMilitaryType('Reservista'), isNull);
+        });
+
+        test('returns error for type exceeding 50 characters', () {
+          expect(viewModel.validateMilitaryType('A' * 51), isNotNull);
+        });
+      });
+
+      group('validateDateExam', () {
+        test('returns error for empty input', () {
+          expect(viewModel.validateDateExam(''), isNotNull);
+        });
+
+        test('returns error for date older than 365 days', () {
+          expect(viewModel.validateDateExam('01/01/2020'), isNotNull);
+        });
+      });
+
+      group('validateExamValidity', () {
+        test('returns error for empty input', () {
+          expect(viewModel.validateExamValidity(''), isNotNull);
+        });
+
+        test('returns error for past date', () {
+          expect(viewModel.validateExamValidity('01/01/2020'), isNotNull);
+        });
+      });
+
+      group('formatSalary', () {
+        test('returns formatted salary with type, value, and unit', () {
+          expect(viewModel.formatSalary(_fakeRole), contains('3500.00'));
+        });
+      });
+    });
   });
 }

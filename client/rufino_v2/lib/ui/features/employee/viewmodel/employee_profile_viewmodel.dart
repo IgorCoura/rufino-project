@@ -10,6 +10,7 @@ import '../../../../domain/entities/employee_id_card.dart';
 import '../../../../domain/entities/employee_personal_info.dart';
 import '../../../../domain/entities/employee_profile.dart';
 import '../../../../domain/entities/remuneration.dart';
+import '../../../../domain/entities/role.dart';
 import '../../../../domain/entities/employee_medical_exam.dart';
 import '../../../../domain/entities/employee_military_document.dart';
 import '../../../../domain/entities/employee_vote_id.dart';
@@ -972,6 +973,368 @@ class EmployeeProfileViewModel extends ChangeNotifier {
         }
       }
     }
+  }
+
+  // ─── Validators ──────────────────────────────────────────────────────────
+
+  // ── Contact validators ──────────────────────────────────────────────────
+
+  /// Validates a phone number.
+  ///
+  /// Optional field — returns null when empty. When filled, must have 10 or
+  /// 11 digits.
+  String? validatePhone(String? value) {
+    if (value == null || value.trim().isEmpty) return null;
+    final digits = value.replaceAll(RegExp(r'[^\d]'), '');
+    if (digits.length != 10 && digits.length != 11) {
+      return 'Número inválido (ex: 11 98765-4321)';
+    }
+    return null;
+  }
+
+  /// Validates an email address.
+  ///
+  /// Optional field — returns null when empty. When filled, must match a
+  /// basic email pattern.
+  String? validateEmail(String? value) {
+    if (value == null || value.trim().isEmpty) return null;
+    final emailRegex = RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$');
+    if (!emailRegex.hasMatch(value.trim())) return 'E-mail inválido';
+    return null;
+  }
+
+  // ── Address validators ──────────────────────────────────────────────────
+
+  /// Validates a Brazilian CEP (postal code).
+  ///
+  /// Required field with exactly 8 digits.
+  String? validateCep(String? value) {
+    if (value == null || value.trim().isEmpty) return 'CEP é obrigatório';
+    final digits = value.replaceAll(RegExp(r'[^\d]'), '');
+    if (digits.length != 8) return 'CEP inválido (ex: 01310-100)';
+    return null;
+  }
+
+  /// Validates a required text field with a custom [label].
+  String? validateRequired(String? value, String label) {
+    if (value == null || value.trim().isEmpty) return '$label é obrigatório';
+    return null;
+  }
+
+  /// Validates an optional state abbreviation field (for addresses).
+  ///
+  /// Returns null when empty. When filled, must be exactly 2 characters.
+  String? validateAddressState(String? value) {
+    if (value == null || value.trim().isEmpty) return null;
+    if (value.trim().length != 2) {
+      return 'Use a sigla de 2 letras (ex: SP)';
+    }
+    return null;
+  }
+
+  // ── ID card validators ──────────────────────────────────────────────────
+
+  /// Whether [cpf] passes the Brazilian CPF mathematical verification
+  /// algorithm.
+  bool isCpfValid(String cpf) {
+    final digits = cpf.replaceAll(RegExp(r'[^\d]'), '');
+    if (digits.length != 11) return false;
+    if (RegExp(r'^(\d)\1{10}$').hasMatch(digits)) return false;
+
+    int firstSum = 0;
+    for (int i = 0; i < 9; i++) {
+      firstSum += int.parse(digits[i]) * (10 - i);
+    }
+    final mod1 = firstSum % 11;
+    final d1 = mod1 < 2 ? 0 : 11 - mod1;
+    if (d1 != int.parse(digits[9])) return false;
+
+    int secondSum = 0;
+    for (int i = 0; i < 10; i++) {
+      secondSum += int.parse(digits[i]) * (11 - i);
+    }
+    final mod2 = secondSum % 11;
+    final d2 = mod2 < 2 ? 0 : 11 - mod2;
+    return d2 == int.parse(digits[10]);
+  }
+
+  /// Validates a CPF field.
+  String? validateCpf(String? value) {
+    if (value == null || value.trim().isEmpty) {
+      return 'O CPF não pode ser vazio.';
+    }
+    if (value.trim().length > 100) {
+      return 'O CPF não pode ser maior que 100 caracteres.';
+    }
+    if (!isCpfValid(value)) {
+      return 'O CPF não é válido.';
+    }
+    return null;
+  }
+
+  /// Validates a date of birth in `dd/MM/yyyy` format.
+  ///
+  /// Must not be empty, must be a parseable date, not in the future, and not
+  /// older than 100 years.
+  String? validateDateOfBirth(String? value) {
+    if (value == null || value.trim().isEmpty) {
+      return 'A Data de nascimento não pode ser vazia.';
+    }
+    final digits = value.replaceAll(RegExp(r'[^\d]'), '');
+    if (digits.length != 8) {
+      return 'Data inválida (ex: 15/06/1990)';
+    }
+    try {
+      final parts = value.split('/');
+      final isoDate = '${parts[2]}-${parts[1]}-${parts[0]}';
+      final date = DateTime.tryParse(isoDate);
+      final now = DateTime.now();
+      final hundredYearsAgo = now.subtract(const Duration(days: 36500));
+      if (date == null ||
+          date.isAfter(now) ||
+          date.isBefore(hundredYearsAgo)) {
+        return 'A Data de nascimento é inválida.';
+      }
+    } catch (_) {
+      return 'A Data de nascimento é inválida.';
+    }
+    return null;
+  }
+
+  /// Validates the mother name field.
+  String? validateMotherName(String? value) {
+    if (value == null || value.trim().isEmpty) {
+      return 'O Nome da mãe não pode ser vazio.';
+    }
+    if (value.trim().length > 100) {
+      return 'O Nome da mãe não pode ser maior que 100 caracteres.';
+    }
+    return null;
+  }
+
+  /// Validates the father name field.
+  String? validateFatherName(String? value) {
+    if (value == null || value.trim().isEmpty) {
+      return 'O Nome do pai não pode ser vazio.';
+    }
+    if (value.trim().length > 100) {
+      return 'O Nome do pai não pode ser maior que 100 caracteres.';
+    }
+    return null;
+  }
+
+  /// Validates the birth city field.
+  String? validateBirthCity(String? value) {
+    if (value == null || value.trim().isEmpty) {
+      return 'A Cidade de nascimento não pode ser vazia.';
+    }
+    if (value.trim().length > 100) {
+      return 'A Cidade de nascimento não pode ser maior que 100 caracteres.';
+    }
+    return null;
+  }
+
+  /// Validates a required state abbreviation (for ID card birth state).
+  String? validateBirthState(String? value) {
+    if (value == null || value.trim().isEmpty) {
+      return 'O Estado de nascimento não pode ser vazio.';
+    }
+    if (value.trim().length != 2) {
+      return 'Use a sigla de 2 letras (ex: SP)';
+    }
+    return null;
+  }
+
+  /// Validates the nationality field.
+  String? validateNationality(String? value) {
+    if (value == null || value.trim().isEmpty) {
+      return 'A Nacionalidade não pode ser vazia.';
+    }
+    if (value.trim().length > 100) {
+      return 'A Nacionalidade não pode ser maior que 100 caracteres.';
+    }
+    return null;
+  }
+
+  // ── Vote ID validators ──────────────────────────────────────────────────
+
+  /// Whether [number] passes the Brazilian voter registration (Título de
+  /// Eleitor) mathematical verification algorithm.
+  bool isVoteIdValid(String number) {
+    final digits = number.replaceAll(RegExp(r'[^\d]'), '');
+    if (digits.length != 12) return false;
+    if (RegExp(r'^(\d)\1{11}$').hasMatch(digits)) return false;
+
+    final uf = '${digits[8]}${digits[9]}';
+
+    int sum = 0;
+    const multiplierOne = [2, 3, 4, 5, 6, 7, 8, 9];
+    for (int i = 0; i < 8; i++) {
+      sum += int.parse(digits[i]) * multiplierOne[i];
+    }
+    int rest = sum % 11;
+    if (rest > 9) {
+      rest = 0;
+    } else if (rest == 0 && (uf == '01' || uf == '02')) {
+      rest = 1;
+    }
+    final z1 = rest.toString();
+
+    sum = 0;
+    const multiplierTwo = [7, 8, 9];
+    final aux = '${digits[8]}${digits[9]}$z1';
+    for (int i = 0; i < 3; i++) {
+      sum += int.parse(aux[i]) * multiplierTwo[i];
+    }
+    rest = sum % 11;
+    if (rest > 9) {
+      rest = 0;
+    } else if (rest == 0 && (uf == '01' || uf == '02')) {
+      rest = 1;
+    }
+    final z2 = rest.toString();
+
+    return digits.endsWith('$z1$z2');
+  }
+
+  /// Validates a voter registration number.
+  String? validateVoteIdNumber(String? value) {
+    final stripped = (value ?? '').replaceAll(RegExp(r'[^\d]'), '');
+    if (stripped.isEmpty) {
+      return 'O Número do título não pode ser vazio.';
+    }
+    if (stripped.length != 12) {
+      return 'Número inválido (ex: 0000.0000.0000)';
+    }
+    if (!isVoteIdValid(stripped)) {
+      return 'O Número do título não é válido.';
+    }
+    return null;
+  }
+
+  // ── Military document validators ────────────────────────────────────────
+
+  /// Validates the military document number field.
+  String? validateMilitaryNumber(String? value) {
+    final trimmed = (value ?? '').trim();
+    if (trimmed.isEmpty) {
+      return 'O Número do documento não pode ser vazio.';
+    }
+    if (trimmed.length > 20) {
+      return 'O Número do documento não pode ter mais de 20 caracteres.';
+    }
+    return null;
+  }
+
+  /// Validates the military document type field.
+  String? validateMilitaryType(String? value) {
+    final trimmed = (value ?? '').trim();
+    if (trimmed.isEmpty) {
+      return 'O Tipo de documento não pode ser vazio.';
+    }
+    if (trimmed.length > 50) {
+      return 'O Tipo de documento não pode ter mais de 50 caracteres.';
+    }
+    return null;
+  }
+
+  // ── Medical exam validators ─────────────────────────────────────────────
+
+  /// Validates the exam date field.
+  ///
+  /// Required, must be a valid date within the last 365 days.
+  String? validateDateExam(String? value) {
+    final stripped = (value ?? '').replaceAll(RegExp(r'[^\d]'), '');
+    if (stripped.isEmpty) {
+      return 'A Data do exame não pode ser vazia.';
+    }
+    if (stripped.length != 8) {
+      return 'A Data do exame é inválida.';
+    }
+    try {
+      final parts = value!.split('/');
+      final date =
+          DateTime.tryParse('${parts[2]}-${parts[1]}-${parts[0]}');
+      if (date == null) return 'A Data do exame é inválida.';
+
+      final now = DateTime.now();
+      final minDate = now.subtract(const Duration(days: 365));
+      final maxDate = now.add(const Duration(days: 1));
+      if (date.isBefore(minDate) || date.isAfter(maxDate)) {
+        return 'A Data do exame é inválida.';
+      }
+    } catch (_) {
+      return 'A Data do exame é inválida.';
+    }
+    return null;
+  }
+
+  /// Validates the exam validity/expiry date field.
+  ///
+  /// Required, must be a future date (up to 10 years from now).
+  String? validateExamValidity(String? value) {
+    final stripped = (value ?? '').replaceAll(RegExp(r'[^\d]'), '');
+    if (stripped.isEmpty) {
+      return 'A Validade do exame não pode ser vazia.';
+    }
+    if (stripped.length != 8) {
+      return 'A Validade do exame é inválida.';
+    }
+    try {
+      final parts = value!.split('/');
+      final date =
+          DateTime.tryParse('${parts[2]}-${parts[1]}-${parts[0]}');
+      if (date == null) return 'A Validade do exame é inválida.';
+
+      final now = DateTime.now();
+      final minDate = now.add(const Duration(days: 1));
+      final maxDate = now.add(const Duration(days: 3650));
+      if (date.isBefore(minDate) || date.isAfter(maxDate)) {
+        return 'A Validade do exame é inválida.';
+      }
+    } catch (_) {
+      return 'A Validade do exame é inválida.';
+    }
+    return null;
+  }
+
+  // ── Role info helpers ───────────────────────────────────────────────────
+
+  /// Formats the salary info from a [Role] for display.
+  ///
+  /// Resolves payment unit and salary type names from the lookup data,
+  /// since the department hierarchy stores only IDs.
+  String formatSalary(Role role) {
+    final rem = role.remuneration;
+    final value = rem.baseSalary.value;
+    if (value.isEmpty) return 'Não informado';
+
+    final typeId = rem.baseSalary.type.id;
+    var typeName = rem.baseSalary.type.name;
+    if (typeName.isEmpty) {
+      typeName = _salaryTypes
+              .where((s) => s.id == typeId)
+              .firstOrNull
+              ?.name ??
+          '';
+    }
+
+    final unitId = rem.paymentUnit.id;
+    var unitName = rem.paymentUnit.name;
+    if (unitName.isEmpty) {
+      unitName = _paymentUnits
+              .where((p) => p.id == unitId)
+              .firstOrNull
+              ?.name ??
+          '';
+    }
+
+    final parts = <String>[
+      if (typeName.isNotEmpty) typeName,
+      '\$$value',
+      if (unitName.isNotEmpty) unitName,
+    ];
+    return parts.join(' ');
   }
 
   // ─── Private helpers ───────────────────────────────────────────────────────
