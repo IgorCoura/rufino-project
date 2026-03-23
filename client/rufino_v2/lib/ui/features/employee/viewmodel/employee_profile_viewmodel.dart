@@ -128,6 +128,11 @@ class EmployeeProfileViewModel extends ChangeNotifier {
   SectionLoadStatus _workplaceInfoStatus = SectionLoadStatus.notLoaded;
   List<Workplace> _allWorkplaces = [];
 
+  // ─── Document signing options section ─────────────────────────────────────
+
+  SectionLoadStatus _signingOptionsStatus = SectionLoadStatus.notLoaded;
+  List<SelectionOption> _signingOptions = [];
+
   // ─── Contracts section ──────────────────────────────────────────────────
 
   SectionLoadStatus _contractsStatus = SectionLoadStatus.notLoaded;
@@ -287,6 +292,14 @@ class EmployeeProfileViewModel extends ChangeNotifier {
 
   /// The available contract type options for the new contract form.
   List<SelectionOption> get contractTypes => _contractTypes;
+
+  // ─── Public getters — section signing options ──────────────────────────────
+
+  /// The current load status of the document signing options section.
+  SectionLoadStatus get signingOptionsStatus => _signingOptionsStatus;
+
+  /// The available document signing options.
+  List<SelectionOption> get signingOptions => _signingOptions;
 
   // ─── Core profile methods ──────────────────────────────────────────────────
 
@@ -1086,6 +1099,64 @@ class EmployeeProfileViewModel extends ChangeNotifier {
       },
       onError: (_) {
         _workplaceInfoStatus = SectionLoadStatus.error;
+      },
+    );
+
+    notifyListeners();
+  }
+
+  // ─── Document signing options section ───────────────────────────────────
+
+  /// Loads the available signing options on first expansion.
+  Future<void> loadSigningOptions() async {
+    if (_signingOptionsStatus != SectionLoadStatus.notLoaded) return;
+    final companyId = _companyId;
+    if (companyId == null) return;
+
+    _signingOptionsStatus = SectionLoadStatus.loading;
+    notifyListeners();
+
+    final result =
+        await _employeeRepository.getDocumentSigningOptions(companyId);
+
+    result.fold(
+      onSuccess: (options) {
+        _signingOptions = options;
+        _signingOptionsStatus = SectionLoadStatus.loaded;
+      },
+      onError: (_) {
+        _signingOptionsStatus = SectionLoadStatus.error;
+      },
+    );
+
+    notifyListeners();
+  }
+
+  /// Saves the selected document signing option for the current employee.
+  Future<void> saveSigningOption(String optionId) async {
+    final companyId = _companyId;
+    final currentProfile = _profile;
+    if (companyId == null || currentProfile == null) return;
+
+    _signingOptionsStatus = SectionLoadStatus.saving;
+    notifyListeners();
+
+    final result = await _employeeRepository.editDocumentSigningOptions(
+      companyId,
+      currentProfile.id,
+      optionId,
+    );
+
+    result.fold(
+      onSuccess: (_) {
+        _profile =
+            currentProfile.copyWith(documentSigningOptionsId: optionId);
+        _snackMessage =
+            'Opção de assinatura de documentos atualizada com sucesso.';
+        _signingOptionsStatus = SectionLoadStatus.loaded;
+      },
+      onError: (_) {
+        _signingOptionsStatus = SectionLoadStatus.error;
       },
     );
 

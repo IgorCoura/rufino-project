@@ -609,4 +609,41 @@ class EmployeeRepositoryImpl implements EmployeeRepository {
       return Result.error(EmployeeNetworkException(e));
     }
   }
+
+  @override
+  Future<Result<List<SelectionOption>>> getDocumentSigningOptions(
+      String companyId) async {
+    try {
+      final list = await apiService.getDocumentSigningOptions(companyId);
+      return Result.success(
+        list
+            .map((json) => SelectionOption(
+                  id: (json['id']).toString(),
+                  name: json['name'] as String? ?? '',
+                ))
+            .toList(),
+      );
+    } on EmployeeException catch (e) {
+      return Result.error(e);
+    } catch (e) {
+      return Result.error(EmployeeNetworkException(e));
+    }
+  }
+
+  @override
+  Future<Result<void>> editDocumentSigningOptions(
+    String companyId,
+    String employeeId,
+    String optionId,
+  ) async {
+    try {
+      await apiService.editDocumentSigningOptions(
+          companyId, employeeId, optionId);
+      return const Result<void>.success(null);
+    } on EmployeeException catch (e) {
+      return Result.error(e);
+    } catch (e) {
+      return Result.error(EmployeeNetworkException(e));
+    }
+  }
 }

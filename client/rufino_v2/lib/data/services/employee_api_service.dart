@@ -558,6 +558,36 @@ class EmployeeApiService {
     _checkStatus(response);
   }
 
+  /// Fetches the available document signing options.
+  Future<List<Map<String, dynamic>>> getDocumentSigningOptions(
+      String companyId) async {
+    final uri = Uri.https(
+        baseUrl, '/api/v1/$companyId/employee/DocumentSigningOptions');
+    final response = await client.get(uri, headers: await _headers());
+    _checkStatus(response);
+    final list = jsonDecode(response.body) as List<dynamic>;
+    return list.cast<Map<String, dynamic>>();
+  }
+
+  /// Updates the document signing option for [employeeId].
+  Future<void> editDocumentSigningOptions(
+    String companyId,
+    String employeeId,
+    String optionId,
+  ) async {
+    final uri = Uri.https(
+        baseUrl, '/api/v1/$companyId/employee/DocumentSigningOptions');
+    final response = await client.put(
+      uri,
+      headers: await _headers(),
+      body: jsonEncode({
+        'employeeId': employeeId,
+        'documentSigningOptions': optionId,
+      }),
+    );
+    _checkStatus(response);
+  }
+
   // ─── Helpers ──────────────────────────────────────────────────────────────
 
   void _checkStatus(http.Response response) {

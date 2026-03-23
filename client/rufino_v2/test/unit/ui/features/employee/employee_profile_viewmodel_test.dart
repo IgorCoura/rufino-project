@@ -1086,5 +1086,51 @@ void main() {
         expect(viewModel.validateContractDate('01/01/2020'), isNotNull);
       });
     });
+
+    group('signing options section', () {
+      test('loadSigningOptions transitions to loaded with data', () async {
+        await viewModel.load('emp-1');
+
+        await viewModel.loadSigningOptions();
+
+        expect(viewModel.signingOptionsStatus, SectionLoadStatus.loaded);
+        expect(viewModel.signingOptions, hasLength(2));
+      });
+
+      test(
+          'loadSigningOptions sets error status when the repository call fails',
+          () async {
+        await viewModel.load('emp-1');
+        employeeRepository.setShouldFail(true);
+
+        await viewModel.loadSigningOptions();
+
+        expect(viewModel.signingOptionsStatus, SectionLoadStatus.error);
+      });
+
+      test('saveSigningOption persists option and shows a snack message',
+          () async {
+        await viewModel.load('emp-1');
+        await viewModel.loadSigningOptions();
+
+        await viewModel.saveSigningOption('2');
+
+        expect(viewModel.signingOptionsStatus, SectionLoadStatus.loaded);
+        expect(viewModel.profile?.documentSigningOptionsId, '2');
+        expect(viewModel.snackMessage, contains('assinatura'));
+      });
+
+      test(
+          'saveSigningOption sets error status when the repository call fails',
+          () async {
+        await viewModel.load('emp-1');
+        await viewModel.loadSigningOptions();
+        employeeRepository.setShouldFail(true);
+
+        await viewModel.saveSigningOption('2');
+
+        expect(viewModel.signingOptionsStatus, SectionLoadStatus.error);
+      });
+    });
   });
 }

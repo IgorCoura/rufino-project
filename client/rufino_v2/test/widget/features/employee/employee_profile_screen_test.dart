@@ -1859,5 +1859,33 @@ void main() {
       expect(find.text('CLT'), findsOneWidget);
       expect(find.text('01/01/2026'), findsOneWidget);
     });
+
+    testWidgets(
+        'shows the Opções de Assinatura de Documentos section title',
+        (tester) async {
+      await tester.pumpWidget(buildSubject());
+      await tester.pumpAndSettle();
+
+      expect(
+          find.text('Opções de Assinatura de Documentos'), findsOneWidget);
+    });
+
+    testWidgets(
+        'expands the signing options section and shows current option',
+        (tester) async {
+      await tester.pumpWidget(buildSubject());
+      await tester.pumpAndSettle();
+
+      await tester.scrollUntilVisible(
+        find.text('Opções de Assinatura de Documentos'),
+        100,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.tap(find.text('Opções de Assinatura de Documentos'));
+      await tester.pumpAndSettle();
+
+      // No signing option set on profile — shows "Não informado".
+      expect(find.text('Não informado'), findsWidgets);
+    });
   });
 }

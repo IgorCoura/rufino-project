@@ -19,7 +19,10 @@
       "Bash(sed \"s/.*test\\(''''//\")",
       "Bash(sed \"s/.*group\\(''''//\")",
       "Bash(wc -l \"C:/Users/IGOR-NOT/Desktop/Codigos/CodigosSSD/rufino-project/client/rufino_v2/lib/ui/features/employee/widgets/employee_profile_screen.dart\" \"C:/Users/IGOR-NOT/Desktop/Codigos/CodigosSSD/rufino-project/client/rufino_v2/lib/ui/features/employee/viewmodel/employee_profile_viewmodel.dart\" \"C:/Users/IGOR-NOT/Desktop/Codigos/CodigosSSD/rufino-project/client/rufino_v2/lib/ui/features/employee/widgets/components/\"*.dart)",
-      "Bash(find C:UsersIGOR-NOTDesktopCodigosCodigosSSDrufino-projectrufinolibmodulesemployeedomainmodeldependent -type f -name *.dart)"
+      "Bash(find C:UsersIGOR-NOTDesktopCodigosCodigosSSDrufino-projectrufinolibmodulesemployeedomainmodeldependent -type f -name *.dart)",
+      "Bash(find /c/Users/IGOR-NOT/Desktop/Codigos/CodigosSSD/rufino-project/rufino/lib/modules/employee/domain/model/document_signing_options -type f -name *)",
+      "Bash(find /c/Users/IGOR-NOT/Desktop/Codigos/CodigosSSD/rufino-project -type f \\\\\\(-name *document_signing* -o -name *signing* \\\\\\))",
+      "Bash(find /c/Users/IGOR-NOT/Desktop/Codigos/CodigosSSD/rufino-project/client/rufino/lib/modules/employee/presentation/employee_profile -type f -name *.dart)"
     ]
   }
 }
