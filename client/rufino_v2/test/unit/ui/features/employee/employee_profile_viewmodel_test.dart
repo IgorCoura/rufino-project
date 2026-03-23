@@ -1045,5 +1045,46 @@ void main() {
         expect(viewModel.workplaceInfoStatus, SectionLoadStatus.error);
       });
     });
+
+    group('contracts section', () {
+      test('loadContracts transitions to loaded with data', () async {
+        await viewModel.load('emp-1');
+
+        await viewModel.loadContracts();
+
+        expect(viewModel.contractsStatus, SectionLoadStatus.loaded);
+        expect(viewModel.contracts, hasLength(1));
+        expect(viewModel.contracts.first.typeName, 'CLT');
+        expect(viewModel.contracts.first.isActive, isTrue);
+        expect(viewModel.contractTypes, hasLength(2));
+      });
+
+      test('loadContracts sets error status when the repository call fails',
+          () async {
+        await viewModel.load('emp-1');
+        employeeRepository.setShouldFail(true);
+
+        await viewModel.loadContracts();
+
+        expect(viewModel.contractsStatus, SectionLoadStatus.error);
+      });
+
+      test('validateContractDate returns null for a valid recent date', () {
+        // Today's date should be valid (within ±365 days).
+        final now = DateTime.now();
+        final formatted =
+            '${now.day.toString().padLeft(2, '0')}/${now.month.toString().padLeft(2, '0')}/${now.year}';
+        expect(viewModel.validateContractDate(formatted), isNull);
+      });
+
+      test('validateContractDate returns error for empty input', () {
+        expect(viewModel.validateContractDate(''), isNotNull);
+      });
+
+      test('validateContractDate returns error for a date beyond ±365 days',
+          () {
+        expect(viewModel.validateContractDate('01/01/2020'), isNotNull);
+      });
+    });
   });
 }

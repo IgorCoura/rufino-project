@@ -6,6 +6,7 @@ import '../../../../domain/entities/address.dart';
 import '../../../../domain/entities/employee.dart';
 import '../../../../domain/entities/department.dart';
 import '../../../../domain/entities/employee_contact.dart';
+import '../../../../domain/entities/employee_contract.dart';
 import '../../../../domain/entities/employee_dependent.dart';
 import '../../../../domain/entities/selection_option.dart';
 import '../../../../domain/entities/employee_id_card.dart';
@@ -126,6 +127,12 @@ class EmployeeProfileViewModel extends ChangeNotifier {
 
   SectionLoadStatus _workplaceInfoStatus = SectionLoadStatus.notLoaded;
   List<Workplace> _allWorkplaces = [];
+
+  // ─── Contracts section ──────────────────────────────────────────────────
+
+  SectionLoadStatus _contractsStatus = SectionLoadStatus.notLoaded;
+  List<EmployeeContractInfo> _contracts = [];
+  List<SelectionOption> _contractTypes = [];
 
   // ─── Public getters — core profile ────────────────────────────────────────
 
@@ -269,6 +276,17 @@ class EmployeeProfileViewModel extends ChangeNotifier {
 
   /// All workplaces available for selection.
   List<Workplace> get allWorkplaces => _allWorkplaces;
+
+  // ─── Public getters — section contracts ────────────────────────────────────
+
+  /// The current load status of the contracts section.
+  SectionLoadStatus get contractsStatus => _contractsStatus;
+
+  /// The loaded list of contracts.
+  List<EmployeeContractInfo> get contracts => _contracts;
+
+  /// The available contract type options for the new contract form.
+  List<SelectionOption> get contractTypes => _contractTypes;
 
   // ─── Core profile methods ──────────────────────────────────────────────────
 
@@ -1074,6 +1092,106 @@ class EmployeeProfileViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
+  // ─── Contracts section ─────────────────────────────────────────────────
+
+  /// Loads the contract history and contract type options for the current
+  /// employee on first expansion.
+  Future<void> loadContracts() async {
+    if (_contractsStatus != SectionLoadStatus.notLoaded) return;
+    final companyId = _companyId;
+    final currentProfile = _profile;
+    if (companyId == null || currentProfile == null) return;
+
+    _contractsStatus = SectionLoadStatus.loading;
+    notifyListeners();
+
+    final contractsResult =
+        await _employeeRepository.getContracts(companyId, currentProfile.id);
+    final typesResult =
+        await _employeeRepository.getContractTypes(companyId);
+
+    if (contractsResult.isError) {
+      _contractsStatus = SectionLoadStatus.error;
+      notifyListeners();
+      return;
+    }
+
+    _contracts = contractsResult.valueOrNull ?? [];
+    _contractTypes = typesResult.valueOrNull ?? [];
+    _contractsStatus = SectionLoadStatus.loaded;
+    notifyListeners();
+  }
+
+  /// Creates a new contract and reloads the list on success.
+  Future<void> createContract(
+    String initDate,
+    String contractTypeId,
+    String registration,
+  ) async {
+    final companyId = _companyId;
+    final currentProfile = _profile;
+    if (companyId == null || currentProfile == null) return;
+
+    _contractsStatus = SectionLoadStatus.saving;
+    notifyListeners();
+
+    final result = await _employeeRepository.createContract(
+      companyId,
+      currentProfile.id,
+      initDate,
+      contractTypeId,
+      registration,
+    );
+
+    result.fold(
+      onSuccess: (_) {
+        _contractsStatus = SectionLoadStatus.notLoaded;
+        _snackMessage = 'Contrato criado com sucesso.';
+      },
+      onError: (_) {
+        _contractsStatus = SectionLoadStatus.error;
+      },
+    );
+
+    notifyListeners();
+
+    if (_contractsStatus == SectionLoadStatus.notLoaded) {
+      await loadContracts();
+    }
+  }
+
+  /// Finishes the active contract and reloads the list on success.
+  Future<void> finishContract(String finalDate) async {
+    final companyId = _companyId;
+    final currentProfile = _profile;
+    if (companyId == null || currentProfile == null) return;
+
+    _contractsStatus = SectionLoadStatus.saving;
+    notifyListeners();
+
+    final result = await _employeeRepository.finishContract(
+      companyId,
+      currentProfile.id,
+      finalDate,
+    );
+
+    result.fold(
+      onSuccess: (_) {
+        _contractsStatus = SectionLoadStatus.notLoaded;
+        _snackMessage = 'Contrato finalizado com sucesso.';
+      },
+      onError: (_) {
+        _contractsStatus = SectionLoadStatus.error;
+      },
+    );
+
+    notifyListeners();
+
+    if (_contractsStatus == SectionLoadStatus.notLoaded) {
+      await loadContracts();
+    }
+  }
+
   // ─── Dependents section ─────────────────────────────────────────────────
 
   /// Loads the list of dependents for the current employee on first expansion.
@@ -1530,6 +1648,37 @@ class EmployeeProfileViewModel extends ChangeNotifier {
       }
     } catch (_) {
       return 'A Validade do exame é inválida.';
+    }
+    return null;
+  }
+
+  // ── Contract validators ──────────────────────────────────────────────────
+
+  /// Validates a contract date in `dd/MM/yyyy` format.
+  ///
+  /// Must be a valid date within ±365 days of today.
+  String? validateContractDate(String? value) {
+    final stripped = (value ?? '').replaceAll(RegExp(r'[^\d]'), '');
+    if (stripped.isEmpty) {
+      return 'A data não pode ser vazia.';
+    }
+    if (stripped.length != 8) {
+      return 'Data inválida (ex: 15/03/2026).';
+    }
+    try {
+      final parts = value!.split('/');
+      final date =
+          DateTime.tryParse('${parts[2]}-${parts[1]}-${parts[0]}');
+      if (date == null) return 'Data inválida.';
+
+      final now = DateTime.now();
+      final minDate = now.subtract(const Duration(days: 365));
+      final maxDate = now.add(const Duration(days: 365));
+      if (date.isBefore(minDate) || date.isAfter(maxDate)) {
+        return 'Data inválida.';
+      }
+    } catch (_) {
+      return 'Data inválida.';
     }
     return null;
   }

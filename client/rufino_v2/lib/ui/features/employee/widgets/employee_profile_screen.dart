@@ -11,6 +11,7 @@ import '../../../../domain/entities/employee_profile.dart';
 import '../viewmodel/employee_profile_viewmodel.dart';
 import 'components/address_section.dart';
 import 'components/contact_section.dart';
+import 'components/contract_section.dart';
 import 'components/dependent_section.dart';
 import 'components/id_card_section.dart';
 import 'components/medical_exam_section.dart';
@@ -338,24 +339,12 @@ class _EmployeeProfileBody extends StatelessWidget {
               RoleInfoSection(viewModel: viewModel),
               const SizedBox(height: AppSpacing.sm),
               WorkplaceSection(viewModel: viewModel),
-              if (profile.canMarkAsInactive) ...[
-                const SizedBox(height: AppSpacing.lg),
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: FilledButton.tonalIcon(
-                    onPressed:
-                        viewModel.isSaving ? null : () => onMarkAsInactive(),
-                    icon: viewModel.isSaving
-                        ? const SizedBox(
-                            width: 18,
-                            height: 18,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : const Icon(Icons.person_off_outlined),
-                    label: const Text('Marcar como inativo'),
-                  ),
-                ),
-              ],
+              const SizedBox(height: AppSpacing.sm),
+              ContractSection(
+                viewModel: viewModel,
+                canMarkAsInactive: profile.canMarkAsInactive,
+                onMarkAsInactive: onMarkAsInactive,
+              ),
             ],
           ),
         ),
