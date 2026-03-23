@@ -84,7 +84,7 @@ class FakeEmployeeRepository implements EmployeeRepository {
     nationality: 'Brasileira',
   );
 
-  EmployeeVoteId _voteId = const EmployeeVoteId(number: '123456789012');
+  EmployeeVoteId _voteId = const EmployeeVoteId(number: '1234.5678.0698');
 
   void setEmployees(List<Employee> employees) => _employees = employees;
 

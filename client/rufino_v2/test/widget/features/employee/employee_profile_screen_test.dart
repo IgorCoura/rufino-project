@@ -312,7 +312,7 @@ void main() {
       await tester.tap(find.text('Título de Eleitor'));
       await tester.pumpAndSettle();
 
-      expect(find.text('123456789012'), findsOneWidget);
+      expect(find.text('1234.5678.0698'), findsOneWidget);
     });
 
     testWidgets(
@@ -883,6 +883,195 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('A Nacionalidade não pode ser vazia.'), findsOneWidget);
+    });
+
+    testWidgets(
+        'shows edit form with masked field when Editar is tapped on Título de Eleitor',
+        (tester) async {
+      await tester.pumpWidget(buildSubject());
+      await tester.pumpAndSettle();
+
+      await tester.scrollUntilVisible(
+        find.text('Título de Eleitor'),
+        100,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.tap(find.text('Título de Eleitor'));
+      await tester.pumpAndSettle();
+
+      await tester.scrollUntilVisible(
+        find.text('Editar').last,
+        100,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.tap(find.text('Editar').last);
+      await tester.pumpAndSettle();
+
+      expect(find.text('Número do título'), findsOneWidget);
+      expect(find.text('Salvar'), findsOneWidget);
+      expect(find.text('Cancelar'), findsOneWidget);
+    });
+
+    testWidgets('saves vote ID and shows success snackbar', (tester) async {
+      await tester.pumpWidget(buildSubject());
+      await tester.pumpAndSettle();
+
+      await tester.scrollUntilVisible(
+        find.text('Título de Eleitor'),
+        100,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.tap(find.text('Título de Eleitor'));
+      await tester.pumpAndSettle();
+
+      await tester.scrollUntilVisible(
+        find.text('Editar').last,
+        100,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.tap(find.text('Editar').last);
+      await tester.pumpAndSettle();
+
+      await tester.scrollUntilVisible(
+        find.text('Salvar'),
+        100,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.tap(find.text('Salvar'));
+      await tester.pumpAndSettle();
+
+      expect(
+        find.text('Título de eleitor atualizado com sucesso.'),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets(
+        'cancels vote ID editing without saving when Cancelar is tapped',
+        (tester) async {
+      await tester.pumpWidget(buildSubject());
+      await tester.pumpAndSettle();
+
+      await tester.scrollUntilVisible(
+        find.text('Título de Eleitor'),
+        100,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.tap(find.text('Título de Eleitor'));
+      await tester.pumpAndSettle();
+
+      await tester.scrollUntilVisible(
+        find.text('Editar').last,
+        100,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.tap(find.text('Editar').last);
+      await tester.pumpAndSettle();
+
+      await tester.scrollUntilVisible(
+        find.text('Cancelar'),
+        100,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.tap(find.text('Cancelar'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('1234.5678.0698'), findsOneWidget);
+      expect(find.text('Salvar'), findsNothing);
+    });
+
+    testWidgets(
+        'shows vote ID required error when the number field is cleared before saving',
+        (tester) async {
+      await tester.pumpWidget(buildSubject());
+      await tester.pumpAndSettle();
+
+      await tester.scrollUntilVisible(
+        find.text('Título de Eleitor'),
+        100,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.tap(find.text('Título de Eleitor'));
+      await tester.pumpAndSettle();
+
+      await tester.scrollUntilVisible(
+        find.text('Editar').last,
+        100,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.tap(find.text('Editar').last);
+      await tester.pumpAndSettle();
+
+      await tester.scrollUntilVisible(
+        find.widgetWithText(TextFormField, 'Número do título'),
+        100,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.enterText(
+        find.widgetWithText(TextFormField, 'Número do título'),
+        '',
+      );
+
+      await tester.scrollUntilVisible(
+        find.text('Salvar'),
+        100,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.tap(find.text('Salvar'));
+      await tester.pumpAndSettle();
+
+      expect(
+        find.text('O Número do título não pode ser vazio.'),
+        findsOneWidget,
+      );
+      expect(
+        find.text('Título de eleitor atualizado com sucesso.'),
+        findsNothing,
+      );
+    });
+
+    testWidgets(
+        'shows vote ID invalid error when the algorithm check fails',
+        (tester) async {
+      await tester.pumpWidget(buildSubject());
+      await tester.pumpAndSettle();
+
+      await tester.scrollUntilVisible(
+        find.text('Título de Eleitor'),
+        100,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.tap(find.text('Título de Eleitor'));
+      await tester.pumpAndSettle();
+
+      await tester.scrollUntilVisible(
+        find.text('Editar').last,
+        100,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.tap(find.text('Editar').last);
+      await tester.pumpAndSettle();
+
+      await tester.scrollUntilVisible(
+        find.widgetWithText(TextFormField, 'Número do título'),
+        100,
+        scrollable: find.byType(Scrollable).first,
+      );
+      // 12-digit number that passes length check but fails algorithm.
+      await tester.enterText(
+        find.widgetWithText(TextFormField, 'Número do título'),
+        '123456789012',
+      );
+
+      await tester.scrollUntilVisible(
+        find.text('Salvar'),
+        100,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.tap(find.text('Salvar'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('O Número do título não é válido.'), findsOneWidget);
     });
 
     testWidgets('saves personal info and shows success snackbar',

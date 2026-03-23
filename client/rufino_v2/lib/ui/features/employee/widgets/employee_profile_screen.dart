@@ -2687,7 +2687,16 @@ class _VoteIdSection extends StatefulWidget {
 }
 
 class _VoteIdSectionState extends State<_VoteIdSection> {
+  final _formKey = GlobalKey<FormState>();
   final _numberController = TextEditingController();
+
+  /// Vote ID mask: `####.####.####` (12 digits in three groups of four).
+  final _voteIdMask = MaskTextInputFormatter(
+    mask: '####.####.####',
+    filter: {'#': RegExp(r'[0-9]')},
+    type: MaskAutoCompletionType.lazy,
+  );
+
   bool _isEditing = false;
 
   @override
@@ -2699,11 +2708,19 @@ class _VoteIdSectionState extends State<_VoteIdSection> {
   void _startEdit() {
     final voteId = widget.viewModel.voteId;
     if (voteId == null) return;
-    _numberController.text = voteId.number;
+
+    // Apply mask to the stored raw digits so the field shows formatted text.
+    final rawDigits = voteId.number.replaceAll(RegExp(r'[^\d]'), '');
+    _voteIdMask.formatEditUpdate(
+      TextEditingValue.empty,
+      TextEditingValue(text: rawDigits),
+    );
+    _numberController.text = _voteIdMask.getMaskedText();
     setState(() => _isEditing = true);
   }
 
   Future<void> _save() async {
+    if (_formKey.currentState?.validate() != true) return;
     await widget.viewModel.saveVoteId(_numberController.text.trim());
     if (mounted && widget.viewModel.voteIdStatus == SectionLoadStatus.loaded) {
       setState(() => _isEditing = false);
@@ -2711,6 +2728,62 @@ class _VoteIdSectionState extends State<_VoteIdSection> {
   }
 
   void _cancel() => setState(() => _isEditing = false);
+
+  /// Whether [number] passes the Brazilian voter registration (Título de
+  /// Eleitor) mathematical verification algorithm.
+  ///
+  /// Strips formatting before checking. Returns false for all-same-digit
+  /// sequences and for any number whose check digits do not match.
+  bool _isVoteIdValid(String number) {
+    final digits = number.replaceAll(RegExp(r'[^\d]'), '');
+    if (digits.length != 12) return false;
+    if (RegExp(r'^(\d)\1{11}$').hasMatch(digits)) return false;
+
+    final uf = '${digits[8]}${digits[9]}';
+
+    int sum = 0;
+    const multiplierOne = [2, 3, 4, 5, 6, 7, 8, 9];
+    for (int i = 0; i < 8; i++) {
+      sum += int.parse(digits[i]) * multiplierOne[i];
+    }
+    int rest = sum % 11;
+    if (rest > 9) {
+      rest = 0;
+    } else if (rest == 0 && (uf == '01' || uf == '02')) {
+      rest = 1;
+    }
+    final z1 = rest.toString();
+
+    sum = 0;
+    const multiplierTwo = [7, 8, 9];
+    final aux = '${digits[8]}${digits[9]}$z1';
+    for (int i = 0; i < 3; i++) {
+      sum += int.parse(aux[i]) * multiplierTwo[i];
+    }
+    rest = sum % 11;
+    if (rest > 9) {
+      rest = 0;
+    } else if (rest == 0 && (uf == '01' || uf == '02')) {
+      rest = 1;
+    }
+    final z2 = rest.toString();
+
+    return digits.endsWith('$z1$z2');
+  }
+
+  String? _validateNumber(String? value) {
+    final stripped = (value ?? '').replaceAll(RegExp(r'[^\d]'), '');
+    if (stripped.isEmpty) {
+      return 'O Número do título não pode ser vazio.';
+    }
+    if (stripped.length != 12) {
+      return 'Número inválido (ex: 0000.0000.0000)';
+    }
+    if (!_isVoteIdValid(stripped)) {
+      return 'O Número do título não é válido.';
+    }
+    return null;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -2759,52 +2832,62 @@ class _VoteIdSectionState extends State<_VoteIdSection> {
     final isSaving = status == SectionLoadStatus.saving;
 
     if (_isEditing) {
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          TextField(
-            controller: _numberController,
-            enabled: !isSaving,
-            decoration: const InputDecoration(
-              labelText: 'Número do título',
-              border: OutlineInputBorder(),
-            ),
-            keyboardType: TextInputType.number,
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.end,
-            children: [
-              TextButton(
-                onPressed: isSaving ? null : _cancel,
-                child: const Text('Cancelar'),
+      return Form(
+        key: _formKey,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            TextFormField(
+              controller: _numberController,
+              enabled: !isSaving,
+              decoration: const InputDecoration(
+                labelText: 'Número do título',
+                prefixIcon: Icon(Icons.how_to_vote_outlined),
+                border: OutlineInputBorder(),
+                helperText: 'Ex: 0000.0000.0000',
               ),
-              const SizedBox(width: AppSpacing.sm),
-              isSaving
-                  ? const SizedBox(
-                      width: 24,
-                      height: 24,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : FilledButton(
-                      onPressed: _save,
-                      child: const Text('Salvar'),
-                    ),
-            ],
-          ),
-        ],
+              keyboardType: TextInputType.number,
+              inputFormatters: [_voteIdMask],
+              validator: _validateNumber,
+            ),
+            const SizedBox(height: AppSpacing.md),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                TextButton(
+                  onPressed: isSaving ? null : _cancel,
+                  child: const Text('Cancelar'),
+                ),
+                const SizedBox(width: AppSpacing.sm),
+                isSaving
+                    ? const SizedBox(
+                        width: 24,
+                        height: 24,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : FilledButton(
+                        onPressed: _save,
+                        child: const Text('Salvar'),
+                      ),
+              ],
+            ),
+          ],
+        ),
       );
     }
 
+    // ── View mode ─────────────────────────────────────────────────────────────
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        _ProfileFactRow(
+        _ContactInfoRow(
+          icon: Icons.how_to_vote_outlined,
           label: 'Número do título',
           value: voteId?.number.isNotEmpty == true
               ? voteId!.number
               : 'Não informado',
         ),
+        const SizedBox(height: AppSpacing.sm),
         Align(
           alignment: Alignment.centerRight,
           child: TextButton.icon(
