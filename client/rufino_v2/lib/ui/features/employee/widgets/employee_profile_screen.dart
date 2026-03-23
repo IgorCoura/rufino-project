@@ -10,6 +10,11 @@ import '../../../../core/theme/app_spacing.dart';
 import '../../../../domain/entities/address.dart';
 import '../../../../domain/entities/employee.dart';
 import '../../../../domain/entities/employee_id_card.dart';
+import '../../../../domain/entities/department.dart';
+import '../../../../domain/entities/employee_medical_exam.dart';
+import '../../../../domain/entities/position.dart';
+import '../../../../domain/entities/role.dart';
+import '../../../../domain/entities/employee_military_document.dart';
 import '../../../../domain/entities/employee_personal_info.dart';
 import '../../../../domain/entities/employee_profile.dart';
 import '../../../../domain/entities/personal_info_options.dart';
@@ -324,6 +329,12 @@ class _EmployeeProfileBody extends StatelessWidget {
               _IdCardSection(viewModel: viewModel),
               const SizedBox(height: AppSpacing.sm),
               _VoteIdSection(viewModel: viewModel),
+              const SizedBox(height: AppSpacing.sm),
+              _MilitaryDocumentSection(viewModel: viewModel),
+              const SizedBox(height: AppSpacing.sm),
+              _MedicalExamSection(viewModel: viewModel),
+              const SizedBox(height: AppSpacing.sm),
+              _RoleInfoSection(viewModel: viewModel),
               if (profile.canMarkAsInactive) ...[
                 const SizedBox(height: AppSpacing.lg),
                 Align(
@@ -2895,6 +2906,931 @@ class _VoteIdSectionState extends State<_VoteIdSection> {
             icon: const Icon(Icons.edit_outlined, size: 18),
             label: const Text('Editar'),
           ),
+        ),
+      ],
+    );
+  }
+}
+
+// ─── Military document section ────────────────────────────────────────────────
+
+/// Expandable card for viewing and editing employee military document
+/// (Documento Militar) data.
+class _MilitaryDocumentSection extends StatefulWidget {
+  const _MilitaryDocumentSection({required this.viewModel});
+
+  final EmployeeProfileViewModel viewModel;
+
+  @override
+  State<_MilitaryDocumentSection> createState() =>
+      _MilitaryDocumentSectionState();
+}
+
+class _MilitaryDocumentSectionState extends State<_MilitaryDocumentSection> {
+  final _formKey = GlobalKey<FormState>();
+  final _numberController = TextEditingController();
+  final _typeController = TextEditingController();
+
+  bool _isEditing = false;
+
+  @override
+  void dispose() {
+    _numberController.dispose();
+    _typeController.dispose();
+    super.dispose();
+  }
+
+  void _startEdit() {
+    final doc = widget.viewModel.militaryDocument;
+    if (doc == null) return;
+    _numberController.text = doc.number;
+    _typeController.text = doc.type;
+    setState(() => _isEditing = true);
+  }
+
+  Future<void> _save() async {
+    if (_formKey.currentState?.validate() != true) return;
+    await widget.viewModel.saveMilitaryDocument(
+      _numberController.text.trim(),
+      _typeController.text.trim(),
+    );
+    if (mounted &&
+        widget.viewModel.militaryDocumentStatus == SectionLoadStatus.loaded) {
+      setState(() => _isEditing = false);
+    }
+  }
+
+  void _cancel() => setState(() => _isEditing = false);
+
+  /// Validates the document number field.
+  ///
+  /// Required and limited to 20 characters.
+  String? _validateNumber(String? value) {
+    final trimmed = (value ?? '').trim();
+    if (trimmed.isEmpty) {
+      return 'O Número do documento não pode ser vazio.';
+    }
+    if (trimmed.length > 20) {
+      return 'O Número do documento não pode ter mais de 20 caracteres.';
+    }
+    return null;
+  }
+
+  /// Validates the document type field.
+  ///
+  /// Required and limited to 50 characters.
+  String? _validateType(String? value) {
+    final trimmed = (value ?? '').trim();
+    if (trimmed.isEmpty) {
+      return 'O Tipo de documento não pode ser vazio.';
+    }
+    if (trimmed.length > 50) {
+      return 'O Tipo de documento não pode ter mais de 50 caracteres.';
+    }
+    return null;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return ListenableBuilder(
+      listenable: widget.viewModel,
+      builder: (context, _) {
+        final status = widget.viewModel.militaryDocumentStatus;
+        return _ExpandableSectionCard(
+          title: 'Documento Militar',
+          onExpand: widget.viewModel.loadMilitaryDocument,
+          child: _buildContent(context, status),
+        );
+      },
+    );
+  }
+
+  Widget _buildContent(BuildContext context, SectionLoadStatus status) {
+    if (status == SectionLoadStatus.notLoaded ||
+        status == SectionLoadStatus.loading) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(vertical: AppSpacing.md),
+        child: Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    if (status == SectionLoadStatus.error) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
+        child: Row(
+          children: [
+            Icon(
+              Icons.error_outline,
+              color: Theme.of(context).colorScheme.error,
+              size: 20,
+            ),
+            const SizedBox(width: AppSpacing.sm),
+            const Expanded(
+              child: Text('Não foi possível carregar o documento militar.'),
+            ),
+          ],
+        ),
+      );
+    }
+
+    final doc = widget.viewModel.militaryDocument;
+
+    // When the military document is not required for this employee.
+    if (doc != null && !doc.isRequired) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
+        child: Row(
+          children: [
+            Icon(
+              Icons.info_outline,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+              size: 20,
+            ),
+            const SizedBox(width: AppSpacing.sm),
+            const Expanded(
+              child: Text('Não se aplica a este funcionário.'),
+            ),
+          ],
+        ),
+      );
+    }
+
+    final isSaving = status == SectionLoadStatus.saving;
+
+    if (_isEditing) {
+      return Form(
+        key: _formKey,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            TextFormField(
+              controller: _numberController,
+              enabled: !isSaving,
+              decoration: const InputDecoration(
+                labelText: 'Número do documento',
+                prefixIcon: Icon(Icons.badge_outlined),
+                border: OutlineInputBorder(),
+                counterText: '',
+              ),
+              maxLength: 20,
+              keyboardType: TextInputType.number,
+              validator: _validateNumber,
+            ),
+            const SizedBox(height: AppSpacing.md),
+            TextFormField(
+              controller: _typeController,
+              enabled: !isSaving,
+              decoration: const InputDecoration(
+                labelText: 'Tipo de documento',
+                prefixIcon: Icon(Icons.category_outlined),
+                border: OutlineInputBorder(),
+                counterText: '',
+              ),
+              maxLength: 50,
+              validator: _validateType,
+            ),
+            const SizedBox(height: AppSpacing.md),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                TextButton(
+                  onPressed: isSaving ? null : _cancel,
+                  child: const Text('Cancelar'),
+                ),
+                const SizedBox(width: AppSpacing.sm),
+                isSaving
+                    ? const SizedBox(
+                        width: 24,
+                        height: 24,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : FilledButton(
+                        onPressed: _save,
+                        child: const Text('Salvar'),
+                      ),
+              ],
+            ),
+          ],
+        ),
+      );
+    }
+
+    // ── View mode ─────────────────────────────────────────────────────────────
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _ContactInfoRow(
+          icon: Icons.badge_outlined,
+          label: 'Número do documento',
+          value: doc?.number.isNotEmpty == true
+              ? doc!.number
+              : 'Não informado',
+        ),
+        const SizedBox(height: AppSpacing.xs),
+        _ContactInfoRow(
+          icon: Icons.category_outlined,
+          label: 'Tipo de documento',
+          value: doc?.type.isNotEmpty == true
+              ? doc!.type
+              : 'Não informado',
+        ),
+        const SizedBox(height: AppSpacing.sm),
+        Align(
+          alignment: Alignment.centerRight,
+          child: TextButton.icon(
+            onPressed: _startEdit,
+            icon: const Icon(Icons.edit_outlined, size: 18),
+            label: const Text('Editar'),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+// ─── Medical exam section ─────────────────────────────────────────────────────
+
+/// Expandable card for viewing and editing the employee medical admission exam
+/// (Exame Médico Admissional / ASO).
+class _MedicalExamSection extends StatefulWidget {
+  const _MedicalExamSection({required this.viewModel});
+
+  final EmployeeProfileViewModel viewModel;
+
+  @override
+  State<_MedicalExamSection> createState() => _MedicalExamSectionState();
+}
+
+class _MedicalExamSectionState extends State<_MedicalExamSection> {
+  final _formKey = GlobalKey<FormState>();
+  final _dateExamController = TextEditingController();
+  final _validityController = TextEditingController();
+
+  /// Date mask `dd/MM/yyyy` for the exam date field.
+  final _dateExamMask = MaskTextInputFormatter(
+    mask: '##/##/####',
+    filter: {'#': RegExp(r'[0-9]')},
+    type: MaskAutoCompletionType.lazy,
+  );
+
+  /// Date mask `dd/MM/yyyy` for the validity field.
+  final _validityMask = MaskTextInputFormatter(
+    mask: '##/##/####',
+    filter: {'#': RegExp(r'[0-9]')},
+    type: MaskAutoCompletionType.lazy,
+  );
+
+  bool _isEditing = false;
+
+  @override
+  void dispose() {
+    _dateExamController.dispose();
+    _validityController.dispose();
+    super.dispose();
+  }
+
+  void _startEdit() {
+    final exam = widget.viewModel.medicalExam;
+    if (exam == null) return;
+
+    // Pre-fill exam date with mask.
+    final rawDate = exam.dateExam.replaceAll(RegExp(r'[^\d]'), '');
+    _dateExamMask.formatEditUpdate(
+      TextEditingValue.empty,
+      TextEditingValue(text: rawDate),
+    );
+    _dateExamController.text = _dateExamMask.getMaskedText();
+
+    // Pre-fill validity date with mask.
+    final rawValidity = exam.validityExam.replaceAll(RegExp(r'[^\d]'), '');
+    _validityMask.formatEditUpdate(
+      TextEditingValue.empty,
+      TextEditingValue(text: rawValidity),
+    );
+    _validityController.text = _validityMask.getMaskedText();
+
+    setState(() => _isEditing = true);
+  }
+
+  Future<void> _save() async {
+    if (_formKey.currentState?.validate() != true) return;
+    await widget.viewModel.saveMedicalExam(
+      _dateExamController.text.trim(),
+      _validityController.text.trim(),
+    );
+    if (mounted &&
+        widget.viewModel.medicalExamStatus == SectionLoadStatus.loaded) {
+      setState(() => _isEditing = false);
+    }
+  }
+
+  void _cancel() => setState(() => _isEditing = false);
+
+  /// Validates the exam date field.
+  ///
+  /// Required, must be a valid date, and must be within the last 365 days
+  /// (not future, not older than one year).
+  String? _validateDateExam(String? value) {
+    final stripped = (value ?? '').replaceAll(RegExp(r'[^\d]'), '');
+    if (stripped.isEmpty) {
+      return 'A Data do exame não pode ser vazia.';
+    }
+    if (stripped.length != 8) {
+      return 'A Data do exame é inválida.';
+    }
+    try {
+      final parts = value!.split('/');
+      final date =
+          DateTime.tryParse('${parts[2]}-${parts[1]}-${parts[0]}');
+      if (date == null) return 'A Data do exame é inválida.';
+
+      final now = DateTime.now();
+      final minDate = now.subtract(const Duration(days: 365));
+      final maxDate = now.add(const Duration(days: 1));
+      if (date.isBefore(minDate) || date.isAfter(maxDate)) {
+        return 'A Data do exame é inválida.';
+      }
+    } catch (_) {
+      return 'A Data do exame é inválida.';
+    }
+    return null;
+  }
+
+  /// Validates the exam validity/expiry date field.
+  ///
+  /// Required, must be a valid date, and must be in the future (up to 10
+  /// years from now).
+  String? _validateValidity(String? value) {
+    final stripped = (value ?? '').replaceAll(RegExp(r'[^\d]'), '');
+    if (stripped.isEmpty) {
+      return 'A Validade do exame não pode ser vazia.';
+    }
+    if (stripped.length != 8) {
+      return 'A Validade do exame é inválida.';
+    }
+    try {
+      final parts = value!.split('/');
+      final date =
+          DateTime.tryParse('${parts[2]}-${parts[1]}-${parts[0]}');
+      if (date == null) return 'A Validade do exame é inválida.';
+
+      final now = DateTime.now();
+      final minDate = now.add(const Duration(days: 1));
+      final maxDate = now.add(const Duration(days: 3650));
+      if (date.isBefore(minDate) || date.isAfter(maxDate)) {
+        return 'A Validade do exame é inválida.';
+      }
+    } catch (_) {
+      return 'A Validade do exame é inválida.';
+    }
+    return null;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return ListenableBuilder(
+      listenable: widget.viewModel,
+      builder: (context, _) {
+        final status = widget.viewModel.medicalExamStatus;
+        return _ExpandableSectionCard(
+          title: 'Exame Médico Admissional',
+          onExpand: widget.viewModel.loadMedicalExam,
+          child: _buildContent(context, status),
+        );
+      },
+    );
+  }
+
+  Widget _buildContent(BuildContext context, SectionLoadStatus status) {
+    if (status == SectionLoadStatus.notLoaded ||
+        status == SectionLoadStatus.loading) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(vertical: AppSpacing.md),
+        child: Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    if (status == SectionLoadStatus.error) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
+        child: Row(
+          children: [
+            Icon(
+              Icons.error_outline,
+              color: Theme.of(context).colorScheme.error,
+              size: 20,
+            ),
+            const SizedBox(width: AppSpacing.sm),
+            const Expanded(
+              child:
+                  Text('Não foi possível carregar o exame médico admissional.'),
+            ),
+          ],
+        ),
+      );
+    }
+
+    final exam = widget.viewModel.medicalExam;
+    final isSaving = status == SectionLoadStatus.saving;
+
+    if (_isEditing) {
+      return Form(
+        key: _formKey,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            TextFormField(
+              controller: _dateExamController,
+              enabled: !isSaving,
+              decoration: const InputDecoration(
+                labelText: 'Data do exame',
+                prefixIcon: Icon(Icons.event_outlined),
+                border: OutlineInputBorder(),
+                helperText: 'Ex: 15/03/2026',
+              ),
+              keyboardType: TextInputType.number,
+              inputFormatters: [_dateExamMask],
+              validator: _validateDateExam,
+            ),
+            const SizedBox(height: AppSpacing.md),
+            TextFormField(
+              controller: _validityController,
+              enabled: !isSaving,
+              decoration: const InputDecoration(
+                labelText: 'Validade do exame',
+                prefixIcon: Icon(Icons.date_range_outlined),
+                border: OutlineInputBorder(),
+                helperText: 'Ex: 15/03/2027',
+              ),
+              keyboardType: TextInputType.number,
+              inputFormatters: [_validityMask],
+              validator: _validateValidity,
+            ),
+            const SizedBox(height: AppSpacing.md),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                TextButton(
+                  onPressed: isSaving ? null : _cancel,
+                  child: const Text('Cancelar'),
+                ),
+                const SizedBox(width: AppSpacing.sm),
+                isSaving
+                    ? const SizedBox(
+                        width: 24,
+                        height: 24,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : FilledButton(
+                        onPressed: _save,
+                        child: const Text('Salvar'),
+                      ),
+              ],
+            ),
+          ],
+        ),
+      );
+    }
+
+    // ── View mode ─────────────────────────────────────────────────────────────
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _ContactInfoRow(
+          icon: Icons.event_outlined,
+          label: 'Data do exame',
+          value: exam?.dateExam.isNotEmpty == true
+              ? exam!.dateExam
+              : 'Não informado',
+        ),
+        const SizedBox(height: AppSpacing.xs),
+        _ContactInfoRow(
+          icon: Icons.date_range_outlined,
+          label: 'Validade do exame',
+          value: exam?.validityExam.isNotEmpty == true
+              ? exam!.validityExam
+              : 'Não informado',
+        ),
+        const SizedBox(height: AppSpacing.sm),
+        Align(
+          alignment: Alignment.centerRight,
+          child: TextButton.icon(
+            onPressed: _startEdit,
+            icon: const Icon(Icons.edit_outlined, size: 18),
+            label: const Text('Editar'),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+// ─── Role info section ────────────────────────────────────────────────────────
+
+/// Expandable card for viewing and editing the employee's role assignment
+/// (Informações de Função).
+///
+/// View mode displays department, position, role, CBO, and salary info.
+/// Edit mode shows three cascading dropdowns (Department → Position → Role).
+class _RoleInfoSection extends StatefulWidget {
+  const _RoleInfoSection({required this.viewModel});
+
+  final EmployeeProfileViewModel viewModel;
+
+  @override
+  State<_RoleInfoSection> createState() => _RoleInfoSectionState();
+}
+
+class _RoleInfoSectionState extends State<_RoleInfoSection> {
+  bool _isEditing = false;
+  String? _selectedDeptId;
+  String? _selectedPosId;
+  String? _selectedRoleId;
+
+  void _startEdit() {
+    final vm = widget.viewModel;
+    setState(() {
+      _isEditing = true;
+      _selectedDeptId =
+          vm.currentDepartmentId.isNotEmpty ? vm.currentDepartmentId : null;
+      _selectedPosId =
+          vm.currentPositionId.isNotEmpty ? vm.currentPositionId : null;
+      _selectedRoleId =
+          vm.profile?.roleId.isNotEmpty == true ? vm.profile!.roleId : null;
+    });
+  }
+
+  Future<void> _save() async {
+    if (_selectedRoleId == null || _selectedRoleId!.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content: Text('Por favor, selecione uma função válida.')),
+      );
+      return;
+    }
+    await widget.viewModel.saveEmployeeRole(_selectedRoleId!);
+    if (mounted &&
+        widget.viewModel.roleInfoStatus == SectionLoadStatus.loaded) {
+      setState(() => _isEditing = false);
+    }
+  }
+
+  void _cancel() => setState(() => _isEditing = false);
+
+  /// Returns the positions available for the currently selected department.
+  List<Position> get _positions {
+    if (_selectedDeptId == null) return [];
+    final dept = widget.viewModel.allDepartments
+        .where((d) => d.id == _selectedDeptId)
+        .firstOrNull;
+    return dept?.positions ?? [];
+  }
+
+  /// Returns the roles available for the currently selected position.
+  List<Role> get _roles {
+    if (_selectedPosId == null) return [];
+    final pos = _positions.where((p) => p.id == _selectedPosId).firstOrNull;
+    return pos?.roles ?? [];
+  }
+
+  /// Formats the salary info from a [Role] for display.
+  ///
+  /// Resolves payment unit and salary type names from the lookup data loaded
+  /// by the ViewModel, since the department hierarchy stores only IDs.
+  String _formatSalary(Role role) {
+    final rem = role.remuneration;
+    final value = rem.baseSalary.value;
+    if (value.isEmpty) return 'Não informado';
+
+    // Resolve the salary type name (currency) from lookups.
+    final typeId = rem.baseSalary.type.id;
+    var typeName = rem.baseSalary.type.name;
+    if (typeName.isEmpty) {
+      typeName = widget.viewModel.salaryTypes
+              .where((s) => s.id == typeId)
+              .firstOrNull
+              ?.name ??
+          '';
+    }
+
+    // Resolve the payment unit name from lookups.
+    final unitId = rem.paymentUnit.id;
+    var unitName = rem.paymentUnit.name;
+    if (unitName.isEmpty) {
+      unitName = widget.viewModel.paymentUnits
+              .where((p) => p.id == unitId)
+              .firstOrNull
+              ?.name ??
+          '';
+    }
+
+    final parts = <String>[
+      if (typeName.isNotEmpty) typeName,
+      '\$$value',
+      if (unitName.isNotEmpty) unitName,
+    ];
+    return parts.join(' ');
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return ListenableBuilder(
+      listenable: widget.viewModel,
+      builder: (context, _) {
+        final status = widget.viewModel.roleInfoStatus;
+        return _ExpandableSectionCard(
+          title: 'Informações de Função',
+          onExpand: widget.viewModel.loadRoleInfo,
+          child: _buildContent(context, status),
+        );
+      },
+    );
+  }
+
+  Widget _buildContent(BuildContext context, SectionLoadStatus status) {
+    if (status == SectionLoadStatus.notLoaded ||
+        status == SectionLoadStatus.loading) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(vertical: AppSpacing.md),
+        child: Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    if (status == SectionLoadStatus.error) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
+        child: Row(
+          children: [
+            Icon(
+              Icons.error_outline,
+              color: Theme.of(context).colorScheme.error,
+              size: 20,
+            ),
+            const SizedBox(width: AppSpacing.sm),
+            const Expanded(
+              child: Text(
+                  'Não foi possível carregar as informações de função.'),
+            ),
+          ],
+        ),
+      );
+    }
+
+    final isSaving = status == SectionLoadStatus.saving;
+    final departments = widget.viewModel.allDepartments;
+    final roleId = widget.viewModel.profile?.roleId ?? '';
+
+    if (_isEditing) {
+      return _buildEditMode(context, departments, isSaving);
+    }
+
+    return _buildViewMode(context, departments, roleId);
+  }
+
+  Widget _buildViewMode(
+    BuildContext context,
+    List<Department> departments,
+    String roleId,
+  ) {
+    // Find current department, position, role from the hierarchy.
+    Department? dept;
+    Position? pos;
+    Role? role;
+
+    for (final d in departments) {
+      for (final p in d.positions) {
+        for (final r in p.roles) {
+          if (r.id == roleId) {
+            dept = d;
+            pos = p;
+            role = r;
+          }
+        }
+      }
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _ContactInfoRow(
+          icon: Icons.business_outlined,
+          label: 'Setor',
+          value: dept?.name ?? 'Não informado',
+        ),
+        if (dept?.description.isNotEmpty == true) ...[
+          const SizedBox(height: AppSpacing.xs),
+          _ContactInfoRow(
+            icon: Icons.description_outlined,
+            label: 'Descrição do setor',
+            value: dept!.description,
+          ),
+        ],
+        const SizedBox(height: AppSpacing.xs),
+        _ContactInfoRow(
+          icon: Icons.work_outline,
+          label: 'Cargo',
+          value: pos?.name ?? 'Não informado',
+        ),
+        if (pos?.description.isNotEmpty == true) ...[
+          const SizedBox(height: AppSpacing.xs),
+          _ContactInfoRow(
+            icon: Icons.description_outlined,
+            label: 'Descrição do cargo',
+            value: pos!.description,
+          ),
+        ],
+        if (pos?.cbo.isNotEmpty == true) ...[
+          const SizedBox(height: AppSpacing.xs),
+          _ContactInfoRow(
+            icon: Icons.tag,
+            label: 'CBO do cargo',
+            value: pos!.cbo,
+          ),
+        ],
+        const SizedBox(height: AppSpacing.xs),
+        _ContactInfoRow(
+          icon: Icons.badge_outlined,
+          label: 'Função',
+          value: role?.name ?? 'Não informado',
+        ),
+        if (role?.description.isNotEmpty == true) ...[
+          const SizedBox(height: AppSpacing.xs),
+          _ContactInfoRow(
+            icon: Icons.description_outlined,
+            label: 'Descrição da função',
+            value: role!.description,
+          ),
+        ],
+        if (role?.cbo.isNotEmpty == true) ...[
+          const SizedBox(height: AppSpacing.xs),
+          _ContactInfoRow(
+            icon: Icons.tag,
+            label: 'CBO da função',
+            value: role!.cbo,
+          ),
+        ],
+        if (role != null) ...[
+          const SizedBox(height: AppSpacing.xs),
+          _ContactInfoRow(
+            icon: Icons.payments_outlined,
+            label: 'Salário',
+            value: _formatSalary(role),
+          ),
+          if (role.remuneration.description.isNotEmpty) ...[
+            const SizedBox(height: AppSpacing.xs),
+            _ContactInfoRow(
+              icon: Icons.notes_outlined,
+              label: 'Descrição do salário',
+              value: role.remuneration.description,
+            ),
+          ],
+        ],
+        const SizedBox(height: AppSpacing.sm),
+        Align(
+          alignment: Alignment.centerRight,
+          child: TextButton.icon(
+            onPressed: _startEdit,
+            icon: const Icon(Icons.edit_outlined, size: 18),
+            label: const Text('Editar'),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildEditMode(
+    BuildContext context,
+    List<Department> departments,
+    bool isSaving,
+  ) {
+    final positions = _positions;
+    final roles = _roles;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        DropdownButtonFormField<String>(
+          value: _selectedDeptId,
+          decoration: const InputDecoration(
+            labelText: 'Setor',
+            prefixIcon: Icon(Icons.business_outlined),
+            border: OutlineInputBorder(),
+          ),
+          items: departments
+              .map<DropdownMenuItem<String>>((d) =>
+                  DropdownMenuItem<String>(value: d.id, child: Text(d.name)))
+              .toList(),
+          onChanged: isSaving
+              ? null
+              : (id) {
+                  setState(() {
+                    _selectedDeptId = id;
+                    _selectedPosId = null;
+                    _selectedRoleId = null;
+                  });
+                },
+        ),
+        const SizedBox(height: AppSpacing.md),
+        DropdownButtonFormField<String>(
+          value: _selectedPosId,
+          decoration: const InputDecoration(
+            labelText: 'Cargo',
+            prefixIcon: Icon(Icons.work_outline),
+            border: OutlineInputBorder(),
+          ),
+          items: positions
+              .map<DropdownMenuItem<String>>((p) =>
+                  DropdownMenuItem<String>(value: p.id, child: Text(p.name)))
+              .toList(),
+          onChanged: isSaving
+              ? null
+              : (id) {
+                  setState(() {
+                    _selectedPosId = id;
+                    _selectedRoleId = null;
+                  });
+                },
+        ),
+        const SizedBox(height: AppSpacing.md),
+        DropdownButtonFormField<String>(
+          value: _selectedRoleId,
+          decoration: const InputDecoration(
+            labelText: 'Função',
+            prefixIcon: Icon(Icons.badge_outlined),
+            border: OutlineInputBorder(),
+          ),
+          items: roles
+              .map<DropdownMenuItem<String>>((r) =>
+                  DropdownMenuItem<String>(value: r.id, child: Text(r.name)))
+              .toList(),
+          onChanged: isSaving
+              ? null
+              : (id) {
+                  setState(() => _selectedRoleId = id);
+                },
+        ),
+        // Show salary preview when a role is selected.
+        if (_selectedRoleId != null) ...[
+          const SizedBox(height: AppSpacing.md),
+          Builder(builder: (context) {
+            final selectedRole =
+                roles.where((r) => r.id == _selectedRoleId).firstOrNull;
+            if (selectedRole == null) return const SizedBox.shrink();
+            return Card.filled(
+              child: Padding(
+                padding: const EdgeInsets.all(AppSpacing.sm),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Remuneração da função selecionada',
+                      style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                            color: Theme.of(context)
+                                .colorScheme
+                                .onSurfaceVariant,
+                          ),
+                    ),
+                    const SizedBox(height: AppSpacing.xs),
+                    _ContactInfoRow(
+                      icon: Icons.payments_outlined,
+                      label: 'Salário',
+                      value: _formatSalary(selectedRole),
+                    ),
+                    if (selectedRole
+                        .remuneration.description.isNotEmpty) ...[
+                      const SizedBox(height: AppSpacing.xs),
+                      _ContactInfoRow(
+                        icon: Icons.notes_outlined,
+                        label: 'Descrição',
+                        value: selectedRole.remuneration.description,
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            );
+          }),
+        ],
+        const SizedBox(height: AppSpacing.md),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.end,
+          children: [
+            TextButton(
+              onPressed: isSaving ? null : _cancel,
+              child: const Text('Cancelar'),
+            ),
+            const SizedBox(width: AppSpacing.sm),
+            isSaving
+                ? const SizedBox(
+                    width: 24,
+                    height: 24,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : FilledButton(
+                    onPressed: _save,
+                    child: const Text('Salvar'),
+                  ),
+          ],
         ),
       ],
     );

@@ -4,10 +4,14 @@ import 'package:flutter/foundation.dart';
 
 import '../../../../domain/entities/address.dart';
 import '../../../../domain/entities/employee.dart';
+import '../../../../domain/entities/department.dart';
 import '../../../../domain/entities/employee_contact.dart';
 import '../../../../domain/entities/employee_id_card.dart';
 import '../../../../domain/entities/employee_personal_info.dart';
 import '../../../../domain/entities/employee_profile.dart';
+import '../../../../domain/entities/remuneration.dart';
+import '../../../../domain/entities/employee_medical_exam.dart';
+import '../../../../domain/entities/employee_military_document.dart';
 import '../../../../domain/entities/employee_vote_id.dart';
 import '../../../../domain/entities/personal_info_options.dart';
 import '../../../../domain/repositories/company_repository.dart';
@@ -27,8 +31,9 @@ enum SectionLoadStatus { notLoaded, loading, loaded, saving, error }
 /// and related role/workplace labels needed by the UI. The ViewModel also
 /// handles inline name editing, avatar upload, and the "mark as inactive" action.
 ///
-/// Additional sections (contact, address, personalInfo, idCard, voteId) are
-/// lazily loaded on first expansion to avoid unnecessary API calls.
+/// Additional sections (contact, address, personalInfo, idCard, voteId,
+/// militaryDocument) are lazily loaded on first expansion to avoid unnecessary
+/// API calls.
 class EmployeeProfileViewModel extends ChangeNotifier {
   EmployeeProfileViewModel({
     required CompanyRepository companyRepository,
@@ -82,6 +87,25 @@ class EmployeeProfileViewModel extends ChangeNotifier {
 
   SectionLoadStatus _voteIdStatus = SectionLoadStatus.notLoaded;
   EmployeeVoteId? _voteId;
+
+  // ─── Military document section ────────────────────────────────────────────
+
+  SectionLoadStatus _militaryDocumentStatus = SectionLoadStatus.notLoaded;
+  EmployeeMilitaryDocument? _militaryDocument;
+
+  // ─── Medical exam section ──────────────────────────────────────────────────
+
+  SectionLoadStatus _medicalExamStatus = SectionLoadStatus.notLoaded;
+  EmployeeMedicalExam? _medicalExam;
+
+  // ─── Role info section ─────────────────────────────────────────────────────
+
+  SectionLoadStatus _roleInfoStatus = SectionLoadStatus.notLoaded;
+  List<Department> _allDepartments = [];
+  List<PaymentUnit> _paymentUnits = [];
+  List<SalaryType> _salaryTypes = [];
+  String _currentDepartmentId = '';
+  String _currentPositionId = '';
 
   // ─── Public getters — core profile ────────────────────────────────────────
 
@@ -173,6 +197,42 @@ class EmployeeProfileViewModel extends ChangeNotifier {
 
   /// The loaded voter registration, or null when not yet loaded.
   EmployeeVoteId? get voteId => _voteId;
+
+  // ─── Public getters — section military document ────────────────────────────
+
+  /// The current load status of the military document section.
+  SectionLoadStatus get militaryDocumentStatus => _militaryDocumentStatus;
+
+  /// The loaded military document, or null when not yet loaded.
+  EmployeeMilitaryDocument? get militaryDocument => _militaryDocument;
+
+  // ─── Public getters — section medical exam ────────────────────────────────
+
+  /// The current load status of the medical exam section.
+  SectionLoadStatus get medicalExamStatus => _medicalExamStatus;
+
+  /// The loaded medical exam, or null when not yet loaded.
+  EmployeeMedicalExam? get medicalExam => _medicalExam;
+
+  // ─── Public getters — section role info ────────────────────────────────────
+
+  /// The current load status of the role info section.
+  SectionLoadStatus get roleInfoStatus => _roleInfoStatus;
+
+  /// All departments with their positions and roles for the cascading dropdown.
+  List<Department> get allDepartments => _allDepartments;
+
+  /// The department id of the employee's current role.
+  String get currentDepartmentId => _currentDepartmentId;
+
+  /// The position id of the employee's current role.
+  String get currentPositionId => _currentPositionId;
+
+  /// Available payment unit options for salary display resolution.
+  List<PaymentUnit> get paymentUnits => _paymentUnits;
+
+  /// Available salary type options for salary display resolution.
+  List<SalaryType> get salaryTypes => _salaryTypes;
 
   // ─── Core profile methods ──────────────────────────────────────────────────
 
@@ -692,6 +752,226 @@ class EmployeeProfileViewModel extends ChangeNotifier {
     );
 
     notifyListeners();
+  }
+
+  // ─── Military document section ────────────────────────────────────────────
+
+  /// Loads the military document for the current employee on first expansion.
+  Future<void> loadMilitaryDocument() async {
+    if (_militaryDocumentStatus != SectionLoadStatus.notLoaded) return;
+    final companyId = _companyId;
+    final currentProfile = _profile;
+    if (companyId == null || currentProfile == null) return;
+
+    _militaryDocumentStatus = SectionLoadStatus.loading;
+    notifyListeners();
+
+    final result = await _employeeRepository.getMilitaryDocument(
+        companyId, currentProfile.id);
+
+    result.fold(
+      onSuccess: (data) {
+        _militaryDocument = data;
+        _militaryDocumentStatus = SectionLoadStatus.loaded;
+      },
+      onError: (_) {
+        _militaryDocumentStatus = SectionLoadStatus.error;
+      },
+    );
+
+    notifyListeners();
+  }
+
+  /// Saves updated military document for the current employee.
+  ///
+  /// Shows a snack message on success.
+  Future<void> saveMilitaryDocument(String number, String type) async {
+    final companyId = _companyId;
+    final currentProfile = _profile;
+    if (companyId == null || currentProfile == null) return;
+
+    _militaryDocumentStatus = SectionLoadStatus.saving;
+    notifyListeners();
+
+    final result = await _employeeRepository.editMilitaryDocument(
+      companyId,
+      currentProfile.id,
+      number,
+      type,
+    );
+
+    result.fold(
+      onSuccess: (_) {
+        _militaryDocument = _militaryDocument?.copyWith(
+          number: number,
+          type: type,
+        );
+        _snackMessage = 'Documento militar atualizado com sucesso.';
+        _militaryDocumentStatus = SectionLoadStatus.loaded;
+      },
+      onError: (_) {
+        _militaryDocumentStatus = SectionLoadStatus.error;
+      },
+    );
+
+    notifyListeners();
+  }
+
+  // ─── Medical exam section ─────────────────────────────────────────────────
+
+  /// Loads the medical admission exam for the current employee on first
+  /// expansion.
+  Future<void> loadMedicalExam() async {
+    if (_medicalExamStatus != SectionLoadStatus.notLoaded) return;
+    final companyId = _companyId;
+    final currentProfile = _profile;
+    if (companyId == null || currentProfile == null) return;
+
+    _medicalExamStatus = SectionLoadStatus.loading;
+    notifyListeners();
+
+    final result =
+        await _employeeRepository.getMedicalExam(companyId, currentProfile.id);
+
+    result.fold(
+      onSuccess: (data) {
+        _medicalExam = data;
+        _medicalExamStatus = SectionLoadStatus.loaded;
+      },
+      onError: (_) {
+        _medicalExamStatus = SectionLoadStatus.error;
+      },
+    );
+
+    notifyListeners();
+  }
+
+  /// Saves the updated medical admission exam for the current employee.
+  ///
+  /// [dateExam] and [validityExam] must be in `dd/MM/yyyy` display format.
+  /// Shows a snack message on success.
+  Future<void> saveMedicalExam(String dateExam, String validityExam) async {
+    final companyId = _companyId;
+    final currentProfile = _profile;
+    if (companyId == null || currentProfile == null) return;
+
+    _medicalExamStatus = SectionLoadStatus.saving;
+    notifyListeners();
+
+    final result = await _employeeRepository.editMedicalExam(
+      companyId,
+      currentProfile.id,
+      dateExam,
+      validityExam,
+    );
+
+    result.fold(
+      onSuccess: (_) {
+        _medicalExam = EmployeeMedicalExam(
+          dateExam: dateExam,
+          validityExam: validityExam,
+        );
+        _snackMessage = 'Exame médico admissional atualizado com sucesso.';
+        _medicalExamStatus = SectionLoadStatus.loaded;
+      },
+      onError: (_) {
+        _medicalExamStatus = SectionLoadStatus.error;
+      },
+    );
+
+    notifyListeners();
+  }
+
+  // ─── Role info section ─────────────────────────────────────────────────────
+
+  /// Loads the department hierarchy, payment units, salary types, and locates
+  /// the employee's current role.
+  Future<void> loadRoleInfo() async {
+    if (_roleInfoStatus != SectionLoadStatus.notLoaded) return;
+    final companyId = _companyId;
+    final currentProfile = _profile;
+    if (companyId == null || currentProfile == null) return;
+
+    _roleInfoStatus = SectionLoadStatus.loading;
+    notifyListeners();
+
+    final deptResult = await _departmentRepository.getDepartments(companyId);
+    if (deptResult.isError) {
+      _roleInfoStatus = SectionLoadStatus.error;
+      notifyListeners();
+      return;
+    }
+    _allDepartments = deptResult.valueOrNull ?? [];
+
+    // Load lookup data for salary display. Non-critical — use empty lists
+    // as fallback so the section still works even if lookups fail.
+    final puResult =
+        await _departmentRepository.getPaymentUnits(companyId);
+    final stResult =
+        await _departmentRepository.getSalaryTypes(companyId);
+    _paymentUnits = puResult.valueOrNull ?? [];
+    _salaryTypes = stResult.valueOrNull ?? [];
+    _findCurrentRoleInHierarchy(currentProfile.roleId);
+    _roleInfoStatus = SectionLoadStatus.loaded;
+
+    notifyListeners();
+  }
+
+  /// Saves a new role assignment for the current employee.
+  ///
+  /// Updates the profile's roleId and refreshes the role label on success.
+  Future<void> saveEmployeeRole(String roleId) async {
+    final companyId = _companyId;
+    final currentProfile = _profile;
+    if (companyId == null || currentProfile == null) return;
+    if (roleId.isEmpty) return;
+
+    _roleInfoStatus = SectionLoadStatus.saving;
+    notifyListeners();
+
+    final result = await _employeeRepository.editEmployeeRole(
+      companyId,
+      currentProfile.id,
+      roleId,
+    );
+
+    result.fold(
+      onSuccess: (_) {
+        _profile = currentProfile.copyWith(roleId: roleId);
+        _findCurrentRoleInHierarchy(roleId);
+        // Update the header role label.
+        _roleName = _allDepartments
+            .expand((d) => d.positions)
+            .expand((p) => p.roles)
+            .where((r) => r.id == roleId)
+            .map((r) => r.name)
+            .firstOrNull;
+        _snackMessage = 'Função atualizada com sucesso.';
+        _roleInfoStatus = SectionLoadStatus.loaded;
+      },
+      onError: (_) {
+        _roleInfoStatus = SectionLoadStatus.error;
+      },
+    );
+
+    notifyListeners();
+  }
+
+  /// Walks the department→position→role hierarchy to find [roleId].
+  void _findCurrentRoleInHierarchy(String roleId) {
+    _currentDepartmentId = '';
+    _currentPositionId = '';
+    for (final dept in _allDepartments) {
+      for (final pos in dept.positions) {
+        for (final role in pos.roles) {
+          if (role.id == roleId) {
+            _currentDepartmentId = dept.id;
+            _currentPositionId = pos.id;
+            return;
+          }
+        }
+      }
+    }
   }
 
   // ─── Private helpers ───────────────────────────────────────────────────────

@@ -10,6 +10,8 @@ import '../models/employee_contact_api_model.dart';
 import '../models/employee_id_card_api_model.dart';
 import '../models/employee_personal_info_api_model.dart';
 import '../models/employee_profile_api_model.dart';
+import '../models/employee_medical_exam_api_model.dart';
+import '../models/employee_military_document_api_model.dart';
 import '../models/employee_vote_id_api_model.dart';
 import 'department_api_service.dart';
 
@@ -345,6 +347,79 @@ class EmployeeApiService {
       uri,
       headers: await _headers(),
       body: jsonEncode({'employeeId': employeeId, 'voteIdNumber': voteIdNumber}),
+    );
+    _checkStatus(response);
+  }
+
+  /// Fetches the military document (Documento Militar) for [employeeId].
+  Future<EmployeeMilitaryDocumentApiModel> getMilitaryDocument(
+    String companyId,
+    String employeeId,
+  ) async {
+    final uri = Uri.https(
+        baseUrl, '/api/v1/$companyId/employee/militarydocument/$employeeId');
+    final response = await client.get(uri, headers: await _headers());
+    _checkStatus(response);
+    final json = jsonDecode(response.body) as Map<String, dynamic>;
+    return EmployeeMilitaryDocumentApiModel.fromJson(json);
+  }
+
+  /// Updates the military document (Documento Militar) for [employeeId].
+  Future<void> editMilitaryDocument(
+    String companyId,
+    String employeeId,
+    Map<String, dynamic> militaryDocumentJson,
+  ) async {
+    final uri =
+        Uri.https(baseUrl, '/api/v1/$companyId/employee/MilitaryDocument');
+    final response = await client.put(
+      uri,
+      headers: await _headers(),
+      body: jsonEncode(militaryDocumentJson),
+    );
+    _checkStatus(response);
+  }
+
+  /// Updates the role assignment for [employeeId].
+  Future<void> editEmployeeRole(
+    String companyId,
+    String employeeId,
+    String roleId,
+  ) async {
+    final uri = Uri.https(baseUrl, '/api/v1/$companyId/employee/role');
+    final response = await client.put(
+      uri,
+      headers: await _headers(),
+      body: jsonEncode({'employeeId': employeeId, 'roleId': roleId}),
+    );
+    _checkStatus(response);
+  }
+
+  /// Fetches the medical admission exam for [employeeId].
+  Future<EmployeeMedicalExamApiModel> getMedicalExam(
+    String companyId,
+    String employeeId,
+  ) async {
+    final uri = Uri.https(baseUrl,
+        '/api/v1/$companyId/employee/medicaladmissionexam/$employeeId');
+    final response = await client.get(uri, headers: await _headers());
+    _checkStatus(response);
+    final json = jsonDecode(response.body) as Map<String, dynamic>;
+    return EmployeeMedicalExamApiModel.fromJson(json);
+  }
+
+  /// Updates the medical admission exam for [employeeId].
+  Future<void> editMedicalExam(
+    String companyId,
+    String employeeId,
+    Map<String, dynamic> medicalExamJson,
+  ) async {
+    final uri = Uri.https(
+        baseUrl, '/api/v1/$companyId/employee/medicaladmissionexam');
+    final response = await client.put(
+      uri,
+      headers: await _headers(),
+      body: jsonEncode(medicalExamJson),
     );
     _checkStatus(response);
   }

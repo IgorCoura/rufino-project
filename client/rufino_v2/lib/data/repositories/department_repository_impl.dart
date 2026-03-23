@@ -189,7 +189,9 @@ class DepartmentRepositoryImpl implements DepartmentRepository {
         cbo: cbo,
         remuneration: RemunerationApiModel(
           paymentUnitId: paymentUnitId,
+          paymentUnitName: '',
           salaryTypeId: salaryTypeId,
+          salaryTypeName: '',
           baseSalaryValue: baseSalaryValue,
           description: remunerationDescription,
         ),
@@ -223,7 +225,9 @@ class DepartmentRepositoryImpl implements DepartmentRepository {
         cbo: cbo,
         remuneration: RemunerationApiModel(
           paymentUnitId: paymentUnitId,
+          paymentUnitName: '',
           salaryTypeId: salaryTypeId,
+          salaryTypeName: '',
           baseSalaryValue: baseSalaryValue,
           description: remunerationDescription,
         ),

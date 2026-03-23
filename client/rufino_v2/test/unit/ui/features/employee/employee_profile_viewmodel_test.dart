@@ -8,6 +8,10 @@ import 'package:rufino_v2/domain/entities/employee_contact.dart';
 import 'package:rufino_v2/domain/entities/employee_id_card.dart';
 import 'package:rufino_v2/domain/entities/employee_personal_info.dart';
 import 'package:rufino_v2/domain/entities/employee_profile.dart';
+import 'package:rufino_v2/domain/entities/department.dart';
+import 'package:rufino_v2/domain/entities/employee_medical_exam.dart';
+import 'package:rufino_v2/domain/entities/employee_military_document.dart';
+import 'package:rufino_v2/domain/entities/position.dart';
 import 'package:rufino_v2/domain/entities/employee_vote_id.dart';
 import 'package:rufino_v2/domain/entities/remuneration.dart';
 import 'package:rufino_v2/domain/entities/role.dart';
@@ -569,6 +573,189 @@ void main() {
         await viewModel.saveVoteId('999999999999');
 
         expect(viewModel.voteIdStatus, SectionLoadStatus.error);
+      });
+    });
+
+    group('military document section', () {
+      const fakeDoc = EmployeeMilitaryDocument(
+        number: 'RM-12345',
+        type: 'Reservista',
+        isRequired: true,
+      );
+
+      test('loadMilitaryDocument transitions from notLoaded to loaded with data',
+          () async {
+        await viewModel.load('emp-1');
+        employeeRepository.setMilitaryDocument(fakeDoc);
+
+        await viewModel.loadMilitaryDocument();
+
+        expect(viewModel.militaryDocumentStatus, SectionLoadStatus.loaded);
+        expect(viewModel.militaryDocument?.number, 'RM-12345');
+        expect(viewModel.militaryDocument?.type, 'Reservista');
+        expect(viewModel.militaryDocument?.isRequired, true);
+      });
+
+      test(
+          'loadMilitaryDocument sets error status when the repository call fails',
+          () async {
+        await viewModel.load('emp-1');
+        employeeRepository.setShouldFail(true);
+
+        await viewModel.loadMilitaryDocument();
+
+        expect(viewModel.militaryDocumentStatus, SectionLoadStatus.error);
+      });
+
+      test(
+          'saveMilitaryDocument persists new values and shows a snack message',
+          () async {
+        await viewModel.load('emp-1');
+        await viewModel.loadMilitaryDocument();
+
+        await viewModel.saveMilitaryDocument('RM-99999', 'Certificado');
+
+        expect(viewModel.militaryDocumentStatus, SectionLoadStatus.loaded);
+        expect(viewModel.militaryDocument?.number, 'RM-99999');
+        expect(viewModel.militaryDocument?.type, 'Certificado');
+        expect(viewModel.snackMessage, contains('militar'));
+        expect(employeeRepository.lastSavedMilitaryDocumentNumber, 'RM-99999');
+        expect(employeeRepository.lastSavedMilitaryDocumentType, 'Certificado');
+      });
+
+      test(
+          'saveMilitaryDocument sets error status when the repository call fails',
+          () async {
+        await viewModel.load('emp-1');
+        await viewModel.loadMilitaryDocument();
+        employeeRepository.setShouldFail(true);
+
+        await viewModel.saveMilitaryDocument('RM-99999', 'Certificado');
+
+        expect(viewModel.militaryDocumentStatus, SectionLoadStatus.error);
+      });
+    });
+
+    group('medical exam section', () {
+      const fakeExam = EmployeeMedicalExam(
+        dateExam: '15/01/2026',
+        validityExam: '15/01/2027',
+      );
+
+      test('loadMedicalExam transitions from notLoaded to loaded with data',
+          () async {
+        await viewModel.load('emp-1');
+        employeeRepository.setMedicalExam(fakeExam);
+
+        await viewModel.loadMedicalExam();
+
+        expect(viewModel.medicalExamStatus, SectionLoadStatus.loaded);
+        expect(viewModel.medicalExam?.dateExam, '15/01/2026');
+        expect(viewModel.medicalExam?.validityExam, '15/01/2027');
+      });
+
+      test('loadMedicalExam sets error status when the repository call fails',
+          () async {
+        await viewModel.load('emp-1');
+        employeeRepository.setShouldFail(true);
+
+        await viewModel.loadMedicalExam();
+
+        expect(viewModel.medicalExamStatus, SectionLoadStatus.error);
+      });
+
+      test('saveMedicalExam persists new values and shows a snack message',
+          () async {
+        await viewModel.load('emp-1');
+        await viewModel.loadMedicalExam();
+
+        await viewModel.saveMedicalExam('20/03/2026', '20/03/2027');
+
+        expect(viewModel.medicalExamStatus, SectionLoadStatus.loaded);
+        expect(viewModel.medicalExam?.dateExam, '20/03/2026');
+        expect(viewModel.medicalExam?.validityExam, '20/03/2027');
+        expect(viewModel.snackMessage, contains('médico'));
+        expect(employeeRepository.lastSavedMedicalExamDate, '20/03/2026');
+        expect(employeeRepository.lastSavedMedicalExamValidity, '20/03/2027');
+      });
+
+      test('saveMedicalExam sets error status when the repository call fails',
+          () async {
+        await viewModel.load('emp-1');
+        await viewModel.loadMedicalExam();
+        employeeRepository.setShouldFail(true);
+
+        await viewModel.saveMedicalExam('20/03/2026', '20/03/2027');
+
+        expect(viewModel.medicalExamStatus, SectionLoadStatus.error);
+      });
+    });
+
+    group('role info section', () {
+      final fakeDepartments = [
+        Department(
+          id: 'dept-1',
+          name: 'Financeiro',
+          description: 'Setor financeiro',
+          positions: [
+            Position(
+              id: 'pos-1',
+              name: 'Analista',
+              description: 'Analista financeiro',
+              cbo: '251210',
+              roles: [_fakeRole],
+            ),
+          ],
+        ),
+      ];
+
+      test('loadRoleInfo transitions to loaded and finds current role',
+          () async {
+        departmentRepository.setDepartments(fakeDepartments);
+        await viewModel.load('emp-1');
+
+        await viewModel.loadRoleInfo();
+
+        expect(viewModel.roleInfoStatus, SectionLoadStatus.loaded);
+        expect(viewModel.allDepartments, hasLength(1));
+        expect(viewModel.currentDepartmentId, 'dept-1');
+        expect(viewModel.currentPositionId, 'pos-1');
+      });
+
+      test('loadRoleInfo sets error status when the repository call fails',
+          () async {
+        departmentRepository.setShouldFail(true);
+        await viewModel.load('emp-1');
+
+        await viewModel.loadRoleInfo();
+
+        expect(viewModel.roleInfoStatus, SectionLoadStatus.error);
+      });
+
+      test('saveEmployeeRole persists new roleId and shows a snack message',
+          () async {
+        departmentRepository.setDepartments(fakeDepartments);
+        await viewModel.load('emp-1');
+        await viewModel.loadRoleInfo();
+
+        await viewModel.saveEmployeeRole('role-1');
+
+        expect(viewModel.roleInfoStatus, SectionLoadStatus.loaded);
+        expect(viewModel.snackMessage, contains('Função'));
+        expect(employeeRepository.lastSavedRoleId, 'role-1');
+      });
+
+      test(
+          'saveEmployeeRole sets error status when the repository call fails',
+          () async {
+        departmentRepository.setDepartments(fakeDepartments);
+        await viewModel.load('emp-1');
+        await viewModel.loadRoleInfo();
+        employeeRepository.setShouldFail(true);
+
+        await viewModel.saveEmployeeRole('role-1');
+
+        expect(viewModel.roleInfoStatus, SectionLoadStatus.error);
       });
     });
   });
