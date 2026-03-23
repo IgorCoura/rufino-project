@@ -7,6 +7,7 @@ import '../../core/errors/employee_exception.dart';
 import '../models/employee_api_model.dart';
 import '../models/employee_address_api_model.dart';
 import '../models/employee_contact_api_model.dart';
+import '../models/employee_contract_api_model.dart';
 import '../models/employee_dependent_api_model.dart';
 import '../models/employee_id_card_api_model.dart';
 import '../models/employee_personal_info_api_model.dart';
@@ -497,6 +498,62 @@ class EmployeeApiService {
         'employeeId': employeeId,
         'workPlaceId': workplaceId,
       }),
+    );
+    _checkStatus(response);
+  }
+
+  /// Fetches the list of contracts for [employeeId].
+  Future<List<EmployeeContractApiModel>> getContracts(
+    String companyId,
+    String employeeId,
+  ) async {
+    final uri = Uri.https(
+        baseUrl, '/api/v1/$companyId/employee/contracts/$employeeId');
+    final response = await client.get(uri, headers: await _headers());
+    _checkStatus(response);
+    final json = jsonDecode(response.body) as Map<String, dynamic>;
+    return EmployeeContractApiModel.fromListResponse(json);
+  }
+
+  /// Fetches the available contract type options.
+  Future<List<ContractTypeApiModel>> getContractTypes(
+      String companyId) async {
+    final uri =
+        Uri.https(baseUrl, '/api/v1/$companyId/employee/contracts/types');
+    final response = await client.get(uri, headers: await _headers());
+    _checkStatus(response);
+    final list = jsonDecode(response.body) as List<dynamic>;
+    return list
+        .map((e) => ContractTypeApiModel.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  /// Creates a new contract (admission) for [employeeId].
+  Future<void> createContract(
+    String companyId,
+    Map<String, dynamic> body,
+  ) async {
+    final uri = Uri.https(
+        baseUrl, '/api/v1/$companyId/employee/admission/complete');
+    final response = await client.put(
+      uri,
+      headers: await _headers(),
+      body: jsonEncode(body),
+    );
+    _checkStatus(response);
+  }
+
+  /// Finishes (ends) the active contract for [employeeId].
+  Future<void> finishContract(
+    String companyId,
+    Map<String, dynamic> body,
+  ) async {
+    final uri = Uri.https(
+        baseUrl, '/api/v1/$companyId/employee/contract/finished');
+    final response = await client.put(
+      uri,
+      headers: await _headers(),
+      body: jsonEncode(body),
     );
     _checkStatus(response);
   }

@@ -5,6 +5,8 @@ import '../../core/result.dart';
 import '../../domain/entities/address.dart';
 import '../../domain/entities/employee.dart';
 import '../../domain/entities/employee_contact.dart';
+import '../../domain/entities/employee_contract.dart';
+import '../../domain/entities/selection_option.dart';
 import '../../domain/entities/employee_dependent.dart';
 import '../../domain/entities/employee_id_card.dart';
 import '../../domain/entities/employee_personal_info.dart';
@@ -15,6 +17,7 @@ import '../../domain/entities/employee_vote_id.dart';
 import '../../domain/entities/personal_info_options.dart';
 import '../../domain/repositories/employee_repository.dart';
 import '../models/employee_address_api_model.dart';
+import '../models/employee_contract_api_model.dart';
 import '../models/employee_dependent_api_model.dart';
 import '../models/employee_id_card_api_model.dart';
 import '../models/employee_medical_exam_api_model.dart';
@@ -526,6 +529,79 @@ class EmployeeRepositoryImpl implements EmployeeRepository {
     try {
       await apiService.editEmployeeWorkplace(
           companyId, employeeId, workplaceId);
+      return const Result<void>.success(null);
+    } on EmployeeException catch (e) {
+      return Result.error(e);
+    } catch (e) {
+      return Result.error(EmployeeNetworkException(e));
+    }
+  }
+
+  @override
+  Future<Result<List<EmployeeContractInfo>>> getContracts(
+    String companyId,
+    String employeeId,
+  ) async {
+    try {
+      final models = await apiService.getContracts(companyId, employeeId);
+      return Result.success(models.map((m) => m.toEntity()).toList());
+    } on EmployeeException catch (e) {
+      return Result.error(e);
+    } catch (e) {
+      return Result.error(EmployeeNetworkException(e));
+    }
+  }
+
+  @override
+  Future<Result<List<SelectionOption>>> getContractTypes(
+      String companyId) async {
+    try {
+      final models = await apiService.getContractTypes(companyId);
+      return Result.success(
+          models.map((m) => SelectionOption(id: m.id, name: m.name)).toList());
+    } on EmployeeException catch (e) {
+      return Result.error(e);
+    } catch (e) {
+      return Result.error(EmployeeNetworkException(e));
+    }
+  }
+
+  @override
+  Future<Result<void>> createContract(
+    String companyId,
+    String employeeId,
+    String initDate,
+    String contractTypeId,
+    String registration,
+  ) async {
+    try {
+      final body = {
+        'employeeId': employeeId,
+        'registration': registration,
+        'dateInit': EmployeeContractApiModel.dateToApi(initDate),
+        'contractType': int.tryParse(contractTypeId) ?? contractTypeId,
+      };
+      await apiService.createContract(companyId, body);
+      return const Result<void>.success(null);
+    } on EmployeeException catch (e) {
+      return Result.error(e);
+    } catch (e) {
+      return Result.error(EmployeeNetworkException(e));
+    }
+  }
+
+  @override
+  Future<Result<void>> finishContract(
+    String companyId,
+    String employeeId,
+    String finalDate,
+  ) async {
+    try {
+      final body = {
+        'employeeId': employeeId,
+        'finishDateContract': EmployeeContractApiModel.dateToApi(finalDate),
+      };
+      await apiService.finishContract(companyId, body);
       return const Result<void>.success(null);
     } on EmployeeException catch (e) {
       return Result.error(e);

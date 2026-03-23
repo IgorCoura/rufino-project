@@ -5,6 +5,7 @@ import 'package:rufino_v2/domain/entities/address.dart';
 import 'package:rufino_v2/domain/entities/company.dart';
 import 'package:rufino_v2/domain/entities/employee.dart';
 import 'package:rufino_v2/domain/entities/department.dart';
+import 'package:rufino_v2/domain/entities/employee_contract.dart';
 import 'package:rufino_v2/domain/entities/employee_medical_exam.dart';
 import 'package:rufino_v2/domain/entities/position.dart';
 import 'package:rufino_v2/domain/entities/remuneration.dart';
@@ -164,7 +165,26 @@ void main() {
 
     testWidgets('marks the employee as inactive after confirmation',
         (tester) async {
+      // Use a finished contract so the "Marcar como inativo" button appears.
+      employeeRepository.setContracts(const [
+        EmployeeContractInfo(
+          initDate: '01/01/2025',
+          finalDate: '31/12/2025',
+          typeId: '1',
+          typeName: 'CLT',
+        ),
+      ]);
+
       await tester.pumpWidget(buildSubject());
+      await tester.pumpAndSettle();
+
+      // Expand the Contratos section where the button now lives.
+      await tester.scrollUntilVisible(
+        find.text('Contratos'),
+        100,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.tap(find.text('Contratos'));
       await tester.pumpAndSettle();
 
       await tester.scrollUntilVisible(
@@ -1310,21 +1330,17 @@ void main() {
       await tester.tap(find.text('Editar').last);
       await tester.pumpAndSettle();
 
-      await tester.scrollUntilVisible(
+      await tester.ensureVisible(
         find.widgetWithText(TextFormField, 'Número do documento'),
-        100,
-        scrollable: find.byType(Scrollable).first,
       );
+      await tester.pumpAndSettle();
       await tester.enterText(
         find.widgetWithText(TextFormField, 'Número do documento'),
         '',
       );
 
-      await tester.scrollUntilVisible(
-        find.text('Salvar'),
-        100,
-        scrollable: find.byType(Scrollable).first,
-      );
+      await tester.ensureVisible(find.text('Salvar'));
+      await tester.pumpAndSettle();
       await tester.tap(find.text('Salvar'));
       await tester.pumpAndSettle();
 
@@ -1360,21 +1376,17 @@ void main() {
       await tester.tap(find.text('Editar').last);
       await tester.pumpAndSettle();
 
-      await tester.scrollUntilVisible(
+      await tester.ensureVisible(
         find.widgetWithText(TextFormField, 'Tipo de documento'),
-        100,
-        scrollable: find.byType(Scrollable).first,
       );
+      await tester.pumpAndSettle();
       await tester.enterText(
         find.widgetWithText(TextFormField, 'Tipo de documento'),
         '',
       );
 
-      await tester.scrollUntilVisible(
-        find.text('Salvar'),
-        100,
-        scrollable: find.byType(Scrollable).first,
-      );
+      await tester.ensureVisible(find.text('Salvar'));
+      await tester.pumpAndSettle();
       await tester.tap(find.text('Salvar'));
       await tester.pumpAndSettle();
 
@@ -1822,6 +1834,30 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Sede Principal'), findsWidgets);
+    });
+
+    testWidgets('shows the Contratos section title', (tester) async {
+      await tester.pumpWidget(buildSubject());
+      await tester.pumpAndSettle();
+
+      expect(find.text('Contratos'), findsOneWidget);
+    });
+
+    testWidgets('expands the Contratos section and shows contract data',
+        (tester) async {
+      await tester.pumpWidget(buildSubject());
+      await tester.pumpAndSettle();
+
+      await tester.scrollUntilVisible(
+        find.text('Contratos'),
+        100,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.tap(find.text('Contratos'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('CLT'), findsOneWidget);
+      expect(find.text('01/01/2026'), findsOneWidget);
     });
   });
 }

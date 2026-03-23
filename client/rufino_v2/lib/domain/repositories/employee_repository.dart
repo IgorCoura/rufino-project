@@ -4,6 +4,7 @@ import '../../core/result.dart';
 import '../entities/address.dart';
 import '../entities/employee.dart';
 import '../entities/employee_contact.dart';
+import '../entities/employee_contract.dart';
 import '../entities/employee_dependent.dart';
 import '../entities/employee_id_card.dart';
 import '../entities/employee_medical_exam.dart';
@@ -12,6 +13,7 @@ import '../entities/employee_personal_info.dart';
 import '../entities/employee_profile.dart';
 import '../entities/employee_vote_id.dart';
 import '../entities/personal_info_options.dart';
+import '../entities/selection_option.dart';
 
 /// Contract for accessing and creating employee data.
 abstract class EmployeeRepository {
@@ -230,5 +232,34 @@ abstract class EmployeeRepository {
     String companyId,
     String employeeId,
     String workplaceId,
+  );
+
+  /// Returns the list of contracts for the employee identified by [employeeId].
+  Future<Result<List<EmployeeContractInfo>>> getContracts(
+    String companyId,
+    String employeeId,
+  );
+
+  /// Returns the available contract type options.
+  Future<Result<List<SelectionOption>>> getContractTypes(String companyId);
+
+  /// Creates a new contract (admission) for the employee.
+  ///
+  /// [initDate] must be in `dd/MM/yyyy` display format.
+  Future<Result<void>> createContract(
+    String companyId,
+    String employeeId,
+    String initDate,
+    String contractTypeId,
+    String registration,
+  );
+
+  /// Finishes (ends) the active contract for the employee.
+  ///
+  /// [finalDate] must be in `dd/MM/yyyy` display format.
+  Future<Result<void>> finishContract(
+    String companyId,
+    String employeeId,
+    String finalDate,
   );
 }

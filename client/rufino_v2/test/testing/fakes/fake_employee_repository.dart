@@ -4,6 +4,7 @@ import 'package:rufino_v2/core/result.dart';
 import 'package:rufino_v2/domain/entities/address.dart';
 import 'package:rufino_v2/domain/entities/employee.dart';
 import 'package:rufino_v2/domain/entities/employee_contact.dart';
+import 'package:rufino_v2/domain/entities/employee_contract.dart';
 import 'package:rufino_v2/domain/entities/employee_dependent.dart';
 import 'package:rufino_v2/domain/entities/employee_id_card.dart';
 import 'package:rufino_v2/domain/entities/employee_personal_info.dart';
@@ -116,6 +117,20 @@ class FakeEmployeeRepository implements EmployeeRepository {
     ),
   ];
 
+  List<EmployeeContractInfo> _contracts = const [
+    EmployeeContractInfo(
+      initDate: '01/01/2026',
+      finalDate: '',
+      typeId: '1',
+      typeName: 'CLT',
+    ),
+  ];
+
+  List<SelectionOption> _contractTypes = const [
+    SelectionOption(id: '1', name: 'CLT'),
+    SelectionOption(id: '2', name: 'Aprendiz'),
+  ];
+
   void setEmployees(List<Employee> employees) => _employees = employees;
 
   /// The profile returned by [getEmployeeProfile].
@@ -159,6 +174,12 @@ class FakeEmployeeRepository implements EmployeeRepository {
 
   /// The dependents returned by [getDependents].
   void setDependents(List<EmployeeDependent> deps) => _dependents = deps;
+
+  /// The contracts returned by [getContracts].
+  void setContracts(List<EmployeeContractInfo> c) => _contracts = c;
+
+  /// The contract types returned by [getContractTypes].
+  void setContractTypes(List<SelectionOption> t) => _contractTypes = t;
 
   // ─── Captured call arguments (for assertion) ──────────────────────────────
 
@@ -565,6 +586,52 @@ class FakeEmployeeRepository implements EmployeeRepository {
     lastSavedWorkplaceId = workplaceId;
     if (_shouldFail) {
       return Result.error(Exception('editEmployeeWorkplace failed'));
+    }
+    return const Result<void>.success(null);
+  }
+
+  @override
+  Future<Result<List<EmployeeContractInfo>>> getContracts(
+    String companyId,
+    String employeeId,
+  ) async {
+    if (_shouldFail) {
+      return Result.error(Exception('getContracts failed'));
+    }
+    return Result.success(_contracts);
+  }
+
+  @override
+  Future<Result<List<SelectionOption>>> getContractTypes(
+      String companyId) async {
+    if (_shouldFail) {
+      return Result.error(Exception('getContractTypes failed'));
+    }
+    return Result.success(_contractTypes);
+  }
+
+  @override
+  Future<Result<void>> createContract(
+    String companyId,
+    String employeeId,
+    String initDate,
+    String contractTypeId,
+    String registration,
+  ) async {
+    if (_shouldFail) {
+      return Result.error(Exception('createContract failed'));
+    }
+    return const Result<void>.success(null);
+  }
+
+  @override
+  Future<Result<void>> finishContract(
+    String companyId,
+    String employeeId,
+    String finalDate,
+  ) async {
+    if (_shouldFail) {
+      return Result.error(Exception('finishContract failed'));
     }
     return const Result<void>.success(null);
   }
