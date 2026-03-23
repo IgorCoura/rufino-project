@@ -223,4 +223,12 @@ abstract class EmployeeRepository {
     String employeeId,
     String dependentName,
   );
+
+  /// Updates the workplace assignment for the employee identified by
+  /// [employeeId].
+  Future<Result<void>> editEmployeeWorkplace(
+    String companyId,
+    String employeeId,
+    String workplaceId,
+  );
 }

@@ -105,7 +105,8 @@ void main() {
         ),
       ]);
     workplaceRepository = FakeWorkplaceRepository()
-      ..setWorkplace(_fakeWorkplace);
+      ..setWorkplace(_fakeWorkplace)
+      ..setWorkplaces([_fakeWorkplace]);
     viewModel = EmployeeProfileViewModel(
       companyRepository: companyRepository,
       employeeRepository: employeeRepository,
@@ -1797,6 +1798,30 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Maria Silva'), findsOneWidget);
+    });
+
+    testWidgets('shows the Local de Trabalho section title', (tester) async {
+      await tester.pumpWidget(buildSubject());
+      await tester.pumpAndSettle();
+
+      expect(find.text('Local de Trabalho'), findsOneWidget);
+    });
+
+    testWidgets(
+        'expands the Local de Trabalho section and shows workplace data',
+        (tester) async {
+      await tester.pumpWidget(buildSubject());
+      await tester.pumpAndSettle();
+
+      await tester.scrollUntilVisible(
+        find.text('Local de Trabalho'),
+        100,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.tap(find.text('Local de Trabalho'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Sede Principal'), findsWidgets);
     });
   });
 }

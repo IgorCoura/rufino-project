@@ -12,6 +12,7 @@ import '../../../../domain/entities/employee_id_card.dart';
 import '../../../../domain/entities/employee_personal_info.dart';
 import '../../../../domain/entities/employee_profile.dart';
 import '../../../../domain/entities/remuneration.dart';
+import '../../../../domain/entities/workplace.dart';
 import '../../../../domain/entities/role.dart';
 import '../../../../domain/entities/employee_medical_exam.dart';
 import '../../../../domain/entities/employee_military_document.dart';
@@ -120,6 +121,11 @@ class EmployeeProfileViewModel extends ChangeNotifier {
     SelectionOption(id: '1', name: 'Filho(a)'),
     SelectionOption(id: '2', name: 'Cônjuge'),
   ];
+
+  // ─── Workplace info section ────────────────────────────────────────────────
+
+  SectionLoadStatus _workplaceInfoStatus = SectionLoadStatus.notLoaded;
+  List<Workplace> _allWorkplaces = [];
 
   // ─── Public getters — core profile ────────────────────────────────────────
 
@@ -255,6 +261,14 @@ class EmployeeProfileViewModel extends ChangeNotifier {
 
   /// The loaded list of dependents.
   List<EmployeeDependent> get dependents => _dependents;
+
+  // ─── Public getters — section workplace info ───────────────────────────────
+
+  /// The current load status of the workplace info section.
+  SectionLoadStatus get workplaceInfoStatus => _workplaceInfoStatus;
+
+  /// All workplaces available for selection.
+  List<Workplace> get allWorkplaces => _allWorkplaces;
 
   // ─── Core profile methods ──────────────────────────────────────────────────
 
@@ -994,6 +1008,70 @@ class EmployeeProfileViewModel extends ChangeNotifier {
         }
       }
     }
+  }
+
+  // ─── Workplace info section ─────────────────────────────────────────────
+
+  /// Loads all workplaces and locates the employee's current workplace.
+  Future<void> loadWorkplaceInfo() async {
+    if (_workplaceInfoStatus != SectionLoadStatus.notLoaded) return;
+    final companyId = _companyId;
+    final currentProfile = _profile;
+    if (companyId == null || currentProfile == null) return;
+
+    _workplaceInfoStatus = SectionLoadStatus.loading;
+    notifyListeners();
+
+    final result = await _workplaceRepository.getWorkplaces(companyId);
+
+    result.fold(
+      onSuccess: (workplaces) {
+        _allWorkplaces = workplaces;
+        _workplaceInfoStatus = SectionLoadStatus.loaded;
+      },
+      onError: (_) {
+        _workplaceInfoStatus = SectionLoadStatus.error;
+      },
+    );
+
+    notifyListeners();
+  }
+
+  /// Saves a new workplace assignment for the current employee.
+  ///
+  /// Updates the profile's workplaceId and refreshes the workplace label on
+  /// success.
+  Future<void> saveEmployeeWorkplace(String workplaceId) async {
+    final companyId = _companyId;
+    final currentProfile = _profile;
+    if (companyId == null || currentProfile == null) return;
+    if (workplaceId.isEmpty) return;
+
+    _workplaceInfoStatus = SectionLoadStatus.saving;
+    notifyListeners();
+
+    final result = await _employeeRepository.editEmployeeWorkplace(
+      companyId,
+      currentProfile.id,
+      workplaceId,
+    );
+
+    result.fold(
+      onSuccess: (_) {
+        _profile = currentProfile.copyWith(workplaceId: workplaceId);
+        _workplaceName = _allWorkplaces
+            .where((w) => w.id == workplaceId)
+            .map((w) => w.name)
+            .firstOrNull;
+        _snackMessage = 'Local de trabalho atualizado com sucesso.';
+        _workplaceInfoStatus = SectionLoadStatus.loaded;
+      },
+      onError: (_) {
+        _workplaceInfoStatus = SectionLoadStatus.error;
+      },
+    );
+
+    notifyListeners();
   }
 
   // ─── Dependents section ─────────────────────────────────────────────────

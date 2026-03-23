@@ -18,6 +18,7 @@ import 'components/military_document_section.dart';
 import 'components/personal_info_section.dart';
 import 'components/role_info_section.dart';
 import 'components/vote_id_section.dart';
+import 'components/workplace_section.dart';
 
 /// Displays a detailed employee profile with photo upload, name editing,
 /// status badge, and assignment summary.
@@ -335,6 +336,8 @@ class _EmployeeProfileBody extends StatelessWidget {
               MedicalExamSection(viewModel: viewModel),
               const SizedBox(height: AppSpacing.sm),
               RoleInfoSection(viewModel: viewModel),
+              const SizedBox(height: AppSpacing.sm),
+              WorkplaceSection(viewModel: viewModel),
               if (profile.canMarkAsInactive) ...[
                 const SizedBox(height: AppSpacing.lg),
                 Align(

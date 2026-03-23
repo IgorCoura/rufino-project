@@ -994,5 +994,56 @@ void main() {
         expect(viewModel.dependentsStatus, SectionLoadStatus.error);
       });
     });
+
+    group('workplace info section', () {
+      test('loadWorkplaceInfo transitions to loaded with data', () async {
+        workplaceRepository.setWorkplaces([_fakeWorkplace]);
+        await viewModel.load('emp-1');
+
+        await viewModel.loadWorkplaceInfo();
+
+        expect(viewModel.workplaceInfoStatus, SectionLoadStatus.loaded);
+        expect(viewModel.allWorkplaces, hasLength(1));
+        expect(viewModel.allWorkplaces.first.name, 'Sede Principal');
+      });
+
+      test(
+          'loadWorkplaceInfo sets error status when the repository call fails',
+          () async {
+        workplaceRepository.setShouldFail(true);
+        await viewModel.load('emp-1');
+
+        await viewModel.loadWorkplaceInfo();
+
+        expect(viewModel.workplaceInfoStatus, SectionLoadStatus.error);
+      });
+
+      test(
+          'saveEmployeeWorkplace persists new workplaceId and shows a snack message',
+          () async {
+        workplaceRepository.setWorkplaces([_fakeWorkplace]);
+        await viewModel.load('emp-1');
+        await viewModel.loadWorkplaceInfo();
+
+        await viewModel.saveEmployeeWorkplace('wp-1');
+
+        expect(viewModel.workplaceInfoStatus, SectionLoadStatus.loaded);
+        expect(viewModel.snackMessage, contains('trabalho'));
+        expect(employeeRepository.lastSavedWorkplaceId, 'wp-1');
+      });
+
+      test(
+          'saveEmployeeWorkplace sets error status when the repository call fails',
+          () async {
+        workplaceRepository.setWorkplaces([_fakeWorkplace]);
+        await viewModel.load('emp-1');
+        await viewModel.loadWorkplaceInfo();
+        employeeRepository.setShouldFail(true);
+
+        await viewModel.saveEmployeeWorkplace('wp-1');
+
+        expect(viewModel.workplaceInfoStatus, SectionLoadStatus.error);
+      });
+    });
   });
 }
