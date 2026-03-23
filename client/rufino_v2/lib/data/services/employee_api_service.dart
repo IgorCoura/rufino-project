@@ -483,6 +483,24 @@ class EmployeeApiService {
     _checkStatus(response);
   }
 
+  /// Updates the workplace assignment for [employeeId].
+  Future<void> editEmployeeWorkplace(
+    String companyId,
+    String employeeId,
+    String workplaceId,
+  ) async {
+    final uri = Uri.https(baseUrl, '/api/v1/$companyId/employee/workplace');
+    final response = await client.put(
+      uri,
+      headers: await _headers(),
+      body: jsonEncode({
+        'employeeId': employeeId,
+        'workPlaceId': workplaceId,
+      }),
+    );
+    _checkStatus(response);
+  }
+
   // ─── Helpers ──────────────────────────────────────────────────────────────
 
   void _checkStatus(http.Response response) {

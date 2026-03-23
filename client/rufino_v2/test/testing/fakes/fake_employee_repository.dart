@@ -162,6 +162,7 @@ class FakeEmployeeRepository implements EmployeeRepository {
 
   // ─── Captured call arguments (for assertion) ──────────────────────────────
 
+  String? lastSavedWorkplaceId;
   String? lastCreatedName;
   String? lastCreatedRoleId;
   String? lastCreatedWorkplaceId;
@@ -552,6 +553,19 @@ class FakeEmployeeRepository implements EmployeeRepository {
     }
     _dependents =
         _dependents.where((d) => d.originalName != dependentName).toList();
+    return const Result<void>.success(null);
+  }
+
+  @override
+  Future<Result<void>> editEmployeeWorkplace(
+    String companyId,
+    String employeeId,
+    String workplaceId,
+  ) async {
+    lastSavedWorkplaceId = workplaceId;
+    if (_shouldFail) {
+      return Result.error(Exception('editEmployeeWorkplace failed'));
+    }
     return const Result<void>.success(null);
   }
 }

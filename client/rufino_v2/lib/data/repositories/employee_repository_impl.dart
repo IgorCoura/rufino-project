@@ -516,4 +516,21 @@ class EmployeeRepositoryImpl implements EmployeeRepository {
       return Result.error(EmployeeNetworkException(e));
     }
   }
+
+  @override
+  Future<Result<void>> editEmployeeWorkplace(
+    String companyId,
+    String employeeId,
+    String workplaceId,
+  ) async {
+    try {
+      await apiService.editEmployeeWorkplace(
+          companyId, employeeId, workplaceId);
+      return const Result<void>.success(null);
+    } on EmployeeException catch (e) {
+      return Result.error(e);
+    } catch (e) {
+      return Result.error(EmployeeNetworkException(e));
+    }
+  }
 }
