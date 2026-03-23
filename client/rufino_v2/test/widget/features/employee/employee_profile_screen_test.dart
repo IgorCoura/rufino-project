@@ -4,6 +4,11 @@ import 'package:go_router/go_router.dart';
 import 'package:rufino_v2/domain/entities/address.dart';
 import 'package:rufino_v2/domain/entities/company.dart';
 import 'package:rufino_v2/domain/entities/employee.dart';
+import 'package:rufino_v2/domain/entities/department.dart';
+import 'package:rufino_v2/domain/entities/employee_medical_exam.dart';
+import 'package:rufino_v2/domain/entities/position.dart';
+import 'package:rufino_v2/domain/entities/remuneration.dart';
+import 'package:rufino_v2/domain/entities/employee_military_document.dart';
 import 'package:rufino_v2/domain/entities/employee_personal_info.dart';
 import 'package:rufino_v2/domain/entities/employee_profile.dart';
 import 'package:rufino_v2/domain/entities/remuneration.dart';
@@ -75,7 +80,30 @@ void main() {
       ..setSelectedCompany(_fakeCompany);
     employeeRepository = FakeEmployeeRepository()
       ..setEmployeeProfile(_fakeProfile);
-    departmentRepository = FakeDepartmentRepository()..setRole(_fakeRole);
+    departmentRepository = FakeDepartmentRepository()
+      ..setRole(_fakeRole)
+      ..setPaymentUnits(const [
+        PaymentUnit(id: '5', name: 'Por Mês'),
+      ])
+      ..setSalaryTypes(const [
+        SalaryType(id: '1', name: 'BRL'),
+      ])
+      ..setDepartments([
+        Department(
+          id: 'dept-1',
+          name: 'Financeiro',
+          description: 'Setor financeiro',
+          positions: [
+            Position(
+              id: 'pos-1',
+              name: 'Analista',
+              description: 'Analista financeiro',
+              cbo: '251210',
+              roles: [_fakeRole],
+            ),
+          ],
+        ),
+      ]);
     workplaceRepository = FakeWorkplaceRepository()
       ..setWorkplace(_fakeWorkplace);
     viewModel = EmployeeProfileViewModel(
@@ -864,21 +892,19 @@ void main() {
       await tester.tap(find.text('Editar').last);
       await tester.pumpAndSettle();
 
-      await tester.scrollUntilVisible(
+      // Use ensureVisible to reliably bring the Nacionalidade field into view
+      // even on longer pages where scrollUntilVisible may overshoot.
+      await tester.ensureVisible(
         find.widgetWithText(TextFormField, 'Nacionalidade'),
-        100,
-        scrollable: find.byType(Scrollable).first,
       );
+      await tester.pumpAndSettle();
       await tester.enterText(
         find.widgetWithText(TextFormField, 'Nacionalidade'),
         '',
       );
 
-      await tester.scrollUntilVisible(
-        find.text('Salvar'),
-        100,
-        scrollable: find.byType(Scrollable).first,
-      );
+      await tester.ensureVisible(find.text('Salvar'));
+      await tester.pumpAndSettle();
       await tester.tap(find.text('Salvar'));
       await tester.pumpAndSettle();
 
@@ -1107,6 +1133,644 @@ void main() {
         find.text('Informações pessoais atualizadas com sucesso.'),
         findsOneWidget,
       );
+    });
+
+    testWidgets('shows the Documento Militar section title', (tester) async {
+      await tester.pumpWidget(buildSubject());
+      await tester.pumpAndSettle();
+
+      expect(find.text('Documento Militar'), findsOneWidget);
+    });
+
+    testWidgets(
+        'expands the Documento Militar section and shows document data',
+        (tester) async {
+      await tester.pumpWidget(buildSubject());
+      await tester.pumpAndSettle();
+
+      await tester.scrollUntilVisible(
+        find.text('Documento Militar'),
+        100,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.tap(find.text('Documento Militar'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('RM-12345'), findsOneWidget);
+      expect(find.text('Reservista'), findsOneWidget);
+    });
+
+    testWidgets(
+        'shows not applicable message when military document is not required',
+        (tester) async {
+      employeeRepository.setMilitaryDocument(
+        const EmployeeMilitaryDocument(
+          number: '',
+          type: '',
+          isRequired: false,
+        ),
+      );
+
+      await tester.pumpWidget(buildSubject());
+      await tester.pumpAndSettle();
+
+      await tester.scrollUntilVisible(
+        find.text('Documento Militar'),
+        100,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.tap(find.text('Documento Militar'));
+      await tester.pumpAndSettle();
+
+      expect(
+        find.text('Não se aplica a este funcionário.'),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets(
+        'shows edit form when Editar is tapped on Documento Militar',
+        (tester) async {
+      await tester.pumpWidget(buildSubject());
+      await tester.pumpAndSettle();
+
+      await tester.scrollUntilVisible(
+        find.text('Documento Militar'),
+        100,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.tap(find.text('Documento Militar'));
+      await tester.pumpAndSettle();
+
+      await tester.scrollUntilVisible(
+        find.text('Editar').last,
+        100,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.tap(find.text('Editar').last);
+      await tester.pumpAndSettle();
+
+      expect(find.text('Número do documento'), findsOneWidget);
+      expect(find.text('Tipo de documento'), findsOneWidget);
+      expect(find.text('Salvar'), findsOneWidget);
+      expect(find.text('Cancelar'), findsOneWidget);
+    });
+
+    testWidgets('saves military document and shows success snackbar',
+        (tester) async {
+      await tester.pumpWidget(buildSubject());
+      await tester.pumpAndSettle();
+
+      await tester.scrollUntilVisible(
+        find.text('Documento Militar'),
+        100,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.tap(find.text('Documento Militar'));
+      await tester.pumpAndSettle();
+
+      await tester.scrollUntilVisible(
+        find.text('Editar').last,
+        100,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.tap(find.text('Editar').last);
+      await tester.pumpAndSettle();
+
+      await tester.scrollUntilVisible(
+        find.text('Salvar'),
+        100,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.tap(find.text('Salvar'));
+      await tester.pumpAndSettle();
+
+      expect(
+        find.text('Documento militar atualizado com sucesso.'),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets(
+        'cancels military document editing without saving when Cancelar is tapped',
+        (tester) async {
+      await tester.pumpWidget(buildSubject());
+      await tester.pumpAndSettle();
+
+      await tester.scrollUntilVisible(
+        find.text('Documento Militar'),
+        100,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.tap(find.text('Documento Militar'));
+      await tester.pumpAndSettle();
+
+      await tester.scrollUntilVisible(
+        find.text('Editar').last,
+        100,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.tap(find.text('Editar').last);
+      await tester.pumpAndSettle();
+
+      await tester.scrollUntilVisible(
+        find.text('Cancelar'),
+        100,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.tap(find.text('Cancelar'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('RM-12345'), findsOneWidget);
+      expect(find.text('Salvar'), findsNothing);
+    });
+
+    testWidgets(
+        'shows document number required error when number is cleared before saving',
+        (tester) async {
+      await tester.pumpWidget(buildSubject());
+      await tester.pumpAndSettle();
+
+      await tester.scrollUntilVisible(
+        find.text('Documento Militar'),
+        100,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.tap(find.text('Documento Militar'));
+      await tester.pumpAndSettle();
+
+      await tester.scrollUntilVisible(
+        find.text('Editar').last,
+        100,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.tap(find.text('Editar').last);
+      await tester.pumpAndSettle();
+
+      await tester.scrollUntilVisible(
+        find.widgetWithText(TextFormField, 'Número do documento'),
+        100,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.enterText(
+        find.widgetWithText(TextFormField, 'Número do documento'),
+        '',
+      );
+
+      await tester.scrollUntilVisible(
+        find.text('Salvar'),
+        100,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.tap(find.text('Salvar'));
+      await tester.pumpAndSettle();
+
+      expect(
+        find.text('O Número do documento não pode ser vazio.'),
+        findsOneWidget,
+      );
+      expect(
+        find.text('Documento militar atualizado com sucesso.'),
+        findsNothing,
+      );
+    });
+
+    testWidgets(
+        'shows document type required error when type is cleared before saving',
+        (tester) async {
+      await tester.pumpWidget(buildSubject());
+      await tester.pumpAndSettle();
+
+      await tester.scrollUntilVisible(
+        find.text('Documento Militar'),
+        100,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.tap(find.text('Documento Militar'));
+      await tester.pumpAndSettle();
+
+      await tester.scrollUntilVisible(
+        find.text('Editar').last,
+        100,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.tap(find.text('Editar').last);
+      await tester.pumpAndSettle();
+
+      await tester.scrollUntilVisible(
+        find.widgetWithText(TextFormField, 'Tipo de documento'),
+        100,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.enterText(
+        find.widgetWithText(TextFormField, 'Tipo de documento'),
+        '',
+      );
+
+      await tester.scrollUntilVisible(
+        find.text('Salvar'),
+        100,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.tap(find.text('Salvar'));
+      await tester.pumpAndSettle();
+
+      expect(
+        find.text('O Tipo de documento não pode ser vazio.'),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('shows the Exame Médico Admissional section title',
+        (tester) async {
+      await tester.pumpWidget(buildSubject());
+      await tester.pumpAndSettle();
+
+      expect(find.text('Exame Médico Admissional'), findsOneWidget);
+    });
+
+    testWidgets(
+        'expands the Exame Médico Admissional section and shows exam data',
+        (tester) async {
+      await tester.pumpWidget(buildSubject());
+      await tester.pumpAndSettle();
+
+      await tester.scrollUntilVisible(
+        find.text('Exame Médico Admissional'),
+        100,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.tap(find.text('Exame Médico Admissional'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('15/01/2026'), findsOneWidget);
+      expect(find.text('15/01/2027'), findsOneWidget);
+    });
+
+    testWidgets(
+        'shows edit form with masked date fields when Editar is tapped on Exame Médico Admissional',
+        (tester) async {
+      await tester.pumpWidget(buildSubject());
+      await tester.pumpAndSettle();
+
+      await tester.scrollUntilVisible(
+        find.text('Exame Médico Admissional'),
+        100,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.tap(find.text('Exame Médico Admissional'));
+      await tester.pumpAndSettle();
+
+      await tester.scrollUntilVisible(
+        find.text('Editar').last,
+        100,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.tap(find.text('Editar').last);
+      await tester.pumpAndSettle();
+
+      expect(find.text('Data do exame'), findsOneWidget);
+      expect(find.text('Validade do exame'), findsOneWidget);
+      expect(find.text('Salvar'), findsOneWidget);
+      expect(find.text('Cancelar'), findsOneWidget);
+    });
+
+    testWidgets('saves medical exam and shows success snackbar',
+        (tester) async {
+      await tester.pumpWidget(buildSubject());
+      await tester.pumpAndSettle();
+
+      await tester.scrollUntilVisible(
+        find.text('Exame Médico Admissional'),
+        100,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.tap(find.text('Exame Médico Admissional'));
+      await tester.pumpAndSettle();
+
+      await tester.scrollUntilVisible(
+        find.text('Editar').last,
+        100,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.tap(find.text('Editar').last);
+      await tester.pumpAndSettle();
+
+      await tester.scrollUntilVisible(
+        find.text('Salvar'),
+        100,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.tap(find.text('Salvar'));
+      await tester.pumpAndSettle();
+
+      expect(
+        find.text('Exame médico admissional atualizado com sucesso.'),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets(
+        'cancels medical exam editing without saving when Cancelar is tapped',
+        (tester) async {
+      await tester.pumpWidget(buildSubject());
+      await tester.pumpAndSettle();
+
+      await tester.scrollUntilVisible(
+        find.text('Exame Médico Admissional'),
+        100,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.tap(find.text('Exame Médico Admissional'));
+      await tester.pumpAndSettle();
+
+      await tester.scrollUntilVisible(
+        find.text('Editar').last,
+        100,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.tap(find.text('Editar').last);
+      await tester.pumpAndSettle();
+
+      await tester.scrollUntilVisible(
+        find.text('Cancelar'),
+        100,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.tap(find.text('Cancelar'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('15/01/2026'), findsOneWidget);
+      expect(find.text('Salvar'), findsNothing);
+    });
+
+    testWidgets(
+        'shows exam date required error when date is cleared before saving',
+        (tester) async {
+      await tester.pumpWidget(buildSubject());
+      await tester.pumpAndSettle();
+
+      await tester.scrollUntilVisible(
+        find.text('Exame Médico Admissional'),
+        100,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.tap(find.text('Exame Médico Admissional'));
+      await tester.pumpAndSettle();
+
+      await tester.scrollUntilVisible(
+        find.text('Editar').last,
+        100,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.tap(find.text('Editar').last);
+      await tester.pumpAndSettle();
+
+      await tester.scrollUntilVisible(
+        find.widgetWithText(TextFormField, 'Data do exame'),
+        100,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.enterText(
+        find.widgetWithText(TextFormField, 'Data do exame'),
+        '',
+      );
+
+      await tester.scrollUntilVisible(
+        find.text('Salvar'),
+        100,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.tap(find.text('Salvar'));
+      await tester.pumpAndSettle();
+
+      expect(
+        find.text('A Data do exame não pode ser vazia.'),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets(
+        'shows validity required error when validity is cleared before saving',
+        (tester) async {
+      await tester.pumpWidget(buildSubject());
+      await tester.pumpAndSettle();
+
+      await tester.scrollUntilVisible(
+        find.text('Exame Médico Admissional'),
+        100,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.tap(find.text('Exame Médico Admissional'));
+      await tester.pumpAndSettle();
+
+      await tester.scrollUntilVisible(
+        find.text('Editar').last,
+        100,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.tap(find.text('Editar').last);
+      await tester.pumpAndSettle();
+
+      await tester.scrollUntilVisible(
+        find.widgetWithText(TextFormField, 'Validade do exame'),
+        100,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.enterText(
+        find.widgetWithText(TextFormField, 'Validade do exame'),
+        '',
+      );
+
+      await tester.scrollUntilVisible(
+        find.text('Salvar'),
+        100,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.tap(find.text('Salvar'));
+      await tester.pumpAndSettle();
+
+      expect(
+        find.text('A Validade do exame não pode ser vazia.'),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets(
+        'shows exam date invalid error when a past date older than one year is entered',
+        (tester) async {
+      await tester.pumpWidget(buildSubject());
+      await tester.pumpAndSettle();
+
+      await tester.scrollUntilVisible(
+        find.text('Exame Médico Admissional'),
+        100,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.tap(find.text('Exame Médico Admissional'));
+      await tester.pumpAndSettle();
+
+      await tester.scrollUntilVisible(
+        find.text('Editar').last,
+        100,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.tap(find.text('Editar').last);
+      await tester.pumpAndSettle();
+
+      await tester.scrollUntilVisible(
+        find.widgetWithText(TextFormField, 'Data do exame'),
+        100,
+        scrollable: find.byType(Scrollable).first,
+      );
+      // Date older than 1 year ago.
+      await tester.enterText(
+        find.widgetWithText(TextFormField, 'Data do exame'),
+        '01012020',
+      );
+
+      await tester.scrollUntilVisible(
+        find.text('Salvar'),
+        100,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.tap(find.text('Salvar'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('A Data do exame é inválida.'), findsOneWidget);
+    });
+
+    testWidgets(
+        'shows validity invalid error when a past date is entered',
+        (tester) async {
+      await tester.pumpWidget(buildSubject());
+      await tester.pumpAndSettle();
+
+      await tester.scrollUntilVisible(
+        find.text('Exame Médico Admissional'),
+        100,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.tap(find.text('Exame Médico Admissional'));
+      await tester.pumpAndSettle();
+
+      await tester.scrollUntilVisible(
+        find.text('Editar').last,
+        100,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.tap(find.text('Editar').last);
+      await tester.pumpAndSettle();
+
+      await tester.scrollUntilVisible(
+        find.widgetWithText(TextFormField, 'Validade do exame'),
+        100,
+        scrollable: find.byType(Scrollable).first,
+      );
+      // Past date — validity must be future.
+      await tester.enterText(
+        find.widgetWithText(TextFormField, 'Validade do exame'),
+        '01012020',
+      );
+
+      await tester.scrollUntilVisible(
+        find.text('Salvar'),
+        100,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.tap(find.text('Salvar'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('A Validade do exame é inválida.'), findsOneWidget);
+    });
+
+    testWidgets('shows the Informações de Função section title',
+        (tester) async {
+      await tester.pumpWidget(buildSubject());
+      await tester.pumpAndSettle();
+
+      expect(find.text('Informações de Função'), findsOneWidget);
+    });
+
+    testWidgets(
+        'expands the Informações de Função section and shows role details',
+        (tester) async {
+      await tester.pumpWidget(buildSubject());
+      await tester.pumpAndSettle();
+
+      await tester.scrollUntilVisible(
+        find.text('Informações de Função'),
+        100,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.tap(find.text('Informações de Função'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Financeiro'), findsOneWidget);
+      expect(find.text('Analista'), findsWidgets);
+    });
+
+    testWidgets(
+        'shows cascading dropdown edit form when Editar is tapped on Informações de Função',
+        (tester) async {
+      await tester.pumpWidget(buildSubject());
+      await tester.pumpAndSettle();
+
+      await tester.scrollUntilVisible(
+        find.text('Informações de Função'),
+        100,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.tap(find.text('Informações de Função'));
+      await tester.pumpAndSettle();
+
+      await tester.scrollUntilVisible(
+        find.text('Editar').last,
+        100,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.tap(find.text('Editar').last);
+      await tester.pumpAndSettle();
+
+      expect(find.text('Setor'), findsWidgets);
+      expect(find.text('Cargo'), findsWidgets);
+      expect(find.text('Função'), findsWidgets);
+      expect(find.text('Salvar'), findsOneWidget);
+      expect(find.text('Cancelar'), findsOneWidget);
+    });
+
+    testWidgets(
+        'cancels role info editing without saving when Cancelar is tapped',
+        (tester) async {
+      await tester.pumpWidget(buildSubject());
+      await tester.pumpAndSettle();
+
+      await tester.scrollUntilVisible(
+        find.text('Informações de Função'),
+        100,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.tap(find.text('Informações de Função'));
+      await tester.pumpAndSettle();
+
+      await tester.scrollUntilVisible(
+        find.text('Editar').last,
+        100,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.tap(find.text('Editar').last);
+      await tester.pumpAndSettle();
+
+      await tester.scrollUntilVisible(
+        find.text('Cancelar'),
+        100,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.tap(find.text('Cancelar'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Financeiro'), findsOneWidget);
+      expect(find.text('Salvar'), findsNothing);
     });
   });
 }

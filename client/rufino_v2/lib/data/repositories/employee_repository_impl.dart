@@ -8,11 +8,15 @@ import '../../domain/entities/employee_contact.dart';
 import '../../domain/entities/employee_id_card.dart';
 import '../../domain/entities/employee_personal_info.dart';
 import '../../domain/entities/employee_profile.dart';
+import '../../domain/entities/employee_medical_exam.dart';
+import '../../domain/entities/employee_military_document.dart';
 import '../../domain/entities/employee_vote_id.dart';
 import '../../domain/entities/personal_info_options.dart';
 import '../../domain/repositories/employee_repository.dart';
 import '../models/employee_address_api_model.dart';
 import '../models/employee_id_card_api_model.dart';
+import '../models/employee_medical_exam_api_model.dart';
+import '../models/employee_military_document_api_model.dart';
 import '../services/employee_api_service.dart';
 
 /// Concrete implementation of [EmployeeRepository] backed by [EmployeeApiService].
@@ -349,6 +353,91 @@ class EmployeeRepositoryImpl implements EmployeeRepository {
   ) async {
     try {
       await apiService.editEmployeeVoteId(companyId, employeeId, voteIdNumber);
+      return const Result<void>.success(null);
+    } on EmployeeException catch (e) {
+      return Result.error(e);
+    } catch (e) {
+      return Result.error(EmployeeNetworkException(e));
+    }
+  }
+
+  @override
+  Future<Result<EmployeeMilitaryDocument>> getMilitaryDocument(
+    String companyId,
+    String employeeId,
+  ) async {
+    try {
+      final model =
+          await apiService.getMilitaryDocument(companyId, employeeId);
+      return Result.success(model.toEntity());
+    } on EmployeeException catch (e) {
+      return Result.error(e);
+    } catch (e) {
+      return Result.error(EmployeeNetworkException(e));
+    }
+  }
+
+  @override
+  Future<Result<void>> editMilitaryDocument(
+    String companyId,
+    String employeeId,
+    String number,
+    String type,
+  ) async {
+    try {
+      final body = EmployeeMilitaryDocumentApiModel.toJsonMap(
+          employeeId, number, type);
+      await apiService.editMilitaryDocument(companyId, employeeId, body);
+      return const Result<void>.success(null);
+    } on EmployeeException catch (e) {
+      return Result.error(e);
+    } catch (e) {
+      return Result.error(EmployeeNetworkException(e));
+    }
+  }
+
+  @override
+  Future<Result<EmployeeMedicalExam>> getMedicalExam(
+    String companyId,
+    String employeeId,
+  ) async {
+    try {
+      final model = await apiService.getMedicalExam(companyId, employeeId);
+      return Result.success(model.toEntity());
+    } on EmployeeException catch (e) {
+      return Result.error(e);
+    } catch (e) {
+      return Result.error(EmployeeNetworkException(e));
+    }
+  }
+
+  @override
+  Future<Result<void>> editMedicalExam(
+    String companyId,
+    String employeeId,
+    String dateExam,
+    String validityExam,
+  ) async {
+    try {
+      final body = EmployeeMedicalExamApiModel.toJsonMap(
+          employeeId, dateExam, validityExam);
+      await apiService.editMedicalExam(companyId, employeeId, body);
+      return const Result<void>.success(null);
+    } on EmployeeException catch (e) {
+      return Result.error(e);
+    } catch (e) {
+      return Result.error(EmployeeNetworkException(e));
+    }
+  }
+
+  @override
+  Future<Result<void>> editEmployeeRole(
+    String companyId,
+    String employeeId,
+    String roleId,
+  ) async {
+    try {
+      await apiService.editEmployeeRole(companyId, employeeId, roleId);
       return const Result<void>.success(null);
     } on EmployeeException catch (e) {
       return Result.error(e);

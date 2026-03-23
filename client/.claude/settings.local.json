@@ -11,7 +11,8 @@
       "WebSearch",
       "Bash(find C:UsersIGOR-NOTDesktopCodigosCodigosSSDrufino-projectclient -type f -name *personal* -o -name *informacoes* -o -name *employee_profile*)",
       "Bash(find C:UsersIGOR-NOTDesktopCodigosCodigosSSDrufino-projectclientrufino -type d -name *personal* -o -type d -name *employee*)",
-      "Bash(xargs ls:*)"
+      "Bash(xargs ls:*)",
+      "Bash(grep -E '\\\\.\\(dart\\)$')"
     ]
   }
 }

@@ -7,6 +7,8 @@ import 'package:rufino_v2/domain/entities/employee_contact.dart';
 import 'package:rufino_v2/domain/entities/employee_id_card.dart';
 import 'package:rufino_v2/domain/entities/employee_personal_info.dart';
 import 'package:rufino_v2/domain/entities/employee_profile.dart';
+import 'package:rufino_v2/domain/entities/employee_medical_exam.dart';
+import 'package:rufino_v2/domain/entities/employee_military_document.dart';
 import 'package:rufino_v2/domain/entities/employee_vote_id.dart';
 import 'package:rufino_v2/domain/entities/personal_info_options.dart';
 import 'package:rufino_v2/domain/entities/selection_option.dart';
@@ -86,6 +88,17 @@ class FakeEmployeeRepository implements EmployeeRepository {
 
   EmployeeVoteId _voteId = const EmployeeVoteId(number: '1234.5678.0698');
 
+  EmployeeMilitaryDocument _militaryDocument = const EmployeeMilitaryDocument(
+    number: 'RM-12345',
+    type: 'Reservista',
+    isRequired: true,
+  );
+
+  EmployeeMedicalExam _medicalExam = const EmployeeMedicalExam(
+    dateExam: '15/01/2026',
+    validityExam: '15/01/2027',
+  );
+
   void setEmployees(List<Employee> employees) => _employees = employees;
 
   /// The profile returned by [getEmployeeProfile].
@@ -120,6 +133,13 @@ class FakeEmployeeRepository implements EmployeeRepository {
   /// The vote ID returned by [getEmployeeVoteId].
   void setVoteId(EmployeeVoteId voteId) => _voteId = voteId;
 
+  /// The military document returned by [getMilitaryDocument].
+  void setMilitaryDocument(EmployeeMilitaryDocument doc) =>
+      _militaryDocument = doc;
+
+  /// The medical exam returned by [getMedicalExam].
+  void setMedicalExam(EmployeeMedicalExam exam) => _medicalExam = exam;
+
   // ─── Captured call arguments (for assertion) ──────────────────────────────
 
   String? lastCreatedName;
@@ -140,6 +160,11 @@ class FakeEmployeeRepository implements EmployeeRepository {
   EmployeePersonalInfo? lastSavedPersonalInfo;
   EmployeeIdCard? lastSavedIdCard;
   String? lastSavedVoteIdNumber;
+  String? lastSavedMilitaryDocumentNumber;
+  String? lastSavedMilitaryDocumentType;
+  String? lastSavedMedicalExamDate;
+  String? lastSavedMedicalExamValidity;
+  String? lastSavedRoleId;
 
   // ─── Implementation ───────────────────────────────────────────────────────
 
@@ -377,6 +402,80 @@ class FakeEmployeeRepository implements EmployeeRepository {
       return Result.error(Exception('editEmployeeVoteId failed'));
     }
     _voteId = EmployeeVoteId(number: voteIdNumber);
+    return const Result<void>.success(null);
+  }
+
+  @override
+  Future<Result<EmployeeMilitaryDocument>> getMilitaryDocument(
+    String companyId,
+    String employeeId,
+  ) async {
+    if (_shouldFail) {
+      return Result.error(Exception('getMilitaryDocument failed'));
+    }
+    return Result.success(_militaryDocument);
+  }
+
+  @override
+  Future<Result<void>> editMilitaryDocument(
+    String companyId,
+    String employeeId,
+    String number,
+    String type,
+  ) async {
+    lastSavedMilitaryDocumentNumber = number;
+    lastSavedMilitaryDocumentType = type;
+    if (_shouldFail) {
+      return Result.error(Exception('editMilitaryDocument failed'));
+    }
+    _militaryDocument = EmployeeMilitaryDocument(
+      number: number,
+      type: type,
+      isRequired: _militaryDocument.isRequired,
+    );
+    return const Result<void>.success(null);
+  }
+
+  @override
+  Future<Result<EmployeeMedicalExam>> getMedicalExam(
+    String companyId,
+    String employeeId,
+  ) async {
+    if (_shouldFail) {
+      return Result.error(Exception('getMedicalExam failed'));
+    }
+    return Result.success(_medicalExam);
+  }
+
+  @override
+  Future<Result<void>> editMedicalExam(
+    String companyId,
+    String employeeId,
+    String dateExam,
+    String validityExam,
+  ) async {
+    lastSavedMedicalExamDate = dateExam;
+    lastSavedMedicalExamValidity = validityExam;
+    if (_shouldFail) {
+      return Result.error(Exception('editMedicalExam failed'));
+    }
+    _medicalExam = EmployeeMedicalExam(
+      dateExam: dateExam,
+      validityExam: validityExam,
+    );
+    return const Result<void>.success(null);
+  }
+
+  @override
+  Future<Result<void>> editEmployeeRole(
+    String companyId,
+    String employeeId,
+    String roleId,
+  ) async {
+    lastSavedRoleId = roleId;
+    if (_shouldFail) {
+      return Result.error(Exception('editEmployeeRole failed'));
+    }
     return const Result<void>.success(null);
   }
 }

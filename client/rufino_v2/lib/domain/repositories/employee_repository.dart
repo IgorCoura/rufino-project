@@ -5,6 +5,8 @@ import '../entities/address.dart';
 import '../entities/employee.dart';
 import '../entities/employee_contact.dart';
 import '../entities/employee_id_card.dart';
+import '../entities/employee_medical_exam.dart';
+import '../entities/employee_military_document.dart';
 import '../entities/employee_personal_info.dart';
 import '../entities/employee_profile.dart';
 import '../entities/employee_vote_id.dart';
@@ -150,5 +152,46 @@ abstract class EmployeeRepository {
     String companyId,
     String employeeId,
     String voteIdNumber,
+  );
+
+  /// Returns the military document (Documento Militar) for the employee
+  /// identified by [employeeId].
+  Future<Result<EmployeeMilitaryDocument>> getMilitaryDocument(
+    String companyId,
+    String employeeId,
+  );
+
+  /// Updates the military document (Documento Militar) for the employee
+  /// identified by [employeeId].
+  Future<Result<void>> editMilitaryDocument(
+    String companyId,
+    String employeeId,
+    String number,
+    String type,
+  );
+
+  /// Returns the medical admission exam (Exame Médico Admissional) for the
+  /// employee identified by [employeeId].
+  Future<Result<EmployeeMedicalExam>> getMedicalExam(
+    String companyId,
+    String employeeId,
+  );
+
+  /// Updates the medical admission exam for the employee identified by
+  /// [employeeId].
+  ///
+  /// [dateExam] and [validityExam] must be in `dd/MM/yyyy` display format.
+  Future<Result<void>> editMedicalExam(
+    String companyId,
+    String employeeId,
+    String dateExam,
+    String validityExam,
+  );
+
+  /// Updates the role assignment for the employee identified by [employeeId].
+  Future<Result<void>> editEmployeeRole(
+    String companyId,
+    String employeeId,
+    String roleId,
   );
 }

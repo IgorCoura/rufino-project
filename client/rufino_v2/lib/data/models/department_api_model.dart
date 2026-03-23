@@ -178,13 +178,24 @@ class RoleApiModel {
 class RemunerationApiModel {
   const RemunerationApiModel({
     required this.paymentUnitId,
+    required this.paymentUnitName,
     required this.salaryTypeId,
+    required this.salaryTypeName,
     required this.baseSalaryValue,
     required this.description,
   });
 
   final String paymentUnitId;
+
+  /// The payment unit display name (e.g. "Por Mês") as returned by the API.
+  final String paymentUnitName;
+
   final String salaryTypeId;
+
+  /// The salary type / currency display name (e.g. "BRL") as returned by the
+  /// API.
+  final String salaryTypeName;
+
   final String baseSalaryValue;
   final String description;
 
@@ -194,7 +205,9 @@ class RemunerationApiModel {
     final type = baseSalary['type'] as Map<String, dynamic>;
     return RemunerationApiModel(
       paymentUnitId: (paymentUnit['id']).toString(),
+      paymentUnitName: paymentUnit['name'] as String? ?? '',
       salaryTypeId: (type['id']).toString(),
+      salaryTypeName: type['name'] as String? ?? '',
       baseSalaryValue: (baseSalary['value'] as Object).toString(),
       description: json['description'] as String,
     );
@@ -210,13 +223,10 @@ class RemunerationApiModel {
       };
 
   /// Converts this DTO into a domain [Remuneration] entity.
-  ///
-  /// Payment unit and salary type names are not available without a separate
-  /// lookup call; they are left empty and resolved by the ViewModel when needed.
   Remuneration toEntity() => Remuneration(
-        paymentUnit: PaymentUnit(id: paymentUnitId, name: ''),
+        paymentUnit: PaymentUnit(id: paymentUnitId, name: paymentUnitName),
         baseSalary: BaseSalary(
-          type: SalaryType(id: salaryTypeId, name: ''),
+          type: SalaryType(id: salaryTypeId, name: salaryTypeName),
           value: baseSalaryValue,
         ),
         description: description,
