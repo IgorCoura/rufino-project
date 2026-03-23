@@ -9,6 +9,7 @@ class EmployeeProfile {
     required this.status,
     required this.roleId,
     required this.workplaceId,
+    this.documentSigningOptionsId = '',
   });
 
   final String id;
@@ -24,6 +25,9 @@ class EmployeeProfile {
   /// The assigned workplace id, or an empty string when no workplace is assigned.
   final String workplaceId;
 
+  /// The current document signing option id, or empty when not set.
+  final String documentSigningOptionsId;
+
   /// Whether the employee can be marked as inactive from the profile screen.
   bool get canMarkAsInactive => status == EmployeeStatus.active;
 
@@ -35,6 +39,7 @@ class EmployeeProfile {
     EmployeeStatus? status,
     String? roleId,
     String? workplaceId,
+    String? documentSigningOptionsId,
   }) {
     return EmployeeProfile(
       id: id ?? this.id,
@@ -43,6 +48,8 @@ class EmployeeProfile {
       status: status ?? this.status,
       roleId: roleId ?? this.roleId,
       workplaceId: workplaceId ?? this.workplaceId,
+      documentSigningOptionsId:
+          documentSigningOptionsId ?? this.documentSigningOptionsId,
     );
   }
 }

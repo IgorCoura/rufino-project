@@ -18,6 +18,7 @@ import 'components/medical_exam_section.dart';
 import 'components/military_document_section.dart';
 import 'components/personal_info_section.dart';
 import 'components/role_info_section.dart';
+import 'components/signing_options_section.dart';
 import 'components/vote_id_section.dart';
 import 'components/workplace_section.dart';
 
@@ -339,6 +340,8 @@ class _EmployeeProfileBody extends StatelessWidget {
               RoleInfoSection(viewModel: viewModel),
               const SizedBox(height: AppSpacing.sm),
               WorkplaceSection(viewModel: viewModel),
+              const SizedBox(height: AppSpacing.sm),
+              SigningOptionsSection(viewModel: viewModel),
               const SizedBox(height: AppSpacing.sm),
               ContractSection(
                 viewModel: viewModel,

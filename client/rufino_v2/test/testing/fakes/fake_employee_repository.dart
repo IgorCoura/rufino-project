@@ -175,6 +175,11 @@ class FakeEmployeeRepository implements EmployeeRepository {
   /// The dependents returned by [getDependents].
   void setDependents(List<EmployeeDependent> deps) => _dependents = deps;
 
+  List<SelectionOption> _signingOptions = const [
+    SelectionOption(id: '1', name: 'Assinatura Fisica'),
+    SelectionOption(id: '2', name: 'Assinatura Digital e Whatsapp'),
+  ];
+
   /// The contracts returned by [getContracts].
   void setContracts(List<EmployeeContractInfo> c) => _contracts = c;
 
@@ -632,6 +637,27 @@ class FakeEmployeeRepository implements EmployeeRepository {
   ) async {
     if (_shouldFail) {
       return Result.error(Exception('finishContract failed'));
+    }
+    return const Result<void>.success(null);
+  }
+
+  @override
+  Future<Result<List<SelectionOption>>> getDocumentSigningOptions(
+      String companyId) async {
+    if (_shouldFail) {
+      return Result.error(Exception('getDocumentSigningOptions failed'));
+    }
+    return Result.success(_signingOptions);
+  }
+
+  @override
+  Future<Result<void>> editDocumentSigningOptions(
+    String companyId,
+    String employeeId,
+    String optionId,
+  ) async {
+    if (_shouldFail) {
+      return Result.error(Exception('editDocumentSigningOptions failed'));
     }
     return const Result<void>.success(null);
   }

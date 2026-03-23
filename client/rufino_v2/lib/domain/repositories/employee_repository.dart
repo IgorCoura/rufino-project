@@ -262,4 +262,16 @@ abstract class EmployeeRepository {
     String employeeId,
     String finalDate,
   );
+
+  /// Returns the available document signing options.
+  Future<Result<List<SelectionOption>>> getDocumentSigningOptions(
+      String companyId);
+
+  /// Updates the document signing option for the employee identified by
+  /// [employeeId].
+  Future<Result<void>> editDocumentSigningOptions(
+    String companyId,
+    String employeeId,
+    String optionId,
+  );
 }
