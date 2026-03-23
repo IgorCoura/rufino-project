@@ -4,6 +4,7 @@ import 'package:rufino_v2/core/result.dart';
 import 'package:rufino_v2/domain/entities/address.dart';
 import 'package:rufino_v2/domain/entities/employee.dart';
 import 'package:rufino_v2/domain/entities/employee_contact.dart';
+import 'package:rufino_v2/domain/entities/employee_document.dart';
 import 'package:rufino_v2/domain/entities/employee_contract.dart';
 import 'package:rufino_v2/domain/entities/employee_dependent.dart';
 import 'package:rufino_v2/domain/entities/employee_id_card.dart';
@@ -171,6 +172,35 @@ class FakeEmployeeRepository implements EmployeeRepository {
 
   /// The medical exam returned by [getMedicalExam].
   void setMedicalExam(EmployeeMedicalExam exam) => _medicalExam = exam;
+
+  List<EmployeeDocument> _documentsList = const [
+    EmployeeDocument(
+      id: 'doc-1',
+      name: 'Contrato de Trabalho',
+      description: 'Contrato CLT',
+      statusId: '3',
+      statusName: 'OK',
+      isSignable: false,
+      canGenerateDocument: true,
+      totalUnitsCount: 1,
+      units: [
+        DocumentUnit(
+          id: 'unit-1',
+          statusId: '2',
+          statusName: 'OK',
+          date: '01/01/2026',
+          validity: '',
+          createdAt: '01/01/2026',
+          hasFile: true,
+          name: 'contrato.pdf',
+        ),
+      ],
+    ),
+  ];
+
+  /// The documents returned by [getDocuments].
+  void setDocumentsList(List<EmployeeDocument> docs) =>
+      _documentsList = docs;
 
   /// The dependents returned by [getDependents].
   void setDependents(List<EmployeeDependent> deps) => _dependents = deps;
@@ -658,6 +688,76 @@ class FakeEmployeeRepository implements EmployeeRepository {
   ) async {
     if (_shouldFail) {
       return Result.error(Exception('editDocumentSigningOptions failed'));
+    }
+    return const Result<void>.success(null);
+  }
+
+  @override
+  Future<Result<List<EmployeeDocument>>> getDocuments(
+    String companyId,
+    String employeeId,
+  ) async {
+    if (_shouldFail) {
+      return Result.error(Exception('getDocuments failed'));
+    }
+    return Result.success(_documentsList);
+  }
+
+  @override
+  Future<Result<EmployeeDocument>> getDocumentById(
+    String companyId,
+    String employeeId,
+    String documentId, {
+    int pageNumber = 1,
+    int pageSize = 10,
+    int? statusId,
+  }) async {
+    if (_shouldFail) {
+      return Result.error(Exception('getDocumentById failed'));
+    }
+    final doc =
+        _documentsList.where((d) => d.id == documentId).firstOrNull;
+    if (doc == null) {
+      return Result.error(Exception('Document not found'));
+    }
+    return Result.success(doc);
+  }
+
+  @override
+  Future<Result<void>> createDocumentUnit(
+    String companyId,
+    String employeeId,
+    String documentId,
+  ) async {
+    if (_shouldFail) {
+      return Result.error(Exception('createDocumentUnit failed'));
+    }
+    return const Result<void>.success(null);
+  }
+
+  @override
+  Future<Result<void>> editDocumentUnit(
+    String companyId,
+    String employeeId,
+    String documentId,
+    String documentUnitId,
+    String date,
+  ) async {
+    if (_shouldFail) {
+      return Result.error(Exception('editDocumentUnit failed'));
+    }
+    return const Result<void>.success(null);
+  }
+
+  @override
+  Future<Result<void>> setDocumentUnitNotApplicable(
+    String companyId,
+    String employeeId,
+    String documentId,
+    String documentUnitId,
+  ) async {
+    if (_shouldFail) {
+      return Result.error(Exception('setDocumentUnitNotApplicable failed'));
     }
     return const Result<void>.success(null);
   }

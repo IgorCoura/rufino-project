@@ -13,6 +13,7 @@ import 'components/address_section.dart';
 import 'components/contact_section.dart';
 import 'components/contract_section.dart';
 import 'components/dependent_section.dart';
+import 'components/documents_section.dart';
 import 'components/id_card_section.dart';
 import 'components/medical_exam_section.dart';
 import 'components/military_document_section.dart';
@@ -342,6 +343,8 @@ class _EmployeeProfileBody extends StatelessWidget {
               WorkplaceSection(viewModel: viewModel),
               const SizedBox(height: AppSpacing.sm),
               SigningOptionsSection(viewModel: viewModel),
+              const SizedBox(height: AppSpacing.sm),
+              DocumentsSection(viewModel: viewModel),
               const SizedBox(height: AppSpacing.sm),
               ContractSection(
                 viewModel: viewModel,

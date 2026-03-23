@@ -4,6 +4,7 @@ import '../../core/result.dart';
 import '../entities/address.dart';
 import '../entities/employee.dart';
 import '../entities/employee_contact.dart';
+import '../entities/employee_document.dart';
 import '../entities/employee_contract.dart';
 import '../entities/employee_dependent.dart';
 import '../entities/employee_id_card.dart';
@@ -273,5 +274,47 @@ abstract class EmployeeRepository {
     String companyId,
     String employeeId,
     String optionId,
+  );
+
+  /// Returns the list of required documents (without units) for the employee.
+  Future<Result<List<EmployeeDocument>>> getDocuments(
+    String companyId,
+    String employeeId,
+  );
+
+  /// Returns a single document with paginated units.
+  Future<Result<EmployeeDocument>> getDocumentById(
+    String companyId,
+    String employeeId,
+    String documentId, {
+    int pageNumber = 1,
+    int pageSize = 10,
+    int? statusId,
+  });
+
+  /// Creates a new document unit for the given [documentId].
+  Future<Result<void>> createDocumentUnit(
+    String companyId,
+    String employeeId,
+    String documentId,
+  );
+
+  /// Updates the date of an existing document unit.
+  ///
+  /// [date] must be in `dd/MM/yyyy` display format.
+  Future<Result<void>> editDocumentUnit(
+    String companyId,
+    String employeeId,
+    String documentId,
+    String documentUnitId,
+    String date,
+  );
+
+  /// Marks a document unit as not applicable.
+  Future<Result<void>> setDocumentUnitNotApplicable(
+    String companyId,
+    String employeeId,
+    String documentId,
+    String documentUnitId,
   );
 }
