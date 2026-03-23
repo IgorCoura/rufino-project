@@ -12,7 +12,13 @@
       "Bash(find C:UsersIGOR-NOTDesktopCodigosCodigosSSDrufino-projectclient -type f -name *personal* -o -name *informacoes* -o -name *employee_profile*)",
       "Bash(find C:UsersIGOR-NOTDesktopCodigosCodigosSSDrufino-projectclientrufino -type d -name *personal* -o -type d -name *employee*)",
       "Bash(xargs ls:*)",
-      "Bash(grep -E '\\\\.\\(dart\\)$')"
+      "Bash(grep -E '\\\\.\\(dart\\)$')",
+      "Bash(sed \"s/.*testWidgets\\(''''//\")",
+      "Bash(sed \"s/'''',.*//\")",
+      "Bash(find '/c/Users/IGOR-NOT/Desktop/Codigos/CodigosSSD/rufino-project/client/rufino_v2/lib/ui' -type d -name 'widgets' -exec find {} -type f -name '*.dart')",
+      "Bash(sed \"s/.*test\\(''''//\")",
+      "Bash(sed \"s/.*group\\(''''//\")",
+      "Bash(wc -l \"C:/Users/IGOR-NOT/Desktop/Codigos/CodigosSSD/rufino-project/client/rufino_v2/lib/ui/features/employee/widgets/employee_profile_screen.dart\" \"C:/Users/IGOR-NOT/Desktop/Codigos/CodigosSSD/rufino-project/client/rufino_v2/lib/ui/features/employee/viewmodel/employee_profile_viewmodel.dart\" \"C:/Users/IGOR-NOT/Desktop/Codigos/CodigosSSD/rufino-project/client/rufino_v2/lib/ui/features/employee/widgets/components/\"*.dart)"
     ]
   }
 }
