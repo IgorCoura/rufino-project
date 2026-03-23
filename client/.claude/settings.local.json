@@ -8,7 +8,10 @@
       "Bash(cp:*)",
       "Bash(dart pub:*)",
       "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); [print\\(p[''''name''''],p[''''version'''']\\) for p in d.get\\(''''packages'''',[]\\)]\")",
-      "WebSearch"
+      "WebSearch",
+      "Bash(find C:UsersIGOR-NOTDesktopCodigosCodigosSSDrufino-projectclient -type f -name *personal* -o -name *informacoes* -o -name *employee_profile*)",
+      "Bash(find C:UsersIGOR-NOTDesktopCodigosCodigosSSDrufino-projectclientrufino -type d -name *personal* -o -type d -name *employee*)",
+      "Bash(xargs ls:*)"
     ]
   }
 }

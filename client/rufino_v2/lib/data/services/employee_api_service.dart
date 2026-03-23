@@ -3,7 +3,14 @@ import 'dart:typed_data';
 
 import 'package:http/http.dart' as http;
 
+import '../../core/errors/employee_exception.dart';
 import '../models/employee_api_model.dart';
+import '../models/employee_address_api_model.dart';
+import '../models/employee_contact_api_model.dart';
+import '../models/employee_id_card_api_model.dart';
+import '../models/employee_personal_info_api_model.dart';
+import '../models/employee_profile_api_model.dart';
+import '../models/employee_vote_id_api_model.dart';
 import 'department_api_service.dart';
 
 /// HTTP client for the employee endpoints of the people-management service.
@@ -28,6 +35,21 @@ class EmployeeApiService {
       'Authorization': await getAuthHeader(),
       'Content-Type': 'application/json',
     };
+  }
+
+  /// Fetches the detailed profile for [employeeId].
+  Future<EmployeeProfileApiModel> getEmployeeProfile(
+    String companyId,
+    String employeeId,
+  ) async {
+    final uri = Uri.https(baseUrl, '/api/v1/$companyId/employee/$employeeId');
+    final response = await client.get(uri, headers: await _headers());
+    if (response.statusCode == 404) {
+      throw EmployeeNotFoundException(employeeId);
+    }
+    _checkStatus(response);
+    final json = jsonDecode(response.body) as Map<String, dynamic>;
+    return EmployeeProfileApiModel.fromJson(json);
   }
 
   /// Fetches a page of employees for [companyId] matching the given filters.
@@ -79,7 +101,67 @@ class EmployeeApiService {
     if (response.statusCode == 200) return response.bodyBytes;
     if (response.statusCode == 404) return null;
     _checkStatus(response);
-    return null; // unreachable, _checkStatus throws
+    return null;
+  }
+
+  /// Uploads a new profile photo for [employeeId].
+  ///
+  /// Sends [imageBytes] as a multipart/form-data PUT using the `formFile` field.
+  /// [fileName] should include the extension (e.g. `"photo.jpg"`).
+  Future<void> uploadEmployeeImage(
+    String companyId,
+    String employeeId,
+    Uint8List imageBytes,
+    String fileName,
+  ) async {
+    final uri =
+        Uri.https(baseUrl, '/api/v1/$companyId/employee/image/$employeeId');
+    final authHeader = await getAuthHeader();
+    final request = http.MultipartRequest('PUT', uri)
+      ..headers['Authorization'] = authHeader
+      ..files.add(
+        http.MultipartFile.fromBytes('formFile', imageBytes, filename: fileName),
+      );
+    final streamed = await client.send(request);
+    if (streamed.statusCode < 200 || streamed.statusCode >= 300) {
+      throw HttpException(
+        statusCode: streamed.statusCode,
+        message: 'HTTP ${streamed.statusCode}',
+      );
+    }
+  }
+
+  /// Updates the full name of the employee identified by [employeeId].
+  ///
+  /// Sends both [employeeId] and [name] in the request body, targeting the
+  /// shared `/employee/name` endpoint (the employee id is not in the path).
+  Future<void> editEmployeeName(
+    String companyId,
+    String employeeId,
+    String name,
+  ) async {
+    final uri = Uri.https(baseUrl, '/api/v1/$companyId/employee/name');
+    final response = await client.put(
+      uri,
+      headers: await _headers(),
+      body: jsonEncode({'employeeId': employeeId, 'name': name}),
+    );
+    _checkStatus(response);
+  }
+
+  /// Marks the employee identified by [employeeId] as inactive.
+  Future<void> markEmployeeAsInactive(
+    String companyId,
+    String employeeId,
+  ) async {
+    final uri =
+        Uri.https(baseUrl, '/api/v1/$companyId/Employee/mark-as-inactive');
+    final response = await client.put(
+      uri,
+      headers: await _headers(),
+      body: jsonEncode({'employeeId': employeeId}),
+    );
+    _checkStatus(response);
   }
 
   /// Creates a new employee and returns the generated id.
@@ -100,6 +182,171 @@ class EmployeeApiService {
     _checkStatus(response);
     final json = jsonDecode(response.body) as Map<String, dynamic>;
     return json['id'] as String;
+  }
+
+  /// Fetches the contact information for [employeeId].
+  Future<EmployeeContactApiModel> getEmployeeContact(
+    String companyId,
+    String employeeId,
+  ) async {
+    final uri = Uri.https(
+        baseUrl, '/api/v1/$companyId/employee/contact/$employeeId');
+    final response = await client.get(uri, headers: await _headers());
+    _checkStatus(response);
+    final json = jsonDecode(response.body) as Map<String, dynamic>;
+    return EmployeeContactApiModel.fromJson(json);
+  }
+
+  /// Updates the contact information for [employeeId].
+  Future<void> editEmployeeContact(
+    String companyId,
+    String employeeId,
+    String cellphone,
+    String email,
+  ) async {
+    final uri = Uri.https(baseUrl, '/api/v1/$companyId/employee/contact');
+    final response = await client.put(
+      uri,
+      headers: await _headers(),
+      body: jsonEncode({
+        'employeeId': employeeId,
+        'cellphone': cellphone,
+        'email': email,
+      }),
+    );
+    _checkStatus(response);
+  }
+
+  /// Fetches the address for [employeeId].
+  Future<EmployeeAddressApiModel> getEmployeeAddress(
+    String companyId,
+    String employeeId,
+  ) async {
+    final uri = Uri.https(
+        baseUrl, '/api/v1/$companyId/employee/address/$employeeId');
+    final response = await client.get(uri, headers: await _headers());
+    _checkStatus(response);
+    final json = jsonDecode(response.body) as Map<String, dynamic>;
+    return EmployeeAddressApiModel.fromJson(json);
+  }
+
+  /// Updates the address for [employeeId].
+  ///
+  /// [addressJson] must be the PUT body map (use
+  /// [EmployeeAddressApiModel.toJsonMap] to build it).
+  Future<void> editEmployeeAddress(
+    String companyId,
+    String employeeId,
+    Map<String, dynamic> addressJson,
+  ) async {
+    final uri = Uri.https(baseUrl, '/api/v1/$companyId/employee/address');
+    final response = await client.put(
+      uri,
+      headers: await _headers(),
+      body: jsonEncode(addressJson),
+    );
+    _checkStatus(response);
+  }
+
+  /// Fetches the personal info for [employeeId].
+  Future<EmployeePersonalInfoApiModel> getEmployeePersonalInfo(
+    String companyId,
+    String employeeId,
+  ) async {
+    final uri = Uri.https(
+        baseUrl, '/api/v1/$companyId/employee/personalinfo/$employeeId');
+    final response = await client.get(uri, headers: await _headers());
+    _checkStatus(response);
+    final json = jsonDecode(response.body) as Map<String, dynamic>;
+    return EmployeePersonalInfoApiModel.fromJson(json);
+  }
+
+  /// Fetches the available selection options for the personal info form.
+  Future<PersonalInfoOptionsApiModel> getPersonalInfoOptions(
+    String companyId,
+  ) async {
+    final uri = Uri.https(
+        baseUrl, '/api/v1/$companyId/employee/personalinfo/selectionoptions');
+    final response = await client.get(uri, headers: await _headers());
+    _checkStatus(response);
+    final json = jsonDecode(response.body) as Map<String, dynamic>;
+    return PersonalInfoOptionsApiModel.fromJson(json);
+  }
+
+  /// Updates the personal info for [employeeId].
+  ///
+  /// [personalInfoJson] must be the PUT body map.
+  Future<void> editEmployeePersonalInfo(
+    String companyId,
+    String employeeId,
+    Map<String, dynamic> personalInfoJson,
+  ) async {
+    final uri =
+        Uri.https(baseUrl, '/api/v1/$companyId/employee/personalinfo');
+    final response = await client.put(
+      uri,
+      headers: await _headers(),
+      body: jsonEncode(personalInfoJson),
+    );
+    _checkStatus(response);
+  }
+
+  /// Fetches the ID card (Identidade) information for [employeeId].
+  Future<EmployeeIdCardApiModel> getEmployeeIdCard(
+    String companyId,
+    String employeeId,
+  ) async {
+    final uri =
+        Uri.https(baseUrl, '/api/v1/$companyId/employee/idcard/$employeeId');
+    final response = await client.get(uri, headers: await _headers());
+    _checkStatus(response);
+    final json = jsonDecode(response.body) as Map<String, dynamic>;
+    return EmployeeIdCardApiModel.fromJson(json);
+  }
+
+  /// Updates the ID card (Identidade) information for [employeeId].
+  ///
+  /// [idCardJson] must be the PUT body map.
+  Future<void> editEmployeeIdCard(
+    String companyId,
+    String employeeId,
+    Map<String, dynamic> idCardJson,
+  ) async {
+    final uri = Uri.https(baseUrl, '/api/v1/$companyId/employee/idcard');
+    final response = await client.put(
+      uri,
+      headers: await _headers(),
+      body: jsonEncode(idCardJson),
+    );
+    _checkStatus(response);
+  }
+
+  /// Fetches the voter registration (Título de Eleitor) for [employeeId].
+  Future<EmployeeVoteIdApiModel> getEmployeeVoteId(
+    String companyId,
+    String employeeId,
+  ) async {
+    final uri =
+        Uri.https(baseUrl, '/api/v1/$companyId/employee/voteid/$employeeId');
+    final response = await client.get(uri, headers: await _headers());
+    _checkStatus(response);
+    final json = jsonDecode(response.body) as Map<String, dynamic>;
+    return EmployeeVoteIdApiModel.fromJson(json);
+  }
+
+  /// Updates the voter registration (Título de Eleitor) for [employeeId].
+  Future<void> editEmployeeVoteId(
+    String companyId,
+    String employeeId,
+    String voteIdNumber,
+  ) async {
+    final uri = Uri.https(baseUrl, '/api/v1/$companyId/employee/voteid');
+    final response = await client.put(
+      uri,
+      headers: await _headers(),
+      body: jsonEncode({'employeeId': employeeId, 'voteIdNumber': voteIdNumber}),
+    );
+    _checkStatus(response);
   }
 
   // ─── Helpers ──────────────────────────────────────────────────────────────

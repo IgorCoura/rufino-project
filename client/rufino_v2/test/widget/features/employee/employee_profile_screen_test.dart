@@ -1,0 +1,923 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:go_router/go_router.dart';
+import 'package:rufino_v2/domain/entities/address.dart';
+import 'package:rufino_v2/domain/entities/company.dart';
+import 'package:rufino_v2/domain/entities/employee.dart';
+import 'package:rufino_v2/domain/entities/employee_personal_info.dart';
+import 'package:rufino_v2/domain/entities/employee_profile.dart';
+import 'package:rufino_v2/domain/entities/remuneration.dart';
+import 'package:rufino_v2/domain/entities/role.dart';
+import 'package:rufino_v2/domain/entities/workplace.dart';
+import 'package:rufino_v2/ui/features/employee/viewmodel/employee_profile_viewmodel.dart';
+import 'package:rufino_v2/ui/features/employee/widgets/employee_profile_screen.dart';
+
+import '../../../testing/fakes/fake_company_repository.dart';
+import '../../../testing/fakes/fake_department_repository.dart';
+import '../../../testing/fakes/fake_employee_repository.dart';
+import '../../../testing/fakes/fake_workplace_repository.dart';
+
+const _fakeCompany = Company(
+  id: 'company-1',
+  corporateName: 'Acme Corp',
+  fantasyName: 'Acme',
+  cnpj: '00000000000000',
+);
+
+const _fakeProfile = EmployeeProfile(
+  id: 'emp-1',
+  name: 'Ana Lima',
+  registration: 'R001',
+  status: EmployeeStatus.active,
+  roleId: 'role-1',
+  workplaceId: 'wp-1',
+);
+
+const _fakeRole = Role(
+  id: 'role-1',
+  name: 'Analista',
+  description: 'Analista financeira',
+  cbo: '123456',
+  remuneration: Remuneration(
+    paymentUnit: PaymentUnit(id: '5', name: 'Por Mês'),
+    baseSalary: BaseSalary(
+      type: SalaryType(id: '1', name: 'BRL'),
+      value: '3500.00',
+    ),
+    description: 'Salário mensal',
+  ),
+);
+
+const _fakeWorkplace = Workplace(
+  id: 'wp-1',
+  name: 'Sede Principal',
+  address: Address(
+    zipCode: '01310100',
+    street: 'Av. Paulista',
+    number: '1000',
+    complement: '',
+    neighborhood: 'Bela Vista',
+    city: 'São Paulo',
+    state: 'SP',
+    country: 'Brasil',
+  ),
+);
+
+void main() {
+  late FakeCompanyRepository companyRepository;
+  late FakeEmployeeRepository employeeRepository;
+  late FakeDepartmentRepository departmentRepository;
+  late FakeWorkplaceRepository workplaceRepository;
+  late EmployeeProfileViewModel viewModel;
+
+  setUp(() {
+    companyRepository = FakeCompanyRepository()
+      ..setSelectedCompany(_fakeCompany);
+    employeeRepository = FakeEmployeeRepository()
+      ..setEmployeeProfile(_fakeProfile);
+    departmentRepository = FakeDepartmentRepository()..setRole(_fakeRole);
+    workplaceRepository = FakeWorkplaceRepository()
+      ..setWorkplace(_fakeWorkplace);
+    viewModel = EmployeeProfileViewModel(
+      companyRepository: companyRepository,
+      employeeRepository: employeeRepository,
+      departmentRepository: departmentRepository,
+      workplaceRepository: workplaceRepository,
+    );
+  });
+
+  tearDown(() => viewModel.dispose());
+
+  Widget buildSubject() => MaterialApp.router(
+        routerConfig: GoRouter(
+          routes: [
+            GoRoute(
+              path: '/',
+              builder: (_, __) => EmployeeProfileScreen(
+                viewModel: viewModel,
+                employeeId: 'emp-1',
+              ),
+            ),
+          ],
+        ),
+      );
+
+  group('EmployeeProfileScreen', () {
+    testWidgets('shows loading indicator while fetching the profile',
+        (tester) async {
+      await tester.pumpWidget(buildSubject());
+
+      expect(find.byType(CircularProgressIndicator), findsOneWidget);
+      await tester.pumpAndSettle();
+    });
+
+    testWidgets('shows employee information after loading', (tester) async {
+      await tester.pumpWidget(buildSubject());
+      await tester.pumpAndSettle();
+
+      expect(find.text('Perfil do Funcionário'), findsOneWidget);
+      expect(find.text('Ana Lima'), findsWidgets);
+      expect(find.text('Registro R001'), findsOneWidget);
+      expect(find.text('Analista'), findsOneWidget);
+      expect(find.text('Sede Principal'), findsOneWidget);
+      expect(find.text('Ativo'), findsWidgets);
+    });
+
+    testWidgets('shows retry state when profile loading fails', (tester) async {
+      employeeRepository.setShouldFail(true);
+
+      await tester.pumpWidget(buildSubject());
+      await tester.pumpAndSettle();
+
+      expect(find.text('Não foi possível carregar o perfil.'), findsOneWidget);
+      expect(find.text('Tentar novamente'), findsOneWidget);
+    });
+
+    testWidgets('marks the employee as inactive after confirmation',
+        (tester) async {
+      await tester.pumpWidget(buildSubject());
+      await tester.pumpAndSettle();
+
+      await tester.scrollUntilVisible(
+        find.text('Marcar como inativo'),
+        100,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.tap(find.text('Marcar como inativo'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Confirmar ação'), findsOneWidget);
+
+      await tester.tap(find.text('Confirmar'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Inativo'), findsWidgets);
+      expect(
+        find.text('Funcionário marcado como inativo com sucesso.'),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('does not show the inactive action for inactive employees',
+        (tester) async {
+      employeeRepository.setEmployeeProfile(
+        const EmployeeProfile(
+          id: 'emp-1',
+          name: 'Ana Lima',
+          registration: 'R001',
+          status: EmployeeStatus.inactive,
+          roleId: 'role-1',
+          workplaceId: 'wp-1',
+        ),
+      );
+
+      await tester.pumpWidget(buildSubject());
+      await tester.pumpAndSettle();
+
+      expect(find.text('Marcar como inativo'), findsNothing);
+    });
+
+    testWidgets('shows the avatar upload camera icon on the profile card',
+        (tester) async {
+      await tester.pumpWidget(buildSubject());
+      await tester.pumpAndSettle();
+
+      expect(find.byIcon(Icons.camera_alt), findsOneWidget);
+    });
+
+    testWidgets('shows the name edit button on the name card', (tester) async {
+      await tester.pumpWidget(buildSubject());
+      await tester.pumpAndSettle();
+
+      expect(find.text('Editar'), findsOneWidget);
+    });
+
+    testWidgets('shows the name text field when the edit button is tapped',
+        (tester) async {
+      await tester.pumpWidget(buildSubject());
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Editar'));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(TextField), findsOneWidget);
+      expect(find.text('Salvar'), findsOneWidget);
+      expect(find.text('Cancelar'), findsOneWidget);
+    });
+
+    testWidgets('saves the new name after editing and tapping save',
+        (tester) async {
+      await tester.pumpWidget(buildSubject());
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Editar'));
+      await tester.pumpAndSettle();
+
+      await tester.enterText(find.byType(TextField), 'Ana Souza');
+      await tester.tap(find.text('Salvar'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Ana Souza'), findsWidgets);
+      expect(
+        find.text('Nome atualizado com sucesso.'),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('cancels name editing without saving when cancel is tapped',
+        (tester) async {
+      await tester.pumpWidget(buildSubject());
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Editar'));
+      await tester.pumpAndSettle();
+
+      await tester.enterText(find.byType(TextField), 'Ana Souza');
+      await tester.tap(find.text('Cancelar'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Ana Lima'), findsWidgets);
+      expect(find.byType(TextField), findsNothing);
+    });
+
+    testWidgets('shows the Contato section title', (tester) async {
+      await tester.pumpWidget(buildSubject());
+      await tester.pumpAndSettle();
+
+      expect(find.text('Contato'), findsOneWidget);
+    });
+
+    testWidgets('shows the Endereço section title', (tester) async {
+      await tester.pumpWidget(buildSubject());
+      await tester.pumpAndSettle();
+
+      expect(find.text('Endereço'), findsOneWidget);
+    });
+
+    testWidgets('shows the Informações Pessoais section title', (tester) async {
+      await tester.pumpWidget(buildSubject());
+      await tester.pumpAndSettle();
+
+      expect(find.text('Informações Pessoais'), findsOneWidget);
+    });
+
+    testWidgets('shows the Documento (Identidade) section title',
+        (tester) async {
+      await tester.pumpWidget(buildSubject());
+      await tester.pumpAndSettle();
+
+      expect(find.text('Documento (Identidade)'), findsOneWidget);
+    });
+
+    testWidgets('shows the Título de Eleitor section title', (tester) async {
+      await tester.pumpWidget(buildSubject());
+      await tester.pumpAndSettle();
+
+      expect(find.text('Título de Eleitor'), findsOneWidget);
+    });
+
+    testWidgets(
+        'expands the Contato section and shows loading then contact data',
+        (tester) async {
+      await tester.pumpWidget(buildSubject());
+      await tester.pumpAndSettle();
+
+      await tester.scrollUntilVisible(
+        find.text('Contato'),
+        100,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.tap(find.text('Contato'));
+      await tester.pump();
+
+      // After settle, the contact data should be displayed formatted.
+      await tester.pumpAndSettle();
+
+      // Phone is formatted as "+55 DDD NNNNN-NNNN".
+      expect(find.text('+55 11 99999-0000'), findsOneWidget);
+      expect(find.text('test@example.com'), findsOneWidget);
+    });
+
+    testWidgets(
+        'expands the Título de Eleitor section and shows the vote ID number',
+        (tester) async {
+      await tester.pumpWidget(buildSubject());
+      await tester.pumpAndSettle();
+
+      await tester.scrollUntilVisible(
+        find.text('Título de Eleitor'),
+        100,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.tap(find.text('Título de Eleitor'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('123456789012'), findsOneWidget);
+    });
+
+    testWidgets(
+        'expands the Informações Pessoais section and shows personal data',
+        (tester) async {
+      await tester.pumpWidget(buildSubject());
+      await tester.pumpAndSettle();
+
+      await tester.scrollUntilVisible(
+        find.text('Informações Pessoais'),
+        100,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.tap(find.text('Informações Pessoais'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Homem'), findsOneWidget);
+      expect(find.text('Casado(a)'), findsOneWidget);
+      expect(find.text('Pardo'), findsOneWidget);
+      expect(find.text('Ensino Superior Completo'), findsOneWidget);
+    });
+
+    testWidgets(
+        'shows edit form with dropdowns when Editar is tapped on Informações Pessoais',
+        (tester) async {
+      await tester.pumpWidget(buildSubject());
+      await tester.pumpAndSettle();
+
+      await tester.scrollUntilVisible(
+        find.text('Informações Pessoais'),
+        100,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.tap(find.text('Informações Pessoais'));
+      await tester.pumpAndSettle();
+
+      // The name section also has "Editar" — use scrollUntilVisible with
+      // .last to reach and tap the personal info section's button below it.
+      await tester.scrollUntilVisible(
+        find.text('Editar').last,
+        100,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.tap(find.text('Editar').last);
+      await tester.pumpAndSettle();
+
+      // Dropdown labels and the disability add button should be visible.
+      expect(find.text('Gênero'), findsOneWidget);
+      expect(find.text('Estado Civil'), findsOneWidget);
+      expect(find.text('Etnia'), findsOneWidget);
+      expect(find.text('Escolaridade'), findsOneWidget);
+      expect(find.text('Adicionar Deficiência'), findsOneWidget);
+    });
+
+    testWidgets(
+        'adds a disability via the dialog in Informações Pessoais edit mode',
+        (tester) async {
+      await tester.pumpWidget(buildSubject());
+      await tester.pumpAndSettle();
+
+      await tester.scrollUntilVisible(
+        find.text('Informações Pessoais'),
+        100,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.tap(find.text('Informações Pessoais'));
+      await tester.pumpAndSettle();
+
+      await tester.scrollUntilVisible(
+        find.text('Editar').last,
+        100,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.tap(find.text('Editar').last);
+      await tester.pumpAndSettle();
+
+      await tester.scrollUntilVisible(
+        find.text('Adicionar Deficiência'),
+        100,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.tap(find.text('Adicionar Deficiência'));
+      await tester.pumpAndSettle();
+
+      // Dialog should be open with title and Adicionar button.
+      expect(find.text('Adicionar Deficiência'), findsWidgets);
+      expect(find.text('Adicionar'), findsOneWidget);
+
+      await tester.tap(find.text('Adicionar'));
+      await tester.pumpAndSettle();
+
+      // The first available disability (Física) should now appear in the list.
+      expect(find.text('Física'), findsOneWidget);
+      // Observation field should now be visible.
+      expect(find.text('Observações sobre a deficiência'), findsOneWidget);
+    });
+
+    testWidgets(
+        'removes a disability with the close button in Informações Pessoais edit mode',
+        (tester) async {
+      employeeRepository.setPersonalInfo(
+        const EmployeePersonalInfo(
+          genderId: '1',
+          maritalStatusId: '1',
+          ethnicityId: '1',
+          educationLevelId: '1',
+          disabilityIds: ['1'],
+          disabilityObservation: '',
+        ),
+      );
+
+      await tester.pumpWidget(buildSubject());
+      await tester.pumpAndSettle();
+
+      await tester.scrollUntilVisible(
+        find.text('Informações Pessoais'),
+        100,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.tap(find.text('Informações Pessoais'));
+      await tester.pumpAndSettle();
+
+      await tester.scrollUntilVisible(
+        find.text('Editar').last,
+        100,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.tap(find.text('Editar').last);
+      await tester.pumpAndSettle();
+
+      // Física should appear with a remove button.
+      expect(find.text('Física'), findsOneWidget);
+
+      await tester.tap(find.byTooltip('Remover deficiência'));
+      await tester.pumpAndSettle();
+
+      // Física is gone; the observation field should be hidden.
+      expect(find.text('Física'), findsNothing);
+      expect(find.text('Observações sobre a deficiência'), findsNothing);
+    });
+
+    testWidgets(
+        'expands the Documento (Identidade) section and shows identity data',
+        (tester) async {
+      await tester.pumpWidget(buildSubject());
+      await tester.pumpAndSettle();
+
+      await tester.scrollUntilVisible(
+        find.text('Documento (Identidade)'),
+        100,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.tap(find.text('Documento (Identidade)'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('111.444.777-35'), findsOneWidget);
+      expect(find.text('01/01/1990'), findsOneWidget);
+      expect(find.text('Maria'), findsOneWidget);
+      expect(find.text('João'), findsOneWidget);
+    });
+
+    testWidgets(
+        'shows edit form with masked fields when Editar is tapped on Documento (Identidade)',
+        (tester) async {
+      await tester.pumpWidget(buildSubject());
+      await tester.pumpAndSettle();
+
+      await tester.scrollUntilVisible(
+        find.text('Documento (Identidade)'),
+        100,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.tap(find.text('Documento (Identidade)'));
+      await tester.pumpAndSettle();
+
+      // The name section also has "Editar" above — use .last to reach the
+      // ID card section's button.
+      await tester.scrollUntilVisible(
+        find.text('Editar').last,
+        100,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.tap(find.text('Editar').last);
+      await tester.pumpAndSettle();
+
+      expect(find.text('CPF'), findsOneWidget);
+      expect(find.text('Data de nascimento'), findsOneWidget);
+      expect(find.text('Nome da mãe'), findsOneWidget);
+      expect(find.text('Salvar'), findsOneWidget);
+      expect(find.text('Cancelar'), findsOneWidget);
+    });
+
+    testWidgets('saves ID card data and shows success snackbar',
+        (tester) async {
+      await tester.pumpWidget(buildSubject());
+      await tester.pumpAndSettle();
+
+      await tester.scrollUntilVisible(
+        find.text('Documento (Identidade)'),
+        100,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.tap(find.text('Documento (Identidade)'));
+      await tester.pumpAndSettle();
+
+      await tester.scrollUntilVisible(
+        find.text('Editar').last,
+        100,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.tap(find.text('Editar').last);
+      await tester.pumpAndSettle();
+
+      await tester.scrollUntilVisible(
+        find.text('Salvar'),
+        100,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.tap(find.text('Salvar'));
+      await tester.pumpAndSettle();
+
+      expect(
+        find.text('Dados do documento atualizados com sucesso.'),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('cancels ID card editing without saving when Cancelar is tapped',
+        (tester) async {
+      await tester.pumpWidget(buildSubject());
+      await tester.pumpAndSettle();
+
+      await tester.scrollUntilVisible(
+        find.text('Documento (Identidade)'),
+        100,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.tap(find.text('Documento (Identidade)'));
+      await tester.pumpAndSettle();
+
+      await tester.scrollUntilVisible(
+        find.text('Editar').last,
+        100,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.tap(find.text('Editar').last);
+      await tester.pumpAndSettle();
+
+      await tester.scrollUntilVisible(
+        find.text('Cancelar'),
+        100,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.tap(find.text('Cancelar'));
+      await tester.pumpAndSettle();
+
+      // Should return to view mode showing the data.
+      expect(find.text('111.444.777-35'), findsOneWidget);
+      expect(find.text('Salvar'), findsNothing);
+    });
+
+    testWidgets(
+        'shows CPF required error when CPF is cleared before saving',
+        (tester) async {
+      await tester.pumpWidget(buildSubject());
+      await tester.pumpAndSettle();
+
+      await tester.scrollUntilVisible(
+        find.text('Documento (Identidade)'),
+        100,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.tap(find.text('Documento (Identidade)'));
+      await tester.pumpAndSettle();
+
+      await tester.scrollUntilVisible(
+        find.text('Editar').last,
+        100,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.tap(find.text('Editar').last);
+      await tester.pumpAndSettle();
+
+      // Clear the CPF field.
+      await tester.scrollUntilVisible(
+        find.widgetWithText(TextFormField, 'CPF'),
+        100,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.enterText(find.widgetWithText(TextFormField, 'CPF'), '');
+
+      await tester.scrollUntilVisible(
+        find.text('Salvar'),
+        100,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.tap(find.text('Salvar'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('O CPF não pode ser vazio.'), findsOneWidget);
+      // No success snack when validation fails.
+      expect(
+        find.text('Dados do documento atualizados com sucesso.'),
+        findsNothing,
+      );
+    });
+
+    testWidgets(
+        'shows CPF invalid error when the CPF algorithm check fails',
+        (tester) async {
+      await tester.pumpWidget(buildSubject());
+      await tester.pumpAndSettle();
+
+      await tester.scrollUntilVisible(
+        find.text('Documento (Identidade)'),
+        100,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.tap(find.text('Documento (Identidade)'));
+      await tester.pumpAndSettle();
+
+      await tester.scrollUntilVisible(
+        find.text('Editar').last,
+        100,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.tap(find.text('Editar').last);
+      await tester.pumpAndSettle();
+
+      // Enter a CPF that passes the digit count but fails the algorithm.
+      await tester.scrollUntilVisible(
+        find.widgetWithText(TextFormField, 'CPF'),
+        100,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.enterText(
+        find.widgetWithText(TextFormField, 'CPF'),
+        '12345678901',
+      );
+
+      await tester.scrollUntilVisible(
+        find.text('Salvar'),
+        100,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.tap(find.text('Salvar'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('O CPF não é válido.'), findsOneWidget);
+    });
+
+    testWidgets(
+        'shows date of birth required error when the date is cleared before saving',
+        (tester) async {
+      await tester.pumpWidget(buildSubject());
+      await tester.pumpAndSettle();
+
+      await tester.scrollUntilVisible(
+        find.text('Documento (Identidade)'),
+        100,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.tap(find.text('Documento (Identidade)'));
+      await tester.pumpAndSettle();
+
+      await tester.scrollUntilVisible(
+        find.text('Editar').last,
+        100,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.tap(find.text('Editar').last);
+      await tester.pumpAndSettle();
+
+      await tester.scrollUntilVisible(
+        find.widgetWithText(TextFormField, 'Data de nascimento'),
+        100,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.enterText(
+        find.widgetWithText(TextFormField, 'Data de nascimento'),
+        '',
+      );
+
+      await tester.scrollUntilVisible(
+        find.text('Salvar'),
+        100,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.tap(find.text('Salvar'));
+      await tester.pumpAndSettle();
+
+      expect(
+        find.text('A Data de nascimento não pode ser vazia.'),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets(
+        'shows date of birth invalid error when a future date is entered',
+        (tester) async {
+      await tester.pumpWidget(buildSubject());
+      await tester.pumpAndSettle();
+
+      await tester.scrollUntilVisible(
+        find.text('Documento (Identidade)'),
+        100,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.tap(find.text('Documento (Identidade)'));
+      await tester.pumpAndSettle();
+
+      await tester.scrollUntilVisible(
+        find.text('Editar').last,
+        100,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.tap(find.text('Editar').last);
+      await tester.pumpAndSettle();
+
+      await tester.scrollUntilVisible(
+        find.widgetWithText(TextFormField, 'Data de nascimento'),
+        100,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.enterText(
+        find.widgetWithText(TextFormField, 'Data de nascimento'),
+        '01012099',
+      );
+
+      await tester.scrollUntilVisible(
+        find.text('Salvar'),
+        100,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.tap(find.text('Salvar'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('A Data de nascimento é inválida.'), findsOneWidget);
+    });
+
+    testWidgets(
+        'shows mother name required error when mother name is cleared before saving',
+        (tester) async {
+      await tester.pumpWidget(buildSubject());
+      await tester.pumpAndSettle();
+
+      await tester.scrollUntilVisible(
+        find.text('Documento (Identidade)'),
+        100,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.tap(find.text('Documento (Identidade)'));
+      await tester.pumpAndSettle();
+
+      await tester.scrollUntilVisible(
+        find.text('Editar').last,
+        100,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.tap(find.text('Editar').last);
+      await tester.pumpAndSettle();
+
+      await tester.scrollUntilVisible(
+        find.widgetWithText(TextFormField, 'Nome da mãe'),
+        100,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.enterText(
+        find.widgetWithText(TextFormField, 'Nome da mãe'),
+        '',
+      );
+
+      await tester.scrollUntilVisible(
+        find.text('Salvar'),
+        100,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.tap(find.text('Salvar'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('O Nome da mãe não pode ser vazio.'), findsOneWidget);
+    });
+
+    testWidgets(
+        'shows birth city required error when birth city is cleared before saving',
+        (tester) async {
+      await tester.pumpWidget(buildSubject());
+      await tester.pumpAndSettle();
+
+      await tester.scrollUntilVisible(
+        find.text('Documento (Identidade)'),
+        100,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.tap(find.text('Documento (Identidade)'));
+      await tester.pumpAndSettle();
+
+      await tester.scrollUntilVisible(
+        find.text('Editar').last,
+        100,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.tap(find.text('Editar').last);
+      await tester.pumpAndSettle();
+
+      await tester.scrollUntilVisible(
+        find.widgetWithText(TextFormField, 'Município de nascimento'),
+        100,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.enterText(
+        find.widgetWithText(TextFormField, 'Município de nascimento'),
+        '',
+      );
+
+      await tester.scrollUntilVisible(
+        find.text('Salvar'),
+        100,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.tap(find.text('Salvar'));
+      await tester.pumpAndSettle();
+
+      expect(
+        find.text('A Cidade de nascimento não pode ser vazia.'),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets(
+        'shows nationality required error when nationality is cleared before saving',
+        (tester) async {
+      await tester.pumpWidget(buildSubject());
+      await tester.pumpAndSettle();
+
+      await tester.scrollUntilVisible(
+        find.text('Documento (Identidade)'),
+        100,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.tap(find.text('Documento (Identidade)'));
+      await tester.pumpAndSettle();
+
+      await tester.scrollUntilVisible(
+        find.text('Editar').last,
+        100,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.tap(find.text('Editar').last);
+      await tester.pumpAndSettle();
+
+      await tester.scrollUntilVisible(
+        find.widgetWithText(TextFormField, 'Nacionalidade'),
+        100,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.enterText(
+        find.widgetWithText(TextFormField, 'Nacionalidade'),
+        '',
+      );
+
+      await tester.scrollUntilVisible(
+        find.text('Salvar'),
+        100,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.tap(find.text('Salvar'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('A Nacionalidade não pode ser vazia.'), findsOneWidget);
+    });
+
+    testWidgets('saves personal info and shows success snackbar',
+        (tester) async {
+      await tester.pumpWidget(buildSubject());
+      await tester.pumpAndSettle();
+
+      await tester.scrollUntilVisible(
+        find.text('Informações Pessoais'),
+        100,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.tap(find.text('Informações Pessoais'));
+      await tester.pumpAndSettle();
+
+      await tester.scrollUntilVisible(
+        find.text('Editar').last,
+        100,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.tap(find.text('Editar').last);
+      await tester.pumpAndSettle();
+
+      await tester.scrollUntilVisible(
+        find.text('Salvar'),
+        100,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.tap(find.text('Salvar'));
+      await tester.pumpAndSettle();
+
+      expect(
+        find.text('Informações pessoais atualizadas com sucesso.'),
+        findsOneWidget,
+      );
+    });
+  });
+}

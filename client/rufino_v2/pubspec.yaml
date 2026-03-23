@@ -19,6 +19,7 @@ dependencies:
   jwt_decoder: ^2.0.1
   # HTTP
   http: ^1.2.2
+  file_picker: ^8.1.7
   # UI
   google_fonts: ^6.2.1
   material_symbols_icons: ^4.2719.1
