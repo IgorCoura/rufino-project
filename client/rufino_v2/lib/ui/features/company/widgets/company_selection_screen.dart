@@ -23,6 +23,16 @@ class _CompanySelectionScreenState extends State<CompanySelectionScreen> {
   }
 
   @override
+  void didUpdateWidget(covariant CompanySelectionScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.viewModel != widget.viewModel) {
+      oldWidget.viewModel.removeListener(_onStatusChanged);
+      widget.viewModel.addListener(_onStatusChanged);
+      widget.viewModel.loadCompanies();
+    }
+  }
+
+  @override
   void dispose() {
     widget.viewModel.removeListener(_onStatusChanged);
     super.dispose();

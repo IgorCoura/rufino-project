@@ -22,6 +22,16 @@ class _SplashScreenState extends State<SplashScreen> {
   }
 
   @override
+  void didUpdateWidget(covariant SplashScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.viewModel != widget.viewModel) {
+      oldWidget.viewModel.removeListener(_onStatusChanged);
+      widget.viewModel.addListener(_onStatusChanged);
+      widget.viewModel.initialize();
+    }
+  }
+
+  @override
   void dispose() {
     widget.viewModel.removeListener(_onStatusChanged);
     super.dispose();

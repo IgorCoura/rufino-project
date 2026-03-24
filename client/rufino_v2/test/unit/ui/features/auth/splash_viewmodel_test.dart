@@ -63,6 +63,15 @@ void main() {
       expect(viewModel.status, SplashStatus.error);
     });
 
+    test('goes to error when repository throws an unexpected exception',
+        () async {
+      authRepository.setThrowOnHasValidCredentials(true);
+
+      await viewModel.initialize();
+
+      expect(viewModel.status, SplashStatus.error);
+    });
+
     test('initialize is idempotent after first completion', () async {
       authRepository.setAuthenticated(true);
       authRepository.setCompanyIds(['company-1']);

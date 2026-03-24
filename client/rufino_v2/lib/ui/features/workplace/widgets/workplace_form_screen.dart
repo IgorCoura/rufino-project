@@ -37,6 +37,18 @@ class _WorkplaceFormScreenState extends State<WorkplaceFormScreen> {
   }
 
   @override
+  void didUpdateWidget(covariant WorkplaceFormScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.viewModel != widget.viewModel) {
+      oldWidget.viewModel.removeListener(_onViewModelChanged);
+      widget.viewModel.addListener(_onViewModelChanged);
+      if (widget.workplaceId != null) {
+        widget.viewModel.loadWorkplace(widget.workplaceId!);
+      }
+    }
+  }
+
+  @override
   void dispose() {
     widget.viewModel.removeListener(_onViewModelChanged);
     super.dispose();

@@ -1,49 +1,52 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/theme/app_spacing.dart';
-import '../viewmodel/department_form_viewmodel.dart';
+import '../viewmodel/document_group_form_viewmodel.dart';
 
-/// Form screen for creating or editing a department.
+/// Form screen for creating or editing a document group.
 ///
-/// When [departmentId] is provided, [DepartmentFormViewModel.loadDepartment]
+/// When [groupId] is provided, [DocumentGroupFormViewModel.loadGroup]
 /// is called on init to populate the fields from the API.
-class DepartmentFormScreen extends StatefulWidget {
-  const DepartmentFormScreen({
+class DocumentGroupFormScreen extends StatefulWidget {
+  const DocumentGroupFormScreen({
     super.key,
     required this.viewModel,
-    this.departmentId,
+    this.groupId,
   });
 
-  final DepartmentFormViewModel viewModel;
+  /// The view model that manages form state and validation.
+  final DocumentGroupFormViewModel viewModel;
 
-  /// The id of the department to edit. Null when creating a new department.
-  final String? departmentId;
+  /// The id of the group to edit. Null when creating a new group.
+  final String? groupId;
 
   @override
-  State<DepartmentFormScreen> createState() => _DepartmentFormScreenState();
+  State<DocumentGroupFormScreen> createState() =>
+      _DocumentGroupFormScreenState();
 }
 
-class _DepartmentFormScreenState extends State<DepartmentFormScreen> {
+class _DocumentGroupFormScreenState extends State<DocumentGroupFormScreen> {
   final _formKey = GlobalKey<FormState>();
 
   @override
   void initState() {
     super.initState();
     widget.viewModel.addListener(_onViewModelChanged);
-    if (widget.departmentId != null) {
-      widget.viewModel.loadDepartment(widget.departmentId!);
+    if (widget.groupId != null) {
+      widget.viewModel.loadGroup(widget.groupId!);
     }
   }
 
   @override
-  void didUpdateWidget(covariant DepartmentFormScreen oldWidget) {
+  void didUpdateWidget(covariant DocumentGroupFormScreen oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.viewModel != widget.viewModel) {
       oldWidget.viewModel.removeListener(_onViewModelChanged);
       widget.viewModel.addListener(_onViewModelChanged);
-      if (widget.departmentId != null) {
-        widget.viewModel.loadDepartment(widget.departmentId!);
+      if (widget.groupId != null) {
+        widget.viewModel.loadGroup(widget.groupId!);
       }
     }
   }
@@ -57,15 +60,15 @@ class _DepartmentFormScreenState extends State<DepartmentFormScreen> {
   void _onViewModelChanged() {
     if (!mounted) return;
     switch (widget.viewModel.status) {
-      case DepartmentFormStatus.saved:
+      case DocumentGroupFormStatus.saved:
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Setor salvo com sucesso!'),
+            content: Text('Grupo salvo com sucesso!'),
             behavior: SnackBarBehavior.floating,
           ),
         );
         context.pop();
-      case DepartmentFormStatus.error:
+      case DocumentGroupFormStatus.error:
         ScaffoldMessenger.of(context)
           ..hideCurrentSnackBar()
           ..showSnackBar(
@@ -92,7 +95,7 @@ class _DepartmentFormScreenState extends State<DepartmentFormScreen> {
         title: ListenableBuilder(
           listenable: widget.viewModel,
           builder: (context, _) => Text(
-            widget.viewModel.isNew ? 'Criar Setor' : 'Editar Setor',
+            widget.viewModel.isNew ? 'Criar Grupo' : 'Editar Grupo',
           ),
         ),
       ),
@@ -102,7 +105,7 @@ class _DepartmentFormScreenState extends State<DepartmentFormScreen> {
           if (widget.viewModel.isLoading) {
             return const Center(child: CircularProgressIndicator());
           }
-          return _DepartmentFormBody(
+          return _DocumentGroupFormBody(
             viewModel: widget.viewModel,
             formKey: _formKey,
             onSave: _onSave,
@@ -114,15 +117,16 @@ class _DepartmentFormScreenState extends State<DepartmentFormScreen> {
   }
 }
 
-class _DepartmentFormBody extends StatelessWidget {
-  const _DepartmentFormBody({
+/// The scrollable form body containing all group fields.
+class _DocumentGroupFormBody extends StatelessWidget {
+  const _DocumentGroupFormBody({
     required this.viewModel,
     required this.formKey,
     required this.onSave,
     required this.onCancel,
   });
 
-  final DepartmentFormViewModel viewModel;
+  final DocumentGroupFormViewModel viewModel;
   final GlobalKey<FormState> formKey;
   final VoidCallback onSave;
   final VoidCallback onCancel;
@@ -133,23 +137,30 @@ class _DepartmentFormBody extends StatelessWidget {
       padding: const EdgeInsets.all(AppSpacing.md),
       child: Center(
         child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 800),
+          constraints: const BoxConstraints(maxWidth: 600),
           child: Form(
             key: formKey,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 Text(
-                  'Informações do Setor',
+                  'Informações do Grupo',
                   style: Theme.of(context).textTheme.titleLarge,
                 ),
-                const SizedBox(height: AppSpacing.md),
+                const SizedBox(height: AppSpacing.lg),
                 TextFormField(
                   controller: viewModel.nameController,
                   decoration: const InputDecoration(
                     labelText: 'Nome',
                     border: OutlineInputBorder(),
+                    prefixIcon: Icon(Icons.label_outlined),
+                    helperText: 'Máximo de 100 caracteres',
                   ),
+                  textCapitalization: TextCapitalization.sentences,
+                  maxLength: 100,
+                  inputFormatters: [
+                    LengthLimitingTextInputFormatter(100),
+                  ],
                   validator: viewModel.validateName,
                 ),
                 const SizedBox(height: AppSpacing.md),
@@ -158,10 +169,16 @@ class _DepartmentFormBody extends StatelessWidget {
                   decoration: const InputDecoration(
                     labelText: 'Descrição',
                     border: OutlineInputBorder(),
+                    prefixIcon: Icon(Icons.description_outlined),
+                    alignLabelWithHint: true,
+                    helperText: 'Máximo de 1000 caracteres',
                   ),
-                  minLines: 3,
-                  maxLines: null,
-                  keyboardType: TextInputType.multiline,
+                  textCapitalization: TextCapitalization.sentences,
+                  maxLines: 4,
+                  maxLength: 1000,
+                  inputFormatters: [
+                    LengthLimitingTextInputFormatter(1000),
+                  ],
                   validator: viewModel.validateDescription,
                 ),
                 const SizedBox(height: AppSpacing.xl),
@@ -179,6 +196,7 @@ class _DepartmentFormBody extends StatelessWidget {
   }
 }
 
+/// Save and cancel action buttons for the form.
 class _FormActions extends StatelessWidget {
   const _FormActions({
     required this.isSaving,

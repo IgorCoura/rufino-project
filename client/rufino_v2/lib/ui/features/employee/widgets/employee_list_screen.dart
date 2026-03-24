@@ -78,6 +78,23 @@ class _EmployeeListScreenState extends State<EmployeeListScreen> {
           onPressed: () => context.go('/home'),
         ),
         title: const Text('Funcionários'),
+        actions: [
+          PopupMenuButton<String>(
+            icon: const Icon(Icons.settings_outlined),
+            tooltip: 'Configurações',
+            onSelected: (value) {
+              if (value == 'document-template') {
+                context.push('/document-template');
+              }
+            },
+            itemBuilder: (_) => const [
+              PopupMenuItem(
+                value: 'document-template',
+                child: Text('Templates de Documentos'),
+              ),
+            ],
+          ),
+        ],
       ),
       body: SafeArea(
         child: Center(

@@ -37,6 +37,18 @@ class _PositionFormScreenState extends State<PositionFormScreen> {
   }
 
   @override
+  void didUpdateWidget(covariant PositionFormScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.viewModel != widget.viewModel) {
+      oldWidget.viewModel.removeListener(_onViewModelChanged);
+      widget.viewModel.addListener(_onViewModelChanged);
+      if (widget.positionId != null) {
+        widget.viewModel.loadPosition(widget.positionId!);
+      }
+    }
+  }
+
+  @override
   void dispose() {
     widget.viewModel.removeListener(_onViewModelChanged);
     super.dispose();

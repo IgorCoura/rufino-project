@@ -32,6 +32,16 @@ class _EmployeeFormScreenState extends State<EmployeeFormScreen> {
   }
 
   @override
+  void didUpdateWidget(covariant EmployeeFormScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.viewModel != widget.viewModel) {
+      oldWidget.viewModel.removeListener(_onViewModelChanged);
+      widget.viewModel.addListener(_onViewModelChanged);
+      widget.viewModel.loadOptions();
+    }
+  }
+
+  @override
   void dispose() {
     widget.viewModel.removeListener(_onViewModelChanged);
     super.dispose();

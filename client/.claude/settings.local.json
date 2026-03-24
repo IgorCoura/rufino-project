@@ -23,7 +23,13 @@
       "Bash(find /c/Users/IGOR-NOT/Desktop/Codigos/CodigosSSD/rufino-project/rufino/lib/modules/employee/domain/model/document_signing_options -type f -name *)",
       "Bash(find /c/Users/IGOR-NOT/Desktop/Codigos/CodigosSSD/rufino-project -type f \\\\\\(-name *document_signing* -o -name *signing* \\\\\\))",
       "Bash(find /c/Users/IGOR-NOT/Desktop/Codigos/CodigosSSD/rufino-project/client/rufino/lib/modules/employee/presentation/employee_profile -type f -name *.dart)",
-      "Bash(find C:UsersIGOR-NOTDesktopCodigosCodigosSSDrufino-projectrufinolibmodulesemployeedomainmodeldocument -type f -name *.dart)"
+      "Bash(find C:UsersIGOR-NOTDesktopCodigosCodigosSSDrufino-projectrufinolibmodulesemployeedomainmodeldocument -type f -name *.dart)",
+      "Bash(find /c/Users/IGOR-NOT/Desktop/Codigos/CodigosSSD/rufino-project -name *template* -o -name *document*)",
+      "Bash(dart analyze:*)",
+      "Bash(find C:/Users/IGOR-NOT/Desktop/Codigos/CodigosSSD/rufino-project/client/rufino_v2/.dart_tool -path */flutter_json_view* -name *.dart)",
+      "Bash(dart compile:*)",
+      "Bash(tr -cd '\\(\\)[]{}')",
+      "Bash(tr -cd '\\(\\)')"
     ]
   }
 }

@@ -13,16 +13,25 @@ import 'data/repositories/auth_repository_impl.dart';
 import 'data/repositories/company_repository_impl.dart';
 import 'data/repositories/department_repository_impl.dart';
 import 'data/repositories/employee_repository_impl.dart';
+import 'data/repositories/document_group_repository_impl.dart';
+import 'data/repositories/document_template_repository_impl.dart';
+import 'data/repositories/require_document_repository_impl.dart';
 import 'data/repositories/workplace_repository_impl.dart';
 import 'data/services/auth_api_service.dart';
 import 'data/services/company_api_service.dart';
 import 'data/services/department_api_service.dart';
+import 'data/services/document_group_api_service.dart';
 import 'data/services/employee_api_service.dart';
+import 'data/services/document_template_api_service.dart';
+import 'data/services/require_document_api_service.dart';
 import 'data/services/workplace_api_service.dart';
 import 'domain/repositories/auth_repository.dart';
 import 'domain/repositories/company_repository.dart';
 import 'domain/repositories/department_repository.dart';
+import 'domain/repositories/document_group_repository.dart';
 import 'domain/repositories/employee_repository.dart';
+import 'domain/repositories/document_template_repository.dart';
+import 'domain/repositories/require_document_repository.dart';
 import 'domain/repositories/workplace_repository.dart';
 import 'ui/features/auth/viewmodel/login_viewmodel.dart';
 import 'ui/features/auth/viewmodel/splash_viewmodel.dart';
@@ -33,6 +42,14 @@ import 'ui/features/company/viewmodel/company_selection_viewmodel.dart';
 import 'ui/features/company/widgets/company_form_screen.dart';
 import 'ui/features/company/widgets/company_selection_screen.dart';
 import 'ui/features/department/viewmodel/department_form_viewmodel.dart';
+import 'ui/features/document_group/viewmodel/document_group_form_viewmodel.dart';
+import 'ui/features/document_group/viewmodel/document_group_list_viewmodel.dart';
+import 'ui/features/document_group/widgets/document_group_form_screen.dart';
+import 'ui/features/document_group/widgets/document_group_list_screen.dart';
+import 'ui/features/document_template/viewmodel/document_template_form_viewmodel.dart';
+import 'ui/features/document_template/viewmodel/document_template_list_viewmodel.dart';
+import 'ui/features/document_template/widgets/document_template_form_screen.dart';
+import 'ui/features/document_template/widgets/document_template_list_screen.dart';
 import 'ui/features/department/viewmodel/department_list_viewmodel.dart';
 import 'ui/features/department/viewmodel/position_form_viewmodel.dart';
 import 'ui/features/department/viewmodel/role_form_viewmodel.dart';
@@ -40,6 +57,10 @@ import 'ui/features/department/widgets/department_form_screen.dart';
 import 'ui/features/department/widgets/department_list_screen.dart';
 import 'ui/features/department/widgets/position_form_screen.dart';
 import 'ui/features/department/widgets/role_form_screen.dart';
+import 'ui/features/require_document/viewmodel/require_document_form_viewmodel.dart';
+import 'ui/features/require_document/viewmodel/require_document_list_viewmodel.dart';
+import 'ui/features/require_document/widgets/require_document_form_screen.dart';
+import 'ui/features/require_document/widgets/require_document_list_screen.dart';
 import 'ui/features/employee/viewmodel/employee_form_viewmodel.dart';
 import 'ui/features/employee/viewmodel/employee_list_viewmodel.dart';
 import 'ui/features/employee/viewmodel/employee_profile_viewmodel.dart';
@@ -111,6 +132,30 @@ class App extends StatelessWidget {
       apiService: workplaceApiService,
     );
 
+    final documentGroupApiService = DocumentGroupApiService(
+      client: httpClient,
+      baseUrl: AppConfig.peopleManagementUrl,
+      getAuthHeader: authApiService.getAuthorizationHeader,
+    );
+    final DocumentGroupRepository documentGroupRepository =
+        DocumentGroupRepositoryImpl(apiService: documentGroupApiService);
+
+    final documentTemplateApiService = DocumentTemplateApiService(
+      client: httpClient,
+      baseUrl: AppConfig.peopleManagementUrl,
+      getAuthHeader: authApiService.getAuthorizationHeader,
+    );
+    final DocumentTemplateRepository documentTemplateRepository =
+        DocumentTemplateRepositoryImpl(apiService: documentTemplateApiService);
+
+    final requireDocumentApiService = RequireDocumentApiService(
+      client: httpClient,
+      baseUrl: AppConfig.peopleManagementUrl,
+      getAuthHeader: authApiService.getAuthorizationHeader,
+    );
+    final RequireDocumentRepository requireDocumentRepository =
+        RequireDocumentRepositoryImpl(apiService: requireDocumentApiService);
+
     final employeeApiService = EmployeeApiService(
       client: httpClient,
       baseUrl: AppConfig.peopleManagementUrl,
@@ -127,6 +172,12 @@ class App extends StatelessWidget {
       Provider<DepartmentRepository>.value(value: departmentRepository),
       Provider<WorkplaceRepository>.value(value: workplaceRepository),
       Provider<EmployeeRepository>.value(value: employeeRepository),
+      Provider<DocumentGroupRepository>.value(
+          value: documentGroupRepository),
+      Provider<DocumentTemplateRepository>.value(
+          value: documentTemplateRepository),
+      Provider<RequireDocumentRepository>.value(
+          value: requireDocumentRepository),
     ];
   }
 }
@@ -271,6 +322,105 @@ class _AppRouterState extends State<_AppRouter> {
               positionId: state.pathParameters['positionId']!,
             ),
             roleId: state.pathParameters['id'],
+          ),
+        ),
+
+        // ─── Document Group ─────────────────────────────────────────────
+        GoRoute(
+          path: '/document-group',
+          builder: (context, state) => DocumentGroupListScreen(
+            viewModel: DocumentGroupListViewModel(
+              companyRepository: context.read<CompanyRepository>(),
+              documentGroupRepository:
+                  context.read<DocumentGroupRepository>(),
+            ),
+          ),
+        ),
+        GoRoute(
+          path: '/document-group/create',
+          builder: (context, state) => DocumentGroupFormScreen(
+            viewModel: DocumentGroupFormViewModel(
+              companyRepository: context.read<CompanyRepository>(),
+              documentGroupRepository:
+                  context.read<DocumentGroupRepository>(),
+            ),
+          ),
+        ),
+        GoRoute(
+          path: '/document-group/edit/:id',
+          builder: (context, state) => DocumentGroupFormScreen(
+            viewModel: DocumentGroupFormViewModel(
+              companyRepository: context.read<CompanyRepository>(),
+              documentGroupRepository:
+                  context.read<DocumentGroupRepository>(),
+            ),
+            groupId: state.pathParameters['id'],
+          ),
+        ),
+
+        // ─── Document Template ────────────────────────────────────────────
+        GoRoute(
+          path: '/document-template',
+          builder: (context, state) => DocumentTemplateListScreen(
+            viewModel: DocumentTemplateListViewModel(
+              companyRepository: context.read<CompanyRepository>(),
+              documentTemplateRepository:
+                  context.read<DocumentTemplateRepository>(),
+            ),
+          ),
+        ),
+        GoRoute(
+          path: '/document-template/create',
+          builder: (context, state) => DocumentTemplateFormScreen(
+            viewModel: DocumentTemplateFormViewModel(
+              companyRepository: context.read<CompanyRepository>(),
+              documentTemplateRepository:
+                  context.read<DocumentTemplateRepository>(),
+            ),
+          ),
+        ),
+        GoRoute(
+          path: '/document-template/edit/:id',
+          builder: (context, state) => DocumentTemplateFormScreen(
+            viewModel: DocumentTemplateFormViewModel(
+              companyRepository: context.read<CompanyRepository>(),
+              documentTemplateRepository:
+                  context.read<DocumentTemplateRepository>(),
+            ),
+            templateId: state.pathParameters['id'],
+          ),
+        ),
+
+        // ─── Require Document ────────────────────────────────────────────
+        GoRoute(
+          path: '/require-document',
+          builder: (context, state) => RequireDocumentListScreen(
+            viewModel: RequireDocumentListViewModel(
+              companyRepository: context.read<CompanyRepository>(),
+              requireDocumentRepository:
+                  context.read<RequireDocumentRepository>(),
+            ),
+          ),
+        ),
+        GoRoute(
+          path: '/require-document/create',
+          builder: (context, state) => RequireDocumentFormScreen(
+            viewModel: RequireDocumentFormViewModel(
+              companyRepository: context.read<CompanyRepository>(),
+              requireDocumentRepository:
+                  context.read<RequireDocumentRepository>(),
+            ),
+          ),
+        ),
+        GoRoute(
+          path: '/require-document/edit/:id',
+          builder: (context, state) => RequireDocumentFormScreen(
+            viewModel: RequireDocumentFormViewModel(
+              companyRepository: context.read<CompanyRepository>(),
+              requireDocumentRepository:
+                  context.read<RequireDocumentRepository>(),
+            ),
+            requireDocumentId: state.pathParameters['id'],
           ),
         ),
 
