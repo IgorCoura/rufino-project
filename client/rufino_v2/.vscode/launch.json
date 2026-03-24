@@ -12,7 +12,6 @@
             "toolArgs": [
                 "--dart-define-from-file",
                 "secrets/local_config.json",
-                
             ],
         },
         {

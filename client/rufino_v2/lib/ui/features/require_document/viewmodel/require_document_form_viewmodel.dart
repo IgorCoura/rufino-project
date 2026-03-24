@@ -208,6 +208,21 @@ class RequireDocumentFormViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Toggles a status on the listen event identified by [eventId].
+  ///
+  /// Adds the status if not present, removes it if already selected.
+  void toggleStatusOnEvent(int eventId, String statusId) {
+    final sid = int.tryParse(statusId) ?? 0;
+    final event = _listenEvents.where((e) => e.eventId == eventId).firstOrNull;
+    if (event == null) return;
+
+    if (event.statuses.any((s) => s.id == sid)) {
+      removeStatusFromEvent(eventId, sid);
+    } else {
+      addStatusToEvent(eventId, statusId);
+    }
+  }
+
   /// Removes a status from the listen event identified by [eventId].
   void removeStatusFromEvent(int eventId, int statusId) {
     _listenEvents = _listenEvents.map((e) {

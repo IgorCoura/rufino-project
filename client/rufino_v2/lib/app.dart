@@ -43,13 +43,11 @@ import 'ui/features/company/widgets/company_form_screen.dart';
 import 'ui/features/company/widgets/company_selection_screen.dart';
 import 'ui/features/department/viewmodel/department_form_viewmodel.dart';
 import 'ui/features/document_group/viewmodel/document_group_form_viewmodel.dart';
-import 'ui/features/document_group/viewmodel/document_group_list_viewmodel.dart';
+import 'ui/features/document_group/viewmodel/document_group_with_templates_viewmodel.dart';
 import 'ui/features/document_group/widgets/document_group_form_screen.dart';
-import 'ui/features/document_group/widgets/document_group_list_screen.dart';
+import 'ui/features/document_group/widgets/document_group_with_templates_screen.dart';
 import 'ui/features/document_template/viewmodel/document_template_form_viewmodel.dart';
-import 'ui/features/document_template/viewmodel/document_template_list_viewmodel.dart';
 import 'ui/features/document_template/widgets/document_template_form_screen.dart';
-import 'ui/features/document_template/widgets/document_template_list_screen.dart';
 import 'ui/features/department/viewmodel/department_list_viewmodel.dart';
 import 'ui/features/department/viewmodel/position_form_viewmodel.dart';
 import 'ui/features/department/viewmodel/role_form_viewmodel.dart';
@@ -328,8 +326,8 @@ class _AppRouterState extends State<_AppRouter> {
         // ─── Document Group ─────────────────────────────────────────────
         GoRoute(
           path: '/document-group',
-          builder: (context, state) => DocumentGroupListScreen(
-            viewModel: DocumentGroupListViewModel(
+          builder: (context, state) => DocumentGroupWithTemplatesScreen(
+            viewModel: DocumentGroupWithTemplatesViewModel(
               companyRepository: context.read<CompanyRepository>(),
               documentGroupRepository:
                   context.read<DocumentGroupRepository>(),
@@ -359,16 +357,6 @@ class _AppRouterState extends State<_AppRouter> {
         ),
 
         // ─── Document Template ────────────────────────────────────────────
-        GoRoute(
-          path: '/document-template',
-          builder: (context, state) => DocumentTemplateListScreen(
-            viewModel: DocumentTemplateListViewModel(
-              companyRepository: context.read<CompanyRepository>(),
-              documentTemplateRepository:
-                  context.read<DocumentTemplateRepository>(),
-            ),
-          ),
-        ),
         GoRoute(
           path: '/document-template/create',
           builder: (context, state) => DocumentTemplateFormScreen(

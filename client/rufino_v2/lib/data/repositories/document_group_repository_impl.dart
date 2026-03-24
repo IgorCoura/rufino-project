@@ -1,6 +1,7 @@
 import '../../core/errors/document_group_exception.dart';
 import '../../core/result.dart';
 import '../../domain/entities/document_group.dart';
+import '../../domain/entities/document_group_with_templates.dart';
 import '../../domain/repositories/document_group_repository.dart';
 import '../models/document_group_api_model.dart';
 import '../services/document_group_api_service.dart';
@@ -21,6 +22,20 @@ class DocumentGroupRepositoryImpl implements DocumentGroupRepository {
       String companyId) async {
     try {
       final models = await apiService.getDocumentGroups(companyId);
+      return Result.success(models.map((m) => m.toEntity()).toList());
+    } on DocumentGroupException catch (e) {
+      return Result.error(e);
+    } catch (e) {
+      return Result.error(DocumentGroupNetworkException(e));
+    }
+  }
+
+  @override
+  Future<Result<List<DocumentGroupWithTemplates>>>
+      getDocumentGroupsWithTemplates(String companyId) async {
+    try {
+      final models =
+          await apiService.getDocumentGroupsWithTemplates(companyId);
       return Result.success(models.map((m) => m.toEntity()).toList());
     } on DocumentGroupException catch (e) {
       return Result.error(e);

@@ -56,6 +56,14 @@ namespace PeopleManagement.API.Controllers
             return OkResponse(result);
         }
 
+        [HttpGet("withtemplates")]
+        [ProtectedResource("DocumentGroup", "view")]
+        public async Task<ActionResult<IEnumerable<DocumentGroupWithTemplatesDto>>> GetAllWithTemplates([FromRoute] Guid company)
+        {
+            var result = await _queries.GetAllWithTemplates(company);
+            return OkResponse(result);
+        }
+
         [HttpGet("withdocuments/{employeeId}")]
         [ProtectedResource("DocumentGroup", "view")]
         public async Task<ActionResult<IEnumerable<DocumentGroupWithDocumentsDto>>> GetAllWithDocuments([FromRoute] Guid company, [FromRoute] Guid employeeId)
