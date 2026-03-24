@@ -35,12 +35,40 @@ body{
 .header{
     display: flex;
     flex-direction: row;
-    justify-content: space-between;
+    justify-content: center;
+    align-items: center;
 }
 
 .header-item{
     text-align: center;
-    width: 70mm;
+}
+
+.header-title{
+    flex: 1;
+    text-align: center;
+    padding: 5mm 0mm;
+}
+
+.title-main{
+    font-size: 15mm;
+    font-weight: bold;
+    color: #4141A5;
+    letter-spacing: 3mm;
+    text-transform: uppercase;
+    line-height: 1.2;
+}
+
+.title-sub{
+    font-size: 3.5mm;
+    color: #666;
+    letter-spacing: 1mm;
+    margin-top: 1.5mm;
+    font-weight: 500;
+}
+
+.header-logo{
+    flex-shrink: 0;
+    width: auto;
 }
 
 .header-item-content{
@@ -94,11 +122,69 @@ body{
     justify-content: space-around;
 }
 
-.signature-local{
+.signature-local-1{
     max-width: 90mm;
     min-width: 90mm;
     text-align: center;
-    border-bottom: 0.3mm  solid black;
+    border-bottom: 0.5mm  solid black;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    align-items: center;
+    position: relative;
+}
+
+.signature-local-2{
+    max-width: 90mm;
+    min-width: 90mm;
+    text-align: center;
+    border-bottom: 0.5mm  solid black;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    align-items: center;
+    position: relative;
+}
+
+.signature-local-1 img{
+    margin-bottom: -7mm;
+}
+
+.signature-local-2 img{
+    margin-bottom: 3mm;
+}
+
+.signed-content{
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 2mm;
+}
+
+.signed-icon{
+    height: 8mm;
+    width: auto;
+}
+
+.signed-text{
+    display: flex;
+    flex-direction: column;
+    text-align: left;
+}
+
+.signed-label{
+    font-size: 3mm;
+    color: #666;
+    line-height: 1.2;
+}
+
+.signed-name{
+    font-size: 4mm;
+    font-weight: bold;
+    color: #4141A5;
+    line-height: 1.2;
 }
 
 .signature-info{
@@ -144,7 +230,10 @@ body{
 
 .verso-subtitle{
     font-weight: bold;
-    padding-bottom: 5mm;
+}
+
+.verso-content-item{
+    padding-top: 2mm;
 }
 
 .verso-foot{
@@ -153,120 +242,3 @@ body{
     justify-content: space-between;
 }
 
-/* .header{
-    display: flex;
-}
-.qrcode{
-    width: 35mm;
-    font-size: 1.7mm;
-    text-align: center;
-    margin: 2mm;
-}
-.title{
-    display: flex;
-    align-items: center;
-    text-align: center;
-    font-size: 4.5mm;
-    font-weight: 900;
-    padding: 2mm;
-}
-
-.body{
-    margin-top: 1mm;
-    font-size: 2.5mm;
-}
-
-.table-data{
-    border: 0.3mm solid black;
-    margin-bottom: 1.5mm;
-}
-
-.table-data-title{
-    text-align: center;
-    border-bottom: 0.3mm solid black;
-    font-weight: 900;
-}
-
-.table-data-content{
-    text-align: left;
-    margin: 0.5mm;
-    word-wrap: break-word;
-}
-
-.table-data-content-line{
-    display: flex;
-    flex-direction: row;
-    align-items: center;
-    word-wrap: break-word;
-    margin: 0.2mm;
-}
-
-.table-data-content-line-inline{
-    display: flex;
-    flex-direction: row;
-    align-items: center;
-    word-wrap: break-word;
-}
-
-.table-data-content-line-title{
-    font-weight: 900;
-    word-wrap: break-word;
-}
-
-.table-data-content-line-text{
-    margin-left: 1mm;
-    word-break: break-all;
-}
-
-.div-table-title{
-    text-align: center;
-    border-top: 0.3mm solid black;
-    border-left: 0.3mm solid black;
-    border-right: 0.3mm  solid black;
-    font-weight: bold;
-    padding: 1mm;
-  }
-
-.div-table {
-    box-sizing: border-box;
-    display: table;
-    width: 100%;
-    table-layout:auto;
-    border: 0.3mm solid black;
-    border-collapse: collapse;
-}
-
-.div-table-row {
-    display: table-row;
-}
-
-.div-table-cell {
-    display: table-cell;
-    padding: 1mm;
-    border: 0.3mm solid black;
-    text-align: center;
-}
-
-.div-table-head {
-    display: table-cell;
-    padding: 1mm;
-    font-weight: bold;
-    background-color: lightgray;
-    border: 0.3mm solid black;
-    text-align: center;
-}
-
-.col-descricao{
-    word-break: break-all;
-    text-align: start;
-}
-
-.div-table-total{
-    display: flex;
-    justify-content: end;
-    border-bottom: 0.3mm  solid black;
-    border-left: 0.3mm  solid black;
-    border-right: 0.3mm solid black;
-    font-weight: bold;
-    padding: 1mm;
-  } */

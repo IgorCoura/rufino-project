@@ -42,8 +42,14 @@ class _DocumentTemplateListScreenState
       appBar: AppBar(
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
-          tooltip: 'Voltar para funcionários',
-          onPressed: () => context.go('/employee'),
+          tooltip: 'Voltar',
+          onPressed: () {
+            if (context.canPop()) {
+              context.pop();
+            } else {
+              context.go('/home');
+            }
+          },
         ),
         title: const Text('Templates de Documentos'),
       ),

@@ -3,7 +3,6 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../domain/entities/require_document.dart';
-import '../../../../domain/entities/selection_option.dart';
 import '../viewmodel/require_document_form_viewmodel.dart';
 
 /// Form screen for creating or editing a require document.
@@ -441,8 +440,13 @@ class _ListenEventsSection extends StatelessWidget {
                 .where((e) => !viewModel.listenEvents
                     .any((le) => le.eventId.toString() == e.id))
                 .toList();
+            final effectiveValue = selectedId != null &&
+                    available.any((e) => e.id == selectedId)
+                ? selectedId
+                : null;
             return DropdownButtonFormField<String>(
-              value: selectedId,
+              key: ValueKey(effectiveValue),
+              value: effectiveValue,
               decoration: const InputDecoration(
                 labelText: 'Selecione um evento',
                 border: OutlineInputBorder(),
@@ -521,35 +525,22 @@ class _ListenEventCard extends StatelessWidget {
                       ),
                 ),
                 const SizedBox(height: AppSpacing.sm),
-                if (event.statuses.isEmpty)
-                  Text(
-                    'Nenhum status adicionado.',
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: cs.onSurfaceVariant,
-                        ),
-                  )
-                else
-                  Wrap(
-                    spacing: AppSpacing.sm,
-                    runSpacing: AppSpacing.xs,
-                    children: event.statuses
-                        .map((status) => InputChip(
-                              label: Text(status.name),
-                              onDeleted: () => viewModel
-                                  .removeStatusFromEvent(
-                                      event.eventId, status.id),
-                            ))
-                        .toList(),
-                  ),
-                const SizedBox(height: AppSpacing.sm),
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: TextButton.icon(
-                    onPressed: () =>
-                        _showAddStatusDialog(context, event.eventId),
-                    icon: const Icon(Icons.add, size: 18),
-                    label: const Text('Adicionar Status'),
-                  ),
+                Wrap(
+                  spacing: AppSpacing.sm,
+                  runSpacing: AppSpacing.xs,
+                  children: viewModel.availableStatuses.map((status) {
+                    final statusId = int.tryParse(status.id) ?? 0;
+                    final selected =
+                        event.statuses.any((s) => s.id == statusId);
+                    return FilterChip(
+                      label: Text(status.name),
+                      selected: selected,
+                      onSelected: (_) => viewModel.toggleStatusOnEvent(
+                        event.eventId,
+                        status.id,
+                      ),
+                    );
+                  }).toList(),
                 ),
               ],
             ),
@@ -559,55 +550,6 @@ class _ListenEventCard extends StatelessWidget {
     );
   }
 
-  Future<void> _showAddStatusDialog(
-      BuildContext context, int eventId) async {
-    String? selectedId;
-    await showDialog<void>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Adicionar Status'),
-        content: StatefulBuilder(
-          builder: (context, setDialogState) {
-            final currentStatuses = viewModel.listenEvents
-                .where((e) => e.eventId == eventId)
-                .firstOrNull
-                ?.statuses ?? [];
-            final available = viewModel.availableStatuses
-                .where((s) =>
-                    !currentStatuses.any((cs) => cs.id.toString() == s.id))
-                .toList();
-            return DropdownButtonFormField<String>(
-              value: selectedId,
-              decoration: const InputDecoration(
-                labelText: 'Selecione um status',
-                border: OutlineInputBorder(),
-              ),
-              items: available
-                  .map((s) => DropdownMenuItem<String>(
-                      value: s.id, child: Text(s.name)))
-                  .toList(),
-              onChanged: (v) => setDialogState(() => selectedId = v),
-            );
-          },
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(),
-            child: const Text('Cancelar'),
-          ),
-          FilledButton(
-            onPressed: () {
-              if (selectedId != null) {
-                viewModel.addStatusToEvent(eventId, selectedId!);
-              }
-              Navigator.of(dialogContext).pop();
-            },
-            child: const Text('Adicionar'),
-          ),
-        ],
-      ),
-    );
-  }
 }
 
 /// Save and cancel action buttons for the form.

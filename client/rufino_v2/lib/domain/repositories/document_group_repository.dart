@@ -1,5 +1,6 @@
 import '../../core/result.dart';
 import '../entities/document_group.dart';
+import '../entities/document_group_with_templates.dart';
 
 /// Contract for accessing and mutating document group data.
 ///
@@ -9,6 +10,10 @@ import '../entities/document_group.dart';
 abstract class DocumentGroupRepository {
   /// Returns all document groups for the given [companyId].
   Future<Result<List<DocumentGroup>>> getDocumentGroups(String companyId);
+
+  /// Returns all document groups with their nested templates for [companyId].
+  Future<Result<List<DocumentGroupWithTemplates>>>
+      getDocumentGroupsWithTemplates(String companyId);
 
   /// Creates a new document group and returns the generated id.
   Future<Result<String>> createDocumentGroup(

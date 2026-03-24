@@ -150,6 +150,7 @@ class RequireDocumentRepositoryImpl implements RequireDocumentRepository {
       final requireDocEvents =
           await apiService.getRequireDocumentEvents(companyId);
 
+      final seen = <String>{};
       final combined = <SelectionOption>[
         ...employeeEvents.map((j) => SelectionOption(
               id: (j['id']).toString(),
@@ -159,7 +160,7 @@ class RequireDocumentRepositoryImpl implements RequireDocumentRepository {
               id: (j['id']).toString(),
               name: _translateEventName(j['name'] as String? ?? ''),
             )),
-      ];
+      ].where((e) => seen.add(e.id)).toList();
 
       return Result.success(combined);
     } on RequireDocumentException catch (e) {

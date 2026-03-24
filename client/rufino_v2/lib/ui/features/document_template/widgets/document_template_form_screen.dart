@@ -220,7 +220,9 @@ class _DocumentTemplateFormBody extends StatelessWidget {
                     ),
                     const SizedBox(height: AppSpacing.md),
                     DropdownButtonFormField<String>(
-                      value: viewModel.selectedDocumentGroupId.isNotEmpty
+                      value: viewModel.selectedDocumentGroupId.isNotEmpty &&
+                              viewModel.documentGroups.any((g) =>
+                                  g.id == viewModel.selectedDocumentGroupId)
                           ? viewModel.selectedDocumentGroupId
                           : null,
                       decoration: const InputDecoration(
@@ -634,7 +636,9 @@ class _SignatureCard extends StatelessWidget {
               ),
               const SizedBox(height: AppSpacing.sm),
               DropdownButtonFormField<String>(
-                value: signature.typeSignatureId.isNotEmpty
+                value: signature.typeSignatureId.isNotEmpty &&
+                        viewModel.typeSignatures.any(
+                            (t) => t.id == signature.typeSignatureId)
                     ? signature.typeSignatureId
                     : null,
                 decoration: const InputDecoration(
@@ -816,7 +820,49 @@ class _DataModelsSectionState extends State<_DataModelsSection> {
                 child: Padding(
                   padding: const EdgeInsets.all(AppSpacing.sm),
                   child: SingleChildScrollView(
-                    child: JsonView.string(raw),
+                    child: JsonView.string(
+                      raw,
+                      theme: Theme.of(context).brightness == Brightness.dark
+                          ? const JsonViewTheme()
+                          : JsonViewTheme(
+                              backgroundColor:
+                                  Theme.of(context).colorScheme.surfaceContainer,
+                              defaultTextStyle: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w500,
+                                color: Theme.of(context).colorScheme.onSurface,
+                              ),
+                              keyStyle: TextStyle(
+                                color: Theme.of(context).colorScheme.primary,
+                              ),
+                              intStyle: TextStyle(
+                                color: Theme.of(context).colorScheme.tertiary,
+                              ),
+                              doubleStyle: TextStyle(
+                                color: Theme.of(context).colorScheme.tertiary,
+                              ),
+                              boolStyle: TextStyle(
+                                color: Theme.of(context)
+                                    .colorScheme
+                                    .secondary,
+                              ),
+                              stringStyle: TextStyle(
+                                color: Theme.of(context)
+                                    .colorScheme
+                                    .error,
+                              ),
+                              openIcon: Icon(
+                                Icons.arrow_drop_down,
+                                size: 18,
+                                color: Theme.of(context).colorScheme.onSurface,
+                              ),
+                              closeIcon: Icon(
+                                Icons.arrow_drop_up,
+                                size: 18,
+                                color: Theme.of(context).colorScheme.onSurface,
+                              ),
+                            ),
+                    ),
                   ),
                 ),
               );

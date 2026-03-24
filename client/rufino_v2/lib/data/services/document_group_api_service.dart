@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 import '../models/document_group_api_model.dart';
+import '../models/document_group_with_templates_api_model.dart';
 
 /// HTTP client for the document group endpoints of the people-management service.
 ///
@@ -38,6 +39,20 @@ class DocumentGroupApiService {
     return list
         .map((e) =>
             DocumentGroupApiModel.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  /// Fetches all document groups with their nested templates for [companyId].
+  Future<List<DocumentGroupWithTemplatesApiModel>>
+      getDocumentGroupsWithTemplates(String companyId) async {
+    final uri =
+        Uri.https(baseUrl, '/api/v1/$companyId/documentgroup/withtemplates');
+    final response = await client.get(uri, headers: await _headers());
+    _checkStatus(response);
+    final list = jsonDecode(response.body) as List<dynamic>;
+    return list
+        .map((e) => DocumentGroupWithTemplatesApiModel.fromJson(
+            e as Map<String, dynamic>))
         .toList();
   }
 

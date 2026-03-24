@@ -25,6 +25,15 @@ abstract final class AppConfig {
     'people_management_url',
   );
 
+  /// Environment mode: "develop" or "production".
+  static const String environment = String.fromEnvironment(
+    'environment',
+    defaultValue: 'production',
+  );
+
+  /// Whether the app is running in development mode.
+  static bool get isDevelop => environment == 'develop';
+
   /// Validates that all required secrets were injected at compile time.
   /// Call this in main() to fail fast with a clear error.
   static void assertConfigured() {

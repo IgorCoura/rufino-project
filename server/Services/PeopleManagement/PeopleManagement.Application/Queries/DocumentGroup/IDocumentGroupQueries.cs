@@ -6,5 +6,6 @@ namespace PeopleManagement.Application.Queries.DocumentGroup
     {
         Task<IEnumerable<DocumentGroupDto>> GetAll(Guid company);
         Task<IEnumerable<DocumentGroupWithDocumentsDto>> GetAllWithDocuments(Guid companyId, Guid employeeId);
+        Task<IEnumerable<DocumentGroupWithTemplatesDto>> GetAllWithTemplates(Guid companyId);
     }
 }

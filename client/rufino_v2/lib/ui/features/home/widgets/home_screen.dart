@@ -220,7 +220,7 @@ class _HomeBody extends StatelessWidget {
                   ),
                   _MenuCard(
                     icon: Icons.folder_outlined,
-                    label: 'Grupos de Documentos',
+                    label: 'Documentos',
                     onTap: () => context.go('/document-group'),
                   ),
                   _MenuCard(
