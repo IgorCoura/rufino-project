@@ -22,6 +22,15 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   @override
+  void didUpdateWidget(covariant LoginScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.viewModel != widget.viewModel) {
+      oldWidget.viewModel.removeListener(_onStatusChanged);
+      widget.viewModel.addListener(_onStatusChanged);
+    }
+  }
+
+  @override
   void dispose() {
     widget.viewModel.removeListener(_onStatusChanged);
     super.dispose();

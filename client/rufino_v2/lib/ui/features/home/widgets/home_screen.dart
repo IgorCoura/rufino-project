@@ -25,6 +25,16 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   @override
+  void didUpdateWidget(covariant HomeScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.viewModel != widget.viewModel) {
+      oldWidget.viewModel.removeListener(_onStatusChanged);
+      widget.viewModel.addListener(_onStatusChanged);
+      widget.viewModel.loadCompany();
+    }
+  }
+
+  @override
   void dispose() {
     widget.viewModel.removeListener(_onStatusChanged);
     super.dispose();
@@ -207,6 +217,16 @@ class _HomeBody extends StatelessWidget {
                     icon: Icons.apartment_outlined,
                     label: 'Setores',
                     onTap: () => context.go('/department'),
+                  ),
+                  _MenuCard(
+                    icon: Icons.folder_outlined,
+                    label: 'Grupos de Documentos',
+                    onTap: () => context.go('/document-group'),
+                  ),
+                  _MenuCard(
+                    icon: Icons.description_outlined,
+                    label: 'Requerimentos de Documentos',
+                    onTap: () => context.go('/require-document'),
                   ),
                 ],
               ),

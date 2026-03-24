@@ -25,6 +25,7 @@ dependencies:
   material_symbols_icons: ^4.2719.1
   shimmer: ^3.0.0
   mask_text_input_formatter: ^2.9.0
+  flutter_json_view: ^1.1.5
 
 dev_dependencies:
   flutter_test:

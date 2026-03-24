@@ -36,6 +36,16 @@ class _RoleFormScreenState extends State<RoleFormScreen> {
   }
 
   @override
+  void didUpdateWidget(covariant RoleFormScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.viewModel != widget.viewModel) {
+      oldWidget.viewModel.removeListener(_onViewModelChanged);
+      widget.viewModel.addListener(_onViewModelChanged);
+      widget.viewModel.initialize(roleId: widget.roleId);
+    }
+  }
+
+  @override
   void dispose() {
     widget.viewModel.removeListener(_onViewModelChanged);
     super.dispose();

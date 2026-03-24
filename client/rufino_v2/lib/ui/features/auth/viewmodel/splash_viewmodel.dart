@@ -38,7 +38,8 @@ class SplashViewModel extends ChangeNotifier {
       }
 
       final validIds = idsResult.valueOrNull!;
-      final hasCompanyResult = await _companyRepository.verifyAndSelectCompany(validIds);
+      final hasCompanyResult =
+          await _companyRepository.verifyAndSelectCompany(validIds);
 
       if (hasCompanyResult.isError) {
         _status = SplashStatus.error;
@@ -48,6 +49,8 @@ class SplashViewModel extends ChangeNotifier {
       _status = hasCompanyResult.valueOrNull == true
           ? SplashStatus.authenticated
           : SplashStatus.noCompany;
+    } catch (_) {
+      _status = SplashStatus.error;
     } finally {
       notifyListeners();
     }

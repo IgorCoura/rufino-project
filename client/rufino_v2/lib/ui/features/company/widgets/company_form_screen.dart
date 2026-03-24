@@ -31,6 +31,18 @@ class _CompanyFormScreenState extends State<CompanyFormScreen> {
   }
 
   @override
+  void didUpdateWidget(covariant CompanyFormScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.viewModel != widget.viewModel) {
+      oldWidget.viewModel.removeListener(_onStatusChanged);
+      widget.viewModel.addListener(_onStatusChanged);
+      if (widget.companyId != null) {
+        widget.viewModel.loadCompany(widget.companyId!);
+      }
+    }
+  }
+
+  @override
   void dispose() {
     widget.viewModel.removeListener(_onStatusChanged);
     super.dispose();
