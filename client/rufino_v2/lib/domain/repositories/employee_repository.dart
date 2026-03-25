@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 
 import '../../core/result.dart';
+import '../../data/models/document_range_item.dart';
 import '../entities/address.dart';
 import '../entities/employee.dart';
 import '../entities/employee_contact.dart';
@@ -316,5 +317,67 @@ abstract class EmployeeRepository {
     String employeeId,
     String documentId,
     String documentUnitId,
+  );
+
+  /// Generates a PDF for a document unit and returns the raw bytes.
+  Future<Result<Uint8List>> generateDocument(
+    String companyId,
+    String employeeId,
+    String documentId,
+    String documentUnitId,
+  );
+
+  /// Generates a document and sends it for digital signature.
+  Future<Result<void>> generateAndSendToSign(
+    String companyId,
+    String employeeId,
+    String documentId,
+    String documentUnitId,
+    String dateLimitToSign,
+    int reminderEveryNDays,
+  );
+
+  /// Downloads the file attached to a document unit.
+  Future<Result<Uint8List>> downloadDocumentUnit(
+    String companyId,
+    String employeeId,
+    String documentId,
+    String documentUnitId,
+  );
+
+  /// Uploads a file to a document unit.
+  Future<Result<void>> uploadDocumentUnit(
+    String companyId,
+    String employeeId,
+    String documentId,
+    String documentUnitId,
+    Uint8List fileBytes,
+    String fileName,
+  );
+
+  /// Uploads a file to a document unit and sends it for digital signature.
+  Future<Result<void>> uploadDocumentUnitToSign(
+    String companyId,
+    String employeeId,
+    String documentId,
+    String documentUnitId,
+    Uint8List fileBytes,
+    String fileName,
+    String dateLimitToSign,
+    int reminderEveryNDays,
+  );
+
+  /// Generates PDFs for multiple document units and returns the ZIP bytes.
+  Future<Result<Uint8List>> generateDocumentRange(
+    String companyId,
+    String employeeId,
+    List<DocumentRangeItem> items,
+  );
+
+  /// Downloads files for multiple document units and returns the ZIP bytes.
+  Future<Result<Uint8List>> downloadDocumentRange(
+    String companyId,
+    String employeeId,
+    List<DocumentRangeItem> items,
   );
 }

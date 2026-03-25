@@ -442,6 +442,8 @@ class _AppRouterState extends State<_AppRouter> {
               employeeRepository: context.read<EmployeeRepository>(),
               departmentRepository: context.read<DepartmentRepository>(),
               workplaceRepository: context.read<WorkplaceRepository>(),
+              documentGroupRepository:
+                  context.read<DocumentGroupRepository>(),
             ),
           ),
         ),

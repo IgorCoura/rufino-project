@@ -1,10 +1,13 @@
+import 'dart:collection';
 import 'dart:typed_data';
 
 import 'package:flutter/foundation.dart';
 
+import '../../../../data/models/document_range_item.dart';
 import '../../../../domain/entities/address.dart';
 import '../../../../domain/entities/employee.dart';
 import '../../../../domain/entities/department.dart';
+import '../../../../domain/entities/document_group_with_documents.dart';
 import '../../../../domain/entities/employee_contact.dart';
 import '../../../../domain/entities/employee_document.dart';
 import '../../../../domain/entities/employee_contract.dart';
@@ -22,8 +25,39 @@ import '../../../../domain/entities/employee_vote_id.dart';
 import '../../../../domain/entities/personal_info_options.dart';
 import '../../../../domain/repositories/company_repository.dart';
 import '../../../../domain/repositories/department_repository.dart';
+import '../../../../domain/repositories/document_group_repository.dart';
 import '../../../../domain/repositories/employee_repository.dart';
 import '../../../../domain/repositories/workplace_repository.dart';
+
+/// Tracks a selected document unit for batch operations.
+class SelectedDocumentUnit {
+  const SelectedDocumentUnit({
+    required this.documentId,
+    required this.documentUnitId,
+    required this.documentName,
+    required this.documentUnitDate,
+    required this.canGenerate,
+    required this.hasFile,
+  });
+
+  /// The parent document id.
+  final String documentId;
+
+  /// The unit id.
+  final String documentUnitId;
+
+  /// The parent document name (for UI display).
+  final String documentName;
+
+  /// The unit date string (for UI display).
+  final String documentUnitDate;
+
+  /// Whether a PDF can be generated for this unit.
+  final bool canGenerate;
+
+  /// Whether this unit has an attached file.
+  final bool hasFile;
+}
 
 /// Possible states for the employee profile screen.
 enum EmployeeProfileStatus { loading, idle, saving, error }
@@ -46,15 +80,18 @@ class EmployeeProfileViewModel extends ChangeNotifier {
     required EmployeeRepository employeeRepository,
     required DepartmentRepository departmentRepository,
     required WorkplaceRepository workplaceRepository,
+    required DocumentGroupRepository documentGroupRepository,
   })  : _companyRepository = companyRepository,
         _employeeRepository = employeeRepository,
         _departmentRepository = departmentRepository,
-        _workplaceRepository = workplaceRepository;
+        _workplaceRepository = workplaceRepository,
+        _documentGroupRepository = documentGroupRepository;
 
   final CompanyRepository _companyRepository;
   final EmployeeRepository _employeeRepository;
   final DepartmentRepository _departmentRepository;
   final WorkplaceRepository _workplaceRepository;
+  final DocumentGroupRepository _documentGroupRepository;
 
   EmployeeProfileStatus _status = EmployeeProfileStatus.idle;
   String? _companyId;
@@ -132,7 +169,10 @@ class EmployeeProfileViewModel extends ChangeNotifier {
   // ─── Documents section ──────────────────────────────────────────────────
 
   SectionLoadStatus _documentsStatus = SectionLoadStatus.notLoaded;
-  List<EmployeeDocument> _documents = [];
+  List<DocumentGroupWithDocuments> _documentGroups = [];
+  bool _isSelectingRange = false;
+  List<SelectedDocumentUnit> _selectedDocumentUnits = [];
+  final Map<String, int> _pageSizeMap = {};
 
   // ─── Document signing options section ─────────────────────────────────────
 
@@ -312,8 +352,23 @@ class EmployeeProfileViewModel extends ChangeNotifier {
   /// The current load status of the documents section.
   SectionLoadStatus get documentsStatus => _documentsStatus;
 
-  /// The loaded list of required documents.
-  List<EmployeeDocument> get documents => _documents;
+  /// The loaded document groups with their documents.
+  List<DocumentGroupWithDocuments> get documentGroups => _documentGroups;
+
+  /// Whether the user is in range selection mode.
+  bool get isSelectingRange => _isSelectingRange;
+
+  /// The currently selected document units for batch operations.
+  UnmodifiableListView<SelectedDocumentUnit> get selectedDocumentUnits =>
+      UnmodifiableListView(_selectedDocumentUnits);
+
+  /// Whether [documentUnitId] is currently selected for batch operations.
+  bool isDocumentUnitSelected(String documentUnitId) =>
+      _selectedDocumentUnits
+          .any((u) => u.documentUnitId == documentUnitId);
+
+  /// Returns the configured page size for [documentId], defaulting to 10.
+  int getPageSize(String documentId) => _pageSizeMap[documentId] ?? 10;
 
   // ─── Core profile methods ──────────────────────────────────────────────────
 
@@ -1121,8 +1176,8 @@ class EmployeeProfileViewModel extends ChangeNotifier {
 
   // ─── Documents section ──────────────────────────────────────────────────
 
-  /// Loads the list of required documents on first expansion.
-  Future<void> loadDocuments() async {
+  /// Loads the document groups with their documents on first expansion.
+  Future<void> loadDocumentGroups() async {
     if (_documentsStatus != SectionLoadStatus.notLoaded) return;
     final companyId = _companyId;
     final currentProfile = _profile;
@@ -1131,12 +1186,12 @@ class EmployeeProfileViewModel extends ChangeNotifier {
     _documentsStatus = SectionLoadStatus.loading;
     notifyListeners();
 
-    final result =
-        await _employeeRepository.getDocuments(companyId, currentProfile.id);
+    final result = await _documentGroupRepository
+        .getDocumentGroupsWithDocuments(companyId, currentProfile.id);
 
     result.fold(
       onSuccess: (data) {
-        _documents = data;
+        _documentGroups = data;
         _documentsStatus = SectionLoadStatus.loaded;
       },
       onError: (_) {
@@ -1147,35 +1202,178 @@ class EmployeeProfileViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Loads a specific document with paginated units and updates the list.
+  /// Loads a specific document with paginated units and updates
+  /// it inside its parent group.
   Future<void> loadDocumentUnits(
     String documentId, {
     int pageNumber = 1,
-    int pageSize = 10,
+    int? pageSize,
     int? statusId,
   }) async {
     final companyId = _companyId;
     final currentProfile = _profile;
     if (companyId == null || currentProfile == null) return;
 
+    final effectivePageSize = pageSize ?? getPageSize(documentId);
+
     final result = await _employeeRepository.getDocumentById(
       companyId,
       currentProfile.id,
       documentId,
       pageNumber: pageNumber,
-      pageSize: pageSize,
+      pageSize: effectivePageSize,
       statusId: statusId,
     );
 
     result.fold(
       onSuccess: (doc) {
-        _documents =
-            _documents.map((d) => d.id == documentId ? doc : d).toList();
+        _documentGroups = _documentGroups.map((group) {
+          final index =
+              group.documents.indexWhere((d) => d.id == documentId);
+          if (index == -1) return group;
+          final updatedDocs = List<EmployeeDocument>.from(group.documents);
+          updatedDocs[index] = doc;
+          return group.copyWithDocuments(updatedDocs);
+        }).toList();
       },
       onError: (_) {},
     );
 
     notifyListeners();
+  }
+
+  /// Toggles range selection mode on or off.
+  ///
+  /// Clears the selection list when turning off.
+  void toggleRangeSelectionMode() {
+    _isSelectingRange = !_isSelectingRange;
+    if (!_isSelectingRange) {
+      _selectedDocumentUnits = [];
+    }
+    notifyListeners();
+  }
+
+  /// Adds or removes [unit] from the range selection.
+  void toggleDocumentUnitSelection(SelectedDocumentUnit unit) {
+    final index = _selectedDocumentUnits
+        .indexWhere((u) => u.documentUnitId == unit.documentUnitId);
+    if (index != -1) {
+      _selectedDocumentUnits =
+          List.from(_selectedDocumentUnits)..removeAt(index);
+    } else {
+      _selectedDocumentUnits =
+          List.from(_selectedDocumentUnits)..add(unit);
+    }
+    notifyListeners();
+  }
+
+  /// Updates the page size for [documentId] and reloads units at page 1.
+  Future<void> changePageSize(String documentId, int pageSize) async {
+    _pageSizeMap[documentId] = pageSize;
+    await loadDocumentUnits(documentId, pageNumber: 1, pageSize: pageSize);
+  }
+
+  /// Generates PDFs for the selected document units and returns ZIP bytes.
+  ///
+  /// Returns `null` if no units can be generated or the call fails.
+  Future<Uint8List?> generateDocumentRange() async {
+    final companyId = _companyId;
+    final currentProfile = _profile;
+    if (companyId == null || currentProfile == null) return null;
+
+    final canGenerate =
+        _selectedDocumentUnits.where((u) => u.canGenerate).toList();
+    if (canGenerate.isEmpty) {
+      _snackMessage = 'Nenhum dos documentos selecionados pode ser gerado.';
+      notifyListeners();
+      return null;
+    }
+
+    final Map<String, List<String>> grouped = {};
+    for (final item in canGenerate) {
+      grouped.putIfAbsent(item.documentId, () => []);
+      grouped[item.documentId]!.add(item.documentUnitId);
+    }
+    final items = grouped.entries
+        .map((e) => DocumentRangeItem(
+              documentId: e.key,
+              documentUnitIds: e.value,
+            ))
+        .toList();
+
+    final result = await _employeeRepository.generateDocumentRange(
+      companyId,
+      currentProfile.id,
+      items,
+    );
+
+    Uint8List? bytes;
+    result.fold(
+      onSuccess: (data) {
+        bytes = data;
+        _snackMessage = 'Documentos gerados com sucesso!';
+        _isSelectingRange = false;
+        _selectedDocumentUnits = [];
+      },
+      onError: (_) {
+        _snackMessage = 'Erro ao gerar documentos.';
+      },
+    );
+
+    notifyListeners();
+    return bytes;
+  }
+
+  /// Downloads files for the selected document units and returns ZIP bytes.
+  ///
+  /// Returns `null` if no units have files or the call fails.
+  Future<Uint8List?> downloadDocumentRange() async {
+    final companyId = _companyId;
+    final currentProfile = _profile;
+    if (companyId == null || currentProfile == null) return null;
+
+    final canDownload =
+        _selectedDocumentUnits.where((u) => u.hasFile).toList();
+    if (canDownload.isEmpty) {
+      _snackMessage =
+          'Nenhum dos documentos selecionados possui arquivo para download.';
+      notifyListeners();
+      return null;
+    }
+
+    final Map<String, List<String>> grouped = {};
+    for (final item in canDownload) {
+      grouped.putIfAbsent(item.documentId, () => []);
+      grouped[item.documentId]!.add(item.documentUnitId);
+    }
+    final items = grouped.entries
+        .map((e) => DocumentRangeItem(
+              documentId: e.key,
+              documentUnitIds: e.value,
+            ))
+        .toList();
+
+    final result = await _employeeRepository.downloadDocumentRange(
+      companyId,
+      currentProfile.id,
+      items,
+    );
+
+    Uint8List? bytes;
+    result.fold(
+      onSuccess: (data) {
+        bytes = data;
+        _snackMessage = 'Documentos baixados com sucesso!';
+        _isSelectingRange = false;
+        _selectedDocumentUnits = [];
+      },
+      onError: (_) {
+        _snackMessage = 'Erro ao baixar documentos.';
+      },
+    );
+
+    notifyListeners();
+    return bytes;
   }
 
   /// Creates a new document unit and refreshes the document.
@@ -1247,6 +1445,161 @@ class EmployeeProfileViewModel extends ChangeNotifier {
       onSuccess: (_) =>
           _snackMessage = 'Documento marcado como não aplicável.',
       onError: (_) => _snackMessage = 'Erro ao marcar documento.',
+    );
+
+    notifyListeners();
+    await loadDocumentUnits(documentId);
+  }
+
+  /// Generates a PDF for a document unit and returns the raw bytes.
+  ///
+  /// Returns null if the operation fails. Shows a snack message on error.
+  Future<Uint8List?> generateDocument(
+    String documentId,
+    String documentUnitId,
+  ) async {
+    final companyId = _companyId;
+    final currentProfile = _profile;
+    if (companyId == null || currentProfile == null) return null;
+
+    Uint8List? bytes;
+    final result = await _employeeRepository.generateDocument(
+      companyId,
+      currentProfile.id,
+      documentId,
+      documentUnitId,
+    );
+
+    result.fold(
+      onSuccess: (data) {
+        bytes = data;
+        _snackMessage = 'Documento gerado com sucesso.';
+      },
+      onError: (_) => _snackMessage = 'Erro ao gerar documento.',
+    );
+
+    notifyListeners();
+    await loadDocumentUnits(documentId);
+    return bytes;
+  }
+
+  /// Generates a document and sends it for digital signature.
+  Future<void> generateAndSendToSign(
+    String documentId,
+    String documentUnitId,
+    String dateLimitToSign,
+    int reminderEveryNDays,
+  ) async {
+    final companyId = _companyId;
+    final currentProfile = _profile;
+    if (companyId == null || currentProfile == null) return;
+
+    final result = await _employeeRepository.generateAndSendToSign(
+      companyId,
+      currentProfile.id,
+      documentId,
+      documentUnitId,
+      dateLimitToSign,
+      reminderEveryNDays,
+    );
+
+    result.fold(
+      onSuccess: (_) =>
+          _snackMessage = 'Documento gerado e enviado para assinatura.',
+      onError: (_) =>
+          _snackMessage = 'Erro ao gerar e enviar para assinatura.',
+    );
+
+    notifyListeners();
+    await loadDocumentUnits(documentId);
+  }
+
+  /// Downloads the file attached to a document unit and returns the bytes.
+  ///
+  /// Returns null if the operation fails.
+  Future<Uint8List?> downloadDocumentUnit(
+    String documentId,
+    String documentUnitId,
+  ) async {
+    final companyId = _companyId;
+    final currentProfile = _profile;
+    if (companyId == null || currentProfile == null) return null;
+
+    Uint8List? bytes;
+    final result = await _employeeRepository.downloadDocumentUnit(
+      companyId,
+      currentProfile.id,
+      documentId,
+      documentUnitId,
+    );
+
+    result.fold(
+      onSuccess: (data) => bytes = data,
+      onError: (_) => _snackMessage = 'Erro ao baixar documento.',
+    );
+
+    notifyListeners();
+    return bytes;
+  }
+
+  /// Uploads a file to a document unit and refreshes the document.
+  Future<void> uploadDocumentUnit(
+    String documentId,
+    String documentUnitId,
+    Uint8List fileBytes,
+    String fileName,
+  ) async {
+    final companyId = _companyId;
+    final currentProfile = _profile;
+    if (companyId == null || currentProfile == null) return;
+
+    final result = await _employeeRepository.uploadDocumentUnit(
+      companyId,
+      currentProfile.id,
+      documentId,
+      documentUnitId,
+      fileBytes,
+      fileName,
+    );
+
+    result.fold(
+      onSuccess: (_) => _snackMessage = 'Arquivo enviado com sucesso.',
+      onError: (_) => _snackMessage = 'Erro ao enviar arquivo.',
+    );
+
+    notifyListeners();
+    await loadDocumentUnits(documentId);
+  }
+
+  /// Uploads a file and sends it for digital signature.
+  Future<void> uploadDocumentUnitToSign(
+    String documentId,
+    String documentUnitId,
+    Uint8List fileBytes,
+    String fileName,
+    String dateLimitToSign,
+    int reminderEveryNDays,
+  ) async {
+    final companyId = _companyId;
+    final currentProfile = _profile;
+    if (companyId == null || currentProfile == null) return;
+
+    final result = await _employeeRepository.uploadDocumentUnitToSign(
+      companyId,
+      currentProfile.id,
+      documentId,
+      documentUnitId,
+      fileBytes,
+      fileName,
+      dateLimitToSign,
+      reminderEveryNDays,
+    );
+
+    result.fold(
+      onSuccess: (_) =>
+          _snackMessage = 'Arquivo enviado para assinatura com sucesso.',
+      onError: (_) =>
+          _snackMessage = 'Erro ao enviar arquivo para assinatura.',
     );
 
     notifyListeners();
