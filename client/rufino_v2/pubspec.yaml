@@ -1,0 +1,39 @@
+name: rufino_v2
+description: "Rufino HR Management App v2"
+publish_to: 'none'
+version: 2.0.0+1
+
+environment:
+  sdk: ^3.5.2
+
+dependencies:
+  flutter:
+    sdk: flutter
+  # State / DI / Routing
+  provider: ^6.1.2
+  nested: ^1.0.0
+  go_router: ^14.6.2
+  # Auth
+  oauth2: ^2.0.2
+  flutter_secure_storage: ^9.2.2
+  jwt_decoder: ^2.0.1
+  # HTTP
+  http: ^1.2.2
+  file_picker: ^8.1.7
+  # UI
+  google_fonts: ^6.2.1
+  material_symbols_icons: ^4.2719.1
+  shimmer: ^3.0.0
+  mask_text_input_formatter: ^2.9.0
+  flutter_json_view: ^1.1.5
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^4.0.0
+  mocktail: ^1.0.4
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/img/

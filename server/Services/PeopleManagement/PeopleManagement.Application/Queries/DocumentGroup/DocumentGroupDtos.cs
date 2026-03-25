@@ -34,5 +34,21 @@ namespace PeopleManagement.Application.Queries.DocumentGroup
         }
 
 
+        public record DocumentGroupWithTemplatesDto
+        {
+            public Guid Id { get; init; }
+            public string Name { get; init; } = string.Empty;
+            public string Description { get; init; } = string.Empty;
+            public Guid CompanyId { get; init; }
+            public List<DocumentTemplateOfGroupDto> DocumentTemplates { get; init; } = new();
+        }
+
+        public record DocumentTemplateOfGroupDto
+        {
+            public Guid Id { get; init; }
+            public string Name { get; init; } = string.Empty;
+            public string Description { get; init; } = string.Empty;
+        }
+
     }
 }
