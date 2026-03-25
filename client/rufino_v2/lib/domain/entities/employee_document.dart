@@ -9,6 +9,7 @@ class EmployeeDocument {
     required this.statusName,
     required this.isSignable,
     required this.canGenerateDocument,
+    required this.usePreviousPeriod,
     required this.totalUnitsCount,
     required this.units,
   });
@@ -28,6 +29,9 @@ class EmployeeDocument {
 
   /// Whether a PDF can be generated for this document.
   final bool canGenerateDocument;
+
+  /// Whether this document uses a previous period reference.
+  final bool usePreviousPeriod;
 
   /// Total number of units across all pages (for pagination).
   final int totalUnitsCount;

@@ -42,7 +42,11 @@ namespace PeopleManagement.Infra.Services
             };
 
             var response = await s3Client.GetObjectAsync(request, cancellationToken);
-            return response.ResponseStream;
+            var memoryStream = new MemoryStream();
+            await response.ResponseStream.CopyToAsync(memoryStream, cancellationToken);
+            response.ResponseStream.Dispose();
+            memoryStream.Position = 0;
+            return memoryStream;
         }
 
         public async Task DeleteAsync(string fileNameWithExtesion, string containerName, CancellationToken cancellationToken = default)

@@ -190,8 +190,7 @@ namespace PeopleManagement.API.Controllers
         public async Task<IActionResult> DownloadFile([FromRoute] Guid documentUnitId, [FromRoute] Guid documentId, [FromRoute] Guid employeeId,
             [FromRoute] Guid company)
         {
-            var stream = await _documentQueries.DownloadDocumentUnit(documentUnitId, documentId, employeeId, company);  
-            stream.Position = 0;
+            var stream = await _documentQueries.DownloadDocumentUnit(documentUnitId, documentId, employeeId, company);
             return File(stream, "application/octet-stream", $"{documentUnitId}.zip");
         }
 

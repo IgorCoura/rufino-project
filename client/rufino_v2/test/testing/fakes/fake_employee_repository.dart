@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 
 import 'package:rufino_v2/core/result.dart';
+import 'package:rufino_v2/data/models/document_range_item.dart';
 import 'package:rufino_v2/domain/entities/address.dart';
 import 'package:rufino_v2/domain/entities/employee.dart';
 import 'package:rufino_v2/domain/entities/employee_contact.dart';
@@ -182,6 +183,7 @@ class FakeEmployeeRepository implements EmployeeRepository {
       statusName: 'OK',
       isSignable: false,
       canGenerateDocument: true,
+      usePreviousPeriod: false,
       totalUnitsCount: 1,
       units: [
         DocumentUnit(
@@ -760,5 +762,102 @@ class FakeEmployeeRepository implements EmployeeRepository {
       return Result.error(Exception('setDocumentUnitNotApplicable failed'));
     }
     return const Result<void>.success(null);
+  }
+
+  @override
+  Future<Result<Uint8List>> generateDocument(
+    String companyId,
+    String employeeId,
+    String documentId,
+    String documentUnitId,
+  ) async {
+    if (_shouldFail) {
+      return Result.error(Exception('generateDocument failed'));
+    }
+    return Result.success(Uint8List.fromList([1, 2, 3]));
+  }
+
+  @override
+  Future<Result<void>> generateAndSendToSign(
+    String companyId,
+    String employeeId,
+    String documentId,
+    String documentUnitId,
+    String dateLimitToSign,
+    int reminderEveryNDays,
+  ) async {
+    if (_shouldFail) {
+      return Result.error(Exception('generateAndSendToSign failed'));
+    }
+    return const Result<void>.success(null);
+  }
+
+  @override
+  Future<Result<Uint8List>> downloadDocumentUnit(
+    String companyId,
+    String employeeId,
+    String documentId,
+    String documentUnitId,
+  ) async {
+    if (_shouldFail) {
+      return Result.error(Exception('downloadDocumentUnit failed'));
+    }
+    return Result.success(Uint8List.fromList([1, 2, 3]));
+  }
+
+  @override
+  Future<Result<void>> uploadDocumentUnit(
+    String companyId,
+    String employeeId,
+    String documentId,
+    String documentUnitId,
+    Uint8List fileBytes,
+    String fileName,
+  ) async {
+    if (_shouldFail) {
+      return Result.error(Exception('uploadDocumentUnit failed'));
+    }
+    return const Result<void>.success(null);
+  }
+
+  @override
+  Future<Result<void>> uploadDocumentUnitToSign(
+    String companyId,
+    String employeeId,
+    String documentId,
+    String documentUnitId,
+    Uint8List fileBytes,
+    String fileName,
+    String dateLimitToSign,
+    int reminderEveryNDays,
+  ) async {
+    if (_shouldFail) {
+      return Result.error(Exception('uploadDocumentUnitToSign failed'));
+    }
+    return const Result<void>.success(null);
+  }
+
+  @override
+  Future<Result<Uint8List>> generateDocumentRange(
+    String companyId,
+    String employeeId,
+    List<DocumentRangeItem> items,
+  ) async {
+    if (_shouldFail) {
+      return Result.error(Exception('generateDocumentRange failed'));
+    }
+    return Result.success(Uint8List.fromList([0x50, 0x4B]));
+  }
+
+  @override
+  Future<Result<Uint8List>> downloadDocumentRange(
+    String companyId,
+    String employeeId,
+    List<DocumentRangeItem> items,
+  ) async {
+    if (_shouldFail) {
+      return Result.error(Exception('downloadDocumentRange failed'));
+    }
+    return Result.success(Uint8List.fromList([0x50, 0x4B]));
   }
 }
