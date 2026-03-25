@@ -6,6 +6,8 @@ import 'package:rufino_v2/domain/entities/company.dart';
 import 'package:rufino_v2/domain/entities/employee.dart';
 import 'package:rufino_v2/domain/entities/department.dart';
 import 'package:rufino_v2/domain/entities/employee_contract.dart';
+import 'package:rufino_v2/domain/entities/document_group_with_documents.dart';
+import 'package:rufino_v2/domain/entities/employee_document.dart';
 import 'package:rufino_v2/domain/entities/employee_medical_exam.dart';
 import 'package:rufino_v2/domain/entities/position.dart';
 import 'package:rufino_v2/domain/entities/remuneration.dart';
@@ -20,6 +22,7 @@ import 'package:rufino_v2/ui/features/employee/widgets/employee_profile_screen.d
 
 import '../../../testing/fakes/fake_company_repository.dart';
 import '../../../testing/fakes/fake_department_repository.dart';
+import '../../../testing/fakes/fake_document_group_repository.dart';
 import '../../../testing/fakes/fake_employee_repository.dart';
 import '../../../testing/fakes/fake_workplace_repository.dart';
 
@@ -74,6 +77,7 @@ void main() {
   late FakeEmployeeRepository employeeRepository;
   late FakeDepartmentRepository departmentRepository;
   late FakeWorkplaceRepository workplaceRepository;
+  late FakeDocumentGroupRepository documentGroupRepository;
   late EmployeeProfileViewModel viewModel;
 
   setUp(() {
@@ -108,11 +112,47 @@ void main() {
     workplaceRepository = FakeWorkplaceRepository()
       ..setWorkplace(_fakeWorkplace)
       ..setWorkplaces([_fakeWorkplace]);
+    documentGroupRepository = FakeDocumentGroupRepository()
+      ..setGroupsWithDocuments(const [
+        DocumentGroupWithDocuments(
+          id: 'grp-1',
+          name: 'Grupo Contratual',
+          description: 'Documentos contratuais',
+          statusId: '1',
+          statusName: 'OK',
+          documents: [
+            EmployeeDocument(
+              id: 'doc-1',
+              name: 'Contrato de Trabalho',
+              description: 'Contrato CLT',
+              statusId: '3',
+              statusName: 'OK',
+              isSignable: false,
+              canGenerateDocument: true,
+              usePreviousPeriod: false,
+              totalUnitsCount: 1,
+              units: [
+                DocumentUnit(
+                  id: 'unit-1',
+                  statusId: '2',
+                  statusName: 'OK',
+                  date: '01/01/2026',
+                  validity: '',
+                  createdAt: '01/01/2026',
+                  hasFile: true,
+                  name: 'contrato.pdf',
+                ),
+              ],
+            ),
+          ],
+        ),
+      ]);
     viewModel = EmployeeProfileViewModel(
       companyRepository: companyRepository,
       employeeRepository: employeeRepository,
       departmentRepository: departmentRepository,
       workplaceRepository: workplaceRepository,
+      documentGroupRepository: documentGroupRepository,
     );
   });
 
@@ -1895,7 +1935,7 @@ void main() {
       expect(find.text('Documentos'), findsOneWidget);
     });
 
-    testWidgets('expands the Documentos section and shows document data',
+    testWidgets('expands the Documentos section and shows document groups',
         (tester) async {
       await tester.pumpWidget(buildSubject());
       await tester.pumpAndSettle();
@@ -1908,7 +1948,51 @@ void main() {
       await tester.tap(find.text('Documentos'));
       await tester.pumpAndSettle();
 
-      expect(find.text('Contrato de Trabalho'), findsOneWidget);
+      expect(find.text('Grupo Contratual'), findsOneWidget);
+    });
+
+    testWidgets(
+        'shows item count without page buttons when document has only one page',
+        (tester) async {
+      await tester.pumpWidget(buildSubject());
+      await tester.pumpAndSettle();
+
+      await tester.scrollUntilVisible(
+        find.text('Documentos'),
+        100,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.tap(find.text('Documentos'));
+      await tester.pumpAndSettle();
+
+      // Scroll to group and expand it.
+      await tester.scrollUntilVisible(
+        find.text('Grupo Contratual'),
+        200,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.tap(find.text('Grupo Contratual'));
+      await tester.pumpAndSettle();
+
+      // Scroll to document and expand it.
+      await tester.scrollUntilVisible(
+        find.text('Contrato de Trabalho'),
+        200,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.tap(find.text('Contrato de Trabalho'));
+      await tester.pumpAndSettle();
+
+      // Scroll down to reveal the item count.
+      for (var i = 0; i < 10; i++) {
+        await tester.drag(
+            find.byType(Scrollable).first, const Offset(0, -200));
+        await tester.pumpAndSettle();
+      }
+
+      // Shows item count but no "Página X de Y" text.
+      expect(find.text('1 item'), findsOneWidget);
+      expect(find.textContaining('Página'), findsNothing);
     });
   });
 }

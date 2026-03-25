@@ -679,6 +679,164 @@ class EmployeeApiService {
     _checkStatus(response);
   }
 
+  /// Generates a PDF for a document unit and returns the raw bytes.
+  Future<Uint8List> generateDocument(
+    String companyId,
+    String employeeId,
+    String documentId,
+    String documentUnitId,
+  ) async {
+    final uri = Uri.https(
+      baseUrl,
+      '/api/v1/$companyId/document/generate/$employeeId/$documentId/$documentUnitId',
+    );
+    final response = await client.get(uri, headers: await _headers());
+    _checkStatus(response);
+    return response.bodyBytes;
+  }
+
+  /// Generates a document and sends it for digital signature.
+  Future<void> generateAndSendToSign(
+    String companyId,
+    Map<String, dynamic> body,
+  ) async {
+    final uri = Uri.https(
+      baseUrl,
+      '/api/v1/$companyId/document/generate/send2sign',
+    );
+    final response = await client.post(
+      uri,
+      headers: await _headers(),
+      body: jsonEncode(body),
+    );
+    _checkStatus(response);
+  }
+
+  /// Downloads the file attached to a document unit.
+  Future<Uint8List> downloadDocumentUnit(
+    String companyId,
+    String employeeId,
+    String documentId,
+    String documentUnitId,
+  ) async {
+    final uri = Uri.https(
+      baseUrl,
+      '/api/v1/$companyId/document/download/$employeeId/$documentId/$documentUnitId',
+    );
+    final response = await client.get(uri, headers: await _headers());
+    _checkStatus(response);
+    return response.bodyBytes;
+  }
+
+  /// Uploads a file to a document unit via multipart form.
+  Future<void> uploadDocumentUnit(
+    String companyId,
+    String employeeId,
+    String documentId,
+    String documentUnitId,
+    Uint8List fileBytes,
+    String fileName,
+  ) async {
+    final uri = Uri.https(baseUrl, '/api/v1/$companyId/document/insert');
+    final request = http.MultipartRequest('POST', uri);
+    final headers = await _headers();
+    headers.remove('Content-Type'); // Let multipart set its own
+    request.headers.addAll(headers);
+    request.files.add(http.MultipartFile.fromBytes(
+      'formFile',
+      fileBytes,
+      filename: fileName,
+    ));
+    request.fields['DocumentUnitId'] = documentUnitId;
+    request.fields['DocumentId'] = documentId;
+    request.fields['EmployeeId'] = employeeId;
+    final streamedResponse = await request.send();
+    if (streamedResponse.statusCode < 200 ||
+        streamedResponse.statusCode >= 300) {
+      throw HttpException(
+        statusCode: streamedResponse.statusCode,
+        message: 'HTTP ${streamedResponse.statusCode}',
+      );
+    }
+  }
+
+  /// Uploads a file to a document unit and sends it for digital signature.
+  Future<void> uploadDocumentUnitToSign(
+    String companyId,
+    String employeeId,
+    String documentId,
+    String documentUnitId,
+    Uint8List fileBytes,
+    String fileName,
+    String dateLimitToSign,
+    int reminderEveryNDays,
+  ) async {
+    final uri =
+        Uri.https(baseUrl, '/api/v1/$companyId/document/insert/send2sign');
+    final request = http.MultipartRequest('POST', uri);
+    final headers = await _headers();
+    headers.remove('Content-Type');
+    request.headers.addAll(headers);
+    request.files.add(http.MultipartFile.fromBytes(
+      'formFile',
+      fileBytes,
+      filename: fileName,
+    ));
+    request.fields['DocumentUnitId'] = documentUnitId;
+    request.fields['DocumentId'] = documentId;
+    request.fields['EmployeeId'] = employeeId;
+    request.fields['DateLimitToSign'] = dateLimitToSign;
+    request.fields['EminderEveryNDays'] = reminderEveryNDays.toString();
+    final streamedResponse = await request.send();
+    if (streamedResponse.statusCode < 200 ||
+        streamedResponse.statusCode >= 300) {
+      throw HttpException(
+        statusCode: streamedResponse.statusCode,
+        message: 'HTTP ${streamedResponse.statusCode}',
+      );
+    }
+  }
+
+  // ─── Range operations ────────────────────────────────────────────────────
+
+  /// Generates PDFs for multiple document units and returns the ZIP bytes.
+  Future<Uint8List> generateDocumentRange(
+    String companyId,
+    String employeeId,
+    List<Map<String, dynamic>> items,
+  ) async {
+    final uri = Uri.https(
+      baseUrl,
+      '/api/v1/$companyId/document/generate/range/$employeeId',
+    );
+    final response = await client.post(
+      uri,
+      headers: await _headers(),
+      body: jsonEncode(items),
+    );
+    _checkStatus(response);
+    return response.bodyBytes;
+  }
+
+  /// Downloads files for multiple document units and returns the ZIP bytes.
+  Future<Uint8List> downloadDocumentRange(
+    String companyId,
+    String employeeId,
+    List<Map<String, dynamic>> items,
+  ) async {
+    final uri = Uri.https(
+      baseUrl,
+      '/api/v1/$companyId/document/download/range/$employeeId',
+    );
+    final response = await client.post(
+      uri,
+      headers: await _headers(),
+      body: jsonEncode(items),
+    );
+    _checkStatus(response);
+    return response.bodyBytes;
+  }
+
   // ─── Helpers ──────────────────────────────────────────────────────────────
 
   void _checkStatus(http.Response response) {

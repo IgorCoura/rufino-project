@@ -1,5 +1,6 @@
 import 'package:rufino_v2/core/result.dart';
 import 'package:rufino_v2/domain/entities/document_group.dart';
+import 'package:rufino_v2/domain/entities/document_group_with_documents.dart';
 import 'package:rufino_v2/domain/entities/document_group_with_templates.dart';
 import 'package:rufino_v2/domain/repositories/document_group_repository.dart';
 
@@ -9,6 +10,7 @@ import 'package:rufino_v2/domain/repositories/document_group_repository.dart';
 class FakeDocumentGroupRepository implements DocumentGroupRepository {
   List<DocumentGroup> _groups = [];
   List<DocumentGroupWithTemplates> _groupsWithTemplates = [];
+  List<DocumentGroupWithDocuments> _groupsWithDocuments = [];
   bool _shouldFail = false;
 
   void setGroups(List<DocumentGroup> groups) => _groups = groups;
@@ -16,6 +18,10 @@ class FakeDocumentGroupRepository implements DocumentGroupRepository {
   /// Sets the groups with templates returned by [getDocumentGroupsWithTemplates].
   void setGroupsWithTemplates(List<DocumentGroupWithTemplates> groups) =>
       _groupsWithTemplates = groups;
+
+  /// Sets the groups with documents returned by [getDocumentGroupsWithDocuments].
+  void setGroupsWithDocuments(List<DocumentGroupWithDocuments> groups) =>
+      _groupsWithDocuments = groups;
 
   void setShouldFail(bool value) => _shouldFail = value;
 
@@ -69,5 +75,16 @@ class FakeDocumentGroupRepository implements DocumentGroupRepository {
     }
     lastUpdatedGroupId = id;
     return Result.success(id);
+  }
+
+  @override
+  Future<Result<List<DocumentGroupWithDocuments>>>
+      getDocumentGroupsWithDocuments(
+          String companyId, String employeeId) async {
+    if (_shouldFail) {
+      return Result.error(
+          Exception('getDocumentGroupsWithDocuments failed'));
+    }
+    return Result.success(_groupsWithDocuments);
   }
 }
