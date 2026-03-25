@@ -79,7 +79,27 @@ namespace PeopleManagement.Application.Queries.DocumentGroup
             return result;
         }
 
-       
+        public async Task<IEnumerable<DocumentGroupWithTemplatesDto>> GetAllWithTemplates(Guid companyId)
+        {
+            var query = from dg in _context.DocumentGroups.AsNoTracking()
+                        where dg.CompanyId == companyId
+                        join dt in _context.DocumentTemplates.AsNoTracking() on dg.Id equals dt.DocumentGroupId into templates
+                        select new DocumentGroupWithTemplatesDto
+                        {
+                            Id = dg.Id,
+                            Name = dg.Name.Value,
+                            Description = dg.Description.Value,
+                            CompanyId = dg.CompanyId,
+                            DocumentTemplates = templates.Select(t => new DocumentTemplateOfGroupDto
+                            {
+                                Id = t.Id,
+                                Name = t.Name.Value,
+                                Description = t.Description.Value,
+                            }).ToList()
+                        };
+
+            return await query.ToListAsync();
+        }
 
     }
 }
