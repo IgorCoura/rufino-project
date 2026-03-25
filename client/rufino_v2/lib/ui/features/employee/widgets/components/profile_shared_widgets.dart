@@ -11,11 +11,15 @@ class ExpandableSectionCard extends StatefulWidget {
     required this.title,
     required this.child,
     required this.onExpand,
+    this.trailing,
   });
 
   final String title;
   final Widget child;
   final VoidCallback onExpand;
+
+  /// Optional trailing widget shown in the tile header.
+  final Widget? trailing;
 
   @override
   State<ExpandableSectionCard> createState() => _ExpandableSectionCardState();
@@ -30,9 +34,16 @@ class _ExpandableSectionCardState extends State<ExpandableSectionCard> {
     return Card.outlined(
       clipBehavior: Clip.antiAlias,
       child: ExpansionTile(
-        title: Text(
-          widget.title,
-          style: Theme.of(context).textTheme.titleMedium,
+        title: Row(
+          children: [
+            Expanded(
+              child: Text(
+                widget.title,
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
+            ),
+            if (widget.trailing != null) widget.trailing!,
+          ],
         ),
         onExpansionChanged: (expanded) {
           if (expanded && !_loadTriggered) {

@@ -2,6 +2,7 @@ import 'dart:typed_data';
 
 import '../../core/errors/employee_exception.dart';
 import '../../core/result.dart';
+import '../models/document_range_item.dart';
 import '../../domain/entities/address.dart';
 import '../../domain/entities/employee.dart';
 import '../../domain/entities/employee_contact.dart';
@@ -745,6 +746,158 @@ class EmployeeRepositoryImpl implements EmployeeRepository {
       };
       await apiService.setDocumentUnitNotApplicable(companyId, body);
       return const Result<void>.success(null);
+    } on EmployeeException catch (e) {
+      return Result.error(e);
+    } catch (e) {
+      return Result.error(EmployeeNetworkException(e));
+    }
+  }
+
+  @override
+  Future<Result<Uint8List>> generateDocument(
+    String companyId,
+    String employeeId,
+    String documentId,
+    String documentUnitId,
+  ) async {
+    try {
+      final bytes = await apiService.generateDocument(
+          companyId, employeeId, documentId, documentUnitId);
+      return Result.success(bytes);
+    } on EmployeeException catch (e) {
+      return Result.error(e);
+    } catch (e) {
+      return Result.error(EmployeeNetworkException(e));
+    }
+  }
+
+  @override
+  Future<Result<void>> generateAndSendToSign(
+    String companyId,
+    String employeeId,
+    String documentId,
+    String documentUnitId,
+    String dateLimitToSign,
+    int reminderEveryNDays,
+  ) async {
+    try {
+      final body = {
+        'documentUnitId': documentUnitId,
+        'documentId': documentId,
+        'employeeId': employeeId,
+        'dateLimitToSign': dateLimitToSign,
+        'eminderEveryNDays': reminderEveryNDays,
+      };
+      await apiService.generateAndSendToSign(companyId, body);
+      return const Result<void>.success(null);
+    } on EmployeeException catch (e) {
+      return Result.error(e);
+    } catch (e) {
+      return Result.error(EmployeeNetworkException(e));
+    }
+  }
+
+  @override
+  Future<Result<Uint8List>> downloadDocumentUnit(
+    String companyId,
+    String employeeId,
+    String documentId,
+    String documentUnitId,
+  ) async {
+    try {
+      final bytes = await apiService.downloadDocumentUnit(
+          companyId, employeeId, documentId, documentUnitId);
+      return Result.success(bytes);
+    } on EmployeeException catch (e) {
+      return Result.error(e);
+    } catch (e) {
+      return Result.error(EmployeeNetworkException(e));
+    }
+  }
+
+  @override
+  Future<Result<void>> uploadDocumentUnit(
+    String companyId,
+    String employeeId,
+    String documentId,
+    String documentUnitId,
+    Uint8List fileBytes,
+    String fileName,
+  ) async {
+    try {
+      await apiService.uploadDocumentUnit(
+          companyId, employeeId, documentId, documentUnitId, fileBytes, fileName);
+      return const Result<void>.success(null);
+    } on EmployeeException catch (e) {
+      return Result.error(e);
+    } catch (e) {
+      return Result.error(EmployeeNetworkException(e));
+    }
+  }
+
+  @override
+  Future<Result<void>> uploadDocumentUnitToSign(
+    String companyId,
+    String employeeId,
+    String documentId,
+    String documentUnitId,
+    Uint8List fileBytes,
+    String fileName,
+    String dateLimitToSign,
+    int reminderEveryNDays,
+  ) async {
+    try {
+      await apiService.uploadDocumentUnitToSign(
+        companyId,
+        employeeId,
+        documentId,
+        documentUnitId,
+        fileBytes,
+        fileName,
+        dateLimitToSign,
+        reminderEveryNDays,
+      );
+      return const Result<void>.success(null);
+    } on EmployeeException catch (e) {
+      return Result.error(e);
+    } catch (e) {
+      return Result.error(EmployeeNetworkException(e));
+    }
+  }
+
+  @override
+  Future<Result<Uint8List>> generateDocumentRange(
+    String companyId,
+    String employeeId,
+    List<DocumentRangeItem> items,
+  ) async {
+    try {
+      final bytes = await apiService.generateDocumentRange(
+        companyId,
+        employeeId,
+        items.map((i) => i.toJson()).toList(),
+      );
+      return Result.success(bytes);
+    } on EmployeeException catch (e) {
+      return Result.error(e);
+    } catch (e) {
+      return Result.error(EmployeeNetworkException(e));
+    }
+  }
+
+  @override
+  Future<Result<Uint8List>> downloadDocumentRange(
+    String companyId,
+    String employeeId,
+    List<DocumentRangeItem> items,
+  ) async {
+    try {
+      final bytes = await apiService.downloadDocumentRange(
+        companyId,
+        employeeId,
+        items.map((i) => i.toJson()).toList(),
+      );
+      return Result.success(bytes);
     } on EmployeeException catch (e) {
       return Result.error(e);
     } catch (e) {

@@ -3,7 +3,9 @@ import 'dart:typed_data';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:rufino_v2/domain/entities/address.dart';
 import 'package:rufino_v2/domain/entities/company.dart';
+import 'package:rufino_v2/domain/entities/document_group_with_documents.dart';
 import 'package:rufino_v2/domain/entities/employee.dart';
+import 'package:rufino_v2/domain/entities/employee_document.dart';
 import 'package:rufino_v2/domain/entities/employee_contact.dart';
 import 'package:rufino_v2/domain/entities/employee_id_card.dart';
 import 'package:rufino_v2/domain/entities/employee_personal_info.dart';
@@ -20,6 +22,7 @@ import 'package:rufino_v2/ui/features/employee/viewmodel/employee_profile_viewmo
 
 import '../../../../testing/fakes/fake_company_repository.dart';
 import '../../../../testing/fakes/fake_department_repository.dart';
+import '../../../../testing/fakes/fake_document_group_repository.dart';
 import '../../../../testing/fakes/fake_employee_repository.dart';
 import '../../../../testing/fakes/fake_workplace_repository.dart';
 
@@ -74,6 +77,7 @@ void main() {
   late FakeEmployeeRepository employeeRepository;
   late FakeDepartmentRepository departmentRepository;
   late FakeWorkplaceRepository workplaceRepository;
+  late FakeDocumentGroupRepository documentGroupRepository;
   late EmployeeProfileViewModel viewModel;
 
   setUp(() {
@@ -84,12 +88,14 @@ void main() {
     departmentRepository = FakeDepartmentRepository()..setRole(_fakeRole);
     workplaceRepository = FakeWorkplaceRepository()
       ..setWorkplace(_fakeWorkplace);
+    documentGroupRepository = FakeDocumentGroupRepository();
 
     viewModel = EmployeeProfileViewModel(
       companyRepository: companyRepository,
       employeeRepository: employeeRepository,
       departmentRepository: departmentRepository,
       workplaceRepository: workplaceRepository,
+      documentGroupRepository: documentGroupRepository,
     );
   });
 
@@ -1134,22 +1140,48 @@ void main() {
     });
 
     group('documents section', () {
-      test('loadDocuments transitions to loaded with data', () async {
+      test('loadDocumentGroups transitions to loaded with data', () async {
+        documentGroupRepository.setGroupsWithDocuments(const [
+          DocumentGroupWithDocuments(
+            id: 'grp-1',
+            name: 'Grupo Contratual',
+            description: 'Documentos contratuais',
+            statusId: '1',
+            statusName: 'OK',
+            documents: [
+              EmployeeDocument(
+                id: 'doc-1',
+                name: 'Contrato de Trabalho',
+                description: 'CLT',
+                statusId: '3',
+                statusName: 'OK',
+                isSignable: false,
+                canGenerateDocument: true,
+                usePreviousPeriod: false,
+                totalUnitsCount: 0,
+                units: [],
+              ),
+            ],
+          ),
+        ]);
+
         await viewModel.load('emp-1');
 
-        await viewModel.loadDocuments();
+        await viewModel.loadDocumentGroups();
 
         expect(viewModel.documentsStatus, SectionLoadStatus.loaded);
-        expect(viewModel.documents, hasLength(1));
-        expect(viewModel.documents.first.name, 'Contrato de Trabalho');
+        expect(viewModel.documentGroups, hasLength(1));
+        expect(viewModel.documentGroups.first.documents.first.name,
+            'Contrato de Trabalho');
       });
 
-      test('loadDocuments sets error status when the repository call fails',
+      test(
+          'loadDocumentGroups sets error status when the repository call fails',
           () async {
         await viewModel.load('emp-1');
-        employeeRepository.setShouldFail(true);
+        documentGroupRepository.setShouldFail(true);
 
-        await viewModel.loadDocuments();
+        await viewModel.loadDocumentGroups();
 
         expect(viewModel.documentsStatus, SectionLoadStatus.error);
       });
