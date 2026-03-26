@@ -127,13 +127,13 @@ namespace PeopleManagement.Infra.Services
                     oldWebHookId = webHook.WebHookId;
                 }
 
-                // 1. CRIA O NOVO PRIMEIRO (garante que sempre haverá um webhook)
+                // 1. CRIA O NOVO PRIMEIRO (garante que sempre haverï¿½ um webhook)
                 newWebHookId = await CreateWebHookEvent(cancellationToken);
 
                 if (string.IsNullOrEmpty(newWebHookId))
                 {
                     _logger.LogError("Failed to create webhook. Keeping old webhook active. Old Id: {OldId}", oldWebHookId);
-                    return; // Mantém o webhook antigo ativo
+                    return; // Mantï¿½m o webhook antigo ativo
                 }
 
                 _logger.LogInformation("New webhook created successfully. Id: {NewId}", newWebHookId);
@@ -153,7 +153,7 @@ namespace PeopleManagement.Infra.Services
 
                     await _webHookRepository.UnitOfWork.SaveChangesAsync(cancellationToken);
 
-                    // 3. SÓ DELETA O ANTIGO APÓS CONFIRMAR PERSISTÊNCIA
+                    // 3. Sï¿½ DELETA O ANTIGO APï¿½S CONFIRMAR PERSISTï¿½NCIA
                     if (!string.IsNullOrEmpty(oldWebHookId) && oldWebHookId != newWebHookId)
                     {
                         _logger.LogInformation("Deleting old webhook. Id: {OldId}", oldWebHookId);
@@ -162,7 +162,7 @@ namespace PeopleManagement.Infra.Services
                         if (!deleted)
                         {
                             _logger.LogWarning("Failed to delete old webhook. It may need manual cleanup. Old Id: {OldId}", oldWebHookId);
-                            // Não é crítico - o webhook antigo vai expirar naturalmente
+                            // Nï¿½o ï¿½ crï¿½tico - o webhook antigo vai expirar naturalmente
                         }
                     }
 
@@ -172,10 +172,10 @@ namespace PeopleManagement.Infra.Services
                 {
                     _logger.LogError(saveEx, "Failed to save webhook to database. Rolling back new webhook. Id: {WebHookId}", newWebHookId);
 
-                    // ROLLBACK: Deleta o webhook recém-criado
+                    // ROLLBACK: Deleta o webhook recï¿½m-criado
                     await DeleteWebHook(newWebHookId, cancellationToken);
 
-                    // Não propaga a exceção - o webhook antigo continua ativo
+                    // Nï¿½o propaga a exceï¿½ï¿½o - o webhook antigo continua ativo
                     _logger.LogInformation("Rollback completed. Old webhook remains active. Old Id: {OldId}", oldWebHookId);
                 }
             }
@@ -212,7 +212,22 @@ namespace PeopleManagement.Infra.Services
 
             var documentUrl = contentBody?["signed_file"]?.ToString() ?? "";
 
-            return new WebhookDocumentEventModel(parsedDocumentUnitId, webhookStatus, documentUrl);
+            var extraDocs = new List<WebhookExtraDocModel>();
+            var extraDocsArray = contentBody?["extra_docs"]?.AsArray();
+            if (extraDocsArray != null)
+            {
+                foreach (var extraDoc in extraDocsArray)
+                {
+                    var token = extraDoc?["token"]?.ToString() ?? "";
+                    var signedFile = extraDoc?["signed_file"]?.ToString() ?? "";
+                    if (!string.IsNullOrEmpty(token) && !string.IsNullOrEmpty(signedFile))
+                    {
+                        extraDocs.Add(new WebhookExtraDocModel(token, signedFile));
+                    }
+                }
+            }
+
+            return new WebhookDocumentEventModel(parsedDocumentUnitId, webhookStatus, documentUrl, ExtraDocs: extraDocs);
         }
     }
 }
