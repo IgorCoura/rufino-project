@@ -4,8 +4,11 @@
         Guid DocumentUnitId,
         WebhookDocumentStatus Status,
         string Url = "",
-        string fileExtesion = "PDF"
+        string fileExtesion = "PDF",
+        IReadOnlyList<WebhookExtraDocModel>? ExtraDocs = null
     );
+
+    public record WebhookExtraDocModel(string Token, string SignedFileUrl);
 
     public enum WebhookDocumentStatus
     {
