@@ -111,7 +111,7 @@ namespace PeopleManagement.Services.Services
             var webhookEvent = await _webHookManagementService.ParseWebhookEvent(contentBody, cancellationToken);
 
             if (webhookEvent == null)
-                return "O contentBody recebido está vaziu.";
+                return "O contentBody recebido está vazio.";
 
             var document = await _documentRepository.FirstOrDefaultAsync(x => x.DocumentsUnits.Any(x => x.Id == webhookEvent.DocumentUnitId), include: x => x.Include(y => y.DocumentsUnits), cancellation: cancellationToken)
                 ?? throw new DomainException(this, DomainErrors.ObjectNotFound(nameof(DocumentUnit), webhookEvent.DocumentUnitId.ToString()));
@@ -119,23 +119,46 @@ namespace PeopleManagement.Services.Services
             if (document.IsAwaitingSignatureDocumentUnit(webhookEvent.DocumentUnitId) == false)
                 return $"O documentUnit {webhookEvent.DocumentUnitId}, não está aguardando assinatura";
 
+            var primaryUnit = document.DocumentsUnits.FirstOrDefault(x => x.Id == webhookEvent.DocumentUnitId)!;
+
             if (webhookEvent.Status == WebhookDocumentStatus.DocRefused
                 || webhookEvent.Status == WebhookDocumentStatus.DocDeleted
                 || webhookEvent.Status == WebhookDocumentStatus.DocExpired)
             {
-                document.MarkAsInvalidDocumentUnit(webhookEvent.DocumentUnitId);
-                var documentUnitId = Guid.NewGuid();
-                document.NewDocumentUnit(documentUnitId);
+                await InvalidateSessionDocuments(primaryUnit, document, cancellationToken);
                 return $"O status do documentUnit {webhookEvent.DocumentUnitId}, foi alterado com sucesso para INVALID.";
             }
 
             if (webhookEvent.Status == WebhookDocumentStatus.DocSigned)
             {
-                var file = await _fileDownloadService.DownloadFileFromUrlAsync(webhookEvent.Url, cancellationToken);
+                var sessionDocUnits = await GetAllSessionDocumentUnits(primaryUnit, document, cancellationToken);
+                var processedFiles = new List<(string Url, string FileName)>();
 
-                string fileNameWithExtesion = document.InsertUnitWithoutRequireValidation(webhookEvent.DocumentUnitId, Guid.NewGuid().ToString(), file.FileExtension);
+                // Processa documento principal
+                var primaryFile = await _fileDownloadService.DownloadFileFromUrlAsync(webhookEvent.Url, cancellationToken);
+                var primaryFileName = document.InsertUnitWithoutRequireValidation(webhookEvent.DocumentUnitId, Guid.NewGuid().ToString(), primaryFile.FileExtension);
+                await _blobService.UploadAsync(primaryFile.FileStream, primaryFileName, document.CompanyId.ToString(), overwrite: false, cancellationToken: cancellationToken);
+                processedFiles.Add((webhookEvent.Url, primaryFileName));
 
-                await _blobService.UploadAsync(file.FileStream, fileNameWithExtesion, document.CompanyId.ToString(), overwrite: false, cancellationToken: cancellationToken);
+                // Processa extra_docs (attachments da sessão)
+                if (webhookEvent.ExtraDocs != null && webhookEvent.ExtraDocs.Count > 0)
+                {
+                    foreach (var extraDoc in webhookEvent.ExtraDocs)
+                    {
+                        var attachmentUnit = sessionDocUnits
+                            .FirstOrDefault(x => x.Unit.AttachmentToken == extraDoc.Token);
+
+                        if (attachmentUnit.Unit == null)
+                            continue;
+
+                        var attachmentFile = await _fileDownloadService.DownloadFileFromUrlAsync(extraDoc.SignedFileUrl, cancellationToken);
+                        var attachmentFileName = attachmentUnit.Document.InsertUnitWithoutRequireValidation(
+                            attachmentUnit.Unit.Id, Guid.NewGuid().ToString(), attachmentFile.FileExtension);
+                        await _blobService.UploadAsync(attachmentFile.FileStream, attachmentFileName,
+                            attachmentUnit.Document.CompanyId.ToString(), overwrite: false, cancellationToken: cancellationToken);
+                        processedFiles.Add((extraDoc.SignedFileUrl, attachmentFileName));
+                    }
+                }
 
                 await _employeeRepository.UnitOfWork.SaveChangesAsync(cancellationToken);
 
@@ -145,28 +168,25 @@ namespace PeopleManagement.Services.Services
 
                 if (employee?.Contact?.CellPhone != null && !string.IsNullOrWhiteSpace(employee.Contact.CellPhone))
                 {
-                    var documentTemplate = await _documentTemplateRepository.FirstOrDefaultAsync(
-                        x => x.Id == document.DocumentTemplateId && x.CompanyId == document.CompanyId,
-                        cancellation: cancellationToken);
-
-                    var documentName = documentTemplate?.Name ?? "Documento";
-                    var caption = $"📄 Olá {employee.Name.FirstName}!\n\n" +
-                                  $"Seu documento '{documentName.Value}' foi assinado com sucesso.\n" +
-                                  $"Segue anexo o arquivo assinado para sua consulta.";
-
                     try
                     {
-                        _whatsAppQueueService.EnqueueMediaMessage(
-                            phoneNumber: employee.Contact.GetCellPhoneWithCoutryNumber(),
-                            mediaType: "document",
-                            mimeType: "application/pdf",
-                            caption: caption,
-                            media: webhookEvent.Url,
-                            fileName: fileNameWithExtesion);
+                        foreach (var (url, fileName) in processedFiles)
+                        {
+                            var caption = processedFiles.Count == 1
+                                ? $"📄 Olá {employee.Name.FirstName}!\n\nSeu documento foi assinado com sucesso.\nSegue anexo o arquivo assinado para sua consulta."
+                                : $"📄 Olá {employee.Name.FirstName}!\n\nSegue anexo um dos seus documentos assinados.";
+
+                            _whatsAppQueueService.EnqueueMediaMessage(
+                                phoneNumber: employee.Contact.GetCellPhoneWithCoutryNumber(),
+                                mediaType: "document",
+                                mimeType: "application/pdf",
+                                caption: caption,
+                                media: url,
+                                fileName: fileName);
+                        }
                     }
                     catch (Exception ex)
                     {
-                        // Log do erro mas não falha o processo de assinatura
                         System.Diagnostics.Debug.WriteLine($"Erro ao enviar documento via WhatsApp: {ex.Message}");
                     }
 
@@ -178,79 +198,7 @@ namespace PeopleManagement.Services.Services
             }
 
             return "O status não é valido.";
-
         }
-
-
-        //public async Task<string> ReceiveWebhookDocument(JsonNode contentBody, CancellationToken cancellationToken = default)
-        //{
-        //    var webhookEvent = await _webHookManagementService.ParseWebhookEvent(contentBody, cancellationToken);
-
-        //    if (webhookEvent == null)
-        //        return "O contentBody recebido está vaziu.";
-
-        //    var document = await _documentRepository.FirstOrDefaultAsync(x => x.DocumentsUnits.Any(x => x.Id == webhookEvent.DocumentUnitId), include: x => x.Include(y => y.DocumentsUnits), cancellation: cancellationToken)
-        //        ?? throw new DomainException(this, DomainErrors.ObjectNotFound(nameof(DocumentUnit), webhookEvent.DocumentUnitId.ToString()));
-
-        //    if (document.IsAwaitingSignatureDocumentUnit(webhookEvent.DocumentUnitId) == false)
-        //        return $"O documentUnit {webhookEvent.DocumentUnitId}, não está aguardando assinatura";
-
-        //    var primaryUnit = document.DocumentsUnits.FirstOrDefault(x => x.Id == webhookEvent.DocumentUnitId);
-        //    if (primaryUnit == null)
-        //        return $"O documentUnit {webhookEvent.DocumentUnitId} não foi encontrado.";
-
-        //    if (webhookEvent.Status == WebhookDocumentStatus.DocRefused
-        //        || webhookEvent.Status == WebhookDocumentStatus.DocDeleted
-        //        || webhookEvent.Status == WebhookDocumentStatus.DocExpired)
-        //    {
-        //        await InvalidateSessionDocuments(primaryUnit, document, cancellationToken);
-        //        return $"O status do documentUnit {webhookEvent.DocumentUnitId}, foi alterado com sucesso para INVALID.";
-        //    }
-
-        //    if (webhookEvent.Status == WebhookDocumentStatus.DocSigned)
-        //    {
-        //        var sessionDocUnits = await GetAllSessionDocumentUnits(primaryUnit, document, cancellationToken);
-
-        //        if (sessionDocUnits.Count > 1)
-        //        {
-        //            await ProcessSessionSignedDocuments(primaryUnit, sessionDocUnits, webhookEvent, document, cancellationToken);
-        //        }
-        //        else
-        //        {
-        //            await ProcessSingleSignedDocument(webhookEvent, document, cancellationToken);
-        //        }
-
-        //        await _employeeRepository.UnitOfWork.SaveChangesAsync(cancellationToken);
-
-        //        var employee = await _employeeRepository.FirstOrDefaultAsync(
-        //            x => x.Id == document.EmployeeId && x.CompanyId == document.CompanyId,
-        //            cancellation: cancellationToken);
-
-        //        if (employee?.Contact?.CellPhone != null && !string.IsNullOrWhiteSpace(employee.Contact.CellPhone))
-        //        {
-        //            var caption = $"📄 Olá {employee.Name.FirstName}!\n\n" +
-        //                          $"Seus documentos foram assinados com sucesso.";
-
-        //            try
-        //            {
-        //                _whatsAppQueueService.EnqueueTextMessage(
-        //                    phoneNumber: employee.Contact.GetCellPhoneWithCoutryNumber(),
-        //                    message: caption);
-        //            }
-        //            catch (Exception ex)
-        //            {
-        //                System.Diagnostics.Debug.WriteLine($"Erro ao enviar notificação via WhatsApp: {ex.Message}");
-        //            }
-
-        //            _backgroundJobClient.Enqueue(() =>
-        //                _documentSignatureReminderService.SendConsolidatedSignatureReminders(employee.Id, CancellationToken.None));
-        //        }
-
-        //        return $"O status do documentUnit {webhookEvent.DocumentUnitId}, foi alterado com sucesso para OK.";
-        //    }
-
-        //    return "O status não é valido.";
-        //}
 
         private async Task<List<(DocumentUnit Unit, Document Document)>> GetAllSessionDocumentUnits(
             DocumentUnit primaryUnit, Document primaryDocument, CancellationToken cancellationToken)
@@ -282,45 +230,6 @@ namespace PeopleManagement.Services.Services
             }
 
             return result;
-        }
-
-        private async Task ProcessSessionSignedDocuments(DocumentUnit primaryUnit,
-            List<(DocumentUnit Unit, Document Document)> sessionDocUnits,
-            WebhookDocumentEventModel webhookEvent, Document primaryDocument, CancellationToken cancellationToken)
-        {
-            var sessionDocs = await _documentSignatureService.GetSessionSignedDocuments(
-                primaryUnit.SignatureDocumentToken!, cancellationToken);
-
-            foreach (var (unit, doc) in sessionDocUnits)
-            {
-                string? signedFileUrl;
-
-                if (unit.AttachmentToken == null)
-                {
-                    // Primary document
-                    signedFileUrl = !string.IsNullOrEmpty(webhookEvent.Url) ? webhookEvent.Url : sessionDocs.PrimarySignedFileUrl;
-                }
-                else
-                {
-                    // Attachment - match by token
-                    signedFileUrl = sessionDocs.Attachments
-                        .FirstOrDefault(a => a.AttachmentToken == unit.AttachmentToken)?.SignedFileUrl;
-                }
-
-                if (!string.IsNullOrEmpty(signedFileUrl))
-                {
-                    var file = await _fileDownloadService.DownloadFileFromUrlAsync(signedFileUrl, cancellationToken);
-                    var fileNameWithExtension = doc.InsertUnitWithoutRequireValidation(unit.Id, Guid.NewGuid().ToString(), file.FileExtension);
-                    await _blobService.UploadAsync(file.FileStream, fileNameWithExtension, doc.CompanyId.ToString(), overwrite: false, cancellationToken: cancellationToken);
-                }
-            }
-        }
-
-        private async Task ProcessSingleSignedDocument(WebhookDocumentEventModel webhookEvent, Document document, CancellationToken cancellationToken)
-        {
-            var file = await _fileDownloadService.DownloadFileFromUrlAsync(webhookEvent.Url, cancellationToken);
-            string fileNameWithExtension = document.InsertUnitWithoutRequireValidation(webhookEvent.DocumentUnitId, Guid.NewGuid().ToString(), file.FileExtension);
-            await _blobService.UploadAsync(file.FileStream, fileNameWithExtension, document.CompanyId.ToString(), overwrite: false, cancellationToken: cancellationToken);
         }
 
         private async Task InvalidateSessionDocuments(DocumentUnit primaryUnit, Document primaryDocument, CancellationToken cancellationToken)
