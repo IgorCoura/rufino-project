@@ -69,8 +69,10 @@ namespace PeopleManagement.Infra.Services
                 documentUnitId, employee.Id, company.Id);
             
             var documentBase64 = ConvertStreamToBase64(documentStream);
-            var corporateName = company.CorporateName.Value.Replace("/", "");
-            var folderPath = $"{corporateName}/{employee.Name}";
+            var companyFirstName = company.CorporateName.Value.Replace("/", "").Split(' ').FirstOrDefault() ?? string.Empty;
+            var employeeFirstName = employee.Name.FirstName;
+            var employeeCpf = employee.IdCard?.Cpf?.Number ?? string.Empty;
+            var folderPath = $"{companyFirstName}-{company.Cnpj}/{employeeFirstName}-{employeeCpf}";
 
             var signerArray = new JsonArray
             {

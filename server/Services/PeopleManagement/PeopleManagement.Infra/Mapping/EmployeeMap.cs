@@ -198,6 +198,9 @@ namespace PeopleManagement.Infra.Mapping
                     .HasMaxLength(CPF.MAX_LENGHT)
                     .IsRequired();
 
+                idCard.HasIndex(x => x.Cpf)
+                    .IsUnique();
+
                 idCard.Property(x => x.MotherName)
                     .HasConversion(x => x.Value, x => x)
                     .HasMaxLength(Name.MAX_LENGTH)
