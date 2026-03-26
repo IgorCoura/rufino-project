@@ -785,7 +785,8 @@ class EmployeeRepositoryImpl implements EmployeeRepository {
         'documentUnitId': documentUnitId,
         'documentId': documentId,
         'employeeId': employeeId,
-        'dateLimitToSign': dateLimitToSign,
+        'dateLimitToSign':
+            DocumentUnitApiModel.dateToIsoUtc(dateLimitToSign),
         'eminderEveryNDays': reminderEveryNDays,
       };
       await apiService.generateAndSendToSign(companyId, body);
@@ -854,7 +855,7 @@ class EmployeeRepositoryImpl implements EmployeeRepository {
         documentUnitId,
         fileBytes,
         fileName,
-        dateLimitToSign,
+        DocumentUnitApiModel.dateToIsoUtc(dateLimitToSign),
         reminderEveryNDays,
       );
       return const Result<void>.success(null);

@@ -403,13 +403,31 @@ class _DocumentsSectionState extends State<DocumentsSection> {
     String? fileName,
   }) async {
     final dateCtrl = TextEditingController();
-    final reminderCtrl = TextEditingController(text: '3');
     final dateMask = MaskTextInputFormatter(
       mask: '##/##/####',
       filter: {'#': RegExp(r'[0-9]')},
       type: MaskAutoCompletionType.lazy,
     );
     final formKey = GlobalKey<FormState>();
+
+    /// Formats [date] as dd/MM/yyyy.
+    String formatDate(DateTime date) {
+      final d = date.day.toString().padLeft(2, '0');
+      final m = date.month.toString().padLeft(2, '0');
+      return '$d/$m/${date.year}';
+    }
+
+    /// Sets the date field to today + [days].
+    void setDateFromDays(int days) {
+      final target = DateTime.now().add(Duration(days: days));
+      final formatted = formatDate(target);
+      final rawDigits = formatted.replaceAll(RegExp(r'[^\d]'), '');
+      dateMask.formatEditUpdate(
+        TextEditingValue.empty,
+        TextEditingValue(text: rawDigits),
+      );
+      dateCtrl.text = dateMask.getMaskedText();
+    }
 
     final confirmed = await showDialog<bool>(
       context: context,
@@ -433,34 +451,19 @@ class _DocumentsSectionState extends State<DocumentsSection> {
                   inputFormatters: [dateMask],
                   validator: widget.viewModel.validateContractDate,
                 ),
-                const SizedBox(height: AppSpacing.md),
-                TextFormField(
-                  controller: reminderCtrl,
-                  decoration: const InputDecoration(
-                    labelText: 'Lembrete a cada N dias',
-                    prefixIcon: Icon(Icons.notifications_outlined),
-                    border: OutlineInputBorder(),
-                  ),
-                  keyboardType: TextInputType.number,
-                  validator: (v) {
-                    if (v == null || v.trim().isEmpty) {
-                      return 'Informe o intervalo.';
-                    }
-                    final n = int.tryParse(v.trim());
-                    if (n == null || n < 1 || n > 365) {
-                      return 'Informe um valor entre 1 e 365.';
-                    }
-                    return null;
-                  },
-                ),
                 const SizedBox(height: AppSpacing.sm),
-                Wrap(
-                  spacing: AppSpacing.sm,
+                Row(
                   children: [3, 5, 10].map((days) {
-                    return ActionChip(
-                      label: Text('$days dias'),
-                      onPressed: () =>
-                          reminderCtrl.text = days.toString(),
+                    return Expanded(
+                      child: Padding(
+                        padding: EdgeInsets.only(
+                          right: days == 10 ? 0 : AppSpacing.sm,
+                        ),
+                        child: OutlinedButton(
+                          onPressed: () => setDateFromDays(days),
+                          child: Text('+$days dias'),
+                        ),
+                      ),
                     );
                   }).toList(),
                 ),
@@ -487,12 +490,11 @@ class _DocumentsSectionState extends State<DocumentsSection> {
 
     if (confirmed != true || !mounted) {
       dateCtrl.dispose();
-      reminderCtrl.dispose();
       return;
     }
 
     final dateLimitToSign = dateCtrl.text.trim();
-    final reminderDays = int.tryParse(reminderCtrl.text.trim()) ?? 3;
+    const reminderDays = 0;
 
     setState(() => _isBusy = true);
 
@@ -516,7 +518,6 @@ class _DocumentsSectionState extends State<DocumentsSection> {
 
     setState(() => _isBusy = false);
     dateCtrl.dispose();
-    reminderCtrl.dispose();
   }
 
   /// Downloads an existing document unit file.

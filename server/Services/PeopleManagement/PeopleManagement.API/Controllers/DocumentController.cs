@@ -88,7 +88,7 @@ namespace PeopleManagement.API.Controllers
             {
                 foreach (var item in result.Results)
                 {
-                    var entry = archive.CreateEntry($"{item.DocumentId}/{item.DocumentUnitId}.pdf", CompressionLevel.Fastest);
+                    var entry = archive.CreateEntry($"{item.DocumentName}/{item.DocumentUnitDate:yyyy-MM-dd}-{item.DocumentName}.pdf", CompressionLevel.Fastest);
                     using var entryStream = entry.Open();
                     await entryStream.WriteAsync(item.Pdf);
                 }
