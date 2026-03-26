@@ -22,6 +22,14 @@ namespace PeopleManagement.Domain.AggregatesModel.DocumentAggregate.Interfaces
         Task<DocumentSignatureModel> SendToSignatureWithOnlySMS(Stream documentStream, Guid documentUnitId, Document document, Company company,
             Employee employee, PlaceSignature[] placeSignatures, DateTime dateLimitToSign, int eminderEveryNDays, CancellationToken cancellationToken = default);
 
+        Task<AttachmentResultModel> AddDocumentAttachment(string primaryDocToken, Stream documentStream, string documentName,
+            CancellationToken cancellationToken = default);
+
+        Task<bool> PlaceSignatureOnAttachment(string primaryDocToken, string signerToken, PlaceSignature[] placeSignatures,
+            CancellationToken cancellationToken = default);
+
+        Task<SessionSignedDocumentsModel> GetSessionSignedDocuments(string primaryDocToken,
+            CancellationToken cancellationToken = default);
     }
 }
 

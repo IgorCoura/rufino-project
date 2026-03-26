@@ -25,6 +25,9 @@ namespace PeopleManagement.Infra.Mapping
                 .HasMaxLength(CNPJ.MAX_LENGTH)
                 .IsRequired();
 
+            builder.HasIndex(x => x.Cnpj)
+                .IsUnique();
+
             builder.OwnsOne(a => a.Contact, x =>
             {
                 x.Property(x => x.Email)               
