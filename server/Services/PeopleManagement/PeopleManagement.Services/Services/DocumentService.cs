@@ -263,7 +263,7 @@ namespace PeopleManagement.Services.Services
             return pdfBytes;
         }
 
-        public async Task<IReadOnlyList<(Guid DocumentUnitId, Guid DocumentId, byte[] Pdf)>> GeneratePdfRange(
+        public async Task<IReadOnlyList<(Guid DocumentUnitId, Guid DocumentId, string DocumentName, DateOnly DocumentUnitDate, byte[] Pdf)>> GeneratePdfRange(
             IEnumerable<(Guid DocumentId, IEnumerable<Guid> DocumentUnitIds)> items,
             Guid employeeId, Guid companyId, CancellationToken cancellationToken = default)
         {
@@ -281,7 +281,7 @@ namespace PeopleManagement.Services.Services
                 x => templateIds.Contains(x.Id) && x.CompanyId == companyId,
                 cancellation: cancellationToken)).ToDictionary(t => t.Id);
 
-            var pdfItems = new List<(Guid DocumentUnitId, Guid DocumentId, TemplateFileInfo Template, string Content)>();
+            var pdfItems = new List<(Guid DocumentUnitId, Guid DocumentId, string DocumentName, DateOnly DocumentUnitDate, TemplateFileInfo Template, string Content)>();
 
             foreach (var document in documents)
             {
@@ -301,7 +301,7 @@ namespace PeopleManagement.Services.Services
                     if (!unit.HasContent)
                         throw new DomainException(this, DomainErrors.Document.ErrorRecoverData(unit.Id));
 
-                    pdfItems.Add((unit.Id, document.Id, template.TemplateFileInfo, unit.Content));
+                    pdfItems.Add((unit.Id, document.Id, document.Name.ToString(), unit.Date, template.TemplateFileInfo, unit.Content));
                 }
             }
 
@@ -309,10 +309,16 @@ namespace PeopleManagement.Services.Services
                 pdfItems.Select(x => (x.DocumentUnitId, x.Template, x.Content)),
                 cancellationToken);
 
-            var documentIdByUnit = pdfItems.ToDictionary(x => x.DocumentUnitId, x => x.DocumentId);
+            var metadataByUnit = pdfItems.ToDictionary(
+                x => x.DocumentUnitId,
+                x => (x.DocumentId, x.DocumentName, x.DocumentUnitDate));
 
             return pdfResults
-                .Select(r => (r.DocumentUnitId, documentIdByUnit[r.DocumentUnitId], r.Pdf))
+                .Select(r =>
+                {
+                    var meta = metadataByUnit[r.DocumentUnitId];
+                    return (r.DocumentUnitId, meta.DocumentId, meta.DocumentName, meta.DocumentUnitDate, r.Pdf);
+                })
                 .ToList();
         }
 

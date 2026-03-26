@@ -16,7 +16,7 @@ namespace PeopleManagement.Application.Commands.DocumentCommands.GeneratePdfRang
                 cancellationToken);
 
             return new GeneratePdfRangeResponse(
-                results.Select(r => new GeneratePdfRangeResponseItem(r.DocumentUnitId, r.DocumentId, r.Pdf)).ToList());
+                results.Select(r => new GeneratePdfRangeResponseItem(r.DocumentUnitId, r.DocumentId, r.DocumentName, r.DocumentUnitDate, r.Pdf)).ToList());
         }
     }
 }
