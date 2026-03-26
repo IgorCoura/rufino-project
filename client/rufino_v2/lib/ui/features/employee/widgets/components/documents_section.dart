@@ -1,6 +1,8 @@
+import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:file_picker/file_picker.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:mask_text_input_formatter/mask_text_input_formatter.dart';
 
@@ -93,6 +95,47 @@ class _DocumentsSectionState extends State<DocumentsSection> {
   }
 
   // ─── Helpers ──────────────────────────────────────────────────────────────
+
+  /// Prompts the user to choose a save location and writes [bytes] to disk.
+  ///
+  /// On web, `FilePicker.platform.saveFile` handles the download via the
+  /// `bytes` parameter. On desktop, it only returns a path — the file must
+  /// be written manually.
+  ///
+  /// Returns `true` if the file was saved, `false` if the user cancelled.
+  Future<bool> _saveFile({
+    required String dialogTitle,
+    required String fileName,
+    required Uint8List bytes,
+  }) async {
+    final savePath = await FilePicker.platform.saveFile(
+      dialogTitle: dialogTitle,
+      fileName: fileName,
+      bytes: bytes,
+    );
+    if (savePath == null) return false;
+
+    if (!kIsWeb) {
+      await File(savePath).writeAsBytes(bytes);
+    }
+    return true;
+  }
+
+  /// Builds a download file name from the unit date and document name.
+  ///
+  /// Converts `dd/MM/yyyy` to `yyyy-MM-dd` and slugifies the document name,
+  /// e.g. `"01/03/2026"` + `"Contrato de Trabalho"` → `"2026-03-01-contrato-de-trabalho"`.
+  String _downloadFileName(DocumentUnit unit, EmployeeDocument doc,
+      {String extension = 'pdf'}) {
+    final datePart = unit.date.isNotEmpty && unit.date.length == 10
+        ? '${unit.date.substring(6)}-${unit.date.substring(3, 5)}-${unit.date.substring(0, 2)}'
+        : 'sem-data';
+    final namePart = doc.name
+        .toLowerCase()
+        .replaceAll(RegExp(r'[^\w\s-]'), '')
+        .replaceAll(RegExp(r'\s+'), '-');
+    return '$datePart-$namePart.$extension';
+  }
 
   /// Reloads units for [docId] using current page, filter and page size.
   void _reloadUnits(String docId) {
@@ -246,12 +289,12 @@ class _DocumentsSectionState extends State<DocumentsSection> {
       final bytes =
           await widget.viewModel.generateDocument(doc.id, unit.id);
       if (bytes != null && mounted) {
-        final result = await FilePicker.platform.saveFile(
+        final saved = await _saveFile(
           dialogTitle: 'Salvar documento',
-          fileName: '${doc.name}.pdf',
+          fileName: _downloadFileName(unit, doc),
           bytes: bytes,
         );
-        if (result == null && mounted) {
+        if (!saved && mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text('Salvamento cancelado.'),
@@ -486,9 +529,12 @@ class _DocumentsSectionState extends State<DocumentsSection> {
     final bytes =
         await widget.viewModel.downloadDocumentUnit(doc.id, unit.id);
     if (bytes != null && mounted) {
-      await FilePicker.platform.saveFile(
+      final ext = unit.name.contains('.')
+          ? unit.name.split('.').last
+          : 'pdf';
+      await _saveFile(
         dialogTitle: 'Salvar documento',
-        fileName: unit.name.isNotEmpty ? unit.name : '${doc.name}.pdf',
+        fileName: _downloadFileName(unit, doc, extension: ext),
         bytes: bytes,
       );
     }
@@ -614,7 +660,7 @@ class _DocumentsSectionState extends State<DocumentsSection> {
         : await widget.viewModel.downloadDocumentRange();
 
     if (bytes != null && mounted) {
-      await FilePicker.platform.saveFile(
+      await _saveFile(
         dialogTitle: isGenerate
             ? 'Salvar documentos gerados'
             : 'Salvar documentos',
