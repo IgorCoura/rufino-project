@@ -17,7 +17,7 @@ namespace PeopleManagement.Domain.AggregatesModel.DocumentTemplateAggregate
             }
             set
             {
-                value = value.ToUpper().Trim();
+                value = value.Trim();
 
                 if (string.IsNullOrEmpty(value))
                     throw new DomainException(this, DomainErrors.FieldNotBeNullOrEmpty(nameof(FileName)));
