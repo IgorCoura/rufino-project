@@ -69,8 +69,10 @@ namespace PeopleManagement.Infra.Services
                 documentUnitId, employee.Id, company.Id);
             
             var documentBase64 = ConvertStreamToBase64(documentStream);
-            var corporateName = company.CorporateName.Value.Replace("/", "");
-            var folderPath = $"{corporateName}/{employee.Name}";
+            var companyFirstName = company.CorporateName.Value.Replace("/", "").Split(' ').FirstOrDefault() ?? string.Empty;
+            var employeeFirstName = employee.Name.FirstName;
+            var employeeCpf = employee.IdCard?.Cpf?.Number ?? string.Empty;
+            var folderPath = $"{companyFirstName}-{company.Cnpj}/{employeeFirstName}-{employeeCpf}";
 
             var signerArray = new JsonArray
             {
@@ -145,6 +147,88 @@ namespace PeopleManagement.Infra.Services
                 documentUnitId, employee.Id, company.Id, docToken, signerUrl);
 
             return new DocumentSignatureModel(docToken, signerUrl);
+        }
+
+        public async Task<AttachmentResultModel> AddDocumentAttachment(string primaryDocToken, Stream documentStream, string documentName,
+            CancellationToken cancellationToken = default)
+        {
+            _logger.LogInformation("Adding attachment to ZapSign document. PrimaryDocToken: {PrimaryDocToken}, DocumentName: {DocumentName}",
+                primaryDocToken, documentName);
+
+            var documentBase64 = ConvertStreamToBase64(documentStream);
+
+            var body = new JsonObject
+            {
+                ["name"] = documentName,
+                ["base64_pdf"] = documentBase64
+            };
+
+            var response = await _httpClient.PostAsync(
+                $"/api/v1/docs/{primaryDocToken}/upload-extra-doc/",
+                new StringContent(body.ToString(), System.Text.Encoding.UTF8, "application/json"),
+                cancellationToken);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                var debug = await response.Content.ReadAsStringAsync(cancellationToken);
+                _logger.LogError("Failed to add attachment to ZapSign. PrimaryDocToken: {PrimaryDocToken}, StatusCode: {StatusCode}, Response: {Response}",
+                    primaryDocToken, response.StatusCode, debug);
+                throw new DomainException(this, InfraErrors.SignDoc.ErrorSendDocToSign(Guid.Empty));
+            }
+
+            var content = await response.Content.ReadFromJsonAsync<JsonNode>(cancellationToken: cancellationToken);
+            var attachmentToken = content?["token"]?.ToString() ?? "";
+
+            if (string.IsNullOrEmpty(attachmentToken))
+                throw new DomainException(this, InfraErrors.SignDoc.ErrorSendDocToSign(Guid.Empty));
+
+            _logger.LogInformation("Attachment added successfully. PrimaryDocToken: {PrimaryDocToken}, AttachmentToken: {AttachmentToken}",
+                primaryDocToken, attachmentToken);
+
+            return new AttachmentResultModel(attachmentToken);
+        }
+
+        public async Task<bool> PlaceSignatureOnAttachment(string primaryDocToken, string signerToken, PlaceSignature[] placeSignatures,
+            CancellationToken cancellationToken = default)
+        {
+            return await PlaceSignature(primaryDocToken, signerToken, placeSignatures, cancellationToken);
+        }
+
+        public async Task<SessionSignedDocumentsModel> GetSessionSignedDocuments(string primaryDocToken,
+            CancellationToken cancellationToken = default)
+        {
+            _logger.LogInformation("Getting session signed documents. PrimaryDocToken: {PrimaryDocToken}", primaryDocToken);
+
+            var response = await _httpClient.GetAsync($"/api/v1/docs/{primaryDocToken}/", cancellationToken);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                var debug = await response.Content.ReadAsStringAsync(cancellationToken);
+                _logger.LogError("Failed to get session documents from ZapSign. PrimaryDocToken: {PrimaryDocToken}, StatusCode: {StatusCode}, Response: {Response}",
+                    primaryDocToken, response.StatusCode, debug);
+                throw new DomainException(this, InfraErrors.SignDoc.ErrorInRecoverDocSigned(primaryDocToken));
+            }
+
+            var content = await response.Content.ReadFromJsonAsync<JsonNode>(cancellationToken: cancellationToken);
+            var primarySignedFile = content?["signed_file"]?.ToString() ?? "";
+            var signerToken = content?["signers"]?[0]?["token"]?.ToString() ?? "";
+
+            var attachments = new List<AttachmentSignedFile>();
+            var extraDocs = content?["extra_docs"]?.AsArray();
+            if (extraDocs != null)
+            {
+                foreach (var extraDoc in extraDocs)
+                {
+                    var token = extraDoc?["token"]?.ToString() ?? "";
+                    var signedFile = extraDoc?["signed_file"]?.ToString() ?? "";
+                    if (!string.IsNullOrEmpty(token) && !string.IsNullOrEmpty(signedFile))
+                    {
+                        attachments.Add(new AttachmentSignedFile(token, signedFile));
+                    }
+                }
+            }
+
+            return new SessionSignedDocumentsModel(signerToken, primarySignedFile, attachments);
         }
 
         private async Task DeleteDocument(string docToken, CancellationToken cancellationToken = default)

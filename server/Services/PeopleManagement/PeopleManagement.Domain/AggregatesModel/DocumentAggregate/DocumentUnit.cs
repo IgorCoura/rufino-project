@@ -34,6 +34,7 @@ namespace PeopleManagement.Domain.AggregatesModel.DocumentAggregate
         public Document Document { get; private set; } = null!;
         public string? SignatureDocumentToken { get; private set; }
         public string? SignatureUrl { get; private set; }
+        public string? AttachmentToken { get; private set; }
 
         private DocumentUnit() { }
         private DocumentUnit(Guid id, Document document) : base(id)
@@ -214,6 +215,15 @@ namespace PeopleManagement.Domain.AggregatesModel.DocumentAggregate
             SignatureDocumentToken = documentToken;
             SignatureUrl = signatureUrl;
         }
+
+        public void SetAttachmentSignatureInfo(string sessionDocToken, string attachmentToken, string signatureUrl)
+        {
+            SignatureDocumentToken = sessionDocToken;
+            AttachmentToken = attachmentToken;
+            SignatureUrl = signatureUrl;
+        }
+
+        public bool IsSessionPrimary => IsAwaitingSignature && SignatureDocumentToken != null && AttachmentToken == null;
 
     }
 }

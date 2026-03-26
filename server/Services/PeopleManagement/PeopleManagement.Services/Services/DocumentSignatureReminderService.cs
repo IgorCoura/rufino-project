@@ -52,13 +52,13 @@ namespace PeopleManagement.Services.Services
             {
                 _logger.LogInformation("Starting consolidated signature reminders job");
 
-                var documents = await _documentRepository.GetDataAsync(
+                IEnumerable<Document> documents = await _documentRepository.GetDataAsync(
                     filter: x => x.DocumentsUnits.Any(du => du.Status == DocumentUnitStatus.AwaitingSignature) 
                                  && (!employeeId.HasValue || x.EmployeeId == employeeId.Value),
                     include: q => q.Include(d => d.DocumentsUnits),
                     cancellation: cancellationToken);
 
-                var documentsList = documents.ToList();
+                List<Document> documentsList = documents.ToList();
 
                 if (!documentsList.Any())
                 {
@@ -72,7 +72,7 @@ namespace PeopleManagement.Services.Services
                         .Select(du => new
                         {
                             EmployeeId = doc.EmployeeId,
-                            DocumentName = doc.Name,
+                            DocumentName = doc.Name.Value,
                             SignatureUrl = du.SignatureUrl,
                             DocumentUnitId = du.Id
                         }))
@@ -156,8 +156,9 @@ namespace PeopleManagement.Services.Services
                 }
 
                 var phoneNumber = employee.Contact.GetCellPhoneWithCoutryNumber();
+
                 var message = $"Olá {employee.Name}! 👋\n\n" +
-                              $"Você recebeu um novo documento para assinatura: *{document.Name}*\n\n" +
+                              $"Você recebeu novos documentos para assinatura.\n\n" +
                               $"Por favor, acesse o link abaixo para assinar:\n" +
                               $"{documentUnit.SignatureUrl}\n\n" +
                               $"Você receberá lembretes periódicos até a assinatura ser concluída.";
@@ -191,11 +192,29 @@ namespace PeopleManagement.Services.Services
                 message += $"Você possui *{pendingDocuments.Count} documentos* pendentes de assinatura:\n\n";
             }
 
+            // Group documents by SignatureUrl to deduplicate links for session-grouped docs
+            var groupedByUrl = new Dictionary<string, List<string>>();
             for (int i = 0; i < pendingDocuments.Count; i++)
             {
                 var doc = pendingDocuments[i];
-                message += $"📄 *Documento {i + 1}:* {doc.DocumentName}\n";
-                message += $"🔗 Link: {doc.SignatureUrl}\n\n";
+                string url = doc.SignatureUrl;
+                string name = doc.DocumentName;
+
+                if (!groupedByUrl.ContainsKey(url))
+                    groupedByUrl[url] = new List<string>();
+
+                groupedByUrl[url].Add(name);
+            }
+
+            int docIndex = 1;
+            foreach (var group in groupedByUrl)
+            {
+                foreach (var docName in group.Value)
+                {
+                    message += $"📄 *Documento {docIndex}:* {docName}\n";
+                    docIndex++;
+                }
+                message += $"🔗 Link: {group.Key}\n\n";
             }
 
             message += "⏰ Este é um lembrete automático enviado duas vezes ao dia.\n";
