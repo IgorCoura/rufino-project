@@ -40,6 +40,10 @@ namespace PeopleManagement.Infra.Mapping
                 .HasMaxLength(1000)
                 .IsRequired(false);
 
+            builder.Property(x => x.AttachmentToken)
+                .HasMaxLength(500)
+                .IsRequired(false);
+
             builder.OwnsOne(x => x.Period, period =>
             {
                 period.Property(c => c.Type)
