@@ -427,6 +427,20 @@ public class ClickSignDocumentSignatureService : IDocumentSignatureService
         }
     }
 
+    // ── Métodos de sessão (não suportados pelo ClickSign — NotSupportedException) ──
+
+    public Task<AttachmentResultModel> AddDocumentAttachment(string primaryDocToken, Stream documentStream, string documentName,
+        CancellationToken cancellationToken = default)
+        => throw new NotSupportedException("ClickSign does not support adding attachments to existing documents.");
+
+    public Task<bool> PlaceSignatureOnAttachment(string primaryDocToken, string signerToken, PlaceSignature[] placeSignatures,
+        CancellationToken cancellationToken = default)
+        => throw new NotSupportedException("ClickSign does not support placing signatures on attachments.");
+
+    public Task<SessionSignedDocumentsModel> GetSessionSignedDocuments(string primaryDocToken,
+        CancellationToken cancellationToken = default)
+        => throw new NotSupportedException("ClickSign does not support session signed documents retrieval.");
+
     // ── Helpers ────────────────────────────────────────────────────────────
 
     private async Task EnsureSuccessAsync(HttpResponseMessage response, string operation, CancellationToken cancellationToken)

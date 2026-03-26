@@ -416,7 +416,7 @@ namespace PeopleManagement.Infra.DataForTests
                 "index.html",
                 "header.html",
                 "footer.html",
-                [RecoverDataType.Company, RecoverDataType.Employee, RecoverDataType.PGR, RecoverDataType.Departament, 
+                [RecoverDataType.Company, RecoverDataType.Employee, RecoverDataType.PGR, RecoverDataType.Departament,
                     RecoverDataType.Position, RecoverDataType.Role, RecoverDataType.ComplementaryInfo]
                 ),
                 true,
@@ -425,6 +425,71 @@ namespace PeopleManagement.Infra.DataForTests
                     PlaceSignature.Create(TypeSignature.Visa,1,20,15,3,3),
                 ],
                 documentGroup[1].Id
+                ),
+
+                DocumentTemplate.Create(
+                Guid.Parse("A1B2C3D4-E5F6-7890-ABCD-1234567890A1"),
+                "Declaração de Alteração de Nome",
+                "Declaração formal do colaborador comunicando a alteração de nome civil para fins de atualização cadastral.",
+                companyId,
+                TimeSpan.Zero,
+                TimeSpan.Zero,
+                null,
+                false,
+                [],
+                documentGroup[0].Id
+                ),
+
+                DocumentTemplate.Create(
+                Guid.Parse("B2C3D4E5-F6A7-8901-BCDE-2345678901B2"),
+                "Termo de Atualização de Registro",
+                "Termo de atualização de registro funcional em decorrência de alteração de nome do colaborador.",
+                companyId,
+                TimeSpan.Zero,
+                TimeSpan.Zero,
+                null,
+                false,
+                [],
+                documentGroup[0].Id
+                ),
+
+                DocumentTemplate.Create(
+                Guid.Parse("C3D4E5F6-A7B8-9012-CDEF-3456789012C3"),
+                "Cópia da Certidão de Casamento/Averbação",
+                "Cópia da certidão de casamento ou averbação que comprova a alteração do nome civil do colaborador.",
+                companyId,
+                TimeSpan.Zero,
+                TimeSpan.Zero,
+                null,
+                false,
+                [],
+                documentGroup[0].Id
+                ),
+
+                DocumentTemplate.Create(
+                Guid.Parse("D4E5F6A7-B8C9-0123-DEFA-4567890123D4"),
+                "Atualização de Crachá",
+                "Solicitação de emissão de novo crachá com o nome atualizado do colaborador.",
+                companyId,
+                TimeSpan.Zero,
+                TimeSpan.Zero,
+                null,
+                false,
+                [],
+                documentGroup[0].Id
+                ),
+
+                DocumentTemplate.Create(
+                Guid.Parse("E5F6A7B8-C9D0-1234-EFAB-5678901234E5"),
+                "Atualização de Dados Bancários",
+                "Formulário de atualização dos dados bancários do colaborador em decorrência da alteração de nome.",
+                companyId,
+                TimeSpan.Zero,
+                TimeSpan.Zero,
+                null,
+                false,
+                [],
+                documentGroup[0].Id
                 ),
             };
             return documents;
@@ -461,6 +526,19 @@ namespace PeopleManagement.Infra.DataForTests
                         ListenEvent.Create(EmployeeEvent.COMPLETE_ADMISSION_EVENT, [Status.Active.Id]),
                     ],
                     [documentsTemplateIds[1]]
+                    ),
+                RequireDocuments.Create(
+                    Guid.Parse("6CD081FA-C8BE-5BE3-9938-4B8D1A6BF1F9"),
+                    companyId,
+                    roleId,
+                    AssociationType.Role,
+                    "Requerimento de Documentos por Alteração de Nome",
+                    "Documentos requisitados quando o nome do colaborador é alterado, independente do status.",
+                    [
+                        ListenEvent.Create(EmployeeEvent.NAME_CHANGE_EVENT,
+                            [Status.Pending.Id, Status.Active.Id, Status.Vacation.Id, Status.Away.Id, Status.Inactive.Id]),
+                    ],
+                    [documentsTemplateIds[2], documentsTemplateIds[3], documentsTemplateIds[4], documentsTemplateIds[5], documentsTemplateIds[6]]
                     )
             };
 
