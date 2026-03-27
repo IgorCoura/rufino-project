@@ -212,46 +212,19 @@ class _AddressBlock extends StatelessWidget {
     final tt = Theme.of(context).textTheme;
     final cs = Theme.of(context).colorScheme;
     final secondary = tt.bodySmall?.copyWith(color: cs.onSurfaceVariant);
-
-    // Line 1: Street + number + optional complement
-    final line1 = [
-      address.street,
-      if (address.number.isNotEmpty) address.number,
-    ].join(', ') + (address.complement.isNotEmpty ? ' — ${address.complement}' : '');
-
-    // Line 2: Neighborhood (only if present)
-    final line2 = address.neighborhood;
-
-    // Line 3: City – state, ZIP
-    final rawZip = address.zipCode.replaceAll(RegExp(r'[^\d]'), '');
-    final formattedZip = rawZip.length == 8
-        ? '${rawZip.substring(0, 5)}-${rawZip.substring(5)}'
-        : address.zipCode;
-    final cityState = [
-      if (address.city.isNotEmpty) address.city,
-      if (address.state.isNotEmpty) address.state.toUpperCase(),
-    ].join(' — ');
-    final line3 = [
-      if (cityState.isNotEmpty) cityState,
-      if (formattedZip.isNotEmpty) formattedZip,
-    ].join(', ');
+    final lines = address.formattedDisplay.split('\n');
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        if (line1.trim().isNotEmpty)
-          Text(line1, style: tt.bodyMedium?.copyWith(fontWeight: FontWeight.w500)),
-        if (line2.isNotEmpty) ...[
-          const SizedBox(height: 2),
-          Text(line2, style: secondary),
-        ],
-        if (line3.isNotEmpty) ...[
-          const SizedBox(height: 2),
-          Text(line3, style: secondary),
-        ],
-        if (address.country.isNotEmpty) ...[
-          const SizedBox(height: 2),
-          Text(address.country, style: secondary),
+        for (int i = 0; i < lines.length; i++) ...[
+          if (i > 0) const SizedBox(height: 2),
+          Text(
+            lines[i],
+            style: i == 0
+                ? tt.bodyMedium?.copyWith(fontWeight: FontWeight.w500)
+                : secondary,
+          ),
         ],
       ],
     );

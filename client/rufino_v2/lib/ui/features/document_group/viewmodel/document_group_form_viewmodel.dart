@@ -53,27 +53,14 @@ class DocumentGroupFormViewModel extends ChangeNotifier {
   /// Human-readable error message set when [status] is [DocumentGroupFormStatus.error].
   String? get errorMessage => _errorMessage;
 
-  // ─── Validators ────────────────────────────────────────────────────────────
+  // ─── Validators — delegated to domain entity ──────────────────────────
 
-  /// Validates the group name: required, max 100 characters.
-  String? validateName(String? v) {
-    if (v == null || v.trim().isEmpty) return 'O Nome não pode ser vazio.';
-    if (v.length > 100) {
-      return 'O Nome não pode ser maior que 100 caracteres.';
-    }
-    return null;
-  }
+  /// Delegates to [DocumentGroup.validateName].
+  String? validateName(String? v) => DocumentGroup.validateName(v);
 
-  /// Validates the group description: required, max 1000 characters.
-  String? validateDescription(String? v) {
-    if (v == null || v.trim().isEmpty) {
-      return 'A Descrição não pode ser vazia.';
-    }
-    if (v.length > 1000) {
-      return 'A Descrição não pode ser maior que 1000 caracteres.';
-    }
-    return null;
-  }
+  /// Delegates to [DocumentGroup.validateDescription].
+  String? validateDescription(String? v) =>
+      DocumentGroup.validateDescription(v);
 
   // ─── Operations ────────────────────────────────────────────────────────────
 

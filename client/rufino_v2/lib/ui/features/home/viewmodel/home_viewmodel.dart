@@ -25,6 +25,10 @@ class HomeViewModel extends ChangeNotifier {
   String? get errorMessage => _errorMessage;
   bool get isLoading => _status == HomeStatus.loading;
 
+  /// Returns the best display name for the loaded company, or "Rufino" as
+  /// fallback when no company is loaded.
+  String get companyDisplayName => _company?.displayName ?? 'Rufino';
+
   Future<void> loadCompany() async {
     _status = HomeStatus.loading;
     notifyListeners();

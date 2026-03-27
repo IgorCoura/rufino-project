@@ -149,7 +149,7 @@ class _DepartmentDropdown extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return DropdownButtonFormField<Department>(
-      value: viewModel.selectedDepartment,
+      initialValue: viewModel.selectedDepartment,
       decoration: const InputDecoration(
         labelText: 'Setor',
         border: OutlineInputBorder(),
@@ -173,7 +173,7 @@ class _PositionDropdown extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return DropdownButtonFormField<Position>(
-      value: viewModel.selectedPosition,
+      initialValue: viewModel.selectedPosition,
       decoration: const InputDecoration(
         labelText: 'Cargo',
         border: OutlineInputBorder(),
@@ -199,7 +199,7 @@ class _RoleDropdown extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return DropdownButtonFormField<Role>(
-      value: viewModel.selectedRole,
+      initialValue: viewModel.selectedRole,
       decoration: const InputDecoration(
         labelText: 'Função',
         border: OutlineInputBorder(),
@@ -224,7 +224,7 @@ class _WorkplaceDropdown extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return DropdownButtonFormField<Workplace>(
-      value: viewModel.selectedWorkplace,
+      initialValue: viewModel.selectedWorkplace,
       decoration: const InputDecoration(
         labelText: 'Local de trabalho',
         border: OutlineInputBorder(),

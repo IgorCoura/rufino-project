@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/theme/app_spacing.dart';
-import '../../../../domain/entities/require_document.dart';
 import '../viewmodel/require_document_form_viewmodel.dart';
 
 /// Form screen for creating or editing a require document.
@@ -195,7 +194,7 @@ class _RequireDocumentFormBody extends StatelessWidget {
               ),
               const SizedBox(height: AppSpacing.md),
               DropdownButtonFormField<String>(
-                value: viewModel.selectedAssociationTypeId.isNotEmpty
+                initialValue: viewModel.selectedAssociationTypeId.isNotEmpty
                     ? viewModel.selectedAssociationTypeId
                     : null,
                 decoration: const InputDecoration(
@@ -212,7 +211,7 @@ class _RequireDocumentFormBody extends StatelessWidget {
               ),
               const SizedBox(height: AppSpacing.md),
               DropdownButtonFormField<String>(
-                value: viewModel.selectedAssociationId.isNotEmpty &&
+                initialValue: viewModel.selectedAssociationId.isNotEmpty &&
                         viewModel.associations
                             .any((a) => a.id == viewModel.selectedAssociationId)
                     ? viewModel.selectedAssociationId
@@ -334,12 +333,9 @@ class _DocumentTemplatesSection extends StatelessWidget {
         title: const Text('Adicionar Template de Documento'),
         content: StatefulBuilder(
           builder: (context, setDialogState) {
-            final available = viewModel.availableDocumentTemplates
-                .where((t) => !viewModel.selectedDocumentTemplates
-                    .any((s) => s.id == t.id))
-                .toList();
+            final available = viewModel.unselectedDocumentTemplates;
             return DropdownButtonFormField<String>(
-              value: selectedId,
+              initialValue: selectedId,
               decoration: const InputDecoration(
                 labelText: 'Selecione um template',
                 border: OutlineInputBorder(),
@@ -436,17 +432,14 @@ class _ListenEventsSection extends StatelessWidget {
         title: const Text('Adicionar Evento Observado'),
         content: StatefulBuilder(
           builder: (context, setDialogState) {
-            final available = viewModel.availableEvents
-                .where((e) => !viewModel.listenEvents
-                    .any((le) => le.eventId.toString() == e.id))
-                .toList();
+            final available = viewModel.unselectedEvents;
             final effectiveValue = selectedId != null &&
                     available.any((e) => e.id == selectedId)
                 ? selectedId
                 : null;
             return DropdownButtonFormField<String>(
               key: ValueKey(effectiveValue),
-              value: effectiveValue,
+              initialValue: effectiveValue,
               decoration: const InputDecoration(
                 labelText: 'Selecione um evento',
                 border: OutlineInputBorder(),
@@ -530,11 +523,9 @@ class _ListenEventCard extends StatelessWidget {
                   runSpacing: AppSpacing.xs,
                   children: viewModel.availableStatuses.map((status) {
                     final statusId = int.tryParse(status.id) ?? 0;
-                    final selected =
-                        event.statuses.any((s) => s.id == statusId);
                     return FilterChip(
                       label: Text(status.name),
-                      selected: selected,
+                      selected: event.statuses.any((s) => s.id == statusId),
                       onSelected: (_) => viewModel.toggleStatusOnEvent(
                         event.eventId,
                         status.id,

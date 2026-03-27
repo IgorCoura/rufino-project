@@ -209,9 +209,7 @@ class _RemunerationSection extends StatelessWidget {
         ),
         const SizedBox(height: AppSpacing.md),
         DropdownButtonFormField<String>(
-          value: viewModel.paymentUnits.any((u) => u.id == viewModel.paymentUnitId)
-              ? viewModel.paymentUnitId
-              : null,
+          initialValue: viewModel.safePaymentUnitId,
           decoration: const InputDecoration(
             labelText: 'Unidade de Pagamento',
             border: OutlineInputBorder(),
@@ -237,9 +235,7 @@ class _RemunerationSection extends StatelessWidget {
         ),
         const SizedBox(height: AppSpacing.md),
         DropdownButtonFormField<String>(
-          value: viewModel.salaryTypes.any((t) => t.id == viewModel.salaryTypeId)
-              ? viewModel.salaryTypeId
-              : null,
+          initialValue: viewModel.safeSalaryTypeId,
           decoration: const InputDecoration(
             labelText: 'Tipo Monetário',
             border: OutlineInputBorder(),

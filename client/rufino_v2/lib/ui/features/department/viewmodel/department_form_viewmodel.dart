@@ -1,5 +1,6 @@
 import 'package:flutter/widgets.dart';
 
+import '../../../../domain/entities/department.dart';
 import '../../../../domain/repositories/company_repository.dart';
 import '../../../../domain/repositories/department_repository.dart';
 
@@ -52,21 +53,13 @@ class DepartmentFormViewModel extends ChangeNotifier {
   /// Human-readable error message set when [status] is [DepartmentFormStatus.error].
   String? get errorMessage => _errorMessage;
 
-  // ─── Validators ────────────────────────────────────────────────────────────
+  // ─── Validators — delegated to domain entity ──────────────────────────
 
-  /// Validates the department name: required, max 100 characters.
-  String? validateName(String? v) {
-    if (v == null || v.isEmpty) return 'Não pode ser vazio.';
-    if (v.length > 100) return 'Não pode ser maior que 100 caracteres.';
-    return null;
-  }
+  /// Delegates to [Department.validateName].
+  String? validateName(String? v) => Department.validateName(v);
 
-  /// Validates the department description: required, max 2000 characters.
-  String? validateDescription(String? v) {
-    if (v == null || v.isEmpty) return 'Não pode ser vazio.';
-    if (v.length > 2000) return 'Não pode ser maior que 2000 caracteres.';
-    return null;
-  }
+  /// Delegates to [Department.validateDescription].
+  String? validateDescription(String? v) => Department.validateDescription(v);
 
   // ─── Operations ────────────────────────────────────────────────────────────
 

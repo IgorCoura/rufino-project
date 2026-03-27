@@ -3,6 +3,7 @@ import 'dart:collection';
 import 'package:flutter/widgets.dart';
 
 import '../../../../domain/entities/department.dart';
+import '../../../../domain/entities/employee.dart';
 import '../../../../domain/entities/position.dart';
 import '../../../../domain/entities/role.dart';
 import '../../../../domain/entities/workplace.dart';
@@ -126,17 +127,10 @@ class EmployeeFormViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
-  // ─── Validators ────────────────────────────────────────────────────────────
+  // ─── Validators — delegated to domain entity ────────────────────────────
 
-  /// Validates the employee name: required, at least two words, max 100 chars.
-  String? validateName(String? v) {
-    if (v == null || v.trim().isEmpty) return 'O nome não pode ser vazio.';
-    if (v.trim().split(RegExp(r'\s+')).length < 2) {
-      return 'Informe o nome completo.';
-    }
-    if (v.length > 100) return 'Máx. 100 caracteres.';
-    return null;
-  }
+  /// Delegates to [Employee.validateName].
+  String? validateName(String? v) => Employee.validateName(v);
 
   // ─── Operations ────────────────────────────────────────────────────────────
 

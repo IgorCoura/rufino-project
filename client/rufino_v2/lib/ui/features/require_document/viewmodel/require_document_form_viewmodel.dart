@@ -236,27 +236,28 @@ class RequireDocumentFormViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
-  // ─── Validators ────────────────────────────────────────────────────────────
+  // ─── Computed getters for UI filtering ──────────────────────────────────
 
-  /// Validates the require document name: required, max 100 characters.
-  String? validateName(String? v) {
-    if (v == null || v.trim().isEmpty) return 'O Nome não pode ser vazio.';
-    if (v.length > 100) {
-      return 'O Nome não pode ter mais de 100 caracteres.';
-    }
-    return null;
-  }
+  /// Returns document templates that have not yet been selected.
+  List<SelectionOption> get unselectedDocumentTemplates =>
+      _availableDocumentTemplates
+          .where((t) => !_selectedDocumentTemplates.any((s) => s.id == t.id))
+          .toList();
 
-  /// Validates the require document description: required, max 500 characters.
-  String? validateDescription(String? v) {
-    if (v == null || v.trim().isEmpty) {
-      return 'A Descrição não pode ser vazia.';
-    }
-    if (v.length > 500) {
-      return 'A Descrição não pode ter mais de 500 caracteres.';
-    }
-    return null;
-  }
+  /// Returns lifecycle events that have not yet been added.
+  List<SelectionOption> get unselectedEvents => _availableEvents
+      .where(
+          (e) => !_listenEvents.any((le) => le.eventId.toString() == e.id))
+      .toList();
+
+  // ─── Validators — delegated to domain entity ──────────────────────────
+
+  /// Delegates to [RequireDocument.validateName].
+  String? validateName(String? v) => RequireDocument.validateName(v);
+
+  /// Delegates to [RequireDocument.validateDescription].
+  String? validateDescription(String? v) =>
+      RequireDocument.validateDescription(v);
 
   // ─── Operations ────────────────────────────────────────────────────────────
 

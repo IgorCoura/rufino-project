@@ -3,7 +3,6 @@ import 'package:mask_text_input_formatter/mask_text_input_formatter.dart';
 
 import '../../../../../core/theme/app_spacing.dart';
 import '../../../../../domain/entities/employee_contract.dart';
-import '../../../../../domain/entities/selection_option.dart';
 import '../../viewmodel/employee_profile_viewmodel.dart';
 import 'profile_shared_widgets.dart';
 
@@ -297,7 +296,7 @@ class _ContractSectionState extends State<ContractSection> {
                   ),
                   const SizedBox(height: AppSpacing.md),
                   DropdownButtonFormField<String>(
-                    value: selectedTypeId,
+                    initialValue: selectedTypeId,
                     decoration: const InputDecoration(
                       labelText: 'Tipo de contrato',
                       prefixIcon: Icon(Icons.description_outlined),

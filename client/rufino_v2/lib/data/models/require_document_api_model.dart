@@ -26,8 +26,8 @@ class RequireDocumentApiModel {
   final String associationName;
   final int associationTypeId;
   final String associationTypeName;
-  final List<_DocumentTemplateDto> documentTemplates;
-  final List<_ListenEventDto> listenEvents;
+  final List<DocumentTemplateDto> documentTemplates;
+  final List<ListenEventDto> listenEvents;
 
   /// Parses a simplified JSON object from the list endpoint.
   factory RequireDocumentApiModel.fromJsonSimple(Map<String, dynamic> json) {
@@ -146,25 +146,26 @@ class RequireDocumentApiModel {
         _ => id.toString(),
       };
 
-  static List<_DocumentTemplateDto> _parseTemplates(dynamic raw) {
+  static List<DocumentTemplateDto> _parseTemplates(dynamic raw) {
     if (raw == null) return [];
     final list = raw as List<dynamic>;
     return list
-        .map((e) => _DocumentTemplateDto.fromJson(e as Map<String, dynamic>))
+        .map((e) => DocumentTemplateDto.fromJson(e as Map<String, dynamic>))
         .toList();
   }
 
-  static List<_ListenEventDto> _parseListenEvents(dynamic raw) {
+  static List<ListenEventDto> _parseListenEvents(dynamic raw) {
     if (raw == null) return [];
     final list = raw as List<dynamic>;
     return list
-        .map((e) => _ListenEventDto.fromJson(e as Map<String, dynamic>))
+        .map((e) => ListenEventDto.fromJson(e as Map<String, dynamic>))
         .toList();
   }
 }
 
-class _DocumentTemplateDto {
-  const _DocumentTemplateDto({
+/// A nested DTO representing a document template within a require document response.
+class DocumentTemplateDto {
+  const DocumentTemplateDto({
     required this.id,
     required this.name,
     this.description = '',
@@ -174,8 +175,8 @@ class _DocumentTemplateDto {
   final String name;
   final String description;
 
-  factory _DocumentTemplateDto.fromJson(Map<String, dynamic> json) {
-    return _DocumentTemplateDto(
+  factory DocumentTemplateDto.fromJson(Map<String, dynamic> json) {
+    return DocumentTemplateDto(
       id: json['id'] as String? ?? '',
       name: json['name'] as String? ?? '',
       description: json['description'] as String? ?? '',
@@ -183,8 +184,9 @@ class _DocumentTemplateDto {
   }
 }
 
-class _ListenEventDto {
-  const _ListenEventDto({
+/// A nested DTO representing a listen event within a require document response.
+class ListenEventDto {
+  const ListenEventDto({
     required this.eventId,
     required this.eventName,
     this.statusIds = const [],
@@ -194,10 +196,10 @@ class _ListenEventDto {
   final String eventName;
   final List<int> statusIds;
 
-  factory _ListenEventDto.fromJson(Map<String, dynamic> json) {
+  factory ListenEventDto.fromJson(Map<String, dynamic> json) {
     final event = json['event'] as Map<String, dynamic>?;
     final statusRaw = json['status'] as List<dynamic>? ?? [];
-    return _ListenEventDto(
+    return ListenEventDto(
       eventId: event?['id'] as int? ?? 0,
       eventName: _convertEventName(
         event?['id'] as int? ?? 0,

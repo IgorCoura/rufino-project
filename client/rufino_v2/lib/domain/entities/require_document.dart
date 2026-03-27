@@ -42,6 +42,55 @@ class RequireDocument {
 
   /// The lifecycle events that trigger document generation, each with a list of statuses.
   final List<ListenEvent> listenEvents;
+
+  /// Whether this requirement has an association configured.
+  bool get hasAssociation => associationId.isNotEmpty;
+
+  /// Whether this requirement is associated with a role (type 1).
+  bool get isRoleAssociation => associationTypeId == 1;
+
+  /// Whether this requirement is associated with a workplace (type 2).
+  bool get isWorkplaceAssociation => associationTypeId == 2;
+
+  /// Whether this requirement has any document templates attached.
+  bool get hasTemplates => documentTemplates.isNotEmpty;
+
+  /// Whether this requirement has any listen events configured.
+  bool get hasEvents => listenEvents.isNotEmpty;
+
+  /// Returns the number of document templates.
+  int get templateCount => documentTemplates.length;
+
+  /// Returns the number of listen events.
+  int get eventCount => listenEvents.length;
+
+  // ─── Validators ──────────────────────────────────────────────────────────
+
+  /// Validates the require document name.
+  ///
+  /// Required, max 100 characters.
+  static String? validateName(String? value) {
+    if (value == null || value.trim().isEmpty) {
+      return 'O Nome não pode ser vazio.';
+    }
+    if (value.length > 100) {
+      return 'O Nome não pode ter mais de 100 caracteres.';
+    }
+    return null;
+  }
+
+  /// Validates the require document description.
+  ///
+  /// Required, max 500 characters.
+  static String? validateDescription(String? value) {
+    if (value == null || value.trim().isEmpty) {
+      return 'A Descrição não pode ser vazia.';
+    }
+    if (value.length > 500) {
+      return 'A Descrição não pode ter mais de 500 caracteres.';
+    }
+    return null;
+  }
 }
 
 /// A simplified reference to a document template within a [RequireDocument].
@@ -60,6 +109,9 @@ class RequireDocumentTemplate {
 
   /// The description of the template.
   final String description;
+
+  /// Whether this template has a description filled in.
+  bool get hasDescription => description.isNotEmpty;
 }
 
 /// An employee lifecycle event paired with the statuses that trigger it.
@@ -78,6 +130,15 @@ class ListenEvent {
 
   /// The employee statuses that, combined with this event, trigger document generation.
   final List<EventStatus> statuses;
+
+  /// Whether this event has any statuses configured.
+  bool get hasStatuses => statuses.isNotEmpty;
+
+  /// Returns the number of statuses.
+  int get statusCount => statuses.length;
+
+  /// Whether the given [statusId] is selected for this event.
+  bool hasStatus(int statusId) => statuses.any((s) => s.id == statusId);
 }
 
 /// An employee status used within a [ListenEvent].

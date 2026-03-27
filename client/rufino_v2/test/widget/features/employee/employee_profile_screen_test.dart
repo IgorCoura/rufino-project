@@ -8,13 +8,11 @@ import 'package:rufino_v2/domain/entities/department.dart';
 import 'package:rufino_v2/domain/entities/employee_contract.dart';
 import 'package:rufino_v2/domain/entities/document_group_with_documents.dart';
 import 'package:rufino_v2/domain/entities/employee_document.dart';
-import 'package:rufino_v2/domain/entities/employee_medical_exam.dart';
 import 'package:rufino_v2/domain/entities/position.dart';
 import 'package:rufino_v2/domain/entities/remuneration.dart';
 import 'package:rufino_v2/domain/entities/employee_military_document.dart';
 import 'package:rufino_v2/domain/entities/employee_personal_info.dart';
 import 'package:rufino_v2/domain/entities/employee_profile.dart';
-import 'package:rufino_v2/domain/entities/remuneration.dart';
 import 'package:rufino_v2/domain/entities/role.dart';
 import 'package:rufino_v2/domain/entities/workplace.dart';
 import 'package:rufino_v2/ui/features/employee/viewmodel/employee_profile_viewmodel.dart';
@@ -93,7 +91,7 @@ void main() {
       ..setSalaryTypes(const [
         SalaryType(id: '1', name: 'BRL'),
       ])
-      ..setDepartments([
+      ..setDepartments(const [
         Department(
           id: 'dept-1',
           name: 'Financeiro',
