@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import '../../../../domain/entities/company.dart';
 import '../../../../domain/repositories/auth_repository.dart';
 import '../../../../domain/repositories/company_repository.dart';
+import '../../../features/auth/viewmodel/permission_notifier.dart';
 
 enum HomeStatus { loading, loaded, error }
 
@@ -10,11 +11,14 @@ class HomeViewModel extends ChangeNotifier {
   HomeViewModel({
     required AuthRepository authRepository,
     required CompanyRepository companyRepository,
+    required PermissionNotifier permissionNotifier,
   })  : _authRepository = authRepository,
-        _companyRepository = companyRepository;
+        _companyRepository = companyRepository,
+        _permissionNotifier = permissionNotifier;
 
   final AuthRepository _authRepository;
   final CompanyRepository _companyRepository;
+  final PermissionNotifier _permissionNotifier;
 
   Company? _company;
   HomeStatus _status = HomeStatus.loading;
@@ -49,5 +53,6 @@ class HomeViewModel extends ChangeNotifier {
 
   Future<void> logout() async {
     await _authRepository.logout();
+    _permissionNotifier.clear();
   }
 }

@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/theme/app_breakpoints.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../domain/entities/employee.dart';
+import '../../../core/widgets/permission_guard.dart';
 import '../viewmodel/employee_list_viewmodel.dart';
 
 /// Displays a paginated, searchable list of employees for the selected company.
@@ -125,12 +126,16 @@ class _EmployeeListScreenState extends State<EmployeeListScreen> {
           ),
         ),
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () => context
-            .push('/employee/create')
-            .then((_) => widget.viewModel.refresh()),
-        tooltip: 'Adicionar funcionário',
-        child: const Icon(Icons.person_add_alt_1),
+      floatingActionButton: PermissionGuard(
+        resource: 'employee',
+        scope: 'create',
+        child: FloatingActionButton(
+          onPressed: () => context
+              .push('/employee/create')
+              .then((_) => widget.viewModel.refresh()),
+          tooltip: 'Adicionar funcionário',
+          child: const Icon(Icons.person_add_alt_1),
+        ),
       ),
     );
   }

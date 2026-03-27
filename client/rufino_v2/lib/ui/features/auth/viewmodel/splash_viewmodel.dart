@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 
 import '../../../../domain/repositories/auth_repository.dart';
 import '../../../../domain/repositories/company_repository.dart';
+import 'permission_notifier.dart';
 
 enum SplashStatus { loading, authenticated, unauthenticated, noCompany, error }
 
@@ -9,11 +10,14 @@ class SplashViewModel extends ChangeNotifier {
   SplashViewModel({
     required AuthRepository authRepository,
     required CompanyRepository companyRepository,
+    required PermissionNotifier permissionNotifier,
   })  : _authRepository = authRepository,
-        _companyRepository = companyRepository;
+        _companyRepository = companyRepository,
+        _permissionNotifier = permissionNotifier;
 
   final AuthRepository _authRepository;
   final CompanyRepository _companyRepository;
+  final PermissionNotifier _permissionNotifier;
 
   SplashStatus _status = SplashStatus.loading;
   String? _errorMessage;
@@ -46,9 +50,12 @@ class SplashViewModel extends ChangeNotifier {
         return;
       }
 
-      _status = hasCompanyResult.valueOrNull == true
-          ? SplashStatus.authenticated
-          : SplashStatus.noCompany;
+      if (hasCompanyResult.valueOrNull == true) {
+        await _permissionNotifier.loadPermissions();
+        _status = SplashStatus.authenticated;
+      } else {
+        _status = SplashStatus.noCompany;
+      }
     } catch (_) {
       _status = SplashStatus.error;
     } finally {

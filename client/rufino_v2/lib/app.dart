@@ -10,6 +10,7 @@ import 'core/storage/secure_storage.dart';
 import 'core/theme/app_theme.dart';
 import 'core/theme/theme_notifier.dart';
 import 'data/repositories/auth_repository_impl.dart';
+import 'data/repositories/permission_repository_impl.dart';
 import 'data/repositories/company_repository_impl.dart';
 import 'data/repositories/department_repository_impl.dart';
 import 'data/repositories/employee_repository_impl.dart';
@@ -18,6 +19,7 @@ import 'data/repositories/document_template_repository_impl.dart';
 import 'data/repositories/require_document_repository_impl.dart';
 import 'data/repositories/workplace_repository_impl.dart';
 import 'data/services/auth_api_service.dart';
+import 'data/services/permission_api_service.dart';
 import 'data/services/company_api_service.dart';
 import 'data/services/department_api_service.dart';
 import 'data/services/document_group_api_service.dart';
@@ -26,6 +28,7 @@ import 'data/services/document_template_api_service.dart';
 import 'data/services/require_document_api_service.dart';
 import 'data/services/workplace_api_service.dart';
 import 'domain/repositories/auth_repository.dart';
+import 'domain/repositories/permission_repository.dart';
 import 'domain/repositories/company_repository.dart';
 import 'domain/repositories/department_repository.dart';
 import 'domain/repositories/document_group_repository.dart';
@@ -34,6 +37,7 @@ import 'domain/repositories/document_template_repository.dart';
 import 'domain/repositories/require_document_repository.dart';
 import 'domain/repositories/workplace_repository.dart';
 import 'ui/features/auth/viewmodel/login_viewmodel.dart';
+import 'ui/features/auth/viewmodel/permission_notifier.dart';
 import 'ui/features/auth/viewmodel/splash_viewmodel.dart';
 import 'ui/features/auth/widgets/login_screen.dart';
 import 'ui/features/auth/widgets/splash_screen.dart';
@@ -97,6 +101,16 @@ class App extends StatelessWidget {
       secret: AppConfig.secret,
     );
 
+    final permissionApiService = PermissionApiService(
+      client: httpClient,
+      tokenEndpoint: Uri.parse(AppConfig.authorizationEndpoint),
+      getAccessToken: () async {
+        final credentials = await authApiService.getCredentials();
+        return credentials.accessToken;
+      },
+      audience: 'people-management-api',
+    );
+
     final companyApiService = CompanyApiService(
       client: httpClient,
       baseUrl: AppConfig.peopleManagementUrl,
@@ -110,6 +124,12 @@ class App extends StatelessWidget {
     );
 
     // Repositories
+    final PermissionRepository permissionRepository =
+        PermissionRepositoryImpl(permissionApiService: permissionApiService);
+    final permissionNotifier = PermissionNotifier(
+      permissionRepository: permissionRepository,
+    );
+
     final AuthRepository authRepository = AuthRepositoryImpl(
       authApiService: authApiService,
     );
@@ -165,7 +185,9 @@ class App extends StatelessWidget {
 
     return [
       ChangeNotifierProvider(create: (_) => ThemeNotifier()),
+      ChangeNotifierProvider.value(value: permissionNotifier),
       Provider<AuthRepository>.value(value: authRepository),
+      Provider<PermissionRepository>.value(value: permissionRepository),
       Provider<CompanyRepository>.value(value: companyRepository),
       Provider<DepartmentRepository>.value(value: departmentRepository),
       Provider<WorkplaceRepository>.value(value: workplaceRepository),
@@ -200,6 +222,7 @@ class _AppRouterState extends State<_AppRouter> {
             viewModel: SplashViewModel(
               authRepository: context.read<AuthRepository>(),
               companyRepository: context.read<CompanyRepository>(),
+              permissionNotifier: context.read<PermissionNotifier>(),
             ),
           ),
         ),
@@ -243,6 +266,7 @@ class _AppRouterState extends State<_AppRouter> {
             viewModel: HomeViewModel(
               authRepository: context.read<AuthRepository>(),
               companyRepository: context.read<CompanyRepository>(),
+              permissionNotifier: context.read<PermissionNotifier>(),
             ),
           ),
         ),
