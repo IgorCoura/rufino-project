@@ -16,7 +16,7 @@ namespace PeopleManagement.API.Controllers
     public class DocumentTemplateController(ILogger<DocumentTemplateController> logger, IMediator mediator, IDocumentTemplateQueries documentTemplateQueries) : BaseController(logger)
     {
         [HttpPost]
-        [ProtectedResource("DocumentTemplate", "create")]
+        [ProtectedResource("document-template", "create")]
         public async Task<ActionResult<CreateDocumentTemplateResponse>> Create([FromBody] CreateDocumentTemplateModel request, [FromRoute] Guid company, [FromHeader(Name = "x-requestid")] Guid requestId)
         {
             var command = new IdentifiedCommand<CreateDocumentTemplateCommand, CreateDocumentTemplateResponse>(request.ToCommand(company), requestId);
@@ -31,7 +31,7 @@ namespace PeopleManagement.API.Controllers
         }
 
         [HttpPut]
-        [ProtectedResource("DocumentTemplate", "edit")]
+        [ProtectedResource("document-template", "edit")]
         public async Task<ActionResult<EditDocumentTemplateResponse>> Edit([FromBody] EditDocumentTemplateModel request, [FromRoute] Guid company, [FromHeader(Name = "x-requestid")] Guid requestId)
         {
             var command = new IdentifiedCommand<EditDocumentTemplateCommand, EditDocumentTemplateResponse>(request.ToCommand(company), requestId);
@@ -46,7 +46,7 @@ namespace PeopleManagement.API.Controllers
         }
 
         [HttpPost("Upload")]
-        [ProtectedResource("DocumentTemplate", "send")]
+        [ProtectedResource("document-template", "upload")]
         [RequestSizeLimit(12_000_000)]
         public async Task<ActionResult<InsertDocumentTemplateResponse>> Insert(IFormFile formFile, [FromForm] Guid id, [FromRoute] Guid company, [FromHeader(Name = "x-requestid")] Guid requestId)
         {
@@ -64,7 +64,7 @@ namespace PeopleManagement.API.Controllers
         }
 
         [HttpGet]
-        [ProtectedResource("DocumentTemplate", "view")]
+        [ProtectedResource("document-template", "view")]
         public async Task<ActionResult<IEnumerable<DocumentTemplateDto>>> GetAll([FromRoute] Guid company)
         {
             var result = await documentTemplateQueries.GetAll(company);
@@ -72,7 +72,7 @@ namespace PeopleManagement.API.Controllers
         }
 
         [HttpGet("{documentTemplateId}")]
-        [ProtectedResource("DocumentTemplate", "view")]
+        [ProtectedResource("document-template", "view")]
         public async Task<ActionResult<DocumentTemplateDto>> GetById([FromRoute] Guid company, [FromRoute] Guid documentTemplateId)
         {
             var result = await documentTemplateQueries.GetById(company, documentTemplateId);
@@ -80,7 +80,7 @@ namespace PeopleManagement.API.Controllers
         }
 
         [HttpGet("Simple")]
-        [ProtectedResource("DocumentTemplate", "view")]
+        [ProtectedResource("document-template", "view")]
         public async Task<ActionResult<IEnumerable<DocumentTemplateSimpleDto>>> GetAllSimple([FromRoute] Guid company)
         {
             var result = await documentTemplateQueries.GetAllSimple(company);
@@ -89,7 +89,7 @@ namespace PeopleManagement.API.Controllers
 
 
         [HttpGet("TypeSignature")]
-        [ProtectedResource("DocumentTemplate", "view")]
+        [ProtectedResource("document-template", "view")]
         public ActionResult<IEnumerable<TypeSignature>> GetAllTypeSignatures([FromRoute] Guid company)
         {
             var result = TypeSignature.GetAll<TypeSignature>();
@@ -97,7 +97,7 @@ namespace PeopleManagement.API.Controllers
         }
 
         [HttpGet("RecoverDataType")]
-        [ProtectedResource("DocumentTemplate", "view")]
+        [ProtectedResource("document-template", "view")]
         public ActionResult<IEnumerable<EnumerationDto>> GetAllRecoverDataType([FromRoute] Guid company)
         {
             var result = RecoverDataType.GetAll<RecoverDataType>();
@@ -106,7 +106,7 @@ namespace PeopleManagement.API.Controllers
         }
 
         [HttpGet("HasFile/{documentTemplateId}")]
-        [ProtectedResource("DocumentTemplate", "view")]
+        [ProtectedResource("document-template", "view")]
         public async Task<ActionResult<bool>> HasFile([FromRoute] Guid company, [FromRoute] Guid documentTemplateId)
         {
             var result = await documentTemplateQueries.HasFile(documentTemplateId, company);
@@ -114,7 +114,7 @@ namespace PeopleManagement.API.Controllers
         }
 
         [HttpGet("Download/{documentTemplateId}")]
-        [ProtectedResource("DocumentTemplate", "view")]
+        [ProtectedResource("document-template", "download")]
         public async Task<IActionResult> DownloadFile([FromRoute] Guid company, [FromRoute] Guid documentTemplateId)
         {
             var stream = await documentTemplateQueries.DownloadFile(documentTemplateId, company);
@@ -123,7 +123,7 @@ namespace PeopleManagement.API.Controllers
         }
 
         [HttpGet("Events")]
-        [ProtectedResource("DocumentTemplate", "view")]
+        [ProtectedResource("document-template", "view")]
         public async Task<ActionResult<EnumerationDto>> GetAllEvents([FromRoute] Guid company)
         {
             var result = await documentTemplateQueries.GetAllEvents();
@@ -131,7 +131,7 @@ namespace PeopleManagement.API.Controllers
         }
 
         [HttpGet("RecoverDataModels")]
-        [ProtectedResource("DocumentTemplate", "view")]
+        [ProtectedResource("document-template", "view")]
         public ActionResult GetAllRecoverDataModels([FromRoute] Guid company)
         {
             var objects = new List<JsonObject>();

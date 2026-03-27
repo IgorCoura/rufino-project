@@ -9,7 +9,7 @@ namespace PeopleManagement.API.Controllers
     {
 
         [HttpPost("file")]
-        [ProtectedResource("Archive", "edit")]
+        [ProtectedResource("archive", "edit")]
         public async Task<ActionResult<InsertFileResponse>> InsertFile(IFormFile formFile, [FromRoute] Guid company, [FromForm] InsertFileModel request,[FromHeader(Name = "x-requestid")] Guid requestId)
         {
             var extension = Path.GetExtension(formFile.FileName);

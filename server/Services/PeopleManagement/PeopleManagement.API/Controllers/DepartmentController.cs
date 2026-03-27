@@ -14,7 +14,7 @@ namespace PeopleManagement.API.Controllers
         private readonly IDepartmentQueries _departmentQueries = departmentQueries;
 
         [HttpPost]
-        [ProtectedResource("Department", "create")]
+        [ProtectedResource("department", "create")]
         public async Task<ActionResult<CreateDepartmentResponse>> Create([FromRoute] Guid company, [FromBody] CreateDepartmentModel request, [FromHeader(Name = "x-requestid")] Guid requestId)
         {
             var command = new IdentifiedCommand<CreateDepartmentCommand, CreateDepartmentResponse>(request.ToCommand(company), requestId);
@@ -29,7 +29,7 @@ namespace PeopleManagement.API.Controllers
         }
 
         [HttpPut]
-        [ProtectedResource("Department", "edit")]
+        [ProtectedResource("department", "edit")]
         public async Task<ActionResult<EditDepartmentResponse>> Edit([FromRoute] Guid company, [FromBody] EditDepartmentModel request, [FromHeader(Name = "x-requestid")] Guid requestId)
         {
             var command = new IdentifiedCommand<EditDepartmentCommand, EditDepartmentResponse>(request.ToCommand(company), requestId);
@@ -44,7 +44,7 @@ namespace PeopleManagement.API.Controllers
         }
 
         [HttpGet("all")]
-        [ProtectedResource("Department", "view")]
+        [ProtectedResource("department", "view")]
         public async Task<ActionResult<IEnumerable<DepartmentDto>>> GetAll([FromRoute] Guid company)
         {
             var result = await _departmentQueries.GetAll(company);
@@ -52,7 +52,7 @@ namespace PeopleManagement.API.Controllers
         }
 
         [HttpGet("all/simple")]
-        [ProtectedResource("Department", "view")]
+        [ProtectedResource("department", "view")]
         public async Task<ActionResult<IEnumerable<DepartmentSimpleDto>>> GetAllSimple([FromRoute] Guid company)
         {
             var result = await _departmentQueries.GetAll(company);
@@ -60,7 +60,7 @@ namespace PeopleManagement.API.Controllers
         }
 
         [HttpGet("{id}")]
-        [ProtectedResource("Department", "view")]
+        [ProtectedResource("department", "view")]
         public async Task<ActionResult<DepartmentSimpleDto>> GetAllSimple([FromRoute] Guid company, [FromRoute] Guid id)
         {
             var result = await _departmentQueries.GetById(id, company);

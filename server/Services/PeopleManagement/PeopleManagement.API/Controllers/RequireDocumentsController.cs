@@ -17,7 +17,7 @@ namespace PeopleManagement.API.Controllers
         private readonly IRequireDocumentsQueries _requireDocumentsQueries = requireDocumentsQueries;
 
         [HttpPost]
-        [ProtectedResource("RequireDocuments", "create")]
+        [ProtectedResource("require-documents", "create")]
         public async Task<ActionResult<CreateRequireDocumentsResponse>> Create([FromRoute] Guid company, [FromBody] CreateRequireDocumentsModel request, [FromHeader(Name = "x-requestid")] Guid requestId)
         {
             var command = new IdentifiedCommand<CreateRequireDocumentsCommand, CreateRequireDocumentsResponse>(request.ToCommand(company), requestId);
@@ -32,7 +32,7 @@ namespace PeopleManagement.API.Controllers
         }
 
         [HttpPut]
-        [ProtectedResource("RequireDocuments", "edit")]
+        [ProtectedResource("require-documents", "edit")]
         public async Task<ActionResult<EditRequireDocumentsResponse>> Edit([FromRoute] Guid company, [FromBody] EditRequireDocumentsModel request, [FromHeader(Name = "x-requestid")] Guid requestId)
         {
             var command = new IdentifiedCommand<EditRequireDocumentsCommand, EditRequireDocumentsResponse>(request.ToCommand(company), requestId);
@@ -47,7 +47,7 @@ namespace PeopleManagement.API.Controllers
         }
 
         [HttpGet]
-        [ProtectedResource("RequireDocuments", "view")]
+        [ProtectedResource("require-documents", "view")]
         public async Task<ActionResult<IEnumerable<RequireDocumentSimpleDto>>> GetAll([FromRoute] Guid company)
         {
             var result = await _requireDocumentsQueries.GetAllSimple(company);
@@ -55,7 +55,7 @@ namespace PeopleManagement.API.Controllers
         }
 
         [HttpGet("{id}")]
-        [ProtectedResource("RequireDocuments", "view")]
+        [ProtectedResource("require-documents", "view")]
         public async Task<ActionResult<RequireDocumentDto>> GetAll([FromRoute] Guid id, [FromRoute] Guid company)
         {
             var result = await _requireDocumentsQueries.GetById(id, company);
@@ -64,7 +64,7 @@ namespace PeopleManagement.API.Controllers
 
 
         [HttpGet("association/{associationTypeId}")]
-        [ProtectedResource("RequireDocuments", "view")]
+        [ProtectedResource("require-documents", "view")]
         public async Task<ActionResult<IEnumerable<AssociationDto>>> GetAllAssociationsByType([FromRoute] Guid company, [FromRoute] int associationTypeId)
         {
             var result = await _requireDocumentsQueries.GetAllAssociationsByType(company, associationTypeId);
@@ -72,7 +72,7 @@ namespace PeopleManagement.API.Controllers
         }
 
         [HttpGet("associationType")]
-        [ProtectedResource("RequireDocuments", "view")]
+        [ProtectedResource("require-documents", "view")]
         public ActionResult<IEnumerable<AssociationType>> GetAllAssociationsType([FromRoute] Guid company)
         {
             var result = AssociationType.GetAll<AssociationType>();
@@ -80,7 +80,7 @@ namespace PeopleManagement.API.Controllers
         }
 
         [HttpGet("withdocuments/{employeeId}")]
-        [ProtectedResource("RequireDocuments", "view")]
+        [ProtectedResource("require-documents", "view")]
         public async Task<ActionResult<IEnumerable<RequiredWithDocumentListDto>>> GetAllWithDocumentList([FromRoute] Guid company, [FromRoute] Guid employeeId)
         {
             var result = await _requireDocumentsQueries.GetAllWithDocumentList(company, employeeId);
@@ -89,7 +89,7 @@ namespace PeopleManagement.API.Controllers
 
 
         [HttpGet("events")]
-        [ProtectedResource("RequireDocuments", "view")]
+        [ProtectedResource("require-documents", "view")]
         public ActionResult<RecurringEvents[]> GetEvents([FromRoute] Guid company)
         {
             var result = RecurringEvents.GetAll().ToArray();
