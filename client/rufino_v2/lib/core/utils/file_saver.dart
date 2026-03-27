@@ -1,9 +1,21 @@
 import 'dart:io';
+import 'dart:typed_data';
 
-/// Writes [bytes] to a file at [path] on platforms that support `dart:io`.
+import 'package:file_picker/file_picker.dart';
+
+/// Opens a native save-file dialog and writes [bytes] to the chosen path.
 ///
-/// On desktop, [FilePicker.platform.saveFile] only returns a path — the
-/// caller must write the bytes manually via this helper.
-Future<void> writeFileToPath(String path, List<int> bytes) async {
-  await File(path).writeAsBytes(bytes);
+/// On desktop/mobile, [FilePicker.platform.saveFile] returns a file path
+/// and the bytes must be written manually.
+Future<void> saveFile({
+  required String fileName,
+  required Uint8List bytes,
+}) async {
+  final savePath = await FilePicker.platform.saveFile(
+    dialogTitle: 'Salvar arquivo',
+    fileName: fileName,
+  );
+  if (savePath != null) {
+    await File(savePath).writeAsBytes(bytes);
+  }
 }
