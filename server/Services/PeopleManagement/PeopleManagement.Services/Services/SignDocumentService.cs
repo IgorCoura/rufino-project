@@ -269,15 +269,19 @@ namespace PeopleManagement.Services.Services
 
         private async Task<ActiveSessionInfo?> FindActiveSessionForEmployee(Guid employeeId, Guid companyId, CancellationToken cancellationToken)
         {
-            var today = DateOnly.FromDateTime(TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow,
-                TimeZoneInfo.FindSystemTimeZoneById("E. South America Standard Time")));
+            var now = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow,
+                TimeZoneInfo.FindSystemTimeZoneById("E. South America Standard Time"));
+            var todayStart = now.Date;
+            var todayEnd = todayStart.AddDays(1);
 
             var documentsWithActiveSession = await _documentRepository.GetDataAsync(
                 filter: x => x.EmployeeId == employeeId && x.CompanyId == companyId
                     && x.DocumentsUnits.Any(du => du.Status == DocumentUnitStatus.AwaitingSignature
                         && du.SignatureDocumentToken != null
                         && du.AttachmentToken == null
-                        && du.Date == today),
+                        && du.SentToSignatureAt != null
+                        && du.SentToSignatureAt >= todayStart
+                        && du.SentToSignatureAt < todayEnd),
                 include: x => x.Include(y => y.DocumentsUnits),
                 cancellation: cancellationToken);
 
@@ -285,7 +289,9 @@ namespace PeopleManagement.Services.Services
                 .SelectMany(d => d.DocumentsUnits)
                 .Where(du => du.SignatureDocumentToken != null
                     && du.AttachmentToken == null
-                    && du.Date == today)
+                    && du.SentToSignatureAt != null
+                    && du.SentToSignatureAt >= todayStart
+                    && du.SentToSignatureAt < todayEnd)
                 .ToList();
 
             if (candidateUnits.Count == 0)
