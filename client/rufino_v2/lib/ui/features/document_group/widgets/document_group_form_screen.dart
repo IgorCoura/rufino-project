@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/theme/app_spacing.dart';
+import '../../../core/widgets/error_dialog.dart';
 import '../viewmodel/document_group_form_viewmodel.dart';
 
 /// Form screen for creating or editing a document group.
@@ -69,15 +70,11 @@ class _DocumentGroupFormScreenState extends State<DocumentGroupFormScreen> {
         );
         context.pop();
       case DocumentGroupFormStatus.error:
-        ScaffoldMessenger.of(context)
-          ..hideCurrentSnackBar()
-          ..showSnackBar(
-            SnackBar(
-              content:
-                  Text(widget.viewModel.errorMessage ?? 'Erro ao salvar.'),
-              behavior: SnackBarBehavior.floating,
-            ),
-          );
+        showErrorSnackBar(
+          context,
+          messages: widget.viewModel.serverErrors,
+          fallbackMessage: widget.viewModel.errorMessage ?? 'Erro ao salvar.',
+        );
       default:
         break;
     }

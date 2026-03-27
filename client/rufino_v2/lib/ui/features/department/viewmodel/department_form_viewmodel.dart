@@ -1,5 +1,6 @@
 import 'package:flutter/widgets.dart';
 
+import '../../../../core/utils/error_messages.dart';
 import '../../../../domain/entities/department.dart';
 import '../../../../domain/repositories/company_repository.dart';
 import '../../../../domain/repositories/department_repository.dart';
@@ -34,6 +35,10 @@ class DepartmentFormViewModel extends ChangeNotifier {
   String _id = '';
   DepartmentFormStatus _status = DepartmentFormStatus.idle;
   String? _errorMessage;
+  List<String> _serverErrors = const [];
+
+  /// Server-provided error messages extracted from the API response, if any.
+  List<String> get serverErrors => _serverErrors;
 
   /// The id of the department being edited, empty when creating a new one.
   String get id => _id;
@@ -121,10 +126,12 @@ class DepartmentFormViewModel extends ChangeNotifier {
 
       result.fold(
         onSuccess: (_) => _status = DepartmentFormStatus.saved,
-        onError: (_) {
+        onError: (error) {
           _status = DepartmentFormStatus.error;
-          _errorMessage =
-              'Falha ao salvar setor. Verifique os dados e tente novamente.';
+          _serverErrors = extractServerMessages(error);
+          _errorMessage = _serverErrors.isNotEmpty
+              ? _serverErrors.join('\n')
+              : 'Falha ao salvar setor. Verifique os dados e tente novamente.';
         },
       );
     } finally {

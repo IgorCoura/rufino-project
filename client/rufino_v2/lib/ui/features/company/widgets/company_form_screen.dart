@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/theme/app_spacing.dart';
+import '../../../core/widgets/error_dialog.dart';
 import '../viewmodel/company_form_viewmodel.dart';
 
 class CompanyFormScreen extends StatefulWidget {
@@ -60,14 +61,11 @@ class _CompanyFormScreenState extends State<CompanyFormScreen> {
         );
         context.go('/company');
       case CompanyFormStatus.error:
-        ScaffoldMessenger.of(context)
-          ..hideCurrentSnackBar()
-          ..showSnackBar(
-            SnackBar(
-              content: Text(widget.viewModel.errorMessage ?? 'Erro ao salvar.'),
-              behavior: SnackBarBehavior.floating,
-            ),
-          );
+        showErrorSnackBar(
+          context,
+          messages: widget.viewModel.serverErrors,
+          fallbackMessage: widget.viewModel.errorMessage ?? 'Erro ao salvar.',
+        );
       default:
         break;
     }

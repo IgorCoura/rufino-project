@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:mask_text_input_formatter/mask_text_input_formatter.dart';
 
 import '../../../../core/result.dart';
+import '../../../../core/utils/error_messages.dart';
 import '../../../../domain/entities/address.dart';
 import '../../../../domain/entities/company.dart';
 import '../../../../domain/entities/company_detail.dart';
@@ -46,6 +47,10 @@ class CompanyFormViewModel extends ChangeNotifier {
 
   CompanyFormStatus _status = CompanyFormStatus.idle;
   String? _errorMessage;
+  List<String> _serverErrors = const [];
+
+  /// Server-provided error messages extracted from the API response, if any.
+  List<String> get serverErrors => _serverErrors;
 
   CompanyFormStatus get status => _status;
   String? get errorMessage => _errorMessage;
@@ -133,9 +138,12 @@ class CompanyFormViewModel extends ChangeNotifier {
 
       result.fold(
         onSuccess: (_) => _status = CompanyFormStatus.saved,
-        onError: (_) {
+        onError: (error) {
           _status = CompanyFormStatus.error;
-          _errorMessage = 'Falha ao salvar empresa. Verifique os dados e tente novamente.';
+          _serverErrors = extractServerMessages(error);
+          _errorMessage = _serverErrors.isNotEmpty
+              ? _serverErrors.join('\n')
+              : 'Falha ao salvar empresa. Verifique os dados e tente novamente.';
         },
       );
     } finally {

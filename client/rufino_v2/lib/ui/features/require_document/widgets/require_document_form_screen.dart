@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/theme/app_spacing.dart';
+import '../../../core/widgets/error_dialog.dart';
 import '../viewmodel/require_document_form_viewmodel.dart';
 
 /// Form screen for creating or editing a require document.
@@ -73,15 +74,11 @@ class _RequireDocumentFormScreenState extends State<RequireDocumentFormScreen> {
         );
         context.pop();
       case RequireDocumentFormStatus.error:
-        ScaffoldMessenger.of(context)
-          ..hideCurrentSnackBar()
-          ..showSnackBar(
-            SnackBar(
-              content: Text(
-                  widget.viewModel.errorMessage ?? 'Erro ao salvar.'),
-              behavior: SnackBarBehavior.floating,
-            ),
-          );
+        showErrorSnackBar(
+          context,
+          messages: widget.viewModel.serverErrors,
+          fallbackMessage: widget.viewModel.errorMessage ?? 'Erro ao salvar.',
+        );
       default:
         break;
     }

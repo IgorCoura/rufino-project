@@ -6,6 +6,7 @@ import '../../../../domain/entities/department.dart';
 import '../../../../domain/entities/position.dart';
 import '../../../../domain/entities/role.dart';
 import '../../../../domain/entities/workplace.dart';
+import '../../../core/widgets/error_dialog.dart';
 import '../viewmodel/employee_form_viewmodel.dart';
 
 /// Screen for creating a new employee.
@@ -61,15 +62,12 @@ class _EmployeeFormScreenState extends State<EmployeeFormScreen> {
       context.pop();
     }
     if (widget.viewModel.status == EmployeeFormStatus.error) {
-      ScaffoldMessenger.of(context)
-        ..hideCurrentSnackBar()
-        ..showSnackBar(
-          SnackBar(
-            content: Text(
-                widget.viewModel.errorMessage ?? 'Erro desconhecido.'),
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
+      showErrorSnackBar(
+        context,
+        messages: widget.viewModel.serverErrors,
+        fallbackMessage:
+            widget.viewModel.errorMessage ?? 'Erro desconhecido.',
+      );
     }
   }
 

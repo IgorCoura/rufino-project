@@ -2,6 +2,7 @@ import 'dart:collection';
 
 import 'package:flutter/widgets.dart';
 
+import '../../../../core/utils/error_messages.dart';
 import '../../../../domain/entities/department.dart';
 import '../../../../domain/entities/employee.dart';
 import '../../../../domain/entities/position.dart';
@@ -45,6 +46,10 @@ class EmployeeFormViewModel extends ChangeNotifier {
   String? _companyId;
   EmployeeFormStatus _status = EmployeeFormStatus.idle;
   String? _errorMessage;
+  List<String> _serverErrors = const [];
+
+  /// Server-provided error messages extracted from the API response, if any.
+  List<String> get serverErrors => _serverErrors;
 
   List<Department> _departments = [];
   List<Workplace> _workplaces = [];
@@ -203,10 +208,12 @@ class EmployeeFormViewModel extends ChangeNotifier {
 
       result.fold(
         onSuccess: (_) => _status = EmployeeFormStatus.saved,
-        onError: (_) {
+        onError: (error) {
           _status = EmployeeFormStatus.error;
-          _errorMessage =
-              'Falha ao criar funcionário. Verifique os dados e tente novamente.';
+          _serverErrors = extractServerMessages(error);
+          _errorMessage = _serverErrors.isNotEmpty
+              ? _serverErrors.join('\n')
+              : 'Falha ao criar funcionário. Verifique os dados e tente novamente.';
         },
       );
     } finally {
