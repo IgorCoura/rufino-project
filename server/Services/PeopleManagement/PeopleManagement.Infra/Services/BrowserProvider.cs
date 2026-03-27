@@ -14,6 +14,20 @@ namespace PeopleManagement.Infra.Services
         private readonly SemaphoreSlim _semaphore = new(1, 1);
         private IBrowser? _browser;
 
+        private static readonly string[] ChromeArgs =
+        [
+            "--no-sandbox",
+            "--disable-setuid-sandbox",
+            "--disable-gpu",
+            "--disable-dev-shm-usage",
+            "--disable-extensions",
+            "--disable-background-networking",
+            "--disable-default-apps",
+            "--disable-translate",
+            "--no-first-run",
+            "--font-render-hinting=none"
+        ];
+
         public async Task<IBrowser> GetBrowserAsync(CancellationToken cancellationToken = default)
         {
             if (_browser is { IsConnected: true })
@@ -26,13 +40,22 @@ namespace PeopleManagement.Infra.Services
                     return _browser;
 
                 _logger.LogInformation("Initializing Puppeteer browser instance.");
-                var browserFetcher = new BrowserFetcher();
-                await browserFetcher.DownloadAsync();
+
+                var executablePath = Environment.GetEnvironmentVariable("PUPPETEER_EXECUTABLE_PATH");
+
+                if (string.IsNullOrEmpty(executablePath) || !File.Exists(executablePath))
+                {
+                    _logger.LogWarning("No pre-installed Chrome found at PUPPETEER_EXECUTABLE_PATH. Downloading via BrowserFetcher.");
+                    var browserFetcher = new BrowserFetcher();
+                    await browserFetcher.DownloadAsync();
+                    executablePath = null;
+                }
 
                 _browser = await Puppeteer.LaunchAsync(new LaunchOptions
                 {
                     Headless = true,
-                    Args = ["--no-sandbox", "--disable-setuid-sandbox"]
+                    ExecutablePath = executablePath,
+                    Args = ChromeArgs
                 });
 
                 _logger.LogInformation("Puppeteer browser initialized successfully.");
