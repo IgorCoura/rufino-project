@@ -226,16 +226,24 @@ class _GroupActions extends StatelessWidget {
       ),
       child: Row(
         children: [
-          TextButton.icon(
-            onPressed: onEdit,
-            icon: const Icon(Icons.edit_outlined, size: 18),
-            label: const Text('Editar Grupo'),
+          PermissionGuard(
+            resource: 'document_group',
+            scope: 'edit',
+            child: TextButton.icon(
+              onPressed: onEdit,
+              icon: const Icon(Icons.edit_outlined, size: 18),
+              label: const Text('Editar Grupo'),
+            ),
           ),
           const SizedBox(width: AppSpacing.sm),
-          TextButton.icon(
-            onPressed: onCreateTemplate,
-            icon: const Icon(Icons.add, size: 18),
-            label: const Text('Novo Template'),
+          PermissionGuard(
+            resource: 'document-template',
+            scope: 'create',
+            child: TextButton.icon(
+              onPressed: onCreateTemplate,
+              icon: const Icon(Icons.add, size: 18),
+              label: const Text('Novo Template'),
+            ),
           ),
         ],
       ),

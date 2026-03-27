@@ -4,6 +4,7 @@ import 'package:mask_text_input_formatter/mask_text_input_formatter.dart';
 import '../../../../../core/theme/app_spacing.dart';
 import '../../../../../domain/entities/employee_dependent.dart';
 import '../../../../../domain/entities/selection_option.dart';
+import '../../../../core/widgets/permission_guard.dart';
 import '../../viewmodel/employee_profile_viewmodel.dart';
 import 'profile_shared_widgets.dart';
 
@@ -258,10 +259,14 @@ class _DependentSectionState extends State<DependentSection> {
             padding: const EdgeInsets.only(top: AppSpacing.sm),
             child: Align(
               alignment: Alignment.centerRight,
-              child: FilledButton.tonalIcon(
-                onPressed: isSaving ? null : _startAdd,
-                icon: const Icon(Icons.add),
-                label: const Text('Adicionar Dependente'),
+              child: PermissionGuard(
+                resource: 'employee',
+                scope: 'edit',
+                child: FilledButton.tonalIcon(
+                  onPressed: isSaving ? null : _startAdd,
+                  icon: const Icon(Icons.add),
+                  label: const Text('Adicionar Dependente'),
+                ),
               ),
             ),
           ),
@@ -316,20 +321,28 @@ class _DependentSectionState extends State<DependentSection> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
-                  TextButton.icon(
-                    onPressed: isSaving ? null : () => _startEdit(index),
-                    icon: const Icon(Icons.edit_outlined, size: 18),
-                    label: const Text('Editar'),
+                  PermissionGuard(
+                    resource: 'employee',
+                    scope: 'edit',
+                    child: TextButton.icon(
+                      onPressed: isSaving ? null : () => _startEdit(index),
+                      icon: const Icon(Icons.edit_outlined, size: 18),
+                      label: const Text('Editar'),
+                    ),
                   ),
                   const SizedBox(width: AppSpacing.sm),
-                  TextButton.icon(
-                    onPressed: isSaving
-                        ? null
-                        : () => _remove(dependent.originalName),
-                    icon: Icon(Icons.delete_outline, size: 18, color: cs.error),
-                    label: Text(
-                      'Remover',
-                      style: TextStyle(color: cs.error),
+                  PermissionGuard(
+                    resource: 'employee',
+                    scope: 'edit',
+                    child: TextButton.icon(
+                      onPressed: isSaving
+                          ? null
+                          : () => _remove(dependent.originalName),
+                      icon: Icon(Icons.delete_outline, size: 18, color: cs.error),
+                      label: Text(
+                        'Remover',
+                        style: TextStyle(color: cs.error),
+                      ),
                     ),
                   ),
                 ],

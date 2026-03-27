@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
+import 'package:rufino_v2/ui/features/auth/viewmodel/permission_notifier.dart';
 
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../domain/entities/require_document.dart';
@@ -83,8 +85,12 @@ class _RequireDocumentListScreenState extends State<RequireDocumentListScreen> {
                 return _RequireDocumentTile(
                   requireDocument: item,
                   onTap: () => context
-                      .push('/require-document/edit/${item.id}')
-                      .then((_) => widget.viewModel.loadRequireDocuments()),
+                          .read<PermissionNotifier>()
+                          .hasPermission('require-documents', 'edit')
+                      ? context
+                          .push('/require-document/edit/${item.id}')
+                          .then((_) => widget.viewModel.loadRequireDocuments())
+                      : () {},
                 );
               },
             ),
