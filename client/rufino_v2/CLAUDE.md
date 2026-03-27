@@ -407,7 +407,7 @@ All resource names are **lowercase, kebab-case**. Use **exactly** these strings 
 |----------|--------|
 | `company` | `create`, `edit`, `view` |
 | `department` | `create`, `edit`, `view` |
-| `document` | `create`, `edit`, `view`, `upload`, `webhook`, `download` |
+| `document` | `create`, `edit`, `view`, `upload`, `webhook`, `download`, `send2sign`, `generate` |
 | `document-group` | `create`, `edit`, `view` |
 | `document-template` | `create`, `edit`, `view`, `upload`, `download` |
 | `employee` | `create`, `edit`, `view`, `upload`, `download` |

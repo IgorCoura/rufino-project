@@ -10,6 +10,7 @@ import 'package:mask_text_input_formatter/mask_text_input_formatter.dart';
 import '../../../../../core/theme/app_spacing.dart';
 import '../../../../../domain/entities/document_group_with_documents.dart';
 import '../../../../../domain/entities/employee_document.dart';
+import '../../../../core/widgets/permission_guard.dart';
 import '../../viewmodel/employee_profile_viewmodel.dart';
 import 'profile_shared_widgets.dart';
 
@@ -246,9 +247,13 @@ class _DocumentsSectionState extends State<DocumentsSection> {
               child: const Text('Gerar arquivo'),
             ),
             if (doc.isSignable)
-              FilledButton(
-                onPressed: () => Navigator.of(ctx).pop('generate_sign'),
-                child: const Text('Gerar e enviar para assinatura'),
+              PermissionGuard(
+                resource: 'document',
+                scope: 'send2sign',
+                child: FilledButton(
+                  onPressed: () => Navigator.of(ctx).pop('generate_sign'),
+                  child: const Text('Gerar e enviar para assinatura'),
+                ),
               ),
           ],
         );
@@ -259,8 +264,7 @@ class _DocumentsSectionState extends State<DocumentsSection> {
 
     if (action == 'generate') {
       setState(() => _isBusy = true);
-      final bytes =
-          await widget.viewModel.generateDocument(doc.id, unit.id);
+      final bytes = await widget.viewModel.generateDocument(doc.id, unit.id);
       if (bytes != null && mounted) {
         final saved = await _saveFile(
           dialogTitle: 'Salvar documento',
@@ -303,9 +307,13 @@ class _DocumentsSectionState extends State<DocumentsSection> {
               child: const Text('Enviar arquivo'),
             ),
             if (doc.isSignable)
-              FilledButton(
-                onPressed: () => Navigator.of(ctx).pop('send_sign'),
-                child: const Text('Enviar para assinatura'),
+              PermissionGuard(
+                resource: 'document',
+                scope: 'send2sign',
+                child: FilledButton(
+                  onPressed: () => Navigator.of(ctx).pop('send_sign'),
+                  child: const Text('Enviar para assinatura'),
+                ),
               ),
           ],
         );
@@ -500,12 +508,9 @@ class _DocumentsSectionState extends State<DocumentsSection> {
   ) async {
     setState(() => _isBusy = true);
 
-    final bytes =
-        await widget.viewModel.downloadDocumentUnit(doc.id, unit.id);
+    final bytes = await widget.viewModel.downloadDocumentUnit(doc.id, unit.id);
     if (bytes != null && mounted) {
-      final ext = unit.name.contains('.')
-          ? unit.name.split('.').last
-          : 'pdf';
+      final ext = unit.name.contains('.') ? unit.name.split('.').last : 'pdf';
       await _saveFile(
         dialogTitle: 'Salvar documento',
         fileName: unit.downloadFileName(doc.name, extension: ext),
@@ -551,8 +556,7 @@ class _DocumentsSectionState extends State<DocumentsSection> {
                     ),
                     const SizedBox(height: AppSpacing.xs),
                     ...canExecute.map((item) => Padding(
-                          padding: const EdgeInsets.symmetric(
-                              vertical: 2),
+                          padding: const EdgeInsets.symmetric(vertical: 2),
                           child: Row(
                             children: [
                               const Icon(Icons.check_circle,
@@ -580,8 +584,7 @@ class _DocumentsSectionState extends State<DocumentsSection> {
                     ),
                     const SizedBox(height: AppSpacing.xs),
                     ...cannotExecute.map((item) => Padding(
-                          padding: const EdgeInsets.symmetric(
-                              vertical: 2),
+                          padding: const EdgeInsets.symmetric(vertical: 2),
                           child: Row(
                             children: [
                               Icon(Icons.cancel,
@@ -602,8 +605,7 @@ class _DocumentsSectionState extends State<DocumentsSection> {
                     const SizedBox(height: AppSpacing.md),
                     Text(
                       'Nenhum documento selecionado pode ser processado.',
-                      style: TextStyle(
-                          color: Theme.of(ctx).colorScheme.error),
+                      style: TextStyle(color: Theme.of(ctx).colorScheme.error),
                     ),
                   ],
                 ],
@@ -618,8 +620,7 @@ class _DocumentsSectionState extends State<DocumentsSection> {
             if (canExecute.isNotEmpty)
               FilledButton(
                 onPressed: () => Navigator.of(ctx).pop(true),
-                child: Text(
-                    'Confirmar ${isGenerate ? 'Geração' : 'Download'}'),
+                child: Text('Confirmar ${isGenerate ? 'Geração' : 'Download'}'),
               ),
           ],
         );
@@ -635,12 +636,10 @@ class _DocumentsSectionState extends State<DocumentsSection> {
 
     if (bytes != null && mounted) {
       await _saveFile(
-        dialogTitle: isGenerate
-            ? 'Salvar documentos gerados'
-            : 'Salvar documentos',
-        fileName: isGenerate
-            ? 'documentos_gerados.zip'
-            : 'documentos_download.zip',
+        dialogTitle:
+            isGenerate ? 'Salvar documentos gerados' : 'Salvar documentos',
+        fileName:
+            isGenerate ? 'documentos_gerados.zip' : 'documentos_download.zip',
         bytes: bytes,
       );
     }
@@ -676,13 +675,10 @@ class _DocumentsSectionState extends State<DocumentsSection> {
       children: [
         if (vm.isSelectingRange && vm.selectedDocumentUnits.isNotEmpty) ...[
           Container(
-            padding:
-                const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
             decoration: BoxDecoration(
-              color: Theme.of(context)
-                  .colorScheme
-                  .primary
-                  .withValues(alpha: 0.1),
+              color:
+                  Theme.of(context).colorScheme.primary.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(12),
             ),
             child: Text(
@@ -693,8 +689,7 @@ class _DocumentsSectionState extends State<DocumentsSection> {
           const SizedBox(width: AppSpacing.xs),
         ],
         TextButton.icon(
-          onPressed:
-              _isBusy ? null : () => vm.toggleRangeSelectionMode(),
+          onPressed: _isBusy ? null : () => vm.toggleRangeSelectionMode(),
           icon: Icon(
             vm.isSelectingRange ? Icons.close : Icons.checklist,
             size: 18,
@@ -798,7 +793,8 @@ class _DocumentsSectionState extends State<DocumentsSection> {
   // ─── Document level ───────────────────────────────────────────────────────
 
   Widget _buildDocumentTile(BuildContext context, EmployeeDocument doc) {
-    final docStatusLabel = doc.statusName.isNotEmpty ? doc.statusName : doc.statusId;
+    final docStatusLabel =
+        doc.statusName.isNotEmpty ? doc.statusName : doc.statusId;
     final docStatusColor = _documentStatusColor(doc.statusId);
     final isExpanded = _expandedDocIds.contains(doc.id);
 
@@ -892,8 +888,7 @@ class _DocumentsSectionState extends State<DocumentsSection> {
     if (units.isEmpty) {
       return const Padding(
         padding: EdgeInsets.symmetric(vertical: AppSpacing.sm),
-        child: Center(
-            child: Text('Nenhuma unidade encontrada para o filtro.')),
+        child: Center(child: Text('Nenhuma unidade encontrada para o filtro.')),
       );
     }
 
@@ -909,12 +904,16 @@ class _DocumentsSectionState extends State<DocumentsSection> {
         const SizedBox(height: AppSpacing.sm),
         Align(
           alignment: Alignment.centerLeft,
-          child: TextButton.icon(
-            onPressed: _isBusy
-                ? null
-                : () => widget.viewModel.createDocumentUnit(doc.id),
-            icon: const Icon(Icons.add, size: 18),
-            label: const Text('Adicionar'),
+          child: PermissionGuard(
+            resource: 'document',
+            scope: 'create',
+            child: TextButton.icon(
+              onPressed: _isBusy
+                  ? null
+                  : () => widget.viewModel.createDocumentUnit(doc.id),
+              icon: const Icon(Icons.add, size: 18),
+              label: const Text('Adicionar'),
+            ),
           ),
         ),
         const SizedBox(height: AppSpacing.sm),
@@ -966,15 +965,13 @@ class _DocumentsSectionState extends State<DocumentsSection> {
             icon: const Icon(Icons.chevron_left, size: 20),
             tooltip: 'Página anterior',
             visualDensity: VisualDensity.compact,
-            onPressed: currentPage > 1
-                ? () => changePage(currentPage - 1)
-                : null,
+            onPressed:
+                currentPage > 1 ? () => changePage(currentPage - 1) : null,
           ),
           ...pageNumbers.map((page) {
             if (page == null) {
               return Padding(
-                padding: const EdgeInsets.symmetric(
-                    horizontal: AppSpacing.xs),
+                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xs),
                 child: Text('…', style: textStyle),
               );
             }
@@ -983,8 +980,7 @@ class _DocumentsSectionState extends State<DocumentsSection> {
               onTap: () => changePage(page),
               child: Container(
                 margin: const EdgeInsets.symmetric(horizontal: 2),
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 8, vertical: 4),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
                   color: isActive ? cs.primary : Colors.transparent,
                   borderRadius: BorderRadius.circular(4),
@@ -996,8 +992,7 @@ class _DocumentsSectionState extends State<DocumentsSection> {
                   '$page',
                   style: textStyle?.copyWith(
                     color: isActive ? cs.onPrimary : null,
-                    fontWeight:
-                        isActive ? FontWeight.bold : FontWeight.normal,
+                    fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
                   ),
                 ),
               ),
@@ -1066,8 +1061,7 @@ class _DocumentsSectionState extends State<DocumentsSection> {
     final cs = Theme.of(context).colorScheme;
 
     // Visibility conditions matching the legacy app logic.
-    final hasValidDate =
-        unit.date.isNotEmpty && unit.date != '01/01/0001';
+    final hasValidDate = unit.date.isNotEmpty && unit.date != '01/01/0001';
     final canGenerate =
         unit.isPending && hasValidDate && doc.canGenerateDocument;
     final canSend = unit.isPending && hasValidDate;
@@ -1088,8 +1082,7 @@ class _DocumentsSectionState extends State<DocumentsSection> {
                   // Range selection checkbox.
                   if (widget.viewModel.isSelectingRange)
                     Checkbox(
-                      value: widget.viewModel
-                          .isDocumentUnitSelected(unit.id),
+                      value: widget.viewModel.isDocumentUnitSelected(unit.id),
                       onChanged: (_) {
                         widget.viewModel.toggleDocumentUnitSelection(
                           SelectedDocumentUnit(
@@ -1144,46 +1137,63 @@ class _DocumentsSectionState extends State<DocumentsSection> {
                   ),
                   // Action icon buttons in the trailing area.
                   if (unit.isPending) ...[
-                    IconButton(
-                      icon: const Icon(Icons.edit, size: 20),
-                      tooltip: 'Editar data',
-                      onPressed: _isBusy
-                          ? null
-                          : () => _showEditDateDialog(doc, unit),
+                    PermissionGuard(
+                      resource: 'document',
+                      scope: 'edit',
+                      child: IconButton(
+                        icon: const Icon(Icons.edit, size: 20),
+                        tooltip: 'Editar data',
+                        onPressed: _isBusy
+                            ? null
+                            : () => _showEditDateDialog(doc, unit),
+                      ),
                     ),
-                    IconButton(
-                      icon: const Icon(Icons.block, size: 20),
-                      tooltip: 'Não aplicável',
-                      onPressed: _isBusy
-                          ? null
-                          : () => _showNotApplicableDialog(doc, unit),
+                    PermissionGuard(
+                      resource: 'document',
+                      scope: 'edit',
+                      child: IconButton(
+                        icon: const Icon(Icons.block, size: 20),
+                        tooltip: 'Não aplicável',
+                        onPressed: _isBusy
+                            ? null
+                            : () => _showNotApplicableDialog(doc, unit),
+                      ),
                     ),
                     if (canGenerate)
-                      IconButton(
-                        icon: const Icon(
-                            Icons.sim_card_download_outlined,
-                            size: 20),
-                        tooltip: 'Gerar',
-                        onPressed: _isBusy
-                            ? null
-                            : () => _showGenerateDialog(doc, unit),
+                      PermissionGuard(
+                        resource: 'document',
+                        scope: 'generate',
+                        child: IconButton(
+                          icon: const Icon(Icons.sim_card_download_outlined,
+                              size: 20),
+                          tooltip: 'Gerar',
+                          onPressed: _isBusy
+                              ? null
+                              : () => _showGenerateDialog(doc, unit),
+                        ),
                       ),
                     if (canSend)
-                      IconButton(
-                        icon: const Icon(
-                            Icons.upload_file_outlined, size: 20),
-                        tooltip: 'Enviar',
-                        onPressed: _isBusy
-                            ? null
-                            : () => _showSendDialog(doc, unit),
+                      PermissionGuard(
+                        resource: 'document',
+                        scope: 'upload',
+                        child: IconButton(
+                          icon:
+                              const Icon(Icons.upload_file_outlined, size: 20),
+                          tooltip: 'Enviar',
+                          onPressed:
+                              _isBusy ? null : () => _showSendDialog(doc, unit),
+                        ),
                       ),
                   ] else if (unit.hasFile)
-                    IconButton(
-                      icon: const Icon(Icons.search, size: 20),
-                      tooltip: 'Visualizar',
-                      onPressed: _isBusy
-                          ? null
-                          : () => _downloadUnit(doc, unit),
+                    PermissionGuard(
+                      resource: 'document',
+                      scope: 'download',
+                      child: IconButton(
+                        icon: const Icon(Icons.search, size: 20),
+                        tooltip: 'Visualizar',
+                        onPressed:
+                            _isBusy ? null : () => _downloadUnit(doc, unit),
+                      ),
                     ),
                 ],
               ),
@@ -1234,26 +1244,32 @@ class _DocumentsSectionState extends State<DocumentsSection> {
           Row(
             mainAxisAlignment: MainAxisAlignment.end,
             children: [
-              OutlinedButton.icon(
-                onPressed: selected.isEmpty || _isBusy
-                    ? null
-                    : () => _showRangeConfirmationDialog(
-                          isGenerate: true,
-                        ),
-                icon: const Icon(
-                    Icons.sim_card_download_outlined,
-                    size: 18),
-                label: const Text('Gerar Selecionados'),
+              PermissionGuard(
+                resource: 'document',
+                scope: 'generate',
+                child: OutlinedButton.icon(
+                  onPressed: selected.isEmpty || _isBusy
+                      ? null
+                      : () => _showRangeConfirmationDialog(
+                            isGenerate: true,
+                          ),
+                  icon: const Icon(Icons.sim_card_download_outlined, size: 18),
+                  label: const Text('Gerar Selecionados'),
+                ),
               ),
               const SizedBox(width: AppSpacing.sm),
-              OutlinedButton.icon(
-                onPressed: selected.isEmpty || _isBusy
-                    ? null
-                    : () => _showRangeConfirmationDialog(
-                          isGenerate: false,
-                        ),
-                icon: const Icon(Icons.download, size: 18),
-                label: const Text('Baixar Selecionados'),
+              PermissionGuard(
+                resource: 'document',
+                scope: 'download',
+                child: OutlinedButton.icon(
+                  onPressed: selected.isEmpty || _isBusy
+                      ? null
+                      : () => _showRangeConfirmationDialog(
+                            isGenerate: false,
+                          ),
+                  icon: const Icon(Icons.download, size: 18),
+                  label: const Text('Baixar Selecionados'),
+                ),
               ),
             ],
           ),

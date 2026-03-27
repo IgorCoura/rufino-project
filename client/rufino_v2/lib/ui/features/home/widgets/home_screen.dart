@@ -6,6 +6,7 @@ import '../../../../core/theme/app_breakpoints.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/theme_notifier.dart';
 import '../../../core/widgets/permission_guard.dart';
+import '../../auth/viewmodel/permission_notifier.dart';
 import '../viewmodel/home_viewmodel.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -77,6 +78,8 @@ class _HomeScreenState extends State<HomeScreen> {
                 },
                 onToggleTheme: () => context.read<ThemeNotifier>().toggle(),
                 isDark: context.watch<ThemeNotifier>().isDark,
+                onRefreshPermissions: () =>
+                    context.read<PermissionNotifier>().loadPermissions(),
                 onLogout: _onLogout,
               ),
             ],
@@ -124,6 +127,7 @@ class _UserMenu extends StatelessWidget {
     required this.onEditCompany,
     required this.onToggleTheme,
     required this.isDark,
+    required this.onRefreshPermissions,
     required this.onLogout,
   });
 
@@ -131,6 +135,7 @@ class _UserMenu extends StatelessWidget {
   final VoidCallback onEditCompany;
   final VoidCallback onToggleTheme;
   final bool isDark;
+  final VoidCallback onRefreshPermissions;
   final VoidCallback onLogout;
 
   @override
@@ -156,21 +161,39 @@ class _UserMenu extends StatelessWidget {
             onEditCompany();
           case 'toggle-theme':
             onToggleTheme();
+          case 'refresh-permissions':
+            onRefreshPermissions();
           case 'logout':
             onLogout();
         }
       },
-      itemBuilder: (_) => [
-        const PopupMenuItem(value: 'change-company', child: Text('Alterar Empresa')),
-        const PopupMenuItem(value: 'edit-company', child: Text('Editar Empresa')),
+      itemBuilder: (ctx) => [
+        const PopupMenuItem(
+            value: 'change-company', child: Text('Alterar Empresa')),
+        if (ctx.read<PermissionNotifier>().hasPermission('company', 'edit'))
+          const PopupMenuItem(
+              value: 'edit-company', child: Text('Editar Empresa')),
         const PopupMenuDivider(),
         PopupMenuItem(
           value: 'toggle-theme',
           child: Row(
             children: [
-              Icon(isDark ? Icons.light_mode_outlined : Icons.dark_mode_outlined),
+              Icon(isDark
+                  ? Icons.light_mode_outlined
+                  : Icons.dark_mode_outlined),
               const SizedBox(width: AppSpacing.sm),
               Text(isDark ? 'Modo Claro' : 'Modo Escuro'),
+            ],
+          ),
+        ),
+        const PopupMenuDivider(),
+        const PopupMenuItem(
+          value: 'refresh-permissions',
+          child: Row(
+            children: [
+              Icon(Icons.sync, size: 20),
+              SizedBox(width: AppSpacing.sm),
+              Text('Atualizar Permissões'),
             ],
           ),
         ),
@@ -228,10 +251,10 @@ class _HomeBody extends StatelessWidget {
                     ),
                   ),
                   ModuleGuard(
-                    resource: 'document',
+                    resource: 'document-group',
                     child: _MenuCard(
                       icon: Icons.folder_outlined,
-                      label: 'Documentos',
+                      label: 'Grupos de Template de Documentos',
                       onTap: () => context.go('/document-group'),
                     ),
                   ),

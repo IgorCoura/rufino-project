@@ -6,6 +6,7 @@ import '../../../../../domain/entities/personal_info_options.dart';
 import '../../../../../domain/entities/selection_option.dart';
 import '../../viewmodel/employee_profile_viewmodel.dart';
 import 'profile_shared_widgets.dart';
+import '../../../../core/widgets/permission_guard.dart';
 
 /// Expandable card for viewing and editing employee personal information.
 class PersonalInfoSection extends StatefulWidget {
@@ -211,12 +212,16 @@ class _PersonalInfoSectionState extends State<PersonalInfoSection> {
         const SizedBox(height: AppSpacing.sm),
         Align(
           alignment: Alignment.centerRight,
-          child: TextButton.icon(
-            onPressed: _isEditing
-                ? null
-                : (options != null ? _startEdit : null),
-            icon: const Icon(Icons.edit_outlined, size: 18),
-            label: const Text('Editar'),
+          child: PermissionGuard(
+            resource: 'employee',
+            scope: 'edit',
+            child: TextButton.icon(
+              onPressed: _isEditing
+                  ? null
+                  : (options != null ? _startEdit : null),
+              icon: const Icon(Icons.edit_outlined, size: 18),
+              label: const Text('Editar'),
+            ),
           ),
         ),
       ],
