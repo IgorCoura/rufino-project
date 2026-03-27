@@ -186,8 +186,6 @@ void main() {
       expect(find.text('Perfil do Funcionário'), findsOneWidget);
       expect(find.text('Ana Lima'), findsWidgets);
       expect(find.text('Registro R001'), findsOneWidget);
-      expect(find.text('Analista'), findsOneWidget);
-      expect(find.text('Sede Principal'), findsOneWidget);
       expect(find.text('Ativo'), findsWidgets);
     });
 
@@ -216,19 +214,18 @@ void main() {
       await tester.pumpWidget(buildSubject());
       await tester.pumpAndSettle();
 
+      // Navigate to the Contratos tab.
+      await tester.tap(find.widgetWithText(Tab, 'Contratos'));
+      await tester.pumpAndSettle();
+
       // Expand the Contratos section where the button now lives.
-      await tester.scrollUntilVisible(
-        find.text('Contratos'),
-        100,
-        scrollable: find.byType(Scrollable).first,
-      );
-      await tester.tap(find.text('Contratos'));
+      await tester.tap(find.text('Contratos').last);
       await tester.pumpAndSettle();
 
       await tester.scrollUntilVisible(
         find.text('Marcar como inativo'),
         100,
-        scrollable: find.byType(Scrollable).first,
+        scrollable: find.byType(Scrollable).last,
       );
       await tester.tap(find.text('Marcar como inativo'));
       await tester.pumpAndSettle();
@@ -1742,6 +1739,10 @@ void main() {
       await tester.pumpWidget(buildSubject());
       await tester.pumpAndSettle();
 
+      // Navigate to the Contratos tab.
+      await tester.tap(find.widgetWithText(Tab, 'Contratos'));
+      await tester.pumpAndSettle();
+
       expect(find.text('Informações de Função'), findsOneWidget);
     });
 
@@ -1751,10 +1752,14 @@ void main() {
       await tester.pumpWidget(buildSubject());
       await tester.pumpAndSettle();
 
+      // Navigate to the Contratos tab.
+      await tester.tap(find.widgetWithText(Tab, 'Contratos'));
+      await tester.pumpAndSettle();
+
       await tester.scrollUntilVisible(
         find.text('Informações de Função'),
         100,
-        scrollable: find.byType(Scrollable).first,
+        scrollable: find.byType(Scrollable).last,
       );
       await tester.tap(find.text('Informações de Função'));
       await tester.pumpAndSettle();
@@ -1769,10 +1774,14 @@ void main() {
       await tester.pumpWidget(buildSubject());
       await tester.pumpAndSettle();
 
+      // Navigate to the Contratos tab.
+      await tester.tap(find.widgetWithText(Tab, 'Contratos'));
+      await tester.pumpAndSettle();
+
       await tester.scrollUntilVisible(
         find.text('Informações de Função'),
         100,
-        scrollable: find.byType(Scrollable).first,
+        scrollable: find.byType(Scrollable).last,
       );
       await tester.tap(find.text('Informações de Função'));
       await tester.pumpAndSettle();
@@ -1780,7 +1789,7 @@ void main() {
       await tester.scrollUntilVisible(
         find.text('Editar').last,
         100,
-        scrollable: find.byType(Scrollable).first,
+        scrollable: find.byType(Scrollable).last,
       );
       await tester.tap(find.text('Editar').last);
       await tester.pumpAndSettle();
@@ -1798,10 +1807,14 @@ void main() {
       await tester.pumpWidget(buildSubject());
       await tester.pumpAndSettle();
 
+      // Navigate to the Contratos tab.
+      await tester.tap(find.widgetWithText(Tab, 'Contratos'));
+      await tester.pumpAndSettle();
+
       await tester.scrollUntilVisible(
         find.text('Informações de Função'),
         100,
-        scrollable: find.byType(Scrollable).first,
+        scrollable: find.byType(Scrollable).last,
       );
       await tester.tap(find.text('Informações de Função'));
       await tester.pumpAndSettle();
@@ -1809,7 +1822,7 @@ void main() {
       await tester.scrollUntilVisible(
         find.text('Editar').last,
         100,
-        scrollable: find.byType(Scrollable).first,
+        scrollable: find.byType(Scrollable).last,
       );
       await tester.tap(find.text('Editar').last);
       await tester.pumpAndSettle();
@@ -1817,7 +1830,7 @@ void main() {
       await tester.scrollUntilVisible(
         find.text('Cancelar'),
         100,
-        scrollable: find.byType(Scrollable).first,
+        scrollable: find.byType(Scrollable).last,
       );
       await tester.tap(find.text('Cancelar'));
       await tester.pumpAndSettle();
@@ -1854,6 +1867,10 @@ void main() {
       await tester.pumpWidget(buildSubject());
       await tester.pumpAndSettle();
 
+      // Navigate to the Contratos tab.
+      await tester.tap(find.widgetWithText(Tab, 'Contratos'));
+      await tester.pumpAndSettle();
+
       expect(find.text('Local de Trabalho'), findsOneWidget);
     });
 
@@ -1863,10 +1880,14 @@ void main() {
       await tester.pumpWidget(buildSubject());
       await tester.pumpAndSettle();
 
+      // Navigate to the Contratos tab.
+      await tester.tap(find.widgetWithText(Tab, 'Contratos'));
+      await tester.pumpAndSettle();
+
       await tester.scrollUntilVisible(
         find.text('Local de Trabalho'),
         100,
-        scrollable: find.byType(Scrollable).first,
+        scrollable: find.byType(Scrollable).last,
       );
       await tester.tap(find.text('Local de Trabalho'));
       await tester.pumpAndSettle();
@@ -1878,7 +1899,12 @@ void main() {
       await tester.pumpWidget(buildSubject());
       await tester.pumpAndSettle();
 
-      expect(find.text('Contratos'), findsOneWidget);
+      // Navigate to the Contratos tab.
+      await tester.tap(find.widgetWithText(Tab, 'Contratos'));
+      await tester.pumpAndSettle();
+
+      // Tab label + section title both say 'Contratos'.
+      expect(find.text('Contratos'), findsNWidgets(2));
     });
 
     testWidgets('expands the Contratos section and shows contract data',
@@ -1886,12 +1912,12 @@ void main() {
       await tester.pumpWidget(buildSubject());
       await tester.pumpAndSettle();
 
-      await tester.scrollUntilVisible(
-        find.text('Contratos'),
-        100,
-        scrollable: find.byType(Scrollable).first,
-      );
-      await tester.tap(find.text('Contratos'));
+      // Navigate to the Contratos tab.
+      await tester.tap(find.widgetWithText(Tab, 'Contratos'));
+      await tester.pumpAndSettle();
+
+      // Tap the section title (last match — first is the tab label).
+      await tester.tap(find.text('Contratos').last);
       await tester.pumpAndSettle();
 
       expect(find.text('CLT'), findsOneWidget);
@@ -1904,6 +1930,10 @@ void main() {
       await tester.pumpWidget(buildSubject());
       await tester.pumpAndSettle();
 
+      // Navigate to the Documentos tab.
+      await tester.tap(find.widgetWithText(Tab, 'Documentos'));
+      await tester.pumpAndSettle();
+
       expect(
           find.text('Opções de Assinatura de Documentos'), findsOneWidget);
     });
@@ -1914,10 +1944,14 @@ void main() {
       await tester.pumpWidget(buildSubject());
       await tester.pumpAndSettle();
 
+      // Navigate to the Documentos tab.
+      await tester.tap(find.widgetWithText(Tab, 'Documentos'));
+      await tester.pumpAndSettle();
+
       await tester.scrollUntilVisible(
         find.text('Opções de Assinatura de Documentos'),
         100,
-        scrollable: find.byType(Scrollable).first,
+        scrollable: find.byType(Scrollable).last,
       );
       await tester.tap(find.text('Opções de Assinatura de Documentos'));
       await tester.pumpAndSettle();
@@ -1930,7 +1964,12 @@ void main() {
       await tester.pumpWidget(buildSubject());
       await tester.pumpAndSettle();
 
-      expect(find.text('Documentos'), findsOneWidget);
+      // Navigate to the Documentos tab.
+      await tester.tap(find.widgetWithText(Tab, 'Documentos'));
+      await tester.pumpAndSettle();
+
+      // Tab label + section title both say 'Documentos'.
+      expect(find.text('Documentos'), findsNWidgets(2));
     });
 
     testWidgets('expands the Documentos section and shows document groups',
@@ -1938,12 +1977,12 @@ void main() {
       await tester.pumpWidget(buildSubject());
       await tester.pumpAndSettle();
 
-      await tester.scrollUntilVisible(
-        find.text('Documentos'),
-        100,
-        scrollable: find.byType(Scrollable).first,
-      );
-      await tester.tap(find.text('Documentos'));
+      // Navigate to the Documentos tab.
+      await tester.tap(find.widgetWithText(Tab, 'Documentos'));
+      await tester.pumpAndSettle();
+
+      // Tap the section title (last match — first is the tab label).
+      await tester.tap(find.text('Documentos').last);
       await tester.pumpAndSettle();
 
       expect(find.text('Grupo Contratual'), findsOneWidget);
@@ -1955,19 +1994,19 @@ void main() {
       await tester.pumpWidget(buildSubject());
       await tester.pumpAndSettle();
 
-      await tester.scrollUntilVisible(
-        find.text('Documentos'),
-        100,
-        scrollable: find.byType(Scrollable).first,
-      );
-      await tester.tap(find.text('Documentos'));
+      // Navigate to the Documentos tab.
+      await tester.tap(find.widgetWithText(Tab, 'Documentos'));
+      await tester.pumpAndSettle();
+
+      // Tap the section title (last match — first is the tab label).
+      await tester.tap(find.text('Documentos').last);
       await tester.pumpAndSettle();
 
       // Scroll to group and expand it.
       await tester.scrollUntilVisible(
         find.text('Grupo Contratual'),
         200,
-        scrollable: find.byType(Scrollable).first,
+        scrollable: find.byType(Scrollable).last,
       );
       await tester.tap(find.text('Grupo Contratual'));
       await tester.pumpAndSettle();
@@ -1976,7 +2015,7 @@ void main() {
       await tester.scrollUntilVisible(
         find.text('Contrato de Trabalho'),
         200,
-        scrollable: find.byType(Scrollable).first,
+        scrollable: find.byType(Scrollable).last,
       );
       await tester.tap(find.text('Contrato de Trabalho'));
       await tester.pumpAndSettle();
@@ -1984,7 +2023,7 @@ void main() {
       // Scroll down to reveal the item count.
       for (var i = 0; i < 10; i++) {
         await tester.drag(
-            find.byType(Scrollable).first, const Offset(0, -200));
+            find.byType(Scrollable).last, const Offset(0, -200));
         await tester.pumpAndSettle();
       }
 
