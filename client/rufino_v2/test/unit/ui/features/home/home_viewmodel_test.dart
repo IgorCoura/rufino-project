@@ -1,21 +1,28 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:rufino_v2/domain/entities/company.dart';
+import 'package:rufino_v2/ui/features/auth/viewmodel/permission_notifier.dart';
 import 'package:rufino_v2/ui/features/home/viewmodel/home_viewmodel.dart';
 
 import '../../../../testing/fakes/fake_auth_repository.dart';
 import '../../../../testing/fakes/fake_company_repository.dart';
+import '../../../../testing/fakes/fake_permission_repository.dart';
 
 void main() {
   late FakeAuthRepository authRepository;
   late FakeCompanyRepository companyRepository;
+  late PermissionNotifier permissionNotifier;
   late HomeViewModel viewModel;
 
   setUp(() {
     authRepository = FakeAuthRepository();
     companyRepository = FakeCompanyRepository();
+    permissionNotifier = PermissionNotifier(
+      permissionRepository: FakePermissionRepository(),
+    );
     viewModel = HomeViewModel(
       authRepository: authRepository,
       companyRepository: companyRepository,
+      permissionNotifier: permissionNotifier,
     );
   });
 

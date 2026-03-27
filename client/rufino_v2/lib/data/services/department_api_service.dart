@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 import '../models/department_api_model.dart';
+import 'http_status_helper.dart';
 
 /// HTTP client for the department, position, and role endpoints of the
 /// people-management service.
@@ -35,7 +36,7 @@ class DepartmentApiService {
   Future<List<DepartmentApiModel>> getDepartments(String companyId) async {
     final uri = Uri.https(baseUrl, '/api/v1/$companyId/department/all');
     final response = await client.get(uri, headers: await _headers());
-    _checkStatus(response);
+    checkHttpStatus(response);
     final list = jsonDecode(response.body) as List<dynamic>;
     return list
         .map((e) => DepartmentApiModel.fromJson(e as Map<String, dynamic>))
@@ -48,7 +49,7 @@ class DepartmentApiService {
     final uri =
         Uri.https(baseUrl, '/api/v1/$companyId/department/$departmentId');
     final response = await client.get(uri, headers: await _headers());
-    _checkStatus(response);
+    checkHttpStatus(response);
     return DepartmentApiModel.fromJsonSimple(
         jsonDecode(response.body) as Map<String, dynamic>);
   }
@@ -62,7 +63,7 @@ class DepartmentApiService {
       headers: await _headers(),
       body: jsonEncode(model.toCreateJson()),
     );
-    _checkStatus(response);
+    checkHttpStatus(response);
     final json = jsonDecode(response.body) as Map<String, dynamic>;
     return json['id'] as String;
   }
@@ -76,7 +77,7 @@ class DepartmentApiService {
       headers: await _headers(),
       body: jsonEncode(model.toJson()),
     );
-    _checkStatus(response);
+    checkHttpStatus(response);
     final json = jsonDecode(response.body) as Map<String, dynamic>;
     return json['id'] as String;
   }
@@ -88,7 +89,7 @@ class DepartmentApiService {
       String companyId, String positionId) async {
     final uri = Uri.https(baseUrl, '/api/v1/$companyId/position/$positionId');
     final response = await client.get(uri, headers: await _headers());
-    _checkStatus(response);
+    checkHttpStatus(response);
     return PositionApiModel.fromJsonSimple(
         jsonDecode(response.body) as Map<String, dynamic>);
   }
@@ -102,7 +103,7 @@ class DepartmentApiService {
       headers: await _headers(),
       body: jsonEncode(model.toCreateJson(departmentId)),
     );
-    _checkStatus(response);
+    checkHttpStatus(response);
     final json = jsonDecode(response.body) as Map<String, dynamic>;
     return json['id'] as String;
   }
@@ -116,7 +117,7 @@ class DepartmentApiService {
       headers: await _headers(),
       body: jsonEncode(model.toJson()),
     );
-    _checkStatus(response);
+    checkHttpStatus(response);
     final json = jsonDecode(response.body) as Map<String, dynamic>;
     return json['id'] as String;
   }
@@ -127,7 +128,7 @@ class DepartmentApiService {
   Future<RoleApiModel> getRoleById(String companyId, String roleId) async {
     final uri = Uri.https(baseUrl, '/api/v1/$companyId/role/$roleId');
     final response = await client.get(uri, headers: await _headers());
-    _checkStatus(response);
+    checkHttpStatus(response);
     return RoleApiModel.fromJson(
         jsonDecode(response.body) as Map<String, dynamic>);
   }
@@ -141,7 +142,7 @@ class DepartmentApiService {
       headers: await _headers(),
       body: jsonEncode(model.toCreateJson(positionId)),
     );
-    _checkStatus(response);
+    checkHttpStatus(response);
     final json = jsonDecode(response.body) as Map<String, dynamic>;
     return json['id'] as String;
   }
@@ -154,7 +155,7 @@ class DepartmentApiService {
       headers: await _headers(),
       body: jsonEncode(model.toJson()),
     );
-    _checkStatus(response);
+    checkHttpStatus(response);
     final json = jsonDecode(response.body) as Map<String, dynamic>;
     return json['id'] as String;
   }
@@ -165,7 +166,7 @@ class DepartmentApiService {
   Future<List<PaymentUnitApiModel>> getPaymentUnits(String companyId) async {
     final uri = Uri.https(baseUrl, '/api/v1/$companyId/role/paymentUnit');
     final response = await client.get(uri, headers: await _headers());
-    _checkStatus(response);
+    checkHttpStatus(response);
     final list = jsonDecode(response.body) as List<dynamic>;
     return list
         .map((e) => PaymentUnitApiModel.fromJson(e as Map<String, dynamic>))
@@ -176,31 +177,11 @@ class DepartmentApiService {
   Future<List<SalaryTypeApiModel>> getSalaryTypes(String companyId) async {
     final uri = Uri.https(baseUrl, '/api/v1/$companyId/role/currencyType');
     final response = await client.get(uri, headers: await _headers());
-    _checkStatus(response);
+    checkHttpStatus(response);
     final list = jsonDecode(response.body) as List<dynamic>;
     return list
         .map((e) => SalaryTypeApiModel.fromJson(e as Map<String, dynamic>))
         .toList();
   }
 
-  // ─── Helpers ──────────────────────────────────────────────────────────────
-
-  void _checkStatus(http.Response response) {
-    if (response.statusCode >= 200 && response.statusCode < 300) return;
-    throw HttpException(
-      statusCode: response.statusCode,
-      message: 'HTTP ${response.statusCode}: ${response.reasonPhrase}',
-    );
-  }
-}
-
-/// Thrown by [DepartmentApiService] when the server returns a non-2xx status.
-class HttpException implements Exception {
-  const HttpException({required this.statusCode, required this.message});
-
-  final int statusCode;
-  final String message;
-
-  @override
-  String toString() => 'HttpException($statusCode): $message';
 }

@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import '../../../../core/theme/app_breakpoints.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/theme_notifier.dart';
+import '../../../core/widgets/permission_guard.dart';
 import '../viewmodel/home_viewmodel.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -96,7 +97,6 @@ class _AppBarTitle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final company = viewModel.company;
     return Row(
       children: [
         CircleAvatar(
@@ -109,7 +109,7 @@ class _AppBarTitle extends StatelessWidget {
         const SizedBox(width: AppSpacing.sm),
         Expanded(
           child: Text(
-            company?.fantasyName ?? 'Rufino',
+            viewModel.companyDisplayName,
             overflow: TextOverflow.ellipsis,
           ),
         ),
@@ -203,30 +203,45 @@ class _HomeBody extends StatelessWidget {
                 spacing: AppSpacing.md,
                 runSpacing: AppSpacing.md,
                 children: [
-                  _MenuCard(
-                    icon: Icons.people_outline,
-                    label: 'Funcionários',
-                    onTap: () => context.go('/employee'),
+                  ModuleGuard(
+                    resource: 'employee',
+                    child: _MenuCard(
+                      icon: Icons.people_outline,
+                      label: 'Funcionários',
+                      onTap: () => context.go('/employee'),
+                    ),
                   ),
-                  _MenuCard(
-                    icon: Icons.location_on_outlined,
-                    label: 'Locais de Trabalho',
-                    onTap: () => context.go('/workplace'),
+                  ModuleGuard(
+                    resource: 'workplace',
+                    child: _MenuCard(
+                      icon: Icons.location_on_outlined,
+                      label: 'Locais de Trabalho',
+                      onTap: () => context.go('/workplace'),
+                    ),
                   ),
-                  _MenuCard(
-                    icon: Icons.apartment_outlined,
-                    label: 'Setores',
-                    onTap: () => context.go('/department'),
+                  ModuleGuard(
+                    resource: 'department',
+                    child: _MenuCard(
+                      icon: Icons.apartment_outlined,
+                      label: 'Setores',
+                      onTap: () => context.go('/department'),
+                    ),
                   ),
-                  _MenuCard(
-                    icon: Icons.folder_outlined,
-                    label: 'Documentos',
-                    onTap: () => context.go('/document-group'),
+                  ModuleGuard(
+                    resource: 'document',
+                    child: _MenuCard(
+                      icon: Icons.folder_outlined,
+                      label: 'Documentos',
+                      onTap: () => context.go('/document-group'),
+                    ),
                   ),
-                  _MenuCard(
-                    icon: Icons.description_outlined,
-                    label: 'Requerimentos de Documentos',
-                    onTap: () => context.go('/require-document'),
+                  ModuleGuard(
+                    resource: 'require-documents',
+                    child: _MenuCard(
+                      icon: Icons.description_outlined,
+                      label: 'Requerimentos de Documentos',
+                      onTap: () => context.go('/require-document'),
+                    ),
                   ),
                 ],
               ),

@@ -57,27 +57,27 @@ class _DocumentsSectionState extends State<DocumentsSection> {
   /// Available page size options.
   static const _pageSizeOptions = [5, 10, 20, 50];
 
-  // ─── Status badge helpers ──────────────────────────────────────────────────
+  // ─── Status color helpers (visual concern — stays in UI) ────────────────
 
-  /// Returns a display label and color for a document-group-level status.
-  ({String label, Color color}) _groupStatus(String statusId) {
+  /// Returns a color for a document-group-level status.
+  Color _groupStatusColor(String statusId) {
     return switch (statusId) {
-      '1' => (label: 'OK', color: Colors.green),
-      '2' => (label: 'Pendente', color: Colors.orange),
-      '3' => (label: 'Inválido', color: Colors.red),
-      _ => (label: statusId, color: Colors.grey),
+      '1' => Colors.green,
+      '2' => Colors.orange,
+      '3' => Colors.red,
+      _ => Colors.grey,
     };
   }
 
-  /// Returns a display label and color for a document-level status.
-  ({String label, Color color}) _documentStatus(String statusId) {
+  /// Returns a color for a document-level status.
+  Color _documentStatusColor(String statusId) {
     return switch (statusId) {
-      '1' => (label: 'Pendente', color: Colors.orange),
-      '2' => (label: 'Requer Validação', color: Colors.amber),
-      '3' => (label: 'OK', color: Colors.green),
-      '4' => (label: 'Obsoleto', color: Colors.grey),
-      '5' => (label: 'Aguardando Assinatura', color: Colors.blue),
-      _ => (label: statusId, color: Colors.grey),
+      '1' => Colors.orange,
+      '2' => Colors.amber,
+      '3' => Colors.green,
+      '4' => Colors.grey,
+      '5' => Colors.blue,
+      _ => Colors.grey,
     };
   }
 
@@ -108,22 +108,6 @@ class _DocumentsSectionState extends State<DocumentsSection> {
   }) async {
     await saveFile(fileName: fileName, bytes: bytes);
     return true;
-  }
-
-  /// Builds a download file name from the unit date and document name.
-  ///
-  /// Converts `dd/MM/yyyy` to `yyyy-MM-dd` and slugifies the document name,
-  /// e.g. `"01/03/2026"` + `"Contrato de Trabalho"` → `"2026-03-01-contrato-de-trabalho"`.
-  String _downloadFileName(DocumentUnit unit, EmployeeDocument doc,
-      {String extension = 'pdf'}) {
-    final datePart = unit.date.isNotEmpty && unit.date.length == 10
-        ? '${unit.date.substring(6)}-${unit.date.substring(3, 5)}-${unit.date.substring(0, 2)}'
-        : 'sem-data';
-    final namePart = doc.name
-        .toLowerCase()
-        .replaceAll(RegExp(r'[^\w\s-]'), '')
-        .replaceAll(RegExp(r'\s+'), '-');
-    return '$datePart-$namePart.$extension';
   }
 
   /// Reloads units for [docId] using current page, filter and page size.
@@ -280,7 +264,7 @@ class _DocumentsSectionState extends State<DocumentsSection> {
       if (bytes != null && mounted) {
         final saved = await _saveFile(
           dialogTitle: 'Salvar documento',
-          fileName: _downloadFileName(unit, doc),
+          fileName: unit.downloadFileName(doc.name),
           bytes: bytes,
         );
         if (!saved && mounted) {
@@ -524,7 +508,7 @@ class _DocumentsSectionState extends State<DocumentsSection> {
           : 'pdf';
       await _saveFile(
         dialogTitle: 'Salvar documento',
-        fileName: _downloadFileName(unit, doc, extension: ext),
+        fileName: unit.downloadFileName(doc.name, extension: ext),
         bytes: bytes,
       );
     }
@@ -671,9 +655,9 @@ class _DocumentsSectionState extends State<DocumentsSection> {
       listenable: widget.viewModel,
       builder: (context, _) {
         final status = widget.viewModel.documentsStatus;
-        return ExpandableSectionCard(
+        return SectionCard(
           title: 'Documentos',
-          onExpand: widget.viewModel.loadDocumentGroups,
+          onLoad: widget.viewModel.loadDocumentGroups,
           trailing: _buildHeaderTrailing(),
           child: _buildContent(context, status),
         );
@@ -770,7 +754,8 @@ class _DocumentsSectionState extends State<DocumentsSection> {
 
   Widget _buildGroupTile(
       BuildContext context, DocumentGroupWithDocuments group) {
-    final badge = _groupStatus(group.statusId);
+    final badgeLabel = group.groupStatusLabel;
+    final badgeColor = _groupStatusColor(group.statusId);
     return Padding(
       padding: const EdgeInsets.only(bottom: AppSpacing.sm),
       child: Card.outlined(
@@ -779,7 +764,7 @@ class _DocumentsSectionState extends State<DocumentsSection> {
           controlAffinity: ListTileControlAffinity.leading,
           title: Row(
             children: [
-              _StatusBadge(label: badge.label, color: badge.color),
+              _StatusBadge(label: badgeLabel, color: badgeColor),
               const SizedBox(width: AppSpacing.sm),
               Expanded(
                 child: Text(
@@ -813,7 +798,8 @@ class _DocumentsSectionState extends State<DocumentsSection> {
   // ─── Document level ───────────────────────────────────────────────────────
 
   Widget _buildDocumentTile(BuildContext context, EmployeeDocument doc) {
-    final badgeInfo = _documentStatus(doc.statusId);
+    final docStatusLabel = doc.statusName.isNotEmpty ? doc.statusName : doc.statusId;
+    final docStatusColor = _documentStatusColor(doc.statusId);
     final isExpanded = _expandedDocIds.contains(doc.id);
 
     return Padding(
@@ -828,10 +814,10 @@ class _DocumentsSectionState extends State<DocumentsSection> {
           trailing: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              _StatusBadge(label: badgeInfo.label, color: badgeInfo.color),
+              _StatusBadge(label: docStatusLabel, color: docStatusColor),
               if (doc.usePreviousPeriod) ...[
                 const SizedBox(width: AppSpacing.xs),
-                _StatusBadge(
+                const _StatusBadge(
                   label: 'Usa período anterior',
                   color: Colors.deepPurple,
                 ),
@@ -874,7 +860,7 @@ class _DocumentsSectionState extends State<DocumentsSection> {
     return Padding(
       padding: const EdgeInsets.only(bottom: AppSpacing.sm),
       child: DropdownButtonFormField<int?>(
-        value: currentFilter,
+        initialValue: currentFilter,
         decoration: const InputDecoration(
           labelText: 'Status',
           prefixIcon: Icon(Icons.filter_list),
@@ -1272,32 +1258,6 @@ class _DocumentsSectionState extends State<DocumentsSection> {
             ],
           ),
         ],
-      ),
-    );
-  }
-}
-
-/// Small action button used for document unit operations.
-class _ActionButton extends StatelessWidget {
-  const _ActionButton({
-    required this.icon,
-    required this.label,
-    required this.onPressed,
-  });
-
-  final IconData icon;
-  final String label;
-  final VoidCallback? onPressed;
-
-  @override
-  Widget build(BuildContext context) {
-    return TextButton.icon(
-      onPressed: onPressed,
-      icon: Icon(icon, size: 16),
-      label: Text(label),
-      style: TextButton.styleFrom(
-        visualDensity: VisualDensity.compact,
-        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
       ),
     );
   }

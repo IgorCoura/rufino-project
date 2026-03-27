@@ -39,22 +39,6 @@ class _ContactSectionState extends State<ContactSection> {
     super.dispose();
   }
 
-  /// Formats raw digit string (e.g. `"11968608425"`) for display as
-  /// `"+55 11 96860-8425"`.
-  String _formatPhone(String raw) {
-    final digits = raw.replaceAll(RegExp(r'[^\d]'), '');
-    if (digits.isEmpty) return '';
-    if (digits.length == 11) {
-      return '+55 ${digits.substring(0, 2)} '
-          '${digits.substring(2, 7)}-${digits.substring(7)}';
-    }
-    if (digits.length == 10) {
-      return '+55 ${digits.substring(0, 2)} '
-          '${digits.substring(2, 6)}-${digits.substring(6)}';
-    }
-    return digits;
-  }
-
   void _startEdit() {
     final contact = widget.viewModel.contact;
     if (contact == null) return;
@@ -91,13 +75,10 @@ class _ContactSectionState extends State<ContactSection> {
       listenable: widget.viewModel,
       builder: (context, _) {
         final status = widget.viewModel.contactStatus;
-        return ExpandableSectionCard(
+        return SectionCard(
           title: 'Contato',
-          onExpand: widget.viewModel.loadContact,
-          child: Padding(
-            padding: const EdgeInsets.all(8.0),
-            child: _buildContent(context, status),
-          ),
+          onLoad: widget.viewModel.loadContact,
+          child: _buildContent(context, status),
         );
       },
     );
@@ -193,8 +174,8 @@ class _ContactSectionState extends State<ContactSection> {
     }
 
     // ── View mode ────────────────────────────────────────────────────────────
-    final formattedPhone = contact?.cellphone.isNotEmpty == true
-        ? _formatPhone(contact!.cellphone)
+    final formattedPhone = contact?.hasPhone == true
+        ? contact!.formattedPhone
         : null;
 
     return Column(

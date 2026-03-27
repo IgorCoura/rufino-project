@@ -33,6 +33,14 @@ class DocumentGroupWithDocuments {
   /// The employee documents belonging to this group.
   final List<EmployeeDocument> documents;
 
+  /// Display label for the group status.
+  String get groupStatusLabel => switch (statusId) {
+        '1' => 'OK',
+        '2' => 'Pendente',
+        '3' => 'Inválido',
+        _ => statusName.isNotEmpty ? statusName : statusId,
+      };
+
   /// Returns a copy with [documents] replaced.
   DocumentGroupWithDocuments copyWithDocuments(
       List<EmployeeDocument> documents) {

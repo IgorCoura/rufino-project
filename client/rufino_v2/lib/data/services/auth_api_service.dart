@@ -35,7 +35,9 @@ class AuthApiService {
       secret: secret,
     );
     _credentials = client.credentials;
-    await storage.write(key: _credentialsKey, value: client.credentials.toJson());
+
+    await storage.write(
+        key: _credentialsKey, value: client.credentials.toJson());
     client.close();
   }
 

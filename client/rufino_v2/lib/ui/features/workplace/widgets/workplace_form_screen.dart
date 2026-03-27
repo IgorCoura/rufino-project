@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/theme/app_spacing.dart';
+import '../../../core/widgets/error_dialog.dart';
 import '../viewmodel/workplace_form_viewmodel.dart';
 
 /// Form screen for creating or editing a workplace.
@@ -66,15 +67,11 @@ class _WorkplaceFormScreenState extends State<WorkplaceFormScreen> {
         );
         context.pop();
       case WorkplaceFormStatus.error:
-        ScaffoldMessenger.of(context)
-          ..hideCurrentSnackBar()
-          ..showSnackBar(
-            SnackBar(
-              content:
-                  Text(widget.viewModel.errorMessage ?? 'Erro ao salvar.'),
-              behavior: SnackBarBehavior.floating,
-            ),
-          );
+        showErrorSnackBar(
+          context,
+          messages: widget.viewModel.serverErrors,
+          fallbackMessage: widget.viewModel.errorMessage ?? 'Erro ao salvar.',
+        );
       default:
         break;
     }

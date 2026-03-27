@@ -8,10 +8,10 @@
 }
 
 @page{
-    @bottom-right {
+    {% comment %} @bottom-right {
         font-size: 2.5mm;
         content:  "Página " counter(page)"/"counter(pages);
-    }
+    } {% endcomment %}
 
 }
 
@@ -181,6 +181,39 @@
     right: 130mm; /* posicionado no canto direito */
 }
 
+
+.signed-content{
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+    gap: 2mm;
+    margin: 0 auto;
+}
+
+.signed-icon{
+    height: 8mm;
+    width: auto;
+}
+
+.signed-text{
+    display: flex;
+    flex-direction: column;
+    text-align: left;
+}
+
+.signed-label{
+    font-size: 2.5mm;
+    color: #666;
+    line-height: 1.2;
+}
+
+.signed-name{
+    font-size: 3mm;
+    font-weight: bold;
+    color: #4141A5;
+    line-height: 1.2;
+}
 
 .date{
     padding-left: 2mm;

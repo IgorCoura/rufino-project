@@ -3,6 +3,9 @@ import 'dart:typed_data';
 
 import 'package:http/http.dart' as http;
 
+import 'http_exception.dart';
+import 'http_status_helper.dart';
+
 import '../models/document_template_api_model.dart';
 
 /// HTTP client for the document template endpoints of the people-management service.
@@ -35,7 +38,7 @@ class DocumentTemplateApiService {
     final uri =
         Uri.https(baseUrl, '/api/v1/$companyId/documenttemplate/simple');
     final response = await client.get(uri, headers: await _headers());
-    _checkStatus(response);
+    checkHttpStatus(response);
     final list = jsonDecode(response.body) as List<dynamic>;
     return list
         .map((e) => DocumentTemplateApiModel.fromJsonSimple(
@@ -49,7 +52,7 @@ class DocumentTemplateApiService {
     final uri = Uri.https(
         baseUrl, '/api/v1/$companyId/documenttemplate/$templateId');
     final response = await client.get(uri, headers: await _headers());
-    _checkStatus(response);
+    checkHttpStatus(response);
     return DocumentTemplateApiModel.fromJson(
         jsonDecode(response.body) as Map<String, dynamic>);
   }
@@ -64,7 +67,7 @@ class DocumentTemplateApiService {
       headers: await _headers(),
       body: jsonEncode(model.toCreateJson()),
     );
-    _checkStatus(response);
+    checkHttpStatus(response);
     final json = jsonDecode(response.body) as Map<String, dynamic>;
     return json['id'] as String;
   }
@@ -79,7 +82,7 @@ class DocumentTemplateApiService {
       headers: await _headers(),
       body: jsonEncode(model.toJson()),
     );
-    _checkStatus(response);
+    checkHttpStatus(response);
     final json = jsonDecode(response.body) as Map<String, dynamic>;
     return json['id'] as String;
   }
@@ -89,7 +92,7 @@ class DocumentTemplateApiService {
       String companyId) async {
     final uri = Uri.https(baseUrl, '/api/v1/$companyId/documentgroup');
     final response = await client.get(uri, headers: await _headers());
-    _checkStatus(response);
+    checkHttpStatus(response);
     final list = jsonDecode(response.body) as List<dynamic>;
     return list.cast<Map<String, dynamic>>();
   }
@@ -100,7 +103,7 @@ class DocumentTemplateApiService {
     final uri = Uri.https(
         baseUrl, '/api/v1/$companyId/documenttemplate/recoverdatatype');
     final response = await client.get(uri, headers: await _headers());
-    _checkStatus(response);
+    checkHttpStatus(response);
     final list = jsonDecode(response.body) as List<dynamic>;
     return list.cast<Map<String, dynamic>>();
   }
@@ -110,7 +113,7 @@ class DocumentTemplateApiService {
     final uri = Uri.https(
         baseUrl, '/api/v1/$companyId/documenttemplate/RecoverDataModels');
     final response = await client.get(uri, headers: await _headers());
-    _checkStatus(response);
+    checkHttpStatus(response);
     return response.body.trim().replaceAll(RegExp(r'[\r\n]+'), '');
   }
 
@@ -119,7 +122,7 @@ class DocumentTemplateApiService {
     final uri = Uri.https(
         baseUrl, '/api/v1/$companyId/documenttemplate/hasfile/$templateId');
     final response = await client.get(uri, headers: await _headers());
-    _checkStatus(response);
+    checkHttpStatus(response);
     return jsonDecode(response.body) as bool;
   }
 
@@ -161,7 +164,7 @@ class DocumentTemplateApiService {
     final headers = await _headers();
     headers['Content-Type'] = 'application/octet-stream';
     final response = await client.get(uri, headers: headers);
-    _checkStatus(response);
+    checkHttpStatus(response);
     return response.bodyBytes;
   }
 
@@ -171,29 +174,11 @@ class DocumentTemplateApiService {
     final uri = Uri.https(
         baseUrl, '/api/v1/$companyId/documenttemplate/typesignature');
     final response = await client.get(uri, headers: await _headers());
-    _checkStatus(response);
+    checkHttpStatus(response);
     final list = jsonDecode(response.body) as List<dynamic>;
     return list.cast<Map<String, dynamic>>();
   }
 
   // ─── Helpers ──────────────────────────────────────────────────────────────
 
-  void _checkStatus(http.Response response) {
-    if (response.statusCode >= 200 && response.statusCode < 300) return;
-    throw HttpException(
-      statusCode: response.statusCode,
-      message: 'HTTP ${response.statusCode}: ${response.reasonPhrase}',
-    );
-  }
-}
-
-/// Thrown by [DocumentTemplateApiService] when the server returns a non-2xx status.
-class HttpException implements Exception {
-  const HttpException({required this.statusCode, required this.message});
-
-  final int statusCode;
-  final String message;
-
-  @override
-  String toString() => 'HttpException($statusCode): $message';
 }

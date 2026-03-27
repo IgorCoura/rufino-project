@@ -1,5 +1,7 @@
 import 'package:flutter/widgets.dart';
 
+import '../../../../core/utils/error_messages.dart';
+import '../../../../domain/entities/position.dart';
 import '../../../../domain/repositories/company_repository.dart';
 import '../../../../domain/repositories/department_repository.dart';
 
@@ -39,6 +41,10 @@ class PositionFormViewModel extends ChangeNotifier {
   String _id = '';
   PositionFormStatus _status = PositionFormStatus.idle;
   String? _errorMessage;
+  List<String> _serverErrors = const [];
+
+  /// Server-provided error messages extracted from the API response, if any.
+  List<String> get serverErrors => _serverErrors;
 
   /// The id of the position being edited, empty when creating a new one.
   String get id => _id;
@@ -58,28 +64,16 @@ class PositionFormViewModel extends ChangeNotifier {
   /// Human-readable error message set when [status] is [PositionFormStatus.error].
   String? get errorMessage => _errorMessage;
 
-  // ─── Validators ────────────────────────────────────────────────────────────
+  // ─── Validators — delegated to domain entity ──────────────────────────
 
-  /// Validates the position name: required, max 100 characters.
-  String? validateName(String? v) {
-    if (v == null || v.isEmpty) return 'Não pode ser vazio.';
-    if (v.length > 100) return 'Não pode ser maior que 100 caracteres.';
-    return null;
-  }
+  /// Delegates to [Position.validateName].
+  String? validateName(String? v) => Position.validateName(v);
 
-  /// Validates the position description: required, max 2000 characters.
-  String? validateDescription(String? v) {
-    if (v == null || v.isEmpty) return 'Não pode ser vazio.';
-    if (v.length > 2000) return 'Não pode ser maior que 2000 caracteres.';
-    return null;
-  }
+  /// Delegates to [Position.validateDescription].
+  String? validateDescription(String? v) => Position.validateDescription(v);
 
-  /// Validates the CBO code: required, max 6 characters.
-  String? validateCbo(String? v) {
-    if (v == null || v.isEmpty) return 'Não pode ser vazio.';
-    if (v.length > 6) return 'Não pode ser maior que 6 caracteres.';
-    return null;
-  }
+  /// Delegates to [Position.validateCbo].
+  String? validateCbo(String? v) => Position.validateCbo(v);
 
   // ─── Operations ────────────────────────────────────────────────────────────
 
@@ -145,10 +139,12 @@ class PositionFormViewModel extends ChangeNotifier {
 
       result.fold(
         onSuccess: (_) => _status = PositionFormStatus.saved,
-        onError: (_) {
+        onError: (error) {
           _status = PositionFormStatus.error;
-          _errorMessage =
-              'Falha ao salvar cargo. Verifique os dados e tente novamente.';
+          _serverErrors = extractServerMessages(error);
+          _errorMessage = _serverErrors.isNotEmpty
+              ? _serverErrors.join('\n')
+              : 'Falha ao salvar cargo. Verifique os dados e tente novamente.';
         },
       );
     } finally {

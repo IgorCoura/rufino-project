@@ -22,6 +22,15 @@ class DocumentGroupWithTemplates {
 
   /// The document templates belonging to this group.
   final List<DocumentTemplateSummary> templates;
+
+  /// Whether this group has a description filled in.
+  bool get hasDescription => description.isNotEmpty;
+
+  /// Whether this group has any templates.
+  bool get hasTemplates => templates.isNotEmpty;
+
+  /// Returns the number of templates in this group.
+  int get templateCount => templates.length;
 }
 
 /// A simplified document template used inside [DocumentGroupWithTemplates].
@@ -42,4 +51,7 @@ class DocumentTemplateSummary {
 
   /// Detailed description of the template purpose.
   final String description;
+
+  /// Whether this template has a description filled in.
+  bool get hasDescription => description.isNotEmpty;
 }

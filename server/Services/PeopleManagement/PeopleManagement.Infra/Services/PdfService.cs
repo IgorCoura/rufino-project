@@ -2,6 +2,7 @@
 using PeopleManagement.Domain.AggregatesModel.DocumentAggregate.Interfaces;
 using PuppeteerSharp;
 using PuppeteerSharp.Media;
+using System.Collections.Concurrent;
 using System.Text.Json.Nodes;
 using Microsoft.Extensions.Logging;
 using PeopleManagement.Domain.AggregatesModel.DocumentTemplateAggregate.options;
@@ -14,9 +15,14 @@ namespace PeopleManagement.Infra.Services
         private readonly ILogger<PdfService> _logger = logger;
         private readonly IBrowserProvider _browserProvider = browserProvider;
 
+        private static readonly SemaphoreSlim _pageSemaphore = new(
+            Math.Max(2, Environment.ProcessorCount),
+            Math.Max(2, Environment.ProcessorCount));
+
+        private static readonly ConcurrentDictionary<string, string> _templateCache = new();
+
         public async Task<byte[]> ConvertHtml2Pdf(TemplateFileInfo template, string values, CancellationToken cancellationToken = default)
         {
-            _logger.LogInformation("Converting HTML to PDF for directory: {TemplateName}", template.Directory);
             var id = Guid.NewGuid();
             var results = await ConvertHtml2PdfRange([(id, template, values)], cancellationToken);
             return results[0].Pdf;
@@ -31,12 +37,11 @@ namespace PeopleManagement.Infra.Services
                 return [];
 
             _logger.LogInformation("Starting bulk PDF generation for {Count} document units.", itemsList.Count);
-            _logger.LogInformation("---Current Directory: {currentDirectory}---", Directory.GetCurrentDirectory());
 
             var browser = await _browserProvider.GetBrowserAsync(cancellationToken);
 
             var tasks = itemsList.Select(item =>
-                GeneratePageAsync(browser, item.DocumentUnitId, item.Template, item.Content, cancellationToken));
+                ThrottledGeneratePageAsync(browser, item.DocumentUnitId, item.Template, item.Content, cancellationToken));
 
             var results = await Task.WhenAll(tasks);
 
@@ -45,11 +50,26 @@ namespace PeopleManagement.Infra.Services
             return results;
         }
 
+        private async Task<(Guid DocumentUnitId, byte[] Pdf)> ThrottledGeneratePageAsync(
+            IBrowser browser, Guid documentUnitId, TemplateFileInfo template,
+            string content, CancellationToken cancellationToken)
+        {
+            await _pageSemaphore.WaitAsync(cancellationToken);
+            try
+            {
+                return await GeneratePageAsync(browser, documentUnitId, template, content, cancellationToken);
+            }
+            finally
+            {
+                _pageSemaphore.Release();
+            }
+        }
+
         private async Task<(Guid DocumentUnitId, byte[] Pdf)> GeneratePageAsync(
             IBrowser browser, Guid documentUnitId, TemplateFileInfo template, string content,
             CancellationToken cancellationToken)
         {
-            _logger.LogInformation("Generating PDF for document unit: {DocumentUnitId}", documentUnitId);
+            _logger.LogDebug("Generating PDF for document unit: {DocumentUnitId}", documentUnitId);
 
             var currentDirectory = Directory.GetCurrentDirectory();
             var templateDirectory = Path.Combine(currentDirectory, _documentTemplatesOptions.SourceDirectory, template.Directory.ToString());
@@ -59,35 +79,47 @@ namespace PeopleManagement.Infra.Services
 
             var jsonValues = JsonValue.Parse(content);
 
+            var bodyHtml = await GetCachedTemplate(indexHtmlPath, cancellationToken);
+            var processedBody = HtmlService.InsertValuesInHtmlTemplate(jsonValues, bodyHtml);
+
             await using var page = await browser.NewPageAsync();
-
-            _logger.LogInformation("Navigating page to HTML template at path: {path}", "file://" + indexHtmlPath);
             await page.GoToAsync("file://" + indexHtmlPath);
-
-            var contentPage = await page.GetContentAsync();
-            var newContentPage = await HtmlService.InsertValuesInHtmlTemplate(jsonValues, contentPage);
-            await page.SetContentAsync(newContentPage);
+            await page.SetContentAsync(processedBody);
 
             var pdfOptions = new PdfOptions
             {
                 Format = PaperFormat.A4,
                 PrintBackground = true,
                 DisplayHeaderFooter = true,
-                HeaderTemplate = await GetHtmlContent(headerPath, jsonValues),
-                FooterTemplate = await GetHtmlContent(footerPath, jsonValues),
+                HeaderTemplate = GetHtmlContent(headerPath, jsonValues),
+                FooterTemplate = GetHtmlContent(footerPath, jsonValues),
             };
 
             var pdfBytes = await page.PdfDataAsync(pdfOptions);
 
-            _logger.LogInformation("PDF generated successfully for document unit: {DocumentUnitId}", documentUnitId);
+            _logger.LogDebug("PDF generated for document unit: {DocumentUnitId}", documentUnitId);
             return (documentUnitId, pdfBytes);
         }
 
-        private static async Task<string> GetHtmlContent(string path, JsonNode? values)
+        private static async Task<string> GetCachedTemplate(string path, CancellationToken cancellationToken)
         {
-            var htmlContentInit = await File.ReadAllTextAsync(path);
-            var htmlContentFinal = await HtmlService.InsertValuesInHtmlTemplate(values, htmlContentInit);
-            return htmlContentFinal;
+            if (_templateCache.TryGetValue(path, out var cached))
+                return cached;
+
+            var content = await File.ReadAllTextAsync(path, cancellationToken);
+            _templateCache.TryAdd(path, content);
+            return content;
+        }
+
+        private static string GetHtmlContent(string path, JsonNode? values)
+        {
+            if (!_templateCache.TryGetValue(path, out var htmlContentInit))
+            {
+                htmlContentInit = File.ReadAllText(path);
+                _templateCache.TryAdd(path, htmlContentInit);
+            }
+
+            return HtmlService.InsertValuesInHtmlTemplate(values, htmlContentInit);
         }
     }
 }

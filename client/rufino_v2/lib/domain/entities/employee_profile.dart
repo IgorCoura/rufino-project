@@ -31,6 +31,21 @@ class EmployeeProfile {
   /// Whether the employee can be marked as inactive from the profile screen.
   bool get canMarkAsInactive => status == EmployeeStatus.active;
 
+  /// Whether this employee has a role assigned.
+  bool get hasRole => roleId.isNotEmpty;
+
+  /// Whether this employee has a workplace assigned.
+  bool get hasWorkplace => workplaceId.isNotEmpty;
+
+  /// Whether this employee has document signing options configured.
+  bool get hasSigningOptions => documentSigningOptionsId.isNotEmpty;
+
+  /// Whether this employee is currently active.
+  bool get isActive => status == EmployeeStatus.active;
+
+  /// Whether this employee is inactive.
+  bool get isInactive => status == EmployeeStatus.inactive;
+
   /// Returns a copy of this profile with the provided overrides applied.
   EmployeeProfile copyWith({
     String? id,

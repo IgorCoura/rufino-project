@@ -4,6 +4,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/widgets.dart';
 import 'package:mask_text_input_formatter/mask_text_input_formatter.dart';
 
+import '../../../../core/utils/error_messages.dart';
 import '../../../../domain/entities/document_template.dart';
 import '../../../../domain/entities/selection_option.dart';
 import '../../../../domain/repositories/company_repository.dart';
@@ -68,6 +69,10 @@ class DocumentTemplateFormViewModel extends ChangeNotifier {
   String _id = '';
   DocumentTemplateFormStatus _status = DocumentTemplateFormStatus.idle;
   String? _errorMessage;
+  List<String> _serverErrors = const [];
+
+  /// Server-provided error messages extracted from the API response, if any.
+  List<String> get serverErrors => _serverErrors;
   bool _usePreviousPeriod = false;
   bool _acceptsSignature = false;
   String _selectedDocumentGroupId = '';
@@ -105,6 +110,11 @@ class DocumentTemplateFormViewModel extends ChangeNotifier {
 
   /// The currently selected document group id.
   String get selectedDocumentGroupId => _selectedDocumentGroupId;
+
+  /// Returns the selected document group id when it exists in [documentGroups],
+  /// or null otherwise. Safe for use as [DropdownButtonFormField.value].
+  String? get safeDocumentGroupId =>
+      SelectionOption.safeId(_selectedDocumentGroupId, _documentGroups);
 
   /// The currently selected recover data type ids.
   List<int> get selectedRecoverDataTypeIds => _selectedRecoverDataTypeIds;
@@ -260,9 +270,12 @@ class DocumentTemplateFormViewModel extends ChangeNotifier {
           _status = DocumentTemplateFormStatus.idle;
           success = true;
         },
-        onError: (_) {
+        onError: (error) {
           _status = DocumentTemplateFormStatus.error;
-          _errorMessage = 'Falha ao enviar arquivo.';
+          _serverErrors = extractServerMessages(error);
+          _errorMessage = _serverErrors.isNotEmpty
+              ? _serverErrors.join('\n')
+              : 'Falha ao enviar arquivo.';
         },
       );
     } finally {
@@ -285,65 +298,27 @@ class DocumentTemplateFormViewModel extends ChangeNotifier {
     return result.valueOrNull;
   }
 
-  // ─── Validators ────────────────────────────────────────────────────────────
+  // ─── Validators — delegated to domain entities ──────────────────────────
 
-  /// Validates the template name: required, max 100 characters.
-  String? validateName(String? v) {
-    if (v == null || v.trim().isEmpty) return 'O Nome não pode ser vazio.';
-    if (v.length > 100) return 'O Nome não pode ter mais de 100 caracteres.';
-    return null;
-  }
+  /// Delegates to [DocumentTemplate.validateName].
+  String? validateName(String? v) => DocumentTemplate.validateName(v);
 
-  /// Validates the template description: required, max 500 characters.
-  String? validateDescription(String? v) {
-    if (v == null || v.trim().isEmpty) return 'A Descrição não pode ser vazia.';
-    if (v.length > 500) {
-      return 'A Descrição não pode ter mais de 500 caracteres.';
-    }
-    return null;
-  }
+  /// Delegates to [DocumentTemplate.validateDescription].
+  String? validateDescription(String? v) =>
+      DocumentTemplate.validateDescription(v);
 
-  /// Validates the validity in days field: optional, 0–999 range.
-  String? validateValidity(String? v) {
-    if (v == null || v.trim().isEmpty) return null;
-    final days = int.tryParse(v.trim());
-    if (days == null || days < 0 || days > 999) {
-      return 'Informe um valor entre 0 e 999.';
-    }
-    return null;
-  }
+  /// Delegates to [DocumentTemplate.validateValidity].
+  String? validateValidity(String? v) => DocumentTemplate.validateValidity(v);
 
-  /// Validates the workload in hours field: optional, 0–999 range.
-  String? validateWorkload(String? v) {
-    if (v == null || v.trim().isEmpty) return null;
-    final hours = int.tryParse(v.trim());
-    if (hours == null || hours < 0 || hours > 999) {
-      return 'Informe um valor entre 0 e 999.';
-    }
-    return null;
-  }
+  /// Delegates to [DocumentTemplate.validateWorkload].
+  String? validateWorkload(String? v) => DocumentTemplate.validateWorkload(v);
 
-  /// Validates a numeric field for signature placement: 0–100 range.
-  String? validateSignatureNumber(String? v, String label) {
-    if (v == null || v.trim().isEmpty) return '$label é obrigatório.';
-    final number = double.tryParse(v.trim());
-    if (number == null || number < 0 || number > 100) {
-      return '$label deve estar entre 0 e 100.';
-    }
-    return null;
-  }
+  /// Delegates to [PlaceSignatureData.validateField].
+  String? validateSignatureNumber(String? v, String label) =>
+      PlaceSignatureData.validateField(v, label);
 
-  /// Validates a file name field: optional, max 20 chars, must end with `.html`.
-  String? validateFileName(String? v) {
-    if (v == null || v.trim().isEmpty) return null;
-    if (v.trim().length > 20) {
-      return 'Máximo de 20 caracteres.';
-    }
-    if (!v.trim().toLowerCase().endsWith('.html')) {
-      return 'O arquivo precisa ter extensão .html.';
-    }
-    return null;
-  }
+  /// Delegates to [DocumentTemplate.validateFileName].
+  String? validateFileName(String? v) => DocumentTemplate.validateFileName(v);
 
   // ─── Operations ────────────────────────────────────────────────────────────
 
@@ -493,10 +468,12 @@ class DocumentTemplateFormViewModel extends ChangeNotifier {
 
       result.fold(
         onSuccess: (_) => _status = DocumentTemplateFormStatus.saved,
-        onError: (_) {
+        onError: (error) {
           _status = DocumentTemplateFormStatus.error;
-          _errorMessage =
-              'Falha ao salvar template. Verifique os dados e tente novamente.';
+          _serverErrors = extractServerMessages(error);
+          _errorMessage = _serverErrors.isNotEmpty
+              ? _serverErrors.join('\n')
+              : 'Falha ao salvar template. Verifique os dados e tente novamente.';
         },
       );
     } finally {

@@ -1,5 +1,6 @@
 import 'package:flutter/widgets.dart';
 
+import '../../../../core/utils/error_messages.dart';
 import '../../../../domain/entities/document_group.dart';
 import '../../../../domain/repositories/company_repository.dart';
 import '../../../../domain/repositories/document_group_repository.dart';
@@ -34,6 +35,10 @@ class DocumentGroupFormViewModel extends ChangeNotifier {
   String _id = '';
   DocumentGroupFormStatus _status = DocumentGroupFormStatus.idle;
   String? _errorMessage;
+  List<String> _serverErrors = const [];
+
+  /// Server-provided error messages extracted from the API response, if any.
+  List<String> get serverErrors => _serverErrors;
 
   /// The id of the group being edited, empty when creating a new one.
   String get id => _id;
@@ -53,27 +58,14 @@ class DocumentGroupFormViewModel extends ChangeNotifier {
   /// Human-readable error message set when [status] is [DocumentGroupFormStatus.error].
   String? get errorMessage => _errorMessage;
 
-  // ─── Validators ────────────────────────────────────────────────────────────
+  // ─── Validators — delegated to domain entity ──────────────────────────
 
-  /// Validates the group name: required, max 100 characters.
-  String? validateName(String? v) {
-    if (v == null || v.trim().isEmpty) return 'O Nome não pode ser vazio.';
-    if (v.length > 100) {
-      return 'O Nome não pode ser maior que 100 caracteres.';
-    }
-    return null;
-  }
+  /// Delegates to [DocumentGroup.validateName].
+  String? validateName(String? v) => DocumentGroup.validateName(v);
 
-  /// Validates the group description: required, max 1000 characters.
-  String? validateDescription(String? v) {
-    if (v == null || v.trim().isEmpty) {
-      return 'A Descrição não pode ser vazia.';
-    }
-    if (v.length > 1000) {
-      return 'A Descrição não pode ser maior que 1000 caracteres.';
-    }
-    return null;
-  }
+  /// Delegates to [DocumentGroup.validateDescription].
+  String? validateDescription(String? v) =>
+      DocumentGroup.validateDescription(v);
 
   // ─── Operations ────────────────────────────────────────────────────────────
 
@@ -141,10 +133,12 @@ class DocumentGroupFormViewModel extends ChangeNotifier {
 
       result.fold(
         onSuccess: (_) => _status = DocumentGroupFormStatus.saved,
-        onError: (_) {
+        onError: (error) {
           _status = DocumentGroupFormStatus.error;
-          _errorMessage =
-              'Falha ao salvar grupo. Verifique os dados e tente novamente.';
+          _serverErrors = extractServerMessages(error);
+          _errorMessage = _serverErrors.isNotEmpty
+              ? _serverErrors.join('\n')
+              : 'Falha ao salvar grupo. Verifique os dados e tente novamente.';
         },
       );
     } finally {

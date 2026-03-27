@@ -3,7 +3,7 @@ import 'package:rufino_v2/data/models/workplace_api_model.dart';
 
 void main() {
   group('AddressApiModel', () {
-    const _json = {
+    const jsonFixture = {
       'zipCode': '01310100',
       'street': 'Av. Paulista',
       'number': '1000',
@@ -15,7 +15,7 @@ void main() {
     };
 
     test('fromJson parses all fields correctly', () {
-      final model = AddressApiModel.fromJson(_json);
+      final model = AddressApiModel.fromJson(jsonFixture);
 
       expect(model.zipCode, '01310100');
       expect(model.street, 'Av. Paulista');
@@ -36,7 +36,7 @@ void main() {
     });
 
     test('toJson produces the correct map', () {
-      final model = AddressApiModel.fromJson(_json);
+      final model = AddressApiModel.fromJson(jsonFixture);
       final json = model.toJson();
 
       expect(json['zipCode'], '01310100');
@@ -50,7 +50,7 @@ void main() {
     });
 
     test('toEntity maps to Address domain entity correctly', () {
-      final model = AddressApiModel.fromJson(_json);
+      final model = AddressApiModel.fromJson(jsonFixture);
       final entity = model.toEntity();
 
       expect(entity.zipCode, '01310100');
@@ -65,7 +65,7 @@ void main() {
   });
 
   group('WorkplaceApiModel', () {
-    const _json = {
+    const jsonFixture = {
       'id': 'wp-1',
       'name': 'Sede Principal',
       'address': {
@@ -81,7 +81,7 @@ void main() {
     };
 
     test('fromJson parses all fields including nested address', () {
-      final model = WorkplaceApiModel.fromJson(_json);
+      final model = WorkplaceApiModel.fromJson(jsonFixture);
 
       expect(model.id, 'wp-1');
       expect(model.name, 'Sede Principal');
@@ -97,7 +97,7 @@ void main() {
     });
 
     test('toJson includes id field', () {
-      final model = WorkplaceApiModel.fromJson(_json);
+      final model = WorkplaceApiModel.fromJson(jsonFixture);
       final json = model.toJson();
 
       expect(json['id'], 'wp-1');
@@ -106,7 +106,7 @@ void main() {
     });
 
     test('toCreateJson excludes id field', () {
-      final model = WorkplaceApiModel.fromJson(_json);
+      final model = WorkplaceApiModel.fromJson(jsonFixture);
       final json = model.toCreateJson();
 
       expect(json.containsKey('id'), isFalse);
@@ -115,7 +115,7 @@ void main() {
     });
 
     test('toEntity maps to Workplace domain entity correctly', () {
-      final model = WorkplaceApiModel.fromJson(_json);
+      final model = WorkplaceApiModel.fromJson(jsonFixture);
       final entity = model.toEntity();
 
       expect(entity.id, 'wp-1');

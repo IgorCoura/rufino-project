@@ -16,7 +16,8 @@ import '../models/employee_profile_api_model.dart';
 import '../models/employee_medical_exam_api_model.dart';
 import '../models/employee_military_document_api_model.dart';
 import '../models/employee_vote_id_api_model.dart';
-import 'department_api_service.dart';
+import 'http_exception.dart';
+import 'http_status_helper.dart';
 
 /// HTTP client for the employee endpoints of the people-management service.
 ///
@@ -52,7 +53,7 @@ class EmployeeApiService {
     if (response.statusCode == 404) {
       throw EmployeeNotFoundException(employeeId);
     }
-    _checkStatus(response);
+    checkHttpStatus(response);
     final json = jsonDecode(response.body) as Map<String, dynamic>;
     return EmployeeProfileApiModel.fromJson(json);
   }
@@ -90,7 +91,7 @@ class EmployeeApiService {
       queryParams,
     );
     final response = await client.get(uri, headers: await _headers());
-    _checkStatus(response);
+    checkHttpStatus(response);
     final list = jsonDecode(response.body) as List<dynamic>;
     return list
         .map((e) => EmployeeApiModel.fromJson(e as Map<String, dynamic>))
@@ -105,7 +106,7 @@ class EmployeeApiService {
     final response = await client.get(uri, headers: await _headers());
     if (response.statusCode == 200) return response.bodyBytes;
     if (response.statusCode == 404) return null;
-    _checkStatus(response);
+    checkHttpStatus(response);
     return null;
   }
 
@@ -151,7 +152,7 @@ class EmployeeApiService {
       headers: await _headers(),
       body: jsonEncode({'employeeId': employeeId, 'name': name}),
     );
-    _checkStatus(response);
+    checkHttpStatus(response);
   }
 
   /// Marks the employee identified by [employeeId] as inactive.
@@ -166,7 +167,7 @@ class EmployeeApiService {
       headers: await _headers(),
       body: jsonEncode({'employeeId': employeeId}),
     );
-    _checkStatus(response);
+    checkHttpStatus(response);
   }
 
   /// Creates a new employee and returns the generated id.
@@ -184,7 +185,7 @@ class EmployeeApiService {
     });
     final response =
         await client.post(uri, headers: await _headers(), body: body);
-    _checkStatus(response);
+    checkHttpStatus(response);
     final json = jsonDecode(response.body) as Map<String, dynamic>;
     return json['id'] as String;
   }
@@ -197,7 +198,7 @@ class EmployeeApiService {
     final uri = Uri.https(
         baseUrl, '/api/v1/$companyId/employee/contact/$employeeId');
     final response = await client.get(uri, headers: await _headers());
-    _checkStatus(response);
+    checkHttpStatus(response);
     final json = jsonDecode(response.body) as Map<String, dynamic>;
     return EmployeeContactApiModel.fromJson(json);
   }
@@ -219,7 +220,7 @@ class EmployeeApiService {
         'email': email,
       }),
     );
-    _checkStatus(response);
+    checkHttpStatus(response);
   }
 
   /// Fetches the address for [employeeId].
@@ -230,7 +231,7 @@ class EmployeeApiService {
     final uri = Uri.https(
         baseUrl, '/api/v1/$companyId/employee/address/$employeeId');
     final response = await client.get(uri, headers: await _headers());
-    _checkStatus(response);
+    checkHttpStatus(response);
     final json = jsonDecode(response.body) as Map<String, dynamic>;
     return EmployeeAddressApiModel.fromJson(json);
   }
@@ -250,7 +251,7 @@ class EmployeeApiService {
       headers: await _headers(),
       body: jsonEncode(addressJson),
     );
-    _checkStatus(response);
+    checkHttpStatus(response);
   }
 
   /// Fetches the personal info for [employeeId].
@@ -261,7 +262,7 @@ class EmployeeApiService {
     final uri = Uri.https(
         baseUrl, '/api/v1/$companyId/employee/personalinfo/$employeeId');
     final response = await client.get(uri, headers: await _headers());
-    _checkStatus(response);
+    checkHttpStatus(response);
     final json = jsonDecode(response.body) as Map<String, dynamic>;
     return EmployeePersonalInfoApiModel.fromJson(json);
   }
@@ -273,7 +274,7 @@ class EmployeeApiService {
     final uri = Uri.https(
         baseUrl, '/api/v1/$companyId/employee/personalinfo/selectionoptions');
     final response = await client.get(uri, headers: await _headers());
-    _checkStatus(response);
+    checkHttpStatus(response);
     final json = jsonDecode(response.body) as Map<String, dynamic>;
     return PersonalInfoOptionsApiModel.fromJson(json);
   }
@@ -293,7 +294,7 @@ class EmployeeApiService {
       headers: await _headers(),
       body: jsonEncode(personalInfoJson),
     );
-    _checkStatus(response);
+    checkHttpStatus(response);
   }
 
   /// Fetches the ID card (Identidade) information for [employeeId].
@@ -304,7 +305,7 @@ class EmployeeApiService {
     final uri =
         Uri.https(baseUrl, '/api/v1/$companyId/employee/idcard/$employeeId');
     final response = await client.get(uri, headers: await _headers());
-    _checkStatus(response);
+    checkHttpStatus(response);
     final json = jsonDecode(response.body) as Map<String, dynamic>;
     return EmployeeIdCardApiModel.fromJson(json);
   }
@@ -323,7 +324,7 @@ class EmployeeApiService {
       headers: await _headers(),
       body: jsonEncode(idCardJson),
     );
-    _checkStatus(response);
+    checkHttpStatus(response);
   }
 
   /// Fetches the voter registration (Título de Eleitor) for [employeeId].
@@ -334,7 +335,7 @@ class EmployeeApiService {
     final uri =
         Uri.https(baseUrl, '/api/v1/$companyId/employee/voteid/$employeeId');
     final response = await client.get(uri, headers: await _headers());
-    _checkStatus(response);
+    checkHttpStatus(response);
     final json = jsonDecode(response.body) as Map<String, dynamic>;
     return EmployeeVoteIdApiModel.fromJson(json);
   }
@@ -351,7 +352,7 @@ class EmployeeApiService {
       headers: await _headers(),
       body: jsonEncode({'employeeId': employeeId, 'voteIdNumber': voteIdNumber}),
     );
-    _checkStatus(response);
+    checkHttpStatus(response);
   }
 
   /// Fetches the military document (Documento Militar) for [employeeId].
@@ -362,7 +363,7 @@ class EmployeeApiService {
     final uri = Uri.https(
         baseUrl, '/api/v1/$companyId/employee/militarydocument/$employeeId');
     final response = await client.get(uri, headers: await _headers());
-    _checkStatus(response);
+    checkHttpStatus(response);
     final json = jsonDecode(response.body) as Map<String, dynamic>;
     return EmployeeMilitaryDocumentApiModel.fromJson(json);
   }
@@ -380,7 +381,7 @@ class EmployeeApiService {
       headers: await _headers(),
       body: jsonEncode(militaryDocumentJson),
     );
-    _checkStatus(response);
+    checkHttpStatus(response);
   }
 
   /// Updates the role assignment for [employeeId].
@@ -395,7 +396,7 @@ class EmployeeApiService {
       headers: await _headers(),
       body: jsonEncode({'employeeId': employeeId, 'roleId': roleId}),
     );
-    _checkStatus(response);
+    checkHttpStatus(response);
   }
 
   /// Fetches the medical admission exam for [employeeId].
@@ -406,7 +407,7 @@ class EmployeeApiService {
     final uri = Uri.https(baseUrl,
         '/api/v1/$companyId/employee/medicaladmissionexam/$employeeId');
     final response = await client.get(uri, headers: await _headers());
-    _checkStatus(response);
+    checkHttpStatus(response);
     final json = jsonDecode(response.body) as Map<String, dynamic>;
     return EmployeeMedicalExamApiModel.fromJson(json);
   }
@@ -424,7 +425,7 @@ class EmployeeApiService {
       headers: await _headers(),
       body: jsonEncode(medicalExamJson),
     );
-    _checkStatus(response);
+    checkHttpStatus(response);
   }
 
   /// Fetches the list of dependents for [employeeId].
@@ -435,7 +436,7 @@ class EmployeeApiService {
     final uri = Uri.https(
         baseUrl, '/api/v1/$companyId/employee/dependents/$employeeId');
     final response = await client.get(uri, headers: await _headers());
-    _checkStatus(response);
+    checkHttpStatus(response);
     final json = jsonDecode(response.body) as Map<String, dynamic>;
     return EmployeeDependentApiModel.fromListResponse(json);
   }
@@ -452,7 +453,7 @@ class EmployeeApiService {
       headers: await _headers(),
       body: jsonEncode(body),
     );
-    _checkStatus(response);
+    checkHttpStatus(response);
   }
 
   /// Updates an existing dependent for [employeeId].
@@ -467,7 +468,7 @@ class EmployeeApiService {
       headers: await _headers(),
       body: jsonEncode(body),
     );
-    _checkStatus(response);
+    checkHttpStatus(response);
   }
 
   /// Removes a dependent from [employeeId].
@@ -482,7 +483,7 @@ class EmployeeApiService {
       headers: await _headers(),
       body: jsonEncode(body),
     );
-    _checkStatus(response);
+    checkHttpStatus(response);
   }
 
   /// Updates the workplace assignment for [employeeId].
@@ -500,7 +501,7 @@ class EmployeeApiService {
         'workPlaceId': workplaceId,
       }),
     );
-    _checkStatus(response);
+    checkHttpStatus(response);
   }
 
   /// Fetches the list of contracts for [employeeId].
@@ -511,7 +512,7 @@ class EmployeeApiService {
     final uri = Uri.https(
         baseUrl, '/api/v1/$companyId/employee/contracts/$employeeId');
     final response = await client.get(uri, headers: await _headers());
-    _checkStatus(response);
+    checkHttpStatus(response);
     final json = jsonDecode(response.body) as Map<String, dynamic>;
     return EmployeeContractApiModel.fromListResponse(json);
   }
@@ -522,7 +523,7 @@ class EmployeeApiService {
     final uri =
         Uri.https(baseUrl, '/api/v1/$companyId/employee/contracts/types');
     final response = await client.get(uri, headers: await _headers());
-    _checkStatus(response);
+    checkHttpStatus(response);
     final list = jsonDecode(response.body) as List<dynamic>;
     return list
         .map((e) => ContractTypeApiModel.fromJson(e as Map<String, dynamic>))
@@ -541,7 +542,7 @@ class EmployeeApiService {
       headers: await _headers(),
       body: jsonEncode(body),
     );
-    _checkStatus(response);
+    checkHttpStatus(response);
   }
 
   /// Finishes (ends) the active contract for [employeeId].
@@ -556,7 +557,7 @@ class EmployeeApiService {
       headers: await _headers(),
       body: jsonEncode(body),
     );
-    _checkStatus(response);
+    checkHttpStatus(response);
   }
 
   /// Fetches the available document signing options.
@@ -565,7 +566,7 @@ class EmployeeApiService {
     final uri = Uri.https(
         baseUrl, '/api/v1/$companyId/employee/DocumentSigningOptions');
     final response = await client.get(uri, headers: await _headers());
-    _checkStatus(response);
+    checkHttpStatus(response);
     final list = jsonDecode(response.body) as List<dynamic>;
     return list.cast<Map<String, dynamic>>();
   }
@@ -586,7 +587,7 @@ class EmployeeApiService {
         'documentSigningOptions': optionId,
       }),
     );
-    _checkStatus(response);
+    checkHttpStatus(response);
   }
 
   /// Fetches the list of required documents (without units) for [employeeId].
@@ -597,7 +598,7 @@ class EmployeeApiService {
     final uri =
         Uri.https(baseUrl, '/api/v1/$companyId/document/$employeeId');
     final response = await client.get(uri, headers: await _headers());
-    _checkStatus(response);
+    checkHttpStatus(response);
     final list = jsonDecode(response.body) as List<dynamic>;
     return list
         .map((e) => EmployeeDocumentApiModel.fromJsonSimple(
@@ -626,7 +627,7 @@ class EmployeeApiService {
       queryParams,
     );
     final response = await client.get(uri, headers: await _headers());
-    _checkStatus(response);
+    checkHttpStatus(response);
     final json = jsonDecode(response.body) as Map<String, dynamic>;
     return EmployeeDocumentApiModel.fromJson(json);
   }
@@ -646,7 +647,7 @@ class EmployeeApiService {
         'employeeId': employeeId,
       }),
     );
-    _checkStatus(response);
+    checkHttpStatus(response);
   }
 
   /// Updates the date of a document unit.
@@ -661,7 +662,7 @@ class EmployeeApiService {
       headers: await _headers(),
       body: jsonEncode(body),
     );
-    _checkStatus(response);
+    checkHttpStatus(response);
   }
 
   /// Marks a document unit as not applicable.
@@ -676,7 +677,7 @@ class EmployeeApiService {
       headers: await _headers(),
       body: jsonEncode(body),
     );
-    _checkStatus(response);
+    checkHttpStatus(response);
   }
 
   /// Generates a PDF for a document unit and returns the raw bytes.
@@ -691,7 +692,7 @@ class EmployeeApiService {
       '/api/v1/$companyId/document/generate/$employeeId/$documentId/$documentUnitId',
     );
     final response = await client.get(uri, headers: await _headers());
-    _checkStatus(response);
+    checkHttpStatus(response);
     return response.bodyBytes;
   }
 
@@ -709,7 +710,7 @@ class EmployeeApiService {
       headers: await _headers(),
       body: jsonEncode(body),
     );
-    _checkStatus(response);
+    checkHttpStatus(response);
   }
 
   /// Downloads the file attached to a document unit.
@@ -724,7 +725,7 @@ class EmployeeApiService {
       '/api/v1/$companyId/document/download/$employeeId/$documentId/$documentUnitId',
     );
     final response = await client.get(uri, headers: await _headers());
-    _checkStatus(response);
+    checkHttpStatus(response);
     return response.bodyBytes;
   }
 
@@ -814,7 +815,7 @@ class EmployeeApiService {
       headers: await _headers(),
       body: jsonEncode(items),
     );
-    _checkStatus(response);
+    checkHttpStatus(response);
     return response.bodyBytes;
   }
 
@@ -833,17 +834,8 @@ class EmployeeApiService {
       headers: await _headers(),
       body: jsonEncode(items),
     );
-    _checkStatus(response);
+    checkHttpStatus(response);
     return response.bodyBytes;
   }
 
-  // ─── Helpers ──────────────────────────────────────────────────────────────
-
-  void _checkStatus(http.Response response) {
-    if (response.statusCode >= 200 && response.statusCode < 300) return;
-    throw HttpException(
-      statusCode: response.statusCode,
-      message: 'HTTP ${response.statusCode}: ${response.reasonPhrase}',
-    );
-  }
 }

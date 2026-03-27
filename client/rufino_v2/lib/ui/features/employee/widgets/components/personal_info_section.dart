@@ -7,22 +7,6 @@ import '../../../../../domain/entities/selection_option.dart';
 import '../../viewmodel/employee_profile_viewmodel.dart';
 import 'profile_shared_widgets.dart';
 
-/// Returns [id] when it exists in [options]; otherwise null.
-///
-/// [DropdownButtonFormField] asserts that its `value` is either null or present
-/// in the items list — this guard prevents that crash when the stored ID does
-/// not match any option returned by the API.
-String? _safeSelectionId(String? id, List<SelectionOption> options) {
-  if (id == null || id.isEmpty) return null;
-  return options.any((o) => o.id == id) ? id : null;
-}
-
-/// Returns the display name for [id] in [options], or `"Não informado"`.
-String _selectionLabel(List<SelectionOption> options, String id) {
-  if (id.isEmpty) return 'Não informado';
-  return options.where((o) => o.id == id).firstOrNull?.name ?? 'Não informado';
-}
-
 /// Expandable card for viewing and editing employee personal information.
 class PersonalInfoSection extends StatefulWidget {
   const PersonalInfoSection({super.key, required this.viewModel});
@@ -56,13 +40,13 @@ class _PersonalInfoSectionState extends State<PersonalInfoSection> {
 
     // Validate each stored ID against the loaded options list so the
     // dropdowns never receive a value that is absent from their items.
-    _selectedGenderId = _safeSelectionId(info.genderId, options.genders);
+    _selectedGenderId = SelectionOption.safeId(info.genderId, options.genders);
     _selectedMaritalStatusId =
-        _safeSelectionId(info.maritalStatusId, options.maritalStatuses);
+        SelectionOption.safeId(info.maritalStatusId, options.maritalStatuses);
     _selectedEthnicityId =
-        _safeSelectionId(info.ethnicityId, options.ethnicities);
+        SelectionOption.safeId(info.ethnicityId, options.ethnicities);
     _selectedEducationLevelId =
-        _safeSelectionId(info.educationLevelId, options.educationLevels);
+        SelectionOption.safeId(info.educationLevelId, options.educationLevels);
     _selectedDisabilityIds = info.disabilityIds
         .where((id) => options.disabilities.any((o) => o.id == id))
         .toList();
@@ -106,9 +90,9 @@ class _PersonalInfoSectionState extends State<PersonalInfoSection> {
       listenable: widget.viewModel,
       builder: (context, _) {
         final status = widget.viewModel.personalInfoStatus;
-        return ExpandableSectionCard(
+        return SectionCard(
           title: 'Informações Pessoais',
-          onExpand: widget.viewModel.loadPersonalInfo,
+          onLoad: widget.viewModel.loadPersonalInfo,
           child: _buildContent(context, status),
         );
       },
@@ -174,22 +158,22 @@ class _PersonalInfoSectionState extends State<PersonalInfoSection> {
 
     // ── View mode ────────────────────────────────────────────────────────────
     final genderLabel = options != null
-        ? _selectionLabel(options.genders, info?.genderId ?? '')
+        ? options.genderLabel(info?.genderId ?? '')
         : 'Não informado';
     final maritalLabel = options != null
-        ? _selectionLabel(options.maritalStatuses, info?.maritalStatusId ?? '')
+        ? options.maritalStatusLabel(info?.maritalStatusId ?? '')
         : 'Não informado';
     final ethnicityLabel = options != null
-        ? _selectionLabel(options.ethnicities, info?.ethnicityId ?? '')
+        ? options.ethnicityLabel(info?.ethnicityId ?? '')
         : 'Não informado';
     final educationLabel = options != null
-        ? _selectionLabel(options.educationLevels, info?.educationLevelId ?? '')
+        ? options.educationLevelLabel(info?.educationLevelId ?? '')
         : 'Não informado';
 
     final disabilityLabels = (info?.disabilityIds.isNotEmpty == true &&
             options != null)
         ? info!.disabilityIds
-            .map((id) => _selectionLabel(options.disabilities, id))
+            .map((id) => options.disabilityLabel(id))
             .toList()
         : <String>[];
 
@@ -373,7 +357,7 @@ class _PersonalInfoEditForm extends StatelessWidget {
           content: SizedBox(
             width: 400,
             child: DropdownButtonFormField<SelectionOption>(
-              value: chosen,
+              initialValue: chosen,
               isExpanded: true,
               decoration: const InputDecoration(
                 labelText: 'Deficiência',
@@ -414,7 +398,7 @@ class _PersonalInfoEditForm extends StatelessWidget {
     return DropdownButtonFormField<String>(
       // Guard: pass null when the stored id is absent from the option list
       // to avoid Flutter's "value must be in items" assertion.
-      value: _safeSelectionId(value, optionList),
+      initialValue: SelectionOption.safeId(value, optionList),
       decoration: InputDecoration(
         labelText: label,
         prefixIcon: Icon(icon),
@@ -507,7 +491,7 @@ class _PersonalInfoEditForm extends StatelessWidget {
             )
           else
             ...selectedDisabilityIds.map((id) {
-              final name = _selectionLabel(options.disabilities, id);
+              final name = options.disabilityLabel(id);
               return Padding(
                 padding: const EdgeInsets.only(bottom: AppSpacing.xs),
                 child: Row(

@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 import '../models/company_api_model.dart';
+import 'http_status_helper.dart';
 
 class CompanyApiService {
   CompanyApiService({
@@ -24,7 +25,7 @@ class CompanyApiService {
   Future<List<CompanyApiModel>> getCompanies(List<String> ids) async {
     final uri = Uri.https(baseUrl, '/api/v1/company/list', {'id': ids});
     final response = await client.get(uri, headers: await _headers());
-    _checkStatus(response);
+    checkHttpStatus(response);
     final list = jsonDecode(response.body) as List<dynamic>;
     return list.map((e) => CompanyApiModel.fromJson(e as Map<String, dynamic>)).toList();
   }
@@ -32,7 +33,7 @@ class CompanyApiService {
   Future<CompanyApiModel> getCompanyDetail(String id) async {
     final uri = Uri.https(baseUrl, '/api/v1/company/complete', {'id': id});
     final response = await client.get(uri, headers: await _headers());
-    _checkStatus(response);
+    checkHttpStatus(response);
     return CompanyApiModel.fromJson(jsonDecode(response.body) as Map<String, dynamic>);
   }
 
@@ -43,7 +44,7 @@ class CompanyApiService {
       headers: await _headers(),
       body: jsonEncode(model.toCreateJson()),
     );
-    _checkStatus(response);
+    checkHttpStatus(response);
     final json = jsonDecode(response.body) as Map<String, dynamic>;
     return json['id'] as String;
   }
@@ -55,25 +56,9 @@ class CompanyApiService {
       headers: await _headers(),
       body: jsonEncode(model.toJson()),
     );
-    _checkStatus(response);
+    checkHttpStatus(response);
     final json = jsonDecode(response.body) as Map<String, dynamic>;
     return json['id'] as String;
   }
 
-  void _checkStatus(http.Response response) {
-    if (response.statusCode >= 200 && response.statusCode < 300) return;
-    throw HttpException(
-      statusCode: response.statusCode,
-      message: 'HTTP ${response.statusCode}: ${response.reasonPhrase}',
-    );
-  }
-}
-
-class HttpException implements Exception {
-  const HttpException({required this.statusCode, required this.message});
-  final int statusCode;
-  final String message;
-
-  @override
-  String toString() => 'HttpException($statusCode): $message';
 }

@@ -65,9 +65,9 @@ class _VoteIdSectionState extends State<VoteIdSection> {
       listenable: widget.viewModel,
       builder: (context, _) {
         final status = widget.viewModel.voteIdStatus;
-        return ExpandableSectionCard(
+        return SectionCard(
           title: 'Título de Eleitor',
-          onExpand: widget.viewModel.loadVoteId,
+          onLoad: widget.viewModel.loadVoteId,
           child: _buildContent(context, status),
         );
       },

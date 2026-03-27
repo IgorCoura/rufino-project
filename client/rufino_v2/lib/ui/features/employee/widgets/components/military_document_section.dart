@@ -58,9 +58,9 @@ class _MilitaryDocumentSectionState extends State<MilitaryDocumentSection> {
       listenable: widget.viewModel,
       builder: (context, _) {
         final status = widget.viewModel.militaryDocumentStatus;
-        return ExpandableSectionCard(
+        return SectionCard(
           title: 'Documento Militar',
-          onExpand: widget.viewModel.loadMilitaryDocument,
+          onLoad: widget.viewModel.loadMilitaryDocument,
           child: _buildContent(context, status),
         );
       },
