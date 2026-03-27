@@ -1,7 +1,6 @@
 import 'dart:typed_data';
 
 import 'package:file_picker/file_picker.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 
 import '../../../../../core/utils/file_saver_stub.dart'
@@ -98,28 +97,16 @@ class _DocumentsSectionState extends State<DocumentsSection> {
 
   // ─── Helpers ──────────────────────────────────────────────────────────────
 
-  /// Prompts the user to choose a save location and writes [bytes] to disk.
+  /// Saves [bytes] as a file with [fileName].
   ///
-  /// On web, `FilePicker.platform.saveFile` handles the download via the
-  /// `bytes` parameter. On desktop, it only returns a path — the file must
-  /// be written manually.
-  ///
-  /// Returns `true` if the file was saved, `false` if the user cancelled.
+  /// On web, triggers a browser download. On desktop, opens a native
+  /// save-file dialog.
   Future<bool> _saveFile({
     required String dialogTitle,
     required String fileName,
     required Uint8List bytes,
   }) async {
-    final savePath = await FilePicker.platform.saveFile(
-      dialogTitle: dialogTitle,
-      fileName: fileName,
-      bytes: bytes,
-    );
-    if (savePath == null) return false;
-
-    if (!kIsWeb) {
-      await writeFileToPath(savePath, bytes);
-    }
+    await saveFile(fileName: fileName, bytes: bytes);
     return true;
   }
 
