@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../domain/entities/workplace.dart';
+import '../../../core/widgets/permission_guard.dart';
 import '../viewmodel/workplace_list_viewmodel.dart';
 
 /// Displays the list of workplaces for the currently selected company.
@@ -87,12 +88,16 @@ class _WorkplaceListScreenState extends State<WorkplaceListScreen> {
           );
         },
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () => context
-            .push('/workplace/create')
-            .then((_) => widget.viewModel.loadWorkplaces()),
-        tooltip: 'Adicionar local de trabalho',
-        child: const Icon(Icons.add),
+      floatingActionButton: PermissionGuard(
+        resource: 'workplace',
+        scope: 'create',
+        child: FloatingActionButton(
+          onPressed: () => context
+              .push('/workplace/create')
+              .then((_) => widget.viewModel.loadWorkplaces()),
+          tooltip: 'Adicionar local de trabalho',
+          child: const Icon(Icons.add),
+        ),
       ),
     );
   }

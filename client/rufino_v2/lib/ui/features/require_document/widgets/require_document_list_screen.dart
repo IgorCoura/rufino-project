@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../domain/entities/require_document.dart';
+import '../../../core/widgets/permission_guard.dart';
 import '../viewmodel/require_document_list_viewmodel.dart';
 
 /// Displays the list of require documents for the currently selected company.
@@ -90,12 +91,16 @@ class _RequireDocumentListScreenState extends State<RequireDocumentListScreen> {
           );
         },
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () => context
-            .push('/require-document/create')
-            .then((_) => widget.viewModel.loadRequireDocuments()),
-        tooltip: 'Adicionar requerimento',
-        child: const Icon(Icons.add),
+      floatingActionButton: PermissionGuard(
+        resource: 'require-documents',
+        scope: 'create',
+        child: FloatingActionButton(
+          onPressed: () => context
+              .push('/require-document/create')
+              .then((_) => widget.viewModel.loadRequireDocuments()),
+          tooltip: 'Adicionar requerimento',
+          child: const Icon(Icons.add),
+        ),
       ),
     );
   }

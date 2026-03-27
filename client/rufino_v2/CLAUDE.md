@@ -376,6 +376,87 @@ genhtml coverage/lcov.info -o coverage/html
 - `*_module.dart` — DI/routing boilerplate
 - `main*.dart` — entry points
 
+## Permission-Based UI Protection (Keycloak Authorization Services)
+
+The app enforces **client-side permission checks** that mirror the backend's `[ProtectedResource("resource", "scope")]` model. Permissions are fetched from Keycloak Authorization Services (UMA) and cached in `PermissionNotifier`. **Every new feature that introduces UI elements tied to a protected backend endpoint must apply permission guards.**
+
+### How It Works
+
+1. After login, `SplashViewModel` calls `permissionNotifier.loadPermissions()`.
+2. A single POST to the Keycloak token endpoint (`grant_type=urn:ietf:params:oauth:grant-type:uma-ticket`, `audience=people-management-api`, `response_mode=permissions`) returns all granted resource/scope pairs.
+3. `PermissionNotifier` (a `ChangeNotifier` provided app-wide) caches the result and exposes `hasPermission(resource, scope)` and `hasAnyScope(resource)`.
+4. UI widgets use `PermissionGuard` or `ModuleGuard` to conditionally render — unauthorized elements are **completely hidden** (`SizedBox.shrink`), never disabled.
+
+### Key Files
+
+| File | Purpose |
+|------|---------|
+| `lib/domain/entities/permission.dart` | `Permission` entity (resource + scopes) |
+| `lib/domain/repositories/permission_repository.dart` | Repository interface |
+| `lib/data/services/permission_api_service.dart` | Keycloak UMA RPT request |
+| `lib/data/repositories/permission_repository_impl.dart` | Repository implementation |
+| `lib/ui/features/auth/viewmodel/permission_notifier.dart` | `PermissionNotifier` — holds state, exposes `hasPermission` / `hasAnyScope` / `clear` |
+| `lib/ui/core/widgets/permission_guard.dart` | `PermissionGuard` and `ModuleGuard` widgets |
+| `test/testing/fakes/fake_permission_repository.dart` | Fake for tests |
+
+### Canonical Resource & Scope Names
+
+All resource names are **lowercase, kebab-case**. Use **exactly** these strings in `PermissionGuard` / `ModuleGuard`:
+
+| Resource | Scopes |
+|----------|--------|
+| `company` | `create`, `edit`, `view` |
+| `department` | `create`, `edit`, `view` |
+| `document` | `create`, `edit`, `view`, `upload`, `webhook`, `download` |
+| `document-group` | `create`, `edit`, `view` |
+| `document-template` | `create`, `edit`, `view`, `upload`, `download` |
+| `employee` | `create`, `edit`, `view`, `upload`, `download` |
+| `position` | `create`, `edit`, `view` |
+| `require-documents` | `create`, `edit`, `view` |
+| `role` | `create`, `edit`, `view` |
+| `workplace` | `create`, `edit`, `view` |
+
+> When a new resource or scope is added in Keycloak, add it to this table so the app and backend stay in sync.
+
+### Rules for New Features
+
+1. **Identify the resource and scopes.** Check the backend controller for `[ProtectedResource("resource", "scope")]` on the endpoints your feature calls. Use the canonical table above for the correct string.
+
+2. **Module-level visibility** — if the feature introduces a new navigation entry (menu card, nav item, route link), wrap it with `ModuleGuard`:
+   ```dart
+   ModuleGuard(
+     resource: 'employee',
+     child: _MenuCard(label: 'Funcionários', ...),
+   )
+   ```
+
+3. **Action-level visibility** — wrap action buttons (FAB, edit, delete) with `PermissionGuard`:
+   ```dart
+   PermissionGuard(
+     resource: 'employee',
+     scope: 'create',
+     child: FloatingActionButton(...),
+   )
+   ```
+
+4. **Resource names must match the canonical table exactly.** All names are lowercase kebab-case. Never use PascalCase or camelCase (`'Document'` is wrong, `'document'` is correct).
+
+5. **Widget tests must provide `PermissionNotifier`.** Any widget test for a screen that uses `PermissionGuard` or `ModuleGuard` must wrap the test widget tree with `ChangeNotifierProvider<PermissionNotifier>.value(...)`. Use `FakePermissionRepository` to grant the necessary permissions in `setUp()`:
+   ```dart
+   final fakePermRepo = FakePermissionRepository()
+     ..setPermissions([
+       const Permission(resource: 'employee', scopes: ['create', 'view', 'edit']),
+     ]);
+   permissionNotifier = PermissionNotifier(permissionRepository: fakePermRepo);
+   await permissionNotifier.loadPermissions();
+   ```
+
+6. **Logout must clear permissions.** Already handled in `HomeViewModel.logout()` — no action needed unless a new logout flow is added.
+
+7. **Never hardcode role-to-permission mappings.** All authorization decisions come from Keycloak. The app only checks what Keycloak returns — if a resource/scope is added or removed in the Keycloak dashboard, the app reflects it automatically.
+
+---
+
 ## UI Design Guidelines (Material Design 3)
 
 Official references:

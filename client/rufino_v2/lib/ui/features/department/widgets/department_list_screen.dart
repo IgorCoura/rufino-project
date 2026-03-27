@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../domain/entities/department.dart';
+import '../../../core/widgets/permission_guard.dart';
 import '../../../../domain/entities/position.dart';
 import '../../../../domain/entities/role.dart';
 import '../viewmodel/department_list_viewmodel.dart';
@@ -97,12 +98,16 @@ class _DepartmentListScreenState extends State<DepartmentListScreen> {
           );
         },
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () => context
-            .push('/department/create')
-            .then((_) => widget.viewModel.loadDepartments()),
-        tooltip: 'Adicionar setor',
-        child: const Icon(Icons.add),
+      floatingActionButton: PermissionGuard(
+        resource: 'department',
+        scope: 'create',
+        child: FloatingActionButton(
+          onPressed: () => context
+              .push('/department/create')
+              .then((_) => widget.viewModel.loadDepartments()),
+          tooltip: 'Adicionar setor',
+          child: const Icon(Icons.add),
+        ),
       ),
     );
   }

@@ -1,13 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
 import 'package:rufino_v2/domain/entities/address.dart';
 import 'package:rufino_v2/domain/entities/company.dart';
+import 'package:rufino_v2/domain/entities/permission.dart';
 import 'package:rufino_v2/domain/entities/workplace.dart';
+import 'package:rufino_v2/ui/features/auth/viewmodel/permission_notifier.dart';
 import 'package:rufino_v2/ui/features/workplace/viewmodel/workplace_list_viewmodel.dart';
 import 'package:rufino_v2/ui/features/workplace/widgets/workplace_list_screen.dart';
 
 import '../../../testing/fakes/fake_company_repository.dart';
+import '../../../testing/fakes/fake_permission_repository.dart';
 import '../../../testing/fakes/fake_workplace_repository.dart';
 
 const _fakeCompany = Company(
@@ -37,9 +41,10 @@ const _fakeWorkplace = Workplace(
 void main() {
   late FakeCompanyRepository companyRepository;
   late FakeWorkplaceRepository workplaceRepository;
+  late PermissionNotifier permissionNotifier;
   late WorkplaceListViewModel viewModel;
 
-  setUp(() {
+  setUp(() async {
     companyRepository = FakeCompanyRepository()
       ..setSelectedCompany(_fakeCompany);
     workplaceRepository = FakeWorkplaceRepository();
@@ -47,30 +52,43 @@ void main() {
       companyRepository: companyRepository,
       workplaceRepository: workplaceRepository,
     );
+    final fakePermRepo = FakePermissionRepository()
+      ..setPermissions([
+        const Permission(resource: 'workplace', scopes: ['create', 'view', 'edit']),
+      ]);
+    permissionNotifier = PermissionNotifier(permissionRepository: fakePermRepo);
+    await permissionNotifier.loadPermissions();
   });
 
-  tearDown(() => viewModel.dispose());
+  tearDown(() {
+    viewModel.dispose();
+    permissionNotifier.dispose();
+  });
 
-  Widget buildSubject() => MaterialApp.router(
-        routerConfig: GoRouter(
-          routes: [
-            GoRoute(
-              path: '/',
-              builder: (_, __) => WorkplaceListScreen(viewModel: viewModel),
-            ),
-            GoRoute(
-              path: '/home',
-              builder: (_, __) => const Scaffold(body: Text('home')),
-            ),
-            GoRoute(
-              path: '/workplace/create',
-              builder: (_, __) => const Scaffold(body: Text('create')),
-            ),
-            GoRoute(
-              path: '/workplace/edit/:id',
-              builder: (_, __) => const Scaffold(body: Text('edit')),
-            ),
-          ],
+  Widget buildSubject() => ChangeNotifierProvider<PermissionNotifier>.value(
+        value: permissionNotifier,
+        child: MaterialApp.router(
+          routerConfig: GoRouter(
+            routes: [
+              GoRoute(
+                path: '/',
+                builder: (_, __) =>
+                    WorkplaceListScreen(viewModel: viewModel),
+              ),
+              GoRoute(
+                path: '/home',
+                builder: (_, __) => const Scaffold(body: Text('home')),
+              ),
+              GoRoute(
+                path: '/workplace/create',
+                builder: (_, __) => const Scaffold(body: Text('create')),
+              ),
+              GoRoute(
+                path: '/workplace/edit/:id',
+                builder: (_, __) => const Scaffold(body: Text('edit')),
+              ),
+            ],
+          ),
         ),
       );
 
