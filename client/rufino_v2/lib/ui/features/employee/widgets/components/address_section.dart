@@ -5,6 +5,7 @@ import '../../../../../core/theme/app_spacing.dart';
 import '../../../../../domain/entities/address.dart';
 import '../../viewmodel/employee_profile_viewmodel.dart';
 import 'profile_shared_widgets.dart';
+import '../../../../core/widgets/permission_guard.dart';
 
 /// Expandable card for viewing and editing employee address information.
 class AddressSection extends StatefulWidget {
@@ -190,10 +191,14 @@ class _AddressSectionState extends State<AddressSection> {
         const SizedBox(height: AppSpacing.sm),
         Align(
           alignment: Alignment.centerRight,
-          child: TextButton.icon(
-            onPressed: _startEdit,
-            icon: const Icon(Icons.edit_outlined, size: 18),
-            label: const Text('Editar'),
+          child: PermissionGuard(
+            resource: 'employee',
+            scope: 'edit',
+            child: TextButton.icon(
+              onPressed: _startEdit,
+              icon: const Icon(Icons.edit_outlined, size: 18),
+              label: const Text('Editar'),
+            ),
           ),
         ),
       ],

@@ -9,6 +9,7 @@ import '../../../../core/theme/app_spacing.dart';
 import '../../../../domain/entities/employee.dart';
 import '../../../../domain/entities/employee_profile.dart';
 import '../../../core/widgets/error_dialog.dart';
+import '../../../core/widgets/permission_guard.dart';
 import '../viewmodel/employee_profile_viewmodel.dart';
 import 'components/address_section.dart';
 import 'components/contact_section.dart';
@@ -505,25 +506,29 @@ class _EmployeeHeroCard extends StatelessWidget {
                 Positioned(
                   bottom: 0,
                   right: 0,
-                  child: Tooltip(
-                    message: 'Alterar foto',
-                    child: GestureDetector(
-                      onTap: isSaving ? null : onPickAvatar,
-                      child: Container(
-                        width: 26,
-                        height: 26,
-                        decoration: BoxDecoration(
-                          color: colorScheme.primary,
-                          shape: BoxShape.circle,
-                          border: Border.all(
-                            color: colorScheme.surface,
-                            width: 2,
+                  child: PermissionGuard(
+                    resource: 'employee',
+                    scope: 'upload',
+                    child: Tooltip(
+                      message: 'Alterar foto',
+                      child: GestureDetector(
+                        onTap: isSaving ? null : onPickAvatar,
+                        child: Container(
+                          width: 26,
+                          height: 26,
+                          decoration: BoxDecoration(
+                            color: colorScheme.primary,
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color: colorScheme.surface,
+                              width: 2,
+                            ),
                           ),
-                        ),
-                        child: Icon(
-                          Icons.camera_alt,
-                          size: 14,
-                          color: colorScheme.onPrimary,
+                          child: Icon(
+                            Icons.camera_alt,
+                            size: 14,
+                            color: colorScheme.onPrimary,
+                          ),
                         ),
                       ),
                     ),
@@ -597,15 +602,19 @@ class _EmployeeNameCard extends StatelessWidget {
                   ),
                 ),
                 if (!vm.isEditingName)
-                  TextButton.icon(
-                    onPressed: vm.isSaving
-                        ? null
-                        : () {
-                            controller.text = profile.name;
-                            vm.startEditingName();
-                          },
-                    icon: const Icon(Icons.edit_outlined, size: 18),
-                    label: const Text('Editar'),
+                  PermissionGuard(
+                    resource: 'employee',
+                    scope: 'edit',
+                    child: TextButton.icon(
+                      onPressed: vm.isSaving
+                          ? null
+                          : () {
+                              controller.text = profile.name;
+                              vm.startEditingName();
+                            },
+                      icon: const Icon(Icons.edit_outlined, size: 18),
+                      label: const Text('Editar'),
+                    ),
                   ),
               ],
             ),

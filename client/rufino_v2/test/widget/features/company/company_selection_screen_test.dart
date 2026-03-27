@@ -1,16 +1,21 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
 import 'package:rufino_v2/domain/entities/company.dart';
+import 'package:rufino_v2/domain/entities/permission.dart';
+import 'package:rufino_v2/ui/features/auth/viewmodel/permission_notifier.dart';
 import 'package:rufino_v2/ui/features/company/viewmodel/company_selection_viewmodel.dart';
 import 'package:rufino_v2/ui/features/company/widgets/company_selection_screen.dart';
 
 import '../../../testing/fakes/fake_auth_repository.dart';
 import '../../../testing/fakes/fake_company_repository.dart';
+import '../../../testing/fakes/fake_permission_repository.dart';
 
 void main() {
   late FakeAuthRepository fakeAuth;
   late FakeCompanyRepository fakeCompany;
+  late PermissionNotifier permissionNotifier;
   late CompanySelectionViewModel viewModel;
 
   const fakeCompanyEntity = Company(
@@ -20,7 +25,7 @@ void main() {
     cnpj: '12.345.678/0001-90',
   );
 
-  setUp(() {
+  setUp(() async {
     fakeAuth = FakeAuthRepository();
     fakeCompany = FakeCompanyRepository();
     fakeCompany.setCompanies([fakeCompanyEntity]);
@@ -28,18 +33,31 @@ void main() {
       authRepository: fakeAuth,
       companyRepository: fakeCompany,
     );
+    final fakePermRepo = FakePermissionRepository()
+      ..setPermissions(const [
+        Permission(resource: 'company', scopes: ['create', 'view', 'edit']),
+      ]);
+    permissionNotifier = PermissionNotifier(permissionRepository: fakePermRepo);
+    await permissionNotifier.loadPermissions();
   });
 
-  tearDown(() => viewModel.dispose());
+  tearDown(() {
+    viewModel.dispose();
+    permissionNotifier.dispose();
+  });
 
-  Widget buildSubject() => MaterialApp.router(
-        routerConfig: GoRouter(
-          routes: [
-            GoRoute(
-              path: '/',
-              builder: (_, __) => CompanySelectionScreen(viewModel: viewModel),
-            ),
-          ],
+  Widget buildSubject() => ChangeNotifierProvider<PermissionNotifier>.value(
+        value: permissionNotifier,
+        child: MaterialApp.router(
+          routerConfig: GoRouter(
+            routes: [
+              GoRoute(
+                path: '/',
+                builder: (_, __) =>
+                    CompanySelectionScreen(viewModel: viewModel),
+              ),
+            ],
+          ),
         ),
       );
 

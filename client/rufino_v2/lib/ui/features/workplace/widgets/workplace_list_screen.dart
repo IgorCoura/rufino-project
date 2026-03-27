@@ -70,7 +70,10 @@ class _WorkplaceListScreenState extends State<WorkplaceListScreen> {
             onRefresh: widget.viewModel.loadWorkplaces,
             child: ListView.separated(
               padding: const EdgeInsets.fromLTRB(
-                AppSpacing.md, AppSpacing.md, AppSpacing.md, AppSpacing.md + 80,
+                AppSpacing.md,
+                AppSpacing.md,
+                AppSpacing.md,
+                AppSpacing.md + 80,
               ),
               itemCount: widget.viewModel.workplaces.length,
               separatorBuilder: (_, __) =>
@@ -125,12 +128,16 @@ class _WorkplaceTile extends StatelessWidget {
           workplace.address.minimal,
           style: Theme.of(context).textTheme.bodySmall,
         ),
-        trailing: Semantics(
-          label: 'Editar local de trabalho ${workplace.name}',
-          button: true,
-          child: IconButton(
-            icon: const Icon(Icons.edit_outlined),
-            onPressed: onEdit,
+        trailing: PermissionGuard(
+          resource: 'workplace',
+          scope: 'edit',
+          child: Semantics(
+            label: 'Editar local de trabalho ${workplace.name}',
+            button: true,
+            child: IconButton(
+              icon: const Icon(Icons.edit_outlined),
+              onPressed: onEdit,
+            ),
           ),
         ),
       ),

@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
+import 'package:rufino_v2/ui/core/widgets/permission_guard.dart';
+import 'package:rufino_v2/ui/features/auth/viewmodel/permission_notifier.dart';
 
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../domain/entities/document_template.dart';
@@ -112,20 +115,28 @@ class _DocumentTemplateListScreenState
                 return _DocumentTemplateTile(
                   template: template,
                   onTap: () => context
-                      .push('/document-template/edit/${template.id}')
-                      .then((_) => widget.viewModel.loadTemplates()),
+                          .read<PermissionNotifier>()
+                          .hasPermission('company', 'edit')
+                      ? context
+                          .push('/document-template/edit/${template.id}')
+                          .then((_) => widget.viewModel.loadTemplates())
+                      : () {},
                 );
               },
             ),
           );
         },
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () => context
-            .push('/document-template/create')
-            .then((_) => widget.viewModel.loadTemplates()),
-        tooltip: 'Adicionar template',
-        child: const Icon(Icons.add),
+      floatingActionButton: PermissionGuard(
+        resource: 'document-template',
+        scope: 'create',
+        child: FloatingActionButton(
+          onPressed: () => context
+              .push('/document-template/create')
+              .then((_) => widget.viewModel.loadTemplates()),
+          tooltip: 'Adicionar template',
+          child: const Icon(Icons.add),
+        ),
       ),
     );
   }
