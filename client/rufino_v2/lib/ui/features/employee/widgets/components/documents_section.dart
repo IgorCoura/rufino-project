@@ -1,9 +1,11 @@
-import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
+
+import '../../../../../core/utils/file_saver_stub.dart'
+    if (dart.library.io) '../../../../../core/utils/file_saver.dart';
 import 'package:mask_text_input_formatter/mask_text_input_formatter.dart';
 
 import '../../../../../core/theme/app_spacing.dart';
@@ -116,7 +118,7 @@ class _DocumentsSectionState extends State<DocumentsSection> {
     if (savePath == null) return false;
 
     if (!kIsWeb) {
-      await File(savePath).writeAsBytes(bytes);
+      await writeFileToPath(savePath, bytes);
     }
     return true;
   }
