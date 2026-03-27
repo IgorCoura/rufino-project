@@ -698,7 +698,7 @@ void main() {
     });
 
     group('role info section', () {
-      final fakeDepartments = [
+      const fakeDepartments = [
         Department(
           id: 'dept-1',
           name: 'Financeiro',

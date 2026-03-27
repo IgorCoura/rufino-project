@@ -38,6 +38,23 @@ class EmployeeDocument {
 
   /// The loaded document units for the current page.
   final List<DocumentUnit> units;
+
+  /// Whether this document has any pending units.
+  bool get hasPendingUnits => units.any((u) => u.isPending);
+
+  /// Whether this document has any units with attached files.
+  bool get hasFilledUnits => units.any((u) => u.hasFile);
+
+  /// Returns the number of pending units.
+  int get pendingUnitsCount => units.where((u) => u.isPending).length;
+
+  /// Display label for the document group status.
+  String get groupStatusLabel => switch (statusId) {
+        '1' => 'OK',
+        '2' => 'Pendente',
+        '3' => 'Inválido',
+        _ => statusName.isNotEmpty ? statusName : statusId,
+      };
 }
 
 /// A single instance (unit) of a document.
@@ -79,4 +96,53 @@ class DocumentUnit {
 
   /// Whether this unit is pending (status id 1).
   bool get isPending => statusId == '1';
+
+  /// Whether this unit is OK (status id 2).
+  bool get isOk => statusId == '2';
+
+  /// Whether this unit is obsolete (status id 3).
+  bool get isObsolete => statusId == '3';
+
+  /// Whether this unit is invalid (status id 4).
+  bool get isInvalid => statusId == '4';
+
+  /// Whether this unit requires validation (status id 5).
+  bool get requiresValidation => statusId == '5';
+
+  /// Whether this unit is not applicable (status id 6).
+  bool get isNotApplicable => statusId == '6';
+
+  /// Whether this unit is waiting for a digital signature (status id 7).
+  bool get isWaitingSignature => statusId == '7';
+
+  /// Display label for the unit status.
+  String get statusLabel => switch (statusId) {
+        '1' => 'Pendente',
+        '2' => 'OK',
+        '3' => 'Obsoleto',
+        '4' => 'Inválido',
+        '5' => 'Requer Validação',
+        '6' => 'Não Aplicável',
+        '7' => 'Aguardando Assinatura',
+        _ => statusName.isNotEmpty ? statusName : statusId,
+      };
+
+  /// Converts the [date] from `dd/MM/yyyy` to `yyyy-MM-dd` for file names.
+  ///
+  /// Returns `"sem-data"` when the date is empty or has an unexpected format.
+  String get dateForFileName {
+    if (date.isEmpty || date.length != 10) return 'sem-data';
+    return '${date.substring(6)}-${date.substring(3, 5)}-'
+        '${date.substring(0, 2)}';
+  }
+
+  /// Builds a download file name from this unit's date and the parent
+  /// [docName], e.g. `"2026-03-01-contrato-de-trabalho.pdf"`.
+  String downloadFileName(String docName, {String extension = 'pdf'}) {
+    final namePart = docName
+        .toLowerCase()
+        .replaceAll(RegExp(r'[^\w\s-]'), '')
+        .replaceAll(RegExp(r'\s+'), '-');
+    return '$dateForFileName-$namePart.$extension';
+  }
 }

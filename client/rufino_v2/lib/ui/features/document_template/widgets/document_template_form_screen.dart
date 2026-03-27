@@ -219,11 +219,7 @@ class _DocumentTemplateFormBody extends StatelessWidget {
                     ),
                     const SizedBox(height: AppSpacing.md),
                     DropdownButtonFormField<String>(
-                      value: viewModel.selectedDocumentGroupId.isNotEmpty &&
-                              viewModel.documentGroups.any((g) =>
-                                  g.id == viewModel.selectedDocumentGroupId)
-                          ? viewModel.selectedDocumentGroupId
-                          : null,
+                      initialValue: viewModel.safeDocumentGroupId,
                       decoration: const InputDecoration(
                         labelText: 'Grupo de Documento',
                         prefixIcon: Icon(Icons.folder_outlined),
@@ -632,7 +628,7 @@ class _SignatureCard extends StatelessWidget {
               ),
               const SizedBox(height: AppSpacing.sm),
               DropdownButtonFormField<String>(
-                value: signature.typeSignatureId.isNotEmpty &&
+                initialValue: signature.typeSignatureId.isNotEmpty &&
                         viewModel.typeSignatures.any(
                             (t) => t.id == signature.typeSignatureId)
                     ? signature.typeSignatureId

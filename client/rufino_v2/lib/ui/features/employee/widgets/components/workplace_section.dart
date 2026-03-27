@@ -48,23 +48,6 @@ class _WorkplaceSectionState extends State<WorkplaceSection> {
 
   void _cancel() => setState(() => _isEditing = false);
 
-  /// Formats a [Workplace] address for display.
-  String _formatAddress(Workplace workplace) {
-    final a = workplace.address;
-    final parts = <String>[
-      if (a.street.isNotEmpty) a.street,
-      if (a.number.isNotEmpty) a.number,
-      if (a.complement.isNotEmpty) a.complement,
-      if (a.neighborhood.isNotEmpty) a.neighborhood,
-      if (a.city.isNotEmpty) a.city,
-      if (a.state.isNotEmpty) a.state,
-      if (a.country.isNotEmpty) a.country,
-    ];
-    final address = parts.join(', ');
-    if (a.zipCode.isNotEmpty) return '$address - CEP: ${a.zipCode}';
-    return address;
-  }
-
   @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
@@ -138,7 +121,7 @@ class _WorkplaceSectionState extends State<WorkplaceSection> {
           ContactInfoRow(
             icon: Icons.location_on_outlined,
             label: 'Endereço',
-            value: _formatAddress(current),
+            value: current.address.inlineSummary,
           ),
         ],
         const SizedBox(height: AppSpacing.sm),
@@ -167,7 +150,7 @@ class _WorkplaceSectionState extends State<WorkplaceSection> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         DropdownButtonFormField<String>(
-          value: _selectedWorkplaceId,
+          initialValue: _selectedWorkplaceId,
           decoration: const InputDecoration(
             labelText: 'Local de trabalho',
             prefixIcon: Icon(Icons.business_outlined),
@@ -189,7 +172,7 @@ class _WorkplaceSectionState extends State<WorkplaceSection> {
               child: ContactInfoRow(
                 icon: Icons.location_on_outlined,
                 label: 'Endereço',
-                value: _formatAddress(selectedWorkplace),
+                value: selectedWorkplace.address.inlineSummary,
               ),
             ),
           ),

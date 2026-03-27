@@ -1,5 +1,4 @@
 import 'dart:collection';
-import 'dart:typed_data';
 
 import 'package:flutter/foundation.dart';
 
@@ -16,6 +15,7 @@ import '../../../../domain/entities/selection_option.dart';
 import '../../../../domain/entities/employee_id_card.dart';
 import '../../../../domain/entities/employee_personal_info.dart';
 import '../../../../domain/entities/employee_profile.dart';
+import '../../../../domain/entities/position.dart';
 import '../../../../domain/entities/remuneration.dart';
 import '../../../../domain/entities/workplace.dart';
 import '../../../../domain/entities/role.dart';
@@ -311,6 +311,38 @@ class EmployeeProfileViewModel extends ChangeNotifier {
 
   /// Available salary type options for salary display resolution.
   List<SalaryType> get salaryTypes => _salaryTypes;
+
+  /// Finds the department, position, and role for the given [roleId] in the
+  /// loaded department hierarchy.
+  ({Department? department, Position? position, Role? role})
+      findRoleInHierarchy(String roleId) {
+    for (final dept in _allDepartments) {
+      for (final pos in dept.positions) {
+        for (final role in pos.roles) {
+          if (role.id == roleId) {
+            return (department: dept, position: pos, role: role);
+          }
+        }
+      }
+    }
+    return (department: null, position: null, role: null);
+  }
+
+  /// Returns the positions available for [departmentId].
+  List<Position> positionsForDepartment(String departmentId) {
+    return _allDepartments
+        .where((d) => d.id == departmentId)
+        .firstOrNull
+        ?.positions ?? [];
+  }
+
+  /// Returns the roles available for [positionId] within [departmentId].
+  List<Role> rolesForPosition(String departmentId, String positionId) {
+    return positionsForDepartment(departmentId)
+        .where((p) => p.id == positionId)
+        .firstOrNull
+        ?.roles ?? [];
+  }
 
   // ─── Public getters — section dependents ───────────────────────────────────
 
@@ -1901,372 +1933,100 @@ class EmployeeProfileViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
-  // ─── Validators ──────────────────────────────────────────────────────────
+  // ─── Validators — delegated to domain entities ──────────────────────────
 
   // ── Contact validators ──────────────────────────────────────────────────
 
-  /// Validates a phone number.
-  ///
-  /// Optional field — returns null when empty. When filled, must have 10 or
-  /// 11 digits.
-  String? validatePhone(String? value) {
-    if (value == null || value.trim().isEmpty) return null;
-    final digits = value.replaceAll(RegExp(r'[^\d]'), '');
-    if (digits.length != 10 && digits.length != 11) {
-      return 'Número inválido (ex: 11 98765-4321)';
-    }
-    return null;
-  }
+  /// Delegates to [EmployeeContact.validatePhone].
+  String? validatePhone(String? value) => EmployeeContact.validatePhone(value);
 
-  /// Validates an email address.
-  ///
-  /// Optional field — returns null when empty. When filled, must match a
-  /// basic email pattern.
-  String? validateEmail(String? value) {
-    if (value == null || value.trim().isEmpty) return null;
-    final emailRegex = RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$');
-    if (!emailRegex.hasMatch(value.trim())) return 'E-mail inválido';
-    return null;
-  }
+  /// Delegates to [EmployeeContact.validateEmail].
+  String? validateEmail(String? value) => EmployeeContact.validateEmail(value);
 
   // ── Address validators ──────────────────────────────────────────────────
 
-  /// Validates a Brazilian CEP (postal code).
-  ///
-  /// Required field with exactly 8 digits.
-  String? validateCep(String? value) {
-    if (value == null || value.trim().isEmpty) return 'CEP é obrigatório';
-    final digits = value.replaceAll(RegExp(r'[^\d]'), '');
-    if (digits.length != 8) return 'CEP inválido (ex: 01310-100)';
-    return null;
-  }
+  /// Delegates to [Address.validateCep].
+  String? validateCep(String? value) => Address.validateCep(value);
 
-  /// Validates a required text field with a custom [label].
-  String? validateRequired(String? value, String label) {
-    if (value == null || value.trim().isEmpty) return '$label é obrigatório';
-    return null;
-  }
+  /// Delegates to [Address.validateRequired].
+  String? validateRequired(String? value, String label) =>
+      Address.validateRequired(value, label);
 
-  /// Validates an optional state abbreviation field (for addresses).
-  ///
-  /// Returns null when empty. When filled, must be exactly 2 characters.
-  String? validateAddressState(String? value) {
-    if (value == null || value.trim().isEmpty) return null;
-    if (value.trim().length != 2) {
-      return 'Use a sigla de 2 letras (ex: SP)';
-    }
-    return null;
-  }
+  /// Delegates to [Address.validateState].
+  String? validateAddressState(String? value) => Address.validateState(value);
 
   // ── ID card validators ──────────────────────────────────────────────────
 
-  /// Whether [cpf] passes the Brazilian CPF mathematical verification
-  /// algorithm.
-  bool isCpfValid(String cpf) {
-    final digits = cpf.replaceAll(RegExp(r'[^\d]'), '');
-    if (digits.length != 11) return false;
-    if (RegExp(r'^(\d)\1{10}$').hasMatch(digits)) return false;
+  /// Delegates to [EmployeeIdCard.isCpfValid].
+  bool isCpfValid(String cpf) => EmployeeIdCard.isCpfValid(cpf);
 
-    int firstSum = 0;
-    for (int i = 0; i < 9; i++) {
-      firstSum += int.parse(digits[i]) * (10 - i);
-    }
-    final mod1 = firstSum % 11;
-    final d1 = mod1 < 2 ? 0 : 11 - mod1;
-    if (d1 != int.parse(digits[9])) return false;
+  /// Delegates to [EmployeeIdCard.validateCpf].
+  String? validateCpf(String? value) => EmployeeIdCard.validateCpf(value);
 
-    int secondSum = 0;
-    for (int i = 0; i < 10; i++) {
-      secondSum += int.parse(digits[i]) * (11 - i);
-    }
-    final mod2 = secondSum % 11;
-    final d2 = mod2 < 2 ? 0 : 11 - mod2;
-    return d2 == int.parse(digits[10]);
-  }
+  /// Delegates to [EmployeeIdCard.validateDateOfBirth].
+  String? validateDateOfBirth(String? value) =>
+      EmployeeIdCard.validateDateOfBirth(value);
 
-  /// Validates a CPF field.
-  String? validateCpf(String? value) {
-    if (value == null || value.trim().isEmpty) {
-      return 'O CPF não pode ser vazio.';
-    }
-    if (value.trim().length > 100) {
-      return 'O CPF não pode ser maior que 100 caracteres.';
-    }
-    if (!isCpfValid(value)) {
-      return 'O CPF não é válido.';
-    }
-    return null;
-  }
+  /// Delegates to [EmployeeIdCard.validateMotherName].
+  String? validateMotherName(String? value) =>
+      EmployeeIdCard.validateMotherName(value);
 
-  /// Validates a date of birth in `dd/MM/yyyy` format.
-  ///
-  /// Must not be empty, must be a parseable date, not in the future, and not
-  /// older than 100 years.
-  String? validateDateOfBirth(String? value) {
-    if (value == null || value.trim().isEmpty) {
-      return 'A Data de nascimento não pode ser vazia.';
-    }
-    final digits = value.replaceAll(RegExp(r'[^\d]'), '');
-    if (digits.length != 8) {
-      return 'Data inválida (ex: 15/06/1990)';
-    }
-    try {
-      final parts = value.split('/');
-      final isoDate = '${parts[2]}-${parts[1]}-${parts[0]}';
-      final date = DateTime.tryParse(isoDate);
-      final now = DateTime.now();
-      final hundredYearsAgo = now.subtract(const Duration(days: 36500));
-      if (date == null ||
-          date.isAfter(now) ||
-          date.isBefore(hundredYearsAgo)) {
-        return 'A Data de nascimento é inválida.';
-      }
-    } catch (_) {
-      return 'A Data de nascimento é inválida.';
-    }
-    return null;
-  }
+  /// Delegates to [EmployeeIdCard.validateFatherName].
+  String? validateFatherName(String? value) =>
+      EmployeeIdCard.validateFatherName(value);
 
-  /// Validates the mother name field.
-  String? validateMotherName(String? value) {
-    if (value == null || value.trim().isEmpty) {
-      return 'O Nome da mãe não pode ser vazio.';
-    }
-    if (value.trim().length > 100) {
-      return 'O Nome da mãe não pode ser maior que 100 caracteres.';
-    }
-    return null;
-  }
+  /// Delegates to [EmployeeIdCard.validateBirthCity].
+  String? validateBirthCity(String? value) =>
+      EmployeeIdCard.validateBirthCity(value);
 
-  /// Validates the father name field.
-  String? validateFatherName(String? value) {
-    if (value == null || value.trim().isEmpty) {
-      return 'O Nome do pai não pode ser vazio.';
-    }
-    if (value.trim().length > 100) {
-      return 'O Nome do pai não pode ser maior que 100 caracteres.';
-    }
-    return null;
-  }
+  /// Delegates to [EmployeeIdCard.validateBirthState].
+  String? validateBirthState(String? value) =>
+      EmployeeIdCard.validateBirthState(value);
 
-  /// Validates the birth city field.
-  String? validateBirthCity(String? value) {
-    if (value == null || value.trim().isEmpty) {
-      return 'A Cidade de nascimento não pode ser vazia.';
-    }
-    if (value.trim().length > 100) {
-      return 'A Cidade de nascimento não pode ser maior que 100 caracteres.';
-    }
-    return null;
-  }
-
-  /// Validates a required state abbreviation (for ID card birth state).
-  String? validateBirthState(String? value) {
-    if (value == null || value.trim().isEmpty) {
-      return 'O Estado de nascimento não pode ser vazio.';
-    }
-    if (value.trim().length != 2) {
-      return 'Use a sigla de 2 letras (ex: SP)';
-    }
-    return null;
-  }
-
-  /// Validates the nationality field.
-  String? validateNationality(String? value) {
-    if (value == null || value.trim().isEmpty) {
-      return 'A Nacionalidade não pode ser vazia.';
-    }
-    if (value.trim().length > 100) {
-      return 'A Nacionalidade não pode ser maior que 100 caracteres.';
-    }
-    return null;
-  }
+  /// Delegates to [EmployeeIdCard.validateNationality].
+  String? validateNationality(String? value) =>
+      EmployeeIdCard.validateNationality(value);
 
   // ── Vote ID validators ──────────────────────────────────────────────────
 
-  /// Whether [number] passes the Brazilian voter registration (Título de
-  /// Eleitor) mathematical verification algorithm.
-  bool isVoteIdValid(String number) {
-    final digits = number.replaceAll(RegExp(r'[^\d]'), '');
-    if (digits.length != 12) return false;
-    if (RegExp(r'^(\d)\1{11}$').hasMatch(digits)) return false;
+  /// Delegates to [EmployeeVoteId.isVoteIdValid].
+  bool isVoteIdValid(String number) => EmployeeVoteId.isVoteIdValid(number);
 
-    final uf = '${digits[8]}${digits[9]}';
-
-    int sum = 0;
-    const multiplierOne = [2, 3, 4, 5, 6, 7, 8, 9];
-    for (int i = 0; i < 8; i++) {
-      sum += int.parse(digits[i]) * multiplierOne[i];
-    }
-    int rest = sum % 11;
-    if (rest > 9) {
-      rest = 0;
-    } else if (rest == 0 && (uf == '01' || uf == '02')) {
-      rest = 1;
-    }
-    final z1 = rest.toString();
-
-    sum = 0;
-    const multiplierTwo = [7, 8, 9];
-    final aux = '${digits[8]}${digits[9]}$z1';
-    for (int i = 0; i < 3; i++) {
-      sum += int.parse(aux[i]) * multiplierTwo[i];
-    }
-    rest = sum % 11;
-    if (rest > 9) {
-      rest = 0;
-    } else if (rest == 0 && (uf == '01' || uf == '02')) {
-      rest = 1;
-    }
-    final z2 = rest.toString();
-
-    return digits.endsWith('$z1$z2');
-  }
-
-  /// Validates a voter registration number.
-  String? validateVoteIdNumber(String? value) {
-    final stripped = (value ?? '').replaceAll(RegExp(r'[^\d]'), '');
-    if (stripped.isEmpty) {
-      return 'O Número do título não pode ser vazio.';
-    }
-    if (stripped.length != 12) {
-      return 'Número inválido (ex: 0000.0000.0000)';
-    }
-    if (!isVoteIdValid(stripped)) {
-      return 'O Número do título não é válido.';
-    }
-    return null;
-  }
+  /// Delegates to [EmployeeVoteId.validateNumber].
+  String? validateVoteIdNumber(String? value) =>
+      EmployeeVoteId.validateNumber(value);
 
   // ── Military document validators ────────────────────────────────────────
 
-  /// Validates the military document number field.
-  String? validateMilitaryNumber(String? value) {
-    final trimmed = (value ?? '').trim();
-    if (trimmed.isEmpty) {
-      return 'O Número do documento não pode ser vazio.';
-    }
-    if (trimmed.length > 20) {
-      return 'O Número do documento não pode ter mais de 20 caracteres.';
-    }
-    return null;
-  }
+  /// Delegates to [EmployeeMilitaryDocument.validateNumber].
+  String? validateMilitaryNumber(String? value) =>
+      EmployeeMilitaryDocument.validateNumber(value);
 
-  /// Validates the military document type field.
-  String? validateMilitaryType(String? value) {
-    final trimmed = (value ?? '').trim();
-    if (trimmed.isEmpty) {
-      return 'O Tipo de documento não pode ser vazio.';
-    }
-    if (trimmed.length > 50) {
-      return 'O Tipo de documento não pode ter mais de 50 caracteres.';
-    }
-    return null;
-  }
+  /// Delegates to [EmployeeMilitaryDocument.validateType].
+  String? validateMilitaryType(String? value) =>
+      EmployeeMilitaryDocument.validateType(value);
 
   // ── Medical exam validators ─────────────────────────────────────────────
 
-  /// Validates the exam date field.
-  ///
-  /// Required, must be a valid date within the last 365 days.
-  String? validateDateExam(String? value) {
-    final stripped = (value ?? '').replaceAll(RegExp(r'[^\d]'), '');
-    if (stripped.isEmpty) {
-      return 'A Data do exame não pode ser vazia.';
-    }
-    if (stripped.length != 8) {
-      return 'A Data do exame é inválida.';
-    }
-    try {
-      final parts = value!.split('/');
-      final date =
-          DateTime.tryParse('${parts[2]}-${parts[1]}-${parts[0]}');
-      if (date == null) return 'A Data do exame é inválida.';
+  /// Delegates to [EmployeeMedicalExam.validateDateExam].
+  String? validateDateExam(String? value) =>
+      EmployeeMedicalExam.validateDateExam(value);
 
-      final now = DateTime.now();
-      final minDate = now.subtract(const Duration(days: 365));
-      final maxDate = now.add(const Duration(days: 1));
-      if (date.isBefore(minDate) || date.isAfter(maxDate)) {
-        return 'A Data do exame é inválida.';
-      }
-    } catch (_) {
-      return 'A Data do exame é inválida.';
-    }
-    return null;
-  }
-
-  /// Validates the exam validity/expiry date field.
-  ///
-  /// Required, must be a future date (up to 10 years from now).
-  String? validateExamValidity(String? value) {
-    final stripped = (value ?? '').replaceAll(RegExp(r'[^\d]'), '');
-    if (stripped.isEmpty) {
-      return 'A Validade do exame não pode ser vazia.';
-    }
-    if (stripped.length != 8) {
-      return 'A Validade do exame é inválida.';
-    }
-    try {
-      final parts = value!.split('/');
-      final date =
-          DateTime.tryParse('${parts[2]}-${parts[1]}-${parts[0]}');
-      if (date == null) return 'A Validade do exame é inválida.';
-
-      final now = DateTime.now();
-      final minDate = now.add(const Duration(days: 1));
-      final maxDate = now.add(const Duration(days: 3650));
-      if (date.isBefore(minDate) || date.isAfter(maxDate)) {
-        return 'A Validade do exame é inválida.';
-      }
-    } catch (_) {
-      return 'A Validade do exame é inválida.';
-    }
-    return null;
-  }
+  /// Delegates to [EmployeeMedicalExam.validateExamValidity].
+  String? validateExamValidity(String? value) =>
+      EmployeeMedicalExam.validateExamValidity(value);
 
   // ── Contract validators ──────────────────────────────────────────────────
 
-  /// Validates a contract date in `dd/MM/yyyy` format.
-  ///
-  /// Must be a valid date within ±365 days of today.
-  String? validateContractDate(String? value) {
-    final stripped = (value ?? '').replaceAll(RegExp(r'[^\d]'), '');
-    if (stripped.isEmpty) {
-      return 'A data não pode ser vazia.';
-    }
-    if (stripped.length != 8) {
-      return 'Data inválida (ex: 15/03/2026).';
-    }
-    try {
-      final parts = value!.split('/');
-      final date =
-          DateTime.tryParse('${parts[2]}-${parts[1]}-${parts[0]}');
-      if (date == null) return 'Data inválida.';
-
-      final now = DateTime.now();
-      final minDate = now.subtract(const Duration(days: 365));
-      final maxDate = now.add(const Duration(days: 365));
-      if (date.isBefore(minDate) || date.isAfter(maxDate)) {
-        return 'Data inválida.';
-      }
-    } catch (_) {
-      return 'Data inválida.';
-    }
-    return null;
-  }
+  /// Delegates to [EmployeeContractInfo.validateDate].
+  String? validateContractDate(String? value) =>
+      EmployeeContractInfo.validateDate(value);
 
   // ── Dependent validators ─────────────────────────────────────────────────
 
-  /// Validates the dependent name field.
-  String? validateDependentName(String? value) {
-    if (value == null || value.trim().isEmpty) {
-      return 'O Nome do dependente não pode ser vazio.';
-    }
-    if (value.trim().length > 100) {
-      return 'O Nome não pode ter mais de 100 caracteres.';
-    }
-    return null;
-  }
+  /// Delegates to [EmployeeDependent.validateName].
+  String? validateDependentName(String? value) =>
+      EmployeeDependent.validateName(value);
 
   // ── Role info helpers ───────────────────────────────────────────────────
 

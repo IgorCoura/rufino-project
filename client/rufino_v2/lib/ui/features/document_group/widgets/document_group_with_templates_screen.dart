@@ -322,7 +322,7 @@ class _EmptyState extends StatelessWidget {
             Icon(
               Icons.folder_off_outlined,
               size: 64,
-              color: cs.onSurfaceVariant.withOpacity(0.5),
+              color: cs.onSurfaceVariant.withValues(alpha: 0.5),
             ),
             const SizedBox(height: AppSpacing.md),
             Text(
@@ -335,7 +335,7 @@ class _EmptyState extends StatelessWidget {
             Text(
               'Toque no botão + para criar um novo grupo de documentos.',
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: cs.onSurfaceVariant.withOpacity(0.7),
+                    color: cs.onSurfaceVariant.withValues(alpha: 0.7),
                   ),
               textAlign: TextAlign.center,
             ),

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../../core/theme/app_spacing.dart';
-import '../../../../../domain/entities/selection_option.dart';
+import '../../../../../domain/entities/signing_option.dart';
 import '../../viewmodel/employee_profile_viewmodel.dart';
 import 'profile_shared_widgets.dart';
 
@@ -48,27 +48,6 @@ class _SigningOptionsSectionState extends State<SigningOptionsSection> {
   }
 
   void _cancel() => setState(() => _isEditing = false);
-
-  /// Maps option IDs to their Portuguese display names, matching the old app's
-  /// `DocumentSigningOptions.conversionMapIntToString`.
-  static const _displayNames = {
-    '1': 'Assinatura Física',
-    '2': 'Assinatura Digital e Whatsapp',
-    '3': 'Assinatura Digital e Selfie',
-    '4': 'Assinatura Digital e SMS',
-    '5': 'Apenas SMS',
-    '6': 'Apenas Whatsapp',
-  };
-
-  /// Resolves the option id to its Portuguese display name.
-  String _resolveOptionName(String optionId) {
-    return _displayNames[optionId] ?? 'Não informado';
-  }
-
-  /// Returns the translated name for a given [SelectionOption].
-  String _translatedName(SelectionOption opt) {
-    return _displayNames[opt.id] ?? opt.name;
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -120,7 +99,7 @@ class _SigningOptionsSectionState extends State<SigningOptionsSection> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           DropdownButtonFormField<String>(
-            value: _selectedOptionId,
+            initialValue: _selectedOptionId,
             decoration: const InputDecoration(
               labelText: 'Tipo de assinatura',
               prefixIcon: Icon(Icons.draw_outlined),
@@ -130,7 +109,7 @@ class _SigningOptionsSectionState extends State<SigningOptionsSection> {
                 .where((o) => o.id != '0')
                 .map<DropdownMenuItem<String>>((o) =>
                     DropdownMenuItem<String>(
-                        value: o.id, child: Text(_translatedName(o))))
+                        value: o.id, child: Text(SigningOption.labelForId(o.id))))
                 .toList(),
             onChanged:
                 isSaving ? null : (v) => setState(() => _selectedOptionId = v),
@@ -168,7 +147,7 @@ class _SigningOptionsSectionState extends State<SigningOptionsSection> {
           icon: Icons.draw_outlined,
           label: 'Tipo de assinatura',
           value: currentId.isNotEmpty
-              ? _resolveOptionName(currentId)
+              ? SigningOption.labelForId(currentId)
               : 'Não informado',
         ),
         const SizedBox(height: AppSpacing.sm),

@@ -1,5 +1,7 @@
 import 'package:flutter/widgets.dart';
 
+import '../../../../domain/entities/address.dart';
+import '../../../../domain/entities/workplace.dart';
 import '../../../../domain/repositories/company_repository.dart';
 import '../../../../domain/repositories/workplace_repository.dart';
 
@@ -73,69 +75,34 @@ class WorkplaceFormViewModel extends ChangeNotifier {
   /// Human-readable error message set when [status] is [WorkplaceFormStatus.error].
   String? get errorMessage => _errorMessage;
 
-  // ─── Validators ────────────────────────────────────────────────────────────
+  // ─── Validators — delegated to domain entities ──────────────────────────
 
-  /// Validates the workplace name: required, max 100 characters.
-  String? validateName(String? v) {
-    if (v == null || v.isEmpty) return 'Não pode ser vazio.';
-    if (v.length > 100) return 'Não pode ser maior que 100 caracteres.';
-    return null;
-  }
+  /// Delegates to [Workplace.validateName].
+  String? validateName(String? v) => Workplace.validateName(v);
 
-  /// Validates the ZIP code: required, exactly 8 digits.
-  String? validateZipCode(String? v) {
-    if (v == null || v.isEmpty) return 'Não pode ser vazio.';
-    final digits = v.replaceAll(RegExp(r'\D'), '');
-    if (digits.length != 8) return 'CEP inválido.';
-    return null;
-  }
+  /// Delegates to [Address.validateCep].
+  String? validateZipCode(String? v) => Address.validateCep(v);
 
-  /// Validates the street: required, max 100 characters.
-  String? validateStreet(String? v) {
-    if (v == null || v.isEmpty) return 'Não pode ser vazio.';
-    if (v.length > 100) return 'Máx. 100 caracteres.';
-    return null;
-  }
+  /// Delegates to [Address.validateStreet].
+  String? validateStreet(String? v) => Address.validateStreet(v);
 
-  /// Validates the number: required.
-  String? validateNumber(String? v) {
-    if (v == null || v.isEmpty) return 'Não pode ser vazio.';
-    return null;
-  }
+  /// Delegates to [Address.validateNumber].
+  String? validateNumber(String? v) => Address.validateNumber(v);
 
-  /// Validates the complement: optional, max 50 characters.
-  String? validateComplement(String? v) {
-    if (v != null && v.length > 50) return 'Máx. 50 caracteres.';
-    return null;
-  }
+  /// Delegates to [Address.validateComplement].
+  String? validateComplement(String? v) => Address.validateComplement(v);
 
-  /// Validates the neighborhood: required, max 50 characters.
-  String? validateNeighborhood(String? v) {
-    if (v == null || v.isEmpty) return 'Não pode ser vazio.';
-    if (v.length > 50) return 'Máx. 50 caracteres.';
-    return null;
-  }
+  /// Delegates to [Address.validateNeighborhood].
+  String? validateNeighborhood(String? v) => Address.validateNeighborhood(v);
 
-  /// Validates the city: required, max 50 characters.
-  String? validateCity(String? v) {
-    if (v == null || v.isEmpty) return 'Não pode ser vazio.';
-    if (v.length > 50) return 'Máx. 50 caracteres.';
-    return null;
-  }
+  /// Delegates to [Address.validateCity].
+  String? validateCity(String? v) => Address.validateCity(v);
 
-  /// Validates the state: required, max 50 characters.
-  String? validateState(String? v) {
-    if (v == null || v.isEmpty) return 'Não pode ser vazio.';
-    if (v.length > 50) return 'Máx. 50 caracteres.';
-    return null;
-  }
+  /// Delegates to [Address.validateStateFull].
+  String? validateState(String? v) => Address.validateStateFull(v);
 
-  /// Validates the country: required, max 50 characters.
-  String? validateCountry(String? v) {
-    if (v == null || v.isEmpty) return 'Não pode ser vazio.';
-    if (v.length > 50) return 'Máx. 50 caracteres.';
-    return null;
-  }
+  /// Delegates to [Address.validateCountry].
+  String? validateCountry(String? v) => Address.validateCountry(v);
 
   // ─── Operations ────────────────────────────────────────────────────────────
 

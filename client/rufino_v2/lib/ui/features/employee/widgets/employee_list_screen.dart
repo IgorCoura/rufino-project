@@ -255,7 +255,7 @@ class _SearchParamField extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return DropdownButtonFormField<SearchParam>(
-      value: viewModel.searchParam,
+      initialValue: viewModel.searchParam,
       decoration: const InputDecoration(
         labelText: 'Buscar por',
         border: OutlineInputBorder(),
@@ -387,7 +387,7 @@ class _StatusDropdown<T> extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return DropdownButtonFormField<T>(
-      value: value,
+      initialValue: value,
       decoration: InputDecoration(
         labelText: label,
         border: const OutlineInputBorder(),
@@ -692,11 +692,11 @@ class _LoadingMoreListItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: AppSpacing.lg),
+    return const Padding(
+      padding: EdgeInsets.symmetric(vertical: AppSpacing.lg),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
-        children: const [
+        children: [
           SizedBox(
             width: 20,
             height: 20,

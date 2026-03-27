@@ -1,3 +1,5 @@
+import 'dart:collection';
+
 /// Personal demographic information for an employee.
 class EmployeePersonalInfo {
   /// Creates an [EmployeePersonalInfo] with all demographic fields.
@@ -27,6 +29,20 @@ class EmployeePersonalInfo {
 
   /// Additional observations related to disabilities.
   final String disabilityObservation;
+
+  /// Whether the employee has any declared disabilities.
+  bool get hasDisabilities => disabilityIds.isNotEmpty;
+
+  /// Returns the disability ids as an unmodifiable list.
+  UnmodifiableListView<String> get unmodifiableDisabilityIds =>
+      UnmodifiableListView(disabilityIds);
+
+  /// Whether all demographic fields have been filled in.
+  bool get isComplete =>
+      genderId.isNotEmpty &&
+      maritalStatusId.isNotEmpty &&
+      ethnicityId.isNotEmpty &&
+      educationLevelId.isNotEmpty;
 
   /// Returns a copy of this entity with the provided overrides applied.
   EmployeePersonalInfo copyWith({

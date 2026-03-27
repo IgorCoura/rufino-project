@@ -3,6 +3,7 @@ import 'dart:collection';
 import 'package:flutter/widgets.dart';
 
 import '../../../../domain/entities/remuneration.dart';
+import '../../../../domain/entities/role.dart';
 import '../../../../domain/repositories/company_repository.dart';
 import '../../../../domain/repositories/department_repository.dart';
 
@@ -63,8 +64,22 @@ class RoleFormViewModel extends ChangeNotifier {
   /// Currently selected payment unit id (controlled by dropdown).
   String get paymentUnitId => _paymentUnitId;
 
+  /// Returns the payment unit id when it exists in [paymentUnits], or null.
+  /// Safe for use as [DropdownButtonFormField.value].
+  String? get safePaymentUnitId =>
+      _paymentUnits.any((u) => u.id == _paymentUnitId)
+          ? _paymentUnitId
+          : null;
+
   /// Currently selected salary type id (controlled by dropdown).
   String get salaryTypeId => _salaryTypeId;
+
+  /// Returns the salary type id when it exists in [salaryTypes], or null.
+  /// Safe for use as [DropdownButtonFormField.value].
+  String? get safeSalaryTypeId =>
+      _salaryTypes.any((t) => t.id == _salaryTypeId)
+          ? _salaryTypeId
+          : null;
 
   /// Available payment unit options for the dropdown.
   UnmodifiableListView<PaymentUnit> get paymentUnits =>
@@ -103,52 +118,32 @@ class RoleFormViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
-  // ─── Validators ────────────────────────────────────────────────────────────
+  // ─── Validators — delegated to domain entities ──────────────────────────
 
-  /// Validates the role name: required, max 100 characters.
-  String? validateName(String? v) {
-    if (v == null || v.isEmpty) return 'Não pode ser vazio.';
-    if (v.length > 100) return 'Não pode ser maior que 100 caracteres.';
-    return null;
-  }
+  /// Delegates to [Role.validateName].
+  String? validateName(String? v) => Role.validateName(v);
 
-  /// Validates the role description: required, max 2000 characters.
-  String? validateDescription(String? v) {
-    if (v == null || v.isEmpty) return 'Não pode ser vazio.';
-    if (v.length > 2000) return 'Não pode ser maior que 2000 caracteres.';
-    return null;
-  }
+  /// Delegates to [Role.validateDescription].
+  String? validateDescription(String? v) => Role.validateDescription(v);
 
-  /// Validates the CBO code: required, max 6 characters.
-  String? validateCbo(String? v) {
-    if (v == null || v.isEmpty) return 'Não pode ser vazio.';
-    if (v.length > 6) return 'Não pode ser maior que 6 caracteres.';
-    return null;
-  }
+  /// Delegates to [Role.validateCbo].
+  String? validateCbo(String? v) => Role.validateCbo(v);
 
-  /// Validates the base salary value: required, must be a valid decimal.
-  String? validateSalaryValue(String? v) {
-    if (v == null || v.isEmpty) return 'Não pode ser vazio.';
-    final normalized = v.replaceAll(',', '.');
-    final regex = RegExp(r'^\d+(\.\d{1,2})?$');
-    if (!regex.hasMatch(normalized)) return 'Valor inválido.';
-    return null;
-  }
+  /// Delegates to [Remuneration.validateSalaryValue].
+  String? validateSalaryValue(String? v) =>
+      Remuneration.validateSalaryValue(v);
 
-  /// Validates the remuneration description: required, max 2000 characters.
-  String? validateRemunerationDescription(String? v) {
-    if (v == null || v.isEmpty) return 'Não pode ser vazio.';
-    if (v.length > 2000) return 'Não pode ser maior que 2000 caracteres.';
-    return null;
-  }
+  /// Delegates to [Remuneration.validateDescription].
+  String? validateRemunerationDescription(String? v) =>
+      Remuneration.validateDescription(v);
 
-  /// Validates the payment unit dropdown selection.
+  /// Delegates to [Remuneration.validateDropdownSelection].
   String? validatePaymentUnit(String? v) =>
-      (v == null || v.isEmpty) ? 'Selecione uma opção.' : null;
+      Remuneration.validateDropdownSelection(v);
 
-  /// Validates the salary type dropdown selection.
+  /// Delegates to [Remuneration.validateDropdownSelection].
   String? validateSalaryType(String? v) =>
-      (v == null || v.isEmpty) ? 'Selecione uma opção.' : null;
+      Remuneration.validateDropdownSelection(v);
 
   // ─── Operations ────────────────────────────────────────────────────────────
 

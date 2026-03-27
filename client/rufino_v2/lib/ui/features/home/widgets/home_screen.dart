@@ -96,7 +96,6 @@ class _AppBarTitle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final company = viewModel.company;
     return Row(
       children: [
         CircleAvatar(
@@ -109,7 +108,7 @@ class _AppBarTitle extends StatelessWidget {
         const SizedBox(width: AppSpacing.sm),
         Expanded(
           child: Text(
-            company?.fantasyName ?? 'Rufino',
+            viewModel.companyDisplayName,
             overflow: TextOverflow.ellipsis,
           ),
         ),

@@ -60,17 +60,13 @@ class _RoleInfoSectionState extends State<RoleInfoSection> {
   /// Returns the positions available for the currently selected department.
   List<Position> get _positions {
     if (_selectedDeptId == null) return [];
-    final dept = widget.viewModel.allDepartments
-        .where((d) => d.id == _selectedDeptId)
-        .firstOrNull;
-    return dept?.positions ?? [];
+    return widget.viewModel.positionsForDepartment(_selectedDeptId!);
   }
 
   /// Returns the roles available for the currently selected position.
   List<Role> get _roles {
-    if (_selectedPosId == null) return [];
-    final pos = _positions.where((p) => p.id == _selectedPosId).firstOrNull;
-    return pos?.roles ?? [];
+    if (_selectedDeptId == null || _selectedPosId == null) return [];
+    return widget.viewModel.rolesForPosition(_selectedDeptId!, _selectedPosId!);
   }
 
   @override
@@ -125,30 +121,18 @@ class _RoleInfoSectionState extends State<RoleInfoSection> {
       return _buildEditMode(context, departments, isSaving);
     }
 
-    return _buildViewMode(context, departments, roleId);
+    return _buildViewMode(context, roleId);
   }
 
   Widget _buildViewMode(
     BuildContext context,
-    List<Department> departments,
     String roleId,
   ) {
     // Find current department, position, role from the hierarchy.
-    Department? dept;
-    Position? pos;
-    Role? role;
-
-    for (final d in departments) {
-      for (final p in d.positions) {
-        for (final r in p.roles) {
-          if (r.id == roleId) {
-            dept = d;
-            pos = p;
-            role = r;
-          }
-        }
-      }
-    }
+    final (:department, :position, :role) =
+        widget.viewModel.findRoleInHierarchy(roleId);
+    final dept = department;
+    final pos = position;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -251,7 +235,7 @@ class _RoleInfoSectionState extends State<RoleInfoSection> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         DropdownButtonFormField<String>(
-          value: _selectedDeptId,
+          initialValue: _selectedDeptId,
           decoration: const InputDecoration(
             labelText: 'Setor',
             prefixIcon: Icon(Icons.business_outlined),
@@ -273,7 +257,7 @@ class _RoleInfoSectionState extends State<RoleInfoSection> {
         ),
         const SizedBox(height: AppSpacing.md),
         DropdownButtonFormField<String>(
-          value: _selectedPosId,
+          initialValue: _selectedPosId,
           decoration: const InputDecoration(
             labelText: 'Cargo',
             prefixIcon: Icon(Icons.work_outline),
@@ -294,7 +278,7 @@ class _RoleInfoSectionState extends State<RoleInfoSection> {
         ),
         const SizedBox(height: AppSpacing.md),
         DropdownButtonFormField<String>(
-          value: _selectedRoleId,
+          initialValue: _selectedRoleId,
           decoration: const InputDecoration(
             labelText: 'Função',
             prefixIcon: Icon(Icons.badge_outlined),

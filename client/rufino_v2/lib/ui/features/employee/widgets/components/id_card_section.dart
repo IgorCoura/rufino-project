@@ -173,12 +173,7 @@ class _IdCardSectionState extends State<IdCardSection> {
     }
 
     // ── View mode ─────────────────────────────────────────────────────────────
-    final naturalidade = () {
-      final city = idCard?.birthCity ?? '';
-      final state = idCard?.birthState ?? '';
-      if (city.isEmpty) return 'Não informado';
-      return state.isNotEmpty ? '$city — ${state.toUpperCase()}' : city;
-    }();
+    final naturalidade = idCard?.formattedBirthPlace ?? 'Não informado';
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
