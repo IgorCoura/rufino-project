@@ -1,5 +1,3 @@
-import 'package:file_picker/file_picker.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../../../../core/utils/file_saver_stub.dart'
@@ -481,14 +479,10 @@ class _FileSection extends StatelessWidget {
                     onPressed: () async {
                       final bytes = await viewModel.downloadFile();
                       if (bytes != null && context.mounted) {
-                        final outputPath = await FilePicker.platform.saveFile(
-                          dialogTitle: 'Salvar arquivo',
+                        await saveFile(
                           fileName: 'files.zip',
                           bytes: bytes,
                         );
-                        if (outputPath != null && !kIsWeb) {
-                          await writeFileToPath(outputPath, bytes);
-                        }
                         if (context.mounted) {
                           ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(
