@@ -325,7 +325,7 @@ class _ChromeTabPanel extends StatelessWidget {
             tabs: const [
               Tab(text: 'Dados Pessoais'),
               Tab(text: 'Documentos'),
-              Tab(text: 'Contratos'),
+              Tab(text: 'Vínculo Empregatício'),
             ],
           ),
         ),
@@ -392,8 +392,6 @@ class _EmployeeDataTab extends StatelessWidget {
           DependentSection(viewModel: viewModel),
           const SizedBox(height: AppSpacing.sm),
           MilitaryDocumentSection(viewModel: viewModel),
-          const SizedBox(height: AppSpacing.sm),
-          MedicalExamSection(viewModel: viewModel),
         ],
       ),
     );
@@ -422,7 +420,7 @@ class _DocumentsTab extends StatelessWidget {
   }
 }
 
-/// Tab content for role info, workplace, and contracts.
+/// Tab content for role info, workplace, medical exam, and contracts.
 class _ContractsTab extends StatelessWidget {
   const _ContractsTab({
     required this.viewModel,
@@ -444,6 +442,8 @@ class _ContractsTab extends StatelessWidget {
           RoleInfoSection(viewModel: viewModel),
           const SizedBox(height: AppSpacing.sm),
           WorkplaceSection(viewModel: viewModel),
+          const SizedBox(height: AppSpacing.sm),
+          MedicalExamSection(viewModel: viewModel),
           const SizedBox(height: AppSpacing.sm),
           ContractSection(
             viewModel: viewModel,

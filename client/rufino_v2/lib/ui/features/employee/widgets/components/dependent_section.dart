@@ -199,13 +199,10 @@ class _DependentSectionState extends State<DependentSection> {
       listenable: widget.viewModel,
       builder: (context, _) {
         final status = widget.viewModel.dependentsStatus;
-        return ExpandableSectionCard(
+        return SectionCard(
           title: 'Dependentes',
-          onExpand: widget.viewModel.loadDependents,
-          child: Padding(
-            padding: const EdgeInsets.all(8.0),
-            child: _buildContent(context, status),
-          ),
+          onLoad: widget.viewModel.loadDependents,
+          child: _buildContent(context, status),
         );
       },
     );

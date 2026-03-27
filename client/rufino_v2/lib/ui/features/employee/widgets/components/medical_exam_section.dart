@@ -87,9 +87,9 @@ class _MedicalExamSectionState extends State<MedicalExamSection> {
       listenable: widget.viewModel,
       builder: (context, _) {
         final status = widget.viewModel.medicalExamStatus;
-        return ExpandableSectionCard(
+        return SectionCard(
           title: 'Exame Médico Admissional',
-          onExpand: widget.viewModel.loadMedicalExam,
+          onLoad: widget.viewModel.loadMedicalExam,
           child: _buildContent(context, status),
         );
       },

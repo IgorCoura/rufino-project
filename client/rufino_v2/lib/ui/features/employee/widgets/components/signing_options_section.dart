@@ -55,9 +55,9 @@ class _SigningOptionsSectionState extends State<SigningOptionsSection> {
       listenable: widget.viewModel,
       builder: (context, _) {
         final status = widget.viewModel.signingOptionsStatus;
-        return ExpandableSectionCard(
+        return SectionCard(
           title: 'Opções de Assinatura de Documentos',
-          onExpand: widget.viewModel.loadSigningOptions,
+          onLoad: widget.viewModel.loadSigningOptions,
           child: _buildContent(context, status),
         );
       },

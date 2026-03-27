@@ -37,9 +37,9 @@ class _ContractSectionState extends State<ContractSection> {
       listenable: widget.viewModel,
       builder: (context, _) {
         final status = widget.viewModel.contractsStatus;
-        return ExpandableSectionCard(
+        return SectionCard(
           title: 'Contratos',
-          onExpand: widget.viewModel.loadContracts,
+          onLoad: widget.viewModel.loadContracts,
           child: _buildContent(context, status),
         );
       },

@@ -107,9 +107,9 @@ class _IdCardSectionState extends State<IdCardSection> {
       listenable: widget.viewModel,
       builder: (context, _) {
         final status = widget.viewModel.idCardStatus;
-        return ExpandableSectionCard(
+        return SectionCard(
           title: 'Documento (Identidade)',
-          onExpand: widget.viewModel.loadIdCard,
+          onLoad: widget.viewModel.loadIdCard,
           child: _buildContent(context, status),
         );
       },
