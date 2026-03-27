@@ -57,7 +57,8 @@ class _DepartmentListScreenState extends State<DepartmentListScreen> {
 
           if (widget.viewModel.hasError) {
             return _ErrorState(
-              message: widget.viewModel.errorMessage ?? 'Erro ao carregar setores.',
+              message:
+                  widget.viewModel.errorMessage ?? 'Erro ao carregar setores.',
               onRetry: widget.viewModel.loadDepartments,
             );
           }
@@ -72,7 +73,10 @@ class _DepartmentListScreenState extends State<DepartmentListScreen> {
             onRefresh: widget.viewModel.loadDepartments,
             child: ListView(
               padding: const EdgeInsets.fromLTRB(
-                AppSpacing.md, AppSpacing.md, AppSpacing.md, AppSpacing.md + 80,
+                AppSpacing.md,
+                AppSpacing.md,
+                AppSpacing.md,
+                AppSpacing.md + 80,
               ),
               children: widget.viewModel.departments
                   .map((department) => _DepartmentTile(
@@ -81,16 +85,19 @@ class _DepartmentListScreenState extends State<DepartmentListScreen> {
                             .push('/department/edit/${department.id}')
                             .then((_) => widget.viewModel.loadDepartments()),
                         onAddPosition: () => context
-                            .push('/department/position/create/${department.id}')
+                            .push(
+                                '/department/position/create/${department.id}')
                             .then((_) => widget.viewModel.loadDepartments()),
                         onEditPosition: (position) => context
-                            .push('/department/position/edit/${department.id}/${position.id}')
+                            .push(
+                                '/department/position/edit/${department.id}/${position.id}')
                             .then((_) => widget.viewModel.loadDepartments()),
                         onAddRole: (position) => context
                             .push('/department/role/create/${position.id}')
                             .then((_) => widget.viewModel.loadDepartments()),
                         onEditRole: (position, role) => context
-                            .push('/department/role/edit/${position.id}/${role.id}')
+                            .push(
+                                '/department/role/edit/${position.id}/${role.id}')
                             .then((_) => widget.viewModel.loadDepartments()),
                       ))
                   .toList(),
@@ -147,20 +154,28 @@ class _DepartmentTile extends StatelessWidget {
         trailing: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Semantics(
-              label: 'Editar setor ${department.name}',
-              button: true,
-              child: IconButton(
-                icon: const Icon(Icons.edit_outlined),
-                onPressed: onEditDepartment,
+            PermissionGuard(
+              resource: 'department',
+              scope: 'edit',
+              child: Semantics(
+                label: 'Editar setor ${department.name}',
+                button: true,
+                child: IconButton(
+                  icon: const Icon(Icons.edit_outlined),
+                  onPressed: onEditDepartment,
+                ),
               ),
             ),
-            Semantics(
-              label: 'Adicionar cargo ao setor ${department.name}',
-              button: true,
-              child: IconButton(
-                icon: const Icon(Icons.add),
-                onPressed: onAddPosition,
+            PermissionGuard(
+              resource: 'position',
+              scope: 'create',
+              child: Semantics(
+                label: 'Adicionar cargo ao setor ${department.name}',
+                button: true,
+                child: IconButton(
+                  icon: const Icon(Icons.add),
+                  onPressed: onAddPosition,
+                ),
               ),
             ),
           ],
@@ -210,20 +225,28 @@ class _PositionTile extends StatelessWidget {
           trailing: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Semantics(
-                label: 'Editar cargo ${position.name}',
-                button: true,
-                child: IconButton(
-                  icon: const Icon(Icons.edit_outlined),
-                  onPressed: onEdit,
+              PermissionGuard(
+                resource: 'position',
+                scope: 'edit',
+                child: Semantics(
+                  label: 'Editar cargo ${position.name}',
+                  button: true,
+                  child: IconButton(
+                    icon: const Icon(Icons.edit_outlined),
+                    onPressed: onEdit,
+                  ),
                 ),
               ),
-              Semantics(
-                label: 'Adicionar função ao cargo ${position.name}',
-                button: true,
-                child: IconButton(
-                  icon: const Icon(Icons.add),
-                  onPressed: onAddRole,
+              PermissionGuard(
+                resource: 'role',
+                scope: 'create',
+                child: Semantics(
+                  label: 'Adicionar função ao cargo ${position.name}',
+                  button: true,
+                  child: IconButton(
+                    icon: const Icon(Icons.add),
+                    onPressed: onAddRole,
+                  ),
                 ),
               ),
             ],
@@ -261,12 +284,16 @@ class _RoleTile extends StatelessWidget {
         role.description,
         style: Theme.of(context).textTheme.bodySmall,
       ),
-      trailing: Semantics(
-        label: 'Editar função ${role.name}',
-        button: true,
-        child: IconButton(
-          icon: const Icon(Icons.edit_outlined),
-          onPressed: onEdit,
+      trailing: PermissionGuard(
+        resource: 'role',
+        scope: 'edit',
+        child: Semantics(
+          label: 'Editar função ${role.name}',
+          button: true,
+          child: IconButton(
+            icon: const Icon(Icons.edit_outlined),
+            onPressed: onEdit,
+          ),
         ),
       ),
     );

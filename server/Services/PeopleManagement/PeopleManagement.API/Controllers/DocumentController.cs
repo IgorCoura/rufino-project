@@ -56,7 +56,7 @@ namespace PeopleManagement.API.Controllers
         }
 
         [HttpGet("generate/{employeeId}/{documentId}/{documentUnitId}")]
-        [ProtectedResource("document", "view")]
+        [ProtectedResource("document", "generate")]
         public async Task<ActionResult> GeneratePdf([FromRoute] Guid documentUnitId, [FromRoute] Guid documentId, [FromRoute] Guid employeeId, [FromRoute] Guid company, [FromHeader(Name = "x-requestid")] Guid requestId)
         {
             var request = new GeneratePdfCommand(documentUnitId, documentId, employeeId, company);
@@ -72,7 +72,7 @@ namespace PeopleManagement.API.Controllers
         }
 
         [HttpPost("generate/range/{employeeId}")]
-        [ProtectedResource("document", "view")]
+        [ProtectedResource("document", "generate")]
         public async Task<IActionResult> GeneratePdfRange([FromRoute] Guid company, [FromRoute] Guid employeeId, [FromBody] List<GeneratePdfRangeItem> request)
         {
             var command = new GeneratePdfRangeCommand(request, employeeId, company);
@@ -99,7 +99,7 @@ namespace PeopleManagement.API.Controllers
         }
 
         [HttpPost("generate/send2sign")]
-        [ProtectedResource("document", "upload")]
+        [ProtectedResource("document", ["generate", "send2sign"])]
         public async Task<ActionResult<GenerateDocumentToSignResponse>> GeneratePdfToSign([FromRoute] Guid company, [FromBody] GenerateDocumentToSignModel request, [FromHeader(Name = "x-requestid")] Guid requestId)
         {
             var identifiedCommand = new IdentifiedCommand<GenerateDocumentToSignCommand, GenerateDocumentToSignResponse>(request.ToCommand(company), requestId);
@@ -133,7 +133,7 @@ namespace PeopleManagement.API.Controllers
         }
 
         [HttpPost("insert/send2sign")]
-        [ProtectedResource("document", "upload")]
+        [ProtectedResource("document", ["upload", "send2sign"])]
         [RequestSizeLimit(12_000_000)]
         public async Task<ActionResult<InsertDocumentToSignResponse>> InsertToSign(IFormFile formFile,[FromRoute] Guid company, [FromForm] InsertDocumentToSignModel request, [FromHeader(Name = "x-requestid")] Guid requestId)
         {

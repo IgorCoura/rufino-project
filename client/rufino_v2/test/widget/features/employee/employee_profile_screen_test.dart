@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
 import 'package:rufino_v2/domain/entities/address.dart';
 import 'package:rufino_v2/domain/entities/company.dart';
 import 'package:rufino_v2/domain/entities/employee.dart';
@@ -8,6 +9,7 @@ import 'package:rufino_v2/domain/entities/department.dart';
 import 'package:rufino_v2/domain/entities/employee_contract.dart';
 import 'package:rufino_v2/domain/entities/document_group_with_documents.dart';
 import 'package:rufino_v2/domain/entities/employee_document.dart';
+import 'package:rufino_v2/domain/entities/permission.dart';
 import 'package:rufino_v2/domain/entities/position.dart';
 import 'package:rufino_v2/domain/entities/remuneration.dart';
 import 'package:rufino_v2/domain/entities/employee_military_document.dart';
@@ -15,6 +17,7 @@ import 'package:rufino_v2/domain/entities/employee_personal_info.dart';
 import 'package:rufino_v2/domain/entities/employee_profile.dart';
 import 'package:rufino_v2/domain/entities/role.dart';
 import 'package:rufino_v2/domain/entities/workplace.dart';
+import 'package:rufino_v2/ui/features/auth/viewmodel/permission_notifier.dart';
 import 'package:rufino_v2/ui/features/employee/viewmodel/employee_profile_viewmodel.dart';
 import 'package:rufino_v2/ui/features/employee/widgets/employee_profile_screen.dart';
 import 'package:rufino_v2/ui/features/employee/widgets/components/id_card_section.dart';
@@ -28,6 +31,7 @@ import '../../../testing/fakes/fake_company_repository.dart';
 import '../../../testing/fakes/fake_department_repository.dart';
 import '../../../testing/fakes/fake_document_group_repository.dart';
 import '../../../testing/fakes/fake_employee_repository.dart';
+import '../../../testing/fakes/fake_permission_repository.dart';
 import '../../../testing/fakes/fake_workplace_repository.dart';
 
 const _fakeCompany = Company(
@@ -82,9 +86,10 @@ void main() {
   late FakeDepartmentRepository departmentRepository;
   late FakeWorkplaceRepository workplaceRepository;
   late FakeDocumentGroupRepository documentGroupRepository;
+  late PermissionNotifier permissionNotifier;
   late EmployeeProfileViewModel viewModel;
 
-  setUp(() {
+  setUp(() async {
     companyRepository = FakeCompanyRepository()
       ..setSelectedCompany(_fakeCompany);
     employeeRepository = FakeEmployeeRepository()
@@ -158,21 +163,34 @@ void main() {
       workplaceRepository: workplaceRepository,
       documentGroupRepository: documentGroupRepository,
     );
+    final fakePermRepo = FakePermissionRepository()
+      ..setPermissions(const [
+        Permission(resource: 'employee', scopes: ['create', 'view', 'edit', 'upload', 'download']),
+        Permission(resource: 'document', scopes: ['create', 'view', 'edit', 'upload', 'download']),
+      ]);
+    permissionNotifier = PermissionNotifier(permissionRepository: fakePermRepo);
+    await permissionNotifier.loadPermissions();
   });
 
-  tearDown(() => viewModel.dispose());
+  tearDown(() {
+    viewModel.dispose();
+    permissionNotifier.dispose();
+  });
 
-  Widget buildSubject() => MaterialApp.router(
-        routerConfig: GoRouter(
-          routes: [
-            GoRoute(
-              path: '/',
-              builder: (_, __) => EmployeeProfileScreen(
-                viewModel: viewModel,
-                employeeId: 'emp-1',
+  Widget buildSubject() => ChangeNotifierProvider<PermissionNotifier>.value(
+        value: permissionNotifier,
+        child: MaterialApp.router(
+          routerConfig: GoRouter(
+            routes: [
+              GoRoute(
+                path: '/',
+                builder: (_, __) => EmployeeProfileScreen(
+                  viewModel: viewModel,
+                  employeeId: 'emp-1',
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       );
 

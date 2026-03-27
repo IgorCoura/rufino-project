@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:rufino_v2/ui/core/widgets/permission_guard.dart';
 
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../domain/entities/company.dart';
@@ -50,7 +51,8 @@ class _CompanySelectionScreenState extends State<CompanySelectionScreen> {
           ..hideCurrentSnackBar()
           ..showSnackBar(
             SnackBar(
-              content: Text(widget.viewModel.errorMessage ?? 'Erro desconhecido.'),
+              content:
+                  Text(widget.viewModel.errorMessage ?? 'Erro desconhecido.'),
               behavior: SnackBarBehavior.floating,
             ),
           );
@@ -66,7 +68,10 @@ class _CompanySelectionScreenState extends State<CompanySelectionScreen> {
         child: Center(
           child: Padding(
             padding: const EdgeInsets.fromLTRB(
-              AppSpacing.md, AppSpacing.md, AppSpacing.md, AppSpacing.md + 72,
+              AppSpacing.md,
+              AppSpacing.md,
+              AppSpacing.md,
+              AppSpacing.md + 72,
             ),
             child: ListenableBuilder(
               listenable: widget.viewModel,
@@ -80,10 +85,14 @@ class _CompanySelectionScreenState extends State<CompanySelectionScreen> {
           ),
         ),
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => context.go('/company/create'),
-        icon: const Icon(Icons.add),
-        label: const Text('Criar Empresa'),
+      floatingActionButton: PermissionGuard(
+        resource: 'company',
+        scope: 'create',
+        child: FloatingActionButton.extended(
+          onPressed: () => context.go('/company/create'),
+          icon: const Icon(Icons.add),
+          label: const Text('Criar Empresa'),
+        ),
       ),
     );
   }

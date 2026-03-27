@@ -4,6 +4,7 @@ import 'package:mask_text_input_formatter/mask_text_input_formatter.dart';
 import '../../../../../core/theme/app_spacing.dart';
 import '../../viewmodel/employee_profile_viewmodel.dart';
 import 'profile_shared_widgets.dart';
+import '../../../../core/widgets/permission_guard.dart';
 
 /// Expandable card for viewing and editing employee contact information.
 class ContactSection extends StatefulWidget {
@@ -197,10 +198,14 @@ class _ContactSectionState extends State<ContactSection> {
         const SizedBox(height: AppSpacing.sm),
         Align(
           alignment: Alignment.centerRight,
-          child: TextButton.icon(
-            onPressed: _startEdit,
-            icon: const Icon(Icons.edit_outlined, size: 18),
-            label: const Text('Editar'),
+          child: PermissionGuard(
+            resource: 'employee',
+            scope: 'edit',
+            child: TextButton.icon(
+              onPressed: _startEdit,
+              icon: const Icon(Icons.edit_outlined, size: 18),
+              label: const Text('Editar'),
+            ),
           ),
         ),
       ],

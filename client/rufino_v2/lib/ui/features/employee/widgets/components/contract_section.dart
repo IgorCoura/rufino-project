@@ -3,6 +3,7 @@ import 'package:mask_text_input_formatter/mask_text_input_formatter.dart';
 
 import '../../../../../core/theme/app_spacing.dart';
 import '../../../../../domain/entities/employee_contract.dart';
+import '../../../../core/widgets/permission_guard.dart';
 import '../../viewmodel/employee_profile_viewmodel.dart';
 import 'profile_shared_widgets.dart';
 
@@ -92,30 +93,42 @@ class _ContractSectionState extends State<ContractSection> {
           runSpacing: AppSpacing.sm,
           children: [
             if (hasActive)
-              TextButton.icon(
-                onPressed:
-                    isSaving ? null : () => _showFinishDialog(context),
-                icon: const Icon(Icons.cancel_outlined, size: 18),
-                label: const Text('Finalizar Contrato'),
+              PermissionGuard(
+                resource: 'employee',
+                scope: 'edit',
+                child: TextButton.icon(
+                  onPressed:
+                      isSaving ? null : () => _showFinishDialog(context),
+                  icon: const Icon(Icons.cancel_outlined, size: 18),
+                  label: const Text('Finalizar Contrato'),
+                ),
               ),
             if (!hasActive)
-              FilledButton.tonalIcon(
-                onPressed:
-                    isSaving ? null : () => _showNewContractDialog(context),
-                icon: const Icon(Icons.add),
-                label: const Text('Novo Contrato'),
+              PermissionGuard(
+                resource: 'employee',
+                scope: 'edit',
+                child: FilledButton.tonalIcon(
+                  onPressed:
+                      isSaving ? null : () => _showNewContractDialog(context),
+                  icon: const Icon(Icons.add),
+                  label: const Text('Novo Contrato'),
+                ),
               ),
             if (!hasActive && widget.canMarkAsInactive)
-              FilledButton.tonalIcon(
-                onPressed: isSaving ? null : widget.onMarkAsInactive,
-                icon: isSaving
-                    ? const SizedBox(
-                        width: 18,
-                        height: 18,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Icon(Icons.person_off_outlined),
-                label: const Text('Marcar como inativo'),
+              PermissionGuard(
+                resource: 'employee',
+                scope: 'edit',
+                child: FilledButton.tonalIcon(
+                  onPressed: isSaving ? null : widget.onMarkAsInactive,
+                  icon: isSaving
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.person_off_outlined),
+                  label: const Text('Marcar como inativo'),
+                ),
               ),
           ],
         ),
