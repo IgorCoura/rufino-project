@@ -16,7 +16,7 @@ namespace PeopleManagement.API.Controllers
         private readonly IWorkplaceQueries _workplaceQueries = workplaceQueries;
 
         [HttpPost]
-        [ProtectedResource("Workplace", "create")]
+        [ProtectedResource("workplace", "create")]
         public async Task<ActionResult<CreateWorkplaceResponse>> Create([FromRoute] Guid company, [FromBody] CreateWorkplaceModel request, [FromHeader(Name = "x-requestid")] Guid requestId)
         {
             var command = new IdentifiedCommand<CreateWorkplaceCommand, CreateWorkplaceResponse>(request.ToCommand(company), requestId);
@@ -31,7 +31,7 @@ namespace PeopleManagement.API.Controllers
         }
 
         [HttpPut]
-        [ProtectedResource("Workplace", "edit")]
+        [ProtectedResource("workplace", "edit")]
         public async Task<ActionResult<EditWorkplaceResponse>> Edit([FromRoute] Guid company, [FromBody] EditWorkplaceModel request, [FromHeader(Name = "x-requestid")] Guid requestId)
         {
             var command = new IdentifiedCommand<EditWorkplaceCommand, EditWorkplaceResponse>(request.ToCommand(company), requestId);
@@ -46,7 +46,7 @@ namespace PeopleManagement.API.Controllers
         }
 
         [HttpGet("{workplaceId}")]
-        [ProtectedResource("Workplace", "view")]
+        [ProtectedResource("workplace", "view")]
         public async Task<ActionResult<WorkplaceDto>> GetById([FromRoute] Guid workplaceId, [FromRoute] Guid company)
         {
             var result = await _workplaceQueries.GetByIdAsync(workplaceId, company);
@@ -54,7 +54,7 @@ namespace PeopleManagement.API.Controllers
         }
 
         [HttpGet]
-        [ProtectedResource("Workplace", "view")]
+        [ProtectedResource("workplace", "view")]
         public async Task<ActionResult<WorkplaceDto>> GetAll([FromRoute] Guid company)
         {
             var result = await _workplaceQueries.GetAllAsync(company);

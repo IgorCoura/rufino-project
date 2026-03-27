@@ -19,7 +19,7 @@ namespace PeopleManagement.API.Controllers
         private readonly IDocumentGroupQueries _queries = queries;
 
         [HttpPost]
-        [ProtectedResource("DocumentGroup", "create")]
+        [ProtectedResource("document-group", "create")]
         public async Task<ActionResult<CreateDocumentGroupResponse>> Create([FromRoute] Guid company, [FromBody] CreateDocumentGroupModel request, [FromHeader(Name = "x-requestid")] Guid requestId)
         {
             var command = new IdentifiedCommand<CreateDocumentGroupCommand, CreateDocumentGroupResponse>(request.ToCommand(company), requestId);
@@ -34,7 +34,7 @@ namespace PeopleManagement.API.Controllers
         }
 
         [HttpPut]
-        [ProtectedResource("DocumentGroup", "edit")]
+        [ProtectedResource("document-group", "edit")]
         public async Task<ActionResult<EditDocumentGroupResponse>> Edit([FromRoute] Guid company, [FromBody] EditDocumentGroupModel request, [FromHeader(Name = "x-requestid")] Guid requestId)
         {
             var command = new IdentifiedCommand<EditDocumentGroupCommand, EditDocumentGroupResponse>(request.ToCommand(company), requestId);
@@ -49,7 +49,7 @@ namespace PeopleManagement.API.Controllers
         }
 
         [HttpGet]
-        [ProtectedResource("DocumentGroup", "view")]
+        [ProtectedResource("document-group", "view")]
         public async Task<ActionResult<IEnumerable<DocumentGroupDto>>> GetAll([FromRoute] Guid company)
         {
             var result = await _queries.GetAll(company);
@@ -57,7 +57,7 @@ namespace PeopleManagement.API.Controllers
         }
 
         [HttpGet("withtemplates")]
-        [ProtectedResource("DocumentGroup", "view")]
+        [ProtectedResource("document-group", "view")]
         public async Task<ActionResult<IEnumerable<DocumentGroupWithTemplatesDto>>> GetAllWithTemplates([FromRoute] Guid company)
         {
             var result = await _queries.GetAllWithTemplates(company);
@@ -65,7 +65,7 @@ namespace PeopleManagement.API.Controllers
         }
 
         [HttpGet("withdocuments/{employeeId}")]
-        [ProtectedResource("DocumentGroup", "view")]
+        [ProtectedResource("document-group", "view")]
         public async Task<ActionResult<IEnumerable<DocumentGroupWithDocumentsDto>>> GetAllWithDocuments([FromRoute] Guid company, [FromRoute] Guid employeeId)
         {
             var result = await _queries.GetAllWithDocuments(company, employeeId);

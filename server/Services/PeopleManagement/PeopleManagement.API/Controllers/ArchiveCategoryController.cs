@@ -15,7 +15,7 @@ namespace PeopleManagement.API.Controllers
     public class ArchiveCategoryController(ILogger<ArchiveCategoryController> logger, IMediator mediator, IArchiveCategoryQueries archiveCategoryQueries) : BaseController(logger)
     {
         [HttpPost]
-        [ProtectedResource("ArchiveCategory", "create")]
+        [ProtectedResource("archive-category", "create")]
         public async Task<ActionResult<CreateArchiveCategoryResponse>> Create([FromRoute] Guid company, [FromBody] CreateArchiveCategoryModel request, [FromHeader(Name = "x-requestid")] Guid requestId)
         {
             var command = new IdentifiedCommand<CreateArchiveCategoryCommand, CreateArchiveCategoryResponse>(request.ToCommand(company), requestId);
@@ -30,7 +30,7 @@ namespace PeopleManagement.API.Controllers
         }
 
         [HttpPut("description")]
-        [ProtectedResource("ArchiveCategory", "edit")]
+        [ProtectedResource("archive-category", "edit")]
         public async Task<ActionResult<EditDescriptionArchiveCategoryResponse>> EditDescription([FromRoute] Guid company, [FromBody] EditDescriptionArchiveCategoryModel request, [FromHeader(Name = "x-requestid")] Guid requestId)
         {
             var command = new IdentifiedCommand<EditDescriptionArchiveCategoryCommand, EditDescriptionArchiveCategoryResponse>(request.ToCommand(company), requestId);
@@ -45,7 +45,7 @@ namespace PeopleManagement.API.Controllers
         }
 
         [HttpPut("event/add")]
-        [ProtectedResource("ArchiveCategory", "edit")]
+        [ProtectedResource("archive-category", "edit")]
         public async Task<ActionResult<AddListenEventResponse>> AddEvents([FromRoute] Guid company, [FromBody] AddListenEventModel request, [FromHeader(Name = "x-requestid")] Guid requestId)
         {
             var command = new IdentifiedCommand<AddListenEventCommand, AddListenEventResponse>(request.ToCommand(company), requestId);
@@ -60,7 +60,7 @@ namespace PeopleManagement.API.Controllers
         }
 
         [HttpPut("event/remove")]
-        [ProtectedResource("ArchiveCategory", "edit")]
+        [ProtectedResource("archive-category", "edit")]
         public async Task<ActionResult<RemoveListenEventResponse>> RemoveEvents([FromRoute] Guid company, [FromBody] RemoveListenEventModel request, [FromHeader(Name = "x-requestid")] Guid requestId)
         {
             var command = new IdentifiedCommand<RemoveListenEventCommand, RemoveListenEventResponse>(request.ToCommand(company), requestId);
@@ -75,7 +75,7 @@ namespace PeopleManagement.API.Controllers
         }
 
         [HttpGet]
-        [ProtectedResource("ArchiveCategory", "view")]
+        [ProtectedResource("archive-category", "view")]
         public async Task<ActionResult<IEnumerable<ArchiveCategoryDTO>>> GetAllArchiveCategory([FromRoute] Guid company)
         {
             var result = await archiveCategoryQueries.GetAll(company);
@@ -83,7 +83,7 @@ namespace PeopleManagement.API.Controllers
         }
 
         [HttpGet("event")]
-        [ProtectedResource("ArchiveCategory", "view")]
+        [ProtectedResource("archive-category", "view")]
         public ActionResult<IEnumerable<EmploymentContractType>> GetAllEvents([FromRoute] Guid company)
         {
             var result = EmployeeEvent.GetAll();
