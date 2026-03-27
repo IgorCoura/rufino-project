@@ -1,8 +1,9 @@
-import 'dart:io';
-
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+
+import '../../../../core/utils/file_saver_stub.dart'
+    if (dart.library.io) '../../../../core/utils/file_saver.dart';
 import 'package:flutter_json_view/flutter_json_view.dart';
 import 'package:go_router/go_router.dart';
 
@@ -483,17 +484,18 @@ class _FileSection extends StatelessWidget {
                         final outputPath = await FilePicker.platform.saveFile(
                           dialogTitle: 'Salvar arquivo',
                           fileName: 'files.zip',
+                          bytes: bytes,
                         );
                         if (outputPath != null && !kIsWeb) {
-                          await File(outputPath).writeAsBytes(bytes);
-                          if (context.mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text('Arquivo baixado com sucesso.'),
-                                behavior: SnackBarBehavior.floating,
-                              ),
-                            );
-                          }
+                          await writeFileToPath(outputPath, bytes);
+                        }
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Arquivo baixado com sucesso.'),
+                              behavior: SnackBarBehavior.floating,
+                            ),
+                          );
                         }
                       }
                     },
