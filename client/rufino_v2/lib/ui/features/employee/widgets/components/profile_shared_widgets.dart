@@ -63,6 +63,66 @@ class _ExpandableSectionCardState extends State<ExpandableSectionCard> {
   }
 }
 
+/// A card that shows its content directly (no expansion) and triggers
+/// [onLoad] once when first built so the section can fetch its data.
+class SectionCard extends StatefulWidget {
+  const SectionCard({
+    super.key,
+    required this.title,
+    required this.child,
+    required this.onLoad,
+    this.trailing,
+  });
+
+  final String title;
+  final Widget child;
+  final VoidCallback onLoad;
+
+  /// Optional trailing widget shown in the card header.
+  final Widget? trailing;
+
+  @override
+  State<SectionCard> createState() => _SectionCardState();
+}
+
+class _SectionCardState extends State<SectionCard> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      widget.onLoad();
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Card.outlined(
+      clipBehavior: Clip.antiAlias,
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpacing.md),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    widget.title,
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                ),
+                if (widget.trailing != null) widget.trailing!,
+              ],
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            widget.child,
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 /// A labelled info row with a leading icon, used inside profile section view modes.
 class ContactInfoRow extends StatelessWidget {
   const ContactInfoRow({

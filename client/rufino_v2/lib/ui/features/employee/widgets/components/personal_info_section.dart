@@ -90,9 +90,9 @@ class _PersonalInfoSectionState extends State<PersonalInfoSection> {
       listenable: widget.viewModel,
       builder: (context, _) {
         final status = widget.viewModel.personalInfoStatus;
-        return ExpandableSectionCard(
+        return SectionCard(
           title: 'Informações Pessoais',
-          onExpand: widget.viewModel.loadPersonalInfo,
+          onLoad: widget.viewModel.loadPersonalInfo,
           child: _buildContent(context, status),
         );
       },

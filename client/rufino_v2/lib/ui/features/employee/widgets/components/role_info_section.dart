@@ -75,9 +75,9 @@ class _RoleInfoSectionState extends State<RoleInfoSection> {
       listenable: widget.viewModel,
       builder: (context, _) {
         final status = widget.viewModel.roleInfoStatus;
-        return ExpandableSectionCard(
+        return SectionCard(
           title: 'Informações de Função',
-          onExpand: widget.viewModel.loadRoleInfo,
+          onLoad: widget.viewModel.loadRoleInfo,
           child: _buildContent(context, status),
         );
       },

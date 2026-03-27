@@ -75,13 +75,10 @@ class _ContactSectionState extends State<ContactSection> {
       listenable: widget.viewModel,
       builder: (context, _) {
         final status = widget.viewModel.contactStatus;
-        return ExpandableSectionCard(
+        return SectionCard(
           title: 'Contato',
-          onExpand: widget.viewModel.loadContact,
-          child: Padding(
-            padding: const EdgeInsets.all(8.0),
-            child: _buildContent(context, status),
-          ),
+          onLoad: widget.viewModel.loadContact,
+          child: _buildContent(context, status),
         );
       },
     );

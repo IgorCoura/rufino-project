@@ -98,9 +98,9 @@ class _AddressSectionState extends State<AddressSection> {
       listenable: widget.viewModel,
       builder: (context, _) {
         final status = widget.viewModel.addressStatus;
-        return ExpandableSectionCard(
+        return SectionCard(
           title: 'Endereço',
-          onExpand: widget.viewModel.loadAddress,
+          onLoad: widget.viewModel.loadAddress,
           child: _buildContent(context, status),
         );
       },

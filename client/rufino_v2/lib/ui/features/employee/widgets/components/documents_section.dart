@@ -655,9 +655,9 @@ class _DocumentsSectionState extends State<DocumentsSection> {
       listenable: widget.viewModel,
       builder: (context, _) {
         final status = widget.viewModel.documentsStatus;
-        return ExpandableSectionCard(
+        return SectionCard(
           title: 'Documentos',
-          onExpand: widget.viewModel.loadDocumentGroups,
+          onLoad: widget.viewModel.loadDocumentGroups,
           trailing: _buildHeaderTrailing(),
           child: _buildContent(context, status),
         );
