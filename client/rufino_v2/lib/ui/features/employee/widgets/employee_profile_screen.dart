@@ -8,6 +8,7 @@ import '../../../../core/theme/app_breakpoints.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../domain/entities/employee.dart';
 import '../../../../domain/entities/employee_profile.dart';
+import '../../../core/widgets/error_dialog.dart';
 import '../viewmodel/employee_profile_viewmodel.dart';
 import 'components/address_section.dart';
 import 'components/contact_section.dart';
@@ -98,15 +99,14 @@ class _EmployeeProfileScreenState extends State<EmployeeProfileScreen> {
     }
 
     if (widget.viewModel.hasError && widget.viewModel.profile != null) {
-      ScaffoldMessenger.of(context)
-        ..hideCurrentSnackBar()
-        ..showSnackBar(
-          SnackBar(
-            content:
-                Text(widget.viewModel.errorMessage ?? 'Erro desconhecido.'),
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
+      final messages = widget.viewModel.serverErrors;
+      final fallback = widget.viewModel.errorMessage ?? 'Erro desconhecido.';
+      widget.viewModel.consumeServerErrors();
+      showErrorSnackBar(
+        context,
+        messages: messages,
+        fallbackMessage: fallback,
+      );
     }
   }
 

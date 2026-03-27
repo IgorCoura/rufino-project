@@ -3,7 +3,8 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 import '../models/require_document_api_model.dart';
-import 'document_template_api_service.dart';
+import 'http_exception.dart';
+import 'http_status_helper.dart';
 
 /// HTTP client for the require document endpoints of the people-management service.
 ///
@@ -35,7 +36,7 @@ class RequireDocumentApiService {
     final uri =
         Uri.https(baseUrl, '/api/v1/$companyId/requiredocuments');
     final response = await client.get(uri, headers: await _headers());
-    _checkStatus(response);
+    checkHttpStatus(response);
     final list = jsonDecode(response.body) as List<dynamic>;
     return list
         .map((e) => RequireDocumentApiModel.fromJsonSimple(
@@ -49,7 +50,7 @@ class RequireDocumentApiService {
     final uri = Uri.https(
         baseUrl, '/api/v1/$companyId/requiredocuments/$requireDocumentId');
     final response = await client.get(uri, headers: await _headers());
-    _checkStatus(response);
+    checkHttpStatus(response);
     return RequireDocumentApiModel.fromJson(
         jsonDecode(response.body) as Map<String, dynamic>);
   }
@@ -67,7 +68,7 @@ class RequireDocumentApiService {
       headers: await _headers(),
       body: jsonEncode(body),
     );
-    _checkStatus(response);
+    checkHttpStatus(response);
     final json = jsonDecode(response.body) as Map<String, dynamic>;
     return json['id'] as String;
   }
@@ -85,7 +86,7 @@ class RequireDocumentApiService {
       headers: await _headers(),
       body: jsonEncode(body),
     );
-    _checkStatus(response);
+    checkHttpStatus(response);
     final json = jsonDecode(response.body) as Map<String, dynamic>;
     return json['id'] as String;
   }
@@ -96,7 +97,7 @@ class RequireDocumentApiService {
     final uri = Uri.https(
         baseUrl, '/api/v1/$companyId/requiredocuments/associationtype');
     final response = await client.get(uri, headers: await _headers());
-    _checkStatus(response);
+    checkHttpStatus(response);
     final list = jsonDecode(response.body) as List<dynamic>;
     return list.cast<Map<String, dynamic>>();
   }
@@ -107,7 +108,7 @@ class RequireDocumentApiService {
     final uri = Uri.https(
         baseUrl, '/api/v1/$companyId/requiredocuments/association/$associationTypeId');
     final response = await client.get(uri, headers: await _headers());
-    _checkStatus(response);
+    checkHttpStatus(response);
     final list = jsonDecode(response.body) as List<dynamic>;
     return list.cast<Map<String, dynamic>>();
   }
@@ -120,7 +121,7 @@ class RequireDocumentApiService {
     final uri =
         Uri.https(baseUrl, '/api/v1/$companyId/employee/events');
     final response = await client.get(uri, headers: await _headers());
-    _checkStatus(response);
+    checkHttpStatus(response);
     final list = jsonDecode(response.body) as List<dynamic>;
     return list.cast<Map<String, dynamic>>();
   }
@@ -133,7 +134,7 @@ class RequireDocumentApiService {
     final uri =
         Uri.https(baseUrl, '/api/v1/$companyId/requiredocuments/events');
     final response = await client.get(uri, headers: await _headers());
-    _checkStatus(response);
+    checkHttpStatus(response);
     final list = jsonDecode(response.body) as List<dynamic>;
     return list.cast<Map<String, dynamic>>();
   }
@@ -143,7 +144,7 @@ class RequireDocumentApiService {
     final uri =
         Uri.https(baseUrl, '/api/v1/$companyId/employee/status');
     final response = await client.get(uri, headers: await _headers());
-    _checkStatus(response);
+    checkHttpStatus(response);
     final list = jsonDecode(response.body) as List<dynamic>;
     return list.cast<Map<String, dynamic>>();
   }
@@ -154,18 +155,9 @@ class RequireDocumentApiService {
     final uri =
         Uri.https(baseUrl, '/api/v1/$companyId/documenttemplate/simple');
     final response = await client.get(uri, headers: await _headers());
-    _checkStatus(response);
+    checkHttpStatus(response);
     final list = jsonDecode(response.body) as List<dynamic>;
     return list.cast<Map<String, dynamic>>();
   }
 
-  // ─── Helpers ──────────────────────────────────────────────────────────────
-
-  void _checkStatus(http.Response response) {
-    if (response.statusCode >= 200 && response.statusCode < 300) return;
-    throw HttpException(
-      statusCode: response.statusCode,
-      message: 'HTTP ${response.statusCode}: ${response.reasonPhrase}',
-    );
-  }
 }

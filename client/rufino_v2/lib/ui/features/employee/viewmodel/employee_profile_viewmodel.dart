@@ -23,6 +23,7 @@ import '../../../../domain/entities/employee_medical_exam.dart';
 import '../../../../domain/entities/employee_military_document.dart';
 import '../../../../domain/entities/employee_vote_id.dart';
 import '../../../../domain/entities/personal_info_options.dart';
+import '../../../../core/utils/error_messages.dart';
 import '../../../../domain/repositories/company_repository.dart';
 import '../../../../domain/repositories/department_repository.dart';
 import '../../../../domain/repositories/document_group_repository.dart';
@@ -101,6 +102,10 @@ class EmployeeProfileViewModel extends ChangeNotifier {
   String? _workplaceName;
   String? _errorMessage;
   String? _snackMessage;
+  List<String> _serverErrors = const [];
+
+  /// Server-provided error messages extracted from the API response, if any.
+  List<String> get serverErrors => _serverErrors;
 
   bool _isEditingName = false;
   String _pendingName = '';
@@ -197,7 +202,11 @@ class EmployeeProfileViewModel extends ChangeNotifier {
   bool get isSaving => _status == EmployeeProfileStatus.saving;
 
   /// Whether the screen is currently in an error state.
-  bool get hasError => _status == EmployeeProfileStatus.error;
+  ///
+  /// Returns `true` when the top-level status is error **or** when a section
+  /// save produced server error messages that have not yet been consumed.
+  bool get hasError =>
+      _status == EmployeeProfileStatus.error || _serverErrors.isNotEmpty;
 
   /// The loaded employee profile, or null when not yet available.
   EmployeeProfile? get profile => _profile;
@@ -501,9 +510,12 @@ class EmployeeProfileViewModel extends ChangeNotifier {
         _snackMessage = 'Nome atualizado com sucesso.';
         _status = EmployeeProfileStatus.idle;
       },
-      onError: (_) {
+      onError: (error) {
         _status = EmployeeProfileStatus.error;
-        _errorMessage = 'Não foi possível atualizar o nome do funcionário.';
+        _serverErrors = extractServerMessages(error);
+        _errorMessage = _serverErrors.isNotEmpty
+            ? _serverErrors.join('\n')
+            : 'Não foi possível atualizar o nome do funcionário.';
       },
     );
 
@@ -542,9 +554,12 @@ class EmployeeProfileViewModel extends ChangeNotifier {
         _snackMessage = 'A foto do perfil foi atualizada com sucesso.';
         _status = EmployeeProfileStatus.idle;
       },
-      onError: (_) {
+      onError: (error) {
         _status = EmployeeProfileStatus.error;
-        _errorMessage = 'Não foi possível atualizar a foto do perfil.';
+        _serverErrors = extractServerMessages(error);
+        _errorMessage = _serverErrors.isNotEmpty
+            ? _serverErrors.join('\n')
+            : 'Não foi possível atualizar a foto do perfil.';
       },
     );
 
@@ -576,9 +591,12 @@ class EmployeeProfileViewModel extends ChangeNotifier {
         _snackMessage = 'Funcionário marcado como inativo com sucesso.';
         _status = EmployeeProfileStatus.idle;
       },
-      onError: (_) {
+      onError: (error) {
         _status = EmployeeProfileStatus.error;
-        _errorMessage = 'Não foi possível atualizar o status do funcionário.';
+        _serverErrors = extractServerMessages(error);
+        _errorMessage = _serverErrors.isNotEmpty
+            ? _serverErrors.join('\n')
+            : 'Não foi possível atualizar o status do funcionário.';
       },
     );
 
@@ -588,6 +606,12 @@ class EmployeeProfileViewModel extends ChangeNotifier {
   /// Clears the current transient snack message.
   void consumeSnackMessage() {
     _snackMessage = null;
+  }
+
+  /// Clears server error messages after they have been shown to the user.
+  void consumeServerErrors() {
+    _serverErrors = const [];
+    _errorMessage = null;
   }
 
   // ─── Contact section methods ───────────────────────────────────────────────
@@ -648,8 +672,12 @@ class EmployeeProfileViewModel extends ChangeNotifier {
         _snackMessage = 'Contato atualizado com sucesso.';
         _contactStatus = SectionLoadStatus.loaded;
       },
-      onError: (_) {
+      onError: (error) {
         _contactStatus = SectionLoadStatus.error;
+        _serverErrors = extractServerMessages(error);
+        _errorMessage = _serverErrors.isNotEmpty
+            ? _serverErrors.join('\n')
+            : 'Não foi possível salvar o contato.';
       },
     );
 
@@ -713,8 +741,12 @@ class EmployeeProfileViewModel extends ChangeNotifier {
         _snackMessage = 'Endereço atualizado com sucesso.';
         _addressStatus = SectionLoadStatus.loaded;
       },
-      onError: (_) {
+      onError: (error) {
         _addressStatus = SectionLoadStatus.error;
+        _serverErrors = extractServerMessages(error);
+        _errorMessage = _serverErrors.isNotEmpty
+            ? _serverErrors.join('\n')
+            : 'Não foi possível salvar o endereço.';
       },
     );
 
@@ -784,8 +816,12 @@ class EmployeeProfileViewModel extends ChangeNotifier {
         _snackMessage = 'Informações pessoais atualizadas com sucesso.';
         _personalInfoStatus = SectionLoadStatus.loaded;
       },
-      onError: (_) {
+      onError: (error) {
         _personalInfoStatus = SectionLoadStatus.error;
+        _serverErrors = extractServerMessages(error);
+        _errorMessage = _serverErrors.isNotEmpty
+            ? _serverErrors.join('\n')
+            : 'Não foi possível salvar as informações pessoais.';
       },
     );
 
@@ -849,8 +885,12 @@ class EmployeeProfileViewModel extends ChangeNotifier {
         _snackMessage = 'Dados do documento atualizados com sucesso.';
         _idCardStatus = SectionLoadStatus.loaded;
       },
-      onError: (_) {
+      onError: (error) {
         _idCardStatus = SectionLoadStatus.error;
+        _serverErrors = extractServerMessages(error);
+        _errorMessage = _serverErrors.isNotEmpty
+            ? _serverErrors.join('\n')
+            : 'Não foi possível salvar os dados do documento.';
       },
     );
 
@@ -914,8 +954,12 @@ class EmployeeProfileViewModel extends ChangeNotifier {
         _snackMessage = 'Título de eleitor atualizado com sucesso.';
         _voteIdStatus = SectionLoadStatus.loaded;
       },
-      onError: (_) {
+      onError: (error) {
         _voteIdStatus = SectionLoadStatus.error;
+        _serverErrors = extractServerMessages(error);
+        _errorMessage = _serverErrors.isNotEmpty
+            ? _serverErrors.join('\n')
+            : 'Não foi possível salvar o título de eleitor.';
       },
     );
 
@@ -977,8 +1021,12 @@ class EmployeeProfileViewModel extends ChangeNotifier {
         _snackMessage = 'Documento militar atualizado com sucesso.';
         _militaryDocumentStatus = SectionLoadStatus.loaded;
       },
-      onError: (_) {
+      onError: (error) {
         _militaryDocumentStatus = SectionLoadStatus.error;
+        _serverErrors = extractServerMessages(error);
+        _errorMessage = _serverErrors.isNotEmpty
+            ? _serverErrors.join('\n')
+            : 'Não foi possível salvar o documento militar.';
       },
     );
 
@@ -1042,8 +1090,12 @@ class EmployeeProfileViewModel extends ChangeNotifier {
         _snackMessage = 'Exame médico admissional atualizado com sucesso.';
         _medicalExamStatus = SectionLoadStatus.loaded;
       },
-      onError: (_) {
+      onError: (error) {
         _medicalExamStatus = SectionLoadStatus.error;
+        _serverErrors = extractServerMessages(error);
+        _errorMessage = _serverErrors.isNotEmpty
+            ? _serverErrors.join('\n')
+            : 'Não foi possível salvar o exame médico.';
       },
     );
 
@@ -1117,8 +1169,12 @@ class EmployeeProfileViewModel extends ChangeNotifier {
         _snackMessage = 'Função atualizada com sucesso.';
         _roleInfoStatus = SectionLoadStatus.loaded;
       },
-      onError: (_) {
+      onError: (error) {
         _roleInfoStatus = SectionLoadStatus.error;
+        _serverErrors = extractServerMessages(error);
+        _errorMessage = _serverErrors.isNotEmpty
+            ? _serverErrors.join('\n')
+            : 'Não foi possível salvar a função.';
       },
     );
 
@@ -1198,8 +1254,12 @@ class EmployeeProfileViewModel extends ChangeNotifier {
         _snackMessage = 'Local de trabalho atualizado com sucesso.';
         _workplaceInfoStatus = SectionLoadStatus.loaded;
       },
-      onError: (_) {
+      onError: (error) {
         _workplaceInfoStatus = SectionLoadStatus.error;
+        _serverErrors = extractServerMessages(error);
+        _errorMessage = _serverErrors.isNotEmpty
+            ? _serverErrors.join('\n')
+            : 'Não foi possível salvar o local de trabalho.';
       },
     );
 
@@ -1688,8 +1748,12 @@ class EmployeeProfileViewModel extends ChangeNotifier {
             'Opção de assinatura de documentos atualizada com sucesso.';
         _signingOptionsStatus = SectionLoadStatus.loaded;
       },
-      onError: (_) {
+      onError: (error) {
         _signingOptionsStatus = SectionLoadStatus.error;
+        _serverErrors = extractServerMessages(error);
+        _errorMessage = _serverErrors.isNotEmpty
+            ? _serverErrors.join('\n')
+            : 'Não foi possível salvar a opção de assinatura.';
       },
     );
 
@@ -1752,8 +1816,12 @@ class EmployeeProfileViewModel extends ChangeNotifier {
         _contractsStatus = SectionLoadStatus.notLoaded;
         _snackMessage = 'Contrato criado com sucesso.';
       },
-      onError: (_) {
+      onError: (error) {
         _contractsStatus = SectionLoadStatus.error;
+        _serverErrors = extractServerMessages(error);
+        _errorMessage = _serverErrors.isNotEmpty
+            ? _serverErrors.join('\n')
+            : 'Não foi possível criar o contrato.';
       },
     );
 
@@ -1784,8 +1852,12 @@ class EmployeeProfileViewModel extends ChangeNotifier {
         _contractsStatus = SectionLoadStatus.notLoaded;
         _snackMessage = 'Contrato finalizado com sucesso.';
       },
-      onError: (_) {
+      onError: (error) {
         _contractsStatus = SectionLoadStatus.error;
+        _serverErrors = extractServerMessages(error);
+        _errorMessage = _serverErrors.isNotEmpty
+            ? _serverErrors.join('\n')
+            : 'Não foi possível finalizar o contrato.';
       },
     );
 
@@ -1858,8 +1930,12 @@ class EmployeeProfileViewModel extends ChangeNotifier {
         _dependentsStatus = SectionLoadStatus.notLoaded;
         _snackMessage = 'Dependente criado com sucesso.';
       },
-      onError: (_) {
+      onError: (error) {
         _dependentsStatus = SectionLoadStatus.error;
+        _serverErrors = extractServerMessages(error);
+        _errorMessage = _serverErrors.isNotEmpty
+            ? _serverErrors.join('\n')
+            : 'Não foi possível salvar o dependente.';
       },
     );
 
@@ -1891,8 +1967,12 @@ class EmployeeProfileViewModel extends ChangeNotifier {
         _dependentsStatus = SectionLoadStatus.notLoaded;
         _snackMessage = 'Dependente atualizado com sucesso.';
       },
-      onError: (_) {
+      onError: (error) {
         _dependentsStatus = SectionLoadStatus.error;
+        _serverErrors = extractServerMessages(error);
+        _errorMessage = _serverErrors.isNotEmpty
+            ? _serverErrors.join('\n')
+            : 'Não foi possível atualizar o dependente.';
       },
     );
 

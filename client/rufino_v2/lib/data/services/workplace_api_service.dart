@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 import '../models/workplace_api_model.dart';
+import 'http_status_helper.dart';
 
 /// HTTP client for the workplace endpoints of the people-management service.
 ///
@@ -32,7 +33,7 @@ class WorkplaceApiService {
   Future<List<WorkplaceApiModel>> getWorkplaces(String companyId) async {
     final uri = Uri.https(baseUrl, '/api/v1/$companyId/workplace');
     final response = await client.get(uri, headers: await _headers());
-    _checkStatus(response);
+    checkHttpStatus(response);
     final list = jsonDecode(response.body) as List<dynamic>;
     return list
         .map((e) => WorkplaceApiModel.fromJson(e as Map<String, dynamic>))
@@ -45,7 +46,7 @@ class WorkplaceApiService {
     final uri =
         Uri.https(baseUrl, '/api/v1/$companyId/workplace/$workplaceId');
     final response = await client.get(uri, headers: await _headers());
-    _checkStatus(response);
+    checkHttpStatus(response);
     return WorkplaceApiModel.fromJson(
         jsonDecode(response.body) as Map<String, dynamic>);
   }
@@ -59,7 +60,7 @@ class WorkplaceApiService {
       headers: await _headers(),
       body: jsonEncode(model.toCreateJson()),
     );
-    _checkStatus(response);
+    checkHttpStatus(response);
     final json = jsonDecode(response.body) as Map<String, dynamic>;
     return json['id'] as String;
   }
@@ -73,29 +74,11 @@ class WorkplaceApiService {
       headers: await _headers(),
       body: jsonEncode(model.toJson()),
     );
-    _checkStatus(response);
+    checkHttpStatus(response);
     final json = jsonDecode(response.body) as Map<String, dynamic>;
     return json['id'] as String;
   }
 
   // ─── Helpers ──────────────────────────────────────────────────────────────
 
-  void _checkStatus(http.Response response) {
-    if (response.statusCode >= 200 && response.statusCode < 300) return;
-    throw HttpException(
-      statusCode: response.statusCode,
-      message: 'HTTP ${response.statusCode}: ${response.reasonPhrase}',
-    );
-  }
-}
-
-/// Thrown by [WorkplaceApiService] when the server returns a non-2xx status.
-class HttpException implements Exception {
-  const HttpException({required this.statusCode, required this.message});
-
-  final int statusCode;
-  final String message;
-
-  @override
-  String toString() => 'HttpException($statusCode): $message';
 }

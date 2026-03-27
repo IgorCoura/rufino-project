@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 import '../models/document_group_api_model.dart';
+import 'http_status_helper.dart';
 import '../models/document_group_with_documents_api_model.dart';
 import '../models/document_group_with_templates_api_model.dart';
 
@@ -35,7 +36,7 @@ class DocumentGroupApiService {
       String companyId) async {
     final uri = Uri.https(baseUrl, '/api/v1/$companyId/documentgroup');
     final response = await client.get(uri, headers: await _headers());
-    _checkStatus(response);
+    checkHttpStatus(response);
     final list = jsonDecode(response.body) as List<dynamic>;
     return list
         .map((e) =>
@@ -49,7 +50,7 @@ class DocumentGroupApiService {
     final uri =
         Uri.https(baseUrl, '/api/v1/$companyId/documentgroup/withtemplates');
     final response = await client.get(uri, headers: await _headers());
-    _checkStatus(response);
+    checkHttpStatus(response);
     final list = jsonDecode(response.body) as List<dynamic>;
     return list
         .map((e) => DocumentGroupWithTemplatesApiModel.fromJson(
@@ -65,7 +66,7 @@ class DocumentGroupApiService {
     final uri = Uri.https(baseUrl,
         '/api/v1/$companyId/documentgroup/withdocuments/$employeeId');
     final response = await client.get(uri, headers: await _headers());
-    _checkStatus(response);
+    checkHttpStatus(response);
     final list = jsonDecode(response.body) as List<dynamic>;
     return list
         .map((e) => DocumentGroupWithDocumentsApiModel.fromJson(
@@ -82,7 +83,7 @@ class DocumentGroupApiService {
       headers: await _headers(),
       body: jsonEncode(model.toCreateJson()),
     );
-    _checkStatus(response);
+    checkHttpStatus(response);
     final json = jsonDecode(response.body) as Map<String, dynamic>;
     return json['id'] as String;
   }
@@ -96,29 +97,11 @@ class DocumentGroupApiService {
       headers: await _headers(),
       body: jsonEncode(model.toJson()),
     );
-    _checkStatus(response);
+    checkHttpStatus(response);
     final json = jsonDecode(response.body) as Map<String, dynamic>;
     return json['id'] as String;
   }
 
   // ─── Helpers ──────────────────────────────────────────────────────────────
 
-  void _checkStatus(http.Response response) {
-    if (response.statusCode >= 200 && response.statusCode < 300) return;
-    throw HttpException(
-      statusCode: response.statusCode,
-      message: 'HTTP ${response.statusCode}: ${response.reasonPhrase}',
-    );
-  }
-}
-
-/// Thrown by [DocumentGroupApiService] when the server returns a non-2xx status.
-class HttpException implements Exception {
-  const HttpException({required this.statusCode, required this.message});
-
-  final int statusCode;
-  final String message;
-
-  @override
-  String toString() => 'HttpException($statusCode): $message';
 }

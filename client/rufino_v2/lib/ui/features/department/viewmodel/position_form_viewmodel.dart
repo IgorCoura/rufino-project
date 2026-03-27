@@ -1,5 +1,6 @@
 import 'package:flutter/widgets.dart';
 
+import '../../../../core/utils/error_messages.dart';
 import '../../../../domain/entities/position.dart';
 import '../../../../domain/repositories/company_repository.dart';
 import '../../../../domain/repositories/department_repository.dart';
@@ -40,6 +41,10 @@ class PositionFormViewModel extends ChangeNotifier {
   String _id = '';
   PositionFormStatus _status = PositionFormStatus.idle;
   String? _errorMessage;
+  List<String> _serverErrors = const [];
+
+  /// Server-provided error messages extracted from the API response, if any.
+  List<String> get serverErrors => _serverErrors;
 
   /// The id of the position being edited, empty when creating a new one.
   String get id => _id;
@@ -134,10 +139,12 @@ class PositionFormViewModel extends ChangeNotifier {
 
       result.fold(
         onSuccess: (_) => _status = PositionFormStatus.saved,
-        onError: (_) {
+        onError: (error) {
           _status = PositionFormStatus.error;
-          _errorMessage =
-              'Falha ao salvar cargo. Verifique os dados e tente novamente.';
+          _serverErrors = extractServerMessages(error);
+          _errorMessage = _serverErrors.isNotEmpty
+              ? _serverErrors.join('\n')
+              : 'Falha ao salvar cargo. Verifique os dados e tente novamente.';
         },
       );
     } finally {

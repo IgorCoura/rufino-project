@@ -2,6 +2,7 @@ import 'dart:collection';
 
 import 'package:flutter/widgets.dart';
 
+import '../../../../core/utils/error_messages.dart';
 import '../../../../domain/entities/remuneration.dart';
 import '../../../../domain/entities/role.dart';
 import '../../../../domain/repositories/company_repository.dart';
@@ -57,6 +58,10 @@ class RoleFormViewModel extends ChangeNotifier {
 
   RoleFormStatus _status = RoleFormStatus.idle;
   String? _errorMessage;
+  List<String> _serverErrors = const [];
+
+  /// Server-provided error messages extracted from the API response, if any.
+  List<String> get serverErrors => _serverErrors;
 
   /// The id of the role being edited, empty when creating a new one.
   String get id => _id;
@@ -254,10 +259,12 @@ class RoleFormViewModel extends ChangeNotifier {
 
       result.fold(
         onSuccess: (_) => _status = RoleFormStatus.saved,
-        onError: (_) {
+        onError: (error) {
           _status = RoleFormStatus.error;
-          _errorMessage =
-              'Falha ao salvar função. Verifique os dados e tente novamente.';
+          _serverErrors = extractServerMessages(error);
+          _errorMessage = _serverErrors.isNotEmpty
+              ? _serverErrors.join('\n')
+              : 'Falha ao salvar função. Verifique os dados e tente novamente.';
         },
       );
     } finally {

@@ -2,6 +2,7 @@ import 'dart:collection';
 
 import 'package:flutter/widgets.dart';
 
+import '../../../../core/utils/error_messages.dart';
 import '../../../../domain/entities/require_document.dart';
 import '../../../../domain/entities/selection_option.dart';
 import '../../../../domain/repositories/company_repository.dart';
@@ -37,6 +38,10 @@ class RequireDocumentFormViewModel extends ChangeNotifier {
   String _id = '';
   RequireDocumentFormStatus _status = RequireDocumentFormStatus.idle;
   String? _errorMessage;
+  List<String> _serverErrors = const [];
+
+  /// Server-provided error messages extracted from the API response, if any.
+  List<String> get serverErrors => _serverErrors;
 
   // ─── Association state ─────────────────────────────────────────────────────
 
@@ -388,10 +393,12 @@ class RequireDocumentFormViewModel extends ChangeNotifier {
 
       result.fold(
         onSuccess: (_) => _status = RequireDocumentFormStatus.saved,
-        onError: (_) {
+        onError: (error) {
           _status = RequireDocumentFormStatus.error;
-          _errorMessage =
-              'Falha ao salvar requerimento. Verifique os dados e tente novamente.';
+          _serverErrors = extractServerMessages(error);
+          _errorMessage = _serverErrors.isNotEmpty
+              ? _serverErrors.join('\n')
+              : 'Falha ao salvar requerimento. Verifique os dados e tente novamente.';
         },
       );
     } finally {

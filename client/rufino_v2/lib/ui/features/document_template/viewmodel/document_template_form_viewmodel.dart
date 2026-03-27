@@ -4,6 +4,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/widgets.dart';
 import 'package:mask_text_input_formatter/mask_text_input_formatter.dart';
 
+import '../../../../core/utils/error_messages.dart';
 import '../../../../domain/entities/document_template.dart';
 import '../../../../domain/entities/selection_option.dart';
 import '../../../../domain/repositories/company_repository.dart';
@@ -68,6 +69,10 @@ class DocumentTemplateFormViewModel extends ChangeNotifier {
   String _id = '';
   DocumentTemplateFormStatus _status = DocumentTemplateFormStatus.idle;
   String? _errorMessage;
+  List<String> _serverErrors = const [];
+
+  /// Server-provided error messages extracted from the API response, if any.
+  List<String> get serverErrors => _serverErrors;
   bool _usePreviousPeriod = false;
   bool _acceptsSignature = false;
   String _selectedDocumentGroupId = '';
@@ -265,9 +270,12 @@ class DocumentTemplateFormViewModel extends ChangeNotifier {
           _status = DocumentTemplateFormStatus.idle;
           success = true;
         },
-        onError: (_) {
+        onError: (error) {
           _status = DocumentTemplateFormStatus.error;
-          _errorMessage = 'Falha ao enviar arquivo.';
+          _serverErrors = extractServerMessages(error);
+          _errorMessage = _serverErrors.isNotEmpty
+              ? _serverErrors.join('\n')
+              : 'Falha ao enviar arquivo.';
         },
       );
     } finally {
@@ -460,10 +468,12 @@ class DocumentTemplateFormViewModel extends ChangeNotifier {
 
       result.fold(
         onSuccess: (_) => _status = DocumentTemplateFormStatus.saved,
-        onError: (_) {
+        onError: (error) {
           _status = DocumentTemplateFormStatus.error;
-          _errorMessage =
-              'Falha ao salvar template. Verifique os dados e tente novamente.';
+          _serverErrors = extractServerMessages(error);
+          _errorMessage = _serverErrors.isNotEmpty
+              ? _serverErrors.join('\n')
+              : 'Falha ao salvar template. Verifique os dados e tente novamente.';
         },
       );
     } finally {
