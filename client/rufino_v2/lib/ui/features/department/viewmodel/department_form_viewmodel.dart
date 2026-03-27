@@ -1,5 +1,7 @@
 import 'package:flutter/widgets.dart';
 
+import '../../../../core/utils/error_messages.dart';
+import '../../../../domain/entities/department.dart';
 import '../../../../domain/repositories/company_repository.dart';
 import '../../../../domain/repositories/department_repository.dart';
 
@@ -33,6 +35,10 @@ class DepartmentFormViewModel extends ChangeNotifier {
   String _id = '';
   DepartmentFormStatus _status = DepartmentFormStatus.idle;
   String? _errorMessage;
+  List<String> _serverErrors = const [];
+
+  /// Server-provided error messages extracted from the API response, if any.
+  List<String> get serverErrors => _serverErrors;
 
   /// The id of the department being edited, empty when creating a new one.
   String get id => _id;
@@ -52,21 +58,13 @@ class DepartmentFormViewModel extends ChangeNotifier {
   /// Human-readable error message set when [status] is [DepartmentFormStatus.error].
   String? get errorMessage => _errorMessage;
 
-  // ─── Validators ────────────────────────────────────────────────────────────
+  // ─── Validators — delegated to domain entity ──────────────────────────
 
-  /// Validates the department name: required, max 100 characters.
-  String? validateName(String? v) {
-    if (v == null || v.isEmpty) return 'Não pode ser vazio.';
-    if (v.length > 100) return 'Não pode ser maior que 100 caracteres.';
-    return null;
-  }
+  /// Delegates to [Department.validateName].
+  String? validateName(String? v) => Department.validateName(v);
 
-  /// Validates the department description: required, max 2000 characters.
-  String? validateDescription(String? v) {
-    if (v == null || v.isEmpty) return 'Não pode ser vazio.';
-    if (v.length > 2000) return 'Não pode ser maior que 2000 caracteres.';
-    return null;
-  }
+  /// Delegates to [Department.validateDescription].
+  String? validateDescription(String? v) => Department.validateDescription(v);
 
   // ─── Operations ────────────────────────────────────────────────────────────
 
@@ -128,10 +126,12 @@ class DepartmentFormViewModel extends ChangeNotifier {
 
       result.fold(
         onSuccess: (_) => _status = DepartmentFormStatus.saved,
-        onError: (_) {
+        onError: (error) {
           _status = DepartmentFormStatus.error;
-          _errorMessage =
-              'Falha ao salvar setor. Verifique os dados e tente novamente.';
+          _serverErrors = extractServerMessages(error);
+          _errorMessage = _serverErrors.isNotEmpty
+              ? _serverErrors.join('\n')
+              : 'Falha ao salvar setor. Verifique os dados e tente novamente.';
         },
       );
     } finally {

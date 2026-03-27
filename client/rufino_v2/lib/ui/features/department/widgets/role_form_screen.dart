@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/theme/app_spacing.dart';
+import '../../../core/widgets/error_dialog.dart';
 import '../viewmodel/role_form_viewmodel.dart';
 
 /// Form screen for creating or editing a role within a position.
@@ -63,15 +64,11 @@ class _RoleFormScreenState extends State<RoleFormScreen> {
         );
         context.pop();
       case RoleFormStatus.error:
-        ScaffoldMessenger.of(context)
-          ..hideCurrentSnackBar()
-          ..showSnackBar(
-            SnackBar(
-              content:
-                  Text(widget.viewModel.errorMessage ?? 'Erro ao salvar.'),
-              behavior: SnackBarBehavior.floating,
-            ),
-          );
+        showErrorSnackBar(
+          context,
+          messages: widget.viewModel.serverErrors,
+          fallbackMessage: widget.viewModel.errorMessage ?? 'Erro ao salvar.',
+        );
       default:
         break;
     }
@@ -209,9 +206,7 @@ class _RemunerationSection extends StatelessWidget {
         ),
         const SizedBox(height: AppSpacing.md),
         DropdownButtonFormField<String>(
-          value: viewModel.paymentUnits.any((u) => u.id == viewModel.paymentUnitId)
-              ? viewModel.paymentUnitId
-              : null,
+          initialValue: viewModel.safePaymentUnitId,
           decoration: const InputDecoration(
             labelText: 'Unidade de Pagamento',
             border: OutlineInputBorder(),
@@ -237,9 +232,7 @@ class _RemunerationSection extends StatelessWidget {
         ),
         const SizedBox(height: AppSpacing.md),
         DropdownButtonFormField<String>(
-          value: viewModel.salaryTypes.any((t) => t.id == viewModel.salaryTypeId)
-              ? viewModel.salaryTypeId
-              : null,
+          initialValue: viewModel.safeSalaryTypeId,
           decoration: const InputDecoration(
             labelText: 'Tipo Monetário',
             border: OutlineInputBorder(),

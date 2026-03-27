@@ -81,20 +81,9 @@ class _DependentSectionState extends State<DependentSection> {
   /// Resolves a [genderId] to its display name using the loaded personal info
   /// options. Falls back to the raw id when options are not available.
   String _resolveGenderName(String genderId) {
-    final genders = widget.viewModel.personalInfoOptions?.genders ?? [];
-    for (final g in genders) {
-      if (g.id == genderId) return g.name;
-    }
-    return genderId;
-  }
-
-  /// Resolves a [typeId] to its display name from the static dependency type
-  /// options.
-  String _resolveTypeName(String typeId) {
-    for (final opt in EmployeeProfileViewModel.dependencyTypeOptions) {
-      if (opt.id == typeId) return opt.name;
-    }
-    return typeId;
+    final options = widget.viewModel.personalInfoOptions;
+    if (options == null) return genderId;
+    return options.genderLabel(genderId);
   }
 
   // ─── Form population ────────────────────────────────────────────────────
@@ -210,13 +199,10 @@ class _DependentSectionState extends State<DependentSection> {
       listenable: widget.viewModel,
       builder: (context, _) {
         final status = widget.viewModel.dependentsStatus;
-        return ExpandableSectionCard(
+        return SectionCard(
           title: 'Dependentes',
-          onExpand: widget.viewModel.loadDependents,
-          child: Padding(
-            padding: const EdgeInsets.all(8.0),
-            child: _buildContent(context, status),
-          ),
+          onLoad: widget.viewModel.loadDependents,
+          child: _buildContent(context, status),
         );
       },
     );
@@ -316,7 +302,7 @@ class _DependentSectionState extends State<DependentSection> {
               ContactInfoRow(
                 icon: Icons.family_restroom_outlined,
                 label: 'Tipo de dependência',
-                value: _resolveTypeName(dependent.dependencyTypeId),
+                value: dependent.dependencyTypeLabel,
               ),
               if (dependent.cpf.isNotEmpty) ...[
                 const SizedBox(height: AppSpacing.xs),
@@ -359,7 +345,7 @@ class _DependentSectionState extends State<DependentSection> {
 
   Widget _buildForm(BuildContext context, bool isSaving) {
     final genders = widget.viewModel.personalInfoOptions?.genders ?? [];
-    final typeOptions = EmployeeProfileViewModel.dependencyTypeOptions;
+    const typeOptions = EmployeeProfileViewModel.dependencyTypeOptions;
 
     return Form(
       key: _formKey,
@@ -378,7 +364,7 @@ class _DependentSectionState extends State<DependentSection> {
           ),
           const SizedBox(height: AppSpacing.md),
           DropdownButtonFormField<String>(
-            value: _selectedGenderId,
+            initialValue: _selectedGenderId,
             decoration: const InputDecoration(
               labelText: 'Sexo',
               prefixIcon: Icon(Icons.wc_outlined),
@@ -402,7 +388,7 @@ class _DependentSectionState extends State<DependentSection> {
           ),
           const SizedBox(height: AppSpacing.md),
           DropdownButtonFormField<String>(
-            value: _selectedTypeId,
+            initialValue: _selectedTypeId,
             decoration: const InputDecoration(
               labelText: 'Tipo de dependência',
               prefixIcon: Icon(Icons.family_restroom_outlined),

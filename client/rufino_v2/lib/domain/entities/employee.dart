@@ -89,4 +89,40 @@ class Employee {
 
   /// The document compliance status of this employee.
   final DocumentStatus documentStatus;
+
+  /// Whether this employee is currently active.
+  bool get isActive => status == EmployeeStatus.active;
+
+  /// Whether this employee is inactive.
+  bool get isInactive => status == EmployeeStatus.inactive;
+
+  /// Whether this employee is pending onboarding.
+  bool get isPending => status == EmployeeStatus.pending;
+
+  /// Whether this employee has a role assigned.
+  bool get hasRole => roleName.isNotEmpty;
+
+  /// Whether this employee's documents require attention.
+  bool get documentsRequireAttention =>
+      documentStatus == DocumentStatus.requiresAttention;
+
+  /// Whether this employee has documents expiring soon.
+  bool get documentsExpiringSoon =>
+      documentStatus == DocumentStatus.expiringSoon;
+
+  // ─── Validators ──────────────────────────────────────────────────────────
+
+  /// Validates an employee full name.
+  ///
+  /// Required, at least two words, max 100 characters.
+  static String? validateName(String? value) {
+    if (value == null || value.trim().isEmpty) {
+      return 'O nome não pode ser vazio.';
+    }
+    if (value.trim().split(RegExp(r'\s+')).length < 2) {
+      return 'Informe o nome completo.';
+    }
+    if (value.length > 100) return 'Máx. 100 caracteres.';
+    return null;
+  }
 }

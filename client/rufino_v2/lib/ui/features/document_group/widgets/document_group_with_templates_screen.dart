@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../domain/entities/document_group_with_templates.dart';
+import '../../../core/widgets/permission_guard.dart';
 import '../viewmodel/document_group_with_templates_viewmodel.dart';
 
 /// Displays document groups as expandable cards that reveal their templates.
@@ -103,11 +104,15 @@ class _DocumentGroupWithTemplatesScreenState
           );
         },
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () =>
-            context.push('/document-group/create').then((_) => _reload()),
-        tooltip: 'Adicionar grupo',
-        child: const Icon(Icons.add),
+      floatingActionButton: PermissionGuard(
+        resource: 'document',
+        scope: 'create',
+        child: FloatingActionButton(
+          onPressed: () =>
+              context.push('/document-group/create').then((_) => _reload()),
+          tooltip: 'Adicionar grupo',
+          child: const Icon(Icons.add),
+        ),
       ),
     );
   }
@@ -322,7 +327,7 @@ class _EmptyState extends StatelessWidget {
             Icon(
               Icons.folder_off_outlined,
               size: 64,
-              color: cs.onSurfaceVariant.withOpacity(0.5),
+              color: cs.onSurfaceVariant.withValues(alpha: 0.5),
             ),
             const SizedBox(height: AppSpacing.md),
             Text(
@@ -335,7 +340,7 @@ class _EmptyState extends StatelessWidget {
             Text(
               'Toque no botão + para criar um novo grupo de documentos.',
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: cs.onSurfaceVariant.withOpacity(0.7),
+                    color: cs.onSurfaceVariant.withValues(alpha: 0.7),
                   ),
               textAlign: TextAlign.center,
             ),

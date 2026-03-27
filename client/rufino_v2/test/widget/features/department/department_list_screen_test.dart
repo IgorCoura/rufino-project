@@ -1,16 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
 import 'package:rufino_v2/domain/entities/company.dart';
 import 'package:rufino_v2/domain/entities/department.dart';
+import 'package:rufino_v2/domain/entities/permission.dart';
 import 'package:rufino_v2/domain/entities/position.dart';
 import 'package:rufino_v2/domain/entities/remuneration.dart';
 import 'package:rufino_v2/domain/entities/role.dart';
+import 'package:rufino_v2/ui/features/auth/viewmodel/permission_notifier.dart';
 import 'package:rufino_v2/ui/features/department/viewmodel/department_list_viewmodel.dart';
 import 'package:rufino_v2/ui/features/department/widgets/department_list_screen.dart';
 
 import '../../../testing/fakes/fake_company_repository.dart';
 import '../../../testing/fakes/fake_department_repository.dart';
+import '../../../testing/fakes/fake_permission_repository.dart';
 
 const _fakeCompany = Company(
   id: 'company-1',
@@ -49,9 +53,10 @@ const _fakeDepartment = Department(
 void main() {
   late FakeCompanyRepository companyRepository;
   late FakeDepartmentRepository departmentRepository;
+  late PermissionNotifier permissionNotifier;
   late DepartmentListViewModel viewModel;
 
-  setUp(() {
+  setUp(() async {
     companyRepository = FakeCompanyRepository()
       ..setSelectedCompany(_fakeCompany);
     departmentRepository = FakeDepartmentRepository();
@@ -59,47 +64,64 @@ void main() {
       companyRepository: companyRepository,
       departmentRepository: departmentRepository,
     );
+    final fakePermRepo = FakePermissionRepository()
+      ..setPermissions([
+        const Permission(resource: 'department', scopes: ['create', 'view', 'edit']),
+      ]);
+    permissionNotifier = PermissionNotifier(permissionRepository: fakePermRepo);
+    await permissionNotifier.loadPermissions();
   });
 
-  tearDown(() => viewModel.dispose());
+  tearDown(() {
+    viewModel.dispose();
+    permissionNotifier.dispose();
+  });
 
-  Widget buildSubject() => MaterialApp.router(
-        routerConfig: GoRouter(
-          routes: [
-            GoRoute(
-              path: '/',
-              builder: (_, __) =>
-                  DepartmentListScreen(viewModel: viewModel),
-            ),
-            GoRoute(
-              path: '/home',
-              builder: (_, __) => const Scaffold(body: Text('home')),
-            ),
-            GoRoute(
-              path: '/department/create',
-              builder: (_, __) => const Scaffold(body: Text('create')),
-            ),
-            GoRoute(
-              path: '/department/edit/:id',
-              builder: (_, __) => const Scaffold(body: Text('edit dept')),
-            ),
-            GoRoute(
-              path: '/department/position/create/:departmentId',
-              builder: (_, __) => const Scaffold(body: Text('create pos')),
-            ),
-            GoRoute(
-              path: '/department/position/edit/:departmentId/:id',
-              builder: (_, __) => const Scaffold(body: Text('edit pos')),
-            ),
-            GoRoute(
-              path: '/department/role/create/:positionId',
-              builder: (_, __) => const Scaffold(body: Text('create role')),
-            ),
-            GoRoute(
-              path: '/department/role/edit/:positionId/:id',
-              builder: (_, __) => const Scaffold(body: Text('edit role')),
-            ),
-          ],
+  Widget buildSubject() => ChangeNotifierProvider<PermissionNotifier>.value(
+        value: permissionNotifier,
+        child: MaterialApp.router(
+          routerConfig: GoRouter(
+            routes: [
+              GoRoute(
+                path: '/',
+                builder: (_, __) =>
+                    DepartmentListScreen(viewModel: viewModel),
+              ),
+              GoRoute(
+                path: '/home',
+                builder: (_, __) => const Scaffold(body: Text('home')),
+              ),
+              GoRoute(
+                path: '/department/create',
+                builder: (_, __) => const Scaffold(body: Text('create')),
+              ),
+              GoRoute(
+                path: '/department/edit/:id',
+                builder: (_, __) =>
+                    const Scaffold(body: Text('edit dept')),
+              ),
+              GoRoute(
+                path: '/department/position/create/:departmentId',
+                builder: (_, __) =>
+                    const Scaffold(body: Text('create pos')),
+              ),
+              GoRoute(
+                path: '/department/position/edit/:departmentId/:id',
+                builder: (_, __) =>
+                    const Scaffold(body: Text('edit pos')),
+              ),
+              GoRoute(
+                path: '/department/role/create/:positionId',
+                builder: (_, __) =>
+                    const Scaffold(body: Text('create role')),
+              ),
+              GoRoute(
+                path: '/department/role/edit/:positionId/:id',
+                builder: (_, __) =>
+                    const Scaffold(body: Text('edit role')),
+              ),
+            ],
+          ),
         ),
       );
 

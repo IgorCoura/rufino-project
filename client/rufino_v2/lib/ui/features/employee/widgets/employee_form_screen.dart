@@ -6,6 +6,7 @@ import '../../../../domain/entities/department.dart';
 import '../../../../domain/entities/position.dart';
 import '../../../../domain/entities/role.dart';
 import '../../../../domain/entities/workplace.dart';
+import '../../../core/widgets/error_dialog.dart';
 import '../viewmodel/employee_form_viewmodel.dart';
 
 /// Screen for creating a new employee.
@@ -61,15 +62,12 @@ class _EmployeeFormScreenState extends State<EmployeeFormScreen> {
       context.pop();
     }
     if (widget.viewModel.status == EmployeeFormStatus.error) {
-      ScaffoldMessenger.of(context)
-        ..hideCurrentSnackBar()
-        ..showSnackBar(
-          SnackBar(
-            content: Text(
-                widget.viewModel.errorMessage ?? 'Erro desconhecido.'),
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
+      showErrorSnackBar(
+        context,
+        messages: widget.viewModel.serverErrors,
+        fallbackMessage:
+            widget.viewModel.errorMessage ?? 'Erro desconhecido.',
+      );
     }
   }
 
@@ -149,7 +147,7 @@ class _DepartmentDropdown extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return DropdownButtonFormField<Department>(
-      value: viewModel.selectedDepartment,
+      initialValue: viewModel.selectedDepartment,
       decoration: const InputDecoration(
         labelText: 'Setor',
         border: OutlineInputBorder(),
@@ -173,7 +171,7 @@ class _PositionDropdown extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return DropdownButtonFormField<Position>(
-      value: viewModel.selectedPosition,
+      initialValue: viewModel.selectedPosition,
       decoration: const InputDecoration(
         labelText: 'Cargo',
         border: OutlineInputBorder(),
@@ -199,7 +197,7 @@ class _RoleDropdown extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return DropdownButtonFormField<Role>(
-      value: viewModel.selectedRole,
+      initialValue: viewModel.selectedRole,
       decoration: const InputDecoration(
         labelText: 'Função',
         border: OutlineInputBorder(),
@@ -224,7 +222,7 @@ class _WorkplaceDropdown extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return DropdownButtonFormField<Workplace>(
-      value: viewModel.selectedWorkplace,
+      initialValue: viewModel.selectedWorkplace,
       decoration: const InputDecoration(
         labelText: 'Local de trabalho',
         border: OutlineInputBorder(),

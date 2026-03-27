@@ -41,7 +41,9 @@
                             <div class="table-data-content-line-text">
                                 {{employee.registration}}
                             </div>
-                        </div>                                            
+                        </div>  
+                        <div class="table-data-content-line-inline" style="flex:1">
+                        </div>                                           
                     </div>
                     <div class="table-data-content-line">
                         <div class="table-data-content-line-inline" style="flex:1">
@@ -68,23 +70,7 @@
                                 {{position.cbo}}
                             </div>
                         </div>
-                        <div class="table-data-content-line-inline" style="flex:1">
-                            <div class="table-data-content-line-title">
-                                Função:
-                            </div>
-                            <div class="table-data-content-line-text">
-                                {{role.name}}
-                            </div>
-                        </div>
-                        <div class="table-data-content-line-inline" style="flex:1">
-                            <div class="table-data-content-line-title">
-                                CBO:
-                            </div>
-                            <div class="table-data-content-line-text">
-                                {{role.cbo}}
-                            </div>
-                        </div>                        
-                        
+
                     </div>
                 </div>
             </div>
@@ -92,7 +78,7 @@
             <div class="table-data">
                 <div class="table-data-title">Descrição da atividade</div>
                 <div class="table-data-content">
-                    {{role.descricao}}
+                    {{position.description}}
                 </div>
             </div>
             <div class="table-data">
@@ -199,7 +185,7 @@
                     Declaro ter recebido informações, orientações e uma cópia desta <span>ORDEM DE SERVIÇO DE SEGURANÇA E MEDICINA DO TRABALHO</span>, de acordo com a NR01 aprovada pela portaria nº3.214/78, para permitir um trabalho seguro nas atividades da função acima mencionada. Assim com <span>DECLARO</span>, estar ciente que a não obediência das normas estabelecidas neste <span>PROCEDIMENTO</span>, estarei sujeito a penalidades disciplinares, conforme regulamento interno da Empresa e <span>NORMAS REGULAMENTADORAS</span>
                 </div>
             </div>
-            <div class="date">Suzano, {{date}}</div>
+            <div class="date">Suzano, {{ComplementaryInfo.FullDatePtBr}}</div>
             <div class="signature-body">
                 <div>
                     <div class="signature-local">
@@ -210,7 +196,15 @@
                     </div>
                 </div>
                 <div>
-                    <div class="signature-local"></div>
+                    <div class="signature-local">
+                        <div class="signed-content">
+                            <img class="signed-icon" src="img\icon_assinatura.png">
+                            <div class="signed-text">
+                                <span class="signed-label">Assinado digitalmente pelo:</span>
+                                <span class="signed-name">{{employee.name}}</span>
+                            </div>
+                        </div>
+                    </div>
                     <div class="signature-info">
                         {{employee.name}}
                     </div>

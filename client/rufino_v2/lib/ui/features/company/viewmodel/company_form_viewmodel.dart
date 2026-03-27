@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:mask_text_input_formatter/mask_text_input_formatter.dart';
 
 import '../../../../core/result.dart';
+import '../../../../core/utils/error_messages.dart';
+import '../../../../domain/entities/address.dart';
+import '../../../../domain/entities/company.dart';
 import '../../../../domain/entities/company_detail.dart';
 import '../../../../domain/repositories/company_repository.dart';
 
@@ -44,6 +47,10 @@ class CompanyFormViewModel extends ChangeNotifier {
 
   CompanyFormStatus _status = CompanyFormStatus.idle;
   String? _errorMessage;
+  List<String> _serverErrors = const [];
+
+  /// Server-provided error messages extracted from the API response, if any.
+  List<String> get serverErrors => _serverErrors;
 
   CompanyFormStatus get status => _status;
   String? get errorMessage => _errorMessage;
@@ -51,31 +58,17 @@ class CompanyFormViewModel extends ChangeNotifier {
   bool get isSaving => _status == CompanyFormStatus.saving;
   bool get isNew => _id.isEmpty;
 
-  String? validateRequired(String? value) {
-    if (value == null || value.isEmpty) return 'Não pode ser vazio.';
-    return null;
-  }
+  /// Delegates to [Company.validateRequired].
+  String? validateRequired(String? value) => Company.validateRequired(value);
 
-  String? validateEmail(String? value) {
-    if (value == null || value.isEmpty) return 'Não pode ser vazio.';
-    final regex = RegExp(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$');
-    if (!regex.hasMatch(value)) return 'Email inválido.';
-    return null;
-  }
+  /// Delegates to [Company.validateEmail].
+  String? validateEmail(String? value) => Company.validateEmail(value);
 
-  String? validateCnpj(String? value) {
-    if (value == null || value.isEmpty) return 'Não pode ser vazio.';
-    final digits = value.replaceAll(RegExp(r'\D'), '');
-    if (digits.length != 14) return 'CNPJ inválido.';
-    return null;
-  }
+  /// Delegates to [Company.validateCnpj].
+  String? validateCnpj(String? value) => Company.validateCnpj(value);
 
-  String? validateZipCode(String? value) {
-    if (value == null || value.isEmpty) return 'Não pode ser vazio.';
-    final digits = value.replaceAll(RegExp(r'\D'), '');
-    if (digits.length != 8) return 'CEP inválido.';
-    return null;
-  }
+  /// Delegates to [Address.validateCep].
+  String? validateZipCode(String? value) => Address.validateCep(value);
 
   Future<void> loadCompany(String companyId) async {
     if (companyId.isEmpty) return;
@@ -145,9 +138,12 @@ class CompanyFormViewModel extends ChangeNotifier {
 
       result.fold(
         onSuccess: (_) => _status = CompanyFormStatus.saved,
-        onError: (_) {
+        onError: (error) {
           _status = CompanyFormStatus.error;
-          _errorMessage = 'Falha ao salvar empresa. Verifique os dados e tente novamente.';
+          _serverErrors = extractServerMessages(error);
+          _errorMessage = _serverErrors.isNotEmpty
+              ? _serverErrors.join('\n')
+              : 'Falha ao salvar empresa. Verifique os dados e tente novamente.';
         },
       );
     } finally {

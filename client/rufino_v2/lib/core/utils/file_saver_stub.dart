@@ -1,7 +1,7 @@
+import 'dart:js_interop';
 import 'dart:typed_data';
 
-// ignore: avoid_web_libraries_in_flutter
-import 'dart:html' as html;
+import 'package:web/web.dart' as web;
 
 /// Triggers a browser download for the given [bytes] with [fileName].
 ///
@@ -11,10 +11,11 @@ Future<void> saveFile({
   required String fileName,
   required Uint8List bytes,
 }) async {
-  final blob = html.Blob([bytes]);
-  final url = html.Url.createObjectUrlFromBlob(blob);
-  html.AnchorElement(href: url)
-    ..setAttribute('download', fileName)
+  final blob = web.Blob([bytes.toJS].toJS);
+  final url = web.URL.createObjectURL(blob);
+  web.HTMLAnchorElement()
+    ..href = url
+    ..download = fileName
     ..click();
-  html.Url.revokeObjectUrl(url);
+  web.URL.revokeObjectURL(url);
 }

@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/theme/app_breakpoints.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../domain/entities/employee.dart';
+import '../../../core/widgets/permission_guard.dart';
 import '../viewmodel/employee_list_viewmodel.dart';
 
 /// Displays a paginated, searchable list of employees for the selected company.
@@ -125,12 +126,16 @@ class _EmployeeListScreenState extends State<EmployeeListScreen> {
           ),
         ),
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () => context
-            .push('/employee/create')
-            .then((_) => widget.viewModel.refresh()),
-        tooltip: 'Adicionar funcionário',
-        child: const Icon(Icons.person_add_alt_1),
+      floatingActionButton: PermissionGuard(
+        resource: 'employee',
+        scope: 'create',
+        child: FloatingActionButton(
+          onPressed: () => context
+              .push('/employee/create')
+              .then((_) => widget.viewModel.refresh()),
+          tooltip: 'Adicionar funcionário',
+          child: const Icon(Icons.person_add_alt_1),
+        ),
       ),
     );
   }
@@ -255,7 +260,7 @@ class _SearchParamField extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return DropdownButtonFormField<SearchParam>(
-      value: viewModel.searchParam,
+      initialValue: viewModel.searchParam,
       decoration: const InputDecoration(
         labelText: 'Buscar por',
         border: OutlineInputBorder(),
@@ -387,7 +392,7 @@ class _StatusDropdown<T> extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return DropdownButtonFormField<T>(
-      value: value,
+      initialValue: value,
       decoration: InputDecoration(
         labelText: label,
         border: const OutlineInputBorder(),
@@ -692,11 +697,11 @@ class _LoadingMoreListItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: AppSpacing.lg),
+    return const Padding(
+      padding: EdgeInsets.symmetric(vertical: AppSpacing.lg),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
-        children: const [
+        children: [
           SizedBox(
             width: 20,
             height: 20,

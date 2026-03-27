@@ -26,7 +26,7 @@ namespace PeopleManagement.API.Controllers
         private readonly IDocumentQueries _documentQueries = documentQueries;
 
         [HttpPost]
-        [ProtectedResource("Document", "create")]
+        [ProtectedResource("document", "create")]
         public async Task<ActionResult<CreateDocumentResponse>> Create([FromRoute]Guid company, [FromBody] CreateDocumentModel request, [FromHeader(Name = "x-requestid")] Guid requestId)
         {
             var command = new IdentifiedCommand<CreateDocumentCommand, CreateDocumentResponse>(request.ToCommand(company), requestId);
@@ -41,7 +41,7 @@ namespace PeopleManagement.API.Controllers
         }
 
         [HttpPut("DocumentUnit")]
-        [ProtectedResource("Document", "edit")]
+        [ProtectedResource("document", "edit")]
         public async Task<ActionResult<UpdateDocumentUnitDetailsResponse>> UpdateDocumentUnitDetails([FromRoute] Guid company, [FromBody] UpdateDocumentUnitDetailsModel request, [FromHeader(Name = "x-requestid")] Guid requestId)
         {
             var command = new IdentifiedCommand<UpdateDocumentUnitDetailsCommand, UpdateDocumentUnitDetailsResponse>(request.ToCommand(company), requestId);
@@ -56,7 +56,7 @@ namespace PeopleManagement.API.Controllers
         }
 
         [HttpGet("generate/{employeeId}/{documentId}/{documentUnitId}")]
-        [ProtectedResource("Document", "view")]
+        [ProtectedResource("document", "view")]
         public async Task<ActionResult> GeneratePdf([FromRoute] Guid documentUnitId, [FromRoute] Guid documentId, [FromRoute] Guid employeeId, [FromRoute] Guid company, [FromHeader(Name = "x-requestid")] Guid requestId)
         {
             var request = new GeneratePdfCommand(documentUnitId, documentId, employeeId, company);
@@ -72,7 +72,7 @@ namespace PeopleManagement.API.Controllers
         }
 
         [HttpPost("generate/range/{employeeId}")]
-        [ProtectedResource("Document", "view")]
+        [ProtectedResource("document", "view")]
         public async Task<IActionResult> GeneratePdfRange([FromRoute] Guid company, [FromRoute] Guid employeeId, [FromBody] List<GeneratePdfRangeItem> request)
         {
             var command = new GeneratePdfRangeCommand(request, employeeId, company);
@@ -99,7 +99,7 @@ namespace PeopleManagement.API.Controllers
         }
 
         [HttpPost("generate/send2sign")]
-        [ProtectedResource("Document", "send")]
+        [ProtectedResource("document", "upload")]
         public async Task<ActionResult<GenerateDocumentToSignResponse>> GeneratePdfToSign([FromRoute] Guid company, [FromBody] GenerateDocumentToSignModel request, [FromHeader(Name = "x-requestid")] Guid requestId)
         {
             var identifiedCommand = new IdentifiedCommand<GenerateDocumentToSignCommand, GenerateDocumentToSignResponse>(request.ToCommand(company), requestId);
@@ -114,7 +114,7 @@ namespace PeopleManagement.API.Controllers
         }
 
         [HttpPost("insert")]
-        [ProtectedResource("Document", "send")]
+        [ProtectedResource("document", "upload")]
         [RequestSizeLimit(12_000_000)]
         public async Task<ActionResult<InsertDocumentResponse>> Insert(IFormFile formFile, [FromRoute] Guid company, [FromForm] InsertDocumentModel request,[FromHeader(Name = "x-requestid")] Guid requestId)
         {
@@ -133,7 +133,7 @@ namespace PeopleManagement.API.Controllers
         }
 
         [HttpPost("insert/send2sign")]
-        [ProtectedResource("Document", "send")]
+        [ProtectedResource("document", "upload")]
         [RequestSizeLimit(12_000_000)]
         public async Task<ActionResult<InsertDocumentToSignResponse>> InsertToSign(IFormFile formFile,[FromRoute] Guid company, [FromForm] InsertDocumentToSignModel request, [FromHeader(Name = "x-requestid")] Guid requestId)
         {
@@ -154,7 +154,7 @@ namespace PeopleManagement.API.Controllers
 
 
         [HttpPost("/api/v1/[controller]/webhook")]
-        [ProtectedResource("Document", "webhook")]
+        [ProtectedResource("document", "webhook")]
         public async Task<ActionResult<ReceiveWebhookDocumentResponse>> ReceiveWebhook([FromBody] JsonNode request, [FromHeader(Name = "x-requestid")] Guid requestId)
         {
             var command = new ReceiveWebhookDocumentCommand(request);
@@ -170,7 +170,7 @@ namespace PeopleManagement.API.Controllers
         }
 
         [HttpGet("{employeeId}")]
-        [ProtectedResource("Document", "view")]
+        [ProtectedResource("document", "view")]
         public async Task<ActionResult<IEnumerable<DocumentSimpleDto>>> GetAllSimple([FromRoute] Guid company, [FromRoute] Guid employeeId)
         {
             var result = await _documentQueries.GetAllSimple(employeeId, company);
@@ -178,7 +178,7 @@ namespace PeopleManagement.API.Controllers
         }
 
         [HttpGet("{employeeId}/{id}")]
-        [ProtectedResource("Document", "view")]
+        [ProtectedResource("document", "view")]
         public async Task<ActionResult<DocumentDto>> GetById([FromRoute] Guid company, [FromRoute] Guid employeeId, [FromRoute] Guid id, [FromQuery] DocumentUnitParams unitParams)
         {
             var result = await _documentQueries.GetById(id, employeeId, company, unitParams);
@@ -186,7 +186,7 @@ namespace PeopleManagement.API.Controllers
         }
 
         [HttpGet("download/{employeeId}/{documentId}/{documentUnitId}")]
-        [ProtectedResource("Document", "view")]
+        [ProtectedResource("document", "download")]
         public async Task<IActionResult> DownloadFile([FromRoute] Guid documentUnitId, [FromRoute] Guid documentId, [FromRoute] Guid employeeId,
             [FromRoute] Guid company)
         {
@@ -195,7 +195,7 @@ namespace PeopleManagement.API.Controllers
         }
 
         [HttpPost("download/range/{employeeId}")]
-        [ProtectedResource("Document", "view")]
+        [ProtectedResource("document", "download")]
         public async Task<IActionResult> DownloadRange([FromRoute] Guid company, [FromRoute] Guid employeeId, [FromBody] List<DownloadRangeDocumentItem> request)
         {
             var stream = await _documentQueries.DownloadDocumentUnitRange(request, employeeId, company);
@@ -203,7 +203,7 @@ namespace PeopleManagement.API.Controllers
         }
 
         [HttpPut("DocumentUnit/invalid")]
-        [ProtectedResource("Document", "edit")]
+        [ProtectedResource("document", "edit")]
         public async Task<ActionResult<MarkAsInvalidDocumentUnitResponse>> MarkAsInvalid([FromRoute] Guid company, [FromBody] MarkAsInvalidDocumentUnitModel request, [FromHeader(Name = "x-requestid")] Guid requestId)
         {
             var command = new IdentifiedCommand<MarkAsInvalidDocumentUnitCommand, MarkAsInvalidDocumentUnitResponse>(request.ToCommand(company), requestId);
@@ -218,7 +218,7 @@ namespace PeopleManagement.API.Controllers
         }
 
         [HttpPut("DocumentUnit/valid")]
-        [ProtectedResource("Document", "edit")]
+        [ProtectedResource("document", "edit")]
         public async Task<ActionResult<MarkAsValidDocumentUnitResponse>> MarkAsValid([FromRoute] Guid company, [FromBody] MarkAsValidDocumentUnitModel request, [FromHeader(Name = "x-requestid")] Guid requestId)
         {
             var command = new IdentifiedCommand<MarkAsValidDocumentUnitCommand, MarkAsValidDocumentUnitResponse>(request.ToCommand(company), requestId);
@@ -233,7 +233,7 @@ namespace PeopleManagement.API.Controllers
         }
 
         [HttpPut("DocumentUnit/not-applicable")]
-        [ProtectedResource("Document", "edit")]
+        [ProtectedResource("document", "edit")]
         public async Task<ActionResult<MarkAsNotApplicableDocumentUnitResponse>> MarkAsNotApplicable([FromRoute] Guid company, [FromBody] MarkAsNotApplicableDocumentUnitModel request, [FromHeader(Name = "x-requestid")] Guid requestId)
         {
             var command = new IdentifiedCommand<MarkAsNotApplicableDocumentUnitCommand, MarkAsNotApplicableDocumentUnitResponse>(request.ToCommand(company), requestId);

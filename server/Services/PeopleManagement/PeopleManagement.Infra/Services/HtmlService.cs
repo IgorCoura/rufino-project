@@ -1,16 +1,16 @@
-﻿using System.Text.Json.Nodes;
+﻿using System.Text;
+using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
 
 namespace PeopleManagement.Infra.Services
 {
     public static partial class HtmlService
     {
-
-        public static Task<string> InsertValuesInHtmlTemplate(JsonNode? values, string html)
+        public static string InsertValuesInHtmlTemplate(JsonNode? values, string html)
         {
             var result = ReplaceListTags(html, values);
             result = ReplaceDoubleBraces(result, values);
-            return Task.FromResult(result);
+            return result;
         }
 
         private static string ReplaceListTags(string html, JsonNode? values)
@@ -21,23 +21,21 @@ namespace PeopleManagement.Infra.Services
                 string keysString = m.Groups[1].Value;
                 string content = m.Groups[3].Value;
                 string[] keys = keysString.Split('.');
-              
 
                 var jsonArray = GetValueFromJson(keys, values) as JsonArray ?? [];
 
-                var result = "";
+                var sb = new StringBuilder(jsonArray.Count * content.Length);
 
                 foreach (var item in jsonArray)
                 {
-                    result += $"<div{m.Groups[2].Value}>";
+                    sb.Append("<div").Append(m.Groups[2].Value).Append('>');
                     string innerContent = ReplaceListTags(content, item);
-                    result += ReplaceDoubleBraces(innerContent, item);
-                    result += "</div>";
+                    sb.Append(ReplaceDoubleBraces(innerContent, item));
+                    sb.Append("</div>");
                 }
 
-                return result;
+                return sb.ToString();
             });
-
         }
 
         private static string ReplaceDoubleBraces(string content, JsonNode? values)
@@ -46,47 +44,41 @@ namespace PeopleManagement.Infra.Services
             return regex.Replace(content, m =>
             {
                 string keysString = m.Groups[1].Value;
-
                 string[] keys = keysString.Split('.');
-
                 var result = GetValueFromJson(keys, values)?.ToString();
-
                 return result ?? m.Value;
             });
         }
 
         private static JsonNode? GetValueFromJson(string[] keys, JsonNode? json)
         {
-            if (json == null)
+            if (json == null || keys.Length == 0)
                 return null;
 
-            foreach (string key in keys)
+            JsonNode? current = json;
+
+            for (int i = 0; i < keys.Length; i++)
             {
-                try
+                if (current is not JsonObject obj)
+                    return null;
+
+                JsonNode? value = null;
+                foreach (var kvp in obj)
                 {
-                    // Perform case-insensitive lookup
-                    var value = json.AsObject()
-                                    .FirstOrDefault(kvp => string.Equals(kvp.Key, key, StringComparison.OrdinalIgnoreCase))
-                                    .Value;
-
-                    if (value == null)
+                    if (string.Equals(kvp.Key, keys[i], StringComparison.OrdinalIgnoreCase))
                     {
-                        return null;
+                        value = kvp.Value;
+                        break;
                     }
-
-                    if (value is JsonObject jsonValue)
-                    {
-                        return GetValueFromJson(keys.Skip(1).ToArray(), jsonValue);
-                    }
-
-                    return value;
                 }
-                catch
-                {
-                    continue;
-                }
+
+                if (value == null)
+                    return null;
+
+                current = value;
             }
-            return null;
+
+            return current;
         }
 
         public record HtmlContent(string Header, string Body, string Footer);
@@ -95,6 +87,5 @@ namespace PeopleManagement.Infra.Services
         private static partial Regex HtmlListRegex();
         [GeneratedRegex("{{(.*?)}}")]
         private static partial Regex HtmlParamRegex();
-
     }
 }

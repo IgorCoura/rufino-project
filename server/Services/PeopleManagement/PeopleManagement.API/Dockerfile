@@ -41,15 +41,16 @@ RUN wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | \
 
 
 RUN apt-get update && apt-get install -y \
-  google-chrome-unstable \
+  google-chrome-stable \
   fonts-ipafont-gothic \
   fonts-wqy-zenhei \
   fonts-thai-tlwg \
   fonts-kacst \
   fonts-freefont-ttf \
-  --no-install-recommends
-  
-ENV PUPPETEER_EXECUTABLE_PATH "/usr/bin/google-chrome-unstable"
+  --no-install-recommends \
+  && rm -rf /var/lib/apt/lists/*
+
+ENV PUPPETEER_EXECUTABLE_PATH="/usr/bin/google-chrome-stable"
 
 #####################
 #END PUPPETEER RECIPE

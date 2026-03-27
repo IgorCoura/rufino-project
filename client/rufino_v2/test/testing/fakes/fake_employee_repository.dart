@@ -207,7 +207,7 @@ class FakeEmployeeRepository implements EmployeeRepository {
   /// The dependents returned by [getDependents].
   void setDependents(List<EmployeeDependent> deps) => _dependents = deps;
 
-  List<SelectionOption> _signingOptions = const [
+  final List<SelectionOption> _signingOptions = const [
     SelectionOption(id: '1', name: 'Assinatura Fisica'),
     SelectionOption(id: '2', name: 'Assinatura Digital e Whatsapp'),
   ];

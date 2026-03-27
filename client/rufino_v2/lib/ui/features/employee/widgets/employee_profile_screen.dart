@@ -8,6 +8,7 @@ import '../../../../core/theme/app_breakpoints.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../domain/entities/employee.dart';
 import '../../../../domain/entities/employee_profile.dart';
+import '../../../core/widgets/error_dialog.dart';
 import '../viewmodel/employee_profile_viewmodel.dart';
 import 'components/address_section.dart';
 import 'components/contact_section.dart';
@@ -98,15 +99,14 @@ class _EmployeeProfileScreenState extends State<EmployeeProfileScreen> {
     }
 
     if (widget.viewModel.hasError && widget.viewModel.profile != null) {
-      ScaffoldMessenger.of(context)
-        ..hideCurrentSnackBar()
-        ..showSnackBar(
-          SnackBar(
-            content:
-                Text(widget.viewModel.errorMessage ?? 'Erro desconhecido.'),
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
+      final messages = widget.viewModel.serverErrors;
+      final fallback = widget.viewModel.errorMessage ?? 'Erro desconhecido.';
+      widget.viewModel.consumeServerErrors();
+      showErrorSnackBar(
+        context,
+        messages: messages,
+        fallbackMessage: fallback,
+      );
     }
   }
 
@@ -196,7 +196,8 @@ class _EmployeeProfileScreenState extends State<EmployeeProfileScreen> {
   }
 }
 
-/// Renders the employee profile summary content.
+/// Renders the employee profile with a hero card and Chrome-style tab
+/// navigation for employee data, documents, and contracts.
 class _EmployeeProfileBody extends StatelessWidget {
   const _EmployeeProfileBody({
     required this.viewModel,
@@ -223,137 +224,233 @@ class _EmployeeProfileBody extends StatelessWidget {
             ? AppSpacing.lg
             : AppSpacing.md;
 
-    return SingleChildScrollView(
-      padding: EdgeInsets.fromLTRB(
-        horizontalPadding,
-        AppSpacing.md,
-        horizontalPadding,
-        AppSpacing.xl,
+    return DefaultTabController(
+      length: 3,
+      child: Column(
+        children: [
+          Padding(
+            padding: EdgeInsets.fromLTRB(
+              horizontalPadding,
+              AppSpacing.md,
+              horizontalPadding,
+              0,
+            ),
+            child: Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 960),
+                child: _EmployeeHeroCard(
+                  profile: profile,
+                  imageBytes: viewModel.imageBytes,
+                  isSaving: viewModel.isSaving,
+                  onPickAvatar: onPickAvatar,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: AppSpacing.md),
+          Expanded(
+            child: Padding(
+              padding: EdgeInsets.symmetric(horizontal: horizontalPadding),
+              child: Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 960),
+                  child: _ChromeTabPanel(
+                    children: [
+                      _EmployeeDataTab(viewModel: viewModel, profile: profile, nameController: nameController),
+                      _DocumentsTab(viewModel: viewModel),
+                      _ContractsTab(viewModel: viewModel, profile: profile, onMarkAsInactive: onMarkAsInactive),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
-      child: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 960),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              _EmployeeHeroCard(
-                profile: profile,
-                imageBytes: viewModel.imageBytes,
-                isSaving: viewModel.isSaving,
-                onPickAvatar: onPickAvatar,
-              ),
-              const SizedBox(height: AppSpacing.md),
-              _EmployeeNameCard(
-                viewModel: viewModel,
-                profile: profile,
-                controller: nameController,
-              ),
-              const SizedBox(height: AppSpacing.md),
-              LayoutBuilder(
-                builder: (context, constraints) {
-                  final isWide = constraints.maxWidth >= AppBreakpoints.mobile;
+    );
+  }
+}
 
-                  return isWide
-                      ? Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Expanded(
-                              child: _ProfileSectionCard(
-                                title: 'Dados do funcionário',
-                                children: [
-                                  _ProfileFactRow(
-                                    label: 'Registro',
-                                    value: profile.registration.isNotEmpty
-                                        ? profile.registration
-                                        : 'Não informado',
-                                  ),
-                                  _ProfileStatusRow(status: profile.status),
-                                ],
-                              ),
-                            ),
-                            const SizedBox(width: AppSpacing.md),
-                            Expanded(
-                              child: _ProfileSectionCard(
-                                title: 'Vínculos',
-                                children: [
-                                  _ProfileFactRow(
-                                    label: 'Função',
-                                    value: viewModel.roleLabel,
-                                  ),
-                                  _ProfileFactRow(
-                                    label: 'Local de trabalho',
-                                    value: viewModel.workplaceLabel,
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
-                        )
-                      : Column(
-                          children: [
-                            _ProfileSectionCard(
-                              title: 'Dados do funcionário',
-                              children: [
-                                _ProfileFactRow(
-                                  label: 'Registro',
-                                  value: profile.registration.isNotEmpty
-                                      ? profile.registration
-                                      : 'Não informado',
-                                ),
-                                _ProfileStatusRow(status: profile.status),
-                              ],
-                            ),
-                            const SizedBox(height: AppSpacing.md),
-                            _ProfileSectionCard(
-                              title: 'Vínculos',
-                              children: [
-                                _ProfileFactRow(
-                                  label: 'Função',
-                                  value: viewModel.roleLabel,
-                                ),
-                                _ProfileFactRow(
-                                  label: 'Local de trabalho',
-                                  value: viewModel.workplaceLabel,
-                                ),
-                              ],
-                            ),
-                          ],
-                        );
-                },
+/// Chrome-style tab panel: tab bar on top with a unified body below.
+///
+/// The bar has a `surfaceContainerHigh` background; the active tab and the
+/// content area share a `surface` background so they appear connected.
+class _ChromeTabPanel extends StatelessWidget {
+  const _ChromeTabPanel({required this.children});
+
+  /// One widget per tab — passed straight into [TabBarView].
+  final List<Widget> children;
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return Column(
+      children: [
+        // ── Tab bar ──────────────────────────────────────────────
+        Container(
+          decoration: BoxDecoration(
+            color: colorScheme.surfaceContainerHigh,
+            borderRadius: const BorderRadius.only(
+              topLeft: Radius.circular(12),
+              topRight: Radius.circular(12),
+            ),
+          ),
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.xs,
+            AppSpacing.xs,
+            AppSpacing.xs,
+            0,
+          ),
+          child: TabBar(
+            indicator: BoxDecoration(
+              color: colorScheme.surface,
+              borderRadius: const BorderRadius.only(
+                topLeft: Radius.circular(10),
+                topRight: Radius.circular(10),
               ),
-              const SizedBox(height: AppSpacing.md),
-              ContactSection(viewModel: viewModel),
-              const SizedBox(height: AppSpacing.sm),
-              AddressSection(viewModel: viewModel),
-              const SizedBox(height: AppSpacing.sm),
-              PersonalInfoSection(viewModel: viewModel),
-              const SizedBox(height: AppSpacing.sm),
-              IdCardSection(viewModel: viewModel),
-              const SizedBox(height: AppSpacing.sm),
-              VoteIdSection(viewModel: viewModel),
-              const SizedBox(height: AppSpacing.sm),
-              DependentSection(viewModel: viewModel),
-              const SizedBox(height: AppSpacing.sm),
-              MilitaryDocumentSection(viewModel: viewModel),
-              const SizedBox(height: AppSpacing.sm),
-              MedicalExamSection(viewModel: viewModel),
-              const SizedBox(height: AppSpacing.sm),
-              RoleInfoSection(viewModel: viewModel),
-              const SizedBox(height: AppSpacing.sm),
-              WorkplaceSection(viewModel: viewModel),
-              const SizedBox(height: AppSpacing.sm),
-              SigningOptionsSection(viewModel: viewModel),
-              const SizedBox(height: AppSpacing.sm),
-              DocumentsSection(viewModel: viewModel),
-              const SizedBox(height: AppSpacing.sm),
-              ContractSection(
-                viewModel: viewModel,
-                canMarkAsInactive: profile.canMarkAsInactive,
-                onMarkAsInactive: onMarkAsInactive,
-              ),
+            ),
+            indicatorSize: TabBarIndicatorSize.tab,
+            dividerHeight: 0,
+            labelColor: colorScheme.onSurface,
+            unselectedLabelColor: colorScheme.onSurfaceVariant,
+            labelStyle: Theme.of(context).textTheme.labelLarge?.copyWith(
+                  fontWeight: FontWeight.w600,
+                ),
+            unselectedLabelStyle: Theme.of(context).textTheme.labelLarge,
+            splashBorderRadius: const BorderRadius.only(
+              topLeft: Radius.circular(10),
+              topRight: Radius.circular(10),
+            ),
+            tabs: const [
+              Tab(text: 'Dados Pessoais'),
+              Tab(text: 'Documentos'),
+              Tab(text: 'Vínculo Empregatício'),
             ],
           ),
         ),
+
+        // ── Tab content body ─────────────────────────────────────
+        Expanded(
+          child: Container(
+            clipBehavior: Clip.antiAlias,
+            decoration: BoxDecoration(
+              color: colorScheme.surface,
+              borderRadius: const BorderRadius.only(
+                bottomLeft: Radius.circular(12),
+                bottomRight: Radius.circular(12),
+              ),
+              border: Border(
+                left: BorderSide(color: colorScheme.outlineVariant, width: 0.5),
+                right: BorderSide(color: colorScheme.outlineVariant, width: 0.5),
+                bottom: BorderSide(color: colorScheme.outlineVariant, width: 0.5),
+              ),
+            ),
+            child: TabBarView(children: children),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// Tab content for employee personal data sections.
+class _EmployeeDataTab extends StatelessWidget {
+  const _EmployeeDataTab({
+    required this.viewModel,
+    required this.profile,
+    required this.nameController,
+  });
+
+  final EmployeeProfileViewModel viewModel;
+  final EmployeeProfile profile;
+  final TextEditingController nameController;
+
+  @override
+  Widget build(BuildContext context) {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(AppSpacing.md),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _EmployeeNameCard(
+            viewModel: viewModel,
+            profile: profile,
+            controller: nameController,
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          ContactSection(viewModel: viewModel),
+          const SizedBox(height: AppSpacing.sm),
+          AddressSection(viewModel: viewModel),
+          const SizedBox(height: AppSpacing.sm),
+          PersonalInfoSection(viewModel: viewModel),
+          const SizedBox(height: AppSpacing.sm),
+          IdCardSection(viewModel: viewModel),
+          const SizedBox(height: AppSpacing.sm),
+          VoteIdSection(viewModel: viewModel),
+          const SizedBox(height: AppSpacing.sm),
+          DependentSection(viewModel: viewModel),
+          const SizedBox(height: AppSpacing.sm),
+          MilitaryDocumentSection(viewModel: viewModel),
+        ],
+      ),
+    );
+  }
+}
+
+/// Tab content for document signing options and documents.
+class _DocumentsTab extends StatelessWidget {
+  const _DocumentsTab({required this.viewModel});
+
+  final EmployeeProfileViewModel viewModel;
+
+  @override
+  Widget build(BuildContext context) {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(AppSpacing.md),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          SigningOptionsSection(viewModel: viewModel),
+          const SizedBox(height: AppSpacing.sm),
+          DocumentsSection(viewModel: viewModel),
+        ],
+      ),
+    );
+  }
+}
+
+/// Tab content for role info, workplace, medical exam, and contracts.
+class _ContractsTab extends StatelessWidget {
+  const _ContractsTab({
+    required this.viewModel,
+    required this.profile,
+    required this.onMarkAsInactive,
+  });
+
+  final EmployeeProfileViewModel viewModel;
+  final EmployeeProfile profile;
+  final Future<void> Function() onMarkAsInactive;
+
+  @override
+  Widget build(BuildContext context) {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(AppSpacing.md),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          RoleInfoSection(viewModel: viewModel),
+          const SizedBox(height: AppSpacing.sm),
+          WorkplaceSection(viewModel: viewModel),
+          const SizedBox(height: AppSpacing.sm),
+          MedicalExamSection(viewModel: viewModel),
+          const SizedBox(height: AppSpacing.sm),
+          ContractSection(
+            viewModel: viewModel,
+            canMarkAsInactive: profile.canMarkAsInactive,
+            onMarkAsInactive: onMarkAsInactive,
+          ),
+        ],
       ),
     );
   }
@@ -560,98 +657,6 @@ class _EmployeeNameCard extends StatelessWidget {
   }
 }
 
-/// Groups a section of related profile facts inside a Material card.
-class _ProfileSectionCard extends StatelessWidget {
-  const _ProfileSectionCard({
-    required this.title,
-    required this.children,
-  });
-
-  final String title;
-  final List<Widget> children;
-
-  @override
-  Widget build(BuildContext context) {
-    return Card.outlined(
-      child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.md),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              title,
-              style: Theme.of(context).textTheme.titleMedium,
-            ),
-            const SizedBox(height: AppSpacing.sm),
-            ...children,
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-/// Displays a single profile label/value pair.
-class _ProfileFactRow extends StatelessWidget {
-  const _ProfileFactRow({
-    required this.label,
-    required this.value,
-  });
-
-  final String label;
-  final String value;
-
-  @override
-  Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            label,
-            style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                  color: colorScheme.onSurfaceVariant,
-                ),
-          ),
-          const SizedBox(height: AppSpacing.xs),
-          Text(value),
-        ],
-      ),
-    );
-  }
-}
-
-/// Displays the employment status as a coloured label/chip row.
-class _ProfileStatusRow extends StatelessWidget {
-  const _ProfileStatusRow({required this.status});
-
-  final EmployeeStatus status;
-
-  @override
-  Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Status',
-            style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                  color: colorScheme.onSurfaceVariant,
-                ),
-          ),
-          const SizedBox(height: AppSpacing.xs),
-          _StatusBadge(status: status),
-        ],
-      ),
-    );
-  }
-}
 
 /// Renders the employment [status] as a colour-coded chip.
 class _StatusBadge extends StatelessWidget {

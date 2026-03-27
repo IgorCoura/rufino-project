@@ -53,4 +53,32 @@ class EmployeeDependent {
 
   /// Whether this is a new dependent not yet saved to the API.
   bool get isNew => originalName.isEmpty;
+
+  /// Whether this dependent is a child (dependency type "1").
+  bool get isChild => dependencyTypeId == '1';
+
+  /// Whether this dependent is a spouse (dependency type "2").
+  bool get isSpouse => dependencyTypeId == '2';
+
+  /// Display label for the dependency type in Portuguese.
+  String get dependencyTypeLabel => switch (dependencyTypeId) {
+        '1' => 'Filho(a)',
+        '2' => 'Cônjuge',
+        _ => dependencyTypeId,
+      };
+
+  // ─── Validators ──────────────────────────────────────────────────────────
+
+  /// Validates the dependent name field.
+  ///
+  /// Required, max 100 characters.
+  static String? validateName(String? value) {
+    if (value == null || value.trim().isEmpty) {
+      return 'O Nome do dependente não pode ser vazio.';
+    }
+    if (value.trim().length > 100) {
+      return 'O Nome não pode ter mais de 100 caracteres.';
+    }
+    return null;
+  }
 }
