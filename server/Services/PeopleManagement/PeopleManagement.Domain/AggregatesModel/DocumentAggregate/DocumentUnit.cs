@@ -35,6 +35,7 @@ namespace PeopleManagement.Domain.AggregatesModel.DocumentAggregate
         public string? SignatureDocumentToken { get; private set; }
         public string? SignatureUrl { get; private set; }
         public string? AttachmentToken { get; private set; }
+        public DateTime? SentToSignatureAt { get; private set; }
 
         private DocumentUnit() { }
         private DocumentUnit(Guid id, Document document) : base(id)
@@ -187,9 +188,10 @@ namespace PeopleManagement.Domain.AggregatesModel.DocumentAggregate
 
             if (Status == DocumentUnitStatus.Pending)
             {
-                
                 Status = DocumentUnitStatus.AwaitingSignature;
-                return true;    
+                SentToSignatureAt = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow,
+                    TimeZoneInfo.FindSystemTimeZoneById("E. South America Standard Time"));
+                return true;
             }
             return false;
         }
