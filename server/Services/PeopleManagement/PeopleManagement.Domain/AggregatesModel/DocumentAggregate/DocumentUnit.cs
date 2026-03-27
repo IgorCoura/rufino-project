@@ -189,8 +189,7 @@ namespace PeopleManagement.Domain.AggregatesModel.DocumentAggregate
             if (Status == DocumentUnitStatus.Pending)
             {
                 Status = DocumentUnitStatus.AwaitingSignature;
-                SentToSignatureAt = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow,
-                    TimeZoneInfo.FindSystemTimeZoneById("E. South America Standard Time"));
+                SentToSignatureAt = DateTime.UtcNow;
                 return true;
             }
             return false;
