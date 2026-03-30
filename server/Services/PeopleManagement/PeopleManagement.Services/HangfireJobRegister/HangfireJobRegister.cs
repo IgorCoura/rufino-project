@@ -171,18 +171,6 @@ namespace PeopleManagement.Services.HangfireJobRegistrar
                    TimeZone = TimeZoneInfo.FindSystemTimeZoneById(_timeZoneOptions.TimeZoneId)
                });
 
-            // Configure the HTTP request pipeline.
-            if (_environment != null && _environment.Equals("Development"))
-            {
-                _recurringJobManager.AddOrUpdate<IRecurringDocumentService>(
-               "minutely-job",
-               x => x.RecurringCreateDocumentUnits(RecurringEvents.MINUTELY, CancellationToken.None),
-               Cron.Minutely,
-               new RecurringJobOptions
-               {
-                   TimeZone = TimeZoneInfo.FindSystemTimeZoneById(_timeZoneOptions.TimeZoneId)
-               });
-            }
 
             _recurringJobManager.AddOrUpdate<IWebHookManagementService>(
                "refresh-webhook-job",

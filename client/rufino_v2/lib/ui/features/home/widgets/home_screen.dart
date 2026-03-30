@@ -266,6 +266,14 @@ class _HomeBody extends StatelessWidget {
                       onTap: () => context.go('/require-document'),
                     ),
                   ),
+                  ModuleGuard(
+                    resource: 'document',
+                    child: _MenuCard(
+                      icon: Icons.upload_file_outlined,
+                      label: 'Gestão de Documentos em Lote',
+                      onTap: () => context.go('/batch-document'),
+                    ),
+                  ),
                 ],
               ),
             ],
