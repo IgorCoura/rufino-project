@@ -1,9 +1,13 @@
 import 'dart:collection';
 
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
 
 import '../../../../core/utils/error_messages.dart';
+import '../../../../core/utils/fuzzy_name_matcher.dart';
+import '../../../../core/utils/pdf_text_extractor.dart';
 import '../../../../domain/entities/batch_document_unit.dart';
+import '../../../../domain/entities/bulk_upload_match.dart';
 import '../../../../domain/entities/document_group_with_templates.dart';
 import '../../../../domain/repositories/batch_document_repository.dart';
 import '../../../../domain/repositories/document_group_repository.dart';
@@ -20,21 +24,34 @@ enum BatchDocumentStatus {
 
 /// Manages state and business logic for the batch document management screen.
 ///
+/// Signature for a function that extracts text from PDF bytes.
+///
+/// Defaults to [extractTextFromPdf]. Can be overridden in tests to avoid
+/// depending on real PDF files.
+typedef PdfTextExtractorFn = String Function(Uint8List bytes);
+
 /// Coordinates between [BatchDocumentRepository] for batch operations and
 /// [DocumentTemplateRepository] for populating the template dropdown.
 /// Implements a staging pattern where the user selects files locally before
 /// sending all of them in a single multipart request.
 class BatchDocumentViewModel extends ChangeNotifier {
+  /// Creates a [BatchDocumentViewModel].
+  ///
+  /// The optional [textExtractor] allows injecting a custom PDF text
+  /// extraction function for testing.
   BatchDocumentViewModel({
     required BatchDocumentRepository batchDocumentRepository,
     required DocumentGroupRepository documentGroupRepository,
     required String companyId,
+    PdfTextExtractorFn? textExtractor,
   })  : _batchDocumentRepository = batchDocumentRepository,
         _documentGroupRepository = documentGroupRepository,
-        _companyId = companyId;
+        _companyId = companyId,
+        _textExtractor = textExtractor ?? extractTextFromPdf;
 
   final BatchDocumentRepository _batchDocumentRepository;
   final DocumentGroupRepository _documentGroupRepository;
+  final PdfTextExtractorFn _textExtractor;
   final String _companyId;
 
   /// Sentinel value for the "Todos" option in the template dropdown.
@@ -73,6 +90,11 @@ class BatchDocumentViewModel extends ChangeNotifier {
   int _globalReminderDays = 7;
 
   List<BatchUploadResult> _uploadResults = [];
+
+  List<BulkUploadMatch> _bulkMatches = [];
+  bool _isBulkProcessing = false;
+  int _bulkProcessedCount = 0;
+  int _bulkTotalCount = 0;
 
   // ─── Getters ─────────────────────────────────────────────
 
@@ -155,6 +177,30 @@ class BatchDocumentViewModel extends ChangeNotifier {
 
   /// Returns the staged file name for [unitId], or null if not staged.
   String? stagedFileName(String unitId) => _stagedFiles[unitId]?.fileName;
+
+  /// Files matched during bulk upload, pending user verification.
+  UnmodifiableListView<BulkUploadMatch> get bulkMatches =>
+      UnmodifiableListView(_bulkMatches);
+
+  /// Whether bulk file processing is in progress.
+  bool get isBulkProcessing => _isBulkProcessing;
+
+  /// The number of files already processed during bulk upload.
+  int get bulkProcessedCount => _bulkProcessedCount;
+
+  /// The total number of files being processed during bulk upload.
+  int get bulkTotalCount => _bulkTotalCount;
+
+  /// Whether there are pending bulk matches awaiting verification.
+  bool get hasBulkMatches => _bulkMatches.isNotEmpty;
+
+  /// The number of bulk matches that have a valid employee assignment.
+  int get bulkMatchedCount =>
+      _bulkMatches.where((m) => m.isMatched).length;
+
+  /// The number of bulk matches without a valid assignment.
+  int get bulkUnmatchedCount =>
+      _bulkMatches.where((m) => !m.isMatched).length;
 
   // ─── Filter getters ──────────────────────────────────────
 
@@ -697,6 +743,140 @@ class BatchDocumentViewModel extends ChangeNotifier {
   /// Sets the global reminder interval in days.
   void setGlobalReminderDays(int days) {
     _globalReminderDays = days;
+    notifyListeners();
+  }
+
+  // ─── Bulk upload ────────────────────────────────────────
+
+  /// Processes multiple files for bulk upload with fuzzy name matching.
+  ///
+  /// Extracts text from each PDF, matches against [pendingUnits] using
+  /// fuzzy name matching, and populates [bulkMatches] for verification.
+  /// Units already staged in [_stagedFiles] are excluded from candidates.
+  Future<void> processBulkFiles(List<PlatformFile> files) async {
+    _isBulkProcessing = true;
+    _bulkMatches = [];
+    _bulkProcessedCount = 0;
+    _bulkTotalCount = files.length;
+    notifyListeners();
+
+    try {
+      final assignedUnitIds = <String>{};
+
+      // Build candidates from pending units not already staged.
+      final availableUnits = _pendingUnits
+          .where((u) => !_stagedFiles.containsKey(u.documentUnitId))
+          .toList();
+
+      for (final file in files) {
+        if (file.bytes == null) {
+          _bulkProcessedCount++;
+          continue;
+        }
+
+        final text = _textExtractor(file.bytes!);
+
+        // Build candidates excluding already-assigned units in this batch.
+        final candidates = availableUnits
+            .where((u) => !assignedUnitIds.contains(u.documentUnitId))
+            .map((u) => NameCandidate(
+                  documentUnitId: u.documentUnitId,
+                  employeeId: u.employeeId,
+                  documentId: u.documentId,
+                  name: u.employeeName,
+                ))
+            .toList();
+
+        final matchResult = FuzzyNameMatcher.findBestMatch(text, candidates);
+
+        final match = BulkUploadMatch(
+          fileName: file.name,
+          fileBytes: file.bytes!,
+          extractedText: text,
+          matchedDocumentUnitId: matchResult?.candidate.documentUnitId,
+          matchedEmployeeName: matchResult?.candidate.name,
+          matchedEmployeeId: matchResult?.candidate.employeeId,
+          matchedDocumentId: matchResult?.candidate.documentId,
+          confidence: matchResult?.confidence ?? 0.0,
+          confidenceLevel:
+              matchResult?.confidenceLevel ?? MatchConfidenceLevel.none,
+        );
+
+        _bulkMatches.add(match);
+
+        if (match.isMatched) {
+          assignedUnitIds.add(match.matchedDocumentUnitId!);
+        }
+
+        _bulkProcessedCount++;
+        notifyListeners();
+
+        // Yield to the UI thread so the progress indicator can update.
+        await Future<void>.delayed(Duration.zero);
+      }
+
+      // Sort: unmatched first, then low, medium, high.
+      _bulkMatches.sort((a, b) {
+        final order = {
+          MatchConfidenceLevel.none: 0,
+          MatchConfidenceLevel.low: 1,
+          MatchConfidenceLevel.medium: 2,
+          MatchConfidenceLevel.high: 3,
+        };
+        return order[a.confidenceLevel]!.compareTo(order[b.confidenceLevel]!);
+      });
+    } finally {
+      _isBulkProcessing = false;
+      notifyListeners();
+    }
+  }
+
+  /// Updates the employee assignment for a bulk match at [index].
+  ///
+  /// Called when the user manually reassigns a file to a different
+  /// employee during verification.
+  void reassignBulkMatch(int index, BatchDocumentUnitItem unit) {
+    if (index < 0 || index >= _bulkMatches.length) return;
+
+    final match = _bulkMatches[index];
+    match.matchedDocumentUnitId = unit.documentUnitId;
+    match.matchedEmployeeName = unit.employeeName;
+    match.matchedEmployeeId = unit.employeeId;
+    match.matchedDocumentId = unit.documentId;
+    match.confidence = 1.0;
+    match.confidenceLevel = MatchConfidenceLevel.high;
+    notifyListeners();
+  }
+
+  /// Removes a file from the bulk matches at [index].
+  void removeBulkMatch(int index) {
+    if (index < 0 || index >= _bulkMatches.length) return;
+    _bulkMatches.removeAt(index);
+    notifyListeners();
+  }
+
+  /// Confirms all bulk matches and stages the matched files.
+  ///
+  /// Only stages matches that have a valid assignment. Calls [stageFile]
+  /// for each confirmed match, then clears [bulkMatches].
+  void confirmBulkMatches() {
+    for (final match in _bulkMatches) {
+      if (!match.isMatched) continue;
+      stageFile(
+        match.matchedDocumentUnitId!,
+        match.matchedDocumentId!,
+        match.matchedEmployeeId!,
+        match.fileBytes,
+        match.fileName,
+      );
+    }
+    _bulkMatches = [];
+    notifyListeners();
+  }
+
+  /// Clears all pending bulk matches without staging any files.
+  void cancelBulkMatches() {
+    _bulkMatches = [];
     notifyListeners();
   }
 }
