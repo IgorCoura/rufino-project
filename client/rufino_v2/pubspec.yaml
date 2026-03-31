@@ -27,6 +27,8 @@ dependencies:
   shimmer: ^3.0.0
   mask_text_input_formatter: ^2.9.0
   flutter_json_view: ^1.1.5
+  syncfusion_flutter_pdf: ^27.1.58
+  syncfusion_flutter_pdfviewer: ^27.1.58
 
 dev_dependencies:
   flutter_test:

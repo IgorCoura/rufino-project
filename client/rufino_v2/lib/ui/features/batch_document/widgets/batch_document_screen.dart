@@ -10,6 +10,7 @@ import '../../../../core/theme/app_spacing.dart';
 import '../../../../domain/entities/batch_document_unit.dart';
 import '../../../core/widgets/permission_guard.dart';
 import '../viewmodel/batch_document_viewmodel.dart';
+import 'bulk_upload_verification_dialog.dart';
 
 /// Main screen for batch document management.
 ///
@@ -83,7 +84,8 @@ class _BatchDocumentScreenState extends State<BatchDocumentScreen> {
       body: SafeArea(
         child: Column(
           children: [
-            if (vm.status == BatchDocumentStatus.uploading)
+            if (vm.status == BatchDocumentStatus.uploading ||
+                vm.isBulkProcessing)
               LinearProgressIndicator(
                 color: colorScheme.primary,
                 backgroundColor: colorScheme.surfaceContainerHigh,
@@ -99,6 +101,7 @@ class _BatchDocumentScreenState extends State<BatchDocumentScreen> {
                     child: _DocumentContent(
                       vm: vm,
                       onPickFile: _pickFileForUnit,
+                      onBulkUpload: _pickBulkFiles,
                       onCreateMissing: _showCreateMissingDialog,
                       onBatchUpdateDate: _showBatchDateDialog,
                       onSendToSign: _showSignDateDialog,
@@ -127,6 +130,42 @@ class _BatchDocumentScreenState extends State<BatchDocumentScreen> {
       file.bytes!,
       file.name,
     );
+  }
+
+  /// Opens a file picker for multiple PDFs, processes them with fuzzy name
+  /// matching, and shows the verification dialog.
+  Future<void> _pickBulkFiles() async {
+    final result = await FilePicker.platform.pickFiles(
+      allowMultiple: true,
+      withData: true,
+      type: FileType.custom,
+      allowedExtensions: ['pdf'],
+    );
+    if (result == null || result.files.isEmpty) return;
+    if (!mounted) return;
+
+    // Show a progress dialog while files are being processed.
+    showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => _BulkProcessingDialog(vm: widget.viewModel),
+    );
+
+    await widget.viewModel.processBulkFiles(result.files);
+    if (!mounted) return;
+
+    // Dismiss the progress dialog.
+    Navigator.of(context).pop();
+
+    if (widget.viewModel.hasBulkMatches) {
+      await showDialog<void>(
+        context: context,
+        barrierDismissible: false,
+        builder: (_) => BulkUploadVerificationDialog(
+          viewModel: widget.viewModel,
+        ),
+      );
+    }
   }
 
   Future<void> _showCreateMissingDialog() async {
@@ -942,6 +981,7 @@ class _PeriodFilterRow extends StatelessWidget {
 class _ActionBar extends StatelessWidget {
   const _ActionBar({
     required this.vm,
+    required this.onBulkUpload,
     required this.onCreateMissing,
     required this.onBatchUpdateDate,
     required this.onSendToSign,
@@ -950,6 +990,7 @@ class _ActionBar extends StatelessWidget {
   });
 
   final BatchDocumentViewModel vm;
+  final VoidCallback onBulkUpload;
   final VoidCallback onCreateMissing;
   final VoidCallback onBatchUpdateDate;
   final VoidCallback onSendToSign;
@@ -1005,6 +1046,19 @@ class _ActionBar extends StatelessWidget {
           ),
         ),
         const SizedBox(width: AppSpacing.sm),
+        PermissionGuard(
+          resource: 'document',
+          scope: 'upload',
+          child: OutlinedButton.icon(
+            onPressed: vm.pendingUnits.isEmpty ||
+                    isLoading ||
+                    vm.isBulkProcessing
+                ? null
+                : onBulkUpload,
+            icon: const Icon(Icons.upload_file_outlined, size: 18),
+            label: const Text('Upload em Lote'),
+          ),
+        ),
         PermissionGuard(
           resource: 'document',
           scope: 'upload',
@@ -1069,6 +1123,7 @@ class _DocumentContent extends StatelessWidget {
   const _DocumentContent({
     required this.vm,
     required this.onPickFile,
+    required this.onBulkUpload,
     required this.onCreateMissing,
     required this.onBatchUpdateDate,
     required this.onSendToSign,
@@ -1078,6 +1133,7 @@ class _DocumentContent extends StatelessWidget {
 
   final BatchDocumentViewModel vm;
   final Future<void> Function(BatchDocumentUnitItem unit) onPickFile;
+  final VoidCallback onBulkUpload;
   final VoidCallback onCreateMissing;
   final VoidCallback onBatchUpdateDate;
   final VoidCallback onSendToSign;
@@ -1107,6 +1163,7 @@ class _DocumentContent extends StatelessWidget {
           SliverToBoxAdapter(
             child: _ActionBar(
               vm: vm,
+              onBulkUpload: onBulkUpload,
               onCreateMissing: onCreateMissing,
               onBatchUpdateDate: onBatchUpdateDate,
               onSendToSign: onSendToSign,
@@ -1923,6 +1980,89 @@ class _DateInputDialogState extends State<_DateInputDialog> {
           child: const Text('Confirmar'),
         ),
       ],
+    );
+  }
+}
+
+/// Modal dialog that shows real-time progress while bulk files are processed.
+class _BulkProcessingDialog extends StatefulWidget {
+  const _BulkProcessingDialog({required this.vm});
+
+  final BatchDocumentViewModel vm;
+
+  @override
+  State<_BulkProcessingDialog> createState() => _BulkProcessingDialogState();
+}
+
+class _BulkProcessingDialogState extends State<_BulkProcessingDialog> {
+  @override
+  void initState() {
+    super.initState();
+    widget.vm.addListener(_onChanged);
+  }
+
+  @override
+  void dispose() {
+    widget.vm.removeListener(_onChanged);
+    super.dispose();
+  }
+
+  void _onChanged() {
+    if (mounted) setState(() {});
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final vm = widget.vm;
+    final colorScheme = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
+    final total = vm.bulkTotalCount;
+    final processed = vm.bulkProcessedCount;
+    final progress = total > 0 ? processed / total : 0.0;
+
+    return PopScope(
+      canPop: false,
+      child: Dialog(
+        child: Padding(
+          padding: const EdgeInsets.all(AppSpacing.xl),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                Icons.upload_file_outlined,
+                size: 48,
+                color: colorScheme.primary,
+              ),
+              const SizedBox(height: AppSpacing.md),
+              Text(
+                'Processando arquivos...',
+                style: textTheme.titleMedium,
+              ),
+              const SizedBox(height: AppSpacing.sm),
+              Text(
+                '$processed de $total',
+                style: textTheme.bodyMedium?.copyWith(
+                  color: colorScheme.onSurfaceVariant,
+                ),
+              ),
+              const SizedBox(height: AppSpacing.md),
+              LinearProgressIndicator(
+                value: progress,
+                color: colorScheme.primary,
+                backgroundColor: colorScheme.surfaceContainerHigh,
+                borderRadius: BorderRadius.circular(AppSpacing.xs),
+              ),
+              const SizedBox(height: AppSpacing.sm),
+              Text(
+                '${(progress * 100).round()}%',
+                style: textTheme.labelSmall?.copyWith(
+                  color: colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }
