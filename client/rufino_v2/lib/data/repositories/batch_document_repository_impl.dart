@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import '../../core/errors/batch_document_exception.dart';
 import '../../core/result.dart';
 import '../../domain/entities/batch_document_unit.dart';
@@ -147,6 +149,53 @@ class BatchDocumentRepositoryImpl implements BatchDocumentRepository {
           companyId, items, dateLimitToSign, reminderEveryNDays);
       return Result.success(
           response.results.map((m) => m.toEntity()).toList());
+    } on BatchDocumentException catch (e) {
+      return Result.error(e);
+    } catch (e) {
+      return Result.error(BatchDocumentNetworkException(e));
+    }
+  }
+
+  @override
+  Future<Result<Uint8List>> generatePdfRange(
+    String companyId,
+    List<BatchDocumentUnitItem> items,
+  ) async {
+    try {
+      final itemMaps = items
+          .map((i) => {
+                'documentUnitId': i.documentUnitId,
+                'documentId': i.documentId,
+                'employeeId': i.employeeId,
+              })
+          .toList();
+      final bytes = await apiService.generatePdfRange(companyId, itemMaps);
+      return Result.success(bytes);
+    } on BatchDocumentException catch (e) {
+      return Result.error(e);
+    } catch (e) {
+      return Result.error(BatchDocumentNetworkException(e));
+    }
+  }
+
+  @override
+  Future<Result<void>> generateAndSignRange(
+    String companyId,
+    List<BatchDocumentUnitItem> items,
+    String dateLimitToSign,
+    int reminderEveryNDays,
+  ) async {
+    try {
+      final itemMaps = items
+          .map((i) => {
+                'documentUnitId': i.documentUnitId,
+                'documentId': i.documentId,
+                'employeeId': i.employeeId,
+              })
+          .toList();
+      await apiService.generateAndSignRange(
+          companyId, itemMaps, dateLimitToSign, reminderEveryNDays);
+      return const Result.success(null);
     } on BatchDocumentException catch (e) {
       return Result.error(e);
     } catch (e) {

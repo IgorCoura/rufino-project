@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -100,6 +102,8 @@ class _BatchDocumentScreenState extends State<BatchDocumentScreen> {
                       onCreateMissing: _showCreateMissingDialog,
                       onBatchUpdateDate: _showBatchDateDialog,
                       onSendToSign: _showSignDateDialog,
+                      onGeneratePdf: _generatePdf,
+                      onGenerateAndSign: _showGenerateAndSignDialog,
                     ),
                   ),
                 ),
@@ -332,6 +336,51 @@ class _BatchDocumentScreenState extends State<BatchDocumentScreen> {
     final parts = dateText.split('/');
     final apiDate = '${parts[2]}-${parts[1]}-${parts[0]}';
     await widget.viewModel.batchUpdateDate(apiDate);
+  }
+
+  Future<void> _generatePdf() async {
+    final bytes = await widget.viewModel.generatePdfRange();
+    if (bytes == null || !mounted) return;
+    final result = await FilePicker.platform.saveFile(
+      dialogTitle: 'Salvar PDFs gerados',
+      fileName: 'documents.zip',
+    );
+    if (result != null) {
+      await File(result).writeAsBytes(bytes);
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+          ..hideCurrentSnackBar()
+          ..showSnackBar(
+            const SnackBar(
+              content: Text('Arquivo salvo com sucesso.'),
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+      }
+    }
+  }
+
+  Future<void> _showGenerateAndSignDialog() async {
+    final dateText = await showDialog<String>(
+      context: context,
+      builder: (ctx) => const _DateInputDialog(
+        title: 'Gerar e Enviar para Assinar',
+        fieldLabel: 'Data limite para assinatura',
+      ),
+    );
+
+    if (dateText == null || dateText.isEmpty || !mounted) return;
+
+    final parts = dateText.split('/');
+    final isoDate = DateTime(
+      int.parse(parts[2]),
+      int.parse(parts[1]),
+      int.parse(parts[0]),
+    ).toUtc().toIso8601String();
+
+    widget.viewModel.setGlobalSignDeadline(isoDate);
+    widget.viewModel.setGlobalReminderDays(0);
+    await widget.viewModel.generateAndSignRange();
   }
 
   void _showUploadResultsDialog() {
@@ -896,15 +945,21 @@ class _ActionBar extends StatelessWidget {
     required this.onCreateMissing,
     required this.onBatchUpdateDate,
     required this.onSendToSign,
+    required this.onGeneratePdf,
+    required this.onGenerateAndSign,
   });
 
   final BatchDocumentViewModel vm;
   final VoidCallback onCreateMissing;
   final VoidCallback onBatchUpdateDate;
   final VoidCallback onSendToSign;
+  final VoidCallback onGeneratePdf;
+  final VoidCallback onGenerateAndSign;
 
   @override
   Widget build(BuildContext context) {
+    final isLoading = vm.status == BatchDocumentStatus.loading ||
+        vm.status == BatchDocumentStatus.uploading;
     return Wrap(
       spacing: AppSpacing.sm,
       runSpacing: AppSpacing.sm,
@@ -954,8 +1009,7 @@ class _ActionBar extends StatelessWidget {
           resource: 'document',
           scope: 'upload',
           child: FilledButton.icon(
-            onPressed: vm.stagedFileCount == 0 ||
-                    vm.status == BatchDocumentStatus.uploading
+            onPressed: vm.stagedFileCount == 0 || isLoading
                 ? null
                 : () => vm.uploadAllStaged(),
             icon: const Icon(Icons.cloud_upload_outlined, size: 18),
@@ -966,12 +1020,39 @@ class _ActionBar extends StatelessWidget {
           resource: 'document',
           scope: 'send2sign',
           child: FilledButton.tonalIcon(
-            onPressed: vm.stagedFileCount == 0 ||
-                    vm.status == BatchDocumentStatus.uploading
+            onPressed: vm.stagedFileCount == 0 || isLoading || !vm.isSignable
                 ? null
                 : onSendToSign,
             icon: const Icon(Icons.draw_outlined, size: 18),
             label: const Text('Enviar para Assinar'),
+          ),
+        ),
+        const SizedBox(width: AppSpacing.sm),
+        PermissionGuard(
+          resource: 'document',
+          scope: 'generate',
+          child: OutlinedButton.icon(
+            onPressed: vm.selectedUnitIds.isEmpty ||
+                    isLoading ||
+                    !vm.canGenerateDocument
+                ? null
+                : onGeneratePdf,
+            icon: const Icon(Icons.picture_as_pdf_outlined, size: 18),
+            label: const Text('Gerar PDF'),
+          ),
+        ),
+        PermissionGuard(
+          resource: 'document',
+          scope: 'generate',
+          child: FilledButton.tonalIcon(
+            onPressed: vm.selectedUnitIds.isEmpty ||
+                    isLoading ||
+                    !vm.canGenerateDocument ||
+                    !vm.isSignable
+                ? null
+                : onGenerateAndSign,
+            icon: const Icon(Icons.history_edu_outlined, size: 18),
+            label: const Text('Gerar e Assinar'),
           ),
         ),
       ],
@@ -991,6 +1072,8 @@ class _DocumentContent extends StatelessWidget {
     required this.onCreateMissing,
     required this.onBatchUpdateDate,
     required this.onSendToSign,
+    required this.onGeneratePdf,
+    required this.onGenerateAndSign,
   });
 
   final BatchDocumentViewModel vm;
@@ -998,6 +1081,8 @@ class _DocumentContent extends StatelessWidget {
   final VoidCallback onCreateMissing;
   final VoidCallback onBatchUpdateDate;
   final VoidCallback onSendToSign;
+  final VoidCallback onGeneratePdf;
+  final VoidCallback onGenerateAndSign;
 
   @override
   Widget build(BuildContext context) {
@@ -1025,6 +1110,8 @@ class _DocumentContent extends StatelessWidget {
               onCreateMissing: onCreateMissing,
               onBatchUpdateDate: onBatchUpdateDate,
               onSendToSign: onSendToSign,
+              onGeneratePdf: onGeneratePdf,
+              onGenerateAndSign: onGenerateAndSign,
             ),
           ),
           const SliverToBoxAdapter(

@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:http/http.dart' as http;
 
@@ -230,5 +231,44 @@ class BatchDocumentApiService {
     }
     return InsertDocumentRangeResponse.fromJson(
         jsonDecode(responseBody) as Map<String, dynamic>);
+  }
+
+  /// Generates PDFs for the selected document units across employees.
+  ///
+  /// Returns raw ZIP bytes containing all generated PDFs.
+  Future<Uint8List> generatePdfRange(
+    String companyId,
+    List<Map<String, String>> items,
+  ) async {
+    final uri = Uri.https(
+        baseUrl, '/api/v1/$companyId/batch-document/generate-range');
+    final response = await client.post(
+      uri,
+      headers: await _headers(),
+      body: jsonEncode({'items': items}),
+    );
+    checkHttpStatus(response);
+    return response.bodyBytes;
+  }
+
+  /// Generates PDFs and sends them for digital signature.
+  Future<void> generateAndSignRange(
+    String companyId,
+    List<Map<String, String>> items,
+    String dateLimitToSign,
+    int reminderEveryNDays,
+  ) async {
+    final uri = Uri.https(baseUrl,
+        '/api/v1/$companyId/batch-document/generate-range/send2sign');
+    final response = await client.post(
+      uri,
+      headers: await _headers(),
+      body: jsonEncode({
+        'items': items,
+        'dateLimitToSign': dateLimitToSign,
+        'reminderEveryNDays': reminderEveryNDays,
+      }),
+    );
+    checkHttpStatus(response);
   }
 }

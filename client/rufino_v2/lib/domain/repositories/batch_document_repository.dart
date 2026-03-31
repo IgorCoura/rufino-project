@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import '../../core/result.dart';
 import '../entities/batch_document_unit.dart';
 
@@ -58,6 +60,20 @@ abstract class BatchDocumentRepository {
   Future<Result<List<BatchUploadResult>>> uploadDocumentRangeToSign(
     String companyId,
     List<BatchUploadItem> items,
+    String dateLimitToSign,
+    int reminderEveryNDays,
+  );
+
+  /// Generates PDFs for the selected document units and returns ZIP bytes.
+  Future<Result<Uint8List>> generatePdfRange(
+    String companyId,
+    List<BatchDocumentUnitItem> items,
+  );
+
+  /// Generates PDFs and sends them for digital signature.
+  Future<Result<void>> generateAndSignRange(
+    String companyId,
+    List<BatchDocumentUnitItem> items,
     String dateLimitToSign,
     int reminderEveryNDays,
   );
