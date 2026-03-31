@@ -47,8 +47,22 @@ namespace PeopleManagement.Domain.AggregatesModel.DocumentAggregate
 
         public DocumentUnit NewDocumentUnit(Guid documentUnitId, PeriodType? periodType = null, DateTime? referenceDate = null)
         {
-            if (DocumentsUnits.Any(x => x.Status == DocumentUnitStatus.Pending) && !DocumentsUnits.Any(x => x.Period != null))
-                return DocumentsUnits.FirstOrDefault(x => x.Status == DocumentUnitStatus.Pending)!;
+            if (periodType is not null && referenceDate.HasValue)
+            {
+                var candidatePeriod = UsePreviousPeriod
+                    ? Period.CreatePreviousPeriod((PeriodType)periodType, (DateTime)referenceDate)
+                    : Period.Create((PeriodType)periodType, (DateTime)referenceDate);
+
+                var existingPending = DocumentsUnits.FirstOrDefault(x => x.Status == DocumentUnitStatus.Pending && x.Period != null && x.Period.Equals(candidatePeriod));
+                if (existingPending is not null)
+                    return existingPending;
+            }
+            else
+            {
+                var existingPending = DocumentsUnits.FirstOrDefault(x => x.Status == DocumentUnitStatus.Pending && x.Period == null);
+                if (existingPending is not null)
+                    return existingPending;
+            }
 
             var documentUnit = DocumentUnit.Create(documentUnitId, this, periodType, referenceDate);
             DocumentsUnits.Add(documentUnit);
@@ -105,6 +119,13 @@ namespace PeopleManagement.Domain.AggregatesModel.DocumentAggregate
                 ?? throw new DomainException(this, DomainErrors.ObjectNotFound(nameof(DocumentUnit), documentUnitId.ToString()));
 
             documentUnit.UpdateDetails(date, validity, content, periodType);
+
+            var duplicatePending = DocumentsUnits
+                .Where(x => x.Id != documentUnitId && x.Status == DocumentUnitStatus.Pending && x.Period != null && x.Period.Equals(documentUnit.Period))
+                .ToList();
+
+            duplicatePending.ForEach(x => x.MaskAsInvalid());
+
             RefreshDocumentStatus();
             return documentUnit;
         }

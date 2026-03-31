@@ -1,4 +1,5 @@
 import '../../domain/entities/employee_document.dart';
+import 'period_api_model.dart';
 
 /// Data Transfer Object for the employee document endpoints.
 class EmployeeDocumentApiModel {
@@ -93,6 +94,7 @@ class DocumentUnitApiModel {
     required this.content,
     required this.name,
     required this.extension,
+    this.period,
   });
 
   final String id;
@@ -105,8 +107,12 @@ class DocumentUnitApiModel {
   final String name;
   final String extension;
 
+  /// The competency period, if the document has one.
+  final PeriodApiModel? period;
+
   factory DocumentUnitApiModel.fromJson(Map<String, dynamic> json) {
     final status = json['status'] as Map<String, dynamic>? ?? {};
+    final periodJson = json['period'] as Map<String, dynamic>?;
     return DocumentUnitApiModel(
       id: json['id'] as String? ?? '',
       statusId: (status['id'] ?? '').toString(),
@@ -117,6 +123,8 @@ class DocumentUnitApiModel {
       content: json['content'] as String? ?? '',
       name: json['name'] as String? ?? '',
       extension: json['extension'] as String? ?? '',
+      period:
+          periodJson != null ? PeriodApiModel.fromJson(periodJson) : null,
     );
   }
 
@@ -132,6 +140,7 @@ class DocumentUnitApiModel {
       createdAt: _dateToDisplay(createdAt),
       hasFile: hasValidDate && extension.isNotEmpty,
       name: name,
+      period: period?.toEntity(),
     );
   }
 

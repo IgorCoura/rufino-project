@@ -18,6 +18,7 @@ import 'data/repositories/document_group_repository_impl.dart';
 import 'data/repositories/document_template_repository_impl.dart';
 import 'data/repositories/require_document_repository_impl.dart';
 import 'data/repositories/batch_document_repository_impl.dart';
+import 'core/utils/document_scanner_service.dart';
 import 'data/repositories/workplace_repository_impl.dart';
 import 'data/services/auth_api_service.dart';
 import 'data/services/permission_api_service.dart';
@@ -539,6 +540,7 @@ class _AppRouterState extends State<_AppRouter> {
                     documentGroupRepository:
                         context.read<DocumentGroupRepository>(),
                     companyId: company.id,
+                    scannerService: DocumentScannerService(),
                   ),
                 );
               },

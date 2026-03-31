@@ -3,6 +3,7 @@ import 'dart:collection';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
 
+import '../../../../core/utils/document_scanner_service.dart';
 import '../../../../core/utils/error_messages.dart';
 import '../../../../core/utils/fuzzy_name_matcher.dart';
 import '../../../../core/utils/pdf_text_extractor.dart';
@@ -38,20 +39,24 @@ class BatchDocumentViewModel extends ChangeNotifier {
   /// Creates a [BatchDocumentViewModel].
   ///
   /// The optional [textExtractor] allows injecting a custom PDF text
-  /// extraction function for testing.
+  /// extraction function for testing. The optional [scannerService]
+  /// enables document scanning on supported platforms.
   BatchDocumentViewModel({
     required BatchDocumentRepository batchDocumentRepository,
     required DocumentGroupRepository documentGroupRepository,
     required String companyId,
     PdfTextExtractorFn? textExtractor,
+    DocumentScannerService? scannerService,
   })  : _batchDocumentRepository = batchDocumentRepository,
         _documentGroupRepository = documentGroupRepository,
         _companyId = companyId,
-        _textExtractor = textExtractor ?? extractTextFromPdf;
+        _textExtractor = textExtractor ?? extractTextFromPdf,
+        _scannerService = scannerService;
 
   final BatchDocumentRepository _batchDocumentRepository;
   final DocumentGroupRepository _documentGroupRepository;
   final PdfTextExtractorFn _textExtractor;
+  final DocumentScannerService? _scannerService;
   final String _companyId;
 
   /// Sentinel value for the "Todos" option in the template dropdown.
@@ -878,5 +883,131 @@ class BatchDocumentViewModel extends ChangeNotifier {
   void cancelBulkMatches() {
     _bulkMatches = [];
     notifyListeners();
+  }
+
+  // ─── Document Scanning ────────────────────────────────────
+
+  /// Whether document scanning is available on the current platform.
+  bool get isScanSupported =>
+      _scannerService != null && _scannerService.isPlatformSupported;
+
+  /// Launches the native document scanner and returns captured page images.
+  ///
+  /// Returns `null` if the user cancels or scanning is not supported.
+  Future<List<Uint8List>?> scanPages() async {
+    if (_scannerService == null) return null;
+    return _scannerService.scanPages();
+  }
+
+  /// Processes multiple scanned documents through the bulk upload pipeline.
+  ///
+  /// Each entry in [documents] is a list of page images for a single
+  /// document. For each document, converts its pages to a PDF, runs OCR,
+  /// and fuzzy-matches the extracted name against [pendingUnits].
+  /// All results are added to [bulkMatches] for user verification via
+  /// the same [BulkUploadVerificationDialog] used by file-based uploads.
+  Future<void> processScannedDocuments(List<List<Uint8List>> documents) async {
+    if (_scannerService == null || documents.isEmpty) return;
+
+    _isBulkProcessing = true;
+    _bulkMatches = [];
+    _bulkProcessedCount = 0;
+    _bulkTotalCount = documents.length;
+    notifyListeners();
+
+    try {
+      final assignedUnitIds = <String>{};
+      final availableUnits = _pendingUnits
+          .where((u) => !_stagedFiles.containsKey(u.documentUnitId))
+          .toList();
+
+      for (var i = 0; i < documents.length; i++) {
+        final pages = documents[i];
+        if (pages.isEmpty) {
+          _bulkProcessedCount++;
+          notifyListeners();
+          continue;
+        }
+
+        // Step 1: Convert images to PDF.
+        final pdfBytes = await _scannerService.imagesToPdf(pages);
+
+        // Step 2: Run OCR on each page and concatenate the text.
+        final textBuffer = StringBuffer();
+        for (final page in pages) {
+          final pageText = await _scannerService.recognizeText(page);
+          if (pageText.isNotEmpty) {
+            textBuffer.write(pageText);
+            textBuffer.write(' ');
+          }
+        }
+        final extractedText = textBuffer.toString().trim();
+
+        // Step 3: Fuzzy match excluding already-assigned units.
+        final candidates = availableUnits
+            .where((u) => !assignedUnitIds.contains(u.documentUnitId))
+            .map((u) => NameCandidate(
+                  documentUnitId: u.documentUnitId,
+                  employeeId: u.employeeId,
+                  documentId: u.documentId,
+                  name: u.employeeName,
+                ))
+            .toList();
+
+        final matchResult = FuzzyNameMatcher.findBestMatch(
+          extractedText,
+          candidates,
+        );
+
+        final now = DateTime.now();
+        final fileName =
+            'scan_${now.year}-${now.month.toString().padLeft(2, '0')}-'
+            '${now.day.toString().padLeft(2, '0')}_'
+            '${now.hour.toString().padLeft(2, '0')}'
+            '${now.minute.toString().padLeft(2, '0')}'
+            '${now.second.toString().padLeft(2, '0')}'
+            '_${(i + 1).toString().padLeft(3, '0')}.pdf';
+
+        final match = BulkUploadMatch(
+          fileName: fileName,
+          fileBytes: pdfBytes,
+          extractedText: extractedText,
+          matchedDocumentUnitId: matchResult?.candidate.documentUnitId,
+          matchedEmployeeName: matchResult?.candidate.name,
+          matchedEmployeeId: matchResult?.candidate.employeeId,
+          matchedDocumentId: matchResult?.candidate.documentId,
+          confidence: matchResult?.confidence ?? 0.0,
+          confidenceLevel:
+              matchResult?.confidenceLevel ?? MatchConfidenceLevel.none,
+        );
+
+        _bulkMatches.add(match);
+
+        if (match.isMatched) {
+          assignedUnitIds.add(match.matchedDocumentUnitId!);
+        }
+
+        _bulkProcessedCount++;
+        notifyListeners();
+        await Future<void>.delayed(Duration.zero);
+      }
+
+      // Sort: unmatched first, then low, medium, high.
+      _bulkMatches.sort((a, b) {
+        const order = {
+          MatchConfidenceLevel.none: 0,
+          MatchConfidenceLevel.low: 1,
+          MatchConfidenceLevel.medium: 2,
+          MatchConfidenceLevel.high: 3,
+        };
+        return order[a.confidenceLevel]!.compareTo(order[b.confidenceLevel]!);
+      });
+    } catch (e) {
+      _status = BatchDocumentStatus.error;
+      _errorMessage = 'Erro ao processar documentos digitalizados: $e';
+    } finally {
+      _isBulkProcessing = false;
+      notifyListeners();
+    }
   }
 }

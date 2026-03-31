@@ -1,6 +1,8 @@
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:file_picker/file_picker.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:mask_text_input_formatter/mask_text_input_formatter.dart';
@@ -11,6 +13,10 @@ import '../../../../domain/entities/batch_document_unit.dart';
 import '../../../core/widgets/permission_guard.dart';
 import '../viewmodel/batch_document_viewmodel.dart';
 import 'bulk_upload_verification_dialog.dart';
+import 'document_scan_dialog.dart';
+
+/// Possible actions during a multi-document scanning session.
+enum _ScanSessionAction { scanMore, process, discard }
 
 /// Main screen for batch document management.
 ///
@@ -102,6 +108,7 @@ class _BatchDocumentScreenState extends State<BatchDocumentScreen> {
                       vm: vm,
                       onPickFile: _pickFileForUnit,
                       onBulkUpload: _pickBulkFiles,
+                      onScanDocument: _scanDocument,
                       onCreateMissing: _showCreateMissingDialog,
                       onBatchUpdateDate: _showBatchDateDialog,
                       onSendToSign: _showSignDateDialog,
@@ -166,6 +173,125 @@ class _BatchDocumentScreenState extends State<BatchDocumentScreen> {
         ),
       );
     }
+  }
+
+  /// Opens the document scanner in a loop, letting the user scan multiple
+  /// documents before processing them all together with OCR and fuzzy
+  /// name matching against employees.
+  Future<void> _scanDocument() async {
+    final vm = widget.viewModel;
+    final scannedDocuments = <List<Uint8List>>[];
+
+    // Loop: scan documents until the user finishes or cancels.
+    while (true) {
+      List<Uint8List>? pages;
+
+      if (kIsWeb) {
+        pages = await showDialog<List<Uint8List>>(
+          context: context,
+          barrierDismissible: false,
+          builder: (_) => const DocumentScanDialog(),
+        );
+      } else {
+        pages = await vm.scanPages();
+      }
+
+      if (!mounted) return;
+
+      // User cancelled this scan — if nothing was scanned yet, abort.
+      if (pages == null || pages.isEmpty) {
+        if (scannedDocuments.isEmpty) return;
+        // If documents were already scanned, ask what to do.
+        final action = await _showScanSessionDialog(scannedDocuments.length);
+        if (!mounted) return;
+        if (action == _ScanSessionAction.process) break;
+        if (action == _ScanSessionAction.discard) return;
+        // scanMore → continue the loop
+        continue;
+      }
+
+      scannedDocuments.add(pages);
+
+      // Ask the user if they want to scan another or process all.
+      final action = await _showScanSessionDialog(scannedDocuments.length);
+      if (!mounted) return;
+      if (action == _ScanSessionAction.process) break;
+      if (action == _ScanSessionAction.discard) return;
+      // scanMore → continue the loop
+    }
+
+    if (scannedDocuments.isEmpty) return;
+
+    // Show progress dialog while processing all documents.
+    showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => _BulkProcessingDialog(vm: vm),
+    );
+
+    await vm.processScannedDocuments(scannedDocuments);
+    if (!mounted) return;
+
+    // Dismiss the progress dialog.
+    Navigator.of(context).pop();
+
+    if (vm.hasBulkMatches) {
+      await showDialog<void>(
+        context: context,
+        barrierDismissible: false,
+        builder: (_) => BulkUploadVerificationDialog(viewModel: vm),
+      );
+    }
+  }
+
+  /// Shows a dialog for the user to choose the next action during a
+  /// scanning session. Displays the current count of scanned documents.
+  Future<_ScanSessionAction> _showScanSessionDialog(int scannedCount) async {
+    final result = await showDialog<_ScanSessionAction>(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) {
+        final colorScheme = Theme.of(ctx).colorScheme;
+        final textTheme = Theme.of(ctx).textTheme;
+        return AlertDialog(
+          icon: Icon(
+            Icons.document_scanner_outlined,
+            color: colorScheme.primary,
+          ),
+          title: Text(
+            '$scannedCount '
+            '${scannedCount == 1 ? 'documento digitalizado' : 'documentos digitalizados'}',
+          ),
+          content: Text(
+            'Deseja digitalizar mais documentos ou processar os já capturados?',
+            style: textTheme.bodyMedium,
+          ),
+          actions: [
+            TextButton(
+              onPressed: () =>
+                  Navigator.of(ctx).pop(_ScanSessionAction.discard),
+              child: Text(
+                'Descartar',
+                style: TextStyle(color: colorScheme.error),
+              ),
+            ),
+            OutlinedButton.icon(
+              onPressed: () =>
+                  Navigator.of(ctx).pop(_ScanSessionAction.scanMore),
+              icon: const Icon(Icons.document_scanner_outlined, size: 18),
+              label: const Text('Digitalizar Mais'),
+            ),
+            FilledButton.icon(
+              onPressed: () =>
+                  Navigator.of(ctx).pop(_ScanSessionAction.process),
+              icon: const Icon(Icons.check, size: 18),
+              label: const Text('Processar'),
+            ),
+          ],
+        );
+      },
+    );
+    return result ?? _ScanSessionAction.discard;
   }
 
   Future<void> _showCreateMissingDialog() async {
@@ -982,6 +1108,7 @@ class _ActionBar extends StatelessWidget {
   const _ActionBar({
     required this.vm,
     required this.onBulkUpload,
+    required this.onScanDocument,
     required this.onCreateMissing,
     required this.onBatchUpdateDate,
     required this.onSendToSign,
@@ -991,6 +1118,7 @@ class _ActionBar extends StatelessWidget {
 
   final BatchDocumentViewModel vm;
   final VoidCallback onBulkUpload;
+  final VoidCallback onScanDocument;
   final VoidCallback onCreateMissing;
   final VoidCallback onBatchUpdateDate;
   final VoidCallback onSendToSign;
@@ -1059,6 +1187,20 @@ class _ActionBar extends StatelessWidget {
             label: const Text('Upload em Lote'),
           ),
         ),
+        if (vm.isScanSupported)
+          PermissionGuard(
+            resource: 'document',
+            scope: 'upload',
+            child: OutlinedButton.icon(
+              onPressed: vm.pendingUnits.isEmpty ||
+                      isLoading ||
+                      vm.isBulkProcessing
+                  ? null
+                  : onScanDocument,
+              icon: const Icon(Icons.document_scanner_outlined, size: 18),
+              label: const Text('Digitalizar'),
+            ),
+          ),
         PermissionGuard(
           resource: 'document',
           scope: 'upload',
@@ -1124,6 +1266,7 @@ class _DocumentContent extends StatelessWidget {
     required this.vm,
     required this.onPickFile,
     required this.onBulkUpload,
+    required this.onScanDocument,
     required this.onCreateMissing,
     required this.onBatchUpdateDate,
     required this.onSendToSign,
@@ -1134,6 +1277,7 @@ class _DocumentContent extends StatelessWidget {
   final BatchDocumentViewModel vm;
   final Future<void> Function(BatchDocumentUnitItem unit) onPickFile;
   final VoidCallback onBulkUpload;
+  final VoidCallback onScanDocument;
   final VoidCallback onCreateMissing;
   final VoidCallback onBatchUpdateDate;
   final VoidCallback onSendToSign;
@@ -1164,6 +1308,7 @@ class _DocumentContent extends StatelessWidget {
             child: _ActionBar(
               vm: vm,
               onBulkUpload: onBulkUpload,
+              onScanDocument: onScanDocument,
               onCreateMissing: onCreateMissing,
               onBatchUpdateDate: onBatchUpdateDate,
               onSendToSign: onSendToSign,

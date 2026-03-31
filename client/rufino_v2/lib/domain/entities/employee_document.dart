@@ -1,3 +1,5 @@
+import 'period.dart';
+
 /// A required document (Documento) for an employee, containing a list of
 /// document units (instances).
 class EmployeeDocument {
@@ -68,6 +70,7 @@ class DocumentUnit {
     required this.createdAt,
     required this.hasFile,
     required this.name,
+    this.period,
   });
 
   final String id;
@@ -93,6 +96,9 @@ class DocumentUnit {
 
   /// The file name (including extension) when a file is attached.
   final String name;
+
+  /// The competency period, if the document has one.
+  final Period? period;
 
   /// Whether this unit is pending (status id 1).
   bool get isPending => statusId == '1';
