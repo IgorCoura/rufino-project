@@ -129,16 +129,21 @@ void main() {
   Future<void> openDialog(WidgetTester tester) async {
     await tester.pumpWidget(buildSubject());
     await tester.tap(find.text('Open'));
-    await tester.pumpAndSettle();
+    // Use pump() instead of pumpAndSettle() because SfPdfViewer
+    // continuously rebuilds and never reaches a settled state.
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 1));
   }
 
   group('BulkUploadVerificationDialog', () {
     testWidgets('renders file list with correct count', (tester) async {
       await setupViewModel();
-      await viewModel.processBulkFiles([
-        makeFile('file1.pdf', 'Nome: João Silva Santos'),
-        makeFile('file2.pdf', 'Nome: Maria Aparecida de Souza'),
-      ]);
+      // Use runAsync because processBulkFiles contains
+      // Future.delayed(Duration.zero) which hangs in FakeAsync.
+      await tester.runAsync(() => viewModel.processBulkFiles([
+            makeFile('file1.pdf', 'Nome: João Silva Santos'),
+            makeFile('file2.pdf', 'Nome: Maria Aparecida de Souza'),
+          ]));
 
       await openDialog(tester);
 
@@ -148,9 +153,9 @@ void main() {
 
     testWidgets('shows matched employee name', (tester) async {
       await setupViewModel();
-      await viewModel.processBulkFiles([
-        makeFile('file1.pdf', 'Nome: João Silva Santos'),
-      ]);
+      await tester.runAsync(() => viewModel.processBulkFiles([
+            makeFile('file1.pdf', 'Nome: João Silva Santos'),
+          ]));
 
       await openDialog(tester);
 
@@ -159,9 +164,9 @@ void main() {
 
     testWidgets('shows dialog title', (tester) async {
       await setupViewModel();
-      await viewModel.processBulkFiles([
-        makeFile('file1.pdf', 'Nome: João Silva Santos'),
-      ]);
+      await tester.runAsync(() => viewModel.processBulkFiles([
+            makeFile('file1.pdf', 'Nome: João Silva Santos'),
+          ]));
 
       await openDialog(tester);
 
@@ -171,9 +176,9 @@ void main() {
 
     testWidgets('confirm button shows matched count', (tester) async {
       await setupViewModel();
-      await viewModel.processBulkFiles([
-        makeFile('file1.pdf', 'Nome: João Silva Santos'),
-      ]);
+      await tester.runAsync(() => viewModel.processBulkFiles([
+            makeFile('file1.pdf', 'Nome: João Silva Santos'),
+          ]));
 
       await openDialog(tester);
 
@@ -187,25 +192,26 @@ void main() {
     testWidgets('cancel button pops dialog and clears matches',
         (tester) async {
       await setupViewModel();
-      await viewModel.processBulkFiles([
-        makeFile('file1.pdf', 'Nome: João Silva Santos'),
-      ]);
+      await tester.runAsync(() => viewModel.processBulkFiles([
+            makeFile('file1.pdf', 'Nome: João Silva Santos'),
+          ]));
 
       await openDialog(tester);
       expect(viewModel.hasBulkMatches, isTrue);
 
       await tester.tap(find.text('Cancelar'));
-      await tester.pumpAndSettle();
+      await tester.pump();
+      await tester.pump(const Duration(seconds: 1));
 
       expect(viewModel.hasBulkMatches, isFalse);
     });
 
     testWidgets('summary bar shows file count', (tester) async {
       await setupViewModel();
-      await viewModel.processBulkFiles([
-        makeFile('file1.pdf', 'Nome: João Silva Santos'),
-        makeFile('file2.pdf', 'Nome: Maria Aparecida de Souza'),
-      ]);
+      await tester.runAsync(() => viewModel.processBulkFiles([
+            makeFile('file1.pdf', 'Nome: João Silva Santos'),
+            makeFile('file2.pdf', 'Nome: Maria Aparecida de Souza'),
+          ]));
 
       await openDialog(tester);
 
@@ -215,9 +221,9 @@ void main() {
     testWidgets('shows unmatched state for files with no match',
         (tester) async {
       await setupViewModel();
-      await viewModel.processBulkFiles([
-        makeFile('unknown.pdf', 'XYZXYZ random text XYZXYZ'),
-      ]);
+      await tester.runAsync(() => viewModel.processBulkFiles([
+            makeFile('unknown.pdf', 'XYZXYZ random text XYZXYZ'),
+          ]));
 
       await openDialog(tester);
 
@@ -227,9 +233,9 @@ void main() {
     testWidgets(
         'confirm button stages files and closes dialog', (tester) async {
       await setupViewModel();
-      await viewModel.processBulkFiles([
-        makeFile('file1.pdf', 'Nome: João Silva Santos'),
-      ]);
+      await tester.runAsync(() => viewModel.processBulkFiles([
+            makeFile('file1.pdf', 'Nome: João Silva Santos'),
+          ]));
 
       // Manually assign to ensure match exists.
       viewModel.reassignBulkMatch(0, pendingUnits[0]);
@@ -237,7 +243,8 @@ void main() {
       await openDialog(tester);
 
       await tester.tap(find.textContaining('Confirmar'));
-      await tester.pumpAndSettle();
+      await tester.pump();
+      await tester.pump(const Duration(seconds: 1));
 
       expect(viewModel.hasBulkMatches, isFalse);
       expect(viewModel.hasStaged('u1'), isTrue);
@@ -245,9 +252,9 @@ void main() {
 
     testWidgets('shows confidence indicator icons', (tester) async {
       await setupViewModel();
-      await viewModel.processBulkFiles([
-        makeFile('file1.pdf', 'Nome: João Silva Santos'),
-      ]);
+      await tester.runAsync(() => viewModel.processBulkFiles([
+            makeFile('file1.pdf', 'Nome: João Silva Santos'),
+          ]));
 
       await openDialog(tester);
 

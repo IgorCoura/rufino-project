@@ -1124,6 +1124,15 @@ class _DocumentsSectionState extends State<DocumentsSection> {
                               .bodySmall
                               ?.copyWith(color: cs.onSurfaceVariant),
                         ),
+                        if (unit.period != null &&
+                            unit.period!.formattedPeriod.isNotEmpty)
+                          Text(
+                            'Competência: ${unit.period!.formattedPeriod}',
+                            style: Theme.of(context)
+                                .textTheme
+                                .bodySmall
+                                ?.copyWith(color: cs.onSurfaceVariant),
+                          ),
                         if (unit.validity.isNotEmpty)
                           Text(
                             'Validade: ${unit.validity}',

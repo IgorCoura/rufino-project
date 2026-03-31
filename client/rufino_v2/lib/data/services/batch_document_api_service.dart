@@ -221,7 +221,6 @@ class BatchDocumentApiService {
 
     final streamed = await request.send();
     final responseBody = await streamed.stream.bytesToString();
-    print('Response body: $responseBody'); // Debug log
     if (streamed.statusCode < 200 || streamed.statusCode >= 300) {
       throw HttpException(
         statusCode: streamed.statusCode,
@@ -240,8 +239,8 @@ class BatchDocumentApiService {
     String companyId,
     List<Map<String, String>> items,
   ) async {
-    final uri = Uri.https(
-        baseUrl, '/api/v1/$companyId/batch-document/generate-range');
+    final uri =
+        Uri.https(baseUrl, '/api/v1/$companyId/batch-document/generate-range');
     final response = await client.post(
       uri,
       headers: await _headers(),
@@ -258,8 +257,8 @@ class BatchDocumentApiService {
     String dateLimitToSign,
     int reminderEveryNDays,
   ) async {
-    final uri = Uri.https(baseUrl,
-        '/api/v1/$companyId/batch-document/generate-range/send2sign');
+    final uri = Uri.https(
+        baseUrl, '/api/v1/$companyId/batch-document/generate-range/send2sign');
     final response = await client.post(
       uri,
       headers: await _headers(),
