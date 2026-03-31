@@ -108,6 +108,14 @@ class BatchDocumentViewModel extends ChangeNotifier {
     return [];
   }
 
+  /// Whether the current document template supports PDF generation.
+  bool get canGenerateDocument =>
+      _pendingUnits.isNotEmpty && _pendingUnits.first.canGenerateDocument;
+
+  /// Whether the current document template supports digital signature.
+  bool get isSignable =>
+      _pendingUnits.isNotEmpty && _pendingUnits.first.isSignable;
+
   /// Pending document units on the current page.
   UnmodifiableListView<BatchDocumentUnitItem> get pendingUnits =>
       UnmodifiableListView(_pendingUnits);
@@ -479,6 +487,109 @@ class BatchDocumentViewModel extends ChangeNotifier {
         },
         onError: (e) {
           _errorMessage = _errorFrom(e, 'Falha ao enviar para assinatura.');
+          _status = BatchDocumentStatus.error;
+        },
+      );
+    } finally {
+      notifyListeners();
+    }
+    await loadPendingUnits();
+  }
+
+  // ─── Generate PDF ────────────────────────────────────────
+
+  /// Returns employee names from the selected units that have invalid dates.
+  ///
+  /// An empty list means all selected items have valid dates.
+  List<String> _validateSelectedDates() {
+    final invalidNames = <String>[];
+    for (final unit in _pendingUnits) {
+      if (_selectedUnitIds.contains(unit.documentUnitId) &&
+          !unit.hasValidDate) {
+        invalidNames.add(unit.employeeName);
+      }
+    }
+    return invalidNames;
+  }
+
+  /// Generates PDFs for all selected document units.
+  ///
+  /// Returns the raw ZIP bytes for the caller to save.
+  Future<Uint8List?> generatePdfRange() async {
+    if (_selectedUnitIds.isEmpty) return null;
+    final items = _pendingUnits
+        .where((u) => _selectedUnitIds.contains(u.documentUnitId))
+        .toList();
+    if (items.isEmpty) return null;
+
+    final invalidNames = _validateSelectedDates();
+    if (invalidNames.isNotEmpty) {
+      _errorMessage =
+          'Os seguintes funcionários possuem data inválida: ${invalidNames.join(', ')}. Corrija as datas antes de gerar.';
+      _status = BatchDocumentStatus.error;
+      notifyListeners();
+      return null;
+    }
+
+    _status = BatchDocumentStatus.loading;
+    notifyListeners();
+    Uint8List? zipBytes;
+    try {
+      final result =
+          await _batchDocumentRepository.generatePdfRange(_companyId, items);
+      result.fold(
+        onSuccess: (bytes) {
+          zipBytes = bytes;
+          _status = BatchDocumentStatus.loaded;
+        },
+        onError: (e) {
+          _errorMessage = _errorFrom(e, 'Falha ao gerar PDFs.');
+          _status = BatchDocumentStatus.error;
+        },
+      );
+    } finally {
+      notifyListeners();
+    }
+    await loadPendingUnits();
+    return zipBytes;
+  }
+
+  /// Generates PDFs and sends them for digital signature.
+  ///
+  /// Requires [globalSignDeadline] to be set before calling.
+  Future<void> generateAndSignRange() async {
+    if (_selectedUnitIds.isEmpty || _globalSignDeadline == null) return;
+    final items = _pendingUnits
+        .where((u) => _selectedUnitIds.contains(u.documentUnitId))
+        .toList();
+    if (items.isEmpty) return;
+
+    final invalidNames = _validateSelectedDates();
+    if (invalidNames.isNotEmpty) {
+      _errorMessage =
+          'Os seguintes funcionários possuem data inválida: ${invalidNames.join(', ')}. Corrija as datas antes de gerar.';
+      _status = BatchDocumentStatus.error;
+      notifyListeners();
+      return;
+    }
+
+    _status = BatchDocumentStatus.loading;
+    notifyListeners();
+    try {
+      final result = await _batchDocumentRepository.generateAndSignRange(
+        _companyId,
+        items,
+        _globalSignDeadline!,
+        _globalReminderDays,
+      );
+      result.fold(
+        onSuccess: (_) {
+          _selectedUnitIds.clear();
+          _status = BatchDocumentStatus.loaded;
+        },
+        onError: (e) {
+          _errorMessage =
+              _errorFrom(e, 'Falha ao gerar e enviar para assinatura.');
           _status = BatchDocumentStatus.error;
         },
       );

@@ -1,6 +1,9 @@
 using System.Text.Json;
 using PeopleManagement.API.Authorization;
+using System.IO.Compression;
 using PeopleManagement.Application.Commands.DocumentCommands.BatchCreateDocumentUnits;
+using PeopleManagement.Application.Commands.DocumentCommands.BatchGenerateAndSign;
+using PeopleManagement.Application.Commands.DocumentCommands.BatchGeneratePdf;
 using PeopleManagement.Application.Commands.DocumentCommands.BatchUpdateDocumentUnitDate;
 using PeopleManagement.Application.Commands.DocumentCommands.InsertDocumentRange;
 using PeopleManagement.Application.Commands.DocumentCommands.InsertDocumentRangeToSign;
@@ -152,6 +155,56 @@ namespace PeopleManagement.API.Controllers
             }
 
             return commandItems;
+        }
+
+        [HttpPost("generate-range")]
+        [ProtectedResource("document", "generate")]
+        public async Task<IActionResult> GeneratePdfRange(
+            [FromRoute] Guid company,
+            [FromBody] BatchGeneratePdfModel request)
+        {
+            var command = request.ToCommand(company);
+
+            SendingCommandLog(request.Items.Count(), request, Guid.Empty);
+
+            var result = await _mediator.Send(command);
+
+            CommandResultLog(result, request.Items.Count(), request, Guid.Empty);
+
+            var memoryStream = new MemoryStream();
+            using (var archive = new ZipArchive(memoryStream, ZipArchiveMode.Create, leaveOpen: true))
+            {
+                foreach (var item in result.Results)
+                {
+                    var entry = archive.CreateEntry(
+                        $"{item.EmployeeName}/{item.DocumentUnitDate:yyyy-MM-dd}-{item.DocumentName}.pdf",
+                        CompressionLevel.Fastest);
+                    using var entryStream = entry.Open();
+                    await entryStream.WriteAsync(item.Pdf);
+                }
+            }
+
+            memoryStream.Position = 0;
+            return File(memoryStream, "application/octet-stream", "documents.zip");
+        }
+
+        [HttpPost("generate-range/send2sign")]
+        [ProtectedResource("document", ["generate", "send2sign"])]
+        public async Task<ActionResult<BatchGenerateAndSignResponse>> GenerateAndSignRange(
+            [FromRoute] Guid company,
+            [FromBody] BatchGenerateAndSignModel request,
+            [FromHeader(Name = "x-requestid")] Guid requestId)
+        {
+            var command = new IdentifiedCommand<BatchGenerateAndSignCommand, BatchGenerateAndSignResponse>(
+                request.ToCommand(company), requestId);
+
+            SendingCommandLog(request.Items.Count(), request, requestId);
+
+            var result = await _mediator.Send(command);
+
+            CommandResultLog(result, request.Items.Count(), request, requestId);
+
+            return OkResponse(result);
         }
     }
 
