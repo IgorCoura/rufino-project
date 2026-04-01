@@ -410,12 +410,10 @@ class _BatchDocumentScreenState extends State<BatchDocumentScreen> {
                                           colorScheme.primaryContainer,
                                       child: Text(
                                         emp.employeeName.isNotEmpty
-                                            ? emp.employeeName[0]
-                                                .toUpperCase()
+                                            ? emp.employeeName[0].toUpperCase()
                                             : '?',
                                         style: TextStyle(
-                                          color:
-                                              colorScheme.onPrimaryContainer,
+                                          color: colorScheme.onPrimaryContainer,
                                         ),
                                       ),
                                     ),
@@ -810,8 +808,7 @@ class _FilterSectionState extends State<_FilterSection> {
 
   void _applyAllFilters() {
     final vm = widget.vm;
-    vm.setEmployeeNameFilter(
-        _nameCtrl.text.isEmpty ? null : _nameCtrl.text);
+    vm.setEmployeeNameFilter(_nameCtrl.text.isEmpty ? null : _nameCtrl.text);
     vm.setPeriodFilter(
       typeId: vm.periodTypeFilter,
       year: int.tryParse(_yearCtrl.text),
@@ -849,8 +846,7 @@ class _FilterSectionState extends State<_FilterSection> {
             const SizedBox(height: AppSpacing.sm),
             LayoutBuilder(
               builder: (context, constraints) {
-                final isWide =
-                    constraints.maxWidth >= AppBreakpoints.mobile;
+                final isWide = constraints.maxWidth >= AppBreakpoints.mobile;
 
                 return Column(
                   children: [
@@ -1167,8 +1163,7 @@ class _ActionBar extends StatelessWidget {
           resource: 'document',
           scope: 'edit',
           child: OutlinedButton.icon(
-            onPressed:
-                vm.selectedUnitIds.isEmpty ? null : onBatchUpdateDate,
+            onPressed: vm.selectedUnitIds.isEmpty ? null : onBatchUpdateDate,
             icon: const Icon(Icons.calendar_today, size: 18),
             label: const Text('Atualizar Data'),
           ),
@@ -1178,11 +1173,10 @@ class _ActionBar extends StatelessWidget {
           resource: 'document',
           scope: 'upload',
           child: OutlinedButton.icon(
-            onPressed: vm.pendingUnits.isEmpty ||
-                    isLoading ||
-                    vm.isBulkProcessing
-                ? null
-                : onBulkUpload,
+            onPressed:
+                vm.pendingUnits.isEmpty || isLoading || vm.isBulkProcessing
+                    ? null
+                    : onBulkUpload,
             icon: const Icon(Icons.upload_file_outlined, size: 18),
             label: const Text('Upload em Lote'),
           ),
@@ -1192,11 +1186,10 @@ class _ActionBar extends StatelessWidget {
             resource: 'document',
             scope: 'upload',
             child: OutlinedButton.icon(
-              onPressed: vm.pendingUnits.isEmpty ||
-                      isLoading ||
-                      vm.isBulkProcessing
-                  ? null
-                  : onScanDocument,
+              onPressed:
+                  vm.pendingUnits.isEmpty || isLoading || vm.isBulkProcessing
+                      ? null
+                      : onScanDocument,
               icon: const Icon(Icons.document_scanner_outlined, size: 18),
               label: const Text('Digitalizar'),
             ),
@@ -1214,13 +1207,17 @@ class _ActionBar extends StatelessWidget {
         ),
         PermissionGuard(
           resource: 'document',
-          scope: 'send2sign',
-          child: FilledButton.tonalIcon(
-            onPressed: vm.stagedFileCount == 0 || isLoading || !vm.isSignable
-                ? null
-                : onSendToSign,
-            icon: const Icon(Icons.draw_outlined, size: 18),
-            label: const Text('Enviar para Assinar'),
+          scope: 'upload',
+          child: PermissionGuard(
+            resource: 'document',
+            scope: 'send2sign',
+            child: FilledButton.tonalIcon(
+              onPressed: vm.stagedFileCount == 0 || isLoading || !vm.isSignable
+                  ? null
+                  : onSendToSign,
+              icon: const Icon(Icons.draw_outlined, size: 18),
+              label: const Text('Enviar para Assinar'),
+            ),
           ),
         ),
         const SizedBox(width: AppSpacing.sm),
@@ -1240,15 +1237,19 @@ class _ActionBar extends StatelessWidget {
         PermissionGuard(
           resource: 'document',
           scope: 'generate',
-          child: FilledButton.tonalIcon(
-            onPressed: vm.selectedUnitIds.isEmpty ||
-                    isLoading ||
-                    !vm.canGenerateDocument ||
-                    !vm.isSignable
-                ? null
-                : onGenerateAndSign,
-            icon: const Icon(Icons.history_edu_outlined, size: 18),
-            label: const Text('Gerar e Assinar'),
+          child: PermissionGuard(
+            resource: 'document',
+            scope: 'send2sign',
+            child: FilledButton.tonalIcon(
+              onPressed: vm.selectedUnitIds.isEmpty ||
+                      isLoading ||
+                      !vm.canGenerateDocument ||
+                      !vm.isSignable
+                  ? null
+                  : onGenerateAndSign,
+              icon: const Icon(Icons.history_edu_outlined, size: 18),
+              label: const Text('Gerar e Assinar'),
+            ),
           ),
         ),
       ],
@@ -1376,15 +1377,12 @@ class _DocumentContent extends StatelessWidget {
           final unit = vm.pendingUnits[index];
           return _DocumentListItem(
             unit: unit,
-            isSelected:
-                vm.selectedUnitIds.contains(unit.documentUnitId),
+            isSelected: vm.selectedUnitIds.contains(unit.documentUnitId),
             isStaged: vm.hasStaged(unit.documentUnitId),
             stagedFileName: vm.stagedFileName(unit.documentUnitId),
-            onToggleSelection: () =>
-                vm.toggleSelection(unit.documentUnitId),
+            onToggleSelection: () => vm.toggleSelection(unit.documentUnitId),
             onPickFile: () => onPickFile(unit),
-            onRemoveFile: () =>
-                vm.unstageFile(unit.documentUnitId),
+            onRemoveFile: () => vm.unstageFile(unit.documentUnitId),
           );
         },
       ),
@@ -1706,10 +1704,9 @@ class _EmptyStateCard extends StatelessWidget {
                   const SizedBox(height: AppSpacing.sm),
                   Text(
                     message,
-                    style:
-                        Theme.of(context).textTheme.bodyMedium?.copyWith(
-                              color: colorScheme.onSurfaceVariant,
-                            ),
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: colorScheme.onSurfaceVariant,
+                        ),
                     textAlign: TextAlign.center,
                   ),
                 ],
@@ -1732,21 +1729,36 @@ class _EmployeeStatusBadge extends StatelessWidget {
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     final (label, fg, bg) = switch (statusId) {
-      '1' => ('Pendente', colorScheme.onTertiaryContainer,
-          colorScheme.tertiaryContainer),
-      '2' => ('Ativo', colorScheme.onPrimaryContainer,
-          colorScheme.primaryContainer),
-      '3' => ('Férias', colorScheme.onSecondaryContainer,
-          colorScheme.secondaryContainer),
+      '1' => (
+          'Pendente',
+          colorScheme.onTertiaryContainer,
+          colorScheme.tertiaryContainer
+        ),
+      '2' => (
+          'Ativo',
+          colorScheme.onPrimaryContainer,
+          colorScheme.primaryContainer
+        ),
+      '3' => (
+          'Férias',
+          colorScheme.onSecondaryContainer,
+          colorScheme.secondaryContainer
+        ),
       '4' => (
           'Afastado',
           colorScheme.onTertiaryContainer,
           colorScheme.tertiaryContainer
         ),
-      '5' => ('Inativo', colorScheme.onSurfaceVariant,
-          colorScheme.surfaceContainerHigh),
-      _ => ('Desconhecido', colorScheme.onSurfaceVariant,
-          colorScheme.surfaceContainerHigh),
+      '5' => (
+          'Inativo',
+          colorScheme.onSurfaceVariant,
+          colorScheme.surfaceContainerHigh
+        ),
+      _ => (
+          'Desconhecido',
+          colorScheme.onSurfaceVariant,
+          colorScheme.surfaceContainerHigh
+        ),
     };
 
     return Container(
@@ -1782,22 +1794,46 @@ class _DocumentStatusBadge extends StatelessWidget {
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     final (label, fg, bg) = switch (statusId) {
-      '1' => ('Pendente', colorScheme.onTertiaryContainer,
-          colorScheme.tertiaryContainer),
-      '2' =>
-        ('OK', colorScheme.onPrimaryContainer, colorScheme.primaryContainer),
-      '3' => ('Obsoleto', colorScheme.onSurfaceVariant,
-          colorScheme.surfaceContainerHigh),
-      '4' => ('Inválido', colorScheme.onErrorContainer,
-          colorScheme.errorContainer),
-      '5' => ('Requer Validação', colorScheme.onTertiaryContainer,
-          colorScheme.tertiaryContainer),
-      '6' => ('N/A', colorScheme.onSurfaceVariant,
-          colorScheme.surfaceContainerHigh),
-      '7' => ('Aguard. Assinatura', colorScheme.onSecondaryContainer,
-          colorScheme.secondaryContainer),
-      _ => ('Desconhecido', colorScheme.onSurfaceVariant,
-          colorScheme.surfaceContainerHigh),
+      '1' => (
+          'Pendente',
+          colorScheme.onTertiaryContainer,
+          colorScheme.tertiaryContainer
+        ),
+      '2' => (
+          'OK',
+          colorScheme.onPrimaryContainer,
+          colorScheme.primaryContainer
+        ),
+      '3' => (
+          'Obsoleto',
+          colorScheme.onSurfaceVariant,
+          colorScheme.surfaceContainerHigh
+        ),
+      '4' => (
+          'Inválido',
+          colorScheme.onErrorContainer,
+          colorScheme.errorContainer
+        ),
+      '5' => (
+          'Requer Validação',
+          colorScheme.onTertiaryContainer,
+          colorScheme.tertiaryContainer
+        ),
+      '6' => (
+          'N/A',
+          colorScheme.onSurfaceVariant,
+          colorScheme.surfaceContainerHigh
+        ),
+      '7' => (
+          'Aguard. Assinatura',
+          colorScheme.onSecondaryContainer,
+          colorScheme.secondaryContainer
+        ),
+      _ => (
+          'Desconhecido',
+          colorScheme.onSurfaceVariant,
+          colorScheme.surfaceContainerHigh
+        ),
     };
 
     return Container(
@@ -1929,30 +1965,29 @@ class _PaginationBar extends StatelessWidget {
             ),
           ),
           DropdownButton<int>(
-              value: vm.pageSize,
-              underline: const SizedBox.shrink(),
-              borderRadius: BorderRadius.circular(AppSpacing.sm),
-              isDense: true,
-              alignment: AlignmentDirectional.center,
-              style: textTheme.bodySmall?.copyWith(
-                color: colorScheme.onSurface,
-              ),
-              items: _pageSizeOptions
-                  .map((size) => DropdownMenuItem(
-                        value: size,
-                        child: Text('$size'),
-                      ))
-                  .toList(),
-              onChanged: (size) {
-                if (size != null) vm.setPageSize(size);
-              },
+            value: vm.pageSize,
+            underline: const SizedBox.shrink(),
+            borderRadius: BorderRadius.circular(AppSpacing.sm),
+            isDense: true,
+            alignment: AlignmentDirectional.center,
+            style: textTheme.bodySmall?.copyWith(
+              color: colorScheme.onSurface,
             ),
+            items: _pageSizeOptions
+                .map((size) => DropdownMenuItem(
+                      value: size,
+                      child: Text('$size'),
+                    ))
+                .toList(),
+            onChanged: (size) {
+              if (size != null) vm.setPageSize(size);
+            },
+          ),
           const SizedBox(width: AppSpacing.sm),
           IconButton.outlined(
             icon: const Icon(Icons.chevron_left),
-            onPressed: vm.pageNumber > 1
-                ? () => vm.setPage(vm.pageNumber - 1)
-                : null,
+            onPressed:
+                vm.pageNumber > 1 ? () => vm.setPage(vm.pageNumber - 1) : null,
             visualDensity: VisualDensity.compact,
             tooltip: 'Página anterior',
           ),
