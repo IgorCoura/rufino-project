@@ -132,7 +132,7 @@ namespace PeopleManagement.Application.Queries.Document
                         .Where(unit => unitIdsByDocument[doc.Id].Contains(unit.Id))
                         .Select(unit => new
                         {
-                            EntryName = $"{doc.Name}/{unit.Date:yyyy-MM-dd}-{doc.Name}.{unit.Extension}",
+                            EntryName = $"{unit.Date:yyyy-MM-dd}-{doc.Name}-{unit.Id.ToString()[^4..]}.{unit.Extension}",
                             Task = _blobService.DownloadAsync(unit.GetNameWithExtension, companyId.ToString())
                         }))
                 .ToList();
