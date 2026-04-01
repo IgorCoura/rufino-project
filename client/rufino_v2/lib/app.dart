@@ -271,6 +271,7 @@ class _AppRouterState extends State<_AppRouter> {
             viewModel: CompanySelectionViewModel(
               authRepository: context.read<AuthRepository>(),
               companyRepository: context.read<CompanyRepository>(),
+              permissionNotifier: context.read<PermissionNotifier>(),
             ),
           ),
         ),

@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import '../../../../domain/entities/company.dart';
 import '../../../../domain/repositories/auth_repository.dart';
 import '../../../../domain/repositories/company_repository.dart';
+import '../../auth/viewmodel/permission_notifier.dart';
 
 enum CompanySelectionStatus {
   loading,
@@ -19,11 +20,14 @@ class CompanySelectionViewModel extends ChangeNotifier {
   CompanySelectionViewModel({
     required AuthRepository authRepository,
     required CompanyRepository companyRepository,
+    required PermissionNotifier permissionNotifier,
   })  : _authRepository = authRepository,
-        _companyRepository = companyRepository;
+        _companyRepository = companyRepository,
+        _permissionNotifier = permissionNotifier;
 
   final AuthRepository _authRepository;
   final CompanyRepository _companyRepository;
+  final PermissionNotifier _permissionNotifier;
 
   List<Company> _companies = [];
   Company? _selectedCompany;
@@ -87,13 +91,13 @@ class CompanySelectionViewModel extends ChangeNotifier {
 
     try {
       final result = await _companyRepository.selectCompany(_selectedCompany!);
-      result.fold(
-        onSuccess: (_) => _status = CompanySelectionStatus.selected,
-        onError: (_) {
-          _status = CompanySelectionStatus.error;
-          _errorMessage = 'Falha ao selecionar empresa.';
-        },
-      );
+      if (result.isSuccess) {
+        await _permissionNotifier.loadPermissions();
+        _status = CompanySelectionStatus.selected;
+      } else {
+        _status = CompanySelectionStatus.error;
+        _errorMessage = 'Falha ao selecionar empresa.';
+      }
     } finally {
       notifyListeners();
     }
