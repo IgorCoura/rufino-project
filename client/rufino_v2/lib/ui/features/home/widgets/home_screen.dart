@@ -209,6 +209,10 @@ class _HomeBody extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final permissionStatus = context.watch<PermissionNotifier>().status;
+    if (permissionStatus == PermissionStatus.loading) {
+      return const Center(child: CircularProgressIndicator());
+    }
     return LayoutBuilder(
       builder: (context, constraints) {
         final isWide = constraints.maxWidth >= AppBreakpoints.tablet;
