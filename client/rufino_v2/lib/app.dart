@@ -18,6 +18,7 @@ import 'data/repositories/document_group_repository_impl.dart';
 import 'data/repositories/document_template_repository_impl.dart';
 import 'data/repositories/require_document_repository_impl.dart';
 import 'data/repositories/batch_document_repository_impl.dart';
+import 'data/repositories/batch_download_repository_impl.dart';
 import 'core/utils/document_scanner_service.dart';
 import 'data/repositories/workplace_repository_impl.dart';
 import 'data/services/auth_api_service.dart';
@@ -29,6 +30,7 @@ import 'data/services/employee_api_service.dart';
 import 'data/services/document_template_api_service.dart';
 import 'data/services/require_document_api_service.dart';
 import 'data/services/batch_document_api_service.dart';
+import 'data/services/batch_download_api_service.dart';
 import 'data/services/workplace_api_service.dart';
 import 'domain/repositories/auth_repository.dart';
 import 'domain/repositories/permission_repository.dart';
@@ -39,6 +41,7 @@ import 'domain/repositories/employee_repository.dart';
 import 'domain/repositories/document_template_repository.dart';
 import 'domain/repositories/require_document_repository.dart';
 import 'domain/repositories/batch_document_repository.dart';
+import 'domain/repositories/batch_download_repository.dart';
 import 'domain/repositories/workplace_repository.dart';
 import 'ui/features/auth/viewmodel/login_viewmodel.dart';
 import 'ui/features/auth/viewmodel/permission_notifier.dart';
@@ -75,6 +78,8 @@ import 'ui/features/employee/widgets/employee_list_screen.dart';
 import 'ui/features/employee/widgets/employee_profile_screen.dart';
 import 'ui/features/batch_document/viewmodel/batch_document_viewmodel.dart';
 import 'ui/features/batch_document/widgets/batch_document_screen.dart';
+import 'ui/features/batch_download/viewmodel/batch_download_viewmodel.dart';
+import 'ui/features/batch_download/widgets/batch_download_screen.dart';
 import 'ui/features/home/viewmodel/home_viewmodel.dart';
 import 'ui/features/home/widgets/home_screen.dart';
 import 'ui/features/workplace/viewmodel/workplace_form_viewmodel.dart';
@@ -197,6 +202,14 @@ class App extends StatelessWidget {
     final BatchDocumentRepository batchDocumentRepository =
         BatchDocumentRepositoryImpl(apiService: batchDocumentApiService);
 
+    final batchDownloadApiService = BatchDownloadApiService(
+      client: httpClient,
+      baseUrl: AppConfig.peopleManagementUrl,
+      getAuthHeader: authApiService.getAuthorizationHeader,
+    );
+    final BatchDownloadRepository batchDownloadRepository =
+        BatchDownloadRepositoryImpl(apiService: batchDownloadApiService);
+
     return [
       ChangeNotifierProvider(create: (_) => ThemeNotifier()),
       ChangeNotifierProvider.value(value: permissionNotifier),
@@ -214,6 +227,8 @@ class App extends StatelessWidget {
           value: requireDocumentRepository),
       Provider<BatchDocumentRepository>.value(
           value: batchDocumentRepository),
+      Provider<BatchDownloadRepository>.value(
+          value: batchDownloadRepository),
     ];
   }
 }
@@ -541,6 +556,35 @@ class _AppRouterState extends State<_AppRouter> {
                         context.read<DocumentGroupRepository>(),
                     companyId: company.id,
                     scannerService: DocumentScannerService(),
+                  ),
+                );
+              },
+            );
+          },
+        ),
+        // ─── Batch Download ────────────────────────────────────
+        GoRoute(
+          path: '/batch-download',
+          builder: (context, state) {
+            final companyRepo = context.read<CompanyRepository>();
+            return FutureBuilder(
+              future: companyRepo.getSelectedCompany(),
+              builder: (context, snapshot) {
+                final company = snapshot.data?.valueOrNull;
+                if (company == null) {
+                  return const Scaffold(
+                    body: Center(child: CircularProgressIndicator()),
+                  );
+                }
+                return BatchDownloadScreen(
+                  viewModel: BatchDownloadViewModel(
+                    batchDownloadRepository:
+                        context.read<BatchDownloadRepository>(),
+                    documentGroupRepository:
+                        context.read<DocumentGroupRepository>(),
+                    workplaceRepository:
+                        context.read<WorkplaceRepository>(),
+                    companyId: company.id,
                   ),
                 );
               },

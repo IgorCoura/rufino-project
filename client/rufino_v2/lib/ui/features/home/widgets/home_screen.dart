@@ -274,6 +274,18 @@ class _HomeBody extends StatelessWidget {
                       onTap: () => context.go('/batch-document'),
                     ),
                   ),
+                  ModuleGuard(
+                    resource: 'document',
+                    child: PermissionGuard(
+                      resource: 'document',
+                      scope: 'download',
+                      child: _MenuCard(
+                        icon: Icons.download_rounded,
+                        label: 'Download em Lote',
+                        onTap: () => context.go('/batch-download'),
+                      ),
+                    ),
+                  ),
                 ],
               ),
             ],

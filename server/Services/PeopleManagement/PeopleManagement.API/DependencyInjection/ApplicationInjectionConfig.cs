@@ -9,6 +9,7 @@ using PeopleManagement.Application.Queries.Position;
 using PeopleManagement.Application.Queries.RequireDocuments;
 using PeopleManagement.Application.Queries.Role;
 using PeopleManagement.Application.Queries.BatchDocument;
+using PeopleManagement.Application.Queries.BatchDownload;
 using PeopleManagement.Application.Queries.Workplace;
 using PeopleManagement.Domain.ErrorTools;
 
@@ -33,6 +34,7 @@ namespace PeopleManagement.API.DependencyInjection
             service.AddScoped<IDocumentQueries, DocumentQueries>();
             service.AddScoped<IDocumentGroupQueries, DocumentGroupQueries>();
             service.AddScoped<IBatchDocumentQueries, BatchDocumentQueries>();
+            service.AddScoped<IBatchDownloadQueries, BatchDownloadQueries>();
 
             return service;
         }
