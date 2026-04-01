@@ -176,8 +176,10 @@ namespace PeopleManagement.API.Controllers
             {
                 foreach (var item in result.Results)
                 {
+                    var idSuffix = item.DocumentUnitId.ToString()[^4..];
+                    var employeeSlug = item.EmployeeName.Trim().Replace(" ", "-").ToLowerInvariant();
                     var entry = archive.CreateEntry(
-                        $"{item.EmployeeName}/{item.DocumentUnitDate:yyyy-MM-dd}-{item.DocumentName}.pdf",
+                        $"{employeeSlug}-{item.DocumentUnitDate:yyyy-MM-dd}-{item.DocumentName}-{idSuffix}.pdf",
                         CompressionLevel.Fastest);
                     using var entryStream = entry.Open();
                     await entryStream.WriteAsync(item.Pdf);
