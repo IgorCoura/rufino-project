@@ -46,7 +46,7 @@ class RequireDocumentFormViewModel extends ChangeNotifier {
   // ─── Association state ─────────────────────────────────────────────────────
 
   String _selectedAssociationTypeId = '';
-  String _selectedAssociationId = '';
+  List<String> _selectedAssociationIds = [];
   List<SelectionOption> _associationTypes = [];
   List<SelectionOption> _associations = [];
 
@@ -84,8 +84,8 @@ class RequireDocumentFormViewModel extends ChangeNotifier {
   /// The currently selected association type id.
   String get selectedAssociationTypeId => _selectedAssociationTypeId;
 
-  /// The currently selected association id.
-  String get selectedAssociationId => _selectedAssociationId;
+  /// The currently selected association ids.
+  List<String> get selectedAssociationIds => _selectedAssociationIds;
 
   /// Available association type options (Função, Local de Trabalho).
   List<SelectionOption> get associationTypes => _associationTypes;
@@ -117,11 +117,11 @@ class RequireDocumentFormViewModel extends ChangeNotifier {
 
   // ─── Association type changes ──────────────────────────────────────────────
 
-  /// Updates the selected association type, resets the association, and loads
+  /// Updates the selected association type, resets associations, and loads
   /// new association options from the API.
   Future<void> onAssociationTypeChanged(String? typeId) async {
     _selectedAssociationTypeId = typeId ?? '';
-    _selectedAssociationId = '';
+    _selectedAssociationIds = [];
     _associations = [];
     notifyListeners();
 
@@ -139,9 +139,25 @@ class RequireDocumentFormViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Updates the selected association id.
-  void onAssociationChanged(String? associationId) {
-    _selectedAssociationId = associationId ?? '';
+  /// Toggles an association id in the selected list.
+  ///
+  /// Adds the [associationId] if not present, removes it if already selected.
+  void toggleAssociation(String associationId) {
+    if (_selectedAssociationIds.contains(associationId)) {
+      _selectedAssociationIds = _selectedAssociationIds
+          .where((id) => id != associationId)
+          .toList();
+    } else {
+      _selectedAssociationIds = [..._selectedAssociationIds, associationId];
+    }
+    notifyListeners();
+  }
+
+  /// Removes an association by its [associationId] from the selected list.
+  void removeAssociation(String associationId) {
+    _selectedAssociationIds = _selectedAssociationIds
+        .where((id) => id != associationId)
+        .toList();
     notifyListeners();
   }
 
@@ -243,6 +259,16 @@ class RequireDocumentFormViewModel extends ChangeNotifier {
 
   // ─── Computed getters for UI filtering ──────────────────────────────────
 
+  /// Returns associations that have not yet been selected.
+  List<SelectionOption> get unselectedAssociations => _associations
+      .where((a) => !_selectedAssociationIds.contains(a.id))
+      .toList();
+
+  /// Returns the selected associations as [SelectionOption] objects.
+  List<SelectionOption> get selectedAssociations => _associations
+      .where((a) => _selectedAssociationIds.contains(a.id))
+      .toList();
+
   /// Returns document templates that have not yet been selected.
   List<SelectionOption> get unselectedDocumentTemplates =>
       _availableDocumentTemplates
@@ -289,7 +315,7 @@ class RequireDocumentFormViewModel extends ChangeNotifier {
           nameController.text = doc.name;
           descriptionController.text = doc.description;
           _selectedAssociationTypeId = doc.associationTypeId.toString();
-          _selectedAssociationId = doc.associationId;
+          _selectedAssociationIds = List<String>.from(doc.associationIds);
 
           _selectedDocumentTemplates = doc.documentTemplates
               .map((t) => SelectionOption(id: t.id, name: t.name))
@@ -371,7 +397,7 @@ class RequireDocumentFormViewModel extends ChangeNotifier {
               companyId,
               name: nameController.text.trim(),
               description: descriptionController.text.trim(),
-              associationId: _selectedAssociationId,
+              associationIds: _selectedAssociationIds,
               associationTypeId:
                   int.tryParse(_selectedAssociationTypeId) ?? 0,
               documentTemplateIds:
@@ -383,7 +409,7 @@ class RequireDocumentFormViewModel extends ChangeNotifier {
               id: _id,
               name: nameController.text.trim(),
               description: descriptionController.text.trim(),
-              associationId: _selectedAssociationId,
+              associationIds: _selectedAssociationIds,
               associationTypeId:
                   int.tryParse(_selectedAssociationTypeId) ?? 0,
               documentTemplateIds:

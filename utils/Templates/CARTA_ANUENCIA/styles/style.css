@@ -1,0 +1,112 @@
+
+@page {
+    width: 210mm;
+    height: 297mm;
+    page-break-after: always;
+    margin: 45mm 20mm 20mm 20mm;
+    
+}
+
+@page{
+    @bottom-right {
+        font-size: 2.5mm;
+        content:  "Data: 12/09/2023 - Página " counter(page)"/"counter(pages);
+    }
+    @bottom-left{
+        font-size: 2.5mm;
+        content: "ID: 35f9b34b-8053-415f-b203-962ed3cfffaf";
+    }
+}
+
+
+
+.main{
+    margin: auto;
+    width: 190mm;
+}
+.header{
+    text-align: center;
+    font-size: 6mm;
+    font-weight: 900;
+    margin: 0 5mm 5mm 5mm;
+    align
+}
+
+
+.body{
+    margin-top: 1mm;
+    font-size: 4mm;
+}
+
+
+.section{
+    margin-top:5mm;
+}
+
+.section-title{
+    font-weight: 900;
+    margin-bottom: 2mm
+}
+
+.section-text{
+    margin-top: 1mm;
+    text-align: justify;
+}
+
+.section-option{
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+}
+.section-check{
+    display: flex;
+    flex-direction: row;
+    margin-top: 3mm
+}
+.section-check-img{
+    margin-left: 3mm;
+    margin-right: 3mm;
+}
+
+.tab{
+    display: flex;
+    flex-direction: row;
+    justify-content: space-around;
+}
+
+.signature-body{
+    display: flex;    
+    flex-direction: row;
+    align-items: end;
+    height: 35mm;
+    justify-content: space-around;    
+    position: relative; /* adicionado para ser o elemento pai de referência */
+    
+}
+
+.signature-local{
+    max-width: 50mm;
+    min-width: 50mm;
+    text-align: center;
+    text-align: center;
+    border-bottom: 0.3mm  solid black;
+}
+
+.signature-info{
+    max-width: 50mm;
+    min-width: 50mm;
+    height: 10mm;
+    text-align: center;
+}
+
+.ass-jamildo{
+    position: absolute; /* removido do fluxo normal */
+    z-index: 1; /* sobreposto aos outros elementos */
+    bottom: -2mm; /* posicionado no canto inferior */
+    right: 80mm; /* posicionado no canto direito */
+}
+
+
+.data{
+    margin: 5mm;
+}

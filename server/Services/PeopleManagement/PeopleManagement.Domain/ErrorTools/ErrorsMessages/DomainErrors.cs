@@ -75,9 +75,13 @@ namespace PeopleManagement.Domain.ErrorTools.ErrorsMessages
 
         public static class Document
         {
-            public static Error TimeConflictBetweenDocuments(Guid DocIdWithConflict, Guid DocIdHasConflict, TimeSpan TimeMax) => new("PMD.DOC10", 
-                $"Há um conflito de tempo gasta entre o documento sendo criado {DocIdWithConflict} e o já existente {DocIdHasConflict}." +
-                $"O tempo total diaria não pode ultrapassar {TimeMax} ", new { DocIdWithConflict, DocIdHasConflict, TimeMax });
+            public static Error TimeConflictBetweenDocuments(Guid DocIdWithConflict, TimeSpan TimeMax, DateOnly SuggestedDate) => new("PMD.DOC10",
+                $"O documento {DocIdWithConflict} excede a carga horaria maxima diaria de {TimeMax}. " +
+                $"A proxima data disponivel e {SuggestedDate:dd/MM/yyyy}.", new { DocIdWithConflict, TimeMax, SuggestedDate });
+
+            public static Error WorkloadDateNotWorkingDay(DateOnly Date, DateOnly SuggestedDate) => new("PMD.DOC19",
+                $"A data {Date:dd/MM/yyyy} nao e um dia util. Documentos com carga horaria so podem ser criados em dias uteis. " +
+                $"A proxima data util disponivel e {SuggestedDate:dd/MM/yyyy}.", new { Date, SuggestedDate });
 
             public static Error DocumentNotHaveTemplate(Guid docId) => new("PMD.DOC11", $"O documento {docId} não tem um template associado.", new { docId });
             public static Error ErrorRecoverData(Guid docId) => new("PMD.DOC12", $"Não foi possivel recuperar todos os dados para documento {docId}. Complete os dados é tente novamente mais tarde.", new { docId });

@@ -22,11 +22,11 @@ namespace PeopleManagement.API.Controllers
         {
             var command = new IdentifiedCommand<CreateRequireDocumentsCommand, CreateRequireDocumentsResponse>(request.ToCommand(company), requestId);
 
-            SendingCommandLog(request.AssociationId, request, requestId);
+            SendingCommandLog(request.AssociationIds.FirstOrDefault(), request, requestId);
 
             var result = await _mediator.Send(command);
 
-            CommandResultLog(result, request.AssociationId, request, requestId);
+            CommandResultLog(result, request.AssociationIds.FirstOrDefault(), request, requestId);
 
             return OkResponse(result);
         }
@@ -37,11 +37,11 @@ namespace PeopleManagement.API.Controllers
         {
             var command = new IdentifiedCommand<EditRequireDocumentsCommand, EditRequireDocumentsResponse>(request.ToCommand(company), requestId);
 
-            SendingCommandLog(request.AssociationId, request, requestId);
+            SendingCommandLog(request.AssociationIds.FirstOrDefault(), request, requestId);
 
             var result = await _mediator.Send(command);
 
-            CommandResultLog(result, request.AssociationId, request, requestId);
+            CommandResultLog(result, request.AssociationIds.FirstOrDefault(), request, requestId);
 
             return OkResponse(result);
         }

@@ -17,8 +17,8 @@ const _fakeRequireDocument = RequireDocument(
   id: 'req-1',
   name: 'Admissão CLT',
   description: 'Documentos obrigatórios para admissão CLT',
-  associationId: 'assoc-1',
-  associationName: 'Desenvolvedor',
+  associationIds: ['assoc-1'],
+  associations: [AssociationItem(id: 'assoc-1', name: 'Desenvolvedor')],
   associationTypeId: 1,
   associationTypeName: 'Função',
   documentTemplates: [
@@ -67,7 +67,7 @@ void main() {
       expect(viewModel.descriptionController.text,
           'Documentos obrigatórios para admissão CLT');
       expect(viewModel.selectedAssociationTypeId, '1');
-      expect(viewModel.selectedAssociationId, 'assoc-1');
+      expect(viewModel.selectedAssociationIds, ['assoc-1']);
       expect(viewModel.selectedDocumentTemplates.length, 1);
       expect(viewModel.listenEvents.length, 1);
     });
@@ -157,7 +157,7 @@ void main() {
       await viewModel.onAssociationTypeChanged('1');
 
       expect(viewModel.selectedAssociationTypeId, '1');
-      expect(viewModel.selectedAssociationId, '');
+      expect(viewModel.selectedAssociationIds, isEmpty);
       expect(viewModel.associations.length, 2);
       expect(requireDocumentRepository.lastAssociationTypeId, '1');
     });

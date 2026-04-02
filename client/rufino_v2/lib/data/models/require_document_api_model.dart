@@ -10,8 +10,8 @@ class RequireDocumentApiModel {
     required this.name,
     required this.description,
     this.companyId = '',
-    this.associationId = '',
-    this.associationName = '',
+    this.associationIds = const [],
+    this.associations = const [],
     this.associationTypeId = 0,
     this.associationTypeName = '',
     this.documentTemplates = const [],
@@ -22,8 +22,8 @@ class RequireDocumentApiModel {
   final String name;
   final String description;
   final String companyId;
-  final String associationId;
-  final String associationName;
+  final List<String> associationIds;
+  final List<AssociationItemDto> associations;
   final int associationTypeId;
   final String associationTypeName;
   final List<DocumentTemplateDto> documentTemplates;
@@ -41,15 +41,19 @@ class RequireDocumentApiModel {
   /// Parses a full JSON object from the detail endpoint.
   factory RequireDocumentApiModel.fromJson(Map<String, dynamic> json) {
     final associationType = json['associationType'] as Map<String, dynamic>?;
-    final association = json['association'] as Map<String, dynamic>?;
+    final associationsRaw = json['associations'] as List<dynamic>? ?? [];
+
+    final associations = associationsRaw
+        .map((a) => AssociationItemDto.fromJson(a as Map<String, dynamic>))
+        .toList();
 
     return RequireDocumentApiModel(
       id: json['id'] as String? ?? '',
       name: json['name'] as String? ?? '',
       description: json['description'] as String? ?? '',
       companyId: json['companyId'] as String? ?? '',
-      associationId: association?['id'] as String? ?? '',
-      associationName: association?['name'] as String? ?? '',
+      associationIds: associations.map((a) => a.id).toList(),
+      associations: associations,
       associationTypeId: _parseAssociationTypeId(associationType),
       associationTypeName: _associationTypeLabel(
           _parseAssociationTypeId(associationType)),
@@ -64,8 +68,10 @@ class RequireDocumentApiModel {
       id: id,
       name: name,
       description: description,
-      associationId: associationId,
-      associationName: associationName,
+      associationIds: associationIds,
+      associations: associations
+          .map((a) => AssociationItem(id: a.id, name: a.name))
+          .toList(),
       associationTypeId: associationTypeId,
       associationTypeName: associationTypeName,
       documentTemplates: documentTemplates
@@ -94,7 +100,7 @@ class RequireDocumentApiModel {
   Map<String, dynamic> toCreateJson() => {
         'name': name,
         'description': description,
-        'associationId': associationId,
+        'associationIds': associationIds,
         'associationType': associationTypeId,
         'documentsTemplatesIds': documentTemplates.map((t) => t.id).toList(),
         'listenEvents': listenEvents
@@ -110,7 +116,7 @@ class RequireDocumentApiModel {
         'id': id,
         'name': name,
         'description': description,
-        'associationId': associationId,
+        'associationIds': associationIds,
         'associationType': associationTypeId,
         'documentsTemplatesIds': documentTemplates.map((t) => t.id).toList(),
         'listenEvents': listenEvents
@@ -253,5 +259,20 @@ class ListenEventDto {
     final translated = map[name.toLowerCase()];
     if (translated != null) return translated;
     return name.isEmpty ? id.toString() : name;
+  }
+}
+
+/// A nested DTO representing an association item (role or workplace) within a require document response.
+class AssociationItemDto {
+  const AssociationItemDto({required this.id, required this.name});
+
+  final String id;
+  final String name;
+
+  factory AssociationItemDto.fromJson(Map<String, dynamic> json) {
+    return AssociationItemDto(
+      id: json['id'] as String? ?? '',
+      name: json['name'] as String? ?? '',
+    );
   }
 }

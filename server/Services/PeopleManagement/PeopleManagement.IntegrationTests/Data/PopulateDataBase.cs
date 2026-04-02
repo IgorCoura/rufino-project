@@ -251,7 +251,7 @@ namespace PeopleManagement.IntegrationTests.Data
         {
             var id = Guid.NewGuid();
 
-            var requiresSecurityDocuments = RequireDocuments.Create(id, companyId, roleId, AssociationType.Role, "Doc Role Required", 
+            var requiresSecurityDocuments = RequireDocuments.Create(id, companyId, [roleId], AssociationType.Role, "Doc Role Required",
                 "Description Doc Role Required", [ListenEvent.Create(EmployeeEvent.COMPLETE_ADMISSION_EVENT, [Status.Active.Id]), ListenEvent.Create(EmployeeEvent.ROLE_CHANGE_EVENT, [Status.Active.Id])], [.. documentTemplates]);
             await context.RequireDocuments.AddAsync(requiresSecurityDocuments, cancellationToken);
             return requiresSecurityDocuments;

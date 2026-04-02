@@ -27,14 +27,17 @@ void main() {
       expect(model.description, '');
     });
 
-    test('fromJson parses full structure with association and templates', () {
+    test('fromJson parses full structure with associations and templates', () {
       final json = {
         'id': 'req-1',
         'name': 'Admissão CLT',
         'description': 'Documentos de admissão',
         'companyId': 'company-1',
         'associationType': {'id': 1, 'name': 'Role'},
-        'association': {'id': 'assoc-1', 'name': 'Desenvolvedor'},
+        'associations': [
+          {'id': 'assoc-1', 'name': 'Desenvolvedor'},
+          {'id': 'assoc-2', 'name': 'Analista'},
+        ],
         'documentsTemplates': [
           {'id': 'tpl-1', 'name': 'Contrato', 'description': 'Contrato CLT'},
         ],
@@ -52,8 +55,10 @@ void main() {
       expect(model.name, 'Admissão CLT');
       expect(model.associationTypeId, 1);
       expect(model.associationTypeName, 'Função');
-      expect(model.associationId, 'assoc-1');
-      expect(model.associationName, 'Desenvolvedor');
+      expect(model.associationIds, ['assoc-1', 'assoc-2']);
+      expect(model.associations.length, 2);
+      expect(model.associations[0].name, 'Desenvolvedor');
+      expect(model.associations[1].name, 'Analista');
       expect(model.documentTemplates.length, 1);
       expect(model.listenEvents.length, 1);
     });
@@ -65,7 +70,9 @@ void main() {
         'description': 'Documentos de admissão',
         'companyId': 'company-1',
         'associationType': {'id': '1', 'name': 'Role'},
-        'association': {'id': 'assoc-1', 'name': 'Desenvolvedor'},
+        'associations': [
+          {'id': 'assoc-1', 'name': 'Desenvolvedor'},
+        ],
         'documentsTemplates': [
           {'id': 'tpl-1', 'name': 'Contrato', 'description': 'Contrato CLT'},
         ],
@@ -83,6 +90,9 @@ void main() {
       expect(entity.name, 'Admissão CLT');
       expect(entity.associationTypeId, 1);
       expect(entity.associationTypeName, 'Função');
+      expect(entity.associationIds, ['assoc-1']);
+      expect(entity.associations.length, 1);
+      expect(entity.associations.first.name, 'Desenvolvedor');
       expect(entity.documentTemplates.length, 1);
       expect(entity.documentTemplates.first.name, 'Contrato');
       expect(entity.listenEvents.length, 1);
@@ -97,7 +107,7 @@ void main() {
         id: '',
         name: 'Test',
         description: 'Test desc',
-        associationId: 'assoc-1',
+        associationIds: ['assoc-1', 'assoc-2'],
         associationTypeId: 1,
       );
 
@@ -106,7 +116,7 @@ void main() {
       expect(json.containsKey('id'), isFalse);
       expect(json['name'], 'Test');
       expect(json['associationType'], 1);
-      expect(json['associationId'], 'assoc-1');
+      expect(json['associationIds'], ['assoc-1', 'assoc-2']);
     });
 
     test('toJson serializes with id', () {
@@ -114,7 +124,7 @@ void main() {
         id: 'req-1',
         name: 'Test',
         description: 'Test desc',
-        associationId: 'assoc-1',
+        associationIds: ['assoc-1'],
         associationTypeId: 1,
       );
 
@@ -122,9 +132,10 @@ void main() {
 
       expect(json['id'], 'req-1');
       expect(json['name'], 'Test');
+      expect(json['associationIds'], ['assoc-1']);
     });
 
-    test('fromJson handles null associationType and association gracefully',
+    test('fromJson handles null associationType and associations gracefully',
         () {
       final json = {
         'id': 'req-1',
@@ -136,8 +147,8 @@ void main() {
 
       expect(model.associationTypeId, 0);
       expect(model.associationTypeName, '');
-      expect(model.associationId, '');
-      expect(model.associationName, '');
+      expect(model.associationIds, isEmpty);
+      expect(model.associations, isEmpty);
       expect(model.documentTemplates, isEmpty);
       expect(model.listenEvents, isEmpty);
     });

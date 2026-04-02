@@ -274,6 +274,9 @@ namespace PeopleManagement.Infra.Migrations
                     b.Property<DateOnly?>("Validity")
                         .HasColumnType("date");
 
+                    b.Property<DateOnly?>("WorkloadEndDate")
+                        .HasColumnType("date");
+
                     b.HasKey("Id");
 
                     b.HasIndex("DocumentId");
@@ -462,8 +465,9 @@ namespace PeopleManagement.Infra.Migrations
                     b.Property<Guid>("Id")
                         .HasColumnType("uuid");
 
-                    b.Property<Guid>("AssociationId")
-                        .HasColumnType("uuid");
+                    b.PrimitiveCollection<List<Guid>>("AssociationIds")
+                        .IsRequired()
+                        .HasColumnType("uuid[]");
 
                     b.Property<int>("AssociationType")
                         .HasColumnType("integer");
@@ -492,8 +496,6 @@ namespace PeopleManagement.Infra.Migrations
                         .HasColumnType("timestamp with time zone");
 
                     b.HasKey("Id");
-
-                    b.HasIndex("AssociationId");
 
                     b.HasIndex("CompanyId");
 
