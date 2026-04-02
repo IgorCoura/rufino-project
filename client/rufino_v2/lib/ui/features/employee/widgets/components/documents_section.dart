@@ -1523,7 +1523,7 @@ class _PdfViewerDialog extends StatelessWidget {
         ),
         body: Container(
           decoration: BoxDecoration(
-            color: cs.surface,
+            color: Colors.white,
             border: Border.all(color: cs.outlineVariant),
             borderRadius: BorderRadius.circular(AppSpacing.sm),
           ),

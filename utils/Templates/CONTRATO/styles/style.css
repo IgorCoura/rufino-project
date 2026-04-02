@@ -1,0 +1,179 @@
+@import url('https://fonts.googleapis.com/css2?family=Merriweather:ital,wght@0,300;0,400;0,700;0,900;1,300;1,400&family=Source+Sans+3:wght@300;400;600;700&display=swap');
+
+:root {
+    --color-ink: #1a1a2e;
+    --color-accent: #16213e;
+    --color-gold: #b8860b;
+    --color-gold-light: #daa520;
+    --color-bg: #fefdfb;
+    --color-line: #c9b896;
+    --color-muted: #5a5a6e;
+    --color-section-bg: #f8f6f1;
+    --font-serif: 'Merriweather', 'Georgia', serif;
+    --font-sans: 'Source Sans 3', 'Helvetica Neue', sans-serif;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+@page { size: A4; margin: 18mm 22mm; }
+
+body {
+    font-family: var(--font-serif);
+    font-size: 11pt;
+    line-height: 1.72;
+    color: var(--color-ink);
+    background: #e8e4dd;
+    -webkit-font-smoothing: antialiased;
+}
+
+.contract {
+    max-width: 210mm;
+    margin: 30px auto;
+    background: var(--color-bg);
+    padding: 46px 56px;
+    box-shadow: 0 4px 30px rgba(0,0,0,0.12), 0 1px 3px rgba(0,0,0,0.08);
+    border: 1px solid #d4cfc5;
+}
+
+@media print {
+    body { background: white; }
+    .contract { box-shadow: none; border: none; margin: 0; padding: 0; max-width: 100%; }
+    .page-break { page-break-before: always; }
+}
+
+/* ── Header ── */
+.contract-header {
+    text-align: center;
+    padding-bottom: 24px;
+    margin-bottom: 28px;
+    border-bottom: 3px double var(--color-gold);
+    position: relative;
+}
+.contract-header::after {
+    content: '';
+    display: block;
+    width: 54px; height: 3px;
+    background: var(--color-gold);
+    margin: 0 auto;
+    position: absolute; bottom: -8px; left: 50%; transform: translateX(-50%);
+}
+.company-name {
+    font-family: var(--font-sans); font-size: 15pt; font-weight: 700;
+    color: var(--color-accent); letter-spacing: 2px; text-transform: uppercase; margin-bottom: 3px;
+}
+.company-detail {
+    font-family: var(--font-sans); font-size: 8.5pt; color: var(--color-muted); letter-spacing: 0.4px;
+}
+.contract-title {
+    font-family: var(--font-sans); font-size: 17pt; font-weight: 700;
+    color: var(--color-gold); text-transform: uppercase; letter-spacing: 3.5px; margin-top: 18px; margin-bottom: 3px;
+}
+.contract-subtitle {
+    font-family: var(--font-sans); font-size: 9.5pt; font-weight: 600;
+    color: var(--color-muted); letter-spacing: 1.2px; text-transform: uppercase;
+}
+
+/* ── Sections ── */
+.section { margin-bottom: 22px; }
+.section-title {
+    font-family: var(--font-sans); font-size: 10.5pt; font-weight: 700;
+    color: var(--color-accent); text-transform: uppercase; letter-spacing: 1.3px;
+    padding-bottom: 7px; margin-bottom: 12px; border-bottom: 1.5px solid var(--color-line);
+}
+.section-title::before {
+    content: attr(data-number);
+    display: inline-block; background: var(--color-gold); color: white;
+    font-size: 8.5pt; font-weight: 700; width: 22px; height: 22px; line-height: 22px;
+    text-align: center; border-radius: 50%; margin-right: 9px; vertical-align: middle;
+}
+.subsection-title {
+    font-family: var(--font-sans); font-size: 10pt; font-weight: 700;
+    color: var(--color-gold-light); margin-top: 16px; margin-bottom: 7px;
+    padding-left: 12px; border-left: 3px solid var(--color-gold);
+}
+
+/* ── Clauses ── */
+.clause { margin-bottom: 10px; text-align: justify; hyphens: auto; }
+.clause-number { font-family: var(--font-sans); font-weight: 700; color: var(--color-accent); }
+.clause strong { color: var(--color-accent); }
+.indent { text-indent: 2em; }
+
+/* ── Lists ── */
+.clause-list { list-style: none; padding-left: 22px; margin: 7px 0; }
+.clause-list li { position: relative; padding-left: 16px; margin-bottom: 5px; text-align: justify; }
+.clause-list li::before {
+    content: ''; position: absolute; left: 0; top: 9px;
+    width: 5px; height: 5px; background: var(--color-gold); border-radius: 50%;
+}
+.clause-list.alpha { counter-reset: alpha-counter; }
+.clause-list.alpha li::before {
+    content: counter(alpha-counter, lower-alpha) ")";
+    counter-increment: alpha-counter;
+    background: none; font-family: var(--font-sans); font-weight: 600; color: var(--color-gold);
+    position: absolute; left: 0; top: 0; width: auto; height: auto; border-radius: 0;
+}
+.clause-list.alpha li { padding-left: 20px; }
+
+/* ── Info Grid ── */
+.info-grid {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 5px 28px;
+    margin: 14px 0; padding: 14px 18px;
+    background: var(--color-section-bg); border: 1px solid var(--color-line); border-radius: 4px;
+}
+.info-field { font-family: var(--font-sans); font-size: 9.5pt; padding: 3px 0; border-bottom: 1px dotted #ccc; }
+.info-label { font-weight: 600; color: var(--color-accent); }
+.info-value { color: var(--color-muted); font-style: italic; }
+
+/* ── Boxes ── */
+.highlight-box {
+    background: #fdf6e3; border-left: 4px solid var(--color-gold);
+    padding: 12px 16px; margin: 12px 0; font-size: 10pt;
+}
+.warning-box {
+    background: #fef2f2; border-left: 4px solid #c0392b;
+    padding: 12px 16px; margin: 12px 0; font-size: 10pt;
+}
+.warning-box strong { color: #c0392b; }
+
+/* ── Penalty List ── */
+.penalty-list { list-style: none; padding-left: 0; margin: 9px 0; counter-reset: penalty-counter; }
+.penalty-list li {
+    counter-increment: penalty-counter;
+    padding: 7px 11px 7px 38px; position: relative; margin-bottom: 3px; border-left: 2px solid var(--color-line);
+}
+.penalty-list li::before {
+    content: counter(penalty-counter) "°"; position: absolute; left: 9px;
+    font-family: var(--font-sans); font-weight: 700; color: var(--color-gold);
+}
+
+/* ── Table ── */
+.schedule-table { width: 100%; border-collapse: collapse; margin: 10px 0; font-family: var(--font-sans); font-size: 9.5pt; }
+.schedule-table th {
+    background: var(--color-accent); color: white; padding: 7px 10px; text-align: left;
+    font-weight: 600; font-size: 8.5pt; text-transform: uppercase; letter-spacing: 0.4px;
+}
+.schedule-table td { padding: 7px 10px; border-bottom: 1px solid #e0dcd4; }
+.schedule-table tr:nth-child(even) td { background: var(--color-section-bg); }
+
+/* ── Signatures ── */
+.signatures { margin-top: 44px; padding-top: 26px; border-top: 2px solid var(--color-line); }
+.sig-location { text-align: center; font-family: var(--font-sans); font-size: 10pt; color: var(--color-muted); margin-bottom: 44px; }
+.sig-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 50px; }
+.sig-block { text-align: center; }
+.sig-line { border-top: 1.5px solid var(--color-ink); padding-top: 7px; margin-top: 54px; }
+.sig-name { font-family: var(--font-sans); font-weight: 700; font-size: 9.5pt; color: var(--color-accent); }
+.sig-role { font-family: var(--font-sans); font-size: 8.5pt; color: var(--color-muted); }
+.witnesses { margin-top: 36px; }
+.witnesses .sig-line { margin-top: 36px; }
+.witness-label { font-family: var(--font-sans); font-size: 9pt; font-weight: 600; color: var(--color-muted); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; }
+
+.page-footer {
+    margin-top: 36px; padding-top: 10px; border-top: 1px solid var(--color-line);
+    text-align: center; font-family: var(--font-sans); font-size: 7.5pt; color: #999;
+}
+
+@media (max-width: 800px) {
+    .contract { padding: 24px 20px; margin: 8px; }
+    .info-grid { grid-template-columns: 1fr; }
+    .sig-grid { grid-template-columns: 1fr; gap: 24px; }
+}
