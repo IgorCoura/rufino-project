@@ -11,6 +11,7 @@
         const int AWAITING_SIGNATURE = 7;
         const int WARNING = 8;
 
+
         public static readonly DocumentUnitStatus Pending = new(PENDING, nameof(Pending));
         public static readonly DocumentUnitStatus OK = new(OKEY, nameof(OK));
         public static readonly DocumentUnitStatus Deprecated = new(DEPRECATED, nameof(Deprecated));

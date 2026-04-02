@@ -1,9 +1,9 @@
-﻿using PeopleManagement.Domain.AggregatesModel.DocumentTemplateAggregate;
+using PeopleManagement.Domain.AggregatesModel.DocumentTemplateAggregate;
 using PeopleManagement.Domain.AggregatesModel.DocumentAggregate.Interfaces;
 using PuppeteerSharp;
 using PuppeteerSharp.Media;
-using System.Collections.Concurrent;
 using System.Text.Json.Nodes;
+using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
 using PeopleManagement.Domain.AggregatesModel.DocumentTemplateAggregate.options;
 
@@ -19,7 +19,15 @@ namespace PeopleManagement.Infra.Services
             Math.Max(2, Environment.ProcessorCount),
             Math.Max(2, Environment.ProcessorCount));
 
-        private static readonly ConcurrentDictionary<string, string> _templateCache = new();
+        private static readonly MemoryCache _templateCache = new(new MemoryCacheOptions
+        {
+            SizeLimit = 100
+        });
+
+        private static readonly MemoryCacheEntryOptions _cacheEntryOptions = new MemoryCacheEntryOptions()
+            .SetSlidingExpiration(TimeSpan.FromMinutes(30))
+            .SetAbsoluteExpiration(TimeSpan.FromHours(2))
+            .SetSize(1);
 
         public async Task<byte[]> ConvertHtml2Pdf(TemplateFileInfo template, string values, CancellationToken cancellationToken = default)
         {
@@ -103,23 +111,41 @@ namespace PeopleManagement.Infra.Services
 
         private static async Task<string> GetCachedTemplate(string path, CancellationToken cancellationToken)
         {
-            if (_templateCache.TryGetValue(path, out var cached))
-                return cached;
+            if (_templateCache.TryGetValue(path, out string? cached))
+                return cached!;
 
             var content = await File.ReadAllTextAsync(path, cancellationToken);
-            _templateCache.TryAdd(path, content);
+            _templateCache.Set(path, content, _cacheEntryOptions);
             return content;
+        }
+
+        public void InvalidateTemplateCache(string templateDirectory)
+        {
+            var currentDirectory = Directory.GetCurrentDirectory();
+            var fullDirectory = Path.Combine(currentDirectory, _documentTemplatesOptions.SourceDirectory, templateDirectory);
+
+            if (!Directory.Exists(fullDirectory))
+                return;
+
+            var count = 0;
+            foreach (var file in Directory.GetFiles(fullDirectory, "*.html"))
+            {
+                _templateCache.Remove(file);
+                count++;
+            }
+
+            _logger.LogInformation("Template cache invalidated for directory: {Directory}. Removed {Count} entries.", templateDirectory, count);
         }
 
         private static string GetHtmlContent(string path, JsonNode? values)
         {
-            if (!_templateCache.TryGetValue(path, out var htmlContentInit))
+            if (!_templateCache.TryGetValue(path, out string? htmlContentInit))
             {
                 htmlContentInit = File.ReadAllText(path);
-                _templateCache.TryAdd(path, htmlContentInit);
+                _templateCache.Set(path, htmlContentInit, _cacheEntryOptions);
             }
 
-            return HtmlService.InsertValuesInHtmlTemplate(values, htmlContentInit);
+            return HtmlService.InsertValuesInHtmlTemplate(values, htmlContentInit!);
         }
     }
 }
