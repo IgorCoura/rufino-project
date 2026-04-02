@@ -1,6 +1,7 @@
 ﻿
 using PeopleManagement.Application.Commands.DocumentTemplateCommands.CreateDocumentTemplate;
 using PeopleManagement.Application.Commands.Identified;
+using PeopleManagement.Domain.AggregatesModel.DocumentAggregate.Interfaces;
 using PeopleManagement.Domain.AggregatesModel.DocumentTemplateAggregate;
 using PeopleManagement.Domain.AggregatesModel.DocumentTemplateAggregate.Interfaces;
 using PeopleManagement.Domain.AggregatesModel.DocumentTemplateAggregate.options;
@@ -10,12 +11,14 @@ using PeopleManagement.Infra.Idempotency;
 
 namespace PeopleManagement.Application.Commands.DocumentTemplateCommands.InsertDocumentTemplate
 {
-    public sealed class InsertDocumentTemplateCommandHandler(IDocumentTemplateRepository documentTemplateRepository, 
-        ILocalStorageService localStorageService, DocumentTemplatesOptions documentTemplateOptions) : IRequestHandler<InsertDocumentTemplateCommand, InsertDocumentTemplateResponse>
+    public sealed class InsertDocumentTemplateCommandHandler(IDocumentTemplateRepository documentTemplateRepository,
+        ILocalStorageService localStorageService, DocumentTemplatesOptions documentTemplateOptions,
+        IPdfService pdfService) : IRequestHandler<InsertDocumentTemplateCommand, InsertDocumentTemplateResponse>
     {
         private readonly IDocumentTemplateRepository _documentTemplateRepository = documentTemplateRepository;
         private readonly ILocalStorageService _localStorageService = localStorageService;
         private readonly DocumentTemplatesOptions _documentTemplateOptions = documentTemplateOptions;
+        private readonly IPdfService _pdfService = pdfService;
         public async Task<InsertDocumentTemplateResponse> Handle(InsertDocumentTemplateCommand request, CancellationToken cancellationToken)
         {
             var documentTemplate = await _documentTemplateRepository.FirstOrDefaultAsync(x => x.Id == request.DocumentTemplateId && x.CompanyId == request.CompanyId, cancellation: cancellationToken)
@@ -23,6 +26,8 @@ namespace PeopleManagement.Application.Commands.DocumentTemplateCommands.InsertD
 
             if (documentTemplate.TemplateFileInfo == null)
                 throw new DomainException(this, DomainErrors.DataNotBeNull(nameof(documentTemplate.TemplateFileInfo)));
+
+            _pdfService.InvalidateTemplateCache(documentTemplate.TemplateFileInfo.Directory.ToString());
 
             if (await _localStorageService.HasFile(documentTemplate.TemplateFileInfo.Directory.ToString(), _documentTemplateOptions.SourceDirectory))
             {
