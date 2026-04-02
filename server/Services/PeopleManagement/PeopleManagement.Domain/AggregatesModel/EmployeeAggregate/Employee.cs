@@ -263,8 +263,8 @@ namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
             //if (IdCard != null && PersonalInfo != null && MilitaryDocument.IsRequired(IdCard, PersonalInfo) && MilitaryDocument == null)
             //    result.AddError(DomainErrors.FieldIsRequired(nameof(MilitaryDocument)));
 
-            if (MedicalAdmissionExam == null || !MedicalAdmissionExam.IsValid)
-                result.AddError(DomainErrors.FieldIsRequired(nameof(MedicalAdmissionExam)));
+            //if (MedicalAdmissionExam == null || !MedicalAdmissionExam.IsValid)
+            //    result.AddError(DomainErrors.FieldIsRequired(nameof(MedicalAdmissionExam)));
 
             return result;
         }
