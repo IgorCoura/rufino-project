@@ -1,0 +1,159 @@
+﻿<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>Default</title>
+    <!--Style A4-->
+    <!--https://www.smashingmagazine.com/2015/01/designing-for-print-with-css/-->
+    <link rel="stylesheet" href="styles/style.css">
+</head>
+<body>
+    <div class="main">
+        <div class="header"> 
+            <div class="header-item header-title">
+                <div class="title-main">CERTIFICADO</div>
+                <div class="title-sub">Segurança em Instalações e Serviços com Eletricidade — NR 10</div>
+            </div>
+        </div>
+        <div class="watermark">VALIDO ATÉ {{complementaryInfo.Validity}}</div>
+        <div class="body">    
+            <div class="body-content">
+                &ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;Certifico, para os devidos fins, que o(a) <strong>{{employee.name}}</strong> CPF nº {{employee.idcard.cpf}}, participou, com aproveitamento satisfatório, do Curso Presencial <strong id="eventualidade">{{eventualidade}}</strong> de <strong id="nome-curso">Segurança em Instalações e Serviços com Eletricidade - Curso Básico</strong>, de acordo com a NR 10, oferecido pela {{company.corporateName}} e realizado em suas dependências com sede em {{Company.Address.Street}},{{Company.Address.Number}}, {{Company.Address.Neighborhood}}, {{Company.Address.City}} - {{Company.Address.State}} no perído {{complementaryInfo.FullDatePtBr}} a {{complementaryInfo.FullWorkloadEndDatePtBr}}, com carga horária de 40 horas.
+            </div>
+            <div class="body-date">
+                <div>São Paulo, {{complementaryInfo.FullDatePtBr}}</div>
+            </div>
+        </div>
+
+        <div class="foot">
+            
+            <div class="signature-body">
+                <div> 
+                    <div class="signature-local-1">
+                        <img style="height: 20mm;float: start; visibility: visible;" src="img\Ass.png">
+                    </div>
+                    <div class="signature-info">
+                        Igor de Brito Coura<br>
+                        Eng. Segurança do Trabalho<br>
+                        CREA SP 5071471660<br>
+                        RNP 2622607881<br>
+                        Instrutor e Responsável Técnico<br>
+                    </div>
+                </div>
+                <div>
+                    <div class="signature-local-2">
+                        <div class="signed-content">
+                            <img class="signed-icon" src="img\icon_assinatura.png">
+                            <div class="signed-text">
+                                <span class="signed-label">Assinado digitalmente pelo:</span>
+                                <span class="signed-name">{{employee.name}}</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="signature-info">
+                        {{employee.name}}<br>
+                        CPF: {{employee.idcard.cpf}}
+                    </div>
+                </div>
+            </div>
+            <div class="validity-date">Valido até: {{complementaryInfo.Validity}}</div>
+        </div>
+    </div>
+    <div class="info">Documento emitido e armazenado em meio digital com certificado digital emitido no âmbito da Infraestrutura de Chaves Públicas Brasileira (ICP-Brasil), normatizada por lei específica e regulamentada pela NR 01.</div>
+
+    <div class="verso-main">
+        <div class="verso-title" id="verso-titulo-curso">
+            CURSO DE SEGURANÇA EM INSTALAÇÕES E SERVIÇOS COM ELETRICIDADE - CURSO BÁSICO
+        </div>
+        <div>
+            <div class="verso-subtitle">CONTEÚDO PROGRAMÁTICO</div>
+            <div class="verso-list">
+                <div class="verso-topic"><span class="topic-num">1.</span> Introdução à segurança com eletricidade.</div>
+
+                <div class="verso-topic"><span class="topic-num">2.</span> Riscos em instalações e serviços com eletricidade:</div>
+                <div class="verso-subs">a) o choque elétrico, mecanismos e efeitos; b) arcos elétricos; queimaduras e quedas; c) campos eletromagnéticos.</div>
+
+                <div class="verso-topic"><span class="topic-num">3.</span> Técnicas de Análise de Risco.</div>
+
+                <div class="verso-topic"><span class="topic-num">4.</span> Medidas de Controle do Risco Elétrico:</div>
+                <div class="verso-subs">a) desenergização; b) aterramento funcional (TN / TT / IT); de proteção; temporário; c) equipotencialização; d) seccionamento automático da alimentação; e) dispositivos a corrente de fuga; f) extra baixa tensão; g) barreiras e invólucros; h) bloqueios e impedimentos; i) obstáculos e anteparos; j) isolamento das partes vivas; k) isolação dupla ou reforçada; l) colocação fora de alcance; m) separação elétrica.</div>
+
+                <div class="verso-topic"><span class="topic-num">5.</span> Normas Técnicas Brasileiras – NBR da ABNT: NBR-5410, NBR 14039 e outras.</div>
+
+                <div class="verso-topic"><span class="topic-num">6.</span> Regulamentações do MTE:</div>
+                <div class="verso-subs">a) NRs; b) NR-10 (Segurança em Instalações e Serviços com Eletricidade); c) qualificação; habilitação; capacitação e autorização.</div>
+
+                <div class="verso-topic"><span class="topic-num">7.</span> Equipamentos de proteção coletiva.</div>
+
+                <div class="verso-topic"><span class="topic-num">8.</span> Equipamentos de proteção individual.</div>
+
+                <div class="verso-topic"><span class="topic-num">9.</span> Rotinas de trabalho – Procedimentos:</div>
+                <div class="verso-subs">a) instalações desenergizadas; b) liberação para serviços; c) sinalização; d) inspeções de áreas, serviços, ferramental e equipamento.</div>
+
+                <div class="verso-topic"><span class="topic-num">10.</span> Documentação de instalações elétricas.</div>
+
+                <div class="verso-topic"><span class="topic-num">11.</span> Riscos adicionais:</div>
+                <div class="verso-subs">a) altura; b) ambientes confinados; c) áreas classificadas; d) umidade; e) condições atmosféricas.</div>
+
+                <div class="verso-topic"><span class="topic-num">12.</span> Proteção e combate a incêndios:</div>
+                <div class="verso-subs">a) noções básicas; b) medidas preventivas; c) métodos de extinção; d) prática.</div>
+
+                <div class="verso-topic"><span class="topic-num">13.</span> Acidentes de origem elétrica:</div>
+                <div class="verso-subs">a) causas diretas e indiretas; b) discussão de casos.</div>
+
+                <div class="verso-topic"><span class="topic-num">14.</span> Primeiros socorros:</div>
+                <div class="verso-subs">a) noções sobre lesões; b) priorização do atendimento; c) aplicação de respiração artificial; d) massagem cardíaca; e) técnicas para remoção e transporte de acidentados; f) práticas.</div>
+
+                <div class="verso-topic"><span class="topic-num">15.</span> Responsabilidades.</div>
+            </div>
+        </div>
+        <div class="verso-instructor">
+            Igor de Brito Coura<br>
+            CREA-SP: 5071471660<br>
+            Engenheiro de Segurança do Trabalho<br>
+        </div>
+        <div class="verso-foot">
+        </div>
+    </div>
+
+    <!-- Div invisível com o valor da eventualidade -->
+    <div id="employee-initialdate-valor" style="display: none;">{{Employee.InitialDate}}</div>
+
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            const dateStr = document.getElementById("employee-initialdate-valor").textContent.trim();
+            let textoFinal = "";
+
+            // Converte a data inicial do funcionário para objeto Date
+            const partes = dateStr.split("/");
+            // Suporta formato dd/MM/yyyy
+            const dataInicial = new Date(partes[2], partes[1] - 1, partes[0]);
+            const hoje = new Date();
+
+            // Calcula a diferença em meses
+            const diffMeses = (hoje.getFullYear() - dataInicial.getFullYear()) * 12
+                            + (hoje.getMonth() - dataInicial.getMonth());
+
+            if (diffMeses > 1) {
+                textoFinal = "PERIÓDICO";
+            } else {
+                textoFinal = "ADMISSIONAL";
+            }
+
+            // Altera o conteúdo do <strong> com id 'eventualidade'
+            document.getElementById("eventualidade").textContent = textoFinal;
+
+            // Altera o nome do curso conforme a eventualidade
+            if (textoFinal === "PERIÓDICO") {
+                document.getElementById("nome-curso").textContent = "Segurança em instalações e serviços com eletricidade - Reciclagem";
+                document.getElementById("verso-titulo-curso").textContent = "CURSO DE SEGURANÇA EM INSTALAÇÕES E SERVIÇOS COM ELETRICIDADE - RECICLAGEM";
+            }
+        });
+    </script>
+</body>
+
+    
+
+    
+</html>
+

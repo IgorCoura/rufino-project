@@ -36,6 +36,7 @@ namespace PeopleManagement.Domain.AggregatesModel.DocumentAggregate
         public string? SignatureUrl { get; private set; }
         public string? AttachmentToken { get; private set; }
         public DateTime? SentToSignatureAt { get; private set; }
+        public DateOnly? WorkloadEndDate { get; private set; }
 
         private DocumentUnit() { }
         private DocumentUnit(Guid id, Document document) : base(id)
@@ -225,6 +226,11 @@ namespace PeopleManagement.Domain.AggregatesModel.DocumentAggregate
         }
 
         public bool IsSessionPrimary => IsAwaitingSignature && SignatureDocumentToken != null && AttachmentToken == null;
+
+        public void SetWorkloadEndDate(DateOnly endDate)
+        {
+            WorkloadEndDate = endDate;
+        }
 
     }
 }

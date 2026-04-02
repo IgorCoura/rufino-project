@@ -10,11 +10,13 @@ class FakeCompanyRepository implements CompanyRepository {
   Company? _selectedCompany;
   bool _verifyResult = false;
   bool _verifyError = false;
+  bool _selectShouldFail = false;
 
   void setCompanies(List<Company> companies) => _companies = companies;
   void setSelectedCompany(Company? company) => _selectedCompany = company;
   void setVerifyResult(bool result) => _verifyResult = result;
   void setVerifyError(bool error) => _verifyError = error;
+  void setSelectShouldFail(bool value) => _selectShouldFail = value;
 
   @override
   Future<Result<List<Company>>> getCompanies(List<String> ids) async {
@@ -53,6 +55,9 @@ class FakeCompanyRepository implements CompanyRepository {
 
   @override
   Future<Result<void>> selectCompany(Company company) async {
+    if (_selectShouldFail) {
+      return Result.error(Exception('Select company failed'));
+    }
     _selectedCompany = company;
     return const Result.success(null);
   }

@@ -40,7 +40,7 @@ namespace PeopleManagement.Services.DomainEventHandlers
 
                 if (employee is not null && reqDocument is not null)
                 {
-                    bool isAssociation = employee.IsAssociation(reqDocument.AssociationId);
+                    bool isAssociation = reqDocument.AssociationIds.Any(id => employee.IsAssociation(id));
 
                     if (isAssociation)
                     {

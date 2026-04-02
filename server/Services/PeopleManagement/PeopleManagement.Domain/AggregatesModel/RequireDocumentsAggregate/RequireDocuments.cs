@@ -11,18 +11,19 @@ namespace PeopleManagement.Domain.AggregatesModel.RequireDocumentsAggregate
         public Name Name { get; private set; } = null!;
         public Description Description { get; private set; } = null!;
         public AssociationType AssociationType { get; private set; } = null!;
-        public Guid AssociationId { get; private set; }
+        public List<Guid> AssociationIds { get; private set; } = [];
         public Guid CompanyId { get; private set; }
         public List<Guid> DocumentsTemplatesIds { get; private set; } = [];
         public List<ListenEvent> ListenEvents { get; private set; } = [];
 
         private RequireDocuments() { }
-        private RequireDocuments(Guid id, Guid companyId, Guid associationId, AssociationType associationType, Name name,
+        private RequireDocuments(Guid id, Guid companyId, List<Guid> associationIds, AssociationType associationType, Name name,
             Description description, List<ListenEvent> listenEvents, List<Guid> documentsTemplatesIds) : base(id)
         {
             ListenEventsIsValid(listenEvents);
+            AssociationIdsIsValid(associationIds);
             AssociationType = associationType;
-            AssociationId = associationId;
+            AssociationIds = associationIds;
             CompanyId = companyId;
             DocumentsTemplatesIds = documentsTemplatesIds;
             Name = name;
@@ -30,21 +31,28 @@ namespace PeopleManagement.Domain.AggregatesModel.RequireDocumentsAggregate
             ListenEvents = listenEvents;
         }
 
-        public static RequireDocuments Create(Guid id, Guid companyId, Guid associationId, AssociationType associationType,
+        public static RequireDocuments Create(Guid id, Guid companyId, List<Guid> associationIds, AssociationType associationType,
             Name name, Description description, List<ListenEvent> listenEvents, List<Guid> documentsTemplatesIds)
-            => new(id, companyId, associationId, associationType, name, description, listenEvents, documentsTemplatesIds);
+            => new(id, companyId, associationIds, associationType, name, description, listenEvents, documentsTemplatesIds);
 
-        public void Edit(Guid associationId, AssociationType associationType,
+        public void Edit(List<Guid> associationIds, AssociationType associationType,
             Name name, Description description, List<ListenEvent> listenEvents, List<Guid> documentsTemplatesIds)
         {
             ListenEventsIsValid(listenEvents);
+            AssociationIdsIsValid(associationIds);
 
-            AssociationId = associationId;
+            AssociationIds = associationIds;
             AssociationType = associationType;
             Name = name;
             Description = description;
             ListenEvents = listenEvents;
             DocumentsTemplatesIds = documentsTemplatesIds;
+        }
+
+        private static void AssociationIdsIsValid(List<Guid> associationIds)
+        {
+            if (associationIds is null || associationIds.Count == 0)
+                throw new DomainException(nameof(RequireDocuments), DomainErrors.FieldInvalid(nameof(AssociationIds), "must have at least one association"));
         }
 
 

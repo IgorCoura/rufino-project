@@ -7,8 +7,8 @@ void main() {
       id: '1',
       name: 'Admissão',
       description: 'Documentos de admissão',
-      associationId: 'role-1',
-      associationName: 'Analista',
+      associationIds: ['role-1'],
+      associations: [AssociationItem(id: 'role-1', name: 'Analista')],
       associationTypeId: 1,
       associationTypeName: 'Função',
       documentTemplates: [
@@ -25,7 +25,7 @@ void main() {
       description: '',
     );
 
-    test('hasAssociation returns true when associationId is not empty', () {
+    test('hasAssociation returns true when associationIds is not empty', () {
       expect(doc.hasAssociation, isTrue);
       expect(emptyDoc.hasAssociation, isFalse);
     });

@@ -8,8 +8,8 @@ class RequireDocument {
     required this.id,
     required this.name,
     required this.description,
-    this.associationId = '',
-    this.associationName = '',
+    this.associationIds = const [],
+    this.associations = const [],
     this.associationTypeId = 0,
     this.associationTypeName = '',
     this.documentTemplates = const [],
@@ -25,11 +25,11 @@ class RequireDocument {
   /// A longer description of the requirement's purpose.
   final String description;
 
-  /// The id of the associated entity (role or workplace).
-  final String associationId;
+  /// The ids of the associated entities (roles or workplaces).
+  final List<String> associationIds;
 
-  /// The display name of the associated entity.
-  final String associationName;
+  /// The associated entities with their ids and names.
+  final List<AssociationItem> associations;
 
   /// The type of association: 1 = Role, 2 = Workplace.
   final int associationTypeId;
@@ -43,8 +43,8 @@ class RequireDocument {
   /// The lifecycle events that trigger document generation, each with a list of statuses.
   final List<ListenEvent> listenEvents;
 
-  /// Whether this requirement has an association configured.
-  bool get hasAssociation => associationId.isNotEmpty;
+  /// Whether this requirement has any associations configured.
+  bool get hasAssociation => associationIds.isNotEmpty;
 
   /// Whether this requirement is associated with a role (type 1).
   bool get isRoleAssociation => associationTypeId == 1;
@@ -149,5 +149,16 @@ class EventStatus {
   final int id;
 
   /// The translated display name (e.g. "Pendente", "Ativo").
+  final String name;
+}
+
+/// An association item representing a role or workplace linked to a [RequireDocument].
+class AssociationItem {
+  const AssociationItem({required this.id, required this.name});
+
+  /// The unique identifier of the association.
+  final String id;
+
+  /// The display name of the association.
   final String name;
 }
