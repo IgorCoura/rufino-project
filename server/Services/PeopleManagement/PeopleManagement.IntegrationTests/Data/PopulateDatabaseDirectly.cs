@@ -145,18 +145,18 @@ namespace PeopleManagement.IntegrationTests.Data
             public string Name { get; init; }
             public string Description { get; init; }
             public int AssociationType { get; init; }
-            public Guid AssociationId { get; init; }
+            public List<Guid> AssociationIds { get; init; }
             public Guid CompanyId { get; init; }
             public List<Guid> DocumentsTemplatesIds { get; init; }
             public List<int> ListenEventsIds { get; init; }
 
-            private RequiredDocumentDAO(Guid id, string name, string description, int associationType, Guid associationId, Guid companyId, List<Guid> documentsTemplatesIds, List<int> listenEventsIds)
+            private RequiredDocumentDAO(Guid id, string name, string description, int associationType, List<Guid> associationIds, Guid companyId, List<Guid> documentsTemplatesIds, List<int> listenEventsIds)
             {
                 Id = id;
                 Name = name;
                 Description = description;
                 AssociationType = associationType;
-                AssociationId = associationId;
+                AssociationIds = associationIds;
                 CompanyId = companyId;
                 DocumentsTemplatesIds = documentsTemplatesIds;
                 ListenEventsIds = listenEventsIds;
@@ -177,7 +177,7 @@ namespace PeopleManagement.IntegrationTests.Data
                 listenEventsIds ??= [];
                 associationType ??= 1;
 
-                return new RequiredDocumentDAO((Guid)id, name, description, associationType.Id, (Guid)associationId, (Guid)companyId, documentsTemplatesIds, listenEventsIds);
+                return new RequiredDocumentDAO((Guid)id, name, description, associationType.Id, [associationId], (Guid)companyId, documentsTemplatesIds, listenEventsIds);
             }
 
             public static RequiredDocumentDAO CreateRandom(
@@ -198,7 +198,7 @@ namespace PeopleManagement.IntegrationTests.Data
                     .RuleFor(x => x.Name, f => string.IsNullOrEmpty(name) ? f.Lorem.Sentence() : name)
                     .RuleFor(x => x.Description, f => string.IsNullOrEmpty(description) ? f.Lorem.Paragraph() : description)
                     .RuleFor(x => x.AssociationType, _ => associationType.Id)
-                    .RuleFor(x => x.AssociationId, _ => associationId)
+                    .RuleFor(x => x.AssociationIds, _ => new List<Guid> { associationId })
                     .RuleFor(x => x.CompanyId, _ => companyId)
                     .RuleFor(x => x.DocumentsTemplatesIds, _ => documentsTemplatesIds)
                     .RuleFor(x => x.ListenEventsIds, _ => listenEventsIds);
@@ -209,8 +209,8 @@ namespace PeopleManagement.IntegrationTests.Data
 
             public async Task InsertInDB(PeopleManagementContext context, CancellationToken cancellationToken = default)
             {
-                var sql = @"INSERT INTO ""RequiredDocuments"" (""Id"", ""Name"", ""Description"", ""AssociationType"", ""AssociationId"", ""CompanyId"", ""DocumentsTemplatesIds"", ""ListenEventsIds"", ""CreatedAt"", ""UpdatedAt"")  
-                       VALUES (@Id, @Name, @Description, @AssociationType, @AssociationId, @CompanyId, @DocumentsTemplatesIds, @ListenEventsIds, @CreatedAt, @UpdatedAt)";
+                var sql = @"INSERT INTO ""RequiredDocuments"" (""Id"", ""Name"", ""Description"", ""AssociationType"", ""AssociationIds"", ""CompanyId"", ""DocumentsTemplatesIds"", ""ListenEventsIds"", ""CreatedAt"", ""UpdatedAt"")
+                       VALUES (@Id, @Name, @Description, @AssociationType, @AssociationIds, @CompanyId, @DocumentsTemplatesIds, @ListenEventsIds, @CreatedAt, @UpdatedAt)";
 
                 var parameters = new[]
                 {
@@ -218,7 +218,7 @@ namespace PeopleManagement.IntegrationTests.Data
                    new NpgsqlParameter("@Name", SqlDbType.NVarChar) { Value = this.Name },
                    new NpgsqlParameter("@Description", SqlDbType.NVarChar) { Value = this.Description },
                    new NpgsqlParameter("@AssociationType", SqlDbType.Int) { Value = this.AssociationType },
-                   new NpgsqlParameter("@AssociationId", SqlDbType.UniqueIdentifier) { Value = this.AssociationId },
+                   new NpgsqlParameter("@AssociationIds", NpgsqlTypes.NpgsqlDbType.Array | NpgsqlTypes.NpgsqlDbType.Uuid) { Value = this.AssociationIds.ToArray() },
                    new NpgsqlParameter("@CompanyId", SqlDbType.UniqueIdentifier) { Value = this.CompanyId },
                    new NpgsqlParameter("@DocumentsTemplatesIds", SqlDbType.Structured) { Value = this.DocumentsTemplatesIds },
                    new NpgsqlParameter("@ListenEventsIds", SqlDbType.Text) { Value = string.Join(",", this.ListenEventsIds) },

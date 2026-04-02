@@ -25,7 +25,7 @@ namespace PeopleManagement.IntegrationTests.Tests
             await context.SaveChangesAsync(cancellationToken);
 
             var command = new CreateRequireDocumentsModel(
-                    role.Id,
+                    [role.Id],
                     AssociationType.Role.Id,
                     "Contract Docs",
                     "Description Contract Docs",

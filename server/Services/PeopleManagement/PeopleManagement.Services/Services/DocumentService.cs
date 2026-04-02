@@ -13,6 +13,7 @@ using PeopleManagement.Domain.AggregatesModel.EmployeeAggregate.Interfaces;
 using PeopleManagement.Domain.AggregatesModel.RequireDocumentsAggregate;
 using PeopleManagement.Domain.AggregatesModel.RequireDocumentsAggregate.Events;
 using PeopleManagement.Domain.AggregatesModel.RequireDocumentsAggregate.Interfaces;
+using PeopleManagement.Domain.AggregatesModel.DocumentTemplateAggregate.WorkloadCalendar;
 using PeopleManagement.Domain.ErrorTools;
 using PeopleManagement.Domain.ErrorTools.ErrorsMessages;
 using PeopleManagement.Domain.Options;
@@ -26,10 +27,11 @@ using Extension = PeopleManagement.Domain.AggregatesModel.DocumentAggregate.Exte
 
 namespace PeopleManagement.Services.Services
 {
-    public class DocumentService(IDocumentRepository securityDocumentRepository, IServiceProvider serviceProvider, 
+    public class DocumentService(IDocumentRepository securityDocumentRepository, IServiceProvider serviceProvider,
         IPdfService pdfService, IBlobService blobService, IDocumentTemplateRepository documentTemplateRepository,
         DocumentTemplatesOptions documentTemplatesOptions, IRequireDocumentsRepository requireDocumentsRepository,
-        IEmployeeRepository employeeRepository, IOptions<TimeZoneOptions> timeZoneOptions, ILogger<DocumentService> logger) : IDocumentService
+        IEmployeeRepository employeeRepository, IOptions<TimeZoneOptions> timeZoneOptions, ILogger<DocumentService> logger,
+        IWorkloadCalendarService workloadCalendarService) : IDocumentService
     {
         private readonly IDocumentRepository _documentRepository = securityDocumentRepository;
         private readonly IPdfService _pdfService = pdfService;
@@ -41,6 +43,7 @@ namespace PeopleManagement.Services.Services
         private readonly IEmployeeRepository _employeeRepository = employeeRepository;
         private readonly ILogger<DocumentService> _logger = logger;
         private readonly TimeZoneOptions _timeZone = timeZoneOptions.Value;
+        private readonly IWorkloadCalendarService _workloadCalendarService = workloadCalendarService;
 
         public async Task<DocumentUnit> CreateDocumentUnit(Guid documentId, Guid employeeId, Guid companyId, 
             CancellationToken cancellationToken = default)
@@ -181,11 +184,12 @@ namespace PeopleManagement.Services.Services
                 cancellation: cancellationToken)
                 ?? throw new DomainException(this, DomainErrors.ObjectNotFound(nameof(DocumentTemplate), document.DocumentTemplateId.ToString()));
 
+            DateOnly? workloadEndDate = null;
             if (documentTemplate.Workload is not null)
-                await VerifyTimeConflictBetweenDocument(employeeId, companyId, documentId, documentUnitDate, 
+                workloadEndDate = await VerifyTimeConflictBetweenDocument(employeeId, companyId, documentId, documentUnitDate,
                     (TimeSpan)documentTemplate.Workload, cancellationToken);
 
-            var requiredDocument = await _requireDocumentsRepository.FirstOrDefaultAsync(x => x.Id == document.RequiredDocumentId 
+            var requiredDocument = await _requireDocumentsRepository.FirstOrDefaultAsync(x => x.Id == document.RequiredDocumentId
                 && x.CompanyId == companyId, cancellation: cancellationToken)
                 ?? throw new DomainException(this, DomainErrors.ObjectNotFound(nameof(RequireDocuments), document.RequiredDocumentId.ToString()));
 
@@ -207,6 +211,8 @@ namespace PeopleManagement.Services.Services
                 content);
             }
 
+            if (workloadEndDate is not null)
+                documentUnit.SetWorkloadEndDate(workloadEndDate.Value);
 
             if(documentTemplate.TemplateFileInfo is not null)
             {
@@ -217,7 +223,8 @@ namespace PeopleManagement.Services.Services
                     jsonObjects: [
                         new JsonObject{
                             ["date"] = $"{documentUnitDate}",
-                            ["validity"] = $"{documentUnit.Validity}"
+                            ["validity"] = $"{documentUnit.Validity}",
+                            ["workloadEndDate"] = $"{workloadEndDate}"
                         },
                         ],
                     cancellationToken: cancellationToken);
@@ -226,11 +233,14 @@ namespace PeopleManagement.Services.Services
                 {
                     throw new DomainException(this, DomainErrors.Document.ErrorRecoverData(documentId));
                 }
-                
+
             }
 
             documentUnit = document.UpdateDocumentUnitDetails(documentUnitId, documentUnitDate, documentTemplate.DocumentValidityDuration,
                 content);
+
+            if (workloadEndDate is not null)
+                documentUnit.SetWorkloadEndDate(workloadEndDate.Value);
 
             return documentUnit;
         }
@@ -382,26 +392,68 @@ namespace PeopleManagement.Services.Services
             return result;
         }
 
-        private async Task VerifyTimeConflictBetweenDocument(Guid employeeId, Guid companyId, Guid documentId, DateOnly documentUnitDate, 
+        private async Task<DateOnly> VerifyTimeConflictBetweenDocument(Guid employeeId, Guid companyId, Guid documentId, DateOnly documentUnitDate,
             TimeSpan workload, CancellationToken cancellationToken)
         {
-            var documents = await _documentRepository.GetDataAsync(x => x.Id != documentId && x.EmployeeId == employeeId && x.CompanyId == companyId &&
-                x.DocumentsUnits.Any(d => d.Date == documentUnitDate), 
-                include: i => i.Include(x => x.DocumentsUnits),cancellation: cancellationToken);
+            var maxHours = _documentTemplatesOptions.MaxHoursWorkload;
 
-            foreach(var document in documents)
+            if (!_workloadCalendarService.IsWorkingDay(documentUnitDate))
+                throw new DomainException(this, DomainErrors.Document.WorkloadDateNotWorkingDay(documentUnitDate,
+                    _workloadCalendarService.GetNextWorkingDay(documentUnitDate)));
+
+            var projectedPeriod = _workloadCalendarService.DistributeWorkload(documentUnitDate, workload, maxHours);
+
+            var documents = await _documentRepository.GetDataAsync(x => x.Id != documentId && x.EmployeeId == employeeId && x.CompanyId == companyId &&
+                x.DocumentsUnits.Any(d => d.Date <= projectedPeriod.EndDate && (d.WorkloadEndDate ?? d.Date) >= documentUnitDate),
+                include: i => i.Include(x => x.DocumentsUnits), cancellation: cancellationToken);
+
+            var existingUsage = new Dictionary<DateOnly, TimeSpan>();
+
+            foreach (var document in documents)
             {
-                DocumentTemplate? documentTemplate = await _documentTemplateRepository.FirstOrDefaultAsync(x => x.Id == document.DocumentTemplateId 
-                && x.CompanyId == companyId, 
+                DocumentTemplate? documentTemplate = await _documentTemplateRepository.FirstOrDefaultAsync(x => x.Id == document.DocumentTemplateId
+                    && x.CompanyId == companyId,
                     cancellation: cancellationToken);
 
-                if (documentTemplate is null || documentTemplate.Workload == null)
+                if (documentTemplate?.Workload == null)
                     continue;
 
-                if (workload.Add((TimeSpan)documentTemplate.Workload) > TimeSpan.FromHours(_documentTemplatesOptions.MaxHoursWorkload))
-                    throw new DomainException(this, DomainErrors.Document.TimeConflictBetweenDocuments(documentId, document.Id, 
-                        TimeSpan.FromHours(_documentTemplatesOptions.MaxHoursWorkload)));
+                foreach (var unit in document.DocumentsUnits)
+                {
+                    var unitPeriod = _workloadCalendarService.DistributeWorkload(unit.Date, (TimeSpan)documentTemplate.Workload, maxHours);
+                    var currentDate = unit.Date;
+                    var remaining = documentTemplate.Workload.Value.TotalHours;
+
+                    while (remaining > 0)
+                    {
+                        if (!_workloadCalendarService.IsWorkingDay(currentDate))
+                        {
+                            currentDate = _workloadCalendarService.GetNextWorkingDay(currentDate);
+                            continue;
+                        }
+
+                        var hoursToAllocate = Math.Min(remaining, maxHours);
+                        if (existingUsage.TryGetValue(currentDate, out var current))
+                            existingUsage[currentDate] = current.Add(TimeSpan.FromHours(hoursToAllocate));
+                        else
+                            existingUsage[currentDate] = TimeSpan.FromHours(hoursToAllocate);
+
+                        remaining -= hoursToAllocate;
+                        currentDate = currentDate.AddDays(1);
+                    }
+                }
             }
+
+            var fitResult = _workloadCalendarService.TryFitWorkload(documentUnitDate, workload, maxHours, existingUsage);
+
+            if (!fitResult.CanFit)
+            {
+                var suggestedDate = fitResult.SuggestedStartDate ?? _workloadCalendarService.GetNextWorkingDay(documentUnitDate);
+                throw new DomainException(this, DomainErrors.Document.TimeConflictBetweenDocuments(documentId,
+                    TimeSpan.FromHours(maxHours), suggestedDate));
+            }
+
+            return fitResult.WorkloadEndDate;
         }
 
         private static PeriodType? ConvertFrequencyToPeriodType(RecurringEventFrequency frequency)

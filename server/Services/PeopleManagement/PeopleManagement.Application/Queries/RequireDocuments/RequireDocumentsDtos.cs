@@ -38,7 +38,7 @@ namespace PeopleManagement.Application.Queries.RequireDocuments
             public Guid CompanyId { get; init; }
             public string Name { get; init; } = string.Empty;
             public string Description { get; init; } = string.Empty;
-            public AssociationDto Association { get; init; }
+            public IEnumerable<AssociationDto> Associations { get; init; } = [];
             public EnumerationDto AssociationType { get; init; } = EnumerationDto.Empty;
             public IEnumerable<RequireDocumentDocumentTemplateDto> DocumentsTemplates { get; init; } = [];
             public IEnumerable<ListenEventDto> ListenEvents { get; init; } = [];
@@ -62,8 +62,6 @@ namespace PeopleManagement.Application.Queries.RequireDocuments
         {
             public Guid Id { get; init; }
             public string Name { get; init; } = string.Empty;
-
-            public static implicit operator AssociationDto(Guid id) => new AssociationDto { Id = id };
         }
     }
 }

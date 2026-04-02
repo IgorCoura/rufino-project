@@ -6,8 +6,10 @@ import 'package:flutter/material.dart';
 import '../../../../../core/utils/file_saver_stub.dart'
     if (dart.library.io) '../../../../../core/utils/file_saver.dart';
 import 'package:mask_text_input_formatter/mask_text_input_formatter.dart';
+import 'package:syncfusion_flutter_pdfviewer/pdfviewer.dart';
 
 import '../../../../../core/theme/app_spacing.dart';
+import '../../../../../core/utils/pdf_merger.dart';
 import '../../../../../domain/entities/document_group_with_documents.dart';
 import '../../../../../domain/entities/employee_document.dart';
 import '../../../../core/widgets/permission_guard.dart';
@@ -329,19 +331,71 @@ class _DocumentsSectionState extends State<DocumentsSection> {
     }
   }
 
-  /// Picks a file and uploads it to the document unit.
+  /// Picks one or more PDF files and uploads to the document unit.
+  ///
+  /// When multiple files are selected, shows a confirmation dialog and
+  /// merges them into a single PDF before uploading.
   Future<void> _pickAndUploadFile(
     EmployeeDocument doc,
     DocumentUnit unit, {
     required bool forSign,
   }) async {
-    final result = await FilePicker.platform.pickFiles(withData: true);
+    final result = await FilePicker.platform.pickFiles(
+      withData: true,
+      allowMultiple: true,
+      type: FileType.custom,
+      allowedExtensions: ['pdf'],
+    );
     if (result == null || result.files.isEmpty) return;
 
-    final file = result.files.first;
-    if (file.bytes == null) return;
+    final validFiles =
+        result.files.where((f) => f.bytes != null).toList();
+    if (validFiles.isEmpty) return;
 
-    if (file.bytes!.lengthInBytes > 10 * 1024 * 1024) {
+    Uint8List fileBytes;
+    String fileName;
+
+    if (validFiles.length == 1) {
+      fileBytes = validFiles.first.bytes!;
+      fileName = validFiles.first.name;
+    } else {
+      final confirmed = await _showMergeConfirmationDialog(validFiles);
+      if (!confirmed || !mounted) return;
+
+      final mergeResult = mergePdfFiles(
+        validFiles
+            .map((f) => PdfFileEntry(name: f.name, bytes: f.bytes!))
+            .toList(),
+      );
+
+      final merged = mergeResult.fold(
+        onSuccess: (bytes) => bytes,
+        onError: (error) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(
+                  'Erro ao processar o arquivo "$error". '
+                  'Verifique se é um PDF válido.',
+                ),
+                behavior: SnackBarBehavior.floating,
+              ),
+            );
+          }
+          return null;
+        },
+      );
+      if (merged == null) return;
+
+      fileBytes = merged;
+      final baseName = validFiles.first.name.replaceAll(
+        RegExp(r'\.pdf$', caseSensitive: false),
+        '',
+      );
+      fileName = '${baseName}_combinado.pdf';
+    }
+
+    if (fileBytes.lengthInBytes > 10 * 1024 * 1024) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -359,8 +413,8 @@ class _DocumentsSectionState extends State<DocumentsSection> {
           doc,
           unit,
           isUpload: true,
-          fileBytes: file.bytes,
-          fileName: file.name,
+          fileBytes: fileBytes,
+          fileName: fileName,
         );
       }
     } else {
@@ -368,11 +422,129 @@ class _DocumentsSectionState extends State<DocumentsSection> {
       await widget.viewModel.uploadDocumentUnit(
         doc.id,
         unit.id,
-        file.bytes!,
-        file.name,
+        fileBytes,
+        fileName,
       );
       setState(() => _isBusy = false);
     }
+  }
+
+  /// Shows a dialog listing the selected files and asking the user to
+  /// confirm that they should be combined into a single PDF.
+  Future<bool> _showMergeConfirmationDialog(
+    List<PlatformFile> files,
+  ) async {
+    final colorScheme = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) {
+        return AlertDialog(
+          title: Row(
+            children: [
+              Icon(Icons.merge_type, color: colorScheme.primary),
+              const SizedBox(width: AppSpacing.sm),
+              const Text('Combinar arquivos PDF'),
+            ],
+          ),
+          content: SizedBox(
+            width: double.maxFinite,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Card.filled(
+                  color: colorScheme.primaryContainer,
+                  child: Padding(
+                    padding: const EdgeInsets.all(AppSpacing.md),
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.info_outline,
+                          color: colorScheme.onPrimaryContainer,
+                          size: 20,
+                        ),
+                        const SizedBox(width: AppSpacing.sm),
+                        Expanded(
+                          child: Text(
+                            'Os arquivos selecionados serão combinados '
+                            'em um único PDF na ordem abaixo.',
+                            style: textTheme.bodySmall?.copyWith(
+                              color: colorScheme.onPrimaryContainer,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.md),
+                ConstrainedBox(
+                  constraints: const BoxConstraints(maxHeight: 240),
+                  child: ListView.separated(
+                    shrinkWrap: true,
+                    itemCount: files.length,
+                    separatorBuilder: (_, __) =>
+                        const Divider(height: 1),
+                    itemBuilder: (_, index) {
+                      final file = files[index];
+                      return ListTile(
+                        leading: CircleAvatar(
+                          radius: 14,
+                          backgroundColor: colorScheme.primaryContainer,
+                          child: Text(
+                            '${index + 1}',
+                            style: textTheme.labelSmall?.copyWith(
+                              color: colorScheme.onPrimaryContainer,
+                            ),
+                          ),
+                        ),
+                        title: Text(
+                          file.name,
+                          style: textTheme.bodyMedium,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        trailing: Text(
+                          _formatFileSize(file.size),
+                          style: textTheme.bodySmall?.copyWith(
+                            color: colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                        dense: true,
+                        contentPadding: EdgeInsets.zero,
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(false),
+              child: const Text('Cancelar'),
+            ),
+            FilledButton.icon(
+              onPressed: () => Navigator.of(ctx).pop(true),
+              icon: const Icon(Icons.merge_type, size: 18),
+              label: const Text('Combinar e enviar'),
+            ),
+          ],
+        );
+      },
+    );
+
+    return confirmed ?? false;
+  }
+
+  /// Formats a file size in bytes to a human-readable string.
+  String _formatFileSize(int bytes) {
+    if (bytes < 1024) return '$bytes B';
+    if (bytes < 1024 * 1024) {
+      return '${(bytes / 1024).toStringAsFixed(1)} KB';
+    }
+    return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
   }
 
   /// Shows a dialog to configure the sign date limit and reminder interval.
@@ -501,8 +673,8 @@ class _DocumentsSectionState extends State<DocumentsSection> {
     dateCtrl.dispose();
   }
 
-  /// Downloads an existing document unit file.
-  Future<void> _downloadUnit(
+  /// Downloads and displays a document unit in a full-screen PDF viewer dialog.
+  Future<void> _viewUnit(
     EmployeeDocument doc,
     DocumentUnit unit,
   ) async {
@@ -510,11 +682,12 @@ class _DocumentsSectionState extends State<DocumentsSection> {
 
     final bytes = await widget.viewModel.downloadDocumentUnit(doc.id, unit.id);
     if (bytes != null && mounted) {
-      final ext = unit.name.contains('.') ? unit.name.split('.').last : 'pdf';
-      await _saveFile(
-        dialogTitle: 'Salvar documento',
-        fileName: unit.downloadFileName(doc.name, extension: ext),
-        bytes: bytes,
+      await showDialog<void>(
+        context: context,
+        builder: (ctx) => _PdfViewerDialog(
+          title: unit.downloadFileName(doc.name),
+          bytes: bytes,
+        ),
       );
     }
 
@@ -1201,7 +1374,7 @@ class _DocumentsSectionState extends State<DocumentsSection> {
                         icon: const Icon(Icons.search, size: 20),
                         tooltip: 'Visualizar',
                         onPressed:
-                            _isBusy ? null : () => _downloadUnit(doc, unit),
+                            _isBusy ? null : () => _viewUnit(doc, unit),
                       ),
                     ),
                 ],
@@ -1312,6 +1485,56 @@ class _StatusBadge extends StatelessWidget {
               color: color,
               fontWeight: FontWeight.w600,
             ),
+      ),
+    );
+  }
+}
+
+/// Full-screen dialog that displays a PDF using [SfPdfViewer].
+class _PdfViewerDialog extends StatelessWidget {
+  const _PdfViewerDialog({required this.title, required this.bytes});
+
+  /// The document title shown in the app bar.
+  final String title;
+
+  /// The raw PDF bytes to render.
+  final Uint8List bytes;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+
+    return Dialog.fullscreen(
+      child: Scaffold(
+        appBar: AppBar(
+          title: Text(title),
+          leading: IconButton(
+            icon: const Icon(Icons.close),
+            tooltip: 'Fechar',
+            onPressed: () => Navigator.of(context).pop(),
+          ),
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.download),
+              tooltip: 'Baixar',
+              onPressed: () => saveFile(fileName: title, bytes: bytes),
+            ),
+          ],
+        ),
+        body: Container(
+          decoration: BoxDecoration(
+            color: cs.surface,
+            border: Border.all(color: cs.outlineVariant),
+            borderRadius: BorderRadius.circular(AppSpacing.sm),
+          ),
+          clipBehavior: Clip.antiAlias,
+          child: SfPdfViewer.memory(
+            bytes,
+            canShowScrollHead: false,
+            canShowPaginationDialog: false,
+            pageSpacing: 4,
+          ),
+        ),
       ),
     );
   }

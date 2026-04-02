@@ -9,6 +9,7 @@ using PeopleManagement.Services.HangfireJobRegistrar;
 using PeopleManagement.Domain.AggregatesModel.RequireDocumentsAggregate.Interfaces;
 using PeopleManagement.Services.Services.RecoverInfoToDocument;
 using PeopleManagement.Domain.AggregatesModel.DocumentAggregate.Options;
+using PeopleManagement.Domain.AggregatesModel.DocumentTemplateAggregate.WorkloadCalendar;
 using PeopleManagement.Domain.Options;
 using PeopleManagement.Domain.Services;
 
@@ -40,6 +41,8 @@ namespace PeopleManagement.API.DependencyInjection
 
             // Domain Services
             service.AddScoped<IEmployeeDocumentStatusService, EmployeeDocumentStatusService>();
+            service.AddSingleton<IHolidayProvider, BrazilianHolidayProvider>();
+            service.AddSingleton<IWorkloadCalendarService, WorkloadCalendarService>();
 
             var documentTemplatesOptions = new DocumentTemplatesOptions();
             configuration.GetSection(DocumentTemplatesOptions.ConfigurationSection).Bind(documentTemplatesOptions);
