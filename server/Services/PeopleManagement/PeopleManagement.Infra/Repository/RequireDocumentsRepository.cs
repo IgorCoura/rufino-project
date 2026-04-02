@@ -45,7 +45,7 @@ namespace PeopleManagement.Infra.Repository
             var query = _context.RequireDocuments
                 .Where(rd => rd.CompanyId == companyId
                                 && rd.ListenEvents.Any(le => le.EventId == eventId)
-                                && associationIds.Contains(rd.AssociationId));
+                                && rd.AssociationIds.Any(id => associationIds.Contains(id)));
 
             return await query.ToListAsync(cancellationToken);
         }

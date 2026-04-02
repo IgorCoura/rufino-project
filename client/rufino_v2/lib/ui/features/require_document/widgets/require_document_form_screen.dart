@@ -207,24 +207,37 @@ class _RequireDocumentFormBody extends StatelessWidget {
                 onChanged: viewModel.onAssociationTypeChanged,
               ),
               const SizedBox(height: AppSpacing.md),
-              DropdownButtonFormField<String>(
-                initialValue: viewModel.selectedAssociationId.isNotEmpty &&
-                        viewModel.associations
-                            .any((a) => a.id == viewModel.selectedAssociationId)
-                    ? viewModel.selectedAssociationId
-                    : null,
-                decoration: const InputDecoration(
-                  labelText: 'Associação',
-                  border: OutlineInputBorder(),
-                  prefixIcon: Icon(Icons.link),
+              if (viewModel.unselectedAssociations.isNotEmpty)
+                DropdownButtonFormField<String>(
+                  key: ValueKey(viewModel.selectedAssociationIds.length),
+                  decoration: const InputDecoration(
+                    labelText: 'Adicionar Associação',
+                    border: OutlineInputBorder(),
+                    prefixIcon: Icon(Icons.add_link),
+                  ),
+                  items: viewModel.unselectedAssociations
+                      .map<DropdownMenuItem<String>>((a) =>
+                          DropdownMenuItem<String>(
+                              value: a.id, child: Text(a.name)))
+                      .toList(),
+                  onChanged: (id) {
+                    if (id != null) viewModel.toggleAssociation(id);
+                  },
                 ),
-                items: viewModel.associations
-                    .map<DropdownMenuItem<String>>((a) =>
-                        DropdownMenuItem<String>(
-                            value: a.id, child: Text(a.name)))
-                    .toList(),
-                onChanged: viewModel.onAssociationChanged,
-              ),
+              if (viewModel.selectedAssociations.isNotEmpty) ...[
+                const SizedBox(height: AppSpacing.sm),
+                Wrap(
+                  spacing: AppSpacing.sm,
+                  runSpacing: AppSpacing.sm,
+                  children: viewModel.selectedAssociations
+                      .map((a) => InputChip(
+                            label: Text(a.name),
+                            onDeleted: () =>
+                                viewModel.removeAssociation(a.id),
+                          ))
+                      .toList(),
+                ),
+              ],
               const SizedBox(height: AppSpacing.lg),
 
               // ─── Document Templates ──────────────────────────────────

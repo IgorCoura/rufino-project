@@ -29,16 +29,17 @@ void main() {
     fakeAuth = FakeAuthRepository();
     fakeCompany = FakeCompanyRepository();
     fakeCompany.setCompanies([fakeCompanyEntity]);
-    viewModel = CompanySelectionViewModel(
-      authRepository: fakeAuth,
-      companyRepository: fakeCompany,
-    );
     final fakePermRepo = FakePermissionRepository()
       ..setPermissions(const [
         Permission(resource: 'company', scopes: ['create', 'view', 'edit']),
       ]);
     permissionNotifier = PermissionNotifier(permissionRepository: fakePermRepo);
     await permissionNotifier.loadPermissions();
+    viewModel = CompanySelectionViewModel(
+      authRepository: fakeAuth,
+      companyRepository: fakeCompany,
+      permissionNotifier: permissionNotifier,
+    );
   });
 
   tearDown(() {

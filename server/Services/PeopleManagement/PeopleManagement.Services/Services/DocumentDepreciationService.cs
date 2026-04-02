@@ -95,7 +95,7 @@ namespace PeopleManagement.Services.Services
 
             if (employee is not null && reqDocument is not null)
             {
-                return employee.IsAssociation(reqDocument.AssociationId);
+                return reqDocument.AssociationIds.Any(id => employee.IsAssociation(id));
             }
             return false;
         }

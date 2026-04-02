@@ -32,7 +32,7 @@ namespace PeopleManagement.Application.Queries.RequireDocuments
             var allPossibleAssociationIds = await employeeQuery.FirstOrDefaultAsync() ?? [];
 
             var query = from req in context.RequireDocuments.AsNoTracking()
-                        where req.CompanyId == companyId && allPossibleAssociationIds.Contains(req.AssociationId)
+                        where req.CompanyId == companyId && req.AssociationIds.Any(id => allPossibleAssociationIds.Contains(id))
                         select new RequiredWithDocumentListDto
                         {
                             Id = req.Id,
@@ -97,7 +97,6 @@ namespace PeopleManagement.Application.Queries.RequireDocuments
                 CompanyId = x.CompanyId,
                 Name = x.Name.Value,
                 Description = x.Description.Value,
-                Association = x.AssociationId,
                 AssociationType = new EnumerationDto
                 {
                     Id= x.AssociationType.Id,
@@ -121,10 +120,15 @@ namespace PeopleManagement.Application.Queries.RequireDocuments
                 }).ToArray()
             }).FirstOrDefaultAsync() ?? throw new DomainException(this, DomainErrors.ObjectNotFound(nameof(RequireDocuments), requireDocumentId.ToString()));
 
-            var association = await GetByIdAssociationsByType(companyId, result.Association.Id, result.AssociationType.Id);
-            
+            var associationIds = await context.RequireDocuments.AsNoTracking()
+                .Where(x => x.Id == requireDocumentId && x.CompanyId == companyId)
+                .Select(x => x.AssociationIds)
+                .FirstOrDefaultAsync() ?? [];
+
+            var associations = await GetByIdsAssociationsByType(companyId, associationIds, result.AssociationType.Id);
+
             result = result with {
-                Association = association,
+                Associations = associations,
             };
 
             return result;
@@ -189,6 +193,33 @@ namespace PeopleManagement.Application.Queries.RequireDocuments
                 }).SingleOrDefaultAsync() 
                 ?? throw new DomainException(this, DomainErrors.ObjectNotFound(nameof(Workplace), associationId.ToString()));
                 return result;
+            }
+            throw new NotImplementedException($"The association get to {associationType.Name} not be implemented");
+        }
+
+        public async Task<IEnumerable<AssociationDto>> GetByIdsAssociationsByType(Guid companyId, List<Guid> associationIds, int associationTypeId)
+        {
+            using var context = _factory.CreateDbContext();
+            var associationType = AssociationType.FromValue<AssociationType>(associationTypeId)
+                ?? throw new DomainException(this, DomainErrors.FieldInvalid(nameof(AssociationType), associationTypeId.ToString()));
+
+            if (associationType == AssociationType.Role)
+            {
+                var query = context.Roles.AsNoTracking().Where(x => x.CompanyId == companyId && associationIds.Contains(x.Id));
+                return await query.Select(x => new AssociationDto
+                {
+                    Id = x.Id,
+                    Name = x.Name.Value,
+                }).ToArrayAsync();
+            }
+            if (associationType == AssociationType.Workplace)
+            {
+                var query = context.Workplaces.AsNoTracking().Where(x => x.CompanyId == companyId && associationIds.Contains(x.Id));
+                return await query.Select(x => new AssociationDto
+                {
+                    Id = x.Id,
+                    Name = x.Name.Value,
+                }).ToArrayAsync();
             }
             throw new NotImplementedException($"The association get to {associationType.Name} not be implemented");
         }

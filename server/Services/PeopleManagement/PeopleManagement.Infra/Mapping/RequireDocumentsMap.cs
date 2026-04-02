@@ -16,12 +16,6 @@ namespace PeopleManagement.Infra.Mapping
         {
             base.Configure(builder);
 
-            builder.HasIndex(x => x.AssociationId);
-                
-
-            builder.Property(x => x.AssociationId)
-                .IsRequired();
-
             builder.Property(x => x.AssociationType)
                 .HasConversion(x => x.Id, x => x)
                 .IsRequired();

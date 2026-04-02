@@ -56,7 +56,7 @@ class FakeRequireDocumentRepository implements RequireDocumentRepository {
     String companyId, {
     required String name,
     required String description,
-    required String associationId,
+    required List<String> associationIds,
     required int associationTypeId,
     required List<String> documentTemplateIds,
     required List<ListenEventPayload> listenEvents,
@@ -74,7 +74,7 @@ class FakeRequireDocumentRepository implements RequireDocumentRepository {
     required String id,
     required String name,
     required String description,
-    required String associationId,
+    required List<String> associationIds,
     required int associationTypeId,
     required List<String> documentTemplateIds,
     required List<ListenEventPayload> listenEvents,

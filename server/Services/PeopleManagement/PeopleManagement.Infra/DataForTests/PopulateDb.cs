@@ -68,9 +68,9 @@ namespace PeopleManagement.Infra.DataForTests
         {
             var comapnies = new[] {
                 Company.Create(
-                    Guid.Parse("0f0bea88-cc0e-482b-b89a-e10999f8cb5e"),
-                    "RUFINO - EMPREITEIRA DE ELETRICA E HIDRAULICA S/S LTDA",
-                    "RUFINO EMPREITEIRA",
+                    Guid.Parse("229B0DC9-5B8C-4AAD-8774-DFC3F14E1A6B"),
+                    "Teste - RUFINO - EMPREITEIRA DE ELETRICA E HIDRAULICA S/S LTDA",
+                    "Teste - RUFINO EMPREITEIRA",
                     "02.624.917/0001-92",
                     CompanyContact.Create("rufino@rufinoempreiteira.com.br", "(17) 99571-5009"),
                     CompanyAddress.Create(
@@ -505,7 +505,7 @@ namespace PeopleManagement.Infra.DataForTests
                 RequireDocuments.Create(
                     Guid.Parse("2D77226E-8F9F-483F-82A9-6E536864903C"),
                     companyId,
-                    roleId,
+                    [roleId],
                     AssociationType.Role,
                     "Requerimento de Carteira de Identidade",
                     "Descrição requerimento de Carteira de Identidade",
@@ -518,7 +518,7 @@ namespace PeopleManagement.Infra.DataForTests
                 RequireDocuments.Create(
                     Guid.Parse("5BC970E9-B7AD-4AD2-8927-3A7C095AE0E8"),
                     companyId,
-                    roleId,
+                    [roleId],
                     AssociationType.Role,
                     "Requerimento da Ordem de serviço",
                     "Descrição requerimento da Ordem de serviço",
@@ -530,7 +530,7 @@ namespace PeopleManagement.Infra.DataForTests
                 RequireDocuments.Create(
                     Guid.Parse("6CD081FA-C8BE-5BE3-9938-4B8D1A6BF1F9"),
                     companyId,
-                    roleId,
+                    [roleId],
                     AssociationType.Role,
                     "Requerimento de Documentos por Alteração de Nome",
                     "Documentos requisitados quando o nome do colaborador é alterado, independente do status.",

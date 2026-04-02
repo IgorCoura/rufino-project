@@ -47,6 +47,9 @@ namespace PeopleManagement.Infra.Mapping
             builder.Property(x => x.SentToSignatureAt)
                 .IsRequired(false);
 
+            builder.Property(x => x.WorkloadEndDate)
+                .IsRequired(false);
+
             builder.OwnsOne(x => x.Period, period =>
             {
                 period.Property(c => c.Type)
