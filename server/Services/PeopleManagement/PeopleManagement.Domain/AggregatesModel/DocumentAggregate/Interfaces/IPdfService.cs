@@ -8,5 +8,6 @@ namespace PeopleManagement.Domain.AggregatesModel.DocumentAggregate.Interfaces
         Task<IReadOnlyList<(Guid DocumentUnitId, byte[] Pdf)>> ConvertHtml2PdfRange(
             IEnumerable<(Guid DocumentUnitId, TemplateFileInfo Template, string Content)> items,
             CancellationToken cancellationToken = default);
+        void InvalidateTemplateCache(string templateDirectory);
     }
 }
