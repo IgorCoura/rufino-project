@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Declaração de Dependentes e Encargos de Família — Rufino Empreiteira</title>
+    <link rel="stylesheet" href="styles/style.css">
+</head>
+<body>
+
+<div class="document">
+
+    <section class="section">
+        <div class="section-title">1 — Identificação do(a) Empregado(a)</div>
+        <div class="info-grid">
+            <div class="info-field"><span class="info-label">Nome Completo:</span> <span class="info-value">{{employee.name}}</span></div>
+            <div class="info-field"><span class="info-label">CPF:</span> <span class="info-value">{{employee.IdCard.cpf}}</span></div>
+            <div class="info-field"><span class="info-label">Estado Civil:</span> <span class="info-value">{{employee.PersonalInfo.MaritalStatus}}</span></div>
+            <div class="info-field"><span class="info-label">Cargo:</span> <span class="info-value">{{Position.Name}}</span></div>
+        </div>
+        <div class="info-grid full">
+            <div class="info-field"><span class="info-label">Endereço:</span> <span class="info-value">{{Employee.address.street}}, {{Employee.address.number}} {{Employee.address.complement}} — {{Employee.address.neighborhood}} — {{Employee.address.city}}/{{Employee.address.state}} — CEP {{Employee.address.zip}}</span></div>
+        </div>
+    </section>
+
+    <section class="section">
+        <div class="section-title">2 — Situação de Dependentes</div>
+        <p class="clause" style="margin-bottom: 12px;">O(A) empregado(a) declara, sob as penas da lei, a seguinte situação quanto a dependentes:</p>
+        <div class="check-option">
+            <div class="check-box"></div>
+            <span><strong>NÃO POSSUO DEPENDENTES</strong> para fins de Salário-Família e/ou Imposto de Renda.</span>
+        </div>
+        <div class="check-option">
+            <div class="check-box"></div>
+            <span><strong>POSSUO OS DEPENDENTES</strong> abaixo relacionados:</span>
+        </div>
+    </section>
+
+    <section class="section">
+        <div class="section-title">3 — Relação de Dependentes</div>
+        <table class="dep-table">
+            <thead>
+                <tr>
+                    <th style="width:26px;">Nº</th>
+                    <th>Nome Completo do Dependente</th>
+                    <th style="width:82px;">Data Nasc.</th>
+                    <th style="width:100px;">CPF</th>
+                    <th style="width:88px;">Parentesco</th>
+                    <th style="width:42px; text-align:center;">Sal.<br>Fam.</th>
+                    <th style="width:32px; text-align:center;">IR</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr><td class="row-num">1</td><td></td><td>___/___/____</td><td></td><td></td><td style="text-align:center;">☐</td><td style="text-align:center;">☐</td></tr>
+                <tr><td class="row-num">2</td><td></td><td>___/___/____</td><td></td><td></td><td style="text-align:center;">☐</td><td style="text-align:center;">☐</td></tr>
+                <tr><td class="row-num">3</td><td></td><td>___/___/____</td><td></td><td></td><td style="text-align:center;">☐</td><td style="text-align:center;">☐</td></tr>
+                <tr><td class="row-num">4</td><td></td><td>___/___/____</td><td></td><td></td><td style="text-align:center;">☐</td><td style="text-align:center;">☐</td></tr>
+                <tr><td class="row-num">5</td><td></td><td>___/___/____</td><td></td><td></td><td style="text-align:center;">☐</td><td style="text-align:center;">☐</td></tr>
+                <tr><td class="row-num">6</td><td></td><td>___/___/____</td><td></td><td></td><td style="text-align:center;">☐</td><td style="text-align:center;">☐</td></tr>
+            </tbody>
+        </table>
+        <p style="font-family: var(--font-head); font-size: 8pt; color: var(--gray); text-align: center; margin-top: 4px;">
+            <strong>Parentesco:</strong> Cônjuge/Companheiro(a) · Filho(a) · Enteado(a) · Menor sob guarda/tutela · Pai/Mãe (dependente) · Irmão(ã) inválido(a)<br>
+            <strong>Sal. Fam.:</strong> Marcar se dependente para Salário-Família (filhos/equiparados até 14 anos ou inválidos) &nbsp;&nbsp;
+            <strong>IR:</strong> Marcar se dependente para Imposto de Renda
+        </p>
+    </section>
+
+    <section class="section">
+        <div class="section-title">4 — Termo de Responsabilidade — Salário-Família</div>
+        <p class="clause indent">Pelo presente, declaro estar ciente de que devo apresentar à empresa, para fins de concessão e manutenção do salário-família:</p>
+        <ul class="doc-list">
+            <li>Certidão de Nascimento de cada filho ou equiparado (original e cópia);</li>
+            <li>Caderneta de Vacinação ou equivalente, dos filhos de até 6 (seis) anos de idade, atualizada anualmente, a ser apresentada no mês de novembro de cada ano;</li>
+            <li>Comprovante de Frequência Escolar dos filhos a partir de 4 (quatro) anos de idade, a ser apresentado semestralmente, nos meses de maio e novembro;</li>
+            <li>Termo de guarda ou tutela, no caso de menores equiparados a filhos;</li>
+            <li>Laudo médico pericial emitido pelo INSS, no caso de filho inválido maior de 14 anos.</li>
+        </ul>
+        <p class="clause indent" style="margin-top: 10px;">Declaro estar ciente de que devo comunicar imediatamente à empresa a ocorrência dos seguintes fatos que determinam a perda do direito ao salário-família:</p>
+        <ul class="doc-list">
+            <li>Óbito de filho ou equiparado;</li>
+            <li>Quando o filho ou equiparado completar 14 (quatorze) anos de idade (salvo se inválido);</li>
+            <li>Cessação da invalidez de filho inválido;</li>
+            <li>Sentença judicial que determine o pagamento do salário-família a outrem (divórcio, separação, abandono de filho ou perda do poder familiar);</li>
+            <li>Qualquer outro fato ou circunstância que implique cessação do benefício.</li>
+        </ul>
+        <div class="notice-box">
+            <strong>DECLARAÇÃO DE CIÊNCIA:</strong> Estou ciente de que a falta de cumprimento dos compromissos ora assumidos, além de obrigar à devolução das importâncias recebidas indevidamente, sujeitar-me-á às penalidades previstas no <strong>art. 171 do Código Penal</strong> (estelionato) e à <strong>rescisão do contrato de trabalho por justa causa</strong>, nos termos do <strong>art. 482 da Consolidação das Leis do Trabalho</strong>.
+        </div>
+    </section>
+
+    <section class="section">
+        <div class="section-title">5 — Declaração de Encargos de Família para Fins de Imposto de Renda</div>
+        <p class="clause indent">Em obediência à legislação do Imposto de Renda, venho pela presente informar os dependentes acima relacionados e marcados na coluna "IR" do Quadro de Dependentes (Seção 3), para fins de cálculo da retenção do Imposto de Renda na Fonte (IRRF) sobre minha remuneração mensal.</p>
+        <p class="clause indent">Declaro, sob as penas da lei, que as informações prestadas neste documento são verdadeiras e de minha inteira responsabilidade, não cabendo à empresa (fonte pagadora) qualquer responsabilidade perante a fiscalização da Receita Federal do Brasil.</p>
+        <p class="clause indent">Caso meu cônjuge ou companheiro(a) também declare os mesmos dependentes em sua fonte pagadora, estou ciente de que a dedução do mesmo dependente em mais de uma declaração é vedada pela legislação (IN RFB nº 1.500/2014, art. 90, §6º) e que a responsabilidade por eventual duplicidade é exclusivamente minha.</p>
+        <div style="margin-top: 16px; padding: 10px 0; border-top: 1px solid var(--rule-light); border-bottom: 1px solid var(--rule-light);">
+            <p style="font-family: var(--font-head); font-size: 9pt; text-align: center; margin-bottom: 10px;"><strong>CIÊNCIA DO CÔNJUGE / COMPANHEIRO(A) — IN RFB 1.500/2014, ART. 90, §6º</strong></p>
+            <div class="info-grid full" style="margin: 0;">
+                <div class="info-field"><span class="info-label">Nome:</span> <span class="info-value">________________________________________________</span> &nbsp;&nbsp; <span class="info-label">CPF:</span> <span class="info-value">________________________</span></div>
+            </div>
+        </div>
+    </section>
+
+    <section class="section">
+        <div class="section-title">6 — Obrigação de Atualização</div>
+        <p class="clause indent">Comprometo-me a renovar esta declaração sempre que ocorrer qualquer alteração na situação dos meus dependentes, incluindo: nascimento, adoção, guarda, óbito, maioridade, casamento, divórcio, cessação de invalidez, perda de poder familiar, ou qualquer outro fato que altere a quantidade ou a condição dos dependentes aqui declarados.</p>
+        <p class="clause indent">Estou ciente de que a omissão ou atraso na comunicação de alterações poderá resultar em descontos retroativos, devolução de valores recebidos indevidamente e aplicação das penalidades legais cabíveis.</p>
+    </section>
+
+    
+
+    <section class="signatures">
+        <p class="sig-location">Suzano/SP, {{ComplementaryInfo.FullDatePtBr}}.</p>
+        <div class="sig-block">
+            <div class="signature-local">
+                <div class="signed-content">
+                    <img class="signed-icon" src="img/icon_assinatura.png">
+                    <div class="signed-text">
+                        <span class="signed-label">Assinado digitalmente pelo:</span>
+                        <span class="signed-name">{{employee.name}}</span>
+                    </div>
+                </div>
+            </div>
+            <div class="signature-info">{{employee.name}}</div>
+            <div class="sig-role">EMPREGADO(A) DECLARANTE</div>
+        </div>
+    </section>
+
+    
+
+</div>
+
+</body>
+</html>

@@ -37,7 +37,8 @@ namespace PeopleManagement.Services.Services.RecoverInfoToDocument
                     ["IdCard"] = ConvertIdCardToJsonObject(employee.IdCard),
                     ["VoteId"] = ConvertVoteIdToJsonObject(employee.VoteId),
                     ["MilitaryDocument"] = ConvertMilitaryDocumentToJsonObject(employee.MilitaryDocument),
-                    ["InitialDate"] = employee.Contracts.Where(x => x.IsActive).OrderByDescending(x => x.InitDate).FirstOrDefault()?.InitDate.ToString("dd-MM-yyyy") ?? ""
+                    ["InitialDate"] = employee.Contracts.Where(x => x.IsActive).OrderByDescending(x => x.InitDate).FirstOrDefault()?.InitDate.ToString("dd-MM-yyyy") ?? "",
+                    ["Dependents"] = ConvertDependentsToJsonArray(employee.Dependents)
                 }
             };
 
@@ -68,11 +69,31 @@ namespace PeopleManagement.Services.Services.RecoverInfoToDocument
                     ["PersonalInfo"] = ConvertPersonalInfoToJsonObject(personalInfo),
                     ["IdCard"] = ConvertIdCardToJsonObject(idCard),
                     ["VoteId"] = ConvertVoteIdToJsonObject(voteId),
-                    ["MilitaryDocument"] = ConvertMilitaryDocumentToJsonObject(militaryDocument)
+                    ["MilitaryDocument"] = ConvertMilitaryDocumentToJsonObject(militaryDocument),
+                    ["Dependents"] = ConvertDependentsToJsonArray([Dependent.Create("Filho Exemplo", idCard, Gender.MALE, DependencyType.Child)])
                 }
             };
 
             return json;
+        }
+
+        private static JsonArray ConvertDependentsToJsonArray(List<Dependent> dependents)
+        {
+            var array = new JsonArray();
+            foreach (var dependent in dependents)
+                array.Add(ConvertDependentToJsonObject(dependent));
+            return array;
+        }
+
+        private static JsonObject ConvertDependentToJsonObject(Dependent dependent)
+        {
+            return new JsonObject
+            {
+                ["Name"] = dependent.Name.ToString(),
+                ["Gender"] = dependent.Gender.ToString(),
+                ["DependencyType"] = dependent.DependencyType.Name,
+                ["IdCard"] = ConvertIdCardToJsonObject(dependent.IdCard)
+            };
         }
 
         private static JsonObject ConvertAddressToJsonObject(Address? address)

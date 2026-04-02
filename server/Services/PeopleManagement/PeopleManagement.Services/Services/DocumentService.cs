@@ -420,6 +420,12 @@ namespace PeopleManagement.Services.Services
 
                 foreach (var unit in document.DocumentsUnits)
                 {
+
+                    if(unit.Status == DocumentUnitStatus.Invalid || unit.Status == DocumentUnitStatus.NotApplicable)
+                    {
+                        continue;
+                    }
+
                     var unitPeriod = _workloadCalendarService.DistributeWorkload(unit.Date, (TimeSpan)documentTemplate.Workload, maxHours);
                     var currentDate = unit.Date;
                     var remaining = documentTemplate.Workload.Value.TotalHours;

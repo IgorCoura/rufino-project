@@ -47,8 +47,8 @@ namespace PeopleManagement.Infra.Services
                 {
                     _logger.LogWarning("No pre-installed Chrome found at PUPPETEER_EXECUTABLE_PATH. Downloading via BrowserFetcher.");
                     var browserFetcher = new BrowserFetcher();
-                    await browserFetcher.DownloadAsync();
-                    executablePath = null;
+                    var installedBrowser = await browserFetcher.DownloadAsync();
+                    executablePath = installedBrowser.GetExecutablePath();
                 }
 
                 _browser = await Puppeteer.LaunchAsync(new LaunchOptions

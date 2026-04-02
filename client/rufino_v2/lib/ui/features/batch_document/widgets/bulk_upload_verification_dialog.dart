@@ -357,7 +357,7 @@ class _PreviewPanelState extends State<_PreviewPanel> {
             child: _showPdf
                 ? Container(
                     decoration: BoxDecoration(
-                      color: colorScheme.surface,
+                      color: Colors.white,
                       border: Border.all(color: colorScheme.outlineVariant),
                       borderRadius: BorderRadius.circular(AppSpacing.sm),
                     ),
@@ -553,7 +553,7 @@ class _NarrowMatchCardState extends State<_NarrowMatchCard> {
                       width: double.infinity,
                       height: 300,
                       decoration: BoxDecoration(
-                        color: colorScheme.surface,
+                        color: Colors.white,
                         border: Border.all(color: colorScheme.outlineVariant),
                         borderRadius: BorderRadius.circular(AppSpacing.xs),
                       ),
