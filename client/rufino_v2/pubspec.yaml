@@ -35,6 +35,7 @@ dependencies:
   google_mlkit_text_recognition: ^0.14.0
   pdf: ^3.11.1
   image: ^4.3.0
+  shared_preferences: ^2.5.5
 
 dev_dependencies:
   flutter_test:
