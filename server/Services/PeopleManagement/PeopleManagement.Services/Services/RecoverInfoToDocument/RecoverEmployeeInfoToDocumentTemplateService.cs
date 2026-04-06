@@ -38,6 +38,7 @@ namespace PeopleManagement.Services.Services.RecoverInfoToDocument
                     ["VoteId"] = ConvertVoteIdToJsonObject(employee.VoteId),
                     ["MilitaryDocument"] = ConvertMilitaryDocumentToJsonObject(employee.MilitaryDocument),
                     ["InitialDate"] = employee.Contracts.Where(x => x.IsActive).OrderByDescending(x => x.InitDate).FirstOrDefault()?.InitDate.ToString("dd-MM-yyyy") ?? "",
+                    ["DocumentSigningOptions"] = ConvertDocumentSigningOptionsToJsonObject(employee.DocumentSigningOptions),
                     ["Dependents"] = ConvertDependentsToJsonArray(employee.Dependents)
                 }
             };
@@ -70,6 +71,7 @@ namespace PeopleManagement.Services.Services.RecoverInfoToDocument
                     ["IdCard"] = ConvertIdCardToJsonObject(idCard),
                     ["VoteId"] = ConvertVoteIdToJsonObject(voteId),
                     ["MilitaryDocument"] = ConvertMilitaryDocumentToJsonObject(militaryDocument),
+                    ["DocumentSigningOptions"] = ConvertDocumentSigningOptionsToJsonObject(DocumentSigningOptions.PhysicalSignature),
                     ["Dependents"] = ConvertDependentsToJsonArray([Dependent.Create("Filho Exemplo", idCard, Gender.MALE, DependencyType.Child)])
                 }
             };
@@ -95,6 +97,7 @@ namespace PeopleManagement.Services.Services.RecoverInfoToDocument
                 ["IdCard"] = ConvertIdCardToJsonObject(dependent.IdCard)
             };
         }
+
 
         private static JsonObject ConvertAddressToJsonObject(Address? address)
         {
@@ -209,6 +212,20 @@ namespace PeopleManagement.Services.Services.RecoverInfoToDocument
             {
                 ["Number"] = militaryDocument.Number,
                 ["Type"] = militaryDocument.Type
+            };
+        }
+        private static JsonObject ConvertDocumentSigningOptionsToJsonObject(DocumentSigningOptions? documentSigningOptions)
+        {
+            if (documentSigningOptions == null)
+            {
+                return new JsonObject
+                {
+                };
+            }
+            return new JsonObject
+            {
+                ["Id"] = documentSigningOptions.Id,
+                ["Name"] = documentSigningOptions.Name
             };
         }
         private static JsonObject ConvertMedicalAdmissionExamToJsonObject(MedicalAdmissionExam? medicalAdmissionExam)
