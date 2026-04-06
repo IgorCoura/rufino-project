@@ -10,6 +10,11 @@
 
 <div class="document">
 
+    <header class="doc-header">
+        <div class="doc-title">Declaração de Dependentes e Encargos de Família</div>
+        <div class="doc-subtitle">Salário-Família (Portaria MPAS 3.040/82 · Lei 8.213/91) · Imposto de Renda (IN RFB 1.500/2014) · Art. 482 da CLT · Art. 171 do Código Penal</div>
+    </header>
+
     <section class="section">
         <div class="section-title">1 — Identificação do(a) Empregado(a)</div>
         <div class="info-grid">
@@ -19,7 +24,7 @@
             <div class="info-field"><span class="info-label">Cargo:</span> <span class="info-value">{{Position.Name}}</span></div>
         </div>
         <div class="info-grid full">
-            <div class="info-field"><span class="info-label">Endereço:</span> <span class="info-value">{{Employee.address.street}}, {{Employee.address.number}} {{Employee.address.complement}} — {{Employee.address.neighborhood}} — {{Employee.address.city}}/{{Employee.address.state}} — CEP {{Employee.address.zip}}</span></div>
+            <div class="info-field"><span class="info-label">Endereço:</span> <span class="info-value">{{Employee.Address.Street}}, {{Employee.Address.Number}} {{Employee.Address.Complement}} — {{Employee.Address.Neighborhood}} — {{Employee.Address.City}}/{{Employee.Address.State}} — CEP {{Employee.Address.ZipCode}}</span></div>
         </div>
     </section>
 
@@ -27,11 +32,11 @@
         <div class="section-title">2 — Situação de Dependentes</div>
         <p class="clause" style="margin-bottom: 12px;">O(A) empregado(a) declara, sob as penas da lei, a seguinte situação quanto a dependentes:</p>
         <div class="check-option">
-            <div class="check-box"></div>
+            <div class="check-box"><empty:Employee.Dependents>X</empty:Employee.Dependents></div>
             <span><strong>NÃO POSSUO DEPENDENTES</strong> para fins de Salário-Família e/ou Imposto de Renda.</span>
         </div>
         <div class="check-option">
-            <div class="check-box"></div>
+            <div class="check-box"><has:Employee.Dependents>X</has:Employee.Dependents></div>
             <span><strong>POSSUO OS DEPENDENTES</strong> abaixo relacionados:</span>
         </div>
     </section>
@@ -51,12 +56,12 @@
                 </tr>
             </thead>
             <tbody>
-                <tr><td class="row-num">1</td><td></td><td>___/___/____</td><td></td><td></td><td style="text-align:center;">☐</td><td style="text-align:center;">☐</td></tr>
-                <tr><td class="row-num">2</td><td></td><td>___/___/____</td><td></td><td></td><td style="text-align:center;">☐</td><td style="text-align:center;">☐</td></tr>
-                <tr><td class="row-num">3</td><td></td><td>___/___/____</td><td></td><td></td><td style="text-align:center;">☐</td><td style="text-align:center;">☐</td></tr>
-                <tr><td class="row-num">4</td><td></td><td>___/___/____</td><td></td><td></td><td style="text-align:center;">☐</td><td style="text-align:center;">☐</td></tr>
-                <tr><td class="row-num">5</td><td></td><td>___/___/____</td><td></td><td></td><td style="text-align:center;">☐</td><td style="text-align:center;">☐</td></tr>
-                <tr><td class="row-num">6</td><td></td><td>___/___/____</td><td></td><td></td><td style="text-align:center;">☐</td><td style="text-align:center;">☐</td></tr>
+                <list:Employee.Dependents>
+                <tr><td class="row-num"></td><td>{{Name}}</td><td>{{IdCard.DateOfBirth}}</td><td>{{IdCard.CPF}}</td><td>{{DependencyType}}</td><td style="text-align:center;">☐</td><td style="text-align:center;">☐</td></tr>
+                </list:Employee.Dependents>
+                <empty:Employee.Dependents>
+                <tr><td colspan="7" style="text-align:center; color: var(--gray); font-style: italic; padding: 16px 8px;">Sem dependentes</td></tr>
+                </empty:Employee.Dependents>
             </tbody>
         </table>
         <p style="font-family: var(--font-head); font-size: 8pt; color: var(--gray); text-align: center; margin-top: 4px;">
@@ -94,12 +99,7 @@
         <p class="clause indent">Em obediência à legislação do Imposto de Renda, venho pela presente informar os dependentes acima relacionados e marcados na coluna "IR" do Quadro de Dependentes (Seção 3), para fins de cálculo da retenção do Imposto de Renda na Fonte (IRRF) sobre minha remuneração mensal.</p>
         <p class="clause indent">Declaro, sob as penas da lei, que as informações prestadas neste documento são verdadeiras e de minha inteira responsabilidade, não cabendo à empresa (fonte pagadora) qualquer responsabilidade perante a fiscalização da Receita Federal do Brasil.</p>
         <p class="clause indent">Caso meu cônjuge ou companheiro(a) também declare os mesmos dependentes em sua fonte pagadora, estou ciente de que a dedução do mesmo dependente em mais de uma declaração é vedada pela legislação (IN RFB nº 1.500/2014, art. 90, §6º) e que a responsabilidade por eventual duplicidade é exclusivamente minha.</p>
-        <div style="margin-top: 16px; padding: 10px 0; border-top: 1px solid var(--rule-light); border-bottom: 1px solid var(--rule-light);">
-            <p style="font-family: var(--font-head); font-size: 9pt; text-align: center; margin-bottom: 10px;"><strong>CIÊNCIA DO CÔNJUGE / COMPANHEIRO(A) — IN RFB 1.500/2014, ART. 90, §6º</strong></p>
-            <div class="info-grid full" style="margin: 0;">
-                <div class="info-field"><span class="info-label">Nome:</span> <span class="info-value">________________________________________________</span> &nbsp;&nbsp; <span class="info-label">CPF:</span> <span class="info-value">________________________</span></div>
-            </div>
-        </div>
+
     </section>
 
     <section class="section">
@@ -111,10 +111,11 @@
     
 
     <section class="signatures">
-        <p class="sig-location">Suzano/SP, {{ComplementaryInfo.FullDatePtBr}}.</p>
+        <p class="sig-location">{{Company.Address.City}}-{{Company.Address.State}}, {{ComplementaryInfo.FullDatePtBr}}.</p>
+        <span id="signing-option" style="display:none;">{{Employee.DocumentSigningOptions.Id}}</span>
         <div class="sig-block">
-            <div class="signature-local">
-                <div class="signed-content">
+            <div  class="signature-local" >
+                <div id="digital-signature" class="signed-content" style="display:none;">
                     <img class="signed-icon" src="img/icon_assinatura.png">
                     <div class="signed-text">
                         <span class="signed-label">Assinado digitalmente pelo:</span>
@@ -131,5 +132,13 @@
 
 </div>
 
+<script>
+    (function() {
+        var signingId = document.getElementById('signing-option').textContent.trim();
+        if (signingId !== '1') {
+            document.getElementById('digital-signature').style.display = '';
+        }
+    })();
+</script>
 </body>
 </html>

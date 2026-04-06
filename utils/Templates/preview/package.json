@@ -1,0 +1,11 @@
+{
+  "name": "pdf-template-preview",
+  "private": true,
+  "scripts": {
+    "preview": "node preview.js"
+  },
+  "dependencies": {
+    "chokidar": "^3.6.0",
+    "puppeteer": "^19.11.1"
+  }
+}

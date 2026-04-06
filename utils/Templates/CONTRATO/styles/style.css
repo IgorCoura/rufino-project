@@ -15,7 +15,7 @@
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-@page { size: A4; margin: 18mm 22mm; }
+@page { size: A4; }
 
 body {
     font-family: var(--font-serif);
