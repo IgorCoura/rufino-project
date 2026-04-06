@@ -49,10 +49,12 @@
       "Type": "Reservista"
     },
     "DocumentSigningOptions": {
-      "Id": 1,
+      "Id": 2,
       "Name": "PhysicalSignature"
     },
+    "Photo": "FOTO.jpeg",
     "InitialDate": "01-09-2024",
+    "ContractType": "CLT",
     "Dependents": [
       {
         "Name": "Maria Clara Coura",

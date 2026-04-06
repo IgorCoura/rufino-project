@@ -169,6 +169,16 @@ async function generatePdf(templateDir, outputPath) {
 
   const values = loadPreviewData(templateDir);
 
+  if (values.Employee && values.Employee.Photo && !values.Employee.Photo.startsWith('data:')) {
+    const photoPath = path.join(__dirname, values.Employee.Photo);
+    if (fs.existsSync(photoPath)) {
+      const ext = path.extname(photoPath).slice(1).toLowerCase();
+      const mimeType = ext === 'jpg' ? 'jpeg' : ext;
+      const base64 = fs.readFileSync(photoPath).toString('base64');
+      values.Employee.Photo = `data:image/${mimeType};base64,${base64}`;
+    }
+  }
+
   let bodyHtml = fs.readFileSync(indexPath, "utf-8");
   bodyHtml = insertValues(bodyHtml, values);
 
