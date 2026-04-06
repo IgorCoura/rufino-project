@@ -105,6 +105,7 @@
             <div class="data">
                 São Paulo, {{complementaryInfo.FullDatePtBr}}
             </div>
+            <span id="signing-option" style="display:none;">{{Employee.DocumentSigningOptions.Id}}</span>
             <div class="signature-body">
                 <div>
                     <div class="signature-local">
@@ -118,14 +119,22 @@
                 </div>
                 <div>
                     <div class="signature-local">
-                        <img style="height:32mm; float: start; visibility: visible;" src="img\assinatura_jamildo.png" class="ass-jamildo"> <!-- adicionado a classe .assinatura -->
+                        <img style="height:32mm; float: start; visibility: visible;" src="img\assinatura_jamildo.png" class="ass-jamildo">
                     </div>
                     <div class="signature-info">
                         {{company.corporateName}}
                     </div>
                 </div>
                 <div>
-                    <div class="signature-local"></div>
+                    <div class="signature-local">
+                        <div id="digital-signature" class="signed-content" style="display:none;">
+                            <img class="signed-icon" src="img\icon_assinatura.png">
+                            <div class="signed-text">
+                                <span class="signed-label">Assinado digitalmente pelo:</span>
+                                <span class="signed-name">{{employee.name}}</span>
+                            </div>
+                        </div>
+                    </div>
                     <div class="signature-info">
                         {{employee.name}}
                     </div>
@@ -140,12 +149,9 @@
 
     <script>
         document.addEventListener("DOMContentLoaded", function () {
-            const cargo = document.getElementById("position-name-valor").textContent.trim().toUpperCase();
-
-            if (cargo === "AJUDANTE DE ELÉTRICA") {
-                document.getElementById("opt-sem-ele").textContent = "(X) Sem interação com eletricidade";
-            } else {
-                document.getElementById("opt-capacitado").textContent = "(X) Capacitado";
+            var signingId = document.getElementById('signing-option').textContent.trim();
+            if (signingId !== '1') {
+                document.getElementById('digital-signature').style.display = '';
             }
         });
     </script>

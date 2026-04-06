@@ -1,0 +1,227 @@
+{
+  "Employee": {
+    "Id": "18439da0-259e-45df-8ba4-197e1833e555",
+    "Registration": "TC0001",
+    "Name": "Igor de Brito Coura",
+    "Address": {
+      "ZipCode": "29170-196",
+      "Street": "Avenida Diamantina",
+      "Number": "126",
+      "Complement": "",
+      "Neighborhood": "Nova Carapina II",
+      "City": "Serra",
+      "State": "ES",
+      "Country": "Brasil"
+    },
+    "Contact": {
+      "Email": "igor-coura@hotmail.com",
+      "CellPhone": "11968608425"
+    },
+    "Status": "Active",
+    "MedicalAdmissionExam": {
+      "DateExam": "2026-04-06",
+      "Validity": "2027-04-06"
+    },
+    "PersonalInfo": {
+      "Deficiency": {
+        "Observation": "Nenhuma Observação",
+        "Disabilities": "[\"Auditory\",\"Mental\",\"Rehabilitated\"]"
+      },
+      "MaritalStatus": "Single",
+      "Gender": "MALE",
+      "Ethnicity": "White",
+      "EducationLevel": "CompleteHigher"
+    },
+    "IdCard": {
+      "CPF": "455.800.699-36",
+      "MotherName": "Teresinha Isabelle Débora",
+      "FatherName": "Raul Lucca Jesus",
+      "BirthCity": "Serra",
+      "BirthState": "ES",
+      "Nationality": "brasileira",
+      "DateOfBirth": "1993-07-23"
+    },
+    "VoteId": {
+      "VoteIdNumber": "163053550736"
+    },
+    "MilitaryDocument": {
+      "Number": "1234567",
+      "Type": "Reservista"
+    },
+    "DocumentSigningOptions": {
+      "Id": 2,
+      "Name": "PhysicalSignature"
+    },
+    "Photo": "FOTO.jpeg",
+    "InitialDate": "01-09-2024",
+    "ContractType": "CLT",
+    "Dependents": [
+      {
+        "Name": "Maria Clara Coura",
+        "Gender": "FEMALE",
+        "DependencyType": "Child",
+        "IdCard": {
+          "CPF": "123.456.789-00",
+          "MotherName": "Ana Paula Coura",
+          "FatherName": "Igor de Brito Coura",
+          "BirthCity": "Serra",
+          "BirthState": "ES",
+          "Nationality": "brasileira",
+          "DateOfBirth": "2020-03-15"
+        }
+      },
+      {
+        "Name": "Pedro Henrique Coura",
+        "Gender": "MALE",
+        "DependencyType": "Child",
+        "IdCard": {
+          "CPF": "987.654.321-00",
+          "MotherName": "Ana Paula Coura",
+          "FatherName": "Igor de Brito Coura",
+          "BirthCity": "Serra",
+          "BirthState": "ES",
+          "Nationality": "brasileira",
+          "DateOfBirth": "2022-08-10"
+        }
+      }
+    ]
+  },
+  "Company": {
+    "Id": "229b0dc9-5b8c-4aad-8774-dfc3f14e1a6b",
+    "CorporateName": "Teste - RUFINO - EMPREITEIRA DE ELETRICA E HIDRAULICA S/S LTDA",
+    "FantasyName": "Teste - RUFINO EMPREITEIRA",
+    "Cnpj": "02.624.917/0001-92",
+    "Contact": {
+      "Email": "rufino@rufinoempreiteira.com.br",
+      "Phone": "(17) 99571-5009"
+    },
+    "Address": {
+      "ZipCode": "08655-730",
+      "Street": "Rua Carim Jorge",
+      "Number": "325",
+      "Complement": "CASA 2",
+      "Neighborhood": "Jardim Nova America",
+      "City": "Suzano",
+      "State": "São Paulo",
+      "Country": "Brasil"
+    }
+  },
+  "ComplementaryInfo": {
+    "Date": "06/04/2026",
+    "WorkloadEndDate": "06/04/2027",
+    "FullDatePtBr": "06 de abril de 2026",
+    "FullWorkloadEndDatePtBr": "06 de abril de 2027",
+    "FullValidity": "06 de abril de 2027",
+    "Validity": "06/04/2027"
+  },
+  "Position": {
+    "Id": "91836bca-26f3-48aa-9846-ad826e2392dc",
+    "Name": "ENCARREGADO DE HIDRAULICA",
+    "Description": "Coordena e supervisiona as atividades relacionadas a área hidráulica. Participa ativamente do planejamento das atividades hidráulicas, auxiliando na elaboração de cronogramas, definição de recursos necessários e contribuindo para a aquisição de materiais e equipamentos.",
+    "CBO": "724110"
+  },
+  "Role": {
+    "Id": "ef0dee7d-730e-4bc5-a302-bd85f6bc21cb",
+    "Name": "ENCARREGADO DE HIDRAULICA",
+    "Description": "Coordena e supervisiona as atividades relacionadas a área hidráulica. Participa ativamente do planejamento das atividades hidráulicas, auxiliando na elaboração de cronogramas, definição de recursos necessários e contribuindo para a aquisição de materiais e equipamentos.",
+    "CBO": "724110",
+    "Remuneration": {
+      "PaymentUnit": "PerHour",
+      "BaseSalary": {
+        "Type": "BRL",
+        "Value": "12.25"
+      },
+      "Description": "Pagamento por hora"
+    }
+  },
+  "Department": {
+    "Id": "6ee46bc9-f952-4092-bc53-37a9929f5c2d",
+    "Name": "HIDRAULICA",
+    "Description": "Setor de hidraulica."
+  },
+  "Workplace": {
+    "Id": "f4b10503-73c3-41ae-aeb1-f8e9880679aa",
+    "Name": "Sede",
+    "Address": {
+      "ZipCode": "08655-730",
+      "Street": "Rua Carim Jorge",
+      "Number": "325",
+      "Complement": "Casa 2",
+      "Neighborhood": "Jardim Nova America",
+      "City": "Suzano",
+      "State": "São Paulo",
+      "Country": "Brasil"
+    }
+  },
+  "PGR": {
+    "risks": [
+      {
+        "name": "Radiação não ionizante",
+        "source": "Trabalho a céu aberto",
+        "precautions": "Existência de abrigos, capazes de proteger os trabalhadores contra intempéries climáticos e realizar o controle de exposição."
+      },
+      {
+        "name": "Ruído",
+        "source": "Ferramentas elétricas, máquinas pesadas, demolições, movimentação de materiais e tráfego de veículos e pessoas.",
+        "precautions": "Treinamento de integração, fornecimento de EPI."
+      },
+      {
+        "name": "Poeiras Minerias",
+        "source": "Demolição, corte de materiais, manipulação de produtos, equipamentos pesados e movimentação de pessoas, exacerbada por ventos e condições climáticas.",
+        "precautions": "Procedimentos, orientações e treinamento para a execução do trabalho."
+      },
+      {
+        "name": "Vapores",
+        "source": "Utilização de adesivo plástico para PVC ou substâncias similares.",
+        "precautions": "Procedimentos, orientações, treinamento e competência para a execução do trabalho. Fornecimento de EPI."
+      },
+      {
+        "name": "Levantamento e transporte manual de cargas e volumes",
+        "source": "Movimentação de materiais e equipamentos.",
+        "precautions": "Procedimentos e orientações para a execução do trabalho."
+      },
+      {
+        "name": "Postura de pé por longos períodos",
+        "source": "Processos de Trabalho.",
+        "precautions": "Adoção de intervalos para descanso e revezamento postural entre trabalho em pé e sentado."
+      },
+      {
+        "name": "Postura inadequada",
+        "source": "Processos de Trabalho.",
+        "precautions": "Adoção de intervalos para descanso e alongamento."
+      },
+      {
+        "name": "Bater Contra",
+        "source": "Ambiente de Obra Mobiliário e Equipamentos.",
+        "precautions": "Manter o ambiente de trabalho organizado, evitando colocar objetos e mobiliário nas áreas de circulação de pessoas."
+      },
+      {
+        "name": "Queda de diferença de nível maior que dois metros",
+        "source": "Trabalho realizado em altura",
+        "precautions": "Treinamento de Trabalho em Altura NR-35 e fornecimento de EPIs. Realização de exames específicos conforme o PCMSO"
+      },
+      {
+        "name": "Projeção de partículas",
+        "source": "Ferramentas, Maquinários e Movimentação de Produtos.",
+        "precautions": "Procedimentos, orientações, treinamento e competência para a execução do trabalho, fornecimento de EPI."
+      },
+      {
+        "name": "Choque elétrico",
+        "source": "Processos de trabalho em circuitos elétricos energizados.",
+        "precautions": "Procedimentos, orientações, treinamento e competência para a execução do trabalho. Fornecimento de EPI."
+      }
+    ],
+    "epis": [
+      { "name": "Protetor Solar" },
+      { "name": "Protetor auricular tipo plug de inserção" },
+      { "name": "Máscara PFF2" },
+      { "name": "Luva Tátil" },
+      { "name": "Calçado de Segurança" },
+      { "name": "Óculos de proteção" },
+      { "name": "Capacete de segurança" },
+      { "name": "Cinturão de segurança com talabarte e trava-queda" },
+      { "name": "Luva emborrachada" },
+      { "name": "Calçado de segurança com isolamento para baixa tensão" }
+    ]
+  }
+}

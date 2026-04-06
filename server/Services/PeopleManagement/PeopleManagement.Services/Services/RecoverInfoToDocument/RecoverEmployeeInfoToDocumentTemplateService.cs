@@ -1,4 +1,5 @@
 ﻿using PeopleManagement.Domain.AggregatesModel.CompanyAggregate;
+using PeopleManagement.Domain.AggregatesModel.DocumentAggregate.Interfaces;
 using PeopleManagement.Domain.AggregatesModel.DocumentTemplateAggregate.Interfaces;
 using PeopleManagement.Domain.AggregatesModel.EmployeeAggregate;
 using PeopleManagement.Domain.AggregatesModel.EmployeeAggregate.Interfaces;
@@ -13,9 +14,10 @@ using Address = PeopleManagement.Domain.AggregatesModel.EmployeeAggregate.Addres
 
 namespace PeopleManagement.Services.Services.RecoverInfoToDocument
 {
-    public class RecoverEmployeeInfoToDocumentTemplateService(IEmployeeRepository employeeRepository) : IRecoverEmployeeInfoToDocumentTemplateService
+    public class RecoverEmployeeInfoToDocumentTemplateService(IEmployeeRepository employeeRepository, IBlobService blobService) : IRecoverEmployeeInfoToDocumentTemplateService
     {
         private readonly IEmployeeRepository _employeeRepository = employeeRepository;
+        private readonly IBlobService _blobService = blobService;
 
         public async Task<JsonObject> RecoverInfo(Guid employeeId, Guid companyId, JsonObject[]? jsonObjects = null, CancellationToken cancellation = default)
         {
@@ -38,9 +40,28 @@ namespace PeopleManagement.Services.Services.RecoverInfoToDocument
                     ["VoteId"] = ConvertVoteIdToJsonObject(employee.VoteId),
                     ["MilitaryDocument"] = ConvertMilitaryDocumentToJsonObject(employee.MilitaryDocument),
                     ["InitialDate"] = employee.Contracts.Where(x => x.IsActive).OrderByDescending(x => x.InitDate).FirstOrDefault()?.InitDate.ToString("dd-MM-yyyy") ?? "",
+                    ["ContractType"] = employee.Contracts.Where(x => x.IsActive).OrderByDescending(x => x.InitDate).FirstOrDefault()?.ContractType.Name ?? "",
+                    ["DocumentSigningOptions"] = ConvertDocumentSigningOptionsToJsonObject(employee.DocumentSigningOptions),
                     ["Dependents"] = ConvertDependentsToJsonArray(employee.Dependents)
                 }
             };
+
+            string photoBase64 = "";
+            try
+            {
+                var image = employee.GetImage();
+                var stream = await _blobService.DownloadAsync(image.GetNameWithExtension, companyId.ToString());
+                if (stream != null)
+                {
+                    using var ms = new MemoryStream();
+                    await stream.CopyToAsync(ms, cancellation);
+                    var base64 = Convert.ToBase64String(ms.ToArray());
+                    photoBase64 = $"data:image/{image.Extension.ToString().ToLower()};base64,{base64}";
+                }
+            }
+            catch { }
+
+            employeeJson["Employee"]!["Photo"] = photoBase64;
 
             return employeeJson;
         }
@@ -70,7 +91,11 @@ namespace PeopleManagement.Services.Services.RecoverInfoToDocument
                     ["IdCard"] = ConvertIdCardToJsonObject(idCard),
                     ["VoteId"] = ConvertVoteIdToJsonObject(voteId),
                     ["MilitaryDocument"] = ConvertMilitaryDocumentToJsonObject(militaryDocument),
-                    ["Dependents"] = ConvertDependentsToJsonArray([Dependent.Create("Filho Exemplo", idCard, Gender.MALE, DependencyType.Child)])
+                    ["InitialDate"] = DateOnly.FromDateTime(DateTime.Now).ToString("dd-MM-yyyy") ?? "",
+                    ["ContractType"] = EmploymentContractType.CLT.Name,
+                    ["DocumentSigningOptions"] = ConvertDocumentSigningOptionsToJsonObject(DocumentSigningOptions.PhysicalSignature),
+                    ["Dependents"] = ConvertDependentsToJsonArray([Dependent.Create("Filho Exemplo", idCard, Gender.MALE, DependencyType.Child)]),
+                    ["Photo"] = ""
                 }
             };
 
@@ -95,6 +120,7 @@ namespace PeopleManagement.Services.Services.RecoverInfoToDocument
                 ["IdCard"] = ConvertIdCardToJsonObject(dependent.IdCard)
             };
         }
+
 
         private static JsonObject ConvertAddressToJsonObject(Address? address)
         {
@@ -209,6 +235,20 @@ namespace PeopleManagement.Services.Services.RecoverInfoToDocument
             {
                 ["Number"] = militaryDocument.Number,
                 ["Type"] = militaryDocument.Type
+            };
+        }
+        private static JsonObject ConvertDocumentSigningOptionsToJsonObject(DocumentSigningOptions? documentSigningOptions)
+        {
+            if (documentSigningOptions == null)
+            {
+                return new JsonObject
+                {
+                };
+            }
+            return new JsonObject
+            {
+                ["Id"] = documentSigningOptions.Id,
+                ["Name"] = documentSigningOptions.Name
             };
         }
         private static JsonObject ConvertMedicalAdmissionExamToJsonObject(MedicalAdmissionExam? medicalAdmissionExam)

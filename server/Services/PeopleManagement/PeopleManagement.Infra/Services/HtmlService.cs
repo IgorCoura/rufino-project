@@ -9,6 +9,8 @@ namespace PeopleManagement.Infra.Services
         public static string InsertValuesInHtmlTemplate(JsonNode? values, string html)
         {
             var result = ReplaceListTags(html, values);
+            result = ReplaceEmptyTags(result, values);
+            result = ReplaceHasTags(result, values);
             result = ReplaceDoubleBraces(result, values);
             return result;
         }
@@ -26,15 +28,65 @@ namespace PeopleManagement.Infra.Services
 
                 var sb = new StringBuilder(jsonArray.Count * content.Length);
 
+                var attrs = m.Groups[2].Value;
+                var hasAttrs = !string.IsNullOrWhiteSpace(attrs);
+
                 foreach (var item in jsonArray)
                 {
-                    sb.Append("<div").Append(m.Groups[2].Value).Append('>');
+                    if (hasAttrs)
+                        sb.Append("<div").Append(attrs).Append('>');
                     string innerContent = ReplaceListTags(content, item);
                     sb.Append(ReplaceDoubleBraces(innerContent, item));
-                    sb.Append("</div>");
+                    if (hasAttrs)
+                        sb.Append("</div>");
                 }
 
                 return sb.ToString();
+            });
+        }
+
+        private static string ReplaceEmptyTags(string html, JsonNode? values)
+        {
+            Regex regex = HtmlEmptyRegex();
+            return regex.Replace(html, m =>
+            {
+                string keysString = m.Groups[1].Value;
+                string content = m.Groups[3].Value;
+                string[] keys = keysString.Split('.');
+
+                var node = GetValueFromJson(keys, values);
+                var jsonArray = node as JsonArray;
+                var isEmpty = jsonArray == null || jsonArray.Count == 0;
+
+                if (!isEmpty)
+                    return string.Empty;
+
+                var attrs = m.Groups[2].Value;
+                var result = ReplaceDoubleBraces(content, values);
+
+                if (!string.IsNullOrWhiteSpace(attrs))
+                    return $"<div{attrs}>{result}</div>";
+
+                return result;
+            });
+        }
+
+        private static string ReplaceHasTags(string html, JsonNode? values)
+        {
+            Regex regex = HtmlHasRegex();
+            return regex.Replace(html, m =>
+            {
+                string keysString = m.Groups[1].Value;
+                string content = m.Groups[2].Value;
+                string[] keys = keysString.Split('.');
+
+                var node = GetValueFromJson(keys, values);
+                var jsonArray = node as JsonArray;
+
+                if (jsonArray != null && jsonArray.Count > 0)
+                    return ReplaceDoubleBraces(content, values);
+
+                return string.Empty;
             });
         }
 
@@ -85,6 +137,10 @@ namespace PeopleManagement.Infra.Services
 
         [GeneratedRegex(@"<list:([^>]+)([^>]*)>([\s\S]*?)<\/list:\1>")]
         private static partial Regex HtmlListRegex();
+        [GeneratedRegex(@"<empty:([^>]+)([^>]*)>([\s\S]*?)<\/empty:\1>")]
+        private static partial Regex HtmlEmptyRegex();
+        [GeneratedRegex(@"<has:([^>]+)>([\s\S]*?)<\/has:\1>")]
+        private static partial Regex HtmlHasRegex();
         [GeneratedRegex("{{(.*?)}}")]
         private static partial Regex HtmlParamRegex();
     }

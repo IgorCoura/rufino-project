@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ficha de Registro de Empregado</title>
+<style>
+  @media print {
+    body { margin: 0; }
+    .page { box-shadow: none !important; margin: 0 !important; }
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: Arial, Helvetica, sans-serif;
+    font-size: 11px;
+    background: white;
+    color: #000;
+    line-height: 1.3;
+  }
+
+  .page {
+    width: 210mm;
+    margin: 20px auto;
+    background: #fff;
+    padding: 15mm 15mm 10mm 15mm;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.15);
+    position: relative;
+  }
+
+  h1 {
+    text-align: center;
+    font-size: 18px;
+    font-weight: bold;
+    letter-spacing: 1px;
+    margin-bottom: 12px;
+  }
+
+  .section {
+    border: 1px solid #000;
+    padding: 10px 8px 8px 8px;
+    margin-bottom: 8px;
+    position: relative;
+  }
+
+  .section-title {
+    position: absolute;
+    top: -8px;
+    left: 10px;
+    background: #fff;
+    padding: 0 4px;
+    font-size: 10px;
+    font-weight: bold;
+  }
+
+  .row {
+    display: flex;
+    flex-wrap: wrap;
+    margin-bottom: 2px;
+  }
+  .row:last-child { margin-bottom: 0; }
+
+  .field {
+    display: inline;
+    margin-right: 10px;
+  }
+
+  .field-label {
+    font-weight: bold;
+    font-size: 10px;
+  }
+
+  .field-value {
+    font-weight: normal;
+    font-size: 11px;
+  }
+
+  .compact-row {
+    display: flex;
+    align-items: baseline;
+    flex-wrap: wrap;
+    gap: 4px 12px;
+    margin-bottom: 2px;
+  }
+
+  .beneficiarios-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 10px;
+    margin-top: 4px;
+  }
+  .beneficiarios-table th,
+  .beneficiarios-table td {
+    padding: 4px 6px;
+    text-align: left;
+    border-bottom: 1px solid #ccc;
+  }
+  .beneficiarios-table th {
+    font-weight: bold;
+    border-bottom: 1px solid #000;
+  }
+
+  .observacoes-box {
+    border: 1px solid #000;
+    min-height: 60px;
+    padding: 6px;
+    margin-top: 4px;
+  }
+
+  .signature-body {
+    display: flex;
+    flex-direction: row;
+    align-items: flex-end;
+    height: 30mm;
+    justify-content: space-around;
+    position: relative;
+    margin-top: 20px;
+  }
+  .signature-body > div {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 50%;
+  }
+  .signature-local {
+    max-width: 70mm; min-width: 70mm;
+    text-align: center; border-bottom: 0.3mm solid black;
+  }
+  .signature-info {
+    max-width: 70mm; min-width: 70mm;
+    min-height: 10mm; font-size: 8pt; font-weight: 700;
+    display: flex; align-items: center; justify-content: center;
+    word-wrap: break-word; overflow-wrap: break-word; text-align: center;
+    line-height: 1.3;
+  }
+  .sig-role { font-size: 8pt; color: #666; text-align: center; }
+  .assinatura {
+    position: absolute;
+    bottom: 5mm;
+    right: 120mm;
+  }
+  .signed-content {
+    display: flex; flex-direction: row; align-items: center;
+    justify-content: center; gap: 2mm; margin: 0 auto;
+  }
+  .signed-icon { height: 8mm; width: auto; }
+  .signed-text { display: flex; flex-direction: column; text-align: left; }
+  .signed-label { font-size: 2.5mm; color: #666; line-height: 1.2; }
+  .signed-name { font-size: 3mm; font-weight: bold; color: #4141A5; }
+</style>
+</head>
+<body>
+
+<div class="page">
+  <h1>FICHA DE REGISTRO DE EMPREGADO</h1>
+
+  <!-- Identificação -->
+  <div style="display: flex; gap: 10px; margin-bottom: 10px;">
+    <div style="flex: 1; min-width: 0;">
+
+      <div class="section">
+        <span class="section-title">Identificação</span>
+        <div class="compact-row">
+          <span><span class="field-label">Nome:</span> <span class="field-value">{{Employee.Name}}</span></span>
+        </div>
+        <div class="compact-row">
+          <span><span class="field-label">Data Admissão:</span> <span class="field-value">{{Employee.InitialDate}}</span></span>
+          <span><span class="field-label">Matrícula:</span> <span class="field-value">{{Employee.Registration}}</span></span>
+        </div>
+      </div>
+
+      <!-- Dados da Empresa -->
+      <div class="section">
+        <span class="section-title">Dados da Empresa</span>
+        <div class="compact-row">
+          <span><span class="field-label">Razão Social:</span> <span class="field-value">{{Company.CorporateName}}</span></span>
+        </div>
+        <div class="compact-row">
+          <span><span class="field-label">Nome Fantasia:</span> <span class="field-value">{{Company.FantasyName}}</span></span>
+          <span><span class="field-label">CNPJ:</span> <span class="field-value">{{Company.Cnpj}}</span></span>
+        </div>
+        <div class="compact-row">
+          <span><span class="field-label">Endereço:</span> <span class="field-value">{{Company.Address.Street}}, {{Company.Address.Number}} {{Company.Address.Complement}}</span></span>
+        </div>
+        <div class="compact-row">
+          <span><span class="field-label">Bairro:</span> <span class="field-value">{{Company.Address.Neighborhood}}</span></span>
+          <span><span class="field-label">Cidade:</span> <span class="field-value">{{Company.Address.City}}</span></span>
+          <span><span class="field-label">Estado:</span> <span class="field-value">{{Company.Address.State}}</span></span>
+          <span><span class="field-label">CEP:</span> <span class="field-value">{{Company.Address.ZipCode}}</span></span>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Foto -->
+    <div style="width: 30mm; min-width: 30mm; height: 40mm; border: 1px solid #999; background: #f0f0f0; display: flex; align-items: center; justify-content: center; overflow: hidden;">
+      <img src="{{Employee.Photo}}" style="width: 100%; height: 100%; object-fit: cover;"
+           onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+      <svg width="60" height="80" viewBox="0 0 60 80" fill="#ccc" style="display:none;">
+        <circle cx="30" cy="25" r="16" fill="#bbb"/>
+        <ellipse cx="30" cy="70" rx="26" ry="20" fill="#bbb"/>
+      </svg>
+    </div>
+  </div>
+
+  <!-- Dados Pessoais -->
+  <div class="section">
+    <span class="section-title">Dados Pessoais</span>
+    <div class="compact-row">
+      <span><span class="field-label">Nome Mãe:</span> <span class="field-value">{{Employee.IdCard.MotherName}}</span></span>
+      <span><span class="field-label">Nome Pai:</span> <span class="field-value">{{Employee.IdCard.FatherName}}</span></span>
+    </div>
+    <div class="compact-row">
+      <span><span class="field-label">Estado Civil:</span> <span class="field-value">{{Employee.PersonalInfo.MaritalStatus}}</span></span>
+      <span><span class="field-label">Naturalidade:</span> <span class="field-value">{{Employee.IdCard.BirthCity}}/{{Employee.IdCard.BirthState}}</span></span>
+      <span><span class="field-label">Nacionalidade:</span> <span class="field-value">{{Employee.IdCard.Nationality}}</span></span>
+    </div>
+    <div class="compact-row">
+      <span><span class="field-label">Data de Nascimento:</span> <span class="field-value">{{Employee.IdCard.DateOfBirth}}</span></span>
+      <span><span class="field-label">Sexo:</span> <span class="field-value">{{Employee.PersonalInfo.Gender}}</span></span>
+      <span><span class="field-label">Instrução:</span> <span class="field-value">{{Employee.PersonalInfo.EducationLevel}}</span></span>
+    </div>
+    <div class="compact-row">
+      <span><span class="field-label">Endereço:</span> <span class="field-value">{{Employee.Address.Street}}, {{Employee.Address.Number}} {{Employee.Address.Complement}}</span></span>
+    </div>
+    <div class="compact-row">
+      <span><span class="field-label">Bairro:</span> <span class="field-value">{{Employee.Address.Neighborhood}}</span></span>
+      <span><span class="field-label">Cidade:</span> <span class="field-value">{{Employee.Address.City}}</span></span>
+      <span><span class="field-label">Estado:</span> <span class="field-value">{{Employee.Address.State}}</span></span>
+      <span><span class="field-label">CEP:</span> <span class="field-value">{{Employee.Address.ZipCode}}</span></span>
+    </div>
+  </div>
+
+  <!-- Deficiência -->
+  <div class="section">
+    <span class="section-title">Informações sobre Deficiência</span>
+    <div class="compact-row">
+      <span><span class="field-label">Deficiências:</span> <span class="field-value" id="disabilities-value">{{Employee.PersonalInfo.Deficiency.Disabilities}}</span></span>
+    </div>
+    <div class="compact-row">
+      <span><span class="field-label">Observações:</span> <span class="field-value">{{Employee.PersonalInfo.Deficiency.Observation}}</span></span>
+    </div>
+  </div>
+
+  <!-- Dados Funcionais -->
+  <div class="section">
+    <span class="section-title">Dados Funcionais</span>
+    <div class="compact-row">
+      <span><span class="field-label">Cargo:</span> <span class="field-value">{{Role.Name}}</span></span>
+      <span><span class="field-label">CBO:</span> <span class="field-value">{{Role.CBO}}</span></span>
+      <span><span class="field-label">Salário:</span> <span class="field-value">R$ {{Role.Remuneration.BaseSalary.Value}}</span></span>
+      <span><span class="field-label">Forma Pagto:</span> <span class="field-value">{{Role.Remuneration.PaymentUnit}}</span></span>
+    </div>
+    <div class="compact-row">
+      <span><span class="field-label">Horas Semanais:</span> <span class="field-value">44</span></span>
+      <span><span class="field-label">Horas Mensais:</span> <span class="field-value">220</span></span>
+      <span><span class="field-label">Data Exame Médico:</span> <span class="field-value">{{Employee.MedicalAdmissionExam.DateExam}}</span></span>
+    </div>
+    <div class="compact-row">
+      <span><span class="field-label">Local:</span> <span class="field-value">{{Workplace.Name}}</span></span>
+      <span><span class="field-label">Departamento:</span> <span class="field-value">{{Department.Name}}</span></span>
+    </div>
+    <div style="margin-top: 4px;">
+      <span class="field-label">Categoria do Trabalhador:</span> <span class="field-value" style="font-size:10px;">101 - Empregado - Geral, inclusive o empregado público da administração direta ou indireta contratado pela CLT.</span>
+    </div>
+  </div>
+
+  <!-- Documentos -->
+  <div class="section">
+    <span class="section-title">Documentos</span>
+    <div class="compact-row">
+      <span><span class="field-label">CPF:</span> <span class="field-value">{{Employee.IdCard.CPF}}</span></span>
+      <span><span class="field-label">Título Eleitor:</span> <span class="field-value">{{Employee.VoteId.VoteIdNumber}}</span></span>
+    </div>
+    <div class="compact-row">
+      <span><span class="field-label">Doc. Militar:</span> <span class="field-value">{{Employee.MilitaryDocument.Type}}</span></span>
+      <span><span class="field-label">Nº Doc. Militar:</span> <span class="field-value">{{Employee.MilitaryDocument.Number}}</span></span>
+    </div>
+  </div>
+
+  <!-- Beneficiários -->
+  <div class="section">
+    <span class="section-title">Beneficiários / Dependentes</span>
+    <has:Employee.Dependents>
+    <table class="beneficiarios-table">
+      <thead>
+        <tr>
+          <th>Nome</th>
+          <th>Parentesco</th>
+          <th>CPF</th>
+          <th>Data Nascimento</th>
+        </tr>
+      </thead>
+      <tbody>
+        <list:Employee.Dependents>
+        <tr>
+          <td>{{Name}}</td>
+          <td>{{DependencyType}}</td>
+          <td>{{IdCard.CPF}}</td>
+          <td>{{IdCard.DateOfBirth}}</td>
+        </tr>
+        </list:Employee.Dependents>
+      </tbody>
+    </table>
+    </has:Employee.Dependents>
+    <empty:Employee.Dependents>
+    <div style="text-align:center; color:#999; font-style:italic; padding:8px;">Sem dependentes</div>
+    </empty:Employee.Dependents>
+  </div>
+
+  <!-- Assinaturas -->
+  <span id="signing-option" style="display:none;">{{Employee.DocumentSigningOptions.Id}}</span>
+  <div class="signature-body">
+    <div>
+      <div class="signature-local">
+        <img style="height:25mm; float: start; visibility: visible;" src="img/assinatura_jamildo.png" class="assinatura">
+      </div>
+      <div class="signature-info">{{Company.CorporateName}}</div>
+      <div class="sig-role">EMPREGADORA — CNPJ: {{Company.Cnpj}}</div>
+    </div>
+    <div>
+      <div class="signature-local">
+        <div id="digital-signature" class="signed-content" style="display:none;">
+          <img class="signed-icon" src="img/icon_assinatura.png">
+          <div class="signed-text">
+            <span class="signed-label">Assinado digitalmente pelo:</span>
+            <span class="signed-name">{{Employee.Name}}</span>
+          </div>
+        </div>
+      </div>
+      <div class="signature-info">{{Employee.Name}}</div>
+      <div class="sig-role">EMPREGADO(A) — CPF: {{Employee.IdCard.CPF}}</div>
+    </div>
+  </div>
+</div>
+
+<script>
+  (function() {
+    var signingId = document.getElementById('signing-option').textContent.trim();
+    if (signingId !== '1') {
+      document.getElementById('digital-signature').style.display = '';
+    }
+
+    var disEl = document.getElementById('disabilities-value');
+    disEl.textContent = disEl.textContent.replace(/[\[\]"]/g, '').replace(/,/g, ', ');
+  })();
+</script>
+</body>
+</html>
