@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:http/http.dart' as http;
 import 'package:nested/nested.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'core/config/app_config.dart';
 import 'core/storage/secure_storage.dart';
@@ -11,6 +12,7 @@ import 'core/theme/app_theme.dart';
 import 'core/theme/theme_notifier.dart';
 import 'data/repositories/auth_repository_impl.dart';
 import 'data/repositories/permission_repository_impl.dart';
+import 'data/services/permission_cache_service.dart';
 import 'data/repositories/company_repository_impl.dart';
 import 'data/repositories/department_repository_impl.dart';
 import 'data/repositories/employee_repository_impl.dart';
@@ -88,7 +90,10 @@ import 'ui/features/workplace/widgets/workplace_form_screen.dart';
 import 'ui/features/workplace/widgets/workplace_list_screen.dart';
 
 class App extends StatelessWidget {
-  const App({super.key});
+  const App({super.key, required this.prefs});
+
+  /// The already-initialized [SharedPreferences] instance, created in `main()`.
+  final SharedPreferences prefs;
 
   @override
   Widget build(BuildContext context) {
@@ -135,11 +140,18 @@ class App extends StatelessWidget {
     );
 
     // Repositories
+    final permissionCacheService = PermissionCacheService(prefs: prefs);
     final PermissionRepository permissionRepository =
-        PermissionRepositoryImpl(permissionApiService: permissionApiService);
+        PermissionRepositoryImpl(
+      permissionApiService: permissionApiService,
+      permissionCacheService: permissionCacheService,
+    );
     final permissionNotifier = PermissionNotifier(
       permissionRepository: permissionRepository,
     );
+
+    // Reload permissions automatically when the access token is refreshed.
+    authApiService.onTokenRefreshed = () => permissionNotifier.loadPermissions();
 
     final AuthRepository authRepository = AuthRepositoryImpl(
       authApiService: authApiService,

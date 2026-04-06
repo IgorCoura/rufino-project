@@ -53,6 +53,6 @@ class HomeViewModel extends ChangeNotifier {
 
   Future<void> logout() async {
     await _authRepository.logout();
-    _permissionNotifier.clear();
+    await _permissionNotifier.clear();
   }
 }

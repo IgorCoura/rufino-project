@@ -1,9 +1,16 @@
+import 'dart:ui';
+
 import 'package:jwt_decoder/jwt_decoder.dart';
 import 'package:oauth2/oauth2.dart' as oauth2;
 
 import '../../core/errors/auth_exception.dart';
 import '../../core/storage/secure_storage.dart';
 
+/// Handles OAuth2 authentication against Keycloak.
+///
+/// Manages login, token refresh, and credential persistence via
+/// [SecureStorage]. When a silent token refresh occurs, [onTokenRefreshed]
+/// is called so that dependents (e.g. permission reload) can react.
 class AuthApiService {
   AuthApiService({
     required this.storage,
@@ -11,6 +18,7 @@ class AuthApiService {
     required this.endSessionEndpoint,
     required this.identifier,
     required this.secret,
+    this.onTokenRefreshed,
   });
 
   final SecureStorage storage;
@@ -18,6 +26,9 @@ class AuthApiService {
   final Uri endSessionEndpoint;
   final String identifier;
   final String secret;
+
+  /// Called after a successful silent token refresh inside [getCredentials].
+  VoidCallback? onTokenRefreshed;
 
   static const _credentialsKey = 'credentials';
 
@@ -56,6 +67,7 @@ class AuthApiService {
       );
       _credentials = credentials;
       await storage.write(key: _credentialsKey, value: credentials.toJson());
+      onTokenRefreshed?.call();
     }
     return credentials;
   }
