@@ -27,8 +27,9 @@
 
         <div class="foot">
             
+            <span id="signing-option" style="display:none;">{{Employee.DocumentSigningOptions.Id}}</span>
             <div class="signature-body">
-                <div> 
+                <div>
                     <div class="signature-local-1">
                         <img style="height: 20mm;float: start; visibility: visible;" src="img\Ass.png">
                     </div>
@@ -42,7 +43,7 @@
                 </div>
                 <div>
                     <div class="signature-local-2">
-                        <div class="signed-content">
+                        <div id="digital-signature" class="signed-content" style="display:none;">
                             <img class="signed-icon" src="img\icon_assinatura.png">
                             <div class="signed-text">
                                 <span class="signed-label">Assinado digitalmente pelo:</span>
@@ -142,6 +143,11 @@
 
             // Altera o conteúdo do <strong> com id 'eventualidade'
             document.getElementById("eventualidade").textContent = textoFinal;
+
+            var signingId = document.getElementById('signing-option').textContent.trim();
+            if (signingId !== '1') {
+                document.getElementById('digital-signature').style.display = '';
+            }
 
             // Altera o nome do curso conforme a eventualidade
             if (textoFinal === "PERIÓDICO") {
