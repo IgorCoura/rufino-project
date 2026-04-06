@@ -47,12 +47,12 @@ body {
 }
 .company-detail {
     font-family: var(--font-head); font-size: 8.5pt; color: var(--gray);
-    letter-spacing: 0.3px; margin-top: 0px;
+    letter-spacing: 0.3px; margin-top: 3px;
 }
 .doc-title {
     font-family: var(--font-head); font-size: 12pt; font-weight: 700;
     color: var(--black); text-transform: uppercase; letter-spacing: 1.5px;
-    margin-top: 0px;
+    margin-top: 16px;
 }
 .doc-subtitle {
     font-family: var(--font-head); font-size: 7.5pt; font-weight: 400;

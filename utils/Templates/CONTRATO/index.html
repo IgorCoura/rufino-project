@@ -12,9 +12,8 @@
 
     <!-- ═══════════ CABEÇALHO ═══════════ -->
     <header class="contract-header">
-        <div class="company-name">Rufino — Empreiteira de Elétrica e Hidráulica</div>
-        <div class="company-detail">RUFINO - EMPREITEIRA DE ELETRICA E HIDRAULICA S/S LTDA</div>
-        <div class="company-detail">CNPJ: 02.624.917/0001-92 · Rua Carin Jorge, 325 — Jd. Nova América — Suzano/SP — CEP 08655-730</div>
+        <div class="company-name">{{Company.CorporateName}}</div>
+        <div class="company-detail">CNPJ: {{Company.Cnpj}} · {{Company.Address.Street}}, {{Company.Address.Number}} {{Company.Address.Complement}} — {{Company.Address.Neighborhood}} — {{Company.Address.City}}/{{Company.Address.State}} — CEP {{Company.Address.ZipCode}}</div>
         <div class="contract-title">Contrato Individual de Trabalho</div>
         <div class="contract-subtitle">Por Prazo Determinado — Experiência (Art. 443, §2º, "c" da CLT)</div>
     </header>
@@ -23,23 +22,20 @@
     <section class="section">
         <h2 class="section-title" data-number="1">Identificação das Partes</h2>
 
-        <p class="clause indent"><span class="clause-number">1.1.</span> <strong>EMPREGADORA:</strong> RUFINO - EMPREITEIRA DE ELETRICA E HIDRAULICA S/S LTDA, pessoa jurídica de direito privado, inscrita no CNPJ sob o nº 02.624.917/0001-92, com sede na Rua Carin Jorge, 325, Jd. Nova América, Suzano/SP, CEP 08655-730, neste ato representada por seu(s) sócio(s) administrador(es), doravante denominada simplesmente <strong>EMPREGADORA</strong>.</p>
+        <p class="clause indent"><span class="clause-number">1.1.</span> <strong>EMPREGADORA:</strong> {{Company.CorporateName}}, pessoa jurídica de direito privado, inscrita no CNPJ sob o nº {{Company.Cnpj}}, com sede na {{Company.Address.Street}}, {{Company.Address.Number}}, {{Company.Address.Neighborhood}}, {{Company.Address.City}}/{{Company.Address.State}}, CEP {{Company.Address.ZipCode}}, neste ato representada por seu(s) sócio(s) administrador(es), doravante denominada simplesmente <strong>EMPREGADORA</strong>.</p>
 
         <p class="clause indent"><span class="clause-number">1.2.</span> <strong>EMPREGADO(A):</strong></p>
 
         <div class="info-grid">
-            <div class="info-field"><span class="info-label">Nome Completo:</span> <span class="info-value">_________________________________________</span></div>
-            <div class="info-field"><span class="info-label">Nacionalidade:</span> <span class="info-value">______________________</span></div>
-            <div class="info-field"><span class="info-label">Estado Civil:</span> <span class="info-value">______________________</span></div>
-            <div class="info-field"><span class="info-label">RG:</span> <span class="info-value">______________________</span></div>
-            <div class="info-field"><span class="info-label">CPF:</span> <span class="info-value">______________________</span></div>
-            <div class="info-field"><span class="info-label">CTPS nº/Série:</span> <span class="info-value">______________________</span></div>
-            <div class="info-field"><span class="info-label">PIS/PASEP:</span> <span class="info-value">______________________</span></div>
-            <div class="info-field"><span class="info-label">Data de Nascimento:</span> <span class="info-value">_____/_____/_________</span></div>
-            <div class="info-field"><span class="info-label">Endereço Residencial:</span> <span class="info-value">_________________________________________</span></div>
-            <div class="info-field"><span class="info-label">Cidade/UF/CEP:</span> <span class="info-value">_________________________________________</span></div>
-            <div class="info-field"><span class="info-label">Telefone/WhatsApp:</span> <span class="info-value">______________________</span></div>
-            <div class="info-field"><span class="info-label">E-mail:</span> <span class="info-value">______________________</span></div>
+            <div class="info-field"><span class="info-label">Nome Completo:</span> <span class="info-value">{{Employee.Name}}</span></div>
+            <div class="info-field"><span class="info-label">Nacionalidade:</span> <span class="info-value">{{Employee.IdCard.Nationality}}</span></div>
+            <div class="info-field"><span class="info-label">Estado Civil:</span> <span class="info-value">{{Employee.PersonalInfo.MaritalStatus}}</span></div>
+            <div class="info-field"><span class="info-label">CPF:</span> <span class="info-value">{{Employee.IdCard.CPF}}</span></div>
+            <div class="info-field"><span class="info-label">Data de Nascimento:</span> <span class="info-value">{{Employee.IdCard.DateOfBirth}}</span></div>
+            <div class="info-field"><span class="info-label">Endereço Residencial:</span> <span class="info-value">{{Employee.Address.Street}}, {{Employee.Address.Number}} {{Employee.Address.Complement}} — {{Employee.Address.Neighborhood}}</span></div>
+            <div class="info-field"><span class="info-label">Cidade/UF/CEP:</span> <span class="info-value">{{Employee.Address.City}}/{{Employee.Address.State}} — CEP {{Employee.Address.ZipCode}}</span></div>
+            <div class="info-field"><span class="info-label">Telefone/WhatsApp:</span> <span class="info-value">{{Employee.Contact.CellPhone}}</span></div>
+            <div class="info-field"><span class="info-label">E-mail:</span> <span class="info-value">{{Employee.Contact.Email}}</span></div>
         </div>
 
         <p class="clause indent">Doravante denominado(a) simplesmente <strong>EMPREGADO(A)</strong>, firmam o presente Contrato Individual de Trabalho por Prazo Determinado, na modalidade de experiência, regido pelas cláusulas e condições a seguir, pela Consolidação das Leis do Trabalho (CLT — Decreto-Lei nº 5.452/1943), pela Convenção Coletiva de Trabalho vigente da categoria (SINDINSTALAÇÃO) e demais disposições legais aplicáveis.</p>
@@ -49,7 +45,7 @@
     <section class="section">
         <h2 class="section-title" data-number="2">Da Função e das Atividades</h2>
 
-        <p class="clause indent"><span class="clause-number">2.1.</span> O(A) EMPREGADO(A) é admitido(a) para exercer a função de <strong>_________________________________________</strong>, com CBO nº _____________, podendo, todavia, dentro deste contrato, exercer quaisquer outras funções compatíveis com sua condição pessoal, desde que assim determinado pela EMPREGADORA e desde que possua habilitação técnica suficiente, sendo possível inclusive <strong>alterações horizontais de função</strong>, nos exatos termos do art. 456, parágrafo único, da CLT.</p>
+        <p class="clause indent"><span class="clause-number">2.1.</span> O(A) EMPREGADO(A) é admitido(a) para exercer a função de <strong>{{Role.Name}}</strong>, com CBO nº {{Role.CBO}}, podendo, todavia, dentro deste contrato, exercer quaisquer outras funções compatíveis com sua condição pessoal, desde que assim determinado pela EMPREGADORA e desde que possua habilitação técnica suficiente, sendo possível inclusive <strong>alterações horizontais de função</strong>, nos exatos termos do art. 456, parágrafo único, da CLT.</p>
 
         <p class="clause indent"><span class="clause-number">2.2.</span> As funções abrangidas por este contrato incluem, conforme a área de atuação: Ajudante de Elétrica, Ajudante de Hidráulica, Encanador, Eletricista, Encarregado de Elétrica, Encarregado de Hidráulica e Almoxarife, cada qual com as atribuições descritas no Programa de Gerenciamento de Riscos (PGR) da empresa e nas normas técnicas aplicáveis.</p>
 
@@ -66,7 +62,7 @@
 
         <p class="clause indent"><span class="clause-number">3.1.</span> O(A) EMPREGADO(A) declara estar ciente e de pleno acordo que, <strong>por natureza da atividade da EMPREGADORA</strong>, a prestação de serviços ocorre exclusivamente em <strong>canteiros de obra de clientes</strong>, em diversas localidades, podendo abranger qualquer município do Estado de São Paulo ou de outros Estados da Federação.</p>
 
-        <p class="clause indent"><span class="clause-number">3.2.</span> O local de trabalho inicial é o canteiro de obra situado em: <strong>_________________________________________</strong>. Todavia, o(a) EMPREGADO(A) declara ciência e concordância expressa de que <strong>o local de prestação de serviços poderá ser alterado a qualquer momento</strong>, a critério da EMPREGADORA, a título temporário ou definitivo, tanto no âmbito da unidade para a qual foi admitido(a) como para outras, em qualquer localidade deste Estado ou de outro dentro do País, conforme a demanda de obras e serviços, podendo a alteração ocorrer em dias, semanas, meses ou anos após a admissão, condições estas com as quais concorda expressamente o(a) EMPREGADO(A), nos termos do art. 469, §1º da CLT.</p>
+        <p class="clause indent"><span class="clause-number">3.2.</span> O local de trabalho inicial é o canteiro de obra situado em: <strong>{{Workplace.Name}} — {{Workplace.Address.Street}}, {{Workplace.Address.Number}}, {{Workplace.Address.Neighborhood}}, {{Workplace.Address.City}}/{{Workplace.Address.State}}</strong>. Todavia, o(a) EMPREGADO(A) declara ciência e concordância expressa de que <strong>o local de prestação de serviços poderá ser alterado a qualquer momento</strong>, a critério da EMPREGADORA, a título temporário ou definitivo, tanto no âmbito da unidade para a qual foi admitido(a) como para outras, em qualquer localidade deste Estado ou de outro dentro do País, conforme a demanda de obras e serviços, podendo a alteração ocorrer em dias, semanas, meses ou anos após a admissão, condições estas com as quais concorda expressamente o(a) EMPREGADO(A), nos termos do art. 469, §1º da CLT.</p>
 
         <p class="clause indent"><span class="clause-number">3.3.</span> O(A) EMPREGADO(A) obriga-se a comparecer ao canteiro de obra designado, <strong>ainda que este se situe em localidade distante de sua residência</strong>, comprometendo-se a manter plena disponibilidade para deslocamentos e transferências, condição essencial para a manutenção do vínculo empregatício.</p>
 
@@ -85,7 +81,7 @@
     <section class="section">
         <h2 class="section-title" data-number="4">Do Prazo do Contrato — Período de Experiência</h2>
 
-        <p class="clause indent"><span class="clause-number">4.1.</span> O presente contrato é celebrado a título de <strong>experiência</strong>, na forma do art. 443, §2º, alínea "c" e art. 445, parágrafo único, ambos da CLT, pelo prazo determinado de <strong>45 (quarenta e cinco) dias</strong>, com início em <strong>_____/_____/_________</strong> e término previsto em <strong>_____/_____/_________</strong>.</p>
+        <p class="clause indent"><span class="clause-number">4.1.</span> O presente contrato é celebrado a título de <strong>experiência</strong>, na forma do art. 443, §2º, alínea "c" e art. 445, parágrafo único, ambos da CLT, pelo prazo determinado de <strong>45 (quarenta e cinco) dias</strong>, com início em <strong id="employee-initial-date-experience">{{Employee.InitialDate}}</strong> e término previsto em <strong id="employee-final-date-experience"></strong>.</p>
 
         <p class="clause indent"><span class="clause-number">4.2.</span> O presente contrato de experiência poderá ser prorrogado, <strong>uma única vez</strong>, por igual período de até <strong>45 (quarenta e cinco) dias</strong>, mediante instrumento escrito apartado ("Termo de Prorrogação de Contrato de Experiência"), respeitado o limite máximo total de 90 (noventa) dias, conforme art. 451 da CLT e Súmula nº 188 do TST.</p>
 
@@ -108,7 +104,7 @@
     <section class="section">
         <h2 class="section-title" data-number="5">Da Remuneração</h2>
 
-        <p class="clause indent"><span class="clause-number">5.1.</span> O(A) EMPREGADO(A) perceberá a remuneração de R$ ______________ (<em>__________________________________________</em>) por <strong>hora / mês</strong> <em>(riscar o que não se aplica)</em>, a ser paga até o 5º (quinto) dia útil do mês subsequente ao trabalhado, mediante depósito em conta bancária de titularidade do(a) EMPREGADO(A), em conformidade com o art. 459, §1º da CLT e com a Convenção Coletiva de Trabalho vigente (SINDINSTALAÇÃO).</p>
+        <p class="clause indent"><span class="clause-number">5.1.</span> O(A) EMPREGADO(A) perceberá a remuneração de R$ {{Role.Remuneration.BaseSalary.Value}} por <strong>{{Role.Remuneration.PaymentUnit}}</strong>, a ser paga até o 5º (quinto) dia útil do mês subsequente ao trabalhado, mediante depósito em conta bancária de titularidade do(a) EMPREGADO(A), em conformidade com o art. 459, §1º da CLT e com a Convenção Coletiva de Trabalho vigente (SINDINSTALAÇÃO).</p>
 
         <p class="clause indent"><span class="clause-number">5.2.</span> Quando a remuneração for mensal, o <strong>Descanso Semanal Remunerado (DSR)</strong> já se encontra devidamente incluído no valor mensal, nos termos da Lei Federal nº 605/1949. Quando a remuneração for por hora, o DSR será calculado e pago em separado conforme a legislação vigente.</p>
 
@@ -397,7 +393,7 @@
         <div class="info-grid" style="grid-template-columns: 1fr;">
             <div class="info-field" style="text-align:center; font-size: 12pt; padding: 12px;">
                 <span class="info-label">Número de Celular / WhatsApp do(a) EMPREGADO(A):</span><br><br>
-                <span class="info-value" style="font-size: 14pt; letter-spacing: 2px;">( _______ ) _________ — _____________</span>
+                <span class="info-value" style="font-size: 14pt; letter-spacing: 2px;">{{Employee.Contact.CellPhone}}</span>
             </div>
         </div>
 
@@ -498,38 +494,60 @@
 
     <!-- ═══════════ ASSINATURAS ═══════════ -->
     <section class="signatures">
-        <p class="sig-location">Suzano/SP, _______ de __________________________ de __________.</p>
+        <p class="sig-location">{{Company.Address.City}}-{{Company.Address.State}}, {{ComplementaryInfo.FullDatePtBr}}.</p>
 
 
-        <div class="sig-grid">
-            <div class="sig-block">
-                <div class="sig-line">
-                    <div class="sig-name">RUFINO - EMPREITEIRA DE ELÉTRICA E HIDRÁULICA S/S LTDA</div>
-                    <div class="sig-role">EMPREGADORA — CNPJ: 02.624.917/0001-92</div>
+        <span id="signing-option" style="display:none;">{{Employee.DocumentSigningOptions.Id}}</span>
+        <div class="signature-body">
+            <div>
+                <div class="signature-local">
+                    <img style="height:25mm; float: start; visibility: visible;" src="img/assinatura_jamildo.png" class="assinatura">
                 </div>
+                <div class="signature-info">{{Company.CorporateName}}</div>
+                <div class="sig-role" style="text-align:center;">EMPREGADORA — CNPJ: {{Company.Cnpj}}</div>
             </div>
-            <div class="sig-block">
-                <div class="sig-line">
-                    <div class="sig-name">_________________________________________</div>
-                    <div class="sig-role">EMPREGADO(A) — CPF: ______________________</div>
+            <div>
+                <div class="signature-local">
+                    <div id="digital-signature" class="signed-content" style="display:none;">
+                        <img class="signed-icon" src="img/icon_assinatura.png">
+                        <div class="signed-text">
+                            <span class="signed-label">Assinado digitalmente pelo:</span>
+                            <span class="signed-name">{{Employee.Name}}</span>
+                        </div>
+                    </div>
                 </div>
+                <div class="signature-info">{{Employee.Name}}</div>
+                <div class="sig-role" style="text-align:center;">EMPREGADO(A) — CPF: {{Employee.IdCard.CPF}}</div>
             </div>
         </div>
 
-        <div style="text-align:center; margin-top: 20px;">
-            <div class="sig-line" style="max-width: 340px; margin: 54px auto 0;">
-                <div class="sig-name">_________________________________________</div>
-                <div class="sig-role">Responsável Legal (quando menor de idade)</div>
-            </div>
-        </div>
 
     </section>
 
     <div class="page-footer">
-        Contrato Individual de Trabalho — RUFINO EMPREITEIRA DE ELÉTRICA E HIDRÁULICA S/S LTDA — Documento gerado para uso interno.
+        Contrato Individual de Trabalho — {{Company.CorporateName}} — Documento gerado para uso interno.
     </div>
 
 </div>
 
+<script>
+    (function() {
+        var initEl = document.getElementById('employee-initial-date-experience');
+        var finalEl = document.getElementById('employee-final-date-experience');
+        var raw = initEl.textContent.trim();
+        var parts = raw.split('-');
+        var date = new Date(parts[2], parts[1] - 1, parts[0]);
+        date.setDate(date.getDate() + 45);
+        var dd = String(date.getDate()).padStart(2, '0');
+        var mm = String(date.getMonth() + 1).padStart(2, '0');
+        var yyyy = date.getFullYear();
+        finalEl.textContent = dd + '-' + mm + '-' + yyyy;
+
+        var signingId = document.getElementById('signing-option').textContent.trim();
+        if (signingId !== '1') {
+            document.getElementById('digital-signature').style.display = '';
+        }
+    })();
+</script>
 </body>
 </html>
