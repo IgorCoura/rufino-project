@@ -7,6 +7,7 @@
         public static readonly Ethinicity Brown = new(3, nameof(Brown));
         public static readonly Ethinicity Yellow = new(4, nameof(Yellow));
         public static readonly Ethinicity Indigenous = new(5, nameof(Indigenous));
+        public static readonly Ethinicity NotDeclared = new(6, nameof(NotDeclared));
 
         private Ethinicity(int id, string name) : base(id, name)
         {
