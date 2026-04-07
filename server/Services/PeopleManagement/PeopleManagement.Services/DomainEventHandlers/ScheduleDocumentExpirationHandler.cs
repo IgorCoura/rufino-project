@@ -30,7 +30,10 @@ namespace PeopleManagement.Services.DomainEventHandlers
             _backgroundJobClient.Schedule<IDocumentDepreciationService>(x => x.DepreciateExpirateDocument(notification.DocumentUnitId,
                 notification.DocumentId, notification.CompanyId, cancellationToken), new DateTimeOffset(notification.Expiration, new TimeOnly(5, 0), TimeSpan.Zero));
 
-            var warningExpirateDay = notification.Expiration.AddDays(documentOptions.WarningDaysBeforeDocumentExpiration * -1);
+            var validityDurationDays = notification.Expiration.DayNumber - notification.IssuedAt.DayNumber;
+            var ratioDays = Math.Max(1, (int)Math.Floor(validityDurationDays * documentOptions.WarningRatio));
+            var warningDays = Math.Min(documentOptions.WarningDaysBeforeDocumentExpiration, ratioDays);
+            var warningExpirateDay = notification.Expiration.AddDays(-warningDays);
 
             if (warningExpirateDay < DateOnly.FromDateTime(DateTime.Now))
             {
