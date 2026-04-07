@@ -7,6 +7,7 @@ import '../../domain/entities/batch_document_unit.dart';
 import '../models/batch_document_unit_api_model.dart';
 import 'http_exception.dart';
 import 'http_status_helper.dart';
+import 'request_id_helper.dart';
 
 /// HTTP client for the batch document management endpoints.
 ///
@@ -29,6 +30,7 @@ class BatchDocumentApiService {
     return {
       'Authorization': await getAuthHeader(),
       'Content-Type': 'application/json',
+      'x-requestid': newRequestId(),
     };
   }
 
