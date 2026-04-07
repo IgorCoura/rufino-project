@@ -4,6 +4,7 @@ import 'package:http/http.dart' as http;
 
 import '../models/department_api_model.dart';
 import 'http_status_helper.dart';
+import 'request_id_helper.dart';
 
 /// HTTP client for the department, position, and role endpoints of the
 /// people-management service.
@@ -27,6 +28,7 @@ class DepartmentApiService {
     return {
       'Authorization': await getAuthHeader(),
       'Content-Type': 'application/json',
+      'x-requestid': newRequestId(),
     };
   }
 

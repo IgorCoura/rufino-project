@@ -1,19 +1,9 @@
 import 'dart:convert';
-import 'dart:math';
 import 'package:http/http.dart' as http;
 
 import '../models/company_api_model.dart';
 import 'http_status_helper.dart';
-
-String _newRequestId() {
-  final rnd = Random.secure();
-  final bytes = List<int>.generate(16, (_) => rnd.nextInt(256));
-  bytes[6] = (bytes[6] & 0x0f) | 0x40; // version 4
-  bytes[8] = (bytes[8] & 0x3f) | 0x80; // variant
-  String hex(int i) => bytes[i].toRadixString(16).padLeft(2, '0');
-  final b = List<String>.generate(16, hex);
-  return '${b[0]}${b[1]}${b[2]}${b[3]}-${b[4]}${b[5]}-${b[6]}${b[7]}-${b[8]}${b[9]}-${b[10]}${b[11]}${b[12]}${b[13]}${b[14]}${b[15]}';
-}
+import 'request_id_helper.dart';
 
 class CompanyApiService {
   CompanyApiService({
@@ -26,11 +16,11 @@ class CompanyApiService {
   final String baseUrl;
   final Future<String> Function() getAuthHeader;
 
-  Future<Map<String, String>> _headers({bool withRequestId = false}) async {
+  Future<Map<String, String>> _headers() async {
     return {
       'Authorization': await getAuthHeader(),
       'Content-Type': 'application/json',
-      if (withRequestId) 'x-requestid': _newRequestId(),
+      'x-requestid': newRequestId(),
     };
   }
 
@@ -53,7 +43,7 @@ class CompanyApiService {
     final uri = Uri.https(baseUrl, '/api/v1/company');
     final response = await client.post(
       uri,
-      headers: await _headers(withRequestId: true),
+      headers: await _headers(),
       body: jsonEncode(model.toCreateJson()),
     );
     checkHttpStatus(response);
@@ -65,7 +55,7 @@ class CompanyApiService {
     final uri = Uri.https(baseUrl, '/api/v1/company');
     final response = await client.put(
       uri,
-      headers: await _headers(withRequestId: true),
+      headers: await _headers(),
       body: jsonEncode(model.toJson()),
     );
     checkHttpStatus(response);
