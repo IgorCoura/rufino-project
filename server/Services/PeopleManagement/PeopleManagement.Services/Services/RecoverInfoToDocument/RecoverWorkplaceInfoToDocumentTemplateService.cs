@@ -22,7 +22,7 @@ namespace PeopleManagement.Services.Services.RecoverInfoToDocument
                 ["Workplace"] = new JsonObject
                 {
                     ["Id"] = workplace.Id.ToString(),
-                    ["Name"] = workplace.Name.ToString(),
+                    ["Name"] = workplace.Name.Value,
                     ["Address"] = ConvertAddressToJsonObject(workplace.Address)
                 }
             };
