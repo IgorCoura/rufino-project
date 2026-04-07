@@ -309,7 +309,7 @@ namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
             Contracts[index] = Contracts[index].FinshedContract(finishDateContract);
             Status = Status.Inactive;
             AddDomainEvent(EmployeeEvent.FinishedContractEvent(Id, CompanyId));
-            if (MedicalAdmissionExam!.NeedDismissalExam)
+            if (MedicalAdmissionExam?.NeedDismissalExam == true)
                 AddDomainEvent(EmployeeEvent.DemissionalExamRequestEvent(Id, CompanyId));
         }
 
