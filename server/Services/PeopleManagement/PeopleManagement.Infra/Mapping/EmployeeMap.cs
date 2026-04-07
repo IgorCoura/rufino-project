@@ -27,9 +27,6 @@ namespace PeopleManagement.Infra.Mapping
                 .HasMaxLength(Registration.MAX_LENGTH)
                 .IsRequired(false);
 
-            builder.HasIndex(x => x.Registration)
-                .IsUnique();
-
             builder.Property(x => x.Name)
                 .HasConversion(x => x.Value, x => x)
                 .HasMaxLength(Name.MAX_LENGTH)
@@ -197,9 +194,6 @@ namespace PeopleManagement.Infra.Mapping
                     .HasConversion(x => x.Number, x => x)
                     .HasMaxLength(CPF.MAX_LENGHT)
                     .IsRequired();
-
-                idCard.HasIndex(x => x.Cpf)
-                    .IsUnique();
 
                 idCard.Property(x => x.MotherName)
                     .HasConversion(x => x.Value, x => x)
