@@ -21,7 +21,7 @@ namespace PeopleManagement.Services.Services.RecoverInfoToDocument
                 {
                     ["Id"] = position.Id.ToString(),
                     ["Name"] = position.Name.ToString(),
-                    ["Description"] = position.Description.ToString(),
+                    ["Description"] = position.Description.Value,
                     ["CBO"] = position.CBO.ToString()
                 }
             };

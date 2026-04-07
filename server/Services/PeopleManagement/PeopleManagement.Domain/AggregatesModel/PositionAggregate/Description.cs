@@ -47,6 +47,6 @@ namespace PeopleManagement.Domain.AggregatesModel.PositionAggregate
             yield return Value;
         }
 
-        public override string ToString() => _value;
+        public override string ToString() => Value;
     }
 }

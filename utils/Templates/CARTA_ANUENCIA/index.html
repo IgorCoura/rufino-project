@@ -108,8 +108,8 @@
             <span id="signing-option" style="display:none;">{{Employee.DocumentSigningOptions.Id}}</span>
             <div class="signature-body">
                 <div>
-                    <div class="signature-local">
-                        <img style="height:25mm; float: start; visibility: visible;" src="img\Ass.png">
+                    <div class="signature-local-1">
+                        <img class="ass-igor" src="img\Ass.png">
                     </div>
                     <div class="signature-info">
                         Igor de Brito Coura<br>
@@ -118,16 +118,16 @@
                     </div>
                 </div>
                 <div>
-                    <div class="signature-local">
-                        <img style="height:32mm; float: start; visibility: visible;" src="img\assinatura_jamildo.png" class="ass-jamildo">
+                    <div class="signature-local-1">
+                        <img class="ass-empresa" src="img\assinatura_jamildo.png">
                     </div>
                     <div class="signature-info">
                         {{company.corporateName}}
                     </div>
                 </div>
                 <div>
-                    <div class="signature-local">
-                        <div id="digital-signature" class="signed-content" style="display:none;">
+                    <div class="signature-local-2">
+                        <div id="digital-signature" class="signed-content ass-funcionario" style="display:none;">
                             <img class="signed-icon" src="img\icon_assinatura.png">
                             <div class="signed-text">
                                 <span class="signed-label">Assinado digitalmente pelo:</span>
@@ -136,7 +136,8 @@
                         </div>
                     </div>
                     <div class="signature-info">
-                        {{employee.name}}
+                        {{employee.name}}<br>
+                        CPF: {{employee.idcard.cpf}}
                     </div>
                 </div>
             </div>
