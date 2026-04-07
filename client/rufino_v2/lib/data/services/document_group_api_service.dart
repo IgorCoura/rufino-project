@@ -4,6 +4,7 @@ import 'package:http/http.dart' as http;
 
 import '../models/document_group_api_model.dart';
 import 'http_status_helper.dart';
+import 'request_id_helper.dart';
 import '../models/document_group_with_documents_api_model.dart';
 import '../models/document_group_with_templates_api_model.dart';
 
@@ -28,6 +29,7 @@ class DocumentGroupApiService {
     return {
       'Authorization': await getAuthHeader(),
       'Content-Type': 'application/json',
+      'x-requestid': newRequestId(),
     };
   }
 

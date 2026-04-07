@@ -5,6 +5,7 @@ import 'package:http/http.dart' as http;
 
 import '../models/batch_download_api_model.dart';
 import 'http_status_helper.dart';
+import 'request_id_helper.dart';
 
 /// HTTP client for the batch download endpoints.
 ///
@@ -27,6 +28,7 @@ class BatchDownloadApiService {
     return {
       'Authorization': await getAuthHeader(),
       'Content-Type': 'application/json',
+      'x-requestid': newRequestId(),
     };
   }
 

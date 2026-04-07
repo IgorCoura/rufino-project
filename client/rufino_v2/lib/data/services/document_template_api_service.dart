@@ -5,6 +5,7 @@ import 'package:http/http.dart' as http;
 
 import 'http_exception.dart';
 import 'http_status_helper.dart';
+import 'request_id_helper.dart';
 
 import '../models/document_template_api_model.dart';
 
@@ -29,6 +30,7 @@ class DocumentTemplateApiService {
     return {
       'Authorization': await getAuthHeader(),
       'Content-Type': 'application/json',
+      'x-requestid': newRequestId(),
     };
   }
 

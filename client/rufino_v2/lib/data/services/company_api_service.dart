@@ -3,6 +3,7 @@ import 'package:http/http.dart' as http;
 
 import '../models/company_api_model.dart';
 import 'http_status_helper.dart';
+import 'request_id_helper.dart';
 
 class CompanyApiService {
   CompanyApiService({
@@ -19,6 +20,7 @@ class CompanyApiService {
     return {
       'Authorization': await getAuthHeader(),
       'Content-Type': 'application/json',
+      'x-requestid': newRequestId(),
     };
   }
 

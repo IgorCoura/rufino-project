@@ -154,6 +154,15 @@
             if (signingId !== '1') {
                 document.getElementById('digital-signature').style.display = '';
             }
+
+            var positionName = document.getElementById('position-name-valor').textContent.trim().toUpperCase();
+            var optSemEle = document.getElementById('opt-sem-ele');
+            var optCapacitado = document.getElementById('opt-capacitado');
+            if (positionName === 'AJUDANTE DE ELÉTRICA') {
+                optSemEle.textContent = '(X) Sem interação com eletricidade';
+            } else {
+                optCapacitado.textContent = '(X) Capacitado';
+            }
         });
     </script>
 </html>
