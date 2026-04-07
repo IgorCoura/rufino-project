@@ -87,7 +87,7 @@ namespace PeopleManagement.Domain.AggregatesModel.DocumentAggregate
             Extension = extension;
             Status = DocumentUnitStatus.OK;
             if(Validity is not null)
-                AddDomainEvent(ScheduleDocumentExpirationEvent.Create(Document.Id, Id, Document.CompanyId, (DateOnly)Validity));
+                AddDomainEvent(ScheduleDocumentExpirationEvent.Create(Document.Id, Id, Document.CompanyId, (DateOnly)Validity, Date));
         }
 
         public void UpdateDetails(DateOnly date, DateOnly? validity, string content)
@@ -135,7 +135,7 @@ namespace PeopleManagement.Domain.AggregatesModel.DocumentAggregate
             {
                 Status = DocumentUnitStatus.OK;
                 if (Validity is not null)
-                    AddDomainEvent(ScheduleDocumentExpirationEvent.Create(Document.Id, Id, Document.CompanyId, (DateOnly)Validity!));
+                    AddDomainEvent(ScheduleDocumentExpirationEvent.Create(Document.Id, Id, Document.CompanyId, (DateOnly)Validity!, Date));
             }
             else
             {
