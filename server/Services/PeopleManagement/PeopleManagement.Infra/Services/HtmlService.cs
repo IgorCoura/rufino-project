@@ -98,7 +98,7 @@ namespace PeopleManagement.Infra.Services
                 string keysString = m.Groups[1].Value;
                 string[] keys = keysString.Split('.');
                 var result = GetValueFromJson(keys, values)?.ToString();
-                return result ?? m.Value;
+                return result ?? string.Empty;
             });
         }
 
