@@ -25,6 +25,7 @@ const _ethnicityNames = {
   '3': 'Pardo',
   '4': 'Amarelo',
   '5': 'Indígena',
+  '6': 'Não declarado',
 };
 
 const _educationLevelNames = {

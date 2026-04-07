@@ -7,6 +7,7 @@ class Ethinicity extends Enumeration {
     "3": "Pardo",
     "4": "Amarelo",
     "5": "Indígena",
+    "6": "Não declarado",
   };
 
   Ethinicity(String id, String name)
