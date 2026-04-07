@@ -32,7 +32,8 @@ namespace PeopleManagement.API.Filters
                 {
                     exception?.Errors
                 });
-                _logger.LogInformation("DomainException: {Message}", context.Exception.Message);
+                _logger.LogInformation("DomainException from {Origin}: {Errors}", exception!.Origin,
+                    System.Text.Json.JsonSerializer.Serialize(exception.Errors));
                 return;
             }
             _logger.LogError(context.Exception, "--------------An error occurred: {Message}--------------", context.Exception.Message);

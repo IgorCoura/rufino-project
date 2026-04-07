@@ -169,10 +169,10 @@ namespace PeopleManagement.Services.Services.RecoverInfoToDocument
             return new JsonObject
             {
                 ["Deficiency"] = ConvertDeficiencyToJsonObject(personalInfo.Deficiency),
-                ["MaritalStatus"] = personalInfo.MaritalStatus.ToString(),
-                ["Gender"] = personalInfo.Gender.ToString(),
-                ["Ethnicity"] = personalInfo.Ethinicity.Name,
-                ["EducationLevel"] = personalInfo.EducationLevel.ToString()
+                ["MaritalStatus"] = TranslateMaritalStatus(personalInfo.MaritalStatus),
+                ["Gender"] = TranslateGender(personalInfo.Gender),
+                ["Ethnicity"] = TranslateEthinicity(personalInfo.Ethinicity),
+                ["EducationLevel"] = TranslateEducationLevel(personalInfo.EducationLevel)
             };
         }
         private static JsonObject ConvertDeficiencyToJsonObject(Deficiency? deficiency)
@@ -265,5 +265,47 @@ namespace PeopleManagement.Services.Services.RecoverInfoToDocument
                 ["Validity"] = medicalAdmissionExam.Validity.ToString("yyyy-MM-dd")
             };
         }
+
+        private static string TranslateEthinicity(Ethinicity ethinicity) => ethinicity.Name switch
+        {
+            nameof(Ethinicity.White) => "Branco",
+            nameof(Ethinicity.Black) => "Negro",
+            nameof(Ethinicity.Brown) => "Pardo",
+            nameof(Ethinicity.Yellow) => "Amarelo",
+            nameof(Ethinicity.Indigenous) => "Indígena",
+            nameof(Ethinicity.NotDeclared) => "Não declarado",
+            _ => ethinicity.Name
+        };
+
+        private static string TranslateGender(Gender gender) => gender.Name switch
+        {
+            nameof(Gender.MALE) => "Masculino",
+            nameof(Gender.FEMALE) => "Feminino",
+            _ => gender.Name
+        };
+
+        private static string TranslateMaritalStatus(MaritalStatus status) => status.Name switch
+        {
+            nameof(MaritalStatus.Single) => "Solteiro(a)",
+            nameof(MaritalStatus.Married) => "Casado(a)",
+            nameof(MaritalStatus.Divorced) => "Divorciado(a)",
+            nameof(MaritalStatus.Widowed) => "Viúvo(a)",
+            _ => status.Name
+        };
+
+        private static string TranslateEducationLevel(EducationLevel level) => level.Name switch
+        {
+            nameof(EducationLevel.Illiterate) => "Analfabeto",
+            nameof(EducationLevel.IncompleteElementary) => "Ensino Fundamental Incompleto",
+            nameof(EducationLevel.CompleteElementary) => "Ensino Fundamental Completo",
+            nameof(EducationLevel.IncompleteSecondary) => "Ensino Médio Incompleto",
+            nameof(EducationLevel.CompleteSecondary) => "Ensino Médio Completo",
+            nameof(EducationLevel.IncompleteHigher) => "Ensino Superior Incompleto",
+            nameof(EducationLevel.CompleteHigher) => "Ensino Superior Completo",
+            nameof(EducationLevel.CompletePostgraduate) => "Pós-Graduação Completo",
+            nameof(EducationLevel.CompleteMasters) => "Mestrado Completo",
+            nameof(EducationLevel.CompleteDoctorate) => "Doutorado Completo",
+            _ => level.Name
+        };
     }
 }
