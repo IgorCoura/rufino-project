@@ -148,12 +148,9 @@ class EmployeeIdCard {
 
   /// Validates the father name field.
   ///
-  /// Required, max 100 characters.
+  /// Optional, max 100 characters.
   static String? validateFatherName(String? value) {
-    if (value == null || value.trim().isEmpty) {
-      return 'O Nome do pai não pode ser vazio.';
-    }
-    if (value.trim().length > 100) {
+    if (value != null && value.trim().length > 100) {
       return 'O Nome do pai não pode ser maior que 100 caracteres.';
     }
     return null;

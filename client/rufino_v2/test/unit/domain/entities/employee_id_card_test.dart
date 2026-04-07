@@ -112,8 +112,12 @@ void main() {
   });
 
   group('EmployeeIdCard.validateFatherName', () {
-    test('returns error when empty', () {
-      expect(EmployeeIdCard.validateFatherName(null), isNotNull);
+    test('returns null when null', () {
+      expect(EmployeeIdCard.validateFatherName(null), isNull);
+    });
+
+    test('returns null when empty', () {
+      expect(EmployeeIdCard.validateFatherName(''), isNull);
     });
 
     test('returns error when too long', () {
