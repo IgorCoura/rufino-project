@@ -97,12 +97,12 @@ namespace PeopleManagement.UnitTests.Aggregates.DocumentTests
         public void DistributeWorkload_40Hours_StartingThursday_SkipsWeekend()
         {
             // Thursday 2026-04-09
-            var startDate = new DateOnly(2026, 4, 9);
+            var startDate = new DateOnly(2026, 4, 10);
             var result = _service.DistributeWorkload(startDate, TimeSpan.FromHours(40), 8);
 
             // Thu(8) + Fri(8) + [skip Sat/Sun] + Mon(8) + Tue(8) + Wed(8) = 40h
             // EndDate should be Wednesday 2026-04-15
-            Assert.Equal(new DateOnly(2026, 4, 15), result.EndDate);
+            Assert.Equal(new DateOnly(2026, 4, 16), result.EndDate);
         }
 
         [Fact]
@@ -226,6 +226,156 @@ namespace PeopleManagement.UnitTests.Aggregates.DocumentTests
             var holidays2 = _holidayProvider.GetHolidays(2026);
 
             Assert.Same(holidays1, holidays2);
+        }
+
+        [Fact]
+        public void VerifyTimeConflict_40Hours_StartingFriday10April_EndsThursday16April()
+        {
+            // Arrange
+            var startDate = new DateOnly(2026, 4, 10); // Friday
+            var workload = TimeSpan.FromHours(40);
+            var maxHoursPerDay = 8;
+
+            // Act — Step 1: Verify start date is a working day
+            Assert.True(_service.IsWorkingDay(startDate));
+
+            // Act — Step 2: Distribute workload across working days
+            var projectedPeriod = _service.DistributeWorkload(startDate, workload, maxHoursPerDay);
+
+            // Assert — Distribution spans from Fri 10/04 to Thu 16/04
+            // Fri 10(8h) + [Sat skip] + [Sun skip] + Mon 13(8h) + Tue 14(8h) + Wed 15(8h) + Thu 16(8h) = 40h
+            Assert.Equal(startDate, projectedPeriod.StartDate);
+            Assert.Equal(new DateOnly(2026, 4, 16), projectedPeriod.EndDate);
+
+            // Act — Step 3: Try to fit with no existing conflicts
+            var noConflicts = new Dictionary<DateOnly, TimeSpan>();
+            var fitResult = _service.TryFitWorkload(startDate, workload, maxHoursPerDay, noConflicts);
+
+            // Assert — Fits perfectly, end date matches distribution
+            Assert.True(fitResult.CanFit);
+            Assert.Equal(new DateOnly(2026, 4, 16), fitResult.WorkloadEndDate);
+            Assert.Null(fitResult.SuggestedStartDate);
+        }
+
+        [Fact]
+        public void VerifyTimeConflict_40Hours_StartingFriday10April_EachDayAllocates8Hours()
+        {
+            // Arrange
+            var startDate = new DateOnly(2026, 4, 10); // Friday
+            var workload = TimeSpan.FromHours(40);
+            var maxHoursPerDay = 8;
+
+            // Verify each day in the expected range
+            var expectedWorkingDays = new[]
+            {
+                new DateOnly(2026, 4, 10), // Friday  — 8h
+                new DateOnly(2026, 4, 13), // Monday  — 8h
+                new DateOnly(2026, 4, 14), // Tuesday — 8h
+                new DateOnly(2026, 4, 15), // Wednesday — 8h
+                new DateOnly(2026, 4, 16), // Thursday  — 8h
+            };
+
+            var skippedDays = new[]
+            {
+                new DateOnly(2026, 4, 11), // Saturday
+                new DateOnly(2026, 4, 12), // Sunday
+            };
+
+            foreach (var day in expectedWorkingDays)
+                Assert.True(_service.IsWorkingDay(day), $"{day} should be a working day");
+
+            foreach (var day in skippedDays)
+                Assert.False(_service.IsWorkingDay(day), $"{day} should NOT be a working day");
+
+            // Distribute and verify total coverage is exactly 5 working days × 8h = 40h
+            var period = _service.DistributeWorkload(startDate, workload, maxHoursPerDay);
+            Assert.Equal(expectedWorkingDays.First(), period.StartDate);
+            Assert.Equal(expectedWorkingDays.Last(), period.EndDate);
+        }
+
+        [Fact]
+        public void VerifyTimeConflict_40Hours_StartingFriday10April_WithPartialConflictOnFriday_StillFits()
+        {
+            // Arrange — Another document already uses 4h on Friday 10/04
+            var startDate = new DateOnly(2026, 4, 10);
+            var workload = TimeSpan.FromHours(40);
+            var maxHoursPerDay = 8;
+
+            var existingUsage = new Dictionary<DateOnly, TimeSpan>
+            {
+                { new DateOnly(2026, 4, 10), TimeSpan.FromHours(4) } // 4h already used on Friday
+            };
+
+            // Act
+            var fitResult = _service.TryFitWorkload(startDate, workload, maxHoursPerDay, existingUsage);
+
+            // Assert — Still fits, but spills further because only 4h available on Friday
+            // Fri 10(4h) + Mon 13(8h) + Tue 14(8h) + Wed 15(8h) + Thu 16(8h) + Fri 17(4h) = 40h
+            Assert.True(fitResult.CanFit);
+            Assert.Equal(new DateOnly(2026, 4, 17), fitResult.WorkloadEndDate);
+        }
+
+        [Fact]
+        public void VerifyTimeConflict_40Hours_StartingFriday10April_WithFullConflictOnFriday_CannotFit()
+        {
+            // Arrange — Friday 10/04 is fully booked (8h)
+            var startDate = new DateOnly(2026, 4, 10);
+            var workload = TimeSpan.FromHours(40);
+            var maxHoursPerDay = 8;
+
+            var existingUsage = new Dictionary<DateOnly, TimeSpan>
+            {
+                { new DateOnly(2026, 4, 10), TimeSpan.FromHours(8) }
+            };
+
+            // Act
+            var fitResult = _service.TryFitWorkload(startDate, workload, maxHoursPerDay, existingUsage);
+
+            // Assert — Cannot fit, suggests Monday 13/04
+            Assert.False(fitResult.CanFit);
+            Assert.Equal(new DateOnly(2026, 4, 13), fitResult.SuggestedStartDate);
+        }
+
+        [Fact]
+        public void VerifyTimeConflict_40Hours_StartingFriday10April_WithConflictsOnMultipleDays_SpillsAccordingly()
+        {
+            // Arrange — Existing documents use partial hours on several days
+            var startDate = new DateOnly(2026, 4, 10);
+            var workload = TimeSpan.FromHours(40);
+            var maxHoursPerDay = 8;
+
+            var existingUsage = new Dictionary<DateOnly, TimeSpan>
+            {
+                { new DateOnly(2026, 4, 10), TimeSpan.FromHours(4) }, // Fri: 4h used, 4h available
+                { new DateOnly(2026, 4, 13), TimeSpan.FromHours(4) }, // Mon: 4h used, 4h available
+                { new DateOnly(2026, 4, 14), TimeSpan.FromHours(8) }, // Tue: fully booked
+            };
+
+            // Act
+            var fitResult = _service.TryFitWorkload(startDate, workload, maxHoursPerDay, existingUsage);
+
+            // Assert — Fits but spills:
+            // Fri 10: 4h available → allocate 4h (remaining 36h)
+            // Mon 13: 4h available → allocate 4h (remaining 32h)
+            // Tue 14: 0h available → skip
+            // Wed 15: 8h available → allocate 8h (remaining 24h)
+            // Thu 16: 8h available → allocate 8h (remaining 16h)
+            // Fri 17: 8h available → allocate 8h (remaining 8h)
+            // [Sat/Sun skip]
+            // Mon 20: 8h available → allocate 8h (remaining 0h)
+            Assert.True(fitResult.CanFit);
+            Assert.Equal(new DateOnly(2026, 4, 20), fitResult.WorkloadEndDate);
+        }
+
+        [Fact]
+        public void VerifyTimeConflict_40Hours_OnWeekend_IsNotWorkingDay()
+        {
+            // 2026-04-11 is Saturday, 2026-04-12 is Sunday
+            Assert.False(_service.IsWorkingDay(new DateOnly(2026, 4, 11)));
+            Assert.False(_service.IsWorkingDay(new DateOnly(2026, 4, 12)));
+
+            // Next working day after Saturday should be Monday 13/04
+            Assert.Equal(new DateOnly(2026, 4, 13), _service.GetNextWorkingDay(new DateOnly(2026, 4, 11)));
         }
     }
 }

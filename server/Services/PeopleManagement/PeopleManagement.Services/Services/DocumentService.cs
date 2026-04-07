@@ -185,7 +185,7 @@ namespace PeopleManagement.Services.Services
                 ?? throw new DomainException(this, DomainErrors.ObjectNotFound(nameof(DocumentTemplate), document.DocumentTemplateId.ToString()));
 
             DateOnly? workloadEndDate = null;
-            if (documentTemplate.Workload is not null)
+            if (documentTemplate.Workload is not null && documentTemplate.Workload != TimeSpan.Zero)
                 workloadEndDate = await VerifyTimeConflictBetweenDocument(employeeId, companyId, documentId, documentUnitDate,
                     (TimeSpan)documentTemplate.Workload, cancellationToken);
 
