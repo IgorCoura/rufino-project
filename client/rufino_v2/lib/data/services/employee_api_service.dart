@@ -18,6 +18,7 @@ import '../models/employee_military_document_api_model.dart';
 import '../models/employee_vote_id_api_model.dart';
 import 'http_exception.dart';
 import 'http_status_helper.dart';
+import 'request_id_helper.dart';
 
 /// HTTP client for the employee endpoints of the people-management service.
 ///
@@ -40,6 +41,7 @@ class EmployeeApiService {
     return {
       'Authorization': await getAuthHeader(),
       'Content-Type': 'application/json',
+      'x-requestid': newRequestId(),
     };
   }
 
