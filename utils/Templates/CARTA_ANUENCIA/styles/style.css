@@ -1,23 +1,4 @@
 
-@page {
-    width: 210mm;
-    height: 297mm;
-    page-break-after: always;
-    margin: 45mm 20mm 20mm 20mm;
-    
-}
-
-@page{
-    @bottom-right {
-        font-size: 2.5mm;
-        content:  "Data: 12/09/2023 - Página " counter(page)"/"counter(pages);
-    }
-    @bottom-left{
-        font-size: 2.5mm;
-        content: "ID: 35f9b34b-8053-415f-b203-962ed3cfffaf";
-    }
-}
-
 
 
 .main{
@@ -75,35 +56,105 @@
 }
 
 .signature-body{
-    display: flex;    
+    display: flex;
     flex-direction: row;
     align-items: end;
-    height: 35mm;
-    justify-content: space-around;    
-    position: relative; /* adicionado para ser o elemento pai de referência */
-    
+    height: 40mm;
+    justify-content: space-around;
 }
 
-.signature-local{
-    max-width: 50mm;
-    min-width: 50mm;
+.signature-local-1{
+    max-width: 55mm;
+    min-width: 55mm;
     text-align: center;
+    border-bottom: 0.3mm solid black;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    align-items: center;
+    position: relative;
+}
+
+.signature-local-2{
+    max-width: 75mm;
+    min-width: 75mm;
     text-align: center;
-    border-bottom: 0.3mm  solid black;
+    border-bottom: 0.3mm solid black;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    align-items: center;
+    position: relative;
+}
+
+/* Ajuste fino individual de cada assinatura.
+   Use top/left/right/bottom para posicionar exatamente onde desejar. */
+.ass-igor{
+    position: absolute;
+    height: 20mm;
+    bottom: -7mm;
+    left: 50%;
+    transform: translateX(-50%);
+}
+
+.ass-empresa{
+    position: absolute;
+    height: 28mm;
+    bottom: -12mm;
+    left: 50%;
+    transform: translateX(-50%);
+}
+
+.ass-funcionario{
+    position: absolute;
+    bottom: 2mm;
+    left: 55%;
+    transform: translateX(-50%);
+}
+
+.signed-content{
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 2mm;
+}
+
+.signed-icon{
+    height: 8mm;
+    width: auto;
+}
+
+.signed-text{
+    display: flex;
+    flex-direction: column;
+    text-align: left;
+}
+
+.signed-label{
+    font-size: 3mm;
+    color: #666;
+    line-height: 1.2;
+}
+
+.signed-name{
+    font-size: 4mm;
+    font-weight: bold;
+    color: #4141A5;
+    line-height: 1.2;
 }
 
 .signature-info{
-    max-width: 50mm;
-    min-width: 50mm;
-    height: 10mm;
+    max-width: 55mm;
+    min-width: 55mm;
+    height: 18mm;
     text-align: center;
 }
 
-.ass-jamildo{
-    position: absolute; /* removido do fluxo normal */
-    z-index: 1; /* sobreposto aos outros elementos */
-    bottom: -2mm; /* posicionado no canto inferior */
-    right: 80mm; /* posicionado no canto direito */
+.signature-local-2 + .signature-info{
+    max-width: 75mm;
+    min-width: 75mm;
 }
 
 
