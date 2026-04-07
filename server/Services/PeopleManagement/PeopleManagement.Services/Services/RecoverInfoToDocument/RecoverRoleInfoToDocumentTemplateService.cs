@@ -56,7 +56,7 @@ namespace PeopleManagement.Services.Services.RecoverInfoToDocument
         {
             return new JsonObject
             {
-                ["PaymentUnit"] = remuneration.PaymentUnit.ToString(),
+                ["PaymentUnit"] = TranslatePaymentUnit(remuneration.PaymentUnit),
                 ["BaseSalary"] = new JsonObject
                 {
                     ["Type"] = remuneration.BaseSalary.Type.ToString(),
@@ -65,5 +65,17 @@ namespace PeopleManagement.Services.Services.RecoverInfoToDocument
                 ["Description"] = remuneration.Description.Value
             };
         }
+
+        private static string TranslatePaymentUnit(PaymentUnit unit) => unit.Name switch
+        {
+            nameof(PaymentUnit.NotApplicable) => "Não Aplicável",
+            nameof(PaymentUnit.PerHour) => "Por Hora",
+            nameof(PaymentUnit.PerDay) => "Por Dia",
+            nameof(PaymentUnit.PerWeek) => "Por Semana",
+            nameof(PaymentUnit.PerFortnight) => "Por Quinzena",
+            nameof(PaymentUnit.PerMonth) => "Por Mês",
+            nameof(PaymentUnit.PerTask) => "Por Tarefa",
+            _ => unit.Name
+        };
     }
 }

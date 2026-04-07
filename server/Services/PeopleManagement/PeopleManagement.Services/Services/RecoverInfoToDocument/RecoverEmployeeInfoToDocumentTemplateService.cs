@@ -116,7 +116,7 @@ namespace PeopleManagement.Services.Services.RecoverInfoToDocument
             {
                 ["Name"] = dependent.Name.ToString(),
                 ["Gender"] = dependent.Gender.ToString(),
-                ["DependencyType"] = dependent.DependencyType.Name,
+                ["DependencyType"] = TranslateDependencyType(dependent.DependencyType),
                 ["IdCard"] = ConvertIdCardToJsonObject(dependent.IdCard)
             };
         }
@@ -291,6 +291,13 @@ namespace PeopleManagement.Services.Services.RecoverInfoToDocument
             nameof(MaritalStatus.Divorced) => "Divorciado(a)",
             nameof(MaritalStatus.Widowed) => "Viúvo(a)",
             _ => status.Name
+        };
+
+        private static string TranslateDependencyType(DependencyType type) => type.Name switch
+        {
+            nameof(DependencyType.Child) => "Filho(a)",
+            nameof(DependencyType.Spouse) => "Cônjuge",
+            _ => type.Name
         };
 
         private static string TranslateEducationLevel(EducationLevel level) => level.Name switch
