@@ -9,7 +9,7 @@ import '../../../../domain/repositories/company_repository.dart';
 import '../../../../domain/repositories/require_document_repository.dart';
 
 /// Possible statuses for the require document form screen.
-enum RequireDocumentFormStatus { loading, idle, saving, saved, error }
+enum RequireDocumentFormStatus { loading, idle, saving, saved, generating, generated, error }
 
 /// Manages state for creating or editing a require document.
 ///
@@ -74,6 +74,9 @@ class RequireDocumentFormViewModel extends ChangeNotifier {
 
   /// Whether the form is currently submitting data to the API.
   bool get isSaving => _status == RequireDocumentFormStatus.saving;
+
+  /// Whether document generation is currently in progress.
+  bool get isGenerating => _status == RequireDocumentFormStatus.generating;
 
   /// Whether this ViewModel is in create mode (no existing require document).
   bool get isNew => _id.isEmpty;
@@ -425,6 +428,38 @@ class RequireDocumentFormViewModel extends ChangeNotifier {
           _errorMessage = _serverErrors.isNotEmpty
               ? _serverErrors.join('\n')
               : 'Falha ao salvar requerimento. Verifique os dados e tente novamente.';
+        },
+      );
+    } finally {
+      notifyListeners();
+    }
+  }
+
+  /// Triggers generation of document units for all employees matching
+  /// this require document's associations.
+  Future<void> generateDocumentUnits() async {
+    if (_id.isEmpty) return;
+
+    _status = RequireDocumentFormStatus.generating;
+    _errorMessage = null;
+    _serverErrors = const [];
+    notifyListeners();
+
+    try {
+      final companyResult = await _companyRepository.getSelectedCompany();
+      final companyId = companyResult.valueOrNull?.id ?? '';
+
+      final result = await _requireDocumentRepository.generateDocumentUnits(
+          companyId, _id);
+
+      result.fold(
+        onSuccess: (_) => _status = RequireDocumentFormStatus.generated,
+        onError: (error) {
+          _status = RequireDocumentFormStatus.error;
+          _serverErrors = extractServerMessages(error);
+          _errorMessage = _serverErrors.isNotEmpty
+              ? _serverErrors.join('\n')
+              : 'Falha ao gerar documentos. Tente novamente.';
         },
       );
     } finally {

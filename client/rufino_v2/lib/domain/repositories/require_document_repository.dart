@@ -49,6 +49,11 @@ abstract class RequireDocumentRepository {
 
   /// Returns the available document templates (simplified) for the given [companyId].
   Future<Result<List<SelectionOption>>> getDocumentTemplates(String companyId);
+
+  /// Triggers generation of document units for all employees matching
+  /// the require document identified by [requireDocumentId].
+  Future<Result<String>> generateDocumentUnits(
+      String companyId, String requireDocumentId);
 }
 
 /// Payload for a listen event when creating or updating a require document.

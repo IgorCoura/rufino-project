@@ -205,6 +205,20 @@ class RequireDocumentRepositoryImpl implements RequireDocumentRepository {
     }
   }
 
+  @override
+  Future<Result<String>> generateDocumentUnits(
+      String companyId, String requireDocumentId) async {
+    try {
+      final id = await apiService.generateDocumentUnits(
+          companyId, requireDocumentId);
+      return Result.success(id);
+    } on RequireDocumentException catch (e) {
+      return Result.error(e);
+    } catch (e) {
+      return Result.error(RequireDocumentNetworkException(e));
+    }
+  }
+
   /// Translates status names from English API keys to Brazilian Portuguese.
   static String _translateStatusName(String name) {
     const map = {
