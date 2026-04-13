@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mocktail/mocktail.dart';
 import 'package:rufino_v2/domain/entities/address.dart';
 import 'package:rufino_v2/domain/entities/company.dart';
 import 'package:rufino_v2/domain/entities/document_group_with_documents.dart';
@@ -25,6 +26,7 @@ import '../../../../testing/fakes/fake_department_repository.dart';
 import '../../../../testing/fakes/fake_document_group_repository.dart';
 import '../../../../testing/fakes/fake_employee_repository.dart';
 import '../../../../testing/fakes/fake_workplace_repository.dart';
+import '../../../../testing/mocks/mocks.dart';
 
 const _fakeCompany = Company(
   id: 'company-1',
@@ -1184,6 +1186,135 @@ void main() {
         await viewModel.loadDocumentGroups();
 
         expect(viewModel.documentsStatus, SectionLoadStatus.error);
+      });
+    });
+
+    group('upload progress', () {
+      test(
+          'uploadDocumentUnit updates uploadProgress during upload and resets after',
+          () async {
+        await viewModel.load('emp-1');
+
+        final progressValues = <double>[];
+        viewModel.addListener(() {
+          progressValues.add(viewModel.uploadProgress);
+        });
+
+        await viewModel.uploadDocumentUnit(
+          'doc-1',
+          'unit-1',
+          Uint8List.fromList([1, 2, 3]),
+          'test.pdf',
+        );
+
+        expect(progressValues, contains(1.0));
+        expect(viewModel.uploadProgress, 0.0);
+      });
+
+      test(
+          'uploadDocumentUnitToSign updates uploadProgress during upload and resets after',
+          () async {
+        await viewModel.load('emp-1');
+
+        final progressValues = <double>[];
+        viewModel.addListener(() {
+          progressValues.add(viewModel.uploadProgress);
+        });
+
+        await viewModel.uploadDocumentUnitToSign(
+          'doc-1',
+          'unit-1',
+          Uint8List.fromList([1, 2, 3]),
+          'test.pdf',
+          '15/03/2026',
+          0,
+        );
+
+        expect(progressValues, contains(1.0));
+        expect(viewModel.uploadProgress, 0.0);
+      });
+
+      test(
+          'uploadDocumentUnit resets uploadProgress on failure',
+          () async {
+        await viewModel.load('emp-1');
+        employeeRepository.setShouldFail(true);
+
+        await viewModel.uploadDocumentUnit(
+          'doc-1',
+          'unit-1',
+          Uint8List.fromList([1, 2, 3]),
+          'test.pdf',
+        );
+
+        expect(viewModel.uploadProgress, 0.0);
+        expect(viewModel.snackMessage, contains('Erro'));
+      });
+    });
+
+    group('document scanning', () {
+      test('isScanSupported returns false when no scanner is provided', () {
+        expect(viewModel.isScanSupported, isFalse);
+      });
+
+      test('isScanSupported returns true when scanner supports platform', () {
+        final mockScanner = MockDocumentScannerService();
+        when(() => mockScanner.isPlatformSupported).thenReturn(true);
+
+        final vm = EmployeeProfileViewModel(
+          companyRepository: companyRepository,
+          employeeRepository: employeeRepository,
+          departmentRepository: departmentRepository,
+          workplaceRepository: workplaceRepository,
+          documentGroupRepository: documentGroupRepository,
+          scannerService: mockScanner,
+        );
+
+        expect(vm.isScanSupported, isTrue);
+      });
+
+      test('isScanSupported returns false when scanner does not support platform',
+          () {
+        final mockScanner = MockDocumentScannerService();
+        when(() => mockScanner.isPlatformSupported).thenReturn(false);
+
+        final vm = EmployeeProfileViewModel(
+          companyRepository: companyRepository,
+          employeeRepository: employeeRepository,
+          departmentRepository: departmentRepository,
+          workplaceRepository: workplaceRepository,
+          documentGroupRepository: documentGroupRepository,
+          scannerService: mockScanner,
+        );
+
+        expect(vm.isScanSupported, isFalse);
+      });
+
+      test('scanPages delegates to the scanner service', () async {
+        final mockScanner = MockDocumentScannerService();
+        when(() => mockScanner.isPlatformSupported).thenReturn(true);
+        when(() => mockScanner.scanPages())
+            .thenAnswer((_) async => [Uint8List(10)]);
+
+        final vm = EmployeeProfileViewModel(
+          companyRepository: companyRepository,
+          employeeRepository: employeeRepository,
+          departmentRepository: departmentRepository,
+          workplaceRepository: workplaceRepository,
+          documentGroupRepository: documentGroupRepository,
+          scannerService: mockScanner,
+        );
+
+        final result = await vm.scanPages();
+
+        expect(result, isNotNull);
+        expect(result!.length, 1);
+        verify(() => mockScanner.scanPages()).called(1);
+      });
+
+      test('scanPages returns null when no scanner is provided', () async {
+        final result = await viewModel.scanPages();
+        expect(result, isNull);
       });
     });
   });

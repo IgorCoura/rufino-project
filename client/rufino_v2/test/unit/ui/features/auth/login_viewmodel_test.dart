@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
+import 'package:rufino_v2/core/errors/auth_exception.dart';
 import 'package:rufino_v2/core/result.dart';
 import 'package:rufino_v2/ui/features/auth/viewmodel/login_viewmodel.dart';
 
@@ -50,6 +51,23 @@ void main() {
 
       expect(viewModel.status, LoginStatus.failure);
       expect(viewModel.lastError, isNotNull);
+    });
+
+    test('submit exposes InvalidCredentialsException on wrong credentials',
+        () async {
+      when(() => mockRepository.login(
+              username: any(named: 'username'),
+              password: any(named: 'password')))
+          .thenAnswer((_) async =>
+              const Result.error(InvalidCredentialsException()));
+
+      viewModel.usernameController.text = 'user';
+      viewModel.passwordController.text = 'wrong';
+
+      await viewModel.submit();
+
+      expect(viewModel.status, LoginStatus.failure);
+      expect(viewModel.lastError, isA<InvalidCredentialsException>());
     });
 
     test('submit does nothing when credentials are empty', () async {

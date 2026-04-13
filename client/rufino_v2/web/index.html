@@ -32,7 +32,10 @@
   <title>rufino_v2</title>
   <link rel="manifest" href="manifest.json">
 
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.0/pdf.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.11.338/pdf.min.js"></script>
+  <script type="text/javascript">
+    pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.11.338/pdf.worker.min.js";
+  </script>
 </head>
 <body>
   <script src="flutter_bootstrap.js" async></script>

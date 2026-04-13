@@ -26,6 +26,7 @@ import '../models/employee_id_card_api_model.dart';
 import '../models/employee_medical_exam_api_model.dart';
 import '../models/employee_military_document_api_model.dart';
 import '../services/employee_api_service.dart';
+import '../services/multipart_upload_helper.dart';
 
 /// Concrete implementation of [EmployeeRepository] backed by [EmployeeApiService].
 ///
@@ -823,11 +824,19 @@ class EmployeeRepositoryImpl implements EmployeeRepository {
     String documentId,
     String documentUnitId,
     Uint8List fileBytes,
-    String fileName,
-  ) async {
+    String fileName, {
+    UploadProgressCallback? onProgress,
+  }) async {
     try {
       await apiService.uploadDocumentUnit(
-          companyId, employeeId, documentId, documentUnitId, fileBytes, fileName);
+        companyId,
+        employeeId,
+        documentId,
+        documentUnitId,
+        fileBytes,
+        fileName,
+        onProgress: onProgress,
+      );
       return const Result<void>.success(null);
     } on EmployeeException catch (e) {
       return Result.error(e);
@@ -845,8 +854,9 @@ class EmployeeRepositoryImpl implements EmployeeRepository {
     Uint8List fileBytes,
     String fileName,
     String dateLimitToSign,
-    int reminderEveryNDays,
-  ) async {
+    int reminderEveryNDays, {
+    UploadProgressCallback? onProgress,
+  }) async {
     try {
       await apiService.uploadDocumentUnitToSign(
         companyId,
@@ -857,6 +867,7 @@ class EmployeeRepositoryImpl implements EmployeeRepository {
         fileName,
         DocumentUnitApiModel.dateToIsoUtc(dateLimitToSign),
         reminderEveryNDays,
+        onProgress: onProgress,
       );
       return const Result<void>.success(null);
     } on EmployeeException catch (e) {
