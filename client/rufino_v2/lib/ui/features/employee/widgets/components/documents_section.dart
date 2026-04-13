@@ -1,6 +1,7 @@
-import 'dart:typed_data';
+import 'dart:async';
 
 import 'package:file_picker/file_picker.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../../../../../core/utils/file_saver_stub.dart'
@@ -9,11 +10,13 @@ import 'package:mask_text_input_formatter/mask_text_input_formatter.dart';
 import 'package:syncfusion_flutter_pdfviewer/pdfviewer.dart';
 
 import '../../../../../core/theme/app_spacing.dart';
+import '../../../../../core/utils/image_to_pdf_converter.dart';
 import '../../../../../core/utils/pdf_merger.dart';
 import '../../../../../domain/entities/document_group_with_documents.dart';
 import '../../../../../domain/entities/employee_document.dart';
 import '../../../../core/widgets/permission_guard.dart';
 import '../../viewmodel/employee_profile_viewmodel.dart';
+import '../../../batch_document/widgets/document_scan_dialog.dart';
 import 'profile_shared_widgets.dart';
 
 /// Expandable card that displays the employee's required documents grouped
@@ -288,11 +291,14 @@ class _DocumentsSectionState extends State<DocumentsSection> {
     }
   }
 
-  /// Shows a dialog to choose between send file or send file for signature.
+  /// Shows a dialog to choose between send file, scan, or send for signature.
   Future<void> _showSendDialog(
     EmployeeDocument doc,
     DocumentUnit unit,
   ) async {
+    final scanSupported =
+        widget.viewModel.isScanSupported || kIsWeb;
+
     final action = await showDialog<String>(
       context: context,
       builder: (ctx) {
@@ -304,6 +310,16 @@ class _DocumentsSectionState extends State<DocumentsSection> {
               onPressed: () => Navigator.of(ctx).pop(),
               child: const Text('Cancelar'),
             ),
+            if (scanSupported)
+              PermissionGuard(
+                resource: 'document',
+                scope: 'upload',
+                child: OutlinedButton.icon(
+                  onPressed: () => Navigator.of(ctx).pop('scan'),
+                  icon: const Icon(Icons.document_scanner_outlined, size: 18),
+                  label: const Text('Digitalizar'),
+                ),
+              ),
             OutlinedButton(
               onPressed: () => Navigator.of(ctx).pop('send'),
               child: const Text('Enviar arquivo'),
@@ -328,13 +344,16 @@ class _DocumentsSectionState extends State<DocumentsSection> {
       await _pickAndUploadFile(doc, unit, forSign: false);
     } else if (action == 'send_sign') {
       await _pickAndUploadFile(doc, unit, forSign: true);
+    } else if (action == 'scan') {
+      await _scanAndUploadFile(doc, unit);
     }
   }
 
-  /// Picks one or more PDF files and uploads to the document unit.
+  /// Picks one or more files (PDF or images) and uploads to the document unit.
   ///
-  /// When multiple files are selected, shows a confirmation dialog and
-  /// merges them into a single PDF before uploading.
+  /// Image files are automatically converted to PDF. When multiple files are
+  /// selected, shows a confirmation dialog and merges them into a single PDF
+  /// before uploading.
   Future<void> _pickAndUploadFile(
     EmployeeDocument doc,
     DocumentUnit unit, {
@@ -344,7 +363,7 @@ class _DocumentsSectionState extends State<DocumentsSection> {
       withData: true,
       allowMultiple: true,
       type: FileType.custom,
-      allowedExtensions: ['pdf'],
+      allowedExtensions: kAllowedUploadExtensions,
     );
     if (result == null || result.files.isEmpty) return;
 
@@ -355,44 +374,98 @@ class _DocumentsSectionState extends State<DocumentsSection> {
     Uint8List fileBytes;
     String fileName;
 
+    final hasImages = validFiles.any(
+      (f) => isImageExtension(f.extension?.toLowerCase() ?? ''),
+    );
+
     if (validFiles.length == 1) {
-      fileBytes = validFiles.first.bytes!;
-      fileName = validFiles.first.name;
+      final file = validFiles.first;
+      final ext = file.extension?.toLowerCase() ?? '';
+
+      if (isImageExtension(ext)) {
+        await _showProcessingDialog('Convertendo imagem para PDF...');
+        try {
+          fileBytes = await convertImagesToPdf([file.bytes!]);
+        } finally {
+          _dismissProcessingDialog();
+        }
+        if (!mounted) return;
+        final baseName = file.name.replaceAll(
+          RegExp(r'\.[^.]+$'),
+          '',
+        );
+        fileName = '$baseName.pdf';
+      } else {
+        fileBytes = file.bytes!;
+        fileName = file.name;
+      }
     } else {
       final confirmed = await _showMergeConfirmationDialog(validFiles);
       if (!confirmed || !mounted) return;
 
-      final mergeResult = mergePdfFiles(
-        validFiles
-            .map((f) => PdfFileEntry(name: f.name, bytes: f.bytes!))
-            .toList(),
+      await _showProcessingDialog(
+        hasImages
+            ? 'Convertendo e combinando arquivos...'
+            : 'Combinando arquivos...',
       );
 
-      final merged = mergeResult.fold(
-        onSuccess: (bytes) => bytes,
-        onError: (error) {
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(
-                  'Erro ao processar o arquivo "$error". '
-                  'Verifique se é um PDF válido.',
-                ),
-                behavior: SnackBarBehavior.floating,
-              ),
+      try {
+        // Separate images from PDFs and convert images to PDF first.
+        final pdfEntries = <PdfFileEntry>[];
+        final imageBytes = <Uint8List>[];
+
+        for (final file in validFiles) {
+          final ext = file.extension?.toLowerCase() ?? '';
+          if (isImageExtension(ext)) {
+            imageBytes.add(file.bytes!);
+          } else {
+            pdfEntries.add(
+              PdfFileEntry(name: file.name, bytes: file.bytes!),
             );
           }
-          return null;
-        },
-      );
-      if (merged == null) return;
+        }
 
-      fileBytes = merged;
-      final baseName = validFiles.first.name.replaceAll(
-        RegExp(r'\.pdf$', caseSensitive: false),
-        '',
-      );
-      fileName = '${baseName}_combinado.pdf';
+        if (imageBytes.isNotEmpty) {
+          final convertedPdf = await convertImagesToPdf(imageBytes);
+          pdfEntries.add(
+            PdfFileEntry(
+              name: 'imagens_convertidas.pdf',
+              bytes: convertedPdf,
+            ),
+          );
+        }
+
+        final mergeResult = await mergePdfFiles(pdfEntries);
+
+        final merged = mergeResult.fold(
+          onSuccess: (bytes) => bytes,
+          onError: (error) {
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(
+                    'Erro ao processar o arquivo "$error". '
+                    'Verifique se é um arquivo válido (PDF ou imagem).',
+                  ),
+                  behavior: SnackBarBehavior.floating,
+                ),
+              );
+            }
+            return null;
+          },
+        );
+        if (merged == null) return;
+
+        fileBytes = merged;
+        final baseName = validFiles.first.name.replaceAll(
+          RegExp(r'\.[^.]+$'),
+          '',
+        );
+        fileName = '${baseName}_combinado.pdf';
+      } finally {
+        _dismissProcessingDialog();
+      }
+      if (!mounted) return;
     }
 
     if (fileBytes.lengthInBytes > 10 * 1024 * 1024) {
@@ -418,14 +491,77 @@ class _DocumentsSectionState extends State<DocumentsSection> {
         );
       }
     } else {
-      setState(() => _isBusy = true);
+      await _showUploadProgressDialog();
+      try {
+        await widget.viewModel.uploadDocumentUnit(
+          doc.id,
+          unit.id,
+          fileBytes,
+          fileName,
+        );
+      } finally {
+        _dismissProcessingDialog();
+      }
+    }
+  }
+
+  /// Scans document pages with the camera and uploads as a PDF.
+  ///
+  /// On mobile, opens the native document scanner. On web, opens the
+  /// [DocumentScanDialog] with a camera preview. Captured pages are
+  /// converted to a single PDF and uploaded to the given [unit].
+  Future<void> _scanAndUploadFile(
+    EmployeeDocument doc,
+    DocumentUnit unit,
+  ) async {
+    List<Uint8List>? pages;
+
+    if (kIsWeb) {
+      pages = await showDialog<List<Uint8List>>(
+        context: context,
+        barrierDismissible: false,
+        builder: (_) => const DocumentScanDialog(),
+      );
+    } else {
+      pages = await widget.viewModel.scanPages();
+    }
+
+    if (!mounted || pages == null || pages.isEmpty) return;
+
+    await _showProcessingDialog('Convertendo imagem para PDF...');
+    Uint8List fileBytes;
+    try {
+      fileBytes = await convertImagesToPdf(pages);
+    } finally {
+      _dismissProcessingDialog();
+    }
+    if (!mounted) return;
+
+    final fileName =
+        'digitalizado_${DateTime.now().millisecondsSinceEpoch}.pdf';
+
+    if (fileBytes.lengthInBytes > 10 * 1024 * 1024) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('O arquivo não pode ser maior que 10 MB.'),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+      return;
+    }
+
+    await _showUploadProgressDialog();
+    try {
       await widget.viewModel.uploadDocumentUnit(
         doc.id,
         unit.id,
         fileBytes,
         fileName,
       );
-      setState(() => _isBusy = false);
+    } finally {
+      _dismissProcessingDialog();
     }
   }
 
@@ -445,7 +581,7 @@ class _DocumentsSectionState extends State<DocumentsSection> {
             children: [
               Icon(Icons.merge_type, color: colorScheme.primary),
               const SizedBox(width: AppSpacing.sm),
-              const Text('Combinar arquivos PDF'),
+              const Text('Combinar arquivos'),
             ],
           ),
           content: SizedBox(
@@ -468,8 +604,9 @@ class _DocumentsSectionState extends State<DocumentsSection> {
                         const SizedBox(width: AppSpacing.sm),
                         Expanded(
                           child: Text(
-                            'Os arquivos selecionados serão combinados '
-                            'em um único PDF na ordem abaixo.',
+                            'Os arquivos selecionados serão convertidos '
+                            '(se necessário) e combinados em um único '
+                            'PDF na ordem abaixo.',
                             style: textTheme.bodySmall?.copyWith(
                               color: colorScheme.onPrimaryContainer,
                             ),
@@ -545,6 +682,58 @@ class _DocumentsSectionState extends State<DocumentsSection> {
       return '${(bytes / 1024).toStringAsFixed(1)} KB';
     }
     return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
+  }
+
+  /// Shows a non-dismissible dialog with a spinner and [message] while
+  /// a long-running file conversion or merge is in progress.
+  ///
+  /// Waits for the dialog to be fully rendered before returning, so that
+  /// callers can start heavy work immediately after `await` without the
+  /// dialog being invisible.
+  Future<void> _showProcessingDialog(String message) async {
+    // We don't await the dialog's own future (it resolves when the dialog
+    // is popped). Instead we show it and yield a frame so it renders.
+    unawaited(showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => PopScope(
+        canPop: false,
+        child: AlertDialog(
+          content: Row(
+            children: [
+              const CircularProgressIndicator(),
+              const SizedBox(width: AppSpacing.lg),
+              Expanded(child: Text(message)),
+            ],
+          ),
+        ),
+      ),
+    ));
+    // Let the framework pump a frame so the dialog is visible.
+    await Future<void>.delayed(const Duration(milliseconds: 50));
+  }
+
+  /// Dismisses the processing dialog opened by [_showProcessingDialog].
+  void _dismissProcessingDialog() {
+    if (mounted) Navigator.of(context, rootNavigator: true).pop();
+  }
+
+  /// Shows a non-dismissible dialog with a determinate progress indicator
+  /// driven by [EmployeeProfileViewModel.uploadProgress].
+  ///
+  /// The dialog automatically updates as the ViewModel notifies listeners
+  /// during the upload. Callers must pop this dialog manually via
+  /// [_dismissProcessingDialog] when the upload completes.
+  Future<void> _showUploadProgressDialog() async {
+    unawaited(showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => PopScope(
+        canPop: false,
+        child: _UploadProgressDialog(viewModel: widget.viewModel),
+      ),
+    ));
+    await Future<void>.delayed(const Duration(milliseconds: 50));
   }
 
   /// Shows a dialog to configure the sign date limit and reminder interval.
@@ -649,38 +838,52 @@ class _DocumentsSectionState extends State<DocumentsSection> {
     final dateLimitToSign = dateCtrl.text.trim();
     const reminderDays = 0;
 
-    setState(() => _isBusy = true);
-
-    if (isUpload && fileBytes != null && fileName != null) {
-      await widget.viewModel.uploadDocumentUnitToSign(
-        doc.id,
-        unit.id,
-        fileBytes,
-        fileName,
-        dateLimitToSign,
-        reminderDays,
-      );
-    } else {
-      await widget.viewModel.generateAndSendToSign(
-        doc.id,
-        unit.id,
-        dateLimitToSign,
-        reminderDays,
-      );
+    await _showUploadProgressDialog();
+    try {
+      if (isUpload && fileBytes != null && fileName != null) {
+        await widget.viewModel.uploadDocumentUnitToSign(
+          doc.id,
+          unit.id,
+          fileBytes,
+          fileName,
+          dateLimitToSign,
+          reminderDays,
+        );
+      } else {
+        await widget.viewModel.generateAndSendToSign(
+          doc.id,
+          unit.id,
+          dateLimitToSign,
+          reminderDays,
+        );
+      }
+    } finally {
+      _dismissProcessingDialog();
     }
-
-    setState(() => _isBusy = false);
     dateCtrl.dispose();
   }
 
   /// Downloads and displays a document unit in a full-screen PDF viewer dialog.
+  ///
+  /// Shows a loading indicator while the document is being fetched from the
+  /// server, then opens the viewer only after the download completes.
   Future<void> _viewUnit(
     EmployeeDocument doc,
     DocumentUnit unit,
   ) async {
     setState(() => _isBusy = true);
 
+    showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const _PdfLoadingDialog(),
+    );
+
     final bytes = await widget.viewModel.downloadDocumentUnit(doc.id, unit.id);
+
+    if (!mounted) return;
+    Navigator.of(context).pop();
+
     if (bytes != null && mounted) {
       await showDialog<void>(
         context: context,
@@ -1485,6 +1688,85 @@ class _StatusBadge extends StatelessWidget {
               color: color,
               fontWeight: FontWeight.w600,
             ),
+      ),
+    );
+  }
+}
+
+/// Non-dismissible dialog that shows a determinate upload progress bar.
+///
+/// Listens to [EmployeeProfileViewModel.uploadProgress] to update the
+/// [LinearProgressIndicator] and percentage label in real time.
+class _UploadProgressDialog extends StatelessWidget {
+  const _UploadProgressDialog({required this.viewModel});
+
+  /// The view model that exposes the current [uploadProgress].
+  final EmployeeProfileViewModel viewModel;
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
+
+    return ListenableBuilder(
+      listenable: viewModel,
+      builder: (context, _) {
+        final progress = viewModel.uploadProgress;
+        final percent = (progress * 100).toInt();
+
+        return AlertDialog(
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                Icons.cloud_upload_outlined,
+                size: 40,
+                color: colorScheme.primary,
+              ),
+              const SizedBox(height: AppSpacing.md),
+              Text(
+                'Enviando arquivo...',
+                style: textTheme.titleSmall,
+              ),
+              const SizedBox(height: AppSpacing.lg),
+              LinearProgressIndicator(
+                value: progress > 0 ? progress : null,
+                borderRadius: BorderRadius.circular(4),
+              ),
+              const SizedBox(height: AppSpacing.sm),
+              Text(
+                progress > 0 ? '$percent%' : 'Preparando...',
+                style: textTheme.bodySmall?.copyWith(
+                  color: colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
+/// Centered loading indicator shown while a PDF is being downloaded.
+class _PdfLoadingDialog extends StatelessWidget {
+  const _PdfLoadingDialog();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Center(
+      child: Card(
+        child: Padding(
+          padding: EdgeInsets.all(AppSpacing.xl),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              CircularProgressIndicator(),
+              SizedBox(height: AppSpacing.md),
+              Text('Carregando documento...'),
+            ],
+          ),
+        ),
       ),
     );
   }

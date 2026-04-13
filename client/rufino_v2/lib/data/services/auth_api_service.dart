@@ -38,13 +38,18 @@ class AuthApiService {
     required String username,
     required String password,
   }) async {
-    final client = await oauth2.resourceOwnerPasswordGrant(
-      authorizationEndpoint,
-      username,
-      password,
-      identifier: identifier,
-      secret: secret,
-    );
+    final oauth2.Client client;
+    try {
+      client = await oauth2.resourceOwnerPasswordGrant(
+        authorizationEndpoint,
+        username,
+        password,
+        identifier: identifier,
+        secret: secret,
+      );
+    } on oauth2.AuthorizationException {
+      throw const InvalidCredentialsException();
+    }
     _credentials = client.credentials;
 
     await storage.write(
