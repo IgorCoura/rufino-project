@@ -5,7 +5,9 @@ namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
 {
     public sealed class EmploymentContract : ValueObject
     {
-        public int MAX_RANGE_DATE_YEARS = 1;
+        public int MAX_DATE_INIT_YEARS_MIN = 12;
+        public int MAX_DATE_INIT_YEARS_MAX = 1;
+        public int MAX_RANGE_DATE_FINAL_YEARS = 1;
 
         private DateOnly _initDate;
         private DateOnly? _finalDate = null;
@@ -18,8 +20,8 @@ namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
             {
 
                 var dateNow = DateOnly.FromDateTime(DateTime.UtcNow);
-                var dateMax = dateNow.AddYears(MAX_RANGE_DATE_YEARS);
-                var dateMin = dateNow.AddYears(MAX_RANGE_DATE_YEARS * -1);
+                var dateMax = dateNow.AddYears(MAX_DATE_INIT_YEARS_MAX);
+                var dateMin = dateNow.AddYears(MAX_DATE_INIT_YEARS_MIN * -1);
                 if (value < dateMin || value > dateMax)
                     throw new DomainException(this.GetType().Name, DomainErrors.DataHasBeBetween(nameof(InitDate), value, dateMin, dateMax));
                 _initDate = value;
@@ -33,8 +35,8 @@ namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
                 if (value != null)
                 {
                     var dateNow = DateOnly.FromDateTime(DateTime.UtcNow);
-                    var dateMax = dateNow.AddYears(MAX_RANGE_DATE_YEARS);
-                    var dateMin = dateNow.AddYears(MAX_RANGE_DATE_YEARS * -1);
+                    var dateMax = dateNow.AddYears(MAX_RANGE_DATE_FINAL_YEARS);
+                    var dateMin = dateNow.AddYears(MAX_RANGE_DATE_FINAL_YEARS * -1);
                     if (value < dateMin || value > dateMax)
                         throw new DomainException(this.GetType().Name, DomainErrors.DataHasBeBetween(nameof(FinalDate), (DateOnly)value, dateMin, dateMax));
                     _finalDate = value;
