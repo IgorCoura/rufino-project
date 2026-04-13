@@ -11,11 +11,9 @@ import 'dart:typed_data';
 
 import 'package:cunning_document_scanner/cunning_document_scanner.dart';
 import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
-import 'package:image/image.dart' as img;
-import 'package:pdf/pdf.dart';
-import 'package:pdf/widgets.dart' as pw;
 
 import 'document_scanner_service.dart';
+import 'image_to_pdf_converter.dart';
 
 /// iOS/Android implementation using native scanning and ML Kit OCR.
 class DocumentScannerServiceImpl implements DocumentScannerService {
@@ -57,29 +55,6 @@ class DocumentScannerServiceImpl implements DocumentScannerService {
   }
 
   @override
-  Future<Uint8List> imagesToPdf(List<Uint8List> pages) async {
-    final document = pw.Document();
-
-    for (final pageBytes in pages) {
-      final decoded = img.decodeImage(pageBytes);
-      if (decoded == null) continue;
-
-      final pdfImage = pw.MemoryImage(pageBytes);
-
-      document.addPage(
-        pw.Page(
-          pageFormat: PdfPageFormat(
-            decoded.width.toDouble(),
-            decoded.height.toDouble(),
-          ),
-          build: (context) => pw.Center(
-            child: pw.Image(pdfImage),
-          ),
-        ),
-      );
-    }
-
-    final bytes = await document.save();
-    return Uint8List.fromList(bytes);
-  }
+  Future<Uint8List> imagesToPdf(List<Uint8List> pages) =>
+      convertImagesToPdf(pages);
 }

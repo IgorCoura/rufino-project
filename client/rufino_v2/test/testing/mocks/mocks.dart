@@ -1,5 +1,6 @@
 import 'package:mocktail/mocktail.dart';
 import 'package:rufino_v2/core/utils/document_scanner_service.dart';
+import 'package:rufino_v2/data/services/auth_api_service.dart';
 import 'package:rufino_v2/domain/repositories/auth_repository.dart';
 import 'package:rufino_v2/domain/repositories/batch_document_repository.dart';
 import 'package:rufino_v2/domain/repositories/company_repository.dart';
@@ -8,6 +9,7 @@ import 'package:rufino_v2/domain/repositories/document_group_repository.dart';
 import 'package:rufino_v2/domain/repositories/document_template_repository.dart';
 import 'package:rufino_v2/domain/repositories/workplace_repository.dart';
 
+class MockAuthApiService extends Mock implements AuthApiService {}
 class MockAuthRepository extends Mock implements AuthRepository {}
 class MockBatchDocumentRepository extends Mock implements BatchDocumentRepository {}
 class MockCompanyRepository extends Mock implements CompanyRepository {}

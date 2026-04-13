@@ -4,6 +4,7 @@
 
 list(APPEND FLUTTER_PLUGIN_LIST
   flutter_secure_storage_windows
+  pdf_combiner
   permission_handler_windows
   syncfusion_pdfviewer_windows
   url_launcher_windows
