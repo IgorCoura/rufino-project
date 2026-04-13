@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../core/theme/app_spacing.dart';
 import '../../../core/widgets/error_dialog.dart';
+import '../../../core/widgets/permission_guard.dart';
 import '../viewmodel/require_document_form_viewmodel.dart';
 
 /// Form screen for creating or editing a require document.
@@ -73,6 +74,13 @@ class _RequireDocumentFormScreenState extends State<RequireDocumentFormScreen> {
           ),
         );
         context.pop();
+      case RequireDocumentFormStatus.generated:
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Geração de documentos iniciada com sucesso!'),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
       case RequireDocumentFormStatus.error:
         showErrorSnackBar(
           context,
@@ -246,6 +254,15 @@ class _RequireDocumentFormBody extends StatelessWidget {
 
               // ─── Listen Events ───────────────────────────────────────
               _ListenEventsSection(viewModel: viewModel),
+              const SizedBox(height: AppSpacing.lg),
+
+              // ─── Generate Documents ─────────────────────────────────
+              if (!viewModel.isNew)
+                PermissionGuard(
+                  resource: 'require-documents',
+                  scope: 'generate',
+                  child: _GenerateDocumentsSection(viewModel: viewModel),
+                ),
               const SizedBox(height: AppSpacing.xl),
 
               // ─── Actions ─────────────────────────────────────────────
@@ -551,6 +568,87 @@ class _ListenEventCard extends StatelessWidget {
     );
   }
 
+}
+
+/// Section with a button to generate document units for all matching employees.
+class _GenerateDocumentsSection extends StatelessWidget {
+  const _GenerateDocumentsSection({required this.viewModel});
+
+  final RequireDocumentFormViewModel viewModel;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+
+    return InputDecorator(
+      decoration: InputDecoration(
+        labelText: 'Geração de Documentos',
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(4)),
+        contentPadding:
+            const EdgeInsets.fromLTRB(12, AppSpacing.md, 12, AppSpacing.sm),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.only(top: AppSpacing.sm),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              'Gera os documentos para todos os funcionários que '
+              'correspondem às associações deste requerimento.',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: cs.onSurfaceVariant,
+                  ),
+            ),
+            const SizedBox(height: AppSpacing.md),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: viewModel.isGenerating
+                  ? const SizedBox(
+                      width: 24,
+                      height: 24,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : OutlinedButton.icon(
+                      onPressed: () =>
+                          _showGenerateConfirmation(context, viewModel),
+                      icon: const Icon(Icons.play_arrow, size: 18),
+                      label: const Text('Gerar Documentos'),
+                    ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _showGenerateConfirmation(
+      BuildContext context, RequireDocumentFormViewModel viewModel) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Confirmar Geração'),
+        content: const Text(
+          'Esta ação irá gerar documentos para todos os funcionários '
+          'que correspondem às associações deste requerimento. '
+          'Deseja continuar?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('Confirmar'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      viewModel.generateDocumentUnits();
+    }
+  }
 }
 
 /// Save and cancel action buttons for the form.

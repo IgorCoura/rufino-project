@@ -30,6 +30,9 @@ class FakeRequireDocumentRepository implements RequireDocumentRepository {
   /// The last association type id passed to [getAssociations].
   String? lastAssociationTypeId;
 
+  /// The id passed to the last [generateDocumentUnits] call.
+  String? lastGeneratedRequireDocumentId;
+
   @override
   Future<Result<List<RequireDocument>>> getRequireDocuments(
       String companyId) async {
@@ -144,5 +147,15 @@ class FakeRequireDocumentRepository implements RequireDocumentRepository {
       SelectionOption(id: 'tpl-1', name: 'Contrato CLT'),
       SelectionOption(id: 'tpl-2', name: 'Termo de Confidencialidade'),
     ]);
+  }
+
+  @override
+  Future<Result<String>> generateDocumentUnits(
+      String companyId, String requireDocumentId) async {
+    if (_shouldFail) {
+      return Result.error(Exception('generateDocumentUnits failed'));
+    }
+    lastGeneratedRequireDocumentId = requireDocumentId;
+    return Result.success(requireDocumentId);
   }
 }
