@@ -1077,21 +1077,38 @@ void main() {
         expect(viewModel.contractsStatus, SectionLoadStatus.error);
       });
 
-      test('validateContractDate returns null for a valid recent date', () {
-        // Today's date should be valid (within ±365 days).
+      test('validateContractInitDate returns null for a valid recent date', () {
         final now = DateTime.now();
         final formatted =
             '${now.day.toString().padLeft(2, '0')}/${now.month.toString().padLeft(2, '0')}/${now.year}';
-        expect(viewModel.validateContractDate(formatted), isNull);
+        expect(viewModel.validateContractInitDate(formatted), isNull);
       });
 
-      test('validateContractDate returns error for empty input', () {
-        expect(viewModel.validateContractDate(''), isNotNull);
+      test('validateContractInitDate returns error for empty input', () {
+        expect(viewModel.validateContractInitDate(''), isNotNull);
       });
 
-      test('validateContractDate returns error for a date beyond ±365 days',
+      test('validateContractInitDate returns error for a date beyond range',
           () {
-        expect(viewModel.validateContractDate('01/01/2020'), isNotNull);
+        // A date more than 12 years ago should fail.
+        expect(viewModel.validateContractInitDate('01/01/2010'), isNotNull);
+      });
+
+      test('validateContractFinalDate returns null for a valid recent date',
+          () {
+        final now = DateTime.now();
+        final formatted =
+            '${now.day.toString().padLeft(2, '0')}/${now.month.toString().padLeft(2, '0')}/${now.year}';
+        expect(viewModel.validateContractFinalDate(formatted), isNull);
+      });
+
+      test('validateContractFinalDate returns error for empty input', () {
+        expect(viewModel.validateContractFinalDate(''), isNotNull);
+      });
+
+      test('validateContractFinalDate returns error for a date beyond ±1 year',
+          () {
+        expect(viewModel.validateContractFinalDate('01/01/2020'), isNotNull);
       });
     });
 
