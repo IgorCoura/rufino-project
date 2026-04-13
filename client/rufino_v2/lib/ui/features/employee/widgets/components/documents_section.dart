@@ -1,7 +1,7 @@
 import 'dart:async';
-import 'dart:typed_data';
 
 import 'package:file_picker/file_picker.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../../../../../core/utils/file_saver_stub.dart'
@@ -16,6 +16,7 @@ import '../../../../../domain/entities/document_group_with_documents.dart';
 import '../../../../../domain/entities/employee_document.dart';
 import '../../../../core/widgets/permission_guard.dart';
 import '../../viewmodel/employee_profile_viewmodel.dart';
+import '../../../batch_document/widgets/document_scan_dialog.dart';
 import 'profile_shared_widgets.dart';
 
 /// Expandable card that displays the employee's required documents grouped
@@ -290,11 +291,14 @@ class _DocumentsSectionState extends State<DocumentsSection> {
     }
   }
 
-  /// Shows a dialog to choose between send file or send file for signature.
+  /// Shows a dialog to choose between send file, scan, or send for signature.
   Future<void> _showSendDialog(
     EmployeeDocument doc,
     DocumentUnit unit,
   ) async {
+    final scanSupported =
+        widget.viewModel.isScanSupported || kIsWeb;
+
     final action = await showDialog<String>(
       context: context,
       builder: (ctx) {
@@ -306,6 +310,16 @@ class _DocumentsSectionState extends State<DocumentsSection> {
               onPressed: () => Navigator.of(ctx).pop(),
               child: const Text('Cancelar'),
             ),
+            if (scanSupported)
+              PermissionGuard(
+                resource: 'document',
+                scope: 'upload',
+                child: OutlinedButton.icon(
+                  onPressed: () => Navigator.of(ctx).pop('scan'),
+                  icon: const Icon(Icons.document_scanner_outlined, size: 18),
+                  label: const Text('Digitalizar'),
+                ),
+              ),
             OutlinedButton(
               onPressed: () => Navigator.of(ctx).pop('send'),
               child: const Text('Enviar arquivo'),
@@ -330,6 +344,8 @@ class _DocumentsSectionState extends State<DocumentsSection> {
       await _pickAndUploadFile(doc, unit, forSign: false);
     } else if (action == 'send_sign') {
       await _pickAndUploadFile(doc, unit, forSign: true);
+    } else if (action == 'scan') {
+      await _scanAndUploadFile(doc, unit);
     }
   }
 
@@ -486,6 +502,66 @@ class _DocumentsSectionState extends State<DocumentsSection> {
       } finally {
         _dismissProcessingDialog();
       }
+    }
+  }
+
+  /// Scans document pages with the camera and uploads as a PDF.
+  ///
+  /// On mobile, opens the native document scanner. On web, opens the
+  /// [DocumentScanDialog] with a camera preview. Captured pages are
+  /// converted to a single PDF and uploaded to the given [unit].
+  Future<void> _scanAndUploadFile(
+    EmployeeDocument doc,
+    DocumentUnit unit,
+  ) async {
+    List<Uint8List>? pages;
+
+    if (kIsWeb) {
+      pages = await showDialog<List<Uint8List>>(
+        context: context,
+        barrierDismissible: false,
+        builder: (_) => const DocumentScanDialog(),
+      );
+    } else {
+      pages = await widget.viewModel.scanPages();
+    }
+
+    if (!mounted || pages == null || pages.isEmpty) return;
+
+    await _showProcessingDialog('Convertendo imagem para PDF...');
+    Uint8List fileBytes;
+    try {
+      fileBytes = await convertImagesToPdf(pages);
+    } finally {
+      _dismissProcessingDialog();
+    }
+    if (!mounted) return;
+
+    final fileName =
+        'digitalizado_${DateTime.now().millisecondsSinceEpoch}.pdf';
+
+    if (fileBytes.lengthInBytes > 10 * 1024 * 1024) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('O arquivo não pode ser maior que 10 MB.'),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+      return;
+    }
+
+    await _showUploadProgressDialog();
+    try {
+      await widget.viewModel.uploadDocumentUnit(
+        doc.id,
+        unit.id,
+        fileBytes,
+        fileName,
+      );
+    } finally {
+      _dismissProcessingDialog();
     }
   }
 

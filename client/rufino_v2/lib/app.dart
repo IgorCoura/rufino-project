@@ -512,6 +512,7 @@ class _AppRouterState extends State<_AppRouter> {
               workplaceRepository: context.read<WorkplaceRepository>(),
               documentGroupRepository:
                   context.read<DocumentGroupRepository>(),
+              scannerService: DocumentScannerService(),
             ),
           ),
         ),

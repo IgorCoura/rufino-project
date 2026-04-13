@@ -2,6 +2,7 @@ import 'dart:collection';
 
 import 'package:flutter/foundation.dart';
 
+import '../../../../core/utils/document_scanner_service.dart';
 import '../../../../data/models/document_range_item.dart';
 import '../../../../domain/entities/address.dart';
 import '../../../../domain/entities/employee.dart';
@@ -82,17 +83,20 @@ class EmployeeProfileViewModel extends ChangeNotifier {
     required DepartmentRepository departmentRepository,
     required WorkplaceRepository workplaceRepository,
     required DocumentGroupRepository documentGroupRepository,
+    DocumentScannerService? scannerService,
   })  : _companyRepository = companyRepository,
         _employeeRepository = employeeRepository,
         _departmentRepository = departmentRepository,
         _workplaceRepository = workplaceRepository,
-        _documentGroupRepository = documentGroupRepository;
+        _documentGroupRepository = documentGroupRepository,
+        _scannerService = scannerService;
 
   final CompanyRepository _companyRepository;
   final EmployeeRepository _employeeRepository;
   final DepartmentRepository _departmentRepository;
   final WorkplaceRepository _workplaceRepository;
   final DocumentGroupRepository _documentGroupRepository;
+  final DocumentScannerService? _scannerService;
 
   EmployeeProfileStatus _status = EmployeeProfileStatus.idle;
   String? _companyId;
@@ -414,6 +418,18 @@ class EmployeeProfileViewModel extends ChangeNotifier {
 
   /// The current upload progress as a value from 0.0 to 1.0.
   double get uploadProgress => _uploadProgress;
+
+  /// Whether document scanning is available on the current platform.
+  bool get isScanSupported =>
+      _scannerService != null && _scannerService.isPlatformSupported;
+
+  /// Launches the native document scanner and returns captured page images.
+  ///
+  /// Returns `null` if the user cancels or scanning is not supported.
+  Future<List<Uint8List>?> scanPages() async {
+    if (_scannerService == null) return null;
+    return _scannerService.scanPages();
+  }
 
   // ─── Core profile methods ──────────────────────────────────────────────────
 
