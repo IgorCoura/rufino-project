@@ -9,11 +9,21 @@ namespace PeopleManagement.Infra.Repository
     {
         public async Task<List<DocumentStatus>> GetAllStatusByEmployeeAsync(Guid employeeId, Guid companyId, CancellationToken cancellationToken = default)
         {
-            return await context.Documents
+            var dbStatuses = await context.Documents
                 .Where(x => x.EmployeeId == employeeId && x.CompanyId == companyId)
                 .OrderByDescending(x => x.CreatedAt)
                 .Select(x => x.Status)
                 .ToListAsync(cancellationToken);
+
+            var addedStatuses = context.ChangeTracker.Entries<Document>()
+                .Where(e => e.State == EntityState.Added
+                    && e.Entity.EmployeeId == employeeId
+                    && e.Entity.CompanyId == companyId)
+                .Select(e => e.Entity.Status)
+                .ToList();
+
+            dbStatuses.AddRange(addedStatuses);
+            return dbStatuses;
         }
     }
 }
