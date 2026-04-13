@@ -2,6 +2,7 @@
 using PeopleManagement.Application.Commands.Identified;
 using PeopleManagement.Application.Commands.RequireDocumentsCommands.CreateRequireSecurityDocuments;
 using PeopleManagement.Application.Commands.RequireDocumentsCommands.EditRequireSecurityDocuments;
+using PeopleManagement.Application.Commands.RequireDocumentsCommands.GenerateDocumentUnits;
 using PeopleManagement.Application.Queries.RequireDocuments;
 using PeopleManagement.Domain.AggregatesModel.EmployeeAggregate.Events;
 using PeopleManagement.Domain.AggregatesModel.RequireDocumentsAggregate;
@@ -93,6 +94,22 @@ namespace PeopleManagement.API.Controllers
         public ActionResult<RecurringEvents[]> GetEvents([FromRoute] Guid company)
         {
             var result = RecurringEvents.GetAll().ToArray();
+            return OkResponse(result);
+        }
+
+        [HttpPost("{id}/generate")]
+        [ProtectedResource("require-documents", "generate")]
+        public async Task<ActionResult<GenerateDocumentUnitsResponse>> Generate([FromRoute] Guid company, [FromRoute] Guid id, [FromHeader(Name = "x-requestid")] Guid requestId)
+        {
+            var model = new GenerateDocumentUnitsModel(id);
+            var command = new IdentifiedCommand<GenerateDocumentUnitsCommand, GenerateDocumentUnitsResponse>(model.ToCommand(company), requestId);
+
+            SendingCommandLog(id, model, requestId);
+
+            var result = await _mediator.Send(command);
+
+            CommandResultLog(result, id, model, requestId);
+
             return OkResponse(result);
         }
 

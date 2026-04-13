@@ -162,4 +162,15 @@ class RequireDocumentApiService {
     return list.cast<Map<String, dynamic>>();
   }
 
+  /// Triggers generation of document units for all employees matching
+  /// the require document identified by [requireDocumentId].
+  Future<String> generateDocumentUnits(
+      String companyId, String requireDocumentId) async {
+    final uri = Uri.https(
+        baseUrl, '/api/v1/$companyId/requiredocuments/$requireDocumentId/generate');
+    final response = await client.post(uri, headers: await _headers());
+    checkHttpStatus(response);
+    final json = jsonDecode(response.body) as Map<String, dynamic>;
+    return json['id'] as String;
+  }
 }
