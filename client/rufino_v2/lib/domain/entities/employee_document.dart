@@ -142,6 +142,31 @@ class DocumentUnit {
         '${date.substring(0, 2)}';
   }
 
+  // ─── Validators ──────────────────────────────────────────────────────────
+
+  /// Validates a document unit date in `dd/MM/yyyy` format.
+  ///
+  /// Only checks format — no range restriction. The backend validates
+  /// `Date != MinValue && Date != MaxValue` at domain level.
+  static String? validateDate(String? value) {
+    final stripped = (value ?? '').replaceAll(RegExp(r'[^\d]'), '');
+    if (stripped.isEmpty) {
+      return 'A data não pode ser vazia.';
+    }
+    if (stripped.length != 8) {
+      return 'Data inválida (ex: 15/03/2026).';
+    }
+    try {
+      final parts = value!.split('/');
+      final date =
+          DateTime.tryParse('${parts[2]}-${parts[1]}-${parts[0]}');
+      if (date == null) return 'Data inválida.';
+    } catch (_) {
+      return 'Data inválida.';
+    }
+    return null;
+  }
+
   /// Builds a download file name from this unit's date and the parent
   /// [docName], e.g. `"2026-03-01-contrato-de-trabalho.pdf"`.
   String downloadFileName(String docName, {String extension = 'pdf'}) {

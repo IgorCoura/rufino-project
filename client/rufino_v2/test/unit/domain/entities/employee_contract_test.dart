@@ -26,22 +26,22 @@ void main() {
     });
   });
 
-  group('EmployeeContractInfo.validateDate', () {
+  group('EmployeeContractInfo.validateInitDate', () {
     test('returns error when empty', () {
-      expect(EmployeeContractInfo.validateDate(null), isNotNull);
-      expect(EmployeeContractInfo.validateDate(''), isNotNull);
+      expect(EmployeeContractInfo.validateInitDate(null), isNotNull);
+      expect(EmployeeContractInfo.validateInitDate(''), isNotNull);
     });
 
     test('returns error for wrong digit count', () {
-      expect(EmployeeContractInfo.validateDate('01/01'), isNotNull);
+      expect(EmployeeContractInfo.validateInitDate('01/01'), isNotNull);
     });
 
-    test('returns error for date more than 365 days in the past', () {
-      expect(EmployeeContractInfo.validateDate('01/01/2020'), isNotNull);
+    test('returns error for date more than 12 years in the past', () {
+      expect(EmployeeContractInfo.validateInitDate('01/01/2010'), isNotNull);
     });
 
-    test('returns error for date more than 365 days in the future', () {
-      expect(EmployeeContractInfo.validateDate('01/01/2099'), isNotNull);
+    test('returns error for date more than 1 year in the future', () {
+      expect(EmployeeContractInfo.validateInitDate('01/01/2099'), isNotNull);
     });
 
     test('returns null for today', () {
@@ -49,7 +49,36 @@ void main() {
       final day = now.day.toString().padLeft(2, '0');
       final month = now.month.toString().padLeft(2, '0');
       final year = now.year.toString();
-      expect(EmployeeContractInfo.validateDate('$day/$month/$year'), isNull);
+      expect(
+          EmployeeContractInfo.validateInitDate('$day/$month/$year'), isNull);
+    });
+  });
+
+  group('EmployeeContractInfo.validateFinalDate', () {
+    test('returns error when empty', () {
+      expect(EmployeeContractInfo.validateFinalDate(null), isNotNull);
+      expect(EmployeeContractInfo.validateFinalDate(''), isNotNull);
+    });
+
+    test('returns error for wrong digit count', () {
+      expect(EmployeeContractInfo.validateFinalDate('01/01'), isNotNull);
+    });
+
+    test('returns error for date more than 1 year in the past', () {
+      expect(EmployeeContractInfo.validateFinalDate('01/01/2020'), isNotNull);
+    });
+
+    test('returns error for date more than 1 year in the future', () {
+      expect(EmployeeContractInfo.validateFinalDate('01/01/2099'), isNotNull);
+    });
+
+    test('returns null for today', () {
+      final now = DateTime.now();
+      final day = now.day.toString().padLeft(2, '0');
+      final month = now.month.toString().padLeft(2, '0');
+      final year = now.year.toString();
+      expect(
+          EmployeeContractInfo.validateFinalDate('$day/$month/$year'), isNull);
     });
   });
 }
