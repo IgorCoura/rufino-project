@@ -2140,9 +2140,19 @@ class EmployeeProfileViewModel extends ChangeNotifier {
 
   // ── Contract validators ──────────────────────────────────────────────────
 
-  /// Delegates to [EmployeeContractInfo.validateDate].
-  String? validateContractDate(String? value) =>
-      EmployeeContractInfo.validateDate(value);
+  /// Delegates to [EmployeeContractInfo.validateInitDate].
+  String? validateContractInitDate(String? value) =>
+      EmployeeContractInfo.validateInitDate(value);
+
+  /// Delegates to [EmployeeContractInfo.validateFinalDate].
+  String? validateContractFinalDate(String? value) =>
+      EmployeeContractInfo.validateFinalDate(value);
+
+  // ── Document unit validators ────────────────────────────────────────────
+
+  /// Delegates to [DocumentUnit.validateDate].
+  String? validateDocumentUnitDate(String? value) =>
+      DocumentUnit.validateDate(value);
 
   // ── Dependent validators ─────────────────────────────────────────────────
 

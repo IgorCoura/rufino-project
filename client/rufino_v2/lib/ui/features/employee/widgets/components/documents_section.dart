@@ -166,7 +166,7 @@ class _DocumentsSectionState extends State<DocumentsSection> {
               ),
               keyboardType: TextInputType.number,
               inputFormatters: [dateMask],
-              validator: widget.viewModel.validateContractDate,
+              validator: widget.viewModel.validateDocumentUnitDate,
             ),
           ),
           actions: [
@@ -791,7 +791,7 @@ class _DocumentsSectionState extends State<DocumentsSection> {
                   ),
                   keyboardType: TextInputType.number,
                   inputFormatters: [dateMask],
-                  validator: widget.viewModel.validateContractDate,
+                  validator: widget.viewModel.validateDocumentUnitDate,
                 ),
                 const SizedBox(height: AppSpacing.sm),
                 Row(

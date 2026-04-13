@@ -236,7 +236,7 @@ class _ContractSectionState extends State<ContractSection> {
             ),
             keyboardType: TextInputType.number,
             inputFormatters: [dateMask],
-            validator: widget.viewModel.validateContractDate,
+            validator: widget.viewModel.validateContractFinalDate,
           ),
         ),
         actions: [
@@ -305,7 +305,7 @@ class _ContractSectionState extends State<ContractSection> {
                     ),
                     keyboardType: TextInputType.number,
                     inputFormatters: [dateMask],
-                    validator: widget.viewModel.validateContractDate,
+                    validator: widget.viewModel.validateContractInitDate,
                   ),
                   const SizedBox(height: AppSpacing.md),
                   DropdownButtonFormField<String>(
