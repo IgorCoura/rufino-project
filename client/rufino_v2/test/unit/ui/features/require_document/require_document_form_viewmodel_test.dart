@@ -229,5 +229,33 @@ void main() {
 
       expect(viewModel.listenEvents.first.statuses, isEmpty);
     });
+
+    test('generateDocumentUnits transitions to generated on success',
+        () async {
+      await viewModel.loadRequireDocument('req-1');
+
+      await viewModel.generateDocumentUnits();
+
+      expect(viewModel.status, RequireDocumentFormStatus.generated);
+      expect(requireDocumentRepository.lastGeneratedRequireDocumentId,
+          'req-1');
+    });
+
+    test('generateDocumentUnits transitions to error when repository fails',
+        () async {
+      await viewModel.loadRequireDocument('req-1');
+      requireDocumentRepository.setShouldFail(true);
+
+      await viewModel.generateDocumentUnits();
+
+      expect(viewModel.status, RequireDocumentFormStatus.error);
+    });
+
+    test('generateDocumentUnits does nothing when id is empty', () async {
+      await viewModel.generateDocumentUnits();
+
+      expect(viewModel.status, RequireDocumentFormStatus.idle);
+      expect(requireDocumentRepository.lastGeneratedRequireDocumentId, isNull);
+    });
   });
 }

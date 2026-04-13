@@ -10,5 +10,6 @@
             IEnumerable<(Guid DocumentId, IEnumerable<Guid> DocumentUnitIds)> items,
             Guid employeeId, Guid companyId, CancellationToken cancellationToken = default);
         Task InsertFileWithoutRequireValidation(Guid documentUnitId, Guid documentId, Guid employeeId, Guid companyId, Extension extension, Stream stream, CancellationToken cancellationToken = default);
+        Task GenerateDocumentUnitsForRequireDocument(Guid requireDocumentId, Guid companyId, CancellationToken cancellationToken = default);
     }
 }

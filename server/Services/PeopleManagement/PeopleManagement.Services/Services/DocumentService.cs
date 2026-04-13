@@ -19,6 +19,7 @@ using PeopleManagement.Domain.ErrorTools.ErrorsMessages;
 using PeopleManagement.Domain.Options;
 using PeopleManagement.Domain.Utils;
 using System.Collections.Generic;
+using System.Linq.Expressions;
 using System.Text.Json.Nodes;
 using System.Threading;
 using Document = PeopleManagement.Domain.AggregatesModel.DocumentAggregate.Document;
@@ -154,6 +155,99 @@ namespace PeopleManagement.Services.Services
                     documentsToInsert.Count, employeeId, eventId);
             }
 
+        }
+
+        public async Task GenerateDocumentUnitsForRequireDocument(Guid requireDocumentId, Guid companyId, CancellationToken cancellationToken = default)
+        {
+            var requireDocument = await _requireDocumentsRepository.FirstOrDefaultAsync(
+                x => x.Id == requireDocumentId && x.CompanyId == companyId, cancellation: cancellationToken)
+                ?? throw new DomainException(this, DomainErrors.ObjectNotFound(nameof(RequireDocuments), requireDocumentId.ToString()));
+
+            if (!requireDocument.DocumentsTemplatesIds.Any())
+            {
+                _logger.LogInformation("RequireDocument {RequireDocumentId} has no document templates. Skipping.", requireDocumentId);
+                return;
+            }
+
+            Expression<Func<Employee, bool>> employeeFilter = requireDocument.AssociationType.Id == AssociationType.Role.Id
+                ? e => e.CompanyId == companyId && requireDocument.AssociationIds.Contains(e.RoleId)
+                : e => e.CompanyId == companyId && requireDocument.AssociationIds.Contains(e.WorkPlaceId);
+
+            var employees = await _employeeRepository.GetDataAsync(employeeFilter, cancellation: cancellationToken);
+
+            if (!employees.Any())
+            {
+                _logger.LogInformation("No employees found matching associations for RequireDocument {RequireDocumentId}.", requireDocumentId);
+                return;
+            }
+
+            _logger.LogInformation("Generating document units for RequireDocument {RequireDocumentId} across {EmployeeCount} employees.",
+                requireDocumentId, employees.Count());
+
+            await Parallel.ForEachAsync(employees, cancellationToken, async (employee, ct) =>
+            {
+                using var scope = _serviceProvider.CreateScope();
+                var scopedDocumentRepository = scope.ServiceProvider.GetRequiredService<IDocumentRepository>();
+                var scopedDocumentTemplateRepository = scope.ServiceProvider.GetRequiredService<IDocumentTemplateRepository>();
+
+                var existingDocuments = await scopedDocumentRepository.GetDataAsync(
+                    x => requireDocument.DocumentsTemplatesIds.Contains(x.DocumentTemplateId) && x.EmployeeId == employee.Id,
+                    cancellation: ct);
+
+                var existingDocumentsByTemplateId = existingDocuments.ToDictionary(d => d.DocumentTemplateId);
+
+                var templateIdsWithoutDocuments = requireDocument.DocumentsTemplatesIds
+                    .Except(existingDocumentsByTemplateId.Keys)
+                    .ToList();
+
+                var documentTemplates = templateIdsWithoutDocuments.Any()
+                    ? await scopedDocumentTemplateRepository.GetDataAsync(
+                        x => templateIdsWithoutDocuments.Contains(x.Id) && x.CompanyId == companyId,
+                        cancellation: ct)
+                    : [];
+
+                var documentTemplatesByTemplateId = documentTemplates.ToDictionary(dt => dt.Id);
+
+                var documentsToInsert = new List<Document>();
+
+                foreach (var templateId in requireDocument.DocumentsTemplatesIds)
+                {
+                    if (!existingDocumentsByTemplateId.TryGetValue(templateId, out var document))
+                    {
+                        if (!documentTemplatesByTemplateId.TryGetValue(templateId, out var documentTemplate))
+                        {
+                            _logger.LogWarning("Document template {TemplateId} not found for company {CompanyId}. Skipping.", templateId, companyId);
+                            continue;
+                        }
+
+                        var documentId = Guid.NewGuid();
+                        document = Document.Create(
+                            documentId,
+                            employee.Id,
+                            companyId,
+                            requireDocument.Id,
+                            templateId,
+                            documentTemplate.Name.Value,
+                            documentTemplate.Description.Value,
+                            documentTemplate.UsePreviousPeriod);
+
+                        documentsToInsert.Add(document);
+                        existingDocumentsByTemplateId[templateId] = document;
+                    }
+
+                    var documentUnitId = Guid.NewGuid();
+                    document.NewDocumentUnit(documentUnitId);
+                }
+
+                if (documentsToInsert.Any())
+                {
+                    await scopedDocumentRepository.InsertRangeAsync(documentsToInsert, ct);
+                }
+
+                await scopedDocumentRepository.UnitOfWork.SaveChangesAsync(ct);
+            });
+
+            _logger.LogInformation("Completed generating document units for RequireDocument {RequireDocumentId}.", requireDocumentId);
         }
 
         private (PeriodType? periodType, DateTime? referenceDate) GetPeriodInfoFromEvent(int eventId)
