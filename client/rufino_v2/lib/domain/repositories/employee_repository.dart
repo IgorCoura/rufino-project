@@ -2,6 +2,7 @@ import 'dart:typed_data';
 
 import '../../core/result.dart';
 import '../../data/models/document_range_item.dart';
+import '../../data/services/multipart_upload_helper.dart';
 import '../entities/address.dart';
 import '../entities/employee.dart';
 import '../entities/employee_contact.dart';
@@ -346,16 +347,21 @@ abstract class EmployeeRepository {
   );
 
   /// Uploads a file to a document unit.
+  ///
+  /// Reports upload progress through [onProgress] with values from 0.0 to 1.0.
   Future<Result<void>> uploadDocumentUnit(
     String companyId,
     String employeeId,
     String documentId,
     String documentUnitId,
     Uint8List fileBytes,
-    String fileName,
-  );
+    String fileName, {
+    UploadProgressCallback? onProgress,
+  });
 
   /// Uploads a file to a document unit and sends it for digital signature.
+  ///
+  /// Reports upload progress through [onProgress] with values from 0.0 to 1.0.
   Future<Result<void>> uploadDocumentUnitToSign(
     String companyId,
     String employeeId,
@@ -364,8 +370,9 @@ abstract class EmployeeRepository {
     Uint8List fileBytes,
     String fileName,
     String dateLimitToSign,
-    int reminderEveryNDays,
-  );
+    int reminderEveryNDays, {
+    UploadProgressCallback? onProgress,
+  });
 
   /// Generates PDFs for multiple document units and returns the ZIP bytes.
   Future<Result<Uint8List>> generateDocumentRange(

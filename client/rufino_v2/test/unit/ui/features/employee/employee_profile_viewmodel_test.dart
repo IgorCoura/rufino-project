@@ -1186,5 +1186,68 @@ void main() {
         expect(viewModel.documentsStatus, SectionLoadStatus.error);
       });
     });
+
+    group('upload progress', () {
+      test(
+          'uploadDocumentUnit updates uploadProgress during upload and resets after',
+          () async {
+        await viewModel.load('emp-1');
+
+        final progressValues = <double>[];
+        viewModel.addListener(() {
+          progressValues.add(viewModel.uploadProgress);
+        });
+
+        await viewModel.uploadDocumentUnit(
+          'doc-1',
+          'unit-1',
+          Uint8List.fromList([1, 2, 3]),
+          'test.pdf',
+        );
+
+        expect(progressValues, contains(1.0));
+        expect(viewModel.uploadProgress, 0.0);
+      });
+
+      test(
+          'uploadDocumentUnitToSign updates uploadProgress during upload and resets after',
+          () async {
+        await viewModel.load('emp-1');
+
+        final progressValues = <double>[];
+        viewModel.addListener(() {
+          progressValues.add(viewModel.uploadProgress);
+        });
+
+        await viewModel.uploadDocumentUnitToSign(
+          'doc-1',
+          'unit-1',
+          Uint8List.fromList([1, 2, 3]),
+          'test.pdf',
+          '15/03/2026',
+          0,
+        );
+
+        expect(progressValues, contains(1.0));
+        expect(viewModel.uploadProgress, 0.0);
+      });
+
+      test(
+          'uploadDocumentUnit resets uploadProgress on failure',
+          () async {
+        await viewModel.load('emp-1');
+        employeeRepository.setShouldFail(true);
+
+        await viewModel.uploadDocumentUnit(
+          'doc-1',
+          'unit-1',
+          Uint8List.fromList([1, 2, 3]),
+          'test.pdf',
+        );
+
+        expect(viewModel.uploadProgress, 0.0);
+        expect(viewModel.snackMessage, contains('Erro'));
+      });
+    });
   });
 }

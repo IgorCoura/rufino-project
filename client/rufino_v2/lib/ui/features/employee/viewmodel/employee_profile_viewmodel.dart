@@ -178,6 +178,7 @@ class EmployeeProfileViewModel extends ChangeNotifier {
   bool _isSelectingRange = false;
   List<SelectedDocumentUnit> _selectedDocumentUnits = [];
   final Map<String, int> _pageSizeMap = {};
+  double _uploadProgress = 0.0;
 
   // ─── Document signing options section ─────────────────────────────────────
 
@@ -410,6 +411,9 @@ class EmployeeProfileViewModel extends ChangeNotifier {
 
   /// Returns the configured page size for [documentId], defaulting to 10.
   int getPageSize(String documentId) => _pageSizeMap[documentId] ?? 10;
+
+  /// The current upload progress as a value from 0.0 to 1.0.
+  double get uploadProgress => _uploadProgress;
 
   // ─── Core profile methods ──────────────────────────────────────────────────
 
@@ -1635,6 +1639,9 @@ class EmployeeProfileViewModel extends ChangeNotifier {
   }
 
   /// Uploads a file to a document unit and refreshes the document.
+  ///
+  /// Updates [uploadProgress] during the upload so the UI can show a
+  /// determinate progress indicator.
   Future<void> uploadDocumentUnit(
     String documentId,
     String documentUnitId,
@@ -1645,6 +1652,8 @@ class EmployeeProfileViewModel extends ChangeNotifier {
     final currentProfile = _profile;
     if (companyId == null || currentProfile == null) return;
 
+    _uploadProgress = 0.0;
+
     final result = await _employeeRepository.uploadDocumentUnit(
       companyId,
       currentProfile.id,
@@ -1652,7 +1661,13 @@ class EmployeeProfileViewModel extends ChangeNotifier {
       documentUnitId,
       fileBytes,
       fileName,
+      onProgress: (progress) {
+        _uploadProgress = progress;
+        notifyListeners();
+      },
     );
+
+    _uploadProgress = 0.0;
 
     result.fold(
       onSuccess: (_) => _snackMessage = 'Arquivo enviado com sucesso.',
@@ -1664,6 +1679,9 @@ class EmployeeProfileViewModel extends ChangeNotifier {
   }
 
   /// Uploads a file and sends it for digital signature.
+  ///
+  /// Updates [uploadProgress] during the upload so the UI can show a
+  /// determinate progress indicator.
   Future<void> uploadDocumentUnitToSign(
     String documentId,
     String documentUnitId,
@@ -1676,6 +1694,8 @@ class EmployeeProfileViewModel extends ChangeNotifier {
     final currentProfile = _profile;
     if (companyId == null || currentProfile == null) return;
 
+    _uploadProgress = 0.0;
+
     final result = await _employeeRepository.uploadDocumentUnitToSign(
       companyId,
       currentProfile.id,
@@ -1685,7 +1705,13 @@ class EmployeeProfileViewModel extends ChangeNotifier {
       fileName,
       dateLimitToSign,
       reminderEveryNDays,
+      onProgress: (progress) {
+        _uploadProgress = progress;
+        notifyListeners();
+      },
     );
+
+    _uploadProgress = 0.0;
 
     result.fold(
       onSuccess: (_) =>

@@ -16,6 +16,7 @@ import 'package:rufino_v2/domain/entities/employee_military_document.dart';
 import 'package:rufino_v2/domain/entities/employee_vote_id.dart';
 import 'package:rufino_v2/domain/entities/personal_info_options.dart';
 import 'package:rufino_v2/domain/entities/selection_option.dart';
+import 'package:rufino_v2/data/services/multipart_upload_helper.dart';
 import 'package:rufino_v2/domain/repositories/employee_repository.dart';
 
 /// In-memory fake implementation of [EmployeeRepository] for tests.
@@ -812,11 +813,13 @@ class FakeEmployeeRepository implements EmployeeRepository {
     String documentId,
     String documentUnitId,
     Uint8List fileBytes,
-    String fileName,
-  ) async {
+    String fileName, {
+    UploadProgressCallback? onProgress,
+  }) async {
     if (_shouldFail) {
       return Result.error(Exception('uploadDocumentUnit failed'));
     }
+    onProgress?.call(1.0);
     return const Result<void>.success(null);
   }
 
@@ -829,11 +832,13 @@ class FakeEmployeeRepository implements EmployeeRepository {
     Uint8List fileBytes,
     String fileName,
     String dateLimitToSign,
-    int reminderEveryNDays,
-  ) async {
+    int reminderEveryNDays, {
+    UploadProgressCallback? onProgress,
+  }) async {
     if (_shouldFail) {
       return Result.error(Exception('uploadDocumentUnitToSign failed'));
     }
+    onProgress?.call(1.0);
     return const Result<void>.success(null);
   }
 

@@ -18,6 +18,7 @@ import '../models/employee_military_document_api_model.dart';
 import '../models/employee_vote_id_api_model.dart';
 import 'http_exception.dart';
 import 'http_status_helper.dart';
+import 'multipart_upload_helper.dart';
 import 'request_id_helper.dart';
 
 /// HTTP client for the employee endpoints of the people-management service.
@@ -732,14 +733,17 @@ class EmployeeApiService {
   }
 
   /// Uploads a file to a document unit via multipart form.
+  ///
+  /// Reports upload progress through [onProgress] with values from 0.0 to 1.0.
   Future<void> uploadDocumentUnit(
     String companyId,
     String employeeId,
     String documentId,
     String documentUnitId,
     Uint8List fileBytes,
-    String fileName,
-  ) async {
+    String fileName, {
+    UploadProgressCallback? onProgress,
+  }) async {
     final uri = Uri.https(baseUrl, '/api/v1/$companyId/document/insert');
     final request = http.MultipartRequest('POST', uri);
     final headers = await _headers();
@@ -753,17 +757,16 @@ class EmployeeApiService {
     request.fields['DocumentUnitId'] = documentUnitId;
     request.fields['DocumentId'] = documentId;
     request.fields['EmployeeId'] = employeeId;
-    final streamedResponse = await request.send();
-    if (streamedResponse.statusCode < 200 ||
-        streamedResponse.statusCode >= 300) {
-      throw HttpException(
-        statusCode: streamedResponse.statusCode,
-        message: 'HTTP ${streamedResponse.statusCode}',
-      );
-    }
+    await sendMultipartWithProgress(
+      request,
+      client: client,
+      onProgress: onProgress,
+    );
   }
 
   /// Uploads a file to a document unit and sends it for digital signature.
+  ///
+  /// Reports upload progress through [onProgress] with values from 0.0 to 1.0.
   Future<void> uploadDocumentUnitToSign(
     String companyId,
     String employeeId,
@@ -772,8 +775,9 @@ class EmployeeApiService {
     Uint8List fileBytes,
     String fileName,
     String dateLimitToSign,
-    int reminderEveryNDays,
-  ) async {
+    int reminderEveryNDays, {
+    UploadProgressCallback? onProgress,
+  }) async {
     final uri =
         Uri.https(baseUrl, '/api/v1/$companyId/document/insert/send2sign');
     final request = http.MultipartRequest('POST', uri);
@@ -790,14 +794,11 @@ class EmployeeApiService {
     request.fields['EmployeeId'] = employeeId;
     request.fields['DateLimitToSign'] = dateLimitToSign;
     request.fields['EminderEveryNDays'] = reminderEveryNDays.toString();
-    final streamedResponse = await request.send();
-    if (streamedResponse.statusCode < 200 ||
-        streamedResponse.statusCode >= 300) {
-      throw HttpException(
-        statusCode: streamedResponse.statusCode,
-        message: 'HTTP ${streamedResponse.statusCode}',
-      );
-    }
+    await sendMultipartWithProgress(
+      request,
+      client: client,
+      onProgress: onProgress,
+    );
   }
 
   // ─── Range operations ────────────────────────────────────────────────────

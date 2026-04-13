@@ -1,15 +1,19 @@
 /// Utility for merging multiple PDF files into a single document.
 ///
-/// Wraps [syncfusion_flutter_pdf] to combine pages from several PDFs while
-/// preserving each source page's original size and content.
+/// Uses [pdf_combiner] with native platform engines (PDFBox on Android,
+/// PDFium on Windows/Linux, native Swift on iOS/macOS, PDFLib on web) for
+/// lossless merging that preserves each page's original size, orientation,
+/// and content.
 library;
 
 import 'dart:typed_data';
-import 'dart:ui';
 
+import 'package:pdf_combiner/models/merge_input.dart';
 import 'package:syncfusion_flutter_pdf/pdf.dart';
 
 import '../result.dart';
+import 'pdf_merger_io.dart' if (dart.library.js_interop) 'pdf_merger_web.dart'
+    as platform;
 
 /// A named pair of file name and raw bytes for a PDF file.
 class PdfFileEntry {
@@ -26,66 +30,34 @@ class PdfFileEntry {
 /// Merges multiple PDF files into a single PDF document.
 ///
 /// Pages are appended in the order the [files] are provided. Each source
-/// page keeps its original dimensions. Returns a [Result] containing the
-/// merged PDF bytes on success, or the name of the file that failed to
-/// parse on error.
+/// page keeps its original dimensions, orientation, and content intact.
+/// Returns a [Result] containing the merged PDF bytes on success, or the
+/// name of the file that failed to parse on error.
 ///
 /// A single-file list returns the original bytes unchanged.
-Result<Uint8List> mergePdfFiles(List<PdfFileEntry> files) {
+Future<Result<Uint8List>> mergePdfFiles(List<PdfFileEntry> files) async {
   if (files.isEmpty) {
     return const Result.error('No files provided');
   }
 
-  if (files.length == 1) {
-    // Validate that the single file is a parseable PDF.
+  // Validate all files are parseable PDFs before attempting the merge.
+  for (final entry in files) {
     try {
-      PdfDocument(inputBytes: files.first.bytes).dispose();
+      PdfDocument(inputBytes: entry.bytes).dispose();
     } catch (_) {
-      return Result.error(files.first.name);
+      return Result.error(entry.name);
     }
+  }
+
+  if (files.length == 1) {
     return Result.success(files.first.bytes);
   }
 
-  // Use the first file as the base document.
-  PdfDocument merged;
   try {
-    merged = PdfDocument(inputBytes: files.first.bytes);
-  } catch (_) {
-    return Result.error(files.first.name);
-  }
-
-  try {
-    for (var f = 1; f < files.length; f++) {
-      final entry = files[f];
-      PdfDocument source;
-      try {
-        source = PdfDocument(inputBytes: entry.bytes);
-      } catch (_) {
-        merged.dispose();
-        return Result.error(entry.name);
-      }
-
-      try {
-        for (var i = 0; i < source.pages.count; i++) {
-          final sourcePage = source.pages[i];
-          final template = sourcePage.createTemplate();
-          merged.pageSettings.size = sourcePage.size;
-          merged.pageSettings.margins.all = 0;
-          final page = merged.pages.add();
-          page.graphics.drawPdfTemplate(
-            template,
-            Offset.zero,
-            sourcePage.size,
-          );
-        }
-      } finally {
-        source.dispose();
-      }
-    }
-
-    final result = Uint8List.fromList(merged.saveSync());
-    return Result.success(result);
-  } finally {
-    merged.dispose();
+    final inputs = files.map((f) => MergeInput.bytes(f.bytes)).toList();
+    final mergedBytes = await platform.mergeAndReadBytes(inputs);
+    return Result.success(mergedBytes);
+  } catch (e) {
+    return Result.error(e.toString());
   }
 }
