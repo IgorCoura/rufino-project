@@ -226,6 +226,11 @@ namespace PeopleManagement.Infra.Mapping
                 .HasMaxLength(VoteId.MAX_LENGHT)
                 .IsRequired(false);
 
+            builder.Property(x => x.SocialIntegrationProgram)
+                .HasConversion(x => x!.Number, x => x)
+                .HasMaxLength(SocialIntegrationProgram.MAX_LENGHT)
+                .IsRequired(false);
+
             builder.OwnsOne(x => x.MilitaryDocument, military =>
             {
                 military.Property(x => x.Number)

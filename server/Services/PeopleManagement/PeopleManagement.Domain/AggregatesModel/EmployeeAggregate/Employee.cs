@@ -11,6 +11,7 @@ namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
         private Name _name = null!;
         private IdCard? _idCard;
         private VoteId? _voteId;
+        private SocialIntegrationProgram? _socialIntegrationProgram;
         private PersonalInfo? _personalInfo;
         private Guid _roleId;
         private Guid _workPlaceId;
@@ -136,7 +137,7 @@ namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
                     
             }
         }        
-        public VoteId? VoteId 
+        public VoteId? VoteId
         {
             get => _voteId;
             set
@@ -145,6 +146,19 @@ namespace PeopleManagement.Domain.AggregatesModel.EmployeeAggregate
                 {
                     _voteId = value;
                     AddDomainEvent(EmployeeEvent.VoteIdChangeEvent(Id, CompanyId));
+                }
+            }
+        }
+
+        public SocialIntegrationProgram? SocialIntegrationProgram
+        {
+            get => _socialIntegrationProgram;
+            set
+            {
+                if (value != null)
+                {
+                    _socialIntegrationProgram = value;
+                    AddDomainEvent(EmployeeEvent.SocialIntegrationProgramChangeEvent(Id, CompanyId));
                 }
             }
         }

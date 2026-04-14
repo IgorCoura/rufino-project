@@ -13,6 +13,7 @@ import 'package:rufino_v2/domain/entities/employee_personal_info.dart';
 import 'package:rufino_v2/domain/entities/employee_profile.dart';
 import 'package:rufino_v2/domain/entities/employee_medical_exam.dart';
 import 'package:rufino_v2/domain/entities/employee_military_document.dart';
+import 'package:rufino_v2/domain/entities/employee_social_integration_program.dart';
 import 'package:rufino_v2/domain/entities/employee_vote_id.dart';
 import 'package:rufino_v2/domain/entities/personal_info_options.dart';
 import 'package:rufino_v2/domain/entities/selection_option.dart';
@@ -93,6 +94,9 @@ class FakeEmployeeRepository implements EmployeeRepository {
 
   EmployeeVoteId _voteId = const EmployeeVoteId(number: '1234.5678.0698');
 
+  EmployeeSocialIntegrationProgram _socialIntegrationProgram =
+      const EmployeeSocialIntegrationProgram(number: '07183177441');
+
   EmployeeMilitaryDocument _militaryDocument = const EmployeeMilitaryDocument(
     number: 'RM-12345',
     type: 'Reservista',
@@ -168,6 +172,10 @@ class FakeEmployeeRepository implements EmployeeRepository {
   /// The vote ID returned by [getEmployeeVoteId].
   void setVoteId(EmployeeVoteId voteId) => _voteId = voteId;
 
+  /// The PIS returned by [getEmployeeSocialIntegrationProgram].
+  void setSocialIntegrationProgram(EmployeeSocialIntegrationProgram pis) =>
+      _socialIntegrationProgram = pis;
+
   /// The military document returned by [getMilitaryDocument].
   void setMilitaryDocument(EmployeeMilitaryDocument doc) =>
       _militaryDocument = doc;
@@ -240,6 +248,7 @@ class FakeEmployeeRepository implements EmployeeRepository {
   EmployeePersonalInfo? lastSavedPersonalInfo;
   EmployeeIdCard? lastSavedIdCard;
   String? lastSavedVoteIdNumber;
+  String? lastSavedSocialIntegrationProgramNumber;
   String? lastSavedMilitaryDocumentNumber;
   String? lastSavedMilitaryDocumentType;
   String? lastSavedMedicalExamDate;
@@ -485,6 +494,36 @@ class FakeEmployeeRepository implements EmployeeRepository {
       return Result.error(Exception('editEmployeeVoteId failed'));
     }
     _voteId = EmployeeVoteId(number: voteIdNumber);
+    return const Result<void>.success(null);
+  }
+
+  @override
+  Future<Result<EmployeeSocialIntegrationProgram>>
+      getEmployeeSocialIntegrationProgram(
+    String companyId,
+    String employeeId,
+  ) async {
+    if (_shouldFail) {
+      return Result.error(
+          Exception('getEmployeeSocialIntegrationProgram failed'));
+    }
+    return Result.success(_socialIntegrationProgram);
+  }
+
+  @override
+  Future<Result<void>> editEmployeeSocialIntegrationProgram(
+    String companyId,
+    String employeeId,
+    String socialIntegrationProgramNumber,
+  ) async {
+    lastSavedSocialIntegrationProgramNumber = socialIntegrationProgramNumber;
+    if (_shouldFail) {
+      return Result.error(
+          Exception('editEmployeeSocialIntegrationProgram failed'));
+    }
+    _socialIntegrationProgram = EmployeeSocialIntegrationProgram(
+      number: socialIntegrationProgramNumber,
+    );
     return const Result<void>.success(null);
   }
 

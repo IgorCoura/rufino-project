@@ -115,6 +115,14 @@ namespace PeopleManagement.Application.Queries.Employee
 
     }
 
+    public record EmployeeSocialIntegrationProgramDto
+    {
+        public Guid EmployeeId { get; init; }
+        public Guid CompanyId { get; init; }
+        public string SocialIntegrationProgramNumber { get; init; } = string.Empty;
+
+    }
+
     public record EmployeeMilitaryDocumentDto
     {
         public Guid EmployeeId { get; init; }
