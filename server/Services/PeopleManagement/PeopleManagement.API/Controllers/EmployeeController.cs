@@ -12,6 +12,7 @@ using PeopleManagement.Application.Commands.EmployeeCommands.AlterMilitarDocumen
 using PeopleManagement.Application.Commands.EmployeeCommands.AlterNameEmployee;
 using PeopleManagement.Application.Commands.EmployeeCommands.AlterPersonalInfoEmployee;
 using PeopleManagement.Application.Commands.EmployeeCommands.AlterRoleEmployee;
+using PeopleManagement.Application.Commands.EmployeeCommands.AlterSocialIntegrationProgramEmployee;
 using PeopleManagement.Application.Commands.EmployeeCommands.AlterVoteIdEmployee;
 using PeopleManagement.Application.Commands.EmployeeCommands.AlterWorkPlaceEmployee;
 using PeopleManagement.Application.Commands.EmployeeCommands.CompleteAdmissionEmployee;
@@ -184,6 +185,22 @@ namespace PeopleManagement.API.Controllers
             [FromHeader(Name = "x-requestid")] Guid requestId)
         {
             var command = new IdentifiedCommand<AlterVoteIdEmployeeCommand, AlterVoteIdEmployeeResponse>(request.ToCommand(company), requestId);
+
+            SendingCommandLog(request.EmployeeId, request, requestId);
+
+            var result = await mediator.Send(command);
+
+            CommandResultLog(result, request.EmployeeId, request, requestId);
+
+            return OkResponse(result);
+        }
+
+        [HttpPut("SocialIntegrationProgram")]
+        [ProtectedResource("employee", "edit")]
+        public async Task<ActionResult<AlterSocialIntegrationProgramEmployeeResponse>> AlterSocialIntegrationProgram([FromRoute] Guid company, [FromBody] AlterSocialIntegrationProgramEmployeeModel request,
+            [FromHeader(Name = "x-requestid")] Guid requestId)
+        {
+            var command = new IdentifiedCommand<AlterSocialIntegrationProgramEmployeeCommand, AlterSocialIntegrationProgramEmployeeResponse>(request.ToCommand(company), requestId);
 
             SendingCommandLog(request.EmployeeId, request, requestId);
 
@@ -395,6 +412,14 @@ namespace PeopleManagement.API.Controllers
         public async Task<ActionResult<EmployeeVoteIdDto>> GetEmployeeVoteId([FromRoute] Guid company, [FromRoute] Guid id)
         {
             var result = await employeeQueries.GetEmployeeVoteId(id, company);
+            return OkResponse(result);
+        }
+
+        [HttpGet("socialintegrationprogram/{id}")]
+        [ProtectedResource("employee", "view")]
+        public async Task<ActionResult<EmployeeSocialIntegrationProgramDto>> GetEmployeeSocialIntegrationProgram([FromRoute] Guid company, [FromRoute] Guid id)
+        {
+            var result = await employeeQueries.GetEmployeeSocialIntegrationProgram(id, company);
             return OkResponse(result);
         }
 

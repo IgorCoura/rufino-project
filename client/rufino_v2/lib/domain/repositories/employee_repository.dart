@@ -14,6 +14,7 @@ import '../entities/employee_medical_exam.dart';
 import '../entities/employee_military_document.dart';
 import '../entities/employee_personal_info.dart';
 import '../entities/employee_profile.dart';
+import '../entities/employee_social_integration_program.dart';
 import '../entities/employee_vote_id.dart';
 import '../entities/personal_info_options.dart';
 import '../entities/selection_option.dart';
@@ -158,6 +159,22 @@ abstract class EmployeeRepository {
     String companyId,
     String employeeId,
     String voteIdNumber,
+  );
+
+  /// Returns the PIS/PASEP (Social Integration Program) for the employee
+  /// identified by [employeeId].
+  Future<Result<EmployeeSocialIntegrationProgram>>
+      getEmployeeSocialIntegrationProgram(
+    String companyId,
+    String employeeId,
+  );
+
+  /// Updates the PIS/PASEP (Social Integration Program) for the employee
+  /// identified by [employeeId].
+  Future<Result<void>> editEmployeeSocialIntegrationProgram(
+    String companyId,
+    String employeeId,
+    String socialIntegrationProgramNumber,
   );
 
   /// Returns the military document (Documento Militar) for the employee

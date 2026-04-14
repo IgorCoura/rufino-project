@@ -224,6 +224,22 @@ namespace PeopleManagement.Application.Queries.Employee
             return result;
         }
 
+        public async Task<EmployeeSocialIntegrationProgramDto> GetEmployeeSocialIntegrationProgram(Guid id, Guid company)
+        {
+            using var context = _factory.CreateDbContext();
+            var query = context.Employees.Where(e => e.Id == id && e.CompanyId == company);
+
+            var result = await query.Select(o => new EmployeeSocialIntegrationProgramDto
+            {
+                EmployeeId = o.Id,
+                CompanyId = o.CompanyId,
+                SocialIntegrationProgramNumber = o.SocialIntegrationProgram != null ? o.SocialIntegrationProgram.Number : string.Empty,
+            }).FirstOrDefaultAsync()
+                ?? throw new DomainException(this, DomainErrors.ObjectNotFound(nameof(Employee), id.ToString()));
+
+            return result;
+        }
+
         public async Task<EmployeeMilitaryDocumentDto> GetEmployeeMilitaryDocument(Guid id, Guid company, bool isRequired)
         {
             using var context = _factory.CreateDbContext();
