@@ -15,6 +15,7 @@ import 'package:rufino_v2/domain/entities/department.dart';
 import 'package:rufino_v2/domain/entities/employee_medical_exam.dart';
 import 'package:rufino_v2/domain/entities/employee_military_document.dart';
 import 'package:rufino_v2/domain/entities/position.dart';
+import 'package:rufino_v2/domain/entities/employee_social_integration_program.dart';
 import 'package:rufino_v2/domain/entities/employee_vote_id.dart';
 import 'package:rufino_v2/domain/entities/remuneration.dart';
 import 'package:rufino_v2/domain/entities/role.dart';
@@ -581,6 +582,64 @@ void main() {
         await viewModel.saveVoteId('999999999999');
 
         expect(viewModel.voteIdStatus, SectionLoadStatus.error);
+      });
+    });
+
+    group('social integration program (PIS) section', () {
+      test(
+          'loadSocialIntegrationProgram transitions from notLoaded to loaded '
+          'with data', () async {
+        await viewModel.load('emp-1');
+        employeeRepository.setSocialIntegrationProgram(
+          const EmployeeSocialIntegrationProgram(number: '07183177441'),
+        );
+
+        await viewModel.loadSocialIntegrationProgram();
+
+        expect(viewModel.socialIntegrationProgramStatus,
+            SectionLoadStatus.loaded);
+        expect(viewModel.socialIntegrationProgram?.number, '07183177441');
+      });
+
+      test(
+          'loadSocialIntegrationProgram sets error status when the repository '
+          'call fails', () async {
+        await viewModel.load('emp-1');
+        employeeRepository.setShouldFail(true);
+
+        await viewModel.loadSocialIntegrationProgram();
+
+        expect(viewModel.socialIntegrationProgramStatus,
+            SectionLoadStatus.error);
+      });
+
+      test(
+          'saveSocialIntegrationProgram persists new number and shows a snack '
+          'message', () async {
+        await viewModel.load('emp-1');
+        await viewModel.loadSocialIntegrationProgram();
+
+        await viewModel.saveSocialIntegrationProgram('07183177441');
+
+        expect(viewModel.socialIntegrationProgramStatus,
+            SectionLoadStatus.loaded);
+        expect(viewModel.socialIntegrationProgram?.number, '07183177441');
+        expect(viewModel.snackMessage, contains('PIS'));
+        expect(employeeRepository.lastSavedSocialIntegrationProgramNumber,
+            '07183177441');
+      });
+
+      test(
+          'saveSocialIntegrationProgram sets error status when the repository '
+          'call fails', () async {
+        await viewModel.load('emp-1');
+        await viewModel.loadSocialIntegrationProgram();
+        employeeRepository.setShouldFail(true);
+
+        await viewModel.saveSocialIntegrationProgram('07183177441');
+
+        expect(viewModel.socialIntegrationProgramStatus,
+            SectionLoadStatus.error);
       });
     });
 

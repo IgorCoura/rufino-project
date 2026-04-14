@@ -15,6 +15,7 @@ import '../models/employee_personal_info_api_model.dart';
 import '../models/employee_profile_api_model.dart';
 import '../models/employee_medical_exam_api_model.dart';
 import '../models/employee_military_document_api_model.dart';
+import '../models/employee_social_integration_program_api_model.dart';
 import '../models/employee_vote_id_api_model.dart';
 import 'http_exception.dart';
 import 'http_status_helper.dart';
@@ -354,6 +355,43 @@ class EmployeeApiService {
       uri,
       headers: await _headers(),
       body: jsonEncode({'employeeId': employeeId, 'voteIdNumber': voteIdNumber}),
+    );
+    checkHttpStatus(response);
+  }
+
+  /// Fetches the PIS/PASEP (Social Integration Program) for [employeeId].
+  Future<EmployeeSocialIntegrationProgramApiModel>
+      getEmployeeSocialIntegrationProgram(
+    String companyId,
+    String employeeId,
+  ) async {
+    final uri = Uri.https(
+      baseUrl,
+      '/api/v1/$companyId/employee/socialintegrationprogram/$employeeId',
+    );
+    final response = await client.get(uri, headers: await _headers());
+    checkHttpStatus(response);
+    final json = jsonDecode(response.body) as Map<String, dynamic>;
+    return EmployeeSocialIntegrationProgramApiModel.fromJson(json);
+  }
+
+  /// Updates the PIS/PASEP (Social Integration Program) for [employeeId].
+  Future<void> editEmployeeSocialIntegrationProgram(
+    String companyId,
+    String employeeId,
+    String socialIntegrationProgramNumber,
+  ) async {
+    final uri = Uri.https(
+      baseUrl,
+      '/api/v1/$companyId/employee/SocialIntegrationProgram',
+    );
+    final response = await client.put(
+      uri,
+      headers: await _headers(),
+      body: jsonEncode({
+        'employeeId': employeeId,
+        'socialIntegrationProgramNumber': socialIntegrationProgramNumber,
+      }),
     );
     checkHttpStatus(response);
   }

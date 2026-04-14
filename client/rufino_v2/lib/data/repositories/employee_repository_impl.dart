@@ -15,6 +15,7 @@ import '../../domain/entities/employee_personal_info.dart';
 import '../../domain/entities/employee_profile.dart';
 import '../../domain/entities/employee_medical_exam.dart';
 import '../../domain/entities/employee_military_document.dart';
+import '../../domain/entities/employee_social_integration_program.dart';
 import '../../domain/entities/employee_vote_id.dart';
 import '../../domain/entities/personal_info_options.dart';
 import '../../domain/repositories/employee_repository.dart';
@@ -362,6 +363,45 @@ class EmployeeRepositoryImpl implements EmployeeRepository {
   ) async {
     try {
       await apiService.editEmployeeVoteId(companyId, employeeId, voteIdNumber);
+      return const Result<void>.success(null);
+    } on EmployeeException catch (e) {
+      return Result.error(e);
+    } catch (e) {
+      return Result.error(EmployeeNetworkException(e));
+    }
+  }
+
+  @override
+  Future<Result<EmployeeSocialIntegrationProgram>>
+      getEmployeeSocialIntegrationProgram(
+    String companyId,
+    String employeeId,
+  ) async {
+    try {
+      final model = await apiService.getEmployeeSocialIntegrationProgram(
+        companyId,
+        employeeId,
+      );
+      return Result.success(model.toEntity());
+    } on EmployeeException catch (e) {
+      return Result.error(e);
+    } catch (e) {
+      return Result.error(EmployeeNetworkException(e));
+    }
+  }
+
+  @override
+  Future<Result<void>> editEmployeeSocialIntegrationProgram(
+    String companyId,
+    String employeeId,
+    String socialIntegrationProgramNumber,
+  ) async {
+    try {
+      await apiService.editEmployeeSocialIntegrationProgram(
+        companyId,
+        employeeId,
+        socialIntegrationProgramNumber,
+      );
       return const Result<void>.success(null);
     } on EmployeeException catch (e) {
       return Result.error(e);

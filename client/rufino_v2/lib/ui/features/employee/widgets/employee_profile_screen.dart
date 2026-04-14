@@ -22,6 +22,7 @@ import 'components/military_document_section.dart';
 import 'components/personal_info_section.dart';
 import 'components/role_info_section.dart';
 import 'components/signing_options_section.dart';
+import 'components/social_integration_program_section.dart';
 import 'components/vote_id_section.dart';
 import 'components/workplace_section.dart';
 
@@ -389,6 +390,8 @@ class _EmployeeDataTab extends StatelessWidget {
           IdCardSection(viewModel: viewModel),
           const SizedBox(height: AppSpacing.sm),
           VoteIdSection(viewModel: viewModel),
+          const SizedBox(height: AppSpacing.sm),
+          SocialIntegrationProgramSection(viewModel: viewModel),
           const SizedBox(height: AppSpacing.sm),
           DependentSection(viewModel: viewModel),
           const SizedBox(height: AppSpacing.sm),

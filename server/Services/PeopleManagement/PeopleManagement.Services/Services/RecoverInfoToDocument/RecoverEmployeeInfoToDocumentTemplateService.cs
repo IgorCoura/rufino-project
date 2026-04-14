@@ -38,6 +38,7 @@ namespace PeopleManagement.Services.Services.RecoverInfoToDocument
                     ["PersonalInfo"] = ConvertPersonalInfoToJsonObject(employee.PersonalInfo),
                     ["IdCard"] = ConvertIdCardToJsonObject(employee.IdCard),
                     ["VoteId"] = ConvertVoteIdToJsonObject(employee.VoteId),
+                    ["SocialIntegrationProgram"] = ConvertSocialIntegrationProgramToJsonObject(employee.SocialIntegrationProgram),
                     ["MilitaryDocument"] = ConvertMilitaryDocumentToJsonObject(employee.MilitaryDocument),
                     ["InitialDate"] = employee.Contracts.Where(x => x.IsActive).OrderByDescending(x => x.InitDate).FirstOrDefault()?.InitDate.ToString("dd-MM-yyyy") ?? "",
                     ["ContractType"] = employee.Contracts.Where(x => x.IsActive).OrderByDescending(x => x.InitDate).FirstOrDefault()?.ContractType.Name ?? "",
@@ -73,6 +74,7 @@ namespace PeopleManagement.Services.Services.RecoverInfoToDocument
             var personalInfo = PersonalInfo.Create(Deficiency.Create("", []), MaritalStatus.Single, Gender.MALE, Ethinicity.White, EducationLevel.CompleteHigher);
             var idCard = IdCard.Create("216.456.330-12", "Maria Silva", "Marcio Andrade", "Suzano", "São Paulo", "Brasileiro", DateOnly.FromDateTime(DateTime.Now.AddYears(-20)));
             var voteId = VoteId.Create("281662310124");
+            var socialIntegrationProgram = SocialIntegrationProgram.Create("07183177441");
             var medicalAdmissionExam = MedicalAdmissionExam.Create(DateOnly.FromDateTime(DateTime.Now), DateOnly.FromDateTime(DateTime.Now.AddDays(365)));
             var militaryDocument = MilitaryDocument.Create("2312312312", "Rersevista");
 
@@ -90,6 +92,7 @@ namespace PeopleManagement.Services.Services.RecoverInfoToDocument
                     ["PersonalInfo"] = ConvertPersonalInfoToJsonObject(personalInfo),
                     ["IdCard"] = ConvertIdCardToJsonObject(idCard),
                     ["VoteId"] = ConvertVoteIdToJsonObject(voteId),
+                    ["SocialIntegrationProgram"] = ConvertSocialIntegrationProgramToJsonObject(socialIntegrationProgram),
                     ["MilitaryDocument"] = ConvertMilitaryDocumentToJsonObject(militaryDocument),
                     ["InitialDate"] = DateOnly.FromDateTime(DateTime.Now).ToString("dd-MM-yyyy") ?? "",
                     ["ContractType"] = EmploymentContractType.CLT.Name,
@@ -220,6 +223,20 @@ namespace PeopleManagement.Services.Services.RecoverInfoToDocument
             return new JsonObject
             {
                 ["VoteIdNumber"] = voteId.Number
+            };
+
+        }
+        private static JsonObject ConvertSocialIntegrationProgramToJsonObject(SocialIntegrationProgram? socialIntegrationProgram)
+        {
+            if (socialIntegrationProgram == null)
+            {
+                return new JsonObject
+                {
+                };
+            }
+            return new JsonObject
+            {
+                ["SocialIntegrationProgramNumber"] = socialIntegrationProgram.Number
             };
 
         }
