@@ -22,6 +22,7 @@ import '../../../../domain/entities/workplace.dart';
 import '../../../../domain/entities/role.dart';
 import '../../../../domain/entities/employee_medical_exam.dart';
 import '../../../../domain/entities/employee_military_document.dart';
+import '../../../../domain/entities/employee_social_integration_program.dart';
 import '../../../../domain/entities/employee_vote_id.dart';
 import '../../../../domain/entities/personal_info_options.dart';
 import '../../../../core/utils/error_messages.dart';
@@ -139,6 +140,12 @@ class EmployeeProfileViewModel extends ChangeNotifier {
 
   SectionLoadStatus _voteIdStatus = SectionLoadStatus.notLoaded;
   EmployeeVoteId? _voteId;
+
+  // ─── Social Integration Program (PIS) section ─────────────────────────────
+
+  SectionLoadStatus _socialIntegrationProgramStatus =
+      SectionLoadStatus.notLoaded;
+  EmployeeSocialIntegrationProgram? _socialIntegrationProgram;
 
   // ─── Military document section ────────────────────────────────────────────
 
@@ -289,6 +296,16 @@ class EmployeeProfileViewModel extends ChangeNotifier {
 
   /// The loaded voter registration, or null when not yet loaded.
   EmployeeVoteId? get voteId => _voteId;
+
+  // ─── Public getters — section social integration program ─────────────────
+
+  /// The current load status of the PIS/PASEP section.
+  SectionLoadStatus get socialIntegrationProgramStatus =>
+      _socialIntegrationProgramStatus;
+
+  /// The loaded PIS/PASEP registration, or null when not yet loaded.
+  EmployeeSocialIntegrationProgram? get socialIntegrationProgram =>
+      _socialIntegrationProgram;
 
   // ─── Public getters — section military document ────────────────────────────
 
@@ -452,6 +469,8 @@ class EmployeeProfileViewModel extends ChangeNotifier {
     _idCard = null;
     _voteIdStatus = SectionLoadStatus.notLoaded;
     _voteId = null;
+    _socialIntegrationProgramStatus = SectionLoadStatus.notLoaded;
+    _socialIntegrationProgram = null;
     notifyListeners();
 
     final companyResult = await _companyRepository.getSelectedCompany();
@@ -980,6 +999,83 @@ class EmployeeProfileViewModel extends ChangeNotifier {
         _errorMessage = _serverErrors.isNotEmpty
             ? _serverErrors.join('\n')
             : 'Não foi possível salvar o título de eleitor.';
+      },
+    );
+
+    notifyListeners();
+  }
+
+  // ─── Social Integration Program (PIS) section methods ───────────────────
+
+  /// Lazily loads the employee PIS/PASEP section.
+  ///
+  /// Does nothing if the section has already been loaded or is currently loading.
+  Future<void> loadSocialIntegrationProgram() async {
+    final companyId = _companyId;
+    final currentProfile = _profile;
+    if (companyId == null ||
+        currentProfile == null ||
+        _socialIntegrationProgramStatus == SectionLoadStatus.loading ||
+        _socialIntegrationProgramStatus == SectionLoadStatus.loaded) {
+      return;
+    }
+
+    _socialIntegrationProgramStatus = SectionLoadStatus.loading;
+    notifyListeners();
+
+    final result = await _employeeRepository.getEmployeeSocialIntegrationProgram(
+      companyId,
+      currentProfile.id,
+    );
+
+    result.fold(
+      onSuccess: (data) {
+        _socialIntegrationProgram = data;
+        _socialIntegrationProgramStatus = SectionLoadStatus.loaded;
+      },
+      onError: (_) {
+        _socialIntegrationProgramStatus = SectionLoadStatus.error;
+      },
+    );
+
+    notifyListeners();
+  }
+
+  /// Saves updated PIS/PASEP registration for the current employee.
+  ///
+  /// [socialIntegrationProgramNumber] must be the raw 11-digit value
+  /// (without separators).
+  Future<void> saveSocialIntegrationProgram(
+    String socialIntegrationProgramNumber,
+  ) async {
+    final companyId = _companyId;
+    final currentProfile = _profile;
+    if (companyId == null || currentProfile == null) return;
+
+    _socialIntegrationProgramStatus = SectionLoadStatus.saving;
+    notifyListeners();
+
+    final result =
+        await _employeeRepository.editEmployeeSocialIntegrationProgram(
+      companyId,
+      currentProfile.id,
+      socialIntegrationProgramNumber,
+    );
+
+    result.fold(
+      onSuccess: (_) {
+        _socialIntegrationProgram = EmployeeSocialIntegrationProgram(
+          number: socialIntegrationProgramNumber,
+        );
+        _snackMessage = 'PIS atualizado com sucesso.';
+        _socialIntegrationProgramStatus = SectionLoadStatus.loaded;
+      },
+      onError: (error) {
+        _socialIntegrationProgramStatus = SectionLoadStatus.error;
+        _serverErrors = extractServerMessages(error);
+        _errorMessage = _serverErrors.isNotEmpty
+            ? _serverErrors.join('\n')
+            : 'Não foi possível salvar o PIS.';
       },
     );
 
@@ -2117,6 +2213,16 @@ class EmployeeProfileViewModel extends ChangeNotifier {
   /// Delegates to [EmployeeVoteId.validateNumber].
   String? validateVoteIdNumber(String? value) =>
       EmployeeVoteId.validateNumber(value);
+
+  // ── Social Integration Program validators ──────────────────────────────
+
+  /// Delegates to [EmployeeSocialIntegrationProgram.isPisValid].
+  bool isSocialIntegrationProgramValid(String number) =>
+      EmployeeSocialIntegrationProgram.isPisValid(number);
+
+  /// Delegates to [EmployeeSocialIntegrationProgram.validateNumber].
+  String? validateSocialIntegrationProgramNumber(String? value) =>
+      EmployeeSocialIntegrationProgram.validateNumber(value);
 
   // ── Military document validators ────────────────────────────────────────
 

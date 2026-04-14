@@ -9,6 +9,7 @@
         Task<EmployeePersonalInfoDto> GetEmployeePersonalInfo(Guid id, Guid company);
         Task<EmployeeIdCardDto> GetEmployeeIdCard(Guid id, Guid company);
         Task<EmployeeVoteIdDto> GetEmployeeVoteId(Guid id, Guid company);
+        Task<EmployeeSocialIntegrationProgramDto> GetEmployeeSocialIntegrationProgram(Guid id, Guid company);
         Task<EmployeeMilitaryDocumentDto> GetEmployeeMilitaryDocument(Guid id, Guid company, bool isRequired);
         Task<EmployeeDependentsDto> GetEmployeeDependents(Guid id, Guid company);
         Task<MedicalAdmissionExamDto> GetEmployeeMedicalAdmissionExam(Guid id, Guid company);
