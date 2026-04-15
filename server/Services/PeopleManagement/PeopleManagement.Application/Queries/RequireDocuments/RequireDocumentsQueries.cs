@@ -33,7 +33,7 @@ namespace PeopleManagement.Application.Queries.RequireDocuments
 
             var query = from req in context.RequireDocuments.AsNoTracking()
                         where req.CompanyId == companyId && req.AssociationIds.Any(id => allPossibleAssociationIds.Contains(id))
-                        orderby req.Name.Value
+                        orderby req.Name
                         select new RequiredWithDocumentListDto
                         {
                             Id = req.Id,
@@ -72,7 +72,7 @@ namespace PeopleManagement.Application.Queries.RequireDocuments
         public async Task<IEnumerable<RequireDocumentSimpleDto>> GetAllSimple(Guid companyId)
         {
             using var context = _factory.CreateDbContext();
-            var query = context.RequireDocuments.AsNoTracking().Where(x => x.CompanyId == companyId).OrderBy(x => x.Name.Value);
+            var query = context.RequireDocuments.AsNoTracking().Where(x => x.CompanyId == companyId).OrderBy(x => x.Name);
 
             var result = await query.Select(x => new RequireDocumentSimpleDto
             {
@@ -145,7 +145,7 @@ namespace PeopleManagement.Application.Queries.RequireDocuments
             
             if(associationType == AssociationType.Role)
             {
-               var query = context.Roles.AsNoTracking().Where(x => x.CompanyId == companyId).OrderBy(x => x.Name.Value);
+               var query = context.Roles.AsNoTracking().Where(x => x.CompanyId == companyId).OrderBy(x => x.Name);
                 var result = await query.Select(x => new AssociationDto
                 {
                     Id = x.Id,
@@ -155,7 +155,7 @@ namespace PeopleManagement.Application.Queries.RequireDocuments
             }
             if (associationType == AssociationType.Workplace)
             {
-                var query = context.Workplaces.AsNoTracking().Where(x => x.CompanyId == companyId).OrderBy(x => x.Name.Value);
+                var query = context.Workplaces.AsNoTracking().Where(x => x.CompanyId == companyId).OrderBy(x => x.Name);
                 var result = await query.Select(x => new AssociationDto
                 {
                     Id = x.Id,
@@ -206,7 +206,7 @@ namespace PeopleManagement.Application.Queries.RequireDocuments
 
             if (associationType == AssociationType.Role)
             {
-                var query = context.Roles.AsNoTracking().Where(x => x.CompanyId == companyId && associationIds.Contains(x.Id)).OrderBy(x => x.Name.Value);
+                var query = context.Roles.AsNoTracking().Where(x => x.CompanyId == companyId && associationIds.Contains(x.Id)).OrderBy(x => x.Name);
                 return await query.Select(x => new AssociationDto
                 {
                     Id = x.Id,
@@ -215,7 +215,7 @@ namespace PeopleManagement.Application.Queries.RequireDocuments
             }
             if (associationType == AssociationType.Workplace)
             {
-                var query = context.Workplaces.AsNoTracking().Where(x => x.CompanyId == companyId && associationIds.Contains(x.Id)).OrderBy(x => x.Name.Value);
+                var query = context.Workplaces.AsNoTracking().Where(x => x.CompanyId == companyId && associationIds.Contains(x.Id)).OrderBy(x => x.Name);
                 return await query.Select(x => new AssociationDto
                 {
                     Id = x.Id,
