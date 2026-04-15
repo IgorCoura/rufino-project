@@ -15,7 +15,7 @@ namespace PeopleManagement.Application.Queries.Department
         {
             var query = from d in _context.Departments.AsNoTracking()
                         where d.CompanyId == company
-                        orderby d.Name.Value
+                        orderby d.Name
                         select new DepartmentDto
                         {
                             Id = d.Id,
@@ -51,7 +51,7 @@ namespace PeopleManagement.Application.Queries.Department
         {
             var query = from d in _context.Departments.AsNoTracking()
                         where d.CompanyId == company
-                        orderby d.Name.Value
+                        orderby d.Name
                         select new DepartmentSimpleDto
                         {
                             Id = d.Id,

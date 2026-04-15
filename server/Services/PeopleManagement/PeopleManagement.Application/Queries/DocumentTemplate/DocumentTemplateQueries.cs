@@ -20,7 +20,7 @@ namespace PeopleManagement.Application.Queries.DocumentTemplate
         private DocumentTemplatesOptions _documentTemplatesOptions = documentTemplatesOptions;
         public async Task<IEnumerable<DocumentTemplateSimpleDto>> GetAllSimple(Guid companyId)
         {
-            var query = _context.DocumentTemplates.AsNoTracking().Where(x => x.CompanyId == companyId).OrderBy(x => x.Name.Value);
+            var query = _context.DocumentTemplates.AsNoTracking().Where(x => x.CompanyId == companyId).OrderBy(x => x.Name);
 
 
             var result = await query.Select(x => new DocumentTemplateSimpleDto
@@ -97,7 +97,7 @@ namespace PeopleManagement.Application.Queries.DocumentTemplate
 
         public async Task<IEnumerable<DocumentTemplateDto>> GetAll(Guid companyId)
         {
-            var query = await _context.DocumentTemplates.AsNoTracking().Where(x => x.CompanyId == companyId).OrderBy(x => x.Name.Value).ToArrayAsync();
+            var query = await _context.DocumentTemplates.AsNoTracking().Where(x => x.CompanyId == companyId).OrderBy(x => x.Name).ToArrayAsync();
 
 
             var result =  query.Select(x => new DocumentTemplateDto
