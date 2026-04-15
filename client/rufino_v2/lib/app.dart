@@ -21,6 +21,7 @@ import 'data/repositories/document_template_repository_impl.dart';
 import 'data/repositories/require_document_repository_impl.dart';
 import 'data/repositories/batch_document_repository_impl.dart';
 import 'data/repositories/batch_download_repository_impl.dart';
+import 'data/repositories/cep_repository_impl.dart';
 import 'core/utils/document_scanner_service.dart';
 import 'data/repositories/workplace_repository_impl.dart';
 import 'data/services/auth_api_service.dart';
@@ -33,6 +34,7 @@ import 'data/services/document_template_api_service.dart';
 import 'data/services/require_document_api_service.dart';
 import 'data/services/batch_document_api_service.dart';
 import 'data/services/batch_download_api_service.dart';
+import 'data/services/cep_api_service.dart';
 import 'data/services/workplace_api_service.dart';
 import 'domain/repositories/auth_repository.dart';
 import 'domain/repositories/permission_repository.dart';
@@ -44,6 +46,7 @@ import 'domain/repositories/document_template_repository.dart';
 import 'domain/repositories/require_document_repository.dart';
 import 'domain/repositories/batch_document_repository.dart';
 import 'domain/repositories/batch_download_repository.dart';
+import 'domain/repositories/cep_repository.dart';
 import 'domain/repositories/workplace_repository.dart';
 import 'ui/features/auth/viewmodel/login_viewmodel.dart';
 import 'ui/features/auth/viewmodel/permission_notifier.dart';
@@ -214,6 +217,10 @@ class App extends StatelessWidget {
     final BatchDocumentRepository batchDocumentRepository =
         BatchDocumentRepositoryImpl(apiService: batchDocumentApiService);
 
+    final cepApiService = CepApiService(client: httpClient);
+    final CepRepository cepRepository =
+        CepRepositoryImpl(apiService: cepApiService);
+
     final batchDownloadApiService = BatchDownloadApiService(
       client: httpClient,
       baseUrl: AppConfig.peopleManagementUrl,
@@ -241,6 +248,7 @@ class App extends StatelessWidget {
           value: batchDocumentRepository),
       Provider<BatchDownloadRepository>.value(
           value: batchDownloadRepository),
+      Provider<CepRepository>.value(value: cepRepository),
     ];
   }
 }
@@ -512,6 +520,7 @@ class _AppRouterState extends State<_AppRouter> {
               workplaceRepository: context.read<WorkplaceRepository>(),
               documentGroupRepository:
                   context.read<DocumentGroupRepository>(),
+              cepRepository: context.read<CepRepository>(),
               scannerService: DocumentScannerService(),
             ),
           ),

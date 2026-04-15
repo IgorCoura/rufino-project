@@ -19,6 +19,7 @@ namespace PeopleManagement.Application.Queries.DocumentGroup
         {
             var query = from d in _context.DocumentGroups.AsNoTracking()
                         where d.CompanyId == company
+                        orderby d.Name.Value
                         select new DocumentGroupDto
                         {
                             Id = d.Id,
@@ -84,6 +85,7 @@ namespace PeopleManagement.Application.Queries.DocumentGroup
             var query = from dg in _context.DocumentGroups.AsNoTracking()
                         where dg.CompanyId == companyId
                         join dt in _context.DocumentTemplates.AsNoTracking() on dg.Id equals dt.DocumentGroupId into templates
+                        orderby dg.Name.Value
                         select new DocumentGroupWithTemplatesDto
                         {
                             Id = dg.Id,

@@ -21,6 +21,7 @@ namespace PeopleManagement.Application.Queries.Document
             var query = from document in _context.Documents
                         join template in _context.DocumentTemplates on document.DocumentTemplateId equals template.Id
                         where document.EmployeeId == employeeId && document.CompanyId == companyId
+                        orderby document.Name.Value
                         select new { Document = document, Template = template };
 
             var data = await query.ToListAsync();

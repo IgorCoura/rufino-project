@@ -247,8 +247,8 @@
   <div class="section">
     <span class="section-title">Dados Funcionais</span>
     <div class="compact-row">
-      <span><span class="field-label">Cargo:</span> <span class="field-value">{{Role.Name}}</span></span>
-      <span><span class="field-label">CBO:</span> <span class="field-value">{{Role.CBO}}</span></span>
+      <span><span class="field-label">Cargo:</span> <span class="field-value">{{Position.Name}}</span></span>
+      <span><span class="field-label">CBO:</span> <span class="field-value">{{Position.CBO}}</span></span>
       <span><span class="field-label">Salário:</span> <span class="field-value">R$ {{Role.Remuneration.BaseSalary.Value}}</span></span>
       <span><span class="field-label">Forma Pagto:</span> <span class="field-value">{{Role.Remuneration.PaymentUnit}}</span></span>
     </div>
@@ -271,11 +271,16 @@
     <span class="section-title">Documentos</span>
     <div class="compact-row">
       <span><span class="field-label">CPF:</span> <span class="field-value">{{Employee.IdCard.CPF}}</span></span>
+    </div>
+    <div class="compact-row">
       <span><span class="field-label">Título Eleitor:</span> <span class="field-value">{{Employee.VoteId.VoteIdNumber}}</span></span>
     </div>
     <div class="compact-row">
       <span><span class="field-label">Doc. Militar:</span> <span class="field-value">{{Employee.MilitaryDocument.Type}}</span></span>
       <span><span class="field-label">Nº Doc. Militar:</span> <span class="field-value">{{Employee.MilitaryDocument.Number}}</span></span>
+    </div>
+    <div class="compact-row">
+      <span><span class="field-label">PIS :</span> <span class="field-value">{{Employee.SocialIntegrationProgram.SocialIntegrationProgramNumber}}</span></span>
     </div>
   </div>
 

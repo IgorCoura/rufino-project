@@ -32,6 +32,7 @@ import '../../../testing/fakes/fake_department_repository.dart';
 import '../../../testing/fakes/fake_document_group_repository.dart';
 import '../../../testing/fakes/fake_employee_repository.dart';
 import '../../../testing/fakes/fake_permission_repository.dart';
+import '../../../testing/fakes/fake_cep_repository.dart';
 import '../../../testing/fakes/fake_workplace_repository.dart';
 
 const _fakeCompany = Company(
@@ -162,6 +163,7 @@ void main() {
       departmentRepository: departmentRepository,
       workplaceRepository: workplaceRepository,
       documentGroupRepository: documentGroupRepository,
+      cepRepository: FakeCepRepository(),
     );
     final fakePermRepo = FakePermissionRepository()
       ..setPermissions(const [

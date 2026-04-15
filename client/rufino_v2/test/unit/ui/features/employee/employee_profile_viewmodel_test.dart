@@ -22,6 +22,7 @@ import 'package:rufino_v2/domain/entities/role.dart';
 import 'package:rufino_v2/domain/entities/workplace.dart';
 import 'package:rufino_v2/ui/features/employee/viewmodel/employee_profile_viewmodel.dart';
 
+import '../../../../testing/fakes/fake_cep_repository.dart';
 import '../../../../testing/fakes/fake_company_repository.dart';
 import '../../../../testing/fakes/fake_department_repository.dart';
 import '../../../../testing/fakes/fake_document_group_repository.dart';
@@ -81,6 +82,7 @@ void main() {
   late FakeDepartmentRepository departmentRepository;
   late FakeWorkplaceRepository workplaceRepository;
   late FakeDocumentGroupRepository documentGroupRepository;
+  late FakeCepRepository cepRepository;
   late EmployeeProfileViewModel viewModel;
 
   setUp(() {
@@ -92,6 +94,7 @@ void main() {
     workplaceRepository = FakeWorkplaceRepository()
       ..setWorkplace(_fakeWorkplace);
     documentGroupRepository = FakeDocumentGroupRepository();
+    cepRepository = FakeCepRepository();
 
     viewModel = EmployeeProfileViewModel(
       companyRepository: companyRepository,
@@ -99,6 +102,7 @@ void main() {
       departmentRepository: departmentRepository,
       workplaceRepository: workplaceRepository,
       documentGroupRepository: documentGroupRepository,
+      cepRepository: cepRepository,
     );
   });
 
@@ -1343,6 +1347,7 @@ void main() {
           departmentRepository: departmentRepository,
           workplaceRepository: workplaceRepository,
           documentGroupRepository: documentGroupRepository,
+          cepRepository: cepRepository,
           scannerService: mockScanner,
         );
 
@@ -1360,6 +1365,7 @@ void main() {
           departmentRepository: departmentRepository,
           workplaceRepository: workplaceRepository,
           documentGroupRepository: documentGroupRepository,
+          cepRepository: cepRepository,
           scannerService: mockScanner,
         );
 
@@ -1378,6 +1384,7 @@ void main() {
           departmentRepository: departmentRepository,
           workplaceRepository: workplaceRepository,
           documentGroupRepository: documentGroupRepository,
+          cepRepository: cepRepository,
           scannerService: mockScanner,
         );
 
@@ -1391,6 +1398,58 @@ void main() {
       test('scanPages returns null when no scanner is provided', () async {
         final result = await viewModel.scanPages();
         expect(result, isNull);
+      });
+    });
+
+    group('lookupCep', () {
+      const resolvedAddress = Address(
+        zipCode: '01310100',
+        street: 'Avenida Paulista',
+        number: '',
+        complement: '',
+        neighborhood: 'Bela Vista',
+        city: 'São Paulo',
+        state: 'SP',
+        country: 'Brasil',
+      );
+
+      test('returns null without calling the repository when CEP has fewer '
+          'than 8 digits', () async {
+        final result = await viewModel.lookupCep('123');
+        expect(result, isNull);
+        expect(cepRepository.lookedUpCeps, isEmpty);
+        expect(viewModel.isLookingUpCep, isFalse);
+      });
+
+      test('returns the resolved address on success and toggles '
+          'isLookingUpCep during the call', () async {
+        cepRepository
+          ..setAddress(resolvedAddress)
+          ..setDelay(const Duration(milliseconds: 20));
+
+        final future = viewModel.lookupCep('01310-100');
+        // The flag must flip to true synchronously after the call starts.
+        expect(viewModel.isLookingUpCep, isTrue);
+
+        final result = await future;
+        expect(result, resolvedAddress);
+        expect(viewModel.isLookingUpCep, isFalse);
+        expect(cepRepository.lookedUpCeps.single, '01310100');
+      });
+
+      test('returns null silently when the repository reports not found',
+          () async {
+        cepRepository.setNotFound();
+        final result = await viewModel.lookupCep('00000-000');
+        expect(result, isNull);
+        expect(viewModel.isLookingUpCep, isFalse);
+      });
+
+      test('returns null silently on any other lookup error', () async {
+        cepRepository.setError('network down');
+        final result = await viewModel.lookupCep('12345-678');
+        expect(result, isNull);
+        expect(viewModel.isLookingUpCep, isFalse);
       });
     });
   });
