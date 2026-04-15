@@ -13,7 +13,7 @@ namespace PeopleManagement.Application.Queries.Position
         {
             var query = from d in _context.Positions
                         where d.CompanyId == company && d.DepartmentId == departmentId
-                        orderby d.Name.Value
+                        orderby d.Name
                         select new PositionSimpleDto
                         {
                             Id = d.Id,
