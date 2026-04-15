@@ -37,8 +37,19 @@ class _AddressSectionState extends State<AddressSection> {
 
   bool _isEditing = false;
 
+  /// Last CEP (8 raw digits) that was already looked up, to avoid firing
+  /// repeated requests while the user is still typing/correcting.
+  String? _lastLookedUpCep;
+
+  @override
+  void initState() {
+    super.initState();
+    _zipCodeController.addListener(_handleCepChanged);
+  }
+
   @override
   void dispose() {
+    _zipCodeController.removeListener(_handleCepChanged);
     _zipCodeController.dispose();
     _streetController.dispose();
     _numberController.dispose();
@@ -69,7 +80,35 @@ class _AddressSectionState extends State<AddressSection> {
     _cityController.text = address.city;
     _stateController.text = address.state.toUpperCase();
     _countryController.text = address.country;
+    _lastLookedUpCep = rawZip.length == 8 ? rawZip : null;
     setState(() => _isEditing = true);
+  }
+
+  /// Fires whenever the CEP field changes. When the raw digits reach 8,
+  /// asks the ViewModel to resolve the address and fills the remaining
+  /// fields on success. Failures are intentionally silent.
+  Future<void> _handleCepChanged() async {
+    if (!_isEditing) return;
+    final digits = _zipCodeController.text.replaceAll(RegExp(r'[^\d]'), '');
+    if (digits.length != 8) {
+      _lastLookedUpCep = null;
+      return;
+    }
+    if (digits == _lastLookedUpCep) return;
+    _lastLookedUpCep = digits;
+
+    final address = await widget.viewModel.lookupCep(digits);
+    if (!mounted || address == null) return;
+
+    setState(() {
+      _streetController.text = address.street;
+      _neighborhoodController.text = address.neighborhood;
+      _cityController.text = address.city;
+      _stateController.text = address.state.toUpperCase();
+      if (address.country.isNotEmpty) {
+        _countryController.text = address.country;
+      }
+    });
   }
 
   Future<void> _save() async {
@@ -138,6 +177,7 @@ class _AddressSectionState extends State<AddressSection> {
 
     final address = widget.viewModel.address;
     final isSaving = status == SectionLoadStatus.saving;
+    final isLookingUpCep = widget.viewModel.isLookingUpCep;
 
     if (_isEditing) {
       return _AddressEditForm(
@@ -152,6 +192,7 @@ class _AddressSectionState extends State<AddressSection> {
         countryController: _countryController,
         cepMask: _cepMask,
         isSaving: isSaving,
+        isLookingUpCep: isLookingUpCep,
         onSave: _save,
         onCancel: _cancel,
         validateCep: widget.viewModel.validateCep,
@@ -251,6 +292,7 @@ class _AddressEditForm extends StatelessWidget {
     required this.countryController,
     required this.cepMask,
     required this.isSaving,
+    required this.isLookingUpCep,
     required this.onSave,
     required this.onCancel,
     required this.validateCep,
@@ -269,6 +311,7 @@ class _AddressEditForm extends StatelessWidget {
   final TextEditingController countryController;
   final MaskTextInputFormatter cepMask;
   final bool isSaving;
+  final bool isLookingUpCep;
   final VoidCallback onSave;
   final VoidCallback onCancel;
   final String? Function(String?) validateCep;
@@ -277,6 +320,10 @@ class _AddressEditForm extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Fields other than CEP are disabled while saving OR while a CEP lookup
+    // is in flight — the user is waiting for the address to be auto-filled.
+    final fieldsEnabled = !isSaving && !isLookingUpCep;
+
     return Form(
       key: formKey,
       child: Column(
@@ -286,11 +333,21 @@ class _AddressEditForm extends StatelessWidget {
           TextFormField(
             controller: zipCodeController,
             enabled: !isSaving,
-            decoration: const InputDecoration(
+            decoration: InputDecoration(
               labelText: 'CEP *',
-              prefixIcon: Icon(Icons.markunread_mailbox_outlined),
-              border: OutlineInputBorder(),
+              prefixIcon: const Icon(Icons.markunread_mailbox_outlined),
+              border: const OutlineInputBorder(),
               helperText: 'Ex: 01310-100',
+              suffixIcon: isLookingUpCep
+                  ? const Padding(
+                      padding: EdgeInsets.all(12),
+                      child: SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      ),
+                    )
+                  : null,
             ),
             keyboardType: TextInputType.number,
             inputFormatters: [cepMask],
@@ -301,7 +358,7 @@ class _AddressEditForm extends StatelessWidget {
           // ── Logradouro ───────────────────────────────────────────────────
           TextFormField(
             controller: streetController,
-            enabled: !isSaving,
+            enabled: fieldsEnabled,
             decoration: const InputDecoration(
               labelText: 'Logradouro *',
               prefixIcon: Icon(Icons.signpost_outlined),
@@ -321,7 +378,7 @@ class _AddressEditForm extends StatelessWidget {
                 flex: 2,
                 child: TextFormField(
                   controller: numberController,
-                  enabled: !isSaving,
+                  enabled: fieldsEnabled,
                   decoration: const InputDecoration(
                     labelText: 'Número *',
                     border: OutlineInputBorder(),
@@ -335,7 +392,7 @@ class _AddressEditForm extends StatelessWidget {
                 flex: 3,
                 child: TextFormField(
                   controller: complementController,
-                  enabled: !isSaving,
+                  enabled: fieldsEnabled,
                   decoration: const InputDecoration(
                     labelText: 'Complemento',
                     border: OutlineInputBorder(),
@@ -350,7 +407,7 @@ class _AddressEditForm extends StatelessWidget {
           // ── Bairro ───────────────────────────────────────────────────────
           TextFormField(
             controller: neighborhoodController,
-            enabled: !isSaving,
+            enabled: fieldsEnabled,
             decoration: const InputDecoration(
               labelText: 'Bairro',
               prefixIcon: Icon(Icons.holiday_village_outlined),
@@ -368,7 +425,7 @@ class _AddressEditForm extends StatelessWidget {
                 flex: 3,
                 child: TextFormField(
                   controller: cityController,
-                  enabled: !isSaving,
+                  enabled: fieldsEnabled,
                   decoration: const InputDecoration(
                     labelText: 'Cidade *',
                     border: OutlineInputBorder(),
@@ -382,7 +439,7 @@ class _AddressEditForm extends StatelessWidget {
                 flex: 2,
                 child: TextFormField(
                   controller: stateController,
-                  enabled: !isSaving,
+                  enabled: fieldsEnabled,
                   decoration: const InputDecoration(
                     labelText: 'UF',
                     border: OutlineInputBorder(),
@@ -401,7 +458,7 @@ class _AddressEditForm extends StatelessWidget {
           // ── País ─────────────────────────────────────────────────────────
           TextFormField(
             controller: countryController,
-            enabled: !isSaving,
+            enabled: fieldsEnabled,
             decoration: const InputDecoration(
               labelText: 'País',
               prefixIcon: Icon(Icons.public_outlined),
@@ -417,7 +474,7 @@ class _AddressEditForm extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.end,
             children: [
               TextButton(
-                onPressed: isSaving ? null : onCancel,
+                onPressed: (isSaving || isLookingUpCep) ? null : onCancel,
                 child: const Text('Cancelar'),
               ),
               const SizedBox(width: AppSpacing.sm),
@@ -428,7 +485,7 @@ class _AddressEditForm extends StatelessWidget {
                       child: CircularProgressIndicator(strokeWidth: 2),
                     )
                   : FilledButton(
-                      onPressed: onSave,
+                      onPressed: isLookingUpCep ? null : onSave,
                       child: const Text('Salvar'),
                     ),
             ],
