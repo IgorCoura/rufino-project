@@ -15,7 +15,7 @@ namespace PeopleManagement.Application.Queries.Company
             var query = _context.Companies.AsNoTracking().Where(x => companiesIds.Contains(x.Id));
 
 
-            var companies = await query.OrderBy(c => c.CorporateName.Value).Select(c => new CompanySimplefiedDTO
+            var companies = await query.OrderBy(c => c.CorporateName).Select(c => new CompanySimplefiedDTO
             {
                 Id = c.Id,
                 CorporateName = c.CorporateName.Value,

@@ -42,7 +42,7 @@ namespace PeopleManagement.Application.Queries.Workplace
         {
             var query = from w in _context.Workplaces
                         where w.CompanyId == companyId
-                        orderby w.Name.Value
+                        orderby w.Name
                         select new
                         {
                             Workplace = w

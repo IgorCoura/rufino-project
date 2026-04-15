@@ -12,7 +12,7 @@ namespace PeopleManagement.Application.Queries.ArchiveCategory
 
         public async Task<IEnumerable<ArchiveCategoryDTO>> GetAll(Guid companyId)
         {
-            var query = _context.ArchiveCategories.AsNoTracking().Where(x => x.CompanyId == companyId).OrderBy(x => x.Name.Value);
+            var query = _context.ArchiveCategories.AsNoTracking().Where(x => x.CompanyId == companyId).OrderBy(x => x.Name);
 
 
             var result = await query.ToArrayAsync();
