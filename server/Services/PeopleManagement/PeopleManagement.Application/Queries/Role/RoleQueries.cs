@@ -72,7 +72,7 @@ namespace PeopleManagement.Application.Queries.Role
 
         public async Task<IEnumerable<RoleSimpleDto>> GetAllSimpleRoles(Guid PositionId, Guid company)
         {
-            var query = _context.Roles.Where(x => x.PositionId == PositionId && x.CompanyId == company);
+            var query = _context.Roles.Where(x => x.PositionId == PositionId && x.CompanyId == company).OrderBy(x => x.Name);
 
             var result = await query.Select(x => new RoleSimpleDto
             {
