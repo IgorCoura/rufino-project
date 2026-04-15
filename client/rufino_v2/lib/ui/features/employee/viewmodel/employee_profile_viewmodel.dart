@@ -26,6 +26,7 @@ import '../../../../domain/entities/employee_social_integration_program.dart';
 import '../../../../domain/entities/employee_vote_id.dart';
 import '../../../../domain/entities/personal_info_options.dart';
 import '../../../../core/utils/error_messages.dart';
+import '../../../../domain/repositories/cep_repository.dart';
 import '../../../../domain/repositories/company_repository.dart';
 import '../../../../domain/repositories/department_repository.dart';
 import '../../../../domain/repositories/document_group_repository.dart';
@@ -84,12 +85,14 @@ class EmployeeProfileViewModel extends ChangeNotifier {
     required DepartmentRepository departmentRepository,
     required WorkplaceRepository workplaceRepository,
     required DocumentGroupRepository documentGroupRepository,
+    required CepRepository cepRepository,
     DocumentScannerService? scannerService,
   })  : _companyRepository = companyRepository,
         _employeeRepository = employeeRepository,
         _departmentRepository = departmentRepository,
         _workplaceRepository = workplaceRepository,
         _documentGroupRepository = documentGroupRepository,
+        _cepRepository = cepRepository,
         _scannerService = scannerService;
 
   final CompanyRepository _companyRepository;
@@ -97,6 +100,7 @@ class EmployeeProfileViewModel extends ChangeNotifier {
   final DepartmentRepository _departmentRepository;
   final WorkplaceRepository _workplaceRepository;
   final DocumentGroupRepository _documentGroupRepository;
+  final CepRepository _cepRepository;
   final DocumentScannerService? _scannerService;
 
   EmployeeProfileStatus _status = EmployeeProfileStatus.idle;
@@ -124,6 +128,7 @@ class EmployeeProfileViewModel extends ChangeNotifier {
 
   SectionLoadStatus _addressStatus = SectionLoadStatus.notLoaded;
   Address? _address;
+  bool _isLookingUpCep = false;
 
   // ─── Personal info section ────────────────────────────────────────────────
 
@@ -269,6 +274,12 @@ class EmployeeProfileViewModel extends ChangeNotifier {
 
   /// The loaded address, or null when not yet loaded.
   Address? get address => _address;
+
+  /// Whether a CEP lookup is currently in progress.
+  ///
+  /// The address edit form observes this flag to block field editing while
+  /// the ViaCEP request is running.
+  bool get isLookingUpCep => _isLookingUpCep;
 
   // ─── Public getters — section personal info ───────────────────────────────
 
@@ -790,6 +801,33 @@ class EmployeeProfileViewModel extends ChangeNotifier {
     );
 
     notifyListeners();
+  }
+
+  /// Looks up the address associated with [cep] via the CEP repository.
+  ///
+  /// Returns the resolved [Address] on success, or `null` on any failure
+  /// (including "CEP not found", network errors, or invalid input).
+  /// Errors are intentionally silent — the UI should simply leave the
+  /// address fields empty when this returns null.
+  ///
+  /// While the request is in flight, [isLookingUpCep] is `true`; the
+  /// address edit form uses that to disable input.
+  Future<Address?> lookupCep(String cep) async {
+    final digits = cep.replaceAll(RegExp(r'[^\d]'), '');
+    if (digits.length != 8) return null;
+
+    _isLookingUpCep = true;
+    notifyListeners();
+    try {
+      final result = await _cepRepository.lookupCep(digits);
+      return result.fold(
+        onSuccess: (address) => address,
+        onError: (_) => null,
+      );
+    } finally {
+      _isLookingUpCep = false;
+      notifyListeners();
+    }
   }
 
   // ─── Personal info section methods ────────────────────────────────────────
