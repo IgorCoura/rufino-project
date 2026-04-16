@@ -101,7 +101,7 @@ namespace PeopleManagement.Application.Queries.Document
             };
         }
 
-        public async Task<Stream> DownloadDocumentUnit(Guid documentUnitId, Guid documentId, Guid employeeId, Guid companyId)
+        public async Task<(Stream Stream, string EmployeeName, string DocumentName, DateOnly Date, string Extension)> DownloadDocumentUnit(Guid documentUnitId, Guid documentId, Guid employeeId, Guid companyId)
         {
             var document = await _context.Documents.AsNoTracking().Include(x => x.DocumentsUnits.Where(x => x.Id == documentUnitId))
                 .Where(x => x.EmployeeId == employeeId && x.CompanyId == companyId && x.Id == documentId).SingleOrDefaultAsync()
@@ -110,9 +110,14 @@ namespace PeopleManagement.Application.Queries.Document
             var documentUnit = document.DocumentsUnits.SingleOrDefault(x => x.Id == documentUnitId)
                 ?? throw new DomainException(this, DomainErrors.ObjectNotFound(nameof(DocumentUnit), documentUnitId.ToString()));
 
+            var employeeName = await _context.Employees.AsNoTracking()
+                .Where(e => e.Id == employeeId && e.CompanyId == companyId)
+                .Select(e => e.Name.Value)
+                .FirstOrDefaultAsync() ?? "unknown";
+
             var file = await _blobService.DownloadAsync(documentUnit.GetNameWithExtension, document.CompanyId.ToString());
 
-            return file;
+            return (file, employeeName, document.Name.ToString(), documentUnit.Date, documentUnit.Extension?.ToString() ?? string.Empty);
         }
 
         public async Task<Stream> DownloadDocumentUnitRange(IEnumerable<DownloadRangeDocumentItem> items, Guid employeeId, Guid companyId)
@@ -126,15 +131,26 @@ namespace PeopleManagement.Application.Queries.Document
                 .Where(x => documentIds.Contains(x.Id) && x.EmployeeId == employeeId && x.CompanyId == companyId)
                 .ToListAsync();
 
+            var employeeName = await _context.Employees.AsNoTracking()
+                .Where(e => e.Id == employeeId && e.CompanyId == companyId)
+                .Select(e => e.Name.Value)
+                .FirstOrDefaultAsync() ?? "unknown";
+            var employeeSegment = employeeName.Trim().Replace(" ", "_");
+
             var downloadTasks = documents
                 .Where(doc => unitIdsByDocument.TryGetValue(doc.Id, out _))
                 .SelectMany(doc =>
                     doc.DocumentsUnits
                         .Where(unit => unitIdsByDocument[doc.Id].Contains(unit.Id))
-                        .Select(unit => new
+                        .Select(unit =>
                         {
-                            EntryName = $"{unit.Date:yyyy-MM-dd}-{doc.Name}-{unit.Id.ToString()[^4..]}.{unit.Extension}",
-                            Task = _blobService.DownloadAsync(unit.GetNameWithExtension, companyId.ToString())
+                            var idSuffix = unit.Id.ToString()[^4..];
+                            var documentSegment = doc.Name.ToString().Trim().Replace(" ", "_");
+                            return new
+                            {
+                                EntryName = $"{unit.Date:yyyy_MM_dd}-{employeeSegment}-{documentSegment}-{idSuffix}.{unit.Extension}".ToUpper(),
+                                Task = _blobService.DownloadAsync(unit.GetNameWithExtension, companyId.ToString())
+                            };
                         }))
                 .ToList();
 

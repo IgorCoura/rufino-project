@@ -333,4 +333,239 @@ void main() {
       expect(viewModel.errorMessage, isNotNull);
     });
   });
+
+  group('Combination mode', () {
+    Future<void> navigateToStep2() async {
+      await viewModel.initialize();
+      viewModel.toggleEmployeeSelection('emp-1');
+      viewModel.toggleEmployeeSelection('emp-2');
+      await viewModel.proceedToUnitSelection();
+    }
+
+    test('addToCombination creates a group and clears selection', () async {
+      await navigateToStep2();
+      viewModel.toggleUnitSelection('doc-1', 'unit-1');
+      expect(viewModel.selectedUnitCount, 1);
+
+      viewModel.addToCombination();
+
+      expect(viewModel.combinationGroupCount, 1);
+      expect(viewModel.combinationGroups.first.groupNumber, 1);
+      expect(viewModel.combinationGroups.first.units.length, 1);
+      expect(viewModel.selectedUnitCount, 0);
+    });
+
+    test('addToCombination does nothing when no units selected', () async {
+      await navigateToStep2();
+
+      viewModel.addToCombination();
+
+      expect(viewModel.combinationGroupCount, 0);
+      expect(viewModel.isCombineMode, false);
+    });
+
+    test('isCombineMode returns true after adding a group', () async {
+      await navigateToStep2();
+      expect(viewModel.isCombineMode, false);
+
+      viewModel.toggleUnitSelection('doc-1', 'unit-1');
+      viewModel.addToCombination();
+
+      expect(viewModel.isCombineMode, true);
+    });
+
+    test('multiple groups maintain order and numbering', () async {
+      // Use units that have hasFile=true for both
+      fakeBatchDownloadRepo.unitsPage = BatchDownloadUnitsPage(
+        items: [
+          testUnits[0], // unit-1, hasFile=true
+          const BatchDownloadUnit(
+            documentUnitId: 'unit-3',
+            documentId: 'doc-3',
+            employeeId: 'emp-1',
+            employeeName: 'Alice Silva',
+            documentTemplateName: 'Contrato',
+            documentGroupName: 'RH',
+            date: '01/03/2026',
+            statusId: 2,
+            statusName: 'OK',
+            hasFile: true,
+          ),
+        ],
+        totalCount: 2,
+      );
+      await navigateToStep2();
+
+      viewModel.toggleUnitSelection('doc-1', 'unit-1');
+      viewModel.addToCombination();
+
+      viewModel.toggleUnitSelection('doc-3', 'unit-3');
+      viewModel.addToCombination();
+
+      expect(viewModel.combinationGroupCount, 2);
+      expect(viewModel.combinationGroups[0].groupNumber, 1);
+      expect(viewModel.combinationGroups[1].groupNumber, 2);
+      expect(viewModel.combinedTotalUnitCount, 2);
+    });
+
+    test('proceedToReview auto-adds current selection in combine mode',
+        () async {
+      await navigateToStep2();
+      viewModel.toggleUnitSelection('doc-1', 'unit-1');
+      viewModel.addToCombination();
+
+      // Simulate loading new units
+      fakeBatchDownloadRepo.unitsPage = const BatchDownloadUnitsPage(
+        items: [
+          BatchDownloadUnit(
+            documentUnitId: 'unit-4',
+            documentId: 'doc-4',
+            employeeId: 'emp-1',
+            employeeName: 'Alice Silva',
+            documentTemplateName: 'ASO',
+            documentGroupName: 'SST',
+            date: '10/03/2026',
+            statusId: 2,
+            statusName: 'OK',
+            hasFile: true,
+          ),
+        ],
+        totalCount: 1,
+      );
+      await viewModel.loadDocumentUnits();
+
+      viewModel.toggleUnitSelection('doc-4', 'unit-4');
+      viewModel.proceedToReview();
+
+      expect(viewModel.combinationGroupCount, 2);
+      expect(viewModel.currentStep, BatchDownloadStep.review);
+    });
+
+    test('proceedToReview in normal mode works unchanged', () async {
+      await navigateToStep2();
+      viewModel.toggleUnitSelection('doc-1', 'unit-1');
+
+      viewModel.proceedToReview();
+
+      expect(viewModel.isCombineMode, false);
+      expect(viewModel.currentStep, BatchDownloadStep.review);
+    });
+
+    test('removeCombinationGroup removes and renumbers', () async {
+      await navigateToStep2();
+
+      // Add 3 groups
+      viewModel.toggleUnitSelection('doc-1', 'unit-1');
+      viewModel.addToCombination();
+      viewModel.toggleUnitSelection('doc-1', 'unit-1');
+      viewModel.addToCombination();
+      viewModel.toggleUnitSelection('doc-1', 'unit-1');
+      viewModel.addToCombination();
+      expect(viewModel.combinationGroupCount, 3);
+
+      viewModel.removeCombinationGroup(2);
+
+      expect(viewModel.combinationGroupCount, 2);
+      expect(viewModel.combinationGroups[0].groupNumber, 1);
+      expect(viewModel.combinationGroups[1].groupNumber, 2);
+    });
+
+    test('goBack from combine review preserves groups', () async {
+      await navigateToStep2();
+      viewModel.toggleUnitSelection('doc-1', 'unit-1');
+      viewModel.addToCombination();
+      viewModel.proceedToReview();
+
+      expect(viewModel.currentStep, BatchDownloadStep.review);
+      viewModel.goBack();
+
+      expect(viewModel.currentStep, BatchDownloadStep.selectUnits);
+      expect(viewModel.isCombineMode, true);
+      expect(viewModel.combinationGroupCount, 1);
+    });
+
+    test('proceedToUnitSelection resets combination state', () async {
+      await navigateToStep2();
+      viewModel.toggleUnitSelection('doc-1', 'unit-1');
+      viewModel.addToCombination();
+      expect(viewModel.isCombineMode, true);
+
+      viewModel.goBack(); // back to step 1
+      await viewModel.proceedToUnitSelection();
+
+      expect(viewModel.isCombineMode, false);
+      expect(viewModel.combinationGroupCount, 0);
+    });
+
+    test('combinedUnitsByEmployee groups units by employee', () async {
+      fakeBatchDownloadRepo.unitsPage = BatchDownloadUnitsPage(
+        items: [
+          testUnits[0], // emp-1 Alice
+          const BatchDownloadUnit(
+            documentUnitId: 'unit-5',
+            documentId: 'doc-5',
+            employeeId: 'emp-2',
+            employeeName: 'Bob Santos',
+            documentTemplateName: 'Holerite',
+            documentGroupName: 'RH',
+            date: '28/02/2026',
+            statusId: 2,
+            statusName: 'OK',
+            hasFile: true,
+          ),
+        ],
+        totalCount: 2,
+      );
+      await navigateToStep2();
+
+      viewModel.toggleUnitSelection('doc-1', 'unit-1');
+      viewModel.toggleUnitSelection('doc-5', 'unit-5');
+      viewModel.addToCombination();
+
+      final byEmployee = viewModel.combinedUnitsByEmployee;
+      expect(byEmployee.keys, containsAll(['Alice Silva', 'Bob Santos']));
+      expect(byEmployee['Alice Silva']?.first.units.length, 1);
+      expect(byEmployee['Bob Santos']?.first.units.length, 1);
+    });
+
+    test('downloadCombined calls individual download for each unit', () async {
+      fakeBatchDownloadRepo.documentUnitBytes = {
+        'doc-1:unit-1': Uint8List.fromList([0x25, 0x50, 0x44, 0x46]),
+      };
+      await navigateToStep2();
+      viewModel.toggleUnitSelection('doc-1', 'unit-1');
+      viewModel.addToCombination();
+      viewModel.proceedToReview();
+
+      await viewModel.downloadCombined();
+
+      expect(
+        fakeBatchDownloadRepo.downloadedUnitKeys,
+        contains('doc-1:unit-1'),
+      );
+    });
+
+    test('downloadCombined sets error status on download failure', () async {
+      await navigateToStep2();
+      viewModel.toggleUnitSelection('doc-1', 'unit-1');
+      viewModel.addToCombination();
+      viewModel.proceedToReview();
+
+      fakeBatchDownloadRepo.errorToThrow = Exception('download failed');
+      final result = await viewModel.downloadCombined();
+
+      expect(result, isNull);
+      expect(viewModel.status, BatchDownloadStatus.error);
+      expect(viewModel.errorMessage, isNotNull);
+    });
+
+    test('combinedFileName uses first unit of first group', () async {
+      await navigateToStep2();
+      viewModel.toggleUnitSelection('doc-1', 'unit-1');
+      viewModel.addToCombination();
+
+      expect(viewModel.combinedFileName, contains('ALICE_SILVA'));
+      expect(viewModel.combinedFileName, endsWith('.PDF'));
+    });
+  });
 }

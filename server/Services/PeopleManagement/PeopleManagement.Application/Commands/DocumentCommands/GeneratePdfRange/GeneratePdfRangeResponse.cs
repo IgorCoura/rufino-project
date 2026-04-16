@@ -2,5 +2,5 @@ namespace PeopleManagement.Application.Commands.DocumentCommands.GeneratePdfRang
 {
     public record GeneratePdfRangeResponseItem(Guid DocumentUnitId, Guid DocumentId, string DocumentName, DateOnly DocumentUnitDate, byte[] Pdf);
 
-    public record GeneratePdfRangeResponse(IReadOnlyList<GeneratePdfRangeResponseItem> Results);
+    public record GeneratePdfRangeResponse(string EmployeeName, IReadOnlyList<GeneratePdfRangeResponseItem> Results);
 }

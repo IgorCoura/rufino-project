@@ -39,7 +39,7 @@ namespace PeopleManagement.API.Controllers
             [FromBody] BatchDownloadRequest request)
         {
             var stream = await _batchDownloadQueries.DownloadBatchDocumentUnits(company, request.Items);
-            return File(stream, "application/octet-stream", "documents.zip");
+            return File(stream, "application/octet-stream", "documents.zip".ToUpper());
         }
     }
 }

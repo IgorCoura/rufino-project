@@ -177,17 +177,17 @@ namespace PeopleManagement.API.Controllers
                 foreach (var item in result.Results)
                 {
                     var idSuffix = item.DocumentUnitId.ToString()[^4..];
-                    var employeeSlug = item.EmployeeName.Trim().Replace(" ", "-").ToLowerInvariant();
-                    var entry = archive.CreateEntry(
-                        $"{employeeSlug}-{item.DocumentUnitDate:yyyy-MM-dd}-{item.DocumentName}-{idSuffix}.pdf",
-                        CompressionLevel.Fastest);
+                    var employeeSegment = item.EmployeeName.Trim().Replace(" ", "_");
+                    var documentSegment = item.DocumentName.Trim().Replace(" ", "_");
+                    var entryName = $"{item.DocumentUnitDate:yyyy_MM_dd}-{employeeSegment}-{documentSegment}-{idSuffix}.pdf".ToUpper();
+                    var entry = archive.CreateEntry(entryName, CompressionLevel.Fastest);
                     using var entryStream = entry.Open();
                     await entryStream.WriteAsync(item.Pdf);
                 }
             }
 
             memoryStream.Position = 0;
-            return File(memoryStream, "application/octet-stream", "documents.zip");
+            return File(memoryStream, "application/octet-stream", "documents.zip".ToUpper());
         }
 
         [HttpPost("generate-range/send2sign")]
