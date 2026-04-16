@@ -133,12 +133,12 @@ class DocumentUnit {
         _ => statusName.isNotEmpty ? statusName : statusId,
       };
 
-  /// Converts the [date] from `dd/MM/yyyy` to `yyyy-MM-dd` for file names.
+  /// Converts the [date] from `dd/MM/yyyy` to `yyyy_MM_dd` for file names.
   ///
-  /// Returns `"sem-data"` when the date is empty or has an unexpected format.
+  /// Returns `"SEM_DATA"` when the date is empty or has an unexpected format.
   String get dateForFileName {
-    if (date.isEmpty || date.length != 10) return 'sem-data';
-    return '${date.substring(6)}-${date.substring(3, 5)}-'
+    if (date.isEmpty || date.length != 10) return 'SEM_DATA';
+    return '${date.substring(6)}_${date.substring(3, 5)}_'
         '${date.substring(0, 2)}';
   }
 
@@ -167,13 +167,22 @@ class DocumentUnit {
     return null;
   }
 
-  /// Builds a download file name from this unit's date and the parent
-  /// [docName], e.g. `"2026-03-01-contrato-de-trabalho.pdf"`.
-  String downloadFileName(String docName, {String extension = 'pdf'}) {
-    final namePart = docName
-        .toLowerCase()
-        .replaceAll(RegExp(r'[^\w\s-]'), '')
-        .replaceAll(RegExp(r'\s+'), '-');
-    return '$dateForFileName-$namePart.$extension';
+  /// Builds a download file name following the backend naming convention.
+  ///
+  /// Pattern: `{EMPLOYEE}-{YYYY_MM_DD}-{DOCUMENT}-{idSuffix}.{EXT}`,
+  /// all segments UPPERCASED with spaces replaced by underscores.
+  String downloadFileName(
+    String docName, {
+    required String employeeName,
+    String extension = 'pdf',
+  }) {
+    final employeeSegment =
+        employeeName.trim().replaceAll(' ', '_').toUpperCase();
+    final documentSegment =
+        docName.trim().replaceAll(' ', '_').toUpperCase();
+    final idSuffix = id.length >= 4
+        ? id.substring(id.length - 4).toUpperCase()
+        : id.toUpperCase();
+    return '$employeeSegment-$dateForFileName-$documentSegment-$idSuffix.${extension.toUpperCase()}';
   }
 }
