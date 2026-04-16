@@ -71,7 +71,7 @@ namespace PeopleManagement.API.Controllers
             var employeeSegment = result.EmployeeName.Trim().Replace(" ", "_");
             var documentSegment = result.DocumentName.Trim().Replace(" ", "_");
             var idSuffix = result.Id.ToString()[^4..];
-            var fileName = $"{result.DocumentUnitDate:yyyy_MM_dd}-{employeeSegment}-{documentSegment}-{idSuffix}.pdf".ToUpper();
+            var fileName = $"{employeeSegment}-{result.DocumentUnitDate:yyyy_MM_dd}-{documentSegment}-{idSuffix}.pdf".ToUpper();
             return File(result.Pdf, "application/pdf", fileName);
         }
 
@@ -95,7 +95,7 @@ namespace PeopleManagement.API.Controllers
                 {
                     var idSuffix = item.DocumentUnitId.ToString()[^4..];
                     var documentSegment = item.DocumentName.Trim().Replace(" ", "_");
-                    var entryName = $"{item.DocumentUnitDate:yyyy_MM_dd}-{employeeSegment}-{documentSegment}-{idSuffix}.pdf".ToUpper();
+                    var entryName = $"{employeeSegment}-{item.DocumentUnitDate:yyyy_MM_dd}-{documentSegment}-{idSuffix}.pdf".ToUpper();
                     var entry = archive.CreateEntry(entryName, CompressionLevel.Fastest);
                     using var entryStream = entry.Open();
                     await entryStream.WriteAsync(item.Pdf);
@@ -202,7 +202,7 @@ namespace PeopleManagement.API.Controllers
             var employeeSegment = result.EmployeeName.Trim().Replace(" ", "_");
             var documentSegment = result.DocumentName.Trim().Replace(" ", "_");
             var idSuffix = documentUnitId.ToString()[^4..];
-            var fileName = $"{result.Date:yyyy_MM_dd}-{employeeSegment}-{documentSegment}-{idSuffix}.{result.Extension}".ToUpper();
+            var fileName = $"{employeeSegment}-{result.Date:yyyy_MM_dd}-{documentSegment}-{idSuffix}.{result.Extension}".ToUpper();
             return File(result.Stream, "application/octet-stream", fileName);
         }
 

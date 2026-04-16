@@ -21,5 +21,5 @@ String buildCombinedFileName(BatchDownloadUnit firstUnit) {
   final idSuffix =
       id.length >= 4 ? id.substring(id.length - 4).toUpperCase() : id.toUpperCase();
 
-  return '$formattedDate-$employeeSegment-$documentSegment-$idSuffix.PDF';
+  return '$employeeSegment-$formattedDate-$documentSegment-$idSuffix.PDF';
 }
