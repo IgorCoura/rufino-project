@@ -68,7 +68,11 @@ namespace PeopleManagement.API.Controllers
 
             CommandResultLog(result, request.DocumentUnitId, request, requestId);
 
-            return File(result.Pdf, "application/pdf", $"doc_{result.Id.ToString().Substring(0,10)}.pdf");
+            var employeeSegment = result.EmployeeName.Trim().Replace(" ", "_");
+            var documentSegment = result.DocumentName.Trim().Replace(" ", "_");
+            var idSuffix = result.Id.ToString()[^4..];
+            var fileName = $"{result.DocumentUnitDate:yyyy_MM_dd}-{employeeSegment}-{documentSegment}-{idSuffix}.pdf".ToUpper();
+            return File(result.Pdf, "application/pdf", fileName);
         }
 
         [HttpPost("generate/range/{employeeId}")]
@@ -84,19 +88,22 @@ namespace PeopleManagement.API.Controllers
             CommandResultLog(result, employeeId, request, Guid.Empty);
 
             var memoryStream = new MemoryStream();
+            var employeeSegment = result.EmployeeName.Trim().Replace(" ", "_");
             using (var archive = new ZipArchive(memoryStream, ZipArchiveMode.Create, leaveOpen: true))
             {
                 foreach (var item in result.Results)
                 {
                     var idSuffix = item.DocumentUnitId.ToString()[^4..];
-                    var entry = archive.CreateEntry($"{item.DocumentUnitDate:yyyy-MM-dd}-{item.DocumentName}-{idSuffix}.pdf", CompressionLevel.Fastest);
+                    var documentSegment = item.DocumentName.Trim().Replace(" ", "_");
+                    var entryName = $"{item.DocumentUnitDate:yyyy_MM_dd}-{employeeSegment}-{documentSegment}-{idSuffix}.pdf".ToUpper();
+                    var entry = archive.CreateEntry(entryName, CompressionLevel.Fastest);
                     using var entryStream = entry.Open();
                     await entryStream.WriteAsync(item.Pdf);
                 }
             }
 
             memoryStream.Position = 0;
-            return File(memoryStream, "application/octet-stream", "documents.zip");
+            return File(memoryStream, "application/octet-stream", "documents.zip".ToUpper());
         }
 
         [HttpPost("generate/send2sign")]
@@ -191,8 +198,12 @@ namespace PeopleManagement.API.Controllers
         public async Task<IActionResult> DownloadFile([FromRoute] Guid documentUnitId, [FromRoute] Guid documentId, [FromRoute] Guid employeeId,
             [FromRoute] Guid company)
         {
-            var stream = await _documentQueries.DownloadDocumentUnit(documentUnitId, documentId, employeeId, company);
-            return File(stream, "application/octet-stream", $"{documentUnitId}.zip");
+            var result = await _documentQueries.DownloadDocumentUnit(documentUnitId, documentId, employeeId, company);
+            var employeeSegment = result.EmployeeName.Trim().Replace(" ", "_");
+            var documentSegment = result.DocumentName.Trim().Replace(" ", "_");
+            var idSuffix = documentUnitId.ToString()[^4..];
+            var fileName = $"{result.Date:yyyy_MM_dd}-{employeeSegment}-{documentSegment}-{idSuffix}.{result.Extension}".ToUpper();
+            return File(result.Stream, "application/octet-stream", fileName);
         }
 
         [HttpPost("download/range/{employeeId}")]
@@ -200,7 +211,7 @@ namespace PeopleManagement.API.Controllers
         public async Task<IActionResult> DownloadRange([FromRoute] Guid company, [FromRoute] Guid employeeId, [FromBody] List<DownloadRangeDocumentItem> request)
         {
             var stream = await _documentQueries.DownloadDocumentUnitRange(request, employeeId, company);
-            return File(stream, "application/octet-stream", "documents.zip");
+            return File(stream, "application/octet-stream", "documents.zip".ToUpper());
         }
 
         [HttpPut("DocumentUnit/invalid")]

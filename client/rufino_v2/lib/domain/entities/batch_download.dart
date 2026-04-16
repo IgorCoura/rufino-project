@@ -113,6 +113,25 @@ class BatchDownloadUnit {
   String get selectionKey => '$documentId:$documentUnitId';
 }
 
+/// A numbered group of document units selected in one round of the
+/// combination wizard.
+///
+/// Each round of unit selection in step 2 produces one group. Groups are
+/// merged per employee in order during the combine download.
+class CombinationGroup {
+  /// Creates a [CombinationGroup] with the given [groupNumber] and [units].
+  const CombinationGroup({
+    required this.groupNumber,
+    required this.units,
+  });
+
+  /// The 1-based position of this group in the combination sequence.
+  final int groupNumber;
+
+  /// The document units selected in this round.
+  final List<BatchDownloadUnit> units;
+}
+
 /// Paginated result of employees for batch download.
 class BatchDownloadEmployeesPage {
   const BatchDownloadEmployeesPage({

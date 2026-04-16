@@ -110,4 +110,26 @@ class BatchDownloadRepositoryImpl implements BatchDownloadRepository {
       return Result.error(BatchDownloadNetworkException(e));
     }
   }
+
+  @override
+  Future<Result<Uint8List>> downloadDocumentUnit(
+    String companyId,
+    String employeeId,
+    String documentId,
+    String documentUnitId,
+  ) async {
+    try {
+      final bytes = await apiService.downloadDocumentUnit(
+        companyId,
+        employeeId,
+        documentId,
+        documentUnitId,
+      );
+      return Result.success(bytes);
+    } on BatchDownloadException catch (e) {
+      return Result.error(e);
+    } catch (e) {
+      return Result.error(BatchDownloadNetworkException(e));
+    }
+  }
 }

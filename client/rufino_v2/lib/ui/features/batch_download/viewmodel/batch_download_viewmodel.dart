@@ -1,8 +1,9 @@
 import 'dart:collection';
-import 'dart:typed_data';
-
 import 'package:flutter/foundation.dart';
 
+import '../../../../core/utils/combine_file_namer.dart';
+import '../../../../core/utils/pdf_merger.dart';
+import '../../../../core/utils/zip_builder.dart';
 import '../../../../domain/entities/batch_download.dart';
 import '../../../../domain/entities/document_group_with_templates.dart';
 import '../../../../domain/entities/workplace.dart';
@@ -221,6 +222,68 @@ class BatchDownloadViewModel extends ChangeNotifier {
 
   // We cache all loaded units so the review step can display them
   final List<BatchDownloadUnit> _allLoadedUnits = [];
+
+  // ---------------------------------------------------------------------------
+  // Combination state
+  // ---------------------------------------------------------------------------
+
+  final List<CombinationGroup> _combinationGroups = [];
+
+  /// The committed combination groups.
+  UnmodifiableListView<CombinationGroup> get combinationGroups =>
+      UnmodifiableListView(_combinationGroups);
+
+  /// Whether the wizard is in combine mode.
+  bool get isCombineMode => _combinationGroups.isNotEmpty;
+
+  /// The number of committed combination groups.
+  int get combinationGroupCount => _combinationGroups.length;
+
+  /// Total units across all committed combination groups.
+  int get combinedTotalUnitCount =>
+      _combinationGroups.fold(0, (sum, g) => sum + g.units.length);
+
+  double _downloadProgress = 0.0;
+
+  /// Download progress from 0.0 to 1.0 during combine download.
+  double get downloadProgress => _downloadProgress;
+
+  /// Returns the combination groups organized by employee for the review UI.
+  ///
+  /// Each employee maps to a list of groups containing only that employee's
+  /// units. Groups with no units for a given employee are omitted.
+  Map<String, List<CombinationGroup>> get combinedUnitsByEmployee {
+    final result = <String, List<CombinationGroup>>{};
+    for (final group in _combinationGroups) {
+      final byEmployee = <String, List<BatchDownloadUnit>>{};
+      for (final unit in group.units) {
+        byEmployee.putIfAbsent(unit.employeeName, () => []).add(unit);
+      }
+      for (final entry in byEmployee.entries) {
+        result.putIfAbsent(entry.key, () => []).add(
+              CombinationGroup(
+                groupNumber: group.groupNumber,
+                units: entry.value,
+              ),
+            );
+      }
+    }
+    return result;
+  }
+
+  /// The number of distinct employees across all combination groups.
+  int get combinedEmployeeCount => combinedUnitsByEmployee.keys.length;
+
+  /// The file name for a single-employee combined PDF.
+  ///
+  /// Uses the first unit of the first group to derive the name following
+  /// the backend naming pattern.
+  String get combinedFileName {
+    if (_combinationGroups.isEmpty || _combinationGroups.first.units.isEmpty) {
+      return 'documentos_combinados.pdf';
+    }
+    return buildCombinedFileName(_combinationGroups.first.units.first);
+  }
 
   // ---------------------------------------------------------------------------
   // Data loading
@@ -531,6 +594,7 @@ class BatchDownloadViewModel extends ChangeNotifier {
     _unitPageNumber = 1;
     _allLoadedUnits.clear();
     _selectedUnitKeys.clear();
+    _combinationGroups.clear();
     notifyListeners();
     await Future.wait([
       loadDocumentUnits(),
@@ -539,8 +603,16 @@ class BatchDownloadViewModel extends ChangeNotifier {
   }
 
   /// Advances from step 2 to step 3 (review).
+  ///
+  /// In combine mode, auto-adds the current selection as the last group
+  /// if any units are selected. Proceeds if at least one group exists.
   void proceedToReview() {
-    if (!hasSelectedUnits) return;
+    if (isCombineMode) {
+      if (hasSelectedUnits) addToCombination();
+      if (_combinationGroups.isEmpty) return;
+    } else {
+      if (!hasSelectedUnits) return;
+    }
     _currentStep = BatchDownloadStep.review;
     _status = BatchDownloadStatus.loaded;
     notifyListeners();
@@ -604,6 +676,154 @@ class BatchDownloadViewModel extends ChangeNotifier {
     } catch (e) {
       _status = BatchDownloadStatus.error;
       _errorMessage = 'Erro ao baixar documentos';
+      notifyListeners();
+      return null;
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Combination
+  // ---------------------------------------------------------------------------
+
+  /// Saves the current unit selection as a numbered combination group.
+  ///
+  /// Clears the current selection so the user can start a new round.
+  void addToCombination() {
+    if (!hasSelectedUnits) return;
+
+    final units = _allLoadedUnits
+        .where((u) => _selectedUnitKeys.contains(u.selectionKey))
+        .toList();
+
+    _combinationGroups.add(CombinationGroup(
+      groupNumber: _combinationGroups.length + 1,
+      units: units,
+    ));
+
+    _selectedUnitKeys.clear();
+    notifyListeners();
+  }
+
+  /// Removes a combination group and renumbers the remaining ones.
+  void removeCombinationGroup(int groupNumber) {
+    _combinationGroups.removeWhere((g) => g.groupNumber == groupNumber);
+    for (var i = 0; i < _combinationGroups.length; i++) {
+      _combinationGroups[i] = CombinationGroup(
+        groupNumber: i + 1,
+        units: _combinationGroups[i].units,
+      );
+    }
+    notifyListeners();
+  }
+
+  /// Downloads individual document files and merges them per employee.
+  ///
+  /// Returns the merged PDF bytes for a single employee, or a ZIP of
+  /// merged PDFs for multiple employees. Returns null on error.
+  Future<Uint8List?> downloadCombined() async {
+    if (_combinationGroups.isEmpty) return null;
+
+    _status = BatchDownloadStatus.downloading;
+    _downloadProgress = 0.0;
+    _errorMessage = null;
+    notifyListeners();
+
+    try {
+      // Collect all unique units across groups preserving group order.
+      final allUnits = _combinationGroups
+          .expand((g) => g.units)
+          .toList();
+
+      // Download each file individually with limited concurrency.
+      final downloadedBytes = <String, Uint8List>{};
+      const concurrencyLimit = 5;
+      var completed = 0;
+
+      for (var i = 0; i < allUnits.length; i += concurrencyLimit) {
+        final batch = allUnits.skip(i).take(concurrencyLimit);
+        final futures = batch.map((unit) async {
+          final key = unit.selectionKey;
+          if (downloadedBytes.containsKey(key)) return;
+          final result = await _batchDownloadRepository.downloadDocumentUnit(
+            _companyId,
+            unit.employeeId,
+            unit.documentId,
+            unit.documentUnitId,
+          );
+          result.fold(
+            onSuccess: (bytes) => downloadedBytes[key] = bytes,
+            onError: (e) => throw Exception(
+              'Falha ao baixar ${unit.documentTemplateName}: $e',
+            ),
+          );
+        });
+        await Future.wait(futures);
+        completed += batch.length;
+        _downloadProgress = completed / allUnits.length;
+        notifyListeners();
+      }
+
+      // Build per-employee PDF entries in group order.
+      final byEmployee = combinedUnitsByEmployee;
+      final mergedFiles = <ZipEntry>[];
+
+      for (final entry in byEmployee.entries) {
+        final employeeName = entry.key;
+        final employeeGroups = entry.value;
+
+        final pdfEntries = <PdfFileEntry>[];
+        BatchDownloadUnit? firstUnit;
+        for (final group in employeeGroups) {
+          for (final unit in group.units) {
+            firstUnit ??= unit;
+            final bytes = downloadedBytes[unit.selectionKey];
+            if (bytes != null) {
+              pdfEntries.add(PdfFileEntry(
+                name: '${unit.documentTemplateName}_${unit.date}',
+                bytes: bytes,
+              ));
+            }
+          }
+        }
+
+        if (pdfEntries.isEmpty) continue;
+
+        final mergeResult = await mergePdfFiles(pdfEntries);
+        late final Uint8List merged;
+        mergeResult.fold(
+          onSuccess: (bytes) => merged = bytes,
+          onError: (error) => throw Exception(
+            'Erro ao combinar PDFs de $employeeName: $error',
+          ),
+        );
+
+        final fileName = firstUnit != null
+            ? buildCombinedFileName(firstUnit)
+            : '${employeeName.replaceAll(' ', '_').toUpperCase()}.PDF';
+
+        mergedFiles.add((fileName: fileName, bytes: merged));
+      }
+
+      if (mergedFiles.isEmpty) {
+        _status = BatchDownloadStatus.error;
+        _errorMessage = 'Nenhum arquivo para combinar';
+        notifyListeners();
+        return null;
+      }
+
+      final Uint8List resultBytes;
+      if (mergedFiles.length == 1) {
+        resultBytes = mergedFiles.first.bytes;
+      } else {
+        resultBytes = buildZipFromEntries(mergedFiles);
+      }
+
+      _status = BatchDownloadStatus.downloadComplete;
+      notifyListeners();
+      return resultBytes;
+    } catch (e) {
+      _status = BatchDownloadStatus.error;
+      _errorMessage = e.toString();
       notifyListeners();
       return null;
     }

@@ -49,4 +49,15 @@ abstract class BatchDownloadRepository {
     String companyId,
     List<BatchDownloadItem> items,
   );
+
+  /// Downloads a single document unit file.
+  ///
+  /// Returns the raw file bytes for the unit identified by [documentUnitId]
+  /// within [documentId] for [employeeId].
+  Future<Result<Uint8List>> downloadDocumentUnit(
+    String companyId,
+    String employeeId,
+    String documentId,
+    String documentUnitId,
+  );
 }

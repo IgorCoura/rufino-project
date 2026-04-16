@@ -554,7 +554,7 @@ namespace PeopleManagement.API.Controllers
             [FromRoute] Guid company)
         {
             var img = await employeeQueries.DownloadImage(employeeId, company);
-            return File(img.stream, "application/octet-stream", $"img-{employeeId}.{img.Extension}");
+            return File(img.stream, "application/octet-stream", $"img-{employeeId}.{img.Extension}".ToUpper());
         }
     }
 }

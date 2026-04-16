@@ -38,6 +38,7 @@ dependencies:
   shared_preferences: ^2.5.5
   uuid: ^4.5.3
   pdf_combiner: ^6.0.4
+  archive: ^4.0.2
 
 dev_dependencies:
   flutter_test:
