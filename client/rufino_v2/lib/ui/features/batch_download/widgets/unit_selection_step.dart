@@ -107,6 +107,24 @@ class _UnitSelectionStepState extends State<UnitSelectionStep> {
           onPeriodTypeChanged: _onPeriodTypeChanged,
         ),
         const SizedBox(height: AppSpacing.sm),
+        // Combination indicator
+        if (vm.isCombineMode)
+          Padding(
+            padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+            child: Chip(
+              avatar: Icon(
+                Icons.merge_type_rounded,
+                size: 18,
+                color: colorScheme.primary,
+              ),
+              label: Text(
+                '${vm.combinationGroupCount} grupo(s) | '
+                '${vm.combinedTotalUnitCount} documento(s)',
+              ),
+              backgroundColor: colorScheme.primaryContainer,
+              side: BorderSide.none,
+            ),
+          ),
         // Clear + selection actions
         Row(
           children: [
@@ -232,8 +250,18 @@ class _UnitSelectionStepState extends State<UnitSelectionStep> {
                     child: const Text('Voltar'),
                   ),
                   const SizedBox(width: AppSpacing.sm),
+                  OutlinedButton.icon(
+                    onPressed: vm.hasSelectedUnits
+                        ? vm.addToCombination
+                        : null,
+                    icon: const Icon(Icons.playlist_add, size: 18),
+                    label: const Text('Adicionar a combinacao'),
+                  ),
+                  const SizedBox(width: AppSpacing.sm),
                   FilledButton.icon(
-                    onPressed: vm.hasSelectedUnits ? widget.onNext : null,
+                    onPressed: vm.hasSelectedUnits || vm.isCombineMode
+                        ? widget.onNext
+                        : null,
                     icon: const Icon(Icons.arrow_forward, size: 18),
                     label: const Text('Proximo'),
                   ),

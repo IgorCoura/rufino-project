@@ -5,6 +5,7 @@ import '../../../../core/theme/app_breakpoints.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/utils/file_saver.dart';
 import '../viewmodel/batch_download_viewmodel.dart';
+import 'combine_review_step.dart';
 import 'employee_selection_step.dart';
 import 'review_download_step.dart';
 import 'unit_selection_step.dart';
@@ -70,6 +71,28 @@ class _BatchDownloadScreenState extends State<BatchDownloadScreen> {
     }
   }
 
+  Future<void> _handleCombineDownload() async {
+    final vm = widget.viewModel;
+    final bytes = await vm.downloadCombined();
+    if (bytes != null && mounted) {
+      final isSingleEmployee = vm.combinedEmployeeCount == 1;
+      final fileName = isSingleEmployee
+          ? vm.combinedFileName
+          : 'documentos_combinados.zip';
+      await saveFile(fileName: fileName, bytes: bytes);
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+          ..hideCurrentSnackBar()
+          ..showSnackBar(
+            const SnackBar(
+              content: Text('Combinacao concluida com sucesso!'),
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final vm = widget.viewModel;
@@ -110,10 +133,15 @@ class _BatchDownloadScreenState extends State<BatchDownloadScreen> {
                       viewModel: vm,
                       onNext: vm.proceedToReview,
                     ),
-                  BatchDownloadStep.review => ReviewDownloadStep(
-                      viewModel: vm,
-                      onDownload: _handleDownload,
-                    ),
+                  BatchDownloadStep.review => vm.isCombineMode
+                      ? CombineReviewStep(
+                          viewModel: vm,
+                          onDownload: _handleCombineDownload,
+                        )
+                      : ReviewDownloadStep(
+                          viewModel: vm,
+                          onDownload: _handleDownload,
+                        ),
                 },
               ),
             ),

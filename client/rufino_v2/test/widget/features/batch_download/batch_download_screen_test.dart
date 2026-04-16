@@ -155,4 +155,94 @@ void main() {
       expect(find.text('Status'), findsOneWidget);
     });
   });
+
+  group('Combination flow', () {
+    final testUnits = [
+      const BatchDownloadUnit(
+        documentUnitId: 'unit-1',
+        documentId: 'doc-1',
+        employeeId: 'emp-1',
+        employeeName: 'Alice Silva',
+        documentTemplateName: 'Holerite',
+        documentGroupName: 'RH',
+        date: '28/02/2026',
+        statusId: 2,
+        statusName: 'OK',
+        hasFile: true,
+      ),
+      const BatchDownloadUnit(
+        documentUnitId: 'unit-2',
+        documentId: 'doc-2',
+        employeeId: 'emp-2',
+        employeeName: 'Bob Santos',
+        documentTemplateName: 'Holerite',
+        documentGroupName: 'RH',
+        date: '28/02/2026',
+        statusId: 2,
+        statusName: 'OK',
+        hasFile: true,
+      ),
+    ];
+
+    Future<void> navigateToStep2(WidgetTester tester) async {
+      fakeBatchDownloadRepo.unitsPage = BatchDownloadUnitsPage(
+        items: testUnits,
+        totalCount: testUnits.length,
+      );
+
+      setupLargeScreen(tester);
+      await tester.pumpWidget(buildTestWidget());
+      await tester.pumpAndSettle();
+
+      // Select all employees
+      await tester.tap(find.text('Selecionar Todos'));
+      await tester.pumpAndSettle();
+
+      // Navigate to step 2
+      await tester.tap(find.text('Proximo'));
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('shows Adicionar a combinacao button on step 2',
+        (tester) async {
+      await navigateToStep2(tester);
+
+      expect(find.text('Adicionar a combinacao'), findsOneWidget);
+    });
+
+    testWidgets('combination indicator shows group count after adding',
+        (tester) async {
+      await navigateToStep2(tester);
+
+      // Select a unit
+      await tester.tap(find.text('Alice Silva - Holerite'));
+      await tester.pumpAndSettle();
+
+      // Add to combination
+      await tester.tap(find.text('Adicionar a combinacao'));
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('1 grupo(s)'), findsOneWidget);
+      expect(find.textContaining('1 documento(s)'), findsOneWidget);
+    });
+
+    testWidgets('combine review step renders when in combine mode',
+        (tester) async {
+      await navigateToStep2(tester);
+
+      // Select a unit and add to combination
+      await tester.tap(find.text('Alice Silva - Holerite'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Adicionar a combinacao'));
+      await tester.pumpAndSettle();
+
+      // Proceed to review
+      await tester.tap(find.text('Proximo'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Combinar e Baixar'), findsOneWidget);
+      expect(find.textContaining('grupo(s)'), findsWidgets);
+      expect(find.text('Grupo 1'), findsOneWidget);
+    });
+  });
 }

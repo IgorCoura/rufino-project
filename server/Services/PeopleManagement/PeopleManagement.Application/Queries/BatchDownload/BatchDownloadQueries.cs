@@ -210,11 +210,11 @@ namespace PeopleManagement.Application.Queries.BatchDownload
                         .Select(unit =>
                         {
                             var idSuffix = unit.Id.ToString()[^4..];
-                            var employeeSlug = employees.GetValueOrDefault(doc.EmployeeId, "unknown").Trim().Replace(" ", "-").ToLowerInvariant();
-                            var docName = templates.GetValueOrDefault(doc.DocumentTemplateId, "document");
+                            var employeeSegment = employees.GetValueOrDefault(doc.EmployeeId, "unknown").Trim().Replace(" ", "_");
+                            var documentSegment = templates.GetValueOrDefault(doc.DocumentTemplateId, "document").Trim().Replace(" ", "_");
                             return new
                             {
-                                EntryName = $"{employeeSlug}-{unit.Date:yyyy-MM-dd}-{docName}-{idSuffix}.{unit.Extension}",
+                                EntryName = $"{unit.Date:yyyy_MM_dd}-{employeeSegment}-{documentSegment}-{idSuffix}.{unit.Extension}".ToUpper(),
                                 Task = _blobService.DownloadAsync(unit.GetNameWithExtension, companyId.ToString())
                             };
                         }))

@@ -24,6 +24,12 @@ class FakeBatchDownloadRepository implements BatchDownloadRepository {
   /// The ZIP bytes to return from [downloadBatch].
   Uint8List downloadBytes = Uint8List(0);
 
+  /// Bytes to return from [downloadDocumentUnit], keyed by `documentId:documentUnitId`.
+  Map<String, Uint8List> documentUnitBytes = {};
+
+  /// Tracks the keys of units downloaded via [downloadDocumentUnit].
+  List<String> downloadedUnitKeys = [];
+
   /// When non-null, all methods return [Result.error] with this value.
   Object? errorToThrow;
 
@@ -102,5 +108,19 @@ class FakeBatchDownloadRepository implements BatchDownloadRepository {
     lastDownloadItems = items;
     if (errorToThrow != null) return Result.error(errorToThrow!);
     return Result.success(downloadBytes);
+  }
+
+  @override
+  Future<Result<Uint8List>> downloadDocumentUnit(
+    String companyId,
+    String employeeId,
+    String documentId,
+    String documentUnitId,
+  ) async {
+    final key = '$documentId:$documentUnitId';
+    downloadedUnitKeys.add(key);
+    if (errorToThrow != null) return Result.error(errorToThrow!);
+    final bytes = documentUnitBytes[key] ?? Uint8List(0);
+    return Result.success(bytes);
   }
 }

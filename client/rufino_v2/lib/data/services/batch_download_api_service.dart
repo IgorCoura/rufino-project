@@ -115,6 +115,24 @@ class BatchDownloadApiService {
     return BatchDownloadUnitsResponse.fromJson(json);
   }
 
+  /// Downloads a single document unit file.
+  ///
+  /// Returns the raw file bytes.
+  Future<Uint8List> downloadDocumentUnit(
+    String companyId,
+    String employeeId,
+    String documentId,
+    String documentUnitId,
+  ) async {
+    final uri = Uri.https(
+      baseUrl,
+      '/api/v1/$companyId/document/download/$employeeId/$documentId/$documentUnitId',
+    );
+    final response = await client.get(uri, headers: await _headers());
+    checkHttpStatus(response);
+    return response.bodyBytes;
+  }
+
   /// Downloads the selected document units as a ZIP file.
   ///
   /// Returns the raw ZIP bytes.
