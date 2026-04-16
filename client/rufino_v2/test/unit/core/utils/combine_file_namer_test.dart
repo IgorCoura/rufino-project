@@ -20,7 +20,7 @@ void main() {
 
       final result = buildCombinedFileName(unit);
 
-      expect(result, '2026_02_28-ALICE_SILVA-HOLERITE-1234.PDF');
+      expect(result, 'ALICE_SILVA-2026_02_28-HOLERITE-1234.PDF');
     });
 
     test('replaces spaces with underscores in multi-word names', () {
@@ -41,7 +41,7 @@ void main() {
 
       expect(
         result,
-        '2025_12_01-MARIA_APARECIDA_DOS_SANTOS-CONTRATO_DE_TRABALHO-5678.PDF',
+        'MARIA_APARECIDA_DOS_SANTOS-2025_12_01-CONTRATO_DE_TRABALHO-5678.PDF',
       );
     });
 
@@ -61,7 +61,7 @@ void main() {
 
       final result = buildCombinedFileName(unit);
 
-      expect(result, '2026_01_05-BOB-ASO-AB.PDF');
+      expect(result, 'BOB-2026_01_05-ASO-AB.PDF');
     });
 
     test('uppercases all segments including suffix', () {
@@ -80,7 +80,7 @@ void main() {
 
       final result = buildCombinedFileName(unit);
 
-      expect(result, '2026_06_15-JOAO-RECIBO-ABCD.PDF');
+      expect(result, 'JOAO-2026_06_15-RECIBO-ABCD.PDF');
     });
   });
 }

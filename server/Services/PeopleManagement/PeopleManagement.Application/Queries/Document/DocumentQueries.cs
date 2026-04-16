@@ -148,7 +148,7 @@ namespace PeopleManagement.Application.Queries.Document
                             var documentSegment = doc.Name.ToString().Trim().Replace(" ", "_");
                             return new
                             {
-                                EntryName = $"{unit.Date:yyyy_MM_dd}-{employeeSegment}-{documentSegment}-{idSuffix}.{unit.Extension}".ToUpper(),
+                                EntryName = $"{employeeSegment}-{unit.Date:yyyy_MM_dd}-{documentSegment}-{idSuffix}.{unit.Extension}".ToUpper(),
                                 Task = _blobService.DownloadAsync(unit.GetNameWithExtension, companyId.ToString())
                             };
                         }))
