@@ -119,7 +119,7 @@ namespace PeopleManagement.API.Controllers
         {
             var stream = await documentTemplateQueries.DownloadFile(documentTemplateId, company);
             stream.Position = 0;
-            return File(stream, "application/octet-stream", $"{documentTemplateId}.zip");
+            return File(stream, "application/octet-stream", $"{documentTemplateId}.zip".ToUpper());
         }
 
         [HttpGet("Events")]
