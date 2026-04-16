@@ -214,7 +214,7 @@ namespace PeopleManagement.Application.Queries.BatchDownload
                             var documentSegment = templates.GetValueOrDefault(doc.DocumentTemplateId, "document").Trim().Replace(" ", "_");
                             return new
                             {
-                                EntryName = $"{unit.Date:yyyy_MM_dd}-{employeeSegment}-{documentSegment}-{idSuffix}.{unit.Extension}".ToUpper(),
+                                EntryName = $"{employeeSegment}-{unit.Date:yyyy_MM_dd}-{documentSegment}-{idSuffix}.{unit.Extension}".ToUpper(),
                                 Task = _blobService.DownloadAsync(unit.GetNameWithExtension, companyId.ToString())
                             };
                         }))

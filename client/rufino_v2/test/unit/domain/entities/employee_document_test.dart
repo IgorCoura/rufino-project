@@ -213,7 +213,7 @@ void main() {
   });
 
   group('DocumentUnit.dateForFileName', () {
-    test('converts dd/MM/yyyy date to yyyy-MM-dd format', () {
+    test('converts dd/MM/yyyy date to yyyy_MM_dd format', () {
       const unit = DocumentUnit(
         id: '1',
         statusId: '1',
@@ -224,10 +224,10 @@ void main() {
         hasFile: false,
         name: '',
       );
-      expect(unit.dateForFileName, '2026-03-01');
+      expect(unit.dateForFileName, '2026_03_01');
     });
 
-    test('returns sem-data when date is empty', () {
+    test('returns SEM_DATA when date is empty', () {
       const unit = DocumentUnit(
         id: '1',
         statusId: '1',
@@ -238,14 +238,14 @@ void main() {
         hasFile: false,
         name: '',
       );
-      expect(unit.dateForFileName, 'sem-data');
+      expect(unit.dateForFileName, 'SEM_DATA');
     });
   });
 
   group('DocumentUnit.downloadFileName', () {
-    test('builds correct file name with slugified document name', () {
+    test('follows backend pattern with employee, date, document, suffix', () {
       const unit = DocumentUnit(
-        id: '1',
+        id: 'abc-unit-1234',
         statusId: '1',
         statusName: '',
         date: '01/03/2026',
@@ -255,14 +255,17 @@ void main() {
         name: '',
       );
       expect(
-        unit.downloadFileName('Contrato de Trabalho'),
-        '2026-03-01-contrato-de-trabalho.pdf',
+        unit.downloadFileName(
+          'Contrato de Trabalho',
+          employeeName: 'Alice Silva',
+        ),
+        'ALICE_SILVA-2026_03_01-CONTRATO_DE_TRABALHO-1234.PDF',
       );
     });
 
     test('uses custom extension when provided', () {
       const unit = DocumentUnit(
-        id: '1',
+        id: 'abc-unit-5678',
         statusId: '1',
         statusName: '',
         date: '15/06/2025',
@@ -272,8 +275,12 @@ void main() {
         name: '',
       );
       expect(
-        unit.downloadFileName('Holerite', extension: 'png'),
-        '2025-06-15-holerite.png',
+        unit.downloadFileName(
+          'Holerite',
+          employeeName: 'Bob Santos',
+          extension: 'png',
+        ),
+        'BOB_SANTOS-2025_06_15-HOLERITE-5678.PNG',
       );
     });
   });

@@ -273,7 +273,10 @@ class _DocumentsSectionState extends State<DocumentsSection> {
       if (bytes != null && mounted) {
         final saved = await _saveFile(
           dialogTitle: 'Salvar documento',
-          fileName: unit.downloadFileName(doc.name),
+          fileName: unit.downloadFileName(
+            doc.name,
+            employeeName: widget.viewModel.profile?.name ?? '',
+          ),
           bytes: bytes,
         );
         if (!saved && mounted) {
@@ -888,7 +891,10 @@ class _DocumentsSectionState extends State<DocumentsSection> {
       await showDialog<void>(
         context: context,
         builder: (ctx) => _PdfViewerDialog(
-          title: unit.downloadFileName(doc.name),
+          title: unit.downloadFileName(
+            doc.name,
+            employeeName: widget.viewModel.profile?.name ?? '',
+          ),
           bytes: bytes,
         ),
       );
