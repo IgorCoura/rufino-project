@@ -283,27 +283,13 @@ namespace PeopleManagement.Services.Services
                 workloadEndDate = await VerifyTimeConflictBetweenDocument(employeeId, companyId, documentId, documentUnitDate,
                     (TimeSpan)documentTemplate.Workload, cancellationToken);
 
-            var requiredDocument = await _requireDocumentsRepository.FirstOrDefaultAsync(x => x.Id == document.RequiredDocumentId
-                && x.CompanyId == companyId, cancellation: cancellationToken)
-                ?? throw new DomainException(this, DomainErrors.ObjectNotFound(nameof(RequireDocuments), document.RequiredDocumentId.ToString()));
-
-            var recurringEventFrequency = RecurringEvents.GetUniqueRecurringEventsFrequency(requiredDocument.ListenEvents.Select(x => x.EventId));
-            var periodType = ConvertFrequencyToPeriodType(recurringEventFrequency);
             string? content = "";
 
             DocumentUnit documentUnit;
 
-            if(periodType != null)
-            {
-                documentUnit = document.UpdateDocumentUnitDetails(documentUnitId, documentUnitDate, documentTemplate.DocumentValidityDuration,
-                content, periodType);
-
-            }
-            else
-            {
-                documentUnit = document.UpdateDocumentUnitDetails(documentUnitId, documentUnitDate, documentTemplate.DocumentValidityDuration,
-                content);
-            }
+            documentUnit = document.UpdateDocumentUnitDetails(documentUnitId, documentUnitDate, documentTemplate.DocumentValidityDuration,
+            content);
+    
 
             if (workloadEndDate is not null)
                 documentUnit.SetWorkloadEndDate(workloadEndDate.Value);
