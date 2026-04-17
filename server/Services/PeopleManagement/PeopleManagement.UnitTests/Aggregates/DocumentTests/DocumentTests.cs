@@ -140,7 +140,7 @@ namespace PeopleManagement.UnitTests.Aggregates.DocumentTests
             Assert.Equal(2, document.DocumentsUnits.Count);
 
             // Atualiza o segundo para ter o mesmo period do primeiro
-            document.UpdateDocumentUnitDetails(secondUnit.Id, DateOnly.FromDateTime(referenceDate), TimeSpan.Zero, "", PeriodType.Monthly);
+            document.UpdateDocumentUnitDetails(secondUnit.Id, DateOnly.FromDateTime(referenceDate), TimeSpan.Zero, "");
 
             Assert.Equal(DocumentUnitStatus.Invalid, firstUnit.Status);
             Assert.Equal(DocumentUnitStatus.Pending, secondUnit.Status);
@@ -159,7 +159,7 @@ namespace PeopleManagement.UnitTests.Aggregates.DocumentTests
             var secondUnit = document.NewDocumentUnit(Guid.NewGuid(), PeriodType.Monthly, differentReferenceDate);
 
             // Atualiza o segundo para ter o mesmo period do primeiro (que já é OK)
-            document.UpdateDocumentUnitDetails(secondUnit.Id, DateOnly.FromDateTime(referenceDate), TimeSpan.Zero, "", PeriodType.Monthly);
+            document.UpdateDocumentUnitDetails(secondUnit.Id, DateOnly.FromDateTime(referenceDate), TimeSpan.Zero, "");
 
             Assert.NotEqual(DocumentUnitStatus.Invalid, firstUnit.Status);
         }
@@ -175,7 +175,7 @@ namespace PeopleManagement.UnitTests.Aggregates.DocumentTests
             var secondUnit = document.NewDocumentUnit(Guid.NewGuid(), PeriodType.Monthly, differentReferenceDate);
 
             // Atualiza o segundo mantendo um period diferente do primeiro
-            document.UpdateDocumentUnitDetails(secondUnit.Id, DateOnly.FromDateTime(differentReferenceDate), TimeSpan.Zero, "", PeriodType.Monthly);
+            document.UpdateDocumentUnitDetails(secondUnit.Id, DateOnly.FromDateTime(differentReferenceDate), TimeSpan.Zero, "");
 
             Assert.Equal(DocumentUnitStatus.Pending, firstUnit.Status);
             Assert.Equal(DocumentUnitStatus.Pending, secondUnit.Status);

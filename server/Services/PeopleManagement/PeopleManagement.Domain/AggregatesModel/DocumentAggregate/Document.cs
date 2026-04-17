@@ -100,6 +100,10 @@ namespace PeopleManagement.Domain.AggregatesModel.DocumentAggregate
 
             documentUnit.UpdateDetails(date, validity, content);
 
+            if (documentUnit.IsPeriod)
+                VerifyDuplicatedPendings(documentUnit);
+
+            RefreshDocumentStatus();
             return documentUnit;
         }
 
@@ -109,26 +113,24 @@ namespace PeopleManagement.Domain.AggregatesModel.DocumentAggregate
                 ?? throw new DomainException(this, DomainErrors.ObjectNotFound(nameof(DocumentUnit), documentUnitId.ToString()));
 
             documentUnit.UpdateDetails(date, validity, content);
+
+            if (documentUnit.IsPeriod)
+                VerifyDuplicatedPendings(documentUnit);
+
             RefreshDocumentStatus();
             return documentUnit;
         }
 
-        public DocumentUnit UpdateDocumentUnitDetails(Guid documentUnitId, DateOnly date, TimeSpan? validity, string content, PeriodType periodType)
+        private void VerifyDuplicatedPendings(DocumentUnit documentUnit)
         {
-            var documentUnit = DocumentsUnits.FirstOrDefault(x => x.Id == documentUnitId)
-                ?? throw new DomainException(this, DomainErrors.ObjectNotFound(nameof(DocumentUnit), documentUnitId.ToString()));
-
-            documentUnit.UpdateDetails(date, validity, content, periodType);
-
             var duplicatePending = DocumentsUnits
-                .Where(x => x.Id != documentUnitId && x.Status == DocumentUnitStatus.Pending && x.Period != null && x.Period.Equals(documentUnit.Period))
+                .Where(x => x.Id != documentUnit.Id && x.Status == DocumentUnitStatus.Pending && x.Period != null && x.Period.Equals(documentUnit.Period))
                 .ToList();
 
             duplicatePending.ForEach(x => x.MaskAsInvalid());
-
-            RefreshDocumentStatus();
-            return documentUnit;
         }
+
+
 
         public DocumentUnit GetDocumentUnit(Guid documentUnitId)
         {

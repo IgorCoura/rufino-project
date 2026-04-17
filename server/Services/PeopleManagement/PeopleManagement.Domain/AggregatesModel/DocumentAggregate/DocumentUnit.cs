@@ -95,6 +95,8 @@ namespace PeopleManagement.Domain.AggregatesModel.DocumentAggregate
             Date = date;
             Validity = validity;    
             Content = content;
+            if (IsPeriod)
+                SetPeriod(Period!.Type, date.ToDateTime(TimeOnly.MinValue));
         }
 
         public void UpdateDetails(DateOnly date, TimeSpan? validity, string content)
@@ -108,21 +110,11 @@ namespace PeopleManagement.Domain.AggregatesModel.DocumentAggregate
             }
             Validity = dateValidity;
             Content = content;
+            if(IsPeriod)
+                SetPeriod(Period!.Type, date.ToDateTime(TimeOnly.MinValue));
         }
 
-        public void UpdateDetails(DateOnly date, TimeSpan? validity, string content, PeriodType periodType)
-        {
-            Date = date;
-            DateOnly? dateValidity = null;
-            if (validity is not null && validity != TimeSpan.Zero)
-            {
-                var dateTimeValidity = date.ToDateTime(TimeOnly.MinValue).Add(validity.Value);
-                dateValidity = DateOnly.FromDateTime(dateTimeValidity);
-            }
-            Validity = dateValidity;
-            Content = content;
-            SetPeriod(periodType, date.ToDateTime(TimeOnly.MinValue));
-        }
+
 
         public void MaskAsInvalid()
         {
@@ -209,6 +201,7 @@ namespace PeopleManagement.Domain.AggregatesModel.DocumentAggregate
         public bool IsPeriodWeekly => Period?.IsWeekly ?? false;
         public bool IsPeriodMonthly => Period?.IsMonthly ?? false;
         public bool IsPeriodYearly => Period?.IsYearly ?? false;
+        public bool IsPeriod => Period != null; 
 
         private bool HasInvalidDateOrValidity => Date == DateOnly.MinValue || Date == DateOnly.MaxValue || (Validity != null && (Validity == DateOnly.MinValue || Validity == DateOnly.MaxValue));
 
