@@ -49,7 +49,7 @@
       "Type": "Reservista"
     },
     "DocumentSigningOptions": {
-      "Id": 2,
+      "Id": 1,
       "Name": "PhysicalSignature"
     },
     "Photo": "FOTO.jpeg",
@@ -212,16 +212,17 @@
       }
     ],
     "epis": [
-      { "name": "Protetor Solar" },
-      { "name": "Protetor auricular tipo plug de inserção" },
-      { "name": "Máscara PFF2" },
-      { "name": "Luva Tátil" },
-      { "name": "Calçado de Segurança" },
-      { "name": "Óculos de proteção" },
-      { "name": "Capacete de segurança" },
-      { "name": "Cinturão de segurança com talabarte e trava-queda" },
-      { "name": "Luva emborrachada" },
-      { "name": "Calçado de segurança com isolamento para baixa tensão" }
+      { "name": "Protetor Solar", "ca": "N/A", "quantity": "1" },
+      { "name": "Protetor auricular tipo plug de inserção", "ca": "14533", "quantity": "1" },
+      { "name": "Máscara PFF2", "ca": "38503", "quantity": "1" },
+      { "name": "Luva Tátil", "ca": "46932", "quantity": "1" },
+      { "name": "Calçado de Segurança", "ca": "42016", "quantity": "1" },
+      { "name": "Óculos de proteção", "ca": "51536", "quantity": "1" },
+      { "name": "Capacete de segurança", "ca": "29638", "quantity": "1" },
+      { "name": "Cinturão de segurança com talabarte e trava-queda", "ca": "37977", "quantity": "1" },
+      { "name": "Luva emborrachada", "ca": "2178", "quantity": "1" },
+      { "name": "Calçado de segurança com isolamento para baixa tensão", "ca": "48383", "quantity": "1" },
+      { "name": "Uniforme", "ca": "N/A", "quantity": "2" }
     ]
   }
 }

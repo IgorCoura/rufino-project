@@ -1,0 +1,338 @@
+@page {
+    size: A4;
+    margin: 5mm;
+}
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+html, body {
+    background: #ffffff;
+}
+
+body {
+    font-family: Arial, Helvetica, sans-serif;
+    font-size: 9pt;
+    color: #000000;
+    line-height: 1.2;
+    max-width: 21cm;
+    margin: 0 auto;
+}
+
+/* === CABEÇALHO COM BORDA DUPLA === */
+.cabecalho {
+    border: 3px double #000;
+    padding: 6pt 10pt;
+    text-align: center;
+}
+
+.cabecalho .empresa {
+    font-family: "Times New Roman", Times, serif;
+    font-style: italic;
+    font-weight: bold;
+    font-size: 15pt;
+    margin: 0 0 2pt 0;
+    letter-spacing: 0.3pt;
+}
+
+.cabecalho .subtitulo {
+    font-weight: bold;
+    font-size: 11pt;
+    margin: 0;
+}
+
+/* === CAIXA DE IDENTIFICAÇÃO === */
+.identificacao {
+    border: 1px solid #000;
+    border-top: none;
+    padding: 6pt 10pt;
+    font-size: 10pt;
+}
+
+.identificacao .campo {
+    margin-right: 14pt;
+}
+
+/* === TÍTULO "DECLARAÇÃO DE RECEBIMENTO" === */
+.declaracao-header {
+    border: 1px solid #000;
+    border-top: none;
+    padding: 4pt;
+    text-align: center;
+    font-weight: bold;
+    font-size: 13pt;
+}
+
+/* === CORPO EM DUAS COLUNAS === */
+.corpo {
+    border: 1px solid #000;
+    border-top: none;
+    padding: 0;
+    display: flex;
+    flex-direction: row;
+}
+
+.coluna {
+    padding: 6pt 8pt;
+    font-size: 8.5pt;
+    line-height: 1.25;
+}
+
+.coluna-esq {
+    width: 50%;
+    border-right: 1px solid #000;
+    text-align: justify;
+}
+
+.coluna-dir {
+    width: 50%;
+}
+
+.coluna p {
+    margin: 0 0 7pt 0;
+    text-align: justify;
+}
+
+/* Lista de cláusulas - alíneas estilo "a)" */
+.clausulas {
+    list-style: none;
+    padding: 0;
+    margin: 0 0 6pt 0;
+    counter-reset: clausula;
+}
+
+.clausulas > li {
+    counter-increment: clausula;
+    position: relative;
+    padding-left: 18pt;
+    text-align: justify;
+    margin-bottom: 5pt;
+}
+
+.clausulas > li::before {
+    content: counter(clausula, lower-alpha) ")";
+    position: absolute;
+    left: 0;
+    top: 0;
+}
+
+/* Base Legal - coluna direita */
+.base-legal-titulo {
+    margin: 0 0 6pt 0;
+}
+
+.nr-bloco {
+    margin-bottom: 7pt;
+}
+
+.nr-bloco .nr-cabecalho {
+    margin: 0 0 1pt 0;
+}
+
+.nr-bloco .nr-item {
+    margin: 0 0 2pt 0;
+}
+
+.nr-lista {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    counter-reset: nritem;
+}
+
+.nr-lista > li {
+    counter-increment: nritem;
+    position: relative;
+    padding-left: 16pt;
+    text-align: justify;
+    margin-bottom: 1pt;
+}
+
+.nr-lista > li::before {
+    content: counter(nritem, lower-alpha) ")";
+    position: absolute;
+    left: 0;
+    top: 0;
+}
+
+.finalmente {
+    text-align: justify;
+    margin: 8pt 0 10pt 0;
+}
+
+/* === ÁREA DE ASSINATURA (declaração) === */
+.assinatura-area {
+    margin-top: 14pt;
+}
+
+.assinatura-linha {
+    display: flex;
+    justify-content: flex-start;
+    align-items: flex-end;
+    gap: 14pt;
+}
+
+.assinatura-data {
+    width: 80pt;
+    text-align: center;
+}
+
+.assinatura-emp {
+    flex: 1;
+    border-bottom: 1px solid #000;
+    min-height: 14pt;
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+}
+
+.assinatura-labels {
+    display: flex;
+    justify-content: flex-start;
+    gap: 14pt;
+    margin-top: 2pt;
+    font-size: 9pt;
+}
+
+.assinatura-labels .data-lbl {
+    width: 80pt;
+    text-align: center;
+}
+
+.assinatura-labels .emp-lbl {
+    flex: 1;
+    text-align: center;
+}
+
+/* === ASSINATURA DIGITAL PRINCIPAL (mesma do NR01) === */
+.signed-content {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+    gap: 2mm;
+    margin: 0 auto;
+    padding-bottom: 1pt;
+}
+
+.signed-icon {
+    height: 8mm;
+    width: auto;
+}
+
+.signed-text {
+    display: flex;
+    flex-direction: column;
+    text-align: left;
+}
+
+.signed-label {
+    font-size: 2.5mm;
+    color: #666;
+    line-height: 1.2;
+}
+
+.signed-name {
+    font-size: 3mm;
+    font-weight: bold;
+    color: #4141A5;
+    line-height: 1.2;
+}
+
+/* === ASSINATURA DIGITAL COMPACTA (coluna ASS. da tabela) === */
+.mini-signed {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+    gap: 1mm;
+    white-space: nowrap;
+}
+
+.mini-signed-icon {
+    height: 4mm;
+    width: auto;
+}
+
+.mini-signed-text {
+    font-size: 2.2mm;
+    color: #4141A5;
+    font-weight: bold;
+    font-style: italic;
+    line-height: 1;
+}
+
+/* === TABELA DE EPIs === */
+.tabela-wrap {
+    margin-top: 4pt;
+}
+
+table.epi {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 9.5pt;
+}
+
+table.epi th,
+table.epi td {
+    border: 1px solid #000;
+    padding: 1.5pt 6pt;
+    vertical-align: middle;
+}
+
+table.epi thead th {
+    font-weight: bold;
+    text-align: center;
+}
+
+table.epi .titulo-tabela {
+    font-size: 11pt;
+    padding: 4pt;
+}
+
+table.epi .col-header th {
+    font-size: 10pt;
+    padding: 3pt 6pt;
+}
+
+table.epi td.data,
+table.epi td.ca,
+table.epi td.qtd {
+    text-align: center;
+    white-space: nowrap;
+}
+
+table.epi td.epi-nome {
+    text-align: left;
+}
+
+table.epi td.assinatura {
+    text-align: center;
+    padding: 1pt 4pt;
+}
+
+table.epi tbody tr {
+    height: 13pt;
+}
+
+table.epi tbody tr.vazia td {
+    height: 13pt;
+}
+
+/* Larguras das colunas */
+table.epi col.col-data { width: 13%; }
+table.epi col.col-epi  { width: 48%; }
+table.epi col.col-ca   { width: 12%; }
+table.epi col.col-qtd  { width: 12%; }
+table.epi col.col-ass  { width: 15%; }
+
+@media print {
+    body {
+        margin: 0;
+        padding: 0;
+        max-width: none;
+    }
+}
