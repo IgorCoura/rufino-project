@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <title>Ficha de Registro de EPIs</title>
+    <link rel="stylesheet" href="styles/style.css">
+</head>
+<body>
+
+<!-- CABEÇALHO -->
+<div class="cabecalho">
+    <div class="empresa">{{company.corporatename}}</div>
+    <div class="subtitulo">Ficha de Registro de Equipamentos de Proteção Individual &ndash; EPIs</div>
+</div>
+
+<!-- IDENTIFICAÇÃO -->
+<div class="identificacao">
+    <span class="campo"><strong>Nome:</strong>&nbsp; {{employee.name}}</span>
+    <span class="campo"><strong>Cargo:</strong> {{position.name}}</span>
+    <span class="campo"><strong>Setor:</strong> {{department.name}}</span>
+</div>
+
+<!-- TÍTULO DECLARAÇÃO -->
+<div class="declaracao-header">DECLARAÇÃO DE RECEBIMENTO</div>
+
+<!-- CORPO EM DUAS COLUNAS -->
+<div class="corpo">
+
+    <!-- COLUNA ESQUERDA -->
+    <div class="coluna coluna-esq">
+        <p>Declaro para todos os fins de direito que recebi gratuitamente, após orientação de uso e aplicação os Equipamentos de Proteção Individual &ndash; EPIs abaixo descritos, os quais me comprometo a utilizar durante a realização de minhas atividades.</p>
+
+        <p>Declaro, ainda, ter ciência de que:</p>
+
+        <ol class="clausulas">
+            <li>Os EPIs deverão ser utilizados, unicamente para a finalidade a qual se destinam;</li>
+            <li>Qualquer alteração que os tornem parcial ou totalmente inadequados para uso deverá ser por mim comunicado.</li>
+            <li>A Falta do uso, por mim, dos EPIs fornecidos pela {{company.corporatename}}, constitui ato faltoso sujeito às sanções disciplinares previstas na legislação e no Regulamento Interno, aplicáveis ao assunto, inclusive à demissão por justa causa.</li>
+            <li>Responsabilizar-me-ei, integralmente, pela guarda e conservação dos EPIs que me forem entregues. Em caso de perda ou extravio ou inutilização proposital comprometo-me a ressarcir a empresa conforme previsto no parágrafo 1º do artigo 462 da CLT, inclusive no que couber a título de indenização por rescisão de contrato de trabalho, a importância correspondente ao valor do material.</li>
+        </ol>
+    </div>
+
+    <!-- COLUNA DIREITA -->
+    <div class="coluna coluna-dir">
+        <div class="base-legal-titulo">Base Legal:</div>
+
+        <div class="nr-bloco">
+            <div class="nr-cabecalho">NR 1 (aprovada pela portaria MTb 3214, de 08/06/78):</div>
+            <div class="nr-item">Item 1.8 - Cabe ao empregado:</div>
+            <ol class="nr-lista">
+                <li>Cumprir disposições legais e regulamentares sobre segurança e medicina do trabalho inclusive de ordens de Serviço expedidas pelo empregador;</li>
+                <li>Usar EPI fornecido pelo empregador;</li>
+                <li>Submeter-se aos exames médicos previstos nas NR; e</li>
+                <li>Colaborar com a empresa na aplicação das NR.</li>
+            </ol>
+        </div>
+
+        <div class="nr-bloco">
+            <div class="nr-cabecalho">NR 6 (aprovada pela portaria MTb nº 3214, de 08/06/78):</div>
+            <div class="nr-item">Item 6.7.1 &ndash; Cabe ao empregado quanto ao EPI:</div>
+            <ol class="nr-lista">
+                <li>Usar, utilizando-o apenas para a finalidade a que se destina;</li>
+                <li>Responsabilizar-se pela guarda e conservação;</li>
+                <li>Comunicar ao empregador qualquer alteração que o torne impróprio para uso; e</li>
+                <li>Cumprir as determinações do empregador sobre o uso adequado.</li>
+            </ol>
+        </div>
+
+        <div class="finalmente">
+            Finalmente, declaro que estou de acordo com todos os termos presentes, razão pela qual assino, nesta data, por livre e espontânea vontade.
+        </div>
+
+        <div class="assinatura-area">
+            <div class="assinatura-linha">
+                <div class="assinatura-data">{{complementaryInfo.Date}}</div>
+                <div class="assinatura-emp">
+                    <div id="digital-signature" class="signed-content" style="display:none;">
+                        <img class="signed-icon" src="img/icon_assinatura.png">
+                        <div class="signed-text">
+                            <span class="signed-label">Assinado digitalmente pelo:</span>
+                            <span class="signed-name">{{employee.name}}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="assinatura-labels">
+                <div class="data-lbl">Data</div>
+                <div class="emp-lbl">Assinatura do Empregado</div>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<!-- TABELA DE EPIs -->
+<div class="tabela-wrap">
+    <table class="epi">
+        <colgroup>
+            <col class="col-data">
+            <col class="col-epi">
+            <col class="col-ca">
+            <col class="col-qtd">
+            <col class="col-ass">
+        </colgroup>
+        <thead>
+            <tr>
+                <th class="titulo-tabela" colspan="5">RECEBIMENTO DO EPI</th>
+            </tr>
+            <tr class="col-header">
+                <th>DATA</th>
+                <th>E.P.I.</th>
+                <th>C.A.</th>
+                <th>QUANT.</th>
+                <th>ASS.</th>
+            </tr>
+        </thead>
+        <tbody>
+            <list:PGR.epis>
+            <tr>
+                <td class="data">{{complementaryInfo.Date}}</td>
+                <td class="epi-nome">{{name}}</td>
+                <td class="ca">{{ca}}</td>
+                <td class="qtd">{{quantity}}</td>
+                <td class="assinatura">
+                    <div class="mini-signed" style="display:none;">
+                        <img class="mini-signed-icon" src="img/icon_assinatura.png">
+                        <span class="mini-signed-text">ass. digital</span>
+                    </div>
+                </td>
+            </tr>
+            </list:PGR.epis>
+        </tbody>
+    </table>
+</div>
+
+<span id="signing-option" style="display:none;">{{Employee.DocumentSigningOptions.Id}}</span>
+
+<script>
+    (function() {
+        var signingId = document.getElementById('signing-option').textContent.trim();
+        if (signingId !== '1') {
+            var mainSig = document.getElementById('digital-signature');
+            if (mainSig) mainSig.style.display = '';
+            var miniSigs = document.getElementsByClassName('mini-signed');
+            for (var i = 0; i < miniSigs.length; i++) {
+                miniSigs[i].style.display = '';
+            }
+        }
+    })();
+</script>
+
+</body>
+</html>

@@ -179,52 +179,79 @@ namespace PeopleManagement.Services.Services.RecoverInfoToDocument
         {
             var sunscreen = new JsonObject
             {
-                ["name"] = "Protetor Solar"
+                ["name"] = "Protetor Solar",
+                ["ca"] = "N/A",
+                ["quantity"] = "1"
             };
 
             var earPlug = new JsonObject
             {
-                ["name"] = "Protetor auricular tipo plug de inserção"
+                ["name"] = "Protetor auricular tipo plug de inserção",
+                ["ca"] = "14533",
+                ["quantity"] = "1"
             };
 
             var maskPFF2 = new JsonObject
             {
-                ["name"] = "Máscara PFF2"
+                ["name"] = "Máscara PFF2",
+                ["ca"] = "38503",
+                ["quantity"] = "1"
             };
 
             var tactileGlove = new JsonObject
             {
-                ["name"] = "Luva Tátil"
+                ["name"] = "Luva Tátil",
+                ["ca"] = "46932",
+                ["quantity"] = "1"
             };
 
             var safetyShoes = new JsonObject
             {
-                ["name"] = "Calçado de Segurança"
+                ["name"] = "Calçado de Segurança",
+                ["ca"] = "42016",
+                ["quantity"] = "1"
             };
 
             var safetyGlasses = new JsonObject
             {
-                ["name"] = "Óculos de proteção"
+                ["name"] = "Óculos de proteção",
+                ["ca"] = "51536",
+                ["quantity"] = "1"
             };
 
             var safetyHelmet = new JsonObject
             {
-                ["name"] = "Capacete de segurança"
+                ["name"] = "Capacete de segurança",
+                ["ca"] = "29638",
+                ["quantity"] = "1"
             };
 
             var safetyHarness = new JsonObject
             {
-                ["name"] = "Cinturão de segurança com talabarte e trava-queda"
+                ["name"] = "Cinturão de segurança com talabarte e trava-queda",
+                ["ca"] = "37977",
+                ["quantity"] = "1"
             };
 
             var rubberGlove = new JsonObject
             {
-                ["name"] = "Luva emborrachada"
+                ["name"] = "Luva emborrachada",
+                ["ca"] = "2178",
+                ["quantity"] = "1"
             };
 
             var safetyShoesWithIsolation = new JsonObject
             {
-                ["name"] = "Calçado de segurança com isolamento para baixa tensão"
+                ["name"] = "Calçado de segurança com isolamento para baixa tensão",
+                ["ca"] = "48383",
+                ["quantity"] = "1"
+            };
+
+            var uniforme = new JsonObject
+            {
+                ["name"] = "Uniforme",
+                ["ca"] = "N/A",
+                ["quantity"] = "2"
             };
 
 

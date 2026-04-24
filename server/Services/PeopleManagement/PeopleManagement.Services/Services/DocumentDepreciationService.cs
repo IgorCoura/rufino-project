@@ -34,9 +34,19 @@ namespace PeopleManagement.Services.Services
                 return;
             }
 
-           
+            Employee? employee = await _employeeRepository.FirstOrDefaultAsync(
+                x => x.Id == document.EmployeeId && x.CompanyId == document.CompanyId,
+                cancellation: cancellationToken);
 
-            var isAssociation = await DocumentHasAssociation(document, cancellationToken);
+            if (employee is null || employee.Status == Status.Inactive)
+            {
+                _logger.LogInformation(
+                    "Skipping depreciation for document {DocumentId} — employee {EmployeeId} is inactive or missing.",
+                    documentId, document.EmployeeId);
+                return;
+            }
+
+            var isAssociation = await DocumentHasAssociation(document, employee, cancellationToken);
 
             if (isAssociation)
             {
@@ -71,7 +81,19 @@ namespace PeopleManagement.Services.Services
                 return;
             }
 
-            var isAssociation = await DocumentHasAssociation(document, cancellationToken);
+            Employee? employee = await _employeeRepository.FirstOrDefaultAsync(
+                x => x.Id == document.EmployeeId && x.CompanyId == document.CompanyId,
+                cancellation: cancellationToken);
+
+            if (employee is null || employee.Status == Status.Inactive)
+            {
+                _logger.LogInformation(
+                    "Skipping warning for document {DocumentId} — employee {EmployeeId} is inactive or missing.",
+                    documentId, document.EmployeeId);
+                return;
+            }
+
+            var isAssociation = await DocumentHasAssociation(document, employee, cancellationToken);
 
             if (isAssociation)
             {
@@ -88,16 +110,14 @@ namespace PeopleManagement.Services.Services
             _logger.LogInformation("Document with ID {DocumentId} has been marked as warning for company {CompanyId}.", documentId, companyId);
         }
 
-        public async Task<bool> DocumentHasAssociation(Document document, CancellationToken cancellationToken)
+        public async Task<bool> DocumentHasAssociation(Document document, Employee employee, CancellationToken cancellationToken)
         {
             RequireDocuments? reqDocument = await _requireDocumentsRepository.FirstOrDefaultAsync(x => x.Id == document.RequiredDocumentId && x.CompanyId == document.CompanyId, cancellation: cancellationToken);
-            Employee? employee = await _employeeRepository.FirstOrDefaultAsync(x => x.Id == document.EmployeeId && x.CompanyId == document.CompanyId, cancellation: cancellationToken);
 
-            if (employee is not null && reqDocument is not null)
-            {
-                return reqDocument.AssociationIds.Any(id => employee.IsAssociation(id));
-            }
-            return false;
+            if (reqDocument is null)
+                return false;
+
+            return reqDocument.AssociationIds.Any(id => employee.IsAssociation(id));
         }
     }
 }
