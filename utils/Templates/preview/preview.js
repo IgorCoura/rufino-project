@@ -94,7 +94,7 @@ function replaceListTags(html, values) {
     return arr
       .map((item) => {
         let processed = replaceListTags(innerHtml, item);
-        processed = replacePlaceholders(processed, item);
+        processed = replacePlaceholders(processed, item, true);
         if (_attrs && _attrs.trim()) {
           return `<div${_attrs}>${processed}</div>`;
         }
@@ -129,11 +129,14 @@ function replaceHasTags(html, values) {
   });
 }
 
-function replacePlaceholders(html, values) {
+function replacePlaceholders(html, values, keepIfMissing = false) {
   return html.replace(PLACEHOLDER_REGEX, (match, keyPath) => {
     const keys = keyPath.trim().split(".");
     const value = getValueFromJson(keys, values);
-    return value !== null && value !== undefined ? String(value) : match;
+    if (value !== null && value !== undefined) {
+      return String(value);
+    }
+    return keepIfMissing ? match : "";
   });
 }
 
