@@ -36,7 +36,7 @@ namespace PeopleManagement.Infra.Services
                     if (hasAttrs)
                         sb.Append("<div").Append(attrs).Append('>');
                     string innerContent = ReplaceListTags(content, item);
-                    sb.Append(ReplaceDoubleBraces(innerContent, item));
+                    sb.Append(ReplaceDoubleBraces(innerContent, item, keepIfMissing: true));
                     if (hasAttrs)
                         sb.Append("</div>");
                 }
@@ -90,7 +90,7 @@ namespace PeopleManagement.Infra.Services
             });
         }
 
-        private static string ReplaceDoubleBraces(string content, JsonNode? values)
+        private static string ReplaceDoubleBraces(string content, JsonNode? values, bool keepIfMissing = false)
         {
             Regex regex = HtmlParamRegex();
             return regex.Replace(content, m =>
@@ -98,7 +98,9 @@ namespace PeopleManagement.Infra.Services
                 string keysString = m.Groups[1].Value;
                 string[] keys = keysString.Split('.');
                 var result = GetValueFromJson(keys, values)?.ToString();
-                return result ?? string.Empty;
+                if (result != null)
+                    return result;
+                return keepIfMissing ? m.Value : string.Empty;
             });
         }
 
