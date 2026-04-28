@@ -100,6 +100,7 @@ class _SigningOptionsSectionState extends State<SigningOptionsSection> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           DropdownButtonFormField<String>(
+            isExpanded: true,
             initialValue: _selectedOptionId,
             decoration: const InputDecoration(
               labelText: 'Tipo de assinatura',
@@ -108,9 +109,15 @@ class _SigningOptionsSectionState extends State<SigningOptionsSection> {
             ),
             items: widget.viewModel.signingOptions
                 .where((o) => o.id != '0')
-                .map<DropdownMenuItem<String>>((o) =>
-                    DropdownMenuItem<String>(
-                        value: o.id, child: Text(SigningOption.labelForId(o.id))))
+                .map<DropdownMenuItem<String>>(
+                  (o) => DropdownMenuItem<String>(
+                    value: o.id,
+                    child: Text(
+                      SigningOption.labelForId(o.id),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                )
                 .toList(),
             onChanged:
                 isSaving ? null : (v) => setState(() => _selectedOptionId = v),

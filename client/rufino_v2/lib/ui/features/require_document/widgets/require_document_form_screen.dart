@@ -199,6 +199,7 @@ class _RequireDocumentFormBody extends StatelessWidget {
               ),
               const SizedBox(height: AppSpacing.md),
               DropdownButtonFormField<String>(
+                isExpanded: true,
                 initialValue: viewModel.selectedAssociationTypeId.isNotEmpty
                     ? viewModel.selectedAssociationTypeId
                     : null,
@@ -208,9 +209,15 @@ class _RequireDocumentFormBody extends StatelessWidget {
                   prefixIcon: Icon(Icons.category_outlined),
                 ),
                 items: viewModel.associationTypes
-                    .map<DropdownMenuItem<String>>((t) =>
-                        DropdownMenuItem<String>(
-                            value: t.id, child: Text(t.name)))
+                    .map<DropdownMenuItem<String>>(
+                      (t) => DropdownMenuItem<String>(
+                        value: t.id,
+                        child: Text(
+                          t.name,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    )
                     .toList(),
                 onChanged: viewModel.onAssociationTypeChanged,
               ),
@@ -218,15 +225,22 @@ class _RequireDocumentFormBody extends StatelessWidget {
               if (viewModel.unselectedAssociations.isNotEmpty)
                 DropdownButtonFormField<String>(
                   key: ValueKey(viewModel.selectedAssociationIds.length),
+                  isExpanded: true,
                   decoration: const InputDecoration(
                     labelText: 'Adicionar Associação',
                     border: OutlineInputBorder(),
                     prefixIcon: Icon(Icons.add_link),
                   ),
                   items: viewModel.unselectedAssociations
-                      .map<DropdownMenuItem<String>>((a) =>
-                          DropdownMenuItem<String>(
-                              value: a.id, child: Text(a.name)))
+                      .map<DropdownMenuItem<String>>(
+                        (a) => DropdownMenuItem<String>(
+                          value: a.id,
+                          child: Text(
+                            a.name,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      )
                       .toList(),
                   onChanged: (id) {
                     if (id != null) viewModel.toggleAssociation(id);
@@ -362,6 +376,7 @@ class _DocumentTemplatesSection extends StatelessWidget {
           builder: (context, setDialogState) {
             final available = viewModel.unselectedDocumentTemplates;
             return DropdownButtonFormField<String>(
+              isExpanded: true,
               initialValue: selectedId,
               decoration: const InputDecoration(
                 labelText: 'Selecione um template',
@@ -369,7 +384,12 @@ class _DocumentTemplatesSection extends StatelessWidget {
               ),
               items: available
                   .map((t) => DropdownMenuItem<String>(
-                      value: t.id, child: Text(t.name)))
+                        value: t.id,
+                        child: Text(
+                          t.name,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ))
                   .toList(),
               onChanged: (v) => setDialogState(() => selectedId = v),
             );
@@ -466,6 +486,7 @@ class _ListenEventsSection extends StatelessWidget {
                 : null;
             return DropdownButtonFormField<String>(
               key: ValueKey(effectiveValue),
+              isExpanded: true,
               initialValue: effectiveValue,
               decoration: const InputDecoration(
                 labelText: 'Selecione um evento',
@@ -473,7 +494,12 @@ class _ListenEventsSection extends StatelessWidget {
               ),
               items: available
                   .map((e) => DropdownMenuItem<String>(
-                      value: e.id, child: Text(e.name)))
+                        value: e.id,
+                        child: Text(
+                          e.name,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ))
                   .toList(),
               onChanged: (v) => setDialogState(() => selectedId = v),
             );

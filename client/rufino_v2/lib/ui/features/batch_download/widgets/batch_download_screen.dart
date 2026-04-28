@@ -168,35 +168,43 @@ class _StepIndicator extends StatelessWidget {
         horizontal: AppSpacing.md,
         vertical: AppSpacing.sm,
       ),
-      child: Row(
-        children: [
-          _StepChip(
-            label: '1. Funcionarios',
-            isActive:
-                currentStep == BatchDownloadStep.selectEmployees,
-            isCompleted:
-                currentStep.index > BatchDownloadStep.selectEmployees.index,
-            colorScheme: colorScheme,
-            textTheme: textTheme,
-          ),
-          const Expanded(child: Divider(indent: 8, endIndent: 8)),
-          _StepChip(
-            label: '2. Documentos',
-            isActive: currentStep == BatchDownloadStep.selectUnits,
-            isCompleted:
-                currentStep.index > BatchDownloadStep.selectUnits.index,
-            colorScheme: colorScheme,
-            textTheme: textTheme,
-          ),
-          const Expanded(child: Divider(indent: 8, endIndent: 8)),
-          _StepChip(
-            label: '3. Revisar',
-            isActive: currentStep == BatchDownloadStep.review,
-            isCompleted: false,
-            colorScheme: colorScheme,
-            textTheme: textTheme,
-          ),
-        ],
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final isCompact = constraints.maxWidth < AppBreakpoints.mobile;
+          final labels = isCompact
+              ? const ['1. Func.', '2. Docs', '3. Revisar']
+              : const ['1. Funcionarios', '2. Documentos', '3. Revisar'];
+          return Row(
+            children: [
+              _StepChip(
+                label: labels[0],
+                isActive:
+                    currentStep == BatchDownloadStep.selectEmployees,
+                isCompleted: currentStep.index >
+                    BatchDownloadStep.selectEmployees.index,
+                colorScheme: colorScheme,
+                textTheme: textTheme,
+              ),
+              const Expanded(child: Divider(indent: 8, endIndent: 8)),
+              _StepChip(
+                label: labels[1],
+                isActive: currentStep == BatchDownloadStep.selectUnits,
+                isCompleted: currentStep.index >
+                    BatchDownloadStep.selectUnits.index,
+                colorScheme: colorScheme,
+                textTheme: textTheme,
+              ),
+              const Expanded(child: Divider(indent: 8, endIndent: 8)),
+              _StepChip(
+                label: labels[2],
+                isActive: currentStep == BatchDownloadStep.review,
+                isCompleted: false,
+                colorScheme: colorScheme,
+                textTheme: textTheme,
+              ),
+            ],
+          );
+        },
       ),
     );
   }

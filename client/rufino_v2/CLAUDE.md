@@ -94,16 +94,13 @@ Official reference: https://dart.dev/effective-dart/documentation
 
 ### Element-level conventions
 
-| Element | Opening phrase | Example |
-|---------|---------------|---------|
-| Class / Entity | Noun phrase describing one instance | `/// A paginated list of employees from the API.` |
-| Method with side effect | Third-person verb | `/// Fetches and caches the list of companies from the remote API.` |
-| Method that returns a value | Noun phrase or "Returns …" | `/// Returns the currently selected [Company], or null if none is selected.` |
-| Boolean property / getter | "Whether …" | `/// Whether the form submission is currently in progress.` |
-| `Future`-returning method | Describe what resolves | `/// Resolves with the decoded JWT payload, or throws [SessionExpiredException] if the token is invalid.` |
-| Repository interface method | Contract description (what, not how) | `/// Persists the given [company] as the active company for the current session.` |
-| Test `group()` | Subject under test | `'LoginViewModel'` |
-| Test `test()` | Full sentence: subject + condition + expectation | `'emits failure status when the repository returns an error'` |
+- Classes/entidades: noun phrase (`/// A paginated list of employees from the API.`).
+- Métodos com efeito colateral: verbo na 3ª pessoa (`/// Fetches and caches…`).
+- Métodos que retornam valor: noun phrase ou "Returns …".
+- Booleans/getters: "Whether …".
+- `Future`-returning: descrever o que resolve / quando lança.
+- Test `group()`: subject under test (`'LoginViewModel'`).
+- Test `test()`: subject + condition + expectation (`'emits failure status when the repository returns an error'`).
 
 
 ## Project Overview
@@ -159,51 +156,7 @@ Reference app: https://github.com/flutter/samples/tree/main/compass_app
 
 ### Folder Structure
 
-```
-lib/
-├── main.dart                    # Entry point (prod)
-├── main_dev.dart                # Entry point (dev)
-├── app.dart                     # MaterialApp + go_router + provider setup
-│
-├── core/                        # Shared across all features
-│   ├── network/                 # HTTP client, interceptors, error handling
-│   ├── storage/                 # flutter_secure_storage wrapper
-│   ├── theme/                   # ThemeData, colors, typography
-│   ├── widgets/                 # Reusable widgets (AppButton, AppTextField...)
-│   ├── result.dart              # Result<T, E> type for error handling
-│   └── utils/                   # Helpers, formatters, extensions
-│
-├── data/                        # Data layer (shared across features)
-│   ├── services/                # HTTP clients per domain (AuthApiService, EmployeeApiService...)
-│   ├── models/                  # DTOs — API response models (JSON → Dart)
-│   └── repositories/            # Concrete repository implementations
-│
-├── domain/                      # Domain layer
-│   ├── entities/                # Pure domain models (no API logic)
-│   └── repositories/            # Repository interfaces/abstractions
-│
-└── ui/                          # Presentation layer
-    ├── core/
-    │   └── widgets/             # Branded shared components
-    └── features/                # One folder per feature
-        ├── auth/
-        │   ├── viewmodel/
-        │   │   └── login_viewmodel.dart
-        │   └── widgets/
-        │       ├── login_screen.dart
-        │       └── login_form.dart
-        ├── employee/
-        │   ├── viewmodel/
-        │   │   ├── employee_list_viewmodel.dart
-        │   │   └── employee_detail_viewmodel.dart
-        │   └── widgets/
-        │       ├── employee_list_screen.dart
-        │       └── employee_detail_screen.dart
-        ├── company/
-        ├── department/
-        ├── workplace/
-        └── home/
-```
+`lib/main*.dart`, `lib/app.dart`, `lib/core/{network,storage,theme,widgets,utils}/`, `lib/core/result.dart`, `lib/data/{services,models,repositories}/`, `lib/domain/{entities,repositories}/`, `lib/ui/core/widgets/`, `lib/ui/features/<feature>/{viewmodel,widgets}/`. Detalhes específicos de capacidades em **Code & Capability Index** e **Package Index** abaixo.
 
 ---
 
@@ -230,8 +183,6 @@ Violating any of these creates coupling that breaks testability and makes refact
 - **1:1 relationship** with the ViewModel.
 - Uses `ListenableBuilder` to react to ViewModel changes.
 - Contains no business logic — only calls ViewModel methods.
-
-**ViewModel:** Extends `ChangeNotifier`. Expose collections via `UnmodifiableListView`. Always `notifyListeners()` in `finally` block when paired with loading flag.
 
 **ViewModel**
 - Extends `ChangeNotifier`.
@@ -323,52 +274,7 @@ Prefer **`mocktail`** for all new tests. It requires no code generation (`build_
 
 #### Folder Structure
 
-```
-test/
-├── unit/
-│   ├── ui/
-│   │   └── features/
-│   │       ├── employee/
-│   │       │   └── employee_list_viewmodel_test.dart
-│   │       └── auth/
-│   │           └── login_viewmodel_test.dart
-│   ├── domain/
-│   │   └── usecases/
-│   │       └── get_employees_usecase_test.dart
-│   └── data/
-│       ├── repositories/
-│       │   └── employee_repository_test.dart
-│       ├── services/
-│       │   └── employee_api_service_test.dart
-│       └── models/
-│           └── employee_model_test.dart
-├── widget/
-│   └── features/
-│       ├── employee/
-│       │   └── employee_list_screen_test.dart
-│       └── auth/
-│           └── login_screen_test.dart
-├── integration/
-│   └── flows/
-│       └── employee_management_flow_test.dart
-├── golden/
-│   ├── goldens/                  # committed golden image files
-│   └── features/
-│       └── employee/
-│           └── employee_list_screen_golden_test.dart
-└── testing/                      # shared test utilities (not tests themselves)
-    ├── fakes/
-    │   ├── fake_employee_repository.dart
-    │   └── fake_auth_repository.dart
-    ├── mocks/
-    │   └── mocks.dart
-    ├── fixtures/
-    │   └── json/
-    │       ├── employee_list_response.json
-    │       └── employee_detail_response.json
-    └── helpers/
-        └── pump_app.dart         # helper to pump widget with providers
-```
+`test/{unit,widget,integration,golden}/` espelham `lib/`. `test/testing/` contém `fakes/`, `mocks/`, `fixtures/json/`, `helpers/pump_app.dart`. Goldens commitados em `test/golden/goldens/`.
 
 ---
 
@@ -540,64 +446,11 @@ Official references:
 
 Enable Material 3 globally in `app.dart`. As of Flutter 3.16, M3 is the default, but always declare it explicitly.
 
-### Color System
+### Cores, Tipografia, Spacing
 
-**Never hardcode colors.** Always consume colors from `Theme.of(context).colorScheme`.
-
-#### Semantic Color Roles (M3)
-
-| Role | Usage |
-|------|-------|
-| `primary` | Key actions, FAB, active state, filled buttons |
-| `onPrimary` | Content placed on top of `primary` |
-| `secondary` | Less prominent components, filter chips |
-| `tertiary` | Contrasting accents, special emphasis |
-| `surface` | Backgrounds, cards, sheets |
-| `onSurface` | Text and icons on surface backgrounds |
-| `surfaceContainer` | Cards, dialogs, navigation components |
-| `surfaceContainerHigh` | Higher-elevated cards and components |
-| `error` | Error states, validation feedback |
-| `onError` | Content on top of `error` |
-| `outline` | Borders, dividers |
-| `outlineVariant` | Subtle dividers, decorative borders |
-
-#### Light and Dark Theme
-
-Use the same seed color for both themes — `ColorScheme.fromSeed` generates harmonious palettes for each brightness automatically. Dark theme uses surface tones (not opacity overlays) for elevation depth.
-
-#### Accessibility — Contrast
-
-`ColorScheme.fromSeed` ensures "on" color pairs (e.g., `onPrimary` over `primary`) meet **WCAG AA** (4.5:1 for normal text, 3:1 for large text). Never override these with custom colors that break contrast.
-
-### Typography
-
-**Never hardcode `fontSize`.** Always use `Theme.of(context).textTheme`.
-
-#### M3 Type Scale
-
-| Style | Usage |
-|-------|-------|
-| `displayLarge / Medium / Small` | Hero text, splash screens, large numbers |
-| `headlineLarge / Medium / Small` | Section titles, page headings |
-| `titleLarge / Medium / Small` | AppBar titles, card titles, list group headers |
-| `bodyLarge / Medium / Small` | Paragraphs, descriptions, list content |
-| `labelLarge / Medium / Small` | Buttons, tabs, chips, captions |
-
-#### Google Fonts
-
-Apply a single font family to the entire `TextTheme` via `GoogleFonts.<family>TextTheme()`. For the Rufino app, use **Inter** as the base font — it is highly legible for data-dense HR interfaces.
-
-### Spacing System
-
-All spacing values must follow the **4dp grid**. Define them as constants in `core/theme/app_spacing.dart` and never use arbitrary values.
-
-| Value | Usage |
-|-------|-------|
-| `4dp` | Spacing between icon and label, tight internal gaps |
-| `8dp` | Internal component spacing, between related elements |
-| `16dp` | Page horizontal padding (mobile), between list items |
-| `24dp` | Page padding (tablet/desktop), between sections |
-| `32dp+` | Between major layout sections |
+- **Cores:** sempre `Theme.of(context).colorScheme.<role>`. Nunca hardcode. Usar mesma seed em light/dark via `ColorScheme.fromSeed`.
+- **Tipografia:** sempre `Theme.of(context).textTheme.<style>`. Nunca hardcode `fontSize`. Família **Inter** via `GoogleFonts.interTextTheme()`.
+- **Spacing:** sempre `AppSpacing.*` (4dp grid em `core/theme/app_spacing.dart`). Nunca valores arbitrários.
 
 ### Responsive & Adaptive Layout
 
@@ -610,33 +463,9 @@ Official references:
 
 ---
 
-#### Three-Step Framework: Abstract → Measure → Branch
+#### Breakpoints
 
-1. **Abstract** — identify widgets that change shape across sizes (navigation, dialogs, list layouts, form widths).
-2. **Measure** — pick the right tool to read available space.
-3. **Branch** — swap the layout at defined breakpoints.
-
----
-
-#### Breakpoints (Material 3 Window Size Classes)
-
-Define once in `core/theme/app_breakpoints.dart`:
-
-| Class | Width range | Typical device | Layout style |
-|-------|------------|----------------|-------------|
-| Compact | < 600dp | Smartphone portrait | Single column |
-| Medium | 600–840dp | Tablet / large phone landscape | Two columns possible |
-| Expanded | 840–1200dp | Desktop, tablet landscape | Multi-column / side panels |
-| Large | ≥ 1200dp | Wide desktop / maximised browser | Wide multi-column, max-width cap |
-
-#### Measuring Available Space
-
-Two tools — choose based on scope:
-
-| Tool | When to use | Why |
-|------|-------------|-----|
-| `MediaQuery.sizeOf(context)` | Full-screen layout decisions (navigation, page structure) | Reads the whole app window; only triggers rebuild on size changes |
-| `LayoutBuilder` | Local widget constraints (a card, a form column, a list) | Reads parent constraints, not the whole window; correct for widgets in scroll views or columns |
+Definidos em `core/theme/app_breakpoints.dart` (mobile 600 / tablet 840 / desktop 1200). Para decisões de layout veja a tabela `LayoutBuilder` vs `MediaQuery` mais adiante.
 
 #### SafeArea — Always Use It
 
@@ -650,24 +479,11 @@ Wrap Scaffold body content in `SafeArea` to avoid notches, camera cutouts, statu
 
 On large screens, full-width content becomes hard to read. **Always cap content width** for list screens and form screens:
 
-#### Adaptive Navigation Pattern
+#### Adaptive Navigation
 
-Switch the navigation component based on available width:
+Compact (<600dp): `NavigationBar` bottom + `AppSpacing.md`. Medium (600–840dp): `NavigationRail` collapsed + `AppSpacing.lg`. Expanded (≥840dp): `NavigationRail` extended + `AppSpacing.xl`.
 
-| Width | Navigation | Page horizontal padding |
-|-------|-----------|------------------------|
-| < 600dp (compact) | `NavigationBar` (bottom) | `AppSpacing.md` (16dp) |
-| 600–840dp (medium) | `NavigationRail` collapsed | `AppSpacing.lg` (24dp) |
-| ≥ 840dp (expanded) | `NavigationRail` extended | `AppSpacing.xl` (32dp) |
-
-#### List Screens — Adaptive Layout
-
-Prefer `GridView` over `ListView` on larger screens so space is used efficiently:
-
-#### Form Screens — Adaptive Layout
-
-On small screens: single-column scrollable form.
-On medium+ screens: center the form and cap its width.
+Listas adaptativas: `GridView` em telas largas. Forms adaptativos: coluna única no compact, centralizado e capado em medium+.
 
 #### Lists with a FloatingActionButton — Bottom Clearance
 
@@ -682,16 +498,10 @@ On medium+ screens: center the form and cap its width.
 
 This rule applies to every `ListView`, `GridView`, or `CustomScrollView` inside a `Scaffold` that has a `FloatingActionButton`.
 
-#### Never Lock Orientation
+#### Outras regras
 
-Do **not** lock the app to portrait. Allow all orientations on all platforms. Foldable Android devices and iPads are used in landscape constantly; locking causes letterboxing.
-
-#### Desktop / Web — Input Handling
-
-On desktop and web, users interact with mouse and keyboard.
-
-**Keyboard focus and tab traversal:**
-Built-in M3 components support tab navigation out of the box. For custom interactive widgets, use `FocusableActionDetector`.
+- Nunca trave orientação — permitir todas as orientações em todas as plataformas (foldables, iPads).
+- Em desktop/web: M3 já suporta tab navigation; para widgets custom, usar `FocusableActionDetector`.
 
 #### LayoutBuilder vs MediaQuery — Decision Table
 
@@ -707,97 +517,19 @@ Built-in M3 components support tab navigation out of the box. For custom interac
 
 ### Component Guidelines
 
-#### Buttons — Hierarchy
+Usar variantes M3 padrão (`FilledButton`, `Card`, `AppBar`/`SliverAppBar`, `showDialog`, `showModalBottomSheet`, `FilterChip`/`ChoiceChip`/`InputChip`/`ActionChip`). Regras específicas do Rufino:
 
-Always match button emphasis to action importance. A single screen should have **at most one** `FilledButton`.
+- **Botões:** no máximo **um** `FilledButton` por tela. Hierarquia: `FilledButton` > `FilledButton.tonal` > `OutlinedButton` > `TextButton`.
+- **Cards:** padding interno via `AppSpacing`. Corner radius 12dp (default M3).
+- **Text fields:** outlined por padrão; filled apenas em contextos de muito ruído visual (ex.: busca em container colorido).
+- **Snackbar/Dialog:** `showDialog` apenas para confirmações críticas; preferir `showModalBottomSheet` para opções não-críticas.
+- **Animations:** usar o pacote `animations` (`FadeThroughTransition`, `SharedAxisTransition`) para transições de página. Animação só com propósito (orientar, confirmar, reduzir carga cognitiva).
 
-| Component | Emphasis | When to use |
-|-----------|----------|-------------|
-| `FilledButton` | Highest | Primary action (save, confirm, submit) |
-| `FilledButton.tonal` | High | Secondary primary action |
-| `OutlinedButton` | Medium | Important but non-destructive secondary action |
-| `TextButton` | Low | Tertiary actions, cancel, navigation links |
-| `IconButton` | Variable | Icon-only actions; use `.filled` or `.tonal` variants for emphasis |
-
-#### Cards — Variants
-
-| Variant | Use |
-|---------|-----|
-| `Card()` | Primary content, elevated with shadow — for focal list items |
-| `Card.filled()` | Grouped content, less emphasis — for info sections |
-| `Card.outlined()` | Content needing clear boundaries — for selectable items |
-
-Cards must use `AppSpacing` for their internal padding. Default corner radius is 12dp (M3 default).
-
-#### AppBar — Variants
-
-| Variant | Use |
-|---------|-----|
-| `AppBar` | Standard fixed height. For simple pages |
-| `SliverAppBar.medium()` | Medium collapsing (~112dp). For content-rich screens |
-| `SliverAppBar.large()` | Large collapsing (~152dp). For primary feature screens (employee list, home) |
-
-#### Text Fields
-
-Use **outlined** text fields (M3 recommendation) by default.
-
-Use **filled** fields only in contexts where outlined borders add too much visual noise (e.g., search bars inside colored containers).
-
-#### Dialogs, Bottom Sheets, Snackbars
-
-| Component | Use | Notes |
-|-----------|-----|-------|
-| `showDialog` | Critical confirmations, destructive action warnings | Blocks interaction — use sparingly |
-| `showModalBottomSheet` | Non-critical options, secondary actions, filters | Set `isScrollControlled: true` for tall content |
-| `ScaffoldMessenger.showSnackBar` | Brief feedback, undo actions | Auto-dismiss, max one at a time, non-blocking |
-
-#### Chips
-
-| Variant | Use |
-|---------|-----|
-| `FilterChip` | Filtering lists (by department, status, role) |
-| `ChoiceChip` | Single-select from a set (active/inactive toggle) |
-| `InputChip` | Selected items in multi-select fields |
-| `ActionChip` | Shortcut actions related to current content |
-
----
-
-### Animation and Motion
-
-Use the `animations` package for M3-compliant page and container transitions.
-
-| Scenario | Widget / Pattern |
-|----------|-----------------|
-| Simple property change | `AnimatedContainer`, `AnimatedOpacity` (implicit) |
-| Shared element between pages | `Hero` |
-| Page transitions | `FadeThroughTransition`, `SharedAxisTransition` (from `animations` package) |
-| List item appear/disappear | `AnimatedList` |
-| Complex, choreographed | `AnimationController` + `AnimatedBuilder` (explicit) |
-
-**Duration guidance (M3 motion tokens):**
-
-| Type | Duration | Use |
-|------|----------|-----|
-| Short | 100–200ms | Small, simple transitions (tooltip, chip) |
-| Medium | 250–400ms | Standard screen transitions, expanding cards |
-| Long | 450–600ms | Complex layout changes, full-screen transitions |
-
-Never use animation purely for decoration. Every animation must serve a purpose: orient the user, confirm an action, or reduce cognitive load.
+Em dúvidas sobre a spec genérica do M3, ver https://m3.material.io.
 
 ### Icons
 
-Use **Material Symbols** (`material_symbols_icons` package) with the `rounded` variant as the default — it is friendlier and more consistent across component sizes.
-
-**Sizing conventions:**
-
-| Context | Size |
-|---------|------|
-| Navigation items | 24dp |
-| Button icons | 18dp |
-| Leading icons in ListTile | 24dp |
-| Prominent focal icons | 48dp |
-
-Always pair icons with a text label unless the action is universally understood (close `×`, search `🔍`). Use `Semantics` to label icon-only buttons.
+Usar **Material Symbols** (`material_symbols_icons`) com variante **rounded**. Sempre parear ícone com label de texto a menos que o ação seja universal (`×`, `🔍`); para ícones isolados, usar `Semantics`.
 
 ### Accessibility
 
@@ -822,44 +554,151 @@ Test with TalkBack (Android) and VoiceOver (iOS). Every interactive element must
 
 ### Widget Code Patterns
 
-#### Always Use `const` Constructors
+- Sempre usar `const` em construtores quando possível.
+- Decompor widgets complexos em classes `StatelessWidget` — não em helper methods que retornam `Widget` (Flutter não consegue pular rebuild de subtrees de helpers).
+- Preferir `SizedBox` a `Container` para spacing.
+- Usar `LayoutBuilder` ou `MediaQuery.sizeOf(context)`, nunca `MediaQuery.of(context).size`.
 
-#### Decompose Complex Widgets Into Classes
+### Theme
 
-Extract widgets into their own `StatelessWidget` class — not helper methods that return `Widget`. Flutter can skip rebuilding const subtrees from extracted classes.
-
-#### Prefer `SizedBox` Over `Container` for Spacing
-
-#### Use `LayoutBuilder` or `MediaQuery.sizeOf`, Not `MediaQuery.of().size`
-
-### Theme File Structure
-
-All theme configuration lives in `core/theme/`:
-
-```
-core/theme/
-├── app_theme.dart          # ThemeData factory (light + dark)
-├── app_colors.dart         # Seed color constant and any custom color extensions
-├── app_spacing.dart        # AppSpacing constants (4dp grid)
-├── app_breakpoints.dart    # AppBreakpoints constants
-└── app_text_theme.dart     # GoogleFonts TextTheme configuration (if complex)
-```
-
-`app_theme.dart` is the single entry point:
-
-## Legacy Architecture (to be migrated)
-
-| Aspect               | Current                        | Target                       |
-|----------------------|-------------------------------|------------------------------|
-| State management     | BLoC (`flutter_bloc`)          | ChangeNotifier + ViewModel   |
-| Routing              | `flutter_modular`              | `go_router`                  |
-| DI                   | `flutter_modular`              | `provider`                   |
-| Structure            | `modules/<feature>/`           | `ui/features/<feature>/`     |
-| Data                 | mixed inside modules           | `data/` (services + repos)   |
-| Domain               | partial global `domain/`       | `domain/` per clear entity   |
-| Contracts (interfaces)| absent                        | `domain/repositories/`       |
+Toda configuração em `core/theme/`: `app_theme.dart` (entry point ThemeData light/dark), `app_colors.dart`, `app_spacing.dart`, `app_breakpoints.dart`, `app_text_theme.dart`, `theme_notifier.dart`.
 
 ---
+
+## Code & Capability Index
+
+> **Always check this index before writing a new utility, service, or exception.** If a capability is already covered, reuse it; do not introduce a parallel implementation or pull in a competing package. If a true gap exists, extend the existing module.
+
+### Capability lookup (use these — do not reimplement)
+
+| I need to… | Use | Notes |
+|------------|-----|-------|
+| Save a file (web download / native save dialog) | `data/services/file_save_service.dart` | Cross-platform; web triggers download, desktop/Android opens save-as, iOS/Linux saves to Downloads. Wraps `file_saver`. |
+| Open a "Save As" dialog and write bytes | `core/utils/file_saver.dart` (+ `_stub`) | Lower-level wrapper using `file_picker`'s `saveFile`. Prefer `file_save_service.dart` unless you specifically need the dialog flow. |
+| Build a `.xlsx` spreadsheet | `data/services/spreadsheet_service.dart` | Wraps `syncfusion_flutter_xlsio`. All cells written as text — preserves CPF/leading-zero formatting. |
+| Merge multiple PDFs into one | `core/utils/pdf_merger.dart` | Conditional import → `_io` / `_web`. Wraps `pdf_combiner`. |
+| Convert images → multi-page PDF | `core/utils/image_to_pdf_converter.dart` | Runs decode + build in `compute` isolate. Wraps `image` + `pdf`. |
+| Extract text from a PDF | `core/utils/pdf_text_extractor.dart` | Page-bounded extraction. Wraps `syncfusion_flutter_pdf`. |
+| Build a ZIP archive in memory | `core/utils/zip_builder.dart` | Fast compression. Wraps `archive`. |
+| Scan a document (camera) + OCR | `core/utils/document_scanner_service.dart` | Platform-abstracted (`_mobile` / `_web` / `_stub`). Wraps `cunning_document_scanner`, `camera`, `google_mlkit_text_recognition`. |
+| Build the combined-PDF filename for batch download | `core/utils/combine_file_namer.dart` | Mirrors backend `BatchDownloadQueries.DownloadBatchDocumentUnits` naming. |
+| Fuzzy-match Brazilian names | `core/utils/fuzzy_name_matcher.dart` | Jaro-Winkler + token overlap, accent-insensitive, handles PT connectors. |
+| Generate a request/correlation ID | `data/services/request_id_helper.dart` | UUID v4 for `x-requestid` on mutations. Wraps `uuid`. |
+| Send a multipart upload with progress | `data/services/multipart_upload_helper.dart` | Streams bytes and reports `0.0–1.0` via callback. |
+| Validate an HTTP response & raise typed errors | `data/services/http_status_helper.dart` | Throws `HttpException` on non-2xx, extracts server messages, logs via `DomainErrorLogger`. |
+| Read a server error message for the UI | `core/utils/error_messages.dart` | Extracts message from `HttpException` or wrappers exposing `cause`. |
+| Log a domain error to disk (debug only) | `core/utils/domain_error_logger.dart` | Conditional dart:io split via `_writer` / `_writer_stub`. |
+| Read/write encrypted secrets (tokens, etc.) | `core/storage/secure_storage.dart` | Wraps `flutter_secure_storage`. |
+| Read/write public prefs (permission cache, etc.) | `data/services/permission_cache_service.dart` | Wraps `shared_preferences`. Do not use `shared_preferences` directly elsewhere — extend this or add a sibling cache service. |
+| Authenticate via Keycloak / refresh tokens | `data/services/auth_api_service.dart` | Wraps `oauth2` + `jwt_decoder`. |
+| Fetch user permissions (UMA / RPT) | `data/services/permission_api_service.dart` | Single source for Keycloak Authorization Services calls. |
+| Look up a Brazilian CEP | `data/services/cep_api_service.dart` | ViaCEP wrapper. |
+| Read app config / OAuth endpoints | `core/config/app_config.dart` | `--dart-define-from-file`-driven. |
+| Trust self-signed certs in dev | `core/config/dev_http_overrides.dart` (+ `_stub`) | Local dev only. Never call from prod path. |
+| Return a fallible result from data/domain | `core/result.dart` (`Result<T>` + `Success`/`Failure`) | Mandatory — see "Error Handling" rule. Never `throw` across layers. |
+
+### Domain exception hierarchies (`core/errors/`)
+
+One sealed family per aggregate. **Add a new variant to the existing family before creating a new exception class.**
+
+`auth_exception.dart` (InvalidCredentials, SessionExpired, NoCredentials, NetworkAuthException) · `department_exception.dart` · `workplace_exception.dart` · `employee_exception.dart` · `document_template_exception.dart` · `document_group_exception.dart` · `require_document_exception.dart` · `permission_exception.dart` · `batch_document_exception.dart` · `batch_download_exception.dart` · `cep_exception.dart`
+
+Plus `data/services/http_exception.dart` — raised by `http_status_helper.dart`, carries `statusCode` + `serverMessages`.
+
+### Theme tokens (`core/theme/`)
+
+`app_colors.dart` (seed color) · `app_spacing.dart` (xs/sm/md/lg/xl/xxl/xxxl on 4dp grid) · `app_breakpoints.dart` (mobile 600 / tablet 840 / desktop 1200) · `app_theme.dart` (M3 light/dark factory using Inter via `google_fonts`) · `theme_notifier.dart` (runtime mode toggle).
+
+**Never hardcode colors, spacing, or breakpoints — always reference these.**
+
+### API services (`data/services/`)
+
+One service per backend aggregate. Cross-cutting helpers (`http_exception`, `http_status_helper`, `multipart_upload_helper`, `request_id_helper`, `permission_cache_service`, `file_save_service`, `spreadsheet_service`) MUST be reused — do not inline equivalent logic in feature services.
+
+`auth_api_service` · `permission_api_service` · `permission_cache_service` · `company_api_service` · `department_api_service` (departments + positions + roles + payment-unit/salary-type lookups) · `workplace_api_service` · `employee_api_service` (the largest — covers profile, image, contact, address, personal info, ID card, voter ID, PIS/PASEP, military doc, medical exam, dependents, contracts, documents, signing, document-unit CRUD + range ops) · `document_template_api_service` · `document_group_api_service` · `require_document_api_service` · `batch_document_api_service` · `batch_download_api_service` · `cep_api_service`.
+
+### Repositories
+
+Every aggregate above has both an interface (`domain/repositories/<aggregate>_repository.dart`) and an implementation (`data/repositories/<aggregate>_repository_impl.dart`). **ViewModels depend on the interface, never the impl or service.**
+
+### Models (DTOs) and Entities
+
+DTOs live in `data/models/<aggregate>_api_model.dart` (+ JSON ser/deser). Domain entities live in `domain/entities/<aggregate>.dart`. Conversion is owned by the repository impl. Do not reuse a DTO as an entity or vice-versa, and do not duplicate fields between siblings — compose with nested DTOs/entities when an aggregate references another (see `employee_profile`, `document_group_with_*`).
+
+**Aggregates currently modeled** (each has DTO + entity unless noted): company / company_detail (entity-only) · workplace · department · position · role · remuneration (entity-only) · employee · employee_profile · employee_personal_info · employee_contact · employee_address (entity = `address`) · employee_id_card · employee_vote_id · employee_military_document · employee_medical_exam · employee_dependent · employee_contract · employee_social_integration_program · employee_document · document_template · document_group · document_group_with_templates · document_group_with_documents · document_range_item (DTO-only) · require_document · batch_document_unit · batch_download · period · permission · selection_option (entity-only) · personal_info_options (entity-only) · signing_option (entity-only) · scanned_document (entity-only) · bulk_upload_match (entity-only) · cep_lookup (DTO-only).
+
+---
+
+## Package Index
+
+> **Before adding a dependency, check whether one of the packages below already covers the use case.** If it does, use it. Do not introduce a competing package (e.g. don't add `dio` — `http` is the standard; don't add `riverpod` — `provider` + `ChangeNotifier` is the standard; don't add `intl` for masking — `mask_text_input_formatter` is already in use).
+
+### State / DI / Routing
+| Package | Use for |
+|---------|---------|
+| `provider` | Dependency injection + ChangeNotifier consumption. |
+| `nested` | Used internally by provider's `MultiProvider`. Do not consume directly. |
+| `go_router` | All routing (declarative routes, deep links, redirect guards). |
+
+### Auth & Storage
+| Package | Use for |
+|---------|---------|
+| `oauth2` | OAuth2 token flows against Keycloak. Wrapped by `auth_api_service.dart`. |
+| `flutter_secure_storage` | Encrypted persistence for tokens. Wrapped by `core/storage/secure_storage.dart`. |
+| `jwt_decoder` | Decoding JWT payloads (claims, company extraction). |
+| `shared_preferences` | Non-secret persistence (permission cache). Wrapped by `permission_cache_service.dart`. |
+
+### Networking
+| Package | Use for |
+|---------|---------|
+| `http` | All HTTP calls. Do **not** add `dio`, `chopper`, or `retrofit`. |
+| `web` | Browser interop (download triggers, etc.). |
+
+### UI / Theme / Forms
+| Package | Use for |
+|---------|---------|
+| `google_fonts` | Inter font family for the entire `TextTheme`. |
+| `material_symbols_icons` | All icons. Use the **rounded** variant. |
+| `shimmer` | Loading placeholders. |
+| `mask_text_input_formatter` | Masked inputs (CPF, CNPJ, phone, CEP). Do **not** add `intl` or custom formatters for this. |
+| `flutter_json_view` | Debug/dev JSON viewers only. |
+
+### PDF & Documents
+| Package | Use for |
+|---------|---------|
+| `syncfusion_flutter_pdf` | PDF text extraction (`pdf_text_extractor.dart`). |
+| `syncfusion_flutter_pdfviewer` | In-app PDF preview. |
+| `pdf` | Generating PDFs from images (`image_to_pdf_converter.dart`). |
+| `pdf_combiner` | Merging PDFs (`pdf_merger.dart`). |
+| `image` | Decoding image bytes before PDF assembly. |
+
+### Spreadsheet & Files
+| Package | Use for |
+|---------|---------|
+| `syncfusion_flutter_xlsio` | Generating `.xlsx` files (wrapped by `spreadsheet_service.dart`). |
+| `file_saver` | Cross-platform file save (wrapped by `file_save_service.dart`). |
+| `file_picker` | Picking files from disk and the lower-level save dialog (wrapped by `core/utils/file_saver.dart`). |
+| `archive` | ZIP creation (wrapped by `zip_builder.dart`). |
+
+### Document Scanning & OCR
+| Package | Use for |
+|---------|---------|
+| `cunning_document_scanner` | Native document scanner (mobile). |
+| `camera` | Camera capture fallback (web). |
+| `google_mlkit_text_recognition` | OCR on scanned pages (mobile). |
+
+### Utilities
+| Package | Use for |
+|---------|---------|
+| `uuid` | Generating v4 UUIDs (request IDs). Wrapped by `request_id_helper.dart`. |
+
+### Dev / Test
+| Package | Use for |
+|---------|---------|
+| `flutter_test` | Standard Flutter test runner. |
+| `flutter_lints` | Lint rules. |
+| `mocktail` | All mocks/fakes/stubs. Do **not** add `mockito` (no codegen-based mocks). |
+
 
 ## Key Entry Points
 

@@ -240,6 +240,7 @@ class _RoleInfoSectionState extends State<RoleInfoSection> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         DropdownButtonFormField<String>(
+          isExpanded: true,
           initialValue: _selectedDeptId,
           decoration: const InputDecoration(
             labelText: 'Setor',
@@ -247,8 +248,12 @@ class _RoleInfoSectionState extends State<RoleInfoSection> {
             border: OutlineInputBorder(),
           ),
           items: departments
-              .map<DropdownMenuItem<String>>((d) =>
-                  DropdownMenuItem<String>(value: d.id, child: Text(d.name)))
+              .map<DropdownMenuItem<String>>(
+                (d) => DropdownMenuItem<String>(
+                  value: d.id,
+                  child: Text(d.name, overflow: TextOverflow.ellipsis),
+                ),
+              )
               .toList(),
           onChanged: isSaving
               ? null
@@ -262,6 +267,7 @@ class _RoleInfoSectionState extends State<RoleInfoSection> {
         ),
         const SizedBox(height: AppSpacing.md),
         DropdownButtonFormField<String>(
+          isExpanded: true,
           initialValue: _selectedPosId,
           decoration: const InputDecoration(
             labelText: 'Cargo',
@@ -269,8 +275,12 @@ class _RoleInfoSectionState extends State<RoleInfoSection> {
             border: OutlineInputBorder(),
           ),
           items: positions
-              .map<DropdownMenuItem<String>>((p) =>
-                  DropdownMenuItem<String>(value: p.id, child: Text(p.name)))
+              .map<DropdownMenuItem<String>>(
+                (p) => DropdownMenuItem<String>(
+                  value: p.id,
+                  child: Text(p.name, overflow: TextOverflow.ellipsis),
+                ),
+              )
               .toList(),
           onChanged: isSaving
               ? null
@@ -283,6 +293,7 @@ class _RoleInfoSectionState extends State<RoleInfoSection> {
         ),
         const SizedBox(height: AppSpacing.md),
         DropdownButtonFormField<String>(
+          isExpanded: true,
           initialValue: _selectedRoleId,
           decoration: const InputDecoration(
             labelText: 'Função',
@@ -290,8 +301,12 @@ class _RoleInfoSectionState extends State<RoleInfoSection> {
             border: OutlineInputBorder(),
           ),
           items: roles
-              .map<DropdownMenuItem<String>>((r) =>
-                  DropdownMenuItem<String>(value: r.id, child: Text(r.name)))
+              .map<DropdownMenuItem<String>>(
+                (r) => DropdownMenuItem<String>(
+                  value: r.id,
+                  child: Text(r.name, overflow: TextOverflow.ellipsis),
+                ),
+              )
               .toList(),
           onChanged: isSaving
               ? null

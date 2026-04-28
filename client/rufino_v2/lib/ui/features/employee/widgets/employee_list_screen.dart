@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/theme/app_breakpoints.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../domain/entities/employee.dart';
+import '../../../core/widgets/filter_sheet.dart';
 import '../../../core/widgets/permission_guard.dart';
 import '../viewmodel/employee_list_viewmodel.dart';
 
@@ -141,6 +142,131 @@ class _SearchSection extends StatelessWidget {
   final TextEditingController controller;
   final EmployeeListViewModel viewModel;
 
+  /// Number of filters that differ from the screen defaults.
+  int get _activeFilterCount {
+    var count = 0;
+    if (viewModel.searchParam != SearchParam.name) count++;
+    if (viewModel.selectedStatus != EmployeeStatus.none) count++;
+    if (viewModel.selectedDocumentStatus != DocumentStatus.all) count++;
+    if (!viewModel.ascending) count++;
+    return count;
+  }
+
+  Future<void> _openFiltersSheet(BuildContext context) async {
+    SearchParam draftSearchParam = viewModel.searchParam;
+    EmployeeStatus draftStatus = viewModel.selectedStatus;
+    DocumentStatus draftDocumentStatus = viewModel.selectedDocumentStatus;
+    bool draftAscending = viewModel.ascending;
+
+    await showFilterSheet<void>(
+      context: context,
+      title: 'Filtros',
+      builder: (sheetContext, setSheetState) {
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            DropdownButtonFormField<SearchParam>(
+              isExpanded: true,
+              initialValue: draftSearchParam,
+              decoration: const InputDecoration(
+                labelText: 'Buscar por',
+                border: OutlineInputBorder(),
+              ),
+              items: SearchParam.values
+                  .map(
+                    (p) => DropdownMenuItem<SearchParam>(
+                      value: p,
+                      child: Text(p.label, overflow: TextOverflow.ellipsis),
+                    ),
+                  )
+                  .toList(),
+              onChanged: (value) {
+                if (value != null) {
+                  setSheetState(() => draftSearchParam = value);
+                }
+              },
+            ),
+            const SizedBox(height: AppSpacing.md),
+            DropdownButtonFormField<EmployeeStatus>(
+              isExpanded: true,
+              initialValue: draftStatus,
+              decoration: const InputDecoration(
+                labelText: 'Status',
+                border: OutlineInputBorder(),
+              ),
+              items: EmployeeStatus.values
+                  .map(
+                    (s) => DropdownMenuItem<EmployeeStatus>(
+                      value: s,
+                      child: Text(s.label, overflow: TextOverflow.ellipsis),
+                    ),
+                  )
+                  .toList(),
+              onChanged: (value) {
+                if (value != null) {
+                  setSheetState(() => draftStatus = value);
+                }
+              },
+            ),
+            const SizedBox(height: AppSpacing.md),
+            DropdownButtonFormField<DocumentStatus>(
+              isExpanded: true,
+              initialValue: draftDocumentStatus,
+              decoration: const InputDecoration(
+                labelText: 'Documentos',
+                border: OutlineInputBorder(),
+              ),
+              items: DocumentStatus.values
+                  .map(
+                    (s) => DropdownMenuItem<DocumentStatus>(
+                      value: s,
+                      child: Text(s.label, overflow: TextOverflow.ellipsis),
+                    ),
+                  )
+                  .toList(),
+              onChanged: (value) {
+                if (value != null) {
+                  setSheetState(() => draftDocumentStatus = value);
+                }
+              },
+            ),
+            const SizedBox(height: AppSpacing.md),
+            SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              title: const Text('Ordem A-Z'),
+              subtitle: Text(
+                draftAscending ? 'A-Z (crescente)' : 'Z-A (decrescente)',
+              ),
+              value: draftAscending,
+              onChanged: (value) =>
+                  setSheetState(() => draftAscending = value),
+            ),
+          ],
+        );
+      },
+      onApply: () {
+        if (draftSearchParam != viewModel.searchParam) {
+          viewModel.onSearchParamChanged(draftSearchParam);
+        }
+        if (draftStatus != viewModel.selectedStatus) {
+          viewModel.onStatusChanged(draftStatus);
+        }
+        if (draftDocumentStatus != viewModel.selectedDocumentStatus) {
+          viewModel.onDocumentStatusChanged(draftDocumentStatus);
+        }
+        if (draftAscending != viewModel.ascending) {
+          viewModel.toggleSort();
+        }
+      },
+      onClear: () {
+        draftSearchParam = SearchParam.name;
+        draftStatus = EmployeeStatus.none;
+        draftDocumentStatus = DocumentStatus.all;
+        draftAscending = true;
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Card.outlined(
@@ -158,9 +284,9 @@ class _SearchSection extends StatelessWidget {
               builder: (context, constraints) {
                 final isWide = constraints.maxWidth >= AppBreakpoints.mobile;
 
-                return Column(
-                  children: [
-                    if (isWide)
+                if (isWide) {
+                  return Column(
+                    children: [
                       Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
@@ -176,17 +302,31 @@ class _SearchSection extends StatelessWidget {
                             child: _SearchParamField(viewModel: viewModel),
                           ),
                         ],
-                      )
-                    else ...[
-                      _SearchField(
-                        controller: controller,
-                        viewModel: viewModel,
                       ),
                       const SizedBox(height: AppSpacing.md),
-                      _SearchParamField(viewModel: viewModel),
+                      _FilterSection(viewModel: viewModel),
                     ],
+                  );
+                }
+
+                final count = _activeFilterCount;
+                final filterLabel =
+                    count > 0 ? 'Filtros ($count)' : 'Filtros';
+                return Column(
+                  children: [
+                    _SearchField(
+                      controller: controller,
+                      viewModel: viewModel,
+                    ),
                     const SizedBox(height: AppSpacing.md),
-                    _FilterSection(viewModel: viewModel),
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: OutlinedButton.icon(
+                        icon: const Icon(Icons.tune, size: 18),
+                        label: Text(filterLabel),
+                        onPressed: () => _openFiltersSheet(context),
+                      ),
+                    ),
                   ],
                 );
               },
