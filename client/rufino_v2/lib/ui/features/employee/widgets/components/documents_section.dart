@@ -9,6 +9,7 @@ import '../../../../../core/utils/file_saver_stub.dart'
 import 'package:mask_text_input_formatter/mask_text_input_formatter.dart';
 import 'package:syncfusion_flutter_pdfviewer/pdfviewer.dart';
 
+import '../../../../../core/theme/app_breakpoints.dart';
 import '../../../../../core/theme/app_spacing.dart';
 import '../../../../../core/utils/image_to_pdf_converter.dart';
 import '../../../../../core/utils/pdf_merger.dart';
@@ -1179,54 +1180,88 @@ class _DocumentsSectionState extends State<DocumentsSection> {
         doc.statusName.isNotEmpty ? doc.statusName : doc.statusId;
     final docStatusColor = _documentStatusColor(doc.statusId);
     final isExpanded = _expandedDocIds.contains(doc.id);
+    final titleStyle = Theme.of(context).textTheme.titleSmall;
+    final statusBadge =
+        _StatusBadge(label: docStatusLabel, color: docStatusColor);
+    const previousPeriodBadge = _StatusBadge(
+      label: 'Usa período anterior',
+      color: Colors.deepPurple,
+    );
 
     return Padding(
       padding: const EdgeInsets.only(bottom: AppSpacing.sm),
       child: Card.outlined(
         clipBehavior: Clip.antiAlias,
-        child: ExpansionTile(
-          title: Text(
-            doc.name,
-            style: Theme.of(context).textTheme.titleSmall,
-          ),
-          trailing: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              _StatusBadge(label: docStatusLabel, color: docStatusColor),
-              if (doc.usePreviousPeriod) ...[
-                const SizedBox(width: AppSpacing.xs),
-                const _StatusBadge(
-                  label: 'Usa período anterior',
-                  color: Colors.deepPurple,
-                ),
-              ],
-              const SizedBox(width: AppSpacing.xs),
-              Icon(
-                isExpanded ? Icons.expand_less : Icons.expand_more,
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final isWide = constraints.maxWidth >= AppBreakpoints.mobile;
+
+            final title = isWide
+                ? Text(doc.name, style: titleStyle)
+                : Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(doc.name, style: titleStyle),
+                      const SizedBox(height: AppSpacing.xs),
+                      Wrap(
+                        spacing: AppSpacing.xs,
+                        runSpacing: AppSpacing.xs,
+                        children: [
+                          statusBadge,
+                          if (doc.usePreviousPeriod) previousPeriodBadge,
+                        ],
+                      ),
+                    ],
+                  );
+
+            final trailing = isWide
+                ? Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      statusBadge,
+                      if (doc.usePreviousPeriod) ...[
+                        const SizedBox(width: AppSpacing.xs),
+                        previousPeriodBadge,
+                      ],
+                      const SizedBox(width: AppSpacing.xs),
+                      Icon(
+                        isExpanded
+                            ? Icons.expand_less
+                            : Icons.expand_more,
+                      ),
+                    ],
+                  )
+                : Icon(
+                    isExpanded ? Icons.expand_less : Icons.expand_more,
+                  );
+
+            return ExpansionTile(
+              title: title,
+              trailing: trailing,
+              onExpansionChanged: (expanded) {
+                setState(() {
+                  if (expanded) {
+                    _expandedDocIds.add(doc.id);
+                    _pageMap[doc.id] = 1;
+                    _reloadUnits(doc.id);
+                  } else {
+                    _expandedDocIds.remove(doc.id);
+                  }
+                });
+              },
+              childrenPadding: const EdgeInsets.fromLTRB(
+                AppSpacing.md,
+                0,
+                AppSpacing.md,
+                AppSpacing.md,
               ),
-            ],
-          ),
-          onExpansionChanged: (expanded) {
-            setState(() {
-              if (expanded) {
-                _expandedDocIds.add(doc.id);
-                _pageMap[doc.id] = 1;
-                _reloadUnits(doc.id);
-              } else {
-                _expandedDocIds.remove(doc.id);
-              }
-            });
+              children: [
+                _buildStatusFilter(context, doc),
+                _buildUnitsList(context, doc),
+              ],
+            );
           },
-          childrenPadding: const EdgeInsets.fromLTRB(
-            AppSpacing.md,
-            0,
-            AppSpacing.md,
-            AppSpacing.md,
-          ),
-          children: [
-            _buildStatusFilter(context, doc),
-            _buildUnitsList(context, doc),
-          ],
         ),
       ),
     );
@@ -1238,6 +1273,7 @@ class _DocumentsSectionState extends State<DocumentsSection> {
     return Padding(
       padding: const EdgeInsets.only(bottom: AppSpacing.sm),
       child: DropdownButtonFormField<int?>(
+        isExpanded: true,
         initialValue: currentFilter,
         decoration: const InputDecoration(
           labelText: 'Status',
@@ -1248,7 +1284,7 @@ class _DocumentsSectionState extends State<DocumentsSection> {
         items: _statusOptions.map((opt) {
           return DropdownMenuItem<int?>(
             value: opt.id,
-            child: Text(opt.label),
+            child: Text(opt.label, overflow: TextOverflow.ellipsis),
           );
         }).toList(),
         onChanged: (value) {
@@ -1305,7 +1341,7 @@ class _DocumentsSectionState extends State<DocumentsSection> {
   }
 
   /// Builds the pagination bar with navigation, summary and page size
-  /// dropdown in a single row.
+  /// dropdown — single row on wide screens, stacked on mobile.
   Widget _buildPaginationBar(
     BuildContext context,
     EmployeeDocument doc,
@@ -1318,110 +1354,164 @@ class _DocumentsSectionState extends State<DocumentsSection> {
           color: cs.onSurfaceVariant,
         );
     final hasMultiplePages = totalPages > 1;
-    final pageNumbers = hasMultiplePages
-        ? _buildPageNumbers(currentPage, totalPages)
-        : <int?>[];
 
     void changePage(int page) {
       setState(() => _pageMap[doc.id] = page);
       _reloadUnits(doc.id);
     }
 
-    return Row(
-      children: [
-        // Left: item summary.
-        Expanded(
+    Widget buildPageNumberWidget(int? page) {
+      if (page == null) {
+        return Padding(
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xs),
+          child: Text('…', style: textStyle),
+        );
+      }
+      final isActive = page == currentPage;
+      return GestureDetector(
+        onTap: () => changePage(page),
+        child: Container(
+          margin: const EdgeInsets.symmetric(horizontal: 2),
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          decoration: BoxDecoration(
+            color: isActive ? cs.primary : Colors.transparent,
+            borderRadius: BorderRadius.circular(4),
+            border: Border.all(
+              color: isActive ? cs.primary : cs.outlineVariant,
+            ),
+          ),
           child: Text(
-            hasMultiplePages
-                ? 'Página $currentPage de $totalPages '
-                    '(${doc.totalUnitsCount} itens)'
-                : '${doc.totalUnitsCount} '
-                    '${doc.totalUnitsCount == 1 ? 'item' : 'itens'}',
-            style: textStyle,
+            '$page',
+            style: textStyle?.copyWith(
+              color: isActive ? cs.onPrimary : null,
+              fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
+            ),
           ),
         ),
+      );
+    }
 
-        // Center: page navigation buttons.
-        if (hasMultiplePages) ...[
-          IconButton(
-            icon: const Icon(Icons.chevron_left, size: 20),
-            tooltip: 'Página anterior',
-            visualDensity: VisualDensity.compact,
-            onPressed:
-                currentPage > 1 ? () => changePage(currentPage - 1) : null,
-          ),
-          ...pageNumbers.map((page) {
-            if (page == null) {
-              return Padding(
-                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xs),
-                child: Text('…', style: textStyle),
-              );
-            }
-            final isActive = page == currentPage;
-            return GestureDetector(
-              onTap: () => changePage(page),
-              child: Container(
-                margin: const EdgeInsets.symmetric(horizontal: 2),
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: isActive ? cs.primary : Colors.transparent,
-                  borderRadius: BorderRadius.circular(4),
-                  border: Border.all(
-                    color: isActive ? cs.primary : cs.outlineVariant,
-                  ),
-                ),
-                child: Text(
-                  '$page',
-                  style: textStyle?.copyWith(
-                    color: isActive ? cs.onPrimary : null,
-                    fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
-                  ),
-                ),
-              ),
-            );
-          }),
-          IconButton(
-            icon: const Icon(Icons.chevron_right, size: 20),
-            tooltip: 'Próxima página',
-            visualDensity: VisualDensity.compact,
-            onPressed: currentPage < totalPages
-                ? () => changePage(currentPage + 1)
-                : null,
+    String summaryText() => hasMultiplePages
+        ? 'Página $currentPage de $totalPages '
+            '(${doc.totalUnitsCount} itens)'
+        : '${doc.totalUnitsCount} '
+            '${doc.totalUnitsCount == 1 ? 'item' : 'itens'}';
+
+    Widget buildPageSizeDropdown({required bool showLabel}) {
+      return Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (showLabel) ...[
+            Text('Por página:', style: textStyle),
+            const SizedBox(width: AppSpacing.xs),
+          ],
+          DropdownButton<int>(
+            value: pageSize,
+            isDense: true,
+            items: _pageSizeOptions
+                .map((s) => DropdownMenuItem<int>(
+                      value: s,
+                      child: Text('$s', style: textStyle),
+                    ))
+                .toList(),
+            onChanged: (v) {
+              if (v != null) {
+                setState(() => _pageMap[doc.id] = 1);
+                widget.viewModel.changePageSize(doc.id, v);
+              }
+            },
           ),
         ],
+      );
+    }
 
-        // Right: page size dropdown.
-        Text('Por página:', style: textStyle),
-        const SizedBox(width: AppSpacing.xs),
-        DropdownButton<int>(
-          value: pageSize,
-          isDense: true,
-          items: _pageSizeOptions
-              .map((s) => DropdownMenuItem<int>(
-                    value: s,
-                    child: Text('$s', style: textStyle),
-                  ))
-              .toList(),
-          onChanged: (v) {
-            if (v != null) {
-              setState(() => _pageMap[doc.id] = 1);
-              widget.viewModel.changePageSize(doc.id, v);
-            }
-          },
-        ),
-      ],
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isWide = constraints.maxWidth >= AppBreakpoints.mobile;
+        final pageNumbers = hasMultiplePages
+            ? _buildPageNumbers(
+                currentPage,
+                totalPages,
+                maxVisible: isWide ? 5 : 3,
+              )
+            : <int?>[];
+
+        final navButtons = <Widget>[
+          if (hasMultiplePages) ...[
+            IconButton(
+              icon: const Icon(Icons.chevron_left, size: 20),
+              tooltip: 'Página anterior',
+              visualDensity: VisualDensity.compact,
+              onPressed: currentPage > 1
+                  ? () => changePage(currentPage - 1)
+                  : null,
+            ),
+            ...pageNumbers.map(buildPageNumberWidget),
+            IconButton(
+              icon: const Icon(Icons.chevron_right, size: 20),
+              tooltip: 'Próxima página',
+              visualDensity: VisualDensity.compact,
+              onPressed: currentPage < totalPages
+                  ? () => changePage(currentPage + 1)
+                  : null,
+            ),
+          ],
+        ];
+
+        if (isWide) {
+          return Row(
+            children: [
+              Expanded(
+                child: Text(summaryText(), style: textStyle),
+              ),
+              ...navButtons,
+              buildPageSizeDropdown(showLabel: true),
+            ],
+          );
+        }
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            if (hasMultiplePages)
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: navButtons,
+              ),
+            if (hasMultiplePages) const SizedBox(height: AppSpacing.xs),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Flexible(
+                  child: Text(
+                    summaryText(),
+                    style: textStyle,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                buildPageSizeDropdown(showLabel: false),
+              ],
+            ),
+          ],
+        );
+      },
     );
   }
 
   /// Returns page numbers with `null` representing ellipsis gaps.
-  static List<int?> _buildPageNumbers(int currentPage, int totalPages) {
-    const maxVisible = 5;
+  static List<int?> _buildPageNumbers(
+    int currentPage,
+    int totalPages, {
+    int maxVisible = 5,
+  }) {
     if (totalPages <= maxVisible) {
       return List.generate(totalPages, (i) => i + 1);
     }
-    final pages = <int>{1, totalPages};
-    for (var i = currentPage - 1; i <= currentPage + 1; i++) {
-      if (i >= 1 && i <= totalPages) pages.add(i);
+    final pages = <int>{1, totalPages, currentPage};
+    if (maxVisible >= 5) {
+      for (var i = currentPage - 1; i <= currentPage + 1; i++) {
+        if (i >= 1 && i <= totalPages) pages.add(i);
+      }
     }
     final sorted = pages.toList()..sort();
     final result = <int?>[];
@@ -1448,6 +1538,129 @@ class _DocumentsSectionState extends State<DocumentsSection> {
         unit.isPending && hasValidDate && doc.canGenerateDocument;
     final canSend = unit.isPending && hasValidDate;
 
+    final actions = <Widget>[
+      if (unit.isPending) ...[
+        PermissionGuard(
+          resource: 'document',
+          scope: 'edit',
+          child: IconButton(
+            icon: const Icon(Icons.edit, size: 20),
+            tooltip: 'Editar data',
+            onPressed:
+                _isBusy ? null : () => _showEditDateDialog(doc, unit),
+          ),
+        ),
+        PermissionGuard(
+          resource: 'document',
+          scope: 'edit',
+          child: IconButton(
+            icon: const Icon(Icons.block, size: 20),
+            tooltip: 'Não aplicável',
+            onPressed: _isBusy
+                ? null
+                : () => _showNotApplicableDialog(doc, unit),
+          ),
+        ),
+        if (canGenerate)
+          PermissionGuard(
+            resource: 'document',
+            scope: 'generate',
+            child: IconButton(
+              icon:
+                  const Icon(Icons.sim_card_download_outlined, size: 20),
+              tooltip: 'Gerar',
+              onPressed:
+                  _isBusy ? null : () => _showGenerateDialog(doc, unit),
+            ),
+          ),
+        if (canSend)
+          PermissionGuard(
+            resource: 'document',
+            scope: 'upload',
+            child: IconButton(
+              icon: const Icon(Icons.upload_file_outlined, size: 20),
+              tooltip: 'Enviar',
+              onPressed:
+                  _isBusy ? null : () => _showSendDialog(doc, unit),
+            ),
+          ),
+      ] else if (unit.hasFile)
+        PermissionGuard(
+          resource: 'document',
+          scope: 'download',
+          child: IconButton(
+            icon: const Icon(Icons.search, size: 20),
+            tooltip: 'Visualizar',
+            onPressed: _isBusy ? null : () => _viewUnit(doc, unit),
+          ),
+        ),
+    ];
+
+    final infoColumn = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          unit.statusName,
+          style: Theme.of(context)
+              .textTheme
+              .bodyMedium
+              ?.copyWith(fontWeight: FontWeight.w600),
+        ),
+        const SizedBox(height: 2),
+        Text(
+          'Data: ${unit.date}',
+          style: Theme.of(context)
+              .textTheme
+              .bodySmall
+              ?.copyWith(color: cs.onSurfaceVariant),
+        ),
+        if (unit.period != null && unit.period!.formattedPeriod.isNotEmpty)
+          Text(
+            'Competência: ${unit.period!.formattedPeriod}',
+            style: Theme.of(context)
+                .textTheme
+                .bodySmall
+                ?.copyWith(color: cs.onSurfaceVariant),
+          ),
+        if (unit.validity.isNotEmpty)
+          Text(
+            'Validade: ${unit.validity}',
+            style: Theme.of(context)
+                .textTheme
+                .bodySmall
+                ?.copyWith(color: cs.onSurfaceVariant),
+          ),
+      ],
+    );
+
+    final checkbox = widget.viewModel.isSelectingRange
+        ? Checkbox(
+            value: widget.viewModel.isDocumentUnitSelected(unit.id),
+            onChanged: (_) {
+              widget.viewModel.toggleDocumentUnitSelection(
+                SelectedDocumentUnit(
+                  documentId: doc.id,
+                  documentUnitId: unit.id,
+                  documentName: doc.name,
+                  documentUnitDate: unit.date,
+                  canGenerate: canGenerate,
+                  hasFile: unit.hasFile,
+                ),
+              );
+            },
+          )
+        : null;
+
+    final statusDot = Container(
+      width: 12,
+      height: 12,
+      decoration: BoxDecoration(
+        color: statusColor,
+        shape: BoxShape.circle,
+      ),
+    );
+
     return Padding(
       padding: const EdgeInsets.only(bottom: AppSpacing.xs),
       child: Card.outlined(
@@ -1456,139 +1669,50 @@ class _DocumentsSectionState extends State<DocumentsSection> {
             horizontal: AppSpacing.md,
             vertical: AppSpacing.sm,
           ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final isWide =
+                  constraints.maxWidth >= AppBreakpoints.mobile;
+
+              if (isWide) {
+                return Row(
+                  children: [
+                    if (checkbox != null) checkbox,
+                    statusDot,
+                    const SizedBox(width: AppSpacing.md),
+                    Expanded(child: infoColumn),
+                    ...actions,
+                  ],
+                );
+              }
+
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  // Range selection checkbox.
-                  if (widget.viewModel.isSelectingRange)
-                    Checkbox(
-                      value: widget.viewModel.isDocumentUnitSelected(unit.id),
-                      onChanged: (_) {
-                        widget.viewModel.toggleDocumentUnitSelection(
-                          SelectedDocumentUnit(
-                            documentId: doc.id,
-                            documentUnitId: unit.id,
-                            documentName: doc.name,
-                            documentUnitDate: unit.date,
-                            canGenerate: canGenerate,
-                            hasFile: unit.hasFile,
-                          ),
-                        );
-                      },
-                    ),
-                  Container(
-                    width: 12,
-                    height: 12,
-                    decoration: BoxDecoration(
-                      color: statusColor,
-                      shape: BoxShape.circle,
-                    ),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      if (checkbox != null) checkbox,
+                      Padding(
+                        padding: const EdgeInsets.only(top: 6),
+                        child: statusDot,
+                      ),
+                      const SizedBox(width: AppSpacing.md),
+                      Expanded(child: infoColumn),
+                    ],
                   ),
-                  const SizedBox(width: AppSpacing.md),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          unit.statusName,
-                          style: Theme.of(context)
-                              .textTheme
-                              .bodyMedium
-                              ?.copyWith(fontWeight: FontWeight.w600),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          'Data: ${unit.date}',
-                          style: Theme.of(context)
-                              .textTheme
-                              .bodySmall
-                              ?.copyWith(color: cs.onSurfaceVariant),
-                        ),
-                        if (unit.period != null &&
-                            unit.period!.formattedPeriod.isNotEmpty)
-                          Text(
-                            'Competência: ${unit.period!.formattedPeriod}',
-                            style: Theme.of(context)
-                                .textTheme
-                                .bodySmall
-                                ?.copyWith(color: cs.onSurfaceVariant),
-                          ),
-                        if (unit.validity.isNotEmpty)
-                          Text(
-                            'Validade: ${unit.validity}',
-                            style: Theme.of(context)
-                                .textTheme
-                                .bodySmall
-                                ?.copyWith(color: cs.onSurfaceVariant),
-                          ),
-                      ],
+                  if (actions.isNotEmpty) ...[
+                    const SizedBox(height: AppSpacing.xs),
+                    Wrap(
+                      alignment: WrapAlignment.end,
+                      spacing: AppSpacing.xs,
+                      runSpacing: AppSpacing.xs,
+                      children: actions,
                     ),
-                  ),
-                  // Action icon buttons in the trailing area.
-                  if (unit.isPending) ...[
-                    PermissionGuard(
-                      resource: 'document',
-                      scope: 'edit',
-                      child: IconButton(
-                        icon: const Icon(Icons.edit, size: 20),
-                        tooltip: 'Editar data',
-                        onPressed: _isBusy
-                            ? null
-                            : () => _showEditDateDialog(doc, unit),
-                      ),
-                    ),
-                    PermissionGuard(
-                      resource: 'document',
-                      scope: 'edit',
-                      child: IconButton(
-                        icon: const Icon(Icons.block, size: 20),
-                        tooltip: 'Não aplicável',
-                        onPressed: _isBusy
-                            ? null
-                            : () => _showNotApplicableDialog(doc, unit),
-                      ),
-                    ),
-                    if (canGenerate)
-                      PermissionGuard(
-                        resource: 'document',
-                        scope: 'generate',
-                        child: IconButton(
-                          icon: const Icon(Icons.sim_card_download_outlined,
-                              size: 20),
-                          tooltip: 'Gerar',
-                          onPressed: _isBusy
-                              ? null
-                              : () => _showGenerateDialog(doc, unit),
-                        ),
-                      ),
-                    if (canSend)
-                      PermissionGuard(
-                        resource: 'document',
-                        scope: 'upload',
-                        child: IconButton(
-                          icon:
-                              const Icon(Icons.upload_file_outlined, size: 20),
-                          tooltip: 'Enviar',
-                          onPressed:
-                              _isBusy ? null : () => _showSendDialog(doc, unit),
-                        ),
-                      ),
-                  ] else if (unit.hasFile)
-                    PermissionGuard(
-                      resource: 'document',
-                      scope: 'download',
-                      child: IconButton(
-                        icon: const Icon(Icons.search, size: 20),
-                        tooltip: 'Visualizar',
-                        onPressed:
-                            _isBusy ? null : () => _viewUnit(doc, unit),
-                      ),
-                    ),
+                  ],
                 ],
-              ),
-            ],
+              );
+            },
           ),
         ),
       ),
