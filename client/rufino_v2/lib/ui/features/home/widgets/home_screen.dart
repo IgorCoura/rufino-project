@@ -216,7 +216,7 @@ class _HomeBody extends StatelessWidget {
     return LayoutBuilder(
       builder: (context, constraints) {
         final isWide = constraints.maxWidth >= AppBreakpoints.tablet;
-        return Padding(
+        return SingleChildScrollView(
           padding: EdgeInsets.all(isWide ? AppSpacing.lg : AppSpacing.md),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
