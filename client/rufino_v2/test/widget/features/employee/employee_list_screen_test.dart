@@ -10,8 +10,11 @@ import 'package:rufino_v2/ui/features/employee/viewmodel/employee_list_viewmodel
 import 'package:rufino_v2/ui/features/employee/widgets/employee_list_screen.dart';
 
 import '../../../testing/fakes/fake_company_repository.dart';
+import '../../../testing/fakes/fake_department_repository.dart';
 import '../../../testing/fakes/fake_employee_repository.dart';
 import '../../../testing/fakes/fake_permission_repository.dart';
+import '../../../testing/fakes/recording_file_save_service.dart';
+import '../../../testing/fakes/recording_spreadsheet_service.dart';
 
 const _fakeCompany = Company(
   id: 'company-1',
@@ -32,23 +35,38 @@ const _fakeEmployee = Employee(
 void main() {
   late FakeCompanyRepository companyRepository;
   late FakeEmployeeRepository employeeRepository;
+  late RecordingSpreadsheetService spreadsheetService;
+  late RecordingFileSaveService fileSaveService;
   late PermissionNotifier permissionNotifier;
   late EmployeeListViewModel viewModel;
 
-  setUp(() async {
+  Future<void> setUpScenario({List<String>? scopes}) async {
     companyRepository = FakeCompanyRepository()
       ..setSelectedCompany(_fakeCompany);
     employeeRepository = FakeEmployeeRepository();
+    spreadsheetService = RecordingSpreadsheetService();
+    fileSaveService = RecordingFileSaveService();
     viewModel = EmployeeListViewModel(
       companyRepository: companyRepository,
       employeeRepository: employeeRepository,
+      departmentRepository: FakeDepartmentRepository(),
+      spreadsheetService: spreadsheetService,
+      fileSaveService: fileSaveService,
     );
     final fakePermRepo = FakePermissionRepository()
       ..setPermissions([
-        const Permission(resource: 'employee', scopes: ['create', 'view', 'edit']),
+        Permission(
+          resource: 'employee',
+          scopes: scopes ?? const ['create', 'view', 'edit', 'download'],
+        ),
       ]);
-    permissionNotifier = PermissionNotifier(permissionRepository: fakePermRepo);
+    permissionNotifier =
+        PermissionNotifier(permissionRepository: fakePermRepo);
     await permissionNotifier.loadPermissions();
+  }
+
+  setUp(() async {
+    await setUpScenario();
   });
 
   tearDown(() {
@@ -205,6 +223,62 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('home'), findsOneWidget);
+    });
+
+    testWidgets('shows the export menu when employee:download is granted',
+        (tester) async {
+      employeeRepository.setEmployees([_fakeEmployee]);
+
+      await tester.pumpWidget(buildSubject());
+      await tester.pumpAndSettle();
+
+      expect(find.byTooltip('Mais opções'), findsOneWidget);
+    });
+
+    testWidgets('hides the export menu when employee:download is missing',
+        (tester) async {
+      // Override scenario to revoke the download scope.
+      await tester.runAsync(() async {
+        await setUpScenario(scopes: const ['create', 'view', 'edit']);
+      });
+      employeeRepository.setEmployees([_fakeEmployee]);
+
+      await tester.pumpWidget(buildSubject());
+      await tester.pumpAndSettle();
+
+      expect(find.byTooltip('Mais opções'), findsNothing);
+    });
+
+    testWidgets('opens the export menu and lists both spreadsheets',
+        (tester) async {
+      employeeRepository.setEmployees([_fakeEmployee]);
+
+      await tester.pumpWidget(buildSubject());
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byTooltip('Mais opções'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Planilha Etiquetas'), findsOneWidget);
+      expect(find.text('Planilha SOC'), findsOneWidget);
+    });
+
+    testWidgets(
+        'tapping Planilha Etiquetas asks the file saver to write a workbook',
+        (tester) async {
+      employeeRepository.setEmployees([_fakeEmployee]);
+
+      await tester.pumpWidget(buildSubject());
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byTooltip('Mais opções'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Planilha Etiquetas'));
+      await tester.pumpAndSettle();
+
+      expect(spreadsheetService.callCount, 1);
+      expect(fileSaveService.saveCallCount, 1);
+      expect(fileSaveService.lastFileName, startsWith('planilha_etiquetas_'));
     });
 
     testWidgets('reloads employees after returning from create screen',

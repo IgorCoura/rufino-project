@@ -35,6 +35,8 @@ import 'data/services/require_document_api_service.dart';
 import 'data/services/batch_document_api_service.dart';
 import 'data/services/batch_download_api_service.dart';
 import 'data/services/cep_api_service.dart';
+import 'data/services/file_save_service.dart';
+import 'data/services/spreadsheet_service.dart';
 import 'data/services/workplace_api_service.dart';
 import 'domain/repositories/auth_repository.dart';
 import 'domain/repositories/permission_repository.dart';
@@ -229,6 +231,10 @@ class App extends StatelessWidget {
     final BatchDownloadRepository batchDownloadRepository =
         BatchDownloadRepositoryImpl(apiService: batchDownloadApiService);
 
+    // Spreadsheet export — stateless, safe to share across the app.
+    final spreadsheetService = SpreadsheetService();
+    final fileSaveService = FileSaveService();
+
     return [
       ChangeNotifierProvider(create: (_) => ThemeNotifier()),
       ChangeNotifierProvider.value(value: permissionNotifier),
@@ -249,6 +255,8 @@ class App extends StatelessWidget {
       Provider<BatchDownloadRepository>.value(
           value: batchDownloadRepository),
       Provider<CepRepository>.value(value: cepRepository),
+      Provider<SpreadsheetService>.value(value: spreadsheetService),
+      Provider<FileSaveService>.value(value: fileSaveService),
     ];
   }
 }
@@ -495,6 +503,9 @@ class _AppRouterState extends State<_AppRouter> {
             viewModel: EmployeeListViewModel(
               companyRepository: context.read<CompanyRepository>(),
               employeeRepository: context.read<EmployeeRepository>(),
+              departmentRepository: context.read<DepartmentRepository>(),
+              spreadsheetService: context.read<SpreadsheetService>(),
+              fileSaveService: context.read<FileSaveService>(),
             ),
           ),
         ),

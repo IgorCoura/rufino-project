@@ -13,9 +13,12 @@ Uint8List buildZipFromEntries(List<ZipEntry> entries) {
   final archive = Archive();
   for (final entry in entries) {
     archive.addFile(
-      ArchiveFile.bytes(entry.fileName, entry.bytes),
+      ArchiveFile(entry.fileName, entry.bytes.length, entry.bytes),
     );
   }
   final encoded = ZipEncoder().encode(archive);
+  if (encoded == null) {
+    throw StateError('Failed to encode ZIP archive.');
+  }
   return Uint8List.fromList(encoded);
 }

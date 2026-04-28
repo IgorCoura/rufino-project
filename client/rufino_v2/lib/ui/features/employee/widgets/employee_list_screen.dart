@@ -79,7 +79,13 @@ class _EmployeeListScreenState extends State<EmployeeListScreen> {
           onPressed: () => context.go('/home'),
         ),
         title: const Text('Funcionários'),
-        actions: const [],
+        actions: [
+          PermissionGuard(
+            resource: 'employee',
+            scope: 'download',
+            child: _ExportMenuButton(viewModel: widget.viewModel),
+          ),
+        ],
       ),
       body: SafeArea(
         child: Center(
@@ -694,6 +700,136 @@ class _LoadingMoreListItem extends StatelessWidget {
           SizedBox(width: AppSpacing.md),
           Text('Carregando mais funcionários...'),
         ],
+      ),
+    );
+  }
+}
+
+/// Identifies which spreadsheet to build when an export menu item is tapped.
+enum EmployeeExportType {
+  /// The labels printing spreadsheet (5 columns).
+  etiquetas,
+
+  /// The full SOC import spreadsheet (38 columns).
+  soc,
+}
+
+/// Three-dot AppBar menu that triggers spreadsheet exports.
+///
+/// While an export is running the items are disabled to prevent overlapping
+/// downloads. The progress dialog is displayed and dismissed by this widget;
+/// success and error feedback flow through a snack bar after the export
+/// finishes.
+class _ExportMenuButton extends StatelessWidget {
+  const _ExportMenuButton({required this.viewModel});
+
+  final EmployeeListViewModel viewModel;
+
+  Future<void> _handleSelection(
+      BuildContext context, EmployeeExportType type) async {
+    if (viewModel.isExporting) return;
+
+    final messenger = ScaffoldMessenger.of(context);
+    final navigator = Navigator.of(context);
+
+    showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => _ExportProgressDialog(viewModel: viewModel),
+    );
+
+    switch (type) {
+      case EmployeeExportType.etiquetas:
+        await viewModel.exportEtiquetas();
+      case EmployeeExportType.soc:
+        await viewModel.exportSoc();
+    }
+
+    if (navigator.canPop()) navigator.pop();
+
+    final error = viewModel.exportErrorMessage;
+    final success = viewModel.exportSuccessLabel;
+    if (error != null) {
+      messenger.showSnackBar(SnackBar(content: Text(error)));
+    } else if (success != null) {
+      messenger.showSnackBar(SnackBar(content: Text(success)));
+    }
+    viewModel.clearExportFeedback();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return ListenableBuilder(
+      listenable: viewModel,
+      builder: (context, _) {
+        final disabled = viewModel.isExporting;
+        return PopupMenuButton<EmployeeExportType>(
+          icon: const Icon(Icons.more_vert),
+          tooltip: 'Mais opções',
+          enabled: !disabled,
+          onSelected: (type) => _handleSelection(context, type),
+          itemBuilder: (context) => const [
+            PopupMenuItem<EmployeeExportType>(
+              value: EmployeeExportType.etiquetas,
+              child: ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: Icon(Icons.label_outline),
+                title: Text('Planilha Etiquetas'),
+                subtitle: Text('.xlsx'),
+              ),
+            ),
+            PopupMenuItem<EmployeeExportType>(
+              value: EmployeeExportType.soc,
+              child: ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: Icon(Icons.fact_check_outlined),
+                title: Text('Planilha SOC'),
+                subtitle: Text('.xlsx'),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+}
+
+/// Modal dialog that mirrors [EmployeeListViewModel.exportProgress] while
+/// a spreadsheet export is in flight.
+class _ExportProgressDialog extends StatelessWidget {
+  const _ExportProgressDialog({required this.viewModel});
+
+  final EmployeeListViewModel viewModel;
+
+  @override
+  Widget build(BuildContext context) {
+    return PopScope(
+      canPop: false,
+      child: AlertDialog(
+        title: const Text('Exportando funcionários'),
+        content: ListenableBuilder(
+          listenable: viewModel,
+          builder: (context, _) {
+            final progress = viewModel.exportProgress;
+            final percent = (progress * 100).round();
+            return Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                LinearProgressIndicator(
+                  value: progress > 0 ? progress : null,
+                ),
+                const SizedBox(height: AppSpacing.md),
+                Text(
+                  progress > 0
+                      ? 'Processando funcionários ($percent%)...'
+                      : 'Carregando funcionários...',
+                  textAlign: TextAlign.center,
+                ),
+              ],
+            );
+          },
+        ),
       ),
     );
   }

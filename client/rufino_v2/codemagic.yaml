@@ -1,0 +1,111 @@
+workflows:
+  ios-release:
+    name: iOS Release (TestFlight)
+    max_build_duration: 30
+    instance_type: mac_mini_m2
+
+    integrations:
+      app_store_connect: codemagic
+
+    environment:
+      ios_signing:
+        distribution_type: app_store
+        bundle_identifier: br.com.suaempresa.rufino
+      groups:
+        - rufino_ios_secrets
+      vars:
+        APP_STORE_APPLE_ID: 0000000000
+      flutter: stable
+      xcode: latest
+      cocoapods: default
+
+    cache:
+      cache_paths:
+        - ~/.pub-cache
+        - ~/.cocoapods
+        - $FLUTTER_ROOT/.pub-cache
+
+    scripts:
+      - name: Restore prod config secret
+        script: |
+          mkdir -p secrets
+          echo "$PROD_CONFIG_JSON" > secrets/prod_config.json
+
+      - name: Set up code signing
+        script: xcode-project use-profiles
+
+      - name: Get Flutter packages
+        script: flutter pub get
+
+      - name: Install CocoaPods
+        script: |
+          cd ios
+          pod install
+
+      - name: Flutter analyze
+        script: flutter analyze
+        ignore_failure: true
+
+      - name: Flutter test
+        script: flutter test
+
+      - name: Build IPA
+        script: |
+          BUILD_NUMBER=$(($(app-store-connect get-latest-app-store-build-number "$APP_STORE_APPLE_ID") + 1))
+          flutter build ipa --release \
+            --build-name=2.0.0 \
+            --build-number=$BUILD_NUMBER \
+            --export-options-plist=/Users/builder/export_options.plist
+
+    artifacts:
+      - build/ios/ipa/*.ipa
+      - /tmp/xcodebuild_logs/*.log
+      - flutter_drive.log
+
+    publishing:
+      email:
+        recipients:
+          - igor-coura@hotmail.com
+        notify:
+          success: true
+          failure: true
+      app_store_connect:
+        auth: integration
+        submit_to_testflight: true
+        submit_to_app_store: false
+
+  ios-debug:
+    name: iOS Debug (ad-hoc, sem publicação)
+    max_build_duration: 60
+    instance_type: mac_mini_m2
+
+    integrations:
+      app_store_connect: codemagic
+
+    environment:
+      ios_signing:
+        distribution_type: ad_hoc
+        bundle_identifier: br.com.suaempresa.rufino
+      groups:
+        - rufino_ios_secrets
+      flutter: stable
+      xcode: latest
+      cocoapods: default
+
+    scripts:
+      - name: Restore prod config secret
+        script: |
+          mkdir -p secrets
+          echo "$PROD_CONFIG_JSON" > secrets/prod_config.json
+      - name: Set up code signing
+        script: xcode-project use-profiles
+      - name: Get Flutter packages
+        script: flutter pub get
+      - name: Install CocoaPods
+        script: cd ios && pod install
+      - name: Build IPA (ad-hoc)
+        script: flutter build ipa --debug --export-method=ad-hoc
+
+    artifacts:
+      - build/ios/ipa/*.ipa
+      - /tmp/xcodebuild_logs/*.log
