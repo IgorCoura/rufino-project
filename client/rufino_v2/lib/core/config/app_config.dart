@@ -34,16 +34,22 @@ abstract final class AppConfig {
   /// Whether the app is running in development mode.
   static bool get isDevelop => environment == 'develop';
 
-  /// Toggles between the legacy Resource Owner Password Credentials grant
-  /// (default, [false]) and the Authorization Code Flow + PKCE
-  /// implementation ([true]).
+  /// Opts in to the legacy Resource Owner Password Credentials grant
+  /// (a.k.a. Direct Access Grants) when [true]. Defaults to [false], which
+  /// means the app uses the Authorization Code Flow + PKCE.
   ///
   /// Set at build time:
-  ///   flutter run --dart-define=use_auth_code_flow=true
-  static const bool useAuthorizationCodeFlow = bool.fromEnvironment(
-    'use_auth_code_flow',
+  ///   flutter run --dart-define=use_direct_access_grants=true
+  static const bool useDirectAccessGrants = bool.fromEnvironment(
+    'use_direct_access_grants',
     defaultValue: false,
   );
+
+  /// Whether the Authorization Code Flow + PKCE is the active flow.
+  ///
+  /// Equivalent to `!useDirectAccessGrants`. Exposed as a named getter so
+  /// call sites read top-down without inverting a negative flag.
+  static bool get useAuthorizationCodeFlow => !useDirectAccessGrants;
 
   /// Keycloak `/auth` endpoint — only used by the Authorization Code Flow.
   ///
@@ -94,13 +100,16 @@ abstract final class AppConfig {
   /// Call this in main() to fail fast with a clear error.
   static void assertConfigured() {
     final missing = <String>[];
-    if (authorizationEndpoint.isEmpty) missing.add('authorization_endpoint');
     if (endSessionEndpoint.isEmpty) missing.add('end_session_endpoint');
     if (identifier.isEmpty) missing.add('identifier');
-    if (secret.isEmpty) missing.add('secret');
     if (peopleManagementUrl.isEmpty) missing.add('people_management_url');
 
-    if (useAuthorizationCodeFlow) {
+    if (useDirectAccessGrants) {
+      if (authorizationEndpoint.isEmpty) {
+        missing.add('authorization_endpoint');
+      }
+      if (secret.isEmpty) missing.add('secret');
+    } else {
       if (authCodeAuthorizationEndpoint.isEmpty) {
         missing.add('auth_code_authorization_endpoint');
       }

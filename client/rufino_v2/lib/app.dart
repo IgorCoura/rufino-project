@@ -177,7 +177,11 @@ class App extends StatelessWidget {
 
     final permissionApiService = PermissionApiService(
       client: httpClient,
-      tokenEndpoint: Uri.parse(AppConfig.authorizationEndpoint),
+      tokenEndpoint: Uri.parse(
+        AppConfig.useDirectAccessGrants
+            ? AppConfig.authorizationEndpoint
+            : AppConfig.authCodeTokenEndpoint,
+      ),
       getAccessToken: getAccessToken,
       audience: 'people-management-api',
     );
