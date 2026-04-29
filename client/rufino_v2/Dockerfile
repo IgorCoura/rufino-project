@@ -10,15 +10,18 @@ RUN flutter pub get
 # Copy the rest of the source code
 COPY . .
 
-# Generate secrets/prod_config.json from build args
-ARG AUTHORIZATION_ENDPOINT
+# Generate secrets/prod_config.json from build args. The app defaults to the
+# Authorization Code Flow + PKCE, so only the auth-code endpoints are required;
+# Direct Access Grants secrets (authorization_endpoint, secret) are no longer
+# part of the production build.
+ARG AUTH_CODE_AUTHORIZATION_ENDPOINT
+ARG AUTH_CODE_TOKEN_ENDPOINT
 ARG END_SESSION_ENDPOINT
 ARG IDENTIFIER
-ARG SECRET
 ARG PEOPLE_MANAGEMENT_URL
 
 RUN mkdir -p secrets && \
-    echo "{\"authorization_endpoint\":\"$AUTHORIZATION_ENDPOINT\",\"end_session_endpoint\":\"$END_SESSION_ENDPOINT\",\"identifier\":\"$IDENTIFIER\",\"secret\":\"$SECRET\",\"people_management_url\":\"$PEOPLE_MANAGEMENT_URL\"}" \
+    echo "{\"auth_code_authorization_endpoint\":\"$AUTH_CODE_AUTHORIZATION_ENDPOINT\",\"auth_code_token_endpoint\":\"$AUTH_CODE_TOKEN_ENDPOINT\",\"end_session_endpoint\":\"$END_SESSION_ENDPOINT\",\"identifier\":\"$IDENTIFIER\",\"people_management_url\":\"$PEOPLE_MANAGEMENT_URL\"}" \
     > secrets/prod_config.json
 
 RUN flutter build web --release --dart-define-from-file=secrets/prod_config.json
