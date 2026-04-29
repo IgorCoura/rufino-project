@@ -1,0 +1,46 @@
+/* ──────────────────────────────────────────────────────────────────────────
+   Rufino — Keycloak Login color override
+   ──────────────────────────────────────────────────────────────────────────
+   COLORS AND BACKGROUNDS ONLY. Do NOT add font, padding, border-radius,
+   box-shadow, transitions, or any layout property here. The parent
+   keycloak.v2/login/css/styles.css already handles layout — we only
+   re-tint the PatternFly v5 design tokens it consumes.
+
+   Verified against Keycloak 26.3.1 source:
+     themes/src/main/resources/theme/keycloak.v2/login/resources/css/styles.css
+   ──────────────────────────────────────────────────────────────────────── */
+
+:root {
+  /* Brand palette — change only these three values to retint everything. */
+  --rufino-primary:        #00695C;   /* Material 3 seed (AppColors.seed) */
+  --rufino-primary-hover:  #004D40;
+  --rufino-primary-active: #00352D;
+  --rufino-on-primary:     #FFFFFF;
+  --rufino-bg:             #F5F5F5;
+  --rufino-surface:        #FFFFFF;
+  --rufino-error:          #BA1A1A;
+
+  /* PatternFly v5 globals consumed by keycloak.v2 — colors only.
+     All component-level vars (--pf-v5-c-button-*, etc.) derive from
+     these, so we don't override per-component. */
+
+  /* Brand */
+  --pf-v5-global--primary-color--100: var(--rufino-primary);
+  --pf-v5-global--primary-color--200: var(--rufino-primary-hover);
+  --pf-v5-global--active-color--100:  var(--rufino-primary);
+  --pf-v5-global--active-color--200:  var(--rufino-primary-hover);
+
+  /* Links */
+  --pf-v5-global--link--Color:        var(--rufino-primary);
+  --pf-v5-global--link--Color--hover: var(--rufino-primary-hover);
+
+  /* Page / card surfaces */
+  --pf-v5-global--BackgroundColor--100:       var(--rufino-bg);
+  --pf-v5-global--BackgroundColor--light-100: var(--rufino-surface);
+
+  /* Errors */
+  --pf-v5-global--danger-color--100: var(--rufino-error);
+
+  /* Keycloak-specific token — 4dp colored stripe at the top of the login card. */
+  --keycloak-card-top-color: var(--rufino-primary);
+}

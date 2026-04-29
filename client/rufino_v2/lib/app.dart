@@ -10,8 +10,13 @@ import 'core/config/app_config.dart';
 import 'core/storage/secure_storage.dart';
 import 'core/theme/app_theme.dart';
 import 'core/theme/theme_notifier.dart';
+import 'data/repositories/auth_code_repository_impl.dart';
 import 'data/repositories/auth_repository_impl.dart';
 import 'data/repositories/permission_repository_impl.dart';
+import 'data/services/auth_code_api_service.dart';
+import 'data/services/oauth_login_strategy.dart';
+import 'data/services/oauth_login_strategy_factory.dart';
+import 'data/services/pending_web_redirect_result.dart';
 import 'data/services/permission_cache_service.dart';
 import 'data/repositories/company_repository_impl.dart';
 import 'data/repositories/department_repository_impl.dart';
@@ -50,10 +55,12 @@ import 'domain/repositories/batch_document_repository.dart';
 import 'domain/repositories/batch_download_repository.dart';
 import 'domain/repositories/cep_repository.dart';
 import 'domain/repositories/workplace_repository.dart';
+import 'ui/features/auth/viewmodel/login_sso_viewmodel.dart';
 import 'ui/features/auth/viewmodel/login_viewmodel.dart';
 import 'ui/features/auth/viewmodel/permission_notifier.dart';
 import 'ui/features/auth/viewmodel/splash_viewmodel.dart';
 import 'ui/features/auth/widgets/login_screen.dart';
+import 'ui/features/auth/widgets/login_sso_screen.dart';
 import 'ui/features/auth/widgets/splash_screen.dart';
 import 'ui/features/company/viewmodel/company_form_viewmodel.dart';
 import 'ui/features/company/viewmodel/company_selection_viewmodel.dart';
@@ -95,10 +102,18 @@ import 'ui/features/workplace/widgets/workplace_form_screen.dart';
 import 'ui/features/workplace/widgets/workplace_list_screen.dart';
 
 class App extends StatelessWidget {
-  const App({super.key, required this.prefs});
+  const App({
+    super.key,
+    required this.prefs,
+    this.pendingWebRedirect,
+  });
 
   /// The already-initialized [SharedPreferences] instance, created in `main()`.
   final SharedPreferences prefs;
+
+  /// Result of a pending web Authorization Code redirect. Only ever set
+  /// on Web when [AppConfig.useAuthorizationCodeFlow] is true.
+  final PendingWebRedirectResult? pendingWebRedirect;
 
   @override
   Widget build(BuildContext context) {
@@ -113,35 +128,70 @@ class App extends StatelessWidget {
     const secureStorage = SecureStorage(FlutterSecureStorage());
     final httpClient = http.Client();
 
-    // Services
-    final authApiService = AuthApiService(
-      storage: secureStorage,
-      authorizationEndpoint: Uri.parse(AppConfig.authorizationEndpoint),
-      endSessionEndpoint: Uri.parse(AppConfig.endSessionEndpoint),
-      identifier: AppConfig.identifier,
-      secret: AppConfig.secret,
-    );
+    // Auth — pick the active flow at compile time.
+    final authApiService = AppConfig.useAuthorizationCodeFlow
+        ? null
+        : AuthApiService(
+            storage: secureStorage,
+            authorizationEndpoint: Uri.parse(AppConfig.authorizationEndpoint),
+            endSessionEndpoint: Uri.parse(AppConfig.endSessionEndpoint),
+            identifier: AppConfig.identifier,
+            secret: AppConfig.secret,
+          );
+
+    AuthCodeApiService? authCodeApiService;
+    if (AppConfig.useAuthorizationCodeFlow) {
+      final OAuthLoginStrategy strategy = createOAuthLoginStrategy(
+        identifier: AppConfig.identifier,
+        secret: AppConfig.secret,
+        authorizationEndpoint:
+            Uri.parse(AppConfig.authCodeAuthorizationEndpoint),
+        tokenEndpoint: Uri.parse(AppConfig.authCodeTokenEndpoint),
+        scopes: const ['openid', 'profile', 'email', 'offline_access'],
+      );
+      authCodeApiService = AuthCodeApiService(
+        storage: secureStorage,
+        strategy: strategy,
+        tokenEndpoint: Uri.parse(AppConfig.authCodeTokenEndpoint),
+        endSessionEndpoint: Uri.parse(AppConfig.endSessionEndpoint),
+        identifier: AppConfig.identifier,
+        secret: AppConfig.secret,
+      );
+
+      // Web only: a redirect that brought the user back to the app
+      // already produced credentials in main(). Persist them now.
+      final pending = pendingWebRedirect;
+      if (pending != null && pending.credentials != null) {
+        authCodeApiService.primeCredentials(pending.credentials!);
+      }
+    }
+
+    final getAccessToken = AppConfig.useAuthorizationCodeFlow
+        ? () async =>
+            (await authCodeApiService!.getCredentials()).accessToken
+        : () async => (await authApiService!.getCredentials()).accessToken;
+
+    final getAuthHeader = AppConfig.useAuthorizationCodeFlow
+        ? authCodeApiService!.getAuthorizationHeader
+        : authApiService!.getAuthorizationHeader;
 
     final permissionApiService = PermissionApiService(
       client: httpClient,
       tokenEndpoint: Uri.parse(AppConfig.authorizationEndpoint),
-      getAccessToken: () async {
-        final credentials = await authApiService.getCredentials();
-        return credentials.accessToken;
-      },
+      getAccessToken: getAccessToken,
       audience: 'people-management-api',
     );
 
     final companyApiService = CompanyApiService(
       client: httpClient,
       baseUrl: AppConfig.peopleManagementUrl,
-      getAuthHeader: authApiService.getAuthorizationHeader,
+      getAuthHeader: getAuthHeader,
     );
 
     final departmentApiService = DepartmentApiService(
       client: httpClient,
       baseUrl: AppConfig.peopleManagementUrl,
-      getAuthHeader: authApiService.getAuthorizationHeader,
+      getAuthHeader: getAuthHeader,
     );
 
     // Repositories
@@ -156,11 +206,18 @@ class App extends StatelessWidget {
     );
 
     // Reload permissions automatically when the access token is refreshed.
-    authApiService.onTokenRefreshed = () => permissionNotifier.loadPermissions();
+    if (authApiService != null) {
+      authApiService.onTokenRefreshed =
+          () => permissionNotifier.loadPermissions();
+    }
+    if (authCodeApiService != null) {
+      authCodeApiService.onTokenRefreshed =
+          () => permissionNotifier.loadPermissions();
+    }
 
-    final AuthRepository authRepository = AuthRepositoryImpl(
-      authApiService: authApiService,
-    );
+    final AuthRepository authRepository = AppConfig.useAuthorizationCodeFlow
+        ? AuthCodeRepositoryImpl(authCodeApiService: authCodeApiService!)
+        : AuthRepositoryImpl(authApiService: authApiService!);
     final CompanyRepository companyRepository = CompanyRepositoryImpl(
       companyApiService: companyApiService,
       storage: secureStorage,
@@ -172,7 +229,7 @@ class App extends StatelessWidget {
     final workplaceApiService = WorkplaceApiService(
       client: httpClient,
       baseUrl: AppConfig.peopleManagementUrl,
-      getAuthHeader: authApiService.getAuthorizationHeader,
+      getAuthHeader: getAuthHeader,
     );
     final WorkplaceRepository workplaceRepository = WorkplaceRepositoryImpl(
       apiService: workplaceApiService,
@@ -181,7 +238,7 @@ class App extends StatelessWidget {
     final documentGroupApiService = DocumentGroupApiService(
       client: httpClient,
       baseUrl: AppConfig.peopleManagementUrl,
-      getAuthHeader: authApiService.getAuthorizationHeader,
+      getAuthHeader: getAuthHeader,
     );
     final DocumentGroupRepository documentGroupRepository =
         DocumentGroupRepositoryImpl(apiService: documentGroupApiService);
@@ -189,7 +246,7 @@ class App extends StatelessWidget {
     final documentTemplateApiService = DocumentTemplateApiService(
       client: httpClient,
       baseUrl: AppConfig.peopleManagementUrl,
-      getAuthHeader: authApiService.getAuthorizationHeader,
+      getAuthHeader: getAuthHeader,
     );
     final DocumentTemplateRepository documentTemplateRepository =
         DocumentTemplateRepositoryImpl(apiService: documentTemplateApiService);
@@ -197,7 +254,7 @@ class App extends StatelessWidget {
     final requireDocumentApiService = RequireDocumentApiService(
       client: httpClient,
       baseUrl: AppConfig.peopleManagementUrl,
-      getAuthHeader: authApiService.getAuthorizationHeader,
+      getAuthHeader: getAuthHeader,
     );
     final RequireDocumentRepository requireDocumentRepository =
         RequireDocumentRepositoryImpl(apiService: requireDocumentApiService);
@@ -205,7 +262,7 @@ class App extends StatelessWidget {
     final employeeApiService = EmployeeApiService(
       client: httpClient,
       baseUrl: AppConfig.peopleManagementUrl,
-      getAuthHeader: authApiService.getAuthorizationHeader,
+      getAuthHeader: getAuthHeader,
     );
     final EmployeeRepository employeeRepository = EmployeeRepositoryImpl(
       apiService: employeeApiService,
@@ -214,7 +271,7 @@ class App extends StatelessWidget {
     final batchDocumentApiService = BatchDocumentApiService(
       client: httpClient,
       baseUrl: AppConfig.peopleManagementUrl,
-      getAuthHeader: authApiService.getAuthorizationHeader,
+      getAuthHeader: getAuthHeader,
     );
     final BatchDocumentRepository batchDocumentRepository =
         BatchDocumentRepositoryImpl(apiService: batchDocumentApiService);
@@ -226,7 +283,7 @@ class App extends StatelessWidget {
     final batchDownloadApiService = BatchDownloadApiService(
       client: httpClient,
       baseUrl: AppConfig.peopleManagementUrl,
-      getAuthHeader: authApiService.getAuthorizationHeader,
+      getAuthHeader: getAuthHeader,
     );
     final BatchDownloadRepository batchDownloadRepository =
         BatchDownloadRepositoryImpl(apiService: batchDownloadApiService);
@@ -287,11 +344,20 @@ class _AppRouterState extends State<_AppRouter> {
         ),
         GoRoute(
           path: '/login',
-          builder: (context, state) => LoginScreen(
-            viewModel: LoginViewModel(
-              authRepository: context.read<AuthRepository>(),
-            ),
-          ),
+          builder: (context, state) {
+            if (AppConfig.useAuthorizationCodeFlow) {
+              return LoginSsoScreen(
+                viewModel: LoginSsoViewModel(
+                  authRepository: context.read<AuthRepository>(),
+                ),
+              );
+            }
+            return LoginScreen(
+              viewModel: LoginViewModel(
+                authRepository: context.read<AuthRepository>(),
+              ),
+            );
+          },
         ),
         GoRoute(
           path: '/company',

@@ -12,6 +12,8 @@
             "toolArgs": [
                 "--dart-define-from-file",
                 "secrets/local_config.json",
+                "--web-port=8080",
+                "--dart-define=use_auth_code_flow=true"
             ],
         },
         {
@@ -22,6 +24,8 @@
             "toolArgs": [
                 "--dart-define-from-file",
                 "secrets/prod_config.json",
+                "--web-port=8080",
+                "--dart-define=use_auth_code_flow=true"
             ],
         },
         {

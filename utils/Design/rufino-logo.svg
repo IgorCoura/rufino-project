@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+  <title>RUFINO</title>
+  <desc>Logo RUFINO - monograma R two-tone em paleta teal</desc>
+
+  <!-- Badge arredondado teal -->
+  <rect x="0" y="0" width="512" height="512" rx="110" fill="#00695C"/>
+
+  <!-- Corpo do R em branco -->
+  <path d="M 138 110
+           L 138 402
+           L 197 402
+           L 197 296
+           L 268 296
+           Q 276 296 280 300
+           L 347 402
+           L 418 402
+           L 331 296
+           Q 394 264 394 201
+           Q 394 110 296 110 Z
+           M 197 161
+           L 287 161
+           Q 339 161 339 204
+           Q 339 247 287 247
+           L 197 247 Z"
+        fill="#FFFFFF"/>
+
+  <!-- Perna do R em tom de destaque (two-tone) -->
+  <path d="M 280 300
+           L 347 402
+           L 418 402
+           L 351 300 Z"
+        fill="#4DB6AC"/>
+</svg>
