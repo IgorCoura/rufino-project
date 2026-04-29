@@ -1,5 +1,5 @@
 name: rufino_v2
-description: "Rufino HR Management App v2"
+description: "Rufino — gestão de pessoas"
 publish_to: 'none'
 version: 2.0.0+1
 
@@ -45,12 +45,15 @@ dependencies:
   # Spreadsheet export
   syncfusion_flutter_xlsio: ^27.1.58
   file_saver: ^0.2.13
+  # Brand assets
+  flutter_svg: ^2.0.10+1
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^4.0.0
   mocktail: ^1.0.4
+  flutter_launcher_icons: ^0.14.1
 
 flutter:
   uses-material-design: true
