@@ -216,6 +216,7 @@ class _DocumentTemplateFormBody extends StatelessWidget {
                     ),
                     const SizedBox(height: AppSpacing.md),
                     DropdownButtonFormField<String>(
+                      isExpanded: true,
                       initialValue: viewModel.safeDocumentGroupId,
                       decoration: const InputDecoration(
                         labelText: 'Grupo de Documento',
@@ -223,9 +224,15 @@ class _DocumentTemplateFormBody extends StatelessWidget {
                         border: OutlineInputBorder(),
                       ),
                       items: viewModel.documentGroups
-                          .map<DropdownMenuItem<String>>((g) =>
-                              DropdownMenuItem<String>(
-                                  value: g.id, child: Text(g.name)))
+                          .map<DropdownMenuItem<String>>(
+                            (g) => DropdownMenuItem<String>(
+                              value: g.id,
+                              child: Text(
+                                g.name,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          )
                           .toList(),
                       onChanged: (v) => viewModel.setDocumentGroupId(v),
                     ),

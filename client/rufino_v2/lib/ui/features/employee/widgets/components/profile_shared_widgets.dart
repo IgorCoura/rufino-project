@@ -1,6 +1,16 @@
 import 'package:flutter/material.dart';
 
+import '../../../../../core/theme/app_breakpoints.dart';
 import '../../../../../core/theme/app_spacing.dart';
+
+/// Returns the inner padding used by profile section cards.
+///
+/// Mobile viewports get a tighter padding so the nested cards don't stack
+/// large gutters on top of each other.
+double _sectionInnerSpacing(BuildContext context) {
+  final width = MediaQuery.sizeOf(context).width;
+  return width < AppBreakpoints.mobile ? AppSpacing.sm : AppSpacing.md;
+}
 
 /// A helper that wraps content in a card with an [ExpansionTile].
 ///
@@ -31,6 +41,7 @@ class _ExpandableSectionCardState extends State<ExpandableSectionCard> {
 
   @override
   Widget build(BuildContext context) {
+    final spacing = _sectionInnerSpacing(context);
     return Card.outlined(
       clipBehavior: Clip.antiAlias,
       child: ExpansionTile(
@@ -51,12 +62,8 @@ class _ExpandableSectionCardState extends State<ExpandableSectionCard> {
             widget.onExpand();
           }
         },
-        childrenPadding: const EdgeInsets.fromLTRB(
-          AppSpacing.md,
-          0,
-          AppSpacing.md,
-          AppSpacing.md,
-        ),
+        childrenPadding:
+            EdgeInsets.fromLTRB(spacing, 0, spacing, spacing),
         children: [widget.child],
       ),
     );
@@ -96,10 +103,11 @@ class _SectionCardState extends State<SectionCard> {
 
   @override
   Widget build(BuildContext context) {
+    final spacing = _sectionInnerSpacing(context);
     return Card.outlined(
       clipBehavior: Clip.antiAlias,
       child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.md),
+        padding: EdgeInsets.all(spacing),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [

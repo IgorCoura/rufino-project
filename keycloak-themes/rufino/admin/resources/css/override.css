@@ -1,0 +1,36 @@
+/* ──────────────────────────────────────────────────────────────────────────
+   Rufino — Keycloak Admin Console color override
+   COLORS AND BACKGROUNDS ONLY.
+   ──────────────────────────────────────────────────────────────────── */
+
+:root {
+  --rufino-primary:        #00695C;
+  --rufino-primary-hover:  #004D40;
+  --rufino-primary-active: #00352D;
+  --rufino-on-primary:     #FFFFFF;
+  --rufino-bg:             #F5F5F5;
+  --rufino-surface:        #FFFFFF;
+  --rufino-masthead:       #00352D;
+  --rufino-error:          #BA1A1A;
+
+  --pf-v5-global--primary-color--100: var(--rufino-primary);
+  --pf-v5-global--primary-color--200: var(--rufino-primary-hover);
+  --pf-v5-global--active-color--100:  var(--rufino-primary);
+  --pf-v5-global--active-color--200:  var(--rufino-primary-hover);
+
+  --pf-v5-global--link--Color:        var(--rufino-primary);
+  --pf-v5-global--link--Color--hover: var(--rufino-primary-hover);
+
+  --pf-v5-global--BackgroundColor--100:       var(--rufino-bg);
+  --pf-v5-global--BackgroundColor--light-100: var(--rufino-surface);
+
+  --pf-v5-global--BackgroundColor--dark-100: var(--rufino-masthead);
+  --pf-v5-global--BackgroundColor--dark-200: var(--rufino-masthead);
+
+  --pf-v5-global--danger-color--100: var(--rufino-error);
+}
+
+.pf-v5-theme-dark {
+  --pf-v5-global--BackgroundColor--100: #1B1D21;
+  --pf-v5-global--BackgroundColor--light-100: #2B2D31;
+}

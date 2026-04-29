@@ -309,6 +309,7 @@ class _ContractSectionState extends State<ContractSection> {
                   ),
                   const SizedBox(height: AppSpacing.md),
                   DropdownButtonFormField<String>(
+                    isExpanded: true,
                     initialValue: selectedTypeId,
                     decoration: const InputDecoration(
                       labelText: 'Tipo de contrato',
@@ -316,9 +317,15 @@ class _ContractSectionState extends State<ContractSection> {
                       border: OutlineInputBorder(),
                     ),
                     items: widget.viewModel.contractTypes
-                        .map<DropdownMenuItem<String>>((t) =>
-                            DropdownMenuItem<String>(
-                                value: t.id, child: Text(t.name)))
+                        .map<DropdownMenuItem<String>>(
+                          (t) => DropdownMenuItem<String>(
+                            value: t.id,
+                            child: Text(
+                              t.name,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        )
                         .toList(),
                     validator: (v) {
                       if (v == null || v.isEmpty) {

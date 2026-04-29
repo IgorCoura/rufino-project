@@ -1,0 +1,43 @@
+/* ──────────────────────────────────────────────────────────────────────────
+   Rufino — Keycloak Welcome page color override
+   ──────────────────────────────────────────────────────────────────────────
+   The welcome theme inherits from `keycloak` (legacy, NOT keycloak.v2),
+   which uses plain CSS without PatternFly variables. Overrides here are
+   a small set of property values on the existing selectors used by
+   parent welcome.css. COLORS AND BACKGROUNDS ONLY.
+   ──────────────────────────────────────────────────────────────────── */
+
+:root {
+  --rufino-primary:        #00695C;
+  --rufino-primary-hover:  #004D40;
+  --rufino-bg:             #F5F5F5;
+}
+
+body {
+  background-color: var(--rufino-bg);
+}
+
+.welcome-header {
+  background-color: var(--rufino-primary);
+}
+
+.welcome-primary-link a,
+a {
+  color: var(--rufino-primary);
+}
+
+.welcome-primary-link a:hover,
+a:hover {
+  color: var(--rufino-primary-hover);
+}
+
+.btn-primary {
+  background-color: var(--rufino-primary);
+  border-color: var(--rufino-primary);
+}
+
+.btn-primary:hover,
+.btn-primary:focus {
+  background-color: var(--rufino-primary-hover);
+  border-color: var(--rufino-primary-hover);
+}

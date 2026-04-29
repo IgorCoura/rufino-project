@@ -224,7 +224,7 @@ class _EmployeeProfileBody extends StatelessWidget {
         ? AppSpacing.xl
         : width >= AppBreakpoints.mobile
             ? AppSpacing.lg
-            : AppSpacing.md;
+            : AppSpacing.sm;
 
     return DefaultTabController(
       length: 3,
@@ -233,7 +233,9 @@ class _EmployeeProfileBody extends StatelessWidget {
           Padding(
             padding: EdgeInsets.fromLTRB(
               horizontalPadding,
-              AppSpacing.md,
+              width < AppBreakpoints.mobile
+                  ? AppSpacing.sm
+                  : AppSpacing.md,
               horizontalPadding,
               0,
             ),
@@ -249,7 +251,11 @@ class _EmployeeProfileBody extends StatelessWidget {
               ),
             ),
           ),
-          const SizedBox(height: AppSpacing.md),
+          SizedBox(
+            height: width < AppBreakpoints.mobile
+                ? AppSpacing.sm
+                : AppSpacing.md,
+          ),
           Expanded(
             child: Padding(
               padding: EdgeInsets.symmetric(horizontal: horizontalPadding),
@@ -370,8 +376,11 @@ class _EmployeeDataTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isCompact =
+        MediaQuery.sizeOf(context).width < AppBreakpoints.mobile;
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(AppSpacing.md),
+      padding:
+          EdgeInsets.all(isCompact ? AppSpacing.sm : AppSpacing.md),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -410,8 +419,11 @@ class _DocumentsTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isCompact =
+        MediaQuery.sizeOf(context).width < AppBreakpoints.mobile;
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(AppSpacing.md),
+      padding:
+          EdgeInsets.all(isCompact ? AppSpacing.sm : AppSpacing.md),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -438,8 +450,11 @@ class _ContractsTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isCompact =
+        MediaQuery.sizeOf(context).width < AppBreakpoints.mobile;
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(AppSpacing.md),
+      padding:
+          EdgeInsets.all(isCompact ? AppSpacing.sm : AppSpacing.md),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -479,10 +494,13 @@ class _EmployeeHeroCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final hasImage = imageBytes != null;
     final colorScheme = Theme.of(context).colorScheme;
+    final isCompact =
+        MediaQuery.sizeOf(context).width < AppBreakpoints.mobile;
 
     return Card(
       child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.lg),
+        padding:
+            EdgeInsets.all(isCompact ? AppSpacing.md : AppSpacing.lg),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
@@ -590,9 +608,12 @@ class _EmployeeNameCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final vm = viewModel;
+    final isCompact =
+        MediaQuery.sizeOf(context).width < AppBreakpoints.mobile;
     return Card.outlined(
       child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.md),
+        padding:
+            EdgeInsets.all(isCompact ? AppSpacing.sm : AppSpacing.md),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [

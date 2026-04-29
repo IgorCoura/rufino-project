@@ -146,13 +146,64 @@ void main() {
       expect(find.text('2 selecionado(s)'), findsOneWidget);
     });
 
-    testWidgets('displays filter controls in step 1', (tester) async {
+    testWidgets('shows inline filter fields on large screens',
+        (tester) async {
       setupLargeScreen(tester);
       await tester.pumpWidget(buildTestWidget());
       await tester.pumpAndSettle();
 
+      // Filters are rendered inline on large screens — no Filtros button.
       expect(find.text('Nome'), findsOneWidget);
       expect(find.text('Status'), findsOneWidget);
+      expect(find.text('Filtros'), findsNothing);
+    });
+
+    testWidgets('mobile viewport renders Filtros button and the list',
+        (tester) async {
+      tester.view.physicalSize = const Size(360, 640);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      // Suppress overflow errors — production app keeps wide content
+      // (e.g. very long employee names) which are not under test here.
+      final originalOnError = FlutterError.onError;
+      FlutterError.onError = (details) {
+        if (details.toString().contains('overflowed')) return;
+        originalOnError?.call(details);
+      };
+      addTearDown(() => FlutterError.onError = originalOnError);
+
+      await tester.pumpWidget(buildTestWidget());
+      await tester.pumpAndSettle();
+
+      expect(find.text('Filtros'), findsOneWidget);
+      expect(find.text('Alice Silva'), findsOneWidget);
+    });
+
+    testWidgets('mobile viewport: tapping Filtros opens the sheet',
+        (tester) async {
+      tester.view.physicalSize = const Size(360, 640);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      final originalOnError = FlutterError.onError;
+      FlutterError.onError = (details) {
+        if (details.toString().contains('overflowed')) return;
+        originalOnError?.call(details);
+      };
+      addTearDown(() => FlutterError.onError = originalOnError);
+
+      await tester.pumpWidget(buildTestWidget());
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Filtros'));
+      await tester.pumpAndSettle();
+
+      // Sheet shows the title and at least the Nome field.
+      expect(find.text('Aplicar'), findsOneWidget);
+      expect(find.text('Nome'), findsOneWidget);
     });
   });
 

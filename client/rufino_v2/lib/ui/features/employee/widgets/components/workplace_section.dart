@@ -155,6 +155,7 @@ class _WorkplaceSectionState extends State<WorkplaceSection> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         DropdownButtonFormField<String>(
+          isExpanded: true,
           initialValue: _selectedWorkplaceId,
           decoration: const InputDecoration(
             labelText: 'Local de trabalho',
@@ -162,8 +163,12 @@ class _WorkplaceSectionState extends State<WorkplaceSection> {
             border: OutlineInputBorder(),
           ),
           items: workplaces
-              .map<DropdownMenuItem<String>>((w) =>
-                  DropdownMenuItem<String>(value: w.id, child: Text(w.name)))
+              .map<DropdownMenuItem<String>>(
+                (w) => DropdownMenuItem<String>(
+                  value: w.id,
+                  child: Text(w.name, overflow: TextOverflow.ellipsis),
+                ),
+              )
               .toList(),
           onChanged: isSaving
               ? null

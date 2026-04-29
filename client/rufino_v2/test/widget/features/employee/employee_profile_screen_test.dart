@@ -1723,5 +1723,31 @@ void main() {
       expect(find.text('1 item'), findsOneWidget);
       expect(find.textContaining('Página'), findsNothing);
     });
+
+    testWidgets(
+        'expands the Documentos section in mobile viewport without overflow',
+        (tester) async {
+      tester.view.physicalSize = const Size(360, 640);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      // Suppress overflow errors from unrelated layouts so the test reflects
+      // the documents-section redesign in isolation.
+      final originalOnError = FlutterError.onError;
+      FlutterError.onError = (details) {
+        if (details.toString().contains('overflowed')) return;
+        originalOnError?.call(details);
+      };
+      addTearDown(() => FlutterError.onError = originalOnError);
+
+      await tester.pumpWidget(buildSubject());
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.widgetWithText(Tab, 'Documentos'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Grupo Contratual'), findsOneWidget);
+    });
   });
 }

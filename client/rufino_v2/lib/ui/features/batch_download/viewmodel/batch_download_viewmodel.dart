@@ -128,6 +128,21 @@ class BatchDownloadViewModel extends ChangeNotifier {
   String? _employeeWorkplaceFilter;
   String? _employeeRoleFilter;
 
+  /// The current employee name filter, or `null` when not set.
+  String? get employeeNameFilter => _employeeNameFilter;
+
+  /// The current employee status filter, or `null` when not set.
+  int? get employeeStatusFilter => _employeeStatusFilter;
+
+  /// The current employee workplace filter, or `null` when not set.
+  String? get employeeWorkplaceFilter => _employeeWorkplaceFilter;
+
+  /// The number of currently active employee filters.
+  int get activeEmployeeFilterCount =>
+      (_employeeNameFilter == null ? 0 : 1) +
+      (_employeeStatusFilter == null ? 0 : 1) +
+      (_employeeWorkplaceFilter == null ? 0 : 1);
+
   // Dropdown data
   List<Workplace> _workplaces = [];
 
@@ -192,6 +207,30 @@ class BatchDownloadViewModel extends ChangeNotifier {
 
   /// The current period type filter (used by UI to conditionally show fields).
   int? get periodTypeFilter => _periodTypeFilter;
+
+  /// The current document group filter, or `null` when not set.
+  String? get unitGroupFilter => _unitGroupFilter;
+
+  /// The current document template filter, or `null` when not set.
+  String? get unitTemplateFilter => _unitTemplateFilter;
+
+  /// The current unit status filter, or `null` when not set.
+  int? get unitStatusFilter => _unitStatusFilter;
+
+  /// The current date-from filter (yyyy-MM-dd), or `null` when not set.
+  String? get dateFromFilter => _dateFromFilter;
+
+  /// The current date-to filter (yyyy-MM-dd), or `null` when not set.
+  String? get dateToFilter => _dateToFilter;
+
+  /// The number of currently active unit filters.
+  int get activeUnitFilterCount =>
+      (_unitGroupFilter == null ? 0 : 1) +
+      (_unitTemplateFilter == null ? 0 : 1) +
+      (_unitStatusFilter == null ? 0 : 1) +
+      (_dateFromFilter == null ? 0 : 1) +
+      (_dateToFilter == null ? 0 : 1) +
+      (_periodTypeFilter == null ? 0 : 1);
 
   /// Returns the templates for the currently selected group, or all templates.
   List<DocumentTemplateSummary> get availableTemplates {

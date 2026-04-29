@@ -1,0 +1,45 @@
+/* ──────────────────────────────────────────────────────────────────────────
+   Rufino — Keycloak Account Console v3 color override
+   ──────────────────────────────────────────────────────────────────────────
+   COLORS AND BACKGROUNDS ONLY. The React SPA (PatternFly v5) consumes
+   the same `--pf-v5-global--*` tokens, so retinting them here cascades
+   into every component without touching layout.
+   ──────────────────────────────────────────────────────────────────── */
+
+:root {
+  --rufino-primary:        #00695C;
+  --rufino-primary-hover:  #004D40;
+  --rufino-primary-active: #00352D;
+  --rufino-on-primary:     #FFFFFF;
+  --rufino-bg:             #F5F5F5;
+  --rufino-surface:        #FFFFFF;
+  --rufino-masthead:       #00352D;   /* dark teal for the top bar */
+  --rufino-error:          #BA1A1A;
+
+  /* Brand */
+  --pf-v5-global--primary-color--100: var(--rufino-primary);
+  --pf-v5-global--primary-color--200: var(--rufino-primary-hover);
+  --pf-v5-global--active-color--100:  var(--rufino-primary);
+  --pf-v5-global--active-color--200:  var(--rufino-primary-hover);
+
+  /* Links */
+  --pf-v5-global--link--Color:        var(--rufino-primary);
+  --pf-v5-global--link--Color--hover: var(--rufino-primary-hover);
+
+  /* Page / surfaces */
+  --pf-v5-global--BackgroundColor--100:       var(--rufino-bg);
+  --pf-v5-global--BackgroundColor--light-100: var(--rufino-surface);
+
+  /* Masthead (top bar) */
+  --pf-v5-global--BackgroundColor--dark-100: var(--rufino-masthead);
+  --pf-v5-global--BackgroundColor--dark-200: var(--rufino-masthead);
+
+  /* Errors */
+  --pf-v5-global--danger-color--100: var(--rufino-error);
+}
+
+/* Dark mode — Account v3 toggles `pf-v5-theme-dark` on <html>. */
+.pf-v5-theme-dark {
+  --pf-v5-global--BackgroundColor--100: #1B1D21;
+  --pf-v5-global--BackgroundColor--light-100: #2B2D31;
+}

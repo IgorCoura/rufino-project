@@ -28,6 +28,11 @@ android {
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+
+        // Custom URI scheme used by flutter_appauth to capture the OAuth
+        // redirect. Must match AppConfig.authCodeMobileRedirectScheme and
+        // the "Valid Redirect URIs" entry in Keycloak.
+        manifestPlaceholders["appAuthRedirectScheme"] = "br.com.rufino"
     }
 
     buildTypes {
