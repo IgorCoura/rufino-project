@@ -6,7 +6,7 @@ plugins {
 }
 
 android {
-    namespace = "com.example.rufino_v2"
+    namespace = "br.com.couratechsafety.rufino"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
@@ -20,8 +20,7 @@ android {
     }
 
     defaultConfig {
-        // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
-        applicationId = "com.example.rufino_v2"
+        applicationId = "br.com.couratechsafety.rufino"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = flutter.minSdkVersion
@@ -32,7 +31,7 @@ android {
         // Custom URI scheme used by flutter_appauth to capture the OAuth
         // redirect. Must match AppConfig.authCodeMobileRedirectScheme and
         // the "Valid Redirect URIs" entry in Keycloak.
-        manifestPlaceholders["appAuthRedirectScheme"] = "br.com.rufino"
+        manifestPlaceholders["appAuthRedirectScheme"] = "br.com.couratechsafety.rufino"
     }
 
     buildTypes {

@@ -71,7 +71,7 @@ abstract final class AppConfig {
   /// `Info.plist`, and the Keycloak client's "Valid Redirect URIs".
   static const String authCodeMobileRedirectScheme = String.fromEnvironment(
     'auth_code_mobile_redirect_scheme',
-    defaultValue: 'br.com.rufino',
+    defaultValue: 'br.com.couratechsafety.rufino',
   );
 
   /// Full redirect URI used on Android and iOS.

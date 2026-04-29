@@ -1,4 +1,4 @@
-package com.example.rufino_v2
+package br.com.couratechsafety.rufino
 
 import io.flutter.embedding.android.FlutterActivity
 
