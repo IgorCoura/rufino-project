@@ -3,14 +3,15 @@ workflows:
     name: iOS Release (TestFlight)
     max_build_duration: 30
     instance_type: mac_mini_m2
+    working_directory: client/rufino_v2
 
     integrations:
-      app_store_connect: codemagic
+      app_store_connect: Rufino Project
 
     environment:
       ios_signing:
         distribution_type: app_store
-        bundle_identifier: br.com.suaempresa.rufino
+        bundle_identifier: br.com.couratechsafety.rufino
       groups:
         - rufino_ios_secrets
       vars:
@@ -28,8 +29,12 @@ workflows:
     scripts:
       - name: Restore prod config secret
         script: |
+          if [ -z "$PROD_CONFIG_JSON" ]; then
+            echo "ERROR: PROD_CONFIG_JSON env var is empty. Add it to the rufino_ios_secrets group." >&2
+            exit 1
+          fi
           mkdir -p secrets
-          echo "$PROD_CONFIG_JSON" > secrets/prod_config.json
+          printf '%s' "$PROD_CONFIG_JSON" > secrets/prod_config.json
 
       - name: Set up code signing
         script: xcode-project use-profiles
@@ -55,12 +60,13 @@ workflows:
           flutter build ipa --release \
             --build-name=2.0.0 \
             --build-number=$BUILD_NUMBER \
+            --dart-define-from-file=secrets/prod_config.json \
             --export-options-plist=/Users/builder/export_options.plist
 
     artifacts:
-      - build/ios/ipa/*.ipa
+      - client/rufino_v2/build/ios/ipa/*.ipa
       - /tmp/xcodebuild_logs/*.log
-      - flutter_drive.log
+      - client/rufino_v2/flutter_drive.log
 
     publishing:
       email:
@@ -73,39 +79,3 @@ workflows:
         auth: integration
         submit_to_testflight: true
         submit_to_app_store: false
-
-  ios-debug:
-    name: iOS Debug (ad-hoc, sem publicação)
-    max_build_duration: 60
-    instance_type: mac_mini_m2
-
-    integrations:
-      app_store_connect: codemagic
-
-    environment:
-      ios_signing:
-        distribution_type: ad_hoc
-        bundle_identifier: br.com.suaempresa.rufino
-      groups:
-        - rufino_ios_secrets
-      flutter: stable
-      xcode: latest
-      cocoapods: default
-
-    scripts:
-      - name: Restore prod config secret
-        script: |
-          mkdir -p secrets
-          echo "$PROD_CONFIG_JSON" > secrets/prod_config.json
-      - name: Set up code signing
-        script: xcode-project use-profiles
-      - name: Get Flutter packages
-        script: flutter pub get
-      - name: Install CocoaPods
-        script: cd ios && pod install
-      - name: Build IPA (ad-hoc)
-        script: flutter build ipa --debug --export-method=ad-hoc
-
-    artifacts:
-      - build/ios/ipa/*.ipa
-      - /tmp/xcodebuild_logs/*.log
