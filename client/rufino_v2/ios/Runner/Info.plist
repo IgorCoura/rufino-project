@@ -42,7 +42,15 @@
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
 	<key>NSCameraUsageDescription</key>
-	<string>O Rufino precisa acessar a câmera para digitalizar documentos.</string>
+	<string>O Rufino precisa acessar a câmera para digitalizar documentos dos colaboradores.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>O Rufino acessa suas fotos para anexar documentos e imagens de perfil dos colaboradores.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>O Rufino salva documentos gerados (PDFs e planilhas) em sua galeria.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>O Rufino usa o microfone apenas durante a captura de vídeo na digitalização de documentos.</string>
+	<key>NSFaceIDUsageDescription</key>
+	<string>O Rufino usa o Face ID para proteger o acesso aos dados sigilosos da sua empresa.</string>
 	<key>CFBundleURLTypes</key>
 	<array>
 		<dict>
