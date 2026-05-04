@@ -88,7 +88,7 @@ class DepartmentFormViewModel extends ChangeNotifier {
           descriptionController.text = department.description;
           _status = DepartmentFormStatus.idle;
         },
-        onError: (_) {
+        onError: (_, __) {
           _status = DepartmentFormStatus.error;
           _errorMessage = 'Falha ao carregar dados do setor.';
         },
@@ -126,7 +126,7 @@ class DepartmentFormViewModel extends ChangeNotifier {
 
       result.fold(
         onSuccess: (_) => _status = DepartmentFormStatus.saved,
-        onError: (error) {
+        onError: (error, _) {
           _status = DepartmentFormStatus.error;
           _serverErrors = extractServerMessages(error);
           _errorMessage = _serverErrors.isNotEmpty

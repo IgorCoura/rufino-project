@@ -138,7 +138,7 @@ class WorkplaceFormViewModel extends ChangeNotifier {
           countryController.text = workplace.address.country;
           _status = WorkplaceFormStatus.idle;
         },
-        onError: (_) {
+        onError: (_, __) {
           _status = WorkplaceFormStatus.error;
           _errorMessage = 'Falha ao carregar dados do local de trabalho.';
         },
@@ -190,7 +190,7 @@ class WorkplaceFormViewModel extends ChangeNotifier {
 
       result.fold(
         onSuccess: (_) => _status = WorkplaceFormStatus.saved,
-        onError: (error) {
+        onError: (error, _) {
           _status = WorkplaceFormStatus.error;
           _serverErrors = extractServerMessages(error);
           _errorMessage = _serverErrors.isNotEmpty

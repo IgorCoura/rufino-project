@@ -1,4 +1,5 @@
 import '../../core/errors/workplace_exception.dart';
+import '../../core/monitoring/error_reporter.dart';
 import '../../core/result.dart';
 import '../../domain/entities/workplace.dart';
 import '../../domain/repositories/workplace_repository.dart';
@@ -10,19 +11,20 @@ import '../services/workplace_api_service.dart';
 /// All service calls are wrapped in try/catch. [WorkplaceException] subtypes
 /// are propagated as-is; all other errors are wrapped in [WorkplaceNetworkException].
 class WorkplaceRepositoryImpl implements WorkplaceRepository {
-  const WorkplaceRepositoryImpl({required this.apiService});
+  WorkplaceRepositoryImpl({required this.apiService, required this.reporter});
 
   final WorkplaceApiService apiService;
+  final ErrorReporter reporter;
 
   @override
   Future<Result<List<Workplace>>> getWorkplaces(String companyId) async {
     try {
       final models = await apiService.getWorkplaces(companyId);
       return Result.success(models.map((m) => m.toEntity()).toList());
-    } on WorkplaceException catch (e) {
-      return Result.error(e);
-    } catch (e) {
-      return Result.error(WorkplaceNetworkException(e));
+    } on WorkplaceException catch (e, st) {
+      return reporter.failure(e, st);
+    } catch (e, st) {
+      return reporter.failure(WorkplaceNetworkException(e), st);
     }
   }
 
@@ -32,10 +34,10 @@ class WorkplaceRepositoryImpl implements WorkplaceRepository {
     try {
       final model = await apiService.getWorkplaceById(companyId, workplaceId);
       return Result.success(model.toEntity());
-    } on WorkplaceException catch (e) {
-      return Result.error(e);
-    } catch (e) {
-      return Result.error(WorkplaceNetworkException(e));
+    } on WorkplaceException catch (e, st) {
+      return reporter.failure(e, st);
+    } catch (e, st) {
+      return reporter.failure(WorkplaceNetworkException(e), st);
     }
   }
 
@@ -69,10 +71,10 @@ class WorkplaceRepositoryImpl implements WorkplaceRepository {
       );
       final id = await apiService.createWorkplace(companyId, model);
       return Result.success(id);
-    } on WorkplaceException catch (e) {
-      return Result.error(e);
-    } catch (e) {
-      return Result.error(WorkplaceNetworkException(e));
+    } on WorkplaceException catch (e, st) {
+      return reporter.failure(e, st);
+    } catch (e, st) {
+      return reporter.failure(WorkplaceNetworkException(e), st);
     }
   }
 
@@ -107,10 +109,10 @@ class WorkplaceRepositoryImpl implements WorkplaceRepository {
       );
       final returnedId = await apiService.updateWorkplace(companyId, model);
       return Result.success(returnedId);
-    } on WorkplaceException catch (e) {
-      return Result.error(e);
-    } catch (e) {
-      return Result.error(WorkplaceNetworkException(e));
+    } on WorkplaceException catch (e, st) {
+      return reporter.failure(e, st);
+    } catch (e, st) {
+      return reporter.failure(WorkplaceNetworkException(e), st);
     }
   }
 }

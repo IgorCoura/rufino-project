@@ -62,7 +62,7 @@ class DepartmentListViewModel extends ChangeNotifier {
           _departments = data;
           _status = DepartmentListStatus.idle;
         },
-        onError: (_) {
+        onError: (_, __) {
           _departments = [];
           _status = DepartmentListStatus.error;
           _errorMessage = 'Falha ao carregar setores.';

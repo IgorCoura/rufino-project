@@ -13,7 +13,7 @@ import '../../../../testing/mocks/mocks.dart';
 void main() {
   late MockBatchDocumentRepository mockBatchRepo;
   late MockDocumentGroupRepository mockGroupRepo;
-  late MockDocumentScannerService mockScanner;
+  late MockDocumentScannerRepository mockScanner;
   late BatchDocumentViewModel viewModel;
 
   const pendingUnit1 = BatchDocumentUnitItem(
@@ -69,7 +69,7 @@ void main() {
   setUp(() {
     mockBatchRepo = MockBatchDocumentRepository();
     mockGroupRepo = MockDocumentGroupRepository();
-    mockScanner = MockDocumentScannerService();
+    mockScanner = MockDocumentScannerRepository();
 
     registerFallbackValue(Uint8List(0));
     registerFallbackValue(<Uint8List>[]);
@@ -79,7 +79,7 @@ void main() {
       documentGroupRepository: mockGroupRepo,
       companyId: 'company-1',
       textExtractor: fakeTextExtractor,
-      scannerService: mockScanner,
+      scannerRepository: mockScanner,
     );
   });
 
@@ -325,22 +325,27 @@ void main() {
       expect(viewModel.bulkMatches.first.matchedEmployeeId, equals('e1'));
     });
 
-    test('scanPages delegates to scanner service', () async {
-      when(() => mockScanner.scanPages())
-          .thenAnswer((_) async => [fakeImage1, fakeImage2]);
+    test('scanPages delegates to the scanner repository', () async {
+      when(() => mockScanner.scanPages()).thenAnswer(
+        (_) async => Result.success([fakeImage1, fakeImage2]),
+      );
 
       final result = await viewModel.scanPages();
 
-      expect(result, hasLength(2));
+      expect(result, isA<Success<List<Uint8List>?>>());
+      expect((result as Success<List<Uint8List>?>).value, hasLength(2));
       verify(() => mockScanner.scanPages()).called(1);
     });
 
-    test('scanPages returns null when user cancels', () async {
-      when(() => mockScanner.scanPages()).thenAnswer((_) async => null);
+    test('scanPages forwards Result.success(null) when the user cancels',
+        () async {
+      when(() => mockScanner.scanPages())
+          .thenAnswer((_) async => const Result.success(null));
 
       final result = await viewModel.scanPages();
 
-      expect(result, isNull);
+      expect(result, isA<Success<List<Uint8List>?>>());
+      expect((result as Success<List<Uint8List>?>).value, isNull);
     });
   });
 }

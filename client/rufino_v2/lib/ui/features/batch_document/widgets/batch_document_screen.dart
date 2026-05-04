@@ -7,10 +7,13 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:mask_text_input_formatter/mask_text_input_formatter.dart';
 
+import '../../../../core/errors/document_scanner_exception.dart';
+import '../../../../core/result.dart';
 import '../../../../core/theme/app_breakpoints.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../domain/entities/batch_document_unit.dart';
 import '../../../core/widgets/permission_guard.dart';
+import '../../../core/widgets/scanner_error_handler.dart';
 import '../viewmodel/batch_document_viewmodel.dart';
 import 'bulk_upload_verification_dialog.dart';
 import 'document_scan_dialog.dart';
@@ -193,7 +196,17 @@ class _BatchDocumentScreenState extends State<BatchDocumentScreen> {
           builder: (_) => const DocumentScanDialog(),
         );
       } else {
-        pages = await vm.scanPages();
+        final result = await vm.scanPages();
+        if (!mounted) return;
+        switch (result) {
+          case Success(value: final scanned):
+            pages = scanned;
+          case Failure(:final error):
+            if (error is DocumentScannerException) {
+              await presentScannerError(context, error);
+            }
+            return;
+        }
       }
 
       if (!mounted) return;

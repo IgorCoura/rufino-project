@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:rufino_v2/core/errors/http_exception.dart';
 import 'package:rufino_v2/core/utils/error_messages.dart';
-import 'package:rufino_v2/data/services/http_exception.dart';
 
 /// A fake network exception with a `cause` field, mimicking the pattern
 /// used by all `*NetworkException` classes in the codebase.

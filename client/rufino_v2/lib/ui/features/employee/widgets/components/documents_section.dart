@@ -9,6 +9,8 @@ import '../../../../../core/utils/file_saver_stub.dart'
 import 'package:mask_text_input_formatter/mask_text_input_formatter.dart';
 import 'package:syncfusion_flutter_pdfviewer/pdfviewer.dart';
 
+import '../../../../../core/errors/document_scanner_exception.dart';
+import '../../../../../core/result.dart';
 import '../../../../../core/theme/app_breakpoints.dart';
 import '../../../../../core/theme/app_spacing.dart';
 import '../../../../../core/utils/image_to_pdf_converter.dart';
@@ -16,6 +18,7 @@ import '../../../../../core/utils/pdf_merger.dart';
 import '../../../../../domain/entities/document_group_with_documents.dart';
 import '../../../../../domain/entities/employee_document.dart';
 import '../../../../core/widgets/permission_guard.dart';
+import '../../../../core/widgets/scanner_error_handler.dart';
 import '../../viewmodel/employee_profile_viewmodel.dart';
 import '../../../batch_document/widgets/document_scan_dialog.dart';
 import 'profile_shared_widgets.dart';
@@ -443,7 +446,7 @@ class _DocumentsSectionState extends State<DocumentsSection> {
 
         final merged = mergeResult.fold(
           onSuccess: (bytes) => bytes,
-          onError: (error) {
+          onError: (error, _) {
             if (mounted) {
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
@@ -527,7 +530,17 @@ class _DocumentsSectionState extends State<DocumentsSection> {
         builder: (_) => const DocumentScanDialog(),
       );
     } else {
-      pages = await widget.viewModel.scanPages();
+      final result = await widget.viewModel.scanPages();
+      if (!mounted) return;
+      switch (result) {
+        case Success(value: final scanned):
+          pages = scanned;
+        case Failure(:final error):
+          if (error is DocumentScannerException) {
+            await presentScannerError(context, error);
+          }
+          return;
+      }
     }
 
     if (!mounted || pages == null || pages.isEmpty) return;

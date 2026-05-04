@@ -163,11 +163,11 @@ class EmployeeFormViewModel extends ChangeNotifier {
       bool hasError = false;
       deptResult.fold(
         onSuccess: (data) => _departments = data,
-        onError: (_) => hasError = true,
+        onError: (_, __) => hasError = true,
       );
       wpResult.fold(
         onSuccess: (data) => _workplaces = data,
-        onError: (_) => hasError = true,
+        onError: (_, __) => hasError = true,
       );
 
       if (hasError) {
@@ -208,7 +208,7 @@ class EmployeeFormViewModel extends ChangeNotifier {
 
       result.fold(
         onSuccess: (_) => _status = EmployeeFormStatus.saved,
-        onError: (error) {
+        onError: (error, _) {
           _status = EmployeeFormStatus.error;
           _serverErrors = extractServerMessages(error);
           _errorMessage = _serverErrors.isNotEmpty

@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 
+import '../../../../core/monitoring/error_reporter.dart';
 import '../../../../domain/entities/company.dart';
 import '../../../../domain/repositories/auth_repository.dart';
 import '../../../../domain/repositories/company_repository.dart';
@@ -12,13 +13,16 @@ class HomeViewModel extends ChangeNotifier {
     required AuthRepository authRepository,
     required CompanyRepository companyRepository,
     required PermissionNotifier permissionNotifier,
+    required ErrorReporter errorReporter,
   })  : _authRepository = authRepository,
         _companyRepository = companyRepository,
-        _permissionNotifier = permissionNotifier;
+        _permissionNotifier = permissionNotifier,
+        _errorReporter = errorReporter;
 
   final AuthRepository _authRepository;
   final CompanyRepository _companyRepository;
   final PermissionNotifier _permissionNotifier;
+  final ErrorReporter _errorReporter;
 
   Company? _company;
   HomeStatus _status = HomeStatus.loading;
@@ -43,7 +47,7 @@ class HomeViewModel extends ChangeNotifier {
         _company = company;
         _status = HomeStatus.loaded;
       },
-      onError: (_) {
+      onError: (_, __) {
         _status = HomeStatus.error;
         _errorMessage = 'Falha ao carregar empresa.';
       },
@@ -54,5 +58,6 @@ class HomeViewModel extends ChangeNotifier {
   Future<void> logout() async {
     await _authRepository.logout();
     await _permissionNotifier.clear();
+    _errorReporter.clearUser();
   }
 }

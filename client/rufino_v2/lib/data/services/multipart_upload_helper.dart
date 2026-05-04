@@ -2,7 +2,7 @@ import 'dart:async';
 
 import 'package:http/http.dart' as http;
 
-import 'http_exception.dart';
+import '../../core/errors/http_exception.dart';
 
 /// Callback invoked during multipart upload with progress from 0.0 to 1.0.
 typedef UploadProgressCallback = void Function(double progress);
@@ -49,9 +49,13 @@ Future<http.StreamedResponse> sendMultipartWithProgress(
   final response = await client.send(streamedRequest);
 
   if (response.statusCode < 200 || response.statusCode >= 300) {
+    final body = await response.stream.bytesToString();
     throw HttpException(
       statusCode: response.statusCode,
       message: 'HTTP ${response.statusCode}',
+      responseBody: body,
+      requestMethod: request.method,
+      requestUrl: request.url.toString(),
     );
   }
 

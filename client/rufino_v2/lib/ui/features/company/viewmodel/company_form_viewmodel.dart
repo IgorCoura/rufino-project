@@ -96,7 +96,7 @@ class CompanyFormViewModel extends ChangeNotifier {
           countryController.text = company.country;
           _status = CompanyFormStatus.idle;
         },
-        onError: (_) {
+        onError: (_, __) {
           _status = CompanyFormStatus.error;
           _errorMessage = 'Falha ao carregar dados da empresa.';
         },
@@ -138,7 +138,7 @@ class CompanyFormViewModel extends ChangeNotifier {
 
       result.fold(
         onSuccess: (_) => _status = CompanyFormStatus.saved,
-        onError: (error) {
+        onError: (error, _) {
           _status = CompanyFormStatus.error;
           _serverErrors = extractServerMessages(error);
           _errorMessage = _serverErrors.isNotEmpty

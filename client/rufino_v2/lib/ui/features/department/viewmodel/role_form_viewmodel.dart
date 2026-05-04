@@ -173,12 +173,12 @@ class RoleFormViewModel extends ChangeNotifier {
 
       unitsResult.fold(
         onSuccess: (units) => _paymentUnits = units,
-        onError: (_) => lookupFailed = true,
+        onError: (_, __) => lookupFailed = true,
       );
 
       typesResult.fold(
         onSuccess: (types) => _salaryTypes = types,
-        onError: (_) => lookupFailed = true,
+        onError: (_, __) => lookupFailed = true,
       );
 
       if (lookupFailed) {
@@ -213,7 +213,7 @@ class RoleFormViewModel extends ChangeNotifier {
         remunerationDescriptionController.text = role.remuneration.description;
         _status = RoleFormStatus.idle;
       },
-      onError: (_) {
+      onError: (_, __) {
         _status = RoleFormStatus.error;
         _errorMessage = 'Falha ao carregar dados da função.';
       },
@@ -259,7 +259,7 @@ class RoleFormViewModel extends ChangeNotifier {
 
       result.fold(
         onSuccess: (_) => _status = RoleFormStatus.saved,
-        onError: (error) {
+        onError: (error, _) {
           _status = RoleFormStatus.error;
           _serverErrors = extractServerMessages(error);
           _errorMessage = _serverErrors.isNotEmpty

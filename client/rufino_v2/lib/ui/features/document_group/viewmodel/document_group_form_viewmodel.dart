@@ -95,7 +95,7 @@ class DocumentGroupFormViewModel extends ChangeNotifier {
             _errorMessage = 'Grupo de documentos não encontrado.';
           }
         },
-        onError: (_) {
+        onError: (_, __) {
           _status = DocumentGroupFormStatus.error;
           _errorMessage = 'Falha ao carregar dados do grupo.';
         },
@@ -133,7 +133,7 @@ class DocumentGroupFormViewModel extends ChangeNotifier {
 
       result.fold(
         onSuccess: (_) => _status = DocumentGroupFormStatus.saved,
-        onError: (error) {
+        onError: (error, _) {
           _status = DocumentGroupFormStatus.error;
           _serverErrors = extractServerMessages(error);
           _errorMessage = _serverErrors.isNotEmpty

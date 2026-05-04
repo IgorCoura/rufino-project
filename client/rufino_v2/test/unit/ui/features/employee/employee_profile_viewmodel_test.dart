@@ -2,6 +2,7 @@ import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
+import 'package:rufino_v2/core/result.dart';
 import 'package:rufino_v2/domain/entities/address.dart';
 import 'package:rufino_v2/domain/entities/company.dart';
 import 'package:rufino_v2/domain/entities/document_group_with_documents.dart';
@@ -1338,7 +1339,7 @@ void main() {
       });
 
       test('isScanSupported returns true when scanner supports platform', () {
-        final mockScanner = MockDocumentScannerService();
+        final mockScanner = MockDocumentScannerRepository();
         when(() => mockScanner.isPlatformSupported).thenReturn(true);
 
         final vm = EmployeeProfileViewModel(
@@ -1348,7 +1349,7 @@ void main() {
           workplaceRepository: workplaceRepository,
           documentGroupRepository: documentGroupRepository,
           cepRepository: cepRepository,
-          scannerService: mockScanner,
+          scannerRepository: mockScanner,
         );
 
         expect(vm.isScanSupported, isTrue);
@@ -1356,7 +1357,7 @@ void main() {
 
       test('isScanSupported returns false when scanner does not support platform',
           () {
-        final mockScanner = MockDocumentScannerService();
+        final mockScanner = MockDocumentScannerRepository();
         when(() => mockScanner.isPlatformSupported).thenReturn(false);
 
         final vm = EmployeeProfileViewModel(
@@ -1366,17 +1367,18 @@ void main() {
           workplaceRepository: workplaceRepository,
           documentGroupRepository: documentGroupRepository,
           cepRepository: cepRepository,
-          scannerService: mockScanner,
+          scannerRepository: mockScanner,
         );
 
         expect(vm.isScanSupported, isFalse);
       });
 
-      test('scanPages delegates to the scanner service', () async {
-        final mockScanner = MockDocumentScannerService();
+      test('scanPages forwards the Result returned by the scanner repository',
+          () async {
+        final mockScanner = MockDocumentScannerRepository();
         when(() => mockScanner.isPlatformSupported).thenReturn(true);
         when(() => mockScanner.scanPages())
-            .thenAnswer((_) async => [Uint8List(10)]);
+            .thenAnswer((_) async => Result.success([Uint8List(10)]));
 
         final vm = EmployeeProfileViewModel(
           companyRepository: companyRepository,
@@ -1385,20 +1387,27 @@ void main() {
           workplaceRepository: workplaceRepository,
           documentGroupRepository: documentGroupRepository,
           cepRepository: cepRepository,
-          scannerService: mockScanner,
+          scannerRepository: mockScanner,
         );
 
         final result = await vm.scanPages();
 
-        expect(result, isNotNull);
-        expect(result!.length, 1);
+        expect(result, isA<Success<List<Uint8List>?>>());
+        expect(
+          (result as Success<List<Uint8List>?>).value,
+          hasLength(1),
+        );
         verify(() => mockScanner.scanPages()).called(1);
       });
 
-      test('scanPages returns null when no scanner is provided', () async {
-        final result = await viewModel.scanPages();
-        expect(result, isNull);
-      });
+      test(
+        'scanPages returns Result.success(null) when no scanner is provided',
+        () async {
+          final result = await viewModel.scanPages();
+          expect(result, isA<Success<List<Uint8List>?>>());
+          expect((result as Success<List<Uint8List>?>).value, isNull);
+        },
+      );
     });
 
     group('lookupCep', () {

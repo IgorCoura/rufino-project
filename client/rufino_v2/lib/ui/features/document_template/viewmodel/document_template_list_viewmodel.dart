@@ -63,7 +63,7 @@ class DocumentTemplateListViewModel extends ChangeNotifier {
           _templates = data;
           _status = DocumentTemplateListStatus.idle;
         },
-        onError: (_) {
+        onError: (_, __) {
           _templates = [];
           _status = DocumentTemplateListStatus.error;
           _errorMessage = 'Falha ao carregar templates de documentos.';

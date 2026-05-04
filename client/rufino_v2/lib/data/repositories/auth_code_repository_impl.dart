@@ -1,4 +1,5 @@
 import '../../core/errors/auth_exception.dart';
+import '../../core/monitoring/error_reporter.dart';
 import '../../core/result.dart';
 import '../../domain/repositories/auth_repository.dart';
 import '../services/auth_code_api_service.dart';
@@ -11,9 +12,13 @@ import '../services/auth_code_api_service.dart';
 /// so the existing UI contract continues to work; the SSO login screen
 /// passes empty strings.
 class AuthCodeRepositoryImpl implements AuthRepository {
-  const AuthCodeRepositoryImpl({required this.authCodeApiService});
+  AuthCodeRepositoryImpl({
+    required this.authCodeApiService,
+    required this.reporter,
+  });
 
   final AuthCodeApiService authCodeApiService;
+  final ErrorReporter reporter;
 
   @override
   Future<Result<void>> login({
@@ -23,10 +28,10 @@ class AuthCodeRepositoryImpl implements AuthRepository {
     try {
       await authCodeApiService.login();
       return const Result.success(null);
-    } on AuthException catch (e) {
-      return Result.error(e);
-    } catch (e) {
-      return Result.error(NetworkAuthException(e));
+    } on AuthException catch (e, st) {
+      return reporter.failure(e, st);
+    } catch (e, st) {
+      return reporter.failure(NetworkAuthException(e), st);
     }
   }
 
@@ -35,10 +40,10 @@ class AuthCodeRepositoryImpl implements AuthRepository {
     try {
       final ids = await authCodeApiService.getCompanyIds();
       return Result.success(ids);
-    } on AuthException catch (e) {
-      return Result.error(e);
-    } catch (e) {
-      return Result.error(NetworkAuthException(e));
+    } on AuthException catch (e, st) {
+      return reporter.failure(e, st);
+    } catch (e, st) {
+      return reporter.failure(NetworkAuthException(e), st);
     }
   }
 
@@ -47,10 +52,10 @@ class AuthCodeRepositoryImpl implements AuthRepository {
     try {
       final valid = await authCodeApiService.hasValidCredentials();
       return Result.success(valid);
-    } on AuthException catch (e) {
-      return Result.error(e);
-    } catch (e) {
-      return Result.error(NetworkAuthException(e));
+    } on AuthException catch (e, st) {
+      return reporter.failure(e, st);
+    } catch (e, st) {
+      return reporter.failure(NetworkAuthException(e), st);
     }
   }
 
@@ -59,8 +64,8 @@ class AuthCodeRepositoryImpl implements AuthRepository {
     try {
       await authCodeApiService.logout();
       return const Result.success(null);
-    } catch (e) {
-      return Result.error(NetworkAuthException(e));
+    } catch (e, st) {
+      return reporter.failure(NetworkAuthException(e), st);
     }
   }
 }

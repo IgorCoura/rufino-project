@@ -11,7 +11,9 @@ import 'dart:typed_data';
 
 import 'package:cunning_document_scanner/cunning_document_scanner.dart';
 import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
+import 'package:permission_handler/permission_handler.dart';
 
+import '../errors/document_scanner_exception.dart';
 import 'document_scanner_service.dart';
 import 'image_to_pdf_converter.dart';
 
@@ -24,18 +26,43 @@ class DocumentScannerServiceImpl implements DocumentScannerService {
 
   @override
   Future<List<Uint8List>?> scanPages() async {
-    final imagePaths = await CunningDocumentScanner.getPictures(
-      isGalleryImportAllowed: true,
-    );
+    await _ensureCameraPermission();
+
+    final List<String>? imagePaths;
+    try {
+      imagePaths = await CunningDocumentScanner.getPictures(
+        isGalleryImportAllowed: true,
+      );
+    } on DocumentScannerException {
+      rethrow;
+    } catch (e) {
+      throw ScannerPluginFailureException(e);
+    }
 
     if (imagePaths == null || imagePaths.isEmpty) return null;
 
     final pages = <Uint8List>[];
     for (final path in imagePaths) {
-      final bytes = await File(path).readAsBytes();
-      pages.add(bytes);
+      try {
+        pages.add(await File(path).readAsBytes());
+      } catch (e) {
+        throw ScannerFileReadException(path, e);
+      }
     }
     return pages;
+  }
+
+  /// Requests camera permission and throws a typed scanner exception when
+  /// it cannot be granted, so the native scanner is never invoked without
+  /// authorization (iOS silently no-ops the presentation in that case,
+  /// which is the root cause of "tapping Digitalizar does nothing").
+  Future<void> _ensureCameraPermission() async {
+    final status = await Permission.camera.request();
+    if (status.isGranted || status.isLimited) return;
+    if (status.isPermanentlyDenied || status.isRestricted) {
+      throw const ScannerPermissionPermanentlyDeniedException();
+    }
+    throw const ScannerPermissionDeniedException();
   }
 
   @override

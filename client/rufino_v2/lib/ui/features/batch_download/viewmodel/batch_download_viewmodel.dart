@@ -367,7 +367,7 @@ class BatchDownloadViewModel extends ChangeNotifier {
           _status = BatchDownloadStatus.loaded;
           _errorMessage = null;
         },
-        onError: (e) {
+        onError: (e, _) {
           _status = BatchDownloadStatus.error;
           _errorMessage = e.toString();
         },
@@ -381,7 +381,7 @@ class BatchDownloadViewModel extends ChangeNotifier {
     final result = await _workplaceRepository.getWorkplaces(_companyId);
     result.fold(
       onSuccess: (data) => _workplaces = data,
-      onError: (_) => _workplaces = [],
+      onError: (_, __) => _workplaces = [],
     );
   }
 
@@ -392,7 +392,7 @@ class BatchDownloadViewModel extends ChangeNotifier {
             _companyId);
     result.fold(
       onSuccess: (data) => _groups = data,
-      onError: (_) => _groups = [],
+      onError: (_, __) => _groups = [],
     );
   }
 
@@ -432,7 +432,7 @@ class BatchDownloadViewModel extends ChangeNotifier {
             }
           }
         },
-        onError: (e) {
+        onError: (e, _) {
           _status = BatchDownloadStatus.error;
           _errorMessage = e.toString();
         },
@@ -705,7 +705,7 @@ class BatchDownloadViewModel extends ChangeNotifier {
           notifyListeners();
           return bytes;
         },
-        onError: (e) {
+        onError: (e, _) {
           _status = BatchDownloadStatus.error;
           _errorMessage = e.toString();
           notifyListeners();
@@ -791,7 +791,7 @@ class BatchDownloadViewModel extends ChangeNotifier {
           );
           result.fold(
             onSuccess: (bytes) => downloadedBytes[key] = bytes,
-            onError: (e) => throw Exception(
+            onError: (e, _) => throw Exception(
               'Falha ao baixar ${unit.documentTemplateName}: $e',
             ),
           );
@@ -831,7 +831,7 @@ class BatchDownloadViewModel extends ChangeNotifier {
         late final Uint8List merged;
         mergeResult.fold(
           onSuccess: (bytes) => merged = bytes,
-          onError: (error) => throw Exception(
+          onError: (error, _) => throw Exception(
             'Erro ao combinar PDFs de $employeeName: $error',
           ),
         );

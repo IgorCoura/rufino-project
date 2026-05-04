@@ -98,7 +98,7 @@ class PositionFormViewModel extends ChangeNotifier {
           cboController.text = position.cbo;
           _status = PositionFormStatus.idle;
         },
-        onError: (_) {
+        onError: (_, __) {
           _status = PositionFormStatus.error;
           _errorMessage = 'Falha ao carregar dados do cargo.';
         },
@@ -139,7 +139,7 @@ class PositionFormViewModel extends ChangeNotifier {
 
       result.fold(
         onSuccess: (_) => _status = PositionFormStatus.saved,
-        onError: (error) {
+        onError: (error, _) {
           _status = PositionFormStatus.error;
           _serverErrors = extractServerMessages(error);
           _errorMessage = _serverErrors.isNotEmpty

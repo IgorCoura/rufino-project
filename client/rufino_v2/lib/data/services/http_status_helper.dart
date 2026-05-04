@@ -2,8 +2,8 @@ import 'dart:convert';
 
 import 'package:http/http.dart' as http;
 
+import '../../core/errors/http_exception.dart';
 import '../../core/utils/domain_error_logger.dart';
-import 'http_exception.dart';
 
 /// Throws [HttpException] if [response] has a non-2xx status code.
 ///
@@ -27,6 +27,9 @@ void checkHttpStatus(http.Response response) {
     statusCode: response.statusCode,
     message: 'HTTP ${response.statusCode}: ${response.reasonPhrase}',
     serverMessages: serverMessages,
+    responseBody: response.body,
+    requestMethod: response.request?.method,
+    requestUrl: response.request?.url.toString(),
   );
 }
 

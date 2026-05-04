@@ -5,6 +5,9 @@ import 'app.dart';
 import 'core/config/app_config.dart';
 import 'core/config/dev_http_overrides_stub.dart'
     if (dart.library.io) 'core/config/dev_http_overrides.dart';
+import 'core/monitoring/error_reporter.dart';
+import 'core/monitoring/noop_error_reporter.dart';
+import 'core/monitoring/sentry_error_reporter.dart';
 import 'data/services/auth_code_redirect_handler.dart';
 
 void main() async {
@@ -14,6 +17,11 @@ void main() async {
   if (AppConfig.isDevelop) {
     applyDevHttpOverrides();
   }
+
+  final ErrorReporter reporter = AppConfig.errorMonitoringEnabled
+      ? SentryErrorReporter()
+      : const NoopErrorReporter();
+  await reporter.init();
 
   final prefs = await SharedPreferences.getInstance();
 
@@ -25,5 +33,9 @@ void main() async {
     pendingRedirect = await completePendingAuthCodeRedirect();
   }
 
-  runApp(App(prefs: prefs, pendingWebRedirect: pendingRedirect));
+  runApp(App(
+    prefs: prefs,
+    pendingWebRedirect: pendingRedirect,
+    errorReporter: reporter,
+  ));
 }

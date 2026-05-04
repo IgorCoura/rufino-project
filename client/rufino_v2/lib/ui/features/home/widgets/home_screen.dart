@@ -87,6 +87,12 @@ class _HomeScreenState extends State<HomeScreen> {
           body: widget.viewModel.isLoading
               ? const Center(child: CircularProgressIndicator())
               : const _HomeBody(),
+          floatingActionButton: ElevatedButton(
+            onPressed: () {
+              throw StateError('This is test exception');
+            },
+            child: const Text('Verify Sentry Setup'),
+          ),
         );
       },
     );

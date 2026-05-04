@@ -1,7 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
-import 'package:rufino_v2/data/services/http_exception.dart';
+import 'package:rufino_v2/core/errors/http_exception.dart';
 import 'package:rufino_v2/data/services/multipart_upload_helper.dart';
 
 void main() {
@@ -58,6 +58,37 @@ void main() {
         () => sendMultipartWithProgress(request, client: client),
         throwsA(isA<HttpException>()),
       );
+
+      client.close();
+    });
+
+    test('captures response body, method and url on failure', () async {
+      const errorBody = '{"errors":{"Upload":[{"message":"too large"}]}}';
+      final client = MockClient.streaming((request, bodyStream) async {
+        await bodyStream.toBytes();
+        return http.StreamedResponse(
+          Stream.value(errorBody.codeUnits),
+          413,
+        );
+      });
+
+      final uri = Uri.parse('https://example.com/upload');
+      final request = http.MultipartRequest('POST', uri);
+      request.files.add(http.MultipartFile.fromBytes(
+        'file',
+        [1, 2, 3],
+        filename: 'test.bin',
+      ));
+
+      try {
+        await sendMultipartWithProgress(request, client: client);
+        fail('Expected HttpException');
+      } on HttpException catch (e) {
+        expect(e.statusCode, 413);
+        expect(e.responseBody, errorBody);
+        expect(e.requestMethod, 'POST');
+        expect(e.requestUrl, 'https://example.com/upload');
+      }
 
       client.close();
     });

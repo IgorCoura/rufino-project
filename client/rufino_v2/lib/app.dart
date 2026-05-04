@@ -7,6 +7,7 @@ import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'core/config/app_config.dart';
+import 'core/monitoring/error_reporter.dart';
 import 'core/storage/secure_storage.dart';
 import 'core/theme/app_theme.dart';
 import 'core/theme/theme_notifier.dart';
@@ -27,6 +28,7 @@ import 'data/repositories/require_document_repository_impl.dart';
 import 'data/repositories/batch_document_repository_impl.dart';
 import 'data/repositories/batch_download_repository_impl.dart';
 import 'data/repositories/cep_repository_impl.dart';
+import 'data/repositories/document_scanner_repository_impl.dart';
 import 'core/utils/document_scanner_service.dart';
 import 'data/repositories/workplace_repository_impl.dart';
 import 'data/services/auth_api_service.dart';
@@ -105,11 +107,16 @@ class App extends StatelessWidget {
   const App({
     super.key,
     required this.prefs,
+    required this.errorReporter,
     this.pendingWebRedirect,
   });
 
   /// The already-initialized [SharedPreferences] instance, created in `main()`.
   final SharedPreferences prefs;
+
+  /// Provider-agnostic error monitoring sink. Initialized in `main()` and
+  /// forwarded down the widget tree via `Provider<ErrorReporter>`.
+  final ErrorReporter errorReporter;
 
   /// Result of a pending web Authorization Code redirect. Only ever set
   /// on Web when [AppConfig.useAuthorizationCodeFlow] is true.
@@ -126,7 +133,7 @@ class App extends StatelessWidget {
   List<SingleChildWidget> _buildProviders() {
     // Infrastructure
     const secureStorage = SecureStorage(FlutterSecureStorage());
-    final httpClient = http.Client();
+    final httpClient = errorReporter.wrapHttpClient(http.Client());
 
     // Auth — pick the active flow at compile time.
     final authApiService = AppConfig.useAuthorizationCodeFlow
@@ -204,6 +211,7 @@ class App extends StatelessWidget {
         PermissionRepositoryImpl(
       permissionApiService: permissionApiService,
       permissionCacheService: permissionCacheService,
+      reporter: errorReporter,
     );
     final permissionNotifier = PermissionNotifier(
       permissionRepository: permissionRepository,
@@ -220,14 +228,22 @@ class App extends StatelessWidget {
     }
 
     final AuthRepository authRepository = AppConfig.useAuthorizationCodeFlow
-        ? AuthCodeRepositoryImpl(authCodeApiService: authCodeApiService!)
-        : AuthRepositoryImpl(authApiService: authApiService!);
+        ? AuthCodeRepositoryImpl(
+            authCodeApiService: authCodeApiService!,
+            reporter: errorReporter,
+          )
+        : AuthRepositoryImpl(
+            authApiService: authApiService!,
+            reporter: errorReporter,
+          );
     final CompanyRepository companyRepository = CompanyRepositoryImpl(
       companyApiService: companyApiService,
       storage: secureStorage,
+      reporter: errorReporter,
     );
     final DepartmentRepository departmentRepository = DepartmentRepositoryImpl(
       apiService: departmentApiService,
+      reporter: errorReporter,
     );
 
     final workplaceApiService = WorkplaceApiService(
@@ -237,6 +253,7 @@ class App extends StatelessWidget {
     );
     final WorkplaceRepository workplaceRepository = WorkplaceRepositoryImpl(
       apiService: workplaceApiService,
+      reporter: errorReporter,
     );
 
     final documentGroupApiService = DocumentGroupApiService(
@@ -245,7 +262,10 @@ class App extends StatelessWidget {
       getAuthHeader: getAuthHeader,
     );
     final DocumentGroupRepository documentGroupRepository =
-        DocumentGroupRepositoryImpl(apiService: documentGroupApiService);
+        DocumentGroupRepositoryImpl(
+      apiService: documentGroupApiService,
+      reporter: errorReporter,
+    );
 
     final documentTemplateApiService = DocumentTemplateApiService(
       client: httpClient,
@@ -253,7 +273,10 @@ class App extends StatelessWidget {
       getAuthHeader: getAuthHeader,
     );
     final DocumentTemplateRepository documentTemplateRepository =
-        DocumentTemplateRepositoryImpl(apiService: documentTemplateApiService);
+        DocumentTemplateRepositoryImpl(
+      apiService: documentTemplateApiService,
+      reporter: errorReporter,
+    );
 
     final requireDocumentApiService = RequireDocumentApiService(
       client: httpClient,
@@ -261,7 +284,10 @@ class App extends StatelessWidget {
       getAuthHeader: getAuthHeader,
     );
     final RequireDocumentRepository requireDocumentRepository =
-        RequireDocumentRepositoryImpl(apiService: requireDocumentApiService);
+        RequireDocumentRepositoryImpl(
+      apiService: requireDocumentApiService,
+      reporter: errorReporter,
+    );
 
     final employeeApiService = EmployeeApiService(
       client: httpClient,
@@ -270,6 +296,7 @@ class App extends StatelessWidget {
     );
     final EmployeeRepository employeeRepository = EmployeeRepositoryImpl(
       apiService: employeeApiService,
+      reporter: errorReporter,
     );
 
     final batchDocumentApiService = BatchDocumentApiService(
@@ -278,11 +305,16 @@ class App extends StatelessWidget {
       getAuthHeader: getAuthHeader,
     );
     final BatchDocumentRepository batchDocumentRepository =
-        BatchDocumentRepositoryImpl(apiService: batchDocumentApiService);
+        BatchDocumentRepositoryImpl(
+      apiService: batchDocumentApiService,
+      reporter: errorReporter,
+    );
 
     final cepApiService = CepApiService(client: httpClient);
-    final CepRepository cepRepository =
-        CepRepositoryImpl(apiService: cepApiService);
+    final CepRepository cepRepository = CepRepositoryImpl(
+      apiService: cepApiService,
+      reporter: errorReporter,
+    );
 
     final batchDownloadApiService = BatchDownloadApiService(
       client: httpClient,
@@ -290,13 +322,17 @@ class App extends StatelessWidget {
       getAuthHeader: getAuthHeader,
     );
     final BatchDownloadRepository batchDownloadRepository =
-        BatchDownloadRepositoryImpl(apiService: batchDownloadApiService);
+        BatchDownloadRepositoryImpl(
+      apiService: batchDownloadApiService,
+      reporter: errorReporter,
+    );
 
     // Spreadsheet export — stateless, safe to share across the app.
     final spreadsheetService = SpreadsheetService();
     final fileSaveService = FileSaveService();
 
     return [
+      Provider<ErrorReporter>.value(value: errorReporter),
       ChangeNotifierProvider(create: (_) => ThemeNotifier()),
       ChangeNotifierProvider.value(value: permissionNotifier),
       Provider<AuthRepository>.value(value: authRepository),
@@ -335,6 +371,7 @@ class _AppRouterState extends State<_AppRouter> {
     super.initState();
     _router = GoRouter(
       initialLocation: '/',
+      observers: [context.read<ErrorReporter>().navigatorObserver],
       routes: [
         GoRoute(
           path: '/',
@@ -343,6 +380,7 @@ class _AppRouterState extends State<_AppRouter> {
               authRepository: context.read<AuthRepository>(),
               companyRepository: context.read<CompanyRepository>(),
               permissionNotifier: context.read<PermissionNotifier>(),
+              errorReporter: context.read<ErrorReporter>(),
             ),
           ),
         ),
@@ -397,6 +435,7 @@ class _AppRouterState extends State<_AppRouter> {
               authRepository: context.read<AuthRepository>(),
               companyRepository: context.read<CompanyRepository>(),
               permissionNotifier: context.read<PermissionNotifier>(),
+              errorReporter: context.read<ErrorReporter>(),
             ),
           ),
         ),
@@ -602,7 +641,10 @@ class _AppRouterState extends State<_AppRouter> {
               documentGroupRepository:
                   context.read<DocumentGroupRepository>(),
               cepRepository: context.read<CepRepository>(),
-              scannerService: DocumentScannerService(),
+              scannerRepository: DocumentScannerRepositoryImpl(
+                scannerService: DocumentScannerService(),
+                reporter: context.read<ErrorReporter>(),
+              ),
             ),
           ),
         ),
@@ -659,7 +701,10 @@ class _AppRouterState extends State<_AppRouter> {
                     documentGroupRepository:
                         context.read<DocumentGroupRepository>(),
                     companyId: company.id,
-                    scannerService: DocumentScannerService(),
+                    scannerRepository: DocumentScannerRepositoryImpl(
+                      scannerService: DocumentScannerService(),
+                      reporter: context.read<ErrorReporter>(),
+                    ),
                   ),
                 );
               },

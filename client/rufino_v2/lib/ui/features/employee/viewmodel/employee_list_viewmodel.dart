@@ -426,7 +426,7 @@ class EmployeeListViewModel extends ChangeNotifier {
               break;
           }
         },
-        onError: (_) => _exportErrorMessage = 'Falha ao salvar o arquivo.',
+        onError: (_, __) => _exportErrorMessage = 'Falha ao salvar o arquivo.',
       );
     } catch (_) {
       _exportErrorMessage = 'Erro inesperado durante a exportação.';
@@ -625,7 +625,7 @@ class EmployeeListViewModel extends ChangeNotifier {
             _loadImageFor(employee.id);
           }
         },
-        onError: (_) {
+        onError: (_, __) {
           _status = EmployeeListStatus.error;
           _errorMessage = 'Falha ao carregar funcionários.';
         },
@@ -697,7 +697,7 @@ class EmployeeListViewModel extends ChangeNotifier {
           notifyListeners();
         }
       },
-      onError: (_) {}, // silently ignore image errors
+      onError: (_, __) {}, // silently ignore image errors
     );
   }
 }

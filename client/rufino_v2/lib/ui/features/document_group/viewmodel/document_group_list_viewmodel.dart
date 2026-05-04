@@ -63,7 +63,7 @@ class DocumentGroupListViewModel extends ChangeNotifier {
           _groups = data;
           _status = DocumentGroupListStatus.idle;
         },
-        onError: (_) {
+        onError: (_, __) {
           _groups = [];
           _status = DocumentGroupListStatus.error;
           _errorMessage = 'Falha ao carregar grupos de documentos.';

@@ -137,7 +137,7 @@ class RequireDocumentFormViewModel extends ChangeNotifier {
         companyId, _selectedAssociationTypeId);
     result.fold(
       onSuccess: (data) => _associations = data,
-      onError: (_) => _associations = [],
+      onError: (_, __) => _associations = [],
     );
     notifyListeners();
   }
@@ -334,7 +334,7 @@ class RequireDocumentFormViewModel extends ChangeNotifier {
 
           _status = RequireDocumentFormStatus.idle;
         },
-        onError: (_) {
+        onError: (_, __) {
           _status = RequireDocumentFormStatus.error;
           _errorMessage = 'Falha ao carregar dados do requerimento.';
         },
@@ -346,7 +346,7 @@ class RequireDocumentFormViewModel extends ChangeNotifier {
             companyId, _selectedAssociationTypeId);
         assocResult.fold(
           onSuccess: (data) => _associations = data,
-          onError: (_) {},
+          onError: (_, __) {},
         );
       }
     } finally {
@@ -422,7 +422,7 @@ class RequireDocumentFormViewModel extends ChangeNotifier {
 
       result.fold(
         onSuccess: (_) => _status = RequireDocumentFormStatus.saved,
-        onError: (error) {
+        onError: (error, _) {
           _status = RequireDocumentFormStatus.error;
           _serverErrors = extractServerMessages(error);
           _errorMessage = _serverErrors.isNotEmpty
@@ -454,7 +454,7 @@ class RequireDocumentFormViewModel extends ChangeNotifier {
 
       result.fold(
         onSuccess: (_) => _status = RequireDocumentFormStatus.generated,
-        onError: (error) {
+        onError: (error, _) {
           _status = RequireDocumentFormStatus.error;
           _serverErrors = extractServerMessages(error);
           _errorMessage = _serverErrors.isNotEmpty

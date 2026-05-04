@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import '../../core/monitoring/error_reporter.dart';
 import '../../core/result.dart';
 import '../../core/storage/secure_storage.dart';
 import '../../domain/entities/company.dart';
@@ -9,13 +10,15 @@ import '../models/company_api_model.dart';
 import '../services/company_api_service.dart';
 
 class CompanyRepositoryImpl implements CompanyRepository {
-  const CompanyRepositoryImpl({
+  CompanyRepositoryImpl({
     required this.companyApiService,
     required this.storage,
+    required this.reporter,
   });
 
   final CompanyApiService companyApiService;
   final SecureStorage storage;
+  final ErrorReporter reporter;
 
   static const _selectedCompanyKey = 'selected_company';
 
@@ -24,8 +27,8 @@ class CompanyRepositoryImpl implements CompanyRepository {
     try {
       final models = await companyApiService.getCompanies(ids);
       return Result.success(models.map((m) => m.toEntity()).toList());
-    } catch (e) {
-      return Result.error(e);
+    } catch (e, st) {
+      return reporter.failure(e, st);
     }
   }
 
@@ -34,8 +37,8 @@ class CompanyRepositoryImpl implements CompanyRepository {
     try {
       final model = await companyApiService.getCompanyDetail(id);
       return Result.success(model.toDetailEntity());
-    } catch (e) {
-      return Result.error(e);
+    } catch (e, st) {
+      return reporter.failure(e, st);
     }
   }
 
@@ -60,8 +63,8 @@ class CompanyRepositoryImpl implements CompanyRepository {
       );
       final id = await companyApiService.createCompany(model);
       return Result.success(id);
-    } catch (e) {
-      return Result.error(e);
+    } catch (e, st) {
+      return reporter.failure(e, st);
     }
   }
 
@@ -86,8 +89,8 @@ class CompanyRepositoryImpl implements CompanyRepository {
       );
       final id = await companyApiService.updateCompany(model);
       return Result.success(id);
-    } catch (e) {
-      return Result.error(e);
+    } catch (e, st) {
+      return reporter.failure(e, st);
     }
   }
 
@@ -102,8 +105,8 @@ class CompanyRepositoryImpl implements CompanyRepository {
       });
       await storage.write(key: _selectedCompanyKey, value: json);
       return const Result.success(null);
-    } catch (e) {
-      return Result.error(e);
+    } catch (e, st) {
+      return reporter.failure(e, st);
     }
   }
 
@@ -121,8 +124,8 @@ class CompanyRepositoryImpl implements CompanyRepository {
         fantasyName: map['fantasyName'] as String,
         cnpj: map['cnpj'] as String,
       ));
-    } catch (e) {
-      return Result.error(e);
+    } catch (e, st) {
+      return reporter.failure(e, st);
     }
   }
 

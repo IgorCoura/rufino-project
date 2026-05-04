@@ -53,7 +53,7 @@ class RequireDocumentListViewModel extends ChangeNotifier {
           await _requireDocumentRepository.getRequireDocuments(companyId);
       result.fold(
         onSuccess: (data) => _requireDocuments = data,
-        onError: (_) {
+        onError: (_, __) {
           _requireDocuments = [];
           _hasError = true;
           _errorMessage = 'Falha ao carregar requerimentos de documentos.';

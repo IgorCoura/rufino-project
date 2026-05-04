@@ -32,7 +32,7 @@ class LoginSsoViewModel extends ChangeNotifier {
       final result = await _authRepository.login(username: '', password: '');
       result.fold(
         onSuccess: (_) => _status = LoginSsoStatus.success,
-        onError: (error) {
+        onError: (error, _) {
           _status = LoginSsoStatus.failure;
           _lastError =
               error is AuthException ? error : NetworkAuthException(error);

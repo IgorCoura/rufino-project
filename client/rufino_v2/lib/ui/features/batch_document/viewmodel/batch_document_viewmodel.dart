@@ -3,7 +3,7 @@ import 'dart:collection';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
 
-import '../../../../core/utils/document_scanner_service.dart';
+import '../../../../core/result.dart';
 import '../../../../core/utils/error_messages.dart';
 import '../../../../core/utils/fuzzy_name_matcher.dart';
 import '../../../../core/utils/pdf_text_extractor.dart';
@@ -12,6 +12,7 @@ import '../../../../domain/entities/bulk_upload_match.dart';
 import '../../../../domain/entities/document_group_with_templates.dart';
 import '../../../../domain/repositories/batch_document_repository.dart';
 import '../../../../domain/repositories/document_group_repository.dart';
+import '../../../../domain/repositories/document_scanner_repository.dart';
 
 /// Possible states for the batch document screen.
 enum BatchDocumentStatus {
@@ -39,24 +40,24 @@ class BatchDocumentViewModel extends ChangeNotifier {
   /// Creates a [BatchDocumentViewModel].
   ///
   /// The optional [textExtractor] allows injecting a custom PDF text
-  /// extraction function for testing. The optional [scannerService]
+  /// extraction function for testing. The optional [scannerRepository]
   /// enables document scanning on supported platforms.
   BatchDocumentViewModel({
     required BatchDocumentRepository batchDocumentRepository,
     required DocumentGroupRepository documentGroupRepository,
     required String companyId,
     PdfTextExtractorFn? textExtractor,
-    DocumentScannerService? scannerService,
+    DocumentScannerRepository? scannerRepository,
   })  : _batchDocumentRepository = batchDocumentRepository,
         _documentGroupRepository = documentGroupRepository,
         _companyId = companyId,
         _textExtractor = textExtractor ?? extractTextFromPdf,
-        _scannerService = scannerService;
+        _scannerRepository = scannerRepository;
 
   final BatchDocumentRepository _batchDocumentRepository;
   final DocumentGroupRepository _documentGroupRepository;
   final PdfTextExtractorFn _textExtractor;
-  final DocumentScannerService? _scannerService;
+  final DocumentScannerRepository? _scannerRepository;
   final String _companyId;
 
   /// Sentinel value for the "Todos" option in the template dropdown.
@@ -254,7 +255,7 @@ class BatchDocumentViewModel extends ChangeNotifier {
           _groupsWithTemplates = groups;
           _status = BatchDocumentStatus.loaded;
         },
-        onError: (e) {
+        onError: (e, _) {
           _errorMessage = _errorFrom(e, 'Falha ao carregar grupos.');
           _status = BatchDocumentStatus.error;
         },
@@ -322,7 +323,7 @@ class BatchDocumentViewModel extends ChangeNotifier {
             allItems.addAll(page.items);
             totalCount += page.totalCount;
           },
-          onError: (e) {
+          onError: (e, _) {
             _errorMessage =
                 _errorFrom(e, 'Falha ao carregar documentos pendentes.');
             _status = BatchDocumentStatus.error;
@@ -363,7 +364,7 @@ class BatchDocumentViewModel extends ChangeNotifier {
               if (seenIds.add(emp.employeeId)) allMissing.add(emp);
             }
           },
-          onError: (e) => _errorMessage =
+          onError: (e, _) => _errorMessage =
               _errorFrom(e, 'Falha ao carregar funcionários.'),
         );
       }
@@ -387,7 +388,7 @@ class BatchDocumentViewModel extends ChangeNotifier {
             .batchCreateDocumentUnits(_companyId, templateId, employeeIds);
         result.fold(
           onSuccess: (_) => null,
-          onError: (e) => _errorMessage =
+          onError: (e, _) => _errorMessage =
               _errorFrom(e, 'Falha ao criar documentos.'),
         );
       }
@@ -417,7 +418,7 @@ class BatchDocumentViewModel extends ChangeNotifier {
         onSuccess: (_) {
           _selectedUnitIds.clear();
         },
-        onError: (e) => _errorMessage = _errorFrom(e, 'Falha ao atualizar datas.'),
+        onError: (e, _) => _errorMessage = _errorFrom(e, 'Falha ao atualizar datas.'),
       );
     } finally {
       notifyListeners();
@@ -494,7 +495,7 @@ class BatchDocumentViewModel extends ChangeNotifier {
           _stagedFiles.clear();
           _status = BatchDocumentStatus.uploadComplete;
         },
-        onError: (e) {
+        onError: (e, _) {
           _errorMessage = _errorFrom(e, 'Falha ao enviar arquivos.');
           _status = BatchDocumentStatus.error;
         },
@@ -536,7 +537,7 @@ class BatchDocumentViewModel extends ChangeNotifier {
           _stagedFiles.clear();
           _status = BatchDocumentStatus.uploadComplete;
         },
-        onError: (e) {
+        onError: (e, _) {
           _errorMessage = _errorFrom(e, 'Falha ao enviar para assinatura.');
           _status = BatchDocumentStatus.error;
         },
@@ -593,7 +594,7 @@ class BatchDocumentViewModel extends ChangeNotifier {
           zipBytes = bytes;
           _status = BatchDocumentStatus.loaded;
         },
-        onError: (e) {
+        onError: (e, _) {
           _errorMessage = _errorFrom(e, 'Falha ao gerar PDFs.');
           _status = BatchDocumentStatus.error;
         },
@@ -638,7 +639,7 @@ class BatchDocumentViewModel extends ChangeNotifier {
           _selectedUnitIds.clear();
           _status = BatchDocumentStatus.loaded;
         },
-        onError: (e) {
+        onError: (e, _) {
           _errorMessage =
               _errorFrom(e, 'Falha ao gerar e enviar para assinatura.');
           _status = BatchDocumentStatus.error;
@@ -889,14 +890,16 @@ class BatchDocumentViewModel extends ChangeNotifier {
 
   /// Whether document scanning is available on the current platform.
   bool get isScanSupported =>
-      _scannerService != null && _scannerService.isPlatformSupported;
+      _scannerRepository != null && _scannerRepository.isPlatformSupported;
 
-  /// Launches the native document scanner and returns captured page images.
+  /// Launches the native document scanner and returns the captured pages.
   ///
-  /// Returns `null` if the user cancels or scanning is not supported.
-  Future<List<Uint8List>?> scanPages() async {
-    if (_scannerService == null) return null;
-    return _scannerService.scanPages();
+  /// Returns `Result.success(null)` when the user cancelled or scanning
+  /// is not supported on this platform; `Result.error` when the scanner
+  /// could not run (permission denied, plugin failure, file read error).
+  Future<Result<List<Uint8List>?>> scanPages() async {
+    if (_scannerRepository == null) return const Result.success(null);
+    return _scannerRepository.scanPages();
   }
 
   /// Processes multiple scanned documents through the bulk upload pipeline.
@@ -907,7 +910,7 @@ class BatchDocumentViewModel extends ChangeNotifier {
   /// All results are added to [bulkMatches] for user verification via
   /// the same [BulkUploadVerificationDialog] used by file-based uploads.
   Future<void> processScannedDocuments(List<List<Uint8List>> documents) async {
-    if (_scannerService == null || documents.isEmpty) return;
+    if (_scannerRepository == null || documents.isEmpty) return;
 
     _isBulkProcessing = true;
     _bulkMatches = [];
@@ -930,12 +933,12 @@ class BatchDocumentViewModel extends ChangeNotifier {
         }
 
         // Step 1: Convert images to PDF.
-        final pdfBytes = await _scannerService.imagesToPdf(pages);
+        final pdfBytes = await _scannerRepository.imagesToPdf(pages);
 
         // Step 2: Run OCR on each page and concatenate the text.
         final textBuffer = StringBuffer();
         for (final page in pages) {
-          final pageText = await _scannerService.recognizeText(page);
+          final pageText = await _scannerRepository.recognizeText(page);
           if (pageText.isNotEmpty) {
             textBuffer.write(pageText);
             textBuffer.write(' ');

@@ -3,11 +3,10 @@ import 'dart:typed_data';
 
 import 'package:http/http.dart' as http;
 
-import 'http_exception.dart';
+import '../../core/errors/http_exception.dart';
+import '../models/document_template_api_model.dart';
 import 'http_status_helper.dart';
 import 'request_id_helper.dart';
-
-import '../models/document_template_api_model.dart';
 
 /// HTTP client for the document template endpoints of the people-management service.
 ///
@@ -149,9 +148,13 @@ class DocumentTemplateApiService {
       );
     final streamed = await client.send(request);
     if (streamed.statusCode < 200 || streamed.statusCode >= 300) {
+      final body = await streamed.stream.bytesToString();
       throw HttpException(
         statusCode: streamed.statusCode,
         message: 'HTTP ${streamed.statusCode}',
+        responseBody: body,
+        requestMethod: 'POST',
+        requestUrl: uri.toString(),
       );
     }
   }

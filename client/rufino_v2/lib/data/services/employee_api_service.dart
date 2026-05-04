@@ -4,6 +4,7 @@ import 'dart:typed_data';
 import 'package:http/http.dart' as http;
 
 import '../../core/errors/employee_exception.dart';
+import '../../core/errors/http_exception.dart';
 import '../models/employee_api_model.dart';
 import '../models/employee_address_api_model.dart';
 import '../models/employee_contact_api_model.dart';
@@ -17,7 +18,6 @@ import '../models/employee_medical_exam_api_model.dart';
 import '../models/employee_military_document_api_model.dart';
 import '../models/employee_social_integration_program_api_model.dart';
 import '../models/employee_vote_id_api_model.dart';
-import 'http_exception.dart';
 import 'http_status_helper.dart';
 import 'multipart_upload_helper.dart';
 import 'request_id_helper.dart';
@@ -134,9 +134,13 @@ class EmployeeApiService {
       );
     final streamed = await client.send(request);
     if (streamed.statusCode < 200 || streamed.statusCode >= 300) {
+      final body = await streamed.stream.bytesToString();
       throw HttpException(
         statusCode: streamed.statusCode,
         message: 'HTTP ${streamed.statusCode}',
+        responseBody: body,
+        requestMethod: 'PUT',
+        requestUrl: uri.toString(),
       );
     }
   }
