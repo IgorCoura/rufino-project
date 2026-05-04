@@ -2,7 +2,7 @@ import 'dart:collection';
 
 import 'package:flutter/foundation.dart';
 
-import '../../../../core/utils/document_scanner_service.dart';
+import '../../../../core/result.dart';
 import '../../../../data/models/document_range_item.dart';
 import '../../../../domain/entities/address.dart';
 import '../../../../domain/entities/employee.dart';
@@ -30,6 +30,7 @@ import '../../../../domain/repositories/cep_repository.dart';
 import '../../../../domain/repositories/company_repository.dart';
 import '../../../../domain/repositories/department_repository.dart';
 import '../../../../domain/repositories/document_group_repository.dart';
+import '../../../../domain/repositories/document_scanner_repository.dart';
 import '../../../../domain/repositories/employee_repository.dart';
 import '../../../../domain/repositories/workplace_repository.dart';
 
@@ -86,14 +87,14 @@ class EmployeeProfileViewModel extends ChangeNotifier {
     required WorkplaceRepository workplaceRepository,
     required DocumentGroupRepository documentGroupRepository,
     required CepRepository cepRepository,
-    DocumentScannerService? scannerService,
+    DocumentScannerRepository? scannerRepository,
   })  : _companyRepository = companyRepository,
         _employeeRepository = employeeRepository,
         _departmentRepository = departmentRepository,
         _workplaceRepository = workplaceRepository,
         _documentGroupRepository = documentGroupRepository,
         _cepRepository = cepRepository,
-        _scannerService = scannerService;
+        _scannerRepository = scannerRepository;
 
   final CompanyRepository _companyRepository;
   final EmployeeRepository _employeeRepository;
@@ -101,7 +102,7 @@ class EmployeeProfileViewModel extends ChangeNotifier {
   final WorkplaceRepository _workplaceRepository;
   final DocumentGroupRepository _documentGroupRepository;
   final CepRepository _cepRepository;
-  final DocumentScannerService? _scannerService;
+  final DocumentScannerRepository? _scannerRepository;
 
   EmployeeProfileStatus _status = EmployeeProfileStatus.idle;
   String? _companyId;
@@ -449,14 +450,16 @@ class EmployeeProfileViewModel extends ChangeNotifier {
 
   /// Whether document scanning is available on the current platform.
   bool get isScanSupported =>
-      _scannerService != null && _scannerService.isPlatformSupported;
+      _scannerRepository != null && _scannerRepository.isPlatformSupported;
 
-  /// Launches the native document scanner and returns captured page images.
+  /// Launches the native document scanner and returns the captured pages.
   ///
-  /// Returns `null` if the user cancels or scanning is not supported.
-  Future<List<Uint8List>?> scanPages() async {
-    if (_scannerService == null) return null;
-    return _scannerService.scanPages();
+  /// Returns `Result.success(null)` when the user cancelled or scanning
+  /// is not supported on this platform; `Result.error` when the scanner
+  /// could not run (permission denied, plugin failure, file read error).
+  Future<Result<List<Uint8List>?>> scanPages() async {
+    if (_scannerRepository == null) return const Result.success(null);
+    return _scannerRepository.scanPages();
   }
 
   // ─── Core profile methods ──────────────────────────────────────────────────
@@ -560,7 +563,7 @@ class EmployeeProfileViewModel extends ChangeNotifier {
         _snackMessage = 'Nome atualizado com sucesso.';
         _status = EmployeeProfileStatus.idle;
       },
-      onError: (error) {
+      onError: (error, _) {
         _status = EmployeeProfileStatus.error;
         _serverErrors = extractServerMessages(error);
         _errorMessage = _serverErrors.isNotEmpty
@@ -604,7 +607,7 @@ class EmployeeProfileViewModel extends ChangeNotifier {
         _snackMessage = 'A foto do perfil foi atualizada com sucesso.';
         _status = EmployeeProfileStatus.idle;
       },
-      onError: (error) {
+      onError: (error, _) {
         _status = EmployeeProfileStatus.error;
         _serverErrors = extractServerMessages(error);
         _errorMessage = _serverErrors.isNotEmpty
@@ -641,7 +644,7 @@ class EmployeeProfileViewModel extends ChangeNotifier {
         _snackMessage = 'Funcionário marcado como inativo com sucesso.';
         _status = EmployeeProfileStatus.idle;
       },
-      onError: (error) {
+      onError: (error, _) {
         _status = EmployeeProfileStatus.error;
         _serverErrors = extractServerMessages(error);
         _errorMessage = _serverErrors.isNotEmpty
@@ -690,7 +693,7 @@ class EmployeeProfileViewModel extends ChangeNotifier {
         _contact = data;
         _contactStatus = SectionLoadStatus.loaded;
       },
-      onError: (_) {
+      onError: (_, __) {
         _contactStatus = SectionLoadStatus.error;
       },
     );
@@ -722,7 +725,7 @@ class EmployeeProfileViewModel extends ChangeNotifier {
         _snackMessage = 'Contato atualizado com sucesso.';
         _contactStatus = SectionLoadStatus.loaded;
       },
-      onError: (error) {
+      onError: (error, _) {
         _contactStatus = SectionLoadStatus.error;
         _serverErrors = extractServerMessages(error);
         _errorMessage = _serverErrors.isNotEmpty
@@ -760,7 +763,7 @@ class EmployeeProfileViewModel extends ChangeNotifier {
         _address = data;
         _addressStatus = SectionLoadStatus.loaded;
       },
-      onError: (_) {
+      onError: (_, __) {
         _addressStatus = SectionLoadStatus.error;
       },
     );
@@ -791,7 +794,7 @@ class EmployeeProfileViewModel extends ChangeNotifier {
         _snackMessage = 'Endereço atualizado com sucesso.';
         _addressStatus = SectionLoadStatus.loaded;
       },
-      onError: (error) {
+      onError: (error, _) {
         _addressStatus = SectionLoadStatus.error;
         _serverErrors = extractServerMessages(error);
         _errorMessage = _serverErrors.isNotEmpty
@@ -822,7 +825,7 @@ class EmployeeProfileViewModel extends ChangeNotifier {
       final result = await _cepRepository.lookupCep(digits);
       return result.fold(
         onSuccess: (address) => address,
-        onError: (_) => null,
+        onError: (_, __) => null,
       );
     } finally {
       _isLookingUpCep = false;
@@ -857,12 +860,12 @@ class EmployeeProfileViewModel extends ChangeNotifier {
 
     infoResult.fold(
       onSuccess: (data) => _personalInfo = data,
-      onError: (_) => hasError = true,
+      onError: (_, __) => hasError = true,
     );
 
     optionsResult.fold(
       onSuccess: (data) => _personalInfoOptions = data,
-      onError: (_) => hasError = true,
+      onError: (_, __) => hasError = true,
     );
 
     _personalInfoStatus =
@@ -893,7 +896,7 @@ class EmployeeProfileViewModel extends ChangeNotifier {
         _snackMessage = 'Informações pessoais atualizadas com sucesso.';
         _personalInfoStatus = SectionLoadStatus.loaded;
       },
-      onError: (error) {
+      onError: (error, _) {
         _personalInfoStatus = SectionLoadStatus.error;
         _serverErrors = extractServerMessages(error);
         _errorMessage = _serverErrors.isNotEmpty
@@ -931,7 +934,7 @@ class EmployeeProfileViewModel extends ChangeNotifier {
         _idCard = data;
         _idCardStatus = SectionLoadStatus.loaded;
       },
-      onError: (_) {
+      onError: (_, __) {
         _idCardStatus = SectionLoadStatus.error;
       },
     );
@@ -962,7 +965,7 @@ class EmployeeProfileViewModel extends ChangeNotifier {
         _snackMessage = 'Dados do documento atualizados com sucesso.';
         _idCardStatus = SectionLoadStatus.loaded;
       },
-      onError: (error) {
+      onError: (error, _) {
         _idCardStatus = SectionLoadStatus.error;
         _serverErrors = extractServerMessages(error);
         _errorMessage = _serverErrors.isNotEmpty
@@ -1000,7 +1003,7 @@ class EmployeeProfileViewModel extends ChangeNotifier {
         _voteId = data;
         _voteIdStatus = SectionLoadStatus.loaded;
       },
-      onError: (_) {
+      onError: (_, __) {
         _voteIdStatus = SectionLoadStatus.error;
       },
     );
@@ -1031,7 +1034,7 @@ class EmployeeProfileViewModel extends ChangeNotifier {
         _snackMessage = 'Título de eleitor atualizado com sucesso.';
         _voteIdStatus = SectionLoadStatus.loaded;
       },
-      onError: (error) {
+      onError: (error, _) {
         _voteIdStatus = SectionLoadStatus.error;
         _serverErrors = extractServerMessages(error);
         _errorMessage = _serverErrors.isNotEmpty
@@ -1071,7 +1074,7 @@ class EmployeeProfileViewModel extends ChangeNotifier {
         _socialIntegrationProgram = data;
         _socialIntegrationProgramStatus = SectionLoadStatus.loaded;
       },
-      onError: (_) {
+      onError: (_, __) {
         _socialIntegrationProgramStatus = SectionLoadStatus.error;
       },
     );
@@ -1108,7 +1111,7 @@ class EmployeeProfileViewModel extends ChangeNotifier {
         _snackMessage = 'PIS atualizado com sucesso.';
         _socialIntegrationProgramStatus = SectionLoadStatus.loaded;
       },
-      onError: (error) {
+      onError: (error, _) {
         _socialIntegrationProgramStatus = SectionLoadStatus.error;
         _serverErrors = extractServerMessages(error);
         _errorMessage = _serverErrors.isNotEmpty
@@ -1140,7 +1143,7 @@ class EmployeeProfileViewModel extends ChangeNotifier {
         _militaryDocument = data;
         _militaryDocumentStatus = SectionLoadStatus.loaded;
       },
-      onError: (_) {
+      onError: (_, __) {
         _militaryDocumentStatus = SectionLoadStatus.error;
       },
     );
@@ -1175,7 +1178,7 @@ class EmployeeProfileViewModel extends ChangeNotifier {
         _snackMessage = 'Documento militar atualizado com sucesso.';
         _militaryDocumentStatus = SectionLoadStatus.loaded;
       },
-      onError: (error) {
+      onError: (error, _) {
         _militaryDocumentStatus = SectionLoadStatus.error;
         _serverErrors = extractServerMessages(error);
         _errorMessage = _serverErrors.isNotEmpty
@@ -1208,7 +1211,7 @@ class EmployeeProfileViewModel extends ChangeNotifier {
         _medicalExam = data;
         _medicalExamStatus = SectionLoadStatus.loaded;
       },
-      onError: (_) {
+      onError: (_, __) {
         _medicalExamStatus = SectionLoadStatus.error;
       },
     );
@@ -1244,7 +1247,7 @@ class EmployeeProfileViewModel extends ChangeNotifier {
         _snackMessage = 'Exame médico admissional atualizado com sucesso.';
         _medicalExamStatus = SectionLoadStatus.loaded;
       },
-      onError: (error) {
+      onError: (error, _) {
         _medicalExamStatus = SectionLoadStatus.error;
         _serverErrors = extractServerMessages(error);
         _errorMessage = _serverErrors.isNotEmpty
@@ -1323,7 +1326,7 @@ class EmployeeProfileViewModel extends ChangeNotifier {
         _snackMessage = 'Função atualizada com sucesso.';
         _roleInfoStatus = SectionLoadStatus.loaded;
       },
-      onError: (error) {
+      onError: (error, _) {
         _roleInfoStatus = SectionLoadStatus.error;
         _serverErrors = extractServerMessages(error);
         _errorMessage = _serverErrors.isNotEmpty
@@ -1371,7 +1374,7 @@ class EmployeeProfileViewModel extends ChangeNotifier {
         _allWorkplaces = workplaces;
         _workplaceInfoStatus = SectionLoadStatus.loaded;
       },
-      onError: (_) {
+      onError: (_, __) {
         _workplaceInfoStatus = SectionLoadStatus.error;
       },
     );
@@ -1408,7 +1411,7 @@ class EmployeeProfileViewModel extends ChangeNotifier {
         _snackMessage = 'Local de trabalho atualizado com sucesso.';
         _workplaceInfoStatus = SectionLoadStatus.loaded;
       },
-      onError: (error) {
+      onError: (error, _) {
         _workplaceInfoStatus = SectionLoadStatus.error;
         _serverErrors = extractServerMessages(error);
         _errorMessage = _serverErrors.isNotEmpty
@@ -1440,7 +1443,7 @@ class EmployeeProfileViewModel extends ChangeNotifier {
         _documentGroups = data;
         _documentsStatus = SectionLoadStatus.loaded;
       },
-      onError: (_) {
+      onError: (_, __) {
         _documentsStatus = SectionLoadStatus.error;
       },
     );
@@ -1482,7 +1485,7 @@ class EmployeeProfileViewModel extends ChangeNotifier {
           return group.copyWithDocuments(updatedDocs);
         }).toList();
       },
-      onError: (_) {},
+      onError: (_, __) {},
     );
 
     notifyListeners();
@@ -1561,7 +1564,7 @@ class EmployeeProfileViewModel extends ChangeNotifier {
         _isSelectingRange = false;
         _selectedDocumentUnits = [];
       },
-      onError: (_) {
+      onError: (_, __) {
         _snackMessage = 'Erro ao gerar documentos.';
       },
     );
@@ -1613,7 +1616,7 @@ class EmployeeProfileViewModel extends ChangeNotifier {
         _isSelectingRange = false;
         _selectedDocumentUnits = [];
       },
-      onError: (_) {
+      onError: (_, __) {
         _snackMessage = 'Erro ao baixar documentos.';
       },
     );
@@ -1636,7 +1639,7 @@ class EmployeeProfileViewModel extends ChangeNotifier {
 
     result.fold(
       onSuccess: (_) => _snackMessage = 'Documento criado com sucesso.',
-      onError: (_) => _snackMessage = 'Erro ao criar documento.',
+      onError: (_, __) => _snackMessage = 'Erro ao criar documento.',
     );
 
     notifyListeners();
@@ -1664,7 +1667,7 @@ class EmployeeProfileViewModel extends ChangeNotifier {
     result.fold(
       onSuccess: (_) =>
           _snackMessage = 'Data do documento atualizada com sucesso.',
-      onError: (_) => _snackMessage = 'Erro ao atualizar data.',
+      onError: (_, __) => _snackMessage = 'Erro ao atualizar data.',
     );
 
     notifyListeners();
@@ -1690,7 +1693,7 @@ class EmployeeProfileViewModel extends ChangeNotifier {
     result.fold(
       onSuccess: (_) =>
           _snackMessage = 'Documento marcado como não aplicável.',
-      onError: (_) => _snackMessage = 'Erro ao marcar documento.',
+      onError: (_, __) => _snackMessage = 'Erro ao marcar documento.',
     );
 
     notifyListeners();
@@ -1721,7 +1724,7 @@ class EmployeeProfileViewModel extends ChangeNotifier {
         bytes = data;
         _snackMessage = 'Documento gerado com sucesso.';
       },
-      onError: (_) => _snackMessage = 'Erro ao gerar documento.',
+      onError: (_, __) => _snackMessage = 'Erro ao gerar documento.',
     );
 
     notifyListeners();
@@ -1752,7 +1755,7 @@ class EmployeeProfileViewModel extends ChangeNotifier {
     result.fold(
       onSuccess: (_) =>
           _snackMessage = 'Documento gerado e enviado para assinatura.',
-      onError: (_) =>
+      onError: (_, __) =>
           _snackMessage = 'Erro ao gerar e enviar para assinatura.',
     );
 
@@ -1781,7 +1784,7 @@ class EmployeeProfileViewModel extends ChangeNotifier {
 
     result.fold(
       onSuccess: (data) => bytes = data,
-      onError: (_) => _snackMessage = 'Erro ao baixar documento.',
+      onError: (_, __) => _snackMessage = 'Erro ao baixar documento.',
     );
 
     notifyListeners();
@@ -1821,7 +1824,7 @@ class EmployeeProfileViewModel extends ChangeNotifier {
 
     result.fold(
       onSuccess: (_) => _snackMessage = 'Arquivo enviado com sucesso.',
-      onError: (_) => _snackMessage = 'Erro ao enviar arquivo.',
+      onError: (_, __) => _snackMessage = 'Erro ao enviar arquivo.',
     );
 
     notifyListeners();
@@ -1866,7 +1869,7 @@ class EmployeeProfileViewModel extends ChangeNotifier {
     result.fold(
       onSuccess: (_) =>
           _snackMessage = 'Arquivo enviado para assinatura com sucesso.',
-      onError: (_) =>
+      onError: (_, __) =>
           _snackMessage = 'Erro ao enviar arquivo para assinatura.',
     );
 
@@ -1893,7 +1896,7 @@ class EmployeeProfileViewModel extends ChangeNotifier {
         _signingOptions = options;
         _signingOptionsStatus = SectionLoadStatus.loaded;
       },
-      onError: (_) {
+      onError: (_, __) {
         _signingOptionsStatus = SectionLoadStatus.error;
       },
     );
@@ -1924,7 +1927,7 @@ class EmployeeProfileViewModel extends ChangeNotifier {
             'Opção de assinatura de documentos atualizada com sucesso.';
         _signingOptionsStatus = SectionLoadStatus.loaded;
       },
-      onError: (error) {
+      onError: (error, _) {
         _signingOptionsStatus = SectionLoadStatus.error;
         _serverErrors = extractServerMessages(error);
         _errorMessage = _serverErrors.isNotEmpty
@@ -1992,7 +1995,7 @@ class EmployeeProfileViewModel extends ChangeNotifier {
         _contractsStatus = SectionLoadStatus.notLoaded;
         _snackMessage = 'Contrato criado com sucesso.';
       },
-      onError: (error) {
+      onError: (error, _) {
         _contractsStatus = SectionLoadStatus.error;
         _serverErrors = extractServerMessages(error);
         _errorMessage = _serverErrors.isNotEmpty
@@ -2028,7 +2031,7 @@ class EmployeeProfileViewModel extends ChangeNotifier {
         _contractsStatus = SectionLoadStatus.notLoaded;
         _snackMessage = 'Contrato finalizado com sucesso.';
       },
-      onError: (error) {
+      onError: (error, _) {
         _contractsStatus = SectionLoadStatus.error;
         _serverErrors = extractServerMessages(error);
         _errorMessage = _serverErrors.isNotEmpty
@@ -2068,7 +2071,7 @@ class EmployeeProfileViewModel extends ChangeNotifier {
           await _employeeRepository.getPersonalInfoOptions(companyId);
       optionsResult.fold(
         onSuccess: (data) => _personalInfoOptions = data,
-        onError: (_) {},
+        onError: (_, __) {},
       );
     }
 
@@ -2077,7 +2080,7 @@ class EmployeeProfileViewModel extends ChangeNotifier {
         _dependents = data;
         _dependentsStatus = SectionLoadStatus.loaded;
       },
-      onError: (_) {
+      onError: (_, __) {
         _dependentsStatus = SectionLoadStatus.error;
       },
     );
@@ -2106,7 +2109,7 @@ class EmployeeProfileViewModel extends ChangeNotifier {
         _dependentsStatus = SectionLoadStatus.notLoaded;
         _snackMessage = 'Dependente criado com sucesso.';
       },
-      onError: (error) {
+      onError: (error, _) {
         _dependentsStatus = SectionLoadStatus.error;
         _serverErrors = extractServerMessages(error);
         _errorMessage = _serverErrors.isNotEmpty
@@ -2143,7 +2146,7 @@ class EmployeeProfileViewModel extends ChangeNotifier {
         _dependentsStatus = SectionLoadStatus.notLoaded;
         _snackMessage = 'Dependente atualizado com sucesso.';
       },
-      onError: (error) {
+      onError: (error, _) {
         _dependentsStatus = SectionLoadStatus.error;
         _serverErrors = extractServerMessages(error);
         _errorMessage = _serverErrors.isNotEmpty
@@ -2181,7 +2184,7 @@ class EmployeeProfileViewModel extends ChangeNotifier {
         _snackMessage = 'Dependente removido com sucesso.';
         _dependentsStatus = SectionLoadStatus.loaded;
       },
-      onError: (_) {
+      onError: (_, __) {
         _dependentsStatus = SectionLoadStatus.error;
       },
     );
