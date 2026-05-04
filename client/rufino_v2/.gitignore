@@ -56,6 +56,10 @@ app.*.map.json
 # Dev-only domain error log
 domain_errors.json
 
+# Override the repo-root [Dd]ebug/ rule so the in-app debug feature is tracked.
+!lib/ui/features/debug/
+!lib/ui/features/debug/**
+
 # Secrets — never commit
 /secrets/
 

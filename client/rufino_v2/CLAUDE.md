@@ -703,6 +703,7 @@ All resource names are **lowercase, kebab-case**. Use **exactly** these strings 
 | Resource | Scopes |
 |----------|--------|
 | `company` | `create`, `edit`, `view` |
+| `debug` | `view` |
 | `department` | `create`, `edit`, `view` |
 | `document` | `create`, `edit`, `view`, `upload`, `webhook`, `download`, `send2sign`, `generate` |
 | `document-group` | `create`, `edit`, `view` |

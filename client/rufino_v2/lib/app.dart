@@ -96,6 +96,7 @@ import 'ui/features/batch_document/viewmodel/batch_document_viewmodel.dart';
 import 'ui/features/batch_document/widgets/batch_document_screen.dart';
 import 'ui/features/batch_download/viewmodel/batch_download_viewmodel.dart';
 import 'ui/features/batch_download/widgets/batch_download_screen.dart';
+import 'ui/features/debug/widgets/debug_screen.dart';
 import 'ui/features/home/viewmodel/home_viewmodel.dart';
 import 'ui/features/home/widgets/home_screen.dart';
 import 'ui/features/workplace/viewmodel/workplace_form_viewmodel.dart';
@@ -711,6 +712,13 @@ class _AppRouterState extends State<_AppRouter> {
             );
           },
         ),
+
+        // ─── Debug ────────────────────────────────────────────────────────
+        GoRoute(
+          path: '/debug',
+          builder: (context, state) => const DebugScreen(),
+        ),
+
         // ─── Batch Download ────────────────────────────────────
         GoRoute(
           path: '/batch-download',
