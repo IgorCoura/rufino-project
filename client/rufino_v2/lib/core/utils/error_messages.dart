@@ -1,4 +1,4 @@
-import '../../data/services/http_exception.dart';
+import '../errors/http_exception.dart';
 
 /// Extracts human-readable server error messages from [error].
 ///

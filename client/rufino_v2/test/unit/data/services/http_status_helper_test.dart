@@ -2,7 +2,8 @@ import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
-import 'package:rufino_v2/data/services/http_exception.dart';
+import 'package:http/testing.dart' as http_testing;
+import 'package:rufino_v2/core/errors/http_exception.dart';
 import 'package:rufino_v2/data/services/http_status_helper.dart';
 
 void main() {
@@ -167,6 +168,30 @@ void main() {
       } on HttpException catch (e) {
         expect(e.serverMessages, hasLength(1));
         expect(e.serverMessages.first, 'Campo obrigatório.');
+      }
+    });
+
+    test('populates responseBody, requestMethod and requestUrl', () async {
+      final mockClient = http_testing.MockClient((request) async {
+        return http.Response('{"errors":{"X":[{"message":"boom"}]}}', 422,
+            request: request);
+      });
+      final response = await mockClient.get(
+        Uri.parse('https://example.com/api/v1/employee/123'),
+      );
+
+      try {
+        checkHttpStatus(response);
+        fail('Expected HttpException');
+      } on HttpException catch (e) {
+        expect(e.statusCode, 422);
+        expect(e.responseBody,
+            '{"errors":{"X":[{"message":"boom"}]}}');
+        expect(e.requestMethod, 'GET');
+        expect(
+          e.requestUrl,
+          'https://example.com/api/v1/employee/123',
+        );
       }
     });
 

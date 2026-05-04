@@ -2,8 +2,8 @@ import 'dart:convert';
 
 import 'package:http/http.dart' as http;
 
+import '../../core/errors/http_exception.dart';
 import '../models/require_document_api_model.dart';
-import 'http_exception.dart';
 import 'http_status_helper.dart';
 import 'request_id_helper.dart';
 

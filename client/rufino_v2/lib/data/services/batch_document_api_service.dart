@@ -3,9 +3,9 @@ import 'dart:typed_data';
 
 import 'package:http/http.dart' as http;
 
+import '../../core/errors/http_exception.dart';
 import '../../domain/entities/batch_document_unit.dart';
 import '../models/batch_document_unit_api_model.dart';
-import 'http_exception.dart';
 import 'http_status_helper.dart';
 import 'request_id_helper.dart';
 
@@ -180,7 +180,9 @@ class BatchDocumentApiService {
       throw HttpException(
         statusCode: streamed.statusCode,
         message: 'HTTP ${streamed.statusCode}',
-        serverMessages: const [],
+        responseBody: responseBody,
+        requestMethod: request.method,
+        requestUrl: uri.toString(),
       );
     }
     return InsertDocumentRangeResponse.fromJson(
@@ -227,7 +229,9 @@ class BatchDocumentApiService {
       throw HttpException(
         statusCode: streamed.statusCode,
         message: 'HTTP ${streamed.statusCode}',
-        serverMessages: const [],
+        responseBody: responseBody,
+        requestMethod: request.method,
+        requestUrl: uri.toString(),
       );
     }
     return InsertDocumentRangeResponse.fromJson(
