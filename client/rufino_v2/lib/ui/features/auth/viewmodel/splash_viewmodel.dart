@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 
+import '../../../../core/monitoring/error_reporter.dart';
 import '../../../../domain/repositories/auth_repository.dart';
 import '../../../../domain/repositories/company_repository.dart';
 import 'permission_notifier.dart';
@@ -11,13 +12,16 @@ class SplashViewModel extends ChangeNotifier {
     required AuthRepository authRepository,
     required CompanyRepository companyRepository,
     required PermissionNotifier permissionNotifier,
+    required ErrorReporter errorReporter,
   })  : _authRepository = authRepository,
         _companyRepository = companyRepository,
-        _permissionNotifier = permissionNotifier;
+        _permissionNotifier = permissionNotifier,
+        _errorReporter = errorReporter;
 
   final AuthRepository _authRepository;
   final CompanyRepository _companyRepository;
   final PermissionNotifier _permissionNotifier;
+  final ErrorReporter _errorReporter;
 
   SplashStatus _status = SplashStatus.loading;
   String? _errorMessage;
@@ -52,6 +56,12 @@ class SplashViewModel extends ChangeNotifier {
 
       if (hasCompanyResult.valueOrNull == true) {
         await _permissionNotifier.loadPermissions();
+        final selected =
+            (await _companyRepository.getSelectedCompany()).valueOrNull;
+        _errorReporter.setUser(
+          userId: validIds.isNotEmpty ? validIds.first : null,
+          companyId: selected?.id,
+        );
         _status = SplashStatus.authenticated;
       } else {
         _status = SplashStatus.noCompany;

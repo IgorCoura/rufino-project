@@ -6,6 +6,7 @@ import 'package:rufino_v2/ui/features/home/viewmodel/home_viewmodel.dart';
 
 import '../../../../testing/fakes/fake_auth_repository.dart';
 import '../../../../testing/fakes/fake_company_repository.dart';
+import '../../../../testing/fakes/fake_error_reporter.dart';
 import '../../../../testing/fakes/fake_permission_repository.dart';
 
 void main() {
@@ -25,6 +26,7 @@ void main() {
       authRepository: authRepository,
       companyRepository: companyRepository,
       permissionNotifier: permissionNotifier,
+      errorReporter: FakeErrorReporter(),
     );
   });
 

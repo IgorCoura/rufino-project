@@ -1,4 +1,5 @@
 import '../../core/errors/require_document_exception.dart';
+import '../../core/monitoring/error_reporter.dart';
 import '../../core/result.dart';
 import '../../domain/entities/require_document.dart';
 import '../../domain/entities/selection_option.dart';
@@ -12,9 +13,13 @@ import '../services/require_document_api_service.dart';
 /// subtypes are propagated as-is; all other errors are wrapped in
 /// [RequireDocumentNetworkException].
 class RequireDocumentRepositoryImpl implements RequireDocumentRepository {
-  const RequireDocumentRepositoryImpl({required this.apiService});
+  RequireDocumentRepositoryImpl({
+    required this.apiService,
+    required this.reporter,
+  });
 
   final RequireDocumentApiService apiService;
+  final ErrorReporter reporter;
 
   @override
   Future<Result<List<RequireDocument>>> getRequireDocuments(
@@ -22,10 +27,10 @@ class RequireDocumentRepositoryImpl implements RequireDocumentRepository {
     try {
       final models = await apiService.getRequireDocuments(companyId);
       return Result.success(models.map((m) => m.toEntity()).toList());
-    } on RequireDocumentException catch (e) {
-      return Result.error(e);
-    } catch (e) {
-      return Result.error(RequireDocumentNetworkException(e));
+    } on RequireDocumentException catch (e, st) {
+      return reporter.failure(e, st);
+    } catch (e, st) {
+      return reporter.failure(RequireDocumentNetworkException(e), st);
     }
   }
 
@@ -36,10 +41,10 @@ class RequireDocumentRepositoryImpl implements RequireDocumentRepository {
       final model = await apiService.getRequireDocumentById(
           companyId, requireDocumentId);
       return Result.success(model.toEntity());
-    } on RequireDocumentException catch (e) {
-      return Result.error(e);
-    } catch (e) {
-      return Result.error(RequireDocumentNetworkException(e));
+    } on RequireDocumentException catch (e, st) {
+      return reporter.failure(e, st);
+    } catch (e, st) {
+      return reporter.failure(RequireDocumentNetworkException(e), st);
     }
   }
 
@@ -64,10 +69,10 @@ class RequireDocumentRepositoryImpl implements RequireDocumentRepository {
       };
       final id = await apiService.createRequireDocument(companyId, body);
       return Result.success(id);
-    } on RequireDocumentException catch (e) {
-      return Result.error(e);
-    } catch (e) {
-      return Result.error(RequireDocumentNetworkException(e));
+    } on RequireDocumentException catch (e, st) {
+      return reporter.failure(e, st);
+    } catch (e, st) {
+      return reporter.failure(RequireDocumentNetworkException(e), st);
     }
   }
 
@@ -95,10 +100,10 @@ class RequireDocumentRepositoryImpl implements RequireDocumentRepository {
       final returnedId =
           await apiService.updateRequireDocument(companyId, body);
       return Result.success(returnedId);
-    } on RequireDocumentException catch (e) {
-      return Result.error(e);
-    } catch (e) {
-      return Result.error(RequireDocumentNetworkException(e));
+    } on RequireDocumentException catch (e, st) {
+      return reporter.failure(e, st);
+    } catch (e, st) {
+      return reporter.failure(RequireDocumentNetworkException(e), st);
     }
   }
 
@@ -113,10 +118,10 @@ class RequireDocumentRepositoryImpl implements RequireDocumentRepository {
                 name: _associationTypeLabel((j['id']).toString(), j['name'] as String? ?? ''),
               ))
           .toList());
-    } on RequireDocumentException catch (e) {
-      return Result.error(e);
-    } catch (e) {
-      return Result.error(RequireDocumentNetworkException(e));
+    } on RequireDocumentException catch (e, st) {
+      return reporter.failure(e, st);
+    } catch (e, st) {
+      return reporter.failure(RequireDocumentNetworkException(e), st);
     }
   }
 
@@ -132,10 +137,10 @@ class RequireDocumentRepositoryImpl implements RequireDocumentRepository {
                 name: j['name'] as String? ?? '',
               ))
           .toList());
-    } on RequireDocumentException catch (e) {
-      return Result.error(e);
-    } catch (e) {
-      return Result.error(RequireDocumentNetworkException(e));
+    } on RequireDocumentException catch (e, st) {
+      return reporter.failure(e, st);
+    } catch (e, st) {
+      return reporter.failure(RequireDocumentNetworkException(e), st);
     }
   }
 
@@ -163,10 +168,10 @@ class RequireDocumentRepositoryImpl implements RequireDocumentRepository {
       ].where((e) => seen.add(e.id)).toList();
 
       return Result.success(combined);
-    } on RequireDocumentException catch (e) {
-      return Result.error(e);
-    } catch (e) {
-      return Result.error(RequireDocumentNetworkException(e));
+    } on RequireDocumentException catch (e, st) {
+      return reporter.failure(e, st);
+    } catch (e, st) {
+      return reporter.failure(RequireDocumentNetworkException(e), st);
     }
   }
 
@@ -180,10 +185,10 @@ class RequireDocumentRepositoryImpl implements RequireDocumentRepository {
                 name: _translateStatusName(j['name'] as String? ?? ''),
               ))
           .toList());
-    } on RequireDocumentException catch (e) {
-      return Result.error(e);
-    } catch (e) {
-      return Result.error(RequireDocumentNetworkException(e));
+    } on RequireDocumentException catch (e, st) {
+      return reporter.failure(e, st);
+    } catch (e, st) {
+      return reporter.failure(RequireDocumentNetworkException(e), st);
     }
   }
 
@@ -198,10 +203,10 @@ class RequireDocumentRepositoryImpl implements RequireDocumentRepository {
                 name: j['name'] as String? ?? '',
               ))
           .toList());
-    } on RequireDocumentException catch (e) {
-      return Result.error(e);
-    } catch (e) {
-      return Result.error(RequireDocumentNetworkException(e));
+    } on RequireDocumentException catch (e, st) {
+      return reporter.failure(e, st);
+    } catch (e, st) {
+      return reporter.failure(RequireDocumentNetworkException(e), st);
     }
   }
 
@@ -212,10 +217,10 @@ class RequireDocumentRepositoryImpl implements RequireDocumentRepository {
       final id = await apiService.generateDocumentUnits(
           companyId, requireDocumentId);
       return Result.success(id);
-    } on RequireDocumentException catch (e) {
-      return Result.error(e);
-    } catch (e) {
-      return Result.error(RequireDocumentNetworkException(e));
+    } on RequireDocumentException catch (e, st) {
+      return reporter.failure(e, st);
+    } catch (e, st) {
+      return reporter.failure(RequireDocumentNetworkException(e), st);
     }
   }
 

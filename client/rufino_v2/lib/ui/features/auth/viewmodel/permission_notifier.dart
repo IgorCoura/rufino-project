@@ -87,7 +87,7 @@ class PermissionNotifier extends ChangeNotifier
           _lastLoadTime = DateTime.now();
           _permissionRepository.cachePermissions(permissions);
         },
-        onError: (error) {
+        onError: (error, _) {
           _lastError = error;
           if (_permissions.isEmpty) {
             _status = PermissionStatus.error;

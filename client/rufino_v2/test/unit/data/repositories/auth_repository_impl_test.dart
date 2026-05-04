@@ -4,15 +4,21 @@ import 'package:rufino_v2/core/errors/auth_exception.dart';
 import 'package:rufino_v2/core/result.dart';
 import 'package:rufino_v2/data/repositories/auth_repository_impl.dart';
 
+import '../../../testing/fakes/fake_error_reporter.dart';
 import '../../../testing/mocks/mocks.dart';
 
 void main() {
   late MockAuthApiService mockService;
+  late FakeErrorReporter reporter;
   late AuthRepositoryImpl repository;
 
   setUp(() {
     mockService = MockAuthApiService();
-    repository = AuthRepositoryImpl(authApiService: mockService);
+    reporter = FakeErrorReporter();
+    repository = AuthRepositoryImpl(
+      authApiService: mockService,
+      reporter: reporter,
+    );
   });
 
   group('AuthRepositoryImpl login', () {
@@ -44,7 +50,7 @@ void main() {
 
       result.fold(
         onSuccess: (_) => fail('expected error'),
-        onError: (error) =>
+        onError: (error, _) =>
             expect(error, isA<InvalidCredentialsException>()),
       );
     });
@@ -63,8 +69,39 @@ void main() {
 
       result.fold(
         onSuccess: (_) => fail('expected error'),
-        onError: (error) => expect(error, isA<NetworkAuthException>()),
+        onError: (error, _) => expect(error, isA<NetworkAuthException>()),
       );
     });
+
+    test('reports unexpected NetworkAuthException to the error reporter',
+        () async {
+      when(() => mockService.login(
+              username: any(named: 'username'),
+              password: any(named: 'password')))
+          .thenThrow(Exception('socket error'));
+
+      await repository.login(username: 'user', password: 'pass');
+
+      expect(reporter.capturedErrors, hasLength(1));
+      expect(
+        reporter.capturedErrors.first.error,
+        isA<NetworkAuthException>(),
+      );
+    });
+
+    test(
+      'does not report InvalidCredentialsException because it is an '
+      'expected user-actionable failure',
+      () async {
+        when(() => mockService.login(
+                username: any(named: 'username'),
+                password: any(named: 'password')))
+            .thenThrow(const InvalidCredentialsException());
+
+        await repository.login(username: 'user', password: 'wrong');
+
+        expect(reporter.capturedErrors, isEmpty);
+      },
+    );
   });
 }

@@ -186,7 +186,7 @@ class DocumentTemplateFormViewModel extends ChangeNotifier {
         await _documentTemplateRepository.getRecoverDataModels(companyId);
     result.fold(
       onSuccess: (data) => _recoverDataModels = data,
-      onError: (_) {},
+      onError: (_, __) {},
     );
     notifyListeners();
   }
@@ -270,7 +270,7 @@ class DocumentTemplateFormViewModel extends ChangeNotifier {
           _status = DocumentTemplateFormStatus.idle;
           success = true;
         },
-        onError: (error) {
+        onError: (error, _) {
           _status = DocumentTemplateFormStatus.error;
           _serverErrors = extractServerMessages(error);
           _errorMessage = _serverErrors.isNotEmpty
@@ -366,7 +366,7 @@ class DocumentTemplateFormViewModel extends ChangeNotifier {
           _placeSignatures = List.of(template.placeSignatures);
           _status = DocumentTemplateFormStatus.idle;
         },
-        onError: (_) {
+        onError: (_, __) {
           _status = DocumentTemplateFormStatus.error;
           _errorMessage = 'Falha ao carregar dados do template.';
         },
@@ -468,7 +468,7 @@ class DocumentTemplateFormViewModel extends ChangeNotifier {
 
       result.fold(
         onSuccess: (_) => _status = DocumentTemplateFormStatus.saved,
-        onError: (error) {
+        onError: (error, _) {
           _status = DocumentTemplateFormStatus.error;
           _serverErrors = extractServerMessages(error);
           _errorMessage = _serverErrors.isNotEmpty

@@ -1,16 +1,19 @@
+import 'expected_failure.dart';
+
 sealed class AuthException implements Exception {
   const AuthException();
 }
 
-final class InvalidCredentialsException extends AuthException {
+final class InvalidCredentialsException extends AuthException
+    with ExpectedFailure {
   const InvalidCredentialsException();
 }
 
-final class SessionExpiredException extends AuthException {
+final class SessionExpiredException extends AuthException with ExpectedFailure {
   const SessionExpiredException();
 }
 
-final class NoCredentialsException extends AuthException {
+final class NoCredentialsException extends AuthException with ExpectedFailure {
   const NoCredentialsException();
 }
 

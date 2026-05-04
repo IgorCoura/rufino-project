@@ -1,12 +1,14 @@
 import '../../core/errors/auth_exception.dart';
+import '../../core/monitoring/error_reporter.dart';
 import '../../core/result.dart';
 import '../../domain/repositories/auth_repository.dart';
 import '../services/auth_api_service.dart';
 
 class AuthRepositoryImpl implements AuthRepository {
-  const AuthRepositoryImpl({required this.authApiService});
+  AuthRepositoryImpl({required this.authApiService, required this.reporter});
 
   final AuthApiService authApiService;
+  final ErrorReporter reporter;
 
   @override
   Future<Result<void>> login({
@@ -16,10 +18,10 @@ class AuthRepositoryImpl implements AuthRepository {
     try {
       await authApiService.login(username: username, password: password);
       return const Result.success(null);
-    } on AuthException catch (e) {
-      return Result.error(e);
-    } catch (e) {
-      return Result.error(NetworkAuthException(e));
+    } on AuthException catch (e, st) {
+      return reporter.failure(e, st);
+    } catch (e, st) {
+      return reporter.failure(NetworkAuthException(e), st);
     }
   }
 
@@ -28,10 +30,10 @@ class AuthRepositoryImpl implements AuthRepository {
     try {
       final ids = await authApiService.getCompanyIds();
       return Result.success(ids);
-    } on AuthException catch (e) {
-      return Result.error(e);
-    } catch (e) {
-      return Result.error(NetworkAuthException(e));
+    } on AuthException catch (e, st) {
+      return reporter.failure(e, st);
+    } catch (e, st) {
+      return reporter.failure(NetworkAuthException(e), st);
     }
   }
 
@@ -40,10 +42,10 @@ class AuthRepositoryImpl implements AuthRepository {
     try {
       final valid = await authApiService.hasValidCredentials();
       return Result.success(valid);
-    } on AuthException catch (e) {
-      return Result.error(e);
-    } catch (e) {
-      return Result.error(NetworkAuthException(e));
+    } on AuthException catch (e, st) {
+      return reporter.failure(e, st);
+    } catch (e, st) {
+      return reporter.failure(NetworkAuthException(e), st);
     }
   }
 
@@ -52,8 +54,8 @@ class AuthRepositoryImpl implements AuthRepository {
     try {
       await authApiService.logout();
       return const Result.success(null);
-    } catch (e) {
-      return Result.error(NetworkAuthException(e));
+    } catch (e, st) {
+      return reporter.failure(NetworkAuthException(e), st);
     }
   }
 }

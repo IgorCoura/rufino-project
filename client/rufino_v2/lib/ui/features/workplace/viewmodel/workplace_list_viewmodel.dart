@@ -62,7 +62,7 @@ class WorkplaceListViewModel extends ChangeNotifier {
           _workplaces = data;
           _status = WorkplaceListStatus.idle;
         },
-        onError: (_) {
+        onError: (_, __) {
           _workplaces = [];
           _status = WorkplaceListStatus.error;
           _errorMessage = 'Falha ao carregar locais de trabalho.';

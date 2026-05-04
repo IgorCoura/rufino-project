@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 
 import '../../core/errors/batch_download_exception.dart';
+import '../../core/monitoring/error_reporter.dart';
 import '../../core/result.dart';
 import '../../domain/entities/batch_download.dart';
 import '../../domain/repositories/batch_download_repository.dart';
@@ -13,9 +14,13 @@ import '../services/batch_download_api_service.dart';
 /// subtypes are propagated as-is; all other errors are wrapped in
 /// [BatchDownloadNetworkException].
 class BatchDownloadRepositoryImpl implements BatchDownloadRepository {
-  const BatchDownloadRepositoryImpl({required this.apiService});
+  BatchDownloadRepositoryImpl({
+    required this.apiService,
+    required this.reporter,
+  });
 
   final BatchDownloadApiService apiService;
+  final ErrorReporter reporter;
 
   @override
   Future<Result<BatchDownloadEmployeesPage>> getEmployeesForDownload(
@@ -41,10 +46,10 @@ class BatchDownloadRepositoryImpl implements BatchDownloadRepository {
         items: response.items.map((m) => m.toEntity()).toList(),
         totalCount: response.totalCount,
       ));
-    } on BatchDownloadException catch (e) {
-      return Result.error(e);
-    } catch (e) {
-      return Result.error(BatchDownloadNetworkException(e));
+    } on BatchDownloadException catch (e, st) {
+      return reporter.failure(e, st);
+    } catch (e, st) {
+      return reporter.failure(BatchDownloadNetworkException(e), st);
     }
   }
 
@@ -86,10 +91,10 @@ class BatchDownloadRepositoryImpl implements BatchDownloadRepository {
         items: response.items.map((m) => m.toEntity()).toList(),
         totalCount: response.totalCount,
       ));
-    } on BatchDownloadException catch (e) {
-      return Result.error(e);
-    } catch (e) {
-      return Result.error(BatchDownloadNetworkException(e));
+    } on BatchDownloadException catch (e, st) {
+      return reporter.failure(e, st);
+    } catch (e, st) {
+      return reporter.failure(BatchDownloadNetworkException(e), st);
     }
   }
 
@@ -104,10 +109,10 @@ class BatchDownloadRepositoryImpl implements BatchDownloadRepository {
         items.map((i) => i.toJson()).toList(),
       );
       return Result.success(bytes);
-    } on BatchDownloadException catch (e) {
-      return Result.error(e);
-    } catch (e) {
-      return Result.error(BatchDownloadNetworkException(e));
+    } on BatchDownloadException catch (e, st) {
+      return reporter.failure(e, st);
+    } catch (e, st) {
+      return reporter.failure(BatchDownloadNetworkException(e), st);
     }
   }
 
@@ -126,10 +131,10 @@ class BatchDownloadRepositoryImpl implements BatchDownloadRepository {
         documentUnitId,
       );
       return Result.success(bytes);
-    } on BatchDownloadException catch (e) {
-      return Result.error(e);
-    } catch (e) {
-      return Result.error(BatchDownloadNetworkException(e));
+    } on BatchDownloadException catch (e, st) {
+      return reporter.failure(e, st);
+    } catch (e, st) {
+      return reporter.failure(BatchDownloadNetworkException(e), st);
     }
   }
 }

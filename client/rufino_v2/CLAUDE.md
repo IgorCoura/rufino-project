@@ -351,6 +351,328 @@ genhtml coverage/lcov.info -o coverage/html
 - `*_module.dart` — DI/routing boilerplate
 - `main*.dart` — entry points
 
+## Error Monitoring
+
+The app captures unexpected runtime errors on user devices and ships them to
+a vendor-agnostic `ErrorReporter` (currently backed by Sentry).
+
+### Two non-negotiable principles
+
+1. **Only `lib/core/monitoring/sentry_error_reporter.dart` may import
+   `package:sentry_flutter`.** Every other layer depends on the
+   `ErrorReporter` interface so swapping vendors (Crashlytics, Datadog,
+   custom endpoint) is a one-line change in `main.dart`.
+2. **Repositories report at the catch boundary; ViewModels do not.** Every
+   `catch (e, st)` in `lib/data/repositories/*_impl.dart` calls
+   `reporter.failure(e, st)` which both captures and returns
+   `Result.error(e, st)` in one shot. ViewModels just read state from
+   `result.fold`.
+
+### Decision tree — find your scenario
+
+| You are adding… | Go to |
+|---|---|
+| A new exception | [§A](#a--new-exception) |
+| A new repository | [§B](#b--new-repository) |
+| A new method in an existing repository | [§C](#c--new-method-in-an-existing-repository) |
+| A new ViewModel | [§D](#d--new-viewmodel) |
+| A new PII field (DTO or context map) | [§E](#e--new-pii-field) |
+| A new service or HTTP client | [§F](#f--new-service--http-client) |
+| Errors outside repos (background, isolate, scheduler) | [§G](#g--errors-outside-repos) |
+
+---
+
+### §A — New exception
+
+Sealed exception families live in `lib/core/errors/`. When adding a variant,
+decide between **bug/network** (report — no mixin) and **user-actionable**
+(silent — `with ExpectedFailure`).
+
+| Apply `ExpectedFailure` when… | Do **not** apply it when… |
+|---|---|
+| Validation error (missing field, invalid CPF format) | Network failure / timeout |
+| Duplicate entity (CPF/CNPJ already exists) | Server 5xx |
+| Invalid credentials / wrong password | JSON parse error |
+| Permission denied (403) returned to a user-driven action | Unexpected null / cast error |
+| Resource not found because the user typed a wrong ID | Bug in our code |
+
+```dart
+// User-actionable — silent in Sentry, the UI shows a friendly message.
+final class EmployeeAlreadyExistsException extends EmployeeException
+    with ExpectedFailure {
+  const EmployeeAlreadyExistsException();
+}
+
+// Bug/network — reported to Sentry with stack trace.
+final class EmployeeNetworkException extends EmployeeException {
+  const EmployeeNetworkException(this.cause);
+  final Object cause;
+}
+```
+
+`SentryErrorReporter.capture` short-circuits when `error is ExpectedFailure`.
+
+---
+
+### §B — New repository
+
+Copy this template. The constructor and the catch shape are not optional.
+
+```dart
+import '../../core/errors/foo_exception.dart';
+import '../../core/monitoring/error_reporter.dart';
+import '../../core/result.dart';
+import '../../domain/entities/foo.dart';
+import '../../domain/repositories/foo_repository.dart';
+import '../services/foo_api_service.dart';
+
+class FooRepositoryImpl implements FooRepository {
+  FooRepositoryImpl({required this.apiService, required this.reporter});
+  final FooApiService apiService;
+  final ErrorReporter reporter;
+
+  @override
+  Future<Result<Foo>> getFoo(String companyId) async {
+    try {
+      final dto = await apiService.getFoo(companyId);
+      return Result.success(dto.toEntity());
+    } on FooException catch (e, st) {
+      return reporter.failure(e, st);
+    } catch (e, st) {
+      return reporter.failure(FooNetworkException(e), st);
+    }
+  }
+}
+```
+
+Then:
+
+1. In `lib/app.dart` `_buildProviders`, instantiate the repo passing
+   `reporter: errorReporter` and add it to the providers list.
+2. Add tests per [§ Testing checklist](#testing-checklist).
+
+---
+
+### §C — New method in an existing repository
+
+Every `try { ... } catch` ends in `reporter.failure(e, st)`. Period.
+
+❌ **Wrong** — drops the stack trace and never reports:
+```dart
+} catch (e) {
+  return Result.error(e);
+}
+```
+
+❌ **Wrong** — verbose, redundant (`reporter.failure` does both):
+```dart
+} catch (e, st) {
+  reporter.capture(e, st);
+  return Result.error(e, st);
+}
+```
+
+✅ **Right** — one line, captures and returns:
+```dart
+} on FooException catch (e, st) {
+  return reporter.failure(e, st);
+} catch (e, st) {
+  return reporter.failure(FooNetworkException(e), st);
+}
+```
+
+**Adding context** — pass `context: {...}` when the operation has IDs that
+help debug, especially for batch/long-running flows:
+
+```dart
+} catch (e, st) {
+  return reporter.failure(
+    BatchDocumentNetworkException(e),
+    st,
+    context: {'op': 'batchUpdateDate', 'companyId': companyId, 'count': items.length},
+  );
+}
+```
+
+**Never** put raw PII in `context` — use IDs (`employeeId`, not name/CPF).
+The PII scrubber covers known keys, but the cleanest path is to never
+introduce sensitive values into the context map in the first place.
+
+---
+
+### §D — New ViewModel
+
+ViewModels **do not** call `reporter.capture`. The repository already
+captured the error; calling it again creates duplicate Sentry events.
+
+✅ **Right** — read state from `result.fold` and translate to UI:
+```dart
+result.fold(
+  onSuccess: (value) {
+    _data = value;
+    _status = Status.loaded;
+  },
+  onError: (error, _) {
+    _status = Status.error;
+    _errorMessage = extractServerMessages(error).firstOrNull
+        ?? 'Falha ao carregar.';
+  },
+);
+notifyListeners();
+```
+
+**Rare exception** — errors that do not come from a repository (local file
+parse, `compute` isolate, native SDK callback). Then ViewModel may report:
+
+```dart
+try {
+  final parsed = await compute(_parseLocalFile, bytes);
+  // ...
+} catch (e, st) {
+  _errorReporter.capture(e, st, context: {'op': 'parseLocalFile'});
+  _errorMessage = 'Não foi possível ler o arquivo.';
+}
+```
+
+The `ErrorReporter` is provided in the widget tree — read it via
+`context.read<ErrorReporter>()` or inject through the ViewModel constructor
+(prefer constructor injection for testability).
+
+---
+
+### §E — New PII field
+
+Brazilian HR data is in scope. Whenever you add a field that may carry
+sensitive content to a DTO body or a `reporter.failure(..., context: {...})`
+call, do this **before** merging:
+
+1. Add the key (lowercase, no diacritics) to `_sensitiveKeys` in
+   `lib/core/monitoring/pii_scrubber.dart`.
+2. Add a case to `test/unit/core/monitoring/pii_scrubber_test.dart` covering
+   the new key both at top level and nested.
+3. If the key is now legitimately scrubbed in repos that pass it via
+   `context`, no further work — `reporter.failure` already runs the scrub.
+
+Categories already covered (consult `pii_scrubber.dart` for the full list
+before adding a duplicate):
+
+| Category | Examples |
+|---|---|
+| BR identifiers | `cpf`, `rg`, `cnpj`, `pispasep`, `voterid`, `militarydocument` |
+| Personal info | `nome`, `fullname`, `birthdate`, `nomemae`, `nomepai` |
+| Contact | `email`, `telefone`, `celular` |
+| Address | `cep`, `endereco`, `street`, `complemento`, `bairro` |
+| Payroll | `salario`, `salaryamount`, `wage`, `remuneracao` |
+| Auth secrets | `password`, `token`, `accesstoken`, `authorization`, `apikey` |
+
+---
+
+### §F — New service / HTTP client
+
+Services **receive** an `http.Client` via constructor — they do not create
+one. `lib/app.dart` builds a single client wrapped by
+`errorReporter.wrapHttpClient(http.Client())`, which gives every request
+automatic HTTP breadcrumbs in Sentry.
+
+✅ **Right**:
+```dart
+class FooApiService {
+  FooApiService({required this.client, required this.baseUrl, required this.getAuthHeader});
+  final http.Client client;
+  final String baseUrl;
+  final Future<String> Function() getAuthHeader;
+  // ...
+}
+```
+
+❌ **Wrong** — bypasses the wrapped client, so requests skip breadcrumbs:
+```dart
+class FooApiService {
+  FooApiService();
+  final http.Client client = http.Client();   // never do this
+}
+```
+
+If you need a specialized client (custom timeout, global header), construct
+it in `app.dart` and wrap it the same way:
+`errorReporter.wrapHttpClient(MyCustomClient())`.
+
+---
+
+### §G — Errors outside repos
+
+Background tasks, `compute` isolates, schedulers, and native SDK callbacks
+need the `ErrorReporter` injected via constructor — same pattern as repos:
+
+```dart
+class DocumentScannerService {
+  DocumentScannerService({required this.reporter});
+  final ErrorReporter reporter;
+
+  Future<List<ScannedDocument>> scan() async {
+    try {
+      // ...
+    } catch (e, st) {
+      reporter.capture(e, st, context: {'op': 'scanDocument'});
+      rethrow;
+    }
+  }
+}
+```
+
+For `compute`: the `ErrorReporter` is **not** serializable, so it cannot
+cross the isolate boundary. The isolate function should let exceptions
+propagate; catch and report on the main isolate when `await compute(...)`
+completes.
+
+---
+
+### Testing checklist
+
+| Scenario | Required tests |
+|---|---|
+| New repository | (1) `reports unexpected exception` — `reporter.capturedErrors` `hasLength(1)`. (2) `does not report ExpectedFailure` — `isEmpty`. |
+| New exception with `ExpectedFailure` | One repo test confirming `capturedErrors` is empty when the API throws it. |
+| New ViewModel | Inject `FakeErrorReporter`; assert `capturedErrors.isEmpty` — ViewModel must not double-report. |
+| Widget test using a Provider tree | Add `Provider<ErrorReporter>.value(value: FakeErrorReporter())` to the test's `MultiProvider`. |
+| New PII key in `pii_scrubber.dart` | Add a top-level + nested case to `pii_scrubber_test.dart`. |
+
+The canonical fake is `test/testing/fakes/fake_error_reporter.dart`. It
+mirrors the production short-circuit on `ExpectedFailure`, so assertions
+about `capturedErrors` reflect exactly what would reach Sentry.
+
+---
+
+### Configuration
+
+Compile-time keys (in `secrets/local_config.json` / `prod_config.json`):
+
+| Key | Effect |
+|---|---|
+| `error_monitoring_enabled` | When `false` (default), `NoopErrorReporter` is used and no events leave the device. |
+| `error_monitoring_dsn` | Vendor DSN. Required when enabled. |
+| `error_monitoring_environment` | Defaults to the `environment` value (`develop` / `production`). |
+| `error_monitoring_traces_sample_rate` | `"0.0"` to `"1.0"`, sent as a string. Defaults to `0.0`. |
+
+### CI guardrail
+
+The coupling rule must be enforced before every merge. Only one file is
+allowed to import the vendor SDK:
+
+```bash
+# Linux/macOS
+grep -r "package:sentry" lib/ --include="*.dart"
+```
+
+```powershell
+# Windows / PowerShell
+Select-String -Path lib\*.dart -Pattern "package:sentry" -Recurse
+```
+
+The single allowed hit is `lib/core/monitoring/sentry_error_reporter.dart`.
+Any other match means a layer above the abstraction reached for the SDK
+directly — block the merge and move the call into the reporter.
+
 ## Permission-Based UI Protection (Keycloak Authorization Services)
 
 The app enforces **client-side permission checks** that mirror the backend's `[ProtectedResource("resource", "scope")]` model. Permissions are fetched from Keycloak Authorization Services (UMA) and cached in `PermissionNotifier`. **Every new feature that introduces UI elements tied to a protected backend endpoint must apply permission guards.**

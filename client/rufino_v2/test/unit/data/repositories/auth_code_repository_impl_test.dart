@@ -4,6 +4,7 @@ import 'package:rufino_v2/core/errors/auth_exception.dart';
 import 'package:rufino_v2/core/result.dart';
 import 'package:rufino_v2/data/repositories/auth_code_repository_impl.dart';
 
+import '../../../testing/fakes/fake_error_reporter.dart';
 import '../../../testing/mocks/mocks.dart';
 
 void main() {
@@ -12,8 +13,10 @@ void main() {
 
   setUp(() {
     mockService = MockAuthCodeApiService();
-    repository =
-        AuthCodeRepositoryImpl(authCodeApiService: mockService);
+    repository = AuthCodeRepositoryImpl(
+      authCodeApiService: mockService,
+      reporter: FakeErrorReporter(),
+    );
   });
 
   group('AuthCodeRepositoryImpl', () {
@@ -35,7 +38,7 @@ void main() {
 
       result.fold(
         onSuccess: (_) => fail('expected error'),
-        onError: (error) =>
+        onError: (error, _) =>
             expect(error, isA<InvalidCredentialsException>()),
       );
     });
@@ -49,7 +52,7 @@ void main() {
 
       result.fold(
         onSuccess: (_) => fail('expected error'),
-        onError: (error) => expect(error, isA<NetworkAuthException>()),
+        onError: (error, _) => expect(error, isA<NetworkAuthException>()),
       );
     });
 
@@ -61,7 +64,7 @@ void main() {
 
       result.fold(
         onSuccess: (value) => expect(value, isTrue),
-        onError: (_) => fail('expected success'),
+        onError: (_, __) => fail('expected success'),
       );
     });
 
@@ -72,7 +75,7 @@ void main() {
 
       result.fold(
         onSuccess: (_) => fail('expected error'),
-        onError: (error) => expect(error, isA<NetworkAuthException>()),
+        onError: (error, _) => expect(error, isA<NetworkAuthException>()),
       );
     });
   });

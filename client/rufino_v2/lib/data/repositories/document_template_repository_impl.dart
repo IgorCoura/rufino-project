@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 
 import '../../core/errors/document_template_exception.dart';
+import '../../core/monitoring/error_reporter.dart';
 import '../../core/result.dart';
 import '../../domain/entities/document_template.dart';
 import '../../domain/entities/selection_option.dart';
@@ -15,9 +16,13 @@ import '../services/document_template_api_service.dart';
 /// subtypes are propagated as-is; all other errors are wrapped in
 /// [DocumentTemplateNetworkException].
 class DocumentTemplateRepositoryImpl implements DocumentTemplateRepository {
-  const DocumentTemplateRepositoryImpl({required this.apiService});
+  DocumentTemplateRepositoryImpl({
+    required this.apiService,
+    required this.reporter,
+  });
 
   final DocumentTemplateApiService apiService;
+  final ErrorReporter reporter;
 
   @override
   Future<Result<List<DocumentTemplate>>> getDocumentTemplates(
@@ -25,10 +30,10 @@ class DocumentTemplateRepositoryImpl implements DocumentTemplateRepository {
     try {
       final models = await apiService.getDocumentTemplates(companyId);
       return Result.success(models.map((m) => m.toEntity()).toList());
-    } on DocumentTemplateException catch (e) {
-      return Result.error(e);
-    } catch (e) {
-      return Result.error(DocumentTemplateNetworkException(e));
+    } on DocumentTemplateException catch (e, st) {
+      return reporter.failure(e, st);
+    } catch (e, st) {
+      return reporter.failure(DocumentTemplateNetworkException(e), st);
     }
   }
 
@@ -39,10 +44,10 @@ class DocumentTemplateRepositoryImpl implements DocumentTemplateRepository {
       final model =
           await apiService.getDocumentTemplateById(companyId, templateId);
       return Result.success(model.toEntity());
-    } on DocumentTemplateException catch (e) {
-      return Result.error(e);
-    } catch (e) {
-      return Result.error(DocumentTemplateNetworkException(e));
+    } on DocumentTemplateException catch (e, st) {
+      return reporter.failure(e, st);
+    } catch (e, st) {
+      return reporter.failure(DocumentTemplateNetworkException(e), st);
     }
   }
 
@@ -80,10 +85,10 @@ class DocumentTemplateRepositoryImpl implements DocumentTemplateRepository {
       );
       final id = await apiService.createDocumentTemplate(companyId, model);
       return Result.success(id);
-    } on DocumentTemplateException catch (e) {
-      return Result.error(e);
-    } catch (e) {
-      return Result.error(DocumentTemplateNetworkException(e));
+    } on DocumentTemplateException catch (e, st) {
+      return reporter.failure(e, st);
+    } catch (e, st) {
+      return reporter.failure(DocumentTemplateNetworkException(e), st);
     }
   }
 
@@ -123,10 +128,10 @@ class DocumentTemplateRepositoryImpl implements DocumentTemplateRepository {
       final returnedId =
           await apiService.updateDocumentTemplate(companyId, model);
       return Result.success(returnedId);
-    } on DocumentTemplateException catch (e) {
-      return Result.error(e);
-    } catch (e) {
-      return Result.error(DocumentTemplateNetworkException(e));
+    } on DocumentTemplateException catch (e, st) {
+      return reporter.failure(e, st);
+    } catch (e, st) {
+      return reporter.failure(DocumentTemplateNetworkException(e), st);
     }
   }
 
@@ -141,10 +146,10 @@ class DocumentTemplateRepositoryImpl implements DocumentTemplateRepository {
                 name: j['name'] as String? ?? '',
               ))
           .toList());
-    } on DocumentTemplateException catch (e) {
-      return Result.error(e);
-    } catch (e) {
-      return Result.error(DocumentTemplateNetworkException(e));
+    } on DocumentTemplateException catch (e, st) {
+      return reporter.failure(e, st);
+    } catch (e, st) {
+      return reporter.failure(DocumentTemplateNetworkException(e), st);
     }
   }
 
@@ -159,10 +164,10 @@ class DocumentTemplateRepositoryImpl implements DocumentTemplateRepository {
                 name: j['name'] as String? ?? '',
               ))
           .toList());
-    } on DocumentTemplateException catch (e) {
-      return Result.error(e);
-    } catch (e) {
-      return Result.error(DocumentTemplateNetworkException(e));
+    } on DocumentTemplateException catch (e, st) {
+      return reporter.failure(e, st);
+    } catch (e, st) {
+      return reporter.failure(DocumentTemplateNetworkException(e), st);
     }
   }
 
@@ -171,10 +176,10 @@ class DocumentTemplateRepositoryImpl implements DocumentTemplateRepository {
     try {
       final json = await apiService.getRecoverDataModels(companyId);
       return Result.success(json);
-    } on DocumentTemplateException catch (e) {
-      return Result.error(e);
-    } catch (e) {
-      return Result.error(DocumentTemplateNetworkException(e));
+    } on DocumentTemplateException catch (e, st) {
+      return reporter.failure(e, st);
+    } catch (e, st) {
+      return reporter.failure(DocumentTemplateNetworkException(e), st);
     }
   }
 
@@ -183,10 +188,10 @@ class DocumentTemplateRepositoryImpl implements DocumentTemplateRepository {
     try {
       final result = await apiService.hasFile(companyId, templateId);
       return Result.success(result);
-    } on DocumentTemplateException catch (e) {
-      return Result.error(e);
-    } catch (e) {
-      return Result.error(DocumentTemplateNetworkException(e));
+    } on DocumentTemplateException catch (e, st) {
+      return reporter.failure(e, st);
+    } catch (e, st) {
+      return reporter.failure(DocumentTemplateNetworkException(e), st);
     }
   }
 
@@ -200,10 +205,10 @@ class DocumentTemplateRepositoryImpl implements DocumentTemplateRepository {
     try {
       await apiService.uploadFile(companyId, templateId, fileBytes, fileName);
       return const Result<void>.success(null);
-    } on DocumentTemplateException catch (e) {
-      return Result.error(e);
-    } catch (e) {
-      return Result.error(DocumentTemplateNetworkException(e));
+    } on DocumentTemplateException catch (e, st) {
+      return reporter.failure(e, st);
+    } catch (e, st) {
+      return reporter.failure(DocumentTemplateNetworkException(e), st);
     }
   }
 
@@ -213,10 +218,10 @@ class DocumentTemplateRepositoryImpl implements DocumentTemplateRepository {
     try {
       final bytes = await apiService.downloadFile(companyId, templateId);
       return Result.success(bytes);
-    } on DocumentTemplateException catch (e) {
-      return Result.error(e);
-    } catch (e) {
-      return Result.error(DocumentTemplateNetworkException(e));
+    } on DocumentTemplateException catch (e, st) {
+      return reporter.failure(e, st);
+    } catch (e, st) {
+      return reporter.failure(DocumentTemplateNetworkException(e), st);
     }
   }
 
@@ -231,10 +236,10 @@ class DocumentTemplateRepositoryImpl implements DocumentTemplateRepository {
                 name: j['name'] as String? ?? '',
               ))
           .toList());
-    } on DocumentTemplateException catch (e) {
-      return Result.error(e);
-    } catch (e) {
-      return Result.error(DocumentTemplateNetworkException(e));
+    } on DocumentTemplateException catch (e, st) {
+      return reporter.failure(e, st);
+    } catch (e, st) {
+      return reporter.failure(DocumentTemplateNetworkException(e), st);
     }
   }
 }

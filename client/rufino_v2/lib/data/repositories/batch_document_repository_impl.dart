@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 
 import '../../core/errors/batch_document_exception.dart';
+import '../../core/monitoring/error_reporter.dart';
 import '../../core/result.dart';
 import '../../domain/entities/batch_document_unit.dart';
 import '../../domain/repositories/batch_document_repository.dart';
@@ -13,9 +14,13 @@ import '../services/batch_document_api_service.dart';
 /// subtypes are propagated as-is; all other errors are wrapped in
 /// [BatchDocumentNetworkException].
 class BatchDocumentRepositoryImpl implements BatchDocumentRepository {
-  const BatchDocumentRepositoryImpl({required this.apiService});
+  BatchDocumentRepositoryImpl({
+    required this.apiService,
+    required this.reporter,
+  });
 
   final BatchDocumentApiService apiService;
+  final ErrorReporter reporter;
 
   @override
   Future<Result<BatchDocumentUnitsPage>> getPendingDocumentUnits(
@@ -49,10 +54,10 @@ class BatchDocumentRepositoryImpl implements BatchDocumentRepository {
         items: response.items.map((m) => m.toEntity()).toList(),
         totalCount: response.totalCount,
       ));
-    } on BatchDocumentException catch (e) {
-      return Result.error(e);
-    } catch (e) {
-      return Result.error(BatchDocumentNetworkException(e));
+    } on BatchDocumentException catch (e, st) {
+      return reporter.failure(e, st);
+    } catch (e, st) {
+      return reporter.failure(BatchDocumentNetworkException(e), st);
     }
   }
 
@@ -71,10 +76,10 @@ class BatchDocumentRepositoryImpl implements BatchDocumentRepository {
         employeeName: employeeName,
       );
       return Result.success(models.map((m) => m.toEntity()).toList());
-    } on BatchDocumentException catch (e) {
-      return Result.error(e);
-    } catch (e) {
-      return Result.error(BatchDocumentNetworkException(e));
+    } on BatchDocumentException catch (e, st) {
+      return reporter.failure(e, st);
+    } catch (e, st) {
+      return reporter.failure(BatchDocumentNetworkException(e), st);
     }
   }
 
@@ -89,10 +94,10 @@ class BatchDocumentRepositoryImpl implements BatchDocumentRepository {
           companyId, documentTemplateId, employeeIds);
       return Result.success(
           response.createdItems.map((m) => m.toEntity()).toList());
-    } on BatchDocumentException catch (e) {
-      return Result.error(e);
-    } catch (e) {
-      return Result.error(BatchDocumentNetworkException(e));
+    } on BatchDocumentException catch (e, st) {
+      return reporter.failure(e, st);
+    } catch (e, st) {
+      return reporter.failure(BatchDocumentNetworkException(e), st);
     }
   }
 
@@ -113,10 +118,10 @@ class BatchDocumentRepositoryImpl implements BatchDocumentRepository {
       final count =
           await apiService.batchUpdateDate(companyId, itemMaps, date);
       return Result.success(count);
-    } on BatchDocumentException catch (e) {
-      return Result.error(e);
-    } catch (e) {
-      return Result.error(BatchDocumentNetworkException(e));
+    } on BatchDocumentException catch (e, st) {
+      return reporter.failure(e, st);
+    } catch (e, st) {
+      return reporter.failure(BatchDocumentNetworkException(e), st);
     }
   }
 
@@ -130,10 +135,10 @@ class BatchDocumentRepositoryImpl implements BatchDocumentRepository {
           await apiService.uploadDocumentRange(companyId, items);
       return Result.success(
           response.results.map((m) => m.toEntity()).toList());
-    } on BatchDocumentException catch (e) {
-      return Result.error(e);
-    } catch (e) {
-      return Result.error(BatchDocumentNetworkException(e));
+    } on BatchDocumentException catch (e, st) {
+      return reporter.failure(e, st);
+    } catch (e, st) {
+      return reporter.failure(BatchDocumentNetworkException(e), st);
     }
   }
 
@@ -149,10 +154,10 @@ class BatchDocumentRepositoryImpl implements BatchDocumentRepository {
           companyId, items, dateLimitToSign, reminderEveryNDays);
       return Result.success(
           response.results.map((m) => m.toEntity()).toList());
-    } on BatchDocumentException catch (e) {
-      return Result.error(e);
-    } catch (e) {
-      return Result.error(BatchDocumentNetworkException(e));
+    } on BatchDocumentException catch (e, st) {
+      return reporter.failure(e, st);
+    } catch (e, st) {
+      return reporter.failure(BatchDocumentNetworkException(e), st);
     }
   }
 
@@ -171,10 +176,10 @@ class BatchDocumentRepositoryImpl implements BatchDocumentRepository {
           .toList();
       final bytes = await apiService.generatePdfRange(companyId, itemMaps);
       return Result.success(bytes);
-    } on BatchDocumentException catch (e) {
-      return Result.error(e);
-    } catch (e) {
-      return Result.error(BatchDocumentNetworkException(e));
+    } on BatchDocumentException catch (e, st) {
+      return reporter.failure(e, st);
+    } catch (e, st) {
+      return reporter.failure(BatchDocumentNetworkException(e), st);
     }
   }
 
@@ -196,10 +201,10 @@ class BatchDocumentRepositoryImpl implements BatchDocumentRepository {
       await apiService.generateAndSignRange(
           companyId, itemMaps, dateLimitToSign, reminderEveryNDays);
       return const Result.success(null);
-    } on BatchDocumentException catch (e) {
-      return Result.error(e);
-    } catch (e) {
-      return Result.error(BatchDocumentNetworkException(e));
+    } on BatchDocumentException catch (e, st) {
+      return reporter.failure(e, st);
+    } catch (e, st) {
+      return reporter.failure(BatchDocumentNetworkException(e), st);
     }
   }
 }

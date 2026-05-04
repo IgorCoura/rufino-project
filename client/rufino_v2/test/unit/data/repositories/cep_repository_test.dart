@@ -7,6 +7,8 @@ import 'package:rufino_v2/core/errors/cep_exception.dart';
 import 'package:rufino_v2/data/repositories/cep_repository_impl.dart';
 import 'package:rufino_v2/data/services/cep_api_service.dart';
 
+import '../../../testing/fakes/fake_error_reporter.dart';
+
 void main() {
   group('CepRepositoryImpl', () {
     test('returns Result.success with mapped Address on success', () async {
@@ -23,7 +25,10 @@ void main() {
           200,
         );
       });
-      final repo = CepRepositoryImpl(apiService: CepApiService(client: client));
+      final repo = CepRepositoryImpl(
+        apiService: CepApiService(client: client),
+        reporter: FakeErrorReporter(),
+      );
 
       final result = await repo.lookupCep('01310100');
 
@@ -38,7 +43,10 @@ void main() {
       final client = http_testing.MockClient((_) async {
         return http.Response(jsonEncode({'erro': true}), 200);
       });
-      final repo = CepRepositoryImpl(apiService: CepApiService(client: client));
+      final repo = CepRepositoryImpl(
+        apiService: CepApiService(client: client),
+        reporter: FakeErrorReporter(),
+      );
 
       final result = await repo.lookupCep('00000000');
 
@@ -51,7 +59,10 @@ void main() {
       final client = http_testing.MockClient((_) async {
         return http.Response('boom', 500);
       });
-      final repo = CepRepositoryImpl(apiService: CepApiService(client: client));
+      final repo = CepRepositoryImpl(
+        apiService: CepApiService(client: client),
+        reporter: FakeErrorReporter(),
+      );
 
       final result = await repo.lookupCep('12345678');
 

@@ -1,4 +1,5 @@
 import '../../core/errors/department_exception.dart';
+import '../../core/monitoring/error_reporter.dart';
 import '../../core/result.dart';
 import '../../domain/entities/department.dart';
 import '../../domain/entities/position.dart';
@@ -13,9 +14,13 @@ import '../services/department_api_service.dart';
 /// All service calls are wrapped in try/catch. [DepartmentException] subtypes
 /// are propagated as-is; all other errors are wrapped in [DepartmentNetworkException].
 class DepartmentRepositoryImpl implements DepartmentRepository {
-  const DepartmentRepositoryImpl({required this.apiService});
+  DepartmentRepositoryImpl({
+    required this.apiService,
+    required this.reporter,
+  });
 
   final DepartmentApiService apiService;
+  final ErrorReporter reporter;
 
   // ─── Department ───────────────────────────────────────────────────────────
 
@@ -24,10 +29,10 @@ class DepartmentRepositoryImpl implements DepartmentRepository {
     try {
       final models = await apiService.getDepartments(companyId);
       return Result.success(models.map((m) => m.toEntity()).toList());
-    } on DepartmentException catch (e) {
-      return Result.error(e);
-    } catch (e) {
-      return Result.error(DepartmentNetworkException(e));
+    } on DepartmentException catch (e, st) {
+      return reporter.failure(e, st);
+    } catch (e, st) {
+      return reporter.failure(DepartmentNetworkException(e), st);
     }
   }
 
@@ -37,10 +42,10 @@ class DepartmentRepositoryImpl implements DepartmentRepository {
     try {
       final model = await apiService.getDepartmentById(companyId, departmentId);
       return Result.success(model.toEntity());
-    } on DepartmentException catch (e) {
-      return Result.error(e);
-    } catch (e) {
-      return Result.error(DepartmentNetworkException(e));
+    } on DepartmentException catch (e, st) {
+      return reporter.failure(e, st);
+    } catch (e, st) {
+      return reporter.failure(DepartmentNetworkException(e), st);
     }
   }
 
@@ -59,10 +64,10 @@ class DepartmentRepositoryImpl implements DepartmentRepository {
       );
       final id = await apiService.createDepartment(companyId, model);
       return Result.success(id);
-    } on DepartmentException catch (e) {
-      return Result.error(e);
-    } catch (e) {
-      return Result.error(DepartmentNetworkException(e));
+    } on DepartmentException catch (e, st) {
+      return reporter.failure(e, st);
+    } catch (e, st) {
+      return reporter.failure(DepartmentNetworkException(e), st);
     }
   }
 
@@ -82,10 +87,10 @@ class DepartmentRepositoryImpl implements DepartmentRepository {
       );
       final returnedId = await apiService.updateDepartment(companyId, model);
       return Result.success(returnedId);
-    } on DepartmentException catch (e) {
-      return Result.error(e);
-    } catch (e) {
-      return Result.error(DepartmentNetworkException(e));
+    } on DepartmentException catch (e, st) {
+      return reporter.failure(e, st);
+    } catch (e, st) {
+      return reporter.failure(DepartmentNetworkException(e), st);
     }
   }
 
@@ -97,10 +102,10 @@ class DepartmentRepositoryImpl implements DepartmentRepository {
     try {
       final model = await apiService.getPositionById(companyId, positionId);
       return Result.success(model.toEntity());
-    } on DepartmentException catch (e) {
-      return Result.error(e);
-    } catch (e) {
-      return Result.error(DepartmentNetworkException(e));
+    } on DepartmentException catch (e, st) {
+      return reporter.failure(e, st);
+    } catch (e, st) {
+      return reporter.failure(DepartmentNetworkException(e), st);
     }
   }
 
@@ -123,10 +128,10 @@ class DepartmentRepositoryImpl implements DepartmentRepository {
       final id =
           await apiService.createPosition(companyId, departmentId, model);
       return Result.success(id);
-    } on DepartmentException catch (e) {
-      return Result.error(e);
-    } catch (e) {
-      return Result.error(DepartmentNetworkException(e));
+    } on DepartmentException catch (e, st) {
+      return reporter.failure(e, st);
+    } catch (e, st) {
+      return reporter.failure(DepartmentNetworkException(e), st);
     }
   }
 
@@ -148,10 +153,10 @@ class DepartmentRepositoryImpl implements DepartmentRepository {
       );
       final returnedId = await apiService.updatePosition(companyId, model);
       return Result.success(returnedId);
-    } on DepartmentException catch (e) {
-      return Result.error(e);
-    } catch (e) {
-      return Result.error(DepartmentNetworkException(e));
+    } on DepartmentException catch (e, st) {
+      return reporter.failure(e, st);
+    } catch (e, st) {
+      return reporter.failure(DepartmentNetworkException(e), st);
     }
   }
 
@@ -162,10 +167,10 @@ class DepartmentRepositoryImpl implements DepartmentRepository {
     try {
       final model = await apiService.getRoleById(companyId, roleId);
       return Result.success(model.toEntity());
-    } on DepartmentException catch (e) {
-      return Result.error(e);
-    } catch (e) {
-      return Result.error(DepartmentNetworkException(e));
+    } on DepartmentException catch (e, st) {
+      return reporter.failure(e, st);
+    } catch (e, st) {
+      return reporter.failure(DepartmentNetworkException(e), st);
     }
   }
 
@@ -198,10 +203,10 @@ class DepartmentRepositoryImpl implements DepartmentRepository {
       );
       final id = await apiService.createRole(companyId, positionId, model);
       return Result.success(id);
-    } on DepartmentException catch (e) {
-      return Result.error(e);
-    } catch (e) {
-      return Result.error(DepartmentNetworkException(e));
+    } on DepartmentException catch (e, st) {
+      return reporter.failure(e, st);
+    } catch (e, st) {
+      return reporter.failure(DepartmentNetworkException(e), st);
     }
   }
 
@@ -234,10 +239,10 @@ class DepartmentRepositoryImpl implements DepartmentRepository {
       );
       final returnedId = await apiService.updateRole(companyId, model);
       return Result.success(returnedId);
-    } on DepartmentException catch (e) {
-      return Result.error(e);
-    } catch (e) {
-      return Result.error(DepartmentNetworkException(e));
+    } on DepartmentException catch (e, st) {
+      return reporter.failure(e, st);
+    } catch (e, st) {
+      return reporter.failure(DepartmentNetworkException(e), st);
     }
   }
 
@@ -248,10 +253,10 @@ class DepartmentRepositoryImpl implements DepartmentRepository {
     try {
       final models = await apiService.getPaymentUnits(companyId);
       return Result.success(models.map((m) => m.toEntity()).toList());
-    } on DepartmentException catch (e) {
-      return Result.error(e);
-    } catch (e) {
-      return Result.error(DepartmentNetworkException(e));
+    } on DepartmentException catch (e, st) {
+      return reporter.failure(e, st);
+    } catch (e, st) {
+      return reporter.failure(DepartmentNetworkException(e), st);
     }
   }
 
@@ -260,10 +265,10 @@ class DepartmentRepositoryImpl implements DepartmentRepository {
     try {
       final models = await apiService.getSalaryTypes(companyId);
       return Result.success(models.map((m) => m.toEntity()).toList());
-    } on DepartmentException catch (e) {
-      return Result.error(e);
-    } catch (e) {
-      return Result.error(DepartmentNetworkException(e));
+    } on DepartmentException catch (e, st) {
+      return reporter.failure(e, st);
+    } catch (e, st) {
+      return reporter.failure(DepartmentNetworkException(e), st);
     }
   }
 }

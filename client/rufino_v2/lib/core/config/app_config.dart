@@ -96,6 +96,46 @@ abstract final class AppConfig {
   /// Path appended to the web origin on the Web build.
   static const String authCodeWebRedirectPath = '/auth/callback';
 
+  /// Whether device-side error monitoring is active for this build.
+  ///
+  /// When `false`, the app uses a no-op reporter and no events leave the
+  /// device. Vendor-agnostic: the active backend is selected in `main.dart`.
+  static const bool errorMonitoringEnabled = bool.fromEnvironment(
+    'error_monitoring_enabled',
+    defaultValue: false,
+  );
+
+  /// Vendor DSN / ingest URL used by the active error monitoring backend.
+  ///
+  /// Required when [errorMonitoringEnabled] is `true`.
+  static const String errorMonitoringDsn = String.fromEnvironment(
+    'error_monitoring_dsn',
+  );
+
+  static const String _errorMonitoringEnvironmentOverride =
+      String.fromEnvironment('error_monitoring_environment');
+
+  /// Environment label attached to every captured event (e.g. `develop`,
+  /// `production`).
+  ///
+  /// Falls back to [environment] when not explicitly overridden so dev and
+  /// prod builds are separated in the monitoring dashboard without extra
+  /// configuration.
+  static String get errorMonitoringEnvironment =>
+      _errorMonitoringEnvironmentOverride.isEmpty
+          ? environment
+          : _errorMonitoringEnvironmentOverride;
+
+  static const String _errorMonitoringTracesSampleRateRaw =
+      String.fromEnvironment('error_monitoring_traces_sample_rate');
+
+  /// Sample rate (0.0–1.0) for performance traces.
+  ///
+  /// Defaults to `0.0` (no tracing) so unconfigured builds do not silently
+  /// ship transaction data.
+  static double get errorMonitoringTracesSampleRate =>
+      double.tryParse(_errorMonitoringTracesSampleRateRaw) ?? 0.0;
+
   /// Validates that all required secrets were injected at compile time.
   /// Call this in main() to fail fast with a clear error.
   static void assertConfigured() {
@@ -116,6 +156,10 @@ abstract final class AppConfig {
       if (authCodeTokenEndpoint.isEmpty) {
         missing.add('auth_code_token_endpoint');
       }
+    }
+
+    if (errorMonitoringEnabled && errorMonitoringDsn.isEmpty) {
+      missing.add('error_monitoring_dsn');
     }
 
     if (missing.isNotEmpty) {

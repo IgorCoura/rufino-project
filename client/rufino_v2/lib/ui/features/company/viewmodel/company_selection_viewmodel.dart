@@ -68,7 +68,7 @@ class CompanySelectionViewModel extends ChangeNotifier {
             _status = CompanySelectionStatus.loaded;
           }
         },
-        onError: (_) {
+        onError: (_, __) {
           _status = CompanySelectionStatus.error;
           _errorMessage = 'Falha ao carregar empresas.';
         },

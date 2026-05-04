@@ -58,3 +58,5 @@ domain_errors.json
 
 # Secrets — never commit
 /secrets/
+
+sentry.properties

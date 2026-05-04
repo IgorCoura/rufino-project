@@ -1,4 +1,5 @@
 import '../../core/errors/document_group_exception.dart';
+import '../../core/monitoring/error_reporter.dart';
 import '../../core/result.dart';
 import '../../domain/entities/document_group.dart';
 import '../../domain/entities/document_group_with_documents.dart';
@@ -14,9 +15,13 @@ import '../services/document_group_api_service.dart';
 /// subtypes are propagated as-is; all other errors are wrapped in
 /// [DocumentGroupNetworkException].
 class DocumentGroupRepositoryImpl implements DocumentGroupRepository {
-  const DocumentGroupRepositoryImpl({required this.apiService});
+  DocumentGroupRepositoryImpl({
+    required this.apiService,
+    required this.reporter,
+  });
 
   final DocumentGroupApiService apiService;
+  final ErrorReporter reporter;
 
   @override
   Future<Result<List<DocumentGroup>>> getDocumentGroups(
@@ -24,10 +29,10 @@ class DocumentGroupRepositoryImpl implements DocumentGroupRepository {
     try {
       final models = await apiService.getDocumentGroups(companyId);
       return Result.success(models.map((m) => m.toEntity()).toList());
-    } on DocumentGroupException catch (e) {
-      return Result.error(e);
-    } catch (e) {
-      return Result.error(DocumentGroupNetworkException(e));
+    } on DocumentGroupException catch (e, st) {
+      return reporter.failure(e, st);
+    } catch (e, st) {
+      return reporter.failure(DocumentGroupNetworkException(e), st);
     }
   }
 
@@ -38,10 +43,10 @@ class DocumentGroupRepositoryImpl implements DocumentGroupRepository {
       final models =
           await apiService.getDocumentGroupsWithTemplates(companyId);
       return Result.success(models.map((m) => m.toEntity()).toList());
-    } on DocumentGroupException catch (e) {
-      return Result.error(e);
-    } catch (e) {
-      return Result.error(DocumentGroupNetworkException(e));
+    } on DocumentGroupException catch (e, st) {
+      return reporter.failure(e, st);
+    } catch (e, st) {
+      return reporter.failure(DocumentGroupNetworkException(e), st);
     }
   }
 
@@ -53,10 +58,10 @@ class DocumentGroupRepositoryImpl implements DocumentGroupRepository {
       final models = await apiService.getDocumentGroupsWithDocuments(
           companyId, employeeId);
       return Result.success(models.map((m) => m.toEntity()).toList());
-    } on DocumentGroupException catch (e) {
-      return Result.error(e);
-    } catch (e) {
-      return Result.error(DocumentGroupNetworkException(e));
+    } on DocumentGroupException catch (e, st) {
+      return reporter.failure(e, st);
+    } catch (e, st) {
+      return reporter.failure(DocumentGroupNetworkException(e), st);
     }
   }
 
@@ -74,10 +79,10 @@ class DocumentGroupRepositoryImpl implements DocumentGroupRepository {
       );
       final id = await apiService.createDocumentGroup(companyId, model);
       return Result.success(id);
-    } on DocumentGroupException catch (e) {
-      return Result.error(e);
-    } catch (e) {
-      return Result.error(DocumentGroupNetworkException(e));
+    } on DocumentGroupException catch (e, st) {
+      return reporter.failure(e, st);
+    } catch (e, st) {
+      return reporter.failure(DocumentGroupNetworkException(e), st);
     }
   }
 
@@ -97,10 +102,10 @@ class DocumentGroupRepositoryImpl implements DocumentGroupRepository {
       final returnedId =
           await apiService.updateDocumentGroup(companyId, model);
       return Result.success(returnedId);
-    } on DocumentGroupException catch (e) {
-      return Result.error(e);
-    } catch (e) {
-      return Result.error(DocumentGroupNetworkException(e));
+    } on DocumentGroupException catch (e, st) {
+      return reporter.failure(e, st);
+    } catch (e, st) {
+      return reporter.failure(DocumentGroupNetworkException(e), st);
     }
   }
 }

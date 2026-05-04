@@ -45,7 +45,7 @@ class LoginViewModel extends ChangeNotifier {
       );
       result.fold(
         onSuccess: (_) => _status = LoginStatus.success,
-        onError: (error) {
+        onError: (error, _) {
           _status = LoginStatus.failure;
           _lastError = error is AuthException ? error : NetworkAuthException(error);
         },

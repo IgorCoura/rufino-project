@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 
 import '../../core/errors/employee_exception.dart';
+import '../../core/monitoring/error_reporter.dart';
 import '../../core/result.dart';
 import '../models/document_range_item.dart';
 import '../../domain/entities/address.dart';
@@ -34,9 +35,10 @@ import '../services/multipart_upload_helper.dart';
 /// All service calls are wrapped in try/catch. [EmployeeException] subtypes
 /// are propagated as-is; all other errors are wrapped in [EmployeeNetworkException].
 class EmployeeRepositoryImpl implements EmployeeRepository {
-  const EmployeeRepositoryImpl({required this.apiService});
+  EmployeeRepositoryImpl({required this.apiService, required this.reporter});
 
   final EmployeeApiService apiService;
+  final ErrorReporter reporter;
 
   @override
   Future<Result<EmployeeProfile>> getEmployeeProfile(
@@ -46,10 +48,10 @@ class EmployeeRepositoryImpl implements EmployeeRepository {
     try {
       final model = await apiService.getEmployeeProfile(companyId, employeeId);
       return Result.success(model.toEntity());
-    } on EmployeeException catch (e) {
-      return Result.error(e);
-    } catch (e) {
-      return Result.error(EmployeeNetworkException(e));
+    } on EmployeeException catch (e, st) {
+      return reporter.failure(e, st);
+    } catch (e, st) {
+      return reporter.failure(EmployeeNetworkException(e), st);
     }
   }
 
@@ -76,10 +78,10 @@ class EmployeeRepositoryImpl implements EmployeeRepository {
         sizeSkip: sizeSkip,
       );
       return Result.success(models.map((m) => m.toEntity()).toList());
-    } on EmployeeException catch (e) {
-      return Result.error(e);
-    } catch (e) {
-      return Result.error(EmployeeNetworkException(e));
+    } on EmployeeException catch (e, st) {
+      return reporter.failure(e, st);
+    } catch (e, st) {
+      return reporter.failure(EmployeeNetworkException(e), st);
     }
   }
 
@@ -89,10 +91,10 @@ class EmployeeRepositoryImpl implements EmployeeRepository {
     try {
       final bytes = await apiService.getEmployeeImage(companyId, employeeId);
       return Result.success(bytes);
-    } on EmployeeException catch (e) {
-      return Result.error(e);
-    } catch (e) {
-      return Result.error(EmployeeNetworkException(e));
+    } on EmployeeException catch (e, st) {
+      return reporter.failure(e, st);
+    } catch (e, st) {
+      return reporter.failure(EmployeeNetworkException(e), st);
     }
   }
 
@@ -107,10 +109,10 @@ class EmployeeRepositoryImpl implements EmployeeRepository {
       await apiService.uploadEmployeeImage(
           companyId, employeeId, imageBytes, fileName);
       return const Result<void>.success(null);
-    } on EmployeeException catch (e) {
-      return Result.error(e);
-    } catch (e) {
-      return Result.error(EmployeeNetworkException(e));
+    } on EmployeeException catch (e, st) {
+      return reporter.failure(e, st);
+    } catch (e, st) {
+      return reporter.failure(EmployeeNetworkException(e), st);
     }
   }
 
@@ -123,10 +125,10 @@ class EmployeeRepositoryImpl implements EmployeeRepository {
     try {
       await apiService.editEmployeeName(companyId, employeeId, name);
       return const Result<void>.success(null);
-    } on EmployeeException catch (e) {
-      return Result.error(e);
-    } catch (e) {
-      return Result.error(EmployeeNetworkException(e));
+    } on EmployeeException catch (e, st) {
+      return reporter.failure(e, st);
+    } catch (e, st) {
+      return reporter.failure(EmployeeNetworkException(e), st);
     }
   }
 
@@ -138,10 +140,10 @@ class EmployeeRepositoryImpl implements EmployeeRepository {
     try {
       await apiService.markEmployeeAsInactive(companyId, employeeId);
       return const Result<void>.success(null);
-    } on EmployeeException catch (e) {
-      return Result.error(e);
-    } catch (e) {
-      return Result.error(EmployeeNetworkException(e));
+    } on EmployeeException catch (e, st) {
+      return reporter.failure(e, st);
+    } catch (e, st) {
+      return reporter.failure(EmployeeNetworkException(e), st);
     }
   }
 
@@ -160,10 +162,10 @@ class EmployeeRepositoryImpl implements EmployeeRepository {
         workplaceId: workplaceId,
       );
       return Result.success(id);
-    } on EmployeeException catch (e) {
-      return Result.error(e);
-    } catch (e) {
-      return Result.error(EmployeeNetworkException(e));
+    } on EmployeeException catch (e, st) {
+      return reporter.failure(e, st);
+    } catch (e, st) {
+      return reporter.failure(EmployeeNetworkException(e), st);
     }
   }
 
@@ -176,10 +178,10 @@ class EmployeeRepositoryImpl implements EmployeeRepository {
       final model =
           await apiService.getEmployeeContact(companyId, employeeId);
       return Result.success(model.toEntity());
-    } on EmployeeException catch (e) {
-      return Result.error(e);
-    } catch (e) {
-      return Result.error(EmployeeNetworkException(e));
+    } on EmployeeException catch (e, st) {
+      return reporter.failure(e, st);
+    } catch (e, st) {
+      return reporter.failure(EmployeeNetworkException(e), st);
     }
   }
 
@@ -194,10 +196,10 @@ class EmployeeRepositoryImpl implements EmployeeRepository {
       await apiService.editEmployeeContact(
           companyId, employeeId, cellphone, email);
       return const Result<void>.success(null);
-    } on EmployeeException catch (e) {
-      return Result.error(e);
-    } catch (e) {
-      return Result.error(EmployeeNetworkException(e));
+    } on EmployeeException catch (e, st) {
+      return reporter.failure(e, st);
+    } catch (e, st) {
+      return reporter.failure(EmployeeNetworkException(e), st);
     }
   }
 
@@ -210,10 +212,10 @@ class EmployeeRepositoryImpl implements EmployeeRepository {
       final model =
           await apiService.getEmployeeAddress(companyId, employeeId);
       return Result.success(model.toEntity());
-    } on EmployeeException catch (e) {
-      return Result.error(e);
-    } catch (e) {
-      return Result.error(EmployeeNetworkException(e));
+    } on EmployeeException catch (e, st) {
+      return reporter.failure(e, st);
+    } catch (e, st) {
+      return reporter.failure(EmployeeNetworkException(e), st);
     }
   }
 
@@ -227,10 +229,10 @@ class EmployeeRepositoryImpl implements EmployeeRepository {
       final body = EmployeeAddressApiModel.toJsonMap(address, employeeId);
       await apiService.editEmployeeAddress(companyId, employeeId, body);
       return const Result<void>.success(null);
-    } on EmployeeException catch (e) {
-      return Result.error(e);
-    } catch (e) {
-      return Result.error(EmployeeNetworkException(e));
+    } on EmployeeException catch (e, st) {
+      return reporter.failure(e, st);
+    } catch (e, st) {
+      return reporter.failure(EmployeeNetworkException(e), st);
     }
   }
 
@@ -243,10 +245,10 @@ class EmployeeRepositoryImpl implements EmployeeRepository {
       final model =
           await apiService.getEmployeePersonalInfo(companyId, employeeId);
       return Result.success(model.toEntity());
-    } on EmployeeException catch (e) {
-      return Result.error(e);
-    } catch (e) {
-      return Result.error(EmployeeNetworkException(e));
+    } on EmployeeException catch (e, st) {
+      return reporter.failure(e, st);
+    } catch (e, st) {
+      return reporter.failure(EmployeeNetworkException(e), st);
     }
   }
 
@@ -257,10 +259,10 @@ class EmployeeRepositoryImpl implements EmployeeRepository {
     try {
       final model = await apiService.getPersonalInfoOptions(companyId);
       return Result.success(model.toEntity());
-    } on EmployeeException catch (e) {
-      return Result.error(e);
-    } catch (e) {
-      return Result.error(EmployeeNetworkException(e));
+    } on EmployeeException catch (e, st) {
+      return reporter.failure(e, st);
+    } catch (e, st) {
+      return reporter.failure(EmployeeNetworkException(e), st);
     }
   }
 
@@ -290,10 +292,10 @@ class EmployeeRepositoryImpl implements EmployeeRepository {
       };
       await apiService.editEmployeePersonalInfo(companyId, employeeId, body);
       return const Result<void>.success(null);
-    } on EmployeeException catch (e) {
-      return Result.error(e);
-    } catch (e) {
-      return Result.error(EmployeeNetworkException(e));
+    } on EmployeeException catch (e, st) {
+      return reporter.failure(e, st);
+    } catch (e, st) {
+      return reporter.failure(EmployeeNetworkException(e), st);
     }
   }
 
@@ -306,10 +308,10 @@ class EmployeeRepositoryImpl implements EmployeeRepository {
       final model =
           await apiService.getEmployeeIdCard(companyId, employeeId);
       return Result.success(model.toEntity());
-    } on EmployeeException catch (e) {
-      return Result.error(e);
-    } catch (e) {
-      return Result.error(EmployeeNetworkException(e));
+    } on EmployeeException catch (e, st) {
+      return reporter.failure(e, st);
+    } catch (e, st) {
+      return reporter.failure(EmployeeNetworkException(e), st);
     }
   }
 
@@ -332,10 +334,10 @@ class EmployeeRepositoryImpl implements EmployeeRepository {
       };
       await apiService.editEmployeeIdCard(companyId, employeeId, body);
       return const Result<void>.success(null);
-    } on EmployeeException catch (e) {
-      return Result.error(e);
-    } catch (e) {
-      return Result.error(EmployeeNetworkException(e));
+    } on EmployeeException catch (e, st) {
+      return reporter.failure(e, st);
+    } catch (e, st) {
+      return reporter.failure(EmployeeNetworkException(e), st);
     }
   }
 
@@ -348,10 +350,10 @@ class EmployeeRepositoryImpl implements EmployeeRepository {
       final model =
           await apiService.getEmployeeVoteId(companyId, employeeId);
       return Result.success(model.toEntity());
-    } on EmployeeException catch (e) {
-      return Result.error(e);
-    } catch (e) {
-      return Result.error(EmployeeNetworkException(e));
+    } on EmployeeException catch (e, st) {
+      return reporter.failure(e, st);
+    } catch (e, st) {
+      return reporter.failure(EmployeeNetworkException(e), st);
     }
   }
 
@@ -364,10 +366,10 @@ class EmployeeRepositoryImpl implements EmployeeRepository {
     try {
       await apiService.editEmployeeVoteId(companyId, employeeId, voteIdNumber);
       return const Result<void>.success(null);
-    } on EmployeeException catch (e) {
-      return Result.error(e);
-    } catch (e) {
-      return Result.error(EmployeeNetworkException(e));
+    } on EmployeeException catch (e, st) {
+      return reporter.failure(e, st);
+    } catch (e, st) {
+      return reporter.failure(EmployeeNetworkException(e), st);
     }
   }
 
@@ -383,10 +385,10 @@ class EmployeeRepositoryImpl implements EmployeeRepository {
         employeeId,
       );
       return Result.success(model.toEntity());
-    } on EmployeeException catch (e) {
-      return Result.error(e);
-    } catch (e) {
-      return Result.error(EmployeeNetworkException(e));
+    } on EmployeeException catch (e, st) {
+      return reporter.failure(e, st);
+    } catch (e, st) {
+      return reporter.failure(EmployeeNetworkException(e), st);
     }
   }
 
@@ -403,10 +405,10 @@ class EmployeeRepositoryImpl implements EmployeeRepository {
         socialIntegrationProgramNumber,
       );
       return const Result<void>.success(null);
-    } on EmployeeException catch (e) {
-      return Result.error(e);
-    } catch (e) {
-      return Result.error(EmployeeNetworkException(e));
+    } on EmployeeException catch (e, st) {
+      return reporter.failure(e, st);
+    } catch (e, st) {
+      return reporter.failure(EmployeeNetworkException(e), st);
     }
   }
 
@@ -419,10 +421,10 @@ class EmployeeRepositoryImpl implements EmployeeRepository {
       final model =
           await apiService.getMilitaryDocument(companyId, employeeId);
       return Result.success(model.toEntity());
-    } on EmployeeException catch (e) {
-      return Result.error(e);
-    } catch (e) {
-      return Result.error(EmployeeNetworkException(e));
+    } on EmployeeException catch (e, st) {
+      return reporter.failure(e, st);
+    } catch (e, st) {
+      return reporter.failure(EmployeeNetworkException(e), st);
     }
   }
 
@@ -438,10 +440,10 @@ class EmployeeRepositoryImpl implements EmployeeRepository {
           employeeId, number, type);
       await apiService.editMilitaryDocument(companyId, employeeId, body);
       return const Result<void>.success(null);
-    } on EmployeeException catch (e) {
-      return Result.error(e);
-    } catch (e) {
-      return Result.error(EmployeeNetworkException(e));
+    } on EmployeeException catch (e, st) {
+      return reporter.failure(e, st);
+    } catch (e, st) {
+      return reporter.failure(EmployeeNetworkException(e), st);
     }
   }
 
@@ -453,10 +455,10 @@ class EmployeeRepositoryImpl implements EmployeeRepository {
     try {
       final model = await apiService.getMedicalExam(companyId, employeeId);
       return Result.success(model.toEntity());
-    } on EmployeeException catch (e) {
-      return Result.error(e);
-    } catch (e) {
-      return Result.error(EmployeeNetworkException(e));
+    } on EmployeeException catch (e, st) {
+      return reporter.failure(e, st);
+    } catch (e, st) {
+      return reporter.failure(EmployeeNetworkException(e), st);
     }
   }
 
@@ -472,10 +474,10 @@ class EmployeeRepositoryImpl implements EmployeeRepository {
           employeeId, dateExam, validityExam);
       await apiService.editMedicalExam(companyId, employeeId, body);
       return const Result<void>.success(null);
-    } on EmployeeException catch (e) {
-      return Result.error(e);
-    } catch (e) {
-      return Result.error(EmployeeNetworkException(e));
+    } on EmployeeException catch (e, st) {
+      return reporter.failure(e, st);
+    } catch (e, st) {
+      return reporter.failure(EmployeeNetworkException(e), st);
     }
   }
 
@@ -488,10 +490,10 @@ class EmployeeRepositoryImpl implements EmployeeRepository {
     try {
       await apiService.editEmployeeRole(companyId, employeeId, roleId);
       return const Result<void>.success(null);
-    } on EmployeeException catch (e) {
-      return Result.error(e);
-    } catch (e) {
-      return Result.error(EmployeeNetworkException(e));
+    } on EmployeeException catch (e, st) {
+      return reporter.failure(e, st);
+    } catch (e, st) {
+      return reporter.failure(EmployeeNetworkException(e), st);
     }
   }
 
@@ -503,10 +505,10 @@ class EmployeeRepositoryImpl implements EmployeeRepository {
     try {
       final models = await apiService.getDependents(companyId, employeeId);
       return Result.success(models.map((m) => m.toEntity()).toList());
-    } on EmployeeException catch (e) {
-      return Result.error(e);
-    } catch (e) {
-      return Result.error(EmployeeNetworkException(e));
+    } on EmployeeException catch (e, st) {
+      return reporter.failure(e, st);
+    } catch (e, st) {
+      return reporter.failure(EmployeeNetworkException(e), st);
     }
   }
 
@@ -521,10 +523,10 @@ class EmployeeRepositoryImpl implements EmployeeRepository {
           EmployeeDependentApiModel.toCreateJson(employeeId, dependent);
       await apiService.createDependent(companyId, body);
       return const Result<void>.success(null);
-    } on EmployeeException catch (e) {
-      return Result.error(e);
-    } catch (e) {
-      return Result.error(EmployeeNetworkException(e));
+    } on EmployeeException catch (e, st) {
+      return reporter.failure(e, st);
+    } catch (e, st) {
+      return reporter.failure(EmployeeNetworkException(e), st);
     }
   }
 
@@ -539,10 +541,10 @@ class EmployeeRepositoryImpl implements EmployeeRepository {
           EmployeeDependentApiModel.toUpdateJson(employeeId, dependent);
       await apiService.editDependent(companyId, body);
       return const Result<void>.success(null);
-    } on EmployeeException catch (e) {
-      return Result.error(e);
-    } catch (e) {
-      return Result.error(EmployeeNetworkException(e));
+    } on EmployeeException catch (e, st) {
+      return reporter.failure(e, st);
+    } catch (e, st) {
+      return reporter.failure(EmployeeNetworkException(e), st);
     }
   }
 
@@ -557,10 +559,10 @@ class EmployeeRepositoryImpl implements EmployeeRepository {
           EmployeeDependentApiModel.toRemoveJson(employeeId, dependentName);
       await apiService.removeDependent(companyId, body);
       return const Result<void>.success(null);
-    } on EmployeeException catch (e) {
-      return Result.error(e);
-    } catch (e) {
-      return Result.error(EmployeeNetworkException(e));
+    } on EmployeeException catch (e, st) {
+      return reporter.failure(e, st);
+    } catch (e, st) {
+      return reporter.failure(EmployeeNetworkException(e), st);
     }
   }
 
@@ -574,10 +576,10 @@ class EmployeeRepositoryImpl implements EmployeeRepository {
       await apiService.editEmployeeWorkplace(
           companyId, employeeId, workplaceId);
       return const Result<void>.success(null);
-    } on EmployeeException catch (e) {
-      return Result.error(e);
-    } catch (e) {
-      return Result.error(EmployeeNetworkException(e));
+    } on EmployeeException catch (e, st) {
+      return reporter.failure(e, st);
+    } catch (e, st) {
+      return reporter.failure(EmployeeNetworkException(e), st);
     }
   }
 
@@ -589,10 +591,10 @@ class EmployeeRepositoryImpl implements EmployeeRepository {
     try {
       final models = await apiService.getContracts(companyId, employeeId);
       return Result.success(models.map((m) => m.toEntity()).toList());
-    } on EmployeeException catch (e) {
-      return Result.error(e);
-    } catch (e) {
-      return Result.error(EmployeeNetworkException(e));
+    } on EmployeeException catch (e, st) {
+      return reporter.failure(e, st);
+    } catch (e, st) {
+      return reporter.failure(EmployeeNetworkException(e), st);
     }
   }
 
@@ -603,10 +605,10 @@ class EmployeeRepositoryImpl implements EmployeeRepository {
       final models = await apiService.getContractTypes(companyId);
       return Result.success(
           models.map((m) => SelectionOption(id: m.id, name: m.name)).toList());
-    } on EmployeeException catch (e) {
-      return Result.error(e);
-    } catch (e) {
-      return Result.error(EmployeeNetworkException(e));
+    } on EmployeeException catch (e, st) {
+      return reporter.failure(e, st);
+    } catch (e, st) {
+      return reporter.failure(EmployeeNetworkException(e), st);
     }
   }
 
@@ -627,10 +629,10 @@ class EmployeeRepositoryImpl implements EmployeeRepository {
       };
       await apiService.createContract(companyId, body);
       return const Result<void>.success(null);
-    } on EmployeeException catch (e) {
-      return Result.error(e);
-    } catch (e) {
-      return Result.error(EmployeeNetworkException(e));
+    } on EmployeeException catch (e, st) {
+      return reporter.failure(e, st);
+    } catch (e, st) {
+      return reporter.failure(EmployeeNetworkException(e), st);
     }
   }
 
@@ -647,10 +649,10 @@ class EmployeeRepositoryImpl implements EmployeeRepository {
       };
       await apiService.finishContract(companyId, body);
       return const Result<void>.success(null);
-    } on EmployeeException catch (e) {
-      return Result.error(e);
-    } catch (e) {
-      return Result.error(EmployeeNetworkException(e));
+    } on EmployeeException catch (e, st) {
+      return reporter.failure(e, st);
+    } catch (e, st) {
+      return reporter.failure(EmployeeNetworkException(e), st);
     }
   }
 
@@ -667,10 +669,10 @@ class EmployeeRepositoryImpl implements EmployeeRepository {
                 ))
             .toList(),
       );
-    } on EmployeeException catch (e) {
-      return Result.error(e);
-    } catch (e) {
-      return Result.error(EmployeeNetworkException(e));
+    } on EmployeeException catch (e, st) {
+      return reporter.failure(e, st);
+    } catch (e, st) {
+      return reporter.failure(EmployeeNetworkException(e), st);
     }
   }
 
@@ -684,10 +686,10 @@ class EmployeeRepositoryImpl implements EmployeeRepository {
       await apiService.editDocumentSigningOptions(
           companyId, employeeId, optionId);
       return const Result<void>.success(null);
-    } on EmployeeException catch (e) {
-      return Result.error(e);
-    } catch (e) {
-      return Result.error(EmployeeNetworkException(e));
+    } on EmployeeException catch (e, st) {
+      return reporter.failure(e, st);
+    } catch (e, st) {
+      return reporter.failure(EmployeeNetworkException(e), st);
     }
   }
 
@@ -699,10 +701,10 @@ class EmployeeRepositoryImpl implements EmployeeRepository {
     try {
       final models = await apiService.getDocuments(companyId, employeeId);
       return Result.success(models.map((m) => m.toEntity()).toList());
-    } on EmployeeException catch (e) {
-      return Result.error(e);
-    } catch (e) {
-      return Result.error(EmployeeNetworkException(e));
+    } on EmployeeException catch (e, st) {
+      return reporter.failure(e, st);
+    } catch (e, st) {
+      return reporter.failure(EmployeeNetworkException(e), st);
     }
   }
 
@@ -725,10 +727,10 @@ class EmployeeRepositoryImpl implements EmployeeRepository {
         statusId: statusId,
       );
       return Result.success(model.toEntity());
-    } on EmployeeException catch (e) {
-      return Result.error(e);
-    } catch (e) {
-      return Result.error(EmployeeNetworkException(e));
+    } on EmployeeException catch (e, st) {
+      return reporter.failure(e, st);
+    } catch (e, st) {
+      return reporter.failure(EmployeeNetworkException(e), st);
     }
   }
 
@@ -741,10 +743,10 @@ class EmployeeRepositoryImpl implements EmployeeRepository {
     try {
       await apiService.createDocumentUnit(companyId, employeeId, documentId);
       return const Result<void>.success(null);
-    } on EmployeeException catch (e) {
-      return Result.error(e);
-    } catch (e) {
-      return Result.error(EmployeeNetworkException(e));
+    } on EmployeeException catch (e, st) {
+      return reporter.failure(e, st);
+    } catch (e, st) {
+      return reporter.failure(EmployeeNetworkException(e), st);
     }
   }
 
@@ -765,10 +767,10 @@ class EmployeeRepositoryImpl implements EmployeeRepository {
       };
       await apiService.editDocumentUnit(companyId, body);
       return const Result<void>.success(null);
-    } on EmployeeException catch (e) {
-      return Result.error(e);
-    } catch (e) {
-      return Result.error(EmployeeNetworkException(e));
+    } on EmployeeException catch (e, st) {
+      return reporter.failure(e, st);
+    } catch (e, st) {
+      return reporter.failure(EmployeeNetworkException(e), st);
     }
   }
 
@@ -787,10 +789,10 @@ class EmployeeRepositoryImpl implements EmployeeRepository {
       };
       await apiService.setDocumentUnitNotApplicable(companyId, body);
       return const Result<void>.success(null);
-    } on EmployeeException catch (e) {
-      return Result.error(e);
-    } catch (e) {
-      return Result.error(EmployeeNetworkException(e));
+    } on EmployeeException catch (e, st) {
+      return reporter.failure(e, st);
+    } catch (e, st) {
+      return reporter.failure(EmployeeNetworkException(e), st);
     }
   }
 
@@ -805,10 +807,10 @@ class EmployeeRepositoryImpl implements EmployeeRepository {
       final bytes = await apiService.generateDocument(
           companyId, employeeId, documentId, documentUnitId);
       return Result.success(bytes);
-    } on EmployeeException catch (e) {
-      return Result.error(e);
-    } catch (e) {
-      return Result.error(EmployeeNetworkException(e));
+    } on EmployeeException catch (e, st) {
+      return reporter.failure(e, st);
+    } catch (e, st) {
+      return reporter.failure(EmployeeNetworkException(e), st);
     }
   }
 
@@ -832,10 +834,10 @@ class EmployeeRepositoryImpl implements EmployeeRepository {
       };
       await apiService.generateAndSendToSign(companyId, body);
       return const Result<void>.success(null);
-    } on EmployeeException catch (e) {
-      return Result.error(e);
-    } catch (e) {
-      return Result.error(EmployeeNetworkException(e));
+    } on EmployeeException catch (e, st) {
+      return reporter.failure(e, st);
+    } catch (e, st) {
+      return reporter.failure(EmployeeNetworkException(e), st);
     }
   }
 
@@ -850,10 +852,10 @@ class EmployeeRepositoryImpl implements EmployeeRepository {
       final bytes = await apiService.downloadDocumentUnit(
           companyId, employeeId, documentId, documentUnitId);
       return Result.success(bytes);
-    } on EmployeeException catch (e) {
-      return Result.error(e);
-    } catch (e) {
-      return Result.error(EmployeeNetworkException(e));
+    } on EmployeeException catch (e, st) {
+      return reporter.failure(e, st);
+    } catch (e, st) {
+      return reporter.failure(EmployeeNetworkException(e), st);
     }
   }
 
@@ -878,10 +880,10 @@ class EmployeeRepositoryImpl implements EmployeeRepository {
         onProgress: onProgress,
       );
       return const Result<void>.success(null);
-    } on EmployeeException catch (e) {
-      return Result.error(e);
-    } catch (e) {
-      return Result.error(EmployeeNetworkException(e));
+    } on EmployeeException catch (e, st) {
+      return reporter.failure(e, st);
+    } catch (e, st) {
+      return reporter.failure(EmployeeNetworkException(e), st);
     }
   }
 
@@ -910,10 +912,10 @@ class EmployeeRepositoryImpl implements EmployeeRepository {
         onProgress: onProgress,
       );
       return const Result<void>.success(null);
-    } on EmployeeException catch (e) {
-      return Result.error(e);
-    } catch (e) {
-      return Result.error(EmployeeNetworkException(e));
+    } on EmployeeException catch (e, st) {
+      return reporter.failure(e, st);
+    } catch (e, st) {
+      return reporter.failure(EmployeeNetworkException(e), st);
     }
   }
 
@@ -930,10 +932,10 @@ class EmployeeRepositoryImpl implements EmployeeRepository {
         items.map((i) => i.toJson()).toList(),
       );
       return Result.success(bytes);
-    } on EmployeeException catch (e) {
-      return Result.error(e);
-    } catch (e) {
-      return Result.error(EmployeeNetworkException(e));
+    } on EmployeeException catch (e, st) {
+      return reporter.failure(e, st);
+    } catch (e, st) {
+      return reporter.failure(EmployeeNetworkException(e), st);
     }
   }
 
@@ -950,10 +952,10 @@ class EmployeeRepositoryImpl implements EmployeeRepository {
         items.map((i) => i.toJson()).toList(),
       );
       return Result.success(bytes);
-    } on EmployeeException catch (e) {
-      return Result.error(e);
-    } catch (e) {
-      return Result.error(EmployeeNetworkException(e));
+    } on EmployeeException catch (e, st) {
+      return reporter.failure(e, st);
+    } catch (e, st) {
+      return reporter.failure(EmployeeNetworkException(e), st);
     }
   }
 }
