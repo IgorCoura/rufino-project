@@ -87,12 +87,6 @@ class _HomeScreenState extends State<HomeScreen> {
           body: widget.viewModel.isLoading
               ? const Center(child: CircularProgressIndicator())
               : const _HomeBody(),
-          floatingActionButton: ElevatedButton(
-            onPressed: () {
-              throw StateError('This is test exception');
-            },
-            child: const Text('Verify Sentry Setup'),
-          ),
         );
       },
     );
@@ -294,6 +288,14 @@ class _HomeBody extends StatelessWidget {
                         label: 'Download em Lote',
                         onTap: () => context.go('/batch-download'),
                       ),
+                    ),
+                  ),
+                  ModuleGuard(
+                    resource: 'debug',
+                    child: _MenuCard(
+                      icon: Icons.bug_report_outlined,
+                      label: 'Debug',
+                      onTap: () => context.go('/debug'),
                     ),
                   ),
                 ],

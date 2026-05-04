@@ -1,3 +1,5 @@
+import 'dart:collection';
+
 import 'package:flutter/widgets.dart';
 
 import '../../../../domain/entities/permission.dart';
@@ -33,6 +35,10 @@ class PermissionNotifier extends ChangeNotifier
 
   /// The current loading status.
   PermissionStatus get status => _status;
+
+  /// All permissions currently granted to the user.
+  UnmodifiableListView<Permission> get permissions =>
+      UnmodifiableListView(_permissions);
 
   /// The last error that occurred during [loadPermissions], or `null`.
   ///
