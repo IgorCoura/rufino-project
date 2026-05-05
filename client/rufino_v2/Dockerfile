@@ -19,9 +19,12 @@ ARG AUTH_CODE_TOKEN_ENDPOINT
 ARG END_SESSION_ENDPOINT
 ARG IDENTIFIER
 ARG PEOPLE_MANAGEMENT_URL
+ARG ERROR_MONITORING_ENABLED
+ARG ERROR_MONITORING_DSN
+ARG ERROR_MONITORING_TRACES_SAMPLE_RATE
 
 RUN mkdir -p secrets && \
-    echo "{\"auth_code_authorization_endpoint\":\"$AUTH_CODE_AUTHORIZATION_ENDPOINT\",\"auth_code_token_endpoint\":\"$AUTH_CODE_TOKEN_ENDPOINT\",\"end_session_endpoint\":\"$END_SESSION_ENDPOINT\",\"identifier\":\"$IDENTIFIER\",\"people_management_url\":\"$PEOPLE_MANAGEMENT_URL\"}" \
+    echo "{\"auth_code_authorization_endpoint\":\"$AUTH_CODE_AUTHORIZATION_ENDPOINT\",\"auth_code_token_endpoint\":\"$AUTH_CODE_TOKEN_ENDPOINT\",\"end_session_endpoint\":\"$END_SESSION_ENDPOINT\",\"identifier\":\"$IDENTIFIER\",\"people_management_url\":\"$PEOPLE_MANAGEMENT_URL\",\"error_monitoring_enabled\":$ERROR_MONITORING_ENABLED,\"error_monitoring_dsn\":\"$ERROR_MONITORING_DSN\",\"error_monitoring_traces_sample_rate\":\"$ERROR_MONITORING_TRACES_SAMPLE_RATE\"}" \
     > secrets/prod_config.json
 
 RUN flutter build web --release --dart-define-from-file=secrets/prod_config.json
