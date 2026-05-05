@@ -31,11 +31,33 @@ class DocumentScannerRepositoryImpl implements DocumentScannerRepository {
       final pages = await scannerService.scanPages();
       return Result.success(pages);
     } on DocumentScannerException catch (e, st) {
-      return reporter.failure(e, st);
+      return reporter.failure(e, st, context: _scannerContext(e));
     } catch (e, st) {
-      return reporter.failure(ScannerPluginFailureException(e), st);
+      return reporter.failure(
+        ScannerPluginFailureException(e),
+        st,
+        context: {'op': 'scanPages', 'cause': e.toString()},
+      );
     }
   }
+
+  /// Builds a structured context map for Sentry that surfaces the native
+  /// plugin's underlying cause without leaking PII.
+  Map<String, Object?> _scannerContext(DocumentScannerException e) =>
+      switch (e) {
+        ScannerPluginFailureException(:final cause) => {
+            'op': 'scanPages',
+            'cause': cause.toString(),
+          },
+        ScannerFileReadException(:final path, :final cause) => {
+            'op': 'scanPages',
+            'path': path,
+            'cause': cause.toString(),
+          },
+        ScannerPermissionDeniedException() ||
+        ScannerPermissionPermanentlyDeniedException() =>
+          const {'op': 'scanPages'},
+      };
 
   @override
   Future<String> recognizeText(Uint8List imageBytes) =>

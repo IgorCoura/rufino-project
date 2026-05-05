@@ -99,7 +99,8 @@ void main() {
 
       test(
         'returns a Failure carrying ScannerPluginFailureException AND reports '
-        'it because the underlying plugin error is a bug, not a user mistake',
+        'it with a context map that surfaces the underlying native cause, '
+        'because the plugin error is a bug we need to triage in Sentry',
         () async {
           final cause = Exception('VNDocumentCameraViewController failed');
           when(() => scannerService.scanPages())
@@ -111,15 +112,19 @@ void main() {
           final failure = result as Failure<List<Uint8List>?>;
           expect(failure.error, isA<ScannerPluginFailureException>());
           expect(reporter.capturedErrors, hasLength(1));
+          final captured = reporter.capturedErrors.single;
+          expect(captured.error, isA<ScannerPluginFailureException>());
+          expect(captured.context?['op'], 'scanPages');
           expect(
-            reporter.capturedErrors.single.error,
-            isA<ScannerPluginFailureException>(),
+            captured.context?['cause'] as String?,
+            contains('VNDocumentCameraViewController failed'),
           );
         },
       );
 
       test(
-        'returns a Failure carrying ScannerFileReadException and reports it',
+        'returns a Failure carrying ScannerFileReadException and reports it '
+        'with the path and the underlying cause attached as context',
         () async {
           when(() => scannerService.scanPages()).thenThrow(
             const ScannerFileReadException('/tmp/page.jpg', 'sandbox error'),
@@ -133,12 +138,17 @@ void main() {
             isA<ScannerFileReadException>(),
           );
           expect(reporter.capturedErrors, hasLength(1));
+          final captured = reporter.capturedErrors.single;
+          expect(captured.context?['op'], 'scanPages');
+          expect(captured.context?['path'], '/tmp/page.jpg');
+          expect(captured.context?['cause'], contains('sandbox error'));
         },
       );
 
       test(
         'wraps an unexpected raw exception in ScannerPluginFailureException '
-        'so the layer never leaks an unknown error type',
+        'and forwards its toString as context so the native error is visible '
+        'in the crash dashboard',
         () async {
           final cause = StateError('something went sideways');
           when(() => scannerService.scanPages()).thenThrow(cause);
@@ -151,6 +161,12 @@ void main() {
           expect(error, isA<ScannerPluginFailureException>());
           expect((error as ScannerPluginFailureException).cause, same(cause));
           expect(reporter.capturedErrors, hasLength(1));
+          final captured = reporter.capturedErrors.single;
+          expect(captured.context?['op'], 'scanPages');
+          expect(
+            captured.context?['cause'] as String?,
+            contains('something went sideways'),
+          );
         },
       );
     });
