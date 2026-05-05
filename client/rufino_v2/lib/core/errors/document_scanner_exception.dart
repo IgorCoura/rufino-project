@@ -38,6 +38,9 @@ final class ScannerPluginFailureException extends DocumentScannerException {
 
   /// The underlying error returned by the native plugin.
   final Object cause;
+
+  @override
+  String toString() => 'ScannerPluginFailureException(cause: $cause)';
 }
 
 /// Thrown when reading the bytes of one of the temporary image files
@@ -51,4 +54,8 @@ final class ScannerFileReadException extends DocumentScannerException {
 
   /// The underlying error from the file system.
   final Object cause;
+
+  @override
+  String toString() =>
+      'ScannerFileReadException(path: $path, cause: $cause)';
 }

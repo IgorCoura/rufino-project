@@ -49,10 +49,37 @@ void main() {
       expect(exception.path, '/tmp/page.jpg');
       expect(exception.cause, same(cause));
     });
+
+    test('ScannerPluginFailureException.toString surfaces the cause so that '
+        'log output is actionable instead of "Instance of \'…\'"', () {
+      final exception = ScannerPluginFailureException(
+        Exception('VNDocumentCameraViewController not supported'),
+      );
+
+      expect(
+        exception.toString(),
+        contains('VNDocumentCameraViewController not supported'),
+      );
+      expect(exception.toString(), contains('ScannerPluginFailureException'));
+    });
+
+    test('ScannerFileReadException.toString surfaces the path and the cause',
+        () {
+      final exception = ScannerFileReadException(
+        '/tmp/page.jpg',
+        FileSystemException('sandbox denied'),
+      );
+
+      expect(exception.toString(), contains('/tmp/page.jpg'));
+      expect(exception.toString(), contains('sandbox denied'));
+    });
   });
 }
 
 class FileSystemException implements Exception {
   FileSystemException(this.message);
   final String message;
+
+  @override
+  String toString() => 'FileSystemException: $message';
 }
