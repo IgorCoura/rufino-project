@@ -7,6 +7,7 @@ import 'package:rufino_v2/ui/features/company/viewmodel/company_selection_viewmo
 
 import '../../../../testing/fakes/fake_auth_repository.dart';
 import '../../../../testing/fakes/fake_company_repository.dart';
+import '../../../../testing/fakes/fake_error_reporter.dart';
 import '../../../../testing/fakes/fake_permission_repository.dart';
 
 void main() {
@@ -15,6 +16,7 @@ void main() {
   late FakeCompanyRepository companyRepository;
   late FakePermissionRepository permissionRepository;
   late PermissionNotifier permissionNotifier;
+  late FakeErrorReporter errorReporter;
   late CompanySelectionViewModel viewModel;
 
   const fakeCompany = Company(
@@ -31,10 +33,12 @@ void main() {
     permissionNotifier = PermissionNotifier(
       permissionRepository: permissionRepository,
     );
+    errorReporter = FakeErrorReporter();
     viewModel = CompanySelectionViewModel(
       authRepository: authRepository,
       companyRepository: companyRepository,
       permissionNotifier: permissionNotifier,
+      errorReporter: errorReporter,
     );
   });
 
@@ -100,6 +104,20 @@ void main() {
 
       expect(viewModel.status, CompanySelectionStatus.error);
       expect(permissionNotifier.status, PermissionStatus.loading);
+    });
+
+    test('logout clears permissions and the error reporter user', () async {
+      permissionRepository.setPermissions([
+        const Permission(resource: 'employee', scopes: ['view']),
+      ]);
+      await permissionNotifier.loadPermissions();
+      expect(permissionNotifier.status, PermissionStatus.loaded);
+
+      await viewModel.logout();
+
+      expect(permissionNotifier.status, PermissionStatus.loading);
+      expect(errorReporter.userCleared, isTrue);
+      expect(errorReporter.capturedErrors, isEmpty);
     });
   });
 }

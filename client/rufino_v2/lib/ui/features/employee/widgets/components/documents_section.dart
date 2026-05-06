@@ -303,8 +303,7 @@ class _DocumentsSectionState extends State<DocumentsSection> {
     EmployeeDocument doc,
     DocumentUnit unit,
   ) async {
-    final scanSupported =
-        widget.viewModel.isScanSupported || kIsWeb;
+    final scanSupported = widget.viewModel.isScanSupported || kIsWeb;
 
     final action = await showDialog<String>(
       context: context,
@@ -374,8 +373,7 @@ class _DocumentsSectionState extends State<DocumentsSection> {
     );
     if (result == null || result.files.isEmpty) return;
 
-    final validFiles =
-        result.files.where((f) => f.bytes != null).toList();
+    final validFiles = result.files.where((f) => f.bytes != null).toList();
     if (validFiles.isEmpty) return;
 
     Uint8List fileBytes;
@@ -639,8 +637,7 @@ class _DocumentsSectionState extends State<DocumentsSection> {
                   child: ListView.separated(
                     shrinkWrap: true,
                     itemCount: files.length,
-                    separatorBuilder: (_, __) =>
-                        const Divider(height: 1),
+                    separatorBuilder: (_, __) => const Divider(height: 1),
                     itemBuilder: (_, index) {
                       final file = files[index];
                       return ListTile(
@@ -1239,9 +1236,7 @@ class _DocumentsSectionState extends State<DocumentsSection> {
                       ],
                       const SizedBox(width: AppSpacing.xs),
                       Icon(
-                        isExpanded
-                            ? Icons.expand_less
-                            : Icons.expand_more,
+                        isExpanded ? Icons.expand_less : Icons.expand_more,
                       ),
                     ],
                   )
@@ -1455,9 +1450,8 @@ class _DocumentsSectionState extends State<DocumentsSection> {
               icon: const Icon(Icons.chevron_left, size: 20),
               tooltip: 'Página anterior',
               visualDensity: VisualDensity.compact,
-              onPressed: currentPage > 1
-                  ? () => changePage(currentPage - 1)
-                  : null,
+              onPressed:
+                  currentPage > 1 ? () => changePage(currentPage - 1) : null,
             ),
             ...pageNumbers.map(buildPageNumberWidget),
             IconButton(
@@ -1559,19 +1553,17 @@ class _DocumentsSectionState extends State<DocumentsSection> {
           child: IconButton(
             icon: const Icon(Icons.edit, size: 20),
             tooltip: 'Editar data',
-            onPressed:
-                _isBusy ? null : () => _showEditDateDialog(doc, unit),
+            onPressed: _isBusy ? null : () => _showEditDateDialog(doc, unit),
           ),
         ),
         PermissionGuard(
           resource: 'document',
-          scope: 'edit',
+          scope: 'mark-not-applicable',
           child: IconButton(
             icon: const Icon(Icons.block, size: 20),
             tooltip: 'Não aplicável',
-            onPressed: _isBusy
-                ? null
-                : () => _showNotApplicableDialog(doc, unit),
+            onPressed:
+                _isBusy ? null : () => _showNotApplicableDialog(doc, unit),
           ),
         ),
         if (canGenerate)
@@ -1579,11 +1571,9 @@ class _DocumentsSectionState extends State<DocumentsSection> {
             resource: 'document',
             scope: 'generate',
             child: IconButton(
-              icon:
-                  const Icon(Icons.sim_card_download_outlined, size: 20),
+              icon: const Icon(Icons.sim_card_download_outlined, size: 20),
               tooltip: 'Gerar',
-              onPressed:
-                  _isBusy ? null : () => _showGenerateDialog(doc, unit),
+              onPressed: _isBusy ? null : () => _showGenerateDialog(doc, unit),
             ),
           ),
         if (canSend)
@@ -1593,8 +1583,7 @@ class _DocumentsSectionState extends State<DocumentsSection> {
             child: IconButton(
               icon: const Icon(Icons.upload_file_outlined, size: 20),
               tooltip: 'Enviar',
-              onPressed:
-                  _isBusy ? null : () => _showSendDialog(doc, unit),
+              onPressed: _isBusy ? null : () => _showSendDialog(doc, unit),
             ),
           ),
       ] else if (unit.hasFile)
@@ -1684,8 +1673,7 @@ class _DocumentsSectionState extends State<DocumentsSection> {
           ),
           child: LayoutBuilder(
             builder: (context, constraints) {
-              final isWide =
-                  constraints.maxWidth >= AppBreakpoints.mobile;
+              final isWide = constraints.maxWidth >= AppBreakpoints.mobile;
 
               if (isWide) {
                 return Row(

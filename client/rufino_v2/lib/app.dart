@@ -409,6 +409,7 @@ class _AppRouterState extends State<_AppRouter> {
               authRepository: context.read<AuthRepository>(),
               companyRepository: context.read<CompanyRepository>(),
               permissionNotifier: context.read<PermissionNotifier>(),
+              errorReporter: context.read<ErrorReporter>(),
             ),
           ),
         ),

@@ -2,6 +2,7 @@ import 'dart:collection';
 
 import 'package:flutter/foundation.dart';
 
+import '../../../../core/monitoring/error_reporter.dart';
 import '../../../../domain/entities/company.dart';
 import '../../../../domain/repositories/auth_repository.dart';
 import '../../../../domain/repositories/company_repository.dart';
@@ -21,13 +22,16 @@ class CompanySelectionViewModel extends ChangeNotifier {
     required AuthRepository authRepository,
     required CompanyRepository companyRepository,
     required PermissionNotifier permissionNotifier,
+    required ErrorReporter errorReporter,
   })  : _authRepository = authRepository,
         _companyRepository = companyRepository,
-        _permissionNotifier = permissionNotifier;
+        _permissionNotifier = permissionNotifier,
+        _errorReporter = errorReporter;
 
   final AuthRepository _authRepository;
   final CompanyRepository _companyRepository;
   final PermissionNotifier _permissionNotifier;
+  final ErrorReporter _errorReporter;
 
   List<Company> _companies = [];
   Company? _selectedCompany;
@@ -81,6 +85,14 @@ class CompanySelectionViewModel extends ChangeNotifier {
   void onCompanySelected(Company company) {
     _selectedCompany = company;
     notifyListeners();
+  }
+
+  /// Signs the current user out, clears cached permissions and the error
+  /// reporter user context.
+  Future<void> logout() async {
+    await _authRepository.logout();
+    await _permissionNotifier.clear();
+    _errorReporter.clearUser();
   }
 
   Future<void> confirmSelection() async {

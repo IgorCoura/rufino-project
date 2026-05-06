@@ -112,13 +112,6 @@ class _Body extends StatelessWidget {
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: AppSpacing.sm),
-            Text(
-              'Gestão de Pessoas',
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                  ),
-              textAlign: TextAlign.center,
-            ),
             const SizedBox(height: AppSpacing.xxl),
             if (viewModel.isLoading)
               const Center(child: CircularProgressIndicator())
@@ -129,7 +122,7 @@ class _Body extends StatelessWidget {
                 icon: const Icon(Icons.login),
                 label: const Padding(
                   padding: EdgeInsets.symmetric(vertical: AppSpacing.sm),
-                  child: Text('Entrar com SSO'),
+                  child: Text('Entrar'),
                 ),
               ),
             const SizedBox(height: AppSpacing.md),
