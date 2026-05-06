@@ -10,12 +10,14 @@ import 'package:rufino_v2/ui/features/company/widgets/company_selection_screen.d
 
 import '../../../testing/fakes/fake_auth_repository.dart';
 import '../../../testing/fakes/fake_company_repository.dart';
+import '../../../testing/fakes/fake_error_reporter.dart';
 import '../../../testing/fakes/fake_permission_repository.dart';
 
 void main() {
   late FakeAuthRepository fakeAuth;
   late FakeCompanyRepository fakeCompany;
   late PermissionNotifier permissionNotifier;
+  late FakeErrorReporter fakeErrorReporter;
   late CompanySelectionViewModel viewModel;
 
   const fakeCompanyEntity = Company(
@@ -35,10 +37,12 @@ void main() {
       ]);
     permissionNotifier = PermissionNotifier(permissionRepository: fakePermRepo);
     await permissionNotifier.loadPermissions();
+    fakeErrorReporter = FakeErrorReporter();
     viewModel = CompanySelectionViewModel(
       authRepository: fakeAuth,
       companyRepository: fakeCompany,
       permissionNotifier: permissionNotifier,
+      errorReporter: fakeErrorReporter,
     );
   });
 
@@ -56,6 +60,11 @@ void main() {
                 path: '/',
                 builder: (_, __) =>
                     CompanySelectionScreen(viewModel: viewModel),
+              ),
+              GoRoute(
+                path: '/login',
+                builder: (_, __) =>
+                    const Scaffold(body: Text('login-screen')),
               ),
             ],
           ),
@@ -75,6 +84,19 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Criar Empresa'), findsOneWidget);
+    });
+
+    testWidgets('logout button signs the user out and navigates to /login',
+        (tester) async {
+      await tester.pumpWidget(buildSubject());
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byTooltip('Sair'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('login-screen'), findsOneWidget);
+      expect(fakeErrorReporter.userCleared, isTrue);
+      expect(permissionNotifier.status, PermissionStatus.loading);
     });
   });
 }

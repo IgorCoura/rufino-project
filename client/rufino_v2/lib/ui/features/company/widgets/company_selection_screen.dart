@@ -61,9 +61,26 @@ class _CompanySelectionScreenState extends State<CompanySelectionScreen> {
     }
   }
 
+  Future<void> _onLogout() async {
+    await widget.viewModel.logout();
+    if (mounted) context.go('/login');
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      appBar: AppBar(
+        actions: [
+          Padding(
+            padding: const EdgeInsets.all(AppSpacing.md),
+            child: IconButton(
+              tooltip: 'Sair',
+              icon: const Icon(Icons.logout),
+              onPressed: _onLogout,
+            ),
+          ),
+        ],
+      ),
       body: SafeArea(
         child: Center(
           child: Padding(
