@@ -215,7 +215,7 @@ namespace PeopleManagement.API.Controllers
         }
 
         [HttpPut("DocumentUnit/invalid")]
-        [ProtectedResource("document", "edit")]
+        [ProtectedResource("document", "reject")]
         public async Task<ActionResult<MarkAsInvalidDocumentUnitResponse>> MarkAsInvalid([FromRoute] Guid company, [FromBody] MarkAsInvalidDocumentUnitModel request, [FromHeader(Name = "x-requestid")] Guid requestId)
         {
             var command = new IdentifiedCommand<MarkAsInvalidDocumentUnitCommand, MarkAsInvalidDocumentUnitResponse>(request.ToCommand(company), requestId);
@@ -230,7 +230,7 @@ namespace PeopleManagement.API.Controllers
         }
 
         [HttpPut("DocumentUnit/valid")]
-        [ProtectedResource("document", "edit")]
+        [ProtectedResource("document", "approve")]
         public async Task<ActionResult<MarkAsValidDocumentUnitResponse>> MarkAsValid([FromRoute] Guid company, [FromBody] MarkAsValidDocumentUnitModel request, [FromHeader(Name = "x-requestid")] Guid requestId)
         {
             var command = new IdentifiedCommand<MarkAsValidDocumentUnitCommand, MarkAsValidDocumentUnitResponse>(request.ToCommand(company), requestId);
@@ -245,7 +245,7 @@ namespace PeopleManagement.API.Controllers
         }
 
         [HttpPut("DocumentUnit/not-applicable")]
-        [ProtectedResource("document", "edit")]
+        [ProtectedResource("document", "mark-not-applicable")]
         public async Task<ActionResult<MarkAsNotApplicableDocumentUnitResponse>> MarkAsNotApplicable([FromRoute] Guid company, [FromBody] MarkAsNotApplicableDocumentUnitModel request, [FromHeader(Name = "x-requestid")] Guid requestId)
         {
             var command = new IdentifiedCommand<MarkAsNotApplicableDocumentUnitCommand, MarkAsNotApplicableDocumentUnitResponse>(request.ToCommand(company), requestId);
