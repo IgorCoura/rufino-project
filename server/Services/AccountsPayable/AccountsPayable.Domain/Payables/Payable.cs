@@ -1,5 +1,7 @@
 namespace AccountsPayable.Domain.Payables;
 
+using AccountsPayable.Domain.ChartOfAccounts.Entities;
+using AccountsPayable.Domain.CostCenters;
 using AccountsPayable.Domain.Errors;
 using AccountsPayable.Domain.Payables.Enumerations;
 using AccountsPayable.Domain.Payables.Events;
@@ -26,6 +28,10 @@ public sealed class Payable : EventSourcedAggregateRoot<PayableId>
     public DateOnly? ScheduledFor { get; private set; }
     public DateTime? PaidAt { get; private set; }
     public PaymentProof? PaymentProof { get; private set; }
+    public AccountId? AccountId { get; private set; }
+    public CostCenterId? CostCenterId { get; private set; }
+    public DateTime? ClassifiedAt { get; private set; }
+    public UserId? ClassifiedBy { get; private set; }
 
     private Payable() : base() { }
 
@@ -65,16 +71,46 @@ public sealed class Payable : EventSourcedAggregateRoot<PayableId>
 
     public static Payable Rehydrate(IEnumerable<IDomainEvent> history) => new(history);
 
-    public void Schedule(DateOnly scheduledFor, DateTime occurredAt)
+    /// <summary>
+    /// Schedule the payable for a future payment date.
+    /// <para>
+    /// <paramref name="allowUnclassified"/> default is <c>false</c> — Sprint 4 invariant requires
+    /// classification before scheduling. The caller (Application layer) reads the tenant setting
+    /// "allow scheduling unclassified payables" and passes <c>true</c> to bypass.
+    /// </para>
+    /// </summary>
+    public void Schedule(DateOnly scheduledFor, DateTime occurredAt, bool allowUnclassified = false)
     {
         if (!Status.CanTransitionTo(PayableStatus.Scheduled))
             throw PayableErrors.InvalidStatusTransition(Status.Name, PayableStatus.Scheduled.Name);
+
+        if (!allowUnclassified && AccountId is null)
+            throw PayableErrors.CannotScheduleWithoutClassification();
 
         Apply(new PayableScheduled(
             EventId: Guid.NewGuid(),
             OccurredAt: occurredAt,
             PayableId: Id,
             ScheduledFor: scheduledFor));
+    }
+
+    /// <summary>
+    /// Classify the payable against an accounting account (within the tenant's chart of accounts)
+    /// and a cost center. Allowed on Draft and Scheduled; reclassification is allowed and emits a
+    /// new <see cref="PayableClassified"/> event each time (A+ES preserves the history).
+    /// </summary>
+    public void Classify(AccountId accountId, CostCenterId costCenterId, UserId classifiedBy, DateTime occurredAt)
+    {
+        if (Status == PayableStatus.Paid || Status == PayableStatus.Cancelled)
+            throw PayableErrors.CannotClassifyTerminalPayable(Status.Name);
+
+        Apply(new PayableClassified(
+            EventId: Guid.NewGuid(),
+            OccurredAt: occurredAt,
+            PayableId: Id,
+            AccountId: accountId,
+            CostCenterId: costCenterId,
+            ClassifiedBy: classifiedBy));
     }
 
     public void MarkAsPaidManually(PaymentProof proof, DateTime paidAt, DateTime occurredAt)
@@ -138,5 +174,13 @@ public sealed class Payable : EventSourcedAggregateRoot<PayableId>
     private void When(PayableCancelled e)
     {
         Status = PayableStatus.Cancelled;
+    }
+
+    private void When(PayableClassified e)
+    {
+        AccountId = e.AccountId;
+        CostCenterId = e.CostCenterId;
+        ClassifiedBy = e.ClassifiedBy;
+        ClassifiedAt = e.OccurredAt;
     }
 }

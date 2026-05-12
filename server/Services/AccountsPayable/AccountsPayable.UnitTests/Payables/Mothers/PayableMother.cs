@@ -1,5 +1,7 @@
 namespace AccountsPayable.UnitTests.Payables.Mothers;
 
+using AccountsPayable.Domain.ChartOfAccounts.Entities;
+using AccountsPayable.Domain.CostCenters;
 using AccountsPayable.Domain.Payables;
 using AccountsPayable.Domain.Payables.Enumerations;
 using AccountsPayable.Domain.Payables.ValueObjects;
@@ -13,6 +15,9 @@ public static class PayableMother
     public static readonly DateOnly DEFAULT_SCHEDULED_FOR = new(2024, 2, 14);
     public static readonly TenantId DEFAULT_TENANT = TenantId.From(new Guid("11111111-1111-1111-1111-111111111111"));
     public static readonly SupplierId DEFAULT_SUPPLIER = SupplierId.From(new Guid("22222222-2222-2222-2222-222222222222"));
+    public static readonly AccountId DEFAULT_ACCOUNT = AccountId.From(new Guid("33333333-3333-3333-3333-333333333333"));
+    public static readonly CostCenterId DEFAULT_COST_CENTER = CostCenterId.From(new Guid("44444444-4444-4444-4444-444444444444"));
+    public static readonly UserId DEFAULT_USER = UserId.From(new Guid("55555555-5555-5555-5555-555555555555"));
 
     public static readonly PaymentProof DEFAULT_PROOF =
         new("https://docs.acme.com.br/payable/proof.pdf", PaymentProofType.Receipt);
@@ -37,9 +42,24 @@ public static class PayableMother
             occurredAt: occurredAt ?? DEFAULT_OCCURRED_AT);
     }
 
-    public static Payable Scheduled(DateOnly? scheduledFor = null)
+    /// <summary>Draft already classified — ready to Schedule under the default strict invariant.</summary>
+    public static Payable Classified(
+        AccountId? accountId = null,
+        CostCenterId? costCenterId = null,
+        UserId? classifiedBy = null)
     {
         var payable = Draft();
+        payable.Classify(
+            accountId ?? DEFAULT_ACCOUNT,
+            costCenterId ?? DEFAULT_COST_CENTER,
+            classifiedBy ?? DEFAULT_USER,
+            DEFAULT_OCCURRED_AT.AddMinutes(2));
+        return payable;
+    }
+
+    public static Payable Scheduled(DateOnly? scheduledFor = null)
+    {
+        var payable = Classified();
         payable.Schedule(
             scheduledFor: scheduledFor ?? DEFAULT_SCHEDULED_FOR,
             occurredAt: DEFAULT_OCCURRED_AT.AddMinutes(5));

@@ -1,5 +1,7 @@
 namespace AccountsPayable.UnitTests.Payables;
 
+using AccountsPayable.Domain.ChartOfAccounts.Entities;
+using AccountsPayable.Domain.CostCenters;
 using AccountsPayable.Domain.Payables;
 using AccountsPayable.Domain.Payables.Enumerations;
 using AccountsPayable.Domain.Payables.Events;
@@ -70,13 +72,93 @@ public class PayableTests
         }
     }
 
-    public class WhenScheduling
+    public class WhenClassifying
     {
-        // Schedule a partir de Draft muda status para Scheduled, define ScheduledFor e emite PayableScheduled.
+        // Classify em Draft popula AccountId/CostCenterId/ClassifiedBy/ClassifiedAt e emite PayableClassified.
         [Fact]
-        public void Schedule_FromDraft_ShouldChangeStatusAndEmitEvent()
+        public void Classify_FromDraft_ShouldPopulateStateAndEmitEvent()
         {
             var payable = PayableMother.Draft();
+            payable.PullChanges();
+
+            payable.Classify(
+                PayableMother.DEFAULT_ACCOUNT,
+                PayableMother.DEFAULT_COST_CENTER,
+                PayableMother.DEFAULT_USER,
+                LATER);
+
+            Assert.Equal(PayableMother.DEFAULT_ACCOUNT, payable.AccountId);
+            Assert.Equal(PayableMother.DEFAULT_COST_CENTER, payable.CostCenterId);
+            Assert.Equal(PayableMother.DEFAULT_USER, payable.ClassifiedBy);
+            Assert.Equal(LATER, payable.ClassifiedAt);
+            var classified = Assert.IsType<PayableClassified>(payable.Changes.Single());
+            Assert.Equal(payable.Id, classified.PayableId);
+            Assert.Equal(PayableMother.DEFAULT_ACCOUNT, classified.AccountId);
+        }
+
+        // Reclassify em Draft já classificado é permitido — emite novo PayableClassified (A+ES preserva histórico).
+        [Fact]
+        public void Classify_OnAlreadyClassifiedDraft_ShouldEmitNewEvent()
+        {
+            var payable = PayableMother.Classified();
+            payable.PullChanges();
+            var newAccount = AccountId.From(new Guid("88888888-8888-8888-8888-888888888888"));
+
+            payable.Classify(newAccount, PayableMother.DEFAULT_COST_CENTER, PayableMother.DEFAULT_USER, LATER);
+
+            Assert.Equal(newAccount, payable.AccountId);
+            var reclassified = Assert.IsType<PayableClassified>(payable.Changes.Single());
+            Assert.Equal(newAccount, reclassified.AccountId);
+        }
+
+        // Reclassify em Scheduled é permitido (Status não-terminal).
+        [Fact]
+        public void Classify_OnScheduled_ShouldSucceed()
+        {
+            var payable = PayableMother.Scheduled();
+            payable.PullChanges();
+            var newCostCenter = CostCenterId.From(new Guid("77777777-7777-7777-7777-777777777777"));
+
+            payable.Classify(PayableMother.DEFAULT_ACCOUNT, newCostCenter, PayableMother.DEFAULT_USER, LATER);
+
+            Assert.Equal(newCostCenter, payable.CostCenterId);
+            Assert.Equal(PayableStatus.Scheduled, payable.Status); // status permanece
+        }
+
+        // Classify em Payable Paid (terminal) lança AP.PAY06.
+        [Fact]
+        public void Classify_OnPaid_ShouldThrowDomainException()
+        {
+            var payable = PayableMother.Paid();
+
+            var ex = Assert.Throws<DomainException>(() => payable.Classify(
+                PayableMother.DEFAULT_ACCOUNT, PayableMother.DEFAULT_COST_CENTER,
+                PayableMother.DEFAULT_USER, LATER));
+
+            Assert.Equal("AP.PAY06", ex.Id);
+        }
+
+        // Classify em Payable Cancelled (terminal) lança AP.PAY06.
+        [Fact]
+        public void Classify_OnCancelled_ShouldThrowDomainException()
+        {
+            var payable = PayableMother.Cancelled();
+
+            var ex = Assert.Throws<DomainException>(() => payable.Classify(
+                PayableMother.DEFAULT_ACCOUNT, PayableMother.DEFAULT_COST_CENTER,
+                PayableMother.DEFAULT_USER, LATER));
+
+            Assert.Equal("AP.PAY06", ex.Id);
+        }
+    }
+
+    public class WhenScheduling
+    {
+        // Schedule a partir de Draft classificado muda status para Scheduled, define ScheduledFor e emite PayableScheduled.
+        [Fact]
+        public void Schedule_FromClassifiedDraft_ShouldChangeStatusAndEmitEvent()
+        {
+            var payable = PayableMother.Classified();
             payable.PullChanges();
 
             payable.Schedule(PayableMother.DEFAULT_SCHEDULED_FOR, LATER);
@@ -88,6 +170,31 @@ public class PayableTests
             Assert.Equal(payable.Id, scheduled.PayableId);
             Assert.Equal(PayableMother.DEFAULT_SCHEDULED_FOR, scheduled.ScheduledFor);
             Assert.Equal(LATER, scheduled.OccurredAt);
+        }
+
+        // Schedule em Draft NÃO classificado e sem allowUnclassified lança AP.PAY05 (invariante da Sprint 4).
+        [Fact]
+        public void Schedule_FromUnclassifiedDraft_WithoutAllowFlag_ShouldThrowDomainException()
+        {
+            var payable = PayableMother.Draft();
+
+            var ex = Assert.Throws<DomainException>(
+                () => payable.Schedule(PayableMother.DEFAULT_SCHEDULED_FOR, LATER));
+
+            Assert.Equal("AP.PAY05", ex.Id);
+        }
+
+        // Schedule em Draft NÃO classificado com allowUnclassified=true sucede (bypass autorizado pelo setting do tenant).
+        [Fact]
+        public void Schedule_FromUnclassifiedDraft_WithAllowFlag_ShouldSucceed()
+        {
+            var payable = PayableMother.Draft();
+            payable.PullChanges();
+
+            payable.Schedule(PayableMother.DEFAULT_SCHEDULED_FOR, LATER, allowUnclassified: true);
+
+            Assert.Equal(PayableStatus.Scheduled, payable.Status);
+            Assert.IsType<PayableScheduled>(payable.Changes.Single());
         }
 
         // Schedule a partir de Scheduled, Paid ou Cancelled é rejeitado (AP.PAY01).
@@ -301,9 +408,9 @@ public class PayableTests
 
             var pulled = payable.PullChanges();
 
-            Assert.Equal(2, pulled.Count); // PayableCreated + PayableScheduled
+            Assert.Equal(3, pulled.Count); // PayableCreated + PayableClassified + PayableScheduled
             Assert.Empty(payable.Changes);
-            Assert.Equal(2, payable.Version);
+            Assert.Equal(3, payable.Version);
             Assert.Equal(PayableStatus.Scheduled, payable.Status);
         }
     }

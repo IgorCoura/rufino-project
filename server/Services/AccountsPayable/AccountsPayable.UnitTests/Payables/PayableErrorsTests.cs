@@ -60,6 +60,26 @@ public class PayableErrorsTests
         Assert.Empty(error.Parameters);
     }
 
+    // CannotScheduleWithoutClassification retorna AP.PAY05 sem parâmetros — Sprint 4.
+    [Fact]
+    public void CannotScheduleWithoutClassification_ShouldHaveCorrectIdAndNoParameters()
+    {
+        var error = Invoke("CannotScheduleWithoutClassification");
+
+        Assert.Equal("AP.PAY05", error.Id);
+        Assert.Empty(error.Parameters);
+    }
+
+    // CannotClassifyTerminalPayable retorna AP.PAY06 com o status atual como parâmetro — Sprint 4.
+    [Fact]
+    public void CannotClassifyTerminalPayable_ShouldHaveCorrectIdAndParameter()
+    {
+        var error = Invoke("CannotClassifyTerminalPayable", "PAID");
+
+        Assert.Equal("AP.PAY06", error.Id);
+        Assert.Equal("PAID", error.Parameters[0]);
+    }
+
     // Todos os Ids são únicos (proteção contra duplicidade acidental).
     [Fact]
     public void AllErrors_ShouldHaveUniqueIds()
@@ -70,6 +90,8 @@ public class PayableErrorsTests
             Invoke("DueDateInPast", new DateOnly(2023, 1, 1), new DateOnly(2024, 1, 1)).Id,
             Invoke("ReasonRequired").Id,
             Invoke("CannotPayCancelled").Id,
+            Invoke("CannotScheduleWithoutClassification").Id,
+            Invoke("CannotClassifyTerminalPayable", "PAID").Id,
         };
 
         Assert.Equal(ids.Length, ids.Distinct().Count());
