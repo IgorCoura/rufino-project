@@ -1,0 +1,12 @@
+{
+  "profiles": {
+    "AccountsPayable.API": {
+      "commandName": "Project",
+      "launchBrowser": true,
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development"
+      },
+      "applicationUrl": "https://localhost:51234;http://localhost:51235"
+    }
+  }
+}

@@ -1,0 +1,36 @@
+version: '3.4'
+
+services:
+  accountspayable.api:
+    image: ${DOCKER_REGISTRY-}accountspayableapi
+    build:
+      context: .
+      dockerfile: AccountsPayable.API/Dockerfile
+    environment:
+      ASPNETCORE_URLS: "https://+;http://+"
+      ASPNETCORE_HTTPS_PORT: "443"
+      ASPNETCORE_ENVIRONMENT: Development
+    volumes:
+      - ${APPDATA}\microsoft\UserSecrets\:/root/.microsoft/usersecrets
+      - ${USERPROFILE}\.aspnet\https:/root/.aspnet/https/
+    ports:
+      - 8050:80
+      - 8051:443
+    depends_on:
+      - accountspayable.db 
+
+  accountspayable.db:
+    image: postgres:16.4-alpine
+    restart: always
+    volumes:
+      - accountspayable-db:/var/lib/postgresql/data
+    environment:
+      POSTGRES_USER: "admin"
+      POSTGRES_PASSWORD: "5up3rS3nh@"
+      POSTGRES_DB: "AccountsPayableDb"
+      PGDATA: /var/lib/postgresql/data/pgdata
+    ports:
+      - 8052:5432
+
+volumes:
+  accountspayable-db:
