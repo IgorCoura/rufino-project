@@ -1,6 +1,8 @@
 # Claude Code
 .claude/
 CLAUDE.md
+# Exception: AccountsPayable BC documents its conventions (DDD layout, A+ES, error catalog) in its CLAUDE.md.
+!server/Services/AccountsPayable/CLAUDE.md
 
 # Flutter metadata
 .metadata
