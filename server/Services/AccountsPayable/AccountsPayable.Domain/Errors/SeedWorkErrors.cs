@@ -37,6 +37,11 @@ using AccountsPayable.Domain.SeedWork;
 //     DSC → Description
 //     PPF → PaymentProof
 //     DUE → DueDate          (sem errors próprios — validação contextual fica no Aggregate)
+//     CON → ChartOfAccountsName
+//     ACO → AccountCode
+//     ANM → AccountName
+//     CCC → CostCenterCode
+//     CCN → CostCenterName
 //   Domain Services:
 //     SUC → SupplierUniquenessChecker     (Sprint 1)
 //     PCL → PayableClassification         (Sprint 4)
