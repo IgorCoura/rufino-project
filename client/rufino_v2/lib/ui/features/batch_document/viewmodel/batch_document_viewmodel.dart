@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart';
 import '../../../../core/result.dart';
 import '../../../../core/utils/error_messages.dart';
 import '../../../../core/utils/fuzzy_name_matcher.dart';
+import '../../../../core/utils/page_rotation_finder.dart';
 import '../../../../core/utils/pdf_text_extractor.dart';
 import '../../../../domain/entities/batch_document_unit.dart';
 import '../../../../domain/entities/bulk_upload_match.dart';
@@ -32,6 +33,17 @@ enum BatchDocumentStatus {
 /// depending on real PDF files.
 typedef PdfTextExtractorFn = String Function(Uint8List bytes);
 
+/// Signature for a function that detects the upright orientation of a
+/// scanned page and returns the rotated bytes + OCR text for it.
+///
+/// Defaults to [pickBestRotation]. Can be overridden in tests to avoid
+/// running the real image decoder + isolate.
+typedef PageRotationFinderFn = Future<RotationCandidate?> Function({
+  required Uint8List originalBytes,
+  required String originalText,
+  required Future<String> Function(Uint8List) recognizeText,
+});
+
 /// Coordinates between [BatchDocumentRepository] for batch operations and
 /// [DocumentTemplateRepository] for populating the template dropdown.
 /// Implements a staging pattern where the user selects files locally before
@@ -41,23 +53,28 @@ class BatchDocumentViewModel extends ChangeNotifier {
   ///
   /// The optional [textExtractor] allows injecting a custom PDF text
   /// extraction function for testing. The optional [scannerRepository]
-  /// enables document scanning on supported platforms.
+  /// enables document scanning on supported platforms. The optional
+  /// [pageRotationFinder] lets tests stub the orientation-detection step
+  /// without invoking the real image decoder.
   BatchDocumentViewModel({
     required BatchDocumentRepository batchDocumentRepository,
     required DocumentGroupRepository documentGroupRepository,
     required String companyId,
     PdfTextExtractorFn? textExtractor,
     DocumentScannerRepository? scannerRepository,
+    PageRotationFinderFn? pageRotationFinder,
   })  : _batchDocumentRepository = batchDocumentRepository,
         _documentGroupRepository = documentGroupRepository,
         _companyId = companyId,
         _textExtractor = textExtractor ?? extractTextFromPdf,
-        _scannerRepository = scannerRepository;
+        _scannerRepository = scannerRepository,
+        _pageRotationFinder = pageRotationFinder ?? pickBestRotation;
 
   final BatchDocumentRepository _batchDocumentRepository;
   final DocumentGroupRepository _documentGroupRepository;
   final PdfTextExtractorFn _textExtractor;
   final DocumentScannerRepository? _scannerRepository;
+  final PageRotationFinderFn _pageRotationFinder;
   final String _companyId;
 
   /// Sentinel value for the "Todos" option in the template dropdown.
@@ -925,28 +942,22 @@ class BatchDocumentViewModel extends ChangeNotifier {
           .toList();
 
       for (var i = 0; i < documents.length; i++) {
-        final pages = documents[i];
-        if (pages.isEmpty) {
+        if (documents[i].isEmpty) {
           _bulkProcessedCount++;
           notifyListeners();
           continue;
         }
 
-        // Step 1: Convert images to PDF.
-        final pdfBytes = await _scannerRepository.imagesToPdf(pages);
+        // Working copy so we can swap rotated bytes in place.
+        final pages = List<Uint8List>.of(documents[i]);
 
-        // Step 2: Run OCR on each page and concatenate the text.
-        final textBuffer = StringBuffer();
+        // Step 1: Run OCR on each page on its original orientation.
+        final pageTexts = <String>[];
         for (final page in pages) {
-          final pageText = await _scannerRepository.recognizeText(page);
-          if (pageText.isNotEmpty) {
-            textBuffer.write(pageText);
-            textBuffer.write(' ');
-          }
+          pageTexts.add(await _scannerRepository.recognizeText(page));
         }
-        final extractedText = textBuffer.toString().trim();
 
-        // Step 3: Fuzzy match excluding already-assigned units.
+        // Step 2: Fuzzy match excluding already-assigned units.
         final candidates = availableUnits
             .where((u) => !assignedUnitIds.contains(u.documentUnitId))
             .map((u) => NameCandidate(
@@ -957,10 +968,43 @@ class BatchDocumentViewModel extends ChangeNotifier {
                 ))
             .toList();
 
-        final matchResult = FuzzyNameMatcher.findBestMatch(
+        var extractedText = _joinPageTexts(pageTexts);
+        var matchResult = FuzzyNameMatcher.findBestMatch(
           extractedText,
           candidates,
         );
+
+        // Step 3: When match is below `high`, test 90°/180°/270° per page
+        // and keep whichever orientation produces the longest OCR text.
+        // Pages whose original orientation already wins the per-page
+        // duel are left untouched. After applying any rotation, the
+        // match is recomputed against the updated concatenated text.
+        if (matchResult?.confidenceLevel != MatchConfidenceLevel.high) {
+          var anyRotationApplied = false;
+          for (var p = 0; p < pages.length; p++) {
+            final winner = await _pageRotationFinder(
+              originalBytes: pages[p],
+              originalText: pageTexts[p],
+              recognizeText: _scannerRepository.recognizeText,
+            );
+            if (winner == null) continue;
+            if (winner.rotationDegrees != 0) {
+              pages[p] = winner.bytes;
+              pageTexts[p] = winner.text;
+              anyRotationApplied = true;
+            }
+          }
+          if (anyRotationApplied) {
+            extractedText = _joinPageTexts(pageTexts);
+            matchResult = FuzzyNameMatcher.findBestMatch(
+              extractedText,
+              candidates,
+            );
+          }
+        }
+
+        // Step 4: Build the PDF using the (possibly rotated) page bytes.
+        final pdfBytes = await _scannerRepository.imagesToPdf(pages);
 
         final now = DateTime.now();
         final fileName =
@@ -1012,5 +1056,17 @@ class BatchDocumentViewModel extends ChangeNotifier {
       _isBulkProcessing = false;
       notifyListeners();
     }
+  }
+
+  /// Joins the per-page OCR texts of a single document into one searchable
+  /// string, skipping pages that produced no recognized text.
+  String _joinPageTexts(List<String> pageTexts) {
+    final buffer = StringBuffer();
+    for (final text in pageTexts) {
+      if (text.isEmpty) continue;
+      if (buffer.isNotEmpty) buffer.write(' ');
+      buffer.write(text);
+    }
+    return buffer.toString().trim();
   }
 }
