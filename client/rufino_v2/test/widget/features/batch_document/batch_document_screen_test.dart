@@ -314,4 +314,115 @@ void main() {
       expect(find.text('Home'), findsOneWidget);
     });
   });
+
+  group('keyboard dismissal in competência filter', () {
+    Future<void> openFilterAndPickMensal(WidgetTester tester) async {
+      await tester.pumpWidget(buildSubject());
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Grupo de Documentos'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Admissão').last);
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Documento'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Contrato').last);
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Competência').first);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Mensal').last);
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('period TextFields declare TextInputAction.done',
+        (tester) async {
+      await openFilterAndPickMensal(tester);
+
+      final yearField = tester.widget<TextField>(
+        find.widgetWithText(TextField, 'Ano'),
+      );
+      final monthField = tester.widget<TextField>(
+        find.widgetWithText(TextField, 'Mês'),
+      );
+
+      expect(yearField.textInputAction, TextInputAction.done);
+      expect(monthField.textInputAction, TextInputAction.done);
+    });
+
+    testWidgets('pressing done on Ano releases focus and dismisses keyboard',
+        (tester) async {
+      await openFilterAndPickMensal(tester);
+
+      await tester.enterText(
+        find.widgetWithText(TextField, 'Ano'),
+        '2026',
+      );
+
+      EditableText anoEditable() => tester.widget<EditableText>(
+            find.descendant(
+              of: find.widgetWithText(TextField, 'Ano'),
+              matching: find.byType(EditableText),
+            ),
+          );
+
+      expect(anoEditable().focusNode.hasFocus, isTrue);
+
+      await tester.testTextInput.receiveAction(TextInputAction.done);
+      await tester.pumpAndSettle();
+
+      expect(
+        anoEditable().focusNode.hasFocus,
+        isFalse,
+        reason: 'Done deve liberar o foco e fechar o teclado.',
+      );
+    });
+
+    testWidgets(
+        'body has a GestureDetector that unfocuses fields when tapped',
+        (tester) async {
+      await tester.pumpWidget(buildSubject());
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Grupo de Documentos'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Admissão').last);
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Documento'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Contrato').last);
+      await tester.pumpAndSettle();
+
+      // Focus the name field.
+      await tester
+          .tap(find.widgetWithText(TextField, 'Nome do Funcionário'));
+      await tester.pumpAndSettle();
+
+      EditableText nameEditable() => tester.widget<EditableText>(
+            find.descendant(
+              of: find.widgetWithText(TextField, 'Nome do Funcionário'),
+              matching: find.byType(EditableText),
+            ),
+          );
+
+      expect(nameEditable().focusNode.hasFocus, isTrue);
+
+      // The Scaffold body is the GestureDetector built by
+      // BatchDocumentScreen specifically to dismiss focus on tap.
+      // Invoke its callback to verify the wiring without depending on
+      // hit-test geometry or sibling gesture detectors in the tree.
+      final scaffold = tester
+          .widgetList<Scaffold>(find.byType(Scaffold))
+          .firstWhere((s) => s.body is GestureDetector);
+      final detector = scaffold.body! as GestureDetector;
+      expect(detector.behavior, HitTestBehavior.opaque);
+      expect(detector.onTap, isNotNull);
+      detector.onTap!.call();
+      await tester.pumpAndSettle();
+
+      expect(nameEditable().focusNode.hasFocus, isFalse);
+    });
+  });
 }

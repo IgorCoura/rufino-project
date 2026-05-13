@@ -90,39 +90,43 @@ class _BatchDocumentScreenState extends State<BatchDocumentScreen> {
         title: const Text('Documentos em Lote'),
         centerTitle: false,
       ),
-      body: SafeArea(
-        child: Column(
-          children: [
-            if (vm.status == BatchDocumentStatus.uploading ||
-                vm.isBulkProcessing)
-              LinearProgressIndicator(
-                color: colorScheme.primary,
-                backgroundColor: colorScheme.surfaceContainerHigh,
-              ),
-            Expanded(
-              child: Center(
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 960),
-                  child: Padding(
-                    padding: EdgeInsets.symmetric(
-                      horizontal: horizontalPadding,
-                    ),
-                    child: _DocumentContent(
-                      vm: vm,
-                      onPickFile: _pickFileForUnit,
-                      onBulkUpload: _pickBulkFiles,
-                      onScanDocument: _scanDocument,
-                      onCreateMissing: _showCreateMissingDialog,
-                      onBatchUpdateDate: _showBatchDateDialog,
-                      onSendToSign: _showSignDateDialog,
-                      onGeneratePdf: _generatePdf,
-                      onGenerateAndSign: _showGenerateAndSignDialog,
+      body: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: () => FocusScope.of(context).unfocus(),
+        child: SafeArea(
+          child: Column(
+            children: [
+              if (vm.status == BatchDocumentStatus.uploading ||
+                  vm.isBulkProcessing)
+                LinearProgressIndicator(
+                  color: colorScheme.primary,
+                  backgroundColor: colorScheme.surfaceContainerHigh,
+                ),
+              Expanded(
+                child: Center(
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 960),
+                    child: Padding(
+                      padding: EdgeInsets.symmetric(
+                        horizontal: horizontalPadding,
+                      ),
+                      child: _DocumentContent(
+                        vm: vm,
+                        onPickFile: _pickFileForUnit,
+                        onBulkUpload: _pickBulkFiles,
+                        onScanDocument: _scanDocument,
+                        onCreateMissing: _showCreateMissingDialog,
+                        onBatchUpdateDate: _showBatchDateDialog,
+                        onSendToSign: _showSignDateDialog,
+                        onGeneratePdf: _generatePdf,
+                        onGenerateAndSign: _showGenerateAndSignDialog,
+                      ),
                     ),
                   ),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -1037,7 +1041,11 @@ class _PeriodFilterRow extends StatelessWidget {
                   border: OutlineInputBorder(),
                 ),
                 keyboardType: TextInputType.number,
-                onSubmitted: (_) => onSubmitted(),
+                textInputAction: TextInputAction.done,
+                onSubmitted: (_) {
+                  FocusScope.of(context).unfocus();
+                  onSubmitted();
+                },
               ),
             ),
             if (vm.periodTypeFilter != 4) ...[
@@ -1050,7 +1058,11 @@ class _PeriodFilterRow extends StatelessWidget {
                     border: OutlineInputBorder(),
                   ),
                   keyboardType: TextInputType.number,
-                  onSubmitted: (_) => onSubmitted(),
+                  textInputAction: TextInputAction.done,
+                  onSubmitted: (_) {
+                    FocusScope.of(context).unfocus();
+                    onSubmitted();
+                  },
                 ),
               ),
             ],
@@ -1064,7 +1076,11 @@ class _PeriodFilterRow extends StatelessWidget {
                     border: OutlineInputBorder(),
                   ),
                   keyboardType: TextInputType.number,
-                  onSubmitted: (_) => onSubmitted(),
+                  textInputAction: TextInputAction.done,
+                  onSubmitted: (_) {
+                    FocusScope.of(context).unfocus();
+                    onSubmitted();
+                  },
                 ),
               ),
             ],
@@ -1078,7 +1094,11 @@ class _PeriodFilterRow extends StatelessWidget {
                     border: OutlineInputBorder(),
                   ),
                   keyboardType: TextInputType.number,
-                  onSubmitted: (_) => onSubmitted(),
+                  textInputAction: TextInputAction.done,
+                  onSubmitted: (_) {
+                    FocusScope.of(context).unfocus();
+                    onSubmitted();
+                  },
                 ),
               ),
             ],
