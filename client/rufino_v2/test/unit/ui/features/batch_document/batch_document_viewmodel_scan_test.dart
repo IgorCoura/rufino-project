@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:rufino_v2/core/result.dart';
 import 'package:rufino_v2/core/utils/fuzzy_name_matcher.dart';
+import 'package:rufino_v2/core/utils/page_rotation_finder.dart';
 import 'package:rufino_v2/domain/entities/batch_document_unit.dart';
 import 'package:rufino_v2/domain/entities/document_group_with_templates.dart';
 import 'package:rufino_v2/ui/features/batch_document/viewmodel/batch_document_viewmodel.dart';
@@ -66,6 +67,15 @@ void main() {
   /// Fake text extractor — not used in scan tests but required by constructor.
   String fakeTextExtractor(Uint8List bytes) => '';
 
+  /// Default rotation finder for scan tests: returns `null` (no rotation),
+  /// so the real image decoder and compute isolate are never invoked.
+  Future<RotationCandidate?> noRotation({
+    required Uint8List originalBytes,
+    required String originalText,
+    required Future<String> Function(Uint8List) recognizeText,
+  }) async =>
+      null;
+
   setUp(() {
     mockBatchRepo = MockBatchDocumentRepository();
     mockGroupRepo = MockDocumentGroupRepository();
@@ -80,6 +90,7 @@ void main() {
       companyId: 'company-1',
       textExtractor: fakeTextExtractor,
       scannerRepository: mockScanner,
+      pageRotationFinder: noRotation,
     );
   });
 
@@ -346,6 +357,179 @@ void main() {
 
       expect(result, isA<Success<List<Uint8List>?>>());
       expect((result as Success<List<Uint8List>?>).value, isNull);
+    });
+  });
+
+  group('BatchDocumentViewModel rotation fallback', () {
+    /// Builds a viewmodel wired with a custom rotation finder, so each test
+    /// can control whether rotations happen and what they produce.
+    BatchDocumentViewModel buildViewModelWith(PageRotationFinderFn finder) =>
+        BatchDocumentViewModel(
+          batchDocumentRepository: mockBatchRepo,
+          documentGroupRepository: mockGroupRepo,
+          companyId: 'company-1',
+          textExtractor: fakeTextExtractor,
+          scannerRepository: mockScanner,
+          pageRotationFinder: finder,
+        );
+
+    test('does not invoke rotation finder when initial match is high',
+        () async {
+      var rotationCalls = 0;
+      viewModel = buildViewModelWith((
+          {required originalBytes,
+          required originalText,
+          required recognizeText}) async {
+        rotationCalls++;
+        return null;
+      });
+      await loadPendingUnits([pendingUnit1]);
+
+      when(() => mockScanner.imagesToPdf(any()))
+          .thenAnswer((_) async => fakePdfBytes);
+      when(() => mockScanner.recognizeText(fakeImage1))
+          .thenAnswer((_) async => 'Nome: João Silva Santos');
+
+      await viewModel.processScannedDocuments([
+        [fakeImage1],
+      ]);
+
+      expect(rotationCalls, equals(0));
+      expect(viewModel.bulkMatches.single.confidenceLevel,
+          MatchConfidenceLevel.high);
+    });
+
+    test('invokes rotation finder on every page when initial match is none',
+        () async {
+      final calls = <Uint8List>[];
+      viewModel = buildViewModelWith((
+          {required originalBytes,
+          required originalText,
+          required recognizeText}) async {
+        calls.add(originalBytes);
+        return null;
+      });
+      await loadPendingUnits([pendingUnit1]);
+
+      when(() => mockScanner.imagesToPdf(any()))
+          .thenAnswer((_) async => fakePdfBytes);
+      when(() => mockScanner.recognizeText(any()))
+          .thenAnswer((_) async => '');
+
+      await viewModel.processScannedDocuments([
+        [fakeImage1, fakeImage2],
+      ]);
+
+      expect(calls, hasLength(2));
+      expect(calls[0], same(fakeImage1));
+      expect(calls[1], same(fakeImage2));
+    });
+
+    test('applies rotation permanently and rematches when rotated OCR finds '
+        'the employee', () async {
+      final rotatedBytes = Uint8List.fromList([0xAA, 0xBB, 0xCC]);
+      viewModel = buildViewModelWith((
+          {required originalBytes,
+          required originalText,
+          required recognizeText}) async {
+        return RotationCandidate(
+          bytes: rotatedBytes,
+          text: 'Nome: João Silva Santos',
+          rotationDegrees: 90,
+        );
+      });
+      await loadPendingUnits([pendingUnit1]);
+
+      List<Uint8List>? pdfInput;
+      when(() => mockScanner.imagesToPdf(any()))
+          .thenAnswer((invocation) async {
+        pdfInput = invocation.positionalArguments.first as List<Uint8List>;
+        return fakePdfBytes;
+      });
+      when(() => mockScanner.recognizeText(fakeImage1))
+          .thenAnswer((_) async => '');
+
+      await viewModel.processScannedDocuments([
+        [fakeImage1],
+      ]);
+
+      final match = viewModel.bulkMatches.single;
+      expect(match.matchedEmployeeId, equals('e1'));
+      expect(match.confidenceLevel, MatchConfidenceLevel.high);
+      expect(match.extractedText, contains('João Silva Santos'));
+      expect(pdfInput, isNotNull);
+      expect(pdfInput!.single, same(rotatedBytes));
+    });
+
+    test(
+        'keeps original page bytes when rotation finder reports 0° is the '
+        'best orientation', () async {
+      viewModel = buildViewModelWith((
+          {required originalBytes,
+          required originalText,
+          required recognizeText}) async {
+        return RotationCandidate(
+          bytes: originalBytes,
+          text: originalText,
+          rotationDegrees: 0,
+        );
+      });
+      await loadPendingUnits([pendingUnit1]);
+
+      List<Uint8List>? pdfInput;
+      when(() => mockScanner.imagesToPdf(any()))
+          .thenAnswer((invocation) async {
+        pdfInput = invocation.positionalArguments.first as List<Uint8List>;
+        return fakePdfBytes;
+      });
+      when(() => mockScanner.recognizeText(fakeImage1))
+          .thenAnswer((_) async => 'not enough text to match');
+
+      await viewModel.processScannedDocuments([
+        [fakeImage1],
+      ]);
+
+      expect(pdfInput, isNotNull);
+      expect(pdfInput!.single, same(fakeImage1));
+    });
+
+    test('triggers rotation when initial match is medium or low', () async {
+      const partialNameUnit = BatchDocumentUnitItem(
+        documentUnitId: 'u9',
+        documentId: 'd9',
+        employeeId: 'e9',
+        employeeName: 'Maria Eduarda Pereira',
+        employeeStatusId: '2',
+        employeeStatusName: 'Ativo',
+        date: '01/01/2026',
+        statusId: '1',
+        statusName: 'Pendente',
+        isSignable: false,
+        canGenerateDocument: false,
+      );
+
+      var rotationCalls = 0;
+      viewModel = buildViewModelWith((
+          {required originalBytes,
+          required originalText,
+          required recognizeText}) async {
+        rotationCalls++;
+        return null;
+      });
+      await loadPendingUnits([partialNameUnit]);
+
+      when(() => mockScanner.imagesToPdf(any()))
+          .thenAnswer((_) async => fakePdfBytes);
+      // Partial / noisy OCR — likely to land below `high` confidence.
+      when(() => mockScanner.recognizeText(fakeImage1))
+          .thenAnswer((_) async => 'Maria E. Per..ra');
+
+      await viewModel.processScannedDocuments([
+        [fakeImage1],
+      ]);
+
+      expect(rotationCalls, greaterThanOrEqualTo(1),
+          reason: 'rotation must be attempted whenever match is below high');
     });
   });
 }
