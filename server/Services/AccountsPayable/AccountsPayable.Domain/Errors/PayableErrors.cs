@@ -74,6 +74,38 @@ internal static class PayableErrors
             parameters: new object[] { currentStatus },
             sourcePath: BuildSourcePath(filePath, memberName, lineNumber));
 
+    public static DomainException RequiresApproval(
+        decimal amount,
+        decimal threshold,
+        [CallerFilePath] string filePath = "",
+        [CallerMemberName] string memberName = "",
+        [CallerLineNumber] int lineNumber = 0)
+        => new(
+            id: $"{PREFIX}07",
+            messageTemplate: "Valor {0} excede o limite de aprovação ({1}) — aprovação necessária antes de prosseguir.",
+            parameters: new object[] { amount, threshold },
+            sourcePath: BuildSourcePath(filePath, memberName, lineNumber));
+
+    public static DomainException RequiresClassificationBeforeApproval(
+        [CallerFilePath] string filePath = "",
+        [CallerMemberName] string memberName = "",
+        [CallerLineNumber] int lineNumber = 0)
+        => new(
+            id: $"{PREFIX}08",
+            messageTemplate: "Conta a pagar deve ser classificada antes de solicitar aprovação.",
+            parameters: Array.Empty<object>(),
+            sourcePath: BuildSourcePath(filePath, memberName, lineNumber));
+
+    public static DomainException RejectionReasonRequired(
+        [CallerFilePath] string filePath = "",
+        [CallerMemberName] string memberName = "",
+        [CallerLineNumber] int lineNumber = 0)
+        => new(
+            id: $"{PREFIX}09",
+            messageTemplate: "Motivo é obrigatório para rejeitar a conta a pagar.",
+            parameters: Array.Empty<object>(),
+            sourcePath: BuildSourcePath(filePath, memberName, lineNumber));
+
     private static string BuildSourcePath(string filePath, string memberName, int lineNumber)
         => $"{Path.GetFileName(filePath)}:{lineNumber} ({memberName})";
 }

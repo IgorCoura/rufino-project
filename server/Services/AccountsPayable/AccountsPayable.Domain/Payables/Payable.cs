@@ -32,6 +32,11 @@ public sealed class Payable : EventSourcedAggregateRoot<PayableId>
     public CostCenterId? CostCenterId { get; private set; }
     public DateTime? ClassifiedAt { get; private set; }
     public UserId? ClassifiedBy { get; private set; }
+    public UserId? ApprovedBy { get; private set; }
+    public DateTime? ApprovedAt { get; private set; }
+    public UserId? RejectedBy { get; private set; }
+    public DateTime? RejectedAt { get; private set; }
+    public string? RejectionReason { get; private set; }
 
     private Payable() : base() { }
 
@@ -74,18 +79,26 @@ public sealed class Payable : EventSourcedAggregateRoot<PayableId>
     /// <summary>
     /// Schedule the payable for a future payment date.
     /// <para>
-    /// <paramref name="allowUnclassified"/> default is <c>false</c> — Sprint 4 invariant requires
-    /// classification before scheduling. The caller (Application layer) reads the tenant setting
-    /// "allow scheduling unclassified payables" and passes <c>true</c> to bypass.
+    /// <paramref name="allowUnclassified"/> (Sprint 4) bypasses the classification requirement.
+    /// <paramref name="approvalThreshold"/> (Sprint 5) is the tenant's approval threshold — when set,
+    /// payables whose <see cref="Amount"/> exceeds it cannot be scheduled unless <see cref="Status"/>
+    /// is already <see cref="PayableStatus.Approved"/>.
     /// </para>
     /// </summary>
-    public void Schedule(DateOnly scheduledFor, DateTime occurredAt, bool allowUnclassified = false)
+    public void Schedule(
+        DateOnly scheduledFor,
+        DateTime occurredAt,
+        bool allowUnclassified = false,
+        Money? approvalThreshold = null)
     {
         if (!Status.CanTransitionTo(PayableStatus.Scheduled))
             throw PayableErrors.InvalidStatusTransition(Status.Name, PayableStatus.Scheduled.Name);
 
         if (!allowUnclassified && AccountId is null)
             throw PayableErrors.CannotScheduleWithoutClassification();
+
+        if (RequiresApproval(approvalThreshold))
+            throw PayableErrors.RequiresApproval(Amount.Amount, approvalThreshold!.Amount);
 
         Apply(new PayableScheduled(
             EventId: Guid.NewGuid(),
@@ -113,7 +126,11 @@ public sealed class Payable : EventSourcedAggregateRoot<PayableId>
             ClassifiedBy: classifiedBy));
     }
 
-    public void MarkAsPaidManually(PaymentProof proof, DateTime paidAt, DateTime occurredAt)
+    public void MarkAsPaidManually(
+        PaymentProof proof,
+        DateTime paidAt,
+        DateTime occurredAt,
+        Money? approvalThreshold = null)
     {
         ArgumentNullException.ThrowIfNull(proof);
 
@@ -122,6 +139,9 @@ public sealed class Payable : EventSourcedAggregateRoot<PayableId>
         if (!Status.CanTransitionTo(PayableStatus.Paid))
             throw PayableErrors.InvalidStatusTransition(Status.Name, PayableStatus.Paid.Name);
 
+        if (RequiresApproval(approvalThreshold))
+            throw PayableErrors.RequiresApproval(Amount.Amount, approvalThreshold!.Amount);
+
         Apply(new PayableMarkedAsPaid(
             EventId: Guid.NewGuid(),
             OccurredAt: occurredAt,
@@ -129,6 +149,57 @@ public sealed class Payable : EventSourcedAggregateRoot<PayableId>
             PaidAt: paidAt,
             ProofUri: proof.Uri,
             ProofType: proof.Type.Name));
+    }
+
+    private bool RequiresApproval(Money? threshold)
+    {
+        if (threshold is null) return false;
+        if (Status == PayableStatus.Approved) return false;
+        return Amount.Amount > threshold.Amount;
+    }
+
+    /// <summary>
+    /// Move a classified Draft to <see cref="PayableStatus.AwaitingApproval"/>, starting the
+    /// single-approver flow. The actual authorization of who-can-approve lives in Application/Keycloak.
+    /// </summary>
+    public void RequestApproval(DateTime occurredAt)
+    {
+        if (!Status.CanTransitionTo(PayableStatus.AwaitingApproval))
+            throw PayableErrors.InvalidStatusTransition(Status.Name, PayableStatus.AwaitingApproval.Name);
+        if (AccountId is null)
+            throw PayableErrors.RequiresClassificationBeforeApproval();
+
+        Apply(new PayableApprovalRequested(
+            EventId: Guid.NewGuid(),
+            OccurredAt: occurredAt,
+            PayableId: Id));
+    }
+
+    public void Approve(UserId approver, DateTime occurredAt)
+    {
+        if (!Status.CanTransitionTo(PayableStatus.Approved))
+            throw PayableErrors.InvalidStatusTransition(Status.Name, PayableStatus.Approved.Name);
+
+        Apply(new PayableApproved(
+            EventId: Guid.NewGuid(),
+            OccurredAt: occurredAt,
+            PayableId: Id,
+            ApprovedBy: approver));
+    }
+
+    public void Reject(UserId approver, string reason, DateTime occurredAt)
+    {
+        if (!Status.CanTransitionTo(PayableStatus.Rejected))
+            throw PayableErrors.InvalidStatusTransition(Status.Name, PayableStatus.Rejected.Name);
+        if (string.IsNullOrWhiteSpace(reason))
+            throw PayableErrors.RejectionReasonRequired();
+
+        Apply(new PayableRejected(
+            EventId: Guid.NewGuid(),
+            OccurredAt: occurredAt,
+            PayableId: Id,
+            RejectedBy: approver,
+            Reason: reason.Trim()));
     }
 
     public void Cancel(string reason, DateTime occurredAt)
@@ -182,5 +253,25 @@ public sealed class Payable : EventSourcedAggregateRoot<PayableId>
         CostCenterId = e.CostCenterId;
         ClassifiedBy = e.ClassifiedBy;
         ClassifiedAt = e.OccurredAt;
+    }
+
+    private void When(PayableApprovalRequested e)
+    {
+        Status = PayableStatus.AwaitingApproval;
+    }
+
+    private void When(PayableApproved e)
+    {
+        Status = PayableStatus.Approved;
+        ApprovedBy = e.ApprovedBy;
+        ApprovedAt = e.OccurredAt;
+    }
+
+    private void When(PayableRejected e)
+    {
+        Status = PayableStatus.Rejected;
+        RejectedBy = e.RejectedBy;
+        RejectedAt = e.OccurredAt;
+        RejectionReason = e.Reason;
     }
 }

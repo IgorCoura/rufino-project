@@ -152,6 +152,255 @@ public class PayableTests
         }
     }
 
+    public class WhenRequestingApproval
+    {
+        // RequestApproval em Draft classificado muda status para AwaitingApproval e emite PayableApprovalRequested.
+        [Fact]
+        public void RequestApproval_FromClassifiedDraft_ShouldChangeStatusAndEmitEvent()
+        {
+            var payable = PayableMother.Classified();
+            payable.PullChanges();
+
+            payable.RequestApproval(LATER);
+
+            Assert.Equal(PayableStatus.AwaitingApproval, payable.Status);
+            var requested = Assert.IsType<PayableApprovalRequested>(payable.Changes.Single());
+            Assert.Equal(payable.Id, requested.PayableId);
+            Assert.Equal(LATER, requested.OccurredAt);
+        }
+
+        // RequestApproval em Draft sem classificação lança AP.PAY08.
+        [Fact]
+        public void RequestApproval_FromUnclassifiedDraft_ShouldThrowDomainException()
+        {
+            var payable = PayableMother.Draft();
+
+            var ex = Assert.Throws<DomainException>(() => payable.RequestApproval(LATER));
+
+            Assert.Equal("AP.PAY08", ex.Id);
+        }
+
+        // RequestApproval em Scheduled lança AP.PAY01 (Scheduled não volta para AwaitingApproval).
+        [Fact]
+        public void RequestApproval_FromScheduled_ShouldThrowInvalidStatusTransition()
+        {
+            var payable = PayableMother.Scheduled();
+
+            var ex = Assert.Throws<DomainException>(() => payable.RequestApproval(LATER));
+
+            Assert.Equal("AP.PAY01", ex.Id);
+        }
+
+        // RequestApproval duas vezes seguidas falha — AwaitingApproval não solicita aprovação novamente.
+        [Fact]
+        public void RequestApproval_FromAwaitingApproval_ShouldThrowInvalidStatusTransition()
+        {
+            var payable = PayableMother.AwaitingApproval();
+
+            var ex = Assert.Throws<DomainException>(() => payable.RequestApproval(LATER));
+
+            Assert.Equal("AP.PAY01", ex.Id);
+        }
+    }
+
+    public class WhenApproving
+    {
+        // Approve em AwaitingApproval muda status para Approved e registra ApprovedBy/ApprovedAt.
+        [Fact]
+        public void Approve_FromAwaitingApproval_ShouldChangeStatusAndRecordApprover()
+        {
+            var payable = PayableMother.AwaitingApproval();
+            payable.PullChanges();
+
+            payable.Approve(PayableMother.DEFAULT_USER, LATER);
+
+            Assert.Equal(PayableStatus.Approved, payable.Status);
+            Assert.Equal(PayableMother.DEFAULT_USER, payable.ApprovedBy);
+            Assert.Equal(LATER, payable.ApprovedAt);
+            var approved = Assert.IsType<PayableApproved>(payable.Changes.Single());
+            Assert.Equal(PayableMother.DEFAULT_USER, approved.ApprovedBy);
+        }
+
+        // Approve em Draft lança AP.PAY01 — pular AwaitingApproval não é permitido.
+        [Fact]
+        public void Approve_FromDraft_ShouldThrowInvalidStatusTransition()
+        {
+            var payable = PayableMother.Classified();
+
+            var ex = Assert.Throws<DomainException>(() => payable.Approve(PayableMother.DEFAULT_USER, LATER));
+
+            Assert.Equal("AP.PAY01", ex.Id);
+        }
+
+        // Approve em status já Approved lança AP.PAY01 (não reaprova).
+        [Fact]
+        public void Approve_WhenAlreadyApproved_ShouldThrowInvalidStatusTransition()
+        {
+            var payable = PayableMother.Approved();
+
+            var ex = Assert.Throws<DomainException>(() => payable.Approve(PayableMother.DEFAULT_USER, LATER));
+
+            Assert.Equal("AP.PAY01", ex.Id);
+        }
+    }
+
+    public class WhenRejecting
+    {
+        // Reject em AwaitingApproval muda status para Rejected e registra rejector + reason.
+        [Fact]
+        public void Reject_FromAwaitingApproval_ShouldChangeStatusAndRecordRejectorAndReason()
+        {
+            var payable = PayableMother.AwaitingApproval();
+            payable.PullChanges();
+
+            payable.Reject(PayableMother.DEFAULT_USER, "Valor inconsistente", LATER);
+
+            Assert.Equal(PayableStatus.Rejected, payable.Status);
+            Assert.Equal(PayableMother.DEFAULT_USER, payable.RejectedBy);
+            Assert.Equal(LATER, payable.RejectedAt);
+            Assert.Equal("Valor inconsistente", payable.RejectionReason);
+            var rejected = Assert.IsType<PayableRejected>(payable.Changes.Single());
+            Assert.Equal("Valor inconsistente", rejected.Reason);
+        }
+
+        // Reject sem motivo (vazio/whitespace) lança AP.PAY09.
+        [Theory]
+        [InlineData("")]
+        [InlineData("   ")]
+        public void Reject_WithEmptyReason_ShouldThrowDomainException(string reason)
+        {
+            var payable = PayableMother.AwaitingApproval();
+
+            var ex = Assert.Throws<DomainException>(
+                () => payable.Reject(PayableMother.DEFAULT_USER, reason, LATER));
+
+            Assert.Equal("AP.PAY09", ex.Id);
+        }
+
+        // Reject em Draft lança AP.PAY01 (precisa estar em AwaitingApproval).
+        [Fact]
+        public void Reject_FromDraft_ShouldThrowInvalidStatusTransition()
+        {
+            var payable = PayableMother.Classified();
+
+            var ex = Assert.Throws<DomainException>(
+                () => payable.Reject(PayableMother.DEFAULT_USER, "Motivo", LATER));
+
+            Assert.Equal("AP.PAY01", ex.Id);
+        }
+    }
+
+    public class WhenSchedulingWithApprovalThreshold
+    {
+        private static readonly Money LOW_THRESHOLD = new(1_000m, Currency.Brl);
+        private static readonly Money HIGH_THRESHOLD = new(10_000m, Currency.Brl);
+
+        // Valor abaixo do threshold pode ser agendado direto, sem RequestApproval.
+        [Fact]
+        public void Schedule_AmountBelowThreshold_ShouldSucceedWithoutApproval()
+        {
+            var payable = PayableMother.Classified(); // amount default = 1_500
+
+            payable.Schedule(
+                PayableMother.DEFAULT_SCHEDULED_FOR,
+                LATER,
+                approvalThreshold: HIGH_THRESHOLD);
+
+            Assert.Equal(PayableStatus.Scheduled, payable.Status);
+        }
+
+        // Valor acima do threshold sem approval lança AP.PAY07.
+        [Fact]
+        public void Schedule_AmountAboveThreshold_WithoutApproval_ShouldThrowRequiresApproval()
+        {
+            var payable = PayableMother.Classified(); // 1_500 > 1_000
+
+            var ex = Assert.Throws<DomainException>(() => payable.Schedule(
+                PayableMother.DEFAULT_SCHEDULED_FOR,
+                LATER,
+                approvalThreshold: LOW_THRESHOLD));
+
+            Assert.Equal("AP.PAY07", ex.Id);
+        }
+
+        // Valor acima do threshold com Status=Approved sucede (approval já consumido).
+        [Fact]
+        public void Schedule_AmountAboveThreshold_AfterApproval_ShouldSucceed()
+        {
+            var payable = PayableMother.Approved(); // 1_500, Status=Approved
+
+            payable.Schedule(
+                PayableMother.DEFAULT_SCHEDULED_FOR,
+                LATER,
+                approvalThreshold: LOW_THRESHOLD);
+
+            Assert.Equal(PayableStatus.Scheduled, payable.Status);
+        }
+
+        // Valor igual ao threshold ainda passa (limite é "> threshold", inclusive).
+        [Fact]
+        public void Schedule_AmountEqualsThreshold_ShouldSucceedWithoutApproval()
+        {
+            var payable = PayableMother.Classified(amount: 1_000m);
+
+            payable.Schedule(
+                PayableMother.DEFAULT_SCHEDULED_FOR,
+                LATER,
+                approvalThreshold: LOW_THRESHOLD);
+
+            Assert.Equal(PayableStatus.Scheduled, payable.Status);
+        }
+    }
+
+    public class WhenMarkingAsPaidWithApprovalThreshold
+    {
+        private static readonly Money LOW_THRESHOLD = new(1_000m, Currency.Brl);
+
+        // MarkAsPaidManually acima do threshold sem approval lança AP.PAY07.
+        [Fact]
+        public void MarkAsPaidManually_AmountAboveThreshold_WithoutApproval_ShouldThrowRequiresApproval()
+        {
+            var payable = PayableMother.Classified(); // 1_500 > 1_000
+
+            var ex = Assert.Throws<DomainException>(() => payable.MarkAsPaidManually(
+                PayableMother.DEFAULT_PROOF,
+                paidAt: FIXED_NOW.AddDays(1),
+                occurredAt: LATER,
+                approvalThreshold: LOW_THRESHOLD));
+
+            Assert.Equal("AP.PAY07", ex.Id);
+        }
+
+        // MarkAsPaidManually em Payable Approved acima do threshold sucede.
+        [Fact]
+        public void MarkAsPaidManually_AmountAboveThreshold_AfterApproval_ShouldSucceed()
+        {
+            var payable = PayableMother.Approved();
+
+            payable.MarkAsPaidManually(
+                PayableMother.DEFAULT_PROOF,
+                paidAt: FIXED_NOW.AddDays(1),
+                occurredAt: LATER,
+                approvalThreshold: LOW_THRESHOLD);
+
+            Assert.Equal(PayableStatus.Paid, payable.Status);
+        }
+
+        // MarkAsPaidManually em Payable Rejected lança AP.PAY01 (Rejected é terminal — critério da Sprint 5).
+        [Fact]
+        public void MarkAsPaidManually_OnRejected_ShouldThrowInvalidStatusTransition()
+        {
+            var payable = PayableMother.Rejected();
+
+            var ex = Assert.Throws<DomainException>(() => payable.MarkAsPaidManually(
+                PayableMother.DEFAULT_PROOF,
+                paidAt: FIXED_NOW.AddDays(1),
+                occurredAt: LATER));
+
+            Assert.Equal("AP.PAY01", ex.Id);
+        }
+    }
+
     public class WhenScheduling
     {
         // Schedule a partir de Draft classificado muda status para Scheduled, define ScheduledFor e emite PayableScheduled.

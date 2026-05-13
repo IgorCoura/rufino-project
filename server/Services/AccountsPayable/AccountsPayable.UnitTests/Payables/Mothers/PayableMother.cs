@@ -46,9 +46,10 @@ public static class PayableMother
     public static Payable Classified(
         AccountId? accountId = null,
         CostCenterId? costCenterId = null,
-        UserId? classifiedBy = null)
+        UserId? classifiedBy = null,
+        decimal amount = 1_500m)
     {
-        var payable = Draft();
+        var payable = Draft(amount: amount);
         payable.Classify(
             accountId ?? DEFAULT_ACCOUNT,
             costCenterId ?? DEFAULT_COST_CENTER,
@@ -80,6 +81,28 @@ public static class PayableMother
     {
         var payable = Draft();
         payable.Cancel(reason, DEFAULT_OCCURRED_AT.AddMinutes(5));
+        return payable;
+    }
+
+    /// <summary>Classified Draft that already requested approval — Status = AwaitingApproval.</summary>
+    public static Payable AwaitingApproval()
+    {
+        var payable = Classified();
+        payable.RequestApproval(DEFAULT_OCCURRED_AT.AddMinutes(3));
+        return payable;
+    }
+
+    public static Payable Approved(UserId? approver = null)
+    {
+        var payable = AwaitingApproval();
+        payable.Approve(approver ?? DEFAULT_USER, DEFAULT_OCCURRED_AT.AddMinutes(4));
+        return payable;
+    }
+
+    public static Payable Rejected(UserId? rejector = null, string reason = "Valor inconsistente")
+    {
+        var payable = AwaitingApproval();
+        payable.Reject(rejector ?? DEFAULT_USER, reason, DEFAULT_OCCURRED_AT.AddMinutes(4));
         return payable;
     }
 }
