@@ -179,6 +179,9 @@ namespace PeopleManagement.Domain.AggregatesModel.DocumentAggregate
             if (HasInvalidDateOrValidity)
                 throw new DomainException(this, DomainErrors.DataInvalid(nameof(Date), Date));
 
+            if (Date > DateOnly.FromDateTime(DateTime.UtcNow))
+                throw new DomainException(this, DomainErrors.Document.DocumentUnitCantBeSentBeforeOfficialDate(Id, Date));
+
             if (Status == DocumentUnitStatus.Pending)
             {
                 Status = DocumentUnitStatus.AwaitingSignature;
