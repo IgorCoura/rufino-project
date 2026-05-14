@@ -16,6 +16,7 @@ import '../../../core/widgets/permission_guard.dart';
 import '../../../core/widgets/scanner_error_handler.dart';
 import '../viewmodel/batch_document_viewmodel.dart';
 import 'bulk_upload_verification_dialog.dart';
+import 'confirm_document_dates_dialog.dart';
 import 'document_scan_dialog.dart';
 
 /// Possible actions during a multi-document scanning session.
@@ -117,6 +118,7 @@ class _BatchDocumentScreenState extends State<BatchDocumentScreen> {
                         onScanDocument: _scanDocument,
                         onCreateMissing: _showCreateMissingDialog,
                         onBatchUpdateDate: _showBatchDateDialog,
+                        onUploadStaged: _confirmAndUploadAllStaged,
                         onSendToSign: _showSignDateDialog,
                         onGeneratePdf: _generatePdf,
                         onGenerateAndSign: _showGenerateAndSignDialog,
@@ -499,6 +501,19 @@ class _BatchDocumentScreenState extends State<BatchDocumentScreen> {
 
     widget.viewModel.setGlobalSignDeadline(isoDate);
     widget.viewModel.setGlobalReminderDays(0);
+
+    final items = _stagedItemsAsUnits();
+    if (items.isEmpty) return;
+    final confirmed = await showConfirmDocumentDatesDialog(
+      context,
+      title: 'Confirmar Envio para Assinatura',
+      confirmLabel: 'Enviar (${items.length})',
+      icon: Icons.draw_outlined,
+      items: items,
+      attachments: _stagedAttachments(),
+    );
+    if (!confirmed || !mounted) return;
+
     await widget.viewModel.uploadAllStagedToSign();
   }
 
@@ -560,7 +575,57 @@ class _BatchDocumentScreenState extends State<BatchDocumentScreen> {
 
     widget.viewModel.setGlobalSignDeadline(isoDate);
     widget.viewModel.setGlobalReminderDays(0);
+
+    final vm = widget.viewModel;
+    final items = vm.pendingUnits
+        .where((u) => vm.selectedUnitIds.contains(u.documentUnitId))
+        .toList();
+    if (items.isEmpty) return;
+    final confirmed = await showConfirmDocumentDatesDialog(
+      context,
+      title: 'Confirmar Geração e Assinatura',
+      confirmLabel: 'Gerar e Assinar (${items.length})',
+      icon: Icons.history_edu_outlined,
+      items: items,
+    );
+    if (!confirmed || !mounted) return;
+
     await widget.viewModel.generateAndSignRange();
+  }
+
+  Future<void> _confirmAndUploadAllStaged() async {
+    final vm = widget.viewModel;
+    final items = _stagedItemsAsUnits();
+    if (items.isEmpty) return;
+    final confirmed = await showConfirmDocumentDatesDialog(
+      context,
+      title: 'Confirmar Envio',
+      confirmLabel: 'Enviar (${items.length})',
+      icon: Icons.cloud_upload_outlined,
+      items: items,
+      attachments: _stagedAttachments(),
+    );
+    if (!confirmed || !mounted) return;
+    await vm.uploadAllStaged();
+  }
+
+  List<BatchDocumentUnitItem> _stagedItemsAsUnits() {
+    final vm = widget.viewModel;
+    final stagedIds = vm.stagedFiles.keys.toSet();
+    return vm.pendingUnits
+        .where((u) => stagedIds.contains(u.documentUnitId))
+        .toList();
+  }
+
+  Map<String, AttachedDocumentBytes> _stagedAttachments() {
+    final vm = widget.viewModel;
+    return {
+      for (final entry in vm.stagedFiles.entries)
+        entry.key: AttachedDocumentBytes(
+          bytes: entry.value.fileBytes,
+          fileName: entry.value.fileName,
+        ),
+    };
   }
 
   void _showUploadResultsDialog() {
@@ -1140,6 +1205,7 @@ class _ActionBar extends StatelessWidget {
     required this.onScanDocument,
     required this.onCreateMissing,
     required this.onBatchUpdateDate,
+    required this.onUploadStaged,
     required this.onSendToSign,
     required this.onGeneratePdf,
     required this.onGenerateAndSign,
@@ -1150,6 +1216,7 @@ class _ActionBar extends StatelessWidget {
   final VoidCallback onScanDocument;
   final VoidCallback onCreateMissing;
   final VoidCallback onBatchUpdateDate;
+  final VoidCallback onUploadStaged;
   final VoidCallback onSendToSign;
   final VoidCallback onGeneratePdf;
   final VoidCallback onGenerateAndSign;
@@ -1233,7 +1300,7 @@ class _ActionBar extends StatelessWidget {
           child: FilledButton.icon(
             onPressed: vm.stagedFileCount == 0 || isLoading
                 ? null
-                : () => vm.uploadAllStaged(),
+                : onUploadStaged,
             icon: const Icon(Icons.cloud_upload_outlined, size: 18),
             label: Text('Enviar (${vm.stagedFileCount})'),
           ),
@@ -1303,6 +1370,7 @@ class _DocumentContent extends StatelessWidget {
     required this.onScanDocument,
     required this.onCreateMissing,
     required this.onBatchUpdateDate,
+    required this.onUploadStaged,
     required this.onSendToSign,
     required this.onGeneratePdf,
     required this.onGenerateAndSign,
@@ -1314,6 +1382,7 @@ class _DocumentContent extends StatelessWidget {
   final VoidCallback onScanDocument;
   final VoidCallback onCreateMissing;
   final VoidCallback onBatchUpdateDate;
+  final VoidCallback onUploadStaged;
   final VoidCallback onSendToSign;
   final VoidCallback onGeneratePdf;
   final VoidCallback onGenerateAndSign;
@@ -1345,6 +1414,7 @@ class _DocumentContent extends StatelessWidget {
               onScanDocument: onScanDocument,
               onCreateMissing: onCreateMissing,
               onBatchUpdateDate: onBatchUpdateDate,
+              onUploadStaged: onUploadStaged,
               onSendToSign: onSendToSign,
               onGeneratePdf: onGeneratePdf,
               onGenerateAndSign: onGenerateAndSign,

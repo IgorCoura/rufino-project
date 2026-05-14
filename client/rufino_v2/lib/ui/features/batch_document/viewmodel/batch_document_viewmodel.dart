@@ -185,6 +185,10 @@ class BatchDocumentViewModel extends ChangeNotifier {
   /// The number of files currently staged for upload.
   int get stagedFileCount => _stagedFiles.length;
 
+  /// Files currently staged for upload, keyed by `documentUnitId`.
+  UnmodifiableMapView<String, BatchUploadItem> get stagedFiles =>
+      UnmodifiableMapView(_stagedFiles);
+
   /// The global signature deadline in ISO 8601 format.
   String? get globalSignDeadline => _globalSignDeadline;
 
