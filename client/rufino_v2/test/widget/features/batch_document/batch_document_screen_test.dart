@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
@@ -98,6 +100,7 @@ void main() {
           'view',
           'upload',
           'send2sign',
+          'generate',
         ]),
       ]);
     permissionNotifier =
@@ -312,6 +315,270 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Home'), findsOneWidget);
+    });
+  });
+
+  group('keyboard dismissal in competência filter', () {
+    Future<void> openFilterAndPickMensal(WidgetTester tester) async {
+      await tester.pumpWidget(buildSubject());
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Grupo de Documentos'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Admissão').last);
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Documento'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Contrato').last);
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Competência').first);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Mensal').last);
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('period TextFields declare TextInputAction.done',
+        (tester) async {
+      await openFilterAndPickMensal(tester);
+
+      final yearField = tester.widget<TextField>(
+        find.widgetWithText(TextField, 'Ano'),
+      );
+      final monthField = tester.widget<TextField>(
+        find.widgetWithText(TextField, 'Mês'),
+      );
+
+      expect(yearField.textInputAction, TextInputAction.done);
+      expect(monthField.textInputAction, TextInputAction.done);
+    });
+
+    testWidgets('pressing done on Ano releases focus and dismisses keyboard',
+        (tester) async {
+      await openFilterAndPickMensal(tester);
+
+      await tester.enterText(
+        find.widgetWithText(TextField, 'Ano'),
+        '2026',
+      );
+
+      EditableText anoEditable() => tester.widget<EditableText>(
+            find.descendant(
+              of: find.widgetWithText(TextField, 'Ano'),
+              matching: find.byType(EditableText),
+            ),
+          );
+
+      expect(anoEditable().focusNode.hasFocus, isTrue);
+
+      await tester.testTextInput.receiveAction(TextInputAction.done);
+      await tester.pumpAndSettle();
+
+      expect(
+        anoEditable().focusNode.hasFocus,
+        isFalse,
+        reason: 'Done deve liberar o foco e fechar o teclado.',
+      );
+    });
+
+    testWidgets(
+        'body has a GestureDetector that unfocuses fields when tapped',
+        (tester) async {
+      await tester.pumpWidget(buildSubject());
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Grupo de Documentos'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Admissão').last);
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Documento'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Contrato').last);
+      await tester.pumpAndSettle();
+
+      // Focus the name field.
+      await tester
+          .tap(find.widgetWithText(TextField, 'Nome do Funcionário'));
+      await tester.pumpAndSettle();
+
+      EditableText nameEditable() => tester.widget<EditableText>(
+            find.descendant(
+              of: find.widgetWithText(TextField, 'Nome do Funcionário'),
+              matching: find.byType(EditableText),
+            ),
+          );
+
+      expect(nameEditable().focusNode.hasFocus, isTrue);
+
+      // The Scaffold body is the GestureDetector built by
+      // BatchDocumentScreen specifically to dismiss focus on tap.
+      // Invoke its callback to verify the wiring without depending on
+      // hit-test geometry or sibling gesture detectors in the tree.
+      final scaffold = tester
+          .widgetList<Scaffold>(find.byType(Scaffold))
+          .firstWhere((s) => s.body is GestureDetector);
+      final detector = scaffold.body! as GestureDetector;
+      expect(detector.behavior, HitTestBehavior.opaque);
+      expect(detector.onTap, isNotNull);
+      detector.onTap!.call();
+      await tester.pumpAndSettle();
+
+      expect(nameEditable().focusNode.hasFocus, isFalse);
+    });
+  });
+
+  group('confirmation dialog before sending', () {
+    Future<void> selectGroupAndTemplate(WidgetTester tester) async {
+      await tester.pumpWidget(buildSubject());
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Grupo de Documentos'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Admissão').last);
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Documento'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Contrato').last);
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets(
+        'Enviar (N) opens confirmation dialog and uploads on confirm',
+        (tester) async {
+      when(() => mockBatchRepo.uploadDocumentRange(any(), any()))
+          .thenAnswer((_) async => const Result.success([]));
+
+      await selectGroupAndTemplate(tester);
+
+      // Stage a file for João Silva so the Enviar button enables.
+      viewModel.stageFile(
+        'du1',
+        'd1',
+        'e1',
+        Uint8List.fromList(const [1, 2, 3]),
+        'contrato.pdf',
+      );
+      await tester.pumpAndSettle();
+
+      // The action bar may render below the viewport; ensure it's
+      // scrolled into view before tapping.
+      await tester.ensureVisible(find.text('Enviar (1)'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Enviar (1)'));
+      await tester.pumpAndSettle();
+
+      // Dialog visible with the staged employee's name.
+      expect(find.text('Confirmar Envio'), findsOneWidget);
+      expect(find.text('João Silva'), findsWidgets);
+
+      // Now there are two "Enviar (1)": the action bar (covered by dialog)
+      // and the dialog's confirm — the latter is the topmost, last finder.
+      await tester.tap(find.text('Enviar (1)').last);
+      await tester.pumpAndSettle();
+
+      verify(() => mockBatchRepo.uploadDocumentRange(
+            'company-1',
+            any(that: isA<List<BatchUploadItem>>()),
+          )).called(1);
+    });
+
+    testWidgets('cancelling the confirmation does not call the repository',
+        (tester) async {
+      await selectGroupAndTemplate(tester);
+
+      viewModel.stageFile(
+        'du1',
+        'd1',
+        'e1',
+        Uint8List.fromList(const [1, 2, 3]),
+        'contrato.pdf',
+      );
+      await tester.pumpAndSettle();
+
+      await tester.ensureVisible(find.text('Enviar (1)'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Enviar (1)'));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Cancelar'));
+      await tester.pumpAndSettle();
+
+      verifyNever(() => mockBatchRepo.uploadDocumentRange(any(), any()));
+    });
+
+    testWidgets(
+        'Gerar e Assinar shows confirmation after date-limit and omits Data do Documento',
+        (tester) async {
+      when(() => mockBatchRepo.generateAndSignRange(any(), any(), any(), any()))
+          .thenAnswer((_) async => const Result.success(null));
+
+      // The pendingUnits fixture has canGenerateDocument=false; override
+      // the response so the button enables.
+      when(() => mockBatchRepo.getPendingDocumentUnits(
+            any(),
+            any(),
+            employeeStatusId: any(named: 'employeeStatusId'),
+            employeeName: any(named: 'employeeName'),
+            periodTypeId: any(named: 'periodTypeId'),
+            periodYear: any(named: 'periodYear'),
+            periodMonth: any(named: 'periodMonth'),
+            periodDay: any(named: 'periodDay'),
+            periodWeek: any(named: 'periodWeek'),
+            pageSize: any(named: 'pageSize'),
+            pageNumber: any(named: 'pageNumber'),
+          )).thenAnswer((_) async => const Result.success(
+            BatchDocumentUnitsPage(
+              items: [
+                BatchDocumentUnitItem(
+                  documentUnitId: 'du1',
+                  documentId: 'd1',
+                  employeeId: 'e1',
+                  employeeName: 'João Silva',
+                  employeeStatusId: '2',
+                  employeeStatusName: 'Ativo',
+                  date: '15/03/2026',
+                  statusId: '1',
+                  statusName: 'Pendente',
+                  isSignable: true,
+                  canGenerateDocument: true,
+                ),
+              ],
+              totalCount: 1,
+            ),
+          ));
+
+      await selectGroupAndTemplate(tester);
+      viewModel.toggleSelection('du1');
+      await tester.pumpAndSettle();
+
+      await tester.ensureVisible(find.text('Gerar e Assinar'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Gerar e Assinar'));
+      await tester.pumpAndSettle();
+
+      // Step 1: date-limit dialog appears.
+      expect(find.text('Gerar e Enviar para Assinar'), findsOneWidget);
+      await tester.enterText(find.byType(TextFormField), '20/04/2026');
+      await tester.tap(find.text('Confirmar'));
+      await tester.pumpAndSettle();
+
+      // Step 2: confirmation dialog appears WITHOUT the Data do Documento
+      // column (no staged attachments for generate flow).
+      expect(find.text('Confirmar Geração e Assinatura'), findsOneWidget);
+      expect(find.text('Data do Documento'), findsNothing);
+
+      await tester.tap(find.text('Gerar e Assinar (1)'));
+      await tester.pumpAndSettle();
+
+      verify(() => mockBatchRepo.generateAndSignRange(
+            'company-1',
+            any(that: isA<List<BatchDocumentUnitItem>>()),
+            any(),
+            any(),
+          )).called(1);
     });
   });
 }
