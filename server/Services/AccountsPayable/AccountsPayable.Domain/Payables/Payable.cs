@@ -3,6 +3,7 @@ namespace AccountsPayable.Domain.Payables;
 using AccountsPayable.Domain.ChartOfAccounts.Entities;
 using AccountsPayable.Domain.CostCenters;
 using AccountsPayable.Domain.Errors;
+using AccountsPayable.Domain.ExpenseClassificationRules;
 using AccountsPayable.Domain.InstallmentPlans;
 using AccountsPayable.Domain.Payables.Enumerations;
 using AccountsPayable.Domain.Payables.Events;
@@ -54,6 +55,7 @@ public sealed class Payable : EventSourcedAggregateRoot<PayableId>
     public CapturedBillId? CapturedBillId { get; private set; }
     public InstallmentPlanId? InstallmentPlanId { get; private set; }
     public int? InstallmentNumber { get; private set; }
+    public ExpenseClassificationRuleId? LastClassificationRuleId { get; private set; }
 
     private Payable() : base() { }
 
@@ -229,6 +231,30 @@ public sealed class Payable : EventSourcedAggregateRoot<PayableId>
             AccountId: accountId,
             CostCenterId: costCenterId,
             ClassifiedBy: classifiedBy));
+    }
+
+    /// <summary>
+    /// Apply a classification decided by the <c>PayableAutoClassifier</c> Domain Service (Sprint 9).
+    /// Same lifecycle restrictions as <see cref="Classify"/> — terminal payables reject the call.
+    /// Differs in that <see cref="ClassifiedBy"/> stays null (no human author); the audit trail
+    /// flows through <see cref="LastClassificationRuleId"/> instead.
+    /// </summary>
+    public void ClassifyAutomatically(
+        AccountId accountId,
+        CostCenterId costCenterId,
+        ExpenseClassificationRuleId ruleId,
+        DateTime occurredAt)
+    {
+        if (Status == PayableStatus.Paid || Status == PayableStatus.Cancelled)
+            throw PayableErrors.CannotClassifyTerminalPayable(Status.Name);
+
+        Apply(new PayableAutoClassified(
+            EventId: Guid.NewGuid(),
+            OccurredAt: occurredAt,
+            PayableId: Id,
+            AccountId: accountId,
+            CostCenterId: costCenterId,
+            RuleId: ruleId));
     }
 
     public void MarkAsPaidManually(
@@ -474,6 +500,16 @@ public sealed class Payable : EventSourcedAggregateRoot<PayableId>
         CostCenterId = e.CostCenterId;
         ClassifiedBy = e.ClassifiedBy;
         ClassifiedAt = e.OccurredAt;
+        LastClassificationRuleId = null; // manual classification clears any prior rule attribution
+    }
+
+    private void When(PayableAutoClassified e)
+    {
+        AccountId = e.AccountId;
+        CostCenterId = e.CostCenterId;
+        ClassifiedBy = null; // automatic — audit trail is RuleId
+        ClassifiedAt = e.OccurredAt;
+        LastClassificationRuleId = e.RuleId;
     }
 
     private void When(PayableApprovalRequested e)

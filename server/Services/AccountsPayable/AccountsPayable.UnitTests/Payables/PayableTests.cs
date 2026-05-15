@@ -309,6 +309,78 @@ public class PayableTests
         }
     }
 
+    public class WhenClassifyingAutomatically
+    {
+        // ClassifyAutomatically em Draft popula AccountId/CostCenterId/LastClassificationRuleId e deixa ClassifiedBy null (Sprint 9).
+        [Fact]
+        public void ClassifyAutomatically_FromDraft_ShouldPopulateStateAndEmitEvent()
+        {
+            var payable = PayableMother.Draft();
+            payable.PullChanges();
+
+            payable.ClassifyAutomatically(
+                PayableMother.DEFAULT_ACCOUNT,
+                PayableMother.DEFAULT_COST_CENTER,
+                PayableMother.DEFAULT_RULE,
+                LATER);
+
+            Assert.Equal(PayableMother.DEFAULT_ACCOUNT, payable.AccountId);
+            Assert.Equal(PayableMother.DEFAULT_COST_CENTER, payable.CostCenterId);
+            Assert.Equal(PayableMother.DEFAULT_RULE, payable.LastClassificationRuleId);
+            Assert.Null(payable.ClassifiedBy); // automática — sem usuário
+            Assert.Equal(LATER, payable.ClassifiedAt);
+            var autoClassified = Assert.IsType<PayableAutoClassified>(payable.Changes.Single());
+            Assert.Equal(PayableMother.DEFAULT_RULE, autoClassified.RuleId);
+        }
+
+        // Reclassificação manual após classificação automática limpa LastClassificationRuleId — humano sobrescreveu a regra.
+        [Fact]
+        public void ManualClassify_AfterAutoClassify_ShouldClearRuleIdAndRecordClassifier()
+        {
+            var payable = PayableMother.AutoClassified();
+            payable.PullChanges();
+
+            payable.Classify(
+                PayableMother.DEFAULT_ACCOUNT,
+                PayableMother.DEFAULT_COST_CENTER,
+                PayableMother.DEFAULT_USER,
+                LATER);
+
+            Assert.Null(payable.LastClassificationRuleId);
+            Assert.Equal(PayableMother.DEFAULT_USER, payable.ClassifiedBy);
+        }
+
+        // ClassifyAutomatically em Payable Paid (terminal) lança AP.PAY06 — mesma invariante de Classify.
+        [Fact]
+        public void ClassifyAutomatically_OnPaid_ShouldThrowDomainException()
+        {
+            var payable = PayableMother.Paid();
+
+            var ex = Assert.Throws<DomainException>(() => payable.ClassifyAutomatically(
+                PayableMother.DEFAULT_ACCOUNT,
+                PayableMother.DEFAULT_COST_CENTER,
+                PayableMother.DEFAULT_RULE,
+                LATER));
+
+            Assert.Equal("AP.PAY06", ex.Id);
+        }
+
+        // ClassifyAutomatically em Payable Cancelled (terminal) lança AP.PAY06.
+        [Fact]
+        public void ClassifyAutomatically_OnCancelled_ShouldThrowDomainException()
+        {
+            var payable = PayableMother.Cancelled();
+
+            var ex = Assert.Throws<DomainException>(() => payable.ClassifyAutomatically(
+                PayableMother.DEFAULT_ACCOUNT,
+                PayableMother.DEFAULT_COST_CENTER,
+                PayableMother.DEFAULT_RULE,
+                LATER));
+
+            Assert.Equal("AP.PAY06", ex.Id);
+        }
+    }
+
     public class WhenRequestingApproval
     {
         // RequestApproval em Draft classificado muda status para AwaitingApproval e emite PayableApprovalRequested.

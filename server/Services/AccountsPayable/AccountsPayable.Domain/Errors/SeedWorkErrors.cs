@@ -18,7 +18,7 @@ using AccountsPayable.Domain.SeedWork;
 //     COA → ChartOfAccounts               (Sprint 3)
 //     CCT → CostCenter                    (Sprint 3)
 //     AAP → AutoApprovalPolicy            (Sprint 10)
-//     ECR → ExpenseClassificationRule     (Sprint 9)
+//     ECR → ExpenseClassificationRule     (Sprint 9, traditional)
 //     CTR → Contract                      (Sprint 11)
 //     ERB → ExpectedRecurringBill         (Sprint 11)
 //     IPL → InstallmentPlan               (Sprint 8, traditional grouper)
@@ -42,6 +42,8 @@ using AccountsPayable.Domain.SeedWork;
 //     ANM → AccountName
 //     CCC → CostCenterCode
 //     CCN → CostCenterName
+//     CMR → ClassificationMatcher        (Sprint 9)
+//     CAT → ClassificationAction         (Sprint 9)
 //   Domain Services:
 //     SUC → SupplierUniquenessChecker     (Sprint 1)
 //     PCL → PayableClassification         (Sprint 4)

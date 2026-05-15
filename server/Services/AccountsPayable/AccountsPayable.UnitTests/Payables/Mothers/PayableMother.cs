@@ -2,6 +2,7 @@ namespace AccountsPayable.UnitTests.Payables.Mothers;
 
 using AccountsPayable.Domain.ChartOfAccounts.Entities;
 using AccountsPayable.Domain.CostCenters;
+using AccountsPayable.Domain.ExpenseClassificationRules;
 using AccountsPayable.Domain.InstallmentPlans;
 using AccountsPayable.Domain.Payables;
 using AccountsPayable.Domain.Payables.Enumerations;
@@ -28,6 +29,8 @@ public static class PayableMother
         CapturedBillId.From(new Guid("cccccccc-cccc-cccc-cccc-cccccccccccc"));
     public static readonly InstallmentPlanId DEFAULT_INSTALLMENT_PLAN =
         InstallmentPlanId.From(new Guid("eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee"));
+    public static readonly ExpenseClassificationRuleId DEFAULT_RULE =
+        ExpenseClassificationRuleId.From(new Guid("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"));
 
     public static readonly PaymentProof DEFAULT_PROOF =
         new("https://docs.acme.com.br/payable/proof.pdf", PaymentProofType.Receipt);
@@ -112,6 +115,22 @@ public static class PayableMother
             accountId ?? DEFAULT_ACCOUNT,
             costCenterId ?? DEFAULT_COST_CENTER,
             classifiedBy ?? DEFAULT_USER,
+            DEFAULT_OCCURRED_AT.AddMinutes(2));
+        return payable;
+    }
+
+    /// <summary>Draft classified by the auto-classifier (Sprint 9) — Status = Draft, LastClassificationRuleId set, ClassifiedBy null.</summary>
+    public static Payable AutoClassified(
+        AccountId? accountId = null,
+        CostCenterId? costCenterId = null,
+        ExpenseClassificationRuleId? ruleId = null,
+        decimal amount = 1_500m)
+    {
+        var payable = Draft(amount: amount);
+        payable.ClassifyAutomatically(
+            accountId ?? DEFAULT_ACCOUNT,
+            costCenterId ?? DEFAULT_COST_CENTER,
+            ruleId ?? DEFAULT_RULE,
             DEFAULT_OCCURRED_AT.AddMinutes(2));
         return payable;
     }
