@@ -56,6 +56,11 @@ public sealed class Payable : EventSourcedAggregateRoot<PayableId>
     public InstallmentPlanId? InstallmentPlanId { get; private set; }
     public int? InstallmentNumber { get; private set; }
     public ExpenseClassificationRuleId? LastClassificationRuleId { get; private set; }
+    public int RequiredApprovalCount { get; private set; }
+    public IReadOnlyList<string> EligibleApproverRoles { get; private set; } = Array.Empty<string>();
+    private readonly List<ApprovalRecord> _approvalsReceived = [];
+    public IReadOnlyList<ApprovalRecord> ApprovalsReceived => _approvalsReceived.AsReadOnly();
+    public bool IsMultiApproval => RequiredApprovalCount > 0;
 
     private Payable() : base() { }
 
@@ -314,6 +319,8 @@ public sealed class Payable : EventSourcedAggregateRoot<PayableId>
 
     public void Approve(UserId approver, DateTime occurredAt)
     {
+        if (IsMultiApproval)
+            throw PayableErrors.SingleApprovalNotAllowedInMultiMode();
         if (!Status.CanTransitionTo(PayableStatus.Approved))
             throw PayableErrors.InvalidStatusTransition(Status.Name, PayableStatus.Approved.Name);
 
@@ -322,6 +329,72 @@ public sealed class Payable : EventSourcedAggregateRoot<PayableId>
             OccurredAt: occurredAt,
             PayableId: Id,
             ApprovedBy: approver));
+    }
+
+    /// <summary>
+    /// Multi-approver variant (Sprint 10). Replaces <see cref="RequestApproval"/> when the
+    /// <c>ApprovalRequirementCalculator</c> says more than one approval is needed. Sets up the
+    /// requirement state (count + eligible roles) and moves to <see cref="PayableStatus.AwaitingApproval"/>.
+    /// Subsequent approvals use <see cref="RecordApproval"/>, not <see cref="Approve"/>.
+    /// </summary>
+    public void RequestMultiApproval(
+        int requiredCount,
+        IReadOnlyList<string> eligibleRoles,
+        DateTime occurredAt)
+    {
+        ArgumentNullException.ThrowIfNull(eligibleRoles);
+        if (requiredCount < 1)
+            throw PayableErrors.MultiApprovalRequiredCountTooLow(requiredCount);
+        if (eligibleRoles.Count == 0)
+            throw PayableErrors.MultiApprovalEligibleRolesRequired();
+        if (!Status.CanTransitionTo(PayableStatus.AwaitingApproval))
+            throw PayableErrors.InvalidStatusTransition(Status.Name, PayableStatus.AwaitingApproval.Name);
+        if (AccountId is null)
+            throw PayableErrors.RequiresClassificationBeforeApproval();
+
+        Apply(new PayableMultiApprovalRequested(
+            EventId: Guid.NewGuid(),
+            OccurredAt: occurredAt,
+            PayableId: Id,
+            RequiredApprovalCount: requiredCount,
+            EligibleApproverRoles: eligibleRoles));
+    }
+
+    /// <summary>
+    /// Record one approval in multi-approver mode (Sprint 10). The approver must have a role from
+    /// <see cref="EligibleApproverRoles"/> and must not have approved before. Once the count of
+    /// recorded approvals reaches <see cref="RequiredApprovalCount"/>, emits <c>PayableFullyApproved</c>
+    /// in the same call — both events land in <see cref="EventSourcedAggregateRoot{TId}.Changes"/>.
+    /// </summary>
+    public void RecordApproval(UserId approver, string role, DateTime occurredAt)
+    {
+        if (string.IsNullOrWhiteSpace(role))
+            throw PayableErrors.ApproverRoleNotEligible(role ?? string.Empty);
+        if (!IsMultiApproval)
+            throw PayableErrors.InvalidStatusTransition(Status.Name, PayableStatus.Approved.Name);
+        if (Status != PayableStatus.AwaitingApproval)
+            throw PayableErrors.InvalidStatusTransition(Status.Name, PayableStatus.Approved.Name);
+
+        var normalizedRole = role.Trim().ToUpperInvariant();
+        if (!EligibleApproverRoles.Contains(normalizedRole))
+            throw PayableErrors.ApproverRoleNotEligible(normalizedRole);
+        if (_approvalsReceived.Any(a => a.ApprovedBy == approver))
+            throw PayableErrors.ApproverAlreadyRecorded(approver.Value);
+
+        Apply(new PayableApprovalRecorded(
+            EventId: Guid.NewGuid(),
+            OccurredAt: occurredAt,
+            PayableId: Id,
+            ApprovedBy: approver,
+            Role: normalizedRole));
+
+        if (_approvalsReceived.Count >= RequiredApprovalCount)
+        {
+            Apply(new PayableFullyApproved(
+                EventId: Guid.NewGuid(),
+                OccurredAt: occurredAt,
+                PayableId: Id));
+        }
     }
 
     public void Reject(UserId approver, string reason, DateTime occurredAt)
@@ -530,6 +603,28 @@ public sealed class Payable : EventSourcedAggregateRoot<PayableId>
         RejectedBy = e.RejectedBy;
         RejectedAt = e.OccurredAt;
         RejectionReason = e.Reason;
+    }
+
+    private void When(PayableMultiApprovalRequested e)
+    {
+        Status = PayableStatus.AwaitingApproval;
+        RequiredApprovalCount = e.RequiredApprovalCount;
+        EligibleApproverRoles = e.EligibleApproverRoles
+            .Select(r => r.Trim().ToUpperInvariant())
+            .ToList()
+            .AsReadOnly();
+        _approvalsReceived.Clear();
+    }
+
+    private void When(PayableApprovalRecorded e)
+    {
+        _approvalsReceived.Add(new ApprovalRecord(e.ApprovedBy, e.Role, e.OccurredAt));
+    }
+
+    private void When(PayableFullyApproved e)
+    {
+        Status = PayableStatus.Approved;
+        ApprovedAt = e.OccurredAt;
     }
 
     private void When(PayablePaymentRequested e)

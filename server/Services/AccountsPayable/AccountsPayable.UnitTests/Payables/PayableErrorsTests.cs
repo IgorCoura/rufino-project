@@ -148,6 +148,51 @@ public class PayableErrorsTests
         Assert.Equal(0, error.Parameters[0]);
     }
 
+    // MultiApprovalRequiredCountTooLow retorna AP.PAY13 — Sprint 10.
+    [Fact]
+    public void MultiApprovalRequiredCountTooLow_ShouldHaveCorrectIdAndParameter()
+    {
+        var error = Invoke("MultiApprovalRequiredCountTooLow", 0);
+        Assert.Equal("AP.PAY13", error.Id);
+        Assert.Single(error.Parameters);
+    }
+
+    // MultiApprovalEligibleRolesRequired retorna AP.PAY14 — Sprint 10.
+    [Fact]
+    public void MultiApprovalEligibleRolesRequired_ShouldHaveCorrectIdAndNoParameters()
+    {
+        var error = Invoke("MultiApprovalEligibleRolesRequired");
+        Assert.Equal("AP.PAY14", error.Id);
+        Assert.Empty(error.Parameters);
+    }
+
+    // ApproverRoleNotEligible retorna AP.PAY15 com a role — Sprint 10.
+    [Fact]
+    public void ApproverRoleNotEligible_ShouldHaveCorrectIdAndParameter()
+    {
+        var error = Invoke("ApproverRoleNotEligible", "FINANCE");
+        Assert.Equal("AP.PAY15", error.Id);
+        Assert.Equal("FINANCE", error.Parameters[0]);
+    }
+
+    // ApproverAlreadyRecorded retorna AP.PAY16 com o approverId — Sprint 10.
+    [Fact]
+    public void ApproverAlreadyRecorded_ShouldHaveCorrectIdAndParameter()
+    {
+        var error = Invoke("ApproverAlreadyRecorded", Guid.Empty);
+        Assert.Equal("AP.PAY16", error.Id);
+        Assert.Single(error.Parameters);
+    }
+
+    // SingleApprovalNotAllowedInMultiMode retorna AP.PAY17 — Sprint 10.
+    [Fact]
+    public void SingleApprovalNotAllowedInMultiMode_ShouldHaveCorrectIdAndNoParameters()
+    {
+        var error = Invoke("SingleApprovalNotAllowedInMultiMode");
+        Assert.Equal("AP.PAY17", error.Id);
+        Assert.Empty(error.Parameters);
+    }
+
     // Todos os Ids são únicos (proteção contra duplicidade acidental).
     [Fact]
     public void AllErrors_ShouldHaveUniqueIds()
@@ -166,6 +211,11 @@ public class PayableErrorsTests
             Invoke("PaymentFailureReasonRequired").Id,
             Invoke("PaymentOrderIdMismatch", Guid.Empty, Guid.Empty).Id,
             Invoke("InstallmentNumberMustBePositive", 0).Id,
+            Invoke("MultiApprovalRequiredCountTooLow", 0).Id,
+            Invoke("MultiApprovalEligibleRolesRequired").Id,
+            Invoke("ApproverRoleNotEligible", "X").Id,
+            Invoke("ApproverAlreadyRecorded", Guid.Empty).Id,
+            Invoke("SingleApprovalNotAllowedInMultiMode").Id,
         };
 
         Assert.Equal(ids.Length, ids.Distinct().Count());

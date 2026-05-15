@@ -139,6 +139,59 @@ internal static class PayableErrors
             parameters: new object[] { installmentNumber },
             sourcePath: BuildSourcePath(filePath, memberName, lineNumber));
 
+    public static DomainException MultiApprovalRequiredCountTooLow(
+        int count,
+        [CallerFilePath] string filePath = "",
+        [CallerMemberName] string memberName = "",
+        [CallerLineNumber] int lineNumber = 0)
+        => new(
+            id: $"{PREFIX}13",
+            messageTemplate: "Quantidade requerida de aprovações deve ser ≥ 1; recebido: {0}.",
+            parameters: new object[] { count },
+            sourcePath: BuildSourcePath(filePath, memberName, lineNumber));
+
+    public static DomainException MultiApprovalEligibleRolesRequired(
+        [CallerFilePath] string filePath = "",
+        [CallerMemberName] string memberName = "",
+        [CallerLineNumber] int lineNumber = 0)
+        => new(
+            id: $"{PREFIX}14",
+            messageTemplate: "Lista de roles elegíveis não pode estar vazia para multi-aprovação.",
+            parameters: Array.Empty<object>(),
+            sourcePath: BuildSourcePath(filePath, memberName, lineNumber));
+
+    public static DomainException ApproverRoleNotEligible(
+        string role,
+        [CallerFilePath] string filePath = "",
+        [CallerMemberName] string memberName = "",
+        [CallerLineNumber] int lineNumber = 0)
+        => new(
+            id: $"{PREFIX}15",
+            messageTemplate: "Role '{0}' não está na lista de elegíveis para esta multi-aprovação.",
+            parameters: new object[] { role },
+            sourcePath: BuildSourcePath(filePath, memberName, lineNumber));
+
+    public static DomainException ApproverAlreadyRecorded(
+        Guid approverId,
+        [CallerFilePath] string filePath = "",
+        [CallerMemberName] string memberName = "",
+        [CallerLineNumber] int lineNumber = 0)
+        => new(
+            id: $"{PREFIX}16",
+            messageTemplate: "Usuário {0} já registrou sua aprovação nesta conta.",
+            parameters: new object[] { approverId },
+            sourcePath: BuildSourcePath(filePath, memberName, lineNumber));
+
+    public static DomainException SingleApprovalNotAllowedInMultiMode(
+        [CallerFilePath] string filePath = "",
+        [CallerMemberName] string memberName = "",
+        [CallerLineNumber] int lineNumber = 0)
+        => new(
+            id: $"{PREFIX}17",
+            messageTemplate: "Conta em modo multi-aprovação não aceita Approve(usuário) — use RecordApproval(usuário, role).",
+            parameters: Array.Empty<object>(),
+            sourcePath: BuildSourcePath(filePath, memberName, lineNumber));
+
     private static string BuildSourcePath(string filePath, string memberName, int lineNumber)
         => $"{Path.GetFileName(filePath)}:{lineNumber} ({memberName})";
 }

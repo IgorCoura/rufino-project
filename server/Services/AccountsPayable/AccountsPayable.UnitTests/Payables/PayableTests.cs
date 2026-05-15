@@ -519,6 +519,164 @@ public class PayableTests
         }
     }
 
+    public class WhenRequestingMultiApproval
+    {
+        // RequestMultiApproval em Draft classificado vai pra AwaitingApproval, popula RequiredApprovalCount/EligibleRoles e emite PayableMultiApprovalRequested.
+        [Fact]
+        public void RequestMultiApproval_FromClassifiedDraft_ShouldSetUpMultiModeAndEmitEvent()
+        {
+            var payable = PayableMother.Classified();
+            payable.PullChanges();
+
+            payable.RequestMultiApproval(requiredCount: 2, eligibleRoles: new[] { "OWNER", "PARTNER" }, LATER);
+
+            Assert.Equal(PayableStatus.AwaitingApproval, payable.Status);
+            Assert.True(payable.IsMultiApproval);
+            Assert.Equal(2, payable.RequiredApprovalCount);
+            Assert.Equal(new[] { "OWNER", "PARTNER" }, payable.EligibleApproverRoles);
+            Assert.Empty(payable.ApprovalsReceived);
+            var requested = Assert.IsType<PayableMultiApprovalRequested>(payable.Changes.Single());
+            Assert.Equal(2, requested.RequiredApprovalCount);
+            Assert.Equal(new[] { "OWNER", "PARTNER" }, requested.EligibleApproverRoles);
+        }
+
+        // RequestMultiApproval com requiredCount < 1 lança AP.PAY13.
+        [Theory]
+        [InlineData(0)]
+        [InlineData(-1)]
+        public void RequestMultiApproval_WithNonPositiveCount_ShouldThrowDomainException(int count)
+        {
+            var payable = PayableMother.Classified();
+
+            var ex = Assert.Throws<DomainException>(() => payable.RequestMultiApproval(
+                count, new[] { "OWNER" }, LATER));
+
+            Assert.Equal("AP.PAY13", ex.Id);
+        }
+
+        // RequestMultiApproval com eligibleRoles vazio lança AP.PAY14.
+        [Fact]
+        public void RequestMultiApproval_WithEmptyRoles_ShouldThrowDomainException()
+        {
+            var payable = PayableMother.Classified();
+
+            var ex = Assert.Throws<DomainException>(() => payable.RequestMultiApproval(
+                requiredCount: 2, Array.Empty<string>(), LATER));
+
+            Assert.Equal("AP.PAY14", ex.Id);
+        }
+
+        // RequestMultiApproval em Draft não classificado lança AP.PAY08 (mesma invariante de RequestApproval).
+        [Fact]
+        public void RequestMultiApproval_FromUnclassifiedDraft_ShouldThrowDomainException()
+        {
+            var payable = PayableMother.Draft();
+
+            var ex = Assert.Throws<DomainException>(() => payable.RequestMultiApproval(
+                2, new[] { "OWNER" }, LATER));
+
+            Assert.Equal("AP.PAY08", ex.Id);
+        }
+    }
+
+    public class WhenRecordingApprovals
+    {
+        private static Payable BuildAwaitingMultiApproval(int requiredCount = 2)
+        {
+            var payable = PayableMother.Classified();
+            payable.RequestMultiApproval(requiredCount, new[] { "OWNER", "PARTNER" }, LATER);
+            payable.PullChanges();
+            return payable;
+        }
+
+        // RecordApproval primeira vez registra ApprovalRecord e emite PayableApprovalRecorded — status continua AwaitingApproval.
+        [Fact]
+        public void RecordApproval_BeforeCountReached_ShouldRecordAndStayAwaiting()
+        {
+            var payable = BuildAwaitingMultiApproval(requiredCount: 2);
+            var u1 = UserId.From(new Guid("11111111-1111-1111-1111-aaaaaaaaaaaa"));
+
+            payable.RecordApproval(u1, "owner", LATER.AddMinutes(1));
+
+            Assert.Equal(PayableStatus.AwaitingApproval, payable.Status);
+            Assert.Single(payable.ApprovalsReceived);
+            Assert.Equal("OWNER", payable.ApprovalsReceived[0].Role); // role normalizada
+            var recorded = Assert.IsType<PayableApprovalRecorded>(payable.Changes.Single());
+            Assert.Equal(u1, recorded.ApprovedBy);
+        }
+
+        // RecordApproval que completa a contagem emite PayableApprovalRecorded + PayableFullyApproved e status vira Approved.
+        [Fact]
+        public void RecordApproval_WhenLastSlotFilled_ShouldEmitFullyApprovedAndFlipStatus()
+        {
+            var payable = BuildAwaitingMultiApproval(requiredCount: 2);
+            var u1 = UserId.From(new Guid("11111111-1111-1111-1111-aaaaaaaaaaaa"));
+            var u2 = UserId.From(new Guid("22222222-2222-2222-2222-aaaaaaaaaaaa"));
+            payable.RecordApproval(u1, "OWNER", LATER.AddMinutes(1));
+            payable.PullChanges();
+
+            payable.RecordApproval(u2, "PARTNER", LATER.AddMinutes(2));
+
+            Assert.Equal(PayableStatus.Approved, payable.Status);
+            Assert.Equal(2, payable.ApprovalsReceived.Count);
+            var changes = payable.Changes.ToList();
+            Assert.Equal(2, changes.Count);
+            Assert.IsType<PayableApprovalRecorded>(changes[0]);
+            Assert.IsType<PayableFullyApproved>(changes[1]);
+            Assert.Equal(LATER.AddMinutes(2), payable.ApprovedAt);
+        }
+
+        // RecordApproval com role fora de EligibleApproverRoles lança AP.PAY15.
+        [Fact]
+        public void RecordApproval_WithIneligibleRole_ShouldThrowDomainException()
+        {
+            var payable = BuildAwaitingMultiApproval();
+
+            var ex = Assert.Throws<DomainException>(() => payable.RecordApproval(
+                UserId.From(new Guid("11111111-1111-1111-1111-aaaaaaaaaaaa")), "FINANCE", LATER));
+
+            Assert.Equal("AP.PAY15", ex.Id);
+        }
+
+        // RecordApproval do mesmo usuário duas vezes lança AP.PAY16 (não conta como 2 aprovações distintas).
+        [Fact]
+        public void RecordApproval_TwiceFromSameUser_ShouldThrowDomainException()
+        {
+            var payable = BuildAwaitingMultiApproval();
+            var user = UserId.From(new Guid("11111111-1111-1111-1111-aaaaaaaaaaaa"));
+            payable.RecordApproval(user, "OWNER", LATER.AddMinutes(1));
+
+            var ex = Assert.Throws<DomainException>(() => payable.RecordApproval(
+                user, "PARTNER", LATER.AddMinutes(2)));
+
+            Assert.Equal("AP.PAY16", ex.Id);
+        }
+
+        // Em multi-mode, chamar Approve(UserId, DateTime) lança AP.PAY17 — proteção contra mistura de fluxos.
+        [Fact]
+        public void Approve_InMultiMode_ShouldThrowDomainException()
+        {
+            var payable = BuildAwaitingMultiApproval();
+
+            var ex = Assert.Throws<DomainException>(() => payable.Approve(
+                UserId.From(new Guid("11111111-1111-1111-1111-aaaaaaaaaaaa")), LATER));
+
+            Assert.Equal("AP.PAY17", ex.Id);
+        }
+
+        // RecordApproval em Payable que não está em multi-mode lança AP.PAY01.
+        [Fact]
+        public void RecordApproval_OutsideMultiMode_ShouldThrowInvalidStatusTransition()
+        {
+            var payable = PayableMother.Classified(); // sem multi-aprovação iniciada
+
+            var ex = Assert.Throws<DomainException>(() => payable.RecordApproval(
+                UserId.From(new Guid("11111111-1111-1111-1111-aaaaaaaaaaaa")), "OWNER", LATER));
+
+            Assert.Equal("AP.PAY01", ex.Id);
+        }
+    }
+
     public class WhenSchedulingWithApprovalThreshold
     {
         private static readonly Money LOW_THRESHOLD = new(1_000m, Currency.Brl);

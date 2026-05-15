@@ -17,7 +17,9 @@ using AccountsPayable.Domain.SeedWork;
 //     SUP → Supplier                      (Sprint 1)
 //     COA → ChartOfAccounts               (Sprint 3)
 //     CCT → CostCenter                    (Sprint 3)
-//     AAP → AutoApprovalPolicy            (Sprint 10)
+//     AAP → AutoApprovalPolicy            (Sprint 10, traditional)
+//   Internal Entities (Sprint 10):
+//     ARU → ApprovalRule                  (inside AutoApprovalPolicy — errors reuse AAP prefix)
 //     ECR → ExpenseClassificationRule     (Sprint 9, traditional)
 //     CTR → Contract                      (Sprint 11)
 //     ERB → ExpectedRecurringBill         (Sprint 11)
@@ -44,6 +46,8 @@ using AccountsPayable.Domain.SeedWork;
 //     CCN → CostCenterName
 //     CMR → ClassificationMatcher        (Sprint 9)
 //     CAT → ClassificationAction         (Sprint 9)
+//     AMC → ApprovalMatchCriteria        (Sprint 10)
+//     APR → ApproverRoles                (Sprint 10)
 //   Domain Services:
 //     SUC → SupplierUniquenessChecker     (Sprint 1)
 //     PCL → PayableClassification         (Sprint 4)
