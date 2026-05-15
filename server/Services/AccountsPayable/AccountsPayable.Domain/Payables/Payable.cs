@@ -8,13 +8,20 @@ using AccountsPayable.Domain.Payables.Events;
 using AccountsPayable.Domain.Payables.ValueObjects;
 using AccountsPayable.Domain.SeedWork;
 using AccountsPayable.Domain.Suppliers;
+using AccountsPayable.Domain.Suppliers.Entities;
 
 /// <summary>
 /// Aggregate Root of the Accounts Payable BC. Event-Sourced (decision D-405): mutations only inside
 /// <c>When(SpecificEvent)</c> handlers; public command methods validate and call <see cref="EventSourcedAggregateRoot{TId}.Apply"/>.
 /// <para>
-/// State machine: <c>Draft → Scheduled | Paid | Cancelled</c>; <c>Scheduled → Paid | Cancelled</c>;
-/// <c>Paid</c> and <c>Cancelled</c> are terminal.
+/// State machine after Sprint 6 (PaymentOrder hooks):
+/// <c>Draft → Scheduled | Paid | Cancelled | AwaitingApproval</c>;
+/// <c>Scheduled → Paid | Cancelled | PaymentRequested</c>;
+/// <c>AwaitingApproval → Approved | Rejected | Cancelled</c>;
+/// <c>Approved → Scheduled | Paid | Cancelled</c>;
+/// <c>PaymentRequested → Paid | PaymentFailed</c>;
+/// <c>PaymentFailed → PaymentRequested (retry) | Cancelled</c>;
+/// <c>Paid</c>, <c>Cancelled</c> and <c>Rejected</c> are terminal.
 /// </para>
 /// </summary>
 public sealed class Payable : EventSourcedAggregateRoot<PayableId>
@@ -37,6 +44,12 @@ public sealed class Payable : EventSourcedAggregateRoot<PayableId>
     public UserId? RejectedBy { get; private set; }
     public DateTime? RejectedAt { get; private set; }
     public string? RejectionReason { get; private set; }
+    public PaymentMethod? PaymentMethod { get; private set; }
+    public SupplierBankAccountId? PaymentBankAccountId { get; private set; }
+    public PaymentOrderId? LastPaymentOrderId { get; private set; }
+    public DateTime? PaymentRequestedAt { get; private set; }
+    public DateTime? PaymentFailedAt { get; private set; }
+    public string? PaymentFailureReason { get; private set; }
 
     private Payable() : base() { }
 
@@ -81,8 +94,8 @@ public sealed class Payable : EventSourcedAggregateRoot<PayableId>
     /// <para>
     /// <paramref name="allowUnclassified"/> (Sprint 4) bypasses the classification requirement.
     /// <paramref name="approvalThreshold"/> (Sprint 5) is the tenant's approval threshold — when set,
-    /// payables whose <see cref="Amount"/> exceeds it cannot be scheduled unless <see cref="Status"/>
-    /// is already <see cref="PayableStatus.Approved"/>.
+    /// payables whose <see cref="Amount"/> exceeds it cannot be scheduled unless approval has
+    /// already been granted (<see cref="ApprovedAt"/> is set).
     /// </para>
     /// </summary>
     public void Schedule(
@@ -151,10 +164,16 @@ public sealed class Payable : EventSourcedAggregateRoot<PayableId>
             ProofType: proof.Type.Name));
     }
 
+    /// <summary>
+    /// Approval is considered already granted once <see cref="ApprovedAt"/> is set. This keeps the
+    /// rule consistent across the post-approval lifecycle: <c>Approved → Scheduled → PaymentRequested
+    /// → PaymentFailed → PaymentRequested</c> — the threshold check would otherwise re-trigger after
+    /// the status leaves <see cref="PayableStatus.Approved"/>.
+    /// </summary>
     private bool RequiresApproval(Money? threshold)
     {
         if (threshold is null) return false;
-        if (Status == PayableStatus.Approved) return false;
+        if (ApprovedAt is not null) return false;
         return Amount.Amount > threshold.Amount;
     }
 
@@ -216,6 +235,91 @@ public sealed class Payable : EventSourcedAggregateRoot<PayableId>
             Reason: reason.Trim()));
     }
 
+    /// <summary>
+    /// Hand the payable off to <c>PaymentExecution</c> by recording the chosen channel and bank
+    /// account. Emits <see cref="PayablePaymentRequested"/> — the Application layer is responsible
+    /// for turning it into a <c>PaymentOrder</c> on the sibling BC. Allowed from <see cref="PayableStatus.Scheduled"/>
+    /// (happy path) and from <see cref="PayableStatus.PaymentFailed"/> (retry after the bank rejected
+    /// the previous order).
+    /// </summary>
+    public void RequestPayment(
+        PaymentMethod method,
+        SupplierBankAccountId bankAccountId,
+        DateTime occurredAt,
+        Money? approvalThreshold = null)
+    {
+        ArgumentNullException.ThrowIfNull(method);
+
+        if (!Status.CanTransitionTo(PayableStatus.PaymentRequested))
+            throw PayableErrors.InvalidStatusTransition(Status.Name, PayableStatus.PaymentRequested.Name);
+
+        if (RequiresApproval(approvalThreshold))
+            throw PayableErrors.RequiresApproval(Amount.Amount, approvalThreshold!.Amount);
+
+        Apply(new PayablePaymentRequested(
+            EventId: Guid.NewGuid(),
+            OccurredAt: occurredAt,
+            PayableId: Id,
+            SupplierId: SupplierId,
+            AmountValue: Amount.Amount,
+            AmountCurrency: Amount.Currency.Name,
+            BankAccountId: bankAccountId,
+            Method: method.Name));
+    }
+
+    /// <summary>
+    /// Confirm that the <c>PaymentOrder</c> sibling BC successfully settled the payment. Idempotent:
+    /// receiving the same <paramref name="paymentOrderId"/> a second time on a Paid payable is a no-op
+    /// (no new event emitted) — the integration event bus may redeliver. A different
+    /// <paramref name="paymentOrderId"/> after the first confirmation is rejected with AP.PAY11
+    /// (defends against mismatched callbacks).
+    /// </summary>
+    public void ConfirmPaid(PaymentOrderId paymentOrderId, DateTime paidAt, DateTime occurredAt)
+    {
+        if (Status == PayableStatus.Paid)
+        {
+            if (LastPaymentOrderId is { } current && current == paymentOrderId)
+                return;
+            throw PayableErrors.PaymentOrderIdMismatch(
+                expected: LastPaymentOrderId?.Value ?? Guid.Empty,
+                received: paymentOrderId.Value);
+        }
+
+        // PaymentRequested é a única origem válida — Draft/Scheduled chegam em Paid via MarkAsPaidManually,
+        // não via callback de PaymentOrder. Sem esta guarda, eventos órfãos vindos de PaymentExecution
+        // poderiam marcar como pago um Payable que nunca emitiu PayablePaymentRequested.
+        if (Status != PayableStatus.PaymentRequested)
+            throw PayableErrors.InvalidStatusTransition(Status.Name, PayableStatus.Paid.Name);
+
+        Apply(new PayablePaid(
+            EventId: Guid.NewGuid(),
+            OccurredAt: occurredAt,
+            PayableId: Id,
+            PaymentOrderId: paymentOrderId,
+            PaidAt: paidAt));
+    }
+
+    /// <summary>
+    /// Record that <c>PaymentExecution</c> reported a failure for the last requested payment.
+    /// Status moves to <see cref="PayableStatus.PaymentFailed"/>, which is non-terminal — the
+    /// caller can issue a new <see cref="RequestPayment"/> (retry) or <see cref="Cancel"/>.
+    /// </summary>
+    public void MarkPaymentFailed(PaymentOrderId paymentOrderId, string reason, DateTime occurredAt)
+    {
+        if (string.IsNullOrWhiteSpace(reason))
+            throw PayableErrors.PaymentFailureReasonRequired();
+
+        if (!Status.CanTransitionTo(PayableStatus.PaymentFailed))
+            throw PayableErrors.InvalidStatusTransition(Status.Name, PayableStatus.PaymentFailed.Name);
+
+        Apply(new PayablePaymentFailed(
+            EventId: Guid.NewGuid(),
+            OccurredAt: occurredAt,
+            PayableId: Id,
+            PaymentOrderId: paymentOrderId,
+            Reason: reason.Trim()));
+    }
+
     // ---- When handlers (state mutation — único lugar permitido) ----
 
     private void When(PayableCreated e)
@@ -273,5 +377,30 @@ public sealed class Payable : EventSourcedAggregateRoot<PayableId>
         RejectedBy = e.RejectedBy;
         RejectedAt = e.OccurredAt;
         RejectionReason = e.Reason;
+    }
+
+    private void When(PayablePaymentRequested e)
+    {
+        Status = PayableStatus.PaymentRequested;
+        PaymentMethod = Enumeration.FromDisplayName<PaymentMethod>(e.Method);
+        PaymentBankAccountId = e.BankAccountId;
+        PaymentRequestedAt = e.OccurredAt;
+        PaymentFailureReason = null;
+        PaymentFailedAt = null;
+    }
+
+    private void When(PayablePaid e)
+    {
+        Status = PayableStatus.Paid;
+        PaidAt = e.PaidAt;
+        LastPaymentOrderId = e.PaymentOrderId;
+    }
+
+    private void When(PayablePaymentFailed e)
+    {
+        Status = PayableStatus.PaymentFailed;
+        LastPaymentOrderId = e.PaymentOrderId;
+        PaymentFailedAt = e.OccurredAt;
+        PaymentFailureReason = e.Reason;
     }
 }

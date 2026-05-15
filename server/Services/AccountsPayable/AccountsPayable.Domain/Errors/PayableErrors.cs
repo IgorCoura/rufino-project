@@ -106,6 +106,28 @@ internal static class PayableErrors
             parameters: Array.Empty<object>(),
             sourcePath: BuildSourcePath(filePath, memberName, lineNumber));
 
+    public static DomainException PaymentFailureReasonRequired(
+        [CallerFilePath] string filePath = "",
+        [CallerMemberName] string memberName = "",
+        [CallerLineNumber] int lineNumber = 0)
+        => new(
+            id: $"{PREFIX}10",
+            messageTemplate: "Motivo é obrigatório para registrar falha de pagamento.",
+            parameters: Array.Empty<object>(),
+            sourcePath: BuildSourcePath(filePath, memberName, lineNumber));
+
+    public static DomainException PaymentOrderIdMismatch(
+        Guid expected,
+        Guid received,
+        [CallerFilePath] string filePath = "",
+        [CallerMemberName] string memberName = "",
+        [CallerLineNumber] int lineNumber = 0)
+        => new(
+            id: $"{PREFIX}11",
+            messageTemplate: "Confirmação de pagamento já recebida para PaymentOrder {0}; outra {1} não pode sobrescrever.",
+            parameters: new object[] { expected, received },
+            sourcePath: BuildSourcePath(filePath, memberName, lineNumber));
+
     private static string BuildSourcePath(string filePath, string memberName, int lineNumber)
         => $"{Path.GetFileName(filePath)}:{lineNumber} ({memberName})";
 }

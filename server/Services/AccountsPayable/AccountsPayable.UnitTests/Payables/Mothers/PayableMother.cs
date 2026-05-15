@@ -7,6 +7,7 @@ using AccountsPayable.Domain.Payables.Enumerations;
 using AccountsPayable.Domain.Payables.ValueObjects;
 using AccountsPayable.Domain.SeedWork;
 using AccountsPayable.Domain.Suppliers;
+using AccountsPayable.Domain.Suppliers.Entities;
 
 public static class PayableMother
 {
@@ -18,6 +19,10 @@ public static class PayableMother
     public static readonly AccountId DEFAULT_ACCOUNT = AccountId.From(new Guid("33333333-3333-3333-3333-333333333333"));
     public static readonly CostCenterId DEFAULT_COST_CENTER = CostCenterId.From(new Guid("44444444-4444-4444-4444-444444444444"));
     public static readonly UserId DEFAULT_USER = UserId.From(new Guid("55555555-5555-5555-5555-555555555555"));
+    public static readonly SupplierBankAccountId DEFAULT_BANK_ACCOUNT =
+        SupplierBankAccountId.From(new Guid("66666666-6666-6666-6666-666666666666"));
+    public static readonly PaymentOrderId DEFAULT_PAYMENT_ORDER =
+        PaymentOrderId.From(new Guid("99999999-9999-9999-9999-999999999999"));
 
     public static readonly PaymentProof DEFAULT_PROOF =
         new("https://docs.acme.com.br/payable/proof.pdf", PaymentProofType.Receipt);
@@ -103,6 +108,30 @@ public static class PayableMother
     {
         var payable = AwaitingApproval();
         payable.Reject(rejector ?? DEFAULT_USER, reason, DEFAULT_OCCURRED_AT.AddMinutes(4));
+        return payable;
+    }
+
+    /// <summary>Scheduled payable that already requested payment — Status = PaymentRequested (Sprint 6).</summary>
+    public static Payable PaymentRequested(PaymentMethod? method = null)
+    {
+        var payable = Scheduled();
+        payable.RequestPayment(
+            method ?? PaymentMethod.Pix,
+            DEFAULT_BANK_ACCOUNT,
+            DEFAULT_OCCURRED_AT.AddMinutes(10));
+        return payable;
+    }
+
+    /// <summary>Payable whose previous payment attempt failed — Status = PaymentFailed (Sprint 6).</summary>
+    public static Payable PaymentFailed(
+        PaymentOrderId? paymentOrderId = null,
+        string reason = "Conta destino inválida")
+    {
+        var payable = PaymentRequested();
+        payable.MarkPaymentFailed(
+            paymentOrderId ?? DEFAULT_PAYMENT_ORDER,
+            reason,
+            DEFAULT_OCCURRED_AT.AddMinutes(15));
         return payable;
     }
 }

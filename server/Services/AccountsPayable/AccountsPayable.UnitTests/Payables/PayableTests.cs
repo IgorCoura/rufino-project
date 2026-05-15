@@ -582,6 +582,285 @@ public class PayableTests
         }
     }
 
+    public class WhenRequestingPayment
+    {
+        // RequestPayment a partir de Scheduled muda status para PaymentRequested, popula método/conta/timestamp e emite PayablePaymentRequested.
+        [Fact]
+        public void RequestPayment_FromScheduled_ShouldChangeStatusAndEmitEvent()
+        {
+            var payable = PayableMother.Scheduled();
+            payable.PullChanges();
+            var occurredAt = FIXED_NOW.AddMinutes(20);
+
+            payable.RequestPayment(PaymentMethod.Pix, PayableMother.DEFAULT_BANK_ACCOUNT, occurredAt);
+
+            Assert.Equal(PayableStatus.PaymentRequested, payable.Status);
+            Assert.Equal(PaymentMethod.Pix, payable.PaymentMethod);
+            Assert.Equal(PayableMother.DEFAULT_BANK_ACCOUNT, payable.PaymentBankAccountId);
+            Assert.Equal(occurredAt, payable.PaymentRequestedAt);
+            var requested = Assert.IsType<PayablePaymentRequested>(payable.Changes.Single());
+            Assert.Equal(payable.Id, requested.PayableId);
+            Assert.Equal(PayableMother.DEFAULT_SUPPLIER, requested.SupplierId);
+            Assert.Equal(1_500m, requested.AmountValue);
+            Assert.Equal("BRL", requested.AmountCurrency);
+            Assert.Equal(PayableMother.DEFAULT_BANK_ACCOUNT, requested.BankAccountId);
+            Assert.Equal("PIX", requested.Method);
+        }
+
+        // RequestPayment em Draft/Approved/AwaitingApproval/Paid/Cancelled/Rejected lança AP.PAY01 (só sai de Scheduled ou PaymentFailed).
+        [Theory]
+        [InlineData("Draft")]
+        [InlineData("AwaitingApproval")]
+        [InlineData("Approved")]
+        [InlineData("Paid")]
+        [InlineData("Cancelled")]
+        [InlineData("Rejected")]
+        public void RequestPayment_FromInvalidStatus_ShouldThrowInvalidStatusTransition(string state)
+        {
+            var payable = state switch
+            {
+                "Draft" => PayableMother.Draft(),
+                "AwaitingApproval" => PayableMother.AwaitingApproval(),
+                "Approved" => PayableMother.Approved(),
+                "Paid" => PayableMother.Paid(),
+                "Cancelled" => PayableMother.Cancelled(),
+                "Rejected" => PayableMother.Rejected(),
+                _ => throw new InvalidOperationException()
+            };
+
+            var ex = Assert.Throws<DomainException>(() => payable.RequestPayment(
+                PaymentMethod.Pix, PayableMother.DEFAULT_BANK_ACCOUNT, LATER));
+
+            Assert.Equal("AP.PAY01", ex.Id);
+        }
+
+        // RequestPayment com PaymentMethod null lança ArgumentNullException (guarda básica antes da máquina de estados).
+        [Fact]
+        public void RequestPayment_WithNullMethod_ShouldThrowArgumentNullException()
+        {
+            var payable = PayableMother.Scheduled();
+
+            Assert.Throws<ArgumentNullException>(() => payable.RequestPayment(
+                null!, PayableMother.DEFAULT_BANK_ACCOUNT, LATER));
+        }
+
+        // Critério de aceite Sprint 6: RequestPayment numa Payable não aprovada (acima do threshold) falha com AP.PAY07.
+        [Fact]
+        public void RequestPayment_AmountAboveThreshold_WithoutApproval_ShouldThrowRequiresApproval()
+        {
+            // Schedule sem threshold, depois RequestPayment com threshold mais baixo que o amount.
+            var payable = PayableMother.Scheduled(); // amount default 1_500, ApprovedAt = null
+            var lowThreshold = new Money(1_000m, Currency.Brl);
+
+            var ex = Assert.Throws<DomainException>(() => payable.RequestPayment(
+                PaymentMethod.Pix, PayableMother.DEFAULT_BANK_ACCOUNT, LATER, approvalThreshold: lowThreshold));
+
+            Assert.Equal("AP.PAY07", ex.Id);
+        }
+
+        // RequestPayment numa Payable que já passou por Approval (ApprovedAt set) sucede mesmo acima do threshold — approval consumida.
+        [Fact]
+        public void RequestPayment_AmountAboveThreshold_AfterApproval_ShouldSucceed()
+        {
+            // Fluxo completo: Classified → AwaitingApproval → Approved → Scheduled → RequestPayment.
+            var payable = PayableMother.Approved();
+            payable.Schedule(PayableMother.DEFAULT_SCHEDULED_FOR, FIXED_NOW.AddMinutes(6));
+            var lowThreshold = new Money(1_000m, Currency.Brl);
+
+            payable.RequestPayment(PaymentMethod.Ted, PayableMother.DEFAULT_BANK_ACCOUNT, LATER, approvalThreshold: lowThreshold);
+
+            Assert.Equal(PayableStatus.PaymentRequested, payable.Status);
+            Assert.NotNull(payable.ApprovedAt); // sanity — approval persistiu
+        }
+
+        // RequestPayment a partir de PaymentFailed sucede (retry após bank rejeitar) — limpa motivo da falha anterior.
+        [Fact]
+        public void RequestPayment_FromPaymentFailed_ShouldSucceedAndClearFailureFields()
+        {
+            var payable = PayableMother.PaymentFailed();
+            payable.PullChanges();
+            Assert.Equal("Conta destino inválida", payable.PaymentFailureReason); // sanity
+
+            payable.RequestPayment(PaymentMethod.Pix, PayableMother.DEFAULT_BANK_ACCOUNT, LATER);
+
+            Assert.Equal(PayableStatus.PaymentRequested, payable.Status);
+            Assert.Null(payable.PaymentFailureReason);
+            Assert.Null(payable.PaymentFailedAt);
+            Assert.IsType<PayablePaymentRequested>(payable.Changes.Single());
+        }
+    }
+
+    public class WhenConfirmingPaid
+    {
+        // ConfirmPaid a partir de PaymentRequested muda status para Paid, registra PaymentOrderId e PaidAt, e emite PayablePaid.
+        [Fact]
+        public void ConfirmPaid_FromPaymentRequested_ShouldChangeStatusAndEmitEvent()
+        {
+            var payable = PayableMother.PaymentRequested();
+            payable.PullChanges();
+            var paidAt = FIXED_NOW.AddDays(1);
+
+            payable.ConfirmPaid(PayableMother.DEFAULT_PAYMENT_ORDER, paidAt, paidAt.AddMinutes(1));
+
+            Assert.Equal(PayableStatus.Paid, payable.Status);
+            Assert.Equal(PayableMother.DEFAULT_PAYMENT_ORDER, payable.LastPaymentOrderId);
+            Assert.Equal(paidAt, payable.PaidAt);
+            var paid = Assert.IsType<PayablePaid>(payable.Changes.Single());
+            Assert.Equal(payable.Id, paid.PayableId);
+            Assert.Equal(PayableMother.DEFAULT_PAYMENT_ORDER, paid.PaymentOrderId);
+            Assert.Equal(paidAt, paid.PaidAt);
+        }
+
+        // Critério de aceite Sprint 6: ConfirmPaid numa Payable que não pediu pagamento (Scheduled, Draft, etc.) falha com AP.PAY01.
+        [Theory]
+        [InlineData("Draft")]
+        [InlineData("Scheduled")]
+        [InlineData("AwaitingApproval")]
+        public void ConfirmPaid_OnPayableThatDidNotRequestPayment_ShouldThrowInvalidStatusTransition(string state)
+        {
+            var payable = state switch
+            {
+                "Draft" => PayableMother.Draft(),
+                "Scheduled" => PayableMother.Scheduled(),
+                "AwaitingApproval" => PayableMother.AwaitingApproval(),
+                _ => throw new InvalidOperationException()
+            };
+
+            var ex = Assert.Throws<DomainException>(() => payable.ConfirmPaid(
+                PayableMother.DEFAULT_PAYMENT_ORDER, FIXED_NOW.AddDays(1), LATER));
+
+            Assert.Equal("AP.PAY01", ex.Id);
+        }
+
+        // Critério de aceite Sprint 6: receber PaymentOrderExecuted duas vezes com mesmo PaymentOrderId é no-op (idempotência).
+        [Fact]
+        public void ConfirmPaid_SamePaymentOrderTwice_ShouldBeIdempotent()
+        {
+            var payable = PayableMother.PaymentRequested();
+            var paidAt = FIXED_NOW.AddDays(1);
+            payable.ConfirmPaid(PayableMother.DEFAULT_PAYMENT_ORDER, paidAt, paidAt.AddMinutes(1));
+            payable.PullChanges();
+
+            payable.ConfirmPaid(PayableMother.DEFAULT_PAYMENT_ORDER, paidAt, paidAt.AddMinutes(2));
+
+            Assert.Empty(payable.Changes); // segundo ConfirmPaid não emite evento
+            Assert.Equal(PayableStatus.Paid, payable.Status);
+            Assert.Equal(paidAt, payable.PaidAt); // PaidAt mantém o primeiro valor
+        }
+
+        // ConfirmPaid numa Payable já paga, mas com PaymentOrderId diferente, lança AP.PAY11 (callback órfão).
+        [Fact]
+        public void ConfirmPaid_OnPaidPayableWithDifferentPaymentOrder_ShouldThrowMismatch()
+        {
+            var payable = PayableMother.PaymentRequested();
+            payable.ConfirmPaid(PayableMother.DEFAULT_PAYMENT_ORDER, FIXED_NOW.AddDays(1), LATER);
+            var otherPaymentOrder = PaymentOrderId.From(new Guid("ffffffff-ffff-ffff-ffff-ffffffffffff"));
+
+            var ex = Assert.Throws<DomainException>(() => payable.ConfirmPaid(
+                otherPaymentOrder, FIXED_NOW.AddDays(2), LATER.AddDays(1)));
+
+            Assert.Equal("AP.PAY11", ex.Id);
+        }
+    }
+
+    public class WhenMarkingPaymentFailed
+    {
+        // MarkPaymentFailed a partir de PaymentRequested muda status, registra PaymentOrderId/reason/timestamp e emite PayablePaymentFailed.
+        [Fact]
+        public void MarkPaymentFailed_FromPaymentRequested_ShouldChangeStatusAndEmitEvent()
+        {
+            var payable = PayableMother.PaymentRequested();
+            payable.PullChanges();
+            var occurredAt = FIXED_NOW.AddMinutes(30);
+
+            payable.MarkPaymentFailed(PayableMother.DEFAULT_PAYMENT_ORDER, "Saldo insuficiente", occurredAt);
+
+            Assert.Equal(PayableStatus.PaymentFailed, payable.Status);
+            Assert.Equal(PayableMother.DEFAULT_PAYMENT_ORDER, payable.LastPaymentOrderId);
+            Assert.Equal(occurredAt, payable.PaymentFailedAt);
+            Assert.Equal("Saldo insuficiente", payable.PaymentFailureReason);
+            var failed = Assert.IsType<PayablePaymentFailed>(payable.Changes.Single());
+            Assert.Equal(payable.Id, failed.PayableId);
+            Assert.Equal(PayableMother.DEFAULT_PAYMENT_ORDER, failed.PaymentOrderId);
+            Assert.Equal("Saldo insuficiente", failed.Reason);
+        }
+
+        // MarkPaymentFailed em Scheduled (sem RequestPayment prévio) lança AP.PAY01.
+        [Fact]
+        public void MarkPaymentFailed_FromScheduled_ShouldThrowInvalidStatusTransition()
+        {
+            var payable = PayableMother.Scheduled();
+
+            var ex = Assert.Throws<DomainException>(() => payable.MarkPaymentFailed(
+                PayableMother.DEFAULT_PAYMENT_ORDER, "qualquer", LATER));
+
+            Assert.Equal("AP.PAY01", ex.Id);
+        }
+
+        // MarkPaymentFailed com reason vazio/whitespace lança AP.PAY10 (validação anterior à máquina de estados).
+        [Theory]
+        [InlineData("")]
+        [InlineData("   ")]
+        public void MarkPaymentFailed_WithEmptyReason_ShouldThrowPaymentFailureReasonRequired(string reason)
+        {
+            var payable = PayableMother.PaymentRequested();
+
+            var ex = Assert.Throws<DomainException>(() => payable.MarkPaymentFailed(
+                PayableMother.DEFAULT_PAYMENT_ORDER, reason, LATER));
+
+            Assert.Equal("AP.PAY10", ex.Id);
+        }
+    }
+
+    public class WhenCancellingAfterPaymentSprint6
+    {
+        // Cancel a partir de PaymentFailed sucede (estado não-terminal — Sprint 6).
+        [Fact]
+        public void Cancel_FromPaymentFailed_ShouldChangeStatusToCancelled()
+        {
+            var payable = PayableMother.PaymentFailed();
+            payable.PullChanges();
+
+            payable.Cancel("Desistência após falha", LATER);
+
+            Assert.Equal(PayableStatus.Cancelled, payable.Status);
+            var cancelled = Assert.IsType<PayableCancelled>(payable.Changes.Single());
+            Assert.Equal("Desistência após falha", cancelled.Reason);
+        }
+
+        // Cancel a partir de PaymentRequested lança AP.PAY01 — precisa primeiro falhar/concluir (evita PaymentOrder pendente órfã).
+        [Fact]
+        public void Cancel_FromPaymentRequested_ShouldThrowInvalidStatusTransition()
+        {
+            var payable = PayableMother.PaymentRequested();
+
+            var ex = Assert.Throws<DomainException>(() => payable.Cancel("motivo", LATER));
+
+            Assert.Equal("AP.PAY01", ex.Id);
+        }
+    }
+
+    public class WhenRetryingAfterFailure
+    {
+        // Fluxo completo de retry (critério de aceite Sprint 6 + máquina de estados):
+        // Scheduled → RequestPayment → PaymentRequested → MarkPaymentFailed → PaymentFailed → RequestPayment → PaymentRequested → ConfirmPaid → Paid.
+        [Fact]
+        public void RetryFlow_AfterFailure_ShouldEventuallyReachPaid()
+        {
+            var payable = PayableMother.Scheduled();
+
+            payable.RequestPayment(PaymentMethod.Pix, PayableMother.DEFAULT_BANK_ACCOUNT, FIXED_NOW.AddMinutes(10));
+            payable.MarkPaymentFailed(PayableMother.DEFAULT_PAYMENT_ORDER, "Saldo insuficiente", FIXED_NOW.AddMinutes(20));
+            payable.RequestPayment(PaymentMethod.Ted, PayableMother.DEFAULT_BANK_ACCOUNT, FIXED_NOW.AddMinutes(30));
+            var newPaymentOrder = PaymentOrderId.From(new Guid("eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee"));
+            payable.ConfirmPaid(newPaymentOrder, FIXED_NOW.AddMinutes(40), FIXED_NOW.AddMinutes(41));
+
+            Assert.Equal(PayableStatus.Paid, payable.Status);
+            Assert.Equal(newPaymentOrder, payable.LastPaymentOrderId);
+            Assert.Equal(PaymentMethod.Ted, payable.PaymentMethod);
+        }
+    }
+
     public class WhenRehydrating
     {
         // Given-When-Expect canônico do critério de aceite da Sprint 2:

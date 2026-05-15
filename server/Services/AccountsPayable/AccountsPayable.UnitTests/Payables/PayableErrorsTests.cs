@@ -112,6 +112,31 @@ public class PayableErrorsTests
         Assert.Empty(error.Parameters);
     }
 
+    // PaymentFailureReasonRequired retorna AP.PAY10 sem parâmetros — Sprint 6.
+    [Fact]
+    public void PaymentFailureReasonRequired_ShouldHaveCorrectIdAndNoParameters()
+    {
+        var error = Invoke("PaymentFailureReasonRequired");
+
+        Assert.Equal("AP.PAY10", error.Id);
+        Assert.Empty(error.Parameters);
+    }
+
+    // PaymentOrderIdMismatch retorna AP.PAY11 com expected + received PaymentOrder Guids — Sprint 6.
+    [Fact]
+    public void PaymentOrderIdMismatch_ShouldHaveCorrectIdAndParameters()
+    {
+        var expected = new Guid("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
+        var received = new Guid("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb");
+
+        var error = Invoke("PaymentOrderIdMismatch", expected, received);
+
+        Assert.Equal("AP.PAY11", error.Id);
+        Assert.Equal(2, error.Parameters.Count);
+        Assert.Equal(expected, error.Parameters[0]);
+        Assert.Equal(received, error.Parameters[1]);
+    }
+
     // Todos os Ids são únicos (proteção contra duplicidade acidental).
     [Fact]
     public void AllErrors_ShouldHaveUniqueIds()
@@ -127,6 +152,8 @@ public class PayableErrorsTests
             Invoke("RequiresApproval", 1m, 1m).Id,
             Invoke("RequiresClassificationBeforeApproval").Id,
             Invoke("RejectionReasonRequired").Id,
+            Invoke("PaymentFailureReasonRequired").Id,
+            Invoke("PaymentOrderIdMismatch", Guid.Empty, Guid.Empty).Id,
         };
 
         Assert.Equal(ids.Length, ids.Distinct().Count());

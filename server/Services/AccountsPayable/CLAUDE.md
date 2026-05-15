@@ -12,7 +12,23 @@ The full design rationale (use cases, ADRs, runtime diagrams, payable typology, 
 
 ## Status
 
-Skeleton-only. The csproj scaffolding compiles but Domain/Application/Infra/API are empty. Sprint 0 (SeedWork: `Entity`, `AggregateRoot`, `ValueObject`, `Enumeration`, `DomainException`, A+ES adapter) has not been implemented yet. First feature sprint targets `Supplier` (Sprint 1), then minimal `Payable` (Sprint 2).
+**Domain: Sprints 0–6 implemented.** Application, Infra and API projects are still scaffolding-only (csproj + `Program.cs`). Next sprint is **Sprint 7 — Integração com Bill Ingestion**.
+
+Implemented so far (see `AccountsPayable.Architecture/accounts-payable-sprints.md` for the full plan):
+
+| Sprint | Status | Scope landed in `AccountsPayable.Domain/` |
+|---|---|---|
+| 0 — Foundation / SeedWork | ✅ Done | `SeedWork/` (`Entity`, `AggregateRoot`, `EventSourcedAggregateRoot`, `ValueObject`, `Enumeration`, `IDomainEvent`, `DomainException`, `IEntityId`, `TenantId`, `UserId`) |
+| 1 — Supplier | ✅ Done | `Suppliers/Supplier` + `SupplierBankAccount`, VOs (`LegalName`, `TradeName`, `TaxId`, `ContactInfo`, `EmailAddress`, `PhoneNumber`, `Address`, `PixKey`), enums (`SupplierStatus`, `TaxIdType`, `BankAccountType`, `PixKeyType`), `Services/SupplierUniquenessChecker` + `ISupplierTaxIdLookup` port |
+| 2 — Payable mínimo (A+ES) | ✅ Done | `Payables/Payable` (Event-Sourced), VOs (`Money`, `DueDate`, `Description`, `PaymentProof`), enums (`PayableStatus`, `Currency`, `PaymentProofType`), events: `PayableCreated`, `PayableScheduled`, `PayableMarkedAsPaid`, `PayableCancelled` |
+| 3 — Chart of Accounts + Cost Center | ✅ Done | `ChartOfAccounts/ChartOfAccounts` + `Account` entity, VOs (`AccountCode`, `AccountName`, `ChartOfAccountsName`), enum `AccountType`; `CostCenters/CostCenter` + VOs (`CostCenterCode`, `CostCenterName`) |
+| 4 — Classificação manual do Payable | ✅ Done | `Payable.Classify(...)` + `PayableClassified` event; `Services/PayableClassificationValidator` (cross-aggregate rule) |
+| 5 — Aprovação manual single approver | ✅ Done | `Payable.RequestApproval/Approve/Reject` + events `PayableApprovalRequested`, `PayableApproved`, `PayableRejected`; threshold passed by parameter (não vive no Aggregate) |
+| 6 — PaymentOrder hooks (sem o Aggregate) | ✅ Done | `Payable.RequestPayment/ConfirmPaid/MarkPaymentFailed`; events `PayablePaymentRequested`/`PayablePaid`/`PayablePaymentFailed`; status `PaymentRequested`/`PaymentFailed` (não-terminal, suporta retry); Smart Enum `PaymentMethod` (Pix/BankSlip/Ted/Manual); referência fraca `PaymentOrderId` ao Aggregate que vive em `PaymentExecution`; idempotência em `ConfirmPaid` por `LastPaymentOrderId`; `RequiresApproval` passou a usar `ApprovedAt is not null` em vez de `Status == Approved` para sobreviver ao ciclo Approved→Scheduled→PaymentRequested |
+
+Tests for each Aggregate / VO / Service live in `AccountsPayable.UnitTests/` mirroring the Domain folders.
+
+Not started yet: Application layer (commands/queries/handlers via custom mediator), Infra (DbContext, repositories, EF mappings, event store for `Payable`), API (controllers, Keycloak auth, filters), and Sprints 7–11. The `PaymentOrder` Aggregate itself (with retries, conciliação, callbacks bancários) is **out of scope** of this BC — it lives in the sibling `PaymentExecution` BC; this BC only fires `PayablePaymentRequested` and consumes the result via `ConfirmPaid`/`MarkPaymentFailed`.
 
 ## Build, Run & Test
 
@@ -77,6 +93,28 @@ Em `[Theory]`, um único comentário acima do atributo descreve a regra; não co
 - **Regressão** — a alteração quebrou uma invariante sem querer e é a *implementação* que precisa voltar.
 
 Apenas o usuário consegue distinguir os dois casos. Reporte qual teste falhou, o `Assert` que disparou, e qual foi a alteração suspeita; espere o veredito antes de tocar em qualquer coisa.
+
+## Mandatory documentation workflow
+
+**Este `CLAUDE.md` precisa refletir o estado atual do código a cada alteração relevante. É obrigatório atualizá-lo no mesmo commit/PR da mudança — não em um passo separado, não "depois".**
+
+Atualize sempre que qualquer um destes acontecer:
+
+- **Sprint concluída ou em andamento muda de estado** — atualize a tabela em "Status" (sprint nova marcada ✅, próxima sprint atualizada, escopo aterrissado listado).
+- **Aggregate, Domain Service, VO, Smart Enum, evento ou erro novo** — se a entidade é citada no CLAUDE.md (tabela de Status, seção "Architecture — what is non-obvious", "Project layout"), reflita o novo item. Não precisa listar cada VO trivial, mas qualquer Aggregate Root, Domain Service ou conceito estrutural (ex.: novo prefixo de erro `AP.<AGG>##`) é obrigatório.
+- **Decisão arquitetural ou convenção nova** (ADR, mudança de stack, novo padrão de pasta, nova sigla de erro, mudança de visibilidade de `*Errors.cs`, troca de mediator, nova porta no Domain) — adicione/edite na seção "Architecture — what is non-obvious".
+- **Estrutura de pastas muda** (projeto novo, pasta nova de primeiro nível, renomeação) — atualize "Project layout".
+- **Build/run/test workflow muda** (porta nova no docker-compose, novo `dotnet test` filtrável, schema/db trocados) — atualize "Build, Run & Test".
+- **Nova convenção do skill/codegen ou nova regra do usuário** (ex.: "todo teste tem comentário", "Domain proíbe X") — adicione/edite em "Conventions inherited from the DDD skills" ou cria nova seção "Mandatory <X> workflow".
+
+**Como aplicar**:
+
+1. Antes de fechar a tarefa, leia o `CLAUDE.md` e pergunte: "alguma seção ficou mentindo depois das minhas alterações?" Se sim, edite.
+2. Se você atualizou o código mas não tem certeza se o `CLAUDE.md` precisa mudar, **pergunte ao usuário** antes de concluir.
+3. **Não duplique o que está em `AccountsPayable.Architecture/accounts-payable-sprints.md` ou no `Consolidado.md`.** O CLAUDE.md aponta para esses arquivos; ele descreve *estado* e *convenção*, não *plano* nem *design rationale*.
+4. Se uma sprint for implementada apenas parcialmente, marque-a como `🚧 Em andamento` na tabela e descreva o que ficou de fora.
+
+**Falhar em atualizar o CLAUDE.md é considerado tarefa incompleta**, mesmo que o código compile e os testes passem. Esse arquivo é o que orienta as próximas sessões do Claude Code — se ele estiver desatualizado, o próximo agente parte de premissas erradas e o débito de contexto cresce em silêncio.
 
 ## Architecture — what is non-obvious
 
