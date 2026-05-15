@@ -21,8 +21,8 @@ using AccountsPayable.Domain.SeedWork;
 //   Internal Entities (Sprint 10):
 //     ARU → ApprovalRule                  (inside AutoApprovalPolicy — errors reuse AAP prefix)
 //     ECR → ExpenseClassificationRule     (Sprint 9, traditional)
-//     CTR → Contract                      (Sprint 11)
-//     ERB → ExpectedRecurringBill         (Sprint 11)
+//     CTR → Contract                      (Sprint 11, traditional)
+//     ERB → ExpectedRecurringBill         (Sprint 11, traditional)
 //     IPL → InstallmentPlan               (Sprint 8, traditional grouper)
 //   Internal Entities:
 //     SBA → SupplierBankAccount           (Sprint 1, inside Supplier)
@@ -51,6 +51,8 @@ using AccountsPayable.Domain.SeedWork;
 //   Domain Services:
 //     SUC → SupplierUniquenessChecker     (Sprint 1)
 //     PCL → PayableClassification         (Sprint 4)
+//     RBG → RecurringBillGenerator        (Sprint 11, sem errors próprios)
+//     RBM → RecurringBillMatcher          (Sprint 11, sem errors próprios)
 public static class SeedWorkErrors
 {
     private const string PREFIX = "SWK";
