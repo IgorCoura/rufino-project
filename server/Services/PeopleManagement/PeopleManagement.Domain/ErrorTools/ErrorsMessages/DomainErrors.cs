@@ -92,6 +92,9 @@ namespace PeopleManagement.Domain.ErrorTools.ErrorsMessages
             public static Error DocumentUnitMissingNameOrExtension(Guid docUnitId) => new("PMD.DOC16", $"A unidade de documento {docUnitId} não pode ser marcada como válida porque está faltando o nome ou a extensão.", new { docUnitId });
             public static Error NotSignable(Guid docUnitId) => new("PMD.DOC17", $"A unidade de documento {docUnitId} não é assinavel.", new { docUnitId });
             public static Error PendingDocumentUnitAlreadyExistsForPeriod(string period) => new("PMD.DOC18", $"Já existe uma unidade de documento pendente para o período {period}.", new { period });
+            public static Error DocumentUnitCantBeSentBeforeOfficialDate(Guid docUnitId, DateOnly Date) => new("PMD.DOC20",
+                $"A unidade de documento {docUnitId} não pode ser enviada para assinatura antes da sua data oficial {Date:dd/MM/yyyy}.",
+                new { docUnitId, Date });
 
         }
 
