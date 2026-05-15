@@ -12,7 +12,7 @@ The full design rationale (use cases, ADRs, runtime diagrams, payable typology, 
 
 ## Status
 
-**Domain: Sprints 0–6 implemented.** Application, Infra and API projects are still scaffolding-only (csproj + `Program.cs`). Next sprint is **Sprint 7 — Integração com Bill Ingestion**.
+**Domain: Sprints 0–7 implemented.** Application, Infra and API projects are still scaffolding-only (csproj + `Program.cs`). Next sprint is **Sprint 8 — Parcelamento (`InstallmentPlan`)**.
 
 Implemented so far (see `AccountsPayable.Architecture/accounts-payable-sprints.md` for the full plan):
 
@@ -25,10 +25,11 @@ Implemented so far (see `AccountsPayable.Architecture/accounts-payable-sprints.m
 | 4 — Classificação manual do Payable | ✅ Done | `Payable.Classify(...)` + `PayableClassified` event; `Services/PayableClassificationValidator` (cross-aggregate rule) |
 | 5 — Aprovação manual single approver | ✅ Done | `Payable.RequestApproval/Approve/Reject` + events `PayableApprovalRequested`, `PayableApproved`, `PayableRejected`; threshold passed by parameter (não vive no Aggregate) |
 | 6 — PaymentOrder hooks (sem o Aggregate) | ✅ Done | `Payable.RequestPayment/ConfirmPaid/MarkPaymentFailed`; events `PayablePaymentRequested`/`PayablePaid`/`PayablePaymentFailed`; status `PaymentRequested`/`PaymentFailed` (não-terminal, suporta retry); Smart Enum `PaymentMethod` (Pix/BankSlip/Ted/Manual); referência fraca `PaymentOrderId` ao Aggregate que vive em `PaymentExecution`; idempotência em `ConfirmPaid` por `LastPaymentOrderId`; `RequiresApproval` passou a usar `ApprovedAt is not null` em vez de `Status == Approved` para sobreviver ao ciclo Approved→Scheduled→PaymentRequested |
+| 7 — Integração com Bill Ingestion (gancho) | ✅ Done | `Payable.InitializeFromCapture(...)` factory + event `PayableCreatedFromCapture`; campo `CapturedBillId?` no estado; referência fraca `CapturedBillId` ao Aggregate da sibling BC `BillIngestion`. Dedup por `(TenantId, CapturedBillId)` é responsabilidade da Application/Infra (unique index) — o Domain só expõe o link |
 
 Tests for each Aggregate / VO / Service live in `AccountsPayable.UnitTests/` mirroring the Domain folders.
 
-Not started yet: Application layer (commands/queries/handlers via custom mediator), Infra (DbContext, repositories, EF mappings, event store for `Payable`), API (controllers, Keycloak auth, filters), and Sprints 7–11. The `PaymentOrder` Aggregate itself (with retries, conciliação, callbacks bancários) is **out of scope** of this BC — it lives in the sibling `PaymentExecution` BC; this BC only fires `PayablePaymentRequested` and consumes the result via `ConfirmPaid`/`MarkPaymentFailed`.
+Not started yet: Application layer (commands/queries/handlers via custom mediator), Infra (DbContext, repositories, EF mappings, event store for `Payable`, unique index `(TenantId, CapturedBillId)` para dedup do Sprint 7), API (controllers, Keycloak auth, filters), and Sprints 8–11. The `PaymentOrder` Aggregate (Sprint 6) and the `CapturedBill` Aggregate (Sprint 7) themselves live in sibling BCs — this BC only carries weak Id references (`PaymentOrderId`, `CapturedBillId`) and consumes/produces integration events at the seams.
 
 ## Build, Run & Test
 

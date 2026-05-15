@@ -23,6 +23,8 @@ public static class PayableMother
         SupplierBankAccountId.From(new Guid("66666666-6666-6666-6666-666666666666"));
     public static readonly PaymentOrderId DEFAULT_PAYMENT_ORDER =
         PaymentOrderId.From(new Guid("99999999-9999-9999-9999-999999999999"));
+    public static readonly CapturedBillId DEFAULT_CAPTURED_BILL =
+        CapturedBillId.From(new Guid("cccccccc-cccc-cccc-cccc-cccccccccccc"));
 
     public static readonly PaymentProof DEFAULT_PROOF =
         new("https://docs.acme.com.br/payable/proof.pdf", PaymentProofType.Receipt);
@@ -40,6 +42,29 @@ public static class PayableMother
         return Payable.Initialize(
             id: id ?? PayableId.New(),
             tenantId: tenantId ?? DEFAULT_TENANT,
+            supplierId: supplierId ?? DEFAULT_SUPPLIER,
+            amount: new Money(amount, currency ?? Currency.Brl),
+            dueDate: new DueDate(dueDate ?? DEFAULT_DUE_DATE),
+            description: new Description(description),
+            occurredAt: occurredAt ?? DEFAULT_OCCURRED_AT);
+    }
+
+    /// <summary>Draft created from a CapturedBill (Sprint 7) — Status = Draft, CapturedBillId populated, unclassified.</summary>
+    public static Payable DraftFromCapture(
+        PayableId? id = null,
+        TenantId? tenantId = null,
+        CapturedBillId? capturedBillId = null,
+        SupplierId? supplierId = null,
+        decimal amount = 1_500m,
+        Currency? currency = null,
+        DateOnly? dueDate = null,
+        string description = "Boleto Sabesp março",
+        DateTime? occurredAt = null)
+    {
+        return Payable.InitializeFromCapture(
+            id: id ?? PayableId.New(),
+            tenantId: tenantId ?? DEFAULT_TENANT,
+            capturedBillId: capturedBillId ?? DEFAULT_CAPTURED_BILL,
             supplierId: supplierId ?? DEFAULT_SUPPLIER,
             amount: new Money(amount, currency ?? Currency.Brl),
             dueDate: new DueDate(dueDate ?? DEFAULT_DUE_DATE),

@@ -72,6 +72,98 @@ public class PayableTests
         }
     }
 
+    public class WhenInitializingFromCapture
+    {
+        // InitializeFromCapture cria Payable em Draft com CapturedBillId populado e sem classificação (vai pra revisão humana — critério de aceite Sprint 7).
+        [Fact]
+        public void InitializeFromCapture_WithValidData_ShouldCreateDraftLinkedToCapturedBill()
+        {
+            var payable = PayableMother.DraftFromCapture();
+
+            Assert.Equal(PayableStatus.Draft, payable.Status);
+            Assert.Equal(1, payable.Version);
+            Assert.Equal(PayableMother.DEFAULT_CAPTURED_BILL, payable.CapturedBillId);
+            Assert.Equal(PayableMother.DEFAULT_TENANT, payable.TenantId);
+            Assert.Equal(PayableMother.DEFAULT_SUPPLIER, payable.SupplierId);
+            Assert.Equal(1_500m, payable.Amount.Amount);
+            Assert.Equal("Boleto Sabesp março", payable.Description.Value);
+            // Critério de aceite: estado inicial sem classificação até auto-classificação rodar (Sprint 9).
+            Assert.Null(payable.AccountId);
+            Assert.Null(payable.CostCenterId);
+        }
+
+        // InitializeFromCapture registra PayableCreatedFromCapture em Changes carregando o CapturedBillId.
+        [Fact]
+        public void InitializeFromCapture_ShouldRecordPayableCreatedFromCaptureInChanges()
+        {
+            var payable = PayableMother.DraftFromCapture();
+
+            var change = Assert.Single(payable.Changes);
+            var created = Assert.IsType<PayableCreatedFromCapture>(change);
+            Assert.Equal(payable.Id, created.PayableId);
+            Assert.Equal(PayableMother.DEFAULT_CAPTURED_BILL, created.CapturedBillId);
+            Assert.Equal(PayableMother.DEFAULT_SUPPLIER, created.SupplierId);
+            Assert.Equal(1_500m, created.AmountValue);
+            Assert.Equal("BRL", created.AmountCurrency);
+            Assert.Equal(PayableMother.DEFAULT_DUE_DATE, created.DueDate);
+            Assert.Equal("Boleto Sabesp março", created.Description);
+        }
+
+        // InitializeFromCapture com DueDate anterior ao OccurredAt rejeita igual ao Initialize regular (AP.PAY02).
+        [Fact]
+        public void InitializeFromCapture_WithDueDateInPast_ShouldThrowDomainException()
+        {
+            var ex = Assert.Throws<DomainException>(() => PayableMother.DraftFromCapture(
+                dueDate: new DateOnly(2023, 1, 1),
+                occurredAt: FIXED_NOW));
+
+            Assert.Equal("AP.PAY02", ex.Id);
+        }
+
+        // Payable criado a partir de captura segue o mesmo ciclo de vida — Classify → Schedule → MarkAsPaidManually deve funcionar normalmente.
+        [Fact]
+        public void DraftFromCapture_ShouldFlowThroughNormalLifecycle()
+        {
+            var payable = PayableMother.DraftFromCapture();
+
+            payable.Classify(PayableMother.DEFAULT_ACCOUNT, PayableMother.DEFAULT_COST_CENTER, PayableMother.DEFAULT_USER, LATER);
+            payable.Schedule(PayableMother.DEFAULT_SCHEDULED_FOR, LATER.AddMinutes(1));
+            payable.MarkAsPaidManually(PayableMother.DEFAULT_PROOF, FIXED_NOW.AddDays(30), FIXED_NOW.AddDays(30).AddMinutes(1));
+
+            Assert.Equal(PayableStatus.Paid, payable.Status);
+            Assert.Equal(PayableMother.DEFAULT_CAPTURED_BILL, payable.CapturedBillId); // CapturedBillId sobrevive
+        }
+
+        // Rehydrate a partir de stream começando com PayableCreatedFromCapture reconstrói CapturedBillId corretamente.
+        [Fact]
+        public void Rehydrate_FromCaptureStream_ShouldRebuildCapturedBillIdLink()
+        {
+            var payableId = PayableId.From(new Guid("dddddddd-dddd-dddd-dddd-dddddddddddd"));
+            var history = new IDomainEvent[]
+            {
+                new PayableCreatedFromCapture(
+                    EventId: Guid.NewGuid(),
+                    OccurredAt: FIXED_NOW,
+                    PayableId: payableId,
+                    TenantId: PayableMother.DEFAULT_TENANT,
+                    CapturedBillId: PayableMother.DEFAULT_CAPTURED_BILL,
+                    SupplierId: PayableMother.DEFAULT_SUPPLIER,
+                    AmountValue: 1_500m,
+                    AmountCurrency: "BRL",
+                    DueDate: PayableMother.DEFAULT_DUE_DATE,
+                    Description: "Boleto Sabesp março"),
+            };
+
+            var payable = Payable.Rehydrate(history);
+
+            Assert.Equal(payableId, payable.Id);
+            Assert.Equal(PayableStatus.Draft, payable.Status);
+            Assert.Equal(PayableMother.DEFAULT_CAPTURED_BILL, payable.CapturedBillId);
+            Assert.Equal(1, payable.Version);
+            Assert.Empty(payable.Changes);
+        }
+    }
+
     public class WhenClassifying
     {
         // Classify em Draft popula AccountId/CostCenterId/ClassifiedBy/ClassifiedAt e emite PayableClassified.

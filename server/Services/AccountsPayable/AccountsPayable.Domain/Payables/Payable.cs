@@ -50,6 +50,7 @@ public sealed class Payable : EventSourcedAggregateRoot<PayableId>
     public DateTime? PaymentRequestedAt { get; private set; }
     public DateTime? PaymentFailedAt { get; private set; }
     public string? PaymentFailureReason { get; private set; }
+    public CapturedBillId? CapturedBillId { get; private set; }
 
     private Payable() : base() { }
 
@@ -78,6 +79,51 @@ public sealed class Payable : EventSourcedAggregateRoot<PayableId>
             OccurredAt: occurredAt,
             PayableId: id,
             TenantId: tenantId,
+            SupplierId: supplierId,
+            AmountValue: amount.Amount,
+            AmountCurrency: amount.Currency.Name,
+            DueDate: dueDate.Value,
+            Description: description.Value));
+
+        return instance;
+    }
+
+    /// <summary>
+    /// Factory used by the Application handler that consumes <c>CapturedBillApproved</c> from
+    /// the sibling <c>BillIngestion</c> BC. Identical contract to <see cref="Initialize"/> except
+    /// the payable is linked to the originating <paramref name="capturedBillId"/>.
+    /// <para>
+    /// <b>Dedup is enforced outside the Aggregate</b>: a unique index on
+    /// <c>(TenantId, CapturedBillId)</c> at the Infra layer prevents two Payables from being
+    /// created for the same capture when the Application handler re-receives the integration
+    /// event. The Aggregate only guarantees that the link is captured in the event stream.
+    /// </para>
+    /// </summary>
+    public static Payable InitializeFromCapture(
+        PayableId id,
+        TenantId tenantId,
+        CapturedBillId capturedBillId,
+        SupplierId supplierId,
+        Money amount,
+        DueDate dueDate,
+        Description description,
+        DateTime occurredAt)
+    {
+        ArgumentNullException.ThrowIfNull(amount);
+        ArgumentNullException.ThrowIfNull(dueDate);
+        ArgumentNullException.ThrowIfNull(description);
+
+        var today = DateOnly.FromDateTime(occurredAt);
+        if (dueDate.Value < today)
+            throw PayableErrors.DueDateInPast(dueDate.Value, today);
+
+        var instance = new Payable();
+        instance.Apply(new PayableCreatedFromCapture(
+            EventId: Guid.NewGuid(),
+            OccurredAt: occurredAt,
+            PayableId: id,
+            TenantId: tenantId,
+            CapturedBillId: capturedBillId,
             SupplierId: supplierId,
             AmountValue: amount.Amount,
             AmountCurrency: amount.Currency.Name,
@@ -331,6 +377,18 @@ public sealed class Payable : EventSourcedAggregateRoot<PayableId>
         DueDate = new DueDate(e.DueDate);
         Description = new Description(e.Description);
         Status = PayableStatus.Draft;
+    }
+
+    private void When(PayableCreatedFromCapture e)
+    {
+        Id = e.PayableId;
+        TenantId = e.TenantId;
+        SupplierId = e.SupplierId;
+        Amount = new Money(e.AmountValue, Enumeration.FromDisplayName<Currency>(e.AmountCurrency));
+        DueDate = new DueDate(e.DueDate);
+        Description = new Description(e.Description);
+        Status = PayableStatus.Draft;
+        CapturedBillId = e.CapturedBillId;
     }
 
     private void When(PayableScheduled e)
