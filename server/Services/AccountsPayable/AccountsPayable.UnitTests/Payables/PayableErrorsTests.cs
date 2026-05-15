@@ -137,6 +137,17 @@ public class PayableErrorsTests
         Assert.Equal(received, error.Parameters[1]);
     }
 
+    // InstallmentNumberMustBePositive retorna AP.PAY12 com o número recebido — Sprint 8.
+    [Fact]
+    public void InstallmentNumberMustBePositive_ShouldHaveCorrectIdAndParameter()
+    {
+        var error = Invoke("InstallmentNumberMustBePositive", 0);
+
+        Assert.Equal("AP.PAY12", error.Id);
+        Assert.Single(error.Parameters);
+        Assert.Equal(0, error.Parameters[0]);
+    }
+
     // Todos os Ids são únicos (proteção contra duplicidade acidental).
     [Fact]
     public void AllErrors_ShouldHaveUniqueIds()
@@ -154,6 +165,7 @@ public class PayableErrorsTests
             Invoke("RejectionReasonRequired").Id,
             Invoke("PaymentFailureReasonRequired").Id,
             Invoke("PaymentOrderIdMismatch", Guid.Empty, Guid.Empty).Id,
+            Invoke("InstallmentNumberMustBePositive", 0).Id,
         };
 
         Assert.Equal(ids.Length, ids.Distinct().Count());

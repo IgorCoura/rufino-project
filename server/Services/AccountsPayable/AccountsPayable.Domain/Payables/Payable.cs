@@ -3,6 +3,7 @@ namespace AccountsPayable.Domain.Payables;
 using AccountsPayable.Domain.ChartOfAccounts.Entities;
 using AccountsPayable.Domain.CostCenters;
 using AccountsPayable.Domain.Errors;
+using AccountsPayable.Domain.InstallmentPlans;
 using AccountsPayable.Domain.Payables.Enumerations;
 using AccountsPayable.Domain.Payables.Events;
 using AccountsPayable.Domain.Payables.ValueObjects;
@@ -51,6 +52,8 @@ public sealed class Payable : EventSourcedAggregateRoot<PayableId>
     public DateTime? PaymentFailedAt { get; private set; }
     public string? PaymentFailureReason { get; private set; }
     public CapturedBillId? CapturedBillId { get; private set; }
+    public InstallmentPlanId? InstallmentPlanId { get; private set; }
+    public int? InstallmentNumber { get; private set; }
 
     private Payable() : base() { }
 
@@ -124,6 +127,49 @@ public sealed class Payable : EventSourcedAggregateRoot<PayableId>
             PayableId: id,
             TenantId: tenantId,
             CapturedBillId: capturedBillId,
+            SupplierId: supplierId,
+            AmountValue: amount.Amount,
+            AmountCurrency: amount.Currency.Name,
+            DueDate: dueDate.Value,
+            Description: description.Value));
+
+        return instance;
+    }
+
+    /// <summary>
+    /// Factory used by <c>InstallmentPlanFactory</c> when producing the chain of <see cref="Payable"/>s
+    /// that compose a parcelamento. Identical contract to <see cref="Initialize"/> except the payable
+    /// is linked to its parent plan and carries the 1-based <paramref name="installmentNumber"/>.
+    /// </summary>
+    public static Payable InitializeAsInstallment(
+        PayableId id,
+        TenantId tenantId,
+        InstallmentPlanId installmentPlanId,
+        int installmentNumber,
+        SupplierId supplierId,
+        Money amount,
+        DueDate dueDate,
+        Description description,
+        DateTime occurredAt)
+    {
+        ArgumentNullException.ThrowIfNull(amount);
+        ArgumentNullException.ThrowIfNull(dueDate);
+        ArgumentNullException.ThrowIfNull(description);
+
+        var today = DateOnly.FromDateTime(occurredAt);
+        if (dueDate.Value < today)
+            throw PayableErrors.DueDateInPast(dueDate.Value, today);
+        if (installmentNumber < 1)
+            throw PayableErrors.InstallmentNumberMustBePositive(installmentNumber);
+
+        var instance = new Payable();
+        instance.Apply(new PayableCreatedAsInstallment(
+            EventId: Guid.NewGuid(),
+            OccurredAt: occurredAt,
+            PayableId: id,
+            TenantId: tenantId,
+            InstallmentPlanId: installmentPlanId,
+            InstallmentNumber: installmentNumber,
             SupplierId: supplierId,
             AmountValue: amount.Amount,
             AmountCurrency: amount.Currency.Name,
@@ -389,6 +435,19 @@ public sealed class Payable : EventSourcedAggregateRoot<PayableId>
         Description = new Description(e.Description);
         Status = PayableStatus.Draft;
         CapturedBillId = e.CapturedBillId;
+    }
+
+    private void When(PayableCreatedAsInstallment e)
+    {
+        Id = e.PayableId;
+        TenantId = e.TenantId;
+        SupplierId = e.SupplierId;
+        Amount = new Money(e.AmountValue, Enumeration.FromDisplayName<Currency>(e.AmountCurrency));
+        DueDate = new DueDate(e.DueDate);
+        Description = new Description(e.Description);
+        Status = PayableStatus.Draft;
+        InstallmentPlanId = e.InstallmentPlanId;
+        InstallmentNumber = e.InstallmentNumber;
     }
 
     private void When(PayableScheduled e)

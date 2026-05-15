@@ -128,6 +128,17 @@ internal static class PayableErrors
             parameters: new object[] { expected, received },
             sourcePath: BuildSourcePath(filePath, memberName, lineNumber));
 
+    public static DomainException InstallmentNumberMustBePositive(
+        int installmentNumber,
+        [CallerFilePath] string filePath = "",
+        [CallerMemberName] string memberName = "",
+        [CallerLineNumber] int lineNumber = 0)
+        => new(
+            id: $"{PREFIX}12",
+            messageTemplate: "Número da parcela deve ser ≥ 1; recebido: {0}.",
+            parameters: new object[] { installmentNumber },
+            sourcePath: BuildSourcePath(filePath, memberName, lineNumber));
+
     private static string BuildSourcePath(string filePath, string memberName, int lineNumber)
         => $"{Path.GetFileName(filePath)}:{lineNumber} ({memberName})";
 }

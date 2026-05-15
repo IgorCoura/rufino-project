@@ -2,6 +2,7 @@ namespace AccountsPayable.UnitTests.Payables.Mothers;
 
 using AccountsPayable.Domain.ChartOfAccounts.Entities;
 using AccountsPayable.Domain.CostCenters;
+using AccountsPayable.Domain.InstallmentPlans;
 using AccountsPayable.Domain.Payables;
 using AccountsPayable.Domain.Payables.Enumerations;
 using AccountsPayable.Domain.Payables.ValueObjects;
@@ -25,6 +26,8 @@ public static class PayableMother
         PaymentOrderId.From(new Guid("99999999-9999-9999-9999-999999999999"));
     public static readonly CapturedBillId DEFAULT_CAPTURED_BILL =
         CapturedBillId.From(new Guid("cccccccc-cccc-cccc-cccc-cccccccccccc"));
+    public static readonly InstallmentPlanId DEFAULT_INSTALLMENT_PLAN =
+        InstallmentPlanId.From(new Guid("eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee"));
 
     public static readonly PaymentProof DEFAULT_PROOF =
         new("https://docs.acme.com.br/payable/proof.pdf", PaymentProofType.Receipt);
@@ -42,6 +45,31 @@ public static class PayableMother
         return Payable.Initialize(
             id: id ?? PayableId.New(),
             tenantId: tenantId ?? DEFAULT_TENANT,
+            supplierId: supplierId ?? DEFAULT_SUPPLIER,
+            amount: new Money(amount, currency ?? Currency.Brl),
+            dueDate: new DueDate(dueDate ?? DEFAULT_DUE_DATE),
+            description: new Description(description),
+            occurredAt: occurredAt ?? DEFAULT_OCCURRED_AT);
+    }
+
+    /// <summary>Draft as a single installment of an InstallmentPlan (Sprint 8) — Status = Draft, InstallmentPlanId+Number populated.</summary>
+    public static Payable DraftAsInstallment(
+        PayableId? id = null,
+        TenantId? tenantId = null,
+        InstallmentPlanId? installmentPlanId = null,
+        int installmentNumber = 1,
+        SupplierId? supplierId = null,
+        decimal amount = 1_000m,
+        Currency? currency = null,
+        DateOnly? dueDate = null,
+        string description = "Aluguel anual (1/12)",
+        DateTime? occurredAt = null)
+    {
+        return Payable.InitializeAsInstallment(
+            id: id ?? PayableId.New(),
+            tenantId: tenantId ?? DEFAULT_TENANT,
+            installmentPlanId: installmentPlanId ?? DEFAULT_INSTALLMENT_PLAN,
+            installmentNumber: installmentNumber,
             supplierId: supplierId ?? DEFAULT_SUPPLIER,
             amount: new Money(amount, currency ?? Currency.Brl),
             dueDate: new DueDate(dueDate ?? DEFAULT_DUE_DATE),

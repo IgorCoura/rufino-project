@@ -21,7 +21,7 @@ using AccountsPayable.Domain.SeedWork;
 //     ECR → ExpenseClassificationRule     (Sprint 9)
 //     CTR → Contract                      (Sprint 11)
 //     ERB → ExpectedRecurringBill         (Sprint 11)
-//     IPL → InstallmentPlan               (Sprint 8)
+//     IPL → InstallmentPlan               (Sprint 8, traditional grouper)
 //   Internal Entities:
 //     SBA → SupplierBankAccount           (Sprint 1, inside Supplier)
 //   Value Objects (per-VO factory, shared across aggregates):

@@ -72,6 +72,71 @@ public class PayableTests
         }
     }
 
+    public class WhenInitializingAsInstallment
+    {
+        // InitializeAsInstallment cria Payable em Draft com InstallmentPlanId + InstallmentNumber populados (Sprint 8).
+        [Fact]
+        public void InitializeAsInstallment_WithValidData_ShouldCreateDraftLinkedToPlan()
+        {
+            var payable = PayableMother.DraftAsInstallment(installmentNumber: 3);
+
+            Assert.Equal(PayableStatus.Draft, payable.Status);
+            Assert.Equal(1, payable.Version);
+            Assert.Equal(PayableMother.DEFAULT_INSTALLMENT_PLAN, payable.InstallmentPlanId);
+            Assert.Equal(3, payable.InstallmentNumber);
+            Assert.Null(payable.CapturedBillId);
+        }
+
+        // InitializeAsInstallment registra PayableCreatedAsInstallment carregando o link com o plano.
+        [Fact]
+        public void InitializeAsInstallment_ShouldRecordPayableCreatedAsInstallmentInChanges()
+        {
+            var payable = PayableMother.DraftAsInstallment(installmentNumber: 2);
+
+            var change = Assert.Single(payable.Changes);
+            var created = Assert.IsType<PayableCreatedAsInstallment>(change);
+            Assert.Equal(payable.Id, created.PayableId);
+            Assert.Equal(PayableMother.DEFAULT_INSTALLMENT_PLAN, created.InstallmentPlanId);
+            Assert.Equal(2, created.InstallmentNumber);
+            Assert.Equal(1_000m, created.AmountValue);
+        }
+
+        // InitializeAsInstallment com installmentNumber inválido (< 1) lança AP.PAY12.
+        [Theory]
+        [InlineData(0)]
+        [InlineData(-1)]
+        public void InitializeAsInstallment_WithNonPositiveInstallmentNumber_ShouldThrowDomainException(int installmentNumber)
+        {
+            var ex = Assert.Throws<DomainException>(() => PayableMother.DraftAsInstallment(installmentNumber: installmentNumber));
+
+            Assert.Equal("AP.PAY12", ex.Id);
+        }
+
+        // InitializeAsInstallment com DueDate em passado lança AP.PAY02 (mesma guarda do Initialize regular).
+        [Fact]
+        public void InitializeAsInstallment_WithDueDateInPast_ShouldThrowDomainException()
+        {
+            var ex = Assert.Throws<DomainException>(() => PayableMother.DraftAsInstallment(
+                dueDate: new DateOnly(2023, 1, 1),
+                occurredAt: FIXED_NOW));
+
+            Assert.Equal("AP.PAY02", ex.Id);
+        }
+
+        // Cancelar uma parcela individual é permitido — afeta só aquela Payable (critério Sprint 8).
+        [Fact]
+        public void CancelSingleInstallment_ShouldNotAffectOtherPayablesOrThePlan()
+        {
+            var p2 = PayableMother.DraftAsInstallment(installmentNumber: 2);
+
+            p2.Cancel("Cliente quitou antecipadamente esta parcela", LATER);
+
+            Assert.Equal(PayableStatus.Cancelled, p2.Status);
+            Assert.Equal(2, p2.InstallmentNumber);
+            Assert.Equal(PayableMother.DEFAULT_INSTALLMENT_PLAN, p2.InstallmentPlanId); // link preservado
+        }
+    }
+
     public class WhenInitializingFromCapture
     {
         // InitializeFromCapture cria Payable em Draft com CapturedBillId populado e sem classificação (vai pra revisão humana — critério de aceite Sprint 7).
