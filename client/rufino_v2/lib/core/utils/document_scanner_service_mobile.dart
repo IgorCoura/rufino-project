@@ -32,6 +32,14 @@ class DocumentScannerServiceImpl implements DocumentScannerService {
     try {
       imagePaths = await CunningDocumentScanner.getPictures(
         isGalleryImportAllowed: true,
+        // PNG (plugin default on iOS) is encoded synchronously on the main
+        // thread via libpng+zlib, which hangs the UI for ~150–300 ms per page
+        // at VisionKit's native resolution. JPEG is 5–10× faster and Android
+        // already hard-codes JPEG, so this also aligns the two platforms.
+        iosScannerOptions: const IosScannerOptions(
+          imageFormat: IosImageFormat.jpg,
+          jpgCompressionQuality: 0.8,
+        ),
       );
     } on DocumentScannerException {
       rethrow;
