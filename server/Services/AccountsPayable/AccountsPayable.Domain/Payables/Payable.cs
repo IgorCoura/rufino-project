@@ -203,6 +203,8 @@ public sealed class Payable : EventSourcedAggregateRoot<PayableId>
         bool allowUnclassified = false,
         Money? approvalThreshold = null)
     {
+        //TODO: Esta certo receber o approvalThreshold como parametro ? Se essa função deveria ser usada somente por Services.
+
         if (!Status.CanTransitionTo(PayableStatus.Scheduled))
             throw PayableErrors.InvalidStatusTransition(Status.Name, PayableStatus.Scheduled.Name);
 
@@ -226,6 +228,7 @@ public sealed class Payable : EventSourcedAggregateRoot<PayableId>
     /// </summary>
     public void Classify(AccountId accountId, CostCenterId costCenterId, UserId classifiedBy, DateTime occurredAt)
     {
+        //TODO: Avaliar se Payable pode receber um AccountId, pois Nenhum objeto externo pode segurar referência a coisas dentro do boundary de outro Aggregate, exceto à Root.
         if (Status == PayableStatus.Paid || Status == PayableStatus.Cancelled)
             throw PayableErrors.CannotClassifyTerminalPayable(Status.Name);
 
@@ -295,6 +298,8 @@ public sealed class Payable : EventSourcedAggregateRoot<PayableId>
     /// </summary>
     private bool RequiresApproval(Money? threshold)
     {
+        //TODO: Analisar a opção de remover essa função "RequiresApproval", e substituir para ao criar o Payable o event decriação deve ser capturado por um handler é o handler analise se precisa ou  não de Approval se sim altera o estado para "AwaitingApproval"
+
         if (threshold is null) return false;
         if (ApprovedAt is not null) return false;
         return Amount.Amount > threshold.Amount;
