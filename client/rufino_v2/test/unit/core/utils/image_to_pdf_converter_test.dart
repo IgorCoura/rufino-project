@@ -71,6 +71,68 @@ void main() {
       expect(doc.pages.count, equals(0));
       doc.dispose();
     });
+
+    test('downscales pages whose longest side exceeds the PDF cap', () async {
+      final oversizedLandscape = _createTestImage(
+        width: kPdfPageMaxLongSide * 2,
+        height: kPdfPageMaxLongSide,
+      );
+
+      final pdfBytes = await convertImagesToPdf([oversizedLandscape]);
+
+      final doc = PdfDocument(inputBytes: pdfBytes);
+      expect(doc.pages.count, equals(1));
+      final pageSize = doc.pages[0].size;
+      expect(pageSize.width.round(), equals(kPdfPageMaxLongSide));
+      expect(pageSize.height.round(), equals(kPdfPageMaxLongSide ~/ 2));
+      doc.dispose();
+    });
+
+    test('downscales portrait pages by capping the height', () async {
+      final oversizedPortrait = _createTestImage(
+        width: kPdfPageMaxLongSide,
+        height: kPdfPageMaxLongSide * 2,
+      );
+
+      final pdfBytes = await convertImagesToPdf([oversizedPortrait]);
+
+      final doc = PdfDocument(inputBytes: pdfBytes);
+      final pageSize = doc.pages[0].size;
+      expect(pageSize.height.round(), equals(kPdfPageMaxLongSide));
+      expect(pageSize.width.round(), equals(kPdfPageMaxLongSide ~/ 2));
+      doc.dispose();
+    });
+
+    test('keeps dimensions when image is already within the PDF cap',
+        () async {
+      final small = _createTestImage(width: 800, height: 600);
+
+      final pdfBytes = await convertImagesToPdf([small]);
+
+      final doc = PdfDocument(inputBytes: pdfBytes);
+      final pageSize = doc.pages[0].size;
+      expect(pageSize.width.round(), equals(800));
+      expect(pageSize.height.round(), equals(600));
+      doc.dispose();
+    });
+
+    test(
+      'output stays under the 10 MB upload cap for many oversized pages',
+      () async {
+        // Simulates a long scan (17 pages at VisionKit-sized PNGs) — the
+        // exact scenario that previously blew past the backend's 10 MB cap.
+        final page = _createTestImage(
+          width: kPdfPageMaxLongSide * 2,
+          height: kPdfPageMaxLongSide * 2,
+        );
+        final pages = List<Uint8List>.generate(17, (_) => page);
+
+        final pdfBytes = await convertImagesToPdf(pages);
+
+        expect(pdfBytes.lengthInBytes, lessThan(10 * 1024 * 1024));
+      },
+      timeout: const Timeout(Duration(minutes: 3)),
+    );
   });
 
   group('isImageExtension', () {
