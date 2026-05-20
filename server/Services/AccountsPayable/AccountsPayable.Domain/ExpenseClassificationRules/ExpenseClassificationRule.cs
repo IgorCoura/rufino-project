@@ -86,7 +86,8 @@ public sealed class ExpenseClassificationRule : AggregateRoot<ExpenseClassificat
             MatchMinAmount: match.MinAmount?.Amount,
             MatchMaxAmount: match.MaxAmount?.Amount,
             MatchAmountCurrency: match.MinAmount?.Currency.Name ?? match.MaxAmount?.Currency.Name,
-            ActionAccountId: action.AccountId,
+            ActionChartOfAccountsId: action.Account.ChartOfAccountsId,
+            ActionAccountId: action.Account.AccountId,
             ActionCostCenterId: action.CostCenterId,
             ActionAutoApprove: action.AutoApprove,
             LearnedFromUserId: learnedFromUserId));
@@ -117,7 +118,8 @@ public sealed class ExpenseClassificationRule : AggregateRoot<ExpenseClassificat
             MatchMinAmount: match.MinAmount?.Amount,
             MatchMaxAmount: match.MaxAmount?.Amount,
             MatchAmountCurrency: match.MinAmount?.Currency.Name ?? match.MaxAmount?.Currency.Name,
-            ActionAccountId: action.AccountId,
+            ActionChartOfAccountsId: action.Account.ChartOfAccountsId,
+            ActionAccountId: action.Account.AccountId,
             ActionCostCenterId: action.CostCenterId,
             ActionAutoApprove: action.AutoApprove));
     }

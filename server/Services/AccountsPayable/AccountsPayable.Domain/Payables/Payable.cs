@@ -1,6 +1,5 @@
 namespace AccountsPayable.Domain.Payables;
 
-using AccountsPayable.Domain.ChartOfAccounts.Entities;
 using AccountsPayable.Domain.CostCenters;
 using AccountsPayable.Domain.Errors;
 using AccountsPayable.Domain.ExpenseClassificationRules;
@@ -37,7 +36,7 @@ public sealed class Payable : EventSourcedAggregateRoot<PayableId>
     public DateOnly? ScheduledFor { get; private set; }
     public DateTime? PaidAt { get; private set; }
     public PaymentProof? PaymentProof { get; private set; }
-    public AccountId? AccountId { get; private set; }
+    public AccountRef? Classification { get; private set; }
     public CostCenterId? CostCenterId { get; private set; }
     public DateTime? ClassifiedAt { get; private set; }
     public UserId? ClassifiedBy { get; private set; }
@@ -210,7 +209,7 @@ public sealed class Payable : EventSourcedAggregateRoot<PayableId>
         if (!Status.CanTransitionTo(PayableStatus.Scheduled))
             throw PayableErrors.InvalidStatusTransition(Status.Name, PayableStatus.Scheduled.Name);
 
-        if (!allowUnclassified && AccountId is null)
+        if (!allowUnclassified && Classification is null)
             throw PayableErrors.CannotScheduleWithoutClassification();
 
         Apply(new PayableScheduled(
@@ -224,10 +223,18 @@ public sealed class Payable : EventSourcedAggregateRoot<PayableId>
     /// Classify the payable against an accounting account (within the tenant's chart of accounts)
     /// and a cost center. Allowed on Draft and Scheduled; reclassification is allowed and emits a
     /// new <see cref="PayableClassified"/> event each time (A+ES preserves the history).
+    /// <para>
+    /// The account reference must be anchored to its owning <c>ChartOfAccounts</c> via
+    /// <see cref="AccountRef"/> — bare <c>AccountId</c> would leak an internal Entity Id from another
+    /// Aggregate. Cross-aggregate consistency (chart exists, account is active and of type Expense,
+    /// cost center belongs to the same tenant) is enforced by <c>PayableClassificationValidator</c>
+    /// before the call.
+    /// </para>
     /// </summary>
-    public void Classify(AccountId accountId, CostCenterId costCenterId, UserId classifiedBy, DateTime occurredAt)
+    public void Classify(AccountRef accountRef, CostCenterId costCenterId, UserId classifiedBy, DateTime occurredAt)
     {
-        //TODO: Avaliar se Payable pode receber um AccountId, pois Nenhum objeto externo pode segurar referência a coisas dentro do boundary de outro Aggregate, exceto à Root.
+        ArgumentNullException.ThrowIfNull(accountRef);
+
         if (Status == PayableStatus.Paid || Status == PayableStatus.Cancelled)
             throw PayableErrors.CannotClassifyTerminalPayable(Status.Name);
 
@@ -235,7 +242,8 @@ public sealed class Payable : EventSourcedAggregateRoot<PayableId>
             EventId: Guid.NewGuid(),
             OccurredAt: occurredAt,
             PayableId: Id,
-            AccountId: accountId,
+            ChartOfAccountsId: accountRef.ChartOfAccountsId,
+            AccountId: accountRef.AccountId,
             CostCenterId: costCenterId,
             ClassifiedBy: classifiedBy));
     }
@@ -247,11 +255,13 @@ public sealed class Payable : EventSourcedAggregateRoot<PayableId>
     /// flows through <see cref="LastClassificationRuleId"/> instead.
     /// </summary>
     public void ClassifyAutomatically(
-        AccountId accountId,
+        AccountRef accountRef,
         CostCenterId costCenterId,
         ExpenseClassificationRuleId ruleId,
         DateTime occurredAt)
     {
+        ArgumentNullException.ThrowIfNull(accountRef);
+
         if (Status == PayableStatus.Paid || Status == PayableStatus.Cancelled)
             throw PayableErrors.CannotClassifyTerminalPayable(Status.Name);
 
@@ -259,7 +269,8 @@ public sealed class Payable : EventSourcedAggregateRoot<PayableId>
             EventId: Guid.NewGuid(),
             OccurredAt: occurredAt,
             PayableId: Id,
-            AccountId: accountId,
+            ChartOfAccountsId: accountRef.ChartOfAccountsId,
+            AccountId: accountRef.AccountId,
             CostCenterId: costCenterId,
             RuleId: ruleId));
     }
@@ -299,7 +310,7 @@ public sealed class Payable : EventSourcedAggregateRoot<PayableId>
     {
         if (!Status.CanTransitionTo(PayableStatus.AwaitingApproval))
             throw PayableErrors.InvalidStatusTransition(Status.Name, PayableStatus.AwaitingApproval.Name);
-        if (AccountId is null)
+        if (Classification is null)
             throw PayableErrors.RequiresClassificationBeforeApproval();
 
         Apply(new PayableApprovalRequested(
@@ -340,7 +351,7 @@ public sealed class Payable : EventSourcedAggregateRoot<PayableId>
             throw PayableErrors.MultiApprovalEligibleRolesRequired();
         if (!Status.CanTransitionTo(PayableStatus.AwaitingApproval))
             throw PayableErrors.InvalidStatusTransition(Status.Name, PayableStatus.AwaitingApproval.Name);
-        if (AccountId is null)
+        if (Classification is null)
             throw PayableErrors.RequiresClassificationBeforeApproval();
 
         Apply(new PayableMultiApprovalRequested(
@@ -556,7 +567,7 @@ public sealed class Payable : EventSourcedAggregateRoot<PayableId>
 
     private void When(PayableClassified e)
     {
-        AccountId = e.AccountId;
+        Classification = new AccountRef(e.ChartOfAccountsId, e.AccountId);
         CostCenterId = e.CostCenterId;
         ClassifiedBy = e.ClassifiedBy;
         ClassifiedAt = e.OccurredAt;
@@ -565,7 +576,7 @@ public sealed class Payable : EventSourcedAggregateRoot<PayableId>
 
     private void When(PayableAutoClassified e)
     {
-        AccountId = e.AccountId;
+        Classification = new AccountRef(e.ChartOfAccountsId, e.AccountId);
         CostCenterId = e.CostCenterId;
         ClassifiedBy = null; // automatic — audit trail is RuleId
         ClassifiedAt = e.OccurredAt;

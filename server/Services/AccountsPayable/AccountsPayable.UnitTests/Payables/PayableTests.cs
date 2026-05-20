@@ -153,7 +153,7 @@ public class PayableTests
             Assert.Equal(1_500m, payable.Amount.Amount);
             Assert.Equal("Boleto Sabesp março", payable.Description.Value);
             // Critério de aceite: estado inicial sem classificação até auto-classificação rodar (Sprint 9).
-            Assert.Null(payable.AccountId);
+            Assert.Null(payable.Classification);
             Assert.Null(payable.CostCenterId);
         }
 
@@ -191,7 +191,7 @@ public class PayableTests
         {
             var payable = PayableMother.DraftFromCapture();
 
-            payable.Classify(PayableMother.DEFAULT_ACCOUNT, PayableMother.DEFAULT_COST_CENTER, PayableMother.DEFAULT_USER, LATER);
+            payable.Classify(PayableMother.DEFAULT_ACCOUNT_REF, PayableMother.DEFAULT_COST_CENTER, PayableMother.DEFAULT_USER, LATER);
             payable.Schedule(PayableMother.DEFAULT_SCHEDULED_FOR, LATER.AddMinutes(1));
             payable.MarkAsPaidManually(PayableMother.DEFAULT_PROOF, FIXED_NOW.AddDays(30), FIXED_NOW.AddDays(30).AddMinutes(1));
 
@@ -239,17 +239,18 @@ public class PayableTests
             payable.PullChanges();
 
             payable.Classify(
-                PayableMother.DEFAULT_ACCOUNT,
+                PayableMother.DEFAULT_ACCOUNT_REF,
                 PayableMother.DEFAULT_COST_CENTER,
                 PayableMother.DEFAULT_USER,
                 LATER);
 
-            Assert.Equal(PayableMother.DEFAULT_ACCOUNT, payable.AccountId);
+            Assert.Equal(PayableMother.DEFAULT_ACCOUNT_REF, payable.Classification);
             Assert.Equal(PayableMother.DEFAULT_COST_CENTER, payable.CostCenterId);
             Assert.Equal(PayableMother.DEFAULT_USER, payable.ClassifiedBy);
             Assert.Equal(LATER, payable.ClassifiedAt);
             var classified = Assert.IsType<PayableClassified>(payable.Changes.Single());
             Assert.Equal(payable.Id, classified.PayableId);
+            Assert.Equal(PayableMother.DEFAULT_CHART_OF_ACCOUNTS, classified.ChartOfAccountsId);
             Assert.Equal(PayableMother.DEFAULT_ACCOUNT, classified.AccountId);
         }
 
@@ -259,13 +260,16 @@ public class PayableTests
         {
             var payable = PayableMother.Classified();
             payable.PullChanges();
-            var newAccount = AccountId.From(new Guid("88888888-8888-8888-8888-888888888888"));
+            var newRef = new AccountRef(
+                PayableMother.DEFAULT_CHART_OF_ACCOUNTS,
+                AccountId.From(new Guid("88888888-8888-8888-8888-888888888888")));
 
-            payable.Classify(newAccount, PayableMother.DEFAULT_COST_CENTER, PayableMother.DEFAULT_USER, LATER);
+            payable.Classify(newRef, PayableMother.DEFAULT_COST_CENTER, PayableMother.DEFAULT_USER, LATER);
 
-            Assert.Equal(newAccount, payable.AccountId);
+            Assert.Equal(newRef, payable.Classification);
             var reclassified = Assert.IsType<PayableClassified>(payable.Changes.Single());
-            Assert.Equal(newAccount, reclassified.AccountId);
+            Assert.Equal(newRef.AccountId, reclassified.AccountId);
+            Assert.Equal(newRef.ChartOfAccountsId, reclassified.ChartOfAccountsId);
         }
 
         // Reclassify em Scheduled é permitido (Status não-terminal).
@@ -276,7 +280,7 @@ public class PayableTests
             payable.PullChanges();
             var newCostCenter = CostCenterId.From(new Guid("77777777-7777-7777-7777-777777777777"));
 
-            payable.Classify(PayableMother.DEFAULT_ACCOUNT, newCostCenter, PayableMother.DEFAULT_USER, LATER);
+            payable.Classify(PayableMother.DEFAULT_ACCOUNT_REF, newCostCenter, PayableMother.DEFAULT_USER, LATER);
 
             Assert.Equal(newCostCenter, payable.CostCenterId);
             Assert.Equal(PayableStatus.Scheduled, payable.Status); // status permanece
@@ -289,7 +293,7 @@ public class PayableTests
             var payable = PayableMother.Paid();
 
             var ex = Assert.Throws<DomainException>(() => payable.Classify(
-                PayableMother.DEFAULT_ACCOUNT, PayableMother.DEFAULT_COST_CENTER,
+                PayableMother.DEFAULT_ACCOUNT_REF, PayableMother.DEFAULT_COST_CENTER,
                 PayableMother.DEFAULT_USER, LATER));
 
             Assert.Equal("AP.PAY06", ex.Id);
@@ -302,7 +306,7 @@ public class PayableTests
             var payable = PayableMother.Cancelled();
 
             var ex = Assert.Throws<DomainException>(() => payable.Classify(
-                PayableMother.DEFAULT_ACCOUNT, PayableMother.DEFAULT_COST_CENTER,
+                PayableMother.DEFAULT_ACCOUNT_REF, PayableMother.DEFAULT_COST_CENTER,
                 PayableMother.DEFAULT_USER, LATER));
 
             Assert.Equal("AP.PAY06", ex.Id);
@@ -319,18 +323,20 @@ public class PayableTests
             payable.PullChanges();
 
             payable.ClassifyAutomatically(
-                PayableMother.DEFAULT_ACCOUNT,
+                PayableMother.DEFAULT_ACCOUNT_REF,
                 PayableMother.DEFAULT_COST_CENTER,
                 PayableMother.DEFAULT_RULE,
                 LATER);
 
-            Assert.Equal(PayableMother.DEFAULT_ACCOUNT, payable.AccountId);
+            Assert.Equal(PayableMother.DEFAULT_ACCOUNT_REF, payable.Classification);
             Assert.Equal(PayableMother.DEFAULT_COST_CENTER, payable.CostCenterId);
             Assert.Equal(PayableMother.DEFAULT_RULE, payable.LastClassificationRuleId);
             Assert.Null(payable.ClassifiedBy); // automática — sem usuário
             Assert.Equal(LATER, payable.ClassifiedAt);
             var autoClassified = Assert.IsType<PayableAutoClassified>(payable.Changes.Single());
             Assert.Equal(PayableMother.DEFAULT_RULE, autoClassified.RuleId);
+            Assert.Equal(PayableMother.DEFAULT_CHART_OF_ACCOUNTS, autoClassified.ChartOfAccountsId);
+            Assert.Equal(PayableMother.DEFAULT_ACCOUNT, autoClassified.AccountId);
         }
 
         // Reclassificação manual após classificação automática limpa LastClassificationRuleId — humano sobrescreveu a regra.
@@ -341,7 +347,7 @@ public class PayableTests
             payable.PullChanges();
 
             payable.Classify(
-                PayableMother.DEFAULT_ACCOUNT,
+                PayableMother.DEFAULT_ACCOUNT_REF,
                 PayableMother.DEFAULT_COST_CENTER,
                 PayableMother.DEFAULT_USER,
                 LATER);
@@ -357,7 +363,7 @@ public class PayableTests
             var payable = PayableMother.Paid();
 
             var ex = Assert.Throws<DomainException>(() => payable.ClassifyAutomatically(
-                PayableMother.DEFAULT_ACCOUNT,
+                PayableMother.DEFAULT_ACCOUNT_REF,
                 PayableMother.DEFAULT_COST_CENTER,
                 PayableMother.DEFAULT_RULE,
                 LATER));
@@ -372,7 +378,7 @@ public class PayableTests
             var payable = PayableMother.Cancelled();
 
             var ex = Assert.Throws<DomainException>(() => payable.ClassifyAutomatically(
-                PayableMother.DEFAULT_ACCOUNT,
+                PayableMother.DEFAULT_ACCOUNT_REF,
                 PayableMother.DEFAULT_COST_CENTER,
                 PayableMother.DEFAULT_RULE,
                 LATER));

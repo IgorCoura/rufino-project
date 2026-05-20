@@ -1,5 +1,6 @@
 namespace AccountsPayable.UnitTests.Payables.Mothers;
 
+using AccountsPayable.Domain.ChartOfAccounts;
 using AccountsPayable.Domain.ChartOfAccounts.Entities;
 using AccountsPayable.Domain.CostCenters;
 using AccountsPayable.Domain.ExpenseClassificationRules;
@@ -18,7 +19,9 @@ public static class PayableMother
     public static readonly DateOnly DEFAULT_SCHEDULED_FOR = new(2024, 2, 14);
     public static readonly TenantId DEFAULT_TENANT = TenantId.From(new Guid("11111111-1111-1111-1111-111111111111"));
     public static readonly SupplierId DEFAULT_SUPPLIER = SupplierId.From(new Guid("22222222-2222-2222-2222-222222222222"));
+    public static readonly ChartOfAccountsId DEFAULT_CHART_OF_ACCOUNTS = ChartOfAccountsId.From(new Guid("aaaaaaaa-3333-3333-3333-aaaaaaaaaaaa"));
     public static readonly AccountId DEFAULT_ACCOUNT = AccountId.From(new Guid("33333333-3333-3333-3333-333333333333"));
+    public static readonly AccountRef DEFAULT_ACCOUNT_REF = new(DEFAULT_CHART_OF_ACCOUNTS, DEFAULT_ACCOUNT);
     public static readonly CostCenterId DEFAULT_COST_CENTER = CostCenterId.From(new Guid("44444444-4444-4444-4444-444444444444"));
     public static readonly UserId DEFAULT_USER = UserId.From(new Guid("55555555-5555-5555-5555-555555555555"));
     public static readonly SupplierBankAccountId DEFAULT_BANK_ACCOUNT =
@@ -105,14 +108,14 @@ public static class PayableMother
 
     /// <summary>Draft already classified — ready to Schedule under the default strict invariant.</summary>
     public static Payable Classified(
-        AccountId? accountId = null,
+        AccountRef? accountRef = null,
         CostCenterId? costCenterId = null,
         UserId? classifiedBy = null,
         decimal amount = 1_500m)
     {
         var payable = Draft(amount: amount);
         payable.Classify(
-            accountId ?? DEFAULT_ACCOUNT,
+            accountRef ?? DEFAULT_ACCOUNT_REF,
             costCenterId ?? DEFAULT_COST_CENTER,
             classifiedBy ?? DEFAULT_USER,
             DEFAULT_OCCURRED_AT.AddMinutes(2));
@@ -121,14 +124,14 @@ public static class PayableMother
 
     /// <summary>Draft classified by the auto-classifier (Sprint 9) — Status = Draft, LastClassificationRuleId set, ClassifiedBy null.</summary>
     public static Payable AutoClassified(
-        AccountId? accountId = null,
+        AccountRef? accountRef = null,
         CostCenterId? costCenterId = null,
         ExpenseClassificationRuleId? ruleId = null,
         decimal amount = 1_500m)
     {
         var payable = Draft(amount: amount);
         payable.ClassifyAutomatically(
-            accountId ?? DEFAULT_ACCOUNT,
+            accountRef ?? DEFAULT_ACCOUNT_REF,
             costCenterId ?? DEFAULT_COST_CENTER,
             ruleId ?? DEFAULT_RULE,
             DEFAULT_OCCURRED_AT.AddMinutes(2));

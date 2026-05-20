@@ -50,7 +50,7 @@ public sealed class ApprovalMatchCriteria : ValueObject
         if (SupplierId is { } sup && sup != payable.SupplierId)
             return false;
 
-        if (AccountId is { } acc && (payable.AccountId is null || payable.AccountId.Value != acc))
+        if (AccountId is { } acc && (payable.Classification is null || payable.Classification.AccountId != acc))
             return false;
 
         if (MinAmount is not null && payable.Amount.Amount < MinAmount.Amount)

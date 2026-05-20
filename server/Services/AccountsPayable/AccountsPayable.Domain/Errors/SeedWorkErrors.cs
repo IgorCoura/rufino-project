@@ -48,6 +48,7 @@ using AccountsPayable.Domain.SeedWork;
 //     CAT → ClassificationAction         (Sprint 9)
 //     AMC → ApprovalMatchCriteria        (Sprint 10)
 //     APR → ApproverRoles                (Sprint 10)
+//     ARF → AccountRef                   (cross-aggregate ref Payable → Account/ChartOfAccounts)
 //   Domain Services:
 //     SUC → SupplierUniquenessChecker     (Sprint 1)
 //     PCL → PayableClassification         (Sprint 4)

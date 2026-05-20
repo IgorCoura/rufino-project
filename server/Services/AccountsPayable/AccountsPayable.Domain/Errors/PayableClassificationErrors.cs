@@ -64,6 +64,18 @@ internal static class PayableClassificationErrors
             parameters: new object[] { resource },
             sourcePath: BuildSourcePath(filePath, memberName, lineNumber));
 
+    public static DomainException ChartMismatch(
+        Guid expectedChartId,
+        Guid actualChartId,
+        [CallerFilePath] string filePath = "",
+        [CallerMemberName] string memberName = "",
+        [CallerLineNumber] int lineNumber = 0)
+        => new(
+            id: $"{PREFIX}06",
+            messageTemplate: "AccountRef aponta para o plano de contas {0}, mas o ChartOfAccounts fornecido é {1} — a âncora ao Aggregate Root precisa casar.",
+            parameters: new object[] { expectedChartId, actualChartId },
+            sourcePath: BuildSourcePath(filePath, memberName, lineNumber));
+
     private static string BuildSourcePath(string filePath, string memberName, int lineNumber)
         => $"{Path.GetFileName(filePath)}:{lineNumber} ({memberName})";
 }
