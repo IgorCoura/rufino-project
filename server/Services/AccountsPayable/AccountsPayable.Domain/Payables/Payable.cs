@@ -192,27 +192,26 @@ public sealed class Payable : EventSourcedAggregateRoot<PayableId>
     /// Schedule the payable for a future payment date.
     /// <para>
     /// <paramref name="allowUnclassified"/> (Sprint 4) bypasses the classification requirement.
-    /// <paramref name="approvalThreshold"/> (Sprint 5) is the tenant's approval threshold — when set,
-    /// payables whose <see cref="Amount"/> exceeds it cannot be scheduled unless approval has
-    /// already been granted (<see cref="ApprovedAt"/> is set).
+    /// </para>
+    /// <para>
+    /// Approval gating is enforced by the state machine: when the Application orchestrator decides
+    /// an approval is required (via <c>ApprovalRequirementCalculator</c> reading the tenant's
+    /// <c>AutoApprovalPolicy</c>), it calls <see cref="RequestApproval"/> / <see cref="RequestMultiApproval"/>
+    /// before <see cref="Schedule"/>. The resulting <see cref="PayableStatus.AwaitingApproval"/>
+    /// blocks <see cref="Schedule"/> via <c>CanTransitionTo</c> until <see cref="Approve"/> /
+    /// <see cref="RecordApproval"/> moves the payable to <see cref="PayableStatus.Approved"/>.
     /// </para>
     /// </summary>
     public void Schedule(
         DateOnly scheduledFor,
         DateTime occurredAt,
-        bool allowUnclassified = false,
-        Money? approvalThreshold = null)
+        bool allowUnclassified = false)
     {
-        //TODO: Esta certo receber o approvalThreshold como parametro ? Se essa função deveria ser usada somente por Services.
-
         if (!Status.CanTransitionTo(PayableStatus.Scheduled))
             throw PayableErrors.InvalidStatusTransition(Status.Name, PayableStatus.Scheduled.Name);
 
         if (!allowUnclassified && AccountId is null)
             throw PayableErrors.CannotScheduleWithoutClassification();
-
-        if (RequiresApproval(approvalThreshold))
-            throw PayableErrors.RequiresApproval(Amount.Amount, approvalThreshold!.Amount);
 
         Apply(new PayableScheduled(
             EventId: Guid.NewGuid(),
@@ -265,11 +264,16 @@ public sealed class Payable : EventSourcedAggregateRoot<PayableId>
             RuleId: ruleId));
     }
 
+    /// <summary>
+    /// Manually mark the payable as paid (cliente bateu PIX/boleto pelo banco antigo e está só
+    /// registrando o fato). Same approval gating as <see cref="Schedule"/>: if approval is required,
+    /// the orchestrator must drive the payable through <see cref="PayableStatus.AwaitingApproval"/>
+    /// → <see cref="PayableStatus.Approved"/> first — <c>CanTransitionTo</c> blocks the bypass.
+    /// </summary>
     public void MarkAsPaidManually(
         PaymentProof proof,
         DateTime paidAt,
-        DateTime occurredAt,
-        Money? approvalThreshold = null)
+        DateTime occurredAt)
     {
         ArgumentNullException.ThrowIfNull(proof);
 
@@ -278,9 +282,6 @@ public sealed class Payable : EventSourcedAggregateRoot<PayableId>
         if (!Status.CanTransitionTo(PayableStatus.Paid))
             throw PayableErrors.InvalidStatusTransition(Status.Name, PayableStatus.Paid.Name);
 
-        if (RequiresApproval(approvalThreshold))
-            throw PayableErrors.RequiresApproval(Amount.Amount, approvalThreshold!.Amount);
-
         Apply(new PayableMarkedAsPaid(
             EventId: Guid.NewGuid(),
             OccurredAt: occurredAt,
@@ -288,21 +289,6 @@ public sealed class Payable : EventSourcedAggregateRoot<PayableId>
             PaidAt: paidAt,
             ProofUri: proof.Uri,
             ProofType: proof.Type.Name));
-    }
-
-    /// <summary>
-    /// Approval is considered already granted once <see cref="ApprovedAt"/> is set. This keeps the
-    /// rule consistent across the post-approval lifecycle: <c>Approved → Scheduled → PaymentRequested
-    /// → PaymentFailed → PaymentRequested</c> — the threshold check would otherwise re-trigger after
-    /// the status leaves <see cref="PayableStatus.Approved"/>.
-    /// </summary>
-    private bool RequiresApproval(Money? threshold)
-    {
-        //TODO: Analisar a opção de remover essa função "RequiresApproval", e substituir para ao criar o Payable o event decriação deve ser capturado por um handler é o handler analise se precisa ou  não de Approval se sim altera o estado para "AwaitingApproval"
-
-        if (threshold is null) return false;
-        if (ApprovedAt is not null) return false;
-        return Amount.Amount > threshold.Amount;
     }
 
     /// <summary>
@@ -441,16 +427,12 @@ public sealed class Payable : EventSourcedAggregateRoot<PayableId>
     public void RequestPayment(
         PaymentMethod method,
         SupplierBankAccountId bankAccountId,
-        DateTime occurredAt,
-        Money? approvalThreshold = null)
+        DateTime occurredAt)
     {
         ArgumentNullException.ThrowIfNull(method);
 
         if (!Status.CanTransitionTo(PayableStatus.PaymentRequested))
             throw PayableErrors.InvalidStatusTransition(Status.Name, PayableStatus.PaymentRequested.Name);
-
-        if (RequiresApproval(approvalThreshold))
-            throw PayableErrors.RequiresApproval(Amount.Amount, approvalThreshold!.Amount);
 
         Apply(new PayablePaymentRequested(
             EventId: Guid.NewGuid(),

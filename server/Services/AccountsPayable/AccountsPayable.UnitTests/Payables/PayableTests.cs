@@ -677,112 +677,29 @@ public class PayableTests
         }
     }
 
-    public class WhenSchedulingWithApprovalThreshold
+    public class WhenSchedulingApprovalGating
     {
-        private static readonly Money LOW_THRESHOLD = new(1_000m, Currency.Brl);
-        private static readonly Money HIGH_THRESHOLD = new(10_000m, Currency.Brl);
-
-        // Valor abaixo do threshold pode ser agendado direto, sem RequestApproval.
+        // Após Approve, Schedule sucede — Approved → Scheduled é a transição esperada do fluxo
+        // single-approver: orquestrador chama RequestApproval/Approve antes do Schedule.
         [Fact]
-        public void Schedule_AmountBelowThreshold_ShouldSucceedWithoutApproval()
-        {
-            var payable = PayableMother.Classified(); // amount default = 1_500
-
-            payable.Schedule(
-                PayableMother.DEFAULT_SCHEDULED_FOR,
-                LATER,
-                approvalThreshold: HIGH_THRESHOLD);
-
-            Assert.Equal(PayableStatus.Scheduled, payable.Status);
-        }
-
-        // Valor acima do threshold sem approval lança AP.PAY07.
-        [Fact]
-        public void Schedule_AmountAboveThreshold_WithoutApproval_ShouldThrowRequiresApproval()
-        {
-            var payable = PayableMother.Classified(); // 1_500 > 1_000
-
-            var ex = Assert.Throws<DomainException>(() => payable.Schedule(
-                PayableMother.DEFAULT_SCHEDULED_FOR,
-                LATER,
-                approvalThreshold: LOW_THRESHOLD));
-
-            Assert.Equal("AP.PAY07", ex.Id);
-        }
-
-        // Valor acima do threshold com Status=Approved sucede (approval já consumido).
-        [Fact]
-        public void Schedule_AmountAboveThreshold_AfterApproval_ShouldSucceed()
-        {
-            var payable = PayableMother.Approved(); // 1_500, Status=Approved
-
-            payable.Schedule(
-                PayableMother.DEFAULT_SCHEDULED_FOR,
-                LATER,
-                approvalThreshold: LOW_THRESHOLD);
-
-            Assert.Equal(PayableStatus.Scheduled, payable.Status);
-        }
-
-        // Valor igual ao threshold ainda passa (limite é "> threshold", inclusive).
-        [Fact]
-        public void Schedule_AmountEqualsThreshold_ShouldSucceedWithoutApproval()
-        {
-            var payable = PayableMother.Classified(amount: 1_000m);
-
-            payable.Schedule(
-                PayableMother.DEFAULT_SCHEDULED_FOR,
-                LATER,
-                approvalThreshold: LOW_THRESHOLD);
-
-            Assert.Equal(PayableStatus.Scheduled, payable.Status);
-        }
-    }
-
-    public class WhenMarkingAsPaidWithApprovalThreshold
-    {
-        private static readonly Money LOW_THRESHOLD = new(1_000m, Currency.Brl);
-
-        // MarkAsPaidManually acima do threshold sem approval lança AP.PAY07.
-        [Fact]
-        public void MarkAsPaidManually_AmountAboveThreshold_WithoutApproval_ShouldThrowRequiresApproval()
-        {
-            var payable = PayableMother.Classified(); // 1_500 > 1_000
-
-            var ex = Assert.Throws<DomainException>(() => payable.MarkAsPaidManually(
-                PayableMother.DEFAULT_PROOF,
-                paidAt: FIXED_NOW.AddDays(1),
-                occurredAt: LATER,
-                approvalThreshold: LOW_THRESHOLD));
-
-            Assert.Equal("AP.PAY07", ex.Id);
-        }
-
-        // MarkAsPaidManually em Payable Approved acima do threshold sucede.
-        [Fact]
-        public void MarkAsPaidManually_AmountAboveThreshold_AfterApproval_ShouldSucceed()
+        public void Schedule_FromApproved_ShouldSucceed()
         {
             var payable = PayableMother.Approved();
 
-            payable.MarkAsPaidManually(
-                PayableMother.DEFAULT_PROOF,
-                paidAt: FIXED_NOW.AddDays(1),
-                occurredAt: LATER,
-                approvalThreshold: LOW_THRESHOLD);
+            payable.Schedule(PayableMother.DEFAULT_SCHEDULED_FOR, LATER);
 
-            Assert.Equal(PayableStatus.Paid, payable.Status);
+            Assert.Equal(PayableStatus.Scheduled, payable.Status);
         }
 
-        // MarkAsPaidManually em Payable Rejected lança AP.PAY01 (Rejected é terminal — critério da Sprint 5).
+        // Schedule a partir de AwaitingApproval é bloqueado pela máquina de estados (AP.PAY01) —
+        // é o mecanismo que substituiu o antigo check de threshold dentro do Aggregate.
         [Fact]
-        public void MarkAsPaidManually_OnRejected_ShouldThrowInvalidStatusTransition()
+        public void Schedule_FromAwaitingApproval_ShouldThrowInvalidStatusTransition()
         {
-            var payable = PayableMother.Rejected();
+            var payable = PayableMother.AwaitingApproval();
 
-            var ex = Assert.Throws<DomainException>(() => payable.MarkAsPaidManually(
-                PayableMother.DEFAULT_PROOF,
-                paidAt: FIXED_NOW.AddDays(1),
-                occurredAt: LATER));
+            var ex = Assert.Throws<DomainException>(() => payable.Schedule(
+                PayableMother.DEFAULT_SCHEDULED_FOR, LATER));
 
             Assert.Equal("AP.PAY01", ex.Id);
         }
@@ -922,6 +839,35 @@ public class PayableTests
             Assert.Throws<ArgumentNullException>(() =>
                 payable.MarkAsPaidManually(null!, FIXED_NOW.AddDays(1), LATER));
         }
+
+        // MarkAsPaidManually em Payable Rejected lança AP.PAY01 (Rejected é terminal — critério da Sprint 5).
+        [Fact]
+        public void MarkAsPaidManually_OnRejected_ShouldThrowInvalidStatusTransition()
+        {
+            var payable = PayableMother.Rejected();
+
+            var ex = Assert.Throws<DomainException>(() => payable.MarkAsPaidManually(
+                PayableMother.DEFAULT_PROOF,
+                paidAt: FIXED_NOW.AddDays(1),
+                occurredAt: LATER));
+
+            Assert.Equal("AP.PAY01", ex.Id);
+        }
+
+        // MarkAsPaidManually em Payable AwaitingApproval é bloqueado pela máquina de estados (AP.PAY01) —
+        // substitui o antigo check de threshold; orquestrador deve passar por Approve antes.
+        [Fact]
+        public void MarkAsPaidManually_OnAwaitingApproval_ShouldThrowInvalidStatusTransition()
+        {
+            var payable = PayableMother.AwaitingApproval();
+
+            var ex = Assert.Throws<DomainException>(() => payable.MarkAsPaidManually(
+                PayableMother.DEFAULT_PROOF,
+                paidAt: FIXED_NOW.AddDays(1),
+                occurredAt: LATER));
+
+            Assert.Equal("AP.PAY01", ex.Id);
+        }
     }
 
     public class WhenCancelling
@@ -1031,33 +977,18 @@ public class PayableTests
                 null!, PayableMother.DEFAULT_BANK_ACCOUNT, LATER));
         }
 
-        // Critério de aceite Sprint 6: RequestPayment numa Payable não aprovada (acima do threshold) falha com AP.PAY07.
+        // Fluxo completo Classified → AwaitingApproval → Approved → Scheduled → RequestPayment chega em PaymentRequested.
+        // Substitui o antigo teste de "above threshold after approval": a gating é a transição, não um Money? na chamada.
         [Fact]
-        public void RequestPayment_AmountAboveThreshold_WithoutApproval_ShouldThrowRequiresApproval()
+        public void RequestPayment_AfterApprovalAndSchedule_ShouldSucceed()
         {
-            // Schedule sem threshold, depois RequestPayment com threshold mais baixo que o amount.
-            var payable = PayableMother.Scheduled(); // amount default 1_500, ApprovedAt = null
-            var lowThreshold = new Money(1_000m, Currency.Brl);
-
-            var ex = Assert.Throws<DomainException>(() => payable.RequestPayment(
-                PaymentMethod.Pix, PayableMother.DEFAULT_BANK_ACCOUNT, LATER, approvalThreshold: lowThreshold));
-
-            Assert.Equal("AP.PAY07", ex.Id);
-        }
-
-        // RequestPayment numa Payable que já passou por Approval (ApprovedAt set) sucede mesmo acima do threshold — approval consumida.
-        [Fact]
-        public void RequestPayment_AmountAboveThreshold_AfterApproval_ShouldSucceed()
-        {
-            // Fluxo completo: Classified → AwaitingApproval → Approved → Scheduled → RequestPayment.
             var payable = PayableMother.Approved();
             payable.Schedule(PayableMother.DEFAULT_SCHEDULED_FOR, FIXED_NOW.AddMinutes(6));
-            var lowThreshold = new Money(1_000m, Currency.Brl);
 
-            payable.RequestPayment(PaymentMethod.Ted, PayableMother.DEFAULT_BANK_ACCOUNT, LATER, approvalThreshold: lowThreshold);
+            payable.RequestPayment(PaymentMethod.Ted, PayableMother.DEFAULT_BANK_ACCOUNT, LATER);
 
             Assert.Equal(PayableStatus.PaymentRequested, payable.Status);
-            Assert.NotNull(payable.ApprovedAt); // sanity — approval persistiu
+            Assert.NotNull(payable.ApprovedAt);
         }
 
         // RequestPayment a partir de PaymentFailed sucede (retry após bank rejeitar) — limpa motivo da falha anterior.

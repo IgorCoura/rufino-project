@@ -80,17 +80,9 @@ public class PayableErrorsTests
         Assert.Equal("PAID", error.Parameters[0]);
     }
 
-    // RequiresApproval retorna AP.PAY07 com amount + threshold no payload — Sprint 5.
-    [Fact]
-    public void RequiresApproval_ShouldHaveCorrectIdAndParameters()
-    {
-        var error = Invoke("RequiresApproval", 1500m, 1000m);
-
-        Assert.Equal("AP.PAY07", error.Id);
-        Assert.Equal(2, error.Parameters.Count);
-        Assert.Equal(1500m, error.Parameters[0]);
-        Assert.Equal(1000m, error.Parameters[1]);
-    }
+    // AP.PAY07 (RequiresApproval) foi removido — o threshold saiu do Aggregate e a decisão de exigir
+    // aprovação passa a viver na Application (ApprovalRequirementCalculator + transição AwaitingApproval).
+    // Slot reservado: não reutilizar sem confirmar que nenhum consumidor externo depende do Id antigo.
 
     // RequiresClassificationBeforeApproval retorna AP.PAY08 sem parâmetros — Sprint 5.
     [Fact]
@@ -205,7 +197,6 @@ public class PayableErrorsTests
             Invoke("CannotPayCancelled").Id,
             Invoke("CannotScheduleWithoutClassification").Id,
             Invoke("CannotClassifyTerminalPayable", "PAID").Id,
-            Invoke("RequiresApproval", 1m, 1m).Id,
             Invoke("RequiresClassificationBeforeApproval").Id,
             Invoke("RejectionReasonRequired").Id,
             Invoke("PaymentFailureReasonRequired").Id,

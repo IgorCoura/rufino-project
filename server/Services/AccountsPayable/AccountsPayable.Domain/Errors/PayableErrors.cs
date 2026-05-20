@@ -74,17 +74,10 @@ internal static class PayableErrors
             parameters: new object[] { currentStatus },
             sourcePath: BuildSourcePath(filePath, memberName, lineNumber));
 
-    public static DomainException RequiresApproval(
-        decimal amount,
-        decimal threshold,
-        [CallerFilePath] string filePath = "",
-        [CallerMemberName] string memberName = "",
-        [CallerLineNumber] int lineNumber = 0)
-        => new(
-            id: $"{PREFIX}07",
-            messageTemplate: "Valor {0} excede o limite de aprovação ({1}) — aprovação necessária antes de prosseguir.",
-            parameters: new object[] { amount, threshold },
-            sourcePath: BuildSourcePath(filePath, memberName, lineNumber));
+    // AP.PAY07 reservado (era RequiresApproval). Removido: o threshold deixou de ser parâmetro do
+    // Aggregate — a decisão de exigir aprovação vive na Application (ApprovalRequirementCalculator)
+    // e materializa via transição para AwaitingApproval, bloqueada pela máquina de estados (AP.PAY01).
+    // Não reutilizar este slot sem confirmar que nenhum consumidor externo depende do Id antigo.
 
     public static DomainException RequiresClassificationBeforeApproval(
         [CallerFilePath] string filePath = "",

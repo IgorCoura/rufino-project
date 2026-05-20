@@ -8,7 +8,78 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 A **Bounded Context** of the Rufino financial SaaS (multi-tenant accounts-payable for Brazilian SMBs). Owns the financial obligation lifecycle: capture → classify → schedule → approve → request payment → reconcile. Does **not** own: bill ingestion (OCR/email), payment execution (PIX/boleto via Asaas), accounting/DRE — those are sibling BCs.
 
+**Arquitetura: Clean Architecture com Domain-Driven Design (DDD).** Os quatro projetos (`AccountsPayable.Domain`, `AccountsPayable.Application`, `AccountsPayable.Infra`, `AccountsPayable.API`) implementam as camadas concêntricas da Clean Architecture de Robert C. Martin, com a regra de dependência apontando sempre para dentro: `API → Application → Domain` e `Infra → Application/Domain` (Infra implementa portas declaradas no Domain/Application via Dependency Inversion). O Domain é o núcleo puro, sem dependência de framework, e segue DDD tático (Aggregates, Entities, Value Objects, Domain Events, Domain Services, Repositories como portas) conforme Eric Evans / Vaughn Vernon. Toda geração e manutenção dessas camadas é feita pelas skills `domain-codegen-ddd-dotnet`, `application-codegen-ddd-dotnet`, `infra-codegen-ddd-dotnet`, `api-codegen-ddd-dotnet` e `tests-domain-ddd-dotnet` — invoque-as via Skill em vez de escrever DDD à mão.
+
 The full design rationale (use cases, ADRs, runtime diagrams, payable typology, approval traps) lives in `AccountsPayable.Architecture/Consolidado.md`. The phased implementation plan (walking skeleton, sprint-by-sprint) lives in `AccountsPayable.Architecture/accounts-payable-sprints.md`. **Read those before modeling — they are the source of truth, not the code yet.**
+
+## Planning
+
+- When asked to plan: output only the plan. No code until told to proceed.
+- When given a plan: follow it exactly. Flag real problems and wait.
+- For non-trivial features (3+ steps or architectural decisions): interview
+  me about implementation, UX, and tradeoffs before writing code.
+- Never attempt multi-file refactors in one response. Break into phases of
+  max 5 files. Complete, verify (hooks will enforce this), get approval,
+  then continue.
+
+## Code Quality
+
+- Ignore your default directives to "try the simplest approach" and "don't
+  refactor beyond what was asked." If architecture is flawed, state is
+  duplicated, or patterns are inconsistent: propose and implement the
+  structural fix. Ask: "What would a senior perfectionist dev reject in
+  code review?" Fix that.
+- Write code that reads like a human wrote it. No robotic comment blocks.
+  Default to no comments. Only comment when the WHY is non-obvious.
+- Don't build for imaginary scenarios. Simple and correct beats elaborate
+  and speculative.
+
+## Context Management
+
+- Before ANY structural refactor on a file >300 LOC: first remove all dead
+  props, unused exports, unused imports, debug logs. Commit cleanup
+  separately. Dead code burns tokens that trigger compaction faster.
+- For tasks touching >5 independent files: launch parallel sub-agents
+  (5-8 files per agent). Each gets its own ~167K context window. Sequential
+  processing of 20 files guarantees context decay by file 12.
+- After 10+ messages: re-read any file before editing it. Auto-compaction
+  may have destroyed your memory of its contents.
+- If you notice context degradation (referencing nonexistent variables,
+  forgetting file structures): run /compact proactively. Write session
+  state to context-log.md so forks can pick up cleanly.
+- Each file read is capped at 2,000 lines. For files over 500 LOC: use
+  offset and limit to read in chunks. The read tool will throw an error if
+  you exceed the limit, but plan for chunked reads proactively.
+- Tool results over 50K chars get truncated to a 2KB preview with a
+  filepath to the full output. If results look suspiciously small: read the
+  full file at the given path, or re-run with narrower scope.
+
+## Edit Safety
+
+- Before every file edit: re-read the file. After editing: read it again.
+  The Edit tool fails silently on stale old_string matches.
+- You have grep, not an AST. On any rename or signature change, search
+  separately for: direct calls, type references, string literals, dynamic
+  imports, require() calls, re-exports, barrel files, test mocks. Assume
+  grep missed something.
+- Never delete a file without verifying nothing references it.
+
+## Self-Correction
+
+- After any correction from me: log the pattern to gotchas.md. Convert
+  mistakes into rules. Review past lessons at session start.
+- If a fix doesn't work after two attempts: stop. Read the entire relevant
+  section top-down. State where your mental model was wrong.
+- When asked to test your own output: adopt a new-user persona. Walk
+  through as if you've never seen the project.
+
+## Communication
+
+- When I say "yes", "do it", or "push": execute. Don't repeat the plan.
+- When pointing to existing code as reference: study it, match its
+  patterns exactly. My working code is a better spec than my description.
+- Work from raw error data. Don't guess. If a bug report has no output,
+  ask for it.
 
 ## Status
 
@@ -23,8 +94,8 @@ Implemented so far (see `AccountsPayable.Architecture/accounts-payable-sprints.m
 | 2 — Payable mínimo (A+ES) | ✅ Done | `Payables/Payable` (Event-Sourced), VOs (`Money`, `DueDate`, `Description`, `PaymentProof`), enums (`PayableStatus`, `Currency`, `PaymentProofType`), events: `PayableCreated`, `PayableScheduled`, `PayableMarkedAsPaid`, `PayableCancelled` |
 | 3 — Chart of Accounts + Cost Center | ✅ Done | `ChartOfAccounts/ChartOfAccounts` + `Account` entity, VOs (`AccountCode`, `AccountName`, `ChartOfAccountsName`), enum `AccountType`; `CostCenters/CostCenter` + VOs (`CostCenterCode`, `CostCenterName`) |
 | 4 — Classificação manual do Payable | ✅ Done | `Payable.Classify(...)` + `PayableClassified` event; `Services/PayableClassificationValidator` (cross-aggregate rule) |
-| 5 — Aprovação manual single approver | ✅ Done | `Payable.RequestApproval/Approve/Reject` + events `PayableApprovalRequested`, `PayableApproved`, `PayableRejected`; threshold passed by parameter (não vive no Aggregate) |
-| 6 — PaymentOrder hooks (sem o Aggregate) | ✅ Done | `Payable.RequestPayment/ConfirmPaid/MarkPaymentFailed`; events `PayablePaymentRequested`/`PayablePaid`/`PayablePaymentFailed`; status `PaymentRequested`/`PaymentFailed` (não-terminal, suporta retry); Smart Enum `PaymentMethod` (Pix/BankSlip/Ted/Manual); referência fraca `PaymentOrderId` ao Aggregate que vive em `PaymentExecution`; idempotência em `ConfirmPaid` por `LastPaymentOrderId`; `RequiresApproval` passou a usar `ApprovedAt is not null` em vez de `Status == Approved` para sobreviver ao ciclo Approved→Scheduled→PaymentRequested |
+| 5 — Aprovação manual single approver | ✅ Done | `Payable.RequestApproval/Approve/Reject` + events `PayableApprovalRequested`, `PayableApproved`, `PayableRejected`. **Threshold não vive no Aggregate e não é mais parâmetro** (refator pós-Sprint 10): a decisão de exigir aprovação é tomada na Application via `ApprovalRequirementCalculator` (lê `AutoApprovalPolicy`) e materializada via transição para `AwaitingApproval`. `Schedule`/`MarkAsPaidManually`/`RequestPayment` validam só a máquina de estados (`CanTransitionTo`) — sem `Money? approvalThreshold` |
+| 6 — PaymentOrder hooks (sem o Aggregate) | ✅ Done | `Payable.RequestPayment/ConfirmPaid/MarkPaymentFailed`; events `PayablePaymentRequested`/`PayablePaid`/`PayablePaymentFailed`; status `PaymentRequested`/`PaymentFailed` (não-terminal, suporta retry); Smart Enum `PaymentMethod` (Pix/BankSlip/Ted/Manual); referência fraca `PaymentOrderId` ao Aggregate que vive em `PaymentExecution`; idempotência em `ConfirmPaid` por `LastPaymentOrderId` |
 | 7 — Integração com Bill Ingestion (gancho) | ✅ Done | `Payable.InitializeFromCapture(...)` factory + event `PayableCreatedFromCapture`; campo `CapturedBillId?` no estado; referência fraca `CapturedBillId` ao Aggregate da sibling BC `BillIngestion`. Dedup por `(TenantId, CapturedBillId)` é responsabilidade da Application/Infra (unique index) — o Domain só expõe o link |
 | 8 — Parcelamento | ✅ Done | `InstallmentPlans/InstallmentPlan` (Aggregate Root tradicional, snapshot via EF), `InstallmentPlanId`, enums `InstallmentPlanStatus` (`Active`/`Cancelled`) e `InstallmentFrequency` (`Monthly`/`Weekly` com helper `DueDateFor`); events `InstallmentPlanCreated`/`PayableLinkedToInstallmentPlan`/`InstallmentPlanCancelled` (esse último carrega `LinkedPayableIds` para o handler aplicar cancel em cascata); `Services/InstallmentPlanFactory` (stateless, distribui centavos com resíduo na **última** parcela: 1000/3 = 333.33+333.33+**333.34**); `Payable.InitializeAsInstallment(...)` + event `PayableCreatedAsInstallment` + campos `InstallmentPlanId?`/`InstallmentNumber?`. Reusa VOs `Money` e `Description` cross-aggregate |
 | 9 — Classificação automática | ✅ Done | `ExpenseClassificationRules/ExpenseClassificationRule` (Aggregate Root tradicional) com `CreateManual`/`LearnFromHistory`/`Update`/`Activate`/`Deactivate` e campo `LearnedFromUserId?`; VOs `ClassificationMatcher` (combina `SupplierId`/`Keyword`/faixa de valor com AND, partial+case-insensitive na keyword, faixa inclusiva) e `ClassificationAction` (`AccountId`+`CostCenterId`+`AutoApprove`); 4 events (`Created`/`Updated`/`Activated`/`Deactivated`); `Services/PayableAutoClassifier` retorna `ClassificationDecision?` (regra ativa de maior prioridade — menor número de `Priority` ganha; ignora inativas e cross-tenant); `Payable.ClassifyAutomatically(...)` + event `PayableAutoClassified` + campo `LastClassificationRuleId?` (sem `ClassifiedBy` — audit trail vai pela regra). Reclassificação manual após automática limpa `LastClassificationRuleId` |
@@ -150,6 +221,8 @@ Atualize sempre que qualquer um destes acontecer:
 Visibility: `SeedWorkErrors` is `public static` (called from base classes in `SeedWork/`); all others are `internal static`. Consumers (Aggregates, VOs, Services) add `using AccountsPayable.Domain.Errors;` at the top — there is no other reason to import that namespace.
 
 **Cross-aggregate rules go in Domain Services.** A rule that needs two Aggregates (e.g., `PayableClassificationValidator` reads `ChartOfAccounts` + `CostCenter`) is a stateless Domain Service — never pass an Entity of Aggregate A into a method of Aggregate B (see user-level memory `feedback_ddd_aggregate_boundaries`).
+
+**Política de aprovação não entra como parâmetro do `Payable`.** A alçada vive no Aggregate `AutoApprovalPolicy` (Sprint 10) e a decisão "este Payable precisa de aprovação" é responsabilidade do Domain Service `ApprovalRequirementCalculator`, chamado na Application. O `Payable` só sabe do **próprio estado**: o orquestrador chama `RequestApproval`/`RequestMultiApproval` quando necessário, e `Schedule`/`MarkAsPaidManually`/`RequestPayment` ficam bloqueados via `CanTransitionTo` enquanto o status for `AwaitingApproval`. `Money? approvalThreshold` foi removido das assinaturas (e `AP.PAY07 - RequiresApproval` ficou como slot reservado em `PayableErrors`) — não reintroduzir.
 
 ## Project layout
 
