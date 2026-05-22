@@ -42,27 +42,24 @@ internal static class SupplierErrors
             sourcePath: BuildSourcePath(filePath, memberName, lineNumber));
 
     public static DomainException BankAccountNotFound(
-        Guid bankAccountId,
         [CallerFilePath] string filePath = "",
         [CallerMemberName] string memberName = "",
         [CallerLineNumber] int lineNumber = 0)
         => new(
             id: $"{PREFIX}04",
-            messageTemplate: "Conta bancária {0} não pertence a este fornecedor.",
-            parameters: new object[] { bankAccountId },
+            messageTemplate: "Conta bancária não encontrada nas contas ativas do fornecedor.",
+            parameters: Array.Empty<object>(),
             sourcePath: BuildSourcePath(filePath, memberName, lineNumber));
 
     public static DomainException DuplicatedBankAccount(
-        string bankCode,
-        string branch,
-        string accountNumber,
+        string description,
         [CallerFilePath] string filePath = "",
         [CallerMemberName] string memberName = "",
         [CallerLineNumber] int lineNumber = 0)
         => new(
             id: $"{PREFIX}05",
-            messageTemplate: "Conta bancária duplicada para o fornecedor: {0} ag.{1} c/c {2}.",
-            parameters: new object[] { bankCode, branch, accountNumber },
+            messageTemplate: "Conta bancária já cadastrada e ativa para o fornecedor: {0}.",
+            parameters: new object[] { description },
             sourcePath: BuildSourcePath(filePath, memberName, lineNumber));
 
     private static string BuildSourcePath(string filePath, string memberName, int lineNumber)

@@ -2,7 +2,6 @@ namespace AccountsPayable.UnitTests.Suppliers;
 
 using AccountsPayable.Domain.SeedWork;
 using AccountsPayable.Domain.Suppliers;
-using AccountsPayable.Domain.Suppliers.Entities;
 using AccountsPayable.Domain.Suppliers.Enumerations;
 using AccountsPayable.Domain.Suppliers.Events;
 using AccountsPayable.Domain.Suppliers.ValueObjects;
@@ -24,7 +23,7 @@ public class SupplierTests
             Assert.Equal(SupplierStatus.Active, supplier.Status);
             Assert.Equal("Acme Brasil LTDA", supplier.LegalName.Value);
             Assert.Equal("Acme", supplier.TradeName?.Value);
-            Assert.Equal("11444777000161", supplier.TaxId.Value);
+            Assert.Equal("59199597000198", supplier.TaxId.Value);
             Assert.Equal("contato@acme.com.br", supplier.Contact.Email.Value);
             Assert.Equal(SupplierMother.DEFAULT_OCCURRED_AT, supplier.CreatedAt);
             Assert.Equal(SupplierMother.DEFAULT_OCCURRED_AT, supplier.UpdatedAt);
@@ -43,7 +42,7 @@ public class SupplierTests
             Assert.Equal(SupplierMother.DEFAULT_TENANT, e.TenantId);
             Assert.Equal("Acme Brasil LTDA", e.LegalName);
             Assert.Equal("Acme", e.TradeName);
-            Assert.Equal("11444777000161", e.TaxIdValue);
+            Assert.Equal("59199597000198", e.TaxIdValue);
             Assert.Equal("CNPJ", e.TaxIdType);
             Assert.Equal(SupplierMother.DEFAULT_OCCURRED_AT, e.OccurredAt);
         }
@@ -129,93 +128,148 @@ public class SupplierTests
 
     public class WhenAddingBankAccount
     {
-        // AddBankAccount cria SupplierBankAccount, devolve a entidade e emite SupplierBankAccountAdded.
+        // AddBankAccount(BankTransfer) adiciona o VO em ActiveBankAccounts e emite evento com Variant=BANK_TRANSFER.
         [Fact]
-        public void AddBankAccount_WithValidData_ShouldAddAndEmitEvent()
+        public void AddBankAccount_BankTransfer_ShouldAddAndEmitEventWithBankTransferPayload()
         {
             var supplier = SupplierMother.Active();
             supplier.PullDomainEvents();
-            var bankAccountId = SupplierBankAccountId.New();
+            var account = SupplierMother.BankTransferAccount();
 
-            var account = supplier.AddBankAccount(
-                bankAccountId, "001", "0001", "123456-7", BankAccountType.Checking, pixKey: null, LATER);
+            supplier.AddBankAccount(account, LATER);
 
-            Assert.Same(account, supplier.BankAccounts.Single());
-            Assert.Equal("001", account.BankCode);
-            Assert.Equal("0001", account.Branch);
-            Assert.Equal("123456-7", account.AccountNumber);
+            Assert.Equal(account, supplier.ActiveBankAccounts.Single());
             var added = Assert.IsType<SupplierBankAccountAdded>(supplier.PullDomainEvents()[0]);
-            Assert.Equal(bankAccountId, added.BankAccountId);
+            Assert.Equal("BANK_TRANSFER", added.Variant);
+            Assert.Equal("001", added.BankCode);
+            Assert.Equal("0001", added.Branch);
+            Assert.Equal("123456-7", added.AccountNumber);
             Assert.Equal("CHECKING", added.AccountType);
+            Assert.Null(added.PixKeyValue);
+            Assert.Null(added.PixKeyType);
         }
 
-        // Adicionar conta com mesma (banco, agência, número) que outra já existente lança AP.SUP05.
+        // AddBankAccount(Pix) adiciona o VO em ActiveBankAccounts e emite evento com Variant=PIX e os campos bancários nulos.
         [Fact]
-        public void AddBankAccount_WithDuplicateCombo_ShouldThrowDomainException()
+        public void AddBankAccount_Pix_ShouldAddAndEmitEventWithPixPayload()
+        {
+            var supplier = SupplierMother.Active();
+            supplier.PullDomainEvents();
+            var account = SupplierMother.PixAccount();
+
+            supplier.AddBankAccount(account, LATER);
+
+            Assert.Equal(account, supplier.ActiveBankAccounts.Single());
+            var added = Assert.IsType<SupplierBankAccountAdded>(supplier.PullDomainEvents()[0]);
+            Assert.Equal("PIX", added.Variant);
+            Assert.Equal("59199597000198", added.PixKeyValue);
+            Assert.Equal("CNPJ", added.PixKeyType);
+            Assert.Null(added.BankCode);
+            Assert.Null(added.Branch);
+            Assert.Null(added.AccountNumber);
+            Assert.Null(added.AccountType);
+        }
+
+        // Adicionar VO equivalente (igualdade estrutural) a uma conta já em ActiveBankAccounts lança AP.SUP05.
+        [Fact]
+        public void AddBankAccount_WithDuplicateActive_ShouldThrowDomainException()
         {
             var supplier = SupplierMother.ActiveWithBankAccount();
+            var duplicate = SupplierMother.BankTransferAccount();
 
-            var ex = Assert.Throws<DomainException>(() => supplier.AddBankAccount(
-                SupplierBankAccountId.New(), "001", "0001", "123456-7", BankAccountType.Checking, pixKey: null, LATER));
+            var ex = Assert.Throws<DomainException>(() => supplier.AddBankAccount(duplicate, LATER));
+
+            Assert.Equal("AP.SUP05", ex.Id);
+        }
+
+        // Duplicação também vale para PixAccount com a mesma chave.
+        [Fact]
+        public void AddBankAccount_WithDuplicatePix_ShouldThrowDomainException()
+        {
+            var supplier = SupplierMother.ActiveWithPixAccount();
+            var duplicate = SupplierMother.PixAccount();
+
+            var ex = Assert.Throws<DomainException>(() => supplier.AddBankAccount(duplicate, LATER));
 
             Assert.Equal("AP.SUP05", ex.Id);
         }
     }
 
-    public class WhenRemovingBankAccount
+    public class WhenDeactivatingBankAccount
     {
-        // Remover uma conta inexistente (id desconhecido) lança AP.SUP04.
+        // Desativar um VO que não está nas contas ativas lança AP.SUP04.
         [Fact]
-        public void RemoveBankAccount_WithUnknownId_ShouldThrowDomainException()
+        public void DeactivateBankAccount_WithUnknownAccount_ShouldThrowDomainException()
         {
             var supplier = SupplierMother.ActiveWithBankAccount();
+            var unknown = SupplierMother.BankTransferAccount(accountNumber: "999999-9");
 
-            var ex = Assert.Throws<DomainException>(
-                () => supplier.RemoveBankAccount(SupplierBankAccountId.New(), LATER));
+            var ex = Assert.Throws<DomainException>(() => supplier.DeactivateBankAccount(unknown, LATER));
 
             Assert.Equal("AP.SUP04", ex.Id);
         }
 
-        // Remover a última conta de um Supplier Active lança AP.SUP03 (regra "fornecedor ativo precisa ter conta").
+        // Desativar a única conta ativa de um Supplier Active lança AP.SUP03 (invariante "fornecedor ativo precisa de conta").
         [Fact]
-        public void RemoveBankAccount_WhenLastAccountAndActive_ShouldThrowDomainException()
+        public void DeactivateBankAccount_WhenLastAccountAndActive_ShouldThrowDomainException()
         {
             var supplier = SupplierMother.ActiveWithBankAccount();
-            var account = supplier.BankAccounts.Single();
+            var account = supplier.ActiveBankAccounts.Single();
 
-            var ex = Assert.Throws<DomainException>(() => supplier.RemoveBankAccount(account.Id, LATER));
+            var ex = Assert.Throws<DomainException>(() => supplier.DeactivateBankAccount(account, LATER));
 
             Assert.Equal("AP.SUP03", ex.Id);
         }
 
-        // Remover uma conta quando ainda há outras restantes funciona e emite SupplierBankAccountRemoved.
+        // Desativar uma conta quando há outras restantes move o VO para InactiveBankAccounts e emite Deactivated com snapshot.
         [Fact]
-        public void RemoveBankAccount_WhenMoreThanOneAccount_ShouldRemoveAndEmitEvent()
+        public void DeactivateBankAccount_WhenMoreThanOneAccount_ShouldMoveToInactiveAndEmitEvent()
         {
             var supplier = SupplierMother.ActiveWithBankAccounts(count: 2);
             supplier.PullDomainEvents();
-            var firstId = supplier.BankAccounts.First().Id;
+            var firstAccount = supplier.ActiveBankAccounts.First();
 
-            supplier.RemoveBankAccount(firstId, LATER);
+            supplier.DeactivateBankAccount(firstAccount, LATER);
 
-            Assert.Single(supplier.BankAccounts);
-            var removed = Assert.IsType<SupplierBankAccountRemoved>(supplier.PullDomainEvents()[0]);
-            Assert.Equal(firstId, removed.BankAccountId);
+            Assert.Single(supplier.ActiveBankAccounts);
+            Assert.Single(supplier.InactiveBankAccounts);
+            Assert.Equal(firstAccount, supplier.InactiveBankAccounts.Single());
+            var deactivated = Assert.IsType<SupplierBankAccountDeactivated>(supplier.PullDomainEvents()[0]);
+            Assert.Equal("BANK_TRANSFER", deactivated.Variant);
+            var firstAsBank = Assert.IsType<SupplierBankTransferAccount>(firstAccount);
+            Assert.Equal(firstAsBank.AccountNumber, deactivated.AccountNumber);
         }
 
-        // Remover a última conta quando o Supplier está Inactive é permitido (regra só vale para Active).
+        // Desativar a última conta quando o Supplier está Inactive é permitido (invariante só vale para Active).
         [Fact]
-        public void RemoveBankAccount_WhenLastAccountAndInactive_ShouldRemoveSuccessfully()
+        public void DeactivateBankAccount_WhenLastAccountAndInactive_ShouldDeactivateSuccessfully()
         {
             var supplier = SupplierMother.Active();
-            var accountId = SupplierBankAccountId.New();
-            supplier.AddBankAccount(accountId, "001", "0001", "123456-7", BankAccountType.Checking, null, LATER);
+            var account = SupplierMother.BankTransferAccount();
+            supplier.AddBankAccount(account, LATER);
             supplier.Deactivate(LATER.AddMinutes(1));
             supplier.PullDomainEvents();
 
-            supplier.RemoveBankAccount(accountId, LATER.AddMinutes(2));
+            supplier.DeactivateBankAccount(account, LATER.AddMinutes(2));
 
-            Assert.Empty(supplier.BankAccounts);
+            Assert.Empty(supplier.ActiveBankAccounts);
+            Assert.Single(supplier.InactiveBankAccounts);
+        }
+
+        // Re-adicionar uma conta com os mesmos dados após desativar é permitido — a nova entrada vai para ativos
+        // e a entrada antiga permanece em inativos (preservação do histórico).
+        [Fact]
+        public void AddBankAccount_AfterDeactivation_ShouldReaddAndKeepInactiveSnapshot()
+        {
+            var supplier = SupplierMother.ActiveWithBankAccounts(count: 2);
+            var first = supplier.ActiveBankAccounts.First();
+            supplier.DeactivateBankAccount(first, LATER);
+            supplier.PullDomainEvents();
+
+            supplier.AddBankAccount(first, LATER.AddMinutes(1));
+
+            Assert.Contains(first, supplier.ActiveBankAccounts);
+            Assert.Contains(first, supplier.InactiveBankAccounts);
         }
     }
 

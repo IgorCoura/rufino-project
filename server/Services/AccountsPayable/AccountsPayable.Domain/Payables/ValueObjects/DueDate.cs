@@ -8,6 +8,7 @@ using AccountsPayable.Domain.SeedWork;
 /// </summary>
 public sealed class DueDate : ValueObject
 {
+    //TODO: Criar validação que não pode ser menor que a data de hoje.
     public DateOnly Value { get; }
 
     public DueDate(DateOnly value)

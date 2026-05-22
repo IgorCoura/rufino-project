@@ -4,10 +4,8 @@ using AccountsPayable.Domain.SeedWork;
 using AccountsPayable.Domain.Suppliers;
 
 /// <summary>
-/// Variant of <see cref="PayableCreated"/> emitted when the <see cref="Payable"/> originates from a
-/// <c>CapturedBill</c> approved by the sibling <c>BillIngestion</c> BC. Carries the same payload
-/// plus <see cref="CapturedBillId"/> so the link back to the originating capture survives in the
-/// event stream and dedup checks (Application/Infra) can be performed by Id.
+/// Payable cadastrado a partir de uma <c>CapturedBill</c> (sibling BC <c>BillIngestion</c>).
+/// A partir da Sprint 12.B carrega também o método+instrumento extraídos pela captura.
 /// </summary>
 public sealed record PayableCreatedFromCapture(
     Guid EventId,
@@ -19,4 +17,16 @@ public sealed record PayableCreatedFromCapture(
     decimal AmountValue,
     string AmountCurrency,
     DateOnly DueDate,
-    string Description) : IDomainEvent;
+    string Description,
+    string InstrumentKind,
+    string? SupplierLegalName,
+    string? SupplierTaxIdValue,
+    string? SupplierTaxIdType,
+    string? PixKeyValue,
+    string? PixKeyType,
+    string? BankCode,
+    string? Branch,
+    string? AccountNumber,
+    string? AccountType,
+    string? EmvPayload,
+    string? BarcodeDigits) : IDomainEvent;

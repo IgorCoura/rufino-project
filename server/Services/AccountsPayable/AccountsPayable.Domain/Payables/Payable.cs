@@ -9,7 +9,6 @@ using AccountsPayable.Domain.Payables.Events;
 using AccountsPayable.Domain.Payables.ValueObjects;
 using AccountsPayable.Domain.SeedWork;
 using AccountsPayable.Domain.Suppliers;
-using AccountsPayable.Domain.Suppliers.Entities;
 
 /// <summary>
 /// Aggregate Root of the Accounts Payable BC. Event-Sourced (decision D-405): mutations only inside
@@ -45,8 +44,7 @@ public sealed class Payable : EventSourcedAggregateRoot<PayableId>
     public UserId? RejectedBy { get; private set; }
     public DateTime? RejectedAt { get; private set; }
     public string? RejectionReason { get; private set; }
-    public PaymentMethod? PaymentMethod { get; private set; }
-    public SupplierBankAccountId? PaymentBankAccountId { get; private set; }
+    public PaymentInstrument PaymentInstrument { get; private set; } = default!;
     public PaymentOrderId? LastPaymentOrderId { get; private set; }
     public DateTime? PaymentRequestedAt { get; private set; }
     public DateTime? PaymentFailedAt { get; private set; }
@@ -57,6 +55,9 @@ public sealed class Payable : EventSourcedAggregateRoot<PayableId>
     public ExpenseClassificationRuleId? LastClassificationRuleId { get; private set; }
     public int RequiredApprovalCount { get; private set; }
     public IReadOnlyList<string> EligibleApproverRoles { get; private set; } = Array.Empty<string>();
+    public bool IsInstrumentOutdated { get; private set; }
+    public DateTime? OutdatedAt { get; private set; }
+    public string? OutdatedReason { get; private set; }
     private readonly List<ApprovalRecord> _approvalsReceived = [];
     public IReadOnlyList<ApprovalRecord> ApprovalsReceived => _approvalsReceived.AsReadOnly();
     public bool IsMultiApproval => RequiredApprovalCount > 0;
@@ -72,15 +73,22 @@ public sealed class Payable : EventSourcedAggregateRoot<PayableId>
         Money amount,
         DueDate dueDate,
         Description description,
+        PaymentInstrument paymentInstrument,
         DateTime occurredAt)
     {
         ArgumentNullException.ThrowIfNull(amount);
         ArgumentNullException.ThrowIfNull(dueDate);
         ArgumentNullException.ThrowIfNull(description);
+        if (paymentInstrument is null)
+            throw PayableErrors.PaymentInstrumentRequired();
 
         var today = DateOnly.FromDateTime(occurredAt);
         if (dueDate.Value < today)
             throw PayableErrors.DueDateInPast(dueDate.Value, today);
+
+        var (kind, legalName, taxIdValue, taxIdType, pixVal, pixType,
+             bankCode, branch, accNumber, accType,
+             emvPayload, barcodeDigits) = PaymentInstrumentSerialization.Expand(paymentInstrument);
 
         var instance = new Payable();
         instance.Apply(new PayableCreated(
@@ -92,7 +100,19 @@ public sealed class Payable : EventSourcedAggregateRoot<PayableId>
             AmountValue: amount.Amount,
             AmountCurrency: amount.Currency.Name,
             DueDate: dueDate.Value,
-            Description: description.Value));
+            Description: description.Value,
+            InstrumentKind: kind,
+            SupplierLegalName: legalName,
+            SupplierTaxIdValue: taxIdValue,
+            SupplierTaxIdType: taxIdType,
+            PixKeyValue: pixVal,
+            PixKeyType: pixType,
+            BankCode: bankCode,
+            Branch: branch,
+            AccountNumber: accNumber,
+            AccountType: accType,
+            EmvPayload: emvPayload,
+            BarcodeDigits: barcodeDigits));
 
         return instance;
     }
@@ -116,15 +136,22 @@ public sealed class Payable : EventSourcedAggregateRoot<PayableId>
         Money amount,
         DueDate dueDate,
         Description description,
+        PaymentInstrument paymentInstrument,
         DateTime occurredAt)
     {
         ArgumentNullException.ThrowIfNull(amount);
         ArgumentNullException.ThrowIfNull(dueDate);
         ArgumentNullException.ThrowIfNull(description);
+        if (paymentInstrument is null)
+            throw PayableErrors.PaymentInstrumentRequired();
 
         var today = DateOnly.FromDateTime(occurredAt);
         if (dueDate.Value < today)
             throw PayableErrors.DueDateInPast(dueDate.Value, today);
+
+        var (kind, legalName, taxIdValue, taxIdType, pixVal, pixType,
+             bankCode, branch, accNumber, accType,
+             emvPayload, barcodeDigits) = PaymentInstrumentSerialization.Expand(paymentInstrument);
 
         var instance = new Payable();
         instance.Apply(new PayableCreatedFromCapture(
@@ -137,7 +164,19 @@ public sealed class Payable : EventSourcedAggregateRoot<PayableId>
             AmountValue: amount.Amount,
             AmountCurrency: amount.Currency.Name,
             DueDate: dueDate.Value,
-            Description: description.Value));
+            Description: description.Value,
+            InstrumentKind: kind,
+            SupplierLegalName: legalName,
+            SupplierTaxIdValue: taxIdValue,
+            SupplierTaxIdType: taxIdType,
+            PixKeyValue: pixVal,
+            PixKeyType: pixType,
+            BankCode: bankCode,
+            Branch: branch,
+            AccountNumber: accNumber,
+            AccountType: accType,
+            EmvPayload: emvPayload,
+            BarcodeDigits: barcodeDigits));
 
         return instance;
     }
@@ -156,17 +195,24 @@ public sealed class Payable : EventSourcedAggregateRoot<PayableId>
         Money amount,
         DueDate dueDate,
         Description description,
+        PaymentInstrument paymentInstrument,
         DateTime occurredAt)
     {
         ArgumentNullException.ThrowIfNull(amount);
         ArgumentNullException.ThrowIfNull(dueDate);
         ArgumentNullException.ThrowIfNull(description);
+        if (paymentInstrument is null)
+            throw PayableErrors.PaymentInstrumentRequired();
 
         var today = DateOnly.FromDateTime(occurredAt);
         if (dueDate.Value < today)
             throw PayableErrors.DueDateInPast(dueDate.Value, today);
         if (installmentNumber < 1)
             throw PayableErrors.InstallmentNumberMustBePositive(installmentNumber);
+
+        var (kind, legalName, taxIdValue, taxIdType, pixVal, pixType,
+             bankCode, branch, accNumber, accType,
+             emvPayload, barcodeDigits) = PaymentInstrumentSerialization.Expand(paymentInstrument);
 
         var instance = new Payable();
         instance.Apply(new PayableCreatedAsInstallment(
@@ -180,7 +226,19 @@ public sealed class Payable : EventSourcedAggregateRoot<PayableId>
             AmountValue: amount.Amount,
             AmountCurrency: amount.Currency.Name,
             DueDate: dueDate.Value,
-            Description: description.Value));
+            Description: description.Value,
+            InstrumentKind: kind,
+            SupplierLegalName: legalName,
+            SupplierTaxIdValue: taxIdValue,
+            SupplierTaxIdType: taxIdType,
+            PixKeyValue: pixVal,
+            PixKeyType: pixType,
+            BankCode: bankCode,
+            Branch: branch,
+            AccountNumber: accNumber,
+            AccountType: accType,
+            EmvPayload: emvPayload,
+            BarcodeDigits: barcodeDigits));
 
         return instance;
     }
@@ -429,21 +487,20 @@ public sealed class Payable : EventSourcedAggregateRoot<PayableId>
     }
 
     /// <summary>
-    /// Hand the payable off to <c>PaymentExecution</c> by recording the chosen channel and bank
-    /// account. Emits <see cref="PayablePaymentRequested"/> — the Application layer is responsible
-    /// for turning it into a <c>PaymentOrder</c> on the sibling BC. Allowed from <see cref="PayableStatus.Scheduled"/>
-    /// (happy path) and from <see cref="PayableStatus.PaymentFailed"/> (retry after the bank rejected
-    /// the previous order).
+    /// Hand the payable off to <c>PaymentExecution</c>. O <c>PaymentMethod</c> e o
+    /// <c>PaymentInstrument</c> já estão no estado desde a criação (Sprint 12.B); o evento
+    /// serializa o instrumento via <c>PaymentInstrumentSerialization</c> para o PSP processar.
+    /// Permitido de <see cref="PayableStatus.Scheduled"/> (happy path) e de
+    /// <see cref="PayableStatus.PaymentFailed"/> (retry).
     /// </summary>
-    public void RequestPayment(
-        PaymentMethod method,
-        SupplierBankAccountId bankAccountId,
-        DateTime occurredAt)
+    public void RequestPayment(DateTime occurredAt)
     {
-        ArgumentNullException.ThrowIfNull(method);
-
         if (!Status.CanTransitionTo(PayableStatus.PaymentRequested))
             throw PayableErrors.InvalidStatusTransition(Status.Name, PayableStatus.PaymentRequested.Name);
+
+        var (kind, legalName, taxIdValue, taxIdType, pixVal, pixType,
+             bankCode, branch, accNumber, accType,
+             emvPayload, barcodeDigits) = PaymentInstrumentSerialization.Expand(PaymentInstrument);
 
         Apply(new PayablePaymentRequested(
             EventId: Guid.NewGuid(),
@@ -452,8 +509,18 @@ public sealed class Payable : EventSourcedAggregateRoot<PayableId>
             SupplierId: SupplierId,
             AmountValue: Amount.Amount,
             AmountCurrency: Amount.Currency.Name,
-            BankAccountId: bankAccountId,
-            Method: method.Name));
+            InstrumentKind: kind,
+            SupplierLegalName: legalName,
+            SupplierTaxIdValue: taxIdValue,
+            SupplierTaxIdType: taxIdType,
+            PixKeyValue: pixVal,
+            PixKeyType: pixType,
+            BankCode: bankCode,
+            Branch: branch,
+            AccountNumber: accNumber,
+            AccountType: accType,
+            EmvPayload: emvPayload,
+            BarcodeDigits: barcodeDigits));
     }
 
     /// <summary>
@@ -489,6 +556,31 @@ public sealed class Payable : EventSourcedAggregateRoot<PayableId>
     }
 
     /// <summary>
+    /// Marca este Payable como tendo um <see cref="PaymentInstrument"/> desatualizado em relação
+    /// ao estado atual do <c>Supplier</c>. Idempotente: se já está sinalizado, nova chamada é
+    /// no-op silenciosa (sem evento, sem mutação). Auditoria detalhada vive no stream do Supplier.
+    /// <para>
+    /// Não muda <c>Status</c> nem bloqueia transições — é uma anotação para o handler de
+    /// notificação proativa (Sprint 12.E, opção B+C). A Application chama este comando depois
+    /// de o <c>OutdatedInstrumentDetector</c> diagnosticar divergência.
+    /// </para>
+    /// </summary>
+    public void FlagInstrumentOutdated(string reason, DateTime occurredAt)
+    {
+        if (IsInstrumentOutdated)
+            return; // idempotente — emite uma única vez ever
+
+        if (string.IsNullOrWhiteSpace(reason))
+            throw PayableErrors.OutdatedReasonRequired();
+
+        Apply(new PayableInstrumentOutdated(
+            EventId: Guid.NewGuid(),
+            OccurredAt: occurredAt,
+            PayableId: Id,
+            Reason: reason.Trim()));
+    }
+
+    /// <summary>
     /// Record that <c>PaymentExecution</c> reported a failure for the last requested payment.
     /// Status moves to <see cref="PayableStatus.PaymentFailed"/>, which is non-terminal — the
     /// caller can issue a new <see cref="RequestPayment"/> (retry) or <see cref="Cancel"/>.
@@ -520,6 +612,10 @@ public sealed class Payable : EventSourcedAggregateRoot<PayableId>
         DueDate = new DueDate(e.DueDate);
         Description = new Description(e.Description);
         Status = PayableStatus.Draft;
+        PaymentInstrument = PaymentInstrumentSerialization.Rebuild(
+            e.InstrumentKind, e.SupplierLegalName, e.SupplierTaxIdValue, e.SupplierTaxIdType,
+            e.PixKeyValue, e.PixKeyType, e.BankCode, e.Branch, e.AccountNumber, e.AccountType,
+            e.EmvPayload, e.BarcodeDigits);
     }
 
     private void When(PayableCreatedFromCapture e)
@@ -532,6 +628,10 @@ public sealed class Payable : EventSourcedAggregateRoot<PayableId>
         Description = new Description(e.Description);
         Status = PayableStatus.Draft;
         CapturedBillId = e.CapturedBillId;
+        PaymentInstrument = PaymentInstrumentSerialization.Rebuild(
+            e.InstrumentKind, e.SupplierLegalName, e.SupplierTaxIdValue, e.SupplierTaxIdType,
+            e.PixKeyValue, e.PixKeyType, e.BankCode, e.Branch, e.AccountNumber, e.AccountType,
+            e.EmvPayload, e.BarcodeDigits);
     }
 
     private void When(PayableCreatedAsInstallment e)
@@ -545,6 +645,10 @@ public sealed class Payable : EventSourcedAggregateRoot<PayableId>
         Status = PayableStatus.Draft;
         InstallmentPlanId = e.InstallmentPlanId;
         InstallmentNumber = e.InstallmentNumber;
+        PaymentInstrument = PaymentInstrumentSerialization.Rebuild(
+            e.InstrumentKind, e.SupplierLegalName, e.SupplierTaxIdValue, e.SupplierTaxIdType,
+            e.PixKeyValue, e.PixKeyType, e.BankCode, e.Branch, e.AccountNumber, e.AccountType,
+            e.EmvPayload, e.BarcodeDigits);
     }
 
     private void When(PayableScheduled e)
@@ -628,8 +732,9 @@ public sealed class Payable : EventSourcedAggregateRoot<PayableId>
     private void When(PayablePaymentRequested e)
     {
         Status = PayableStatus.PaymentRequested;
-        PaymentMethod = Enumeration.FromDisplayName<PaymentMethod>(e.Method);
-        PaymentBankAccountId = e.BankAccountId;
+        // PaymentMethod e PaymentInstrument foram populados em When(PayableCreated*) na Sprint 12.B
+        // e não mudam — o evento PayablePaymentRequested apenas re-serializa para a Application
+        // entregar ao PSP. Reidratação aqui só atualiza o ciclo (timestamp + limpeza de falha).
         PaymentRequestedAt = e.OccurredAt;
         PaymentFailureReason = null;
         PaymentFailedAt = null;
@@ -648,5 +753,12 @@ public sealed class Payable : EventSourcedAggregateRoot<PayableId>
         LastPaymentOrderId = e.PaymentOrderId;
         PaymentFailedAt = e.OccurredAt;
         PaymentFailureReason = e.Reason;
+    }
+
+    private void When(PayableInstrumentOutdated e)
+    {
+        IsInstrumentOutdated = true;
+        OutdatedAt = e.OccurredAt;
+        OutdatedReason = e.Reason;
     }
 }

@@ -4,60 +4,65 @@ using System.IO;
 using System.Runtime.CompilerServices;
 using AccountsPayable.Domain.SeedWork;
 
-// VO: SBA (SupplierBankAccount — sealed hierarchy: SupplierPixAccount | SupplierBankTransferAccount)
-internal static class SupplierBankAccountErrors
+// VO: EMV (EmvPayload — PIX BR Code payload, usado em DynamicPixInstrument)
+internal static class EmvPayloadErrors
 {
-    private const string PREFIX = "AP.SBA";
+    private const string PREFIX = "AP.EMV";
 
-    public static DomainException BankCodeEmpty(
+    public static DomainException Empty(
         [CallerFilePath] string filePath = "",
         [CallerMemberName] string memberName = "",
         [CallerLineNumber] int lineNumber = 0)
         => new(
             id: $"{PREFIX}01",
-            messageTemplate: "Código do banco não pode ser vazio.",
+            messageTemplate: "EMV payload não pode ser vazio.",
             parameters: Array.Empty<object>(),
             sourcePath: BuildSourcePath(filePath, memberName, lineNumber));
 
-    public static DomainException BankCodeInvalid(
-        string raw,
+    public static DomainException TooShort(
+        int actualLength,
+        int minLength,
         [CallerFilePath] string filePath = "",
         [CallerMemberName] string memberName = "",
         [CallerLineNumber] int lineNumber = 0)
         => new(
             id: $"{PREFIX}02",
-            messageTemplate: "Código de banco inválido: '{0}' (esperado 3 dígitos).",
-            parameters: new object[] { raw },
+            messageTemplate: "EMV payload curto demais ({0} caracteres; mínimo {1}).",
+            parameters: new object[] { actualLength, minLength },
             sourcePath: BuildSourcePath(filePath, memberName, lineNumber));
 
-    public static DomainException BranchEmpty(
+    public static DomainException TooLong(
+        int actualLength,
+        int maxLength,
         [CallerFilePath] string filePath = "",
         [CallerMemberName] string memberName = "",
         [CallerLineNumber] int lineNumber = 0)
         => new(
             id: $"{PREFIX}03",
-            messageTemplate: "Agência não pode ser vazia.",
-            parameters: Array.Empty<object>(),
+            messageTemplate: "EMV payload longo demais ({0} caracteres; máximo {1}).",
+            parameters: new object[] { actualLength, maxLength },
             sourcePath: BuildSourcePath(filePath, memberName, lineNumber));
 
-    public static DomainException AccountNumberEmpty(
+    public static DomainException InvalidPrefix(
         [CallerFilePath] string filePath = "",
         [CallerMemberName] string memberName = "",
         [CallerLineNumber] int lineNumber = 0)
         => new(
             id: $"{PREFIX}04",
-            messageTemplate: "Número da conta não pode ser vazio.",
+            messageTemplate: "EMV payload deve começar com o Payload Format Indicator '000201'.",
             parameters: Array.Empty<object>(),
             sourcePath: BuildSourcePath(filePath, memberName, lineNumber));
 
-    public static DomainException AccountTypeRequired(
+    public static DomainException InvalidCrc16(
+        string provided,
+        string computed,
         [CallerFilePath] string filePath = "",
         [CallerMemberName] string memberName = "",
         [CallerLineNumber] int lineNumber = 0)
         => new(
             id: $"{PREFIX}05",
-            messageTemplate: "Tipo de conta bancária é obrigatório.",
-            parameters: Array.Empty<object>(),
+            messageTemplate: "CRC16 do EMV inválido: recebido '{0}', esperado '{1}'.",
+            parameters: new object[] { provided, computed },
             sourcePath: BuildSourcePath(filePath, memberName, lineNumber));
 
     private static string BuildSourcePath(string filePath, string memberName, int lineNumber)

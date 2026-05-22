@@ -7,6 +7,8 @@ using AccountsPayable.Domain.Payables.ValueObjects;
 using AccountsPayable.Domain.SeedWork;
 using AccountsPayable.Domain.Services;
 using AccountsPayable.Domain.Suppliers;
+using AccountsPayable.Domain.Suppliers.Enumerations;
+using AccountsPayable.Domain.Suppliers.ValueObjects;
 
 public class InstallmentPlanFactoryTests
 {
@@ -14,23 +16,13 @@ public class InstallmentPlanFactoryTests
     private static readonly DateOnly FIRST_DUE_DATE = new(2024, 2, 15);
     private static readonly TenantId TENANT = TenantId.From(new Guid("11111111-1111-1111-1111-111111111111"));
     private static readonly SupplierId SUPPLIER = SupplierId.From(new Guid("22222222-2222-2222-2222-222222222222"));
+    private static readonly PaymentInstrument DEFAULT_INSTRUMENT = new SupplierBankTransferInstrument(
+        new LegalName("Acme Brasil LTDA"),
+        new TaxId("59.199.597/0001-98"),
+        "001", "0001", "123456-7", BankAccountType.Checking);
 
-    private readonly InstallmentPlanFactory _sut = new();
-
-    private InstallmentPlanFactoryResult Build(
-        decimal totalAmount = 12_000m,
-        int installmentCount = 12,
-        InstallmentFrequency? frequency = null) =>
-        _sut.Create(
-            planId: InstallmentPlanId.New(),
-            tenantId: TENANT,
-            supplierId: SUPPLIER,
-            totalAmount: new Money(totalAmount, Currency.Brl),
-            installmentCount: installmentCount,
-            firstDueDate: FIRST_DUE_DATE,
-            frequency: frequency ?? InstallmentFrequency.Monthly,
-            description: new Description("Aluguel anual"),
-            occurredAt: FIXED_NOW);
+    private static IReadOnlyList<PaymentInstrument> Instruments(int count)
+        => Enumerable.Range(0, count).Select(_ => DEFAULT_INSTRUMENT).ToList();
 
     public class WhenBuilding
     {
@@ -48,16 +40,15 @@ public class InstallmentPlanFactoryTests
                 firstDueDate: FIRST_DUE_DATE,
                 frequency: InstallmentFrequency.Monthly,
                 description: new Description("Aluguel anual"),
+                instrumentsPerInstallment: Instruments(12),
                 occurredAt: FIXED_NOW);
 
             Assert.Equal(12, result.Payables.Count);
             Assert.Equal(12, result.Plan.PayableIds.Count);
             Assert.All(result.Payables, p => Assert.Equal(result.Plan.Id, p.InstallmentPlanId));
-            // InstallmentNumber é 1-based e cobre [1..12].
             Assert.Equal(
                 Enumerable.Range(1, 12),
                 result.Payables.Select(p => p.InstallmentNumber!.Value).OrderBy(n => n));
-            // Cada PayableId está registrado no plano.
             Assert.All(result.Payables, p => Assert.Contains(p.Id, result.Plan.PayableIds));
         }
 
@@ -75,6 +66,7 @@ public class InstallmentPlanFactoryTests
                 firstDueDate: FIRST_DUE_DATE,
                 frequency: InstallmentFrequency.Monthly,
                 description: new Description("Aluguel anual"),
+                instrumentsPerInstallment: Instruments(12),
                 occurredAt: FIXED_NOW);
 
             Assert.All(result.Payables, p => Assert.Equal(1_000m, p.Amount.Amount));
@@ -95,6 +87,7 @@ public class InstallmentPlanFactoryTests
                 firstDueDate: FIRST_DUE_DATE,
                 frequency: InstallmentFrequency.Monthly,
                 description: new Description("Aluguel trimestral"),
+                instrumentsPerInstallment: Instruments(3),
                 occurredAt: FIXED_NOW);
 
             var ordered = result.Payables.OrderBy(p => p.InstallmentNumber).ToList();
@@ -118,11 +111,12 @@ public class InstallmentPlanFactoryTests
                 firstDueDate: new DateOnly(2024, 1, 31),
                 frequency: InstallmentFrequency.Monthly,
                 description: new Description("Plano X"),
+                instrumentsPerInstallment: Instruments(3),
                 occurredAt: FIXED_NOW);
 
             var ordered = result.Payables.OrderBy(p => p.InstallmentNumber).ToList();
             Assert.Equal(new DateOnly(2024, 1, 31), ordered[0].DueDate.Value);
-            Assert.Equal(new DateOnly(2024, 2, 29), ordered[1].DueDate.Value); // ano bissexto — fevereiro com 29
+            Assert.Equal(new DateOnly(2024, 2, 29), ordered[1].DueDate.Value);
             Assert.Equal(new DateOnly(2024, 3, 31), ordered[2].DueDate.Value);
         }
 
@@ -140,6 +134,7 @@ public class InstallmentPlanFactoryTests
                 firstDueDate: new DateOnly(2024, 2, 1),
                 frequency: InstallmentFrequency.Weekly,
                 description: new Description("Plano semanal"),
+                instrumentsPerInstallment: Instruments(4),
                 occurredAt: FIXED_NOW);
 
             var ordered = result.Payables.OrderBy(p => p.InstallmentNumber).ToList();
@@ -163,6 +158,7 @@ public class InstallmentPlanFactoryTests
                 firstDueDate: FIRST_DUE_DATE,
                 frequency: InstallmentFrequency.Monthly,
                 description: new Description("Aluguel"),
+                instrumentsPerInstallment: Instruments(3),
                 occurredAt: FIXED_NOW);
 
             var ordered = result.Payables.OrderBy(p => p.InstallmentNumber).ToList();
@@ -186,9 +182,64 @@ public class InstallmentPlanFactoryTests
                 firstDueDate: FIRST_DUE_DATE,
                 frequency: InstallmentFrequency.Monthly,
                 description: new Description("Plano inválido"),
+                instrumentsPerInstallment: Instruments(1),
                 occurredAt: FIXED_NOW));
 
             Assert.Equal("AP.IPL01", ex.Id);
+        }
+
+        // Lista de instrumentos com tamanho diferente de installmentCount lança AP.IPL08.
+        [Fact]
+        public void Create_WithMismatchedInstrumentListSize_ShouldThrow_IPL08()
+        {
+            var factory = new InstallmentPlanFactory();
+
+            var ex = Assert.Throws<DomainException>(() => factory.Create(
+                planId: InstallmentPlanId.New(),
+                tenantId: TENANT,
+                supplierId: SUPPLIER,
+                totalAmount: new Money(3_000m, Currency.Brl),
+                installmentCount: 3,
+                firstDueDate: FIRST_DUE_DATE,
+                frequency: InstallmentFrequency.Monthly,
+                description: new Description("Plano"),
+                instrumentsPerInstallment: Instruments(2),
+                occurredAt: FIXED_NOW));
+
+            Assert.Equal("AP.IPL08", ex.Id);
+        }
+
+        // Cada parcela carrega o seu próprio PaymentInstrument (1 boleto distinto por parcela).
+        [Fact]
+        public void Create_WithDistinctInstrumentPerInstallment_ShouldAttachEachToItsPayable()
+        {
+            var factory = new InstallmentPlanFactory();
+            var inst1 = new SupplierBankTransferInstrument(
+                new LegalName("Acme"), new TaxId("59.199.597/0001-98"),
+                "001", "0001", "111111-1", BankAccountType.Checking);
+            var inst2 = new SupplierBankTransferInstrument(
+                new LegalName("Acme"), new TaxId("59.199.597/0001-98"),
+                "001", "0001", "222222-2", BankAccountType.Checking);
+            var inst3 = new SupplierBankTransferInstrument(
+                new LegalName("Acme"), new TaxId("59.199.597/0001-98"),
+                "001", "0001", "333333-3", BankAccountType.Checking);
+
+            var result = factory.Create(
+                planId: InstallmentPlanId.New(),
+                tenantId: TENANT,
+                supplierId: SUPPLIER,
+                totalAmount: new Money(3_000m, Currency.Brl),
+                installmentCount: 3,
+                firstDueDate: FIRST_DUE_DATE,
+                frequency: InstallmentFrequency.Monthly,
+                description: new Description("Compra parcelada"),
+                instrumentsPerInstallment: new List<PaymentInstrument> { inst1, inst2, inst3 },
+                occurredAt: FIXED_NOW);
+
+            var ordered = result.Payables.OrderBy(p => p.InstallmentNumber).ToList();
+            Assert.Equal(inst1, ordered[0].PaymentInstrument);
+            Assert.Equal(inst2, ordered[1].PaymentInstrument);
+            Assert.Equal(inst3, ordered[2].PaymentInstrument);
         }
     }
 }

@@ -206,17 +206,13 @@ public class PayableTests
             var payableId = PayableId.From(new Guid("dddddddd-dddd-dddd-dddd-dddddddddddd"));
             var history = new IDomainEvent[]
             {
-                new PayableCreatedFromCapture(
-                    EventId: Guid.NewGuid(),
-                    OccurredAt: FIXED_NOW,
-                    PayableId: payableId,
-                    TenantId: PayableMother.DEFAULT_TENANT,
-                    CapturedBillId: PayableMother.DEFAULT_CAPTURED_BILL,
-                    SupplierId: PayableMother.DEFAULT_SUPPLIER,
-                    AmountValue: 1_500m,
-                    AmountCurrency: "BRL",
-                    DueDate: PayableMother.DEFAULT_DUE_DATE,
-                    Description: "Boleto Sabesp março"),
+                PayableMother.TEMPLATE_PAYABLE_CREATED_FROM_CAPTURE with
+                {
+                    EventId = Guid.NewGuid(),
+                    OccurredAt = FIXED_NOW,
+                    PayableId = payableId,
+                    Description = "Boleto Sabesp março",
+                },
             };
 
             var payable = Payable.Rehydrate(history);
@@ -931,19 +927,19 @@ public class PayableTests
             payable.PullChanges();
             var occurredAt = FIXED_NOW.AddMinutes(20);
 
-            payable.RequestPayment(PaymentMethod.Pix, PayableMother.DEFAULT_BANK_ACCOUNT, occurredAt);
+            payable.RequestPayment(occurredAt);
 
             Assert.Equal(PayableStatus.PaymentRequested, payable.Status);
-            Assert.Equal(PaymentMethod.Pix, payable.PaymentMethod);
-            Assert.Equal(PayableMother.DEFAULT_BANK_ACCOUNT, payable.PaymentBankAccountId);
+            Assert.Equal(PaymentMethod.SupplierTransfer, payable.PaymentInstrument.Method);
             Assert.Equal(occurredAt, payable.PaymentRequestedAt);
             var requested = Assert.IsType<PayablePaymentRequested>(payable.Changes.Single());
             Assert.Equal(payable.Id, requested.PayableId);
             Assert.Equal(PayableMother.DEFAULT_SUPPLIER, requested.SupplierId);
             Assert.Equal(1_500m, requested.AmountValue);
             Assert.Equal("BRL", requested.AmountCurrency);
-            Assert.Equal(PayableMother.DEFAULT_BANK_ACCOUNT, requested.BankAccountId);
-            Assert.Equal("PIX", requested.Method);
+            Assert.Equal("SUPPLIER_BANK", requested.InstrumentKind);
+            Assert.Equal("001", requested.BankCode);
+            Assert.Equal("123456-7", requested.AccountNumber);
         }
 
         // RequestPayment em Draft/Approved/AwaitingApproval/Paid/Cancelled/Rejected lança AP.PAY01 (só sai de Scheduled ou PaymentFailed).
@@ -967,20 +963,9 @@ public class PayableTests
                 _ => throw new InvalidOperationException()
             };
 
-            var ex = Assert.Throws<DomainException>(() => payable.RequestPayment(
-                PaymentMethod.Pix, PayableMother.DEFAULT_BANK_ACCOUNT, LATER));
+            var ex = Assert.Throws<DomainException>(() => payable.RequestPayment(LATER));
 
             Assert.Equal("AP.PAY01", ex.Id);
-        }
-
-        // RequestPayment com PaymentMethod null lança ArgumentNullException (guarda básica antes da máquina de estados).
-        [Fact]
-        public void RequestPayment_WithNullMethod_ShouldThrowArgumentNullException()
-        {
-            var payable = PayableMother.Scheduled();
-
-            Assert.Throws<ArgumentNullException>(() => payable.RequestPayment(
-                null!, PayableMother.DEFAULT_BANK_ACCOUNT, LATER));
         }
 
         // Fluxo completo Classified → AwaitingApproval → Approved → Scheduled → RequestPayment chega em PaymentRequested.
@@ -991,7 +976,7 @@ public class PayableTests
             var payable = PayableMother.Approved();
             payable.Schedule(PayableMother.DEFAULT_SCHEDULED_FOR, FIXED_NOW.AddMinutes(6));
 
-            payable.RequestPayment(PaymentMethod.Ted, PayableMother.DEFAULT_BANK_ACCOUNT, LATER);
+            payable.RequestPayment(LATER);
 
             Assert.Equal(PayableStatus.PaymentRequested, payable.Status);
             Assert.NotNull(payable.ApprovedAt);
@@ -1005,7 +990,7 @@ public class PayableTests
             payable.PullChanges();
             Assert.Equal("Conta destino inválida", payable.PaymentFailureReason); // sanity
 
-            payable.RequestPayment(PaymentMethod.Pix, PayableMother.DEFAULT_BANK_ACCOUNT, LATER);
+            payable.RequestPayment(LATER);
 
             Assert.Equal(PayableStatus.PaymentRequested, payable.Status);
             Assert.Null(payable.PaymentFailureReason);
@@ -1173,15 +1158,16 @@ public class PayableTests
         {
             var payable = PayableMother.Scheduled();
 
-            payable.RequestPayment(PaymentMethod.Pix, PayableMother.DEFAULT_BANK_ACCOUNT, FIXED_NOW.AddMinutes(10));
+            payable.RequestPayment(FIXED_NOW.AddMinutes(10));
             payable.MarkPaymentFailed(PayableMother.DEFAULT_PAYMENT_ORDER, "Saldo insuficiente", FIXED_NOW.AddMinutes(20));
-            payable.RequestPayment(PaymentMethod.Ted, PayableMother.DEFAULT_BANK_ACCOUNT, FIXED_NOW.AddMinutes(30));
+            payable.RequestPayment(FIXED_NOW.AddMinutes(30));
             var newPaymentOrder = PaymentOrderId.From(new Guid("eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee"));
             payable.ConfirmPaid(newPaymentOrder, FIXED_NOW.AddMinutes(40), FIXED_NOW.AddMinutes(41));
 
             Assert.Equal(PayableStatus.Paid, payable.Status);
             Assert.Equal(newPaymentOrder, payable.LastPaymentOrderId);
-            Assert.Equal(PaymentMethod.Ted, payable.PaymentMethod);
+            // PaymentMethod foi decidido na criação (Sprint 12.B) — segundo RequestPayment não muda.
+            Assert.Equal(PaymentMethod.SupplierTransfer, payable.PaymentInstrument.Method);
         }
     }
 
@@ -1197,16 +1183,13 @@ public class PayableTests
             var payableId = PayableId.From(new Guid("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"));
             var history = new IDomainEvent[]
             {
-                new PayableCreated(
-                    EventId: Guid.NewGuid(),
-                    OccurredAt: FIXED_NOW,
-                    PayableId: payableId,
-                    TenantId: PayableMother.DEFAULT_TENANT,
-                    SupplierId: PayableMother.DEFAULT_SUPPLIER,
-                    AmountValue: 1_500m,
-                    AmountCurrency: "BRL",
-                    DueDate: PayableMother.DEFAULT_DUE_DATE,
-                    Description: "Aluguel sede março"),
+                PayableMother.TEMPLATE_PAYABLE_CREATED with
+                {
+                    EventId = Guid.NewGuid(),
+                    OccurredAt = FIXED_NOW,
+                    PayableId = payableId,
+                    Description = "Aluguel sede março",
+                },
                 new PayableScheduled(
                     EventId: Guid.NewGuid(),
                     OccurredAt: FIXED_NOW.AddMinutes(5),
@@ -1231,10 +1214,13 @@ public class PayableTests
             var payableId = PayableId.From(new Guid("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb"));
             var history = new IDomainEvent[]
             {
-                new PayableCreated(
-                    Guid.NewGuid(), FIXED_NOW, payableId,
-                    PayableMother.DEFAULT_TENANT, PayableMother.DEFAULT_SUPPLIER,
-                    1_500m, "BRL", PayableMother.DEFAULT_DUE_DATE, "Aluguel sede março"),
+                PayableMother.TEMPLATE_PAYABLE_CREATED with
+                {
+                    EventId = Guid.NewGuid(),
+                    OccurredAt = FIXED_NOW,
+                    PayableId = payableId,
+                    Description = "Aluguel sede março",
+                },
                 new PayableScheduled(Guid.NewGuid(), FIXED_NOW.AddMinutes(5), payableId, PayableMother.DEFAULT_SCHEDULED_FOR),
                 new PayableMarkedAsPaid(
                     Guid.NewGuid(), FIXED_NOW.AddDays(30), payableId,
@@ -1264,6 +1250,81 @@ public class PayableTests
             Assert.Empty(payable.Changes);
             Assert.Equal(3, payable.Version);
             Assert.Equal(PayableStatus.Scheduled, payable.Status);
+        }
+    }
+
+    public class WhenFlaggingInstrumentOutdated
+    {
+        // FlagInstrumentOutdated em estado limpo seta o flag, registra timestamp/motivo e emite PayableInstrumentOutdated.
+        [Fact]
+        public void Flag_FromCleanState_ShouldSetFlagAndEmitEvent()
+        {
+            var payable = PayableMother.Draft();
+            payable.PullChanges();
+            var when = FIXED_NOW.AddDays(5);
+
+            payable.FlagInstrumentOutdated("Snapshot diverge em LegalName", when);
+
+            Assert.True(payable.IsInstrumentOutdated);
+            Assert.Equal(when, payable.OutdatedAt);
+            Assert.Equal("Snapshot diverge em LegalName", payable.OutdatedReason);
+            var emitted = Assert.IsType<PayableInstrumentOutdated>(payable.Changes.Single());
+            Assert.Equal("Snapshot diverge em LegalName", emitted.Reason);
+        }
+
+        // Chamar FlagInstrumentOutdated 2x é idempotente — segunda chamada não emite nem altera state.
+        [Fact]
+        public void Flag_TwiceInARow_ShouldEmitOnlyOnce()
+        {
+            var payable = PayableMother.Draft();
+            payable.FlagInstrumentOutdated("Primeiro motivo", FIXED_NOW.AddDays(5));
+            payable.PullChanges();
+
+            payable.FlagInstrumentOutdated("Segundo motivo diferente", FIXED_NOW.AddDays(10));
+
+            Assert.Empty(payable.Changes);
+            Assert.Equal("Primeiro motivo", payable.OutdatedReason); // o primeiro motivo persiste
+        }
+
+        // Motivo vazio ou só com espaços lança AP.PAY22.
+        [Theory]
+        [InlineData("")]
+        [InlineData("   ")]
+        public void Flag_WithEmptyReason_ShouldThrow_PAY22(string reason)
+        {
+            var payable = PayableMother.Draft();
+
+            var ex = Assert.Throws<DomainException>(
+                () => payable.FlagInstrumentOutdated(reason, FIXED_NOW.AddDays(5)));
+
+            Assert.Equal("AP.PAY22", ex.Id);
+        }
+
+        // FlagInstrumentOutdated não muda Status (não interfere na máquina de estados).
+        [Fact]
+        public void Flag_ShouldNotChangeStatus()
+        {
+            var payable = PayableMother.Scheduled();
+            var statusBefore = payable.Status;
+
+            payable.FlagInstrumentOutdated("Motivo qualquer", FIXED_NOW.AddDays(5));
+
+            Assert.Equal(statusBefore, payable.Status);
+        }
+
+        // Reidratação preserva IsInstrumentOutdated/OutdatedAt/OutdatedReason.
+        [Fact]
+        public void Rehydrate_FromStreamWithOutdatedEvent_ShouldRebuildOutdatedState()
+        {
+            var payable = PayableMother.Draft();
+            payable.FlagInstrumentOutdated("Conta desativada", FIXED_NOW.AddDays(3));
+            var stream = payable.PullChanges();
+
+            var rehydrated = Payable.Rehydrate(stream);
+
+            Assert.True(rehydrated.IsInstrumentOutdated);
+            Assert.Equal(FIXED_NOW.AddDays(3), rehydrated.OutdatedAt);
+            Assert.Equal("Conta desativada", rehydrated.OutdatedReason);
         }
     }
 }

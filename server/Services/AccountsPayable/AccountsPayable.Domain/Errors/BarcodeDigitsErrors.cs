@@ -4,60 +4,64 @@ using System.IO;
 using System.Runtime.CompilerServices;
 using AccountsPayable.Domain.SeedWork;
 
-// VO: SBA (SupplierBankAccount — sealed hierarchy: SupplierPixAccount | SupplierBankTransferAccount)
-internal static class SupplierBankAccountErrors
+// VO: BCD (BarcodeDigits — boleto código de barras 44 dígitos)
+internal static class BarcodeDigitsErrors
 {
-    private const string PREFIX = "AP.SBA";
+    private const string PREFIX = "AP.BCD";
 
-    public static DomainException BankCodeEmpty(
+    public static DomainException Empty(
         [CallerFilePath] string filePath = "",
         [CallerMemberName] string memberName = "",
         [CallerLineNumber] int lineNumber = 0)
         => new(
             id: $"{PREFIX}01",
-            messageTemplate: "Código do banco não pode ser vazio.",
+            messageTemplate: "Código de barras não pode ser vazio.",
             parameters: Array.Empty<object>(),
             sourcePath: BuildSourcePath(filePath, memberName, lineNumber));
 
-    public static DomainException BankCodeInvalid(
-        string raw,
+    public static DomainException InvalidLength(
+        int actualLength,
+        int expectedLength,
         [CallerFilePath] string filePath = "",
         [CallerMemberName] string memberName = "",
         [CallerLineNumber] int lineNumber = 0)
         => new(
             id: $"{PREFIX}02",
-            messageTemplate: "Código de banco inválido: '{0}' (esperado 3 dígitos).",
-            parameters: new object[] { raw },
+            messageTemplate: "Código de barras deve ter {1} dígitos; recebeu {0}.",
+            parameters: new object[] { actualLength, expectedLength },
             sourcePath: BuildSourcePath(filePath, memberName, lineNumber));
 
-    public static DomainException BranchEmpty(
+    public static DomainException NonNumeric(
         [CallerFilePath] string filePath = "",
         [CallerMemberName] string memberName = "",
         [CallerLineNumber] int lineNumber = 0)
         => new(
             id: $"{PREFIX}03",
-            messageTemplate: "Agência não pode ser vazia.",
+            messageTemplate: "Código de barras deve conter apenas dígitos.",
             parameters: Array.Empty<object>(),
             sourcePath: BuildSourcePath(filePath, memberName, lineNumber));
 
-    public static DomainException AccountNumberEmpty(
+    public static DomainException InvalidDigitVerifier(
+        int provided,
+        int expected,
         [CallerFilePath] string filePath = "",
         [CallerMemberName] string memberName = "",
         [CallerLineNumber] int lineNumber = 0)
         => new(
             id: $"{PREFIX}04",
-            messageTemplate: "Número da conta não pode ser vazio.",
-            parameters: Array.Empty<object>(),
+            messageTemplate: "Dígito verificador do código de barras inválido (mod-11): recebido {0}, esperado {1}.",
+            parameters: new object[] { provided, expected },
             sourcePath: BuildSourcePath(filePath, memberName, lineNumber));
 
-    public static DomainException AccountTypeRequired(
+    public static DomainException InvalidBankCode(
+        string bankCode,
         [CallerFilePath] string filePath = "",
         [CallerMemberName] string memberName = "",
         [CallerLineNumber] int lineNumber = 0)
         => new(
             id: $"{PREFIX}05",
-            messageTemplate: "Tipo de conta bancária é obrigatório.",
-            parameters: Array.Empty<object>(),
+            messageTemplate: "Código de banco do boleto inválido: '{0}'.",
+            parameters: new object[] { bankCode },
             sourcePath: BuildSourcePath(filePath, memberName, lineNumber));
 
     private static string BuildSourcePath(string filePath, string memberName, int lineNumber)

@@ -1423,43 +1423,55 @@ UI mostra "Aguardando cancelamento do pagamento agendado..." — tipicamente seg
 
 #### 9.11.4 Estrutura externa do `PaymentInstrument`
 
-Conforme D-147, dois tipos no MVP:
+Conforme D-147 (retificado na Sprint 12.A), **quatro variantes seladas** no MVP, organizadas em uma hierarquia com um abstract intermediário `SupplierTransferInstrument` que carrega snapshot do fornecedor (`LegalName` + `TaxId`):
 
 ```mermaid
 classDiagram
     class PaymentInstrument {
-        <<sealed VO>>
-        +Beneficiary beneficiario
+        <<abstract sealed VO>>
+        +PaymentMethod Method
     }
 
-    class BoletoPayment {
-        +String linhaDigitavel
-        +String? codigoBarras
+    class SupplierTransferInstrument {
+        <<abstract>>
+        +LegalName SupplierLegalName
+        +TaxId SupplierTaxId
     }
 
-    class PixPayment {
-        +PixKey | CopyAndPasteCode payment
-        +String? endToEndId
+    class SupplierPixTransferInstrument {
+        +PixKey PixKey
     }
 
-    PaymentInstrument <|-- BoletoPayment
-    PaymentInstrument <|-- PixPayment
-
-    class PixKey {
-        <<VO>>
-        +PixKeyType type
-        +String value
+    class SupplierBankTransferInstrument {
+        +String BankCode
+        +String Branch
+        +String AccountNumber
+        +BankAccountType AccountType
     }
 
-    class PixKeyType {
-        <<enum>>
-        CPF
-        CNPJ
-        EMAIL
-        PHONE
-        RANDOM
+    class DynamicPixInstrument {
+        +EmvPayload Payload
     }
+
+    class BankSlipInstrument {
+        +BarcodeDigits Barcode
+    }
+
+    PaymentInstrument <|-- SupplierTransferInstrument
+    SupplierTransferInstrument <|-- SupplierPixTransferInstrument
+    SupplierTransferInstrument <|-- SupplierBankTransferInstrument
+    PaymentInstrument <|-- DynamicPixInstrument
+    PaymentInstrument <|-- BankSlipInstrument
 ```
+
+`PaymentMethod` (Smart Enum, 3 valores): `SupplierTransfer` (cobre Pix e Bank variants — PSP decide canal); `DynamicPix`; `BankSlip`.
+
+VOs auxiliares (todos em `AccountsPayable.Domain.Payables.ValueObjects`):
+- `EmvPayload` — string EMV BR Code, valida CRC16-CCITT-FALSE + prefixo `000201`.
+- `BarcodeDigits` — 44 dígitos do boleto + DV mod-11 na posição 5. **Forma canônica** do boleto no `BankSlipInstrument`; expõe `ToDigitableLine()` que deriva os 47 dígitos da linha digitável (3 DVs mod-10 nos campos 1–3).
+- `DigitableLine` — 47 dígitos da linha digitável (representação humano-legível). Tipo standalone para parse de input do usuário; **não vive no `BankSlipInstrument`** (derivado do `BarcodeDigits` via método de instância — evita redundância de estado).
+
+Snapshot bancário (LegalName, TaxId, BankCode/Branch/Account/Type ou PixKey) é **congelado na criação do Payable** e não relê o Supplier na execução. Para auditoria de divergência futura, o Domain Service `OutdatedInstrumentDetector` compara snapshot×Supplier atual e emite `PayableInstrumentOutdated` via `Payable.FlagInstrumentOutdated`.
 
 Para Payables vindas de **captura** (origin `RecurringCapture` com Bill Ingestion), o `PaymentInstrument` vem da extração (D-139, com prioridade QR → boleto). Para outras origens, vem do cadastro manual.
 
@@ -1609,7 +1621,7 @@ Esta faixa cobre as decisões tomadas em sessão de 30/04/2026 para fechar todas
 | ID | Decisão | Por quê |
 |---|---|---|
 | **D-146** | **PSP único no MVP: Asaas, agnóstico via ACL.** Aggregate `PaymentOrder` é agnóstico de provedor; ACL `PaymentGateway` define interface. Adapter concreto `AsaasPaymentGateway` implementa. Multi-provedor com fallback fica para V2 | PSP único é o caminho mais rápido para MVP. Asaas é PME-friendly no Brasil, suporta Boleto + PIX nativos, tem Idempotency-Key, suporta cancelamento de agendado, webhooks confiáveis com HMAC. PSPs são neutros bancariamente — cliente pode trocar de banco sem mexer no sistema. API bancária direta trava em um banco; multi-provedor é otimização prematura. |
-| **D-147** | **Modos de pagamento no MVP: Boleto + PIX.** Tipos `PaymentInstrument`: `BoletoPayment(linhaDigitavel, beneficiario)` e `PixPayment(chavePix \| copiaCola, beneficiario)`. Instrumento vem da extração (D-139) para Payables capturadas, ou do cadastro manual nas demais origens. TED/DOC, débito automático, dinheiro fora do MVP | Cobre 95% dos casos de PME de serviços brasileira. Cada modo a mais é uma ACL e fluxo de erro a mais. TED entra V2 se cliente real precisar (caso comum: pagamento a PF sem chave PIX). |
+| **D-147** | **Modos de pagamento no MVP: Boleto + PIX + Transferência genérica.** ⚠️ **Retificado em Sprint 12.A (2026-05-20)**: o `PaymentMethod` ficou com 3 valores no Domain — `SupplierTransfer` (transferência genérica para conta cadastrada do fornecedor — PSP escolhe entre PIX-via-DICT e TED conforme disponibilidade da `PixKey`), `DynamicPix` (EMV BR Code, unifica boleto-PIX, copia-e-cola e chave temporária) e `BankSlip` (boleto convencional). `PaymentInstrument` vive em `AccountsPayable.Domain.Payables.ValueObjects` por hora (até `PaymentExecution.Domain` materializar) com **4 variantes seladas**: `SupplierPixTransferInstrument(LegalName, TaxId, PixKey)`, `SupplierBankTransferInstrument(LegalName, TaxId, BankCode, Branch, AccountNumber, AccountType)`, `DynamicPixInstrument(EmvPayload)`, `BankSlipInstrument(BarcodeDigits, DigitableLine?)`. Snapshot do fornecedor é **congelado na criação do Payable** (não relê o Supplier na execução). Instrumento decidido na criação, não no `RequestPayment`. TED não fica mais "fora do MVP" — o PSP decide na hora. **Versão original**: Tipos `PaymentInstrument`: `BoletoPayment(linhaDigitavel, beneficiario)` e `PixPayment(chavePix \| copiaCola, beneficiario)`. Instrumento vem da extração (D-139) para Payables capturadas, ou do cadastro manual nas demais origens. TED/DOC, débito automático, dinheiro fora do MVP | Cobre 95% dos casos de PME de serviços brasileira. Cada modo a mais é uma ACL e fluxo de erro a mais. Decisão da retificação: usuário decidiu na fase de planejamento da Sprint 12 que o canal exato (PIX vs TED) é responsabilidade do PSP, não do Domain — simplifica o modelo e cobre o caso comum de "PF sem chave PIX cadastrada" que motivou o adiamento original. |
 | **D-148** | **Provedor agenda (gateway mantém timing).** PE recebe `PaymentRequested` antes do `scheduledFor`, manda imediatamente para o provedor com data futura. Provedor cuida do timing efetivo. PE recebe webhook quando executa. `PaymentOrder` tem ciclo `Created → Sending → Sent → Scheduled → Executed` | Boletos e PIX programado no Brasil têm agendamento nativo nos provedores — usar essa feature reduz responsabilidade do PE. Cancelamento até último minuto via API do provedor (suportado por Asaas — D-146). |
 | **D-149** | **Política de retry do pagamento: 8 níveis de backoff** (1m → 5m → 30m → 1h → 2h → 4h → 8h → 12h), truncados em 24h ou no `dueDate` (o que vier primeiro — D-137). Retry **só para falhas transitórias** (timeout, 5xx, erro de rede). Falhas permanentes (`INVALID_PIX_KEY`, `BARCODE_INVALID`, `BENEFICIARY_BLOCKED`) → direto para `AwaitingExternalConfirmation`. Saldo insuficiente: retry com backoff até 5x, depois `AwaitingExternalConfirmation` | Cobre cenários reais de transitório sem desperdiçar chamadas em erros permanentes. ACL classifica os erros do provedor em transitório/permanente. Saldo insuficiente é caso especial — alguém pode estar depositando, mas não retry infinito. |
 | **D-150** | **Comprovante de pagamento exclusivamente do gateway, com retry de 3 dias e fallback humano.** PE tenta obter comprovante oficial após `PaymentExecuted` com backoff `+1h, +6h, +24h, +48h, +72h` (5 tentativas, 3 dias). Notificação informativa após 3ª falha (~7h); notificação acionável após timeout (3 dias). Após timeout, transita para `AwaitingUserUpload` — usuário **deve** fazer upload manual via `AttachPaymentReceiptManually(payableId, receipt, actor)`. **Comprovante é único — gateway OU manual, nunca ambos.** Estados terminais mutuamente exclusivos: `Obtained` (gateway entregou) ou `ManuallyUploaded` (usuário forneceu) | Comprovante do gateway tem validade fiscal mais forte (assinatura digital). Comprovante interno gerado tem peso questionável. 3 dias é janela razoável para gateway estabilizar. Exclusividade evita duplicação documental e ambiguidade fiscal. |
@@ -1696,7 +1708,8 @@ Termos técnicos e de domínio usados consistentemente neste documento.
 | **PayableSubstitutionChain** | Read model derivado dos eventos `PayableReplacedBySubstitution` que mostra a linhagem completa de uma Payable (essa veio daquela que veio daquela). Útil para auditoria fiscal. |
 | **Estado terminal** | Para Payable, qualquer um de quatro: `Settled`, `Cancelled`, `ReplacedBySubstitution`, `Refunded`. Métricas e relatórios separam os quatro porque significam coisas diferentes. |
 | **PaymentOrder** | Aggregate de Payment Execution. Representa uma ordem de pagamento sendo executada via gateway. Estados: `Created → Sending → Sent → Scheduled → Executed`, com ramos para `RetryPending`, `CancellationPending`, `Cancelled`, `AwaitingExternalConfirmation`, `CancellationFailed`. Detalhamento em §9.11. |
-| **PaymentInstrument** | Value Object selado em Payment Execution (D-147) com duas variantes no MVP: `BoletoPayment(linhaDigitavel, beneficiario)` e `PixPayment(chavePix \| copiaCola, beneficiario)`. Para Payables capturadas, vem da extração com prioridade QR → boleto (D-139). Para outras origens, vem do cadastro manual. |
+| **PaymentInstrument** | Value Object selado polimórfico (D-147 retificado na Sprint 12.A) com **quatro variantes** no MVP: `SupplierPixTransferInstrument(LegalName, TaxId, PixKey)`, `SupplierBankTransferInstrument(LegalName, TaxId, BankCode, Branch, AccountNumber, AccountType)` (ambos herdam de `SupplierTransferInstrument` abstract), `DynamicPixInstrument(EmvPayload)` (cobre boleto-PIX/copia-cola/chave temporária), e `BankSlipInstrument(BarcodeDigits)` — só o código de barras como forma canônica; a linha digitável é derivável via `BarcodeDigits.ToDigitableLine()`. Cada variante expõe `Method` (propriedade derivada — `SupplierTransfer`/`DynamicPix`/`BankSlip`); o `PaymentMethod` **não é parâmetro nem estado separado** no `Payable` (Sprint 12.G — sempre derivado de `PaymentInstrument.Method`). Vive em `AccountsPayable.Domain.Payables.ValueObjects` por hora; migra para `PaymentExecution.Domain` (ou `Shared.Domain`) quando esse BC materializar. Snapshot do Supplier é congelado na criação do Payable. Para Payables capturadas, vem da extração (D-139). Para outras origens, vem do cadastro manual. |
+| **SupplierBankAccount** | Value Object selado polimórfico (XOR — Sprint 12.0) com 2 variantes: `SupplierPixAccount(PixKey)` para chave PIX estática, e `SupplierBankTransferAccount(BankCode, Branch, AccountNumber, AccountType)` para conta tradicional. Não é mais Entity; sem identidade própria; igualdade estrutural por componentes. Aggregate Root `Supplier` mantém coleções duplas `ActiveBankAccounts` (sem duplicatas) e `InactiveBankAccounts` (pode ter duplicatas — histórico de add+deactivate+add+deactivate). Soft delete via `DeactivateBankAccount(vo, occurredAt)`. |
 | **AwaitingPaymentCancellation** | Estado novo da Payable original durante substituição (D-152). Bloqueia entre solicitar substituição e PE confirmar cancelamento da `PaymentOrder`. Garante zero risco de pagamento duplicado. |
 | **CancellationPending** | Estado de `PaymentOrder` quando cancelamento foi solicitado ao gateway e aguarda resposta (D-153). |
 | **PSP (Payment Service Provider)** | Provedor de pagamento intermediário que abstrai múltiplos bancos. No MVP é **Asaas** (D-155), com ACL `PaymentGateway` permitindo troca futura ou multi-provedor (D-146). |

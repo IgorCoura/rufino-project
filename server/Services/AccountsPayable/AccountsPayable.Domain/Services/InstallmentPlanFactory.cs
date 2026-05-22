@@ -4,6 +4,7 @@ using AccountsPayable.Domain.Errors;
 using AccountsPayable.Domain.InstallmentPlans;
 using AccountsPayable.Domain.InstallmentPlans.Enumerations;
 using AccountsPayable.Domain.Payables;
+using AccountsPayable.Domain.Payables.Enumerations;
 using AccountsPayable.Domain.Payables.ValueObjects;
 using AccountsPayable.Domain.SeedWork;
 using AccountsPayable.Domain.Suppliers;
@@ -31,11 +32,17 @@ public sealed class InstallmentPlanFactory
         DateOnly firstDueDate,
         InstallmentFrequency frequency,
         Description description,
+        IReadOnlyList<PaymentInstrument> instrumentsPerInstallment,
         DateTime occurredAt)
     {
         ArgumentNullException.ThrowIfNull(totalAmount);
         ArgumentNullException.ThrowIfNull(frequency);
         ArgumentNullException.ThrowIfNull(description);
+        ArgumentNullException.ThrowIfNull(instrumentsPerInstallment);
+
+        if (instrumentsPerInstallment.Count != installmentCount)
+            throw InstallmentPlanErrors.InstrumentListSizeMismatch(
+                instrumentsPerInstallment.Count, installmentCount);
 
         var plan = InstallmentPlan.Create(
             id: planId,
@@ -61,6 +68,8 @@ public sealed class InstallmentPlanFactory
             var installmentDescription = new Description(
                 $"{description.Value} ({installmentNumber}/{installmentCount})");
 
+            // Sprint 12.D: cada parcela tem seu próprio instrumento (1 NF + N boletos distintos).
+            // PaymentMethod é derivado do próprio instrumento (Sprint 12.G).
             var payable = Payable.InitializeAsInstallment(
                 id: PayableId.New(),
                 tenantId: tenantId,
@@ -70,6 +79,7 @@ public sealed class InstallmentPlanFactory
                 amount: installmentAmount,
                 dueDate: new DueDate(dueDate),
                 description: installmentDescription,
+                paymentInstrument: instrumentsPerInstallment[i],
                 occurredAt: occurredAt);
 
             plan.RegisterPayable(payable.Id, installmentNumber, occurredAt);

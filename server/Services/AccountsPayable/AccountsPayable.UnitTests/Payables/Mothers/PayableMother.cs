@@ -7,10 +7,12 @@ using AccountsPayable.Domain.ExpenseClassificationRules;
 using AccountsPayable.Domain.InstallmentPlans;
 using AccountsPayable.Domain.Payables;
 using AccountsPayable.Domain.Payables.Enumerations;
+using AccountsPayable.Domain.Payables.Events;
 using AccountsPayable.Domain.Payables.ValueObjects;
 using AccountsPayable.Domain.SeedWork;
 using AccountsPayable.Domain.Suppliers;
-using AccountsPayable.Domain.Suppliers.Entities;
+using AccountsPayable.Domain.Suppliers.Enumerations;
+using AccountsPayable.Domain.Suppliers.ValueObjects;
 
 public static class PayableMother
 {
@@ -24,8 +26,6 @@ public static class PayableMother
     public static readonly AccountRef DEFAULT_ACCOUNT_REF = new(DEFAULT_CHART_OF_ACCOUNTS, DEFAULT_ACCOUNT);
     public static readonly CostCenterId DEFAULT_COST_CENTER = CostCenterId.From(new Guid("44444444-4444-4444-4444-444444444444"));
     public static readonly UserId DEFAULT_USER = UserId.From(new Guid("55555555-5555-5555-5555-555555555555"));
-    public static readonly SupplierBankAccountId DEFAULT_BANK_ACCOUNT =
-        SupplierBankAccountId.From(new Guid("66666666-6666-6666-6666-666666666666"));
     public static readonly PaymentOrderId DEFAULT_PAYMENT_ORDER =
         PaymentOrderId.From(new Guid("99999999-9999-9999-9999-999999999999"));
     public static readonly CapturedBillId DEFAULT_CAPTURED_BILL =
@@ -38,6 +38,65 @@ public static class PayableMother
     public static readonly PaymentProof DEFAULT_PROOF =
         new("https://docs.acme.com.br/payable/proof.pdf", PaymentProofType.Receipt);
 
+    // ---- Defaults de PaymentInstrument (Sprint 12.B; refinado em 12.G — PaymentMethod é derivado) ----
+    public static readonly LegalName DEFAULT_SUPPLIER_LEGAL_NAME = new("Acme Brasil LTDA");
+    public static readonly TaxId DEFAULT_SUPPLIER_TAX_ID = new("59.199.597/0001-98");
+    public static readonly PaymentInstrument DEFAULT_PAYMENT_INSTRUMENT = new SupplierBankTransferInstrument(
+        DEFAULT_SUPPLIER_LEGAL_NAME, DEFAULT_SUPPLIER_TAX_ID,
+        "001", "0001", "123456-7", BankAccountType.Checking);
+
+    /// <summary>
+    /// Template para construir <see cref="PayableCreated"/> em testes de reidratação A+ES.
+    /// Use <c>with { ... }</c> para customizar campos sem precisar passar os 13 do instrumento.
+    /// </summary>
+    public static readonly PayableCreated TEMPLATE_PAYABLE_CREATED = new(
+        EventId: Guid.Empty,
+        OccurredAt: DEFAULT_OCCURRED_AT,
+        PayableId: PayableId.New(),
+        TenantId: DEFAULT_TENANT,
+        SupplierId: DEFAULT_SUPPLIER,
+        AmountValue: 1_500m,
+        AmountCurrency: "BRL",
+        DueDate: DEFAULT_DUE_DATE,
+        Description: "default",
+        InstrumentKind: "SUPPLIER_BANK",
+        SupplierLegalName: "Acme Brasil LTDA",
+        SupplierTaxIdValue: "59199597000198",
+        SupplierTaxIdType: "CNPJ",
+        PixKeyValue: null,
+        PixKeyType: null,
+        BankCode: "001",
+        Branch: "0001",
+        AccountNumber: "123456-7",
+        AccountType: "CHECKING",
+        EmvPayload: null,
+        BarcodeDigits: null);
+
+    /// <summary>Template equivalente para <see cref="PayableCreatedFromCapture"/>.</summary>
+    public static readonly PayableCreatedFromCapture TEMPLATE_PAYABLE_CREATED_FROM_CAPTURE = new(
+        EventId: Guid.Empty,
+        OccurredAt: DEFAULT_OCCURRED_AT,
+        PayableId: PayableId.New(),
+        TenantId: DEFAULT_TENANT,
+        CapturedBillId: DEFAULT_CAPTURED_BILL,
+        SupplierId: DEFAULT_SUPPLIER,
+        AmountValue: 1_500m,
+        AmountCurrency: "BRL",
+        DueDate: DEFAULT_DUE_DATE,
+        Description: "default",
+        InstrumentKind: "SUPPLIER_BANK",
+        SupplierLegalName: "Acme Brasil LTDA",
+        SupplierTaxIdValue: "59199597000198",
+        SupplierTaxIdType: "CNPJ",
+        PixKeyValue: null,
+        PixKeyType: null,
+        BankCode: "001",
+        Branch: "0001",
+        AccountNumber: "123456-7",
+        AccountType: "CHECKING",
+        EmvPayload: null,
+        BarcodeDigits: null);
+
     public static Payable Draft(
         PayableId? id = null,
         TenantId? tenantId = null,
@@ -46,6 +105,7 @@ public static class PayableMother
         Currency? currency = null,
         DateOnly? dueDate = null,
         string description = "Aluguel sede março",
+        PaymentInstrument? paymentInstrument = null,
         DateTime? occurredAt = null)
     {
         return Payable.Initialize(
@@ -55,6 +115,7 @@ public static class PayableMother
             amount: new Money(amount, currency ?? Currency.Brl),
             dueDate: new DueDate(dueDate ?? DEFAULT_DUE_DATE),
             description: new Description(description),
+            paymentInstrument: paymentInstrument ?? DEFAULT_PAYMENT_INSTRUMENT,
             occurredAt: occurredAt ?? DEFAULT_OCCURRED_AT);
     }
 
@@ -69,6 +130,7 @@ public static class PayableMother
         Currency? currency = null,
         DateOnly? dueDate = null,
         string description = "Aluguel anual (1/12)",
+        PaymentInstrument? paymentInstrument = null,
         DateTime? occurredAt = null)
     {
         return Payable.InitializeAsInstallment(
@@ -80,6 +142,7 @@ public static class PayableMother
             amount: new Money(amount, currency ?? Currency.Brl),
             dueDate: new DueDate(dueDate ?? DEFAULT_DUE_DATE),
             description: new Description(description),
+            paymentInstrument: paymentInstrument ?? DEFAULT_PAYMENT_INSTRUMENT,
             occurredAt: occurredAt ?? DEFAULT_OCCURRED_AT);
     }
 
@@ -93,6 +156,7 @@ public static class PayableMother
         Currency? currency = null,
         DateOnly? dueDate = null,
         string description = "Boleto Sabesp março",
+        PaymentInstrument? paymentInstrument = null,
         DateTime? occurredAt = null)
     {
         return Payable.InitializeFromCapture(
@@ -103,6 +167,7 @@ public static class PayableMother
             amount: new Money(amount, currency ?? Currency.Brl),
             dueDate: new DueDate(dueDate ?? DEFAULT_DUE_DATE),
             description: new Description(description),
+            paymentInstrument: paymentInstrument ?? DEFAULT_PAYMENT_INSTRUMENT,
             occurredAt: occurredAt ?? DEFAULT_OCCURRED_AT);
     }
 
@@ -186,14 +251,13 @@ public static class PayableMother
         return payable;
     }
 
-    /// <summary>Scheduled payable that already requested payment — Status = PaymentRequested (Sprint 6).</summary>
-    public static Payable PaymentRequested(PaymentMethod? method = null)
+    /// <summary>Scheduled payable that already requested payment — Status = PaymentRequested (Sprint 6).
+    /// O instrumento de pagamento vem do estado (decidido na criação — Sprint 12.B); para customizar
+    /// use <see cref="Draft"/> ou similares.</summary>
+    public static Payable PaymentRequested()
     {
         var payable = Scheduled();
-        payable.RequestPayment(
-            method ?? PaymentMethod.Pix,
-            DEFAULT_BANK_ACCOUNT,
-            DEFAULT_OCCURRED_AT.AddMinutes(10));
+        payable.RequestPayment(DEFAULT_OCCURRED_AT.AddMinutes(10));
         return payable;
     }
 

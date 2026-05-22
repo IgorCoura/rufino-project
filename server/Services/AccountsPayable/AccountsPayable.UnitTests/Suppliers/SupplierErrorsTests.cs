@@ -46,27 +46,25 @@ public class SupplierErrorsTests
         Assert.Equal("AP.SUP03", error.Id);
     }
 
-    // BankAccountNotFound retorna AP.SUP04 com o Guid recebido como parâmetro.
+    // BankAccountNotFound retorna AP.SUP04 sem parâmetros (após Sprint 12.0 o VO substituiu o Id como referência).
     [Fact]
-    public void BankAccountNotFound_ShouldHaveCorrectIdAndParameter()
+    public void BankAccountNotFound_ShouldHaveCorrectIdAndNoParameters()
     {
-        var id = new Guid("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
-
-        var error = Invoke("BankAccountNotFound", id);
+        var error = Invoke("BankAccountNotFound");
 
         Assert.Equal("AP.SUP04", error.Id);
-        Assert.Single(error.Parameters);
-        Assert.Equal(id, error.Parameters[0]);
+        Assert.Empty(error.Parameters);
     }
 
-    // DuplicatedBankAccount retorna AP.SUP05 com 3 parâmetros (bankCode/branch/accountNumber).
+    // DuplicatedBankAccount retorna AP.SUP05 com 1 parâmetro (descrição textual do VO duplicado).
     [Fact]
-    public void DuplicatedBankAccount_ShouldHaveCorrectIdAndParameters()
+    public void DuplicatedBankAccount_ShouldHaveCorrectIdAndDescription()
     {
-        var error = Invoke("DuplicatedBankAccount", "001", "0001", "123456-7");
+        var error = Invoke("DuplicatedBankAccount", "banco 001 ag.0001 c/c 123456-7");
 
         Assert.Equal("AP.SUP05", error.Id);
-        Assert.Equal(3, error.Parameters.Count);
+        Assert.Single(error.Parameters);
+        Assert.Equal("banco 001 ag.0001 c/c 123456-7", error.Parameters[0]);
     }
 
     // Todos os Ids da factory são únicos (proteção contra duplicidade acidental ao adicionar erro novo).
@@ -78,8 +76,8 @@ public class SupplierErrorsTests
             Invoke("InvalidStatusTransition", "A", "B").Id,
             Invoke("ReasonRequired").Id,
             Invoke("CannotRemoveLastBankAccountWhileActive").Id,
-            Invoke("BankAccountNotFound", Guid.NewGuid()).Id,
-            Invoke("DuplicatedBankAccount", "1", "2", "3").Id,
+            Invoke("BankAccountNotFound").Id,
+            Invoke("DuplicatedBankAccount", "desc").Id,
         };
 
         Assert.Equal(ids.Length, ids.Distinct().Count());

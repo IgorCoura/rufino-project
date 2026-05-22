@@ -185,6 +185,44 @@ internal static class PayableErrors
             parameters: Array.Empty<object>(),
             sourcePath: BuildSourcePath(filePath, memberName, lineNumber));
 
+    public static DomainException PaymentInstrumentRequired(
+        [CallerFilePath] string filePath = "",
+        [CallerMemberName] string memberName = "",
+        [CallerLineNumber] int lineNumber = 0)
+        => new(
+            id: $"{PREFIX}18",
+            messageTemplate: "Instrumento de pagamento é obrigatório na criação da conta a pagar.",
+            parameters: Array.Empty<object>(),
+            sourcePath: BuildSourcePath(filePath, memberName, lineNumber));
+
+    // AP.PAY19 reservado (era PaymentMethodInstrumentMismatch — descartado na Sprint 12.G).
+    // O parâmetro PaymentMethod foi removido das factories do Payable; o método de pagamento é
+    // sempre derivado de PaymentInstrument.Method, então não há mismatch possível por construção.
+    // Não reutilizar este slot — Ids estáveis para consumidores que possam ter logado AP.PAY19.
+
+    // AP.PAY20 reservado (era SupplierMissingPixKey — descartado: PaymentMethod.SupplierTransfer
+    // agora é genérico e aceita PIX sem chave; PSP decide canal).
+
+    public static DomainException BankAccountSupplierMismatch(
+        [CallerFilePath] string filePath = "",
+        [CallerMemberName] string memberName = "",
+        [CallerLineNumber] int lineNumber = 0)
+        => new(
+            id: $"{PREFIX}21",
+            messageTemplate: "Snapshot da conta de pagamento não corresponde a uma conta ativa do fornecedor atual.",
+            parameters: Array.Empty<object>(),
+            sourcePath: BuildSourcePath(filePath, memberName, lineNumber));
+
+    public static DomainException OutdatedReasonRequired(
+        [CallerFilePath] string filePath = "",
+        [CallerMemberName] string memberName = "",
+        [CallerLineNumber] int lineNumber = 0)
+        => new(
+            id: $"{PREFIX}22",
+            messageTemplate: "Motivo é obrigatório para sinalizar instrumento desatualizado.",
+            parameters: Array.Empty<object>(),
+            sourcePath: BuildSourcePath(filePath, memberName, lineNumber));
+
     private static string BuildSourcePath(string filePath, string memberName, int lineNumber)
         => $"{Path.GetFileName(filePath)}:{lineNumber} ({memberName})";
 }

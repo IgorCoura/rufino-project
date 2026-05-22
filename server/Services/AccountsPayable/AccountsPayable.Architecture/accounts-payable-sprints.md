@@ -584,12 +584,57 @@ Sprints 2, 4 e 7.
 
 ---
 
+## SPRINT 12 — `PaymentMethod` + `PaymentInstrument` na criação do Payable
+
+**Objetivo**: fechar a lacuna identificada após a Sprint 11 — o `Payable` referenciava `PaymentMethod` mas não tinha como armazenar o **código** do pagamento (linha digitável, código de barras, EMV BR Code, PIX copia-e-cola, dados bancários). Sem esse código, o BC `PaymentExecution` não conseguiria executar nada. Esta sprint introduz o VO `PaymentInstrument` polimórfico, o decide na criação do Payable, e cobre o ciclo desde criação até aviso proativo de divergência.
+
+### Decisões de design fixadas durante o planning
+
+- `PaymentMethod` tem **3 valores** (não 4): `SupplierTransfer`, `DynamicPix`, `BankSlip`. TED foi unificado com PIX-cadastro em `SupplierTransfer` — o PSP (Asaas) decide entre PIX-via-DICT e TED na execução.
+- `DynamicPix` unifica boleto-PIX, copia-e-cola e chave temporária — todos têm a mesma estrutura EMV BR Code.
+- `SupplierBankAccount` deixou de ser Entity e virou **VO selado polimórfico** (`SupplierPixAccount` ou `SupplierBankTransferAccount`, XOR — nunca ambos juntos).
+- `Supplier` ganha **coleção dupla** ativos/inativos com soft delete preservando snapshot histórico.
+- Snapshot bancário no instrumento é **congelado na criação** do Payable (não relê o Supplier no momento do RequestPayment).
+- Aviso de Supplier desatualizado é **B+C combinados**: integration event + handler proativo (B) + flag/evento no Payable (C). Comando idempotente — emite uma única vez ever.
+
+### Sub-fases entregues
+
+| Sub-fase | Escopo | Entregáveis |
+|---|---|---|
+| 12.0 | Refactor estrutural do Sprint 1 | `SupplierBankAccount` Entity → VO hierárquico selado; deleção de `SupplierBankAccountId`; `Supplier` com `ActiveBankAccounts`/`InactiveBankAccounts`; eventos `SupplierBankAccountAdded`/`SupplierBankAccountDeactivated` com payload polimórfico flat |
+| 12.0t | Testes Sprint 1 ajustados | `SupplierMother` com factories `BankTransferAccount`/`PixAccount`; `SupplierBankAccountTests` cobre as 2 sub-variantes + igualdade estrutural cross-variantes; `SupplierTests` cobre soft delete + reativação via re-add |
+| 12.A | VOs base | `PaymentMethod` Smart Enum (3 valores); `EmvPayload` (CRC16-CCITT-FALSE poly 0x1021 init 0xFFFF); `BarcodeDigits` (44 dígitos + DV mod-11; método `ToDigitableLine()` deriva a forma de 47 dígitos com DVs mod-10 nos campos 1–3); `DigitableLine` (47 dígitos — VO standalone, **não vive no `BankSlipInstrument`** por ser representação derivada do barcode); `PaymentInstrument` abstract + 4 variantes seladas (`BankSlipInstrument` carrega apenas `BarcodeDigits`); erros `AP.EMV`/`AP.BCD`/`AP.DLN` |
+| 12.B | Payable factories + Eventos | `Payable.Initialize*` recebem `PaymentInstrument` (refinado em 12.G para remover `PaymentMethod` redundante); estado ganha `PaymentInstrument`; eventos `PayableCreated*` ganham 12 campos extras (serialização flat — `InstrumentKind` + 11 nullables); helper `PaymentInstrumentSerialization` faz `Expand`/`Rebuild`; erro `AP.PAY18` |
+| 12.G | Remoção do `PaymentMethod` redundante | Refactor pós-12.F: factories do Payable e `InstallmentPlanFactory.Create` perdem o parâmetro `PaymentMethod`; `Payable.PaymentMethod` removido do estado (consumidores acessam via `PaymentInstrument.Method`); `PaymentMethodName` removido dos 4 eventos; `AP.PAY19` (`PaymentMethodInstrumentMismatch`) descartado e reservado — inconsistência impossível por construção |
+| 12.C | RequestPayment simplificado + Resolver | `RequestPayment(occurredAt)` sem `method`/`bankAccountId`; evento `PayablePaymentRequested` perde `BankAccountId`/`Method` e ganha serialização flat do instrumento; `PaymentBankAccountId` removido do estado; Domain Service `PaymentInstrumentResolver` valida cross-aggregate; erro `AP.PAY21`; `SupplierBankAccountId.cs` zumbi deletado |
+| 12.D | InstallmentPlanFactory com N instrumentos | `InstallmentPlanFactory.Create` aceita `IReadOnlyList<PaymentInstrument>` de tamanho `N`; erro `AP.IPL08` para mismatch de tamanho |
+| 12.E | Detector + Flag idempotente | `Payable.FlagInstrumentOutdated(reason, occurredAt)` idempotente; estado `IsInstrumentOutdated`/`OutdatedAt`/`OutdatedReason`; evento `PayableInstrumentOutdated`; Domain Service `OutdatedInstrumentDetector`; erro `AP.PAY22` |
+| 12.F | Documentação | Atualização do plano, do `CLAUDE.md` do BC, e do `Consolidado.md` (D-147 retificado, §9.11.4 atualizado) |
+
+### Critério de aceite global
+
+- ✅ Suite completa `dotnet test AccountsPayable.UnitTests` verde (721 testes ao final da 12.F).
+- ✅ Domain compila 0 erros / 0 avisos (`TreatWarningsAsErrors=true`).
+- ✅ Cada sub-fase termina com testes verdes antes da próxima começar.
+
+### O que NÃO entrou nesta sprint
+
+- ❌ Implementação do handler na Application (escuta `SupplierBankAccountDeactivated` → dispara `OutdatedInstrumentDetector` → chama `Payable.FlagInstrumentOutdated`). Backlog Application.
+- ❌ Migração do `PaymentInstrument` para `PaymentExecution.Domain` quando esse BC materializar (vive em `AccountsPayable.Domain` por hora).
+- ❌ Notificação ao usuário em si (email/push) — backlog Application + camada de notificação.
+
+### Dependências
+
+Sprints 0–11 (todas).
+
+---
+
 ## Resumo visual — Roadmap
 
 | Sprint | Entrega | Aggregate(s) afetado(s) | Cliente pode usar? |
 |---|---|---|---|
 | 0 | Fundação / SeedWork | — | Não (interno) |
-| 1 | Cadastro de fornecedor | `Supplier` | ✅ Sim — substitui Excel de fornecedores |
+| 1 | Cadastro de fornecedor | `Supplier` (refatorado em 12.0 — `SupplierBankAccount` virou VO selado) | ✅ Sim — substitui Excel de fornecedores |
 | 2 | `Payable` manual (ciclo completo) | `Payable` (A+ES) | ✅ Sim — substitui controle em planilha de contas |
 | 3 | Plano de contas + centros de custo | `ChartOfAccounts`, `CostCenter` | ✅ Sim — config; pode mapear como categorias hoje |
 | 4 | Classificação manual da Payable | `Payable` (expansão) | ✅ Sim — já permite relatórios por categoria |
@@ -600,6 +645,7 @@ Sprints 2, 4 e 7.
 | 9 | Classificação automática | `ExpenseClassificationRule` | ✅ Sim — reduz trabalho manual |
 | 10 | Alçadas múltiplas | `AutoApprovalPolicy` | ✅ Sim — escala aprovação |
 | 11 | Contratos + recorrência | `Contract`, `ExpectedRecurringBill` | ✅ Sim — previsão de fluxo de caixa |
+| 12 | `PaymentMethod` + `PaymentInstrument` na criação | `Payable` + `Supplier` + 4 VOs novos + 2 Domain Services | ✅ Sim — fecha lacuna que bloqueava PaymentExecution |
 
 **Total estimado**: 12 a 16 semanas, dependendo do ritmo e da equipe.
 

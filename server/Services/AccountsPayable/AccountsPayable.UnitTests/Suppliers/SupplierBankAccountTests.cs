@@ -1,83 +1,165 @@
 namespace AccountsPayable.UnitTests.Suppliers;
 
 using AccountsPayable.Domain.SeedWork;
-using AccountsPayable.Domain.Suppliers.Entities;
 using AccountsPayable.Domain.Suppliers.Enumerations;
-using AccountsPayable.UnitTests.Suppliers.Mothers;
+using AccountsPayable.Domain.Suppliers.ValueObjects;
 
 /// <summary>
-/// SupplierBankAccount é Entity interna — só é testada via Root (Supplier.AddBankAccount).
+/// SupplierBankAccount é Value Object selado polimórfico — duas variantes mutuamente exclusivas:
+/// <see cref="SupplierPixAccount"/> e <see cref="SupplierBankTransferAccount"/>. Testes cobrem
+/// validação de campos de cada variante, normalização e igualdade estrutural (incluindo a
+/// invariante "variantes diferentes nunca são iguais", garantida pelo <c>GetType</c> em <c>ValueObject.Equals</c>).
 /// </summary>
 public class SupplierBankAccountTests
 {
-    private static readonly DateTime FIXED_NOW = new(2024, 1, 15, 10, 0, 0, DateTimeKind.Utc);
-
-    // BankCode com formato não-numérico ou com tamanho diferente de 3 lança AP.SBA02.
-    [Theory]
-    [InlineData("ABC")]
-    [InlineData("01")]
-    [InlineData("12345")]
-    public void AddBankAccount_WithInvalidBankCode_ShouldThrowDomainException(string bankCode)
+    public class WhenCreatingBankTransfer
     {
-        var supplier = SupplierMother.Active();
+        // BankCode com formato não-numérico ou tamanho diferente de 3 lança AP.SBA02.
+        [Theory]
+        [InlineData("ABC")]
+        [InlineData("01")]
+        [InlineData("12345")]
+        public void Constructor_WithInvalidBankCode_ShouldThrowDomainException(string bankCode)
+        {
+            var ex = Assert.Throws<DomainException>(() => new SupplierBankTransferAccount(
+                bankCode, "0001", "123456-7", BankAccountType.Checking));
 
-        var ex = Assert.Throws<DomainException>(() => supplier.AddBankAccount(
-            SupplierBankAccountId.New(), bankCode, "0001", "123456-7", BankAccountType.Checking, null, FIXED_NOW));
+            Assert.Equal("AP.SBA02", ex.Id);
+        }
 
-        Assert.Equal("AP.SBA02", ex.Id);
+        // BankCode vazio/em branco lança AP.SBA01 (vazio cai na guarda antes da validação de tamanho).
+        [Theory]
+        [InlineData("")]
+        [InlineData("   ")]
+        public void Constructor_WithEmptyBankCode_ShouldThrowDomainException(string bankCode)
+        {
+            var ex = Assert.Throws<DomainException>(() => new SupplierBankTransferAccount(
+                bankCode, "0001", "123456-7", BankAccountType.Checking));
+
+            Assert.Equal("AP.SBA01", ex.Id);
+        }
+
+        // Branch vazio/em branco lança AP.SBA03.
+        [Theory]
+        [InlineData("")]
+        [InlineData("   ")]
+        public void Constructor_WithEmptyBranch_ShouldThrowDomainException(string branch)
+        {
+            var ex = Assert.Throws<DomainException>(() => new SupplierBankTransferAccount(
+                "001", branch, "123456-7", BankAccountType.Checking));
+
+            Assert.Equal("AP.SBA03", ex.Id);
+        }
+
+        // AccountNumber vazio/em branco lança AP.SBA04.
+        [Theory]
+        [InlineData("")]
+        [InlineData("   ")]
+        public void Constructor_WithEmptyAccountNumber_ShouldThrowDomainException(string accountNumber)
+        {
+            var ex = Assert.Throws<DomainException>(() => new SupplierBankTransferAccount(
+                "001", "0001", accountNumber, BankAccountType.Checking));
+
+            Assert.Equal("AP.SBA04", ex.Id);
+        }
+
+        // AccountType null lança AP.SBA05.
+        [Fact]
+        public void Constructor_WithNullAccountType_ShouldThrowDomainException()
+        {
+            var ex = Assert.Throws<DomainException>(() => new SupplierBankTransferAccount(
+                "001", "0001", "123456-7", null!));
+
+            Assert.Equal("AP.SBA05", ex.Id);
+        }
+
+        // BankCode com separadores é normalizado para apenas dígitos quando há exatos 3.
+        [Fact]
+        public void Constructor_BankCodeWithSeparators_ShouldNormalizeToDigits()
+        {
+            var account = new SupplierBankTransferAccount(
+                "0-0-1", "0001", "123456-7", BankAccountType.Checking);
+
+            Assert.Equal("001", account.BankCode);
+        }
+
+        // Branch e AccountNumber têm trim aplicado nos espaços externos.
+        [Fact]
+        public void Constructor_BranchAndAccountNumber_ShouldBeTrimmed()
+        {
+            var account = new SupplierBankTransferAccount(
+                "001", "  0001  ", "  123456-7  ", BankAccountType.Checking);
+
+            Assert.Equal("0001", account.Branch);
+            Assert.Equal("123456-7", account.AccountNumber);
+        }
     }
 
-    // BankCode vazio lança AP.SBA01 (vazio cai na guarda antes da validação de tamanho).
-    [Theory]
-    [InlineData("")]
-    [InlineData("   ")]
-    public void AddBankAccount_WithEmptyBankCode_ShouldThrowDomainException(string bankCode)
+    public class WhenCreatingPix
     {
-        var supplier = SupplierMother.Active();
+        // PixKey null no construtor lança ArgumentNullException (guarda de framework, não DomainException).
+        [Fact]
+        public void Constructor_WithNullPixKey_ShouldThrowArgumentNullException()
+        {
+            Assert.Throws<ArgumentNullException>(() => new SupplierPixAccount(null!));
+        }
 
-        var ex = Assert.Throws<DomainException>(() => supplier.AddBankAccount(
-            SupplierBankAccountId.New(), bankCode, "0001", "123456-7", BankAccountType.Checking, null, FIXED_NOW));
+        // PixKey válida é preservada no VO sem alteração.
+        [Fact]
+        public void Constructor_WithValidPixKey_ShouldStoreIt()
+        {
+            var key = new PixKey("59.199.597/0001-98", PixKeyType.Cnpj);
 
-        Assert.Equal("AP.SBA01", ex.Id);
+            var account = new SupplierPixAccount(key);
+
+            Assert.Equal(key, account.PixKey);
+        }
     }
 
-    // Branch vazio lança AP.SBA03.
-    [Theory]
-    [InlineData("")]
-    [InlineData("   ")]
-    public void AddBankAccount_WithEmptyBranch_ShouldThrowDomainException(string branch)
+    public class WhenComparing
     {
-        var supplier = SupplierMother.Active();
+        // Duas SupplierBankTransferAccount com os mesmos componentes são iguais (igualdade estrutural).
+        [Fact]
+        public void TwoBankTransferAccounts_WithSameComponents_ShouldBeEqual()
+        {
+            var a = new SupplierBankTransferAccount("001", "0001", "123456-7", BankAccountType.Checking);
+            var b = new SupplierBankTransferAccount("001", "0001", "123456-7", BankAccountType.Checking);
 
-        var ex = Assert.Throws<DomainException>(() => supplier.AddBankAccount(
-            SupplierBankAccountId.New(), "001", branch, "123456-7", BankAccountType.Checking, null, FIXED_NOW));
+            Assert.Equal(a, b);
+            Assert.Equal(a.GetHashCode(), b.GetHashCode());
+        }
 
-        Assert.Equal("AP.SBA03", ex.Id);
-    }
+        // Diferença em qualquer componente quebra igualdade entre duas SupplierBankTransferAccount.
+        [Fact]
+        public void TwoBankTransferAccounts_DifferingInAnyComponent_ShouldNotBeEqual()
+        {
+            var baseAcc = new SupplierBankTransferAccount("001", "0001", "123456-7", BankAccountType.Checking);
 
-    // AccountNumber vazio lança AP.SBA04.
-    [Theory]
-    [InlineData("")]
-    [InlineData("   ")]
-    public void AddBankAccount_WithEmptyAccountNumber_ShouldThrowDomainException(string accountNumber)
-    {
-        var supplier = SupplierMother.Active();
+            Assert.NotEqual(baseAcc, new SupplierBankTransferAccount("237", "0001", "123456-7", BankAccountType.Checking));
+            Assert.NotEqual(baseAcc, new SupplierBankTransferAccount("001", "0002", "123456-7", BankAccountType.Checking));
+            Assert.NotEqual(baseAcc, new SupplierBankTransferAccount("001", "0001", "999999-9", BankAccountType.Checking));
+            Assert.NotEqual(baseAcc, new SupplierBankTransferAccount("001", "0001", "123456-7", BankAccountType.Savings));
+        }
 
-        var ex = Assert.Throws<DomainException>(() => supplier.AddBankAccount(
-            SupplierBankAccountId.New(), "001", "0001", accountNumber, BankAccountType.Checking, null, FIXED_NOW));
+        // Duas SupplierPixAccount com a mesma PixKey são iguais (igualdade delegada ao VO PixKey).
+        [Fact]
+        public void TwoPixAccounts_WithSameKey_ShouldBeEqual()
+        {
+            var a = new SupplierPixAccount(new PixKey("contato@acme.com.br", PixKeyType.Email));
+            var b = new SupplierPixAccount(new PixKey("contato@acme.com.br", PixKeyType.Email));
 
-        Assert.Equal("AP.SBA04", ex.Id);
-    }
+            Assert.Equal(a, b);
+        }
 
-    // BankCode é normalizado para apenas dígitos (aceita "001-X" → "001" se houver 3 dígitos).
-    [Fact]
-    public void AddBankAccount_BankCodeWithSeparators_ShouldNormalizeToDigits()
-    {
-        var supplier = SupplierMother.Active();
+        // SupplierPixAccount e SupplierBankTransferAccount nunca são iguais entre si — ValueObject.Equals
+        // compara GetType() antes dos componentes, então variantes diferentes da hierarquia divergem.
+        [Fact]
+        public void PixAccount_VS_BankTransferAccount_ShouldNeverBeEqual()
+        {
+            SupplierBankAccount pix = new SupplierPixAccount(new PixKey("59.199.597/0001-98", PixKeyType.Cnpj));
+            SupplierBankAccount bank = new SupplierBankTransferAccount("001", "0001", "123456-7", BankAccountType.Checking);
 
-        var account = supplier.AddBankAccount(
-            SupplierBankAccountId.New(), "0-0-1", "0001", "123456-7", BankAccountType.Checking, null, FIXED_NOW);
-
-        Assert.Equal("001", account.BankCode);
+            Assert.NotEqual(pix, bank);
+        }
     }
 }

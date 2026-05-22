@@ -2,7 +2,6 @@ namespace AccountsPayable.UnitTests.Suppliers.Mothers;
 
 using AccountsPayable.Domain.SeedWork;
 using AccountsPayable.Domain.Suppliers;
-using AccountsPayable.Domain.Suppliers.Entities;
 using AccountsPayable.Domain.Suppliers.Enumerations;
 using AccountsPayable.Domain.Suppliers.ValueObjects;
 
@@ -12,8 +11,8 @@ public static class SupplierMother
     public static readonly TenantId DEFAULT_TENANT = TenantId.From(new Guid("11111111-1111-1111-1111-111111111111"));
 
     // Algoritmicamente válidos.
-    public const string VALID_CNPJ = "11.444.777/0001-61";
-    public const string VALID_CPF = "123.456.789-09";
+    public const string VALID_CNPJ = "59.199.597/0001-98";
+    public const string VALID_CPF = "135.675.460-07";
 
     public static Supplier Active(
         SupplierId? id = null,
@@ -34,6 +33,16 @@ public static class SupplierMother
             occurredAt: occurredAt ?? DEFAULT_OCCURRED_AT);
     }
 
+    public static SupplierBankTransferAccount BankTransferAccount(
+        string bankCode = "001",
+        string branch = "0001",
+        string accountNumber = "123456-7",
+        BankAccountType? accountType = null)
+        => new(bankCode, branch, accountNumber, accountType ?? BankAccountType.Checking);
+
+    public static SupplierPixAccount PixAccount(string? cnpj = null)
+        => new(new PixKey(cnpj ?? VALID_CNPJ, PixKeyType.Cnpj));
+
     public static Supplier ActiveWithBankAccount(
         string bankCode = "001",
         string branch = "0001",
@@ -42,11 +51,15 @@ public static class SupplierMother
     {
         var supplier = Active();
         supplier.AddBankAccount(
-            SupplierBankAccountId.New(),
-            bankCode, branch, accountNumber,
-            accountType ?? BankAccountType.Checking,
-            pixKey: null,
+            BankTransferAccount(bankCode, branch, accountNumber, accountType),
             occurredAt: DEFAULT_OCCURRED_AT.AddMinutes(1));
+        return supplier;
+    }
+
+    public static Supplier ActiveWithPixAccount(string? cnpj = null)
+    {
+        var supplier = Active();
+        supplier.AddBankAccount(PixAccount(cnpj), occurredAt: DEFAULT_OCCURRED_AT.AddMinutes(1));
         return supplier;
     }
 
@@ -56,12 +69,7 @@ public static class SupplierMother
         for (var i = 0; i < count; i++)
         {
             supplier.AddBankAccount(
-                SupplierBankAccountId.New(),
-                bankCode: "001",
-                branch: "0001",
-                accountNumber: $"100{i:D3}-{i}",
-                accountType: BankAccountType.Checking,
-                pixKey: null,
+                BankTransferAccount(bankCode: "001", branch: "0001", accountNumber: $"100{i:D3}-{i}"),
                 occurredAt: DEFAULT_OCCURRED_AT.AddMinutes(i + 1));
         }
         return supplier;

@@ -2,7 +2,6 @@ namespace AccountsPayable.Domain.Suppliers;
 
 using AccountsPayable.Domain.Errors;
 using AccountsPayable.Domain.SeedWork;
-using AccountsPayable.Domain.Suppliers.Entities;
 using AccountsPayable.Domain.Suppliers.Enumerations;
 using AccountsPayable.Domain.Suppliers.Events;
 using AccountsPayable.Domain.Suppliers.ValueObjects;
@@ -12,10 +11,19 @@ using AccountsPayable.Domain.Suppliers.ValueObjects;
 /// not Event-Sourced. Uniqueness of <see cref="TaxId"/> per tenant is enforced by the
 /// <c>SupplierUniquenessChecker</c> Domain Service (cross-aggregate check via port), since
 /// the Aggregate cannot see other Suppliers in the same tenant.
+/// <para>
+/// Bank accounts are <see cref="SupplierBankAccount"/> Value Objects (sealed hierarchy:
+/// <see cref="SupplierPixAccount"/> | <see cref="SupplierBankTransferAccount"/>). Soft delete via
+/// two parallel collections — <see cref="ActiveBankAccounts"/> and <see cref="InactiveBankAccounts"/>.
+/// The active collection is duplicate-free (invariant); the inactive collection may carry the same
+/// VO more than once when an account is added → deactivated → re-added → deactivated, preserving
+/// the full history snapshot. Per-event audit lives in the domain event stream.
+/// </para>
 /// </summary>
 public sealed class Supplier : AggregateRoot<SupplierId>
 {
-    private readonly List<SupplierBankAccount> _bankAccounts = [];
+    private readonly List<SupplierBankAccount> _activeBankAccounts = [];
+    private readonly List<SupplierBankAccount> _inactiveBankAccounts = [];
 
     public TenantId TenantId { get; private set; }
     public LegalName LegalName { get; private set; } = default!;
@@ -24,7 +32,8 @@ public sealed class Supplier : AggregateRoot<SupplierId>
     public ContactInfo Contact { get; private set; } = default!;
     public SupplierStatus Status { get; private set; } = default!;
 
-    public IReadOnlyCollection<SupplierBankAccount> BankAccounts => _bankAccounts.AsReadOnly();
+    public IReadOnlyCollection<SupplierBankAccount> ActiveBankAccounts => _activeBankAccounts.AsReadOnly();
+    public IReadOnlyCollection<SupplierBankAccount> InactiveBankAccounts => _inactiveBankAccounts.AsReadOnly();
 
     private Supplier() : base() { }
 
@@ -72,7 +81,7 @@ public sealed class Supplier : AggregateRoot<SupplierId>
     {
         ArgumentNullException.ThrowIfNull(newName);
         if (newName.Equals(LegalName))
-            return; // idempotent: no event for no-op
+            return;
 
         var oldName = LegalName;
         LegalName = newName;
@@ -105,62 +114,58 @@ public sealed class Supplier : AggregateRoot<SupplierId>
             Phone: newContact.Phone?.Value));
     }
 
-    public SupplierBankAccount AddBankAccount(
-        SupplierBankAccountId bankAccountId,
-        string bankCode,
-        string branch,
-        string accountNumber,
-        BankAccountType accountType,
-        PixKey? pixKey,
-        DateTime occurredAt)
+    public void AddBankAccount(SupplierBankAccount account, DateTime occurredAt)
     {
-        ArgumentNullException.ThrowIfNull(accountType);
+        ArgumentNullException.ThrowIfNull(account);
 
-        if (_bankAccounts.Any(a =>
-                a.BankCode == NormalizeBankCode(bankCode)
-                && a.Branch == (branch?.Trim() ?? string.Empty)
-                && a.AccountNumber == (accountNumber?.Trim() ?? string.Empty)))
-        {
-            throw SupplierErrors.DuplicatedBankAccount(bankCode, branch ?? string.Empty, accountNumber ?? string.Empty);
-        }
+        if (_activeBankAccounts.Contains(account))
+            throw SupplierErrors.DuplicatedBankAccount(DescribeAccount(account));
 
-        var account = new SupplierBankAccount(
-            bankAccountId, bankCode, branch!, accountNumber!, accountType, pixKey, occurredAt);
-
-        _bankAccounts.Add(account);
+        _activeBankAccounts.Add(account);
         UpdatedAt = occurredAt;
 
+        var (variant, pixVal, pixType, bankCode, branch, accNumber, accType) = ExpandAccount(account);
         AddDomainEvent(new SupplierBankAccountAdded(
             EventId: Guid.NewGuid(),
             OccurredAt: occurredAt,
             TenantId: TenantId,
             SupplierId: Id,
-            BankAccountId: bankAccountId,
-            BankCode: account.BankCode,
-            Branch: account.Branch,
-            AccountNumber: account.AccountNumber,
-            AccountType: accountType.Name));
-
-        return account;
+            Variant: variant,
+            PixKeyValue: pixVal,
+            PixKeyType: pixType,
+            BankCode: bankCode,
+            Branch: branch,
+            AccountNumber: accNumber,
+            AccountType: accType));
     }
 
-    public void RemoveBankAccount(SupplierBankAccountId bankAccountId, DateTime occurredAt)
+    public void DeactivateBankAccount(SupplierBankAccount account, DateTime occurredAt)
     {
-        var account = _bankAccounts.FirstOrDefault(a => a.Id.Equals(bankAccountId))
-            ?? throw SupplierErrors.BankAccountNotFound(bankAccountId.Value);
+        ArgumentNullException.ThrowIfNull(account);
 
-        if (Status == SupplierStatus.Active && _bankAccounts.Count == 1)
+        if (!_activeBankAccounts.Contains(account))
+            throw SupplierErrors.BankAccountNotFound();
+
+        if (Status == SupplierStatus.Active && _activeBankAccounts.Count == 1)
             throw SupplierErrors.CannotRemoveLastBankAccountWhileActive();
 
-        _bankAccounts.Remove(account);
+        _activeBankAccounts.Remove(account);
+        _inactiveBankAccounts.Add(account);
         UpdatedAt = occurredAt;
 
-        AddDomainEvent(new SupplierBankAccountRemoved(
+        var (variant, pixVal, pixType, bankCode, branch, accNumber, accType) = ExpandAccount(account);
+        AddDomainEvent(new SupplierBankAccountDeactivated(
             EventId: Guid.NewGuid(),
             OccurredAt: occurredAt,
             TenantId: TenantId,
             SupplierId: Id,
-            BankAccountId: bankAccountId));
+            Variant: variant,
+            PixKeyValue: pixVal,
+            PixKeyType: pixType,
+            BankCode: bankCode,
+            Branch: branch,
+            AccountNumber: accNumber,
+            AccountType: accType));
     }
 
     public void Block(string reason, DateTime occurredAt)
@@ -226,8 +231,24 @@ public sealed class Supplier : AggregateRoot<SupplierId>
             SupplierId: Id));
     }
 
-    private static string NormalizeBankCode(string? raw)
-        => string.IsNullOrWhiteSpace(raw)
-            ? string.Empty
-            : new string(raw.Where(char.IsDigit).ToArray());
+    private static (string Variant, string? PixKeyValue, string? PixKeyType,
+                    string? BankCode, string? Branch, string? AccountNumber, string? AccountType)
+        ExpandAccount(SupplierBankAccount account)
+        => account switch
+        {
+            SupplierPixAccount p
+                => ("PIX", p.PixKey.Value, p.PixKey.Type.Name, null, null, null, null),
+            SupplierBankTransferAccount b
+                => ("BANK_TRANSFER", null, null, b.BankCode, b.Branch, b.AccountNumber, b.AccountType.Name),
+            _ => throw new InvalidOperationException(
+                $"Variant desconhecida de SupplierBankAccount: {account.GetType().Name}."),
+        };
+
+    private static string DescribeAccount(SupplierBankAccount account)
+        => account switch
+        {
+            SupplierPixAccount p => $"PIX {p.PixKey.Type.Name}",
+            SupplierBankTransferAccount b => $"banco {b.BankCode} ag.{b.Branch} c/c {b.AccountNumber}",
+            _ => account.GetType().Name,
+        };
 }

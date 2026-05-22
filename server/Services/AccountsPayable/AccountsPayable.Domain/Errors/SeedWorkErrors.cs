@@ -24,9 +24,8 @@ using AccountsPayable.Domain.SeedWork;
 //     CTR → Contract                      (Sprint 11, traditional)
 //     ERB → ExpectedRecurringBill         (Sprint 11, traditional)
 //     IPL → InstallmentPlan               (Sprint 8, traditional grouper)
-//   Internal Entities:
-//     SBA → SupplierBankAccount           (Sprint 1, inside Supplier)
 //   Value Objects (per-VO factory, shared across aggregates):
+//     SBA → SupplierBankAccount           (Sprint 1, VO hierarchy: SupplierPixAccount | SupplierBankTransferAccount)
 //     TXI → TaxId
 //     LGN → LegalName
 //     TRN → TradeName
@@ -49,6 +48,10 @@ using AccountsPayable.Domain.SeedWork;
 //     AMC → ApprovalMatchCriteria        (Sprint 10)
 //     APR → ApproverRoles                (Sprint 10)
 //     ARF → AccountRef                   (cross-aggregate ref Payable → Account/ChartOfAccounts)
+//     EMV → EmvPayload                   (Sprint 12.A, PIX BR Code dinâmico)
+//     BCD → BarcodeDigits                (Sprint 12.A, boleto código de barras 44 dígitos)
+//     DLN → DigitableLine                (Sprint 12.A, linha digitável boleto 47 dígitos)
+//     PIN → PaymentInstrument            (Sprint 12.A, hierarquia selada — reservado para erros próprios futuros)
 //   Domain Services:
 //     SUC → SupplierUniquenessChecker     (Sprint 1)
 //     PCL → PayableClassification         (Sprint 4)

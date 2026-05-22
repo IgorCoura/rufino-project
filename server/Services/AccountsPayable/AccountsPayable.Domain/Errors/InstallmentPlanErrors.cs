@@ -85,6 +85,18 @@ internal static class InstallmentPlanErrors
             parameters: new object[] { expectedTotal, actualSum },
             sourcePath: BuildSourcePath(filePath, memberName, lineNumber));
 
+    public static DomainException InstrumentListSizeMismatch(
+        int instrumentCount,
+        int installmentCount,
+        [CallerFilePath] string filePath = "",
+        [CallerMemberName] string memberName = "",
+        [CallerLineNumber] int lineNumber = 0)
+        => new(
+            id: $"{PREFIX}08",
+            messageTemplate: "Lista de instrumentos ({0}) deve ter o mesmo tamanho do número de parcelas ({1}).",
+            parameters: new object[] { instrumentCount, installmentCount },
+            sourcePath: BuildSourcePath(filePath, memberName, lineNumber));
+
     private static string BuildSourcePath(string filePath, string memberName, int lineNumber)
         => $"{Path.GetFileName(filePath)}:{lineNumber} ({memberName})";
 }
