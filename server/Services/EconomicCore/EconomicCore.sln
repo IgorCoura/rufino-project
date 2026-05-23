@@ -1,0 +1,81 @@
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "1-Application", "1-Application", "{E1100000-0000-0000-0000-000000000010}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "2-Domain", "2-Domain", "{E1200000-0000-0000-0000-000000000020}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "4-Infra", "4-Infra", "{E1400000-0000-0000-0000-000000000040}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "5-Tests", "5-Tests", "{E1500000-0000-0000-0000-000000000050}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "EconomicCore.API", "EconomicCore.API\EconomicCore.API.csproj", "{D1100000-0000-0000-0000-000000000001}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "EconomicCore.Application", "EconomicCore.Application\EconomicCore.Application.csproj", "{D1200000-0000-0000-0000-000000000002}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "EconomicCore.Domain", "EconomicCore.Domain\EconomicCore.Domain.csproj", "{D1300000-0000-0000-0000-000000000003}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "EconomicCore.Infra", "EconomicCore.Infra\EconomicCore.Infra.csproj", "{D1400000-0000-0000-0000-000000000004}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "EconomicCore.UnitTests", "EconomicCore.UnitTests\EconomicCore.UnitTests.csproj", "{D1500000-0000-0000-0000-000000000005}"
+EndProject
+Project("{E53339B2-1760-4266-BCC7-CA923CBCF16C}") = "docker-compose", "docker-compose.dcproj", "{D2100000-0000-0000-0000-000000000001}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{E1600000-0000-0000-0000-000000000060}"
+	ProjectSection(SolutionItems) = preProject
+		CLAUDE.md = CLAUDE.md
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "EconomicCore.Architecture", "EconomicCore.Architecture", "{E1700000-0000-0000-0000-000000000070}"
+	ProjectSection(SolutionItems) = preProject
+		EconomicCore.Architecture\.gitkeep = EconomicCore.Architecture\.gitkeep
+		EconomicCore.Architecture\Instrucoes-Claude-Code.md = EconomicCore.Architecture\Instrucoes-Claude-Code.md
+		EconomicCore.Architecture\Modelo-REA-Conceitual.md = EconomicCore.Architecture\Modelo-REA-Conceitual.md
+		EconomicCore.Architecture\Modelo-REA-Tatico.md = EconomicCore.Architecture\Modelo-REA-Tatico.md
+	EndProjectSection
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{D1100000-0000-0000-0000-000000000001}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{D1100000-0000-0000-0000-000000000001}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{D1100000-0000-0000-0000-000000000001}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{D1100000-0000-0000-0000-000000000001}.Release|Any CPU.Build.0 = Release|Any CPU
+		{D1200000-0000-0000-0000-000000000002}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{D1200000-0000-0000-0000-000000000002}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{D1200000-0000-0000-0000-000000000002}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{D1200000-0000-0000-0000-000000000002}.Release|Any CPU.Build.0 = Release|Any CPU
+		{D1300000-0000-0000-0000-000000000003}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{D1300000-0000-0000-0000-000000000003}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{D1300000-0000-0000-0000-000000000003}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{D1300000-0000-0000-0000-000000000003}.Release|Any CPU.Build.0 = Release|Any CPU
+		{D1400000-0000-0000-0000-000000000004}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{D1400000-0000-0000-0000-000000000004}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{D1400000-0000-0000-0000-000000000004}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{D1400000-0000-0000-0000-000000000004}.Release|Any CPU.Build.0 = Release|Any CPU
+		{D1500000-0000-0000-0000-000000000005}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{D1500000-0000-0000-0000-000000000005}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{D1500000-0000-0000-0000-000000000005}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{D1500000-0000-0000-0000-000000000005}.Release|Any CPU.Build.0 = Release|Any CPU
+		{D2100000-0000-0000-0000-000000000001}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{D2100000-0000-0000-0000-000000000001}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{D2100000-0000-0000-0000-000000000001}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{D2100000-0000-0000-0000-000000000001}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{D1200000-0000-0000-0000-000000000002} = {E1100000-0000-0000-0000-000000000010}
+		{D1300000-0000-0000-0000-000000000003} = {E1200000-0000-0000-0000-000000000020}
+		{D1400000-0000-0000-0000-000000000004} = {E1400000-0000-0000-0000-000000000040}
+		{D1500000-0000-0000-0000-000000000005} = {E1500000-0000-0000-0000-000000000050}
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {7A2B4C5D-6E7F-8A9B-0C1D-2E3F4A5B6C7E}
+	EndGlobalSection
+EndGlobal
