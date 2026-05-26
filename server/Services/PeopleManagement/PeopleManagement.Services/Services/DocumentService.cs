@@ -501,7 +501,8 @@ namespace PeopleManagement.Services.Services
                 foreach (var unit in document.DocumentsUnits)
                 {
 
-                    if(unit.Status == DocumentUnitStatus.Invalid || unit.Status == DocumentUnitStatus.NotApplicable)
+                    if(unit.Status == DocumentUnitStatus.Invalid || unit.Status == DocumentUnitStatus.NotApplicable
+                        || unit.Status == DocumentUnitStatus.Deprecated)
                     {
                         continue;
                     }
