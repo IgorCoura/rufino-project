@@ -46,7 +46,8 @@ internal static class EconomicEventErrors
             id: $"{PREFIX}04",
             messageTemplate: "EconomicEvent órfão: registro exige exatamente uma cobertura (DualityLink XOR CoveringCommitment).",
             parameters: Array.Empty<object>(),
-            sourcePath: BuildSourcePath(filePath, memberName, lineNumber));
+            sourcePath: BuildSourcePath(filePath, memberName, lineNumber),
+            category: DomainErrorCategory.Conflict);
 
     public static DomainException DualityAlreadyClosed(
         [CallerFilePath] string filePath = "",
@@ -56,7 +57,8 @@ internal static class EconomicEventErrors
             id: $"{PREFIX}05",
             messageTemplate: "Não é possível fechar a dualidade: o evento já está totalmente pareado.",
             parameters: Array.Empty<object>(),
-            sourcePath: BuildSourcePath(filePath, memberName, lineNumber));
+            sourcePath: BuildSourcePath(filePath, memberName, lineNumber),
+            category: DomainErrorCategory.Conflict);
 
     public static DomainException MatchExceedsBalance(
         decimal attempted,
@@ -68,7 +70,8 @@ internal static class EconomicEventErrors
             id: $"{PREFIX}06",
             messageTemplate: "MatchedAmount ({0}) excede o saldo não pareado do evento ({1}).",
             parameters: new object[] { attempted, remaining },
-            sourcePath: BuildSourcePath(filePath, memberName, lineNumber));
+            sourcePath: BuildSourcePath(filePath, memberName, lineNumber),
+            category: DomainErrorCategory.Conflict);
 
     // ECC.EVT07 — slot reservado: imutabilidade do fato é estrutural (sem setters públicos após Create).
     // A factory existe como documentação da invariante; nunca é chamada no fluxo normal.

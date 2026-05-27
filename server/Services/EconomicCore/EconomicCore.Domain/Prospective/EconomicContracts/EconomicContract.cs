@@ -82,10 +82,15 @@ public sealed class EconomicContract : AggregateRoot<EconomicContractId>
             throw EconomicContractErrors.DuplicateCommitmentForPeriod(period.Year, period.Month, CommitmentDirection.InflowPromise.Name);
 
         var window = BuildFulfillmentWindow(period);
-        var amount = DefaultTerms.ExpectedAmount;
+        var outflowAmount = new Money(DefaultTerms.ExpectedAmount.Amount, DefaultTerms.ExpectedAmount.Currency);
+        var inflowAmount = new Money(DefaultTerms.ExpectedAmount.Amount, DefaultTerms.ExpectedAmount.Currency);
+        var outflowPeriod = new CompetencePeriod(period.Year, period.Month);
+        var inflowPeriod = new CompetencePeriod(period.Year, period.Month);
+        var outflowWindow = new DateRange(window.From, window.To);
+        var inflowWindow = new DateRange(window.From, window.To);
 
-        var outflow = new Commitment(outflowCommitmentId, CommitmentDirection.OutflowPromise, period, amount, window, occurredAt);
-        var inflow = new Commitment(inflowCommitmentId, CommitmentDirection.InflowPromise, period, amount, window, occurredAt);
+        var outflow = new Commitment(outflowCommitmentId, CommitmentDirection.OutflowPromise, outflowPeriod, outflowAmount, outflowWindow, occurredAt);
+        var inflow = new Commitment(inflowCommitmentId, CommitmentDirection.InflowPromise, inflowPeriod, inflowAmount, inflowWindow, occurredAt);
         outflow.SetReciprocal(new ReciprocalLink(inflow.Id));
         inflow.SetReciprocal(new ReciprocalLink(outflow.Id));
 
@@ -104,8 +109,8 @@ public sealed class EconomicContract : AggregateRoot<EconomicContractId>
             PeriodMonth: period.Month,
             OutflowCommitmentId: outflow.Id,
             InflowCommitmentId: inflow.Id,
-            ExpectedAmountValue: amount.Amount,
-            ExpectedAmountCurrency: amount.Currency.Name,
+            ExpectedAmountValue: DefaultTerms.ExpectedAmount.Amount,
+            ExpectedAmountCurrency: DefaultTerms.ExpectedAmount.Currency.Name,
             OccurredAt: occurredAt));
     }
 
@@ -162,6 +167,29 @@ public sealed class EconomicContract : AggregateRoot<EconomicContractId>
 
         Status = target;
         UpdatedAt = occurredAt;
+    }
+
+    public Commitment FindPromisedCommitment(CompetencePeriod period, CommitmentDirection direction)
+    {
+        var commitment = _commitments
+            .FirstOrDefault(c => c.Period.Equals(period)
+                && c.Direction == direction
+                && c.Status == CommitmentStatus.Promised);
+
+        if (commitment is null)
+            throw EconomicContractErrors.NoCoveringCommitmentForPeriod(
+                period.Year, period.Month, direction.Name);
+
+        return commitment;
+    }
+
+    public Commitment FindReciprocalCommitment(CommitmentId commitmentId)
+    {
+        var commitment = FindCommitmentOrThrow(commitmentId);
+        if (commitment.Reciprocal is null)
+            throw EconomicContractErrors.MissingReciprocal();
+
+        return FindCommitmentOrThrow(commitment.Reciprocal.ReciprocalCommitmentId);
     }
 
     private Commitment FindCommitmentOrThrow(CommitmentId commitmentId)

@@ -38,7 +38,7 @@ public class DualityMatchingServiceTests
         consumption.ClearDomainEvents();
         payment.ClearDomainEvents();
 
-        DualityMatchingService.Match(payment, commitmentRef.CommitmentId, consumption, MatchAt);
+        DualityMatchingService.Match(payment, consumption, MatchAt);
 
         Assert.NotNull(payment.Duality);
         Assert.NotNull(consumption.Duality);
@@ -61,7 +61,7 @@ public class DualityMatchingServiceTests
         var consumption = BuildConsumption(commitmentRef, new Money(800m, Currency.BRL));
         var payment = BuildPayment(commitmentRef, new Money(1000m, Currency.BRL));
 
-        DualityMatchingService.Match(payment, commitmentRef.CommitmentId, consumption, MatchAt);
+        DualityMatchingService.Match(payment, consumption, MatchAt);
 
         Assert.Equal(800m, payment.Duality!.MatchedAmount.Amount);
         Assert.Equal(800m, consumption.Duality!.MatchedAmount.Amount);
@@ -75,7 +75,7 @@ public class DualityMatchingServiceTests
         var consumption = BuildConsumption(commitmentRef);
 
         var ex = Assert.Throws<DomainException>(
-            () => DualityMatchingService.Match(null!, commitmentRef.CommitmentId, consumption, MatchAt));
+            () => DualityMatchingService.Match(null!, consumption, MatchAt));
 
         Assert.Equal("ECC.DMS01", ex.Id);
     }
@@ -88,7 +88,7 @@ public class DualityMatchingServiceTests
         var payment = BuildPayment(commitmentRef);
 
         var ex = Assert.Throws<DomainException>(
-            () => DualityMatchingService.Match(payment, commitmentRef.CommitmentId, null!, MatchAt));
+            () => DualityMatchingService.Match(payment, null!, MatchAt));
 
         Assert.Equal("ECC.DMS01", ex.Id);
     }
@@ -121,40 +121,25 @@ public class DualityMatchingServiceTests
             registeredAt: EconomicEventMother.FixedRegisteredAt);
 
         var ex = Assert.Throws<DomainException>(
-            () => DualityMatchingService.Match(payment, commitmentRef.CommitmentId, consumption, MatchAt));
+            () => DualityMatchingService.Match(payment, consumption, MatchAt));
 
         Assert.Equal("ECC.DMS02", ex.Id);
     }
 
-    // Payment com CoveringCommitment diferente do esperado lança ECC.DMS04.
+    // Eventos cobertos por commitments recíprocos (IDs diferentes) pareiam normalmente — validação de reciprocidade é do Contract.
     [Fact]
-    public void Match_WithPaymentNotCoveredByCommitment_ShouldThrowECC_DMS04()
+    public void Match_WithDifferentCoveringCommitments_ShouldSucceed()
     {
-        var expectedCommitmentId = CommitmentId.From(new Guid("aaaa0001-0001-7001-8001-aaaaaaaaaaaa"));
-        var otherCommitmentRef = new CommitmentRef(CommitmentId.From(new Guid("bbbb0001-0001-7001-8001-bbbbbbbbbbbb")));
-        var expectedCommitmentRef = new CommitmentRef(expectedCommitmentId);
-        var consumption = BuildConsumption(expectedCommitmentRef);
-        var payment = BuildPayment(otherCommitmentRef);
+        var outflowRef = new CommitmentRef(CommitmentId.From(new Guid("aaaa0001-0001-7001-8001-aaaaaaaaaaaa")));
+        var inflowRef = new CommitmentRef(CommitmentId.From(new Guid("bbbb0001-0001-7001-8001-bbbbbbbbbbbb")));
+        var consumption = BuildConsumption(inflowRef);
+        var payment = BuildPayment(outflowRef);
+        consumption.ClearDomainEvents();
+        payment.ClearDomainEvents();
 
-        var ex = Assert.Throws<DomainException>(
-            () => DualityMatchingService.Match(payment, expectedCommitmentId, consumption, MatchAt));
+        DualityMatchingService.Match(payment, consumption, MatchAt);
 
-        Assert.Equal("ECC.DMS04", ex.Id);
-    }
-
-    // Consumption com CoveringCommitment diferente do esperado lança ECC.DMS03.
-    [Fact]
-    public void Match_WithConsumptionNotCoveredByCommitment_ShouldThrowECC_DMS03()
-    {
-        var expectedCommitmentId = CommitmentId.From(new Guid("aaaa0001-0001-7001-8001-aaaaaaaaaaaa"));
-        var expectedCommitmentRef = new CommitmentRef(expectedCommitmentId);
-        var otherCommitmentRef = new CommitmentRef(CommitmentId.From(new Guid("bbbb0001-0001-7001-8001-bbbbbbbbbbbb")));
-        var consumption = BuildConsumption(otherCommitmentRef);
-        var payment = BuildPayment(expectedCommitmentRef);
-
-        var ex = Assert.Throws<DomainException>(
-            () => DualityMatchingService.Match(payment, expectedCommitmentId, consumption, MatchAt));
-
-        Assert.Equal("ECC.DMS03", ex.Id);
+        Assert.NotNull(payment.Duality);
+        Assert.NotNull(consumption.Duality);
     }
 }

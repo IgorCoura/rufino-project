@@ -28,26 +28,24 @@ public class DualityMatchingErrorsTests
         Assert.Equal(2, ex.Parameters.Count);
     }
 
-    // ConsumptionNotCoveredByCommitment (DMS03) carrega o CommitmentId esperado.
+    // ConsumptionNotCoveredByCommitment (DMS03) — sem parâmetros, indica ausência de cobertura.
     [Fact]
-    public void ConsumptionNotCoveredByCommitment_ShouldReturnECC_DMS03_WithCommitmentId()
+    public void ConsumptionNotCoveredByCommitment_ShouldReturnECC_DMS03()
     {
-        var commitmentId = Guid.NewGuid();
-
-        var ex = DualityMatchingErrors.ConsumptionNotCoveredByCommitment(commitmentId);
+        var ex = DualityMatchingErrors.ConsumptionNotCoveredByCommitment();
 
         Assert.Equal("ECC.DMS03", ex.Id);
-        Assert.Single(ex.Parameters);
+        Assert.Empty(ex.Parameters);
     }
 
-    // PaymentNotCoveredByCommitment (DMS04).
+    // PaymentNotCoveredByCommitment (DMS04) — sem parâmetros, indica ausência de cobertura.
     [Fact]
     public void PaymentNotCoveredByCommitment_ShouldReturnECC_DMS04()
     {
-        var ex = DualityMatchingErrors.PaymentNotCoveredByCommitment(Guid.NewGuid());
+        var ex = DualityMatchingErrors.PaymentNotCoveredByCommitment();
 
         Assert.Equal("ECC.DMS04", ex.Id);
-        Assert.Single(ex.Parameters);
+        Assert.Empty(ex.Parameters);
     }
 
     // CurrencyMismatch (DMS05).

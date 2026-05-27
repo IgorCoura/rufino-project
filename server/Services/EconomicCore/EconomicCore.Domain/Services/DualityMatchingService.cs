@@ -1,18 +1,16 @@
 namespace EconomicCore.Domain.Services;
 
 using EconomicCore.Domain.Operational.EconomicEvents;
-using EconomicCore.Domain.Prospective.EconomicContracts;
 using EconomicCore.Domain.SharedKernel;
 
 /// <summary>
-/// Coordinates the closure of the duality between two EconomicEvents covered by the same Commitment.
+/// Coordinates the closure of the duality between two EconomicEvents covered by reciprocal Commitments.
 /// Stateless, no infra dependency, no async, no events emitted directly — the aggregates emit their own DualityClosed.
 /// </summary>
 public static class DualityMatchingService
 {
     public static void Match(
         EconomicEvent paymentEvent,
-        CommitmentId coveringCommitmentId,
         EconomicEvent consumptionEvent,
         DateTime occurredAt)
     {
@@ -24,13 +22,11 @@ public static class DualityMatchingService
         if (!paymentEvent.TenantId.Equals(consumptionEvent.TenantId))
             throw DualityMatchingErrors.TenantMismatch(paymentEvent.TenantId.Value, consumptionEvent.TenantId.Value);
 
-        if (paymentEvent.CoveringCommitment is null
-            || !paymentEvent.CoveringCommitment.CommitmentId.Equals(coveringCommitmentId))
-            throw DualityMatchingErrors.PaymentNotCoveredByCommitment(coveringCommitmentId.Value);
+        if (paymentEvent.CoveringCommitment is null)
+            throw DualityMatchingErrors.PaymentNotCoveredByCommitment();
 
-        if (consumptionEvent.CoveringCommitment is null
-            || !consumptionEvent.CoveringCommitment.CommitmentId.Equals(coveringCommitmentId))
-            throw DualityMatchingErrors.ConsumptionNotCoveredByCommitment(coveringCommitmentId.Value);
+        if (consumptionEvent.CoveringCommitment is null)
+            throw DualityMatchingErrors.ConsumptionNotCoveredByCommitment();
 
         if (!paymentEvent.Amount.Currency.Equals(consumptionEvent.Amount.Currency))
             throw DualityMatchingErrors.CurrencyMismatch(

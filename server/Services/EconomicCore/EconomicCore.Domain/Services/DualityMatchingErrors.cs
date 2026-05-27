@@ -29,29 +29,30 @@ internal static class DualityMatchingErrors
             id: $"{PREFIX}02",
             messageTemplate: "Tenants distintos no matching: payment={0}, consumption={1}.",
             parameters: new object[] { expectedTenant, actualTenant },
-            sourcePath: BuildSourcePath(filePath, memberName, lineNumber));
+            sourcePath: BuildSourcePath(filePath, memberName, lineNumber),
+            category: DomainErrorCategory.Conflict);
 
     public static DomainException ConsumptionNotCoveredByCommitment(
-        Guid expectedCommitmentId,
         [CallerFilePath] string filePath = "",
         [CallerMemberName] string memberName = "",
         [CallerLineNumber] int lineNumber = 0)
         => new(
             id: $"{PREFIX}03",
-            messageTemplate: "ConsumptionEvent não está coberto pelo commitment {0}.",
-            parameters: new object[] { expectedCommitmentId },
-            sourcePath: BuildSourcePath(filePath, memberName, lineNumber));
+            messageTemplate: "ConsumptionEvent não está coberto por nenhum Commitment.",
+            parameters: Array.Empty<object>(),
+            sourcePath: BuildSourcePath(filePath, memberName, lineNumber),
+            category: DomainErrorCategory.Conflict);
 
     public static DomainException PaymentNotCoveredByCommitment(
-        Guid expectedCommitmentId,
         [CallerFilePath] string filePath = "",
         [CallerMemberName] string memberName = "",
         [CallerLineNumber] int lineNumber = 0)
         => new(
             id: $"{PREFIX}04",
-            messageTemplate: "PaymentEvent não está coberto pelo commitment {0}.",
-            parameters: new object[] { expectedCommitmentId },
-            sourcePath: BuildSourcePath(filePath, memberName, lineNumber));
+            messageTemplate: "PaymentEvent não está coberto por nenhum Commitment.",
+            parameters: Array.Empty<object>(),
+            sourcePath: BuildSourcePath(filePath, memberName, lineNumber),
+            category: DomainErrorCategory.Conflict);
 
     public static DomainException CurrencyMismatch(
         string expectedCurrency,
@@ -63,7 +64,8 @@ internal static class DualityMatchingErrors
             id: $"{PREFIX}05",
             messageTemplate: "Currencies distintas no matching: payment={0}, consumption={1}.",
             parameters: new object[] { expectedCurrency, actualCurrency },
-            sourcePath: BuildSourcePath(filePath, memberName, lineNumber));
+            sourcePath: BuildSourcePath(filePath, memberName, lineNumber),
+            category: DomainErrorCategory.Conflict);
 
     private static string BuildSourcePath(string filePath, string memberName, int lineNumber)
         => $"{Path.GetFileName(filePath)}:{lineNumber} ({memberName})";

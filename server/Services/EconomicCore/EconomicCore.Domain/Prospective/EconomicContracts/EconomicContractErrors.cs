@@ -4,7 +4,7 @@ using System.IO;
 using System.Runtime.CompilerServices;
 using EconomicCore.Domain.SeedWork;
 
-internal static class EconomicContractErrors
+public static class EconomicContractErrors
 {
     private const string PREFIX = "ECC.CTR";
 
@@ -29,7 +29,8 @@ internal static class EconomicContractErrors
             id: $"{PREFIX}02",
             messageTemplate: "Já existe Commitment para o período {0}/{1} na direção {2}.",
             parameters: new object[] { month, year, directionName },
-            sourcePath: BuildSourcePath(filePath, memberName, lineNumber));
+            sourcePath: BuildSourcePath(filePath, memberName, lineNumber),
+            category: DomainErrorCategory.Conflict);
 
     public static DomainException CannotFulfillInStatus(
         string currentStatus,
@@ -40,7 +41,8 @@ internal static class EconomicContractErrors
             id: $"{PREFIX}03",
             messageTemplate: "Commitment em status {0} não pode ser cumprido (apenas Promised/Reserved).",
             parameters: new object[] { currentStatus },
-            sourcePath: BuildSourcePath(filePath, memberName, lineNumber));
+            sourcePath: BuildSourcePath(filePath, memberName, lineNumber),
+            category: DomainErrorCategory.Conflict);
 
     // ECC.CTR04 — slot reservado: divergência de Amount fora da tolerância sinaliza (não bloqueia em Phase 1).
     public static DomainException AmountOutsideTolerance(
@@ -64,7 +66,8 @@ internal static class EconomicContractErrors
             id: $"{PREFIX}05",
             messageTemplate: "Operação inválida: EconomicContract está em status {0} (esperado Active).",
             parameters: new object[] { currentStatus },
-            sourcePath: BuildSourcePath(filePath, memberName, lineNumber));
+            sourcePath: BuildSourcePath(filePath, memberName, lineNumber),
+            category: DomainErrorCategory.Conflict);
 
     // Erros adicionais (CTR06+) para validação de VOs internos.
     public static DomainException InvalidRecurrencePeriodicity(
@@ -152,6 +155,32 @@ internal static class EconomicContractErrors
             messageTemplate: "Transição inválida de ContractStatus: {0} -> {1}.",
             parameters: new object[] { from, to },
             sourcePath: BuildSourcePath(filePath, memberName, lineNumber));
+
+    public static DomainException ContractNotFound(
+        Guid contractId,
+        [CallerFilePath] string filePath = "",
+        [CallerMemberName] string memberName = "",
+        [CallerLineNumber] int lineNumber = 0)
+        => new(
+            id: $"{PREFIX}14",
+            messageTemplate: "EconomicContract {0} não encontrado para o tenant informado.",
+            parameters: new object[] { contractId },
+            sourcePath: BuildSourcePath(filePath, memberName, lineNumber),
+            category: DomainErrorCategory.NotFound);
+
+    public static DomainException NoCoveringCommitmentForPeriod(
+        int year,
+        int month,
+        string directionName,
+        [CallerFilePath] string filePath = "",
+        [CallerMemberName] string memberName = "",
+        [CallerLineNumber] int lineNumber = 0)
+        => new(
+            id: $"{PREFIX}15",
+            messageTemplate: "Nenhum Commitment {2} em status Promised encontrado para o período {0}/{1}.",
+            parameters: new object[] { year, month, directionName },
+            sourcePath: BuildSourcePath(filePath, memberName, lineNumber),
+            category: DomainErrorCategory.Conflict);
 
     private static string BuildSourcePath(string filePath, string memberName, int lineNumber)
         => $"{Path.GetFileName(filePath)}:{lineNumber} ({memberName})";

@@ -12,12 +12,14 @@ public sealed class DomainException : Exception
     public string MessageTemplate { get; }
     public IReadOnlyList<object> Parameters { get; }
     public string SourcePath { get; }
+    public DomainErrorCategory Category { get; }
 
     public DomainException(
         string id,
         string messageTemplate,
         IReadOnlyList<object> parameters,
-        string sourcePath)
+        string sourcePath,
+        DomainErrorCategory? category = null)
         : base(BuildMessage(messageTemplate, parameters))
     {
         if (string.IsNullOrWhiteSpace(id))
@@ -37,6 +39,7 @@ public sealed class DomainException : Exception
         MessageTemplate = messageTemplate;
         Parameters = parameters;
         SourcePath = sourcePath;
+        Category = category ?? DomainErrorCategory.Validation;
     }
 
     private static string BuildMessage(string template, IReadOnlyList<object> parameters)

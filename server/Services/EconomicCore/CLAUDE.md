@@ -10,6 +10,12 @@ A **Bounded Context** of the Rufino financial SaaS. Escopo de negócio ainda **n
 
 **Arquitetura: Clean Architecture com Domain-Driven Design (DDD).** Os quatro projetos (`EconomicCore.Domain`, `EconomicCore.Application`, `EconomicCore.Infra`, `EconomicCore.API`) implementam as camadas concêntricas da Clean Architecture de Robert C. Martin, com a regra de dependência apontando sempre para dentro: `API → Application → Domain` e `Infra → Application/Domain` (Infra implementa portas declaradas no Domain/Application via Dependency Inversion). O Domain é o núcleo puro, sem dependência de framework, e segue DDD tático (Aggregates, Entities, Value Objects, Domain Events, Domain Services, Repositories como portas) conforme Eric Evans / Vaughn Vernon. Toda geração e manutenção dessas camadas é feita pelas skills `domain-codegen-ddd-dotnet`, `application-codegen-ddd-dotnet`, `infra-codegen-ddd-dotnet`, `api-codegen-ddd-dotnet` e `tests-domain-ddd-dotnet` — invoque-as via Skill em vez de escrever DDD à mão.
 
+## EconomicCore.Architecture — índice de referência
+
+A pasta `EconomicCore.Architecture/` contém o design rationale, a base teórica do BC e as fontes acadêmicas/normativas REA. **Leia esses documentos antes de modelar — eles são a fonte de verdade, não o código.**
+
+O índice completo com tabelas de seções/linhas de cada documento está em [`EconomicCore.Architecture/index.md`](EconomicCore.Architecture/index.md). Consulte-o para localizar conteúdo específico por seção e linha dentro dos arquivos `.md`.
+
 ## Planning
 
 - When asked to plan: output only the plan. No code until told to proceed.
@@ -79,30 +85,6 @@ A **Bounded Context** of the Rufino financial SaaS. Escopo de negócio ainda **n
 - Work from raw error data. Don't guess. If a bug report has no output,
   ask for it.
 
-## Status
-
-**Domain — Fase 1 (Walking Skeleton) completa.** Os 7 prompts do guia `EconomicCore.Architecture/Instrucoes-Claude-Code.md` foram implementados (SeedWork + SharedKernel + 4 Aggregates + 1 Domain Service). **268 testes aprovados, 1 skipped, 0 falhas.** Application, Infra e API ainda como esqueleto vazio (csproj + `Program.cs` placeholder).
-
-Implementado em `EconomicCore.Domain/`:
-
-| Prompt | Status | Escopo aterrissado |
-|---|---|---|
-| 1 — SeedWork | ✅ Done | `SeedWork/` (`IEntityId<TSelf>` com `static abstract New/From/Empty`, `Entity<TId>`, `AggregateRoot<TId>` com `AddDomainEvent`/`PullDomainEvents`, `ValueObject` + `ToString` por reflexão, `Enumeration` + helpers `Try*`/`AbsoluteDifference`, `IDomainEvent`, `DomainException` com regex `XXX##` \| `XXX.YYY##`, `SeedWorkErrors` → `SWK01 - EmptyId`) + `EconomicCoreErrors` na raiz do Domain (`ECC01 - TenantMismatch`). Sigla `SWK` reservada para SeedWork. |
-| 2 — SharedKernel | ✅ Done | `SharedKernel/` (pasta interna do Domain, **não** projeto separado — divergência consciente de §13.10/§7.2). Smart Enums `Currency` (BRL only) e `TaxIdKind` (CPF=11, CNPJ=14, prop `ExpectedLength`). VOs `Money` (`Amount`+`Currency`, banker's rounding, `Add`/`Subtract`/`Multiply`, sign props), `CompetencePeriod` (`Year`+`Month` ∈ [1900..9999]×[1..12], `Next`/`Previous` com wrap, `FirstDay`/`LastDay` respeitando leap year, `Contains`), `DateRange` (`DateOnly From`+`To`, invariante `From<=To`, `Days` inclusivo, `Contains`, `Overlaps` incluindo borda compartilhada), `TaxId` (sanitização digits-only, length match + check digit mod-11 + blacklist de repetidos, `Formatted()` com máscaras brasileiras). Erros: `SHK.MNY01..02`, `SHK.PER01..02`, `SHK.DRG01`, `SHK.TAX01..03`. |
-| 3 — EconomicAgent | ✅ Done | `Operational/EconomicAgents/` AR `EconomicAgent` (props `TenantId`+`Scope`+`Name`+`TaxId?`+`Roles`, factory `Create`, setters privados `SetName`/`SetScope`, `public const NAME_MAX_LENGTH=200`); ID `EconomicAgentId`+`EconomicRoleId`; Smart Enum `AgentScope` (Inside/Outside); evento `EconomicAgentRegistered` (payload com `TaxId` decomposto em string+kind); erros `ECC.AGT01..03` (AGT03 slot reservado — validação real está no VO TaxId). `TenantId` criado em `SharedKernel/`. **`InternalsVisibleTo` habilitado** no Domain para `EconomicCore.UnitTests` (necessário para testar `internal static` factories de erro direto). |
-| 4 — EconomicResource | ✅ Done | `Operational/EconomicResources/` AR `EconomicResource` (props `TenantId`+`TypeId?`+`Kind`+`Name`+`CustodianId?`, factory `Create`, setters privados `SetName`/`SetKind`, `public const NAME_MAX_LENGTH=200`); IDs `EconomicResourceId`+`EconomicResourceTypeId`; Smart Enum `ResourceKind` (4 valores: `CASH`/`SERVICE`/`LABOR_SERVICE`/`FISCAL_OBLIGATION`); evento `EconomicResourceRegistered` (payload com `TypeId?`/`CustodianId?` como `Guid?` para evitar JSON converter custom em outbox); erros `ECC.RES01..03` (RES03 = `CustodianMustBeInternal` é slot reservado para Domain Service cross-aggregate futuro). **Saldo não é campo do aggregate** — derivado de read model. |
-| 5 — EconomicEvent | ✅ Done | `Operational/EconomicEvents/` AR `EconomicEvent` (factories `RegisterCovered`/`RegisterPaired` + método `CloseDuality` parcial/total); IDs `EconomicEventId`+`EconomicEventTypeId`; Smart Enums `FlowDirection` (Inflow/Outflow) + `ParticipationRole` (Provider/Recipient); VOs `Participation`, `DualityLink`, `CommitmentRef`, `EventTimestamp` (UTC-only); eventos `EconomicEventRegistered` + `DualityClosed`; erros `ECC.EVT01..13` (`EVT01..07` invariantes principais + extensões `EVT08..13` para validação de VOs internos — slot `EVT07` reservado documentando imutabilidade estrutural). Faz referência cross-aggregate por ID a `EconomicResourceId`, `EconomicAgentId` e `CommitmentId` (este último criado em `Prospective/EconomicContracts/CommitmentId.cs` como placeholder do Prompt 6). `UserId` adicionado a `SharedKernel/`. **Phase 1 simplification:** `DualityLink? Duality` é singular (1 contraparte por evento; acumula MatchedAmount em CloseDuality). O 1-pagamento-cobre-N-consumos pré-pago será refatorado na Fase 2. |
-| 6 — EconomicContract + Commitment | ✅ Done | `Prospective/EconomicContracts/` AR `EconomicContract` (status `Active`/`Suspended`/`Terminated` com máquina de estados; comportamentos `Create`/`GenerateCommitmentsFor`/`MarkFulfilled`/`Expire`/`CancelCommitment`/`Suspend`/`Resume`/`Terminate`); Entity interna `Commitment` (Entity<CommitmentId>, status `Promised`/`Reserved`/`Fulfilled`/`Expired`/`Cancelled` com `CanTransitionTo`+`IsTerminal`, mutada só via Root); IDs `EconomicContractId`+`CommitmentId`; Smart Enums `ContractDirection`/`ContractStatus`/`CommitmentDirection`/`CommitmentStatus`/`Periodicity`; VOs `RecurrencePattern` (Periodicity+AnchorDay), `CommitmentTerms` (ExpectedAmount+TolerancePercent+WindowDays, método `IsWithinTolerance`), `ReciprocalLink`; eventos `EconomicContractCreated`/`CommitmentsGenerated`/`CommitmentFulfilled`/`CommitmentExpired`/`CommitmentCancelled`; erros `ECC.CTR01..13` (CTR01..05 invariantes principais — CTR04 = `AmountOutsideTolerance` slot reservado para sinalização soft, não bloqueia Phase 1 — + extensões CTR06..13 para VOs/lookup/máquina de estados). **CTR01 é estrutural**: pares outflow+inflow sempre gerados juntos com `ReciprocalLink` cruzado. Application supplies `CommitmentId` pair externally para idempotência. |
-
-| 7 — DualityMatchingService | ✅ Done | `Services/DualityMatchingService.cs` — stateless `static class` (sem interface/async/infra). Método `Match(payment, coveringCommitmentId, consumption, occurredAt)` valida non-null, tenant match, ambos cobertos pelo mesmo Commitment, currency match; calcula `matchedAmount = min(payment_remaining, consumption_remaining)`; chama `CloseDuality` nos **dois** `EconomicEvent` (Application persiste os dois na mesma transação — exceção justificada a "1 aggregate por transação" porque duality é invariante de par, §5.4). Não emite eventos — os aggregates emitem `DualityClosed`. Sigla `ECC.DMS##`: `DMS01 - NullEvent`, `DMS02 - TenantMismatch`, `DMS03 - ConsumptionNotCoveredByCommitment`, `DMS04 - PaymentNotCoveredByCommitment`, `DMS05 - CurrencyMismatch`. |
-
-**Próximas camadas** (fora deste guia — próximas sprints):
-- **Application**: commands `RegisterEconomicContract`/`GenerateCommitments`/`RegisterConsumptionEvent`/`RegisterPaymentEvent`; queries `ListClaims`/`GetCompetenceDRE`/`GetCashFlow`/`ListUpcomingCommitments`. Idempotência via `IRequestManager`. Handler de matching post-paid orquestra `DualityMatchingService`.
-- **Infra**: EF Core 10 + PostgreSQL + Outbox. Mapeamento EF de VOs (`Money`, `CompetencePeriod`, `DateRange`, `TaxId`, `Participation`, `DualityLink`, `CommitmentRef`, `EventTimestamp`, `RecurrencePattern`, `CommitmentTerms`, `ReciprocalLink`) + Smart Enums (converter para int). Multi-tenant filter por `TenantId` global. Unique index em `(TenantId, EconomicAgent.TaxId)` quando presente.
-- **API**: controllers `EconomicCore.API`, autenticação Keycloak via `[ProtectedResource]`, filtros mapeando `DomainException` em HTTP 400/422 (preservar `Id`).
-- **Read models**: handlers consumindo `EconomicEventRegistered`/`DualityClosed`/`CommitmentsGenerated`/`CommitmentFulfilled`/`CommitmentExpired`.
-- **Sprint Fase 2** (opcional): `StandaloneCommitment` (sigla `ECC.STD##`) + refinamento do `DualityLink` para 1-to-many (pré-pago).
-
 ## Build, Run & Test
 
 This BC has its **own `.sln`** — it is **not** part of `../../RufinoProject.sln`. Always operate from this folder.
@@ -116,6 +98,9 @@ dotnet run --project EconomicCore.API
 
 # Unit tests
 dotnet test EconomicCore.UnitTests
+
+# Integration tests (requires Docker for Testcontainers + postgres:17)
+dotnet test EconomicCore.IntegrationTests
 
 # Run a single test class / method
 dotnet test --filter "FullyQualifiedName~ClassName"
@@ -132,11 +117,12 @@ dotnet ef database update --project ../EconomicCore.Infra
 
 | Service               | Host port | Container port |
 |-----------------------|-----------|----------------|
-| `economiccore.api`    | 8060      | 80             |
-| `economiccore.api`    | 8061      | 443            |
-| `economiccore.db`     | 8062      | 5432           |
+| `economiccore.api`    | 8090      | 8080 (HTTP)    |
+| `economiccore.db`     | 8092      | 5432           |
 
-Postgres schema: `economic_core`. Database: `EconomicCoreDb`. Connection string is configured in `EconomicCore.API/appsettings.json` and points at the `economiccore.db` service name (compose-internal DNS).
+Postgres: `postgres:17-alpine`, schema `economic_core`, database `EconomicCoreDb`. Connection string injected via `ConnectionStrings__EconomicCore` env var in compose, points at `economiccore.db` (compose-internal DNS). Healthcheck on DB ensures API waits. `EnsureCreatedAsync` runs at startup to create the schema.
+
+Swagger UI: `http://localhost:8090/openapi/v1.json` + `http://localhost:8090/swagger`
 
 ## Mandatory testing workflow
 
@@ -189,15 +175,33 @@ Atualize sempre que qualquer um destes acontecer:
 
 **Falhar em atualizar o CLAUDE.md é considerado tarefa incompleta**, mesmo que o código compile e os testes passem. Esse arquivo é o que orienta as próximas sessões do Claude Code — se ele estiver desatualizado, o próximo agente parte de premissas erradas e o débito de contexto cresce em silêncio.
 
+## Fase 1 — Status
+
+Walking Skeleton do aluguel pós-pago: **completo** (Domain + Application + Infra + API + Integration Tests).
+
+| Camada | Status | Artefatos |
+|---|---|---|
+| Domain | ✅ | 4 Aggregates (EconomicEvent, EconomicResource, EconomicAgent, EconomicContract), DualityMatchingService, 268 unit tests |
+| Application | ✅ | 4 Commands (RegisterEconomicContract, GenerateCommitments, RegisterConsumptionEvent, RegisterPaymentEvent), 2 Queries (GetCompetenceDRE, GetCashFlow) |
+| Infra | ✅ | EconomicCoreDbContext (UoW + Outbox), 4 repositories, EF mappings (owned types achatados), FK removal for cross-aggregate references |
+| API | ✅ | ContractsController, EventsController, ReportsController, DomainExceptionFilter |
+| Integration Tests | ✅ | 7 tests: happy path (competência correta), duality persistence, 4 error paths (ECC.EVT04, ECC.CTR05, ECC.CTR02, amount=0), multi-tenant |
+
 ## Architecture — what is non-obvious
 
-_A preencher conforme decisões arquiteturais forem tomadas. Prefixos de erro em uso: `SWK##` (SeedWork), `ECC##` (BC transversal), `ECC.<AGG>##` (Aggregate-specific — siglas reservadas: `AGT`, `RES`, `EVT`, `CTR`, `DMS`, `STD`, `SHK`). Convenções herdadas:_
+Prefixos de erro em uso: `SWK##` (SeedWork), `ECC##` (BC transversal), `ECC.<AGG>##` (Aggregate-specific — siglas reservadas: `AGT`, `RES`, `EVT`, `CTR`, `DMS`, `STD`, `SHK`). Convenções herdadas:
 
 - Aggregate Roots emitem Domain Events; Entities internas nunca.
 - Cross-aggregate rules vão em Domain Services, nunca passe Entity de um Aggregate para método de outro (ver memória `feedback_ddd_aggregate_boundaries`).
 - Cross-aggregate references to internal Entities devem ser ancoradas via composite VO (ex.: `AccountRef(ChartOfAccountsId, AccountId)` em vez de `AccountId` cru).
 - `*Errors.cs` factories ficam em pasta única `EconomicCore.Domain/Errors/` (não co-locados com o type que servem); `SeedWorkErrors` é `public static`, demais são `internal static`.
 - Tenancy: todo Aggregate Root carrega `TenantId` (strongly-typed `record struct : IEntityId<TenantId>`); queries e authorization filtram por `TenantId`.
+- **EF owned types & shared references**: Value Objects mapeados como owned types (`OwnsOne`/`OwnsMany`). EF tracks owned type instances by reference identity — **never share the same VO instance between two tracked entities** (e.g., use `new Money(...)` for each, don't pass `commitment.ExpectedAmount` directly to `EconomicEvent.RegisterCovered`). This causes "same entity tracked as different entity types" warnings and data loss.
+- **Cross-aggregate FK removal**: `OnModelCreating` strips non-ownership FKs discovered by convention (e.g., `resource_id` → `economic_resources`). Cross-aggregate references are by ID only, no navigation properties, no FK constraints.
+- **DbContext.SaveEntitiesAsync** drains domain events from all tracked aggregates into `outbox_messages` before calling `base.SaveChangesAsync`.
+- **DomainExceptionFilter** handles `DomainException` (from Domain) and `InvalidOperationException` (from Application). HTTP status is driven by `DomainException.Category` (`DomainErrorCategory` enum in SeedWork): `Validation` → 400, `Conflict` → 409, `NotFound` → 404. Error factories pass the category; the filter has no hardcoded error codes. `InvalidOperationException` always maps to 400.
+- **TenantId via rota**: todos os controllers multi-tenant usam `[Route("api/v1/{tenantId}/[controller]")]` e recebem `[FromRoute] Guid tenantId`. Será validado contra JWT em fase futura (Keycloak).
+- **Integration tests** use Testcontainers (`postgres:17`) + Respawn + `EnsureCreatedAsync` (no migrations yet). DTOs are duplicated in the test project (not reused from Application).
 
 ## Project layout
 
@@ -205,13 +209,69 @@ _A preencher conforme decisões arquiteturais forem tomadas. Prefixos de erro em
 EconomicCore/
 ├── EconomicCore.sln                  # isolated solution (not in RufinoProject.sln)
 ├── docker-compose.yml + override     # localized stack: API + Postgres
-├── EconomicCore.API/                 # Web SDK host, Program.cs, appsettings, Dockerfile
-├── EconomicCore.Application/         # Commands, Queries, Handlers
-├── EconomicCore.Domain/              # Aggregates, SeedWork (a criar)
-├── EconomicCore.Infra/               # EF Core DbContext, repositories, EF Exception processor
-├── EconomicCore.UnitTests/           # xUnit
-└── EconomicCore.Architecture/        # design rationale, ADRs, plano de sprints (a preencher)
+├── EconomicCore.API/                 # Web SDK host, Program.cs, Controllers, Filters, appsettings, Dockerfile
+│   ├── Controllers/                  #   ContractsController, EventsController, ReportsController
+│   └── Filters/                      #   DomainExceptionFilter (maps DomainErrorCategory → HTTP status: Validation→400, Conflict→409, NotFound→404)
+├── EconomicCore.Application/         # Commands, Queries, Handlers (MediatR 12.4.1)
+│   ├── Commands/                     #   RegisterEconomicContract, GenerateCommitments, RegisterConsumptionEvent, RegisterPaymentEvent
+│   └── Queries/                      #   GetCompetenceDRE, GetCashFlow
+├── EconomicCore.Domain/              # Aggregates, SeedWork, SharedKernel, Domain Services
+│   ├── Operational/                  #   EconomicEvent, EconomicResource, EconomicAgent (+ repository interfaces)
+│   ├── Prospective/                  #   EconomicContract + Commitment entity (+ repository interface)
+│   ├── Services/                     #   DualityMatchingService
+│   └── SeedWork/                     #   Entity, AggregateRoot, ValueObject, Enumeration, IUnitOfWork
+├── EconomicCore.Infra/               # EF Core DbContext, repositories, mappings, outbox
+│   ├── Persistence/                  #   EconomicCoreDbContext (UoW), OutboxMessage
+│   ├── Mapping/                      #   EF entity configurations (4 aggregates + outbox)
+│   └── Repositories/                 #   4 repository implementations
+├── EconomicCore.UnitTests/           # xUnit — 268 domain unit tests
+├── EconomicCore.IntegrationTests/    # xUnit + Testcontainers + Respawn — 7 integration tests
+│   ├── Infrastructure/               #   WebApplicationFactory, BaseIntegrationTest, KnownIds
+│   ├── Mothers/                      #   RentScenarioMother (seed agents+resources)
+│   ├── Contracts/                    #   Duplicated DTOs (not reusing Application's)
+│   └── Rent/                         #   Happy path, error tests, multi-tenant
+└── EconomicCore.Architecture/        # design rationale, fontes REA (ver index.md)
+    ├── index.md                      #   índice completo com tabelas de seções/linhas de cada documento
+    ├── Modelo-REA-Conceitual.md      #   modelo conceitual REA puro (fonte de verdade conceitual)
+    ├── Modelo-REA-Tatico.md          #   aterrissagem tática DDD (fonte de verdade para codegen)
+    ├── Instrucoes-Claude-Code.md     #   guia de execução dos 7 prompts da Fase 1
+    ├── LIVROS/                       #   PDFs originais das fontes acadêmicas
+    ├── ISO_IEC_15944-4_2015(en).md   #   ISO/IEC 15944-4:2015 — ontologia contábil/econômica
+    ├── The_REA_Accounting_Model_A_Generalized_Framework.md  # McCarthy 1982
+    ├── The_Ontological_Foundations_of_REA_Enterprise_Information_Systems_2000.md  # Geerts & McCarthy 2000
+    └── Model-Driven_Design_Using_Business_Patterns-Pavel_Hruby.md  # Hruby 2006 (OCR)
 ```
+
+## Checklist pré-produção
+
+Itens que **devem** ser resolvidos antes do primeiro deploy em ambiente real. Marcar com `[x]` conforme forem concluídos.
+
+### Banco de dados
+- [ ] **Criar migrações EF Core** — hoje o schema é criado via `EnsureCreatedAsync()` (Program.cs), que não suporta alterações incrementais. Trocar para `db.Database.MigrateAsync()` e gerar a migração inicial: `dotnet ef migrations add Initial --project ../EconomicCore.Infra` (rodar de dentro de `EconomicCore.API/`).
+- [ ] **Remover `EnsureCreatedAsync`** do Program.cs e do `IntegrationTestWebAppFactory` (testes devem usar `MigrateAsync` também).
+- [ ] **Seed data** — definir se dados estáticos (ex.: tipos de recurso econômico, moedas) serão semeados via migração ou via endpoint admin.
+
+### Segurança e autenticação
+- [ ] **Autenticação JWT via Keycloak** — configurar `Keycloak.AuthServices` (JWT Bearer + audience + issuer) no `Program.cs`.
+- [ ] **Validação do TenantId contra JWT** — hoje `{tenantId}` vem da rota sem validação. Implementar `TenantAuthorizationFilter` que compara o `{tenantId}` da rota com o claim `tenant_ids` do token.
+- [ ] **Decorar endpoints com `[ProtectedResource]`** — definir recursos e ações granulares (`contract:create`, `event:register`, `report:read`, etc.).
+- [ ] **CORS** — configurar origens permitidas para o front-end.
+
+### Resiliência e observabilidade
+- [ ] **Health checks** — adicionar health check do PostgreSQL (`AspNetCore.HealthChecks.NpgsqlEfCore` ou similar).
+- [ ] **Logging estruturado** — configurar Serilog ou similar com correlation ID por request.
+- [ ] **Outbox consumer** — implementar worker/background service que processa `outbox_messages` (hoje são escritas mas não consumidas).
+- [ ] **Rate limiting** — avaliar se endpoints públicos precisam de throttling.
+
+### Qualidade e testes
+- [ ] **Testes de integração com migrações** — após criar migrações, trocar `EnsureCreatedAsync` por `MigrateAsync` nos testes.
+- [ ] **CI pipeline** — configurar build + unit tests + integration tests no CI (GitHub Actions ou similar).
+- [ ] **Code coverage** — definir threshold mínimo e integrar no CI.
+
+### Infra e deploy
+- [ ] **Dockerfile otimizado** — revisar multi-stage build, garantir que não copia arquivos desnecessários.
+- [ ] **Variáveis de ambiente** — connection string, Keycloak config, S3/storage — todas via env vars, sem segredos no `appsettings.json`.
+- [ ] **HTTPS** — garantir TLS termination (via reverse proxy ou certificado no container).
 
 ## Conventions inherited from the DDD skills
 
