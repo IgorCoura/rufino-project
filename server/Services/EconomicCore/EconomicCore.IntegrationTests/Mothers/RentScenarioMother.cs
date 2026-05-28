@@ -1,14 +1,41 @@
 namespace EconomicCore.IntegrationTests.Mothers;
 
+using System.Net.Http.Json;
 using EconomicCore.Domain.Operational.EconomicAgents;
 using EconomicCore.Domain.Operational.EconomicAgents.Enumerations;
 using EconomicCore.Domain.Operational.EconomicResources;
 using EconomicCore.Domain.Operational.EconomicResources.Enumerations;
 using EconomicCore.Domain.SharedKernel;
+using EconomicCore.IntegrationTests.Contracts;
 using EconomicCore.IntegrationTests.Infrastructure;
 
 public static class RentScenarioMother
 {
+    public static async Task<(Guid ResourceId, Guid AgentId)> SeedResourceAndAgentViaApi(
+        HttpClient client,
+        Guid tenantId)
+    {
+        client.DefaultRequestHeaders.Remove("x-requestid");
+        client.DefaultRequestHeaders.Add("x-requestid", Guid.NewGuid().ToString());
+
+        var resourceResp = await client.PostAsJsonAsync(
+            $"/api/v1/{tenantId}/resources",
+            new CreateResourceRequest("Uso do imóvel", "SERVICE"));
+        resourceResp.EnsureSuccessStatusCode();
+        var resource = await resourceResp.Content.ReadFromJsonAsync<ResourceResponse>();
+
+        client.DefaultRequestHeaders.Remove("x-requestid");
+        client.DefaultRequestHeaders.Add("x-requestid", Guid.NewGuid().ToString());
+
+        var agentResp = await client.PostAsJsonAsync(
+            $"/api/v1/{tenantId}/agents",
+            new CreateAgentRequest("Imobiliária Silva", "OUTSIDE", null, null));
+        agentResp.EnsureSuccessStatusCode();
+        var agent = await agentResp.Content.ReadFromJsonAsync<AgentResponse>();
+
+        return (resource!.Id, agent!.Id);
+    }
+
     private static readonly DateTime SeededAt = new(2026, 9, 1, 0, 0, 0, DateTimeKind.Utc);
 
     public static EconomicAgent Company() => EconomicAgent.Create(

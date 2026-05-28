@@ -9,29 +9,60 @@ using EconomicCore.UnitTests.Prospective.EconomicContracts.Mothers;
 
 public class EconomicContractTests
 {
-    // Create válido inicia em Active e emite EconomicContractCreated.
+    // Create válido inicia em Draft, sem commitments, e emite EconomicContractCreated com os novos campos.
     [Fact]
-    public void Create_WithValidInputs_ShouldStartActiveAndEmitCreatedEvent()
+    public void Create_WithValidInputs_ShouldStartDraftAndEmitCreatedEvent()
     {
         var contract = EconomicContractMother.New().Build();
 
         Assert.Equal(EconomicContractMother.FixedContractId, contract.Id);
-        Assert.Same(ContractStatus.Active, contract.Status);
+        Assert.Same(ContractStatus.Draft, contract.Status);
         Assert.Empty(contract.Commitments);
+        Assert.Equal(EconomicContractMother.FixedResourceId, contract.ResourceId);
+        Assert.Equal(EconomicContractMother.DEFAULT_TERM_MONTHS, contract.TermMonths);
+        Assert.Equal(EconomicContractMother.FixedStartDate, contract.StartDate);
 
         var created = Assert.IsType<EconomicContractCreated>(Assert.Single(contract.PullDomainEvents()));
         Assert.Equal(contract.Id, created.ContractId);
+        Assert.Equal(contract.ResourceId, created.ResourceId);
+        Assert.Equal(contract.TermMonths, created.TermMonths);
+        Assert.Equal(contract.StartDate, created.StartDate);
         Assert.Equal(ContractDirection.Acquisition.Name, created.DirectionName);
         Assert.Equal(Periodicity.Monthly.Name, created.PeriodicityName);
         Assert.Equal(5, created.AnchorDay);
         Assert.Equal(1000m, created.ExpectedAmountValue);
     }
 
+    // TermMonths fora da faixa 1-120 lança ECC.CTR17.
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-1)]
+    [InlineData(121)]
+    public void Create_WithInvalidTermMonths_ShouldThrowECC_CTR17(int termMonths)
+    {
+        var ex = Assert.Throws<DomainException>(
+            () => EconomicContractMother.New().WithTermMonths(termMonths).Build());
+
+        Assert.Equal("ECC.CTR17", ex.Id);
+    }
+
+    // StartDate mais de 1 ano no passado em relação a occurredAt lança ECC.CTR18.
+    [Fact]
+    public void Create_WithStartDateTooFarInPast_ShouldThrowECC_CTR18()
+    {
+        var tooOld = DateOnly.FromDateTime(EconomicContractMother.FixedOccurredAt).AddYears(-1).AddDays(-1);
+
+        var ex = Assert.Throws<DomainException>(
+            () => EconomicContractMother.New().WithStartDate(tooOld).Build());
+
+        Assert.Equal("ECC.CTR18", ex.Id);
+    }
+
     // GenerateCommitmentsFor cria par outflow+inflow com ReciprocalLink cruzado e emite CommitmentsGenerated.
     [Fact]
     public void GenerateCommitmentsFor_WithActiveContract_ShouldCreatePairAndEmitEvent()
     {
-        var contract = EconomicContractMother.New().Build();
+        var contract = EconomicContractMother.New().BuildActiveEmpty();
         contract.ClearDomainEvents();
 
         contract.GenerateCommitmentsFor(
@@ -61,7 +92,7 @@ public class EconomicContractTests
     [Fact]
     public void GenerateCommitmentsFor_DuplicatePeriod_ShouldThrowECC_CTR02()
     {
-        var contract = EconomicContractMother.New().Build();
+        var contract = EconomicContractMother.New().BuildActiveEmpty();
         contract.GenerateCommitmentsFor(EconomicContractMother.October2025(),
             EconomicContractMother.OutflowCommitmentIdSlot1, EconomicContractMother.InflowCommitmentIdSlot1,
             EconomicContractMother.FixedOccurredAt);
@@ -78,7 +109,7 @@ public class EconomicContractTests
     [Fact]
     public void GenerateCommitmentsFor_OnTerminatedContract_ShouldThrowECC_CTR05()
     {
-        var contract = EconomicContractMother.New().Build();
+        var contract = EconomicContractMother.New().BuildActiveEmpty();
         contract.Terminate(EconomicContractMother.FixedOccurredAt);
 
         var ex = Assert.Throws<DomainException>(() => contract.GenerateCommitmentsFor(
@@ -93,7 +124,7 @@ public class EconomicContractTests
     [Fact]
     public void GenerateCommitmentsFor_OnSuspendedContract_ShouldThrowECC_CTR05()
     {
-        var contract = EconomicContractMother.New().Build();
+        var contract = EconomicContractMother.New().BuildActiveEmpty();
         contract.Suspend(EconomicContractMother.FixedOccurredAt);
 
         var ex = Assert.Throws<DomainException>(() => contract.GenerateCommitmentsFor(
@@ -108,7 +139,7 @@ public class EconomicContractTests
     [Fact]
     public void MarkFulfilled_OnPromisedCommitment_ShouldTransitionAndEmitEvent()
     {
-        var contract = EconomicContractMother.New().Build();
+        var contract = EconomicContractMother.New().BuildActiveEmpty();
         contract.GenerateCommitmentsFor(EconomicContractMother.October2025(),
             EconomicContractMother.OutflowCommitmentIdSlot1, EconomicContractMother.InflowCommitmentIdSlot1,
             EconomicContractMother.FixedOccurredAt);
@@ -130,7 +161,7 @@ public class EconomicContractTests
     [Fact]
     public void MarkFulfilled_OnTerminalCommitment_ShouldThrowECC_CTR03()
     {
-        var contract = EconomicContractMother.New().Build();
+        var contract = EconomicContractMother.New().BuildActiveEmpty();
         contract.GenerateCommitmentsFor(EconomicContractMother.October2025(),
             EconomicContractMother.OutflowCommitmentIdSlot1, EconomicContractMother.InflowCommitmentIdSlot1,
             EconomicContractMother.FixedOccurredAt);
@@ -147,7 +178,7 @@ public class EconomicContractTests
     [Fact]
     public void Expire_OnPromisedCommitment_ShouldTransitionAndEmitEvent()
     {
-        var contract = EconomicContractMother.New().Build();
+        var contract = EconomicContractMother.New().BuildActiveEmpty();
         contract.GenerateCommitmentsFor(EconomicContractMother.October2025(),
             EconomicContractMother.OutflowCommitmentIdSlot1, EconomicContractMother.InflowCommitmentIdSlot1,
             EconomicContractMother.FixedOccurredAt);
@@ -166,7 +197,7 @@ public class EconomicContractTests
     [Fact]
     public void CancelCommitment_OnPromisedCommitment_ShouldTransitionAndEmitEvent()
     {
-        var contract = EconomicContractMother.New().Build();
+        var contract = EconomicContractMother.New().BuildActiveEmpty();
         contract.GenerateCommitmentsFor(EconomicContractMother.October2025(),
             EconomicContractMother.OutflowCommitmentIdSlot1, EconomicContractMother.InflowCommitmentIdSlot1,
             EconomicContractMother.FixedOccurredAt);
@@ -183,7 +214,7 @@ public class EconomicContractTests
     [Fact]
     public void MarkFulfilled_WithUnknownCommitmentId_ShouldThrowECC_CTR12()
     {
-        var contract = EconomicContractMother.New().Build();
+        var contract = EconomicContractMother.New().BuildActiveEmpty();
         var unknown = CommitmentId.From(new Guid("99999999-9999-7999-8999-999999999999"));
 
         var ex = Assert.Throws<DomainException>(
@@ -196,7 +227,7 @@ public class EconomicContractTests
     [Fact]
     public void Lifecycle_SuspendResumeTerminate_ShouldFollowStateMachine()
     {
-        var contract = EconomicContractMother.New().Build();
+        var contract = EconomicContractMother.New().BuildActiveEmpty();
 
         contract.Suspend(EconomicContractMother.FixedOccurredAt);
         Assert.Same(ContractStatus.Suspended, contract.Status);
@@ -212,7 +243,7 @@ public class EconomicContractTests
     [Fact]
     public void Lifecycle_FromTerminated_ShouldThrowECC_CTR13()
     {
-        var contract = EconomicContractMother.New().Build();
+        var contract = EconomicContractMother.New().BuildActiveEmpty();
         contract.Terminate(EconomicContractMother.FixedOccurredAt);
 
         var ex = Assert.Throws<DomainException>(() => contract.Suspend(EconomicContractMother.FixedOccurredAt));

@@ -2,6 +2,7 @@ namespace EconomicCore.Domain.Prospective.EconomicContracts;
 
 using EconomicCore.Domain.Operational.EconomicAgents;
 using EconomicCore.Domain.Operational.EconomicEvents;
+using EconomicCore.Domain.Operational.EconomicResources;
 using EconomicCore.Domain.Prospective.EconomicContracts.Entities;
 using EconomicCore.Domain.Prospective.EconomicContracts.Enumerations;
 using EconomicCore.Domain.Prospective.EconomicContracts.Events;
@@ -11,13 +12,20 @@ using EconomicCore.Domain.SharedKernel;
 
 public sealed class EconomicContract : AggregateRoot<EconomicContractId>
 {
+    public const int MIN_TERM_MONTHS = 1;
+    public const int MAX_TERM_MONTHS = 120;
+    public const int MAX_START_DATE_PAST_YEARS = 1;
+
     private readonly List<Commitment> _commitments = [];
 
     public TenantId TenantId { get; private set; }
     public EconomicAgentId CounterpartyId { get; private set; }
+    public EconomicResourceId ResourceId { get; private set; }
     public ContractDirection Direction { get; private set; } = default!;
     public RecurrencePattern Recurrence { get; private set; } = default!;
     public CommitmentTerms DefaultTerms { get; private set; } = default!;
+    public int TermMonths { get; private set; }
+    public DateOnly StartDate { get; private set; }
     public ContractStatus Status { get; private set; } = default!;
     public IReadOnlyCollection<Commitment> Commitments => _commitments.AsReadOnly();
 
@@ -28,31 +36,40 @@ public sealed class EconomicContract : AggregateRoot<EconomicContractId>
         EconomicContractId id,
         TenantId tenantId,
         EconomicAgentId counterpartyId,
+        EconomicResourceId resourceId,
         ContractDirection direction,
         RecurrencePattern recurrence,
         CommitmentTerms defaultTerms,
+        int termMonths,
+        DateOnly startDate,
         DateTime occurredAt)
     {
         var contract = new EconomicContract(id)
         {
             TenantId = tenantId,
             CounterpartyId = counterpartyId,
+            ResourceId = resourceId,
             Direction = direction,
             Recurrence = recurrence,
             DefaultTerms = defaultTerms,
-            Status = ContractStatus.Active,
+            Status = ContractStatus.Draft,
             CreatedAt = occurredAt,
             UpdatedAt = occurredAt,
         };
+        contract.SetTermMonths(termMonths);
+        contract.SetStartDate(startDate, occurredAt);
 
         contract.AddDomainEvent(new EconomicContractCreated(
             EventId: Guid.NewGuid(),
             ContractId: contract.Id,
             TenantId: contract.TenantId,
             CounterpartyId: contract.CounterpartyId,
+            ResourceId: contract.ResourceId,
             DirectionName: contract.Direction.Name,
             PeriodicityName: contract.Recurrence.Periodicity.Name,
             AnchorDay: contract.Recurrence.AnchorDay,
+            TermMonths: contract.TermMonths,
+            StartDate: contract.StartDate,
             ExpectedAmountValue: contract.DefaultTerms.ExpectedAmount.Amount,
             ExpectedAmountCurrency: contract.DefaultTerms.ExpectedAmount.Currency.Name,
             TolerancePercent: contract.DefaultTerms.TolerancePercent,
@@ -60,6 +77,33 @@ public sealed class EconomicContract : AggregateRoot<EconomicContractId>
             OccurredAt: occurredAt));
 
         return contract;
+    }
+
+    /// <summary>
+    /// Activates the contract: materializes the full term as TermMonths × (outflow + inflow)
+    /// reciprocal commitment pairs in a single atomic operation.
+    /// CTR16 guards Draft-only activation. The status transitions Draft → Active at the end.
+    /// </summary>
+    public void Activate(DateTime occurredAt, Func<CommitmentId> commitmentIdFactory)
+    {
+        if (!ReferenceEquals(Status, ContractStatus.Draft))
+            throw EconomicContractErrors.ContractNotDraft(Status.Name);
+
+        for (var n = 0; n < TermMonths; n++)
+        {
+            var monthDate = StartDate.AddMonths(n);
+            var period = new CompetencePeriod(monthDate.Year, monthDate.Month);
+            GenerateCommitmentsFor(period, commitmentIdFactory(), commitmentIdFactory(), occurredAt);
+        }
+
+        TransitionStatusTo(ContractStatus.Active, occurredAt);
+
+        AddDomainEvent(new ContractActivated(
+            EventId: Guid.NewGuid(),
+            ContractId: Id,
+            TenantId: TenantId,
+            TermMonths: TermMonths,
+            OccurredAt: occurredAt));
     }
 
     /// <summary>
@@ -73,7 +117,7 @@ public sealed class EconomicContract : AggregateRoot<EconomicContractId>
         CommitmentId inflowCommitmentId,
         DateTime occurredAt)
     {
-        if (!ReferenceEquals(Status, ContractStatus.Active))
+        if (!ReferenceEquals(Status, ContractStatus.Active) && !ReferenceEquals(Status, ContractStatus.Draft))
             throw EconomicContractErrors.ContractNotActive(Status.Name);
 
         if (_commitments.Any(c => c.Period.Equals(period) && c.Direction == CommitmentDirection.OutflowPromise))
@@ -158,7 +202,15 @@ public sealed class EconomicContract : AggregateRoot<EconomicContractId>
 
     public void Resume(DateTime occurredAt) => TransitionStatusTo(ContractStatus.Active, occurredAt);
 
-    public void Terminate(DateTime occurredAt) => TransitionStatusTo(ContractStatus.Terminated, occurredAt);
+    public void Terminate(DateTime occurredAt)
+    {
+        TransitionStatusTo(ContractStatus.Terminated, occurredAt);
+        AddDomainEvent(new ContractTerminated(
+            EventId: Guid.NewGuid(),
+            ContractId: Id,
+            TenantId: TenantId,
+            OccurredAt: occurredAt));
+    }
 
     private void TransitionStatusTo(ContractStatus target, DateTime occurredAt)
     {
@@ -192,6 +244,8 @@ public sealed class EconomicContract : AggregateRoot<EconomicContractId>
         return FindCommitmentOrThrow(commitment.Reciprocal.ReciprocalCommitmentId);
     }
 
+    public Commitment FindCommitment(CommitmentId commitmentId) => FindCommitmentOrThrow(commitmentId);
+
     private Commitment FindCommitmentOrThrow(CommitmentId commitmentId)
     {
         var commitment = _commitments.FirstOrDefault(c => c.Id.Equals(commitmentId));
@@ -206,5 +260,22 @@ public sealed class EconomicContract : AggregateRoot<EconomicContractId>
         var from = new DateOnly(period.Year, period.Month, anchor);
         var to = from.AddDays(DefaultTerms.WindowDays);
         return new DateRange(from, to);
+    }
+
+    private void SetTermMonths(int termMonths)
+    {
+        if (termMonths < MIN_TERM_MONTHS || termMonths > MAX_TERM_MONTHS)
+            throw EconomicContractErrors.InvalidTermMonths(termMonths);
+
+        TermMonths = termMonths;
+    }
+
+    private void SetStartDate(DateOnly startDate, DateTime occurredAt)
+    {
+        var earliest = DateOnly.FromDateTime(occurredAt).AddYears(-MAX_START_DATE_PAST_YEARS);
+        if (startDate < earliest)
+            throw EconomicContractErrors.InvalidStartDate(startDate);
+
+        StartDate = startDate;
     }
 }

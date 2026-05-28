@@ -2,6 +2,7 @@ namespace EconomicCore.Infra.Mapping;
 
 using EconomicCore.Domain.Operational.EconomicAgents;
 using EconomicCore.Domain.Operational.EconomicEvents;
+using EconomicCore.Domain.Operational.EconomicResources;
 using EconomicCore.Domain.Prospective.EconomicContracts;
 using EconomicCore.Domain.Prospective.EconomicContracts.Entities;
 using EconomicCore.Domain.Prospective.EconomicContracts.Enumerations;
@@ -30,6 +31,19 @@ internal sealed class EconomicContractMap : IEntityTypeConfiguration<EconomicCon
         builder.Property(e => e.CounterpartyId)
             .HasColumnName("counterparty_id")
             .HasConversion(v => v.Value, v => EconomicAgentId.From(v))
+            .IsRequired();
+
+        builder.Property(e => e.ResourceId)
+            .HasColumnName("resource_id")
+            .HasConversion(v => v.Value, v => EconomicResourceId.From(v))
+            .IsRequired();
+
+        builder.Property(e => e.TermMonths)
+            .HasColumnName("term_months")
+            .IsRequired();
+
+        builder.Property(e => e.StartDate)
+            .HasColumnName("start_date")
             .IsRequired();
 
         builder.Property(e => e.Direction)

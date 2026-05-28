@@ -11,98 +11,92 @@ public sealed class RentPostPaidCycleErrorTests : BaseIntegrationTest
 {
     public RentPostPaidCycleErrorTests(IntegrationTestWebAppFactory factory) : base(factory) { }
 
-    // Registrar consumo sem commitment que o cubra deve retornar 409 ou 500 com indicação de ECC.EVT04.
-    [Fact]
-    public async Task RegisterConsumption_WhenNoCoveringCommitment_ShouldReturnError()
-    {
-        await SeedAgentsAndResources();
-
-        var createResp = await Client.PostAsJsonAsync($"/api/v1/{KnownIds.TenantA}/contracts",
-            new CreateContractRequest(KnownIds.Landlord, 8000.00m, "BRL",
-                "ACQUISITION", "MONTHLY", AnchorDay: 5));
-        var contract = await createResp.Content.ReadFromJsonAsync<ContractResponse>();
-
-        var consResp = await Client.PostAsJsonAsync($"/api/v1/{KnownIds.TenantA}/events/consumption",
-            new RegisterConsumptionRequest(contract!.Id, 2026, 10, KnownDates.Consumption));
-
-        Assert.True(
-            consResp.StatusCode == HttpStatusCode.Conflict ||
-            consResp.StatusCode == HttpStatusCode.InternalServerError,
-            $"Expected Conflict or InternalServerError, got {consResp.StatusCode}");
-    }
-
-    // Gerar commitments para contrato encerrado deve retornar 409 com ECC.CTR05.
-    [Fact]
-    public async Task GenerateCommitments_WhenContractTerminated_ShouldReturnConflict()
-    {
-        await SeedAgentsAndResources();
-
-        var createResp = await Client.PostAsJsonAsync($"/api/v1/{KnownIds.TenantA}/contracts",
-            new CreateContractRequest(KnownIds.Landlord, 8000.00m, "BRL",
-                "ACQUISITION", "MONTHLY", AnchorDay: 5));
-        var contract = await createResp.Content.ReadFromJsonAsync<ContractResponse>();
-
-        await ExecuteDbContextAsync(async db =>
-        {
-            var entity = await db.EconomicContracts
-                .FirstAsync(c => c.Id.Equals(EconomicContractId.From(contract!.Id)));
-            entity.Terminate(DateTime.UtcNow);
-            await db.SaveChangesAsync();
-        });
-
-        var genResp = await Client.PostAsJsonAsync(
-            $"/api/v1/{KnownIds.TenantA}/contracts/{contract!.Id}/commitments",
-            new GenerateCommitmentsRequest(2026, 10, KnownDates.CommitmentGen));
-
-        Assert.Equal(HttpStatusCode.Conflict, genResp.StatusCode);
-        var error = await genResp.Content.ReadFromJsonAsync<ErrorResponse>();
-        Assert.Equal("ECC.CTR05", error!.Id);
-    }
-
-    // Gerar commitments duas vezes para o mesmo período deve retornar 409 com ECC.CTR02.
+    // Gerar commitments para o mesmo período duas vezes deve retornar 409 com ECC.CTR02.
     [Fact]
     public async Task GenerateCommitments_WhenPeriodAlreadyGenerated_ShouldReturnConflict()
     {
-        await SeedAgentsAndResources();
+        SetRequestId();
+        var (resourceId, agentId) = await RentScenarioMother.SeedResourceAndAgentViaApi(Client, KnownIds.TenantA);
+        var contractId = await CreateAndActivate(resourceId, agentId);
 
-        var createResp = await Client.PostAsJsonAsync($"/api/v1/{KnownIds.TenantA}/contracts",
-            new CreateContractRequest(KnownIds.Landlord, 8000.00m, "BRL",
-                "ACQUISITION", "MONTHLY", AnchorDay: 5));
-        var contract = await createResp.Content.ReadFromJsonAsync<ContractResponse>();
+        var existingPeriod = await ExecuteDbContextAsync(db =>
+            db.EconomicContracts.AsNoTracking()
+                .Where(c => c.Id.Equals(EconomicContractId.From(contractId)))
+                .SelectMany(c => c.Commitments)
+                .Select(c => new { c.Period.Year, c.Period.Month })
+                .FirstAsync());
 
-        await Client.PostAsJsonAsync($"/api/v1/{KnownIds.TenantA}/contracts/{contract!.Id}/commitments",
-            new GenerateCommitmentsRequest(2026, 10, KnownDates.CommitmentGen));
+        SetRequestId();
+        var resp = await Client.PostAsJsonAsync(
+            $"/api/v1/{KnownIds.TenantA}/contracts/{contractId}/commitments",
+            new GenerateCommitmentsRequest(existingPeriod.Year, existingPeriod.Month, KnownDates.CommitmentGen));
 
-        var secondResp = await Client.PostAsJsonAsync($"/api/v1/{KnownIds.TenantA}/contracts/{contract.Id}/commitments",
-            new GenerateCommitmentsRequest(2026, 10, KnownDates.CommitmentGen));
-
-        Assert.Equal(HttpStatusCode.Conflict, secondResp.StatusCode);
-        var error = await secondResp.Content.ReadFromJsonAsync<ErrorResponse>();
+        Assert.Equal(HttpStatusCode.Conflict, resp.StatusCode);
+        var error = await resp.Content.ReadFromJsonAsync<ErrorResponse>();
         Assert.Equal("ECC.CTR02", error!.Id);
     }
 
-    // Criar contrato com valor zero deve retornar 400.
+    // Gerar commitments em contrato Terminated deve retornar 409 com ECC.CTR05.
+    [Fact]
+    public async Task GenerateCommitments_WhenContractTerminated_ShouldReturnConflict()
+    {
+        SetRequestId();
+        var (resourceId, agentId) = await RentScenarioMother.SeedResourceAndAgentViaApi(Client, KnownIds.TenantA);
+        var contractId = await CreateAndActivate(resourceId, agentId);
+
+        SetRequestId();
+        await Client.PostAsJsonAsync(
+            $"/api/v1/{KnownIds.TenantA}/contracts/{contractId}/terminate",
+            new TerminateContractRequest("term_ended", DateOnly.FromDateTime(DateTime.UtcNow)));
+
+        SetRequestId();
+        var resp = await Client.PostAsJsonAsync(
+            $"/api/v1/{KnownIds.TenantA}/contracts/{contractId}/commitments",
+            new GenerateCommitmentsRequest(2030, 6, KnownDates.CommitmentGen));
+
+        Assert.Equal(HttpStatusCode.Conflict, resp.StatusCode);
+        var error = await resp.Content.ReadFromJsonAsync<ErrorResponse>();
+        Assert.Equal("ECC.CTR05", error!.Id);
+    }
+
+    // Criar contrato com valor zero deve retornar 400 (Money exige amount > 0).
     [Fact]
     public async Task CreateContract_WhenAmountIsZeroOrNegative_ShouldReturnBadRequest()
     {
-        await SeedAgentsAndResources();
+        SetRequestId();
+        var (resourceId, agentId) = await RentScenarioMother.SeedResourceAndAgentViaApi(Client, KnownIds.TenantA);
 
+        SetRequestId();
         var resp = await Client.PostAsJsonAsync($"/api/v1/{KnownIds.TenantA}/contracts",
-            new CreateContractRequest(KnownIds.Landlord, 0m, "BRL",
-                "ACQUISITION", "MONTHLY", AnchorDay: 5));
+            new CreateContractRequest(
+                agentId, resourceId, 0m, "BRL",
+                "ACQUISITION", "MONTHLY", AnchorDay: 5,
+                TermMonths: 12, StartDate: DateOnly.FromDateTime(DateTime.UtcNow).AddMonths(-1)));
 
         Assert.Equal(HttpStatusCode.BadRequest, resp.StatusCode);
     }
 
-    private async Task SeedAgentsAndResources()
+    private async Task<Guid> CreateAndActivate(Guid resourceId, Guid agentId)
     {
-        await ExecuteDbContextAsync(async db =>
-        {
-            db.Add(RentScenarioMother.Company());
-            db.Add(RentScenarioMother.Landlord());
-            db.Add(RentScenarioMother.Cash());
-            db.Add(RentScenarioMother.RentService());
-            await db.SaveChangesAsync();
-        });
+        SetRequestId();
+        var createResp = await Client.PostAsJsonAsync($"/api/v1/{KnownIds.TenantA}/contracts",
+            new CreateContractRequest(
+                agentId, resourceId, 8000.00m, "BRL",
+                "ACQUISITION", "MONTHLY", AnchorDay: 5,
+                TermMonths: 6, StartDate: DateOnly.FromDateTime(DateTime.UtcNow).AddMonths(-3)));
+        createResp.EnsureSuccessStatusCode();
+        var contract = await createResp.Content.ReadFromJsonAsync<ContractResponse>();
+
+        SetRequestId();
+        var activateResp = await Client.PostAsync($"/api/v1/{KnownIds.TenantA}/contracts/{contract!.Id}/activate", content: null);
+        activateResp.EnsureSuccessStatusCode();
+
+        return contract.Id;
+    }
+
+    private void SetRequestId()
+    {
+        Client.DefaultRequestHeaders.Remove("x-requestid");
+        Client.DefaultRequestHeaders.Add("x-requestid", Guid.NewGuid().ToString());
     }
 }

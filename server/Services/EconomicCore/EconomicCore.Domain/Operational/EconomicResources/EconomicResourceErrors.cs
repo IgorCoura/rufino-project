@@ -5,7 +5,7 @@ using System.Runtime.CompilerServices;
 using EconomicCore.Domain.Operational.EconomicAgents;
 using EconomicCore.Domain.SeedWork;
 
-internal static class EconomicResourceErrors
+public static class EconomicResourceErrors
 {
     private const string PREFIX = "ECC.RES";
 
@@ -44,6 +44,18 @@ internal static class EconomicResourceErrors
             messageTemplate: "CustodianId {0} deve referir um EconomicAgent com escopo Inside.",
             parameters: new object[] { custodianId.Value },
             sourcePath: BuildSourcePath(filePath, memberName, lineNumber));
+
+    public static DomainException ResourceNotFound(
+        Guid resourceId,
+        [CallerFilePath] string filePath = "",
+        [CallerMemberName] string memberName = "",
+        [CallerLineNumber] int lineNumber = 0)
+        => new(
+            id: $"{PREFIX}04",
+            messageTemplate: "EconomicResource {0} não encontrado para o tenant informado.",
+            parameters: new object[] { resourceId },
+            sourcePath: BuildSourcePath(filePath, memberName, lineNumber),
+            category: DomainErrorCategory.NotFound);
 
     private static string BuildSourcePath(string filePath, string memberName, int lineNumber)
         => $"{Path.GetFileName(filePath)}:{lineNumber} ({memberName})";

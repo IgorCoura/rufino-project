@@ -11,4 +11,9 @@ public interface IEconomicEventRepository
     Task<EconomicEvent?> GetByIdAsync(EconomicEventId id, TenantId tenantId, CancellationToken cancellationToken = default);
     Task<EconomicEvent?> FindCoveredByCommitmentAsync(CommitmentId commitmentId, TenantId tenantId, CancellationToken cancellationToken = default);
     void Update(EconomicEvent economicEvent);
+
+    Task<CompetencePeriod?> GetLastInflowPeriodForCommitmentsAsync(
+        IReadOnlyCollection<CommitmentId> commitmentIds,
+        TenantId tenantId,
+        CancellationToken cancellationToken = default);
 }

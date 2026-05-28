@@ -4,7 +4,7 @@ using System.IO;
 using System.Runtime.CompilerServices;
 using EconomicCore.Domain.SeedWork;
 
-internal static class EconomicAgentErrors
+public static class EconomicAgentErrors
 {
     private const string PREFIX = "ECC.AGT";
 
@@ -44,6 +44,18 @@ internal static class EconomicAgentErrors
             messageTemplate: "TaxId de EconomicAgent inválido: '{0}'.",
             parameters: new object[] { value },
             sourcePath: BuildSourcePath(filePath, memberName, lineNumber));
+
+    public static DomainException AgentNotFound(
+        Guid agentId,
+        [CallerFilePath] string filePath = "",
+        [CallerMemberName] string memberName = "",
+        [CallerLineNumber] int lineNumber = 0)
+        => new(
+            id: $"{PREFIX}04",
+            messageTemplate: "EconomicAgent {0} não encontrado para o tenant informado.",
+            parameters: new object[] { agentId },
+            sourcePath: BuildSourcePath(filePath, memberName, lineNumber),
+            category: DomainErrorCategory.NotFound);
 
     private static string BuildSourcePath(string filePath, string memberName, int lineNumber)
         => $"{Path.GetFileName(filePath)}:{lineNumber} ({memberName})";

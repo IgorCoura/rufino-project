@@ -5,13 +5,15 @@ using MediatR;
 public sealed record RegisterConsumptionEventCommand(
     Guid TenantId,
     Guid ContractId,
-    int Year,
-    int Month,
+    Guid CommitmentId,
     DateTime OccurredAt,
     Guid? UserId) : IRequest<RegisterConsumptionEventResponse>;
 
-public sealed record RegisterConsumptionEventModel(Guid ContractId, int Year, int Month, DateTime OccurredAt)
+public sealed record RegisterConsumptionEventModel(
+    Guid ContractId,
+    Guid CommitmentId,
+    DateTime OccurredAt)
 {
     public RegisterConsumptionEventCommand ToCommand(Guid tenantId, Guid? userId) => new(
-        tenantId, ContractId, Year, Month, OccurredAt, userId);
+        tenantId, ContractId, CommitmentId, OccurredAt, userId);
 }

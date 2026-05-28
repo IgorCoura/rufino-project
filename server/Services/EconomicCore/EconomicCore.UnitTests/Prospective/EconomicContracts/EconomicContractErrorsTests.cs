@@ -75,4 +75,66 @@ public class EconomicContractErrorsTests
         Assert.Equal("ECC.CTR13", ex.Id);
         Assert.Equal(2, ex.Parameters.Count);
     }
+
+    // ContractNotDraft (CTR16) carrega o status atual quando se tenta ativar contrato fora de Draft.
+    [Fact]
+    public void ContractNotDraft_ShouldReturnECC_CTR16_WithCurrentStatus()
+    {
+        var ex = EconomicContractErrors.ContractNotDraft("ACTIVE");
+
+        Assert.Equal("ECC.CTR16", ex.Id);
+        Assert.Single(ex.Parameters);
+    }
+
+    // InvalidTermMonths (CTR17) carrega o valor recebido.
+    [Fact]
+    public void InvalidTermMonths_ShouldReturnECC_CTR17_WithValue()
+    {
+        var ex = EconomicContractErrors.InvalidTermMonths(0);
+
+        Assert.Equal("ECC.CTR17", ex.Id);
+        Assert.Single(ex.Parameters);
+    }
+
+    // InvalidStartDate (CTR18) carrega a data recebida.
+    [Fact]
+    public void InvalidStartDate_ShouldReturnECC_CTR18_WithDate()
+    {
+        var ex = EconomicContractErrors.InvalidStartDate(new DateOnly(2000, 1, 1));
+
+        Assert.Equal("ECC.CTR18", ex.Id);
+        Assert.Single(ex.Parameters);
+    }
+
+    // PaymentAmountMismatch (CTR19) carrega expected + received.
+    [Fact]
+    public void PaymentAmountMismatch_ShouldReturnECC_CTR19_WithTwoParameters()
+    {
+        var ex = EconomicContractErrors.PaymentAmountMismatch(expected: 1000m, received: 800m);
+
+        Assert.Equal("ECC.CTR19", ex.Id);
+        Assert.Equal(2, ex.Parameters.Count);
+    }
+
+    // InvalidTerminationDate (CTR20) carrega data e último período ocupado.
+    [Fact]
+    public void InvalidTerminationDate_ShouldReturnECC_CTR20_WithTwoParameters()
+    {
+        var ex = EconomicContractErrors.InvalidTerminationDate(new DateOnly(2025, 10, 15), "2025-12");
+
+        Assert.Equal("ECC.CTR20", ex.Id);
+        Assert.Equal(2, ex.Parameters.Count);
+    }
+
+    // OverlappingActiveContract (CTR21) carrega resourceId e startDate.
+    [Fact]
+    public void OverlappingActiveContract_ShouldReturnECC_CTR21_WithTwoParameters()
+    {
+        var ex = EconomicContractErrors.OverlappingActiveContract(
+            resourceId: Guid.NewGuid(),
+            startDate: new DateOnly(2025, 10, 1));
+
+        Assert.Equal("ECC.CTR21", ex.Id);
+        Assert.Equal(2, ex.Parameters.Count);
+    }
 }

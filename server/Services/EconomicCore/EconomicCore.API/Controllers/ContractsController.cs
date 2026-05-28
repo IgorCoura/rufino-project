@@ -1,7 +1,9 @@
 namespace EconomicCore.API.Controllers;
 
+using EconomicCore.Application.Commands.ActivateEconomicContract;
 using EconomicCore.Application.Commands.GenerateCommitments;
 using EconomicCore.Application.Commands.RegisterEconomicContract;
+using EconomicCore.Application.Commands.TerminateEconomicContract;
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
 
@@ -24,6 +26,43 @@ public sealed class ContractsController(ILogger<ContractsController> logger, IMe
         CommandResultLog(response, tenantId, command, requestId);
 
         return Created($"/api/v1/{tenantId}/contracts/{response.Id}", response);
+    }
+
+    [HttpPost("{contractId:guid}/activate")]
+    public async Task<ActionResult<ActivateEconomicContractResponse>> Activate(
+        [FromRoute] Guid tenantId,
+        [FromRoute] Guid contractId,
+        [FromHeader(Name = "x-requestid")] Guid requestId,
+        CancellationToken ct)
+    {
+        var command = new ActivateEconomicContractCommand(tenantId, contractId);
+
+        SendingCommandLog(contractId, command, requestId);
+
+        var response = await mediator.Send(command, ct);
+
+        CommandResultLog(response, contractId, command, requestId);
+
+        return OkResponse(response);
+    }
+
+    [HttpPost("{contractId:guid}/terminate")]
+    public async Task<ActionResult<TerminateEconomicContractResponse>> Terminate(
+        [FromRoute] Guid tenantId,
+        [FromRoute] Guid contractId,
+        [FromBody] TerminateEconomicContractModel model,
+        [FromHeader(Name = "x-requestid")] Guid requestId,
+        CancellationToken ct)
+    {
+        var command = model.ToCommand(tenantId, contractId);
+
+        SendingCommandLog(contractId, command, requestId);
+
+        var response = await mediator.Send(command, ct);
+
+        CommandResultLog(response, contractId, command, requestId);
+
+        return OkResponse(response);
     }
 
     [HttpPost("{contractId:guid}/commitments")]

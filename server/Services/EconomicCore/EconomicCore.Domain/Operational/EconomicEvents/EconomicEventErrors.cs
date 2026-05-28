@@ -4,7 +4,7 @@ using System.IO;
 using System.Runtime.CompilerServices;
 using EconomicCore.Domain.SeedWork;
 
-internal static class EconomicEventErrors
+public static class EconomicEventErrors
 {
     private const string PREFIX = "ECC.EVT";
 
@@ -146,6 +146,32 @@ internal static class EconomicEventErrors
             id: $"{PREFIX}13",
             messageTemplate: "CommitmentRef requer um CommitmentId não vazio.",
             parameters: Array.Empty<object>(),
+            sourcePath: BuildSourcePath(filePath, memberName, lineNumber));
+
+    public static DomainException OccupancyInFuture(
+        int periodYear,
+        int periodMonth,
+        DateOnly today,
+        [CallerFilePath] string filePath = "",
+        [CallerMemberName] string memberName = "",
+        [CallerLineNumber] int lineNumber = 0)
+        => new(
+            id: $"{PREFIX}14",
+            messageTemplate: "Não é possível registrar ocupação para o período {0}/{1}: o mês ainda não iniciou (hoje: {2}).",
+            parameters: new object[] { periodMonth, periodYear, today },
+            sourcePath: BuildSourcePath(filePath, memberName, lineNumber),
+            category: DomainErrorCategory.Conflict);
+
+    public static DomainException FuturePaidDate(
+        DateTime paidDate,
+        DateTime now,
+        [CallerFilePath] string filePath = "",
+        [CallerMemberName] string memberName = "",
+        [CallerLineNumber] int lineNumber = 0)
+        => new(
+            id: $"{PREFIX}15",
+            messageTemplate: "PaidDate {0} é futura em relação à data atual ({1}).",
+            parameters: new object[] { paidDate, now },
             sourcePath: BuildSourcePath(filePath, memberName, lineNumber));
 
     private static string BuildSourcePath(string filePath, string memberName, int lineNumber)

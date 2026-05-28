@@ -32,15 +32,41 @@ internal sealed class RegisterPaymentEventHandler : IRequestHandler<RegisterPaym
     {
         var tenantId = TenantId.From(request.TenantId);
         var contractId = EconomicContractId.From(request.ContractId);
+        var commitmentId = CommitmentId.From(request.CommitmentId);
         var currency = Enumeration.FromDisplayName<Currency>(request.Currency);
         var paymentAmount = new Money(request.Amount, currency);
+
+        var now = _timeProvider.GetUtcNow().UtcDateTime;
+        if (request.OccurredAt > now)
+            throw EconomicEventErrors.FuturePaidDate(request.OccurredAt, now);
 
         var contract = await _contractRepo.GetByIdAsync(contractId, tenantId, cancellationToken)
             ?? throw EconomicContractErrors.ContractNotFound(request.ContractId);
 
-        var period = new CompetencePeriod(request.Year, request.Month);
-        var outflowCommitment = contract.FindPromisedCommitment(period, CommitmentDirection.OutflowPromise);
+        if (!ReferenceEquals(contract.Status, ContractStatus.Active))
+            throw EconomicContractErrors.ContractNotActive(contract.Status.Name);
+
+        var outflowCommitment = contract.FindCommitment(commitmentId);
+        if (outflowCommitment.Direction != CommitmentDirection.OutflowPromise)
+            throw EconomicContractErrors.NoCoveringCommitmentForPeriod(
+                outflowCommitment.Period.Year,
+                outflowCommitment.Period.Month,
+                CommitmentDirection.OutflowPromise.Name);
+
+        if (outflowCommitment.Status != CommitmentStatus.Promised && outflowCommitment.Status != CommitmentStatus.Reserved)
+            throw EconomicContractErrors.CannotFulfillInStatus(outflowCommitment.Status.Name);
+
+        var existingCoverage = await _eventRepo.FindCoveredByCommitmentAsync(outflowCommitment.Id, tenantId, cancellationToken);
+        if (existingCoverage is not null)
+            throw EconomicContractErrors.CannotFulfillInStatus(outflowCommitment.Status.Name);
+
+        if (paymentAmount.Amount != outflowCommitment.ExpectedAmount.Amount)
+            throw EconomicContractErrors.PaymentAmountMismatch(
+                outflowCommitment.ExpectedAmount.Amount,
+                paymentAmount.Amount);
+
         var inflowCommitment = contract.FindReciprocalCommitment(outflowCommitment.Id);
+        var period = new CompetencePeriod(outflowCommitment.Period.Year, outflowCommitment.Period.Month);
 
         var cashResourceId = EconomicResourceId.New();
 
@@ -64,7 +90,7 @@ internal sealed class RegisterPaymentEventHandler : IRequestHandler<RegisterPaym
             new CommitmentRef(outflowCommitment.Id),
             period,
             createdBy: createdBy,
-            registeredAt: _timeProvider.GetUtcNow().UtcDateTime);
+            registeredAt: now);
 
         await _eventRepo.InsertAsync(paymentEvent, cancellationToken);
 
@@ -83,6 +109,6 @@ internal sealed class RegisterPaymentEventHandler : IRequestHandler<RegisterPaym
         return new RegisterPaymentEventResponse(
             paymentEvent.Id.Value,
             paymentEvent.Direction.Name,
-            paymentEvent.Direction == FlowDirection.Inflow ? "Service" : "Cash");
+            "Cash");
     }
 }

@@ -1,6 +1,7 @@
 namespace EconomicCore.Infra.Repositories;
 
 using EconomicCore.Domain.Operational.EconomicEvents;
+using EconomicCore.Domain.Operational.EconomicEvents.Enumerations;
 using EconomicCore.Domain.Operational.EconomicEvents.ValueObjects;
 using EconomicCore.Domain.Prospective.EconomicContracts;
 using EconomicCore.Domain.SeedWork;
@@ -42,5 +43,37 @@ internal sealed class EconomicEventRepository : IEconomicEventRepository
     public void Update(EconomicEvent economicEvent)
     {
         _context.EconomicEvents.Update(economicEvent);
+    }
+
+    public async Task<CompetencePeriod?> GetLastInflowPeriodForCommitmentsAsync(
+        IReadOnlyCollection<CommitmentId> commitmentIds,
+        TenantId tenantId,
+        CancellationToken cancellationToken = default)
+    {
+        if (commitmentIds.Count == 0)
+            return null;
+
+        var ids = commitmentIds.Select(c => c.Value).ToHashSet();
+
+        var candidates = await _context.EconomicEvents
+            .AsNoTracking()
+            .Where(e => e.TenantId.Equals(tenantId)
+                && e.Direction == FlowDirection.Inflow
+                && e.CoveringCommitment != null)
+            .Select(e => new
+            {
+                CommitmentId = e.CoveringCommitment!.CommitmentId.Value,
+                e.Competence.Year,
+                e.Competence.Month,
+            })
+            .ToListAsync(cancellationToken);
+
+        var top = candidates
+            .Where(e => ids.Contains(e.CommitmentId))
+            .OrderByDescending(e => e.Year)
+            .ThenByDescending(e => e.Month)
+            .FirstOrDefault();
+
+        return top is null ? null : new CompetencePeriod(top.Year, top.Month);
     }
 }

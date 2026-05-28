@@ -177,15 +177,15 @@ Atualize sempre que qualquer um destes acontecer:
 
 ## Fase 1 — Status
 
-Walking Skeleton do aluguel pós-pago: **completo** (Domain + Application + Infra + API + Integration Tests).
+Walking Skeleton do aluguel pós-pago: **completo + ciclo de vida do contrato** (Draft → Active → Terminated, com vínculo a Resource/Agent persistidos via API).
 
 | Camada | Status | Artefatos |
 |---|---|---|
-| Domain | ✅ | 4 Aggregates (EconomicEvent, EconomicResource, EconomicAgent, EconomicContract), DualityMatchingService, 268 unit tests |
-| Application | ✅ | 4 Commands (RegisterEconomicContract, GenerateCommitments, RegisterConsumptionEvent, RegisterPaymentEvent), 2 Queries (GetCompetenceDRE, GetCashFlow) |
-| Infra | ✅ | EconomicCoreDbContext (UoW + Outbox), 4 repositories, EF mappings (owned types achatados), FK removal for cross-aggregate references |
-| API | ✅ | ContractsController, EventsController, ReportsController, DomainExceptionFilter |
-| Integration Tests | ✅ | 7 tests: happy path (competência correta), duality persistence, 4 error paths (ECC.EVT04, ECC.CTR05, ECC.CTR02, amount=0), multi-tenant |
+| Domain | ✅ | 4 Aggregates (EconomicEvent, EconomicResource, EconomicAgent, EconomicContract com `ResourceId`/`TermMonths`/`StartDate`/`Activate`/`Terminate`), `ContractStatus.Draft` adicionado, DualityMatchingService, 295 unit tests |
+| Application | ✅ | 8 Commands (RegisterEconomicResource, RegisterEconomicAgent, RegisterEconomicContract, ActivateEconomicContract, TerminateEconomicContract, GenerateCommitments, RegisterConsumptionEvent, RegisterPaymentEvent), 2 Queries (GetCompetenceDRE, GetCashFlow) |
+| Infra | ✅ | EconomicCoreDbContext (UoW + Outbox), 4 repositories (`HasOverlappingAsync` + `GetLastInflowPeriodForCommitmentsAsync` adicionados), EF mappings com `resource_id`/`term_months`/`start_date` no contract |
+| API | ✅ | ResourcesController, AgentsController, ContractsController (+activate +terminate), EventsController (CommitmentId direto), ReportsController, DomainExceptionFilter |
+| Integration Tests | ✅ | 34 tests: jornada completa de 12 meses (Draft→Activate→12 ciclos pay+occupy→Terminate), RegisterResource/Agent (happy + 2 erros cada), Create/Activate/Terminate/Payment/Occupancy exception suites, multi-tenant |
 
 ## Architecture — what is non-obvious
 
@@ -194,7 +194,7 @@ Prefixos de erro em uso: `SWK##` (SeedWork), `ECC##` (BC transversal), `ECC.<AGG
 - Aggregate Roots emitem Domain Events; Entities internas nunca.
 - Cross-aggregate rules vão em Domain Services, nunca passe Entity de um Aggregate para método de outro (ver memória `feedback_ddd_aggregate_boundaries`).
 - Cross-aggregate references to internal Entities devem ser ancoradas via composite VO (ex.: `AccountRef(ChartOfAccountsId, AccountId)` em vez de `AccountId` cru).
-- `*Errors.cs` factories ficam em pasta única `EconomicCore.Domain/Errors/` (não co-locados com o type que servem); `SeedWorkErrors` é `public static`, demais são `internal static`.
+- `*Errors.cs` factories ficam co-localizadas com o Aggregate (`Operational/<Agg>/`, `Prospective/<Agg>/`); `SeedWorkErrors` é `public static`. Os Aggregate Errors são `public static` quando a Application precisa lançar (NotFound de agregados, validações de pre-condição), `internal static` para os puramente de domínio. Atualmente todos os 4 Aggregate Errors são `public` por causa do uso pela Application (Resource/Agent NotFound, Contract overlap/term/start-date/amount-mismatch/termination-date).
 - Tenancy: todo Aggregate Root carrega `TenantId` (strongly-typed `record struct : IEntityId<TenantId>`); queries e authorization filtram por `TenantId`.
 - **EF owned types & shared references**: Value Objects mapeados como owned types (`OwnsOne`/`OwnsMany`). EF tracks owned type instances by reference identity — **never share the same VO instance between two tracked entities** (e.g., use `new Money(...)` for each, don't pass `commitment.ExpectedAmount` directly to `EconomicEvent.RegisterCovered`). This causes "same entity tracked as different entity types" warnings and data loss.
 - **Cross-aggregate FK removal**: `OnModelCreating` strips non-ownership FKs discovered by convention (e.g., `resource_id` → `economic_resources`). Cross-aggregate references are by ID only, no navigation properties, no FK constraints.
@@ -202,6 +202,9 @@ Prefixos de erro em uso: `SWK##` (SeedWork), `ECC##` (BC transversal), `ECC.<AGG
 - **DomainExceptionFilter** handles `DomainException` (from Domain) and `InvalidOperationException` (from Application). HTTP status is driven by `DomainException.Category` (`DomainErrorCategory` enum in SeedWork): `Validation` → 400, `Conflict` → 409, `NotFound` → 404. Error factories pass the category; the filter has no hardcoded error codes. `InvalidOperationException` always maps to 400.
 - **TenantId via rota**: todos os controllers multi-tenant usam `[Route("api/v1/{tenantId}/[controller]")]` e recebem `[FromRoute] Guid tenantId`. Será validado contra JWT em fase futura (Keycloak).
 - **Integration tests** use Testcontainers (`postgres:17`) + Respawn + `EnsureCreatedAsync` (no migrations yet). DTOs are duplicated in the test project (not reused from Application).
+- **EconomicContract lifecycle**: contrato nasce `Draft` (não materializa commitments), `Activate(occurredAt, factory)` gera N=`TermMonths` pares Outflow/Inflow numa única operação e transita para `Active`. `Terminate` é permitido a partir de Draft (descarte) ou Active/Suspended; cancela commitments futuros (Period.FirstDay() > terminationDate) antes de transicionar. Pagamento parcial é **rejeitado** (ECC.CTR19 PaymentAmountMismatch) — pagamento exato obrigatório, sem `EconomicClaim` modelado nesta fase.
+- **Handlers de Payment/Consumption** validam `commitment.Status ∈ {Promised, Reserved}` e que não exista outro `EconomicEvent` já cobrindo o mesmo commitment (via `IEconomicEventRepository.FindCoveredByCommitmentAsync`) antes de criar evento — protege contra duplicatas mesmo quando o pair ainda não chegou para fechar duality.
+- **Cross-aggregate references no Contract**: `EconomicContract.ResourceId` referencia o `EconomicResource` (imóvel) por ID; sem FK no banco (convention strip). `RegisterEconomicContract` valida `ExistsAsync` para Resource e Counterparty antes de criar, e `HasOverlappingAsync` para detectar contratos Draft/Active sobrepostos no mesmo recurso.
 
 ## Project layout
 
@@ -210,10 +213,10 @@ EconomicCore/
 ├── EconomicCore.sln                  # isolated solution (not in RufinoProject.sln)
 ├── docker-compose.yml + override     # localized stack: API + Postgres
 ├── EconomicCore.API/                 # Web SDK host, Program.cs, Controllers, Filters, appsettings, Dockerfile
-│   ├── Controllers/                  #   ContractsController, EventsController, ReportsController
+│   ├── Controllers/                  #   ResourcesController, AgentsController, ContractsController (+activate +terminate), EventsController, ReportsController
 │   └── Filters/                      #   DomainExceptionFilter (maps DomainErrorCategory → HTTP status: Validation→400, Conflict→409, NotFound→404)
 ├── EconomicCore.Application/         # Commands, Queries, Handlers (MediatR 12.4.1)
-│   ├── Commands/                     #   RegisterEconomicContract, GenerateCommitments, RegisterConsumptionEvent, RegisterPaymentEvent
+│   ├── Commands/                     #   RegisterEconomicResource, RegisterEconomicAgent, RegisterEconomicContract, ActivateEconomicContract, TerminateEconomicContract, GenerateCommitments, RegisterConsumptionEvent, RegisterPaymentEvent
 │   └── Queries/                      #   GetCompetenceDRE, GetCashFlow
 ├── EconomicCore.Domain/              # Aggregates, SeedWork, SharedKernel, Domain Services
 │   ├── Operational/                  #   EconomicEvent, EconomicResource, EconomicAgent (+ repository interfaces)
@@ -224,12 +227,12 @@ EconomicCore/
 │   ├── Persistence/                  #   EconomicCoreDbContext (UoW), OutboxMessage
 │   ├── Mapping/                      #   EF entity configurations (4 aggregates + outbox)
 │   └── Repositories/                 #   4 repository implementations
-├── EconomicCore.UnitTests/           # xUnit — 268 domain unit tests
-├── EconomicCore.IntegrationTests/    # xUnit + Testcontainers + Respawn — 7 integration tests
+├── EconomicCore.UnitTests/           # xUnit — 295 domain unit tests (inclui EconomicContractActivateTests, EconomicContractTerminateTests)
+├── EconomicCore.IntegrationTests/    # xUnit + Testcontainers + Respawn — 34 integration tests
 │   ├── Infrastructure/               #   WebApplicationFactory, BaseIntegrationTest, KnownIds
-│   ├── Mothers/                      #   RentScenarioMother (seed agents+resources)
+│   ├── Mothers/                      #   RentScenarioMother (seed direct DB + SeedResourceAndAgentViaApi)
 │   ├── Contracts/                    #   Duplicated DTOs (not reusing Application's)
-│   └── Rent/                         #   Happy path, error tests, multi-tenant
+│   └── Rent/                         #   FullLifecycle 12 meses, Register{Resource,Agent}Tests, {CreateContract,ActivateContract,TerminateContract,RegisterPayment,RegisterOccupancy}ExceptionTests, multi-tenant
 └── EconomicCore.Architecture/        # design rationale, fontes REA (ver index.md)
     ├── index.md                      #   índice completo com tabelas de seções/linhas de cada documento
     ├── Modelo-REA-Conceitual.md      #   modelo conceitual REA puro (fonte de verdade conceitual)
