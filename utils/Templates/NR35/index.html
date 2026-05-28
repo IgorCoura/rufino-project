@@ -99,7 +99,7 @@
             let textoFinal = "";
 
             // Converte a data inicial do funcionário para objeto Date
-            const partes = dateStr.split("/");
+            const partes = dateStr.split("-");
             // Suporta formato dd/MM/yyyy
             const dataInicial = new Date(partes[2], partes[1] - 1, partes[0]);
             const hoje = new Date();
