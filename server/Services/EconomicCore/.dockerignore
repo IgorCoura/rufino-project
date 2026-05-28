@@ -24,3 +24,5 @@
 LICENSE
 README.md
 EconomicCore.Architecture
+EconomicCore.UnitTests
+EconomicCore.IntegrationTests

@@ -8,8 +8,10 @@ public sealed class RecurrencePattern : ValueObject
     public const int MIN_ANCHOR_DAY = 1;
     public const int MAX_ANCHOR_DAY = 31;
 
-    public Periodicity Periodicity { get; }
-    public int AnchorDay { get; }
+    public Periodicity Periodicity { get; private set; } = default!;
+    public int AnchorDay { get; private set; }
+
+    private RecurrencePattern() { }
 
     public RecurrencePattern(Periodicity periodicity, int anchorDay)
     {

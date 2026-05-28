@@ -9,8 +9,10 @@ public sealed class TaxId : ValueObject
     private static readonly int[] CNPJ_WEIGHTS_FIRST = [5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2];
     private static readonly int[] CNPJ_WEIGHTS_SECOND = [6, 5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2];
 
-    public string Value { get; }
-    public TaxIdKind Kind { get; }
+    public string Value { get; private set; } = string.Empty;
+    public TaxIdKind Kind { get; private set; } = default!;
+
+    private TaxId() { }
 
     public TaxId(string value, TaxIdKind kind)
     {

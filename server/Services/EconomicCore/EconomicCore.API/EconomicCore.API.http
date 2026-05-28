@@ -1,0 +1,6 @@
+@EconomicCore.API_HostAddress = http://localhost:5269
+
+GET {{EconomicCore.API_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

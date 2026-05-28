@@ -6,8 +6,10 @@ using EconomicCore.Domain.SeedWork;
 
 public sealed class Participation : ValueObject
 {
-    public EconomicAgentId AgentId { get; }
-    public ParticipationRole Role { get; }
+    public EconomicAgentId AgentId { get; private set; }
+    public ParticipationRole Role { get; private set; } = default!;
+
+    private Participation() { }
 
     public Participation(EconomicAgentId agentId, ParticipationRole role)
     {

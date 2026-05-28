@@ -9,9 +9,11 @@ public sealed class CommitmentTerms : ValueObject
     public const decimal MAX_TOLERANCE_PERCENT = 1m;
     public const int MIN_WINDOW_DAYS = 0;
 
-    public Money ExpectedAmount { get; }
-    public decimal TolerancePercent { get; }
-    public int WindowDays { get; }
+    public Money ExpectedAmount { get; private set; } = default!;
+    public decimal TolerancePercent { get; private set; }
+    public int WindowDays { get; private set; }
+
+    private CommitmentTerms() { }
 
     public CommitmentTerms(Money expectedAmount, decimal tolerancePercent, int windowDays)
     {

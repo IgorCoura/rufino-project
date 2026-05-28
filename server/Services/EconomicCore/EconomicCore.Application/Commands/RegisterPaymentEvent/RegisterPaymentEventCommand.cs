@@ -9,11 +9,12 @@ public sealed record RegisterPaymentEventCommand(
     string Currency,
     int Year,
     int Month,
-    DateTime OccurredAt) : IRequest<RegisterPaymentEventResponse>;
+    DateTime OccurredAt,
+    Guid? UserId) : IRequest<RegisterPaymentEventResponse>;
 
 public sealed record RegisterPaymentEventModel(
     Guid ContractId, decimal Amount, string Currency, int Year, int Month, DateTime OccurredAt)
 {
-    public RegisterPaymentEventCommand ToCommand(Guid tenantId) => new(
-        tenantId, ContractId, Amount, Currency, Year, Month, OccurredAt);
+    public RegisterPaymentEventCommand ToCommand(Guid tenantId, Guid? userId) => new(
+        tenantId, ContractId, Amount, Currency, Year, Month, OccurredAt, userId);
 }

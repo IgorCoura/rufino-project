@@ -50,6 +50,8 @@ internal sealed class RegisterPaymentEventHandler : IRequestHandler<RegisterPaym
             new(contract.CounterpartyId, ParticipationRole.Recipient),
         };
 
+        var createdBy = request.UserId is { } uid ? UserId.From(uid) : (UserId?)null;
+
         var paymentEvent = EconomicEvent.RegisterCovered(
             EconomicEventId.New(),
             tenantId,
@@ -61,7 +63,7 @@ internal sealed class RegisterPaymentEventHandler : IRequestHandler<RegisterPaym
             participations,
             new CommitmentRef(outflowCommitment.Id),
             period,
-            createdBy: null,
+            createdBy: createdBy,
             registeredAt: _timeProvider.GetUtcNow().UtcDateTime);
 
         await _eventRepo.InsertAsync(paymentEvent, cancellationToken);

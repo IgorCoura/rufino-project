@@ -5,8 +5,10 @@ using EconomicCore.Domain.SharedKernel;
 
 public sealed class DualityLink : ValueObject
 {
-    public EconomicEventId CounterpartEventId { get; }
-    public Money MatchedAmount { get; }
+    public EconomicEventId CounterpartEventId { get; private set; }
+    public Money MatchedAmount { get; private set; } = default!;
+
+    private DualityLink() { }
 
     public DualityLink(EconomicEventId counterpartEventId, Money matchedAmount)
     {

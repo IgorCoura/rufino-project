@@ -47,6 +47,7 @@ internal sealed class RegisterConsumptionEventHandler : IRequestHandler<Register
 
         var serviceResourceId = FindServiceResource(contract);
         var eventAmount = new Money(inflowCommitment.ExpectedAmount.Amount, inflowCommitment.ExpectedAmount.Currency);
+        var createdBy = request.UserId is { } uid ? UserId.From(uid) : (UserId?)null;
 
         var economicEvent = EconomicEvent.RegisterCovered(
             EconomicEventId.New(),
@@ -59,7 +60,7 @@ internal sealed class RegisterConsumptionEventHandler : IRequestHandler<Register
             participations,
             new CommitmentRef(inflowCommitment.Id),
             period,
-            createdBy: null,
+            createdBy: createdBy,
             registeredAt: _timeProvider.GetUtcNow().UtcDateTime);
 
         await _eventRepo.InsertAsync(economicEvent, cancellationToken);

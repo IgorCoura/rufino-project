@@ -1,6 +1,7 @@
+﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio Version 17
-VisualStudioVersion = 17.0.31903.59
+# Visual Studio Version 18
+VisualStudioVersion = 18.5.11801.241
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "1-Application", "1-Application", "{E1100000-0000-0000-0000-000000000010}"
 EndProject
@@ -9,8 +10,6 @@ EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "4-Infra", "4-Infra", "{E1400000-0000-0000-0000-000000000040}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "5-Tests", "5-Tests", "{E1500000-0000-0000-0000-000000000050}"
-EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "EconomicCore.API", "EconomicCore.API\EconomicCore.API.csproj", "{D1100000-0000-0000-0000-000000000001}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "EconomicCore.Application", "EconomicCore.Application\EconomicCore.Application.csproj", "{D1200000-0000-0000-0000-000000000002}"
 EndProject
@@ -30,41 +29,111 @@ EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "EconomicCore.Architecture", "EconomicCore.Architecture", "{E1700000-0000-0000-0000-000000000070}"
 	ProjectSection(SolutionItems) = preProject
 		EconomicCore.Architecture\.gitkeep = EconomicCore.Architecture\.gitkeep
+		EconomicCore.Architecture\index.md = EconomicCore.Architecture\index.md
 		EconomicCore.Architecture\Instrucoes-Claude-Code.md = EconomicCore.Architecture\Instrucoes-Claude-Code.md
+		EconomicCore.Architecture\ISO_IEC_15944-4_2015(en).md = EconomicCore.Architecture\ISO_IEC_15944-4_2015(en).md
+		EconomicCore.Architecture\Model-Driven_Design_Using_Business_Patterns-Pavel_Hruby.md = EconomicCore.Architecture\Model-Driven_Design_Using_Business_Patterns-Pavel_Hruby.md
 		EconomicCore.Architecture\Modelo-REA-Conceitual.md = EconomicCore.Architecture\Modelo-REA-Conceitual.md
 		EconomicCore.Architecture\Modelo-REA-Tatico.md = EconomicCore.Architecture\Modelo-REA-Tatico.md
+		EconomicCore.Architecture\Teste-Integracao-Aluguel.md = EconomicCore.Architecture\Teste-Integracao-Aluguel.md
+		EconomicCore.Architecture\The_Ontological_Foundations_of_REA_Enterprise_Information_Systems_2000.md = EconomicCore.Architecture\The_Ontological_Foundations_of_REA_Enterprise_Information_Systems_2000.md
+		EconomicCore.Architecture\The_REA_Accounting_Model_A_Generalized_Framework.md = EconomicCore.Architecture\The_REA_Accounting_Model_A_Generalized_Framework.md
 	EndProjectSection
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "EconomicCore.API", "EconomicCore.API\EconomicCore.API.csproj", "{3C2CB4A9-BF2A-4EA0-8E14-487EC8A722EC}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "EconomicCore.IntegrationTests", "EconomicCore.IntegrationTests\EconomicCore.IntegrationTests.csproj", "{FB4F9765-9EA4-4E39-BB30-2E9C3DA91977}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
+		Debug|x64 = Debug|x64
+		Debug|x86 = Debug|x86
 		Release|Any CPU = Release|Any CPU
+		Release|x64 = Release|x64
+		Release|x86 = Release|x86
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
-		{D1100000-0000-0000-0000-000000000001}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{D1100000-0000-0000-0000-000000000001}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{D1100000-0000-0000-0000-000000000001}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{D1100000-0000-0000-0000-000000000001}.Release|Any CPU.Build.0 = Release|Any CPU
 		{D1200000-0000-0000-0000-000000000002}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{D1200000-0000-0000-0000-000000000002}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{D1200000-0000-0000-0000-000000000002}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{D1200000-0000-0000-0000-000000000002}.Debug|x64.Build.0 = Debug|Any CPU
+		{D1200000-0000-0000-0000-000000000002}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{D1200000-0000-0000-0000-000000000002}.Debug|x86.Build.0 = Debug|Any CPU
 		{D1200000-0000-0000-0000-000000000002}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{D1200000-0000-0000-0000-000000000002}.Release|Any CPU.Build.0 = Release|Any CPU
+		{D1200000-0000-0000-0000-000000000002}.Release|x64.ActiveCfg = Release|Any CPU
+		{D1200000-0000-0000-0000-000000000002}.Release|x64.Build.0 = Release|Any CPU
+		{D1200000-0000-0000-0000-000000000002}.Release|x86.ActiveCfg = Release|Any CPU
+		{D1200000-0000-0000-0000-000000000002}.Release|x86.Build.0 = Release|Any CPU
 		{D1300000-0000-0000-0000-000000000003}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{D1300000-0000-0000-0000-000000000003}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{D1300000-0000-0000-0000-000000000003}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{D1300000-0000-0000-0000-000000000003}.Debug|x64.Build.0 = Debug|Any CPU
+		{D1300000-0000-0000-0000-000000000003}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{D1300000-0000-0000-0000-000000000003}.Debug|x86.Build.0 = Debug|Any CPU
 		{D1300000-0000-0000-0000-000000000003}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{D1300000-0000-0000-0000-000000000003}.Release|Any CPU.Build.0 = Release|Any CPU
+		{D1300000-0000-0000-0000-000000000003}.Release|x64.ActiveCfg = Release|Any CPU
+		{D1300000-0000-0000-0000-000000000003}.Release|x64.Build.0 = Release|Any CPU
+		{D1300000-0000-0000-0000-000000000003}.Release|x86.ActiveCfg = Release|Any CPU
+		{D1300000-0000-0000-0000-000000000003}.Release|x86.Build.0 = Release|Any CPU
 		{D1400000-0000-0000-0000-000000000004}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{D1400000-0000-0000-0000-000000000004}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{D1400000-0000-0000-0000-000000000004}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{D1400000-0000-0000-0000-000000000004}.Debug|x64.Build.0 = Debug|Any CPU
+		{D1400000-0000-0000-0000-000000000004}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{D1400000-0000-0000-0000-000000000004}.Debug|x86.Build.0 = Debug|Any CPU
 		{D1400000-0000-0000-0000-000000000004}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{D1400000-0000-0000-0000-000000000004}.Release|Any CPU.Build.0 = Release|Any CPU
+		{D1400000-0000-0000-0000-000000000004}.Release|x64.ActiveCfg = Release|Any CPU
+		{D1400000-0000-0000-0000-000000000004}.Release|x64.Build.0 = Release|Any CPU
+		{D1400000-0000-0000-0000-000000000004}.Release|x86.ActiveCfg = Release|Any CPU
+		{D1400000-0000-0000-0000-000000000004}.Release|x86.Build.0 = Release|Any CPU
 		{D1500000-0000-0000-0000-000000000005}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{D1500000-0000-0000-0000-000000000005}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{D1500000-0000-0000-0000-000000000005}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{D1500000-0000-0000-0000-000000000005}.Debug|x64.Build.0 = Debug|Any CPU
+		{D1500000-0000-0000-0000-000000000005}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{D1500000-0000-0000-0000-000000000005}.Debug|x86.Build.0 = Debug|Any CPU
 		{D1500000-0000-0000-0000-000000000005}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{D1500000-0000-0000-0000-000000000005}.Release|Any CPU.Build.0 = Release|Any CPU
+		{D1500000-0000-0000-0000-000000000005}.Release|x64.ActiveCfg = Release|Any CPU
+		{D1500000-0000-0000-0000-000000000005}.Release|x64.Build.0 = Release|Any CPU
+		{D1500000-0000-0000-0000-000000000005}.Release|x86.ActiveCfg = Release|Any CPU
+		{D1500000-0000-0000-0000-000000000005}.Release|x86.Build.0 = Release|Any CPU
 		{D2100000-0000-0000-0000-000000000001}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{D2100000-0000-0000-0000-000000000001}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{D2100000-0000-0000-0000-000000000001}.Debug|x64.ActiveCfg = Debug|x64
+		{D2100000-0000-0000-0000-000000000001}.Debug|x86.ActiveCfg = Debug|x86
 		{D2100000-0000-0000-0000-000000000001}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{D2100000-0000-0000-0000-000000000001}.Release|Any CPU.Build.0 = Release|Any CPU
+		{D2100000-0000-0000-0000-000000000001}.Release|x64.ActiveCfg = Release|x64
+		{D2100000-0000-0000-0000-000000000001}.Release|x86.ActiveCfg = Release|x86
+		{3C2CB4A9-BF2A-4EA0-8E14-487EC8A722EC}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{3C2CB4A9-BF2A-4EA0-8E14-487EC8A722EC}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{3C2CB4A9-BF2A-4EA0-8E14-487EC8A722EC}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{3C2CB4A9-BF2A-4EA0-8E14-487EC8A722EC}.Debug|x64.Build.0 = Debug|Any CPU
+		{3C2CB4A9-BF2A-4EA0-8E14-487EC8A722EC}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{3C2CB4A9-BF2A-4EA0-8E14-487EC8A722EC}.Debug|x86.Build.0 = Debug|Any CPU
+		{3C2CB4A9-BF2A-4EA0-8E14-487EC8A722EC}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{3C2CB4A9-BF2A-4EA0-8E14-487EC8A722EC}.Release|Any CPU.Build.0 = Release|Any CPU
+		{3C2CB4A9-BF2A-4EA0-8E14-487EC8A722EC}.Release|x64.ActiveCfg = Release|Any CPU
+		{3C2CB4A9-BF2A-4EA0-8E14-487EC8A722EC}.Release|x64.Build.0 = Release|Any CPU
+		{3C2CB4A9-BF2A-4EA0-8E14-487EC8A722EC}.Release|x86.ActiveCfg = Release|Any CPU
+		{3C2CB4A9-BF2A-4EA0-8E14-487EC8A722EC}.Release|x86.Build.0 = Release|Any CPU
+		{FB4F9765-9EA4-4E39-BB30-2E9C3DA91977}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{FB4F9765-9EA4-4E39-BB30-2E9C3DA91977}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{FB4F9765-9EA4-4E39-BB30-2E9C3DA91977}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{FB4F9765-9EA4-4E39-BB30-2E9C3DA91977}.Debug|x64.Build.0 = Debug|Any CPU
+		{FB4F9765-9EA4-4E39-BB30-2E9C3DA91977}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{FB4F9765-9EA4-4E39-BB30-2E9C3DA91977}.Debug|x86.Build.0 = Debug|Any CPU
+		{FB4F9765-9EA4-4E39-BB30-2E9C3DA91977}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{FB4F9765-9EA4-4E39-BB30-2E9C3DA91977}.Release|Any CPU.Build.0 = Release|Any CPU
+		{FB4F9765-9EA4-4E39-BB30-2E9C3DA91977}.Release|x64.ActiveCfg = Release|Any CPU
+		{FB4F9765-9EA4-4E39-BB30-2E9C3DA91977}.Release|x64.Build.0 = Release|Any CPU
+		{FB4F9765-9EA4-4E39-BB30-2E9C3DA91977}.Release|x86.ActiveCfg = Release|Any CPU
+		{FB4F9765-9EA4-4E39-BB30-2E9C3DA91977}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -74,6 +143,8 @@ Global
 		{D1300000-0000-0000-0000-000000000003} = {E1200000-0000-0000-0000-000000000020}
 		{D1400000-0000-0000-0000-000000000004} = {E1400000-0000-0000-0000-000000000040}
 		{D1500000-0000-0000-0000-000000000005} = {E1500000-0000-0000-0000-000000000050}
+		{3C2CB4A9-BF2A-4EA0-8E14-487EC8A722EC} = {E1100000-0000-0000-0000-000000000010}
+		{FB4F9765-9EA4-4E39-BB30-2E9C3DA91977} = {E1500000-0000-0000-0000-000000000050}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {7A2B4C5D-6E7F-8A9B-0C1D-2E3F4A5B6C7E}

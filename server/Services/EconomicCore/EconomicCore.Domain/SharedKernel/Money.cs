@@ -4,8 +4,10 @@ using EconomicCore.Domain.SeedWork;
 
 public sealed class Money : ValueObject
 {
-    public decimal Amount { get; }
-    public Currency Currency { get; }
+    public decimal Amount { get; private set; }
+    public Currency Currency { get; private set; } = default!;
+
+    private Money() { }
 
     public Money(decimal amount, Currency currency)
     {
