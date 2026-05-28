@@ -5,7 +5,7 @@ using EconomicCore.Application.Commands.RegisterPaymentEvent;
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
 
-[Route("api/v1/{tenantId}/[controller]")]
+[Route("api/v1/{tenantId:guid}/[controller]")]
 public sealed class EventsController(ILogger<EventsController> logger, IMediator mediator) : BaseController(logger)
 {
     [HttpPost("consumption")]

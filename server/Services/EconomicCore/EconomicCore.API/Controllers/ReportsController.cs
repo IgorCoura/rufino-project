@@ -5,7 +5,7 @@ using EconomicCore.Application.Queries.GetCompetenceDRE;
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
 
-[Route("api/v1/{tenantId}/[controller]")]
+[Route("api/v1/{tenantId:guid}/[controller]")]
 public sealed class ReportsController(ILogger<ReportsController> logger, IMediator mediator) : BaseController(logger)
 {
     [HttpGet("dre")]

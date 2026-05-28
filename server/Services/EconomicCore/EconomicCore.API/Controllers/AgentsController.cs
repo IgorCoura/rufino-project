@@ -4,7 +4,7 @@ using EconomicCore.Application.Commands.RegisterEconomicAgent;
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
 
-[Route("api/v1/{tenantId}/[controller]")]
+[Route("api/v1/{tenantId:guid}/[controller]")]
 public sealed class AgentsController(ILogger<AgentsController> logger, IMediator mediator) : BaseController(logger)
 {
     [HttpPost]

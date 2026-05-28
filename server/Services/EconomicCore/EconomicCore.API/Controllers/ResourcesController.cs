@@ -4,7 +4,7 @@ using EconomicCore.Application.Commands.RegisterEconomicResource;
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
 
-[Route("api/v1/{tenantId}/[controller]")]
+[Route("api/v1/{tenantId:guid}/[controller]")]
 public sealed class ResourcesController(ILogger<ResourcesController> logger, IMediator mediator) : BaseController(logger)
 {
     [HttpPost]

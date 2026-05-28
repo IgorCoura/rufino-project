@@ -35,6 +35,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "EconomicCore.Architecture",
 		EconomicCore.Architecture\Model-Driven_Design_Using_Business_Patterns-Pavel_Hruby.md = EconomicCore.Architecture\Model-Driven_Design_Using_Business_Patterns-Pavel_Hruby.md
 		EconomicCore.Architecture\Modelo-REA-Conceitual.md = EconomicCore.Architecture\Modelo-REA-Conceitual.md
 		EconomicCore.Architecture\Modelo-REA-Tatico.md = EconomicCore.Architecture\Modelo-REA-Tatico.md
+		EconomicCore.Architecture\spec-api-locacao-rea.md = EconomicCore.Architecture\spec-api-locacao-rea.md
 		EconomicCore.Architecture\Teste-Integracao-Aluguel.md = EconomicCore.Architecture\Teste-Integracao-Aluguel.md
 		EconomicCore.Architecture\The_Ontological_Foundations_of_REA_Enterprise_Information_Systems_2000.md = EconomicCore.Architecture\The_Ontological_Foundations_of_REA_Enterprise_Information_Systems_2000.md
 		EconomicCore.Architecture\The_REA_Accounting_Model_A_Generalized_Framework.md = EconomicCore.Architecture\The_REA_Accounting_Model_A_Generalized_Framework.md
