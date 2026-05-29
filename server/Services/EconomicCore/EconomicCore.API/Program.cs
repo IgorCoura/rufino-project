@@ -1,3 +1,4 @@
+using EconomicCore.API.Extension;
 using EconomicCore.API.Filters;
 using EconomicCore.Application;
 using EconomicCore.Infra;
@@ -13,6 +14,7 @@ builder.Services.AddControllers(options =>
 
 builder.Services.AddApplicationDependencies();
 builder.Services.AddInfraDependencies(builder.Configuration);
+builder.Services.AddCorsForFront(builder.Configuration, builder.Environment);
 
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddOpenApi();
@@ -34,6 +36,7 @@ if (app.Environment.IsDevelopment())
     });
 }
 
+app.UseCors();
 app.UseAuthorization();
 app.MapControllers();
 
