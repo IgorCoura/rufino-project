@@ -24,6 +24,8 @@ public sealed class IntegrationTestWebAppFactory : WebApplicationFactory<Program
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         builder.UseSetting("ConnectionStrings:EconomicCore", _connectionString);
+        // Disable the polling worker in tests so the outbox is driven deterministically via IOutboxProcessor.
+        builder.UseSetting("Outbox:Enabled", "false");
         builder.UseEnvironment("Development");
     }
 

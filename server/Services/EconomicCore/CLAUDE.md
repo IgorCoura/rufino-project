@@ -183,9 +183,9 @@ Walking Skeleton do aluguel pós-pago: **completo + ciclo de vida do contrato** 
 |---|---|---|
 | Domain | ✅ | 4 Aggregates (EconomicEvent, EconomicResource, EconomicAgent, EconomicContract com `ResourceId`/`TermMonths`/`StartDate`/`Activate`/`Terminate`), `ContractStatus.Draft` adicionado, DualityMatchingService, 295 unit tests |
 | Application | ✅ | 8 Commands (RegisterEconomicResource, RegisterEconomicAgent, RegisterEconomicContract, ActivateEconomicContract, TerminateEconomicContract, GenerateCommitments, RegisterConsumptionEvent, RegisterPaymentEvent), 2 Queries (GetCompetenceDRE, GetCashFlow) |
-| Infra | ✅ | EconomicCoreDbContext (UoW + Outbox), 4 repositories (`HasOverlappingAsync` + `GetLastInflowPeriodForCommitmentsAsync` adicionados), EF mappings com `resource_id`/`term_months`/`start_date` no contract |
+| Infra | ✅ | EconomicCoreDbContext (UoW + Outbox), 4 repositories (`HasOverlappingAsync` + `GetLastInflowPeriodForCommitmentsAsync` adicionados), EF mappings com `resource_id`/`term_months`/`start_date` no contract, **Outbox consumer completo** (`OutboxProcessor` + `OutboxBackgroundService` + dead-letter + cleanup) |
 | API | ✅ | ResourcesController, AgentsController, ContractsController (+activate +terminate), EventsController (CommitmentId direto), ReportsController, DomainExceptionFilter |
-| Integration Tests | ✅ | 34 tests: jornada completa de 12 meses (Draft→Activate→12 ciclos pay+occupy→Terminate), RegisterResource/Agent (happy + 2 erros cada), Create/Activate/Terminate/Payment/Occupancy exception suites, multi-tenant |
+| Integration Tests | ✅ | 43 tests: jornada completa de 12 meses (Draft→Activate→12 ciclos pay+occupy→Terminate), RegisterResource/Agent (happy + 2 erros cada), Create/Activate/Terminate/Payment/Occupancy exception suites, multi-tenant, **outbox (write + worker dispatch/idempotência/dead-letter/cleanup + dispatcher)** |
 
 ## Architecture — what is non-obvious
 
@@ -198,10 +198,13 @@ Prefixos de erro em uso: `SWK##` (SeedWork), `ECC##` (BC transversal), `ECC.<AGG
 - Tenancy: todo Aggregate Root carrega `TenantId` (strongly-typed `record struct : IEntityId<TenantId>`); queries e authorization filtram por `TenantId`.
 - **EF owned types & shared references**: Value Objects mapeados como owned types (`OwnsOne`/`OwnsMany`). EF tracks owned type instances by reference identity — **never share the same VO instance between two tracked entities** (e.g., use `new Money(...)` for each, don't pass `commitment.ExpectedAmount` directly to `EconomicEvent.RegisterCovered`). This causes "same entity tracked as different entity types" warnings and data loss.
 - **Cross-aggregate FK removal**: `OnModelCreating` strips non-ownership FKs discovered by convention (e.g., `resource_id` → `economic_resources`). Cross-aggregate references are by ID only, no navigation properties, no FK constraints.
-- **DbContext.SaveEntitiesAsync** drains domain events from all tracked aggregates into `outbox_messages` before calling `base.SaveChangesAsync`.
+- **DbContext.SaveEntitiesAsync** drains domain events from all tracked aggregates into `outbox_messages` before calling `base.SaveChangesAsync`. `EventType` é gravado como `Type.FullName` (não `Name`) para reidratação inequívoca.
+- **Outbox consumer (in-process, Domain puro)**: `OutboxBackgroundService` (registrado só quando `Outbox:Enabled=true` — ver `OutboxOptions`) faz polling e delega ao `OutboxProcessor`. O processor claima uma mensagem por vez via `SELECT … FOR UPDATE SKIP LOCKED` (raw SQL; EF não tem o hint), abre **uma transação por mensagem** (envolta em `ExecutionStrategy` por causa de `EnableRetryOnFailure`), desserializa via `IOutboxEventTypeResolver` (singleton que indexa `IDomainEvent` do assembly do Domain por `FullName`), despacha por `IDomainEventDispatcher` (porta no Domain, impl `DomainEventDispatcher` na Infra — `Outbox/` — resolvendo `IDomainEventHandler<T>` via DI+reflexão, **sem MediatR**; registrada por `AddDomainEventDispatcher()`), marca `processed=true` e dá commit. Efeito do handler + marcação commitam juntos → **effectively-once para handlers que só tocam o próprio banco**; handlers com efeito externo não-transacional voltam a ser at-least-once e devem ser idempotentes.
+- **Dead-letter + retry**: falha incrementa `attempts`/`error`; ao atingir `OutboxOptions.MaxAttempts` a mensagem é **movida** para `outbox_dead_letters` (insert + remove, atômico) com `WARN`. Não há backoff temporal — erros transientes de banco são absorvidos pelo `ExecutionStrategy`; o que sobra (desserialização, bug de handler) é permanente e vai rápido para dead-letter. `CleanupAsync` purga `processed=true` além de `RetentionDays` (table-growth). Ordem **não** é garantida sob paralelismo (`SKIP LOCKED`); `OccurredAt` carrega o tempo do evento. Ao escalar horizontalmente, rode o worker em **um** deployment (`Outbox:Enabled`).
+- **`IDomainEventHandler<T>` / `IDomainEventDispatcher`** são portas puras em `Domain/SeedWork` (visíveis a Application e Infra; `Infra → Application` não existe — seria ciclo, por isso as portas ficam no Domain). A **impl** (`DomainEventDispatcher`) e os handlers vivem na **Infra** (toda a máquina do outbox num lugar só) — handlers de projeção/read-model (ex.: `EconomicResourceRegisteredAuditHandler` → `processed_event_log`) são registrados como `IDomainEventHandler<TEvent>`; o dispatcher os resolve no mesmo escopo do `DbContext`, então um `Add` do handler entra na transação do processor.
 - **DomainExceptionFilter** handles `DomainException` (from Domain) and `InvalidOperationException` (from Application). HTTP status is driven by `DomainException.Category` (`DomainErrorCategory` enum in SeedWork): `Validation` → 400, `Conflict` → 409, `NotFound` → 404. Error factories pass the category; the filter has no hardcoded error codes. `InvalidOperationException` always maps to 400.
 - **TenantId via rota**: todos os controllers multi-tenant usam `[Route("api/v1/{tenantId}/[controller]")]` e recebem `[FromRoute] Guid tenantId`. Será validado contra JWT em fase futura (Keycloak).
-- **Integration tests** use Testcontainers (`postgres:17`) + Respawn + `EnsureCreatedAsync` (no migrations yet). DTOs are duplicated in the test project (not reused from Application).
+- **Integration tests** use Testcontainers (`postgres:17`) + Respawn + `EnsureCreatedAsync` (no migrations yet). DTOs are duplicated in the test project (not reused from Application). O `IntegrationTestWebAppFactory` seta `Outbox:Enabled=false` para o worker não competir com os testes — o outbox é dirigido determinísticamente chamando `IOutboxProcessor.ProcessPendingAsync`/`CleanupAsync`.
 - **EconomicContract lifecycle**: contrato nasce `Draft` (não materializa commitments), `Activate(occurredAt, factory)` gera N=`TermMonths` pares Outflow/Inflow numa única operação e transita para `Active`. `Terminate` é permitido a partir de Draft (descarte) ou Active/Suspended; cancela commitments futuros (Period.FirstDay() > terminationDate) antes de transicionar. Pagamento parcial é **rejeitado** (ECC.CTR19 PaymentAmountMismatch) — pagamento exato obrigatório, sem `EconomicClaim` modelado nesta fase.
 - **Handlers de Payment/Consumption** validam `commitment.Status ∈ {Promised, Reserved}` e que não exista outro `EconomicEvent` já cobrindo o mesmo commitment (via `IEconomicEventRepository.FindCoveredByCommitmentAsync`) antes de criar evento — protege contra duplicatas mesmo quando o pair ainda não chegou para fechar duality.
 - **Cross-aggregate references no Contract**: `EconomicContract.ResourceId` referencia o `EconomicResource` (imóvel) por ID; sem FK no banco (convention strip). `RegisterEconomicContract` valida `ExistsAsync` para Resource e Counterparty antes de criar, e `HasOverlappingAsync` para detectar contratos Draft/Active sobrepostos no mesmo recurso.
@@ -222,16 +225,19 @@ EconomicCore/
 │   ├── Operational/                  #   EconomicEvent, EconomicResource, EconomicAgent (+ repository interfaces)
 │   ├── Prospective/                  #   EconomicContract + Commitment entity (+ repository interface)
 │   ├── Services/                     #   DualityMatchingService
-│   └── SeedWork/                     #   Entity, AggregateRoot, ValueObject, Enumeration, IUnitOfWork
+│   └── SeedWork/                     #   Entity, AggregateRoot, ValueObject, Enumeration, IUnitOfWork, IDomainEvent, IDomainEventHandler, IDomainEventDispatcher
 ├── EconomicCore.Infra/               # EF Core DbContext, repositories, mappings, outbox
-│   ├── Persistence/                  #   EconomicCoreDbContext (UoW), OutboxMessage
-│   ├── Mapping/                      #   EF entity configurations (4 aggregates + outbox)
+│   ├── Persistence/                  #   EconomicCoreDbContext (UoW), OutboxMessage, OutboxDeadLetter, ProcessedEventLog, IOutboxEventTypeResolver
+│   ├── Outbox/                       #   OutboxOptions, OutboxProcessor (claim/dispatch/dead-letter/cleanup), OutboxBackgroundService, DomainEventDispatcher (impl da porta, sem MediatR), Handlers/EconomicResourceRegisteredAuditHandler
+│   ├── Mapping/                      #   EF entity configurations (4 aggregates + outbox + dead-letter + projection)
 │   └── Repositories/                 #   4 repository implementations
 ├── EconomicCore.UnitTests/           # xUnit — 295 domain unit tests (inclui EconomicContractActivateTests, EconomicContractTerminateTests)
-├── EconomicCore.IntegrationTests/    # xUnit + Testcontainers + Respawn — 34 integration tests
-│   ├── Infrastructure/               #   WebApplicationFactory, BaseIntegrationTest, KnownIds
+├── EconomicCore.IntegrationTests/    # xUnit + Testcontainers + Respawn — 43 integration tests
+│   ├── Infrastructure/               #   WebApplicationFactory (Outbox:Enabled=false), BaseIntegrationTest, KnownIds
 │   ├── Mothers/                      #   RentScenarioMother (seed direct DB + SeedResourceAndAgentViaApi)
 │   ├── Contracts/                    #   Duplicated DTOs (not reusing Application's)
+│   ├── DomainEvents/                 #   DomainEventDispatcherTests (resolução de DI, sem banco)
+│   ├── Outbox/                       #   OutboxWriteTests, OutboxProcessorTests (dispatch/idempotência/dead-letter/cleanup)
 │   └── Rent/                         #   FullLifecycle 12 meses, Register{Resource,Agent}Tests, {CreateContract,ActivateContract,TerminateContract,RegisterPayment,RegisterOccupancy}ExceptionTests, multi-tenant
 └── EconomicCore.Architecture/        # design rationale, fontes REA (ver index.md)
     ├── index.md                      #   índice completo com tabelas de seções/linhas de cada documento
@@ -263,7 +269,7 @@ Itens que **devem** ser resolvidos antes do primeiro deploy em ambiente real. Ma
 ### Resiliência e observabilidade
 - [ ] **Health checks** — adicionar health check do PostgreSQL (`AspNetCore.HealthChecks.NpgsqlEfCore` ou similar).
 - [ ] **Logging estruturado** — configurar Serilog ou similar com correlation ID por request.
-- [ ] **Outbox consumer** — implementar worker/background service que processa `outbox_messages` (hoje são escritas mas não consumidas).
+- [x] **Outbox consumer** — `OutboxBackgroundService` + `OutboxProcessor` consomem `outbox_messages` (claim `FOR UPDATE SKIP LOCKED`, dispatch in-process via `IDomainEventDispatcher`, dead-letter em `outbox_dead_letters`, cleanup por retenção). Pendências de produção: definir backoff/observabilidade de backlog e garantir que só um deployment rode o worker (`Outbox:Enabled`).
 - [ ] **Rate limiting** — avaliar se endpoints públicos precisam de throttling.
 
 ### Qualidade e testes
