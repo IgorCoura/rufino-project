@@ -62,6 +62,7 @@ public sealed class EconomicEvent : AggregateRoot<EconomicEventId>
             AmountCurrency: ev.Amount.Currency.Name,
             CompetenceYear: ev.Competence.Year,
             CompetenceMonth: ev.Competence.Month,
+            CoveringContractId: coveringCommitment.ContractId.Value,
             CoveringCommitmentId: coveringCommitment.CommitmentId.Value,
             CounterpartEventId: null,
             OccurredAt: occurredAt.InstantUtc));
@@ -83,6 +84,7 @@ public sealed class EconomicEvent : AggregateRoot<EconomicEventId>
         DateTime occurredAt,
         EconomicAgentId payerAgentId,
         EconomicAgentId payeeAgentId,
+        EconomicContractId coveringContractId,
         CommitmentId coveringCommitmentId,
         int competenceYear,
         int competenceMonth,
@@ -101,7 +103,7 @@ public sealed class EconomicEvent : AggregateRoot<EconomicEventId>
         return RegisterCovered(
             id, tenantId, FlowDirection.Outflow, cashResourceId,
             new Money(amountValue, currency), new EventTimestamp(occurredAt), typeId: null,
-            participations, new CommitmentRef(coveringCommitmentId),
+            participations, new CommitmentRef(coveringContractId, coveringCommitmentId),
             new CompetencePeriod(competenceYear, competenceMonth), createdBy, registeredAt);
     }
 
@@ -118,6 +120,7 @@ public sealed class EconomicEvent : AggregateRoot<EconomicEventId>
         DateTime occurredAt,
         EconomicAgentId providerAgentId,
         EconomicAgentId recipientAgentId,
+        EconomicContractId coveringContractId,
         CommitmentId coveringCommitmentId,
         int competenceYear,
         int competenceMonth,
@@ -133,7 +136,7 @@ public sealed class EconomicEvent : AggregateRoot<EconomicEventId>
         return RegisterCovered(
             id, tenantId, FlowDirection.Inflow, serviceResourceId,
             new Money(amountValue, currency), new EventTimestamp(occurredAt), typeId: null,
-            participations, new CommitmentRef(coveringCommitmentId),
+            participations, new CommitmentRef(coveringContractId, coveringCommitmentId),
             new CompetencePeriod(competenceYear, competenceMonth), createdBy, registeredAt);
     }
 
@@ -171,6 +174,7 @@ public sealed class EconomicEvent : AggregateRoot<EconomicEventId>
             AmountCurrency: ev.Amount.Currency.Name,
             CompetenceYear: ev.Competence.Year,
             CompetenceMonth: ev.Competence.Month,
+            CoveringContractId: null,
             CoveringCommitmentId: null,
             CounterpartEventId: duality.CounterpartEventId.Value,
             OccurredAt: occurredAt.InstantUtc));

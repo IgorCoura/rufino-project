@@ -8,7 +8,6 @@ public interface IEconomicContractRepository
     IUnitOfWork UnitOfWork { get; }
     Task<EconomicContract> InsertAsync(EconomicContract contract, CancellationToken cancellationToken = default);
     Task<EconomicContract?> GetByIdAsync(EconomicContractId id, TenantId tenantId, CancellationToken cancellationToken = default);
-    Task<EconomicContract?> FindByCommitmentIdAsync(CommitmentId commitmentId, TenantId tenantId, CancellationToken cancellationToken = default);
     void Update(EconomicContract contract);
 
     Task<bool> HasOverlappingAsync(

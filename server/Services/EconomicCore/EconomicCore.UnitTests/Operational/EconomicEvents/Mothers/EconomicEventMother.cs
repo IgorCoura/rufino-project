@@ -17,6 +17,7 @@ public sealed class EconomicEventMother
     public static readonly EconomicResourceId FixedResourceId = EconomicResourceId.From(new Guid("77777777-7777-7777-8777-777777777777"));
     public static readonly EconomicAgentId ProviderAgentId = EconomicAgentId.From(new Guid("aaaaaaaa-aaaa-7aaa-8aaa-aaaaaaaaaaaa"));
     public static readonly EconomicAgentId RecipientAgentId = EconomicAgentId.From(new Guid("bbbbbbbb-bbbb-7bbb-8bbb-bbbbbbbbbbbb"));
+    public static readonly EconomicContractId FixedContractId = EconomicContractId.From(new Guid("eeeeeeee-eeee-7eee-8eee-eeeeeeeeeeee"));
     public static readonly CommitmentId FixedCommitmentId = CommitmentId.From(new Guid("cccccccc-cccc-7ccc-8ccc-cccccccccccc"));
     public static readonly EconomicEventId CounterpartEventId = EconomicEventId.From(new Guid("dddddddd-dddd-7ddd-8ddd-dddddddddddd"));
 
@@ -32,7 +33,7 @@ public sealed class EconomicEventMother
         new Participation(RecipientAgentId, ParticipationRole.Recipient),
     ];
 
-    public static CommitmentRef DefaultCommitment() => new(FixedCommitmentId);
+    public static CommitmentRef DefaultCommitment() => new(FixedContractId, FixedCommitmentId);
 
     public static DualityLink DefaultDuality() => new(CounterpartEventId, DefaultAmount());
 

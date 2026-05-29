@@ -14,6 +14,7 @@ public sealed record EconomicEventRegistered(
     string AmountCurrency,
     int CompetenceYear,
     int CompetenceMonth,
+    Guid? CoveringContractId,
     Guid? CoveringCommitmentId,
     Guid? CounterpartEventId,
     DateTime OccurredAt) : IDomainEvent;

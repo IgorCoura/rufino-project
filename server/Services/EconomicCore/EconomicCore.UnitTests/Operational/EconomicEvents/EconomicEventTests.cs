@@ -24,12 +24,15 @@ public class EconomicEventTests
         Assert.Equal(1000m, ev.Amount.Amount);
         Assert.Equal(EconomicEventMother.FixedOccurredAtUtc, ev.OccurredAt.InstantUtc);
         Assert.NotNull(ev.CoveringCommitment);
+        Assert.Equal(EconomicEventMother.FixedContractId, ev.CoveringCommitment!.ContractId);
+        Assert.Equal(EconomicEventMother.FixedCommitmentId, ev.CoveringCommitment.CommitmentId);
         Assert.Null(ev.Duality);
         Assert.Equal(2, ev.Participations.Count);
 
         var registered = Assert.IsType<EconomicEventRegistered>(Assert.Single(ev.PullDomainEvents()));
         Assert.Equal(ev.Id, registered.EconomicEventId);
         Assert.Equal(FlowDirection.Outflow.Name, registered.DirectionName);
+        Assert.Equal(EconomicEventMother.FixedContractId.Value, registered.CoveringContractId);
         Assert.Equal(EconomicEventMother.FixedCommitmentId.Value, registered.CoveringCommitmentId);
         Assert.Null(registered.CounterpartEventId);
         Assert.Equal(1000m, registered.AmountValue);
@@ -50,6 +53,7 @@ public class EconomicEventTests
 
         var registered = (EconomicEventRegistered)ev.PullDomainEvents()[0];
         Assert.Equal(EconomicEventMother.CounterpartEventId.Value, registered.CounterpartEventId);
+        Assert.Null(registered.CoveringContractId);
         Assert.Null(registered.CoveringCommitmentId);
     }
 

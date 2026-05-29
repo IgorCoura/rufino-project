@@ -130,8 +130,8 @@ public class DualityMatchingServiceTests
     [Fact]
     public void Match_WithDifferentCoveringCommitments_ShouldSucceed()
     {
-        var outflowRef = new CommitmentRef(CommitmentId.From(new Guid("aaaa0001-0001-7001-8001-aaaaaaaaaaaa")));
-        var inflowRef = new CommitmentRef(CommitmentId.From(new Guid("bbbb0001-0001-7001-8001-bbbbbbbbbbbb")));
+        var outflowRef = new CommitmentRef(EconomicEventMother.FixedContractId, CommitmentId.From(new Guid("aaaa0001-0001-7001-8001-aaaaaaaaaaaa")));
+        var inflowRef = new CommitmentRef(EconomicEventMother.FixedContractId, CommitmentId.From(new Guid("bbbb0001-0001-7001-8001-bbbbbbbbbbbb")));
         var consumption = BuildConsumption(inflowRef);
         var payment = BuildPayment(outflowRef);
         consumption.ClearDomainEvents();

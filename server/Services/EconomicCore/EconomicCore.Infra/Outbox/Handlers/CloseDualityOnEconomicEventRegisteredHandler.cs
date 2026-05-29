@@ -22,17 +22,19 @@ internal sealed class CloseDualityOnEconomicEventRegisteredHandler(
     public async Task HandleAsync(EconomicEventRegistered domainEvent, CancellationToken cancellationToken = default)
     {
         // Only commitment-covered events participate in the deferred duality close.
-        if (domainEvent.CoveringCommitmentId is not { } coveringCommitmentGuid)
+        if (domainEvent.CoveringCommitmentId is not { } coveringCommitmentGuid
+            || domainEvent.CoveringContractId is not { } coveringContractGuid)
             return;
 
         var tenantId = domainEvent.TenantId;
         var commitmentId = CommitmentId.From(coveringCommitmentGuid);
+        var contractId = EconomicContractId.From(coveringContractGuid);
 
         var registeredEvent = await eventRepo.GetByIdAsync(domainEvent.EconomicEventId, tenantId, cancellationToken);
         if (registeredEvent is null || registeredEvent.Duality is not null)
             return; // already matched (reprocessed message) or gone — idempotent no-op
 
-        var contract = await contractRepo.FindByCommitmentIdAsync(commitmentId, tenantId, cancellationToken);
+        var contract = await contractRepo.GetByIdAsync(contractId, tenantId, cancellationToken);
         if (contract is null)
             return;
 

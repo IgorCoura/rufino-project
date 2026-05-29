@@ -91,6 +91,10 @@ internal sealed class EconomicEventMap : IEntityTypeConfiguration<EconomicEvent>
 
         builder.OwnsOne(e => e.CoveringCommitment, cr =>
         {
+            cr.Property(c => c.ContractId)
+                .HasColumnName("covering_contract_id")
+                .HasConversion(v => v.Value, v => EconomicContractId.From(v));
+
             cr.Property(c => c.CommitmentId)
                 .HasColumnName("covering_commitment_id")
                 .HasConversion(v => v.Value, v => CommitmentId.From(v));

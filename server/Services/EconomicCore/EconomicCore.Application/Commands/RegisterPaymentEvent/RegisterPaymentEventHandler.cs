@@ -57,6 +57,7 @@ internal sealed class RegisterPaymentEventHandler : IRequestHandler<RegisterPaym
             request.OccurredAt,
             payerAgentId: EconomicAgentId.From(tenantId.Value),
             payeeAgentId: contract.CounterpartyId,
+            coveringContractId: contract.Id,
             coveringCommitmentId: commitment.Id,
             competenceYear: commitment.Period.Year,
             competenceMonth: commitment.Period.Month,

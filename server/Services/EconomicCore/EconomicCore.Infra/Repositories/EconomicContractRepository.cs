@@ -29,15 +29,6 @@ internal sealed class EconomicContractRepository : IEconomicContractRepository
             .FirstOrDefaultAsync(e => e.Id.Equals(id) && e.TenantId.Equals(tenantId), cancellationToken);
     }
 
-    public async Task<EconomicContract?> FindByCommitmentIdAsync(CommitmentId commitmentId, TenantId tenantId, CancellationToken cancellationToken = default)
-    {
-        return await _context.EconomicContracts
-            .Include(c => c.Commitments)
-            .FirstOrDefaultAsync(
-                c => c.TenantId.Equals(tenantId) && c.Commitments.Any(cm => cm.Id.Equals(commitmentId)),
-                cancellationToken);
-    }
-
     public void Update(EconomicContract contract)
     {
         _context.EconomicContracts.Update(contract);

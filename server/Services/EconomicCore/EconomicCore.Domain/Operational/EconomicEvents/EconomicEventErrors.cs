@@ -144,7 +144,7 @@ public static class EconomicEventErrors
         [CallerLineNumber] int lineNumber = 0)
         => new(
             id: $"{PREFIX}13",
-            messageTemplate: "CommitmentRef requer um CommitmentId não vazio.",
+            messageTemplate: "CommitmentRef requer ContractId e CommitmentId não vazios.",
             parameters: Array.Empty<object>(),
             sourcePath: BuildSourcePath(filePath, memberName, lineNumber));
 

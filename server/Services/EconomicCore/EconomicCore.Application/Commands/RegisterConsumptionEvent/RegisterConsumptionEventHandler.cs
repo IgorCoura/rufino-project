@@ -55,6 +55,7 @@ internal sealed class RegisterConsumptionEventHandler : IRequestHandler<Register
             request.OccurredAt,
             providerAgentId: contract.CounterpartyId,
             recipientAgentId: EconomicAgentId.From(tenantId.Value),
+            coveringContractId: contract.Id,
             coveringCommitmentId: commitment.Id,
             competenceYear: commitment.Period.Year,
             competenceMonth: commitment.Period.Month,
