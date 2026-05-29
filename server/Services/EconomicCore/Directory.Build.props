@@ -1,0 +1,31 @@
+<Project>
+
+  <!--
+    Aplicamos só a .csproj C#. O .sln contém docker-compose.dcproj (Microsoft.Docker.Sdk),
+    que não tem TargetFramework e quebra se tentarmos adicionar PackageReference de analyzer.
+  -->
+  <PropertyGroup>
+    <_EconomicCoreIsCSharpProject Condition=" '$(MSBuildProjectExtension)' == '.csproj' ">true</_EconomicCoreIsCSharpProject>
+    <IsTestProject Condition=" '$(_EconomicCoreIsCSharpProject)' == 'true' AND '$(IsTestProject)' == '' AND $(MSBuildProjectName.EndsWith('Tests')) ">true</IsTestProject>
+  </PropertyGroup>
+
+  <PropertyGroup Condition=" '$(_EconomicCoreIsCSharpProject)' == 'true' ">
+    <AnalysisLevel>latest</AnalysisLevel>
+    <AnalysisMode Condition=" '$(IsTestProject)' != 'true' ">Recommended</AnalysisMode>
+    <AnalysisMode Condition=" '$(IsTestProject)' == 'true' ">Minimum</AnalysisMode>
+    <EnforceCodeStyleInBuild Condition=" '$(IsTestProject)' != 'true' ">true</EnforceCodeStyleInBuild>
+    <!--
+      Não setamos CodeAnalysisTreatWarningsAsErrors=false: queremos que /p:TreatWarningsAsErrors=true
+      (usado no gate pré-push, ver CLAUDE.md "Mandatory pre-push analysis workflow") promova
+      também regras CA/Sxxx/IDE a erro. No build local sem TWasE, esses ficam como warning normalmente.
+    -->
+  </PropertyGroup>
+
+  <ItemGroup Condition=" '$(_EconomicCoreIsCSharpProject)' == 'true' AND '$(IsTestProject)' != 'true' ">
+    <PackageReference Include="SonarAnalyzer.CSharp" Version="10.27.0.140913">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+  </ItemGroup>
+
+</Project>

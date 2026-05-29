@@ -10,7 +10,7 @@ public interface IOutboxEventTypeResolver
 
 internal sealed class OutboxEventTypeResolver : IOutboxEventTypeResolver
 {
-    private readonly IReadOnlyDictionary<string, Type> _typesByFullName;
+    private readonly Dictionary<string, Type> _typesByFullName;
 
     public OutboxEventTypeResolver()
     {

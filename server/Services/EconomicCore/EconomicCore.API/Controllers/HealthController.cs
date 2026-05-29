@@ -1,6 +1,6 @@
-using Microsoft.AspNetCore.Mvc;
-
 namespace EconomicCore.API.Controllers;
+
+using Microsoft.AspNetCore.Mvc;
 
 [ApiController]
 [Route("api/[controller]")]

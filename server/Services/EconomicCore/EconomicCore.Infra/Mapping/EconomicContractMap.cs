@@ -84,7 +84,7 @@ internal sealed class EconomicContractMap : IEntityTypeConfiguration<EconomicCon
 
         builder.Ignore(e => e.DomainEvents);
 
-        var commitmentNav = builder.OwnsMany(e => e.Commitments, ConfigureCommitment);
+        builder.OwnsMany(e => e.Commitments, ConfigureCommitment);
 
         builder.HasIndex(e => e.TenantId).HasDatabaseName("ix_economic_contracts_tenant_id");
     }

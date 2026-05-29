@@ -53,16 +53,23 @@ public sealed class EconomicCoreDbContext : DbContext, IUnitOfWork
         ChangeTracker.DetectChanges();
 
         var domainEvents = new List<IDomainEvent>();
-        foreach (var entry in ChangeTracker.Entries())
+        foreach (var entity in ChangeTracker.Entries().Select(e => e.Entity))
         {
-            if (entry.Entity is AggregateRoot<EconomicEventId> evtAgg)
-                domainEvents.AddRange(evtAgg.PullDomainEvents());
-            else if (entry.Entity is AggregateRoot<EconomicResourceId> resAgg)
-                domainEvents.AddRange(resAgg.PullDomainEvents());
-            else if (entry.Entity is AggregateRoot<EconomicAgentId> agtAgg)
-                domainEvents.AddRange(agtAgg.PullDomainEvents());
-            else if (entry.Entity is AggregateRoot<EconomicContractId> ctrAgg)
-                domainEvents.AddRange(ctrAgg.PullDomainEvents());
+            switch (entity)
+            {
+                case AggregateRoot<EconomicEventId> evtAgg:
+                    domainEvents.AddRange(evtAgg.PullDomainEvents());
+                    break;
+                case AggregateRoot<EconomicResourceId> resAgg:
+                    domainEvents.AddRange(resAgg.PullDomainEvents());
+                    break;
+                case AggregateRoot<EconomicAgentId> agtAgg:
+                    domainEvents.AddRange(agtAgg.PullDomainEvents());
+                    break;
+                case AggregateRoot<EconomicContractId> ctrAgg:
+                    domainEvents.AddRange(ctrAgg.PullDomainEvents());
+                    break;
+            }
         }
 
         foreach (var domainEvent in domainEvents)

@@ -126,7 +126,24 @@ Swagger UI: `http://localhost:8090/openapi/v1.json` + `http://localhost:8090/swa
 
 ## Mandatory testing workflow
 
-**Toda alteração no `EconomicCore.Domain` exige rodar a suíte completa de testes unitários antes de encerrar a tarefa.** Não basta rodar só os testes da Aggregate alterada — execute `dotnet test EconomicCore.UnitTests` inteiro, porque mudanças em SeedWork, VOs e factories de erro podem quebrar Aggregates aparentemente não relacionados.
+**Toda alteração de código em qualquer camada (`Domain`, `Application`, `Infra`, `API`) exige rodar as duas suítes completas — unitária E de integração — antes de encerrar a tarefa:**
+
+```powershell
+dotnet test EconomicCore.UnitTests
+dotnet test EconomicCore.IntegrationTests   # exige Docker rodando (Testcontainers + postgres:17)
+```
+
+Não basta rodar só os testes do arquivo alterado: mudanças em SeedWork, VOs, factories de erro, mappings EF ou pipelines de Application podem quebrar testes aparentemente não relacionados (ex.: uma troca de comportamento no `EconomicContract.Activate` pode quebrar `OutboxProcessorTests` que dependem do evento emitido). A suíte de integração também pega regressões que a unitária não enxerga: mapping EF, owned types, FK strip, idempotência do outbox, semântica de transação.
+
+**Quando pular**: apenas mudanças puramente documentais (`*.md`, `CLAUDE.md`, comentários sem efeito de comportamento) ou de configuração de tooling sem efeito de build podem dispensar a suíte de integração. Mudança em `.csproj`, `Directory.Build.props`, `.editorconfig` que afetem o build exige rodar as duas.
+
+**Bug encontrado → teste de regressão obrigatório.** Sempre que um bug for diagnosticado e corrigido, antes de fechar a tarefa adicione **um teste novo que reproduz o cenário do bug original** (no nível certo: unitário se a falha era em invariante de Aggregate/VO; integração se a falha exigia banco/mapping/outbox/HTTP). O comentário acima do teste deve explicitar que é um teste de regressão e descrever o bug em linguagem de negócio. Esse teste é o que impede o mesmo erro voltar — sem ele, a correção é frágil. Exemplo de cabeçalho:
+
+```csharp
+// Regressão: termination antes do último período inflow ocupado deve disparar ECC.CTR20 (antes lançava ECC.CTR99 genérico).
+[Fact]
+public void Terminate_BeforeLastOccupiedInflowPeriod_Throws_ECC_CTR20() { ... }
+```
 
 **Todo método de teste deve ter um comentário (em português, uma linha) explicando o que ele cobre — cenário + comportamento esperado.** O comentário fica imediatamente acima do atributo `[Fact]` / `[Theory]`. O nome do método sozinho não basta: o comentário existe para descrever a regra em linguagem de negócio (ou técnica, em testes puros de SeedWork), permitindo revisar a intenção do caso sem ler o corpo. Vale para testes novos *e* para qualquer teste tocado durante uma alteração — se você editou o teste, atualize o comentário.
 
@@ -174,6 +191,19 @@ Atualize sempre que qualquer um destes acontecer:
 4. Se uma sprint for implementada apenas parcialmente, marque-a como `🚧 Em andamento` na tabela e descreva o que ficou de fora.
 
 **Falhar em atualizar o CLAUDE.md é considerado tarefa incompleta**, mesmo que o código compile e os testes passem. Esse arquivo é o que orienta as próximas sessões do Claude Code — se ele estiver desatualizado, o próximo agente parte de premissas erradas e o débito de contexto cresce em silêncio.
+
+## Mandatory pre-push analysis workflow
+
+**Todo push para o remote que toque arquivos em `server/Services/EconomicCore/` exige análise estática limpa — zero erros e zero warnings — antes de `git push`.** Pushes são feitos pelo Claude; não há git hook automático, então a obrigação é executável e verificável aqui:
+
+1. Antes de `git push`, rode `dotnet build EconomicCore.sln /p:TreatWarningsAsErrors=true` na raiz do BC. Esse modo promove os warnings de Application/Infra/API a erro também — o build vai falhar se houver qualquer finding em qualquer projeto.
+2. **Se o build falhar com qualquer error ou warning, NÃO faça push.** Corrija a causa raiz no código antes de seguir. Suprimir a regra no `.editorconfig` só vale se a regra conflita com uma convenção do BC explicitamente documentada (ver seção "Static analysis (Roslyn analyzers)") — e mesmo nesse caso, atualize o CLAUDE.md justificando a supressão no mesmo PR.
+3. Após o fix, rode **as duas suítes** — `dotnet test EconomicCore.UnitTests` E `dotnet test EconomicCore.IntegrationTests` (regra de "Mandatory testing workflow" continua valendo). Só então pushe.
+4. Pular o passo de análise — mesmo "rapidinho pra subir um WIP" — é considerado violação tão grave quanto pushear teste quebrado. Não use `--no-verify` (não há hook a pular; é uma regra de processo).
+
+**Quando o push não toca EconomicCore** (e.g., só `client/`, `azure/`, ou `server/Services/PeopleManagement/`), essa obrigação não dispara — esses domínios têm suas próprias regras.
+
+**Por que warnings também bloqueiam, e não só erros**: Application/Infra/API hoje só emitem warning porque `TreatWarningsAsErrors=true` só está em Domain. Sem essa regra de processo, warnings reais (CA1873 logging, S6966 await, IDE0065 using direction) acumulariam invisíveis até o item "Promover analyzer warnings a erros no CI" do checklist pré-produção entrar em vigor. Tratar warnings como bloqueadores no push antecipa esse gate.
 
 ## Fase 1 — Status
 
@@ -251,6 +281,31 @@ EconomicCore/
     └── Model-Driven_Design_Using_Business_Patterns-Pavel_Hruby.md  # Hruby 2006 (OCR)
 ```
 
+## Static analysis (Roslyn analyzers)
+
+Dois arquivos na raiz do BC controlam análise estática para todos os 6 csproj:
+
+- **`Directory.Build.props`** — herdado por todo `.csproj` C# da árvore. Liga `AnalysisLevel=latest`, `AnalysisMode=Recommended` (Minimum em test projects), `EnforceCodeStyleInBuild=true` (IDE rules rodam no build) e injeta `SonarAnalyzer.CSharp` como analyzer-only (`PrivateAssets=all`). Excluído de `docker-compose.dcproj` via guard `MSBuildProjectExtension=='.csproj'` (o SDK Docker não tem TargetFramework e quebra com PackageReferences).
+- **`.editorconfig`** — `root=true`, define estilo C# moderno (file-scoped namespaces, `using` dentro do namespace, primary constructors), e ajusta severidades de regras CA/IDE/Sxxx ruidosas. Tem três blocos de override por path: global `[*.cs]`, `[**/EconomicCore.UnitTests/**.cs]` e `[**/EconomicCore.IntegrationTests/**.cs]`.
+
+**Stack ativa**: NetAnalyzers (built-in do SDK .NET 10) + SonarAnalyzer.CSharp (≥ `10.27.0.140913`). StyleCop e Roslynator foram avaliados e descartados (ruído desproporcional).
+
+**Política de severidade** (decisão de Sprint 0 — Recomendado):
+- Domain: `TreatWarningsAsErrors=true` → qualquer warning quebra o build. É o nível mais rigoroso da pilha porque é o núcleo do negócio.
+- Application/Infra/API: warnings aparecem no build mas **não** quebram. CI vai promover a erro depois (Checklist pré-produção).
+- Tests: `AnalysisMode=Minimum` + suppressions extras (CA1707, CA1812, S2699 etc.) — testes têm convenções próprias do xUnit que não devem ser sufocadas.
+
+**Regras suprimidas globalmente por convenção** (não rodar simplificação automática nelas):
+- `S2328`, `S3249`, `S3875`, `S1210`, `S1643` — padrões canônicos do `SeedWork/` (Entity equality, Smart Enum IComparable, ValueObject.ToString) que Sonar marca como bug mas seguem a referência Vernon.
+- `CA1707` — codebase usa `SCREAMING_SNAKE_CASE` em constantes de domínio (`DEFAULT_TOLERANCE_PERCENT`, `MIN_MONTH`).
+- `CA1711` — sufixos `Event`, `Template`, etc. são vocabulário do domínio.
+- `CA1303`, `CA2007`, `CA2201` — DomainException PT, ASP.NET Core sem ConfigureAwait, Exception herdada por design.
+- `S927`, `S4201`, `S112` — `is null`, parâmetros de override ricos, e uso de Exception base nas factories de erro do SeedWork.
+
+Outras regras estão como `suggestion` (visíveis no IDE, não no build) ou `warning` (visíveis no build, não quebram fora do Domain). **Antes de suprimir uma regra nova, prefira corrigir o código** — só suprime se a regra conflita com uma convenção do BC explicitamente documentada aqui ou em `EconomicCore.Architecture/`.
+
+**Como rodar**: `dotnet build EconomicCore.sln` já roda os analyzers. Não há comando separado. Para listar findings agregados: `dotnet build --no-incremental 2>&1 | Select-String 'warning (CA|S|IDE)\d+'`.
+
 ## Checklist pré-produção
 
 Itens que **devem** ser resolvidos antes do primeiro deploy em ambiente real. Marcar com `[x]` conforme forem concluídos.
@@ -276,6 +331,7 @@ Itens que **devem** ser resolvidos antes do primeiro deploy em ambiente real. Ma
 - [ ] **Testes de integração com migrações** — após criar migrações, trocar `EnsureCreatedAsync` por `MigrateAsync` nos testes.
 - [ ] **CI pipeline** — configurar build + unit tests + integration tests no CI (GitHub Actions ou similar).
 - [ ] **Code coverage** — definir threshold mínimo e integrar no CI.
+- [ ] **Promover analyzer warnings a erros no CI** — Application/Infra/API hoje só emitem warning (ver "Static analysis"). No pipeline de CI, passar `/p:TreatWarningsAsErrors=true` na etapa de build para bloquear merge com violação nova de CA/Sxxx. Domain já está blindado localmente.
 
 ### Infra e deploy
 - [ ] **Dockerfile otimizado** — revisar multi-stage build, garantir que não copia arquivos desnecessários.
@@ -287,7 +343,7 @@ Itens que **devem** ser resolvidos antes do primeiro deploy em ambiente real. Ma
 These are enforced by the `domain-codegen-ddd-dotnet`, `application-codegen-ddd-dotnet`, `infra-codegen-ddd-dotnet`, `api-codegen-ddd-dotnet`, and `tests-domain-ddd-dotnet` skills — invoke them via Skill instead of generating DDD code by hand:
 
 - Code in English; `DomainException` messages in Portuguese; conversation in Portuguese.
-- `<TreatWarningsAsErrors>true</TreatWarningsAsErrors>` is set on Domain (mandatory by Sprint 0).
+- `<TreatWarningsAsErrors>true</TreatWarningsAsErrors>` is set on Domain (mandatory by Sprint 0). NetAnalyzers + SonarAnalyzer.CSharp são injetados via `Directory.Build.props` na raiz do BC com severidades em `.editorconfig` — ver seção "Static analysis (Roslyn analyzers)".
 - Strongly-typed Ids (`record struct : IEntityId<TSelf>`), Smart Enums via `Enumeration`, VOs deriving from abstract `ValueObject`.
 - Aggregate Roots only emit Domain Events (never internal Entities).
 - Idempotency in Application: commands wrapped via `IRequestManager`.

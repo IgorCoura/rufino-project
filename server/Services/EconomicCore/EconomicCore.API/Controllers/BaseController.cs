@@ -43,12 +43,13 @@ public class BaseController(ILogger<BaseController> logger) : ControllerBase
 
     protected void SendingCommandLog(object? commandId, object? command, Guid requestId)
     {
-        var idProperty = commandId?.GetType().Name;
-        var commandName = command?.GetType().Name;
+        if (!_logger.IsEnabled(LogLevel.Information))
+            return;
+
         _logger.LogInformation(
             "----- Sending command: {CommandName} - {IdProperty}: {CommandId} ({@Command}) - RequestId : {RequestId} -----",
-            commandName,
-            idProperty,
+            command?.GetType().Name,
+            commandId?.GetType().Name,
             commandId,
             command,
             requestId);
@@ -56,13 +57,14 @@ public class BaseController(ILogger<BaseController> logger) : ControllerBase
 
     protected void CommandResultLog(object? result, object? commandId, object? command, Guid requestId)
     {
-        var idProperty = commandId?.GetType().Name;
-        var commandName = command?.GetType().Name;
+        if (!_logger.IsEnabled(LogLevel.Information))
+            return;
+
         _logger.LogInformation(
             "----- Command result: {@Result} - {CommandName} - {IdProperty}: {CommandId} ({@Command}) - RequestId : {RequestId} -----",
             result,
-            commandName,
-            idProperty,
+            command?.GetType().Name,
+            commandId?.GetType().Name,
             commandId,
             command,
             requestId);

@@ -41,7 +41,7 @@ public static class InfraDependencies
         return services;
     }
 
-    private static IServiceCollection AddOutbox(this IServiceCollection services, IConfiguration configuration)
+    private static void AddOutbox(this IServiceCollection services, IConfiguration configuration)
     {
         services.Configure<OutboxOptions>(configuration.GetSection(OutboxOptions.SectionName));
 
@@ -55,8 +55,6 @@ public static class InfraDependencies
         var enabled = configuration.GetSection(OutboxOptions.SectionName).GetValue<bool?>("Enabled") ?? true;
         if (enabled)
             services.AddHostedService<OutboxBackgroundService>();
-
-        return services;
     }
 
     // Public so the in-process dispatcher can be wired in isolation (e.g. tests) without the full outbox stack.

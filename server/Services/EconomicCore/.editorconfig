@@ -1,0 +1,234 @@
+root = true
+
+###############################
+# Core EditorConfig
+###############################
+[*]
+indent_style = space
+end_of_line = crlf
+charset = utf-8
+trim_trailing_whitespace = true
+insert_final_newline = true
+
+[*.{cs,csproj,props,targets,json,yml,yaml,md,xml,config}]
+indent_size = 4
+
+[*.{json,yml,yaml}]
+indent_size = 2
+
+###############################
+# C# language / style
+###############################
+[*.cs]
+# Prefer modern C#
+csharp_style_namespace_declarations = file_scoped:warning
+csharp_prefer_braces = true:silent
+csharp_style_var_for_built_in_types = true:silent
+csharp_style_var_when_type_is_apparent = true:silent
+csharp_style_var_elsewhere = true:silent
+csharp_style_expression_bodied_methods = when_on_single_line:silent
+csharp_style_expression_bodied_constructors = when_on_single_line:silent
+csharp_style_expression_bodied_properties = when_on_single_line:silent
+csharp_using_directive_placement = inside_namespace:warning
+csharp_prefer_simple_using_statement = true:suggestion
+csharp_style_prefer_primary_constructors = true:silent
+
+dotnet_sort_system_directives_first = true
+dotnet_separate_import_directive_groups = false
+
+###############################
+# Microsoft CA — DDD/ASP.NET Core tunings
+###############################
+# CA1303: literais como parâmetros localizados — mensagens em PT no DomainException são proposital
+dotnet_diagnostic.CA1303.severity = none
+
+# CA2007: ConfigureAwait(false) — irrelevante em ASP.NET Core / código de aplicação
+dotnet_diagnostic.CA2007.severity = none
+
+# CA1062: validar args de métodos públicos — VOs/Aggregates já validam via factories de erro
+dotnet_diagnostic.CA1062.severity = suggestion
+
+# CA1812: classes internas não instanciadas — falsos positivos com EF entity configs e DI handlers
+dotnet_diagnostic.CA1812.severity = none
+
+# CA1515: tipos internos devem ser sealed (.NET 9+) — falsos positivos com DI / hosted services
+dotnet_diagnostic.CA1515.severity = none
+
+# CA1848: usar LoggerMessage delegates — invasivo, mantemos como sugestão
+dotnet_diagnostic.CA1848.severity = suggestion
+
+# CA1031: não capturar Exception — útil mas legítimo em filters / outbox processor
+dotnet_diagnostic.CA1031.severity = suggestion
+
+# CA1822: marcar membros como static — agressivo demais em handlers/services
+dotnet_diagnostic.CA1822.severity = suggestion
+
+# CA1305: especificar IFormatProvider — útil mas ruidoso em interpolação simples
+dotnet_diagnostic.CA1305.severity = suggestion
+
+# CA1716: identificadores não devem colidir com keywords — falso positivo em Domain (e.g. "Event")
+dotnet_diagnostic.CA1716.severity = none
+
+# CA1707: sublinhados em identificadores — codebase usa SCREAMING_SNAKE_CASE em constantes de domínio (DEFAULT_*, MIN_*, MAX_*) por convenção
+dotnet_diagnostic.CA1707.severity = none
+
+# CA1711: sufixos de tipo em identificadores — "EconomicEvent", "DomainEvent", "DocumentTemplate" são vocabulário do domínio
+dotnet_diagnostic.CA1711.severity = none
+
+# CA1725: nomes de parâmetro devem casar com base — falso positivo em overrides ricos (e.g. Equals(ValueObject other))
+dotnet_diagnostic.CA1725.severity = suggestion
+
+# CA1510: ArgumentNullException.ThrowIfNull — sugestão (já temos fábricas no SeedWork)
+dotnet_diagnostic.CA1510.severity = suggestion
+
+# CA1036: implementar IComparable methods (>=, <=, ==) — VOs são imutáveis e ordenação não é primária
+dotnet_diagnostic.CA1036.severity = suggestion
+
+# CA1309: StringComparison.Ordinal — útil mas ruidoso em código de domínio puro
+dotnet_diagnostic.CA1309.severity = suggestion
+
+# CA2201: reserved exception types — DomainException herda Exception, e códigos de erro carregam a semântica
+dotnet_diagnostic.CA2201.severity = none
+
+# CA1054/CA1055/CA1056: usar Uri em vez de string — não aplica em URIs internas de config
+dotnet_diagnostic.CA1054.severity = suggestion
+dotnet_diagnostic.CA1055.severity = suggestion
+dotnet_diagnostic.CA1056.severity = suggestion
+
+# CA1014: marcar assembly CLSCompliant — não é biblioteca pública
+dotnet_diagnostic.CA1014.severity = none
+
+# CA2227: collection properties readonly — agressivo com EF / DTOs
+dotnet_diagnostic.CA2227.severity = suggestion
+
+# CA1819: properties não devem retornar arrays — irrelevante em domain VOs
+dotnet_diagnostic.CA1819.severity = suggestion
+
+# CA1024: usar properties em vez de Get* — false positives com factories Get/Find async
+dotnet_diagnostic.CA1024.severity = none
+
+###############################
+# Microsoft IDE style — keep build-time enforcement light
+###############################
+# IDE0058: expression value never used — agressivo (Fluent API EF, etc.)
+dotnet_diagnostic.IDE0058.severity = none
+
+# IDE0061: block body for local functions — preferência
+dotnet_diagnostic.IDE0061.severity = none
+
+# IDE0072: missing cases on switch expression — útil mas false positives em discards
+dotnet_diagnostic.IDE0072.severity = suggestion
+
+# IDE0290: usar primary constructor — sugestão, não erro
+dotnet_diagnostic.IDE0290.severity = suggestion
+
+# IDE0305: collection initializer — sugestão
+dotnet_diagnostic.IDE0305.severity = suggestion
+
+###############################
+# SonarAnalyzer.CSharp — DDD tunings
+###############################
+# S1135: comentários TODO — visível como sugestão, não bloqueia build
+dotnet_diagnostic.S1135.severity = suggestion
+
+# S125: código comentado — sugestão (revisão humana decide)
+dotnet_diagnostic.S125.severity = suggestion
+
+# S101: nomes de tipo seguem regex — DDD usa Aggregate/VO/Smart Enum com nomes ricos
+dotnet_diagnostic.S101.severity = suggestion
+
+# S1186: métodos vazios — falso positivo em When(...) de event sourcing / no-op handlers
+dotnet_diagnostic.S1186.severity = suggestion
+
+# S3604: inicializador redundante — ruído menor
+dotnet_diagnostic.S3604.severity = none
+
+# S3925: ISerializable mal implementado — Exception customizada é proposital
+dotnet_diagnostic.S3925.severity = none
+
+# S1075: URIs hardcoded — config interna, não código de produção
+dotnet_diagnostic.S1075.severity = suggestion
+
+# S107: muitos parâmetros — factories de domínio (Create, Register) excedem por design
+dotnet_diagnostic.S107.severity = suggestion
+
+# S2326: type parameter não usado — falso positivo em IEntityId<TSelf>, IDomainEvent etc.
+dotnet_diagnostic.S2326.severity = none
+
+# S4136: overloads adjacentes — DDD agrupa por responsabilidade, não por nome
+dotnet_diagnostic.S4136.severity = suggestion
+
+# S1144: membros privados não usados — falso positivo com EF reflexão (setters privados)
+dotnet_diagnostic.S1144.severity = suggestion
+
+# S3776: complexidade cognitiva — guideline, decisão humana
+dotnet_diagnostic.S3776.severity = suggestion
+
+# S112: throw General Exception — Domain usa DomainException; suprimimos por convenção do BC
+dotnet_diagnostic.S112.severity = none
+
+# S927: nome de parâmetro deve casar com declaração base — falso positivo em overrides ricos
+dotnet_diagnostic.S927.severity = none
+
+# S4201: null check com "is null" — idiomático moderno, prefere is sobre ==
+dotnet_diagnostic.S4201.severity = none
+
+# S6608: indexar em vez de LINQ Last/First — micro-optimização; mantemos como sugestão
+dotnet_diagnostic.S6608.severity = suggestion
+
+# Padrões canônicos de DDD (Vernon, Implementing DDD) em SeedWork:
+# S2328: Entity.Id é private set por exigência do ORM
+# S3249: base.GetHashCode() para Entity transient é o padrão recomendado
+# S3875: operator == override casa com Entity value equality (sufficient identity)
+# S1210: Smart Enum implementa IComparable mas iguala só por Id
+# S1643: ValueObject.ToString() é debug-only; StringBuilder seria over-engineering
+dotnet_diagnostic.S2328.severity = none
+dotnet_diagnostic.S3249.severity = none
+dotnet_diagnostic.S3875.severity = none
+dotnet_diagnostic.S1210.severity = none
+dotnet_diagnostic.S1643.severity = none
+
+###############################
+# Program.cs — marcador para WebApplicationFactory<Program>
+# Top-level statements + partial class pública vazia é exigência do framework;
+# não pode ser static (impede uso como argumento de tipo genérico em testes).
+###############################
+[**/Program.cs]
+dotnet_diagnostic.S1118.severity = none
+
+###############################
+# Test projects — relaxar regras que conflitam com xUnit e Object Mothers
+###############################
+[**/EconomicCore.UnitTests/**.cs]
+# Underscores em nomes de teste são padrão xUnit (Method_Scenario_Expected)
+dotnet_diagnostic.CA1707.severity = none
+# Métodos privados/internos via reflection / xUnit discovery
+dotnet_diagnostic.CA1812.severity = none
+dotnet_diagnostic.CA1515.severity = none
+# Validação de args / providers / configure-await — irrelevante em test
+dotnet_diagnostic.CA1062.severity = none
+dotnet_diagnostic.CA1305.severity = none
+dotnet_diagnostic.CA2007.severity = none
+# Sonar: testes sem Assert via Assert.Throws — falso positivo
+dotnet_diagnostic.S2699.severity = none
+# Sonar: nomes de teste com underscore
+dotnet_diagnostic.S100.severity = none
+dotnet_diagnostic.S2148.severity = none
+
+[**/EconomicCore.IntegrationTests/**.cs]
+dotnet_diagnostic.CA1707.severity = none
+dotnet_diagnostic.CA1812.severity = none
+dotnet_diagnostic.CA1515.severity = none
+dotnet_diagnostic.CA1062.severity = none
+dotnet_diagnostic.CA1305.severity = none
+dotnet_diagnostic.CA2007.severity = none
+dotnet_diagnostic.S2699.severity = none
+dotnet_diagnostic.S100.severity = none
+dotnet_diagnostic.S2148.severity = none
+
+###############################
+# Generated / scaffold — fully suppressed
+###############################
+[**/{obj,bin}/**.cs]
+generated_code = true
+dotnet_analyzer_diagnostic.severity = none
