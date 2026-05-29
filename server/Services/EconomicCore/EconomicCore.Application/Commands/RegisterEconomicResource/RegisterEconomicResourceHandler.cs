@@ -24,7 +24,6 @@ internal sealed class RegisterEconomicResourceHandler : IRequestHandler<Register
         var tenantId = TenantId.From(request.TenantId);
         var kind = Enumeration.FromDisplayName<ResourceKind>(request.Kind);
 
-       
         var resource = EconomicResource.Create(
             EconomicResourceId.New(),
             tenantId,

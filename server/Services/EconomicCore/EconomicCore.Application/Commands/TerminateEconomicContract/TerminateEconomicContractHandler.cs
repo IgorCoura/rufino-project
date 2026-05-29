@@ -3,6 +3,7 @@ namespace EconomicCore.Application.Commands.TerminateEconomicContract;
 using EconomicCore.Domain.Operational.EconomicEvents;
 using EconomicCore.Domain.Prospective.EconomicContracts;
 using EconomicCore.Domain.Prospective.EconomicContracts.Enumerations;
+using EconomicCore.Domain.Prospective.EconomicContracts.Events;
 using EconomicCore.Domain.SharedKernel;
 using MediatR;
 
@@ -30,49 +31,26 @@ internal sealed class TerminateEconomicContractHandler : IRequestHandler<Termina
         var contract = await _contractRepo.GetByIdAsync(contractId, tenantId, cancellationToken)
             ?? throw EconomicContractErrors.ContractNotFound(request.ContractId);
 
+        // I/O de orquestração: descobre o último período inflow ocupado (com evento registrado)
+        // para alimentar a regra de data de término, que vive dentro de Terminate.
         var inflowCommitmentIds = contract.Commitments
             .Where(c => c.Direction == CommitmentDirection.InflowPromise)
             .Select(c => c.Id)
             .ToList();
 
-        if (inflowCommitmentIds.Count > 0)
-        {
-            var lastInflowPeriod = await _eventRepo.GetLastInflowPeriodForCommitmentsAsync(
-                inflowCommitmentIds, tenantId, cancellationToken);
+        var lastOccupiedInflowPeriod = inflowCommitmentIds.Count > 0
+            ? await _eventRepo.GetLastInflowPeriodForCommitmentsAsync(inflowCommitmentIds, tenantId, cancellationToken)
+            : null;
 
-            if (lastInflowPeriod is not null)
-            {
-                var lastDayOfLastOccupied = lastInflowPeriod.LastDay();
-                if (request.TerminationDate < lastDayOfLastOccupied)
-                {
-                    throw EconomicContractErrors.InvalidTerminationDate(
-                        request.TerminationDate,
-                        $"{lastInflowPeriod.Year:D4}-{lastInflowPeriod.Month:D2}");
-                }
-            }
-        }
+        contract.Terminate(request.TerminationDate, lastOccupiedInflowPeriod, _timeProvider.GetUtcNow().UtcDateTime);
 
-        var occurredAt = _timeProvider.GetUtcNow().UtcDateTime;
-
-        var commitmentsToCancel = contract.Commitments
-            .Where(c => (c.Status == CommitmentStatus.Promised || c.Status == CommitmentStatus.Reserved)
-                && c.Period.FirstDay() > request.TerminationDate)
-            .Select(c => c.Id)
-            .ToList();
-
-        foreach (var commitmentId in commitmentsToCancel)
-        {
-            contract.CancelCommitment(commitmentId, occurredAt);
-        }
-
-        contract.Terminate(occurredAt);
-
-        _contractRepo.Update(contract);
+        // Reporta quantos commitments a cascata interna cancelou, lendo os eventos que o agregado emitiu.
+        var cancelledCount = contract.DomainEvents.OfType<CommitmentCancelled>().Count();
         await _contractRepo.UnitOfWork.SaveEntitiesAsync(cancellationToken);
 
         return new TerminateEconomicContractResponse(
             contract.Id.Value,
             contract.Status.Name,
-            commitmentsToCancel.Count);
+            cancelledCount);
     }
 }

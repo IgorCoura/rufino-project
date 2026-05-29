@@ -15,6 +15,8 @@ public sealed class EconomicContract : AggregateRoot<EconomicContractId>
     public const int MIN_TERM_MONTHS = 1;
     public const int MAX_TERM_MONTHS = 120;
     public const int MAX_START_DATE_PAST_YEARS = 1;
+    public const decimal DEFAULT_TOLERANCE_PERCENT = 0m;
+    public const int DEFAULT_WINDOW_DAYS = 30;
 
     private readonly List<Commitment> _commitments = [];
 
@@ -77,6 +79,34 @@ public sealed class EconomicContract : AggregateRoot<EconomicContractId>
             OccurredAt: occurredAt));
 
         return contract;
+    }
+
+    /// <summary>
+    /// Factory from primitive inputs: composes the contract's Value Objects (RecurrencePattern, Money,
+    /// CommitmentTerms) internally so callers (Application) never assemble domain types. The fulfillment
+    /// tolerance/window use the contract defaults. Delegates to the canonical Value-Object factory.
+    /// </summary>
+    public static EconomicContract Create(
+        EconomicContractId id,
+        TenantId tenantId,
+        EconomicAgentId counterpartyId,
+        EconomicResourceId resourceId,
+        ContractDirection direction,
+        Periodicity periodicity,
+        int anchorDay,
+        decimal expectedAmountValue,
+        Currency currency,
+        int termMonths,
+        DateOnly startDate,
+        DateTime occurredAt)
+    {
+        var recurrence = new RecurrencePattern(periodicity, anchorDay);
+        var defaultTerms = new CommitmentTerms(
+            new Money(expectedAmountValue, currency),
+            DEFAULT_TOLERANCE_PERCENT,
+            DEFAULT_WINDOW_DAYS);
+
+        return Create(id, tenantId, counterpartyId, resourceId, direction, recurrence, defaultTerms, termMonths, startDate, occurredAt);
     }
 
     /// <summary>
@@ -198,12 +228,88 @@ public sealed class EconomicContract : AggregateRoot<EconomicContractId>
             OccurredAt: occurredAt));
     }
 
+    /// <summary>
+    /// Pre-condition gate (no mutation) for covering an outflow commitment with a payment: contract must be
+    /// Active, the commitment must be an OutflowPromise still open (Promised/Reserved), and the paid amount
+    /// must match the expected amount exactly (partial payment unsupported — CTR19).
+    /// </summary>
+    public void EnsurePayable(CommitmentId commitmentId, decimal paymentAmountValue)
+    {
+        EnsureActive();
+        var commitment = FindCommitmentOrThrow(commitmentId);
+        EnsureDirection(commitment, CommitmentDirection.OutflowPromise);
+        EnsureOpenForCoverage(commitment);
+
+        if (paymentAmountValue != commitment.ExpectedAmount.Amount)
+            throw EconomicContractErrors.PaymentAmountMismatch(commitment.ExpectedAmount.Amount, paymentAmountValue);
+    }
+
+    /// <summary>
+    /// Pre-condition gate (no mutation) for covering an inflow commitment with an occupancy/consumption: contract
+    /// must be Active, the commitment must be an InflowPromise still open (Promised/Reserved), and the competence
+    /// month must have already started (no occupancy registered for a future month — EVT14).
+    /// </summary>
+    public void EnsureOccupiable(CommitmentId commitmentId, DateOnly today)
+    {
+        EnsureActive();
+        var commitment = FindCommitmentOrThrow(commitmentId);
+        EnsureDirection(commitment, CommitmentDirection.InflowPromise);
+        EnsureOpenForCoverage(commitment);
+
+        if (commitment.Period.FirstDay() > today)
+            throw EconomicEventErrors.OccupancyInFuture(commitment.Period.Year, commitment.Period.Month, today);
+    }
+
+    private void EnsureActive()
+    {
+        if (!ReferenceEquals(Status, ContractStatus.Active))
+            throw EconomicContractErrors.ContractNotActive(Status.Name);
+    }
+
+    private static void EnsureDirection(Commitment commitment, CommitmentDirection expected)
+    {
+        if (commitment.Direction != expected)
+            throw EconomicContractErrors.NoCoveringCommitmentForPeriod(
+                commitment.Period.Year, commitment.Period.Month, expected.Name);
+    }
+
+    private static void EnsureOpenForCoverage(Commitment commitment)
+    {
+        if (commitment.Status != CommitmentStatus.Promised && commitment.Status != CommitmentStatus.Reserved)
+            throw EconomicContractErrors.CannotFulfillInStatus(commitment.Status.Name);
+    }
+
     public void Suspend(DateTime occurredAt) => TransitionStatusTo(ContractStatus.Suspended, occurredAt);
 
     public void Resume(DateTime occurredAt) => TransitionStatusTo(ContractStatus.Active, occurredAt);
 
-    public void Terminate(DateTime occurredAt)
+    /// <summary>
+    /// Terminates the contract on <paramref name="terminationDate"/>. Guards the status transition first
+    /// (no side effects if it can't terminate), then rejects a date earlier than the last occupied inflow
+    /// period (CTR20), then cancels in cascade every still-pending commitment whose period starts after the
+    /// termination date, and finally transitions to Terminated. The caller resolves
+    /// <paramref name="lastOccupiedInflowPeriod"/> (an I/O lookup over registered inflow events) and passes it in.
+    /// </summary>
+    public void Terminate(DateOnly terminationDate, CompetencePeriod? lastOccupiedInflowPeriod, DateTime occurredAt)
     {
+        if (!Status.CanTransitionTo(ContractStatus.Terminated))
+            throw EconomicContractErrors.InvalidContractStatusTransition(Status.Name, ContractStatus.Terminated.Name);
+
+        if (lastOccupiedInflowPeriod is not null && terminationDate < lastOccupiedInflowPeriod.LastDay())
+            throw EconomicContractErrors.InvalidTerminationDate(
+                terminationDate,
+                $"{lastOccupiedInflowPeriod.Year:D4}-{lastOccupiedInflowPeriod.Month:D2}");
+
+        foreach (var commitment in CancellableFutureCommitments(terminationDate))
+        {
+            commitment.MarkCancelled(occurredAt);
+            AddDomainEvent(new CommitmentCancelled(
+                EventId: Guid.NewGuid(),
+                ContractId: Id,
+                CommitmentId: commitment.Id,
+                OccurredAt: occurredAt));
+        }
+
         TransitionStatusTo(ContractStatus.Terminated, occurredAt);
         AddDomainEvent(new ContractTerminated(
             EventId: Guid.NewGuid(),
@@ -211,6 +317,12 @@ public sealed class EconomicContract : AggregateRoot<EconomicContractId>
             TenantId: TenantId,
             OccurredAt: occurredAt));
     }
+
+    private List<Commitment> CancellableFutureCommitments(DateOnly terminationDate)
+        => _commitments
+            .Where(c => (c.Status == CommitmentStatus.Promised || c.Status == CommitmentStatus.Reserved)
+                && c.Period.FirstDay() > terminationDate)
+            .ToList();
 
     private void TransitionStatusTo(ContractStatus target, DateTime occurredAt)
     {

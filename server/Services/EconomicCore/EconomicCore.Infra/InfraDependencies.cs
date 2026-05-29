@@ -2,6 +2,7 @@ namespace EconomicCore.Infra;
 
 using EconomicCore.Domain.Operational.EconomicAgents;
 using EconomicCore.Domain.Operational.EconomicEvents;
+using EconomicCore.Domain.Operational.EconomicEvents.Events;
 using EconomicCore.Domain.Operational.EconomicResources;
 using EconomicCore.Domain.Prospective.EconomicContracts;
 using EconomicCore.Domain.Operational.EconomicResources.Events;
@@ -49,6 +50,7 @@ public static class InfraDependencies
         services.AddSingleton<IOutboxProcessor, OutboxProcessor>();
 
         services.AddScoped<IDomainEventHandler<EconomicResourceRegistered>, EconomicResourceRegisteredAuditHandler>();
+        services.AddScoped<IDomainEventHandler<EconomicEventRegistered>, CloseDualityOnEconomicEventRegisteredHandler>();
 
         var enabled = configuration.GetSection(OutboxOptions.SectionName).GetValue<bool?>("Enabled") ?? true;
         if (enabled)

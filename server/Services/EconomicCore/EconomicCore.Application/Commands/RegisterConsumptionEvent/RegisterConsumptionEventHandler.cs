@@ -2,13 +2,7 @@ namespace EconomicCore.Application.Commands.RegisterConsumptionEvent;
 
 using EconomicCore.Domain.Operational.EconomicAgents;
 using EconomicCore.Domain.Operational.EconomicEvents;
-using EconomicCore.Domain.Operational.EconomicEvents.Enumerations;
-using EconomicCore.Domain.Operational.EconomicEvents.ValueObjects;
-using EconomicCore.Domain.Operational.EconomicResources;
 using EconomicCore.Domain.Prospective.EconomicContracts;
-using EconomicCore.Domain.Prospective.EconomicContracts.Enumerations;
-using EconomicCore.Domain.SeedWork;
-using EconomicCore.Domain.Services;
 using EconomicCore.Domain.SharedKernel;
 using MediatR;
 
@@ -33,78 +27,46 @@ internal sealed class RegisterConsumptionEventHandler : IRequestHandler<Register
         var tenantId = TenantId.From(request.TenantId);
         var contractId = EconomicContractId.From(request.ContractId);
         var commitmentId = CommitmentId.From(request.CommitmentId);
+        var now = _timeProvider.GetUtcNow().UtcDateTime;
+        var today = DateOnly.FromDateTime(now);
 
         var contract = await _contractRepo.GetByIdAsync(contractId, tenantId, cancellationToken)
             ?? throw EconomicContractErrors.ContractNotFound(request.ContractId);
 
-        if (!ReferenceEquals(contract.Status, ContractStatus.Active))
-            throw EconomicContractErrors.ContractNotActive(contract.Status.Name);
+        // Pre-condições de cobertura (Active, direction, status, ocupação não-futura) vivem no agregado dono do commitment.
+        contract.EnsureOccupiable(commitmentId, today);
+        var commitment = contract.FindCommitment(commitmentId);
 
-        var inflowCommitment = contract.FindCommitment(commitmentId);
-        if (inflowCommitment.Direction != CommitmentDirection.InflowPromise)
-            throw EconomicContractErrors.NoCoveringCommitmentForPeriod(
-                inflowCommitment.Period.Year,
-                inflowCommitment.Period.Month,
-                CommitmentDirection.InflowPromise.Name);
-
-        if (inflowCommitment.Status != CommitmentStatus.Promised && inflowCommitment.Status != CommitmentStatus.Reserved)
-            throw EconomicContractErrors.CannotFulfillInStatus(inflowCommitment.Status.Name);
-
-        var existingCoverage = await _eventRepo.FindCoveredByCommitmentAsync(inflowCommitment.Id, tenantId, cancellationToken);
+        // Anti-duplicata: orquestração de I/O — protege mesmo antes do par chegar para fechar a duality.
+        var existingCoverage = await _eventRepo.FindCoveredByCommitmentAsync(commitment.Id, tenantId, cancellationToken);
         if (existingCoverage is not null)
-            throw EconomicContractErrors.CannotFulfillInStatus(inflowCommitment.Status.Name);
+            throw EconomicContractErrors.CannotFulfillInStatus(commitment.Status.Name);
 
-        var today = DateOnly.FromDateTime(_timeProvider.GetUtcNow().UtcDateTime);
-        if (inflowCommitment.Period.FirstDay() > today)
-            throw EconomicEventErrors.OccupancyInFuture(
-                inflowCommitment.Period.Year,
-                inflowCommitment.Period.Month,
-                today);
-
-        var period = new CompetencePeriod(inflowCommitment.Period.Year, inflowCommitment.Period.Month);
-
-        var participations = new List<Participation>
-        {
-            new(contract.CounterpartyId, ParticipationRole.Provider),
-            new(EconomicAgentId.From(tenantId.Value), ParticipationRole.Recipient),
-        };
-
-        var serviceResourceId = contract.ResourceId;
-        var eventAmount = new Money(inflowCommitment.ExpectedAmount.Amount, inflowCommitment.ExpectedAmount.Currency);
         var createdBy = request.UserId is { } uid ? UserId.From(uid) : (UserId?)null;
 
-        var economicEvent = EconomicEvent.RegisterCovered(
+        var consumptionEvent = EconomicEvent.RegisterConsumptionCoverage(
             EconomicEventId.New(),
             tenantId,
-            FlowDirection.Inflow,
-            serviceResourceId,
-            eventAmount,
-            new EventTimestamp(request.OccurredAt),
-            typeId: null,
-            participations,
-            new CommitmentRef(inflowCommitment.Id),
-            period,
+            contract.ResourceId,
+            commitment.ExpectedAmount.Amount,
+            commitment.ExpectedAmount.Currency,
+            request.OccurredAt,
+            providerAgentId: contract.CounterpartyId,
+            recipientAgentId: EconomicAgentId.From(tenantId.Value),
+            coveringCommitmentId: commitment.Id,
+            competenceYear: commitment.Period.Year,
+            competenceMonth: commitment.Period.Month,
             createdBy: createdBy,
-            registeredAt: _timeProvider.GetUtcNow().UtcDateTime);
+            registeredAt: now);
 
-        await _eventRepo.InsertAsync(economicEvent, cancellationToken);
-
-        var outflowCommitment = contract.FindReciprocalCommitment(inflowCommitment.Id);
-        var paymentEvent = await _eventRepo.FindCoveredByCommitmentAsync(
-            outflowCommitment.Id, tenantId, cancellationToken);
-
-        if (paymentEvent is not null)
-        {
-            DualityMatchingService.Match(paymentEvent, economicEvent, request.OccurredAt);
-            contract.MarkFulfilled(outflowCommitment.Id, paymentEvent.Id, request.OccurredAt);
-            contract.MarkFulfilled(inflowCommitment.Id, economicEvent.Id, request.OccurredAt);
-        }
-
+        await _eventRepo.InsertAsync(consumptionEvent, cancellationToken);
         await _eventRepo.UnitOfWork.SaveEntitiesAsync(cancellationToken);
 
+        // A duality e o MarkFulfilled acontecem de forma assíncrona, reagindo ao EconomicEventRegistered
+        // via Outbox (CloseDualityOnEconomicEventRegisteredHandler) — o comando muta um único agregado.
         return new RegisterConsumptionEventResponse(
-            economicEvent.Id.Value,
-            economicEvent.Direction.Name,
+            consumptionEvent.Id.Value,
+            consumptionEvent.Direction.Name,
             "Service");
     }
 }

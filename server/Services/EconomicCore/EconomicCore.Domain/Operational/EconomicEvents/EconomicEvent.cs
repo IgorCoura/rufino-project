@@ -1,9 +1,11 @@
 namespace EconomicCore.Domain.Operational.EconomicEvents;
 
+using EconomicCore.Domain.Operational.EconomicAgents;
 using EconomicCore.Domain.Operational.EconomicEvents.Enumerations;
 using EconomicCore.Domain.Operational.EconomicEvents.Events;
 using EconomicCore.Domain.Operational.EconomicEvents.ValueObjects;
 using EconomicCore.Domain.Operational.EconomicResources;
+using EconomicCore.Domain.Prospective.EconomicContracts;
 using EconomicCore.Domain.SeedWork;
 using EconomicCore.Domain.SharedKernel;
 
@@ -65,6 +67,74 @@ public sealed class EconomicEvent : AggregateRoot<EconomicEventId>
             OccurredAt: occurredAt.InstantUtc));
 
         return ev;
+    }
+
+    /// <summary>
+    /// Factory for a payment (cash Outflow) that covers an outflow commitment. Composes the event's Value Objects
+    /// internally (Participations, Money, CompetencePeriod, CommitmentRef, EventTimestamp) so callers never assemble
+    /// domain types nor share VO instances with the commitment. Rejects a paid date in the future (EVT15).
+    /// </summary>
+    public static EconomicEvent RegisterPaymentCoverage(
+        EconomicEventId id,
+        TenantId tenantId,
+        EconomicResourceId cashResourceId,
+        decimal amountValue,
+        Currency currency,
+        DateTime occurredAt,
+        EconomicAgentId payerAgentId,
+        EconomicAgentId payeeAgentId,
+        CommitmentId coveringCommitmentId,
+        int competenceYear,
+        int competenceMonth,
+        UserId? createdBy,
+        DateTime registeredAt)
+    {
+        if (occurredAt > registeredAt)
+            throw EconomicEventErrors.FuturePaidDate(occurredAt, registeredAt);
+
+        var participations = new List<Participation>
+        {
+            new(payerAgentId, ParticipationRole.Provider),
+            new(payeeAgentId, ParticipationRole.Recipient),
+        };
+
+        return RegisterCovered(
+            id, tenantId, FlowDirection.Outflow, cashResourceId,
+            new Money(amountValue, currency), new EventTimestamp(occurredAt), typeId: null,
+            participations, new CommitmentRef(coveringCommitmentId),
+            new CompetencePeriod(competenceYear, competenceMonth), createdBy, registeredAt);
+    }
+
+    /// <summary>
+    /// Factory for an occupancy/consumption (Inflow) that covers an inflow commitment. Composes the event's Value
+    /// Objects internally so callers never assemble domain types nor share VO instances with the commitment.
+    /// </summary>
+    public static EconomicEvent RegisterConsumptionCoverage(
+        EconomicEventId id,
+        TenantId tenantId,
+        EconomicResourceId serviceResourceId,
+        decimal amountValue,
+        Currency currency,
+        DateTime occurredAt,
+        EconomicAgentId providerAgentId,
+        EconomicAgentId recipientAgentId,
+        CommitmentId coveringCommitmentId,
+        int competenceYear,
+        int competenceMonth,
+        UserId? createdBy,
+        DateTime registeredAt)
+    {
+        var participations = new List<Participation>
+        {
+            new(providerAgentId, ParticipationRole.Provider),
+            new(recipientAgentId, ParticipationRole.Recipient),
+        };
+
+        return RegisterCovered(
+            id, tenantId, FlowDirection.Inflow, serviceResourceId,
+            new Money(amountValue, currency), new EventTimestamp(occurredAt), typeId: null,
+            participations, new CommitmentRef(coveringCommitmentId),
+            new CompetencePeriod(competenceYear, competenceMonth), createdBy, registeredAt);
     }
 
     /// <summary>

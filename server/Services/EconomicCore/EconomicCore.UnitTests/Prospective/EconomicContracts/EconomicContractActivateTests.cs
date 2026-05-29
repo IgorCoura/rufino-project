@@ -124,7 +124,7 @@ public class EconomicContractActivateTests
     public void Activate_OnTerminatedContract_ShouldThrowECC_CTR16()
     {
         var contract = EconomicContractMother.New().Build();
-        contract.Terminate(EconomicContractMother.FixedOccurredAt);
+        contract.Terminate(EconomicContractMother.FixedStartDate, lastOccupiedInflowPeriod: null, EconomicContractMother.FixedOccurredAt);
 
         var ex = Assert.Throws<DomainException>(
             () => contract.Activate(EconomicContractMother.FixedOccurredAt, SequentialFactory()));

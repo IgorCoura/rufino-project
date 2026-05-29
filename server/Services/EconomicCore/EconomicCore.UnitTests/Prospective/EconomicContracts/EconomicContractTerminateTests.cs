@@ -14,7 +14,7 @@ public class EconomicContractTerminateTests
         var contract = EconomicContractMother.New().Build();
         contract.ClearDomainEvents();
 
-        contract.Terminate(EconomicContractMother.FixedOccurredAt);
+        contract.Terminate(EconomicContractMother.FixedStartDate, lastOccupiedInflowPeriod: null, EconomicContractMother.FixedOccurredAt);
 
         Assert.Same(ContractStatus.Terminated, contract.Status);
         Assert.Empty(contract.Commitments);
@@ -32,7 +32,7 @@ public class EconomicContractTerminateTests
         var contract = EconomicContractMother.New().BuildActiveEmpty();
         contract.ClearDomainEvents();
 
-        contract.Terminate(EconomicContractMother.FixedOccurredAt);
+        contract.Terminate(EconomicContractMother.FixedStartDate, lastOccupiedInflowPeriod: null, EconomicContractMother.FixedOccurredAt);
 
         Assert.Same(ContractStatus.Terminated, contract.Status);
         var terminated = Assert.IsType<ContractTerminated>(Assert.Single(contract.PullDomainEvents()));
@@ -47,7 +47,7 @@ public class EconomicContractTerminateTests
         contract.Suspend(EconomicContractMother.FixedOccurredAt);
         contract.ClearDomainEvents();
 
-        contract.Terminate(EconomicContractMother.FixedOccurredAt);
+        contract.Terminate(EconomicContractMother.FixedStartDate, lastOccupiedInflowPeriod: null, EconomicContractMother.FixedOccurredAt);
 
         Assert.Same(ContractStatus.Terminated, contract.Status);
         Assert.IsType<ContractTerminated>(Assert.Single(contract.PullDomainEvents()));
@@ -58,11 +58,51 @@ public class EconomicContractTerminateTests
     public void Terminate_OnAlreadyTerminatedContract_ShouldThrowECC_CTR13()
     {
         var contract = EconomicContractMother.New().BuildActiveEmpty();
-        contract.Terminate(EconomicContractMother.FixedOccurredAt);
+        contract.Terminate(EconomicContractMother.FixedStartDate, lastOccupiedInflowPeriod: null, EconomicContractMother.FixedOccurredAt);
 
         var ex = Assert.Throws<DomainException>(
-            () => contract.Terminate(EconomicContractMother.FixedOccurredAt));
+            () => contract.Terminate(EconomicContractMother.FixedStartDate, lastOccupiedInflowPeriod: null, EconomicContractMother.FixedOccurredAt));
 
         Assert.Equal("ECC.CTR13", ex.Id);
+    }
+
+    // Terminate no meio do termo cancela em cascata os commitments pendentes de períodos futuros (Period > terminationDate), preservando os já iniciados, e emite um CommitmentCancelled por commitment cancelado.
+    [Fact]
+    public void Terminate_WithPendingFutureCommitments_ShouldCancelFutureOnesInCascade()
+    {
+        var contract = EconomicContractMother.New().BuildActiveEmpty();
+        contract.GenerateCommitmentsFor(EconomicContractMother.October2025(),
+            EconomicContractMother.OutflowCommitmentIdSlot1, EconomicContractMother.InflowCommitmentIdSlot1,
+            EconomicContractMother.FixedOccurredAt);
+        contract.GenerateCommitmentsFor(EconomicContractMother.November2025(),
+            EconomicContractMother.OutflowCommitmentIdSlot2, EconomicContractMother.InflowCommitmentIdSlot2,
+            EconomicContractMother.FixedOccurredAt);
+        contract.ClearDomainEvents();
+
+        contract.Terminate(new DateOnly(2025, 10, 15), lastOccupiedInflowPeriod: null, EconomicContractMother.FixedOccurredAt);
+
+        Assert.Same(ContractStatus.Terminated, contract.Status);
+        Assert.All(
+            contract.Commitments.Where(c => c.Period.Equals(EconomicContractMother.November2025())),
+            c => Assert.Same(CommitmentStatus.Cancelled, c.Status));
+        Assert.All(
+            contract.Commitments.Where(c => c.Period.Equals(EconomicContractMother.October2025())),
+            c => Assert.Same(CommitmentStatus.Promised, c.Status));
+
+        var events = contract.PullDomainEvents();
+        Assert.Equal(2, events.OfType<CommitmentCancelled>().Count());
+        Assert.Single(events.OfType<ContractTerminated>());
+    }
+
+    // Terminate com terminationDate anterior ao último dia do período inflow ocupado lança ECC.CTR20 (não pode encerrar antes do mês já ocupado).
+    [Fact]
+    public void Terminate_WithDateBeforeLastOccupiedInflowPeriod_ShouldThrowECC_CTR20()
+    {
+        var contract = EconomicContractMother.New().BuildActiveEmpty();
+
+        var ex = Assert.Throws<DomainException>(
+            () => contract.Terminate(new DateOnly(2025, 11, 15), EconomicContractMother.November2025(), EconomicContractMother.FixedOccurredAt));
+
+        Assert.Equal("ECC.CTR20", ex.Id);
     }
 }

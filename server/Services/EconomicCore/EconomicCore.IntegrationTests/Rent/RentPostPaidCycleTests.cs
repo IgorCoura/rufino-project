@@ -5,11 +5,15 @@ using System.Net.Http.Json;
 using EconomicCore.IntegrationTests.Contracts;
 using EconomicCore.IntegrationTests.Infrastructure;
 using EconomicCore.IntegrationTests.Mothers;
+using EconomicCore.Infra.Outbox;
+using Microsoft.Extensions.DependencyInjection;
 
 [Collection(nameof(IntegrationTestCollection))]
 public sealed class RentPostPaidCycleTests : BaseIntegrationTest
 {
     public RentPostPaidCycleTests(IntegrationTestWebAppFactory factory) : base(factory) { }
+
+    private IOutboxProcessor Processor => Factory.Services.GetRequiredService<IOutboxProcessor>();
 
     // Jornada completa de um contrato de 12 meses: cria resource e agent via API, contrato Draft, ativa (24 commitments), executa 12 ciclos de occupancy+payment, encerra por término normal. Estado final: contract TERMINATED, 24 commitments FULFILLED, 24 events com Duality.
     [Fact]
@@ -89,6 +93,29 @@ public sealed class RentPostPaidCycleTests : BaseIntegrationTest
                 new RegisterPaymentRequest(contract.Id, outflowId, monthlyAmount, "BRL", occurredAt));
             Assert.Equal(HttpStatusCode.Created, payResp.StatusCode);
         }
+
+        // Pré-pump: o comando criou os 24 events mas NÃO tocou o contrato — duality e fulfillment são assíncronos (P4).
+        var eventsBeforePump = await ExecuteDbContextAsync(db =>
+            db.EconomicEvents.AsNoTracking()
+                .Where(e => e.TenantId.Equals(TenantId.From(KnownIds.TenantA)))
+                .CountAsync());
+        Assert.Equal(24, eventsBeforePump);
+
+        var fulfilledBeforePump = await ExecuteDbContextAsync(db =>
+            db.EconomicContracts.AsNoTracking()
+                .Where(c => c.Id.Equals(EconomicContractId.From(contract.Id)))
+                .SelectMany(c => c.Commitments)
+                .CountAsync(c => c.Status == CommitmentStatus.Fulfilled));
+        Assert.Equal(0, fulfilledBeforePump);
+
+        var dualityBeforePump = await ExecuteDbContextAsync(db =>
+            db.EconomicEvents.AsNoTracking()
+                .Where(e => e.TenantId.Equals(TenantId.From(KnownIds.TenantA)) && e.Duality != null)
+                .CountAsync());
+        Assert.Equal(0, dualityBeforePump);
+
+        // Drena o relay do Outbox até não restar pendência: é aqui que a duality fecha e os commitments são cumpridos.
+        while (await Processor.ProcessPendingAsync(CancellationToken.None) > 0) { }
 
         var fulfilledCount = await ExecuteDbContextAsync(db =>
             db.EconomicContracts.AsNoTracking()

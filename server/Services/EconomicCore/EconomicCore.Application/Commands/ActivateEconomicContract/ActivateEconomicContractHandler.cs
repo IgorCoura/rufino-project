@@ -28,7 +28,6 @@ internal sealed class ActivateEconomicContractHandler : IRequestHandler<Activate
 
         contract.Activate(_timeProvider.GetUtcNow().UtcDateTime, CommitmentId.New);
 
-        _contractRepo.Update(contract);
         await _contractRepo.UnitOfWork.SaveEntitiesAsync(cancellationToken);
 
         var commitments = contract.Commitments

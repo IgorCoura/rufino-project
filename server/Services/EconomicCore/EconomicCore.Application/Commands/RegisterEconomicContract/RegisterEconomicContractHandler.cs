@@ -4,7 +4,6 @@ using EconomicCore.Domain.Operational.EconomicAgents;
 using EconomicCore.Domain.Operational.EconomicResources;
 using EconomicCore.Domain.Prospective.EconomicContracts;
 using EconomicCore.Domain.Prospective.EconomicContracts.Enumerations;
-using EconomicCore.Domain.Prospective.EconomicContracts.ValueObjects;
 using EconomicCore.Domain.SeedWork;
 using EconomicCore.Domain.SharedKernel;
 using MediatR;
@@ -47,18 +46,16 @@ internal sealed class RegisterEconomicContractHandler : IRequestHandler<Register
         var periodicity = Enumeration.FromDisplayName<Periodicity>(request.Periodicity);
         var currency = Enumeration.FromDisplayName<Currency>(request.Currency);
 
-        var recurrence = new RecurrencePattern(periodicity, request.AnchorDay);
-        var expectedAmount = new Money(request.ExpectedAmount, currency);
-        var defaultTerms = new CommitmentTerms(expectedAmount, tolerancePercent: 0m, windowDays: 30);
-
         var contract = EconomicContract.Create(
             EconomicContractId.New(),
             tenantId,
             counterpartyId,
             resourceId,
             direction,
-            recurrence,
-            defaultTerms,
+            periodicity,
+            request.AnchorDay,
+            request.ExpectedAmount,
+            currency,
             request.TermMonths,
             request.StartDate,
             _timeProvider.GetUtcNow().UtcDateTime);

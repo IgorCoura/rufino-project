@@ -110,7 +110,7 @@ public class EconomicContractTests
     public void GenerateCommitmentsFor_OnTerminatedContract_ShouldThrowECC_CTR05()
     {
         var contract = EconomicContractMother.New().BuildActiveEmpty();
-        contract.Terminate(EconomicContractMother.FixedOccurredAt);
+        contract.Terminate(EconomicContractMother.FixedStartDate, lastOccupiedInflowPeriod: null, EconomicContractMother.FixedOccurredAt);
 
         var ex = Assert.Throws<DomainException>(() => contract.GenerateCommitmentsFor(
             EconomicContractMother.October2025(),
@@ -235,7 +235,7 @@ public class EconomicContractTests
         contract.Resume(EconomicContractMother.FixedOccurredAt);
         Assert.Same(ContractStatus.Active, contract.Status);
 
-        contract.Terminate(EconomicContractMother.FixedOccurredAt);
+        contract.Terminate(EconomicContractMother.FixedStartDate, lastOccupiedInflowPeriod: null, EconomicContractMother.FixedOccurredAt);
         Assert.Same(ContractStatus.Terminated, contract.Status);
     }
 
@@ -244,7 +244,7 @@ public class EconomicContractTests
     public void Lifecycle_FromTerminated_ShouldThrowECC_CTR13()
     {
         var contract = EconomicContractMother.New().BuildActiveEmpty();
-        contract.Terminate(EconomicContractMother.FixedOccurredAt);
+        contract.Terminate(EconomicContractMother.FixedStartDate, lastOccupiedInflowPeriod: null, EconomicContractMother.FixedOccurredAt);
 
         var ex = Assert.Throws<DomainException>(() => contract.Suspend(EconomicContractMother.FixedOccurredAt));
 
