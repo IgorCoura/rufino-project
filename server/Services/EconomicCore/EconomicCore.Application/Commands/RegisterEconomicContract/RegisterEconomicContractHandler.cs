@@ -1,12 +1,13 @@
 namespace EconomicCore.Application.Commands.RegisterEconomicContract;
 
+using EconomicCore.Application.Mediator;
 using EconomicCore.Domain.Operational.EconomicAgents;
 using EconomicCore.Domain.Operational.EconomicResources;
 using EconomicCore.Domain.Prospective.EconomicContracts;
 using EconomicCore.Domain.Prospective.EconomicContracts.Enumerations;
 using EconomicCore.Domain.SeedWork;
 using EconomicCore.Domain.SharedKernel;
-using MediatR;
+using Microsoft.Extensions.Logging;
 
 internal sealed class RegisterEconomicContractHandler : IRequestHandler<RegisterEconomicContractCommand, RegisterEconomicContractResponse>
 {
@@ -71,4 +72,14 @@ internal sealed class RegisterEconomicContractHandler : IRequestHandler<Register
             contract.TermMonths,
             contract.StartDate);
     }
+}
+
+internal sealed class RegisterEconomicContractIdentifiedCommandHandler(
+    IMediator mediator,
+    IRequestManager requestManager,
+    ILogger<RegisterEconomicContractIdentifiedCommandHandler> logger)
+    : IdentifiedCommandHandler<RegisterEconomicContractCommand, RegisterEconomicContractResponse>(mediator, requestManager, logger)
+{
+    protected override RegisterEconomicContractResponse CreateResultForDuplicateRequest()
+        => new(Guid.Empty, string.Empty, string.Empty, Guid.Empty, 0, default);
 }

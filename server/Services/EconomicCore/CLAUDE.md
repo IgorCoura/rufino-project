@@ -212,10 +212,10 @@ Walking Skeleton do aluguel pós-pago: **completo + ciclo de vida do contrato** 
 | Camada | Status | Artefatos |
 |---|---|---|
 | Domain | ✅ | 4 Aggregates (EconomicEvent, EconomicResource, EconomicAgent, EconomicContract com `ResourceId`/`TermMonths`/`StartDate`/`Activate`/`Terminate(terminationDate,lastOccupiedInflowPeriod,occurredAt)` com validação+cascata internas/`EnsurePayable`/`EnsureOccupiable`/`Create` por primitivos), `EconomicEvent.RegisterPaymentCoverage`/`RegisterConsumptionCoverage` (factories que compõem VOs), `ContractStatus.Draft`, DualityMatchingService, 297 unit tests |
-| Application | ✅ | 8 Commands (RegisterEconomicResource, RegisterEconomicAgent, RegisterEconomicContract, ActivateEconomicContract, TerminateEconomicContract, GenerateCommitments, RegisterConsumptionEvent, RegisterPaymentEvent), 2 Queries (GetCompetenceDRE, GetCashFlow). Handlers de evento mutam **um único agregado** (fechamento de duality movido para handler async de Outbox); handlers de Activate/Terminate sem `repo.Update()` redundante |
-| Infra | ✅ | EconomicCoreDbContext (UoW + Outbox), 4 repositories (`HasOverlappingAsync` + `GetLastInflowPeriodForCommitmentsAsync` + `FindByCommitmentIdAsync` adicionados), EF mappings com `resource_id`/`term_months`/`start_date` no contract, **Outbox consumer completo** (`OutboxProcessor` + `OutboxBackgroundService` + dead-letter + cleanup) + `CloseDualityOnEconomicEventRegisteredHandler` (fecha duality + cumpre commitments reagindo a `EconomicEventRegistered`) |
-| API | ✅ | ResourcesController, AgentsController, ContractsController (+activate +terminate), EventsController (CommitmentId direto), ReportsController, DomainExceptionFilter |
-| Integration Tests | ✅ | 43 tests: jornada completa de 12 meses (Draft→Activate→12 ciclos pay+occupy→Terminate), RegisterResource/Agent (happy + 2 erros cada), Create/Activate/Terminate/Payment/Occupancy exception suites, multi-tenant, **outbox (write + worker dispatch/idempotência/dead-letter/cleanup + dispatcher)** |
+| Application | ✅ | **Mediator próprio (sem MediatR)** em `Mediator/` (`IRequest`/`IRequestHandler`/`IPipelineBehavior`/`IMediator`/`Mediator` com cache de wrapper + `AddCustomMediator`) + `LoggingBehavior`. 8 Commands (RegisterEconomicResource, RegisterEconomicAgent, RegisterEconomicContract, ActivateEconomicContract, TerminateEconomicContract, GenerateCommitments, RegisterConsumptionEvent, RegisterPaymentEvent) — **todos embrulhados em `IdentifiedCommand` para idempotência** (par `IdentifiedCommandHandler` por Command, resposta neutra em duplicata), 2 Queries (GetCompetenceDRE, GetCashFlow, direto pelo mediator). Handlers de evento mutam **um único agregado** (fechamento de duality movido para handler async de Outbox); handlers de Activate/Terminate sem `repo.Update()` redundante |
+| Infra | ✅ | EconomicCoreDbContext (UoW + Outbox + `ClientRequests`), 4 repositories (`HasOverlappingAsync` + `GetLastInflowPeriodForCommitmentsAsync` + `FindByCommitmentIdAsync` adicionados), EF mappings com `resource_id`/`term_months`/`start_date` no contract, **Outbox consumer completo** (`OutboxProcessor` + `OutboxBackgroundService` + dead-letter + cleanup) + `CloseDualityOnEconomicEventRegisteredHandler` (fecha duality + cumpre commitments reagindo a `EconomicEventRegistered`), **`RequestManager` (idempotência) sobre a tabela `client_requests`** |
+| API | ✅ | ResourcesController, AgentsController, ContractsController (+activate +terminate), EventsController (CommitmentId direto), ReportsController, DomainExceptionFilter. Writes embrulham o Command em `IdentifiedCommand` com o header `x-requestid` (`BaseController.EnsureRequestId`: header vazio → Guid novo = modo permissivo) |
+| Integration Tests | ✅ | 46 tests: jornada completa de 12 meses (Draft→Activate→12 ciclos pay+occupy→Terminate), RegisterResource/Agent (happy + 2 erros cada), Create/Activate/Terminate/Payment/Occupancy exception suites, multi-tenant, **outbox (write + worker dispatch/idempotência/dead-letter/cleanup + dispatcher)**, **idempotência (mesmo `x-requestid` persiste uma vez; ids distintos persistem dois; corrida concorrente persiste uma vez sem 500)** |
 
 ## Architecture — what is non-obvious
 
@@ -226,6 +226,8 @@ Prefixos de erro em uso: `SWK##` (SeedWork), `ECC##` (BC transversal), `ECC.<AGG
 - Cross-aggregate references to internal Entities devem ser ancoradas via composite VO (ex.: `AccountRef(ChartOfAccountsId, AccountId)` em vez de `AccountId` cru).
 - `*Errors.cs` factories ficam co-localizadas com o Aggregate (`Operational/<Agg>/`, `Prospective/<Agg>/`); `SeedWorkErrors` é `public static`. Os Aggregate Errors são `public static` quando a Application precisa lançar (NotFound de agregados, validações de pre-condição), `internal static` para os puramente de domínio. Atualmente todos os 4 Aggregate Errors são `public` por causa do uso pela Application (Resource/Agent NotFound, Contract overlap/term/start-date/amount-mismatch/termination-date).
 - Tenancy: todo Aggregate Root carrega `TenantId` (strongly-typed `record struct : IEntityId<TenantId>`); queries e authorization filtram por `TenantId`.
+- **Mediator próprio (sem MediatR)**: vive em `Application/Mediator/`. `IRequest<T>`/`IRequestHandler<,>`/`IPipelineBehavior<,>`/`IMediator` têm a mesma superfície do MediatR; `Mediator` é **Scoped** (recebe o `IServiceProvider` do escopo do request), resolve handler + behaviors via DI e cacheia um wrapper por tipo de request (`ConcurrentDictionary<Type, object>`). `AddCustomMediator(assembly)` escaneia `IRequestHandler<,>`/`IPipelineBehavior<,>` fechados — e **falha no startup** se houver dois handlers para o mesmo request (1 handler por request; behaviors podem ser múltiplos); `LoggingBehavior` (único behavior, mais externo) é registrado manualmente. `RequestHandlerDelegate<T>` carrega `CancellationToken` (paridade MediatR v12, semântica `t == default ? ct : t`): um behavior pode propagar um token derivado (timeout/linked) adiante. Trocar de mediator = mexer só nessa pasta + em `ApplicationDependencies`.
+- **Idempotência (`x-requestid`)**: todo Command de escrita é embrulhado em `IdentifiedCommand<TCommand,TResult>` no controller; o par `IdentifiedCommandHandler<TCommand,TResult>` (subclasse concreta no mesmo arquivo do Handler real, descoberta pelo scan) checa `IRequestManager.ExistAsync` e, se duplicata, devolve `CreateResultForDuplicateRequest()` (resposta neutra: `Id` = `Guid.Empty`). A porta `IRequestManager` fica em **`Domain/SeedWork`** (como os demais ports, porque `Infra → Application` não existe); a impl `RequestManager` está na **Infra/Idempotency** sobre a tabela `client_requests` (PK = `Id`, colisão de duplicata concorrente no banco). `CreateRequestForCommandAsync` **não** commita — o `Add` entra na transação do handler real (mesmo `DbContext` Scoped), então marca + efeito persistem juntos no `SaveEntitiesAsync`. Sob **corrida** (dois requests concorrentes com o mesmo `x-requestid` passam ambos no `ExistAsync`), o 2º `SaveEntitiesAsync` colide na PK de `client_requests` e a transação inteira (inclusive o efeito do comando) é revertida; o `IdentifiedCommandHandler` captura o `DbUpdateException`, **reconfirma** via `ExistAsync` e devolve resposta neutra (se a marca não existir, re-lança — não mascara outras falhas de banco). `BaseController.EnsureRequestId` gera um Guid novo quando o header vem vazio (modo permissivo: request sem header nunca colide). Sem cache de resposta — cliente que precisa do `Id` real refaz um GET.
 - **EF owned types & shared references**: Value Objects mapeados como owned types (`OwnsOne`/`OwnsMany`). EF tracks owned type instances by reference identity — **never share the same VO instance between two tracked entities** (e.g., use `new Money(...)` for each, don't pass `commitment.ExpectedAmount` directly to `EconomicEvent.RegisterCovered`). This causes "same entity tracked as different entity types" warnings and data loss.
 - **Cross-aggregate FK removal**: `OnModelCreating` strips non-ownership FKs discovered by convention (e.g., `resource_id` → `economic_resources`). Cross-aggregate references are by ID only, no navigation properties, no FK constraints.
 - **DbContext.SaveEntitiesAsync** drains domain events from all tracked aggregates into `outbox_messages` before calling `base.SaveChangesAsync`. `EventType` é gravado como `Type.FullName` (não `Name`) para reidratação inequívoca.
@@ -245,28 +247,33 @@ Prefixos de erro em uso: `SWK##` (SeedWork), `ECC##` (BC transversal), `ECC.<AGG
 EconomicCore/
 ├── EconomicCore.sln                  # isolated solution (not in RufinoProject.sln)
 ├── docker-compose.yml + override     # localized stack: API + Postgres
-├── EconomicCore.API/                 # Web SDK host, Program.cs, Controllers, Filters, appsettings, Dockerfile
+├── EconomicCore.API/                 # Web SDK host, Program.cs, Controllers, Filters, Extension, appsettings, Dockerfile
 │   ├── Controllers/                  #   ResourcesController, AgentsController, ContractsController (+activate +terminate), EventsController, ReportsController
-│   └── Filters/                      #   DomainExceptionFilter (maps DomainErrorCategory → HTTP status: Validation→400, Conflict→409, NotFound→404)
-├── EconomicCore.Application/         # Commands, Queries, Handlers (MediatR 12.4.1)
-│   ├── Commands/                     #   RegisterEconomicResource, RegisterEconomicAgent, RegisterEconomicContract, ActivateEconomicContract, TerminateEconomicContract, GenerateCommitments, RegisterConsumptionEvent, RegisterPaymentEvent
+│   ├── Filters/                      #   DomainExceptionFilter (maps DomainErrorCategory → HTTP status: Validation→400, Conflict→409, NotFound→404)
+│   └── Extension/                    #   CorsExtensions.AddCorsForFront (default policy lendo Cors:AllowedOrigins; em Development com lista vazia libera qualquer origem)
+├── EconomicCore.Application/         # Mediator próprio (sem MediatR), Commands, Queries, Handlers
+│   ├── Mediator/                     #   IRequest, IRequestHandler, IPipelineBehavior, IMediator, Mediator, MediatorRegistration (AddCustomMediator), IdentifiedCommand, IdentifiedCommandHandler
+│   ├── Behaviors/                    #   LoggingBehavior (único behavior, mais externo)
+│   ├── Commands/                     #   RegisterEconomicResource, RegisterEconomicAgent, RegisterEconomicContract, ActivateEconomicContract, TerminateEconomicContract, GenerateCommitments, RegisterConsumptionEvent, RegisterPaymentEvent (cada Handler.cs traz o par <Cmd>IdentifiedCommandHandler)
 │   └── Queries/                      #   GetCompetenceDRE, GetCashFlow
 ├── EconomicCore.Domain/              # Aggregates, SeedWork, SharedKernel, Domain Services
 │   ├── Operational/                  #   EconomicEvent, EconomicResource, EconomicAgent (+ repository interfaces)
 │   ├── Prospective/                  #   EconomicContract + Commitment entity (+ repository interface)
 │   ├── Services/                     #   DualityMatchingService
-│   └── SeedWork/                     #   Entity, AggregateRoot, ValueObject, Enumeration, IUnitOfWork, IDomainEvent, IDomainEventHandler, IDomainEventDispatcher
-├── EconomicCore.Infra/               # EF Core DbContext, repositories, mappings, outbox
-│   ├── Persistence/                  #   EconomicCoreDbContext (UoW), OutboxMessage, OutboxDeadLetter, ProcessedEventLog, IOutboxEventTypeResolver
+│   └── SeedWork/                     #   Entity, AggregateRoot, ValueObject, Enumeration, IUnitOfWork, IDomainEvent, IDomainEventHandler, IDomainEventDispatcher, IRequestManager
+├── EconomicCore.Infra/               # EF Core DbContext, repositories, mappings, outbox, idempotency
+│   ├── Persistence/                  #   EconomicCoreDbContext (UoW), OutboxMessage, OutboxDeadLetter, ProcessedEventLog, ClientRequest, IOutboxEventTypeResolver
 │   ├── Outbox/                       #   OutboxOptions, OutboxProcessor (claim/dispatch/dead-letter/cleanup), OutboxBackgroundService, DomainEventDispatcher (impl da porta, sem MediatR), Handlers/EconomicResourceRegisteredAuditHandler
-│   ├── Mapping/                      #   EF entity configurations (4 aggregates + outbox + dead-letter + projection)
+│   ├── Idempotency/                  #   RequestManager (impl de IRequestManager sobre client_requests)
+│   ├── Mapping/                      #   EF entity configurations (4 aggregates + outbox + dead-letter + projection + client_requests)
 │   └── Repositories/                 #   4 repository implementations
-├── EconomicCore.UnitTests/           # xUnit — 295 domain unit tests (inclui EconomicContractActivateTests, EconomicContractTerminateTests)
-├── EconomicCore.IntegrationTests/    # xUnit + Testcontainers + Respawn — 43 integration tests
+├── EconomicCore.UnitTests/           # xUnit — 297 domain unit tests (inclui EconomicContractActivateTests, EconomicContractTerminateTests)
+├── EconomicCore.IntegrationTests/    # xUnit + Testcontainers + Respawn — 46 integration tests
 │   ├── Infrastructure/               #   WebApplicationFactory (Outbox:Enabled=false), BaseIntegrationTest, KnownIds
 │   ├── Mothers/                      #   RentScenarioMother (seed direct DB + SeedResourceAndAgentViaApi)
 │   ├── Contracts/                    #   Duplicated DTOs (not reusing Application's)
 │   ├── DomainEvents/                 #   DomainEventDispatcherTests (resolução de DI, sem banco)
+│   ├── Idempotency/                  #   IdempotencyTests (mesmo x-requestid persiste uma vez; ids distintos persistem dois; corrida concorrente persiste uma vez sem 500)
 │   ├── Outbox/                       #   OutboxWriteTests, OutboxProcessorTests (dispatch/idempotência/dead-letter/cleanup)
 │   └── Rent/                         #   FullLifecycle 12 meses, Register{Resource,Agent}Tests, {CreateContract,ActivateContract,TerminateContract,RegisterPayment,RegisterOccupancy}ExceptionTests, multi-tenant
 └── EconomicCore.Architecture/        # design rationale, fontes REA (ver index.md)
@@ -319,7 +326,7 @@ Itens que **devem** ser resolvidos antes do primeiro deploy em ambiente real. Ma
 - [ ] **Autenticação JWT via Keycloak** — configurar `Keycloak.AuthServices` (JWT Bearer + audience + issuer) no `Program.cs`.
 - [ ] **Validação do TenantId contra JWT** — hoje `{tenantId}` vem da rota sem validação. Implementar `TenantAuthorizationFilter` que compara o `{tenantId}` da rota com o claim `tenant_ids` do token.
 - [ ] **Decorar endpoints com `[ProtectedResource]`** — definir recursos e ações granulares (`contract:create`, `event:register`, `report:read`, etc.).
-- [ ] **CORS** — configurar origens permitidas para o front-end.
+- [ ] **CORS — origens de produção** — `AddCorsForFront` já está plugado em `Program.cs` (lê `Cors:AllowedOrigins` do `appsettings.json`, chamada antes de `UseAuthorization`). Em Development com a lista vazia, libera qualquer origem (destrava Swagger UI/dev tooling). Antes do deploy: popular `Cors:AllowedOrigins` no `appsettings` do ambiente real (sem `AllowAnyOrigin`/wildcard, conforme convenção da skill `api-codegen-ddd-dotnet`).
 
 ### Resiliência e observabilidade
 - [ ] **Health checks** — adicionar health check do PostgreSQL (`AspNetCore.HealthChecks.NpgsqlEfCore` ou similar).
@@ -346,5 +353,6 @@ These are enforced by the `domain-codegen-ddd-dotnet`, `application-codegen-ddd-
 - `<TreatWarningsAsErrors>true</TreatWarningsAsErrors>` is set on Domain (mandatory by Sprint 0). NetAnalyzers + SonarAnalyzer.CSharp são injetados via `Directory.Build.props` na raiz do BC com severidades em `.editorconfig` — ver seção "Static analysis (Roslyn analyzers)".
 - Strongly-typed Ids (`record struct : IEntityId<TSelf>`), Smart Enums via `Enumeration`, VOs deriving from abstract `ValueObject`.
 - Aggregate Roots only emit Domain Events (never internal Entities).
-- Idempotency in Application: commands wrapped via `IRequestManager`.
+- Mediator próprio (sem MediatR) em `Application/Mediator/` — mesma superfície (`IRequest`/`IRequestHandler`/`IPipelineBehavior`/`IMediator`), registrado via `AddCustomMediator`.
+- Idempotency in Application: write commands wrapped via `IdentifiedCommand`, checados contra `IRequestManager` (porta em `Domain/SeedWork`, impl na Infra sobre `client_requests`); header `x-requestid`.
 - API uses `[ProtectedResource(resource, action)]` for Keycloak-backed granular authorization (planned — Keycloak is shared infra, configured at server level).

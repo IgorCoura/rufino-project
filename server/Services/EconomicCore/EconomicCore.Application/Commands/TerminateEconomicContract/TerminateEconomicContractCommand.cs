@@ -1,6 +1,6 @@
 namespace EconomicCore.Application.Commands.TerminateEconomicContract;
 
-using MediatR;
+using EconomicCore.Application.Mediator;
 
 public sealed record TerminateEconomicContractCommand(
     Guid TenantId,

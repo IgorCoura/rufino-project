@@ -1,8 +1,8 @@
 namespace EconomicCore.API.Controllers;
 
+using EconomicCore.Application.Mediator;
 using EconomicCore.Application.Queries.GetCashFlow;
 using EconomicCore.Application.Queries.GetCompetenceDRE;
-using MediatR;
 using Microsoft.AspNetCore.Mvc;
 
 [Route("api/v1/{tenantId:guid}/[controller]")]

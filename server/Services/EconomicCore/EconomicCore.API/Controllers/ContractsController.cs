@@ -4,7 +4,7 @@ using EconomicCore.Application.Commands.ActivateEconomicContract;
 using EconomicCore.Application.Commands.GenerateCommitments;
 using EconomicCore.Application.Commands.RegisterEconomicContract;
 using EconomicCore.Application.Commands.TerminateEconomicContract;
-using MediatR;
+using EconomicCore.Application.Mediator;
 using Microsoft.AspNetCore.Mvc;
 
 [Route("api/v1/{tenantId:guid}/[controller]")]
@@ -21,7 +21,9 @@ public sealed class ContractsController(ILogger<ContractsController> logger, IMe
 
         SendingCommandLog(tenantId, command, requestId);
 
-        var response = await mediator.Send(command, ct);
+        var identified = new IdentifiedCommand<RegisterEconomicContractCommand, RegisterEconomicContractResponse>(
+            command, EnsureRequestId(requestId));
+        var response = await mediator.Send(identified, ct);
 
         CommandResultLog(response, tenantId, command, requestId);
 
@@ -39,7 +41,9 @@ public sealed class ContractsController(ILogger<ContractsController> logger, IMe
 
         SendingCommandLog(contractId, command, requestId);
 
-        var response = await mediator.Send(command, ct);
+        var identified = new IdentifiedCommand<ActivateEconomicContractCommand, ActivateEconomicContractResponse>(
+            command, EnsureRequestId(requestId));
+        var response = await mediator.Send(identified, ct);
 
         CommandResultLog(response, contractId, command, requestId);
 
@@ -58,7 +62,9 @@ public sealed class ContractsController(ILogger<ContractsController> logger, IMe
 
         SendingCommandLog(contractId, command, requestId);
 
-        var response = await mediator.Send(command, ct);
+        var identified = new IdentifiedCommand<TerminateEconomicContractCommand, TerminateEconomicContractResponse>(
+            command, EnsureRequestId(requestId));
+        var response = await mediator.Send(identified, ct);
 
         CommandResultLog(response, contractId, command, requestId);
 
@@ -77,7 +83,9 @@ public sealed class ContractsController(ILogger<ContractsController> logger, IMe
 
         SendingCommandLog(contractId, command, requestId);
 
-        var response = await mediator.Send(command, ct);
+        var identified = new IdentifiedCommand<GenerateCommitmentsCommand, GenerateCommitmentsResponse>(
+            command, EnsureRequestId(requestId));
+        var response = await mediator.Send(identified, ct);
 
         CommandResultLog(response, contractId, command, requestId);
 

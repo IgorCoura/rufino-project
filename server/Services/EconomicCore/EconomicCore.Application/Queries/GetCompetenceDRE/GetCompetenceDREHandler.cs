@@ -3,7 +3,7 @@ namespace EconomicCore.Application.Queries.GetCompetenceDRE;
 using EconomicCore.Domain.Operational.EconomicEvents.Enumerations;
 using EconomicCore.Domain.SharedKernel;
 using EconomicCore.Infra.Persistence;
-using MediatR;
+using EconomicCore.Application.Mediator;
 using Microsoft.EntityFrameworkCore;
 
 internal sealed class GetCompetenceDREHandler : IRequestHandler<GetCompetenceDREQuery, GetCompetenceDREResponse>

@@ -7,6 +7,7 @@ using EconomicCore.Domain.Operational.EconomicResources;
 using EconomicCore.Domain.Prospective.EconomicContracts;
 using EconomicCore.Domain.Operational.EconomicResources.Events;
 using EconomicCore.Domain.SeedWork;
+using EconomicCore.Infra.Idempotency;
 using EconomicCore.Infra.Outbox;
 using EconomicCore.Infra.Outbox.Handlers;
 using EconomicCore.Infra.Persistence;
@@ -31,6 +32,7 @@ public static class InfraDependencies
         });
 
         services.AddScoped<IUnitOfWork>(sp => sp.GetRequiredService<EconomicCoreDbContext>());
+        services.AddScoped<IRequestManager, RequestManager>();
         services.AddScoped<IEconomicEventRepository, EconomicEventRepository>();
         services.AddScoped<IEconomicResourceRepository, EconomicResourceRepository>();
         services.AddScoped<IEconomicAgentRepository, EconomicAgentRepository>();

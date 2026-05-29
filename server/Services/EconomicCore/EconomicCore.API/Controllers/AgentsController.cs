@@ -1,7 +1,7 @@
 namespace EconomicCore.API.Controllers;
 
 using EconomicCore.Application.Commands.RegisterEconomicAgent;
-using MediatR;
+using EconomicCore.Application.Mediator;
 using Microsoft.AspNetCore.Mvc;
 
 [Route("api/v1/{tenantId:guid}/[controller]")]
@@ -18,7 +18,9 @@ public sealed class AgentsController(ILogger<AgentsController> logger, IMediator
 
         SendingCommandLog(tenantId, command, requestId);
 
-        var response = await mediator.Send(command, ct);
+        var identified = new IdentifiedCommand<RegisterEconomicAgentCommand, RegisterEconomicAgentResponse>(
+            command, EnsureRequestId(requestId));
+        var response = await mediator.Send(identified, ct);
 
         CommandResultLog(response, tenantId, command, requestId);
 

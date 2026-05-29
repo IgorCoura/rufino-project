@@ -1,6 +1,6 @@
 namespace EconomicCore.Application.Commands.RegisterConsumptionEvent;
 
-using MediatR;
+using EconomicCore.Application.Mediator;
 
 public sealed record RegisterConsumptionEventCommand(
     Guid TenantId,

@@ -1,6 +1,6 @@
 namespace EconomicCore.Application.Commands.RegisterPaymentEvent;
 
-using MediatR;
+using EconomicCore.Application.Mediator;
 
 public sealed record RegisterPaymentEventCommand(
     Guid TenantId,

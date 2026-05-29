@@ -1,12 +1,13 @@
 namespace EconomicCore.Application.Commands.RegisterPaymentEvent;
 
+using EconomicCore.Application.Mediator;
 using EconomicCore.Domain.Operational.EconomicAgents;
 using EconomicCore.Domain.Operational.EconomicEvents;
 using EconomicCore.Domain.Operational.EconomicResources;
 using EconomicCore.Domain.Prospective.EconomicContracts;
 using EconomicCore.Domain.SeedWork;
 using EconomicCore.Domain.SharedKernel;
-using MediatR;
+using Microsoft.Extensions.Logging;
 
 internal sealed class RegisterPaymentEventHandler : IRequestHandler<RegisterPaymentEventCommand, RegisterPaymentEventResponse>
 {
@@ -72,4 +73,14 @@ internal sealed class RegisterPaymentEventHandler : IRequestHandler<RegisterPaym
             paymentEvent.Direction.Name,
             "Cash");
     }
+}
+
+internal sealed class RegisterPaymentEventIdentifiedCommandHandler(
+    IMediator mediator,
+    IRequestManager requestManager,
+    ILogger<RegisterPaymentEventIdentifiedCommandHandler> logger)
+    : IdentifiedCommandHandler<RegisterPaymentEventCommand, RegisterPaymentEventResponse>(mediator, requestManager, logger)
+{
+    protected override RegisterPaymentEventResponse CreateResultForDuplicateRequest()
+        => new(Guid.Empty, string.Empty, string.Empty);
 }

@@ -1,6 +1,6 @@
 namespace EconomicCore.Application.Commands.GenerateCommitments;
 
-using MediatR;
+using EconomicCore.Application.Mediator;
 
 public sealed record GenerateCommitmentsCommand(
     Guid TenantId,

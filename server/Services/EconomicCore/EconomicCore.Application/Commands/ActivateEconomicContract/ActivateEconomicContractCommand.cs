@@ -1,6 +1,6 @@
 namespace EconomicCore.Application.Commands.ActivateEconomicContract;
 
-using MediatR;
+using EconomicCore.Application.Mediator;
 
 public sealed record ActivateEconomicContractCommand(
     Guid TenantId,

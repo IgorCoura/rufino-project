@@ -1,6 +1,6 @@
 namespace EconomicCore.Application.Queries.GetCompetenceDRE;
 
-using MediatR;
+using EconomicCore.Application.Mediator;
 
 public sealed record GetCompetenceDREQuery(
     Guid TenantId,

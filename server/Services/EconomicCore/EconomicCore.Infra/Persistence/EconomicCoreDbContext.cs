@@ -18,6 +18,7 @@ public sealed class EconomicCoreDbContext : DbContext, IUnitOfWork
     public DbSet<OutboxMessage> OutboxMessages => Set<OutboxMessage>();
     public DbSet<OutboxDeadLetter> OutboxDeadLetters => Set<OutboxDeadLetter>();
     public DbSet<ProcessedEventLog> ProcessedEventLogs => Set<ProcessedEventLog>();
+    public DbSet<ClientRequest> ClientRequests => Set<ClientRequest>();
 
     public EconomicCoreDbContext(DbContextOptions<EconomicCoreDbContext> options) : base(options) { }
 

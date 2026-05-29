@@ -1,6 +1,6 @@
 namespace EconomicCore.Application.Queries.GetCashFlow;
 
-using MediatR;
+using EconomicCore.Application.Mediator;
 
 public sealed record GetCashFlowQuery(
     Guid TenantId,

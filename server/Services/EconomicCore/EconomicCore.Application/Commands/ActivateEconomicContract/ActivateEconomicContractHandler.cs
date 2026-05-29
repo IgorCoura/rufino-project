@@ -1,9 +1,11 @@
 namespace EconomicCore.Application.Commands.ActivateEconomicContract;
 
 using EconomicCore.Application.Commands.GenerateCommitments;
+using EconomicCore.Application.Mediator;
 using EconomicCore.Domain.Prospective.EconomicContracts;
+using EconomicCore.Domain.SeedWork;
 using EconomicCore.Domain.SharedKernel;
-using MediatR;
+using Microsoft.Extensions.Logging;
 
 internal sealed class ActivateEconomicContractHandler : IRequestHandler<ActivateEconomicContractCommand, ActivateEconomicContractResponse>
 {
@@ -40,4 +42,14 @@ internal sealed class ActivateEconomicContractHandler : IRequestHandler<Activate
             contract.Status.Name,
             commitments);
     }
+}
+
+internal sealed class ActivateEconomicContractIdentifiedCommandHandler(
+    IMediator mediator,
+    IRequestManager requestManager,
+    ILogger<ActivateEconomicContractIdentifiedCommandHandler> logger)
+    : IdentifiedCommandHandler<ActivateEconomicContractCommand, ActivateEconomicContractResponse>(mediator, requestManager, logger)
+{
+    protected override ActivateEconomicContractResponse CreateResultForDuplicateRequest()
+        => new(Guid.Empty, string.Empty, []);
 }

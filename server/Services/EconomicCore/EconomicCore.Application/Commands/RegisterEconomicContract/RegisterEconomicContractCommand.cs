@@ -1,6 +1,6 @@
 namespace EconomicCore.Application.Commands.RegisterEconomicContract;
 
-using MediatR;
+using EconomicCore.Application.Mediator;
 
 public sealed record RegisterEconomicContractCommand(
     Guid TenantId,

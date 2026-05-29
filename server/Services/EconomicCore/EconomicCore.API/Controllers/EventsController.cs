@@ -2,7 +2,7 @@ namespace EconomicCore.API.Controllers;
 
 using EconomicCore.Application.Commands.RegisterConsumptionEvent;
 using EconomicCore.Application.Commands.RegisterPaymentEvent;
-using MediatR;
+using EconomicCore.Application.Mediator;
 using Microsoft.AspNetCore.Mvc;
 
 [Route("api/v1/{tenantId:guid}/[controller]")]
@@ -20,7 +20,9 @@ public sealed class EventsController(ILogger<EventsController> logger, IMediator
 
         SendingCommandLog(model.ContractId, command, requestId);
 
-        var response = await mediator.Send(command, ct);
+        var identified = new IdentifiedCommand<RegisterConsumptionEventCommand, RegisterConsumptionEventResponse>(
+            command, EnsureRequestId(requestId));
+        var response = await mediator.Send(identified, ct);
 
         CommandResultLog(response, model.ContractId, command, requestId);
 
@@ -39,7 +41,9 @@ public sealed class EventsController(ILogger<EventsController> logger, IMediator
 
         SendingCommandLog(model.ContractId, command, requestId);
 
-        var response = await mediator.Send(command, ct);
+        var identified = new IdentifiedCommand<RegisterPaymentEventCommand, RegisterPaymentEventResponse>(
+            command, EnsureRequestId(requestId));
+        var response = await mediator.Send(identified, ct);
 
         CommandResultLog(response, model.ContractId, command, requestId);
 

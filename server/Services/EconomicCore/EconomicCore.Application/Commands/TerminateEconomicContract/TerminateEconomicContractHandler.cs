@@ -1,11 +1,13 @@
 namespace EconomicCore.Application.Commands.TerminateEconomicContract;
 
+using EconomicCore.Application.Mediator;
 using EconomicCore.Domain.Operational.EconomicEvents;
 using EconomicCore.Domain.Prospective.EconomicContracts;
 using EconomicCore.Domain.Prospective.EconomicContracts.Enumerations;
 using EconomicCore.Domain.Prospective.EconomicContracts.Events;
+using EconomicCore.Domain.SeedWork;
 using EconomicCore.Domain.SharedKernel;
-using MediatR;
+using Microsoft.Extensions.Logging;
 
 internal sealed class TerminateEconomicContractHandler : IRequestHandler<TerminateEconomicContractCommand, TerminateEconomicContractResponse>
 {
@@ -53,4 +55,14 @@ internal sealed class TerminateEconomicContractHandler : IRequestHandler<Termina
             contract.Status.Name,
             cancelledCount);
     }
+}
+
+internal sealed class TerminateEconomicContractIdentifiedCommandHandler(
+    IMediator mediator,
+    IRequestManager requestManager,
+    ILogger<TerminateEconomicContractIdentifiedCommandHandler> logger)
+    : IdentifiedCommandHandler<TerminateEconomicContractCommand, TerminateEconomicContractResponse>(mediator, requestManager, logger)
+{
+    protected override TerminateEconomicContractResponse CreateResultForDuplicateRequest()
+        => new(Guid.Empty, string.Empty, 0);
 }

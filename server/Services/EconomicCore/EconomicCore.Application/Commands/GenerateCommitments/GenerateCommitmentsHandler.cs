@@ -1,8 +1,10 @@
 namespace EconomicCore.Application.Commands.GenerateCommitments;
 
+using EconomicCore.Application.Mediator;
 using EconomicCore.Domain.Prospective.EconomicContracts;
+using EconomicCore.Domain.SeedWork;
 using EconomicCore.Domain.SharedKernel;
-using MediatR;
+using Microsoft.Extensions.Logging;
 
 internal sealed class GenerateCommitmentsHandler : IRequestHandler<GenerateCommitmentsCommand, GenerateCommitmentsResponse>
 {
@@ -36,4 +38,14 @@ internal sealed class GenerateCommitmentsHandler : IRequestHandler<GenerateCommi
 
         return new GenerateCommitmentsResponse(newCommitments);
     }
+}
+
+internal sealed class GenerateCommitmentsIdentifiedCommandHandler(
+    IMediator mediator,
+    IRequestManager requestManager,
+    ILogger<GenerateCommitmentsIdentifiedCommandHandler> logger)
+    : IdentifiedCommandHandler<GenerateCommitmentsCommand, GenerateCommitmentsResponse>(mediator, requestManager, logger)
+{
+    protected override GenerateCommitmentsResponse CreateResultForDuplicateRequest()
+        => new([]);
 }

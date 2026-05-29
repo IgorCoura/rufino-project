@@ -1,10 +1,11 @@
 namespace EconomicCore.Application.Commands.RegisterEconomicResource;
 
+using EconomicCore.Application.Mediator;
 using EconomicCore.Domain.Operational.EconomicResources;
 using EconomicCore.Domain.Operational.EconomicResources.Enumerations;
 using EconomicCore.Domain.SeedWork;
 using EconomicCore.Domain.SharedKernel;
-using MediatR;
+using Microsoft.Extensions.Logging;
 
 internal sealed class RegisterEconomicResourceHandler : IRequestHandler<RegisterEconomicResourceCommand, RegisterEconomicResourceResponse>
 {
@@ -41,4 +42,14 @@ internal sealed class RegisterEconomicResourceHandler : IRequestHandler<Register
             resource.Name,
             resource.Kind.Name);
     }
+}
+
+internal sealed class RegisterEconomicResourceIdentifiedCommandHandler(
+    IMediator mediator,
+    IRequestManager requestManager,
+    ILogger<RegisterEconomicResourceIdentifiedCommandHandler> logger)
+    : IdentifiedCommandHandler<RegisterEconomicResourceCommand, RegisterEconomicResourceResponse>(mediator, requestManager, logger)
+{
+    protected override RegisterEconomicResourceResponse CreateResultForDuplicateRequest()
+        => new(Guid.Empty, string.Empty, string.Empty);
 }

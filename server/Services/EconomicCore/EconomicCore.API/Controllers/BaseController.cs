@@ -69,4 +69,9 @@ public class BaseController(ILogger<BaseController> logger) : ControllerBase
             command,
             requestId);
     }
+
+    // Idempotência permissiva: header x-requestid ausente (Guid.Empty) gera um novo Id por request,
+    // de modo que cada chamada sem header é tratada como intenção distinta (nunca colide na tabela).
+    protected static Guid EnsureRequestId(Guid requestId)
+        => requestId == Guid.Empty ? Guid.NewGuid() : requestId;
 }

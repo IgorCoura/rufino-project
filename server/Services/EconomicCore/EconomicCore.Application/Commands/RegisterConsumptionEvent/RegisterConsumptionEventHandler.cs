@@ -1,10 +1,12 @@
 namespace EconomicCore.Application.Commands.RegisterConsumptionEvent;
 
+using EconomicCore.Application.Mediator;
 using EconomicCore.Domain.Operational.EconomicAgents;
 using EconomicCore.Domain.Operational.EconomicEvents;
 using EconomicCore.Domain.Prospective.EconomicContracts;
+using EconomicCore.Domain.SeedWork;
 using EconomicCore.Domain.SharedKernel;
-using MediatR;
+using Microsoft.Extensions.Logging;
 
 internal sealed class RegisterConsumptionEventHandler : IRequestHandler<RegisterConsumptionEventCommand, RegisterConsumptionEventResponse>
 {
@@ -69,4 +71,14 @@ internal sealed class RegisterConsumptionEventHandler : IRequestHandler<Register
             consumptionEvent.Direction.Name,
             "Service");
     }
+}
+
+internal sealed class RegisterConsumptionEventIdentifiedCommandHandler(
+    IMediator mediator,
+    IRequestManager requestManager,
+    ILogger<RegisterConsumptionEventIdentifiedCommandHandler> logger)
+    : IdentifiedCommandHandler<RegisterConsumptionEventCommand, RegisterConsumptionEventResponse>(mediator, requestManager, logger)
+{
+    protected override RegisterConsumptionEventResponse CreateResultForDuplicateRequest()
+        => new(Guid.Empty, string.Empty, string.Empty);
 }
