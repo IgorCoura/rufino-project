@@ -5,13 +5,14 @@ using EconomicCore.Domain.Operational.EconomicEvents.Enumerations;
 using EconomicCore.Domain.Operational.EconomicEvents.Events;
 using EconomicCore.Domain.Operational.EconomicEvents.ValueObjects;
 using EconomicCore.Domain.Operational.EconomicResources;
+using EconomicCore.Domain.Prospective.EconomicContracts;
 using EconomicCore.Domain.SeedWork;
 using EconomicCore.Domain.SharedKernel;
 using EconomicCore.UnitTests.Operational.EconomicEvents.Mothers;
 
 public class EconomicEventTests
 {
-    // RegisterCovered inicializa o estado, fixa CoveringCommitment e emite EconomicEventRegistered com payload.
+    // RegisterCovered inicializa o estado, gera uma única alocação de cobertura e emite EconomicEventRegistered.
     [Fact]
     public void RegisterCovered_WithValidInputs_ShouldInitializeStateAndEmitEvent()
     {
@@ -23,17 +24,19 @@ public class EconomicEventTests
         Assert.Equal(EconomicEventMother.FixedResourceId, ev.ResourceId);
         Assert.Equal(1000m, ev.Amount.Amount);
         Assert.Equal(EconomicEventMother.FixedOccurredAtUtc, ev.OccurredAt.InstantUtc);
-        Assert.NotNull(ev.CoveringCommitment);
-        Assert.Equal(EconomicEventMother.FixedContractId, ev.CoveringCommitment!.ContractId);
-        Assert.Equal(EconomicEventMother.FixedCommitmentId, ev.CoveringCommitment.CommitmentId);
-        Assert.Null(ev.Duality);
+        var allocation = Assert.Single(ev.Allocations);
+        Assert.Equal(EconomicEventMother.FixedContractId, allocation.Commitment.ContractId);
+        Assert.Equal(EconomicEventMother.FixedCommitmentId, allocation.Commitment.CommitmentId);
+        Assert.Equal(1000m, allocation.Amount.Amount);
+        Assert.Empty(ev.DualityLinks);
         Assert.Equal(2, ev.Participations.Count);
 
         var registered = Assert.IsType<EconomicEventRegistered>(Assert.Single(ev.PullDomainEvents()));
         Assert.Equal(ev.Id, registered.EconomicEventId);
         Assert.Equal(FlowDirection.Outflow.Name, registered.DirectionName);
-        Assert.Equal(EconomicEventMother.FixedContractId.Value, registered.CoveringContractId);
-        Assert.Equal(EconomicEventMother.FixedCommitmentId.Value, registered.CoveringCommitmentId);
+        var covering = Assert.Single(registered.Coverings);
+        Assert.Equal(EconomicEventMother.FixedContractId.Value, covering.ContractId);
+        Assert.Equal(EconomicEventMother.FixedCommitmentId.Value, covering.CommitmentId);
         Assert.Null(registered.CounterpartEventId);
         Assert.Equal(1000m, registered.AmountValue);
         Assert.Equal(Currency.BRL.Name, registered.AmountCurrency);
@@ -41,20 +44,20 @@ public class EconomicEventTests
         Assert.Equal(9, registered.CompetenceMonth);
     }
 
-    // RegisterPaired inicializa o estado com Duality preenchida e emite evento com CounterpartEventId no payload.
+    // RegisterPaired inicializa com um DualityLink direto (sem alocação de cobertura) e emite evento com CounterpartEventId.
     [Fact]
     public void RegisterPaired_WithValidInputs_ShouldInitializeStateAndEmitEvent()
     {
         var ev = EconomicEventMother.New().BuildPaired();
 
-        Assert.NotNull(ev.Duality);
-        Assert.Equal(EconomicEventMother.CounterpartEventId, ev.Duality!.CounterpartEventId);
-        Assert.Null(ev.CoveringCommitment);
+        var link = Assert.Single(ev.DualityLinks);
+        Assert.Equal(EconomicEventMother.CounterpartEventId, link.CounterpartEventId);
+        Assert.Null(link.CommitmentId);
+        Assert.Empty(ev.Allocations);
 
         var registered = (EconomicEventRegistered)ev.PullDomainEvents()[0];
         Assert.Equal(EconomicEventMother.CounterpartEventId.Value, registered.CounterpartEventId);
-        Assert.Null(registered.CoveringContractId);
-        Assert.Null(registered.CoveringCommitmentId);
+        Assert.Empty(registered.Coverings);
     }
 
     // RegisterCovered com CommitmentRef null lança ECC.EVT04 (anti-orfandade — INV crítica).
@@ -132,19 +135,22 @@ public class EconomicEventTests
         Assert.Equal("ECC.EVT03", ex.Id);
     }
 
-    // CloseDuality total move o evento para totalmente pareado e emite DualityClosed.
+    // CloseDuality total da alocação marca o evento como totalmente pareado e emite DualityClosed.
     [Fact]
     public void CloseDuality_WithFullMatch_ShouldFullyPairEventAndEmitDualityClosed()
     {
         var ev = EconomicEventMother.New().BuildCovered();
         ev.ClearDomainEvents();
+        var commitmentId = EconomicEventMother.FixedCommitmentId;
         var counterpartId = EconomicEventId.From(new Guid("99999999-9999-7999-8999-999999999999"));
 
-        ev.CloseDuality(counterpartId, EconomicEventMother.DefaultAmount(), EconomicEventMother.FixedRegisteredAt.AddMinutes(5));
+        ev.CloseDuality(commitmentId, counterpartId, EconomicEventMother.DefaultAmount(), EconomicEventMother.FixedRegisteredAt.AddMinutes(5));
 
-        Assert.NotNull(ev.Duality);
-        Assert.Equal(counterpartId, ev.Duality!.CounterpartEventId);
-        Assert.Equal(1000m, ev.Duality.MatchedAmount.Amount);
+        var link = Assert.Single(ev.DualityLinks);
+        Assert.Equal(counterpartId, link.CounterpartEventId);
+        Assert.Equal(commitmentId, link.CommitmentId);
+        Assert.Equal(1000m, ev.MatchedAmountFor(commitmentId));
+        Assert.True(ev.IsFullyMatched);
 
         var closed = Assert.IsType<DualityClosed>(Assert.Single(ev.PullDomainEvents()));
         Assert.Equal(ev.Id, closed.EconomicEventId);
@@ -152,46 +158,64 @@ public class EconomicEventTests
         Assert.Equal(1000m, closed.MatchedAmountValue);
     }
 
-    // CloseDuality parcial acumula MatchedAmount no DualityLink; segundo CloseDuality completa o pareamento.
+    // Dois CloseDuality parciais para a mesma alocação acumulam MatchedAmount (um DualityLink por leg).
     [Fact]
     public void CloseDuality_PartialThenFull_ShouldAccumulateMatchedAmount()
     {
         var ev = EconomicEventMother.New().BuildCovered();
         ev.ClearDomainEvents();
+        var commitmentId = EconomicEventMother.FixedCommitmentId;
         var counterpartId = EconomicEventId.From(new Guid("99999999-9999-7999-8999-999999999999"));
 
-        ev.CloseDuality(counterpartId, new Money(400m, Currency.BRL), EconomicEventMother.FixedRegisteredAt);
-        Assert.Equal(400m, ev.Duality!.MatchedAmount.Amount);
+        ev.CloseDuality(commitmentId, counterpartId, new Money(400m, Currency.BRL), EconomicEventMother.FixedRegisteredAt);
+        Assert.Equal(400m, ev.MatchedAmountFor(commitmentId));
 
-        ev.CloseDuality(counterpartId, new Money(600m, Currency.BRL), EconomicEventMother.FixedRegisteredAt.AddSeconds(1));
-        Assert.Equal(1000m, ev.Duality.MatchedAmount.Amount);
+        ev.CloseDuality(commitmentId, counterpartId, new Money(600m, Currency.BRL), EconomicEventMother.FixedRegisteredAt.AddSeconds(1));
+        Assert.Equal(1000m, ev.MatchedAmountFor(commitmentId));
 
+        Assert.Equal(2, ev.DualityLinks.Count);
         Assert.Equal(2, ev.DomainEvents.Count);
     }
 
-    // CloseDuality em evento já totalmente pareado lança ECC.EVT05.
+    // CloseDuality numa alocação já totalmente pareada lança ECC.EVT05.
     [Fact]
     public void CloseDuality_OnFullyMatchedEvent_ShouldThrowECC_EVT05()
     {
         var ev = EconomicEventMother.New().BuildCovered();
+        var commitmentId = EconomicEventMother.FixedCommitmentId;
         var counterpartId = EconomicEventId.From(new Guid("99999999-9999-7999-8999-999999999999"));
-        ev.CloseDuality(counterpartId, EconomicEventMother.DefaultAmount(), EconomicEventMother.FixedRegisteredAt);
+        ev.CloseDuality(commitmentId, counterpartId, EconomicEventMother.DefaultAmount(), EconomicEventMother.FixedRegisteredAt);
 
         var ex = Assert.Throws<DomainException>(
-            () => ev.CloseDuality(counterpartId, new Money(1m, Currency.BRL), EconomicEventMother.FixedRegisteredAt));
+            () => ev.CloseDuality(commitmentId, counterpartId, new Money(1m, Currency.BRL), EconomicEventMother.FixedRegisteredAt));
 
         Assert.Equal("ECC.EVT05", ex.Id);
     }
 
-    // CloseDuality com MatchedAmount maior que saldo restante lança ECC.EVT06.
+    // CloseDuality para um commitment sem alocação correspondente lança ECC.EVT18.
+    [Fact]
+    public void CloseDuality_ForUnknownCommitment_ShouldThrowECC_EVT18()
+    {
+        var ev = EconomicEventMother.New().BuildCovered();
+        var counterpartId = EconomicEventId.From(new Guid("99999999-9999-7999-8999-999999999999"));
+        var unknownCommitment = CommitmentId.From(new Guid("00000000-0000-7000-8000-00000000aaaa"));
+
+        var ex = Assert.Throws<DomainException>(
+            () => ev.CloseDuality(unknownCommitment, counterpartId, EconomicEventMother.DefaultAmount(), EconomicEventMother.FixedRegisteredAt));
+
+        Assert.Equal("ECC.EVT18", ex.Id);
+    }
+
+    // CloseDuality com MatchedAmount maior que saldo restante da alocação lança ECC.EVT06.
     [Fact]
     public void CloseDuality_ExceedingRemainingBalance_ShouldThrowECC_EVT06()
     {
         var ev = EconomicEventMother.New().BuildCovered();
+        var commitmentId = EconomicEventMother.FixedCommitmentId;
         var counterpartId = EconomicEventId.From(new Guid("99999999-9999-7999-8999-999999999999"));
 
         var ex = Assert.Throws<DomainException>(
-            () => ev.CloseDuality(counterpartId, new Money(1500m, Currency.BRL), EconomicEventMother.FixedRegisteredAt));
+            () => ev.CloseDuality(commitmentId, counterpartId, new Money(1500m, Currency.BRL), EconomicEventMother.FixedRegisteredAt));
 
         Assert.Equal("ECC.EVT06", ex.Id);
     }
@@ -203,10 +227,11 @@ public class EconomicEventTests
     public void CloseDuality_WithNonPositiveAmount_ShouldThrowECC_EVT06(double amount)
     {
         var ev = EconomicEventMother.New().BuildCovered();
+        var commitmentId = EconomicEventMother.FixedCommitmentId;
         var counterpartId = EconomicEventId.From(new Guid("99999999-9999-7999-8999-999999999999"));
 
         var ex = Assert.Throws<DomainException>(
-            () => ev.CloseDuality(counterpartId, new Money((decimal)amount, Currency.BRL), EconomicEventMother.FixedRegisteredAt));
+            () => ev.CloseDuality(commitmentId, counterpartId, new Money((decimal)amount, Currency.BRL), EconomicEventMother.FixedRegisteredAt));
 
         Assert.Equal("ECC.EVT06", ex.Id);
     }
@@ -222,5 +247,88 @@ public class EconomicEventTests
 
         Assert.Single(first);
         Assert.Empty(second);
+    }
+
+    private static readonly CommitmentId RentCommitmentId = CommitmentId.From(new Guid("aaaa0001-0001-7001-8001-aaaaaaaaaaaa"));
+    private static readonly CommitmentId CondoCommitmentId = CommitmentId.From(new Guid("aaaa0002-0002-7002-8002-aaaaaaaaaaaa"));
+
+    private static EconomicEvent BuildBundled(params BundledPaymentLine[] lines)
+        => EconomicEvent.RegisterBundledPayment(
+            EconomicEventMother.FixedEventId,
+            EconomicEventMother.FixedTenantId,
+            EconomicEventMother.FixedResourceId,
+            Currency.BRL,
+            EconomicEventMother.FixedOccurredAtUtc,
+            EconomicEventMother.ProviderAgentId,
+            EconomicEventMother.RecipientAgentId,
+            lines,
+            competenceYear: 2025,
+            competenceMonth: 10,
+            createdBy: null,
+            registeredAt: EconomicEventMother.FixedRegisteredAt);
+
+    // RegisterBundledPayment soma as linhas no Amount total e cria uma alocação por commitment (boleto único).
+    [Fact]
+    public void RegisterBundledPayment_WithMultipleLines_ShouldSumAmountAndCreateAllocationPerLine()
+    {
+        var ev = BuildBundled(
+            new BundledPaymentLine(EconomicEventMother.FixedContractId.Value, RentCommitmentId.Value, 1000m),
+            new BundledPaymentLine(EconomicEventMother.FixedContractId.Value, CondoCommitmentId.Value, 300m));
+
+        Assert.Equal(1300m, ev.Amount.Amount);
+        Assert.Equal(2, ev.Allocations.Count);
+        Assert.Equal(1000m, ev.Allocations.Single(a => a.Commitment.CommitmentId.Equals(RentCommitmentId)).Amount.Amount);
+        Assert.Equal(300m, ev.Allocations.Single(a => a.Commitment.CommitmentId.Equals(CondoCommitmentId)).Amount.Amount);
+
+        var registered = Assert.IsType<EconomicEventRegistered>(Assert.Single(ev.PullDomainEvents()));
+        Assert.Equal(2, registered.Coverings.Count);
+        Assert.Equal(1300m, registered.AmountValue);
+    }
+
+    // RegisterBundledPayment sem linhas lança ECC.EVT17 (pagamento bundled exige ao menos uma alocação).
+    [Fact]
+    public void RegisterBundledPayment_WithNoLines_ShouldThrowECC_EVT17()
+    {
+        var ex = Assert.Throws<DomainException>(() => BuildBundled());
+
+        Assert.Equal("ECC.EVT17", ex.Id);
+    }
+
+    // RegisterBundledPayment com data de pagamento futura lança ECC.EVT15.
+    [Fact]
+    public void RegisterBundledPayment_WithFuturePaidDate_ShouldThrowECC_EVT15()
+    {
+        var ex = Assert.Throws<DomainException>(() => EconomicEvent.RegisterBundledPayment(
+            EconomicEventMother.FixedEventId,
+            EconomicEventMother.FixedTenantId,
+            EconomicEventMother.FixedResourceId,
+            Currency.BRL,
+            EconomicEventMother.FixedRegisteredAt.AddDays(1),
+            EconomicEventMother.ProviderAgentId,
+            EconomicEventMother.RecipientAgentId,
+            [new BundledPaymentLine(EconomicEventMother.FixedContractId.Value, RentCommitmentId.Value, 1000m)],
+            competenceYear: 2025,
+            competenceMonth: 10,
+            createdBy: null,
+            registeredAt: EconomicEventMother.FixedRegisteredAt));
+
+        Assert.Equal("ECC.EVT15", ex.Id);
+    }
+
+    // Num pagamento bundled, fechar a duality de uma alocação não marca o evento como totalmente pareado até a outra fechar.
+    [Fact]
+    public void CloseDuality_OnBundledPayment_ShouldCloseLegsIndependently()
+    {
+        var ev = BuildBundled(
+            new BundledPaymentLine(EconomicEventMother.FixedContractId.Value, RentCommitmentId.Value, 1000m),
+            new BundledPaymentLine(EconomicEventMother.FixedContractId.Value, CondoCommitmentId.Value, 300m));
+        var rentCounterpart = EconomicEventId.From(new Guid("11110000-0000-7000-8000-000000000001"));
+        var condoCounterpart = EconomicEventId.From(new Guid("22220000-0000-7000-8000-000000000002"));
+
+        ev.CloseDuality(RentCommitmentId, rentCounterpart, new Money(1000m, Currency.BRL), EconomicEventMother.FixedRegisteredAt);
+        Assert.False(ev.IsFullyMatched);
+
+        ev.CloseDuality(CondoCommitmentId, condoCounterpart, new Money(300m, Currency.BRL), EconomicEventMother.FixedRegisteredAt);
+        Assert.True(ev.IsFullyMatched);
     }
 }

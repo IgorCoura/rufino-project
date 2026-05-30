@@ -31,13 +31,16 @@ internal sealed class EconomicEventRepository : IEconomicEventRepository
 
     public async Task<EconomicEvent?> FindCoveredByCommitmentAsync(CommitmentId commitmentId, TenantId tenantId, CancellationToken cancellationToken = default)
     {
-        return await _context.EconomicEvents
-            .FirstOrDefaultAsync(e =>
-                e.TenantId.Equals(tenantId)
-                && e.CoveringCommitment != null
-                && e.CoveringCommitment.CommitmentId.Equals(commitmentId)
-                && e.Duality == null,
-                cancellationToken);
+        // Tenant-filtered in SQL; the allocation/duality predicates run in memory because they reach into owned
+        // collections (and a nullable converted VO on the link) that EF does not translate reliably. Owned
+        // collections load eagerly with the aggregate, so Allocations/DualityLinks are populated here.
+        var candidates = await _context.EconomicEvents
+            .Where(e => e.TenantId.Equals(tenantId))
+            .ToListAsync(cancellationToken);
+
+        return candidates.FirstOrDefault(e =>
+            e.Allocations.Any(a => a.Commitment.CommitmentId.Equals(commitmentId))
+            && !e.DualityLinks.Any(d => d.CommitmentId is { } c && c.Equals(commitmentId)));
     }
 
     public void Update(EconomicEvent economicEvent)
@@ -55,20 +58,18 @@ internal sealed class EconomicEventRepository : IEconomicEventRepository
 
         var ids = commitmentIds.Select(c => c.Value).ToHashSet();
 
-        var candidates = await _context.EconomicEvents
+        var inflowEvents = await _context.EconomicEvents
             .AsNoTracking()
-            .Where(e => e.TenantId.Equals(tenantId)
-                && e.Direction == FlowDirection.Inflow
-                && e.CoveringCommitment != null)
-            .Select(e => new
-            {
-                CommitmentId = e.CoveringCommitment!.CommitmentId.Value,
-                e.Competence.Year,
-                e.Competence.Month,
-            })
+            .Where(e => e.TenantId.Equals(tenantId) && e.Direction == FlowDirection.Inflow)
             .ToListAsync(cancellationToken);
 
-        var top = candidates
+        var top = inflowEvents
+            .SelectMany(e => e.Allocations.Select(a => new
+            {
+                CommitmentId = a.Commitment.CommitmentId.Value,
+                e.Competence.Year,
+                e.Competence.Month,
+            }))
             .Where(e => ids.Contains(e.CommitmentId))
             .OrderByDescending(e => e.Year)
             .ThenByDescending(e => e.Month)

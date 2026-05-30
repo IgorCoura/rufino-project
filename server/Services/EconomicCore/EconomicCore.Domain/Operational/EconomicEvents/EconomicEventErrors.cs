@@ -174,6 +174,38 @@ public static class EconomicEventErrors
             parameters: new object[] { paidDate, now },
             sourcePath: BuildSourcePath(filePath, memberName, lineNumber));
 
+    public static DomainException InvalidAllocation(
+        [CallerFilePath] string filePath = "",
+        [CallerMemberName] string memberName = "",
+        [CallerLineNumber] int lineNumber = 0)
+        => new(
+            id: $"{PREFIX}16",
+            messageTemplate: "PaymentAllocation requer um CommitmentRef válido e um Amount maior que zero.",
+            parameters: Array.Empty<object>(),
+            sourcePath: BuildSourcePath(filePath, memberName, lineNumber));
+
+    public static DomainException EmptyAllocations(
+        [CallerFilePath] string filePath = "",
+        [CallerMemberName] string memberName = "",
+        [CallerLineNumber] int lineNumber = 0)
+        => new(
+            id: $"{PREFIX}17",
+            messageTemplate: "Pagamento bundled requer ao menos uma alocação (rateio por commitment).",
+            parameters: Array.Empty<object>(),
+            sourcePath: BuildSourcePath(filePath, memberName, lineNumber));
+
+    public static DomainException AllocationNotFound(
+        Guid commitmentId,
+        [CallerFilePath] string filePath = "",
+        [CallerMemberName] string memberName = "",
+        [CallerLineNumber] int lineNumber = 0)
+        => new(
+            id: $"{PREFIX}18",
+            messageTemplate: "Nenhuma alocação para o commitment {0} neste EconomicEvent.",
+            parameters: new object[] { commitmentId },
+            sourcePath: BuildSourcePath(filePath, memberName, lineNumber),
+            category: DomainErrorCategory.Conflict);
+
     private static string BuildSourcePath(string filePath, string memberName, int lineNumber)
         => $"{Path.GetFileName(filePath)}:{lineNumber} ({memberName})";
 }

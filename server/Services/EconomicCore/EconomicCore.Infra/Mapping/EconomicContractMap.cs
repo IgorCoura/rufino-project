@@ -6,6 +6,7 @@ using EconomicCore.Domain.Operational.EconomicResources;
 using EconomicCore.Domain.Prospective.EconomicContracts;
 using EconomicCore.Domain.Prospective.EconomicContracts.Entities;
 using EconomicCore.Domain.Prospective.EconomicContracts.Enumerations;
+using EconomicCore.Domain.Prospective.EconomicContracts.ValueObjects;
 using EconomicCore.Domain.SeedWork;
 using EconomicCore.Domain.SharedKernel;
 using Microsoft.EntityFrameworkCore;
@@ -56,6 +57,11 @@ internal sealed class EconomicContractMap : IEntityTypeConfiguration<EconomicCon
             .HasConversion(v => v.Id, v => Enumeration.FromValue<ContractStatus>(v))
             .IsRequired();
 
+        builder.Property(e => e.PrimaryPurpose)
+            .HasColumnName("primary_purpose")
+            .HasConversion(v => v.Id, v => Enumeration.FromValue<CommitmentPurpose>(v))
+            .IsRequired();
+
         builder.OwnsOne(e => e.Recurrence, r =>
         {
             r.Property(x => x.Periodicity)
@@ -79,14 +85,58 @@ internal sealed class EconomicContractMap : IEntityTypeConfiguration<EconomicCon
             dt.Property(x => x.WindowDays).HasColumnName("window_days").IsRequired();
         });
 
+        builder.OwnsOne(e => e.PenaltyPolicy, pp =>
+        {
+            pp.Property(x => x.FinePercent).HasColumnName("penalty_fine_percent").HasColumnType("decimal(5,4)").IsRequired();
+            pp.Property(x => x.MonthlyInterestPercent).HasColumnName("penalty_monthly_interest_percent").HasColumnType("decimal(5,4)").IsRequired();
+        });
+
         builder.Property(e => e.CreatedAt).HasColumnName("created_at").IsRequired();
         builder.Property(e => e.UpdatedAt).HasColumnName("updated_at").IsRequired();
 
         builder.Ignore(e => e.DomainEvents);
 
         builder.OwnsMany(e => e.Commitments, ConfigureCommitment);
+        builder.OwnsMany(e => e.Charges, ConfigureCharge);
 
         builder.HasIndex(e => e.TenantId).HasDatabaseName("ix_economic_contracts_tenant_id");
+    }
+
+    private static void ConfigureCharge(OwnedNavigationBuilder<EconomicContract, ContractCharge> cb)
+    {
+        cb.ToTable("contract_charges");
+
+        cb.WithOwner().HasForeignKey("contract_id");
+        cb.Property<int>("id").ValueGeneratedOnAdd();
+        cb.HasKey("contract_id", "id");
+
+        cb.Property(c => c.Purpose)
+            .HasColumnName("purpose")
+            .HasConversion(v => v.Id, v => Enumeration.FromValue<CommitmentPurpose>(v))
+            .IsRequired();
+
+        cb.OwnsOne(c => c.ExpectedAmount, money =>
+        {
+            money.Property(m => m.Amount).HasColumnName("expected_amount").HasColumnType("decimal(18,2)").IsRequired();
+            money.Property(m => m.Currency)
+                .HasColumnName("expected_amount_currency")
+                .HasConversion(v => v.Id, v => Enumeration.FromValue<Currency>(v))
+                .IsRequired();
+        });
+
+        cb.Property(c => c.ResourceId)
+            .HasColumnName("resource_id")
+            .HasConversion(v => v.Value, v => EconomicResourceId.From(v))
+            .IsRequired();
+
+        cb.Property(c => c.RecipientAgentId)
+            .HasColumnName("recipient_agent_id")
+            .HasConversion(v => v.Value, v => EconomicAgentId.From(v))
+            .IsRequired();
+
+        cb.Property(c => c.CollectedByCounterparty)
+            .HasColumnName("collected_by_counterparty")
+            .IsRequired();
     }
 
     private static void ConfigureCommitment(OwnedNavigationBuilder<EconomicContract, Commitment> cb)
@@ -104,6 +154,11 @@ internal sealed class EconomicContractMap : IEntityTypeConfiguration<EconomicCon
         cb.Property(c => c.Direction)
             .HasColumnName("direction")
             .HasConversion(v => v.Id, v => Enumeration.FromValue<CommitmentDirection>(v))
+            .IsRequired();
+
+        cb.Property(c => c.Purpose)
+            .HasColumnName("purpose")
+            .HasConversion(v => v.Id, v => Enumeration.FromValue<CommitmentPurpose>(v))
             .IsRequired();
 
         cb.Property(c => c.Status)

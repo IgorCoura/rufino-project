@@ -21,32 +21,48 @@ internal sealed class CloseDualityOnEconomicEventRegisteredHandler(
 {
     public async Task HandleAsync(EconomicEventRegistered domainEvent, CancellationToken cancellationToken = default)
     {
-        // Only commitment-covered events participate in the deferred duality close.
-        if (domainEvent.CoveringCommitmentId is not { } coveringCommitmentGuid
-            || domainEvent.CoveringContractId is not { } coveringContractGuid)
+        // Only commitment-covered events participate in the deferred duality close (a bundled payment carries one
+        // covering per allocation; a directly-paired event carries none).
+        if (domainEvent.Coverings.Count == 0)
             return;
 
         var tenantId = domainEvent.TenantId;
-        var commitmentId = CommitmentId.From(coveringCommitmentGuid);
-        var contractId = EconomicContractId.From(coveringContractGuid);
-
         var registeredEvent = await eventRepo.GetByIdAsync(domainEvent.EconomicEventId, tenantId, cancellationToken);
-        if (registeredEvent is null || registeredEvent.Duality is not null)
-            return; // already matched (reprocessed message) or gone — idempotent no-op
+        if (registeredEvent is null)
+            return; // gone — idempotent no-op
 
-        var contract = await contractRepo.GetByIdAsync(contractId, tenantId, cancellationToken);
-        if (contract is null)
-            return;
+        foreach (var covering in domainEvent.Coverings)
+        {
+            var commitmentId = CommitmentId.From(covering.CommitmentId);
+            var contractId = EconomicContractId.From(covering.ContractId);
 
-        var reciprocalCommitment = contract.FindReciprocalCommitment(commitmentId);
-        var reciprocalEvent = await eventRepo.FindCoveredByCommitmentAsync(reciprocalCommitment.Id, tenantId, cancellationToken);
-        if (reciprocalEvent is null)
-            return; // counterpart not registered yet — the close runs when its own event arrives
+            // Idempotency: this leg was already closed by a prior (reprocessed) message.
+            if (registeredEvent.HasClosedDualityFor(commitmentId))
+                continue;
 
-        DualityMatchingService.Match(reciprocalEvent, registeredEvent, domainEvent.OccurredAt);
-        MarkFulfilledIfPending(contract, commitmentId, registeredEvent.Id, domainEvent.OccurredAt);
-        MarkFulfilledIfPending(contract, reciprocalCommitment.Id, reciprocalEvent.Id, domainEvent.OccurredAt);
+            var contract = await contractRepo.GetByIdAsync(contractId, tenantId, cancellationToken);
+            if (contract is null)
+                continue;
+
+            var reciprocalCommitment = contract.FindReciprocalCommitment(commitmentId);
+            var reciprocalEvent = await eventRepo.FindCoveredByCommitmentAsync(reciprocalCommitment.Id, tenantId, cancellationToken);
+            if (reciprocalEvent is null)
+                continue; // counterpart not registered yet — the close runs when its own event arrives
+
+            DualityMatchingService.Match(registeredEvent, commitmentId, reciprocalEvent, reciprocalCommitment.Id, domainEvent.OccurredAt);
+            MarkFulfilledIfPending(contract, commitmentId, registeredEvent.Id, domainEvent.OccurredAt);
+            MarkFulfilledIfPending(contract, reciprocalCommitment.Id, reciprocalEvent.Id, domainEvent.OccurredAt);
+
+            // A decisão de penalizar (direção, janela, idempotência, cálculo) é toda do agregado. O relay só
+            // alimenta cada perna com a data do seu próprio evento; o método é no-op para a perna de inflow.
+            contract.TryRegisterLatePenalty(commitmentId, PaidDateOf(registeredEvent), NewCommitmentId, domainEvent.OccurredAt);
+            contract.TryRegisterLatePenalty(reciprocalCommitment.Id, PaidDateOf(reciprocalEvent), NewCommitmentId, domainEvent.OccurredAt);
+        }
     }
+
+    private static DateOnly PaidDateOf(EconomicEvent ev) => DateOnly.FromDateTime(ev.OccurredAt.InstantUtc);
+
+    private static CommitmentId NewCommitmentId() => CommitmentId.From(Guid.CreateVersion7());
 
     private static void MarkFulfilledIfPending(
         EconomicContract contract, CommitmentId commitmentId, EconomicEventId fulfillingEventId, DateTime occurredAt)

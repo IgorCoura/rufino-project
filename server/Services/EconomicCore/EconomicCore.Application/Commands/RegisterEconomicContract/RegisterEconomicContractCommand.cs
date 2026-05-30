@@ -12,7 +12,21 @@ public sealed record RegisterEconomicContractCommand(
     string Periodicity,
     int AnchorDay,
     int TermMonths,
-    DateOnly StartDate) : IRequest<RegisterEconomicContractResponse>;
+    DateOnly StartDate,
+    IReadOnlyList<RegisterContractChargeModel>? Charges = null,
+    string? PrimaryPurpose = null) : IRequest<RegisterEconomicContractResponse>;
+
+/// <summary>
+/// An additional recurring charge track (condominium, property tax, insurance) bundled into the contract.
+/// Rent is the contract core (ExpectedAmount/Currency on the command) and is never sent as a charge.
+/// </summary>
+public sealed record RegisterContractChargeModel(
+    string Purpose,
+    decimal ExpectedAmount,
+    string Currency,
+    Guid ResourceId,
+    Guid RecipientAgentId,
+    bool CollectedByCounterparty);
 
 public sealed record RegisterEconomicContractModel(
     Guid CounterpartyId,
@@ -23,7 +37,9 @@ public sealed record RegisterEconomicContractModel(
     string Periodicity,
     int AnchorDay,
     int TermMonths,
-    DateOnly StartDate)
+    DateOnly StartDate,
+    IReadOnlyList<RegisterContractChargeModel>? Charges = null,
+    string? PrimaryPurpose = null)
 {
     public RegisterEconomicContractCommand ToCommand(Guid tenantId) => new(
         tenantId,
@@ -35,5 +51,7 @@ public sealed record RegisterEconomicContractModel(
         Periodicity,
         AnchorDay,
         TermMonths,
-        StartDate);
+        StartDate,
+        Charges,
+        PrimaryPurpose);
 }

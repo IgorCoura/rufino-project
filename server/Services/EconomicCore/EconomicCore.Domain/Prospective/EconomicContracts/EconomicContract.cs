@@ -17,8 +17,11 @@ public sealed class EconomicContract : AggregateRoot<EconomicContractId>
     public const int MAX_START_DATE_PAST_YEARS = 1;
     public const decimal DEFAULT_TOLERANCE_PERCENT = 0m;
     public const int DEFAULT_WINDOW_DAYS = 30;
+    public const decimal DEFAULT_FINE_PERCENT = 0.02m;
+    public const decimal DEFAULT_MONTHLY_INTEREST_PERCENT = 0.01m;
 
     private readonly List<Commitment> _commitments = [];
+    private readonly List<ContractCharge> _charges = [];
 
     public TenantId TenantId { get; private set; }
     public EconomicAgentId CounterpartyId { get; private set; }
@@ -26,10 +29,25 @@ public sealed class EconomicContract : AggregateRoot<EconomicContractId>
     public ContractDirection Direction { get; private set; } = default!;
     public RecurrencePattern Recurrence { get; private set; } = default!;
     public CommitmentTerms DefaultTerms { get; private set; } = default!;
+    public PenaltyTerms PenaltyPolicy { get; private set; } = default!;
+
+    /// <summary>
+    /// Purpose of the contract's core track (DefaultTerms). Rent for a lease; Insurance for a standalone insurance
+    /// contract (counterparty = insurer); PropertyTax for an IPTU fiscal obligation (counterparty = municipality).
+    /// Additional <see cref="Charges"/> ride alongside it.
+    /// </summary>
+    public CommitmentPurpose PrimaryPurpose { get; private set; } = default!;
     public int TermMonths { get; private set; }
     public DateOnly StartDate { get; private set; }
     public ContractStatus Status { get; private set; } = default!;
     public IReadOnlyCollection<Commitment> Commitments => _commitments.AsReadOnly();
+
+    /// <summary>
+    /// Additional recurring charge tracks (condominium, property tax, insurance) bundled into this contract.
+    /// The Rent track is the contract core (DefaultTerms) and is NOT represented here. On activation each charge
+    /// yields its own reciprocal commitment pair per period, tagged with the charge's <see cref="CommitmentPurpose"/>.
+    /// </summary>
+    public IReadOnlyCollection<ContractCharge> Charges => _charges.AsReadOnly();
 
     private EconomicContract() : base() { }
     private EconomicContract(EconomicContractId id) : base(id) { }
@@ -44,7 +62,8 @@ public sealed class EconomicContract : AggregateRoot<EconomicContractId>
         CommitmentTerms defaultTerms,
         int termMonths,
         DateOnly startDate,
-        DateTime occurredAt)
+        DateTime occurredAt,
+        CommitmentPurpose? primaryPurpose = null)
     {
         var contract = new EconomicContract(id)
         {
@@ -54,6 +73,8 @@ public sealed class EconomicContract : AggregateRoot<EconomicContractId>
             Direction = direction,
             Recurrence = recurrence,
             DefaultTerms = defaultTerms,
+            PenaltyPolicy = new PenaltyTerms(DEFAULT_FINE_PERCENT, DEFAULT_MONTHLY_INTEREST_PERCENT),
+            PrimaryPurpose = primaryPurpose ?? CommitmentPurpose.Rent,
             Status = ContractStatus.Draft,
             CreatedAt = occurredAt,
             UpdatedAt = occurredAt,
@@ -98,7 +119,8 @@ public sealed class EconomicContract : AggregateRoot<EconomicContractId>
         Currency currency,
         int termMonths,
         DateOnly startDate,
-        DateTime occurredAt)
+        DateTime occurredAt,
+        CommitmentPurpose? primaryPurpose = null)
     {
         var recurrence = new RecurrencePattern(periodicity, anchorDay);
         var defaultTerms = new CommitmentTerms(
@@ -106,12 +128,38 @@ public sealed class EconomicContract : AggregateRoot<EconomicContractId>
             DEFAULT_TOLERANCE_PERCENT,
             DEFAULT_WINDOW_DAYS);
 
-        return Create(id, tenantId, counterpartyId, resourceId, direction, recurrence, defaultTerms, termMonths, startDate, occurredAt);
+        return Create(id, tenantId, counterpartyId, resourceId, direction, recurrence, defaultTerms, termMonths, startDate, occurredAt, primaryPurpose);
     }
 
     /// <summary>
-    /// Activates the contract: materializes the full term as TermMonths × (outflow + inflow)
-    /// reciprocal commitment pairs in a single atomic operation.
+    /// Adds an additional recurring charge track (condominium, property tax, insurance) to a Draft contract.
+    /// Only allowed before activation (CTR22), rejects the Rent purpose (it is the implicit core track — CTR24),
+    /// and forbids duplicate purposes (CTR23). On <see cref="Activate"/> each charge materializes its own
+    /// reciprocal commitment pair per period.
+    /// </summary>
+    public void AddCharge(
+        CommitmentPurpose purpose,
+        decimal expectedAmount,
+        Currency currency,
+        EconomicResourceId resourceId,
+        EconomicAgentId recipientAgentId,
+        bool collectedByCounterparty,
+        DateTime occurredAt)
+    {
+        if (!ReferenceEquals(Status, ContractStatus.Draft))
+            throw EconomicContractErrors.ChargesOnlyInDraft(Status.Name);
+        if (purpose == PrimaryPurpose)
+            throw EconomicContractErrors.RentChargeImplicit();
+        if (_charges.Any(c => c.Purpose == purpose))
+            throw EconomicContractErrors.DuplicateChargePurpose(purpose.Name);
+
+        _charges.Add(new ContractCharge(purpose, new Money(expectedAmount, currency), resourceId, recipientAgentId, collectedByCounterparty));
+        UpdatedAt = occurredAt;
+    }
+
+    /// <summary>
+    /// Activates the contract: materializes the full term as TermMonths × (1 + Charges.Count) reciprocal
+    /// commitment pairs in a single atomic operation — the Rent core track plus one track per additional charge.
     /// CTR16 guards Draft-only activation. The status transitions Draft → Active at the end.
     /// </summary>
     public void Activate(DateTime occurredAt, Func<CommitmentId> commitmentIdFactory)
@@ -123,7 +171,13 @@ public sealed class EconomicContract : AggregateRoot<EconomicContractId>
         {
             var monthDate = StartDate.AddMonths(n);
             var period = new CompetencePeriod(monthDate.Year, monthDate.Month);
-            GenerateCommitmentsFor(period, commitmentIdFactory(), commitmentIdFactory(), occurredAt);
+
+            GeneratePair(period, PrimaryPurpose, DefaultTerms.ExpectedAmount,
+                commitmentIdFactory(), commitmentIdFactory(), occurredAt);
+
+            foreach (var charge in _charges)
+                GeneratePair(period, charge.Purpose, charge.ExpectedAmount,
+                    commitmentIdFactory(), commitmentIdFactory(), occurredAt);
         }
 
         TransitionStatusTo(ContractStatus.Active, occurredAt);
@@ -137,9 +191,9 @@ public sealed class EconomicContract : AggregateRoot<EconomicContractId>
     }
 
     /// <summary>
-    /// Generates the reciprocal pair of commitments for the given period (outflow + inflow).
-    /// CTR01 is structural: pair is always generated together with reciprocal links to each other.
-    /// CTR02 prevents duplicates per (period, direction).
+    /// Generates the Rent reciprocal pair of commitments for the given period (outflow + inflow). Used by the
+    /// recurring scheduler. CTR01 is structural: pair is always generated together with reciprocal links to each
+    /// other. CTR02 prevents duplicates per (period, direction, purpose).
     /// </summary>
     public void GenerateCommitmentsFor(
         CompetencePeriod period,
@@ -150,21 +204,37 @@ public sealed class EconomicContract : AggregateRoot<EconomicContractId>
         if (!ReferenceEquals(Status, ContractStatus.Active) && !ReferenceEquals(Status, ContractStatus.Draft))
             throw EconomicContractErrors.ContractNotActive(Status.Name);
 
-        if (_commitments.Any(c => c.Period.Equals(period) && c.Direction == CommitmentDirection.OutflowPromise))
+        GeneratePair(period, PrimaryPurpose, DefaultTerms.ExpectedAmount,
+            outflowCommitmentId, inflowCommitmentId, occurredAt);
+    }
+
+    /// <summary>
+    /// Materializes a single reciprocal pair (outflow + inflow) for a (period, purpose) track at the given amount.
+    /// CTR02 prevents duplicates per (period, direction, purpose) — multiple charge tracks coexist in one period.
+    /// </summary>
+    private void GeneratePair(
+        CompetencePeriod period,
+        CommitmentPurpose purpose,
+        Money amount,
+        CommitmentId outflowCommitmentId,
+        CommitmentId inflowCommitmentId,
+        DateTime occurredAt)
+    {
+        if (_commitments.Any(c => c.Period.Equals(period) && c.Direction == CommitmentDirection.OutflowPromise && c.Purpose == purpose))
             throw EconomicContractErrors.DuplicateCommitmentForPeriod(period.Year, period.Month, CommitmentDirection.OutflowPromise.Name);
-        if (_commitments.Any(c => c.Period.Equals(period) && c.Direction == CommitmentDirection.InflowPromise))
+        if (_commitments.Any(c => c.Period.Equals(period) && c.Direction == CommitmentDirection.InflowPromise && c.Purpose == purpose))
             throw EconomicContractErrors.DuplicateCommitmentForPeriod(period.Year, period.Month, CommitmentDirection.InflowPromise.Name);
 
         var window = BuildFulfillmentWindow(period);
-        var outflowAmount = new Money(DefaultTerms.ExpectedAmount.Amount, DefaultTerms.ExpectedAmount.Currency);
-        var inflowAmount = new Money(DefaultTerms.ExpectedAmount.Amount, DefaultTerms.ExpectedAmount.Currency);
+        var outflowAmount = new Money(amount.Amount, amount.Currency);
+        var inflowAmount = new Money(amount.Amount, amount.Currency);
         var outflowPeriod = new CompetencePeriod(period.Year, period.Month);
         var inflowPeriod = new CompetencePeriod(period.Year, period.Month);
         var outflowWindow = new DateRange(window.From, window.To);
         var inflowWindow = new DateRange(window.From, window.To);
 
-        var outflow = new Commitment(outflowCommitmentId, CommitmentDirection.OutflowPromise, outflowPeriod, outflowAmount, outflowWindow, occurredAt);
-        var inflow = new Commitment(inflowCommitmentId, CommitmentDirection.InflowPromise, inflowPeriod, inflowAmount, inflowWindow, occurredAt);
+        var outflow = new Commitment(outflowCommitmentId, CommitmentDirection.OutflowPromise, purpose, outflowPeriod, outflowAmount, outflowWindow, occurredAt);
+        var inflow = new Commitment(inflowCommitmentId, CommitmentDirection.InflowPromise, purpose, inflowPeriod, inflowAmount, inflowWindow, occurredAt);
         outflow.SetReciprocal(new ReciprocalLink(inflow.Id));
         inflow.SetReciprocal(new ReciprocalLink(outflow.Id));
 
@@ -181,10 +251,11 @@ public sealed class EconomicContract : AggregateRoot<EconomicContractId>
             TenantId: TenantId,
             PeriodYear: period.Year,
             PeriodMonth: period.Month,
+            Purpose: purpose.Name,
             OutflowCommitmentId: outflow.Id,
             InflowCommitmentId: inflow.Id,
-            ExpectedAmountValue: DefaultTerms.ExpectedAmount.Amount,
-            ExpectedAmountCurrency: DefaultTerms.ExpectedAmount.Currency.Name,
+            ExpectedAmountValue: amount.Amount,
+            ExpectedAmountCurrency: amount.Currency.Name,
             OccurredAt: occurredAt));
     }
 
@@ -226,6 +297,44 @@ public sealed class EconomicContract : AggregateRoot<EconomicContractId>
             ContractId: Id,
             CommitmentId: commitment.Id,
             OccurredAt: occurredAt));
+    }
+
+    /// <summary>
+    /// Materializes a late-payment penalty (multa + juros de mora) as a reciprocal Penalty pair when the commitment
+    /// <paramref name="paidCommitmentId"/> was settled after its fulfillment window. The Penalty obligation is born
+    /// on breach (Hruby §10.5), never pre-generated. Idempotent: returns false (no-op) when the payment was on time
+    /// or when a Penalty track already exists for that period. The amount applies <see cref="PenaltyPolicy"/> to the
+    /// original commitment amount over the number of full months late.
+    /// </summary>
+    public bool TryRegisterLatePenalty(
+        CommitmentId paidCommitmentId,
+        DateOnly paidDate,
+        Func<CommitmentId> penaltyIdFactory,
+        DateTime occurredAt)
+    {
+        var paid = FindCommitmentOrThrow(paidCommitmentId);
+
+        // A decisão de quem é penalizável é do agregado: só o pagamento (outflow) de uma trilha não-Penalty.
+        // Chamadas para a perna de inflow (ou para a própria trilha Penalty) são no-op — o relay pode chamar
+        // este método para os dois lados da duality sem precisar saber qual é qual.
+        if (paid.Direction != CommitmentDirection.OutflowPromise || paid.Purpose == CommitmentPurpose.Penalty)
+            return false;
+
+        var dueDate = paid.FulfillmentWindow.To;
+        if (paidDate <= dueDate)
+            return false;
+
+        // Idempotent: a reprocessed relay message must not materialize a second penalty for the same period.
+        if (_commitments.Any(c => c.Purpose == CommitmentPurpose.Penalty && c.Period.Equals(paid.Period)))
+            return false;
+
+        var monthsLate = ((paidDate.Year * 12) + paidDate.Month) - ((dueDate.Year * 12) + dueDate.Month);
+        var penaltyAmount = PenaltyPolicy.ComputePenalty(paid.ExpectedAmount, monthsLate);
+        if (!penaltyAmount.IsPositive)
+            return false;
+
+        GeneratePair(paid.Period, CommitmentPurpose.Penalty, penaltyAmount, penaltyIdFactory(), penaltyIdFactory(), occurredAt);
+        return true;
     }
 
     /// <summary>
@@ -284,6 +393,82 @@ public sealed class EconomicContract : AggregateRoot<EconomicContractId>
     public void Resume(DateTime occurredAt) => TransitionStatusTo(ContractStatus.Active, occurredAt);
 
     /// <summary>
+    /// Mid-term adjustment (reajuste): re-prices every still-open (Promised) commitment of the given track from
+    /// <paramref name="effectiveFrom"/> onward to <paramref name="newAmount"/>. Commitments already settled in or
+    /// after that competence are locked and block the operation (CTR40, Value Pattern LockValue). CTR41 if there is
+    /// nothing open to re-price. The caller composes the new amount (absolute or index-applied).
+    /// </summary>
+    public Money ApplyAdjustmentToAmount(
+        CommitmentPurpose purpose, int effectiveFromYear, int effectiveFromMonth, decimal newValue, Currency currency, DateTime occurredAt)
+        => ApplyAdjustmentCore(purpose, new CompetencePeriod(effectiveFromYear, effectiveFromMonth), new Money(newValue, currency), occurredAt);
+
+    /// <summary>
+    /// Mid-term adjustment by an index rate (e.g. IGPM 0.06): the new amount is the track's current amount times
+    /// (1 + rate). The pricing rule and the Money composition live here, in the aggregate — never in the caller.
+    /// </summary>
+    public Money ApplyAdjustmentByRate(
+        CommitmentPurpose purpose, int effectiveFromYear, int effectiveFromMonth, decimal indexRate, DateTime occurredAt)
+    {
+        var newAmount = CurrentTrackAmount(purpose).Multiply(1m + indexRate);
+        return ApplyAdjustmentCore(purpose, new CompetencePeriod(effectiveFromYear, effectiveFromMonth), newAmount, occurredAt);
+    }
+
+    /// <summary>
+    /// Re-prices every still-open (Promised) commitment of the track from <paramref name="effectiveFrom"/> onward to
+    /// <paramref name="newAmount"/>. Commitments already settled in/after that competence are locked and block the
+    /// operation (CTR40, Value Pattern LockValue). CTR41 when there is nothing open to re-price. Returns the applied amount.
+    /// </summary>
+    private Money ApplyAdjustmentCore(CommitmentPurpose purpose, CompetencePeriod effectiveFrom, Money newAmount, DateTime occurredAt)
+    {
+        EnsureActive();
+
+        if (_commitments.Any(c => c.Purpose == purpose
+            && c.Status == CommitmentStatus.Fulfilled
+            && IsPeriodOnOrAfter(c.Period, effectiveFrom)))
+            throw EconomicContractErrors.AdjustmentOverLockedPeriod(effectiveFrom.Year, effectiveFrom.Month);
+
+        var targets = _commitments
+            .Where(c => c.Purpose == purpose
+                && c.Status == CommitmentStatus.Promised
+                && IsPeriodOnOrAfter(c.Period, effectiveFrom))
+            .ToList();
+        if (targets.Count == 0)
+            throw EconomicContractErrors.NoCommitmentsToAdjust(purpose.Name, effectiveFrom.Year, effectiveFrom.Month);
+
+        foreach (var commitment in targets)
+            commitment.Reprice(new Money(newAmount.Amount, newAmount.Currency), occurredAt);
+
+        UpdatedAt = occurredAt;
+        AddDomainEvent(new ContractAdjusted(
+            EventId: Guid.NewGuid(),
+            ContractId: Id,
+            TenantId: TenantId,
+            Purpose: purpose.Name,
+            EffectiveFromYear: effectiveFrom.Year,
+            EffectiveFromMonth: effectiveFrom.Month,
+            NewAmountValue: newAmount.Amount,
+            NewAmountCurrency: newAmount.Currency.Name,
+            RepricedCount: targets.Count,
+            OccurredAt: occurredAt));
+
+        return newAmount;
+    }
+
+    private static bool IsPeriodOnOrAfter(CompetencePeriod period, CompetencePeriod from)
+        => period.Year > from.Year || (period.Year == from.Year && period.Month >= from.Month);
+
+    private Money CurrentTrackAmount(CommitmentPurpose purpose)
+    {
+        var latest = _commitments
+            .Where(c => c.Purpose == purpose)
+            .OrderByDescending(c => c.Period.Year).ThenByDescending(c => c.Period.Month)
+            .FirstOrDefault()
+            ?? throw EconomicContractErrors.NoChargeTrack(purpose.Name);
+
+        return latest.ExpectedAmount;
+    }
+
+    /// <summary>
     /// Terminates the contract on <paramref name="terminationDate"/>. Guards the status transition first
     /// (no side effects if it can't terminate), then rejects a date earlier than the last occupied inflow
     /// period (CTR20), then cancels in cascade every still-pending commitment whose period starts after the
@@ -334,10 +519,18 @@ public sealed class EconomicContract : AggregateRoot<EconomicContractId>
     }
 
     public Commitment FindPromisedCommitment(CompetencePeriod period, CommitmentDirection direction)
+        => FindPromisedCommitment(period, direction, PrimaryPurpose);
+
+    /// <summary>
+    /// Finds the open (Promised) commitment for a specific (period, direction, purpose) track. With multiple
+    /// charge tracks per period the purpose disambiguates which track (rent vs condominium vs …) to cover.
+    /// </summary>
+    public Commitment FindPromisedCommitment(CompetencePeriod period, CommitmentDirection direction, CommitmentPurpose purpose)
     {
         var commitment = _commitments
             .FirstOrDefault(c => c.Period.Equals(period)
                 && c.Direction == direction
+                && c.Purpose == purpose
                 && c.Status == CommitmentStatus.Promised);
 
         if (commitment is null)

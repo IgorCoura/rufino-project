@@ -14,7 +14,12 @@ public sealed record EconomicEventRegistered(
     string AmountCurrency,
     int CompetenceYear,
     int CompetenceMonth,
-    Guid? CoveringContractId,
-    Guid? CoveringCommitmentId,
+    IReadOnlyList<EconomicEventCovering> Coverings,
     Guid? CounterpartEventId,
     DateTime OccurredAt) : IDomainEvent;
+
+/// <summary>
+/// One covering commitment carried by <see cref="EconomicEventRegistered"/>. A bundled payment carries one entry
+/// per allocation; the deferred duality-close handler closes one leg per covering. Empty for a directly-paired event.
+/// </summary>
+public sealed record EconomicEventCovering(Guid ContractId, Guid CommitmentId);

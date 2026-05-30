@@ -9,6 +9,7 @@ public sealed record CommitmentsGenerated(
     TenantId TenantId,
     int PeriodYear,
     int PeriodMonth,
+    string Purpose,
     CommitmentId OutflowCommitmentId,
     CommitmentId InflowCommitmentId,
     decimal ExpectedAmountValue,

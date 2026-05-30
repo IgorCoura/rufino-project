@@ -110,7 +110,7 @@ public sealed class RentPostPaidCycleTests : BaseIntegrationTest
 
         var dualityBeforePump = await ExecuteDbContextAsync(db =>
             db.EconomicEvents.AsNoTracking()
-                .Where(e => e.TenantId.Equals(TenantId.From(KnownIds.TenantA)) && e.Duality != null)
+                .Where(e => e.TenantId.Equals(TenantId.From(KnownIds.TenantA)) && e.DualityLinks.Any())
                 .CountAsync());
         Assert.Equal(0, dualityBeforePump);
 
@@ -132,7 +132,7 @@ public sealed class RentPostPaidCycleTests : BaseIntegrationTest
 
         var dualityCount = await ExecuteDbContextAsync(db =>
             db.EconomicEvents.AsNoTracking()
-                .Where(e => e.TenantId.Equals(TenantId.From(KnownIds.TenantA)) && e.Duality != null)
+                .Where(e => e.TenantId.Equals(TenantId.From(KnownIds.TenantA)) && e.DualityLinks.Any())
                 .CountAsync());
         Assert.Equal(24, dualityCount);
 

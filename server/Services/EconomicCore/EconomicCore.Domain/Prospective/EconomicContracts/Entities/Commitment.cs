@@ -9,6 +9,7 @@ using EconomicCore.Domain.SharedKernel;
 public sealed class Commitment : Entity<CommitmentId>
 {
     public CommitmentDirection Direction { get; private set; } = default!;
+    public CommitmentPurpose Purpose { get; private set; } = default!;
     public CompetencePeriod Period { get; private set; } = default!;
     public Money ExpectedAmount { get; private set; } = default!;
     public DateRange FulfillmentWindow { get; private set; } = default!;
@@ -21,12 +22,14 @@ public sealed class Commitment : Entity<CommitmentId>
     internal Commitment(
         CommitmentId id,
         CommitmentDirection direction,
+        CommitmentPurpose purpose,
         CompetencePeriod period,
         Money expectedAmount,
         DateRange fulfillmentWindow,
         DateTime occurredAt) : base(id)
     {
         Direction = direction;
+        Purpose = purpose;
         Period = period;
         ExpectedAmount = expectedAmount;
         FulfillmentWindow = fulfillmentWindow;
@@ -38,6 +41,16 @@ public sealed class Commitment : Entity<CommitmentId>
     internal void SetReciprocal(ReciprocalLink reciprocal)
     {
         Reciprocal = reciprocal;
+    }
+
+    /// <summary>
+    /// Re-prices a still-open commitment to a new expected amount (mid-term adjustment / reajuste). Only the Root
+    /// calls this, and only for Promised commitments — settled/cancelled ones are locked (Value Pattern LockValue).
+    /// </summary>
+    internal void Reprice(Money newExpectedAmount, DateTime occurredAt)
+    {
+        ExpectedAmount = newExpectedAmount;
+        UpdatedAt = occurredAt;
     }
 
     internal void MarkFulfilledBy(EconomicEventId fulfillingEventId, DateTime occurredAt)

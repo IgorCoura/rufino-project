@@ -74,30 +74,58 @@ internal sealed class EconomicEventMap : IEntityTypeConfiguration<EconomicEvent>
                 .IsRequired();
         });
 
-        builder.OwnsOne(e => e.Duality, dl =>
+        builder.OwnsMany(e => e.Allocations, a =>
         {
-            dl.Property(d => d.CounterpartEventId)
-                .HasColumnName("duality_counterpart_event_id")
-                .HasConversion(v => v.Value, v => EconomicEventId.From(v));
+            a.ToTable("economic_event_allocations");
+            a.WithOwner().HasForeignKey("economic_event_id");
+            a.Property<int>("id").ValueGeneratedOnAdd();
+            a.HasKey("id");
 
-            dl.OwnsOne(d => d.MatchedAmount, ma =>
+            a.OwnsOne(x => x.Commitment, cr =>
             {
-                ma.Property(m => m.Amount).HasColumnName("duality_matched_amount").HasColumnType("decimal(18,2)");
-                ma.Property(m => m.Currency)
-                    .HasColumnName("duality_matched_currency")
-                    .HasConversion(v => v.Id, v => Enumeration.FromValue<Currency>(v));
+                cr.Property(c => c.ContractId)
+                    .HasColumnName("covering_contract_id")
+                    .HasConversion(v => v.Value, v => EconomicContractId.From(v))
+                    .IsRequired();
+                cr.Property(c => c.CommitmentId)
+                    .HasColumnName("covering_commitment_id")
+                    .HasConversion(v => v.Value, v => CommitmentId.From(v))
+                    .IsRequired();
+            });
+
+            a.OwnsOne(x => x.Amount, money =>
+            {
+                money.Property(m => m.Amount).HasColumnName("amount").HasColumnType("decimal(18,2)").IsRequired();
+                money.Property(m => m.Currency)
+                    .HasColumnName("amount_currency")
+                    .HasConversion(v => v.Id, v => Enumeration.FromValue<Currency>(v))
+                    .IsRequired();
             });
         });
 
-        builder.OwnsOne(e => e.CoveringCommitment, cr =>
+        builder.OwnsMany(e => e.DualityLinks, dl =>
         {
-            cr.Property(c => c.ContractId)
-                .HasColumnName("covering_contract_id")
-                .HasConversion(v => v.Value, v => EconomicContractId.From(v));
+            dl.ToTable("economic_event_duality_links");
+            dl.WithOwner().HasForeignKey("economic_event_id");
+            dl.Property<int>("id").ValueGeneratedOnAdd();
+            dl.HasKey("id");
 
-            cr.Property(c => c.CommitmentId)
-                .HasColumnName("covering_commitment_id")
-                .HasConversion(v => v.Value, v => CommitmentId.From(v));
+            dl.Property(d => d.CounterpartEventId)
+                .HasColumnName("counterpart_event_id")
+                .HasConversion(v => v.Value, v => EconomicEventId.From(v))
+                .IsRequired();
+
+            dl.Property(d => d.CommitmentId)
+                .HasColumnName("commitment_id")
+                .HasConversion(v => v!.Value.Value, v => CommitmentId.From(v));
+
+            dl.Property(d => d.MatchedAmountValue)
+                .HasColumnName("matched_amount").HasColumnType("decimal(18,2)").IsRequired();
+            dl.Property(d => d.MatchedCurrency)
+                .HasColumnName("matched_currency")
+                .HasConversion(v => v.Id, v => Enumeration.FromValue<Currency>(v))
+                .IsRequired();
+            dl.Ignore(d => d.MatchedAmount);
         });
 
         builder.OwnsOne(e => e.Competence, cp =>

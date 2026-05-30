@@ -38,14 +38,15 @@ public class DualityMatchingServiceTests
         consumption.ClearDomainEvents();
         payment.ClearDomainEvents();
 
-        DualityMatchingService.Match(payment, consumption, MatchAt);
+        var commitmentId = commitmentRef.CommitmentId;
+        DualityMatchingService.Match(payment, commitmentId, consumption, commitmentId, MatchAt);
 
-        Assert.NotNull(payment.Duality);
-        Assert.NotNull(consumption.Duality);
-        Assert.Equal(consumption.Id, payment.Duality!.CounterpartEventId);
-        Assert.Equal(payment.Id, consumption.Duality!.CounterpartEventId);
-        Assert.Equal(1000m, payment.Duality.MatchedAmount.Amount);
-        Assert.Equal(1000m, consumption.Duality.MatchedAmount.Amount);
+        var paymentLink = Assert.Single(payment.DualityLinks);
+        var consumptionLink = Assert.Single(consumption.DualityLinks);
+        Assert.Equal(consumption.Id, paymentLink.CounterpartEventId);
+        Assert.Equal(payment.Id, consumptionLink.CounterpartEventId);
+        Assert.Equal(1000m, payment.MatchedAmountFor(commitmentId));
+        Assert.Equal(1000m, consumption.MatchedAmountFor(commitmentId));
 
         var paymentClosed = Assert.IsType<DualityClosed>(Assert.Single(payment.PullDomainEvents()));
         var consumptionClosed = Assert.IsType<DualityClosed>(Assert.Single(consumption.PullDomainEvents()));
@@ -53,7 +54,7 @@ public class DualityMatchingServiceTests
         Assert.Equal(payment.Id, consumptionClosed.CounterpartEventId);
     }
 
-    // Amounts diferentes: matching usa o mínimo dos saldos remanescentes (Phase 1 ainda 1:1, mas mecânica funciona).
+    // Amounts diferentes: matching usa o mínimo dos saldos remanescentes das alocações.
     [Fact]
     public void Match_WithDifferentAmounts_ShouldMatchMinimumOfBalances()
     {
@@ -61,10 +62,11 @@ public class DualityMatchingServiceTests
         var consumption = BuildConsumption(commitmentRef, new Money(800m, Currency.BRL));
         var payment = BuildPayment(commitmentRef, new Money(1000m, Currency.BRL));
 
-        DualityMatchingService.Match(payment, consumption, MatchAt);
+        var commitmentId = commitmentRef.CommitmentId;
+        DualityMatchingService.Match(payment, commitmentId, consumption, commitmentId, MatchAt);
 
-        Assert.Equal(800m, payment.Duality!.MatchedAmount.Amount);
-        Assert.Equal(800m, consumption.Duality!.MatchedAmount.Amount);
+        Assert.Equal(800m, payment.MatchedAmountFor(commitmentId));
+        Assert.Equal(800m, consumption.MatchedAmountFor(commitmentId));
     }
 
     // paymentEvent null lança ECC.DMS01.
@@ -75,7 +77,7 @@ public class DualityMatchingServiceTests
         var consumption = BuildConsumption(commitmentRef);
 
         var ex = Assert.Throws<DomainException>(
-            () => DualityMatchingService.Match(null!, consumption, MatchAt));
+            () => DualityMatchingService.Match(null!, commitmentRef.CommitmentId, consumption, commitmentRef.CommitmentId, MatchAt));
 
         Assert.Equal("ECC.DMS01", ex.Id);
     }
@@ -88,7 +90,7 @@ public class DualityMatchingServiceTests
         var payment = BuildPayment(commitmentRef);
 
         var ex = Assert.Throws<DomainException>(
-            () => DualityMatchingService.Match(payment, null!, MatchAt));
+            () => DualityMatchingService.Match(payment, commitmentRef.CommitmentId, null!, commitmentRef.CommitmentId, MatchAt));
 
         Assert.Equal("ECC.DMS01", ex.Id);
     }
@@ -121,7 +123,7 @@ public class DualityMatchingServiceTests
             registeredAt: EconomicEventMother.FixedRegisteredAt);
 
         var ex = Assert.Throws<DomainException>(
-            () => DualityMatchingService.Match(payment, consumption, MatchAt));
+            () => DualityMatchingService.Match(payment, commitmentRef.CommitmentId, consumption, commitmentRef.CommitmentId, MatchAt));
 
         Assert.Equal("ECC.DMS02", ex.Id);
     }
@@ -137,9 +139,9 @@ public class DualityMatchingServiceTests
         consumption.ClearDomainEvents();
         payment.ClearDomainEvents();
 
-        DualityMatchingService.Match(payment, consumption, MatchAt);
+        DualityMatchingService.Match(payment, outflowRef.CommitmentId, consumption, inflowRef.CommitmentId, MatchAt);
 
-        Assert.NotNull(payment.Duality);
-        Assert.NotNull(consumption.Duality);
+        Assert.Single(payment.DualityLinks);
+        Assert.Single(consumption.DualityLinks);
     }
 }

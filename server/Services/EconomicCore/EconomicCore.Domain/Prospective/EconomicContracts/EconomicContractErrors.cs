@@ -254,6 +254,140 @@ public static class EconomicContractErrors
             sourcePath: BuildSourcePath(filePath, memberName, lineNumber),
             category: DomainErrorCategory.Conflict);
 
+    public static DomainException ChargesOnlyInDraft(
+        string currentStatus,
+        [CallerFilePath] string filePath = "",
+        [CallerMemberName] string memberName = "",
+        [CallerLineNumber] int lineNumber = 0)
+        => new(
+            id: $"{PREFIX}22",
+            messageTemplate: "Encargos só podem ser adicionados com o contrato em Draft (status atual: {0}).",
+            parameters: new object[] { currentStatus },
+            sourcePath: BuildSourcePath(filePath, memberName, lineNumber),
+            category: DomainErrorCategory.Conflict);
+
+    public static DomainException DuplicateChargePurpose(
+        string purposeName,
+        [CallerFilePath] string filePath = "",
+        [CallerMemberName] string memberName = "",
+        [CallerLineNumber] int lineNumber = 0)
+        => new(
+            id: $"{PREFIX}23",
+            messageTemplate: "Já existe um encargo do tipo {0} neste contrato.",
+            parameters: new object[] { purposeName },
+            sourcePath: BuildSourcePath(filePath, memberName, lineNumber),
+            category: DomainErrorCategory.Conflict);
+
+    public static DomainException RentChargeImplicit(
+        [CallerFilePath] string filePath = "",
+        [CallerMemberName] string memberName = "",
+        [CallerLineNumber] int lineNumber = 0)
+        => new(
+            id: $"{PREFIX}24",
+            messageTemplate: "A trilha-núcleo do contrato (PrimaryPurpose) não pode ser adicionada como encargo extra.",
+            parameters: Array.Empty<object>(),
+            sourcePath: BuildSourcePath(filePath, memberName, lineNumber));
+
+    public static DomainException InvalidChargeAmount(
+        [CallerFilePath] string filePath = "",
+        [CallerMemberName] string memberName = "",
+        [CallerLineNumber] int lineNumber = 0)
+        => new(
+            id: $"{PREFIX}25",
+            messageTemplate: "ContractCharge requer ExpectedAmount maior que zero.",
+            parameters: Array.Empty<object>(),
+            sourcePath: BuildSourcePath(filePath, memberName, lineNumber));
+
+    public static DomainException InvalidChargeResource(
+        [CallerFilePath] string filePath = "",
+        [CallerMemberName] string memberName = "",
+        [CallerLineNumber] int lineNumber = 0)
+        => new(
+            id: $"{PREFIX}26",
+            messageTemplate: "ContractCharge requer um EconomicResourceId não vazio.",
+            parameters: Array.Empty<object>(),
+            sourcePath: BuildSourcePath(filePath, memberName, lineNumber));
+
+    public static DomainException InvalidChargeRecipient(
+        [CallerFilePath] string filePath = "",
+        [CallerMemberName] string memberName = "",
+        [CallerLineNumber] int lineNumber = 0)
+        => new(
+            id: $"{PREFIX}27",
+            messageTemplate: "ContractCharge requer um EconomicAgentId de destinatário não vazio.",
+            parameters: Array.Empty<object>(),
+            sourcePath: BuildSourcePath(filePath, memberName, lineNumber));
+
+    public static DomainException InvalidChargePurpose(
+        [CallerFilePath] string filePath = "",
+        [CallerMemberName] string memberName = "",
+        [CallerLineNumber] int lineNumber = 0)
+        => new(
+            id: $"{PREFIX}28",
+            messageTemplate: "ContractCharge requer um CommitmentPurpose não nulo.",
+            parameters: Array.Empty<object>(),
+            sourcePath: BuildSourcePath(filePath, memberName, lineNumber));
+
+    public static DomainException InvalidPenaltyTerms(
+        decimal percent,
+        [CallerFilePath] string filePath = "",
+        [CallerMemberName] string memberName = "",
+        [CallerLineNumber] int lineNumber = 0)
+        => new(
+            id: $"{PREFIX}30",
+            messageTemplate: "Percentual de penalidade {0} inválido (esperado entre 0 e 1).",
+            parameters: new object[] { percent },
+            sourcePath: BuildSourcePath(filePath, memberName, lineNumber));
+
+    public static DomainException AdjustmentOverLockedPeriod(
+        int year,
+        int month,
+        [CallerFilePath] string filePath = "",
+        [CallerMemberName] string memberName = "",
+        [CallerLineNumber] int lineNumber = 0)
+        => new(
+            id: $"{PREFIX}40",
+            messageTemplate: "Reajuste inválido: o período {0}/{1} ou anterior já foi cumprido e está travado.",
+            parameters: new object[] { month, year },
+            sourcePath: BuildSourcePath(filePath, memberName, lineNumber),
+            category: DomainErrorCategory.Conflict);
+
+    public static DomainException NoCommitmentsToAdjust(
+        string purposeName,
+        int year,
+        int month,
+        [CallerFilePath] string filePath = "",
+        [CallerMemberName] string memberName = "",
+        [CallerLineNumber] int lineNumber = 0)
+        => new(
+            id: $"{PREFIX}41",
+            messageTemplate: "Nenhum commitment {0} em aberto a partir de {2}/{1} para reajustar.",
+            parameters: new object[] { purposeName, year, month },
+            sourcePath: BuildSourcePath(filePath, memberName, lineNumber),
+            category: DomainErrorCategory.Conflict);
+
+    public static DomainException AmbiguousAdjustment(
+        [CallerFilePath] string filePath = "",
+        [CallerMemberName] string memberName = "",
+        [CallerLineNumber] int lineNumber = 0)
+        => new(
+            id: $"{PREFIX}42",
+            messageTemplate: "Reajuste exige exatamente um entre novo valor absoluto OU índice (indexRate).",
+            parameters: Array.Empty<object>(),
+            sourcePath: BuildSourcePath(filePath, memberName, lineNumber));
+
+    public static DomainException NoChargeTrack(
+        string purposeName,
+        [CallerFilePath] string filePath = "",
+        [CallerMemberName] string memberName = "",
+        [CallerLineNumber] int lineNumber = 0)
+        => new(
+            id: $"{PREFIX}43",
+            messageTemplate: "Não há trilha {0} neste contrato para ler o valor corrente.",
+            parameters: new object[] { purposeName },
+            sourcePath: BuildSourcePath(filePath, memberName, lineNumber),
+            category: DomainErrorCategory.Conflict);
+
     private static string BuildSourcePath(string filePath, string memberName, int lineNumber)
         => $"{Path.GetFileName(filePath)}:{lineNumber} ({memberName})";
 }

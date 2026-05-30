@@ -46,6 +46,10 @@ internal sealed class RegisterEconomicContractHandler : IRequestHandler<Register
         var direction = Enumeration.FromDisplayName<ContractDirection>(request.Direction);
         var periodicity = Enumeration.FromDisplayName<Periodicity>(request.Periodicity);
         var currency = Enumeration.FromDisplayName<Currency>(request.Currency);
+        var primaryPurpose = request.PrimaryPurpose is { } pp
+            ? Enumeration.FromDisplayName<CommitmentPurpose>(pp)
+            : CommitmentPurpose.Rent;
+        var occurredAt = _timeProvider.GetUtcNow().UtcDateTime;
 
         var contract = EconomicContract.Create(
             EconomicContractId.New(),
@@ -59,7 +63,31 @@ internal sealed class RegisterEconomicContractHandler : IRequestHandler<Register
             currency,
             request.TermMonths,
             request.StartDate,
-            _timeProvider.GetUtcNow().UtcDateTime);
+            occurredAt,
+            primaryPurpose);
+
+        foreach (var chargeModel in request.Charges ?? [])
+        {
+            var chargeResourceId = EconomicResourceId.From(chargeModel.ResourceId);
+            var recipientId = EconomicAgentId.From(chargeModel.RecipientAgentId);
+
+            if (!await _resourceRepo.ExistsAsync(chargeResourceId, tenantId, cancellationToken))
+                throw EconomicResourceErrors.ResourceNotFound(chargeModel.ResourceId);
+            if (!await _agentRepo.ExistsAsync(recipientId, tenantId, cancellationToken))
+                throw EconomicAgentErrors.AgentNotFound(chargeModel.RecipientAgentId);
+
+            var chargePurpose = Enumeration.FromDisplayName<CommitmentPurpose>(chargeModel.Purpose);
+            var chargeCurrency = Enumeration.FromDisplayName<Currency>(chargeModel.Currency);
+
+            contract.AddCharge(
+                chargePurpose,
+                chargeModel.ExpectedAmount,
+                chargeCurrency,
+                chargeResourceId,
+                recipientId,
+                chargeModel.CollectedByCounterparty,
+                occurredAt);
+        }
 
         await _contractRepo.InsertAsync(contract, cancellationToken);
         await _contractRepo.UnitOfWork.SaveEntitiesAsync(cancellationToken);
