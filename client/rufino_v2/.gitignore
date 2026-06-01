@@ -64,3 +64,8 @@ domain_errors.json
 /secrets/
 
 sentry.properties
+
+# Android signing — never commit the upload key or its passwords
+**/key.properties
+**/*.jks
+**/*.keystore

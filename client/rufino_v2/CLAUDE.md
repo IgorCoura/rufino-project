@@ -1037,6 +1037,16 @@ Secrets live in `secrets/` (not committed):
 - `local_config.json` — local Keycloak + API endpoints
 - `prod_config.json` — Azure Keycloak + API endpoints
 
+## Deployment (Android / Google Play)
+
+CI deploys to the Play Store via `.github/workflows/deploy-rufino-android.yml`
+(triggered manually or on push to `main` under `client/rufino_v2/`). The
+release build is signed with a real upload key: `android/app/build.gradle.kts`
+reads `android/key.properties` when present (created by CI from secrets) and
+falls back to debug keys locally. `prod_config.json` is recreated in CI from
+the `PLAY_STORE_CONFIG_JSON` secret. See the workflow header for the full list
+of required GitHub secrets and where to obtain each in the Google Play Console.
+
 ---
 
 ## Common Commands
