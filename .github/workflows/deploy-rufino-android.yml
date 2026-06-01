@@ -1,0 +1,159 @@
+name: Deploy Rufino Android (Google Play)
+
+# Publica o app Flutter `client/rufino_v2` na Google Play Store.
+#
+# Dispara:
+#   - Manualmente (workflow_dispatch), permitindo escolher a track do Play.
+#   - Em push na branch main que altere algo em client/rufino_v2.
+#
+# ──────────────────────────────────────────────────────────────────────────
+# SECRETS NECESSÁRIOS (Settings > Secrets and variables > Actions > New secret)
+# ──────────────────────────────────────────────────────────────────────────
+#
+# PLAY_STORE_CONFIG_JSON
+#   Conteúdo do arquivo secrets/prod_config.json (config injetada via
+#   --dart-define-from-file). Não é gerado no Google Play — é o seu config de
+#   produção (endpoints Keycloak/API, DSN do Sentry). Copie o JSON inteiro.
+#
+# ANDROID_KEYSTORE_BASE64
+#   Sua UPLOAD KEY (keystore .jks) em base64. NÃO vem do Google Play — você gera
+#   localmente uma única vez:
+#     keytool -genkey -v -keystore upload-keystore.jks -keyalg RSA \
+#       -keysize 2048 -validity 10000 -alias upload
+#   Depois converta para base64:
+#     # Linux/macOS:  base64 -w0 upload-keystore.jks
+#     # Windows PS :  [Convert]::ToBase64String([IO.File]::ReadAllBytes("upload-keystore.jks"))
+#   Guarde o .jks original em local seguro — perdê-lo impede futuras atualizações.
+#
+# ANDROID_KEYSTORE_PASSWORD
+#   Senha do keystore (a "store password" definida no keytool acima).
+#
+# ANDROID_KEY_PASSWORD
+#   Senha da chave (a "key password" do keytool; normalmente igual à store).
+#
+# ANDROID_KEY_ALIAS
+#   Alias da chave (no exemplo acima: `upload`).
+#
+# GOOGLE_PLAY_SERVICE_ACCOUNT_JSON
+#   JSON da conta de serviço com permissão de publicar.
+#   Onde encontrar / criar no console do Google Play Developers:
+#     1. Google Play Console > Configurações (Setup) > Acesso à API (API access).
+#     2. Vincule (ou crie) um projeto do Google Cloud.
+#     3. Em "Contas de serviço", clique em "Criar conta de serviço" — isso abre
+#        o Google Cloud Console. Crie a conta e gere uma chave do tipo JSON
+#        (Chaves > Adicionar chave > Criar nova chave > JSON). O arquivo baixa.
+#     4. De volta ao Play Console > Acesso à API, conceda acesso à conta de
+#        serviço e dê a permissão "Administrar versões" (Release manager) ou
+#        "Administrador da app" para o app br.com.couratechsafety.rufino.
+#     5. Cole o conteúdo completo do JSON baixado neste secret.
+#
+# Observação: a primeira publicação de um app novo deve ser feita manualmente
+# pelo Play Console. A API só consegue enviar atualizações depois que existe
+# uma primeira release criada para o pacote.
+# ──────────────────────────────────────────────────────────────────────────
+
+on:
+  workflow_dispatch:
+    inputs:
+      track:
+        description: "Track do Google Play para publicar"
+        required: true
+        default: internal
+        type: choice
+        options:
+          - internal
+          - alpha
+          - beta
+          - production
+  push:
+    branches: ["main"]
+    paths:
+      - "client/rufino_v2/**"
+
+# Evita publicações concorrentes para o mesmo app.
+concurrency:
+  group: deploy-rufino-android
+  cancel-in-progress: false
+
+env:
+  # Pacote do app (android/app/build.gradle.kts -> applicationId).
+  PACKAGE_NAME: br.com.couratechsafety.rufino
+  # Versão do Flutter compatível com o SDK Dart ^3.5.2 do pubspec.yaml.
+  FLUTTER_VERSION: "3.27.1"
+  # Diretório do app dentro do monorepo.
+  WORKING_DIR: client/rufino_v2
+  # Offset somado ao número da execução para gerar o versionCode (Play exige
+  # versionCode crescente). Ajuste se o Play Console já tiver um build maior:
+  # o versionCode final será BUILD_NUMBER_OFFSET + github.run_number.
+  BUILD_NUMBER_OFFSET: 1
+
+jobs:
+  build-and-deploy:
+    name: Build & publish to Google Play
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: client/rufino_v2
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - name: Restore production config (prod_config.json)
+        # O diretório secrets/ é gitignored; recriamos o config usado pelo
+        # --dart-define-from-file a partir do secret.
+        run: |
+          mkdir -p secrets
+          printf '%s' '${{ secrets.PLAY_STORE_CONFIG_JSON }}' > secrets/prod_config.json
+
+      - name: Decode upload keystore
+        run: |
+          echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 --decode > android/app/upload-keystore.jks
+
+      - name: Create key.properties
+        # Lido por android/app/build.gradle.kts para assinar o release.
+        run: |
+          cat > android/key.properties <<EOF
+          storeFile=upload-keystore.jks
+          storePassword=${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          keyAlias=${{ secrets.ANDROID_KEY_ALIAS }}
+          keyPassword=${{ secrets.ANDROID_KEY_PASSWORD }}
+          EOF
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Build Android App Bundle (.aab)
+        run: |
+          flutter build appbundle \
+            --release \
+            --dart-define-from-file=secrets/prod_config.json \
+            --build-number=$(( ${{ env.BUILD_NUMBER_OFFSET }} + ${{ github.run_number }} ))
+
+      - name: Publish to Google Play
+        uses: r0adkll/upload-google-play@v1
+        with:
+          serviceAccountJsonPlainText: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}
+          packageName: ${{ env.PACKAGE_NAME }}
+          releaseFiles: client/rufino_v2/build/app/outputs/bundle/release/app-release.aab
+          # Em push usa "internal" (teste interno) por padrão; no disparo manual
+          # respeita a track escolhida no input.
+          track: ${{ github.event.inputs.track || 'internal' }}
+          status: completed
+          # Para enviar o mapping ProGuard/R8 (desofuscar crashes no Play Console),
+          # habilite a minificação no buildType release (isMinifyEnabled = true e
+          # isShrinkResources = true) e descomente a linha abaixo:
+          # mappingFile: client/rufino_v2/build/app/outputs/mapping/release/mapping.txt
