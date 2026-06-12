@@ -131,6 +131,57 @@ public class EconomicAgentTests
         yield return new object[] { AgentScope.Outside };
     }
 
+    // Overload de Create com taxIdValue/taxIdKind primitivos compõe o TaxId internamente (Application não monta VO).
+    [Fact]
+    public void Create_WithPrimitiveTaxIdInputs_ShouldComposeTaxIdInternally()
+    {
+        var agent = EconomicAgent.Create(
+            EconomicAgentMother.FixedAgentId,
+            EconomicAgentMother.FixedTenantId,
+            EconomicAgentMother.DEFAULT_NAME,
+            AgentScope.Outside,
+            VALID_CPF,
+            TaxIdKind.CPF,
+            EconomicAgentMother.FixedOccurredAt);
+
+        Assert.Equal(ValidCpfTaxId, agent.TaxId);
+    }
+
+    // Overload primitivo com valor em branco/nulo resulta em agente sem TaxId (campo opcional).
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("   ")]
+    public void Create_WithBlankPrimitiveTaxIdValue_ShouldYieldNoTaxId(string? taxIdValue)
+    {
+        var agent = EconomicAgent.Create(
+            EconomicAgentMother.FixedAgentId,
+            EconomicAgentMother.FixedTenantId,
+            EconomicAgentMother.DEFAULT_NAME,
+            AgentScope.Outside,
+            taxIdValue,
+            TaxIdKind.CPF,
+            EconomicAgentMother.FixedOccurredAt);
+
+        Assert.Null(agent.TaxId);
+    }
+
+    // Overload primitivo com valor presente mas kind ausente também resulta em agente sem TaxId.
+    [Fact]
+    public void Create_WithPrimitiveTaxIdValueButNoKind_ShouldYieldNoTaxId()
+    {
+        var agent = EconomicAgent.Create(
+            EconomicAgentMother.FixedAgentId,
+            EconomicAgentMother.FixedTenantId,
+            EconomicAgentMother.DEFAULT_NAME,
+            AgentScope.Outside,
+            VALID_CPF,
+            taxIdKind: null,
+            EconomicAgentMother.FixedOccurredAt);
+
+        Assert.Null(agent.TaxId);
+    }
+
     // PullDomainEvents drena a lista interna — chamadas subsequentes retornam vazio.
     [Fact]
     public void PullDomainEvents_ShouldDrainEventsAndClearList()

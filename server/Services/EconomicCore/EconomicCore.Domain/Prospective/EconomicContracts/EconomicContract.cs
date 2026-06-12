@@ -209,6 +209,18 @@ public sealed class EconomicContract : AggregateRoot<EconomicContractId>
     }
 
     /// <summary>
+    /// Overload from primitive period inputs: composes the CompetencePeriod internally so callers
+    /// (Application) never assemble domain types.
+    /// </summary>
+    public void GenerateCommitmentsFor(
+        int year,
+        int month,
+        CommitmentId outflowCommitmentId,
+        CommitmentId inflowCommitmentId,
+        DateTime occurredAt)
+        => GenerateCommitmentsFor(new CompetencePeriod(year, month), outflowCommitmentId, inflowCommitmentId, occurredAt);
+
+    /// <summary>
     /// Materializes a single reciprocal pair (outflow + inflow) for a (period, purpose) track at the given amount.
     /// CTR02 prevents duplicates per (period, direction, purpose) — multiple charge tracks coexist in one period.
     /// </summary>
@@ -474,8 +486,9 @@ public sealed class EconomicContract : AggregateRoot<EconomicContractId>
     /// period (CTR20), then cancels in cascade every still-pending commitment whose period starts after the
     /// termination date, and finally transitions to Terminated. The caller resolves
     /// <paramref name="lastOccupiedInflowPeriod"/> (an I/O lookup over registered inflow events) and passes it in.
+    /// Returns how many commitments the cascade cancelled.
     /// </summary>
-    public void Terminate(DateOnly terminationDate, CompetencePeriod? lastOccupiedInflowPeriod, DateTime occurredAt)
+    public int Terminate(DateOnly terminationDate, CompetencePeriod? lastOccupiedInflowPeriod, DateTime occurredAt)
     {
         if (!Status.CanTransitionTo(ContractStatus.Terminated))
             throw EconomicContractErrors.InvalidContractStatusTransition(Status.Name, ContractStatus.Terminated.Name);
@@ -485,7 +498,8 @@ public sealed class EconomicContract : AggregateRoot<EconomicContractId>
                 terminationDate,
                 $"{lastOccupiedInflowPeriod.Year:D4}-{lastOccupiedInflowPeriod.Month:D2}");
 
-        foreach (var commitment in CancellableFutureCommitments(terminationDate))
+        var cancellable = CancellableFutureCommitments(terminationDate);
+        foreach (var commitment in cancellable)
         {
             commitment.MarkCancelled(occurredAt);
             AddDomainEvent(new CommitmentCancelled(
@@ -501,6 +515,8 @@ public sealed class EconomicContract : AggregateRoot<EconomicContractId>
             ContractId: Id,
             TenantId: TenantId,
             OccurredAt: occurredAt));
+
+        return cancellable.Count;
     }
 
     private List<Commitment> CancellableFutureCommitments(DateOnly terminationDate)
@@ -550,6 +566,35 @@ public sealed class EconomicContract : AggregateRoot<EconomicContractId>
     }
 
     public Commitment FindCommitment(CommitmentId commitmentId) => FindCommitmentOrThrow(commitmentId);
+
+    /// <summary>
+    /// Ids of every inflow-side commitment (occupancy track). Lets callers query registered inflow events
+    /// without reasoning over commitment direction themselves.
+    /// </summary>
+    public IReadOnlyList<CommitmentId> GetInflowCommitmentIds()
+        => _commitments
+            .Where(c => c.Direction == CommitmentDirection.InflowPromise)
+            .Select(c => c.Id)
+            .ToList();
+
+    /// <summary>
+    /// Resolves the cash competence of a bundled payment covering the given commitments: the earliest
+    /// competence period among them (in the typical case every leg shares the same month). The policy lives
+    /// here so callers never reason over commitment periods. EVT17 when no commitment is given.
+    /// </summary>
+    public CompetencePeriod ResolveBundledCompetence(IReadOnlyCollection<CommitmentId> commitmentIds)
+    {
+        if (commitmentIds.Count == 0)
+            throw EconomicEventErrors.EmptyAllocations();
+
+        var earliest = commitmentIds
+            .Select(FindCommitmentOrThrow)
+            .OrderBy(c => c.Period.Year).ThenBy(c => c.Period.Month)
+            .First()
+            .Period;
+
+        return new CompetencePeriod(earliest.Year, earliest.Month);
+    }
 
     private Commitment FindCommitmentOrThrow(CommitmentId commitmentId)
     {

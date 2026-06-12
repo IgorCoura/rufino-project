@@ -51,6 +51,26 @@ public sealed class EconomicAgent : AggregateRoot<EconomicAgentId>
         return agent;
     }
 
+    /// <summary>
+    /// Factory from primitive tax-id inputs: composes the optional TaxId VO internally so callers
+    /// (Application) never assemble domain types. A blank value or a missing kind yields no TaxId.
+    /// </summary>
+    public static EconomicAgent Create(
+        EconomicAgentId id,
+        TenantId tenantId,
+        string name,
+        AgentScope scope,
+        string? taxIdValue,
+        TaxIdKind? taxIdKind,
+        DateTime occurredAt)
+    {
+        var taxId = !string.IsNullOrWhiteSpace(taxIdValue) && taxIdKind is not null
+            ? new TaxId(taxIdValue, taxIdKind)
+            : null;
+
+        return Create(id, tenantId, name, scope, taxId, occurredAt);
+    }
+
     private void SetName(string name)
     {
         if (string.IsNullOrWhiteSpace(name) || name.Length > NAME_MAX_LENGTH)

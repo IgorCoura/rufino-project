@@ -36,6 +36,7 @@ internal sealed class RegisterBundledPaymentEventHandler : IRequestHandler<Regis
             ?? throw EconomicContractErrors.ContractNotFound(request.ContractId);
 
         var lines = new List<BundledPaymentLine>(request.Allocations.Count);
+        var coveredCommitmentIds = new List<CommitmentId>(request.Allocations.Count);
         foreach (var allocation in request.Allocations)
         {
             var commitmentId = CommitmentId.From(allocation.CommitmentId);
@@ -46,13 +47,14 @@ internal sealed class RegisterBundledPaymentEventHandler : IRequestHandler<Regis
             // Anti-duplicata por perna: não cobre um commitment já coberto por outro pagamento.
             var existingCoverage = await _eventRepo.FindCoveredByCommitmentAsync(commitmentId, tenantId, cancellationToken);
             if (existingCoverage is not null)
-                throw EconomicContractErrors.CannotFulfillInStatus(contract.FindCommitment(commitmentId).Status.Name);
+                throw EconomicContractErrors.CommitmentAlreadyCovered(allocation.CommitmentId);
 
             lines.Add(new BundledPaymentLine(contract.Id.Value, allocation.CommitmentId, allocation.Amount));
+            coveredCommitmentIds.Add(commitmentId);
         }
 
-        // Competência do caixa: período do primeiro commitment coberto (no caso típico todas as pernas são do mesmo mês).
-        var firstCommitment = contract.FindCommitment(CommitmentId.From(request.Allocations[0].CommitmentId));
+        // A política de competência do caixa (período mais antigo entre as pernas) vive no agregado.
+        var competence = contract.ResolveBundledCompetence(coveredCommitmentIds);
         var createdBy = request.UserId is { } uid ? UserId.From(uid) : (UserId?)null;
 
         var paymentEvent = EconomicEvent.RegisterBundledPayment(
@@ -64,8 +66,8 @@ internal sealed class RegisterBundledPaymentEventHandler : IRequestHandler<Regis
             payerAgentId: EconomicAgentId.From(tenantId.Value),
             payeeAgentId: contract.CounterpartyId,
             lines,
-            competenceYear: firstCommitment.Period.Year,
-            competenceMonth: firstCommitment.Period.Month,
+            competenceYear: competence.Year,
+            competenceMonth: competence.Month,
             createdBy: createdBy,
             registeredAt: now);
 

@@ -3,8 +3,6 @@ namespace EconomicCore.Application.Commands.TerminateEconomicContract;
 using EconomicCore.Application.Mediator;
 using EconomicCore.Domain.Operational.EconomicEvents;
 using EconomicCore.Domain.Prospective.EconomicContracts;
-using EconomicCore.Domain.Prospective.EconomicContracts.Enumerations;
-using EconomicCore.Domain.Prospective.EconomicContracts.Events;
 using EconomicCore.Domain.SeedWork;
 using EconomicCore.Domain.SharedKernel;
 using Microsoft.Extensions.Logging;
@@ -35,19 +33,13 @@ internal sealed class TerminateEconomicContractHandler : IRequestHandler<Termina
 
         // I/O de orquestração: descobre o último período inflow ocupado (com evento registrado)
         // para alimentar a regra de data de término, que vive dentro de Terminate.
-        var inflowCommitmentIds = contract.Commitments
-            .Where(c => c.Direction == CommitmentDirection.InflowPromise)
-            .Select(c => c.Id)
-            .ToList();
-
+        var inflowCommitmentIds = contract.GetInflowCommitmentIds();
         var lastOccupiedInflowPeriod = inflowCommitmentIds.Count > 0
             ? await _eventRepo.GetLastInflowPeriodForCommitmentsAsync(inflowCommitmentIds, tenantId, cancellationToken)
             : null;
 
-        contract.Terminate(request.TerminationDate, lastOccupiedInflowPeriod, _timeProvider.GetUtcNow().UtcDateTime);
+        var cancelledCount = contract.Terminate(request.TerminationDate, lastOccupiedInflowPeriod, _timeProvider.GetUtcNow().UtcDateTime);
 
-        // Reporta quantos commitments a cascata interna cancelou, lendo os eventos que o agregado emitiu.
-        var cancelledCount = contract.DomainEvents.OfType<CommitmentCancelled>().Count();
         await _contractRepo.UnitOfWork.SaveEntitiesAsync(cancellationToken);
 
         return new TerminateEconomicContractResponse(

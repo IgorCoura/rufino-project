@@ -28,6 +28,8 @@ public sealed class EconomicResource : AggregateRoot<EconomicResourceId>
         EconomicAgentId? custodianId,
         DateTime occurredAt)
     {
+
+        //TODO: Implementar o EconomicResourceType que no momento e somente um tipo sempre null.
         var resource = new EconomicResource(id)
         {
             TenantId = tenantId,

@@ -35,7 +35,7 @@ public sealed class RegisterPaymentExceptionTests : BaseIntegrationTest
         Assert.Equal("ECC.CTR05", error!.Id);
     }
 
-    // Pagar o mesmo commitment duas vezes dispara ECC.CTR03 CannotFulfillInStatus → 409 na segunda tentativa.
+    // Pagar o mesmo commitment duas vezes dispara ECC.CTR44 CommitmentAlreadyCovered → 409 na segunda tentativa.
     [Fact]
     public async Task PostPayment_WhenCommitmentAlreadyFulfilled_ShouldReturnConflict()
     {
@@ -53,7 +53,7 @@ public sealed class RegisterPaymentExceptionTests : BaseIntegrationTest
 
         Assert.Equal(HttpStatusCode.Conflict, second.StatusCode);
         var error = await second.Content.ReadFromJsonAsync<ErrorResponse>();
-        Assert.Equal("ECC.CTR03", error!.Id);
+        Assert.Equal("ECC.CTR44", error!.Id);
     }
 
     // CommitmentId que não pertence ao contrato dispara ECC.CTR12 CommitmentNotFound (handler busca dentro do contract da rota).

@@ -42,7 +42,7 @@ internal sealed class RegisterConsumptionEventHandler : IRequestHandler<Register
         // Anti-duplicata: orquestração de I/O — protege mesmo antes do par chegar para fechar a duality.
         var existingCoverage = await _eventRepo.FindCoveredByCommitmentAsync(commitment.Id, tenantId, cancellationToken);
         if (existingCoverage is not null)
-            throw EconomicContractErrors.CannotFulfillInStatus(commitment.Status.Name);
+            throw EconomicContractErrors.CommitmentAlreadyCovered(commitment.Id.Value);
 
         var createdBy = request.UserId is { } uid ? UserId.From(uid) : (UserId?)null;
 

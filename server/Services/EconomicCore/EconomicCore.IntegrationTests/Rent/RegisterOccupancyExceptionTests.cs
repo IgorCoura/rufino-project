@@ -45,7 +45,7 @@ public sealed class RegisterOccupancyExceptionTests : BaseIntegrationTest
         Assert.Equal("ECC.EVT14", error!.Id);
     }
 
-    // Registrar ocupação no mesmo commitment duas vezes dispara ECC.CTR03 CannotFulfillInStatus → 409.
+    // Registrar ocupação no mesmo commitment duas vezes dispara ECC.CTR44 CommitmentAlreadyCovered → 409.
     [Fact]
     public async Task PostOccupancy_WhenCommitmentAlreadyFulfilled_ShouldReturnConflict()
     {
@@ -88,7 +88,7 @@ public sealed class RegisterOccupancyExceptionTests : BaseIntegrationTest
 
         Assert.Equal(HttpStatusCode.Conflict, resp.StatusCode);
         var error = await resp.Content.ReadFromJsonAsync<ErrorResponse>();
-        Assert.Equal("ECC.CTR03", error!.Id);
+        Assert.Equal("ECC.CTR44", error!.Id);
     }
 
     private void SetRequestId()

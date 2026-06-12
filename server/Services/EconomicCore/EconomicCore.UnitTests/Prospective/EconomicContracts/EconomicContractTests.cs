@@ -88,6 +88,22 @@ public class EconomicContractTests
         Assert.Equal(inflow.Id, generated.InflowCommitmentId);
     }
 
+    // Overload com período primitivo (year/month) compõe o CompetencePeriod internamente e gera o mesmo par recíproco.
+    [Fact]
+    public void GenerateCommitmentsFor_WithPrimitivePeriod_ShouldCreatePairForComposedPeriod()
+    {
+        var contract = EconomicContractMother.New().BuildActiveEmpty();
+        contract.ClearDomainEvents();
+
+        contract.GenerateCommitmentsFor(2025, 10,
+            EconomicContractMother.OutflowCommitmentIdSlot1,
+            EconomicContractMother.InflowCommitmentIdSlot1,
+            EconomicContractMother.FixedOccurredAt);
+
+        Assert.Equal(2, contract.Commitments.Count);
+        Assert.All(contract.Commitments, c => Assert.Equal(EconomicContractMother.October2025(), c.Period));
+    }
+
     // Gerar segunda vez no mesmo período viola idempotência ECC.CTR02.
     [Fact]
     public void GenerateCommitmentsFor_DuplicatePeriod_ShouldThrowECC_CTR02()

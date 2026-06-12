@@ -23,16 +23,16 @@ internal sealed class GenerateCommitmentsHandler : IRequestHandler<GenerateCommi
         var contract = await _contractRepo.GetByIdAsync(contractId, tenantId, cancellationToken)
             ?? throw EconomicContractErrors.ContractNotFound(request.ContractId);
 
-        var period = new CompetencePeriod(request.Year, request.Month);
         var outflowId = CommitmentId.New();
         var inflowId = CommitmentId.New();
 
-        contract.GenerateCommitmentsFor(period, outflowId, inflowId, request.OccurredAt);
+        // O agregado compõe o CompetencePeriod internamente a partir dos primitivos.
+        contract.GenerateCommitmentsFor(request.Year, request.Month, outflowId, inflowId, request.OccurredAt);
 
         await _contractRepo.UnitOfWork.SaveEntitiesAsync(cancellationToken);
 
         var newCommitments = contract.Commitments
-            .Where(c => c.Period.Equals(period))
+            .Where(c => c.Period.Year == request.Year && c.Period.Month == request.Month)
             .Select(c => new CommitmentDto(c.Id.Value, c.Direction.Name, c.Status.Name, c.Period.Year, c.Period.Month))
             .ToList();
 

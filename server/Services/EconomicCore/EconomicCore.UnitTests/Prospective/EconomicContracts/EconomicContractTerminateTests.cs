@@ -94,6 +94,34 @@ public class EconomicContractTerminateTests
         Assert.Single(events.OfType<ContractTerminated>());
     }
 
+    // Terminate retorna a quantidade de commitments cancelados pela cascata (2 pernas do período futuro).
+    [Fact]
+    public void Terminate_WithPendingFutureCommitments_ShouldReturnCancelledCount()
+    {
+        var contract = EconomicContractMother.New().BuildActiveEmpty();
+        contract.GenerateCommitmentsFor(EconomicContractMother.October2025(),
+            EconomicContractMother.OutflowCommitmentIdSlot1, EconomicContractMother.InflowCommitmentIdSlot1,
+            EconomicContractMother.FixedOccurredAt);
+        contract.GenerateCommitmentsFor(EconomicContractMother.November2025(),
+            EconomicContractMother.OutflowCommitmentIdSlot2, EconomicContractMother.InflowCommitmentIdSlot2,
+            EconomicContractMother.FixedOccurredAt);
+
+        var cancelledCount = contract.Terminate(new DateOnly(2025, 10, 15), lastOccupiedInflowPeriod: null, EconomicContractMother.FixedOccurredAt);
+
+        Assert.Equal(2, cancelledCount);
+    }
+
+    // Terminate sem commitments futuros pendentes retorna zero (nada a cancelar na cascata).
+    [Fact]
+    public void Terminate_WithoutFutureCommitments_ShouldReturnZero()
+    {
+        var contract = EconomicContractMother.New().Build();
+
+        var cancelledCount = contract.Terminate(EconomicContractMother.FixedStartDate, lastOccupiedInflowPeriod: null, EconomicContractMother.FixedOccurredAt);
+
+        Assert.Equal(0, cancelledCount);
+    }
+
     // Terminate com terminationDate anterior ao último dia do período inflow ocupado lança ECC.CTR20 (não pode encerrar antes do mês já ocupado).
     [Fact]
     public void Terminate_WithDateBeforeLastOccupiedInflowPeriod_ShouldThrowECC_CTR20()

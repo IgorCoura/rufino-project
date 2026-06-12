@@ -388,6 +388,18 @@ public static class EconomicContractErrors
             sourcePath: BuildSourcePath(filePath, memberName, lineNumber),
             category: DomainErrorCategory.Conflict);
 
+    public static DomainException CommitmentAlreadyCovered(
+        Guid commitmentId,
+        [CallerFilePath] string filePath = "",
+        [CallerMemberName] string memberName = "",
+        [CallerLineNumber] int lineNumber = 0)
+        => new(
+            id: $"{PREFIX}44",
+            messageTemplate: "Commitment {0} já está coberto por outro evento econômico.",
+            parameters: new object[] { commitmentId },
+            sourcePath: BuildSourcePath(filePath, memberName, lineNumber),
+            category: DomainErrorCategory.Conflict);
+
     private static string BuildSourcePath(string filePath, string memberName, int lineNumber)
         => $"{Path.GetFileName(filePath)}:{lineNumber} ({memberName})";
 }

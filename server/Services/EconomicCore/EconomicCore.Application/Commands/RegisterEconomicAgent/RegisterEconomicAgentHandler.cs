@@ -24,20 +24,18 @@ internal sealed class RegisterEconomicAgentHandler : IRequestHandler<RegisterEco
     {
         var tenantId = TenantId.From(request.TenantId);
         var scope = Enumeration.FromDisplayName<AgentScope>(request.Scope);
+        var taxIdKind = string.IsNullOrWhiteSpace(request.TaxIdKind)
+            ? null
+            : Enumeration.FromDisplayName<TaxIdKind>(request.TaxIdKind);
 
-        TaxId? taxId = null;
-        if (!string.IsNullOrWhiteSpace(request.TaxIdValue) && !string.IsNullOrWhiteSpace(request.TaxIdKind))
-        {
-            var kind = Enumeration.FromDisplayName<TaxIdKind>(request.TaxIdKind);
-            taxId = new TaxId(request.TaxIdValue, kind);
-        }
-
+        // O agregado compõe o TaxId internamente a partir dos primitivos.
         var agent = EconomicAgent.Create(
             EconomicAgentId.New(),
             tenantId,
             request.Name,
             scope,
-            taxId,
+            request.TaxIdValue,
+            taxIdKind,
             _timeProvider.GetUtcNow().UtcDateTime);
 
         await _agentRepo.InsertAsync(agent, cancellationToken);

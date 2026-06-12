@@ -2,6 +2,7 @@ namespace EconomicCore.Application;
 
 using EconomicCore.Application.Behaviors;
 using EconomicCore.Application.Mediator;
+using EconomicCore.Application.Queries;
 using Microsoft.Extensions.DependencyInjection;
 
 public static class ApplicationDependencies
@@ -15,6 +16,9 @@ public static class ApplicationDependencies
         // multi-aggregate, então não há TransactionBehavior. IRequestManager (idempotência) é
         // registrado na Infra, onde vive sua implementação sobre o DbContext.
         services.AddScoped(typeof(IPipelineBehavior<,>), typeof(LoggingBehavior<,>));
+
+        // Query side (CQRS): interfaces de leitura chamadas direto pelo controller, fora do mediator.
+        services.AddScoped<IReportQueries, ReportQueries>();
 
         return services;
     }
