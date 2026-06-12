@@ -332,22 +332,114 @@ public sealed class EconomicContract : AggregateRoot<EconomicContractId>
         if (paid.Direction != CommitmentDirection.OutflowPromise || paid.Purpose == CommitmentPurpose.Penalty)
             return false;
 
-        var dueDate = paid.FulfillmentWindow.To;
-        if (paidDate <= dueDate)
+        if (paidDate <= paid.FulfillmentWindow.To)
             return false;
 
         // Idempotent: a reprocessed relay message must not materialize a second penalty for the same period.
         if (_commitments.Any(c => c.Purpose == CommitmentPurpose.Penalty && c.Period.Equals(paid.Period)))
             return false;
 
-        var monthsLate = ((paidDate.Year * 12) + paidDate.Month) - ((dueDate.Year * 12) + dueDate.Month);
-        var penaltyAmount = PenaltyPolicy.ComputePenalty(paid.ExpectedAmount, monthsLate);
+        var penaltyAmount = ComputeLatePenaltyAmount(paid, paidDate);
         if (!penaltyAmount.IsPositive)
             return false;
 
         GeneratePair(paid.Period, CommitmentPurpose.Penalty, penaltyAmount, penaltyIdFactory(), penaltyIdFactory(), occurredAt);
         return true;
     }
+
+    /// <summary>
+    /// Materializes (or reuses) the Penalty track for a late payment being settled in a single updated boleto
+    /// (base amount + multa/juros) and validates the informed total against it. Unlike
+    /// <see cref="TryRegisterLatePenalty"/> (reactive, relay-driven), this runs synchronously BEFORE the cash event
+    /// exists, so the caller can compose a bundled payment covering both tracks. Gates: contract Active, commitment
+    /// exists, OutflowPromise still open, base track only (CTR47), actually late (CTR46 — also when the computed
+    /// penalty is non-positive), and total == base + penalty (CTR45). When an open Penalty pair already exists for
+    /// the period it is reused as-is — its amount was priced at materialization time and is not recomputed even if
+    /// the delay has since grown (the already-materialized obligation stands). Validates everything before mutating.
+    /// </summary>
+    public LatePaymentSettlement MaterializeLatePaymentPenalty(
+        CommitmentId paidCommitmentId,
+        DateTime paidAt,
+        decimal totalPaidValue,
+        Func<CommitmentId> penaltyIdFactory,
+        DateTime occurredAt)
+    {
+        EnsureActive();
+        var paid = FindCommitmentOrThrow(paidCommitmentId);
+        EnsureDirection(paid, CommitmentDirection.OutflowPromise);
+        EnsureOpenForCoverage(paid);
+
+        if (paid.Purpose == CommitmentPurpose.Penalty)
+            throw EconomicContractErrors.LatePaymentOnPenaltyTrack();
+
+        var paidDate = DateOnly.FromDateTime(paidAt);
+        if (paidDate <= paid.FulfillmentWindow.To)
+            throw EconomicContractErrors.PaymentNotLate(paid.FulfillmentWindow.To, paidDate);
+
+        var existingPenalty = FindPenaltyOutflowForPeriod(paid.Period);
+        if (existingPenalty is not null)
+        {
+            EnsureOpenForCoverage(existingPenalty);
+            EnsureLatePaymentTotal(totalPaidValue, paid, existingPenalty.ExpectedAmount.Amount);
+            return new LatePaymentSettlement(paid.Id, paid.ExpectedAmount.Amount, existingPenalty.Id, existingPenalty.ExpectedAmount.Amount, PenaltyMaterialized: false);
+        }
+
+        var penaltyAmount = ComputeLatePenaltyAmount(paid, paidDate);
+        if (!penaltyAmount.IsPositive)
+            throw EconomicContractErrors.PaymentNotLate(paid.FulfillmentWindow.To, paidDate);
+
+        EnsureLatePaymentTotal(totalPaidValue, paid, penaltyAmount.Amount);
+
+        GeneratePair(paid.Period, CommitmentPurpose.Penalty, penaltyAmount, penaltyIdFactory(), penaltyIdFactory(), occurredAt);
+        var penaltyOutflow = FindPenaltyOutflowForPeriod(paid.Period)!;
+
+        return new LatePaymentSettlement(paid.Id, paid.ExpectedAmount.Amount, penaltyOutflow.Id, penaltyAmount.Amount, PenaltyMaterialized: true);
+    }
+
+    /// <summary>
+    /// Fulfills both legs of a Penalty commitment covered by a cash event. The Penalty inflow leg never has a
+    /// reciprocal operational event — its counterpart was the tolerance to the delay, already consumed — so the
+    /// track is self-settling: the cash payment alone closes it. Returns false for any non-Penalty commitment
+    /// (the caller follows the normal duality flow). Idempotent: legs already fulfilled are skipped.
+    /// </summary>
+    public bool TrySettlePenaltyCoverage(CommitmentId coveredCommitmentId, EconomicEventId coveringEventId, DateTime occurredAt)
+    {
+        var covered = FindCommitmentOrThrow(coveredCommitmentId);
+        if (covered.Purpose != CommitmentPurpose.Penalty)
+            return false;
+
+        var reciprocal = FindReciprocalCommitment(coveredCommitmentId);
+        FulfillIfPending(covered, coveringEventId, occurredAt);
+        FulfillIfPending(reciprocal, coveringEventId, occurredAt);
+        return true;
+    }
+
+    private void FulfillIfPending(Commitment commitment, EconomicEventId fulfillingEventId, DateTime occurredAt)
+    {
+        if (commitment.Status == CommitmentStatus.Fulfilled)
+            return;
+
+        MarkFulfilled(commitment.Id, fulfillingEventId, occurredAt);
+    }
+
+    private static void EnsureLatePaymentTotal(decimal totalPaidValue, Commitment paid, decimal penaltyAmountValue)
+    {
+        var expectedTotal = paid.ExpectedAmount.Amount + penaltyAmountValue;
+        if (totalPaidValue != expectedTotal)
+            throw EconomicContractErrors.LatePaymentTotalMismatch(expectedTotal, totalPaidValue);
+    }
+
+    private Money ComputeLatePenaltyAmount(Commitment paid, DateOnly paidDate)
+    {
+        var dueDate = paid.FulfillmentWindow.To;
+        var monthsLate = ((paidDate.Year * 12) + paidDate.Month) - ((dueDate.Year * 12) + dueDate.Month);
+        return PenaltyPolicy.ComputePenalty(paid.ExpectedAmount, monthsLate);
+    }
+
+    private Commitment? FindPenaltyOutflowForPeriod(CompetencePeriod period)
+        => _commitments.FirstOrDefault(c => c.Purpose == CommitmentPurpose.Penalty
+            && c.Direction == CommitmentDirection.OutflowPromise
+            && c.Period.Equals(period));
 
     /// <summary>
     /// Pre-condition gate (no mutation) for covering an outflow commitment with a payment: contract must be

@@ -400,6 +400,40 @@ public static class EconomicContractErrors
             sourcePath: BuildSourcePath(filePath, memberName, lineNumber),
             category: DomainErrorCategory.Conflict);
 
+    public static DomainException LatePaymentTotalMismatch(
+        decimal expectedTotal,
+        decimal informedTotal,
+        [CallerFilePath] string filePath = "",
+        [CallerMemberName] string memberName = "",
+        [CallerLineNumber] int lineNumber = 0)
+        => new(
+            id: $"{PREFIX}45",
+            messageTemplate: "Valor total {1} difere do valor atualizado esperado {0} (valor base + penalidade de atraso).",
+            parameters: new object[] { expectedTotal, informedTotal },
+            sourcePath: BuildSourcePath(filePath, memberName, lineNumber));
+
+    public static DomainException PaymentNotLate(
+        DateOnly dueDate,
+        DateOnly paidDate,
+        [CallerFilePath] string filePath = "",
+        [CallerMemberName] string memberName = "",
+        [CallerLineNumber] int lineNumber = 0)
+        => new(
+            id: $"{PREFIX}46",
+            messageTemplate: "Pagamento em {1} não caracteriza atraso com penalidade (vencimento {0}) — use o fluxo de pagamento normal.",
+            parameters: new object[] { dueDate, paidDate },
+            sourcePath: BuildSourcePath(filePath, memberName, lineNumber));
+
+    public static DomainException LatePaymentOnPenaltyTrack(
+        [CallerFilePath] string filePath = "",
+        [CallerMemberName] string memberName = "",
+        [CallerLineNumber] int lineNumber = 0)
+        => new(
+            id: $"{PREFIX}47",
+            messageTemplate: "O pagamento em atraso deve apontar para o commitment da trilha base, não para a própria trilha Penalty.",
+            parameters: Array.Empty<object>(),
+            sourcePath: BuildSourcePath(filePath, memberName, lineNumber));
+
     private static string BuildSourcePath(string filePath, string memberName, int lineNumber)
         => $"{Path.GetFileName(filePath)}:{lineNumber} ({memberName})";
 }

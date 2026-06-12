@@ -292,6 +292,24 @@ public sealed class EconomicEvent : AggregateRoot<EconomicEventId>
             OccurredAt: occurredAt));
     }
 
+    /// <summary>
+    /// Closes the duality leg covering <paramref name="commitmentId"/> against this event itself (counterpart = own
+    /// id) for the remaining unmatched balance. Used for self-settling tracks (Penalty): the leg has no reciprocal
+    /// operational event, so the cash event alone closes it. No-op when the leg is already fully matched
+    /// (at-least-once relay reprocess); EVT18 when no allocation covers the commitment.
+    /// </summary>
+    public void CloseDualityAsSelfSettled(CommitmentId commitmentId, DateTime occurredAt)
+    {
+        var allocation = _allocations.FirstOrDefault(a => a.Commitment.CommitmentId.Equals(commitmentId))
+            ?? throw EconomicEventErrors.AllocationNotFound(commitmentId.Value);
+
+        var remaining = allocation.Amount.Amount - MatchedAmountFor(commitmentId);
+        if (remaining <= 0m)
+            return;
+
+        CloseDuality(commitmentId, Id, new Money(remaining, allocation.Amount.Currency), occurredAt);
+    }
+
     private static EconomicEvent BuildBase(
         EconomicEventId id,
         TenantId tenantId,

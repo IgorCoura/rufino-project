@@ -88,6 +88,15 @@ public sealed class RentScenariosTests : BaseIntegrationTest
         Assert.Equal(HttpStatusCode.Created, r.StatusCode);
     }
 
+    // Pagamento one-shot em atraso: boleto único de valor atualizado (base + multa/juros) via /payment/late.
+    private async Task PayLate(Guid contractId, Guid outflowId, decimal totalAmount, DateTime at)
+    {
+        SetRequestId();
+        var r = await Client.PostAsJsonAsync($"/api/v1/{KnownIds.TenantA}/events/payment/late",
+            new RegisterLatePaymentRequest(contractId, outflowId, totalAmount, "BRL", at));
+        Assert.Equal(HttpStatusCode.Created, r.StatusCode);
+    }
+
     // Consome e paga a trilha RENT dos meses [fromMonth, toMonth) no dia 8 de cada competência (dentro da janela, sem penalidade).
     private async Task ConsumeAndPayMonths(Guid contractId, DateOnly start, int fromMonth, int toMonth, decimal amount)
     {
@@ -445,5 +454,149 @@ public sealed class RentScenariosTests : BaseIntegrationTest
 
         Assert.Equal(72, await FulfilledCount(contractId));
         Assert.DoesNotContain(await Commitments(contractId), c => c.Purpose == "PENALTY");
+    }
+
+    // S10 — 12 meses com reajuste de 10% no mês 6 e 4 pagamentos em atraso (meses 1 e 3 no início, 10 e 11 no fim;
+    // sorteio congelado para o teste ser determinístico): todo mês é consumido e pago, e cada atraso materializa um
+    // par Penalty de 2% do valor vigente (20.00 antes do reajuste, 22.00 depois); trilha RENT 100% cumprida.
+    [Fact]
+    public async Task S10_AdjustmentAtMonth6_FourLatePayments_ShouldMaterializeOnePenaltyPairPerLateMonth()
+    {
+        SetRequestId();
+        var (resourceId, agentId) = await RentScenarioMother.SeedResourceAndAgentViaApi(Client, KnownIds.TenantA);
+        var start = DateOnly.FromDateTime(DateTime.UtcNow).AddMonths(-12);
+        int[] lateMonths = [0, 2, 9, 10];
+
+        var contractId = await CreateContract(new CreateContractRequest(agentId, resourceId, 1000m, "BRL", "ACQUISITION", "MONTHLY", 5, 12, start));
+        await Activate(contractId);
+
+        async Task ConsumeAndPayMonth(int n, decimal amount)
+        {
+            var d = start.AddMonths(n);
+            var rows = await Commitments(contractId);
+            var consumedAt = new DateTime(d.Year, d.Month, 8, 12, 0, 0, DateTimeKind.Utc);
+            await Consume(contractId, rows.Single(r => r.Direction == "INFLOW_PROMISE" && r.Purpose == "RENT" && r.Year == d.Year && r.Month == d.Month).Id, consumedAt);
+
+            // Atraso: dia 20 do mês seguinte — sempre depois da janela (dia 5 + 30 dias) e no mesmo mês-calendário
+            // do vencimento, então monthsLate = 0 e a penalidade fica só na multa de 2%, sem juros.
+            var next = d.AddMonths(1);
+            var paidAt = lateMonths.Contains(n)
+                ? new DateTime(next.Year, next.Month, 20, 12, 0, 0, DateTimeKind.Utc)
+                : consumedAt;
+            await Pay(contractId, rows.Single(r => r.Direction == "OUTFLOW_PROMISE" && r.Purpose == "RENT" && r.Year == d.Year && r.Month == d.Month).Id, amount, paidAt);
+        }
+
+        for (var n = 0; n < 5; n++)
+            await ConsumeAndPayMonth(n, 1000m);
+        await DrainOutbox();
+
+        var m6 = start.AddMonths(5);
+        await Adjust(contractId, m6, 0.10m);
+
+        var afterAdjust = await Commitments(contractId);
+        bool OnOrAfter(Row r) => r.Year > m6.Year || (r.Year == m6.Year && r.Month >= m6.Month);
+        Assert.All(afterAdjust.Where(r => r.Purpose == "RENT" && r.Direction == "OUTFLOW_PROMISE" && !OnOrAfter(r)), r => Assert.Equal(1000m, r.Amount));
+        Assert.All(afterAdjust.Where(r => r.Purpose == "RENT" && r.Direction == "OUTFLOW_PROMISE" && OnOrAfter(r)), r => Assert.Equal(1100m, r.Amount));
+
+        for (var n = 5; n < 12; n++)
+            await ConsumeAndPayMonth(n, 1100m);
+        await DrainOutbox();
+
+        var rows = await Commitments(contractId);
+        var rent = rows.Where(r => r.Purpose == "RENT").ToList();
+        Assert.Equal(24, rent.Count);
+        Assert.All(rent, r => Assert.Equal("FULFILLED", r.Status));
+
+        var penalties = rows.Where(r => r.Purpose == "PENALTY").ToList();
+        Assert.Equal(8, penalties.Count);
+        Assert.All(penalties, p => Assert.Equal("PROMISED", p.Status));
+
+        foreach (var n in lateMonths)
+        {
+            var d = start.AddMonths(n);
+            var expected = n < 5 ? 20.00m : 22.00m;
+            var pair = penalties.Where(p => p.Year == d.Year && p.Month == d.Month).ToList();
+            Assert.Equal(2, pair.Count);
+            Assert.Contains(pair, p => p.Direction == "OUTFLOW_PROMISE");
+            Assert.Contains(pair, p => p.Direction == "INFLOW_PROMISE");
+            Assert.All(pair, p => Assert.Equal(expected, p.Amount));
+        }
+
+        Assert.Equal(24, await FulfilledCount(contractId));
+    }
+
+    // S11 — mesmo cenário do S10 (12 meses, reajuste de 10% no mês 6, atrasos nos meses 1, 3, 10 e 11), mas cada
+    // atraso é quitado via one-shot /payment/late com o boleto atualizado (base + 2%): a Penalty nasce e é paga no
+    // mesmo evento, então as 8 pernas Penalty terminam FULFILLED (no S10 ficam PROMISED) e o total cumprido é 32.
+    [Fact]
+    public async Task S11_AdjustmentAtMonth6_FourOneShotLatePayments_ShouldFulfillPenaltyPairs()
+    {
+        SetRequestId();
+        var (resourceId, agentId) = await RentScenarioMother.SeedResourceAndAgentViaApi(Client, KnownIds.TenantA);
+        var start = DateOnly.FromDateTime(DateTime.UtcNow).AddMonths(-12);
+        int[] lateMonths = [0, 2, 9, 10];
+
+        var contractId = await CreateContract(new CreateContractRequest(agentId, resourceId, 1000m, "BRL", "ACQUISITION", "MONTHLY", 5, 12, start));
+        await Activate(contractId);
+
+        async Task ConsumeAndPayMonth(int n, decimal amount)
+        {
+            var d = start.AddMonths(n);
+            var rows = await Commitments(contractId);
+            var consumedAt = new DateTime(d.Year, d.Month, 8, 12, 0, 0, DateTimeKind.Utc);
+            await Consume(contractId, rows.Single(r => r.Direction == "INFLOW_PROMISE" && r.Purpose == "RENT" && r.Year == d.Year && r.Month == d.Month).Id, consumedAt);
+
+            var outflowId = rows.Single(r => r.Direction == "OUTFLOW_PROMISE" && r.Purpose == "RENT" && r.Year == d.Year && r.Month == d.Month).Id;
+            if (lateMonths.Contains(n))
+            {
+                // Atraso: dia 20 do mês seguinte — depois da janela (dia 5 + 30 dias) e no mesmo mês-calendário do
+                // vencimento (monthsLate = 0, só multa de 2%). Boleto atualizado: base × 1.02.
+                var next = d.AddMonths(1);
+                var paidAt = new DateTime(next.Year, next.Month, 20, 12, 0, 0, DateTimeKind.Utc);
+                await PayLate(contractId, outflowId, amount * 1.02m, paidAt);
+            }
+            else
+            {
+                await Pay(contractId, outflowId, amount, consumedAt);
+            }
+        }
+
+        for (var n = 0; n < 5; n++)
+            await ConsumeAndPayMonth(n, 1000m);
+        await DrainOutbox();
+
+        var m6 = start.AddMonths(5);
+        await Adjust(contractId, m6, 0.10m);
+
+        var afterAdjust = await Commitments(contractId);
+        bool OnOrAfter(Row r) => r.Year > m6.Year || (r.Year == m6.Year && r.Month >= m6.Month);
+        Assert.All(afterAdjust.Where(r => r.Purpose == "RENT" && r.Direction == "OUTFLOW_PROMISE" && !OnOrAfter(r)), r => Assert.Equal(1000m, r.Amount));
+        Assert.All(afterAdjust.Where(r => r.Purpose == "RENT" && r.Direction == "OUTFLOW_PROMISE" && OnOrAfter(r)), r => Assert.Equal(1100m, r.Amount));
+
+        for (var n = 5; n < 12; n++)
+            await ConsumeAndPayMonth(n, 1100m);
+        await DrainOutbox();
+
+        var rows = await Commitments(contractId);
+        var rent = rows.Where(r => r.Purpose == "RENT").ToList();
+        Assert.Equal(24, rent.Count);
+        Assert.All(rent, r => Assert.Equal("FULFILLED", r.Status));
+
+        var penalties = rows.Where(r => r.Purpose == "PENALTY").ToList();
+        Assert.Equal(8, penalties.Count);
+        Assert.All(penalties, p => Assert.Equal("FULFILLED", p.Status));
+
+        foreach (var n in lateMonths)
+        {
+            var d = start.AddMonths(n);
+            var expected = n < 5 ? 20.00m : 22.00m;
+            var pair = penalties.Where(p => p.Year == d.Year && p.Month == d.Month).ToList();
+            Assert.Equal(2, pair.Count);
+            Assert.Contains(pair, p => p.Direction == "OUTFLOW_PROMISE");
+            Assert.Contains(pair, p => p.Direction == "INFLOW_PROMISE");
+            Assert.All(pair, p => Assert.Equal(expected, p.Amount));
+        }
+
+        Assert.Equal(32, await FulfilledCount(contractId));
     }
 }

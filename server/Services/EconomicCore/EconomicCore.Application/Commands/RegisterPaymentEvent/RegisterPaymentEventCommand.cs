@@ -20,4 +20,5 @@ public sealed record RegisterPaymentEventModel(
 {
     public RegisterPaymentEventCommand ToCommand(Guid tenantId, Guid? userId) => new(
         tenantId, ContractId, CommitmentId, Amount, Currency, OccurredAt, userId);
+
 }

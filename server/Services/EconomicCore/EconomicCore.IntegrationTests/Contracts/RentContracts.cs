@@ -59,6 +59,9 @@ public sealed record BundledPaymentAllocationRequest(Guid CommitmentId, decimal 
 public sealed record RegisterBundledPaymentRequest(Guid ContractId, IReadOnlyList<BundledPaymentAllocationRequest> Allocations, string Currency, DateTime OccurredAt);
 public sealed record BundledPaymentEventResponse(Guid Id, string Direction, decimal TotalAmount, int AllocationCount);
 
+public sealed record RegisterLatePaymentRequest(Guid ContractId, Guid CommitmentId, decimal TotalAmount, string Currency, DateTime OccurredAt);
+public sealed record LatePaymentEventResponse(Guid Id, decimal TotalAmount, decimal BaseAmount, decimal PenaltyAmount, Guid PenaltyCommitmentId, int AllocationCount);
+
 public sealed record DREResponse(string Period, decimal TotalExpense);
 public sealed record CashFlowResponse(string Period, decimal TotalOutflow);
 

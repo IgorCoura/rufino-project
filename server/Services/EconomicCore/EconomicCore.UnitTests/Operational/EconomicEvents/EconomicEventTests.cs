@@ -236,6 +236,54 @@ public class EconomicEventTests
         Assert.Equal("ECC.EVT06", ex.Id);
     }
 
+    // CloseDualityAsSelfSettled fecha a alocação contra o próprio evento (counterpart = ele mesmo) pelo saldo restante.
+    [Fact]
+    public void CloseDualityAsSelfSettled_OnCoveredAllocation_ShouldCloseAgainstItself()
+    {
+        var ev = EconomicEventMother.New().BuildCovered();
+        ev.ClearDomainEvents();
+        var commitmentId = EconomicEventMother.FixedCommitmentId;
+
+        ev.CloseDualityAsSelfSettled(commitmentId, EconomicEventMother.FixedRegisteredAt.AddMinutes(5));
+
+        var link = Assert.Single(ev.DualityLinks);
+        Assert.Equal(ev.Id, link.CounterpartEventId);
+        Assert.Equal(commitmentId, link.CommitmentId);
+        Assert.Equal(1000m, ev.MatchedAmountFor(commitmentId));
+        Assert.True(ev.IsFullyMatched);
+
+        var closed = Assert.IsType<DualityClosed>(Assert.Single(ev.PullDomainEvents()));
+        Assert.Equal(ev.Id, closed.CounterpartEventId);
+        Assert.Equal(1000m, closed.MatchedAmountValue);
+    }
+
+    // CloseDualityAsSelfSettled numa perna já totalmente casada é no-op (reprocesso at-least-once do relay).
+    [Fact]
+    public void CloseDualityAsSelfSettled_WhenAlreadyMatched_ShouldBeNoOp()
+    {
+        var ev = EconomicEventMother.New().BuildCovered();
+        var commitmentId = EconomicEventMother.FixedCommitmentId;
+        ev.CloseDualityAsSelfSettled(commitmentId, EconomicEventMother.FixedRegisteredAt);
+
+        ev.CloseDualityAsSelfSettled(commitmentId, EconomicEventMother.FixedRegisteredAt.AddMinutes(1));
+
+        Assert.Single(ev.DualityLinks);
+        Assert.Equal(1000m, ev.MatchedAmountFor(commitmentId));
+    }
+
+    // CloseDualityAsSelfSettled para um commitment sem alocação correspondente lança ECC.EVT18.
+    [Fact]
+    public void CloseDualityAsSelfSettled_ForUnknownCommitment_ShouldThrowECC_EVT18()
+    {
+        var ev = EconomicEventMother.New().BuildCovered();
+        var unknownCommitment = CommitmentId.From(new Guid("00000000-0000-7000-8000-00000000bbbb"));
+
+        var ex = Assert.Throws<DomainException>(
+            () => ev.CloseDualityAsSelfSettled(unknownCommitment, EconomicEventMother.FixedRegisteredAt));
+
+        Assert.Equal("ECC.EVT18", ex.Id);
+    }
+
     // PullDomainEvents drena a lista de eventos acumulados.
     [Fact]
     public void PullDomainEvents_ShouldDrainEventList()

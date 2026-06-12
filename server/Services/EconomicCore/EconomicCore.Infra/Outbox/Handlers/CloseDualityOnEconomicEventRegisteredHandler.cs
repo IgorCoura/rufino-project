@@ -44,6 +44,14 @@ internal sealed class CloseDualityOnEconomicEventRegisteredHandler(
             if (contract is null)
                 continue;
 
+            // A perna Penalty é auto-liquidante (não há consumo recíproco): o agregado decide; o relay só fecha a
+            // alocação contra o próprio evento e segue para a próxima perna.
+            if (contract.TrySettlePenaltyCoverage(commitmentId, registeredEvent.Id, domainEvent.OccurredAt))
+            {
+                registeredEvent.CloseDualityAsSelfSettled(commitmentId, domainEvent.OccurredAt);
+                continue;
+            }
+
             var reciprocalCommitment = contract.FindReciprocalCommitment(commitmentId);
             var reciprocalEvent = await eventRepo.FindCoveredByCommitmentAsync(reciprocalCommitment.Id, tenantId, cancellationToken);
             if (reciprocalEvent is null)
