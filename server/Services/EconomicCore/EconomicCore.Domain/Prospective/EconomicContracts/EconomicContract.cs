@@ -17,8 +17,6 @@ public sealed class EconomicContract : AggregateRoot<EconomicContractId>
     public const int MAX_START_DATE_PAST_YEARS = 1;
     public const decimal DEFAULT_TOLERANCE_PERCENT = 0m;
     public const int DEFAULT_WINDOW_DAYS = 30;
-    public const decimal DEFAULT_FINE_PERCENT = 0.02m;
-    public const decimal DEFAULT_MONTHLY_INTEREST_PERCENT = 0.01m;
 
     private readonly List<Commitment> _commitments = [];
     private readonly List<ContractCharge> _charges = [];
@@ -60,11 +58,15 @@ public sealed class EconomicContract : AggregateRoot<EconomicContractId>
         ContractDirection direction,
         RecurrencePattern recurrence,
         CommitmentTerms defaultTerms,
+        PenaltyTerms penaltyTerms,
         int termMonths,
         DateOnly startDate,
         DateTime occurredAt,
         CommitmentPurpose? primaryPurpose = null)
     {
+        if (penaltyTerms is null)
+            throw EconomicContractErrors.PenaltyTermsRequired();
+
         var contract = new EconomicContract(id)
         {
             TenantId = tenantId,
@@ -73,7 +75,7 @@ public sealed class EconomicContract : AggregateRoot<EconomicContractId>
             Direction = direction,
             Recurrence = recurrence,
             DefaultTerms = defaultTerms,
-            PenaltyPolicy = new PenaltyTerms(DEFAULT_FINE_PERCENT, DEFAULT_MONTHLY_INTEREST_PERCENT),
+            PenaltyPolicy = penaltyTerms,
             PrimaryPurpose = primaryPurpose ?? CommitmentPurpose.Rent,
             Status = ContractStatus.Draft,
             CreatedAt = occurredAt,
@@ -97,6 +99,11 @@ public sealed class EconomicContract : AggregateRoot<EconomicContractId>
             ExpectedAmountCurrency: contract.DefaultTerms.ExpectedAmount.Currency.Name,
             TolerancePercent: contract.DefaultTerms.TolerancePercent,
             WindowDays: contract.DefaultTerms.WindowDays,
+            PenaltyFineKindName: contract.PenaltyPolicy.FineKind.Name,
+            PenaltyFineValue: contract.PenaltyPolicy.FineValue,
+            PenaltyInterestKindName: contract.PenaltyPolicy.InterestKind.Name,
+            PenaltyInterestValue: contract.PenaltyPolicy.InterestValue,
+            PenaltyInterestPeriodName: contract.PenaltyPolicy.InterestPeriod.Name,
             OccurredAt: occurredAt));
 
         return contract;
@@ -117,6 +124,11 @@ public sealed class EconomicContract : AggregateRoot<EconomicContractId>
         int anchorDay,
         decimal expectedAmountValue,
         Currency currency,
+        PenaltyValueKind penaltyFineKind,
+        decimal penaltyFineValue,
+        PenaltyValueKind penaltyInterestKind,
+        decimal penaltyInterestValue,
+        InterestAccrualPeriod penaltyInterestPeriod,
         int termMonths,
         DateOnly startDate,
         DateTime occurredAt,
@@ -127,8 +139,10 @@ public sealed class EconomicContract : AggregateRoot<EconomicContractId>
             new Money(expectedAmountValue, currency),
             DEFAULT_TOLERANCE_PERCENT,
             DEFAULT_WINDOW_DAYS);
+        var penaltyTerms = new PenaltyTerms(
+            penaltyFineKind, penaltyFineValue, penaltyInterestKind, penaltyInterestValue, penaltyInterestPeriod);
 
-        return Create(id, tenantId, counterpartyId, resourceId, direction, recurrence, defaultTerms, termMonths, startDate, occurredAt, primaryPurpose);
+        return Create(id, tenantId, counterpartyId, resourceId, direction, recurrence, defaultTerms, penaltyTerms, termMonths, startDate, occurredAt, primaryPurpose);
     }
 
     /// <summary>
@@ -430,16 +444,43 @@ public sealed class EconomicContract : AggregateRoot<EconomicContractId>
     }
 
     private Money ComputeLatePenaltyAmount(Commitment paid, DateOnly paidDate)
-    {
-        var dueDate = paid.FulfillmentWindow.To;
-        var monthsLate = ((paidDate.Year * 12) + paidDate.Month) - ((dueDate.Year * 12) + dueDate.Month);
-        return PenaltyPolicy.ComputePenalty(paid.ExpectedAmount, monthsLate);
-    }
+        => PenaltyPolicy.ComputePenalty(paid.ExpectedAmount, paid.FulfillmentWindow.To, paidDate);
 
     private Commitment? FindPenaltyOutflowForPeriod(CompetencePeriod period)
         => _commitments.FirstOrDefault(c => c.Purpose == CommitmentPurpose.Penalty
             && c.Direction == CommitmentDirection.OutflowPromise
             && c.Period.Equals(period));
+
+    /// <summary>
+    /// Replaces the late-payment penalty policy (fine + interest). Allowed while the contract is Draft or
+    /// Active (CTR51): renegotiating terms mid-lease only affects penalties materialized AFTER the change —
+    /// Penalty commitments already priced keep their amount (the materialized obligation stands).
+    /// </summary>
+    public void ChangePenaltyPolicy(
+        PenaltyValueKind fineKind,
+        decimal fineValue,
+        PenaltyValueKind interestKind,
+        decimal interestValue,
+        InterestAccrualPeriod interestPeriod,
+        DateTime occurredAt)
+    {
+        if (!ReferenceEquals(Status, ContractStatus.Draft) && !ReferenceEquals(Status, ContractStatus.Active))
+            throw EconomicContractErrors.PenaltyChangeNotAllowed(Status.Name);
+
+        PenaltyPolicy = new PenaltyTerms(fineKind, fineValue, interestKind, interestValue, interestPeriod);
+        UpdatedAt = occurredAt;
+
+        AddDomainEvent(new ContractPenaltyTermsChanged(
+            EventId: Guid.NewGuid(),
+            ContractId: Id,
+            TenantId: TenantId,
+            FineKindName: fineKind.Name,
+            FineValue: fineValue,
+            InterestKindName: interestKind.Name,
+            InterestValue: interestValue,
+            InterestPeriodName: interestPeriod.Name,
+            OccurredAt: occurredAt));
+    }
 
     /// <summary>
     /// Pre-condition gate (no mutation) for covering an outflow commitment with a payment: contract must be

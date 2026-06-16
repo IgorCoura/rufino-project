@@ -87,8 +87,20 @@ internal sealed class EconomicContractMap : IEntityTypeConfiguration<EconomicCon
 
         builder.OwnsOne(e => e.PenaltyPolicy, pp =>
         {
-            pp.Property(x => x.FinePercent).HasColumnName("penalty_fine_percent").HasColumnType("decimal(5,4)").IsRequired();
-            pp.Property(x => x.MonthlyInterestPercent).HasColumnName("penalty_monthly_interest_percent").HasColumnType("decimal(5,4)").IsRequired();
+            pp.Property(x => x.FineKind)
+                .HasColumnName("penalty_fine_kind")
+                .HasConversion(v => v.Id, v => Enumeration.FromValue<PenaltyValueKind>(v))
+                .IsRequired();
+            pp.Property(x => x.FineValue).HasColumnName("penalty_fine_value").HasColumnType("decimal(18,4)").IsRequired();
+            pp.Property(x => x.InterestKind)
+                .HasColumnName("penalty_interest_kind")
+                .HasConversion(v => v.Id, v => Enumeration.FromValue<PenaltyValueKind>(v))
+                .IsRequired();
+            pp.Property(x => x.InterestValue).HasColumnName("penalty_interest_value").HasColumnType("decimal(18,4)").IsRequired();
+            pp.Property(x => x.InterestPeriod)
+                .HasColumnName("penalty_interest_period")
+                .HasConversion(v => v.Id, v => Enumeration.FromValue<InterestAccrualPeriod>(v))
+                .IsRequired();
         });
 
         builder.Property(e => e.CreatedAt).HasColumnName("created_at").IsRequired();

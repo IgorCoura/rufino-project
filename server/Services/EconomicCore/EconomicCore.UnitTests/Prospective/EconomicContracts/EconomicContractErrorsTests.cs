@@ -1,6 +1,7 @@
 namespace EconomicCore.UnitTests.Prospective.EconomicContracts;
 
 using EconomicCore.Domain.Prospective.EconomicContracts;
+using EconomicCore.Domain.SeedWork;
 
 public class EconomicContractErrorsTests
 {
@@ -136,5 +137,46 @@ public class EconomicContractErrorsTests
 
         Assert.Equal("ECC.CTR21", ex.Id);
         Assert.Equal(2, ex.Parameters.Count);
+    }
+
+    // InvalidPenaltyFixedValue (CTR48) carrega o valor fixo rejeitado.
+    [Fact]
+    public void InvalidPenaltyFixedValue_ShouldReturnECC_CTR48_WithOneParameter()
+    {
+        var ex = EconomicContractErrors.InvalidPenaltyFixedValue(-10m);
+
+        Assert.Equal("ECC.CTR48", ex.Id);
+        Assert.Single(ex.Parameters);
+    }
+
+    // InvalidPenaltyTermsComposition (CTR49) é sem parâmetros (kind/period nulos).
+    [Fact]
+    public void InvalidPenaltyTermsComposition_ShouldReturnECC_CTR49()
+    {
+        var ex = EconomicContractErrors.InvalidPenaltyTermsComposition();
+
+        Assert.Equal("ECC.CTR49", ex.Id);
+        Assert.Empty(ex.Parameters);
+    }
+
+    // PenaltyTermsRequired (CTR50) é sem parâmetros (bloco penalty ausente na criação).
+    [Fact]
+    public void PenaltyTermsRequired_ShouldReturnECC_CTR50()
+    {
+        var ex = EconomicContractErrors.PenaltyTermsRequired();
+
+        Assert.Equal("ECC.CTR50", ex.Id);
+        Assert.Empty(ex.Parameters);
+    }
+
+    // PenaltyChangeNotAllowed (CTR51) carrega o status atual e mapeia para Conflict (409).
+    [Fact]
+    public void PenaltyChangeNotAllowed_ShouldReturnECC_CTR51_AsConflict()
+    {
+        var ex = EconomicContractErrors.PenaltyChangeNotAllowed("TERMINATED");
+
+        Assert.Equal("ECC.CTR51", ex.Id);
+        Assert.Single(ex.Parameters);
+        Assert.Equal(DomainErrorCategory.Conflict, ex.Category);
     }
 }

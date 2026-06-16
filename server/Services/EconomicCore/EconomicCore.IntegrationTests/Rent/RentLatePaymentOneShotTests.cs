@@ -40,7 +40,7 @@ public sealed class RentLatePaymentOneShotTests : BaseIntegrationTest
 
         SetRequestId();
         var createResp = await Client.PostAsJsonAsync($"/api/v1/{KnownIds.TenantA}/contracts",
-            new CreateContractRequest(agentId, resourceId, RENT, "BRL", "ACQUISITION", "MONTHLY", 5, 1, startDate));
+            new CreateContractRequest(agentId, resourceId, RENT, "BRL", "ACQUISITION", "MONTHLY", 5, 1, startDate, PenaltyTermsRequest.Default));
         var contract = await createResp.Content.ReadFromJsonAsync<ContractResponse>();
 
         SetRequestId();
@@ -175,6 +175,39 @@ public sealed class RentLatePaymentOneShotTests : BaseIntegrationTest
         });
         Assert.Equal(1, eventCount);
         Assert.Equal(2, penaltyCount);
+    }
+
+    // Política de valores fixos: multa R$100 única + juros R$10/dia × 6 dias de atraso → boleto único de 8160.
+    [Fact]
+    public async Task OneShotLatePayment_WithFixedPolicy_ShouldPriceFlatFinePlusPerDayInterest()
+    {
+        SetRequestId();
+        var (resourceId, agentId) = await RentScenarioMother.SeedResourceAndAgentViaApi(Client, KnownIds.TenantA);
+
+        var today = DateTime.UtcNow;
+        var startDate = new DateOnly(today.Year, today.Month, 1).AddMonths(-2);
+
+        SetRequestId();
+        var createResp = await Client.PostAsJsonAsync($"/api/v1/{KnownIds.TenantA}/contracts",
+            new CreateContractRequest(agentId, resourceId, RENT, "BRL", "ACQUISITION", "MONTHLY", 5, 1, startDate,
+                new PenaltyTermsRequest("FIXED", 100m, "FIXED", 10m, "DAILY")));
+        var contract = await createResp.Content.ReadFromJsonAsync<ContractResponse>();
+
+        SetRequestId();
+        var activateResp = await Client.PostAsync($"/api/v1/{KnownIds.TenantA}/contracts/{contract!.Id}/activate", content: null);
+        var activated = await activateResp.Content.ReadFromJsonAsync<ActivateContractResponse>();
+        var outflowId = activated!.Commitments.Single(c => c.Direction == "OUTFLOW_PROMISE").Id;
+
+        // start+40d = 6 dias após o fim da janela (dia 5 + 30d) → penalidade = 100 + 10×6 = 160.
+        SetRequestId();
+        var lateResp = await Client.PostAsJsonAsync($"/api/v1/{KnownIds.TenantA}/events/payment/late",
+            new RegisterLatePaymentRequest(contract.Id, outflowId, RENT + 160m, "BRL", LatePaidAt(startDate)));
+
+        Assert.Equal(HttpStatusCode.Created, lateResp.StatusCode);
+        var late = await lateResp.Content.ReadFromJsonAsync<LatePaymentEventResponse>();
+        Assert.Equal(RENT, late!.BaseAmount);
+        Assert.Equal(160m, late.PenaltyAmount);
+        Assert.Equal(2, late.AllocationCount);
     }
 
     // O relay rechama TryRegisterLatePenalty para a perna Rent do bundled: no-op por período — segue exatamente 1 par Penalty.

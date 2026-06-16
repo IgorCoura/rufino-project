@@ -39,6 +39,7 @@ public sealed class NewFlowsExceptionTests : BaseIntegrationTest
         SetRequestId();
         var resp = await Client.PostAsJsonAsync($"/api/v1/{KnownIds.TenantA}/contracts",
             new CreateContractRequest(agentId, resourceId, 1000m, "BRL", "ACQUISITION", "MONTHLY", 5, 1, start,
+                Penalty: PenaltyTermsRequest.Default,
                 Charges:
                 [
                     new ContractChargeRequest("CONDOMINIUM", 200m, "BRL", resourceId, agentId, true),
@@ -60,7 +61,7 @@ public sealed class NewFlowsExceptionTests : BaseIntegrationTest
 
         SetRequestId();
         var create = await Client.PostAsJsonAsync($"/api/v1/{KnownIds.TenantA}/contracts",
-            new CreateContractRequest(agentId, resourceId, 1000m, "BRL", "ACQUISITION", "MONTHLY", 5, 12, start));
+            new CreateContractRequest(agentId, resourceId, 1000m, "BRL", "ACQUISITION", "MONTHLY", 5, 12, start, PenaltyTermsRequest.Default));
         var contractId = (await create.Content.ReadFromJsonAsync<ContractResponse>())!.Id;
         SetRequestId();
         await Client.PostAsync($"/api/v1/{KnownIds.TenantA}/contracts/{contractId}/activate", content: null);
@@ -85,7 +86,7 @@ public sealed class NewFlowsExceptionTests : BaseIntegrationTest
 
         SetRequestId();
         var create = await Client.PostAsJsonAsync($"/api/v1/{KnownIds.TenantA}/contracts",
-            new CreateContractRequest(agentId, resourceId, 1000m, "BRL", "ACQUISITION", "MONTHLY", 5, 6, start));
+            new CreateContractRequest(agentId, resourceId, 1000m, "BRL", "ACQUISITION", "MONTHLY", 5, 6, start, PenaltyTermsRequest.Default));
         var contractId = (await create.Content.ReadFromJsonAsync<ContractResponse>())!.Id;
         SetRequestId();
         await Client.PostAsync($"/api/v1/{KnownIds.TenantA}/contracts/{contractId}/activate", content: null);
@@ -125,7 +126,7 @@ public sealed class NewFlowsExceptionTests : BaseIntegrationTest
 
         SetRequestId();
         var create = await Client.PostAsJsonAsync($"/api/v1/{KnownIds.TenantA}/contracts",
-            new CreateContractRequest(agentId, resourceId, 1000m, "BRL", "ACQUISITION", "MONTHLY", 5, 1, start));
+            new CreateContractRequest(agentId, resourceId, 1000m, "BRL", "ACQUISITION", "MONTHLY", 5, 1, start, PenaltyTermsRequest.Default));
         var contractId = (await create.Content.ReadFromJsonAsync<ContractResponse>())!.Id;
         SetRequestId();
         await Client.PostAsync($"/api/v1/{KnownIds.TenantA}/contracts/{contractId}/activate", content: null);

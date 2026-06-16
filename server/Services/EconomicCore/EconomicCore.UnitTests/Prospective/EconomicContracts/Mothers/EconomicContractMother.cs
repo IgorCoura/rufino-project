@@ -33,6 +33,10 @@ public sealed class EconomicContractMother
 
     public static CommitmentTerms DefaultTerms() => new(DefaultExpectedAmount(), tolerancePercent: 0.05m, windowDays: 15);
 
+    // Política histórica do BC (multa 2% + juros 1% a.m.) — preserva a aritmética dos testes existentes.
+    public static PenaltyTerms DefaultPenaltyTerms()
+        => new(PenaltyValueKind.Percent, 0.02m, PenaltyValueKind.Percent, 0.01m, InterestAccrualPeriod.Monthly);
+
     public static CompetencePeriod October2025() => new(2025, 10);
     public static CompetencePeriod November2025() => new(2025, 11);
 
@@ -55,6 +59,8 @@ public sealed class EconomicContractMother
     private ContractDirection _direction = ContractDirection.Acquisition;
     private RecurrencePattern _recurrence = DefaultRecurrence();
     private CommitmentTerms _terms = DefaultTerms();
+    private PenaltyTerms? _penaltyTerms;
+    private CommitmentPurpose? _primaryPurpose;
     private int _termMonths = DEFAULT_TERM_MONTHS;
     private DateOnly _startDate = FixedStartDate;
     private DateTime _occurredAt = FixedOccurredAt;
@@ -71,6 +77,18 @@ public sealed class EconomicContractMother
     public EconomicContractMother WithResourceId(EconomicResourceId resourceId)
     {
         _resourceId = resourceId;
+        return this;
+    }
+
+    public EconomicContractMother WithCounterpartyId(EconomicAgentId counterpartyId)
+    {
+        _counterpartyId = counterpartyId;
+        return this;
+    }
+
+    public EconomicContractMother WithPrimaryPurpose(CommitmentPurpose primaryPurpose)
+    {
+        _primaryPurpose = primaryPurpose;
         return this;
     }
 
@@ -104,6 +122,12 @@ public sealed class EconomicContractMother
         return this;
     }
 
+    public EconomicContractMother WithPenaltyTerms(PenaltyTerms penaltyTerms)
+    {
+        _penaltyTerms = penaltyTerms;
+        return this;
+    }
+
     public EconomicContractMother WithCharge(ContractCharge charge)
     {
         _extraCharges.Add(charge);
@@ -112,7 +136,7 @@ public sealed class EconomicContractMother
 
     public EconomicContract Build()
     {
-        var contract = EconomicContract.Create(_id, _tenantId, _counterpartyId, _resourceId, _direction, _recurrence, _terms, _termMonths, _startDate, _occurredAt);
+        var contract = EconomicContract.Create(_id, _tenantId, _counterpartyId, _resourceId, _direction, _recurrence, _terms, _penaltyTerms ?? DefaultPenaltyTerms(), _termMonths, _startDate, _occurredAt, _primaryPurpose);
         foreach (var charge in _extraCharges)
             contract.AddCharge(
                 charge.Purpose, charge.ExpectedAmount.Amount, charge.ExpectedAmount.Currency,

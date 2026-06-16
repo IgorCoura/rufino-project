@@ -38,7 +38,7 @@ public sealed class RentLatePenaltyTests : BaseIntegrationTest
 
         SetRequestId();
         var createResp = await Client.PostAsJsonAsync($"/api/v1/{KnownIds.TenantA}/contracts",
-            new CreateContractRequest(agentId, resourceId, rent, "BRL", "ACQUISITION", "MONTHLY", 5, 1, startDate));
+            new CreateContractRequest(agentId, resourceId, rent, "BRL", "ACQUISITION", "MONTHLY", 5, 1, startDate, PenaltyTermsRequest.Default));
         var contract = await createResp.Content.ReadFromJsonAsync<ContractResponse>();
 
         SetRequestId();
@@ -78,6 +78,55 @@ public sealed class RentLatePenaltyTests : BaseIntegrationTest
         Assert.Contains(penalties, p => p.Name == "INFLOW_PROMISE" && p.Amount > 0m);
     }
 
+    // Política com juros diário: início no dia 1, janela fecha em (dia 5 + 30d); pagamento em start+40d = 6 dias
+    // de atraso → penalidade exata 8000 × (2% + 0,1%×6) = 208.
+    [Fact]
+    public async Task LatePayment_WithDailyInterestPolicy_ShouldAccruePerDayLate()
+    {
+        SetRequestId();
+        var (resourceId, agentId) = await RentScenarioMother.SeedResourceAndAgentViaApi(Client, KnownIds.TenantA);
+
+        var today = DateTime.UtcNow;
+        var startDate = new DateOnly(today.Year, today.Month, 1).AddMonths(-2);
+        const decimal rent = 8000.00m;
+
+        SetRequestId();
+        var createResp = await Client.PostAsJsonAsync($"/api/v1/{KnownIds.TenantA}/contracts",
+            new CreateContractRequest(agentId, resourceId, rent, "BRL", "ACQUISITION", "MONTHLY", 5, 1, startDate,
+                new PenaltyTermsRequest("PERCENT", 0.02m, "PERCENT", 0.001m, "DAILY")));
+        var contract = await createResp.Content.ReadFromJsonAsync<ContractResponse>();
+
+        SetRequestId();
+        var activateResp = await Client.PostAsync($"/api/v1/{KnownIds.TenantA}/contracts/{contract!.Id}/activate", content: null);
+        var activated = await activateResp.Content.ReadFromJsonAsync<ActivateContractResponse>();
+        var inflowId = activated!.Commitments.Single(c => c.Direction == "INFLOW_PROMISE").Id;
+        var outflowId = activated.Commitments.Single(c => c.Direction == "OUTFLOW_PROMISE").Id;
+
+        var occupiedAt = new DateTime(startDate.Year, startDate.Month, 15, 12, 0, 0, DateTimeKind.Utc);
+        var paidAt = startDate.AddDays(40).ToDateTime(new TimeOnly(12, 0), DateTimeKind.Utc);
+
+        SetRequestId();
+        await Client.PostAsJsonAsync($"/api/v1/{KnownIds.TenantA}/events/consumption",
+            new RegisterConsumptionRequest(contract.Id, inflowId, occupiedAt));
+        SetRequestId();
+        await Client.PostAsJsonAsync($"/api/v1/{KnownIds.TenantA}/events/payment",
+            new RegisterPaymentRequest(contract.Id, outflowId, rent, "BRL", paidAt));
+        while (await Processor.ProcessPendingAsync(CancellationToken.None) > 0) { }
+
+        var penaltyAmounts = await ExecuteDbContextAsync(async db =>
+        {
+            var contractEntity = await db.EconomicContracts.AsNoTracking()
+                .FirstAsync(c => c.Id.Equals(EconomicContractId.From(contract.Id)));
+            return contractEntity.Commitments
+                .Where(c => c.Purpose == CommitmentPurpose.Penalty)
+                .Select(c => c.ExpectedAmount.Amount)
+                .ToList();
+        });
+
+        Assert.Equal(2, penaltyAmounts.Count);
+        Assert.All(penaltyAmounts, a => Assert.Equal(208.00m, a));
+    }
+
     // Regressão: penalty paga via fluxo two-step (POST /events/payment contra o commitment Penalty) ficava PROMISED
     // para sempre — a perna inflow não tem consumo recíproco e o relay dava continue sem fechar a duality. Com o
     // self-settle, o pagamento sozinho cumpre as duas pernas e a alocação fecha contra o próprio evento.
@@ -93,7 +142,7 @@ public sealed class RentLatePenaltyTests : BaseIntegrationTest
 
         SetRequestId();
         var createResp = await Client.PostAsJsonAsync($"/api/v1/{KnownIds.TenantA}/contracts",
-            new CreateContractRequest(agentId, resourceId, rent, "BRL", "ACQUISITION", "MONTHLY", 5, 1, startDate));
+            new CreateContractRequest(agentId, resourceId, rent, "BRL", "ACQUISITION", "MONTHLY", 5, 1, startDate, PenaltyTermsRequest.Default));
         var contract = await createResp.Content.ReadFromJsonAsync<ContractResponse>();
 
         SetRequestId();

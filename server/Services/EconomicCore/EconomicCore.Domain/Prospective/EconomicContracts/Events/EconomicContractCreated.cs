@@ -20,4 +20,9 @@ public sealed record EconomicContractCreated(
     string ExpectedAmountCurrency,
     decimal TolerancePercent,
     int WindowDays,
+    string PenaltyFineKindName,
+    decimal PenaltyFineValue,
+    string PenaltyInterestKindName,
+    decimal PenaltyInterestValue,
+    string PenaltyInterestPeriodName,
     DateTime OccurredAt) : IDomainEvent;

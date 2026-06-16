@@ -71,7 +71,7 @@ public sealed class RentPostPaidCycleErrorTests : BaseIntegrationTest
             new CreateContractRequest(
                 agentId, resourceId, 0m, "BRL",
                 "ACQUISITION", "MONTHLY", AnchorDay: 5,
-                TermMonths: 12, StartDate: DateOnly.FromDateTime(DateTime.UtcNow).AddMonths(-1)));
+                TermMonths: 12, StartDate: DateOnly.FromDateTime(DateTime.UtcNow).AddMonths(-1), Penalty: PenaltyTermsRequest.Default));
 
         Assert.Equal(HttpStatusCode.BadRequest, resp.StatusCode);
     }
@@ -83,7 +83,7 @@ public sealed class RentPostPaidCycleErrorTests : BaseIntegrationTest
             new CreateContractRequest(
                 agentId, resourceId, 8000.00m, "BRL",
                 "ACQUISITION", "MONTHLY", AnchorDay: 5,
-                TermMonths: 6, StartDate: DateOnly.FromDateTime(DateTime.UtcNow).AddMonths(-3)));
+                TermMonths: 6, StartDate: DateOnly.FromDateTime(DateTime.UtcNow).AddMonths(-3), Penalty: PenaltyTermsRequest.Default));
         createResp.EnsureSuccessStatusCode();
         var contract = await createResp.Content.ReadFromJsonAsync<ContractResponse>();
 

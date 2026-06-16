@@ -2,6 +2,7 @@ namespace EconomicCore.API.Controllers;
 
 using EconomicCore.Application.Commands.ActivateEconomicContract;
 using EconomicCore.Application.Commands.ApplyContractAdjustment;
+using EconomicCore.Application.Commands.ChangeContractPenaltyTerms;
 using EconomicCore.Application.Commands.GenerateCommitments;
 using EconomicCore.Application.Commands.RegisterEconomicContract;
 using EconomicCore.Application.Commands.TerminateEconomicContract;
@@ -85,6 +86,27 @@ public sealed class ContractsController(ILogger<ContractsController> logger, IMe
         SendingCommandLog(contractId, command, requestId);
 
         var identified = new IdentifiedCommand<ApplyContractAdjustmentCommand, ApplyContractAdjustmentResponse>(
+            command, EnsureRequestId(requestId));
+        var response = await mediator.Send(identified, ct);
+
+        CommandResultLog(response, contractId, command, requestId);
+
+        return OkResponse(response);
+    }
+
+    [HttpPost("{contractId:guid}/penalty")]
+    public async Task<ActionResult<ChangeContractPenaltyTermsResponse>> ChangePenaltyTerms(
+        [FromRoute] Guid tenantId,
+        [FromRoute] Guid contractId,
+        [FromBody] ChangeContractPenaltyTermsModel model,
+        [FromHeader(Name = "x-requestid")] Guid requestId,
+        CancellationToken ct)
+    {
+        var command = model.ToCommand(tenantId, contractId);
+
+        SendingCommandLog(contractId, command, requestId);
+
+        var identified = new IdentifiedCommand<ChangeContractPenaltyTermsCommand, ChangeContractPenaltyTermsResponse>(
             command, EnsureRequestId(requestId));
         var response = await mediator.Send(identified, ct);
 

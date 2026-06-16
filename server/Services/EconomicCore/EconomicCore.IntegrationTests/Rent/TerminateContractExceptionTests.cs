@@ -44,7 +44,8 @@ public sealed class TerminateContractExceptionTests : BaseIntegrationTest
         SetRequestId();
         var createResp = await Client.PostAsJsonAsync($"/api/v1/{KnownIds.TenantA}/contracts",
             new CreateContractRequest(agentId, resourceId, 8000m, "BRL",
-                "ACQUISITION", "MONTHLY", 5, TermMonths: 3, StartDate: startDate));
+                "ACQUISITION", "MONTHLY", 5, TermMonths: 3, StartDate: startDate,
+                Penalty: PenaltyTermsRequest.Default));
         var contract = await createResp.Content.ReadFromJsonAsync<ContractResponse>();
 
         SetRequestId();
@@ -81,7 +82,8 @@ public sealed class TerminateContractExceptionTests : BaseIntegrationTest
         var createResp = await Client.PostAsJsonAsync($"/api/v1/{KnownIds.TenantA}/contracts",
             new CreateContractRequest(agentId, resourceId, 8000m, "BRL",
                 "ACQUISITION", "MONTHLY", 5,
-                TermMonths: 3, StartDate: DateOnly.FromDateTime(DateTime.UtcNow).AddMonths(-1)));
+                TermMonths: 3, StartDate: DateOnly.FromDateTime(DateTime.UtcNow).AddMonths(-1),
+                Penalty: PenaltyTermsRequest.Default));
         var contract = await createResp.Content.ReadFromJsonAsync<ContractResponse>();
 
         SetRequestId();

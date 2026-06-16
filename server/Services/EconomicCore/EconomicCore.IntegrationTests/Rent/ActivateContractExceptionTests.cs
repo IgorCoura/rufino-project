@@ -72,7 +72,8 @@ public sealed class ActivateContractExceptionTests : BaseIntegrationTest
             new CreateContractRequest(
                 agentId, resourceId, 8000m, "BRL",
                 "ACQUISITION", "MONTHLY", 5,
-                TermMonths: 6, StartDate: DateOnly.FromDateTime(DateTime.UtcNow).AddMonths(-3)));
+                TermMonths: 6, StartDate: DateOnly.FromDateTime(DateTime.UtcNow).AddMonths(-3),
+                Penalty: PenaltyTermsRequest.Default));
         var contract = await createResp.Content.ReadFromJsonAsync<ContractResponse>();
 
         SetRequestId();

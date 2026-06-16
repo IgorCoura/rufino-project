@@ -43,9 +43,15 @@ internal sealed class RegisterEconomicContractHandler : IRequestHandler<Register
         if (await _contractRepo.HasOverlappingAsync(resourceId, request.StartDate, request.TermMonths, tenantId, cancellationToken))
             throw EconomicContractErrors.OverlappingActiveContract(request.ResourceId, request.StartDate);
 
+        if (request.PenaltyTerms is not { } penalty)
+            throw EconomicContractErrors.PenaltyTermsRequired();
+
         var direction = Enumeration.FromDisplayName<ContractDirection>(request.Direction);
         var periodicity = Enumeration.FromDisplayName<Periodicity>(request.Periodicity);
         var currency = Enumeration.FromDisplayName<Currency>(request.Currency);
+        var penaltyFineKind = Enumeration.FromDisplayName<PenaltyValueKind>(penalty.FineKind);
+        var penaltyInterestKind = Enumeration.FromDisplayName<PenaltyValueKind>(penalty.InterestKind);
+        var penaltyInterestPeriod = Enumeration.FromDisplayName<InterestAccrualPeriod>(penalty.InterestPeriod);
         var primaryPurpose = request.PrimaryPurpose is { } pp
             ? Enumeration.FromDisplayName<CommitmentPurpose>(pp)
             : CommitmentPurpose.Rent;
@@ -61,6 +67,11 @@ internal sealed class RegisterEconomicContractHandler : IRequestHandler<Register
             request.AnchorDay,
             request.ExpectedAmount,
             currency,
+            penaltyFineKind,
+            penalty.FineValue,
+            penaltyInterestKind,
+            penalty.InterestValue,
+            penaltyInterestPeriod,
             request.TermMonths,
             request.StartDate,
             occurredAt,

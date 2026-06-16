@@ -55,6 +55,7 @@ public sealed class RentBundledPaymentTests : BaseIntegrationTest
             AnchorDay: 5,
             TermMonths: 1,
             StartDate: startDate,
+            Penalty: PenaltyTermsRequest.Default,
             Charges:
             [
                 new ContractChargeRequest("CONDOMINIUM", condo, "BRL", condoResource!.Id, agentId, CollectedByCounterparty: true),

@@ -4,6 +4,7 @@ using EconomicCore.Domain.Operational.EconomicAgents;
 using EconomicCore.Domain.Operational.EconomicResources;
 using EconomicCore.Domain.Prospective.EconomicContracts;
 using EconomicCore.Domain.Prospective.EconomicContracts.Enumerations;
+using EconomicCore.Domain.Prospective.EconomicContracts.ValueObjects;
 using EconomicCore.Domain.SeedWork;
 using EconomicCore.Domain.SharedKernel;
 using EconomicCore.UnitTests.Prospective.EconomicContracts.Mothers;
@@ -22,20 +23,18 @@ public class EconomicContractPrimaryPurposeTests
         };
     }
 
-    private static EconomicContract InsuranceContract() => EconomicContract.Create(
-        EconomicContractId.New(),
-        EconomicContractMother.FixedTenantId,
-        EconomicAgentId.From(new Guid("a5a5a5a5-a5a5-7a5a-8a5a-a5a5a5a5a5a5")),
-        EconomicResourceId.From(new Guid("b5b5b5b5-b5b5-7b5b-8b5b-b5b5b5b5b5b5")),
-        ContractDirection.Acquisition,
-        Periodicity.Monthly,
-        anchorDay: 10,
-        expectedAmountValue: 150m,
-        Currency.BRL,
-        termMonths: 6,
-        startDate: new DateOnly(2025, 10, 1),
-        occurredAt: EconomicContractMother.FixedOccurredAt,
-        primaryPurpose: CommitmentPurpose.Insurance);
+    private static EconomicContract InsuranceContract() => EconomicContractMother.New()
+        .WithCounterpartyId(EconomicAgentId.From(new Guid("a5a5a5a5-a5a5-7a5a-8a5a-a5a5a5a5a5a5")))
+        .WithResourceId(EconomicResourceId.From(new Guid("b5b5b5b5-b5b5-7b5b-8b5b-b5b5b5b5b5b5")))
+        .WithRecurrence(new RecurrencePattern(Periodicity.Monthly, anchorDay: 10))
+        .WithTerms(new CommitmentTerms(
+            new Money(150m, Currency.BRL),
+            EconomicContract.DEFAULT_TOLERANCE_PERCENT,
+            EconomicContract.DEFAULT_WINDOW_DAYS))
+        .WithTermMonths(6)
+        .WithStartDate(new DateOnly(2025, 10, 1))
+        .WithPrimaryPurpose(CommitmentPurpose.Insurance)
+        .Build();
 
     // Contrato com PrimaryPurpose=Insurance gera a trilha-núcleo marcada como INSURANCE (seguro como contrato separado).
     [Fact]

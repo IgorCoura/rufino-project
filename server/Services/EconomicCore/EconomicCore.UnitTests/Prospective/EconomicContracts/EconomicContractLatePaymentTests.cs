@@ -3,6 +3,7 @@ namespace EconomicCore.UnitTests.Prospective.EconomicContracts;
 using EconomicCore.Domain.Operational.EconomicEvents;
 using EconomicCore.Domain.Prospective.EconomicContracts;
 using EconomicCore.Domain.Prospective.EconomicContracts.Enumerations;
+using EconomicCore.Domain.Prospective.EconomicContracts.ValueObjects;
 using EconomicCore.Domain.SeedWork;
 using EconomicCore.UnitTests.Prospective.EconomicContracts.Mothers;
 
@@ -206,5 +207,28 @@ public class EconomicContractLatePaymentTests
 
         Assert.False(settled);
         Assert.Equal(CommitmentStatus.Promised, contract.FindCommitment(rentOutflow).Status);
+    }
+
+    // One-shot com política toda fixa: 2 meses de atraso → penalidade 30 + 15×2 = 60, total atualizado 1060.
+    [Fact]
+    public void MaterializeLatePaymentPenalty_WithFixedPolicy_ShouldPriceFlatFinePlusPerUnitInterest()
+    {
+        var contract = EconomicContractMother.New()
+            .WithTermMonths(1)
+            .WithStartDate(new DateOnly(2025, 10, 1))
+            .WithPenaltyTerms(new PenaltyTerms(
+                PenaltyValueKind.FixedAmount, 30m, PenaltyValueKind.FixedAmount, 15m, InterestAccrualPeriod.Monthly))
+            .Build();
+        contract.Activate(EconomicContractMother.FixedOccurredAt, SequentialFactory());
+        var rentOutflow = contract.FindPromisedCommitment(
+            EconomicContractMother.October2025(), CommitmentDirection.OutflowPromise, CommitmentPurpose.Rent).Id;
+
+        var settlement = contract.MaterializeLatePaymentPenalty(
+            rentOutflow, new DateTime(2025, 12, 1, 12, 0, 0, DateTimeKind.Utc), 1060m,
+            PenaltyFactory(), EconomicContractMother.FixedOccurredAt);
+
+        Assert.Equal(1000m, settlement.BaseAmountValue);
+        Assert.Equal(60m, settlement.PenaltyAmountValue);
+        Assert.True(settlement.PenaltyMaterialized);
     }
 }

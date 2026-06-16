@@ -14,6 +14,17 @@ public sealed record ContractChargeRequest(
     Guid RecipientAgentId,
     bool CollectedByCounterparty);
 
+public sealed record PenaltyTermsRequest(
+    string FineKind,
+    decimal FineValue,
+    string InterestKind,
+    decimal InterestValue,
+    string InterestPeriod)
+{
+    // Política histórica do BC (multa 2% + juros 1% a.m.) — preserva a aritmética dos cenários existentes.
+    public static readonly PenaltyTermsRequest Default = new("PERCENT", 0.02m, "PERCENT", 0.01m, "MONTHLY");
+}
+
 public sealed record CreateContractRequest(
     Guid CounterpartyId,
     Guid ResourceId,
@@ -24,8 +35,24 @@ public sealed record CreateContractRequest(
     int AnchorDay,
     int TermMonths,
     DateOnly StartDate,
+    PenaltyTermsRequest Penalty,
     IReadOnlyList<ContractChargeRequest>? Charges = null,
     string? PrimaryPurpose = null);
+
+public sealed record ChangePenaltyTermsRequest(
+    string FineKind,
+    decimal FineValue,
+    string InterestKind,
+    decimal InterestValue,
+    string InterestPeriod);
+
+public sealed record ChangePenaltyTermsResponse(
+    Guid Id,
+    string FineKind,
+    decimal FineValue,
+    string InterestKind,
+    decimal InterestValue,
+    string InterestPeriod);
 
 public sealed record ContractResponse(
     Guid Id,

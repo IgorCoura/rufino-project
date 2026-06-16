@@ -126,7 +126,7 @@ public sealed class RentScenariosTests : BaseIntegrationTest
         var (resourceId, agentId) = await RentScenarioMother.SeedResourceAndAgentViaApi(Client, KnownIds.TenantA);
         var start = DateOnly.FromDateTime(DateTime.UtcNow).AddMonths(-3);
 
-        var contractId = await CreateContract(new CreateContractRequest(agentId, resourceId, 2000m, "BRL", "ACQUISITION", "MONTHLY", 5, 3, start));
+        var contractId = await CreateContract(new CreateContractRequest(agentId, resourceId, 2000m, "BRL", "ACQUISITION", "MONTHLY", 5, 3, start, PenaltyTermsRequest.Default));
         await Activate(contractId);
 
         for (var n = 0; n < 3; n++)
@@ -161,6 +161,7 @@ public sealed class RentScenariosTests : BaseIntegrationTest
 
         var contractId = await CreateContract(new CreateContractRequest(
             agentId, resourceId, 5000m, "BRL", "ACQUISITION", "MONTHLY", 5, 12, start,
+            Penalty: PenaltyTermsRequest.Default,
             Charges: [new ContractChargeRequest("CONDOMINIUM", 700m, "BRL", condoResourceId, agentId, true)]));
         await Activate(contractId);
         Assert.Equal(48, (await Commitments(contractId)).Count);
@@ -196,7 +197,7 @@ public sealed class RentScenariosTests : BaseIntegrationTest
         // Termo datado a partir de hoje: as 24 parcelas ficam todas em aberto (reajuste não toca período cumprido).
         var start = DateOnly.FromDateTime(DateTime.UtcNow);
 
-        var contractId = await CreateContract(new CreateContractRequest(agentId, resourceId, 1000m, "BRL", "ACQUISITION", "MONTHLY", 5, 24, start));
+        var contractId = await CreateContract(new CreateContractRequest(agentId, resourceId, 1000m, "BRL", "ACQUISITION", "MONTHLY", 5, 24, start, PenaltyTermsRequest.Default));
         await Activate(contractId);
 
         var m13 = start.AddMonths(12);
@@ -221,7 +222,7 @@ public sealed class RentScenariosTests : BaseIntegrationTest
         var (resourceId, agentId) = await RentScenarioMother.SeedResourceAndAgentViaApi(Client, KnownIds.TenantA);
         var start = DateOnly.FromDateTime(DateTime.UtcNow).AddMonths(-12);
 
-        var contractId = await CreateContract(new CreateContractRequest(agentId, resourceId, 1000m, "BRL", "ACQUISITION", "MONTHLY", 5, 12, start));
+        var contractId = await CreateContract(new CreateContractRequest(agentId, resourceId, 1000m, "BRL", "ACQUISITION", "MONTHLY", 5, 12, start, PenaltyTermsRequest.Default));
         await Activate(contractId);
 
         await ConsumeAndPayMonths(contractId, start, 0, 6, 1000m);
@@ -258,7 +259,7 @@ public sealed class RentScenariosTests : BaseIntegrationTest
         var (resourceId, agentId) = await RentScenarioMother.SeedResourceAndAgentViaApi(Client, KnownIds.TenantA);
         var start = DateOnly.FromDateTime(DateTime.UtcNow);
 
-        var contractId = await CreateContract(new CreateContractRequest(agentId, resourceId, 1000m, "BRL", "ACQUISITION", "MONTHLY", 5, 18, start));
+        var contractId = await CreateContract(new CreateContractRequest(agentId, resourceId, 1000m, "BRL", "ACQUISITION", "MONTHLY", 5, 18, start, PenaltyTermsRequest.Default));
         await Activate(contractId);
 
         foreach (var monthsAhead in new[] { 6, 12 })
@@ -284,7 +285,7 @@ public sealed class RentScenariosTests : BaseIntegrationTest
         var (resourceId, agentId) = await RentScenarioMother.SeedResourceAndAgentViaApi(Client, KnownIds.TenantA);
         var start = DateOnly.FromDateTime(DateTime.UtcNow).AddMonths(-12);
 
-        var contractId = await CreateContract(new CreateContractRequest(agentId, resourceId, 1000m, "BRL", "ACQUISITION", "MONTHLY", 5, 12, start));
+        var contractId = await CreateContract(new CreateContractRequest(agentId, resourceId, 1000m, "BRL", "ACQUISITION", "MONTHLY", 5, 12, start, PenaltyTermsRequest.Default));
         await Activate(contractId);
 
         await ConsumeAndPayMonths(contractId, start, 0, 4, 1000m);
@@ -323,7 +324,7 @@ public sealed class RentScenariosTests : BaseIntegrationTest
         var (resourceId, agentId) = await RentScenarioMother.SeedResourceAndAgentViaApi(Client, KnownIds.TenantA);
         var start = DateOnly.FromDateTime(DateTime.UtcNow).AddMonths(-5);
 
-        var contractId = await CreateContract(new CreateContractRequest(agentId, resourceId, 3000m, "BRL", "ACQUISITION", "MONTHLY", 5, 12, start));
+        var contractId = await CreateContract(new CreateContractRequest(agentId, resourceId, 3000m, "BRL", "ACQUISITION", "MONTHLY", 5, 12, start, PenaltyTermsRequest.Default));
         await Activate(contractId);
 
         SetRequestId();
@@ -343,7 +344,7 @@ public sealed class RentScenariosTests : BaseIntegrationTest
         var (resourceId, agentId) = await RentScenarioMother.SeedResourceAndAgentViaApi(Client, KnownIds.TenantA);
         var start = DateOnly.FromDateTime(DateTime.UtcNow).AddMonths(-5);
 
-        var contractId = await CreateContract(new CreateContractRequest(agentId, resourceId, 3000m, "BRL", "ACQUISITION", "MONTHLY", 5, 12, start));
+        var contractId = await CreateContract(new CreateContractRequest(agentId, resourceId, 3000m, "BRL", "ACQUISITION", "MONTHLY", 5, 12, start, PenaltyTermsRequest.Default));
         await Activate(contractId);
 
         await ConsumeAndPayMonths(contractId, start, 0, 5, 3000m);
@@ -375,7 +376,7 @@ public sealed class RentScenariosTests : BaseIntegrationTest
         var start = DateOnly.FromDateTime(DateTime.UtcNow).AddMonths(-1);
 
         var contractId = await CreateContract(new CreateContractRequest(
-            agentId, coverageResourceId, 250m, "BRL", "ACQUISITION", "MONTHLY", 10, 1, start, PrimaryPurpose: "INSURANCE"));
+            agentId, coverageResourceId, 250m, "BRL", "ACQUISITION", "MONTHLY", 10, 1, start, Penalty: PenaltyTermsRequest.Default, PrimaryPurpose: "INSURANCE"));
         await Activate(contractId);
 
         var rows = await Commitments(contractId);
@@ -402,6 +403,7 @@ public sealed class RentScenariosTests : BaseIntegrationTest
 
         var contractId = await CreateContract(new CreateContractRequest(
             agentId, resourceId, 1000m, "BRL", "ACQUISITION", "MONTHLY", 5, 12, start,
+            Penalty: PenaltyTermsRequest.Default,
             Charges:
             [
                 new ContractChargeRequest("CONDOMINIUM", 300m, "BRL", condoResourceId, agentId, true),
@@ -467,7 +469,7 @@ public sealed class RentScenariosTests : BaseIntegrationTest
         var start = DateOnly.FromDateTime(DateTime.UtcNow).AddMonths(-12);
         int[] lateMonths = [0, 2, 9, 10];
 
-        var contractId = await CreateContract(new CreateContractRequest(agentId, resourceId, 1000m, "BRL", "ACQUISITION", "MONTHLY", 5, 12, start));
+        var contractId = await CreateContract(new CreateContractRequest(agentId, resourceId, 1000m, "BRL", "ACQUISITION", "MONTHLY", 5, 12, start, PenaltyTermsRequest.Default));
         await Activate(contractId);
 
         async Task ConsumeAndPayMonth(int n, decimal amount)
@@ -536,7 +538,7 @@ public sealed class RentScenariosTests : BaseIntegrationTest
         var start = DateOnly.FromDateTime(DateTime.UtcNow).AddMonths(-12);
         int[] lateMonths = [0, 2, 9, 10];
 
-        var contractId = await CreateContract(new CreateContractRequest(agentId, resourceId, 1000m, "BRL", "ACQUISITION", "MONTHLY", 5, 12, start));
+        var contractId = await CreateContract(new CreateContractRequest(agentId, resourceId, 1000m, "BRL", "ACQUISITION", "MONTHLY", 5, 12, start, PenaltyTermsRequest.Default));
         await Activate(contractId);
 
         async Task ConsumeAndPayMonth(int n, decimal amount)

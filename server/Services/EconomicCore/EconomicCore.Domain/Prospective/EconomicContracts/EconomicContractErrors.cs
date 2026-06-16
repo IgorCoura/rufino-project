@@ -434,6 +434,49 @@ public static class EconomicContractErrors
             parameters: Array.Empty<object>(),
             sourcePath: BuildSourcePath(filePath, memberName, lineNumber));
 
+    public static DomainException InvalidPenaltyFixedValue(
+        decimal value,
+        [CallerFilePath] string filePath = "",
+        [CallerMemberName] string memberName = "",
+        [CallerLineNumber] int lineNumber = 0)
+        => new(
+            id: $"{PREFIX}48",
+            messageTemplate: "Valor fixo de penalidade {0} inválido (não pode ser negativo).",
+            parameters: new object[] { value },
+            sourcePath: BuildSourcePath(filePath, memberName, lineNumber));
+
+    public static DomainException InvalidPenaltyTermsComposition(
+        [CallerFilePath] string filePath = "",
+        [CallerMemberName] string memberName = "",
+        [CallerLineNumber] int lineNumber = 0)
+        => new(
+            id: $"{PREFIX}49",
+            messageTemplate: "Política de penalidade exige tipo da multa, tipo do juros e período de acúmulo do juros.",
+            parameters: Array.Empty<object>(),
+            sourcePath: BuildSourcePath(filePath, memberName, lineNumber));
+
+    public static DomainException PenaltyTermsRequired(
+        [CallerFilePath] string filePath = "",
+        [CallerMemberName] string memberName = "",
+        [CallerLineNumber] int lineNumber = 0)
+        => new(
+            id: $"{PREFIX}50",
+            messageTemplate: "A política de multa e juros de atraso é obrigatória na criação do contrato.",
+            parameters: Array.Empty<object>(),
+            sourcePath: BuildSourcePath(filePath, memberName, lineNumber));
+
+    public static DomainException PenaltyChangeNotAllowed(
+        string currentStatus,
+        [CallerFilePath] string filePath = "",
+        [CallerMemberName] string memberName = "",
+        [CallerLineNumber] int lineNumber = 0)
+        => new(
+            id: $"{PREFIX}51",
+            messageTemplate: "Política de multa e juros só pode ser alterada com o contrato em Draft ou Active (status atual: {0}).",
+            parameters: new object[] { currentStatus },
+            sourcePath: BuildSourcePath(filePath, memberName, lineNumber),
+            category: DomainErrorCategory.Conflict);
+
     private static string BuildSourcePath(string filePath, string memberName, int lineNumber)
         => $"{Path.GetFileName(filePath)}:{lineNumber} ({memberName})";
 }

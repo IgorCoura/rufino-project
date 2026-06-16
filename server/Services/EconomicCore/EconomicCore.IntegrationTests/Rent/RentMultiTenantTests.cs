@@ -35,7 +35,7 @@ public sealed class RentMultiTenantTests : BaseIntegrationTest
             new CreateContractRequest(
                 agentId, resourceId, 8000.00m, "BRL",
                 "ACQUISITION", "MONTHLY", AnchorDay: 5,
-                TermMonths: 2, StartDate: startDate));
+                TermMonths: 2, StartDate: startDate, Penalty: PenaltyTermsRequest.Default));
         var contract = await createResp.Content.ReadFromJsonAsync<ContractResponse>();
 
         SetRequestId();

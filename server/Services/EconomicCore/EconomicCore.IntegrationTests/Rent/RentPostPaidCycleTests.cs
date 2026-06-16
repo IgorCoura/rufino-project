@@ -37,7 +37,8 @@ public sealed class RentPostPaidCycleTests : BaseIntegrationTest
             Periodicity: "MONTHLY",
             AnchorDay: 5,
             TermMonths: termMonths,
-            StartDate: startDate);
+            StartDate: startDate,
+            Penalty: PenaltyTermsRequest.Default);
 
         var createResp = await Client.PostAsJsonAsync($"/api/v1/{KnownIds.TenantA}/contracts", createReq);
         Assert.Equal(HttpStatusCode.Created, createResp.StatusCode);

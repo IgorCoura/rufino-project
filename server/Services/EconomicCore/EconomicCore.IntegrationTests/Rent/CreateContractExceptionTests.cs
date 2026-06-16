@@ -61,7 +61,8 @@ public sealed class CreateContractExceptionTests : BaseIntegrationTest
             new CreateContractRequest(
                 agentId, resourceId, 8000.00m, "BRL",
                 "ACQUISITION", "MONTHLY", AnchorDay: 5,
-                TermMonths: 12, StartDate: DateOnly.FromDateTime(DateTime.UtcNow).AddMonths(-1)));
+                TermMonths: 12, StartDate: DateOnly.FromDateTime(DateTime.UtcNow).AddMonths(-1),
+                Penalty: PenaltyTermsRequest.Default));
 
         Assert.Equal(HttpStatusCode.NotFound, resp.StatusCode);
     }
@@ -77,12 +78,14 @@ public sealed class CreateContractExceptionTests : BaseIntegrationTest
         SetRequestId();
         await Client.PostAsJsonAsync($"/api/v1/{KnownIds.TenantA}/contracts",
             new CreateContractRequest(agentId, resourceId, 8000m, "BRL",
-                "ACQUISITION", "MONTHLY", 5, TermMonths: 12, StartDate: startDate));
+                "ACQUISITION", "MONTHLY", 5, TermMonths: 12, StartDate: startDate,
+                Penalty: PenaltyTermsRequest.Default));
 
         SetRequestId();
         var resp = await Client.PostAsJsonAsync($"/api/v1/{KnownIds.TenantA}/contracts",
             new CreateContractRequest(agentId, resourceId, 8000m, "BRL",
-                "ACQUISITION", "MONTHLY", 5, TermMonths: 12, StartDate: startDate.AddMonths(1)));
+                "ACQUISITION", "MONTHLY", 5, TermMonths: 12, StartDate: startDate.AddMonths(1),
+                Penalty: PenaltyTermsRequest.Default));
 
         Assert.Equal(HttpStatusCode.Conflict, resp.StatusCode);
         var error = await resp.Content.ReadFromJsonAsync<ErrorResponse>();
@@ -102,7 +105,8 @@ public sealed class CreateContractExceptionTests : BaseIntegrationTest
         var resp = await Client.PostAsJsonAsync($"/api/v1/{KnownIds.TenantA}/contracts",
             new CreateContractRequest(agentId, resourceId, 8000m, "BRL",
                 "ACQUISITION", "MONTHLY", anchorDay,
-                TermMonths: 12, StartDate: DateOnly.FromDateTime(DateTime.UtcNow).AddMonths(-1)));
+                TermMonths: 12, StartDate: DateOnly.FromDateTime(DateTime.UtcNow).AddMonths(-1),
+                Penalty: PenaltyTermsRequest.Default));
 
         Assert.Equal(HttpStatusCode.BadRequest, resp.StatusCode);
     }
@@ -120,7 +124,8 @@ public sealed class CreateContractExceptionTests : BaseIntegrationTest
         var resp = await Client.PostAsJsonAsync($"/api/v1/{KnownIds.TenantA}/contracts",
             new CreateContractRequest(agentId, resourceId, 8000m, "BRL",
                 "ACQUISITION", "MONTHLY", 5, termMonths,
-                StartDate: DateOnly.FromDateTime(DateTime.UtcNow).AddMonths(-1)));
+                StartDate: DateOnly.FromDateTime(DateTime.UtcNow).AddMonths(-1),
+                Penalty: PenaltyTermsRequest.Default));
 
         Assert.Equal(HttpStatusCode.BadRequest, resp.StatusCode);
         var error = await resp.Content.ReadFromJsonAsync<ErrorResponse>();
@@ -138,11 +143,30 @@ public sealed class CreateContractExceptionTests : BaseIntegrationTest
         SetRequestId();
         var resp = await Client.PostAsJsonAsync($"/api/v1/{KnownIds.TenantA}/contracts",
             new CreateContractRequest(agentId, resourceId, 8000m, "BRL",
-                "ACQUISITION", "MONTHLY", 5, 12, tooOld));
+                "ACQUISITION", "MONTHLY", 5, 12, tooOld, PenaltyTermsRequest.Default));
 
         Assert.Equal(HttpStatusCode.BadRequest, resp.StatusCode);
         var error = await resp.Content.ReadFromJsonAsync<ErrorResponse>();
         Assert.Equal("ECC.CTR18", error!.Id);
+    }
+
+    // Criação sem o bloco de multa/juros (penalty null) dispara ECC.CTR50 → 400 (política obrigatória).
+    [Fact]
+    public async Task PostContract_WithoutPenaltyTerms_ShouldReturnBadRequest_CTR50()
+    {
+        SetRequestId();
+        var (resourceId, agentId) = await RentScenarioMother.SeedResourceAndAgentViaApi(Client, KnownIds.TenantA);
+
+        SetRequestId();
+        var resp = await Client.PostAsJsonAsync($"/api/v1/{KnownIds.TenantA}/contracts",
+            new CreateContractRequest(agentId, resourceId, 8000m, "BRL",
+                "ACQUISITION", "MONTHLY", 5, 12,
+                StartDate: DateOnly.FromDateTime(DateTime.UtcNow).AddMonths(-1),
+                Penalty: null!));
+
+        Assert.Equal(HttpStatusCode.BadRequest, resp.StatusCode);
+        var error = await resp.Content.ReadFromJsonAsync<ErrorResponse>();
+        Assert.Equal("ECC.CTR50", error!.Id);
     }
 
     private static CreateContractRequest ValidRequest(
@@ -158,7 +182,8 @@ public sealed class CreateContractExceptionTests : BaseIntegrationTest
         Periodicity: "MONTHLY",
         AnchorDay: 5,
         TermMonths: 12,
-        StartDate: DateOnly.FromDateTime(DateTime.UtcNow).AddMonths(-1));
+        StartDate: DateOnly.FromDateTime(DateTime.UtcNow).AddMonths(-1),
+        Penalty: PenaltyTermsRequest.Default);
 
     private void SetRequestId()
     {
