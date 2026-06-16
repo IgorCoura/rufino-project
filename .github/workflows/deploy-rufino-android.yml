@@ -152,7 +152,7 @@ jobs:
           releaseFiles: client/rufino_v2/build/app/outputs/bundle/release/app-release.aab
           # Em push usa "internal" (teste interno) por padrão; no disparo manual
           # respeita a track escolhida no input.
-          track: ${{ github.event.inputs.track || 'internal' }}
+          track: ${{ github.event.inputs.track || 'alpha' }}
           status: completed
           # Para enviar o mapping ProGuard/R8 (desofuscar crashes no Play Console),
           # habilite a minificação no buildType release (isMinifyEnabled = true e
