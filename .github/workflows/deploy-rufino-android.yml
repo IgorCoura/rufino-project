@@ -85,7 +85,7 @@ env:
   # Offset somado ao número da execução para gerar o versionCode (Play exige
   # versionCode crescente). Ajuste se o Play Console já tiver um build maior:
   # o versionCode final será BUILD_NUMBER_OFFSET + github.run_number.
-  BUILD_NUMBER_OFFSET: 1
+  BUILD_NUMBER_OFFSET: 10
 
 jobs:
   build-and-deploy:
