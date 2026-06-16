@@ -78,8 +78,9 @@ concurrency:
 env:
   # Pacote do app (android/app/build.gradle.kts -> applicationId).
   PACKAGE_NAME: br.com.couratechsafety.rufino
-  # Versão do Flutter compatível com o SDK Dart ^3.5.2 do pubspec.yaml.
-  FLUTTER_VERSION: "3.27.1"
+  # Versão do Flutter usada no desenvolvimento (traz Dart >=3.9, exigido por
+  # dependências como shared_preferences). Mantenha alinhada com a sua local.
+  FLUTTER_VERSION: "3.38.7"
   # Diretório do app dentro do monorepo.
   WORKING_DIR: client/rufino_v2
   # Offset somado ao número da execução para gerar o versionCode (Play exige
