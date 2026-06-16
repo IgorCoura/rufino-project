@@ -3,7 +3,8 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../core/theme/app_breakpoints.dart';
 import '../../../../core/theme/app_spacing.dart';
-import '../../../../core/utils/file_saver.dart';
+import '../../../../core/utils/file_saver_stub.dart'
+    if (dart.library.io) '../../../../core/utils/file_saver.dart';
 import '../viewmodel/batch_download_viewmodel.dart';
 import 'combine_review_step.dart';
 import 'employee_selection_step.dart';
