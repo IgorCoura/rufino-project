@@ -49,7 +49,7 @@
       "Type": "Reservista"
     },
     "DocumentSigningOptions": {
-      "Id": 1,
+      "Id": 2,
       "Name": "PhysicalSignature"
     },
     "Photo": "FOTO.jpeg",
