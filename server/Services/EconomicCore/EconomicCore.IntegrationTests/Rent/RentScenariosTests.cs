@@ -14,7 +14,8 @@ using Microsoft.Extensions.DependencyInjection;
 
 /// <summary>
 /// Cenários reais de locação cobrindo as variações de valor: aluguéis curto/médio/longo, com/sem condomínio,
-/// pagamento bundled, reajustes anual e semestral, rescisão antecipada e seguro como contrato separado.
+/// pagamento bundled, reajustes anual e semestral, rescisão antecipada, seguro como contrato separado,
+/// penalidade de atraso (one-shot) e troca de política de penalidade (fixa → percentual) no meio da vigência.
 /// </summary>
 [Collection(nameof(IntegrationTestCollection))]
 public sealed class RentScenariosTests : BaseIntegrationTest
@@ -115,6 +116,14 @@ public sealed class RentScenariosTests : BaseIntegrationTest
         SetRequestId();
         var resp = await Client.PostAsJsonAsync($"/api/v1/{KnownIds.TenantA}/contracts/{contractId}/adjust",
             new AdjustContractRequest("RENT", effectiveFrom.Year, effectiveFrom.Month, null, indexRate, "BRL"));
+        Assert.Equal(HttpStatusCode.OK, resp.StatusCode);
+    }
+
+    private async Task ChangePenalty(Guid contractId, string fineKind, decimal fineValue, string interestKind, decimal interestValue, string interestPeriod)
+    {
+        SetRequestId();
+        var resp = await Client.PostAsJsonAsync($"/api/v1/{KnownIds.TenantA}/contracts/{contractId}/penalty",
+            new ChangePenaltyTermsRequest(fineKind, fineValue, interestKind, interestValue, interestPeriod));
         Assert.Equal(HttpStatusCode.OK, resp.StatusCode);
     }
 
@@ -597,6 +606,119 @@ public sealed class RentScenariosTests : BaseIntegrationTest
             Assert.Contains(pair, p => p.Direction == "OUTFLOW_PROMISE");
             Assert.Contains(pair, p => p.Direction == "INFLOW_PROMISE");
             Assert.All(pair, p => Assert.Equal(expected, p.Amount));
+        }
+
+        Assert.Equal(32, await FulfilledCount(contractId));
+    }
+
+    // S12 — Política de penalidade FIXA → PERCENTUAL no meio da vigência, com reajuste de valor e quitação one-shot
+    // dos atrasos. Contrato de 12 meses nasce com multa/juros FIXOS (R$50 + R$5/dia, acúmulo diário); após 5 meses
+    // de consumo a política é trocada para PERCENTUAL (2% multa + 1% juros a.m.) e o aluguel é reajustado +10% no
+    // mês 6. Atrasos da fase fixa (meses 1 e 3) materializam penalidade 50 + 5×diasAtraso; atrasos da fase
+    // percentual (meses 8 e 10) materializam 2% do valor reajustado (1100 × 2% = 22.00). A troca de política não
+    // reprecifica penalidade já materializada. Todos os atrasos são one-shot (/payment/late), então as 8 pernas
+    // Penalty terminam FULFILLED e a trilha RENT fica 100% cumprida (32 commitments cumpridos no total).
+    [Fact]
+    public async Task S12_FixedThenPercentPenalty_WithAdjustment_OneShotLatePayments()
+    {
+        SetRequestId();
+        var (resourceId, agentId) = await RentScenarioMother.SeedResourceAndAgentViaApi(Client, KnownIds.TenantA);
+        var start = DateOnly.FromDateTime(DateTime.UtcNow).AddMonths(-12);
+        int[] fixedLateMonths = [1, 3];
+        int[] percentLateMonths = [8, 10];
+
+        const decimal fixedFine = 50m;
+        const decimal fixedInterestPerDay = 5m;
+        const decimal percentPenaltyAfterAdjust = 22.00m; // 1100 × 2% (multa); meses cheios = 0 → sem juros.
+
+        var contractId = await CreateContract(new CreateContractRequest(
+            agentId, resourceId, 1000m, "BRL", "ACQUISITION", "MONTHLY", 5, 12, start,
+            new PenaltyTermsRequest("FIXED", fixedFine, "FIXED", fixedInterestPerDay, "DAILY")));
+        await Activate(contractId);
+
+        // Penalidade fixa do mês n pago no dia 20 do mês seguinte: multa fixa + R$5 por dia decorrido após a janela
+        // de cumprimento (anchor 5 + 30 dias). Replica ComputePenalty(base, dueDate, paidDate) com acúmulo diário.
+        decimal FixedPenaltyFor(int n)
+        {
+            var d = start.AddMonths(n);
+            var next = d.AddMonths(1);
+            var anchor = Math.Min(5, DateTime.DaysInMonth(d.Year, d.Month));
+            var dueDate = new DateOnly(d.Year, d.Month, anchor).AddDays(30);
+            var paidDate = new DateOnly(next.Year, next.Month, 20);
+            return fixedFine + (fixedInterestPerDay * (paidDate.DayNumber - dueDate.DayNumber));
+        }
+
+        async Task ConsumeAndPayMonth(int n, decimal baseAmount, decimal? lateTotal)
+        {
+            var d = start.AddMonths(n);
+            var rows = await Commitments(contractId);
+            var consumedAt = new DateTime(d.Year, d.Month, 8, 12, 0, 0, DateTimeKind.Utc);
+            await Consume(contractId, rows.Single(r => r.Direction == "INFLOW_PROMISE" && r.Purpose == "RENT" && r.Year == d.Year && r.Month == d.Month).Id, consumedAt);
+
+            var outflowId = rows.Single(r => r.Direction == "OUTFLOW_PROMISE" && r.Purpose == "RENT" && r.Year == d.Year && r.Month == d.Month).Id;
+            if (lateTotal is { } total)
+            {
+                // Atraso: dia 20 do mês seguinte — depois da janela (dia 5 + 30 dias). Boleto único atualizado.
+                var next = d.AddMonths(1);
+                var paidAt = new DateTime(next.Year, next.Month, 20, 12, 0, 0, DateTimeKind.Utc);
+                await PayLate(contractId, outflowId, total, paidAt);
+            }
+            else
+            {
+                await Pay(contractId, outflowId, baseAmount, consumedAt);
+            }
+        }
+
+        // Fase 1 (meses 0–4, política FIXA): atrasos one-shot nos meses 1 e 3.
+        for (var n = 0; n < 5; n++)
+            await ConsumeAndPayMonth(n, 1000m, fixedLateMonths.Contains(n) ? 1000m + FixedPenaltyFor(n) : null);
+        await DrainOutbox();
+
+        // No meio da vigência: troca a política para PERCENTUAL e reajusta o aluguel em +10% a partir do mês 6.
+        await ChangePenalty(contractId, "PERCENT", 0.02m, "PERCENT", 0.01m, "MONTHLY");
+        var m6 = start.AddMonths(5);
+        await Adjust(contractId, m6, 0.10m);
+
+        var afterAdjust = await Commitments(contractId);
+        bool OnOrAfter(Row r) => r.Year > m6.Year || (r.Year == m6.Year && r.Month >= m6.Month);
+        Assert.All(afterAdjust.Where(r => r.Purpose == "RENT" && r.Direction == "OUTFLOW_PROMISE" && !OnOrAfter(r)), r => Assert.Equal(1000m, r.Amount));
+        Assert.All(afterAdjust.Where(r => r.Purpose == "RENT" && r.Direction == "OUTFLOW_PROMISE" && OnOrAfter(r)), r => Assert.Equal(1100m, r.Amount));
+
+        // Fase 2 (meses 5–11, política PERCENTUAL sobre o valor reajustado): atrasos one-shot nos meses 8 e 10.
+        for (var n = 5; n < 12; n++)
+            await ConsumeAndPayMonth(n, 1100m, percentLateMonths.Contains(n) ? 1100m + percentPenaltyAfterAdjust : null);
+        await DrainOutbox();
+
+        var rows = await Commitments(contractId);
+        var rent = rows.Where(r => r.Purpose == "RENT").ToList();
+        Assert.Equal(24, rent.Count);
+        Assert.All(rent, r => Assert.Equal("FULFILLED", r.Status));
+
+        var penalties = rows.Where(r => r.Purpose == "PENALTY").ToList();
+        Assert.Equal(8, penalties.Count);
+        Assert.All(penalties, p => Assert.Equal("FULFILLED", p.Status));
+
+        // Penalidades da fase fixa: valor fixo materializado, preservado mesmo após a troca para percentual.
+        foreach (var n in fixedLateMonths)
+        {
+            var d = start.AddMonths(n);
+            var expected = FixedPenaltyFor(n);
+            var pair = penalties.Where(p => p.Year == d.Year && p.Month == d.Month).ToList();
+            Assert.Equal(2, pair.Count);
+            Assert.Contains(pair, p => p.Direction == "OUTFLOW_PROMISE");
+            Assert.Contains(pair, p => p.Direction == "INFLOW_PROMISE");
+            Assert.All(pair, p => Assert.Equal(expected, p.Amount));
+        }
+
+        // Penalidades da fase percentual: 2% do valor reajustado (1100 × 0.02 = 22.00).
+        foreach (var n in percentLateMonths)
+        {
+            var d = start.AddMonths(n);
+            var pair = penalties.Where(p => p.Year == d.Year && p.Month == d.Month).ToList();
+            Assert.Equal(2, pair.Count);
+            Assert.Contains(pair, p => p.Direction == "OUTFLOW_PROMISE");
+            Assert.Contains(pair, p => p.Direction == "INFLOW_PROMISE");
+            Assert.All(pair, p => Assert.Equal(percentPenaltyAfterAdjust, p.Amount));
         }
 
         Assert.Equal(32, await FulfilledCount(contractId));
