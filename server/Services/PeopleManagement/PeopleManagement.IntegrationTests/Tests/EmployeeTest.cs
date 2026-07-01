@@ -34,10 +34,11 @@ using PeopleManagement.Domain.AggregatesModel.RequireDocumentsAggregate;
 
 namespace PeopleManagement.IntegrationTests.Tests
 {
-    public class EmployeeTest(PeopleManagementWebApplicationFactory factory) : IClassFixture<PeopleManagementWebApplicationFactory>
+    [Collection(nameof(IntegrationTestCollection))]
+    public class EmployeeTest(PeopleManagementWebApplicationFactory factory) : BaseIntegrationTest(factory)
     {
-        private readonly PeopleManagementWebApplicationFactory _factory = factory;
 
+        // POST /employee cria o funcionário com nome/cargo/local de trabalho e persiste igual ao esperado (ToEmployee).
         [Fact]
         public async Task CreateEmployeeWithSuccess()
         {
@@ -66,6 +67,7 @@ namespace PeopleManagement.IntegrationTests.Tests
 
         }
 
+        // PUT /employee/address altera o endereço do funcionário; persiste o Address igual ao enviado (ToAddress).
         [Fact]
         public async Task AlterAddressWithSuccess()
         {
@@ -99,6 +101,7 @@ namespace PeopleManagement.IntegrationTests.Tests
             var archives = await context.Archives.AsNoTracking().Where(x => x.OwnerId == content.Id).ToListAsync(cancellationToken);           
         }
 
+        // PUT /employee/contact altera telefone/email do funcionário; persiste o Contact igual ao enviado (ToContact).
         [Fact]
         public async Task AlterContactWithSuccess()
         {
@@ -125,6 +128,7 @@ namespace PeopleManagement.IntegrationTests.Tests
             Assert.Equal(command.ToCommand(employee.CompanyId).ToContact(), result.Contact);
         }
 
+        // PUT /employee/dependent/create adiciona um dependente (cônjuge); persiste o dependente e dispara a exigência de documento via DependentSpouseChangeEvent.
         [Fact]
         public async Task CreateDependentWithSuccess()
         {
@@ -162,6 +166,7 @@ namespace PeopleManagement.IntegrationTests.Tests
             await CheckRequestDocumentEvent(context, EmployeeEvent.DependentSpouseChangeEvent(employee.Id, employee.CompanyId), cancellationToken);
         }
 
+        // PUT /employee/dependent/edit altera um dependente existente (filho); persiste os novos dados e dispara DependentChildChangeEvent.
         [Fact]
         public async Task AlterDependentWithSuccess()
         {
@@ -204,6 +209,7 @@ namespace PeopleManagement.IntegrationTests.Tests
             await CheckRequestDocumentEvent(context, EmployeeEvent.DependentChildChangeEvent(employee.Id, employee.CompanyId), cancellationToken);
         }
 
+        // PUT /employee/idcard altera o RG/identidade do funcionário; persiste o IdCard igual ao enviado (ToIdCard).
         [Fact]
         public async Task AlterIdCardWithSuccess()
         {
@@ -236,6 +242,7 @@ namespace PeopleManagement.IntegrationTests.Tests
             Assert.Equal(command.ToCommand(employee.CompanyId).ToIdCard(), result.IdCard);
         }
 
+        // PUT /employee/MedicalAdmissionExam registra o exame médico admissional (datas de realização/validade); persiste o MedicalAdmissionExam igual ao enviado.
         [Fact]
         public async Task AlterMedicalAdmissionExamWithSuccess()
         {
@@ -262,6 +269,7 @@ namespace PeopleManagement.IntegrationTests.Tests
         }
 
 
+        // PUT /employee/MilitaryDocument altera o documento militar (reservista) do funcionário; persiste o MilitaryDocument igual ao enviado.
         [Fact]
         public async Task AlterMilitaryDocumentWithSuccess()
         {
@@ -287,6 +295,7 @@ namespace PeopleManagement.IntegrationTests.Tests
             Assert.Equal(command.ToCommand(employee.CompanyId).ToMilitaryDocument(), result.MilitaryDocument);
         }
 
+        // PUT /employee/name altera o nome do funcionário; persiste o novo nome (comparação case-insensitive).
         [Fact]
         public async Task AlterNameWithSuccess()
         {
@@ -311,6 +320,7 @@ namespace PeopleManagement.IntegrationTests.Tests
             Assert.Equal(command.Name, result.Name.ToString(), StringComparer.OrdinalIgnoreCase);
         }
 
+        // PUT /employee/personalinfo altera os dados pessoais (deficiência, estado civil, etc.); persiste o PersonalInfo igual ao enviado (ToPersonalInfo).
         [Fact]
         public async Task AlterPersonalInfoWithSuccess()
         {
@@ -340,6 +350,7 @@ namespace PeopleManagement.IntegrationTests.Tests
             Assert.Equal(command.ToCommand(employee.CompanyId).ToPersonalInfo(), result.PersonalInfo);
         }
 
+        // PUT /employee/role troca o cargo de um funcionário ainda não ativo; persiste o novo RoleId (sem gerar documentos, pois não está ativo).
         [Fact]
         public async Task AlterRoleWithSuccess()
         {
@@ -366,6 +377,7 @@ namespace PeopleManagement.IntegrationTests.Tests
             Assert.Equal(command.RoleId, result.RoleId);
         }
 
+        // PUT /employee/voteid altera o título de eleitor do funcionário; persiste o novo VoteId.
         [Fact]
         public async Task AlterVoteIdWithSuccess()
         {
@@ -391,6 +403,7 @@ namespace PeopleManagement.IntegrationTests.Tests
             Assert.Equal(command.VoteIdNumber, result.VoteId);
         }
 
+        // PUT /employee/workplace troca o local de trabalho do funcionário; persiste o novo WorkPlaceId.
         [Fact]
         public async Task AlterWorkPlaceWithSuccess()
         {
@@ -417,6 +430,7 @@ namespace PeopleManagement.IntegrationTests.Tests
             Assert.Equal(command.WorkPlaceId, result.WorkPlaceId);
         }
 
+        // PUT /employee/admission/complete conclui a admissão (matrícula + contrato CLT): status vira Active, grava matrícula/contrato e dispara CompleteAdmissionEvent.
         [Fact]
         public async Task CompleteEmployeeAdmissionWithSuccess()
         {
@@ -447,6 +461,7 @@ namespace PeopleManagement.IntegrationTests.Tests
             await CheckRequestDocumentEvent(context, EmployeeEvent.CompleteAdmissionEvent(employee.Id, employee.CompanyId), cancellationToken);
         }
 
+        // PUT /employee/contract/finished encerra o contrato do funcionário: status vira Inactive, grava a data de término e dispara DemissionalExamRequestEvent.
         [Fact]
         public async Task FinishedContractEmployeeWithSuccess()
         {
@@ -473,6 +488,7 @@ namespace PeopleManagement.IntegrationTests.Tests
             await CheckRequestDocumentEvent(context, EmployeeEvent.DemissionalExamRequestEvent(employee.Id, employee.CompanyId), cancellationToken);
         }
 
+        // PUT /employee/role em funcionário ATIVO troca o cargo e, por exigir os documentos do novo cargo, gera um Document com DocumentUnit pendente (RequiredDocumentId do novo cargo).
         [Fact]
         public async Task ChangeEmployeeRoleWhenEmployeeIsActiveWithSuccess()
         {

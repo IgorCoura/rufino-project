@@ -111,7 +111,7 @@ namespace PeopleManagement.IntegrationTests.Data
 
             public async Task InsertInDB(PeopleManagementContext context, CancellationToken cancellationToken = default)
             {
-                var sql = @"INSERT INTO ""Companies"" (""Id"", ""CorporateName"", ""FantasyName"", ""Cnpj"", ""Contact_Email"", ""Contact_Phone"", ""Address_ZipCode"", ""Address_Street"", ""Address_Number"", ""Address_Complement"", ""Address_Neighborhood"", ""Address_City"", ""Address_State"", ""Address_Country"", ""CreatedAt"", ""UpdatedAt"")  
+                var sql = @"INSERT INTO people_management.""Companies"" (""Id"", ""CorporateName"", ""FantasyName"", ""Cnpj"", ""Contact_Email"", ""Contact_Phone"", ""Address_ZipCode"", ""Address_Street"", ""Address_Number"", ""Address_Complement"", ""Address_Neighborhood"", ""Address_City"", ""Address_State"", ""Address_Country"", ""CreatedAt"", ""UpdatedAt"")
                 VALUES (@Id, @CorporateName, @FantasyName, @Cnpj, @Contact_Email, @Contact_Phone, @Address_ZipCode, @Address_Street, @Address_Number, @Address_Complement, @Address_Neighborhood, @Address_City, @Address_State, @Address_Country, @CreatedAt, @UpdatedAt)";
 
                 var parameters = new[]

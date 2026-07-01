@@ -7,10 +7,11 @@ using System.Net;
 
 namespace PeopleManagement.IntegrationTests.Tests
 {
-    public class RequireDocumentsTests(PeopleManagementWebApplicationFactory factory) : IClassFixture<PeopleManagementWebApplicationFactory>
+    [Collection(nameof(IntegrationTestCollection))]
+    public class RequireDocumentsTests(PeopleManagementWebApplicationFactory factory) : BaseIntegrationTest(factory)
     {
-        private readonly PeopleManagementWebApplicationFactory _factory = factory;
 
+        // POST /requiredocuments cria a exigência de documentos associada a um cargo (Role) contendo um template; persiste igual à esperada (ToRequireDocuments).
         [Fact]
         public async Task CreateRequireDocumentsWithSuccess()
         {
@@ -43,8 +44,10 @@ namespace PeopleManagement.IntegrationTests.Tests
             Assert.Equal(command.ToCommand(documentTemplate.CompanyId).ToRequireDocuments(result.Id), result);
         }
 
+        // GET /requiredocuments/association/1 recupera as exigências de documentos por tipo de associação.
+        // ATENÇÃO: teste sem asserções — apenas exercita o endpoint (não valida status nem corpo da resposta).
         [Fact]
-        public async Task TestRecoverData()
+        public async Task GetRequireDocumentsByAssociationType()
         {
             var cancellationToken = new CancellationToken();
 

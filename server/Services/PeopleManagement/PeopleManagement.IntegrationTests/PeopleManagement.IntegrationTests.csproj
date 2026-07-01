@@ -19,6 +19,7 @@
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.11.0" />
     <PackageReference Include="Microsoft.VisualStudio.Azure.Containers.Tools.Targets" Version="1.21.0" />
     <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="9.0.4" />
+    <PackageReference Include="Respawn" Version="6.2.1" />
     <PackageReference Include="System.Data.SqlClient" Version="4.9.0" />
     <PackageReference Include="Testcontainers" Version="4.4.0" />
     <PackageReference Include="AWSSDK.S3" Version="3.7.415.2" />
@@ -44,5 +45,19 @@
   <ItemGroup>
     <ProjectReference Include="..\PeopleManagement.API\PeopleManagement.API.csproj" />
   </ItemGroup>
+
+  <!--
+    O PdfService lê os templates de app_files/templates/{dir} (SourceDirectory em appsettings.json), mas os
+    arquivos-fonte moram em DataForTests/templates/**. Este target os copia para o output em app_files/templates/**
+    para o GeneratePdf funcionar. É aditivo: não conflita com o Content de DataForTests (que continua sendo copiado).
+  -->
+  <Target Name="CopyTemplatesToAppFiles" AfterTargets="Build">
+    <ItemGroup>
+      <TemplateFiles Include="$(MSBuildProjectDirectory)\DataForTests\templates\**\*.*" />
+    </ItemGroup>
+    <Copy SourceFiles="@(TemplateFiles)"
+          DestinationFiles="@(TemplateFiles-&gt;'$(OutDir)app_files\templates\%(RecursiveDir)%(Filename)%(Extension)')"
+          SkipUnchangedFiles="true" />
+  </Target>
 
 </Project>

@@ -12,10 +12,11 @@ using System.Net.Http.Headers;
 
 namespace PeopleManagement.IntegrationTests.Tests
 {
-    public class ArchiveTests(PeopleManagementWebApplicationFactory factory) : IClassFixture<PeopleManagementWebApplicationFactory>
+    [Collection(nameof(IntegrationTestCollection))]
+    public class ArchiveTests(PeopleManagementWebApplicationFactory factory) : BaseIntegrationTest(factory)
     {
-        private readonly PeopleManagementWebApplicationFactory _factory = factory;
 
+        // POST /archive/file faz upload de um PDF para um Archive existente: grava o arquivo (Extension.PDF) e disponibiliza o blob no storage (download > 0 bytes).
         [Fact]
         public async Task InsertPdfWithSuccess()
         {
@@ -63,6 +64,7 @@ namespace PeopleManagement.IntegrationTests.Tests
 
         }
 
+        // PUT /archive/file/notapplicable marca um arquivo pendente como não aplicável; o status do arquivo passa a FileStatus.NotApplicable.
         [Fact]
         public async Task FileNotApplicableWithSuccess()
         {

@@ -13,10 +13,11 @@ using static Microsoft.EntityFrameworkCore.DbLoggerCategory.Database;
 
 namespace PeopleManagement.IntegrationTests.Tests
 {
-    public class DocumentTemplateTests(PeopleManagementWebApplicationFactory factory) : IClassFixture<PeopleManagementWebApplicationFactory>
+    [Collection(nameof(IntegrationTestCollection))]
+    public class DocumentTemplateTests(PeopleManagementWebApplicationFactory factory) : BaseIntegrationTest(factory)
     {
-        private readonly PeopleManagementWebApplicationFactory _factory = factory;
 
+        // POST /documenttemplate cria o template (metadados + referências header/body/footer e grupo) e persiste igual ao esperado (ToDocumentTemplate).
         [Fact]
         public async Task CreateDocumentTemplateWithSuccess()
         {
@@ -57,6 +58,7 @@ namespace PeopleManagement.IntegrationTests.Tests
         }
 
 
+        // POST /documenttemplate/upload envia o .zip do template: extrai os arquivos para o diretório configurado (SourceDirectory) e grava o body em disco.
         [Fact]
         public async Task InsertDocumentTemplateWithSuccess()
         {

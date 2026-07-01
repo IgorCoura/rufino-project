@@ -7,19 +7,19 @@ using System.Net;
 
 namespace PeopleManagement.IntegrationTests.Tests
 {
-    public class CompanyTest : IClassFixture<PeopleManagementWebApplicationFactory>
+    [Collection(nameof(IntegrationTestCollection))]
+    public class CompanyTest : BaseIntegrationTest
     {
         private readonly HttpClient _client;
-        private readonly PeopleManagementWebApplicationFactory _factory;
         private readonly PeopleManagementContext _context;
 
-        public CompanyTest(PeopleManagementWebApplicationFactory factory)
+        public CompanyTest(PeopleManagementWebApplicationFactory factory) : base(factory)
         {
-            _factory = factory;
             _context = _factory.GetContext();
             _client = _factory.CreateClient();
         }
 
+        // POST /company com payload válido cria a Company, retorna 200 + BaseDTO e persiste a entidade igual à esperada (ToCompany).
         [Fact]
         public async Task CreateCompanyWithSuccess()
         {
