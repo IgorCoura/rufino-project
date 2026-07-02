@@ -1,33 +1,22 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using PeopleManagement.Application.Commands.CompanyCommands.CreateCompany;
 using PeopleManagement.Application.Commands.DTO;
-using PeopleManagement.Infra.Context;
 using PeopleManagement.IntegrationTests.Configs;
 using System.Net;
 
 namespace PeopleManagement.IntegrationTests.Tests
 {
     [Collection(nameof(IntegrationTestCollection))]
-    public class CompanyTest : BaseIntegrationTest
+    public class CompanyTest(PeopleManagementWebApplicationFactory factory) : BaseIntegrationTest(factory)
     {
-        private readonly HttpClient _client;
-        private readonly PeopleManagementContext _context;
-
-        public CompanyTest(PeopleManagementWebApplicationFactory factory) : base(factory)
-        {
-            _context = _factory.GetContext();
-            _client = _factory.CreateClient();
-        }
-
         // POST /company com payload válido cria a Company, retorna 200 + BaseDTO e persiste a entidade igual à esperada (ToCompany).
         [Fact]
         public async Task CreateCompanyWithSuccess()
         {
-            //Arrange 
+            var context = GetContext();
+            var client = CreateClient();
 
-            var context = _factory.GetContext();
-
-            var company = new CreateCompanyCommand(
+            var command = new CreateCompanyCommand(
                 "Lucas e Ryan Informática Ltda",
                 "Lucas e Ryan Informática",
                 "84.247.335/0001-07",
@@ -43,15 +32,13 @@ namespace PeopleManagement.IntegrationTests.Tests
                 "BRASIL"
             );
 
-            //Act
-            _client.InputHeaders();
-            var response = await _client.PostAsJsonAsync("/api/v1/company", company);
+            client.InputHeaders();
+            var response = await client.PostAsJsonAsync("/api/v1/company", command);
 
-            //Assert
             Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-            var content = await response.Content.ReadFromJsonAsync(typeof(BaseDTO)) as BaseDTO ?? throw new ArgumentNullException();
+            var content = await response.Content.ReadFromJsonAsync<BaseDTO>() ?? throw new ArgumentNullException();
             var result = await context.Companies.AsNoTracking().FirstOrDefaultAsync(x => x.Id == content.Id) ?? throw new ArgumentNullException();
-            Assert.Equal(company.ToCompany(result.Id), result);
+            Assert.Equal(command.ToCompany(result.Id), result);
         }
     }
 }

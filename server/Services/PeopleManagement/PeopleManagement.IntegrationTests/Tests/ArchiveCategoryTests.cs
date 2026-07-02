@@ -16,10 +16,10 @@ namespace PeopleManagement.IntegrationTests.Tests
         [Fact]
         public async Task CreateArchiveCategoryWithSuccess()
         {
-            var cancellationToken = new CancellationToken();
+            var cancellationToken = CancellationToken.None;
 
-            var context = _factory.GetContext();
-            var client = _factory.CreateClient();
+            var context = GetContext();
+            var client = CreateClient();
 
             var company = await context.InsertCompany(cancellationToken);
             await context.SaveChangesAsync(cancellationToken);
@@ -39,10 +39,10 @@ namespace PeopleManagement.IntegrationTests.Tests
         [Fact]
         public async Task AddListenEventWithSuccess()
         {
-            var cancellationToken = new CancellationToken();
+            var cancellationToken = CancellationToken.None;
 
-            var context = _factory.GetContext();
-            var client = _factory.CreateClient();
+            var context = GetContext();
+            var client = CreateClient();
 
             var company = await context.InsertCompany(cancellationToken);
             var archiveCategories = await context.InsertArchiveCategory(company.Id, cancellationToken);
@@ -65,10 +65,10 @@ namespace PeopleManagement.IntegrationTests.Tests
         [Fact]
         public async Task RemoveListenEventWithSuccess()
         {
-            var cancellationToken = new CancellationToken();
+            var cancellationToken = CancellationToken.None;
 
-            var context = _factory.GetContext();
-            var client = _factory.CreateClient();
+            var context = GetContext();
+            var client = CreateClient();
 
             var company = await context.InsertCompany(cancellationToken);
             var archiveCategories = await context.InsertArchiveCategory(company.Id, cancellationToken);

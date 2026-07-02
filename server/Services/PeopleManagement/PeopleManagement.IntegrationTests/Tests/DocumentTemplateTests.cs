@@ -8,8 +8,6 @@ using PeopleManagement.IntegrationTests.Configs;
 using PeopleManagement.IntegrationTests.Data;
 using System.Net;
 using System.Net.Http.Headers;
-using System.Text.Json;
-using static Microsoft.EntityFrameworkCore.DbLoggerCategory.Database;
 
 namespace PeopleManagement.IntegrationTests.Tests
 {
@@ -21,10 +19,10 @@ namespace PeopleManagement.IntegrationTests.Tests
         [Fact]
         public async Task CreateDocumentTemplateWithSuccess()
         {
-            var cancellationToken = new CancellationToken();
+            var cancellationToken = CancellationToken.None;
 
-            var context = _factory.GetContext();
-            var client = _factory.CreateClient();
+            var context = GetContext();
+            var client = CreateClient();
 
             var company = await context.InsertCompany(cancellationToken);
             var documentGroup = await context.InsertDocumentGroup(company.Id, cancellationToken);
@@ -62,10 +60,10 @@ namespace PeopleManagement.IntegrationTests.Tests
         [Fact]
         public async Task InsertDocumentTemplateWithSuccess()
         {
-            var cancellationToken = new CancellationToken();
+            var cancellationToken = CancellationToken.None;
 
-            var context = _factory.GetContext();
-            var client = _factory.CreateClient();
+            var context = GetContext();
+            var client = CreateClient();
 
             var documentTemplate = await context.InsertDocumentTemplate(cancellationToken);
             await context.SaveChangesAsync(cancellationToken);
@@ -86,7 +84,6 @@ namespace PeopleManagement.IntegrationTests.Tests
 
             client.InputHeaders([documentTemplate.CompanyId]);
             var response = await client.PostAsync($"/api/v1/{documentTemplate.CompanyId}/documenttemplate/upload", content);
-            var cont = await response.Content.ReadAsStringAsync();
             Assert.Equal(HttpStatusCode.OK, response.StatusCode);
             var contentResponse = await response.Content.ReadFromJsonAsync(typeof(InsertDocumentTemplateResponse)) as InsertDocumentTemplateResponse ?? throw new ArgumentNullException();
             var result = await context.DocumentTemplates.AsNoTracking().FirstOrDefaultAsync(x => x.Id == contentResponse.Id) ?? throw new ArgumentNullException();

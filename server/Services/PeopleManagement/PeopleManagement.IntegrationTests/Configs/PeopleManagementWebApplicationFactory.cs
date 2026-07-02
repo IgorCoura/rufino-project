@@ -34,6 +34,10 @@ namespace PeopleManagement.IntegrationTests.Configs
         private Respawner _respawner = default!;
         private string _connectionString = default!;
 
+        // Scopes criados por GetContext() são rastreados e descartados a cada reset (por teste), evitando
+        // que cada chamada deixe um IServiceScope pendurado até a coleta de lixo.
+        private readonly List<IServiceScope> _trackedScopes = [];
+
         public async Task InitializeAsync()
         {
             await _dbContainer.StartAsync();
@@ -129,12 +133,17 @@ namespace PeopleManagement.IntegrationTests.Configs
         public PeopleManagementContext GetContext()
         {
             var scope = this.Services.CreateScope();
+            _trackedScopes.Add(scope);
             return scope.ServiceProvider.GetRequiredService<PeopleManagementContext>();
         }
 
         // Reseta o schema people_management entre os testes (chamado pelo DisposeAsync da BaseIntegrationTest).
         public async Task ResetDatabaseAsync()
         {
+            foreach (var scope in _trackedScopes)
+                scope.Dispose();
+            _trackedScopes.Clear();
+
             await using var connection = new NpgsqlConnection(_connectionString);
             await connection.OpenAsync();
             await _respawner.ResetAsync(connection);

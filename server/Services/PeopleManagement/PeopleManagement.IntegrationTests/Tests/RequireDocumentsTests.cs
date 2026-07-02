@@ -4,6 +4,7 @@ using PeopleManagement.Domain.AggregatesModel.RequireDocumentsAggregate;
 using PeopleManagement.IntegrationTests.Configs;
 using PeopleManagement.IntegrationTests.Data;
 using System.Net;
+using System.Text.Json.Nodes;
 
 namespace PeopleManagement.IntegrationTests.Tests
 {
@@ -15,10 +16,10 @@ namespace PeopleManagement.IntegrationTests.Tests
         [Fact]
         public async Task CreateRequireDocumentsWithSuccess()
         {
-            var cancellationToken = new CancellationToken();
+            var cancellationToken = CancellationToken.None;
 
-            var context = _factory.GetContext();
-            var client = _factory.CreateClient();
+            var context = GetContext();
+            var client = CreateClient();
 
            
             var documentTemplate = await context.InsertDocumentTemplate(cancellationToken);
@@ -44,26 +45,28 @@ namespace PeopleManagement.IntegrationTests.Tests
             Assert.Equal(command.ToCommand(documentTemplate.CompanyId).ToRequireDocuments(result.Id), result);
         }
 
-        // GET /requiredocuments/association/1 recupera as exigências de documentos por tipo de associação.
-        // ATENÇÃO: teste sem asserções — apenas exercita o endpoint (não valida status nem corpo da resposta).
+        // GET /requiredocuments/association/{type} recupera as exigências de documentos por tipo de associação (Role);
+        // com uma exigência semeada para o cargo, o endpoint responde 200 e devolve ao menos um item.
         [Fact]
         public async Task GetRequireDocumentsByAssociationType()
         {
-            var cancellationToken = new CancellationToken();
+            var cancellationToken = CancellationToken.None;
 
-            var context = _factory.GetContext();
-            var client = _factory.CreateClient();
-
+            var context = GetContext();
+            var client = CreateClient();
 
             var documentTemplate = await context.InsertDocumentTemplate(cancellationToken);
             var role = await context.InsertRole(documentTemplate.CompanyId, cancellationToken);
+            await context.InsertRequireDocuments(documentTemplate.CompanyId, role.Id, [documentTemplate.Id], cancellationToken);
             await context.SaveChangesAsync(cancellationToken);
 
             client.InputHeaders([documentTemplate.CompanyId]);
-            var response = await client.GetAsync($"/api/v1/{documentTemplate.CompanyId}/requiredocuments/association/1");
+            var response = await client.GetAsync($"/api/v1/{documentTemplate.CompanyId}/requiredocuments/association/{AssociationType.Role.Id}");
 
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
             var content = await response.Content.ReadAsStringAsync();
-
+            var items = JsonNode.Parse(content)!.AsArray();
+            Assert.NotEmpty(items);
         }
 
     }

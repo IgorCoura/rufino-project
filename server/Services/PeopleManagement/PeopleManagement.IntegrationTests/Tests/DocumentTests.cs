@@ -1,24 +1,16 @@
-﻿using Hangfire;
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
+using Hangfire;
 using PeopleManagement.Application.Commands.DocumentCommands.CreateDocument;
 using PeopleManagement.Application.Commands.DocumentCommands.GenerateDocumentToSign;
 using PeopleManagement.Application.Commands.DocumentCommands.InsertDocument;
 using PeopleManagement.Application.Commands.DocumentCommands.InsertDocumentToSign;
 using PeopleManagement.Application.Commands.DocumentCommands.ReceiveWebhookDocument;
 using PeopleManagement.Application.Commands.DocumentCommands.UpdateDocumentUnitDetails;
-using PeopleManagement.Domain.AggregatesModel.CompanyAggregate;
 using PeopleManagement.Domain.AggregatesModel.DocumentAggregate;
-using PeopleManagement.Domain.AggregatesModel.DocumentAggregate.Interfaces;
 using PeopleManagement.IntegrationTests.Configs;
 using PeopleManagement.IntegrationTests.Data;
-using System.ComponentModel.Design;
 using System.Net;
 using System.Net.Http.Headers;
-using System.Reflection.Metadata;
 using System.Text.Json.Nodes;
-using static Microsoft.EntityFrameworkCore.DbLoggerCategory.Database;
-using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace PeopleManagement.IntegrationTests.Tests
 {
@@ -30,10 +22,10 @@ namespace PeopleManagement.IntegrationTests.Tests
         [Fact]
         public async Task UpdateDocumentUnitDetailsWithSuccess()
         {
-            var cancellationToken = new CancellationToken();
+            var cancellationToken = CancellationToken.None;
 
-            var context = _factory.GetContext();
-            var client = _factory.CreateClient();
+            var context = GetContext();
+            var client = CreateClient();
 
             var document = await context.InsertDocument(cancellationToken);
             var documentUnit = await document.InsertOneDocumentInDocument();
@@ -48,14 +40,13 @@ namespace PeopleManagement.IntegrationTests.Tests
                     date
                 );
 
-
             client.InputHeaders([document.CompanyId]);
             var response = await client.PutAsJsonAsync($"/api/v1/{document.CompanyId}/document/documentunit", command);
 
             Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-            var content = await response.Content.ReadFromJsonAsync(typeof(CreateDocumentResponse)) as CreateDocumentResponse ?? throw new ArgumentNullException();
-            var result = await context.Documents.AsNoTracking().Include(x => x.DocumentsUnits.Where(x => x.Id == content.Id)).FirstOrDefaultAsync(x => x.Id == document.Id) ?? throw new ArgumentNullException();
-            var documentResult = result.DocumentsUnits.First();
+            var content = await response.Content.ReadFromJsonAsync<CreateDocumentResponse>() ?? throw new ArgumentNullException();
+            var result = await GetDocumentAsync(document.Id, cancellationToken);
+            var documentResult = result.DocumentsUnits.First(u => u.Id == content.Id);
             Assert.Equal(date.Day, documentResult.Date.Day);
         }
 
@@ -66,10 +57,10 @@ namespace PeopleManagement.IntegrationTests.Tests
         [Fact(Skip = "Requer o worker do Hangfire ativo; incompatível com o setup determinístico (server desligado em teste).")]
         public async Task UpdateDocumentUnitDetailsSchedulesJobsWithSuccess()
         {
-            var cancellationToken = new CancellationToken();
+            var cancellationToken = CancellationToken.None;
 
-            var context = _factory.GetContext();
-            var client = _factory.CreateClient();
+            var context = GetContext();
+            var client = CreateClient();
 
             var document = await context.InsertDocument(cancellationToken);
             var documentUnit = await document.InsertOneDocumentInDocument();
@@ -84,14 +75,13 @@ namespace PeopleManagement.IntegrationTests.Tests
                     date
                 );
 
-
             client.InputHeaders([document.CompanyId]);
             var response = await client.PutAsJsonAsync($"/api/v1/{document.CompanyId}/document/documentunit", command);
 
             Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-            var content = await response.Content.ReadFromJsonAsync(typeof(CreateDocumentResponse)) as CreateDocumentResponse ?? throw new ArgumentNullException();
-            var result = await context.Documents.AsNoTracking().Include(x => x.DocumentsUnits.Where(x => x.Id == content.Id)).FirstOrDefaultAsync(x => x.Id == document.Id) ?? throw new ArgumentNullException();
-            var documentResult = result.DocumentsUnits.First();
+            var content = await response.Content.ReadFromJsonAsync<CreateDocumentResponse>() ?? throw new ArgumentNullException();
+            var result = await GetDocumentAsync(document.Id, cancellationToken);
+            var documentResult = result.DocumentsUnits.First(u => u.Id == content.Id);
             Assert.Equal(date.Day, documentResult.Date.Day);
 
             JobStorage jobStorage = _factory.Services.GetRequiredService<JobStorage>();
@@ -104,10 +94,10 @@ namespace PeopleManagement.IntegrationTests.Tests
         [Fact]
         public async Task UpdateDocumentUnitDetailsWithTimeConflict()
         {
-            var cancellationToken = new CancellationToken();
+            var cancellationToken = CancellationToken.None;
 
-            var context = _factory.GetContext();
-            var client = _factory.CreateClient();
+            var context = GetContext();
+            var client = CreateClient();
 
             var company = await context.InsertCompany(cancellationToken);
             var role = await context.InsertRole(company.Id, cancellationToken);
@@ -133,7 +123,6 @@ namespace PeopleManagement.IntegrationTests.Tests
                     documentUnitWithConflict.Date
                 );
 
-
             client.InputHeaders([company.Id]);
             var response = await client.PutAsJsonAsync($"/api/v1/{document.CompanyId}/document/documentunit", command);
 
@@ -148,81 +137,54 @@ namespace PeopleManagement.IntegrationTests.Tests
         [Fact]
         public async Task GeneratePdfWithSuccess()
         {
-            var cancellationToken = new CancellationToken();
+            var cancellationToken = CancellationToken.None;
 
-            var context = _factory.GetContext();
-            var client = _factory.CreateClient();
-            
+            var context = GetContext();
+            var client = CreateClient();
+
             var document = await context.InsertDocument(cancellationToken);
             await context.SaveChangesAsync(cancellationToken);
             var documentUnit = await document.InsertOneDocumentWithInfoInDocument();
             await context.SaveChangesAsync(cancellationToken);
 
             client.InputHeaders([document.CompanyId]);
-            var response = await client.GetAsync($"/api/v1/{document.CompanyId}/document/generate/{document.EmployeeId}/{document.Id}/{documentUnit.Id}");         
+            var response = await client.GetAsync($"/api/v1/{document.CompanyId}/document/generate/{document.EmployeeId}/{document.Id}/{documentUnit.Id}");
 
             Assert.Equal(HttpStatusCode.OK, response.StatusCode);
             var content = await response.Content.ReadAsByteArrayAsync();
             Assert.NotNull(content);
             Assert.True(content.Length > 130000 && content.Length < 153000);
-
-            //Debug
-            //var directory = Path.Combine(Directory.GetCurrentDirectory(), "temp");
-            //var path = Path.Combine(directory, $"{Guid.NewGuid()}.pdf");
-            //if(!Directory.Exists(directory))
-            //    Directory.CreateDirectory(directory);
-            //File.WriteAllBytes(path, content);
         }
 
         // POST /document/insert anexa um PDF já pronto à DocumentUnit: grava com Extension.PDF e disponibiliza o blob no storage (download > 0 bytes).
         [Fact]
         public async Task InsertPdfWithSuccess()
         {
-            var cancellationToken = new CancellationToken();
+            var cancellationToken = CancellationToken.None;
 
-            var context = _factory.GetContext();
-            var client = _factory.CreateClient();
+            var context = GetContext();
+            var client = CreateClient();
 
             var document = await context.InsertDocument(cancellationToken);
             await context.SaveChangesAsync(cancellationToken);
             var documentUnit = await document.InsertOneDocumentWithInfoInDocument();
             await context.SaveChangesAsync(cancellationToken);
 
-
-            using var content = new MultipartFormDataContent();
-
-            // Carregue o arquivo PDF em um stream
-            var path = Path.Combine("DataForTests", "199f760b-601d-4a05-aee4-d0a9dbcc6b4d.pdf");
-            using var fileStream = new FileStream(path, FileMode.Open, FileAccess.Read);
-            using var streamContent = new StreamContent(fileStream);
-                
-            // Adicione o conteúdo do tipo arquivo ao multipart/form-data
-            streamContent.Headers.ContentType = new MediaTypeHeaderValue("application/pdf");
-            content.Add(streamContent, "formFile", Path.GetFileName(path));
-
-            content.Add(new StringContent(documentUnit.Id.ToString()), "documentUnitId");
-            content.Add(new StringContent(document.Id.ToString()), "documentId");
-            content.Add(new StringContent(document.EmployeeId.ToString()), "employeeId");
+            using var content = PdfMultipartContent(
+                ("documentUnitId", documentUnit.Id.ToString()),
+                ("documentId", document.Id.ToString()),
+                ("employeeId", document.EmployeeId.ToString()));
 
             client.InputHeaders([document.CompanyId]);
             var response = await client.PostAsync($"/api/v1/{document.CompanyId}/document/insert", content);
 
             Assert.Equal(HttpStatusCode.OK, response.StatusCode);
             var contentResponse = await response.Content.ReadFromJsonAsync<InsertDocumentToSignResponse>() ?? throw new ArgumentNullException();
-            var result = await context.Documents.AsNoTracking().Include(x => x.DocumentsUnits.Where(x => x.Id == contentResponse.Id)).FirstOrDefaultAsync(x => x.Id == document.Id) ?? throw new ArgumentNullException();
-            var documentResponse = result.DocumentsUnits.First();
+            var result = await GetDocumentAsync(document.Id, cancellationToken);
+            var documentResponse = result.DocumentsUnits.First(u => u.Id == contentResponse.Id);
             Assert.Equal(Extension.PDF, documentResponse.Extension);
-            Assert.Equal(typeof(Guid), documentResponse.Id.GetType());
 
-            using var scope = _factory.Services.CreateScope();
-
-            var blobService = scope.ServiceProvider.GetRequiredService<IBlobService>();
-
-            var stream = await blobService.DownloadAsync(documentResponse.GetNameWithExtension, document.CompanyId.ToString(), cancellationToken);
-
-            Assert.NotNull(stream);
-            Assert.True(stream.Length > 0);
-            
+            await AssertBlobExistsAsync(documentResponse.GetNameWithExtension, document.CompanyId, cancellationToken);
         }
 
 
@@ -230,10 +192,10 @@ namespace PeopleManagement.IntegrationTests.Tests
         [Fact(Skip = "Utilizar uma API externa para ser testando")]
         public async Task GenerateDocumentToSignWithSuccess()
         {
-            var cancellationToken = new CancellationToken();
+            var cancellationToken = CancellationToken.None;
 
-            var context = _factory.GetContext();
-            var client = _factory.CreateClient();
+            var context = GetContext();
+            var client = CreateClient();
 
             var document = await context.InsertDocument(cancellationToken);
             await context.SaveChangesAsync(cancellationToken);
@@ -246,9 +208,9 @@ namespace PeopleManagement.IntegrationTests.Tests
             var response = await client.PostAsJsonAsync($"/api/v1/{document.CompanyId}/document/generate/send2sign", command);
 
             Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-            var content = await response.Content.ReadFromJsonAsync(typeof(GenerateDocumentToSignResponse)) as GenerateDocumentToSignResponse ?? throw new ArgumentNullException();
-            var result = await context.Documents.AsNoTracking().Include(x => x.DocumentsUnits.Where(x => x.Id == content.Id)).FirstOrDefaultAsync(x => x.Id == document.Id) ?? throw new ArgumentNullException();
-            var documentResult = result.DocumentsUnits.First();
+            var content = await response.Content.ReadFromJsonAsync<GenerateDocumentToSignResponse>() ?? throw new ArgumentNullException();
+            var result = await GetDocumentAsync(document.Id, cancellationToken);
+            var documentResult = result.DocumentsUnits.First(u => u.Id == content.Id);
             Assert.Equal(DocumentStatus.AwaitingSignature, result.Status);
             Assert.Equal(DocumentUnitStatus.AwaitingSignature, documentResult.Status);
         }
@@ -258,43 +220,32 @@ namespace PeopleManagement.IntegrationTests.Tests
         [Fact(Skip = "Utilizar uma API externa para ser testando")]
         public async Task InsertDocumentToSignWithSuccess()
         {
-            var cancellationToken = new CancellationToken();
+            var cancellationToken = CancellationToken.None;
 
-            var context = _factory.GetContext();
-            var client = _factory.CreateClient();
+            var context = GetContext();
+            var client = CreateClient();
 
             var document = await context.InsertDocument(cancellationToken);
             await context.SaveChangesAsync(cancellationToken);
             var documentUnit = await document.InsertOneDocumentWithInfoInDocument();
             await context.SaveChangesAsync(cancellationToken);
 
-            using var content = new MultipartFormDataContent();
-
-            // Carregue o arquivo PDF em um stream
-            var path = Path.Combine("DataForTests", "199f760b-601d-4a05-aee4-d0a9dbcc6b4d.pdf");
-            using var fileStream = new FileStream(path, FileMode.Open, FileAccess.Read);
-            using var streamContent = new StreamContent(fileStream);
-
-            // Adicione o conteúdo do tipo arquivo ao multipart/form-data
-            streamContent.Headers.ContentType = new MediaTypeHeaderValue("application/pdf");
-            content.Add(streamContent, "formFile", Path.GetFileName(path));
-
-            content.Add(new StringContent(documentUnit.Id.ToString()), "DocumentUnitId");
-            content.Add(new StringContent(document.Id.ToString()), "documentId");
-            content.Add(new StringContent(document.EmployeeId.ToString()), "employeeId");
-            content.Add(new StringContent(DateTime.UtcNow.AddDays(30).ToString()), "DateLimitToSign");
-            content.Add(new StringContent("1"), "EminderEveryNDays");
+            using var content = PdfMultipartContent(
+                ("DocumentUnitId", documentUnit.Id.ToString()),
+                ("documentId", document.Id.ToString()),
+                ("employeeId", document.EmployeeId.ToString()),
+                ("DateLimitToSign", DateTime.UtcNow.AddDays(30).ToString()),
+                ("EminderEveryNDays", "1"));
 
             client.InputHeaders([document.CompanyId]);
             var response = await client.PostAsync($"/api/v1/{document.CompanyId}/document/insert/send2sign", content);
 
             Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-            var contentResponse = await response.Content.ReadFromJsonAsync(typeof(InsertDocumentResponse)) as InsertDocumentResponse ?? throw new ArgumentNullException();
-            var result = await context.Documents.AsNoTracking().Include(x => x.DocumentsUnits.Where(x => x.Id == contentResponse.Id)).FirstOrDefaultAsync(x => x.Id == document.Id) ?? throw new ArgumentNullException();
-            var documentResult = result.DocumentsUnits.First();
+            var contentResponse = await response.Content.ReadFromJsonAsync<InsertDocumentResponse>() ?? throw new ArgumentNullException();
+            var result = await GetDocumentAsync(document.Id, cancellationToken);
+            var documentResult = result.DocumentsUnits.First(u => u.Id == contentResponse.Id);
             Assert.Equal(DocumentStatus.AwaitingSignature, result.Status);
             Assert.Equal(DocumentUnitStatus.AwaitingSignature, documentResult.Status);
-
         }
 
         // POST /document/webhook processa o callback "doc_signed" da ZapSign: baixa o arquivo assinado (Extension.PDF) e o disponibiliza no storage (download > 0 bytes).
@@ -303,10 +254,10 @@ namespace PeopleManagement.IntegrationTests.Tests
         [Fact(Skip = "Depende de baixar o arquivo assinado de uma URL externa (ZapSign S3) que expira e passa a retornar 403.")]
         public async Task ReceiveSignedDocumentWebhookWithSuccess()
         {
-            var cancellationToken = new CancellationToken();
+            var cancellationToken = CancellationToken.None;
 
-            var context = _factory.GetContext();
-            var client = _factory.CreateClient();
+            var context = GetContext();
+            var client = CreateClient();
 
             var document = await context.InsertDocument(cancellationToken);
             await context.SaveChangesAsync(cancellationToken);
@@ -410,23 +361,13 @@ namespace PeopleManagement.IntegrationTests.Tests
             client.InputHeaders([document.CompanyId]);
             var response = await client.PostAsync($"/api/v1/document/webhook", command);
 
-            var response231 = await response.Content.ReadAsStringAsync();
-
             Assert.Equal(HttpStatusCode.OK, response.StatusCode);
             var contentResponse = await response.Content.ReadFromJsonAsync<ReceiveWebhookDocumentResponse>() ?? throw new ArgumentNullException();
-            var result = await context.Documents.AsNoTracking().Include(x => x.DocumentsUnits.Where(x => x.Id == contentResponse.Id)).FirstOrDefaultAsync(x => x.Id == document.Id) ?? throw new ArgumentNullException();
-            var documentResponse = result.DocumentsUnits.First();
+            var result = await GetDocumentAsync(document.Id, cancellationToken);
+            var documentResponse = result.DocumentsUnits.First(u => u.Id == contentResponse.Id);
             Assert.Equal(Extension.PDF, documentResponse.Extension);
-            Assert.Equal(typeof(Guid), documentResponse.Id.GetType());
 
-            using var scope = _factory.Services.CreateScope();
-
-            var blobService = scope.ServiceProvider.GetRequiredService<IBlobService>();
-
-            var stream = await blobService.DownloadAsync(documentResponse.GetNameWithExtension, document.CompanyId.ToString(), cancellationToken);
-
-            Assert.NotNull(stream);
-            Assert.True(stream.Length > 0);
+            await AssertBlobExistsAsync(documentResponse.GetNameWithExtension, document.CompanyId, cancellationToken);
         }
 
 
