@@ -4,6 +4,7 @@ using PeopleManagement.Application.Commands.DocumentTemplateCommands.InsertDocum
 using PeopleManagement.Domain.AggregatesModel.CompanyAggregate;
 using PeopleManagement.Domain.AggregatesModel.DocumentTemplateAggregate;
 using PeopleManagement.Domain.AggregatesModel.DocumentTemplateAggregate.options;
+using PeopleManagement.Infra.Context;
 using PeopleManagement.IntegrationTests.Configs;
 using PeopleManagement.IntegrationTests.Data;
 using System.Net;
@@ -102,6 +103,34 @@ namespace PeopleManagement.IntegrationTests.Tests
             bodyFile.Dispose();
 
             Directory.Delete(documentTemplatePath, true);
+        }
+
+
+        // Round-trip EF: UsePreviousPeriod = true persiste e é relido corretamente (mapeamento da flag de competência,
+        // hoje default false em toda a suíte). Garante que a flag sobrevive ao ciclo antes de virar PeriodPolicy.
+        [Fact]
+        public async Task CreateDocumentTemplate_WithUsePreviousPeriodTrue_RoundTrips()
+        {
+            var cancellationToken = CancellationToken.None;
+
+            var context = GetContext();
+
+            var company = await context.InsertCompany(cancellationToken);
+            var documentGroup = await context.InsertDocumentGroup(company.Id, cancellationToken);
+
+            var template = DocumentTemplate.Create(
+                Guid.NewGuid(), "NR35", "Description NR35", company.Id, 365d, 8d,
+                TemplateFileInfo.Create("dir", "index.html", "header.html", "footer.html", [RecoverDataType.Employee]),
+                true, [], documentGroup.Id, usePreviousPeriod: true);
+            await context.DocumentTemplates.AddAsync(template, cancellationToken);
+            await context.SaveChangesAsync(cancellationToken);
+
+            using var scope = _factory.Services.CreateScope();
+            var readContext = scope.ServiceProvider.GetRequiredService<PeopleManagementContext>();
+            var persisted = await readContext.DocumentTemplates.AsNoTracking()
+                .FirstAsync(x => x.Id == template.Id, cancellationToken);
+
+            Assert.True(persisted.UsePreviousPeriod);
         }
 
 
