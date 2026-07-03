@@ -65,7 +65,7 @@ void main() {
   final fakePdfBytes = Uint8List.fromList([0x25, 0x50, 0x44, 0x46]);
 
   /// Fake text extractor — not used in scan tests but required by constructor.
-  String fakeTextExtractor(Uint8List bytes) => '';
+  Future<String> fakeTextExtractor(Uint8List bytes) async => '';
 
   /// Default rotation finder for scan tests: returns `null` (no rotation),
   /// so the real image decoder and compute isolate are never invoked.

@@ -60,7 +60,7 @@ void main() {
   );
 
   /// Fake text extractor that decodes file bytes as UTF-8 text.
-  String fakeTextExtractor(Uint8List bytes) => utf8.decode(bytes);
+  Future<String> fakeTextExtractor(Uint8List bytes) async => utf8.decode(bytes);
 
   setUp(() {
     mockBatchRepo = MockBatchDocumentRepository();

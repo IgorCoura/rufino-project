@@ -906,6 +906,7 @@ Toda configuração em `core/theme/`: `app_theme.dart` (entry point ThemeData li
 | Scan a document (camera) + OCR | `core/utils/document_scanner_service.dart` | Platform-abstracted (`_mobile` / `_web` / `_stub`). Wraps `cunning_document_scanner`, `camera`, `google_mlkit_text_recognition`. |
 | Build the combined-PDF filename for batch download | `core/utils/combine_file_namer.dart` | Mirrors backend `BatchDownloadQueries.DownloadBatchDocumentUnits` naming. |
 | Fuzzy-match Brazilian names | `core/utils/fuzzy_name_matcher.dart` | Jaro-Winkler + token overlap, accent-insensitive, handles PT connectors. |
+| Run many async tasks with a concurrency cap | `core/utils/concurrency.dart` | `mapWithConcurrency` — bounded worker pool, preserves input order, `Future.wait` error semantics. Used by batch fan-out (per-template queries, per-page OCR, per-file text extraction). |
 | Generate a request/correlation ID | `data/services/request_id_helper.dart` | UUID v4 for `x-requestid` on mutations. Wraps `uuid`. |
 | Send a multipart upload with progress | `data/services/multipart_upload_helper.dart` | Streams bytes and reports `0.0–1.0` via callback. |
 | Validate an HTTP response & raise typed errors | `data/services/http_status_helper.dart` | Throws `HttpException` on non-2xx, extracts server messages, logs via `DomainErrorLogger`. |

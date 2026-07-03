@@ -559,6 +559,49 @@ void main() {
       expect(viewModel.errorMessage, isNotNull);
     });
 
+    test('downloadCombined downloads every unit across concurrency batches',
+        () async {
+      // 7 units exceed the internal concurrency limit of 5, so the batching
+      // loop must run more than one round to cover them all. This locks in
+      // that no unit is skipped by the batching arithmetic.
+      //
+      // NOTE: the subsequent per-employee PDF merge relies on native plugins
+      // (pdf_combiner) + valid PDF bytes and cannot run under `flutter test`,
+      // so this characterizes the DOWNLOAD phase only. The merge/ZIP-output
+      // path would need dependency injection of the merger to be unit-tested.
+      final units = [
+        for (var i = 1; i <= 7; i++)
+          BatchDownloadUnit(
+            documentUnitId: 'unit-$i',
+            documentId: 'doc-$i',
+            employeeId: 'emp-1',
+            employeeName: 'Alice Silva',
+            documentTemplateName: 'Holerite',
+            documentGroupName: 'RH',
+            date: '28/02/2026',
+            statusId: 2,
+            statusName: 'OK',
+            hasFile: true,
+          ),
+      ];
+      fakeBatchDownloadRepo.unitsPage =
+          BatchDownloadUnitsPage(items: units, totalCount: units.length);
+
+      await navigateToStep2();
+      viewModel.selectAllUnitsOnPage();
+      viewModel.addToCombination();
+      viewModel.proceedToReview();
+
+      await viewModel.downloadCombined();
+
+      for (var i = 1; i <= 7; i++) {
+        expect(
+          fakeBatchDownloadRepo.downloadedUnitKeys,
+          contains('doc-$i:unit-$i'),
+        );
+      }
+    });
+
     test('combinedFileName uses first unit of first group', () async {
       await navigateToStep2();
       viewModel.toggleUnitSelection('doc-1', 'unit-1');

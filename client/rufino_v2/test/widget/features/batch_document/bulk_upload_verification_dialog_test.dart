@@ -47,7 +47,7 @@ void main() {
     ),
   ];
 
-  String fakeTextExtractor(Uint8List bytes) => utf8.decode(bytes);
+  Future<String> fakeTextExtractor(Uint8List bytes) async => utf8.decode(bytes);
 
   PlatformFile makeFile(String name, String content) {
     final bytes = Uint8List.fromList(utf8.encode(content));
