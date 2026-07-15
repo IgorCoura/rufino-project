@@ -5,6 +5,7 @@ using PeopleManagement.Application.Commands.DocumentTemplateCommands.InsertDocum
 using PeopleManagement.Application.Commands.Identified;
 using PeopleManagement.Application.Queries.DocumentTemplate;
 using PeopleManagement.Domain.AggregatesModel.DocumentTemplateAggregate;
+using PeopleManagement.Domain.AggregatesModel.DocumentTemplateAggregate.Policies;
 using PeopleManagement.Services.Services.RecoverInfoToDocument;
 using System.Text.Json.Nodes;
 using static PeopleManagement.Application.Queries.Base.BaseDtos;
@@ -102,6 +103,18 @@ namespace PeopleManagement.API.Controllers
         {
             var result = RecoverDataType.GetAll<RecoverDataType>();
             var dtos = result.Select(x => new EnumerationDto { Id = x.Id, Name = x.Name });
+            return OkResponse(dtos);
+        }
+
+        // Regras (policies) que o template aceita configurar. Devolve apenas as suportadas pelo contrato — o
+        // PolicyType tem mais valores (discriminador de persistência), mas expor os não implementados faria a UI
+        // oferecer regra que a API ignora.
+        [HttpGet("PolicyType")]
+        [ProtectedResource("document-template", "view")]
+        public ActionResult<IEnumerable<EnumerationDto>> GetAllPolicyTypes([FromRoute] Guid company)
+        {
+            var supported = new[] { PolicyType.Expiration, PolicyType.Workload };
+            var dtos = supported.Select(x => new EnumerationDto { Id = x.Id, Name = x.Name });
             return OkResponse(dtos);
         }
 

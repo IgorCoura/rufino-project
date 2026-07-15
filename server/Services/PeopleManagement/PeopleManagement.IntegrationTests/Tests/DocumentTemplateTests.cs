@@ -1,5 +1,7 @@
 ﻿using Microsoft.EntityFrameworkCore;
+using PeopleManagement.Application.Commands.DocumentTemplateCommands;
 using PeopleManagement.Application.Commands.DocumentTemplateCommands.CreateDocumentTemplate;
+using PeopleManagement.Application.Commands.DocumentTemplateCommands.EditDocumentTemplate;
 using PeopleManagement.Application.Commands.DocumentTemplateCommands.InsertDocumentTemplate;
 using PeopleManagement.Domain.AggregatesModel.CompanyAggregate;
 using PeopleManagement.Domain.AggregatesModel.DocumentTemplateAggregate;
@@ -275,6 +277,146 @@ namespace PeopleManagement.IntegrationTests.Tests
             Assert.Equal(2, persisted.Policies.Count);
             Assert.Equal(TimeSpan.FromDays(365), persisted.GetPolicy<IExpirationPolicy>()!.Duration);
             Assert.Equal(TimeSpan.FromHours(8), persisted.GetPolicy<IWorkloadPolicy>()!.Workload);
+        }
+
+        // POST /documenttemplate com o bloco "policies" (Fase 2.4): as policies informadas mandam sobre os campos
+        // escalares do payload, e os escalares são gravados como reflexo delas.
+        [Fact]
+        public async Task CreateDocumentTemplate_WithPoliciesBlock_PoliciesWinOverScalarFields()
+        {
+            var cancellationToken = CancellationToken.None;
+
+            var context = GetContext();
+            var client = CreateClient();
+
+            var company = await context.InsertCompany(cancellationToken);
+            var documentGroup = await context.InsertDocumentGroup(company.Id, cancellationToken);
+            await context.SaveChangesAsync(cancellationToken);
+
+            var command = new CreateDocumentTemplateCommand(
+                company.Id, "NR01", "Description NR01", 365, 8,
+                new TemplateFileInfoModel("index.html", "header.html", "footer.html", [RecoverDataType.Employee.Id]),
+                false, [], documentGroup.Id, false,
+                new PoliciesModel(new ExpirationPolicyModel(30), new WorkloadPolicyModel(4)));
+
+            client.InputHeaders([company.Id]);
+            var response = await client.PostAsJsonAsync($"/api/v1/{company.Id}/documenttemplate", command);
+
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+            var content = await response.Content.ReadFromJsonAsync<CreateDocumentTemplateResponse>() ?? throw new ArgumentNullException();
+
+            using var scope = _factory.Services.CreateScope();
+            var readContext = scope.ServiceProvider.GetRequiredService<PeopleManagementContext>();
+            var persisted = await readContext.DocumentTemplates.AsNoTracking().FirstAsync(x => x.Id == content.Id, cancellationToken);
+
+            Assert.Equal(TimeSpan.FromDays(30), persisted.GetPolicy<IExpirationPolicy>()!.Duration);
+            Assert.Equal(TimeSpan.FromHours(4), persisted.GetPolicy<IWorkloadPolicy>()!.Workload);
+            Assert.Equal(TimeSpan.FromDays(30), persisted.DocumentValidityDuration);
+            Assert.Equal(TimeSpan.FromHours(4), persisted.Workload);
+        }
+
+        // "policies": {} = nenhuma regra ativa, mesmo com os campos escalares preenchidos no payload.
+        [Fact]
+        public async Task CreateDocumentTemplate_WithEmptyPoliciesBlock_PersistsNoPolicies()
+        {
+            var cancellationToken = CancellationToken.None;
+
+            var context = GetContext();
+            var client = CreateClient();
+
+            var company = await context.InsertCompany(cancellationToken);
+            var documentGroup = await context.InsertDocumentGroup(company.Id, cancellationToken);
+            await context.SaveChangesAsync(cancellationToken);
+
+            var command = new CreateDocumentTemplateCommand(
+                company.Id, "NR01", "Description NR01", 365, 8,
+                new TemplateFileInfoModel("index.html", "header.html", "footer.html", [RecoverDataType.Employee.Id]),
+                false, [], documentGroup.Id, false, new PoliciesModel());
+
+            client.InputHeaders([company.Id]);
+            var response = await client.PostAsJsonAsync($"/api/v1/{company.Id}/documenttemplate", command);
+
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+            var content = await response.Content.ReadFromJsonAsync<CreateDocumentTemplateResponse>() ?? throw new ArgumentNullException();
+
+            using var scope = _factory.Services.CreateScope();
+            var readContext = scope.ServiceProvider.GetRequiredService<PeopleManagementContext>();
+            var persisted = await readContext.DocumentTemplates.AsNoTracking().FirstAsync(x => x.Id == content.Id, cancellationToken);
+
+            Assert.Empty(persisted.Policies);
+            Assert.Null(persisted.DocumentValidityDuration);
+            Assert.Null(persisted.Workload);
+        }
+
+        // Retrocompatibilidade: omitir "policies" mantém o comportamento legado (derivar dos campos escalares).
+        [Fact]
+        public async Task CreateDocumentTemplate_WithoutPoliciesBlock_KeepsLegacyDerivation()
+        {
+            var cancellationToken = CancellationToken.None;
+
+            var context = GetContext();
+            var client = CreateClient();
+
+            var company = await context.InsertCompany(cancellationToken);
+            var documentGroup = await context.InsertDocumentGroup(company.Id, cancellationToken);
+            await context.SaveChangesAsync(cancellationToken);
+
+            var command = new CreateDocumentTemplateCommand(
+                company.Id, "NR01", "Description NR01", 365, 8,
+                new TemplateFileInfoModel("index.html", "header.html", "footer.html", [RecoverDataType.Employee.Id]),
+                false, [], documentGroup.Id);
+
+            client.InputHeaders([company.Id]);
+            var response = await client.PostAsJsonAsync($"/api/v1/{company.Id}/documenttemplate", command);
+
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+            var content = await response.Content.ReadFromJsonAsync<CreateDocumentTemplateResponse>() ?? throw new ArgumentNullException();
+
+            using var scope = _factory.Services.CreateScope();
+            var readContext = scope.ServiceProvider.GetRequiredService<PeopleManagementContext>();
+            var persisted = await readContext.DocumentTemplates.AsNoTracking().FirstAsync(x => x.Id == content.Id, cancellationToken);
+
+            Assert.Equal(TimeSpan.FromDays(365), persisted.GetPolicy<IExpirationPolicy>()!.Duration);
+            Assert.Equal(TimeSpan.FromHours(8), persisted.GetPolicy<IWorkloadPolicy>()!.Workload);
+        }
+
+        // PUT /documenttemplate com "policies": troca o conjunto de regras e sincroniza a tabela filha.
+        [Fact]
+        public async Task EditDocumentTemplate_WithPoliciesBlock_ReplacesPersistedPolicies()
+        {
+            var cancellationToken = CancellationToken.None;
+
+            var context = GetContext();
+            var client = CreateClient();
+
+            var company = await context.InsertCompany(cancellationToken);
+            var documentGroup = await context.InsertDocumentGroup(company.Id, cancellationToken);
+
+            var template = DocumentTemplate.Create(
+                Guid.NewGuid(), "NR35", "Description NR35", company.Id, 365d, 8d,
+                TemplateFileInfo.Create("dir", "index.html", "header.html", "footer.html", [RecoverDataType.Employee]),
+                false, [], documentGroup.Id);
+            await context.DocumentTemplates.AddAsync(template, cancellationToken);
+            await context.SaveChangesAsync(cancellationToken);
+
+            var command = new EditDocumentTemplateModel(
+                template.Id, "NR35", "Description NR35",
+                new EditTemplateFileInfoModel("index.html", "header.html", "footer.html", [RecoverDataType.Employee.Id]),
+                365, 8, false, [], documentGroup.Id, false,
+                new PoliciesModel(Workload: new WorkloadPolicyModel(4)));
+
+            client.InputHeaders([company.Id]);
+            var response = await client.PutAsJsonAsync($"/api/v1/{company.Id}/documenttemplate", command);
+
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+            using var scope = _factory.Services.CreateScope();
+            var readContext = scope.ServiceProvider.GetRequiredService<PeopleManagementContext>();
+            var persisted = await readContext.DocumentTemplates.AsNoTracking().FirstAsync(x => x.Id == template.Id, cancellationToken);
+
+            Assert.Null(persisted.GetPolicy<IExpirationPolicy>());
+            Assert.Equal(TimeSpan.FromHours(4), persisted.GetPolicy<IWorkloadPolicy>()!.Workload);
+            Assert.Null(persisted.DocumentValidityDuration);
         }
     }
 }

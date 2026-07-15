@@ -2,6 +2,7 @@
 using PeopleManagement.Domain.AggregatesModel.DocumentTemplateAggregate;
 using PeopleManagement.Domain.AggregatesModel.DocumentTemplateAggregate.Interfaces;
 using PeopleManagement.Domain.AggregatesModel.DocumentTemplateAggregate.options;
+using PeopleManagement.Domain.AggregatesModel.DocumentTemplateAggregate.Policies;
 using PeopleManagement.Domain.AggregatesModel.EmployeeAggregate.Events;
 using PeopleManagement.Domain.AggregatesModel.RequireDocumentsAggregate.Events;
 using PeopleManagement.Domain.ErrorTools;
@@ -18,6 +19,20 @@ namespace PeopleManagement.Application.Queries.DocumentTemplate
         private PeopleManagementContext _context = peopleManagementContext;
         private ILocalStorageService _localStorageService = localStorageService;
         private DocumentTemplatesOptions _documentTemplatesOptions = documentTemplatesOptions;
+
+        // GetPolicy<T> desserializa o jsonb em memória e não traduz para SQL — só pode ser chamado depois de
+        // materializar a entidade. Ambos os callers (GetById/GetAll) já materializam antes de projetar.
+        private static PoliciesDto ToPoliciesDto(Domain.AggregatesModel.DocumentTemplateAggregate.DocumentTemplate template)
+        {
+            var expiration = template.GetPolicy<IExpirationPolicy>();
+            var workload = template.GetPolicy<IWorkloadPolicy>();
+
+            return new PoliciesDto
+            {
+                Expiration = expiration is null ? null : new ExpirationPolicyDto { DurationInDays = expiration.Duration.TotalDays },
+                Workload = workload is null ? null : new WorkloadPolicyDto { Hours = workload.Workload.TotalHours },
+            };
+        }
         public async Task<IEnumerable<DocumentTemplateSimpleDto>> GetAllSimple(Guid companyId)
         {
             var query = _context.DocumentTemplates.AsNoTracking().Where(x => x.CompanyId == companyId).OrderBy(x => x.Name);
@@ -62,6 +77,7 @@ namespace PeopleManagement.Application.Queries.DocumentTemplate
                     WorkloadInHours = entity.DocumentTemplates.Workload.HasValue ? (int?)entity.DocumentTemplates.Workload.Value.TotalHours : null,
                     UsePreviousPeriod = entity.DocumentTemplates.UsePreviousPeriod,
                     AcceptsSignature = entity.DocumentTemplates.AcceptsSignature,
+                    Policies = ToPoliciesDto(entity.DocumentTemplates),
                     TemplateFileInfo = entity.DocumentTemplates.TemplateFileInfo == null ? new TemplateFileInfoDto() : new TemplateFileInfoDto
                     {
                         BodyFileName = entity.DocumentTemplates.TemplateFileInfo.BodyFileName.Value,
@@ -110,6 +126,7 @@ namespace PeopleManagement.Application.Queries.DocumentTemplate
                 WorkloadInHours = x.Workload.HasValue ? (int?)x.Workload.Value.TotalHours : null,
                 AcceptsSignature = x.AcceptsSignature,
                 UsePreviousPeriod = x.UsePreviousPeriod,
+                Policies = ToPoliciesDto(x),
                 TemplateFileInfo = x.TemplateFileInfo == null ? new TemplateFileInfoDto() : new TemplateFileInfoDto
                 {
                     BodyFileName = x.TemplateFileInfo.BodyFileName.Value,

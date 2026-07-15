@@ -23,7 +23,29 @@ namespace PeopleManagement.Application.Queries.DocumentTemplate
             public bool UsePreviousPeriod { get; init; }
             public DocumentGroupDocumentTemplateDto DocumentGroup { get; init; } = DocumentGroupDocumentTemplateDto.Empty;
             public TemplateFileInfoDto TemplateFileInfo { get; init; } =  TemplateFileInfoDto.Empty;
+            public PoliciesDto Policies { get; init; } = PoliciesDto.Empty;
 
+        }
+
+        /// <summary>
+        /// Regras ativas do template. Bloco nulo = regra não se aplica — mesma semântica do Composite do domínio
+        /// e do contrato de escrita.
+        /// </summary>
+        public record PoliciesDto
+        {
+            public ExpirationPolicyDto? Expiration { get; init; }
+            public WorkloadPolicyDto? Workload { get; init; }
+            public static PoliciesDto Empty => new();
+        }
+
+        public record ExpirationPolicyDto
+        {
+            public double DurationInDays { get; init; }
+        }
+
+        public record WorkloadPolicyDto
+        {
+            public double Hours { get; init; }
         }
 
         public record DocumentGroupDocumentTemplateDto

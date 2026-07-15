@@ -24,14 +24,15 @@ namespace PeopleManagement.Domain.AggregatesModel.DocumentTemplateAggregate
 
         /// <summary>
         /// Conjunto de regras que o template compõe. Presença de uma policy = regra ativa (Composite).
-        /// Durante a transição (Fase 2) é derivado dos campos escalares, que seguem sendo a fonte da verdade.
+        /// Quem manda são as policies quando o caller as informa; se não informar, elas são derivadas dos
+        /// campos escalares legados (caminho retrocompatível).
         /// </summary>
         public IReadOnlyCollection<DocumentPolicy> Policies => _policies.AsReadOnly();
 
         private DocumentTemplate() { }
-        private DocumentTemplate(Guid id, Name name, Description description, Guid companyId, TimeSpan? documentValidityDuration, 
+        private DocumentTemplate(Guid id, Name name, Description description, Guid companyId, TimeSpan? documentValidityDuration,
             TimeSpan? workload, TemplateFileInfo? templateFileInfo, bool acceptsSignature, List<PlaceSignature> placeSignatures, Guid documentGroupId,
-            bool usePreviousPeriod) : base(id)
+            bool usePreviousPeriod, IEnumerable<IDocumentPolicy>? policies) : base(id)
         {
             Name = name;
             Description = description;
@@ -43,24 +44,24 @@ namespace PeopleManagement.Domain.AggregatesModel.DocumentTemplateAggregate
             SetPlaceSignatures(placeSignatures);
             DocumentGroupId = documentGroupId;
             UsePreviousPeriod = usePreviousPeriod;
-            SyncPoliciesFromFields();
+            ApplyPolicies(policies);
         }
 
         public static DocumentTemplate Create(Guid id, Name name, Description description, Guid companyId, TimeSpan? documentValidityDuration,
             TimeSpan? workload, TemplateFileInfo? templateFileInfo, bool acceptsSignature, List<PlaceSignature> placeSignatures, Guid documentGroupId,
-            bool usePreviousPeriod = false)
-            => new(id, name, description, companyId, documentValidityDuration, workload, templateFileInfo, acceptsSignature, placeSignatures, documentGroupId, usePreviousPeriod);
+            bool usePreviousPeriod = false, IEnumerable<IDocumentPolicy>? policies = null)
+            => new(id, name, description, companyId, documentValidityDuration, workload, templateFileInfo, acceptsSignature, placeSignatures, documentGroupId, usePreviousPeriod, policies);
         public static DocumentTemplate Create(Guid id, Name name, Description description, Guid companyId, double? documentValidityDurationInDays,
             double? workloadInHours, TemplateFileInfo? templateFileInfo, bool acceptsSignature, List<PlaceSignature> placeSignatures, Guid documentGroupId,
-            bool usePreviousPeriod = false)
+            bool usePreviousPeriod = false, IEnumerable<IDocumentPolicy>? policies = null)
         {
             TimeSpan? documentValidityDuration = documentValidityDurationInDays.HasValue ? TimeSpan.FromDays((double)documentValidityDurationInDays!) : null;
             TimeSpan? workload = workloadInHours.HasValue ? TimeSpan.FromHours((double)workloadInHours!) : null;
-            return new(id, name, description, companyId, documentValidityDuration, workload, templateFileInfo, acceptsSignature, placeSignatures, documentGroupId, usePreviousPeriod);
+            return new(id, name, description, companyId, documentValidityDuration, workload, templateFileInfo, acceptsSignature, placeSignatures, documentGroupId, usePreviousPeriod, policies);
         }
         public void Edit(Name name, Description description, double? documentValidityDurationInDays,
             double? workloadInHours, TemplateFileInfo? templateFileInfo, bool acceptsSignature, List<PlaceSignature> placeSignatures, Guid documentGroupId,
-            bool usePreviousPeriod = false)
+            bool usePreviousPeriod = false, IEnumerable<IDocumentPolicy>? policies = null)
         {
             Name = name;
             Description = description;
@@ -71,7 +72,7 @@ namespace PeopleManagement.Domain.AggregatesModel.DocumentTemplateAggregate
             SetPlaceSignatures(placeSignatures);
             DocumentGroupId = documentGroupId;
             UsePreviousPeriod = usePreviousPeriod;
-            SyncPoliciesFromFields();
+            ApplyPolicies(policies);
         }
 
         private void SetPlaceSignatures(List<PlaceSignature> placeSignatures)
@@ -104,8 +105,28 @@ namespace PeopleManagement.Domain.AggregatesModel.DocumentTemplateAggregate
         public bool HasPolicy<T>() where T : class, IDocumentPolicy => GetPolicy<T>() is not null;
 
         /// <summary>
-        /// Deriva as policies a partir dos campos escalares legados, que continuam sendo a fonte da verdade
-        /// enquanto a Fase 2 não migra os consumidores. Ausência do campo = ausência da policy.
+        /// Define o conjunto de regras do template. Caller que não informa policies mantém o caminho legado
+        /// (derivar dos campos escalares); caller que informa passa a mandar, e os escalares viram projeção.
+        /// Conjunto vazio informado explicitamente = template sem regra alguma.
+        /// </summary>
+        private void ApplyPolicies(IEnumerable<IDocumentPolicy>? policies)
+        {
+            if (policies is null)
+            {
+                SyncPoliciesFromFields();
+                return;
+            }
+
+            _policies.Clear();
+
+            foreach (var policy in policies)
+                AddPolicy(policy);
+
+            SyncFieldsFromPolicies();
+        }
+
+        /// <summary>
+        /// Deriva as policies a partir dos campos escalares legados. Ausência do campo = ausência da policy.
         /// PeriodPolicy fica de fora: hoje quem decide se o documento é por competência é o fluxo do evento,
         /// não o template — passar isso para o template é mudança de comportamento, reservada à Fase 3.
         /// </summary>
@@ -118,6 +139,16 @@ namespace PeopleManagement.Domain.AggregatesModel.DocumentTemplateAggregate
 
             if (Workload.HasValue)
                 AddPolicy(new WorkloadPolicy(Workload.Value));
+        }
+
+        /// <summary>
+        /// Espelha as policies de volta nos campos escalares legados. As colunas foram mantidas (e depreciadas),
+        /// e o read model ainda lê delas — sem este espelho, configurar por policy deixaria as queries mentindo.
+        /// </summary>
+        private void SyncFieldsFromPolicies()
+        {
+            DocumentValidityDuration = GetPolicy<IExpirationPolicy>()?.Duration;
+            Workload = GetPolicy<IWorkloadPolicy>()?.Workload;
         }
 
         public bool IsSignable => AcceptsSignature;
