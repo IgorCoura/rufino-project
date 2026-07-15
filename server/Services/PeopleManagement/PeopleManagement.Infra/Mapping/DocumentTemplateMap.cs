@@ -1,4 +1,5 @@
-﻿using Microsoft.EntityFrameworkCore.ChangeTracking;
+﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.ChangeTracking;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using PeopleManagement.Domain.AggregatesModel.CompanyAggregate;
 using PeopleManagement.Domain.AggregatesModel.DocumentAggregate;
@@ -37,6 +38,22 @@ namespace PeopleManagement.Infra.Mapping
 
             builder.Property(x => x.UsePreviousPeriod)
                 .IsRequired();
+
+            builder.OwnsMany(x => x.Policies, policy =>
+            {
+                policy.ToTable("DocumentTemplatePolicies");
+
+                policy.Property(x => x.Type)
+                    .HasConversion(x => x.Id, x => x)
+                    .IsRequired();
+
+                policy.Property(x => x.Params)
+                    .HasColumnType("jsonb")
+                    .IsRequired();
+            });
+
+            builder.Navigation(x => x.Policies)
+                .UsePropertyAccessMode(PropertyAccessMode.Field);
 
             builder.OwnsMany(x => x.PlaceSignatures, prop =>
             {

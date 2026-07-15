@@ -14,19 +14,19 @@ namespace PeopleManagement.Domain.AggregatesModel.DocumentTemplateAggregate.Poli
     {
         private static readonly JsonSerializerOptions Options = new();
 
-        public static DocumentPolicy ToPersistence(object policy) => policy switch
+        public static DocumentPolicy ToPersistence(IDocumentPolicy policy) => policy switch
         {
-            ExpirationPolicy e => new DocumentPolicy(PolicyType.Expiration, Serialize(new ExpirationParams(e.Duration))),
-            PeriodPolicy p => new DocumentPolicy(PolicyType.Period, Serialize(new PeriodParams(p.PeriodType.Id, p.UsePreviousPeriod))),
-            WorkloadPolicy w => new DocumentPolicy(PolicyType.Workload, Serialize(new WorkloadParams(w.Workload))),
+            IExpirationPolicy e => new DocumentPolicy(PolicyType.Expiration, Serialize(new ExpirationParams(e.Duration.Ticks))),
+            IPeriodPolicy p => new DocumentPolicy(PolicyType.Period, Serialize(new PeriodParams(p.PeriodType.Id, p.UsePreviousPeriod))),
+            IWorkloadPolicy w => new DocumentPolicy(PolicyType.Workload, Serialize(new WorkloadParams(w.Workload.Ticks))),
             _ => throw new DomainException(nameof(DocumentPolicyFactory), DomainErrors.FieldInvalid(nameof(policy), policy.GetType().Name))
         };
 
-        public static object ToPolicy(DocumentPolicy record) => record.Type.Id switch
+        public static IDocumentPolicy ToPolicy(DocumentPolicy record) => record.Type.Id switch
         {
-            var id when id == PolicyType.Expiration.Id => new ExpirationPolicy(Deserialize<ExpirationParams>(record.Params).Duration),
+            var id when id == PolicyType.Expiration.Id => new ExpirationPolicy(TimeSpan.FromTicks(Deserialize<ExpirationParams>(record.Params).DurationTicks)),
             var id when id == PolicyType.Period.Id => ToPeriodPolicy(Deserialize<PeriodParams>(record.Params)),
-            var id when id == PolicyType.Workload.Id => new WorkloadPolicy(Deserialize<WorkloadParams>(record.Params).Workload),
+            var id when id == PolicyType.Workload.Id => new WorkloadPolicy(TimeSpan.FromTicks(Deserialize<WorkloadParams>(record.Params).WorkloadTicks)),
             _ => throw new DomainException(nameof(DocumentPolicyFactory), DomainErrors.FieldInvalid(nameof(PolicyType), record.Type.ToString()))
         };
 
@@ -37,8 +37,10 @@ namespace PeopleManagement.Domain.AggregatesModel.DocumentTemplateAggregate.Poli
 
         private static T Deserialize<T>(string json) => JsonSerializer.Deserialize<T>(json, Options)!;
 
-        private sealed record ExpirationParams(TimeSpan Duration);
+        // Durações viajam em ticks (não em TimeSpan) para que o backfill da migration consiga reproduzir
+        // exatamente o mesmo payload a partir das colunas interval, sem depender do formato textual do STJ.
+        private sealed record ExpirationParams(long DurationTicks);
         private sealed record PeriodParams(int PeriodTypeId, bool UsePreviousPeriod);
-        private sealed record WorkloadParams(TimeSpan Workload);
+        private sealed record WorkloadParams(long WorkloadTicks);
     }
 }

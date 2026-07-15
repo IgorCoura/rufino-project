@@ -4,6 +4,7 @@ using PeopleManagement.Application.Commands.DocumentTemplateCommands.InsertDocum
 using PeopleManagement.Domain.AggregatesModel.CompanyAggregate;
 using PeopleManagement.Domain.AggregatesModel.DocumentTemplateAggregate;
 using PeopleManagement.Domain.AggregatesModel.DocumentTemplateAggregate.options;
+using PeopleManagement.Domain.AggregatesModel.DocumentTemplateAggregate.Policies;
 using PeopleManagement.Infra.Context;
 using PeopleManagement.IntegrationTests.Configs;
 using PeopleManagement.IntegrationTests.Data;
@@ -134,5 +135,146 @@ namespace PeopleManagement.IntegrationTests.Tests
         }
 
 
+        // Round-trip EF das policies (Fase 2.2): a coleção owned (tabela filha + params jsonb) sobrevive ao ciclo
+        // e os parâmetros voltam com o mesmo valor. Prova o mapeamento antes de os consumidores lerem por policy.
+        [Fact]
+        public async Task CreateDocumentTemplate_PoliciesDerivedFromFields_RoundTrip()
+        {
+            var cancellationToken = CancellationToken.None;
+
+            var context = GetContext();
+
+            var company = await context.InsertCompany(cancellationToken);
+            var documentGroup = await context.InsertDocumentGroup(company.Id, cancellationToken);
+
+            var template = DocumentTemplate.Create(
+                Guid.NewGuid(), "NR35", "Description NR35", company.Id, 365d, 8d,
+                TemplateFileInfo.Create("dir", "index.html", "header.html", "footer.html", [RecoverDataType.Employee]),
+                true, [], documentGroup.Id);
+            await context.DocumentTemplates.AddAsync(template, cancellationToken);
+            await context.SaveChangesAsync(cancellationToken);
+
+            using var scope = _factory.Services.CreateScope();
+            var readContext = scope.ServiceProvider.GetRequiredService<PeopleManagementContext>();
+            var persisted = await readContext.DocumentTemplates.AsNoTracking()
+                .FirstAsync(x => x.Id == template.Id, cancellationToken);
+
+            Assert.Equal(2, persisted.Policies.Count);
+            Assert.Equal(TimeSpan.FromDays(365), persisted.GetPolicy<IExpirationPolicy>()!.Duration);
+            Assert.Equal(TimeSpan.FromHours(8), persisted.GetPolicy<IWorkloadPolicy>()!.Workload);
+        }
+
+        // Template sem vencimento/carga não materializa policy alguma: ausência da regra sobrevive ao banco
+        // (presença no conjunto = regra ativa).
+        [Fact]
+        public async Task CreateDocumentTemplate_WithoutValidityAndWorkload_PersistsNoPolicies()
+        {
+            var cancellationToken = CancellationToken.None;
+
+            var context = GetContext();
+
+            var company = await context.InsertCompany(cancellationToken);
+            var documentGroup = await context.InsertDocumentGroup(company.Id, cancellationToken);
+
+            var template = DocumentTemplate.Create(
+                Guid.NewGuid(), "NR35", "Description NR35", company.Id, (double?)null, null,
+                TemplateFileInfo.Create("dir", "index.html", "header.html", "footer.html", [RecoverDataType.Employee]),
+                true, [], documentGroup.Id);
+            await context.DocumentTemplates.AddAsync(template, cancellationToken);
+            await context.SaveChangesAsync(cancellationToken);
+
+            using var scope = _factory.Services.CreateScope();
+            var readContext = scope.ServiceProvider.GetRequiredService<PeopleManagementContext>();
+            var persisted = await readContext.DocumentTemplates.AsNoTracking()
+                .FirstAsync(x => x.Id == template.Id, cancellationToken);
+
+            Assert.Empty(persisted.Policies);
+        }
+
+        // Edit re-deriva as policies e o EF sincroniza a tabela filha: remover o vencimento apaga a linha da
+        // ExpirationPolicy sem afetar a de carga horária.
+        [Fact]
+        public async Task EditDocumentTemplate_RemovingValidity_RemovesExpirationPolicyRow()
+        {
+            var cancellationToken = CancellationToken.None;
+
+            var context = GetContext();
+
+            var company = await context.InsertCompany(cancellationToken);
+            var documentGroup = await context.InsertDocumentGroup(company.Id, cancellationToken);
+
+            var template = DocumentTemplate.Create(
+                Guid.NewGuid(), "NR35", "Description NR35", company.Id, 365d, 8d,
+                TemplateFileInfo.Create("dir", "index.html", "header.html", "footer.html", [RecoverDataType.Employee]),
+                true, [], documentGroup.Id);
+            await context.DocumentTemplates.AddAsync(template, cancellationToken);
+            await context.SaveChangesAsync(cancellationToken);
+
+            template.Edit("NR35", "Description NR35", null, 8d,
+                TemplateFileInfo.Create("dir", "index.html", "header.html", "footer.html", [RecoverDataType.Employee]),
+                true, [], documentGroup.Id);
+            await context.SaveChangesAsync(cancellationToken);
+
+            using var scope = _factory.Services.CreateScope();
+            var readContext = scope.ServiceProvider.GetRequiredService<PeopleManagementContext>();
+            var persisted = await readContext.DocumentTemplates.AsNoTracking()
+                .FirstAsync(x => x.Id == template.Id, cancellationToken);
+
+            Assert.Null(persisted.GetPolicy<IExpirationPolicy>());
+            Assert.Equal(TimeSpan.FromHours(8), persisted.GetPolicy<IWorkloadPolicy>()!.Workload);
+        }
+
+        // Corretude do backfill da migration AddDocumentTemplatePolicies. A migration roda contra um banco vazio
+        // na suíte, então os INSERTs seriam no-op e nada provaria que o SQL reproduz o payload que o
+        // DocumentPolicyFactory grava. Aqui o cenário é forçado: apaga as policies de um template já existente
+        // (simulando o template legado, anterior à migration) e reaplica o mesmo SQL do backfill.
+        // O SQL é uma cópia do da migration — se um mudar, este teste falha e cobra o outro.
+        [Fact]
+        public async Task Backfill_OnTemplateWithoutPolicies_ReproducesPoliciesFromLegacyColumns()
+        {
+            var cancellationToken = CancellationToken.None;
+
+            var context = GetContext();
+
+            var company = await context.InsertCompany(cancellationToken);
+            var documentGroup = await context.InsertDocumentGroup(company.Id, cancellationToken);
+
+            var template = DocumentTemplate.Create(
+                Guid.NewGuid(), "NR35", "Description NR35", company.Id, 365d, 8d,
+                TemplateFileInfo.Create("dir", "index.html", "header.html", "footer.html", [RecoverDataType.Employee]),
+                true, [], documentGroup.Id);
+            await context.DocumentTemplates.AddAsync(template, cancellationToken);
+            await context.SaveChangesAsync(cancellationToken);
+
+            await context.Database.ExecuteSqlRawAsync(
+                """DELETE FROM people_management."DocumentTemplatePolicies";""", cancellationToken);
+
+            await context.Database.ExecuteSqlRawAsync("""
+                INSERT INTO people_management."DocumentTemplatePolicies" ("DocumentTemplateId", "Type", "Params")
+                SELECT "Id",
+                       1,
+                       jsonb_build_object('DurationTicks', (EXTRACT(EPOCH FROM "DocumentValidityDuration") * 10000000)::bigint)
+                FROM people_management."DocumentTemplates"
+                WHERE "DocumentValidityDuration" IS NOT NULL;
+                """, cancellationToken);
+
+            await context.Database.ExecuteSqlRawAsync("""
+                INSERT INTO people_management."DocumentTemplatePolicies" ("DocumentTemplateId", "Type", "Params")
+                SELECT "Id",
+                       4,
+                       jsonb_build_object('WorkloadTicks', (EXTRACT(EPOCH FROM "Workload") * 10000000)::bigint)
+                FROM people_management."DocumentTemplates"
+                WHERE "Workload" IS NOT NULL;
+                """, cancellationToken);
+
+            using var scope = _factory.Services.CreateScope();
+            var readContext = scope.ServiceProvider.GetRequiredService<PeopleManagementContext>();
+            var persisted = await readContext.DocumentTemplates.AsNoTracking()
+                .FirstAsync(x => x.Id == template.Id, cancellationToken);
+
+            Assert.Equal(2, persisted.Policies.Count);
+            Assert.Equal(TimeSpan.FromDays(365), persisted.GetPolicy<IExpirationPolicy>()!.Duration);
+            Assert.Equal(TimeSpan.FromHours(8), persisted.GetPolicy<IWorkloadPolicy>()!.Workload);
+        }
     }
 }

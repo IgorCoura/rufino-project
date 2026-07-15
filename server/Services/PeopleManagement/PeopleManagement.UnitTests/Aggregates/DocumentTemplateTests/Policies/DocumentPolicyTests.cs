@@ -64,9 +64,14 @@ namespace PeopleManagement.UnitTests.Aggregates.DocumentTemplateTests.Policies
         }
 
         [Fact]
-        public void ToPersistence_WithUnsupportedObject_Throws()
+        public void ToPersistence_WithUnsupportedPolicy_Throws()
         {
-            Assert.Throws<DomainException>(() => DocumentPolicyFactory.ToPersistence(new object()));
+            Assert.Throws<DomainException>(() => DocumentPolicyFactory.ToPersistence(new UnsupportedPolicy()));
+        }
+
+        // Policy que não implementa nenhuma capacidade conhecida — exercita o arm de fallback da factory.
+        private sealed class UnsupportedPolicy : IDocumentPolicy
+        {
         }
     }
 }
