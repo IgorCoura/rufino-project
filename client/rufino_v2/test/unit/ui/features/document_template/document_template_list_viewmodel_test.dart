@@ -17,8 +17,10 @@ const _fakeTemplate = DocumentTemplate(
   id: 'tpl-1',
   name: 'Contrato CLT',
   description: 'Template de contrato CLT padrão',
-  validityInDays: 365,
-  workload: 44,
+  policies: TemplatePolicies(
+    expiration: ExpirationRule(durationInDays: 365),
+    workload: WorkloadRule(hours: 44),
+  ),
   usePreviousPeriod: false,
   acceptsSignature: true,
 );
@@ -27,8 +29,9 @@ const _fakeTemplate2 = DocumentTemplate(
   id: 'tpl-2',
   name: 'Atestado de Saúde',
   description: 'Template de atestado ocupacional',
-  validityInDays: 30,
-  workload: null,
+  policies: TemplatePolicies(
+    expiration: ExpirationRule(durationInDays: 30),
+  ),
   usePreviousPeriod: true,
   acceptsSignature: false,
 );

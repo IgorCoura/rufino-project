@@ -1,17 +1,16 @@
 /// A document template belonging to a company.
 ///
 /// Templates define the structure and metadata for documents that can be
-/// generated for employees, including validity period, workload, and
-/// signature requirements.
+/// generated for employees. The rules that apply to a template — expiration,
+/// workload — live in [policies]; see [TemplatePolicies].
 class DocumentTemplate {
   const DocumentTemplate({
     required this.id,
     required this.name,
     required this.description,
-    required this.validityInDays,
-    required this.workload,
     required this.usePreviousPeriod,
     required this.acceptsSignature,
+    this.policies = const TemplatePolicies(),
     this.bodyFileName = '',
     this.headerFileName = '',
     this.footerFileName = '',
@@ -31,11 +30,8 @@ class DocumentTemplate {
   /// Detailed description of the template purpose.
   final String description;
 
-  /// Number of days the generated document remains valid.
-  final int? validityInDays;
-
-  /// Expected workload in hours associated with this template.
-  final int? workload;
+  /// The rules this template applies. A rule is active when it is present.
+  final TemplatePolicies policies;
 
   /// Whether the template uses the previous period as reference.
   final bool usePreviousPeriod;
@@ -69,14 +65,26 @@ class DocumentTemplate {
 
   // ─── Computed properties ─────────────────────────────────────────────────
 
+  /// Number of days the generated document remains valid, or null when the
+  /// template has no expiration rule.
+  ///
+  /// Derived from [policies] — the rule set is the single source of truth.
+  int? get validityInDays => policies.expiration?.durationInDays;
+
+  /// Expected workload in hours, or null when the template has no workload
+  /// rule.
+  ///
+  /// Derived from [policies] — the rule set is the single source of truth.
+  int? get workload => policies.workload?.hours;
+
   /// Whether this template belongs to a document group.
   bool get hasDocumentGroup => documentGroupId.isNotEmpty;
 
   /// Whether this template has a validity period configured.
-  bool get hasValidity => validityInDays != null && validityInDays! > 0;
+  bool get hasValidity => policies.expiration != null;
 
   /// Whether this template has a workload configured.
-  bool get hasWorkload => workload != null && workload! > 0;
+  bool get hasWorkload => policies.workload != null;
 
   /// Whether this template has any file name configured (body/header/footer).
   bool get hasFileConfiguration =>
@@ -118,30 +126,6 @@ class DocumentTemplate {
     return null;
   }
 
-  /// Validates the validity in days field.
-  ///
-  /// Optional, must be in 0–999 range when provided.
-  static String? validateValidity(String? value) {
-    if (value == null || value.trim().isEmpty) return null;
-    final days = int.tryParse(value.trim());
-    if (days == null || days < 0 || days > 999) {
-      return 'Informe um valor entre 0 e 999.';
-    }
-    return null;
-  }
-
-  /// Validates the workload in hours field.
-  ///
-  /// Optional, must be in 0–999 range when provided.
-  static String? validateWorkload(String? value) {
-    if (value == null || value.trim().isEmpty) return null;
-    final hours = int.tryParse(value.trim());
-    if (hours == null || hours < 0 || hours > 999) {
-      return 'Informe um valor entre 0 e 999.';
-    }
-    return null;
-  }
-
   /// Validates a file name field.
   ///
   /// Optional, max 20 characters, must end with `.html`.
@@ -152,6 +136,88 @@ class DocumentTemplate {
     }
     if (!value.trim().toLowerCase().endsWith('.html')) {
       return 'O arquivo precisa ter extensão .html.';
+    }
+    return null;
+  }
+}
+
+/// The set of rules a [DocumentTemplate] applies.
+///
+/// A rule is active when its field is non-null — absence is how "this rule does
+/// not apply" is expressed. The API models the same way, and rejects a rule
+/// carrying a zeroed value, so there is no such thing as an expiration of zero
+/// days: that is simply no expiration.
+class TemplatePolicies {
+  const TemplatePolicies({this.expiration, this.workload});
+
+  /// The expiration rule, or null when documents from this template never
+  /// expire.
+  final ExpirationRule? expiration;
+
+  /// The workload rule, or null when this template carries no workload.
+  final WorkloadRule? workload;
+
+  /// Whether no rule at all is active.
+  bool get isEmpty => expiration == null && workload == null;
+
+  /// Returns a copy with the given rules replaced.
+  ///
+  /// Passing `clearExpiration` or `clearWorkload` removes the rule, which a
+  /// null override cannot express.
+  TemplatePolicies copyWith({
+    ExpirationRule? expiration,
+    WorkloadRule? workload,
+    bool clearExpiration = false,
+    bool clearWorkload = false,
+  }) {
+    return TemplatePolicies(
+      expiration: clearExpiration ? null : (expiration ?? this.expiration),
+      workload: clearWorkload ? null : (workload ?? this.workload),
+    );
+  }
+}
+
+/// The rule that makes documents from a template expire after a period.
+class ExpirationRule {
+  const ExpirationRule({required this.durationInDays});
+
+  /// How many days a generated document stays valid. Always positive.
+  final int durationInDays;
+
+  /// Validates the duration typed by the user for this rule.
+  ///
+  /// Required and in the 1–999 range: the API rejects a zeroed duration, since
+  /// a rule that expires nothing is absence of the rule.
+  static String? validateDuration(String? value) {
+    if (value == null || value.trim().isEmpty) {
+      return 'Informe a validade em dias.';
+    }
+    final days = int.tryParse(value.trim());
+    if (days == null || days < 1 || days > 999) {
+      return 'Informe um valor entre 1 e 999.';
+    }
+    return null;
+  }
+}
+
+/// The rule that associates a workload with a template's documents.
+class WorkloadRule {
+  const WorkloadRule({required this.hours});
+
+  /// How many hours of work the document represents. Always positive.
+  final int hours;
+
+  /// Validates the workload typed by the user for this rule.
+  ///
+  /// Required and in the 1–999 range, for the same reason as
+  /// [ExpirationRule.validateDuration].
+  static String? validateHours(String? value) {
+    if (value == null || value.trim().isEmpty) {
+      return 'Informe a carga horária em horas.';
+    }
+    final hours = int.tryParse(value.trim());
+    if (hours == null || hours < 1 || hours > 999) {
+      return 'Informe um valor entre 1 e 999.';
     }
     return null;
   }

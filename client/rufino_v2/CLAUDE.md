@@ -949,6 +949,13 @@ Every aggregate above has both an interface (`domain/repositories/<aggregate>_re
 
 DTOs live in `data/models/<aggregate>_api_model.dart` (+ JSON ser/deser). Domain entities live in `domain/entities/<aggregate>.dart`. Conversion is owned by the repository impl. Do not reuse a DTO as an entity or vice-versa, and do not duplicate fields between siblings — compose with nested DTOs/entities when an aggregate references another (see `employee_profile`, `document_group_with_*`).
 
+**DocumentTemplate rules (policies).** A template's rules live in `TemplatePolicies` (`expiration`, `workload`) inside `domain/entities/document_template.dart`. **A rule is active when it is present** — `null` is how "does not apply" is expressed, and `validityInDays` / `workload` on the entity are getters derived from the rule set, never stored twice.
+
+- **Zero is not a rule.** The API rejects a rule carrying a zeroed value (`PMD.DOCT11`), so an active switch requires a value ≥ 1. Legacy templates still echo `0` back in the legacy fields; the DTO maps that to "no rule".
+- **Writes send both shapes.** `DocumentTemplateRepositoryImpl._buildModel` makes `policies` the source of truth and mirrors it into `documentValidityDurationInDays` / `workloadInHours`. Sending both keeps the app correct on either side of a deploy — they cannot disagree because both come from the same rule set.
+- **Reads prefer the block.** `toEntity` uses the `policies` block when the API sends it and falls back to deriving from the legacy fields when it does not.
+- **The form's legacy fields are mirrors.** "Validade (dias)" and "Carga horária (h)" in the basic info section are read-only (`_RuleMirrorField`); editing happens in the Regras section through the rule switches.
+
 **Aggregates currently modeled** (each has DTO + entity unless noted): company / company_detail (entity-only) · workplace · department · position · role · remuneration (entity-only) · employee · employee_profile · employee_personal_info · employee_contact · employee_address (entity = `address`) · employee_id_card · employee_vote_id · employee_military_document · employee_medical_exam · employee_dependent · employee_contract · employee_social_integration_program · employee_document · document_template · document_group · document_group_with_templates · document_group_with_documents · document_range_item (DTO-only) · require_document · batch_document_unit · batch_download · period · permission · selection_option (entity-only) · personal_info_options (entity-only) · signing_option (entity-only) · scanned_document (entity-only) · bulk_upload_match (entity-only) · cep_lookup (DTO-only).
 
 ---

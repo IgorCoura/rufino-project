@@ -4,6 +4,7 @@ import '../../../../core/utils/file_saver_stub.dart'
     if (dart.library.io) '../../../../core/utils/file_saver.dart';
 import 'package:flutter_json_view/flutter_json_view.dart';
 import 'package:go_router/go_router.dart';
+import 'package:mask_text_input_formatter/mask_text_input_formatter.dart';
 
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../domain/entities/document_template.dart';
@@ -184,32 +185,20 @@ class _DocumentTemplateFormBody extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Expanded(
-                          child: TextFormField(
+                          child: _RuleMirrorField(
+                            label: 'Validade (dias)',
+                            icon: Icons.calendar_today_outlined,
                             controller: viewModel.validityController,
-                            decoration: const InputDecoration(
-                              labelText: 'Validade (dias)',
-                              prefixIcon: Icon(Icons.calendar_today_outlined),
-                              border: OutlineInputBorder(),
-                              hintText: '0–999',
-                            ),
-                            keyboardType: TextInputType.number,
-                            inputFormatters: [viewModel.validityFormatter],
-                            validator: viewModel.validateValidity,
+                            valueOf: () => viewModel.validityDisplay,
                           ),
                         ),
                         const SizedBox(width: AppSpacing.md),
                         Expanded(
-                          child: TextFormField(
+                          child: _RuleMirrorField(
+                            label: 'Carga horária (h)',
+                            icon: Icons.schedule_outlined,
                             controller: viewModel.workloadController,
-                            decoration: const InputDecoration(
-                              labelText: 'Carga horária (h)',
-                              prefixIcon: Icon(Icons.schedule_outlined),
-                              border: OutlineInputBorder(),
-                              hintText: '0–999',
-                            ),
-                            keyboardType: TextInputType.number,
-                            inputFormatters: [viewModel.workloadFormatter],
-                            validator: viewModel.validateWorkload,
+                            valueOf: () => viewModel.workloadDisplay,
                           ),
                         ),
                       ],
@@ -235,6 +224,42 @@ class _DocumentTemplateFormBody extends StatelessWidget {
                           )
                           .toList(),
                       onChanged: (v) => viewModel.setDocumentGroupId(v),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: AppSpacing.md),
+
+                // ─── Regras ──────────────────────────────────────────
+                _SectionCard(
+                  icon: Icons.rule_outlined,
+                  label: 'Regras',
+                  children: [
+                    _RuleTile(
+                      ruleKey: 'expiration',
+                      title: 'Vencimento',
+                      subtitle: 'Documentos gerados vencem após o prazo '
+                          'definido e precisam ser renovados.',
+                      enabled: viewModel.expirationEnabled,
+                      onChanged: viewModel.setExpirationEnabled,
+                      fieldLabel: 'Validade (dias)',
+                      fieldIcon: Icons.calendar_today_outlined,
+                      controller: viewModel.validityController,
+                      formatter: viewModel.validityFormatter,
+                      validator: viewModel.validateValidity,
+                    ),
+                    const Divider(height: 1),
+                    _RuleTile(
+                      ruleKey: 'workload',
+                      title: 'Carga horária',
+                      subtitle: 'Associa uma carga de trabalho ao documento, '
+                          'distribuída em dias úteis.',
+                      enabled: viewModel.workloadEnabled,
+                      onChanged: viewModel.setWorkloadEnabled,
+                      fieldLabel: 'Carga horária (h)',
+                      fieldIcon: Icons.schedule_outlined,
+                      controller: viewModel.workloadController,
+                      formatter: viewModel.workloadFormatter,
+                      validator: viewModel.validateWorkload,
                     ),
                   ],
                 ),
@@ -373,6 +398,119 @@ class _DocumentTemplateFormBody extends StatelessWidget {
 }
 
 /// A labelled card section for grouping related form fields.
+/// A rule switch with the parameter field it reveals when turned on.
+///
+/// Presence of the rule is the switch itself: turning it off removes the rule
+/// from the template rather than zeroing it, which is what the API expects.
+class _RuleTile extends StatelessWidget {
+  const _RuleTile({
+    required this.ruleKey,
+    required this.title,
+    required this.subtitle,
+    required this.enabled,
+    required this.onChanged,
+    required this.fieldLabel,
+    required this.fieldIcon,
+    required this.controller,
+    required this.formatter,
+    required this.validator,
+  });
+
+  /// Identifies this rule's switch and field for tests.
+  final String ruleKey;
+
+  final String title;
+  final String subtitle;
+  final bool enabled;
+  final ValueChanged<bool> onChanged;
+  final String fieldLabel;
+  final IconData fieldIcon;
+  final TextEditingController controller;
+  final MaskTextInputFormatter formatter;
+  final FormFieldValidator<String> validator;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        SwitchListTile(
+          key: ValueKey('rule-switch-$ruleKey'),
+          title: Text(title),
+          subtitle: Text(subtitle),
+          value: enabled,
+          onChanged: onChanged,
+          contentPadding: EdgeInsets.zero,
+        ),
+        if (enabled) ...[
+          const SizedBox(height: AppSpacing.sm),
+          TextFormField(
+            key: ValueKey('rule-field-$ruleKey'),
+            controller: controller,
+            decoration: InputDecoration(
+              labelText: '$fieldLabel *',
+              prefixIcon: Icon(fieldIcon),
+              border: const OutlineInputBorder(),
+              hintText: '1–999',
+            ),
+            keyboardType: TextInputType.number,
+            inputFormatters: [formatter],
+            validator: validator,
+          ),
+          const SizedBox(height: AppSpacing.md),
+        ],
+      ],
+    );
+  }
+}
+
+/// A read-only field that mirrors the value of a rule.
+///
+/// Kept in the basic info section so the familiar fields stay where they were,
+/// but editing happens through the rule — the rule set is the source of truth.
+/// Listens to [controller] so typing in the rule reflects here immediately.
+class _RuleMirrorField extends StatelessWidget {
+  const _RuleMirrorField({
+    required this.label,
+    required this.icon,
+    required this.controller,
+    required this.valueOf,
+  });
+
+  final String label;
+  final IconData icon;
+  final TextEditingController controller;
+  final String Function() valueOf;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return ListenableBuilder(
+      listenable: controller,
+      builder: (context, _) {
+        final value = valueOf();
+        return InputDecorator(
+          decoration: InputDecoration(
+            labelText: label,
+            prefixIcon: Icon(icon),
+            border: const OutlineInputBorder(),
+            enabled: false,
+            helperText: 'Definido em Regras',
+          ),
+          child: Text(
+            value.isEmpty ? 'Não se aplica' : value,
+            style: theme.textTheme.bodyLarge?.copyWith(
+              color: value.isEmpty
+                  ? theme.colorScheme.onSurfaceVariant
+                  : theme.colorScheme.onSurface,
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
 class _SectionCard extends StatelessWidget {
   const _SectionCard({
     required this.icon,

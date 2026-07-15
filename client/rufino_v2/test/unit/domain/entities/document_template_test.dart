@@ -7,8 +7,10 @@ void main() {
       id: '1',
       name: 'Contrato',
       description: 'Template de contrato',
-      validityInDays: 365,
-      workload: 8,
+      policies: TemplatePolicies(
+        expiration: ExpirationRule(durationInDays: 365),
+        workload: WorkloadRule(hours: 8),
+      ),
       usePreviousPeriod: false,
       acceptsSignature: true,
       bodyFileName: 'body.html',
@@ -21,8 +23,6 @@ void main() {
       id: '2',
       name: 'Empty',
       description: '',
-      validityInDays: null,
-      workload: null,
       usePreviousPeriod: false,
       acceptsSignature: false,
     );
@@ -32,14 +32,24 @@ void main() {
       expect(empty.hasDocumentGroup, isFalse);
     });
 
-    test('hasValidity returns true when validityInDays is positive', () {
+    test('hasValidity returns true when the expiration rule is active', () {
       expect(full.hasValidity, isTrue);
       expect(empty.hasValidity, isFalse);
     });
 
-    test('hasWorkload returns true when workload is positive', () {
+    test('hasWorkload returns true when the workload rule is active', () {
       expect(full.hasWorkload, isTrue);
       expect(empty.hasWorkload, isFalse);
+    });
+
+    test('validityInDays derives from the expiration rule', () {
+      expect(full.validityInDays, 365);
+      expect(empty.validityInDays, isNull);
+    });
+
+    test('workload derives from the workload rule', () {
+      expect(full.workload, 8);
+      expect(empty.workload, isNull);
     });
 
     test('hasFileConfiguration returns true when any file name is set', () {
@@ -86,41 +96,6 @@ void main() {
 
     test('returns null for valid description', () {
       expect(DocumentTemplate.validateDescription('Descrição válida'), isNull);
-    });
-  });
-
-  group('DocumentTemplate.validateValidity', () {
-    test('returns null when empty (optional field)', () {
-      expect(DocumentTemplate.validateValidity(null), isNull);
-      expect(DocumentTemplate.validateValidity(''), isNull);
-    });
-
-    test('returns error for out of range value', () {
-      expect(DocumentTemplate.validateValidity('-1'), isNotNull);
-      expect(DocumentTemplate.validateValidity('1000'), isNotNull);
-      expect(DocumentTemplate.validateValidity('abc'), isNotNull);
-    });
-
-    test('returns null for valid value in 0-999 range', () {
-      expect(DocumentTemplate.validateValidity('0'), isNull);
-      expect(DocumentTemplate.validateValidity('365'), isNull);
-      expect(DocumentTemplate.validateValidity('999'), isNull);
-    });
-  });
-
-  group('DocumentTemplate.validateWorkload', () {
-    test('returns null when empty (optional field)', () {
-      expect(DocumentTemplate.validateWorkload(null), isNull);
-      expect(DocumentTemplate.validateWorkload(''), isNull);
-    });
-
-    test('returns error for out of range value', () {
-      expect(DocumentTemplate.validateWorkload('-1'), isNotNull);
-      expect(DocumentTemplate.validateWorkload('1000'), isNotNull);
-    });
-
-    test('returns null for valid value', () {
-      expect(DocumentTemplate.validateWorkload('8'), isNull);
     });
   });
 
@@ -189,6 +164,84 @@ void main() {
     test('includes label in error message', () {
       final error = PlaceSignatureData.validateField(null, 'Página');
       expect(error, contains('Página'));
+    });
+  });
+
+  group('TemplatePolicies', () {
+    test('isEmpty is true when no rule is active', () {
+      expect(const TemplatePolicies().isEmpty, isTrue);
+    });
+
+    test('isEmpty is false when any rule is active', () {
+      const policies =
+          TemplatePolicies(workload: WorkloadRule(hours: 8));
+
+      expect(policies.isEmpty, isFalse);
+    });
+
+    test('copyWith replaces a rule and keeps the others', () {
+      const policies = TemplatePolicies(
+        expiration: ExpirationRule(durationInDays: 365),
+        workload: WorkloadRule(hours: 8),
+      );
+
+      final updated =
+          policies.copyWith(expiration: const ExpirationRule(durationInDays: 30));
+
+      expect(updated.expiration!.durationInDays, 30);
+      expect(updated.workload!.hours, 8);
+    });
+
+    test('copyWith removes a rule when the clear flag is set', () {
+      const policies = TemplatePolicies(
+        expiration: ExpirationRule(durationInDays: 365),
+        workload: WorkloadRule(hours: 8),
+      );
+
+      final updated = policies.copyWith(clearExpiration: true);
+
+      expect(updated.expiration, isNull);
+      expect(updated.workload!.hours, 8);
+    });
+  });
+
+  group('ExpirationRule.validateDuration', () {
+    test('returns error when empty, since an active rule needs a duration', () {
+      expect(ExpirationRule.validateDuration(null), isNotNull);
+      expect(ExpirationRule.validateDuration(''), isNotNull);
+    });
+
+    test('returns error for zero, which the API rejects as a rule', () {
+      expect(ExpirationRule.validateDuration('0'), isNotNull);
+    });
+
+    test('returns error for out of range value', () {
+      expect(ExpirationRule.validateDuration('-1'), isNotNull);
+      expect(ExpirationRule.validateDuration('1000'), isNotNull);
+      expect(ExpirationRule.validateDuration('abc'), isNotNull);
+    });
+
+    test('returns null for valid value in 1-999 range', () {
+      expect(ExpirationRule.validateDuration('1'), isNull);
+      expect(ExpirationRule.validateDuration('365'), isNull);
+      expect(ExpirationRule.validateDuration('999'), isNull);
+    });
+  });
+
+  group('WorkloadRule.validateHours', () {
+    test('returns error when empty, since an active rule needs hours', () {
+      expect(WorkloadRule.validateHours(null), isNotNull);
+      expect(WorkloadRule.validateHours(''), isNotNull);
+    });
+
+    test('returns error for zero, which the API rejects as a rule', () {
+      expect(WorkloadRule.validateHours('0'), isNotNull);
+    });
+
+    test('returns null for valid value in 1-999 range', () {
+      expect(WorkloadRule.validateHours('1'), isNull);
+      expect(WorkloadRule.validateHours('8'), isNull);
+      expect(WorkloadRule.validateHours('999'), isNull);
     });
   });
 }

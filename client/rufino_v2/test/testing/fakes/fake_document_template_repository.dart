@@ -21,6 +21,9 @@ class FakeDocumentTemplateRepository implements DocumentTemplateRepository {
   String? lastCreatedTemplateName;
   String? lastUpdatedTemplateId;
 
+  /// The rule set handed to the last create or update call.
+  TemplatePolicies? lastSentPolicies;
+
   @override
   Future<Result<List<DocumentTemplate>>> getDocumentTemplates(
       String companyId) async {
@@ -47,8 +50,7 @@ class FakeDocumentTemplateRepository implements DocumentTemplateRepository {
     String companyId, {
     required String name,
     required String description,
-    required int? validityInDays,
-    required int? workload,
+    required TemplatePolicies policies,
     required bool usePreviousPeriod,
     required bool acceptsSignature,
     String bodyFileName = '',
@@ -62,6 +64,7 @@ class FakeDocumentTemplateRepository implements DocumentTemplateRepository {
       return Result.error(Exception('createDocumentTemplate failed'));
     }
     lastCreatedTemplateName = name;
+    lastSentPolicies = policies;
     return const Result.success('new-template-id');
   }
 
@@ -71,8 +74,7 @@ class FakeDocumentTemplateRepository implements DocumentTemplateRepository {
     required String id,
     required String name,
     required String description,
-    required int? validityInDays,
-    required int? workload,
+    required TemplatePolicies policies,
     required bool usePreviousPeriod,
     required bool acceptsSignature,
     String bodyFileName = '',
@@ -86,6 +88,7 @@ class FakeDocumentTemplateRepository implements DocumentTemplateRepository {
       return Result.error(Exception('updateDocumentTemplate failed'));
     }
     lastUpdatedTemplateId = id;
+    lastSentPolicies = policies;
     return Result.success(id);
   }
 

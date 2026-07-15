@@ -24,6 +24,44 @@ class DocumentTemplateRepositoryImpl implements DocumentTemplateRepository {
   final DocumentTemplateApiService apiService;
   final ErrorReporter reporter;
 
+  /// Builds the DTO with [policies] as the source of truth and the legacy
+  /// fields mirroring them.
+  ///
+  /// Sending both keeps the app correct on either side of a deploy: an API that
+  /// predates the policies block reads the legacy fields, a current one lets the
+  /// block win. The two can never disagree because both come from [policies].
+  DocumentTemplateApiModel _buildModel({
+    required String id,
+    required String name,
+    required String description,
+    required TemplatePolicies policies,
+    required bool usePreviousPeriod,
+    required bool acceptsSignature,
+    required String bodyFileName,
+    required String headerFileName,
+    required String footerFileName,
+    required String documentGroupId,
+    required List<int> recoverDataTypeIds,
+    required List<PlaceSignatureData> placeSignatures,
+  }) {
+    return DocumentTemplateApiModel(
+      id: id,
+      name: name,
+      description: description,
+      validityDurationInDays: policies.expiration?.durationInDays.toDouble(),
+      workloadInHours: policies.workload?.hours.toDouble(),
+      policies: policies,
+      usePreviousPeriod: usePreviousPeriod,
+      acceptsSignature: acceptsSignature,
+      bodyFileName: bodyFileName,
+      headerFileName: headerFileName,
+      footerFileName: footerFileName,
+      documentGroupId: documentGroupId,
+      recoverDataTypeIds: recoverDataTypeIds,
+      placeSignatures: placeSignatures,
+    );
+  }
+
   @override
   Future<Result<List<DocumentTemplate>>> getDocumentTemplates(
       String companyId) async {
@@ -56,8 +94,7 @@ class DocumentTemplateRepositoryImpl implements DocumentTemplateRepository {
     String companyId, {
     required String name,
     required String description,
-    required int? validityInDays,
-    required int? workload,
+    required TemplatePolicies policies,
     required bool usePreviousPeriod,
     required bool acceptsSignature,
     String bodyFileName = '',
@@ -68,12 +105,11 @@ class DocumentTemplateRepositoryImpl implements DocumentTemplateRepository {
     List<PlaceSignatureData> placeSignatures = const [],
   }) async {
     try {
-      final model = DocumentTemplateApiModel(
+      final model = _buildModel(
         id: '',
         name: name,
         description: description,
-        validityDurationInDays: (validityInDays ?? 0).toDouble(),
-        workloadInHours: (workload ?? 0).toDouble(),
+        policies: policies,
         usePreviousPeriod: usePreviousPeriod,
         acceptsSignature: acceptsSignature,
         bodyFileName: bodyFileName,
@@ -98,8 +134,7 @@ class DocumentTemplateRepositoryImpl implements DocumentTemplateRepository {
     required String id,
     required String name,
     required String description,
-    required int? validityInDays,
-    required int? workload,
+    required TemplatePolicies policies,
     required bool usePreviousPeriod,
     required bool acceptsSignature,
     String bodyFileName = '',
@@ -110,12 +145,11 @@ class DocumentTemplateRepositoryImpl implements DocumentTemplateRepository {
     List<PlaceSignatureData> placeSignatures = const [],
   }) async {
     try {
-      final model = DocumentTemplateApiModel(
+      final model = _buildModel(
         id: id,
         name: name,
         description: description,
-        validityDurationInDays: (validityInDays ?? 0).toDouble(),
-        workloadInHours: (workload ?? 0).toDouble(),
+        policies: policies,
         usePreviousPeriod: usePreviousPeriod,
         acceptsSignature: acceptsSignature,
         bodyFileName: bodyFileName,

@@ -17,8 +17,10 @@ const _fakeTemplate = DocumentTemplate(
   id: 'tpl-1',
   name: 'Contrato CLT',
   description: 'Template de contrato CLT padrão',
-  validityInDays: 365,
-  workload: 44,
+  policies: TemplatePolicies(
+    expiration: ExpirationRule(durationInDays: 365),
+    workload: WorkloadRule(hours: 44),
+  ),
   usePreviousPeriod: false,
   acceptsSignature: true,
   bodyFileName: 'corpo.html',
@@ -55,6 +57,111 @@ void main() {
   });
 
   tearDown(() => viewModel.dispose());
+
+  group('DocumentTemplateFormViewModel policies', () {
+    test('starts with every rule off', () {
+      expect(viewModel.expirationEnabled, isFalse);
+      expect(viewModel.workloadEnabled, isFalse);
+      expect(viewModel.policies.isEmpty, isTrue);
+    });
+
+    test('builds no rule while the switch is off, even with a typed value', () {
+      viewModel.validityController.text = '365';
+
+      expect(viewModel.policies.expiration, isNull);
+    });
+
+    test('builds the expiration rule from the typed duration', () {
+      viewModel.setExpirationEnabled(true);
+      viewModel.validityController.text = '365';
+
+      expect(viewModel.policies.expiration!.durationInDays, 365);
+    });
+
+    test('builds the workload rule from the typed hours', () {
+      viewModel.setWorkloadEnabled(true);
+      viewModel.workloadController.text = '8';
+
+      expect(viewModel.policies.workload!.hours, 8);
+    });
+
+    // Zero is what the API rejects, so it must never reach the wire as a rule.
+    test('builds no rule when the typed value is zero', () {
+      viewModel.setExpirationEnabled(true);
+      viewModel.validityController.text = '0';
+
+      expect(viewModel.policies.expiration, isNull);
+    });
+
+    test('turning a rule off clears its field so no stale value survives', () {
+      viewModel.setExpirationEnabled(true);
+      viewModel.validityController.text = '365';
+
+      viewModel.setExpirationEnabled(false);
+
+      expect(viewModel.validityController.text, isEmpty);
+      expect(viewModel.policies.expiration, isNull);
+    });
+
+    test('the mirrored display is empty while the rule is off', () {
+      expect(viewModel.validityDisplay, isEmpty);
+      expect(viewModel.workloadDisplay, isEmpty);
+    });
+
+    test('the mirrored display reflects the rule once it is on', () {
+      viewModel.setExpirationEnabled(true);
+      viewModel.validityController.text = '365';
+
+      expect(viewModel.validityDisplay, '365');
+    });
+
+    test('loadTemplate turns on the rules the template carries', () async {
+      await viewModel.loadTemplate('tpl-1');
+
+      expect(viewModel.expirationEnabled, isTrue);
+      expect(viewModel.workloadEnabled, isTrue);
+      expect(viewModel.validityController.text, '365');
+      expect(viewModel.workloadController.text, '44');
+    });
+
+    test('loadTemplate leaves rules off when the template carries none',
+        () async {
+      templateRepository.setTemplate(const DocumentTemplate(
+        id: 'tpl-2',
+        name: 'Sem regras',
+        description: 'Template sem regras',
+        usePreviousPeriod: false,
+        acceptsSignature: false,
+      ));
+
+      await viewModel.loadTemplate('tpl-2');
+
+      expect(viewModel.expirationEnabled, isFalse);
+      expect(viewModel.workloadEnabled, isFalse);
+      expect(viewModel.validityController.text, isEmpty);
+    });
+
+    test('save sends the rules described by the form', () async {
+      viewModel.nameController.text = 'NR01';
+      viewModel.descriptionController.text = 'Descrição';
+      viewModel.setExpirationEnabled(true);
+      viewModel.validityController.text = '30';
+
+      await viewModel.save();
+
+      expect(templateRepository.lastSentPolicies!.expiration!.durationInDays, 30);
+      expect(templateRepository.lastSentPolicies!.workload, isNull);
+    });
+
+    test('save sends an empty rule set when no rule is on', () async {
+      viewModel.nameController.text = 'NR01';
+      viewModel.descriptionController.text = 'Descrição';
+
+      await viewModel.save();
+
+      expect(templateRepository.lastSentPolicies!.isEmpty, isTrue);
+    });
+  });
 
   group('DocumentTemplateFormViewModel', () {
     group('initial state', () {
@@ -376,43 +483,70 @@ void main() {
     });
 
     group('validateValidity', () {
-      test('returns null for empty value (optional field)', () {
+      test('skips validation while the expiration rule is off', () {
         expect(viewModel.validateValidity(''), isNull);
-        expect(viewModel.validateValidity(null), isNull);
-        expect(viewModel.validateValidity('  '), isNull);
+        expect(viewModel.validateValidity('abc'), isNull);
+      });
+
+      test('requires a value once the expiration rule is on', () {
+        viewModel.setExpirationEnabled(true);
+
+        expect(viewModel.validateValidity(''), isNotNull);
+        expect(viewModel.validateValidity(null), isNotNull);
+      });
+
+      test('rejects zero, which the API does not accept as a rule', () {
+        viewModel.setExpirationEnabled(true);
+
+        expect(viewModel.validateValidity('0'), isNotNull);
+      });
+
+      test('returns error for invalid or out of range values', () {
+        viewModel.setExpirationEnabled(true);
+
+        expect(viewModel.validateValidity('abc'), isNotNull);
+        expect(viewModel.validateValidity('-1'), isNotNull);
+        expect(viewModel.validateValidity('1000'), isNotNull);
       });
 
       test('returns null for valid values in range', () {
-        expect(viewModel.validateValidity('0'), isNull);
+        viewModel.setExpirationEnabled(true);
+
+        expect(viewModel.validateValidity('1'), isNull);
         expect(viewModel.validateValidity('30'), isNull);
         expect(viewModel.validateValidity('999'), isNull);
-      });
-
-      test('returns error for invalid number', () {
-        expect(viewModel.validateValidity('abc'), isNotNull);
-      });
-
-      test('returns error for out of range values', () {
-        expect(viewModel.validateValidity('-1'), isNotNull);
-        expect(viewModel.validateValidity('1000'), isNotNull);
       });
     });
 
     group('validateWorkload', () {
-      test('returns null for empty value (optional field)', () {
+      test('skips validation while the workload rule is off', () {
         expect(viewModel.validateWorkload(''), isNull);
-        expect(viewModel.validateWorkload(null), isNull);
+        expect(viewModel.validateWorkload('abc'), isNull);
       });
 
-      test('returns null for valid values in range', () {
-        expect(viewModel.validateWorkload('0'), isNull);
-        expect(viewModel.validateWorkload('8'), isNull);
-        expect(viewModel.validateWorkload('999'), isNull);
+      test('requires a value once the workload rule is on', () {
+        viewModel.setWorkloadEnabled(true);
+
+        expect(viewModel.validateWorkload(''), isNotNull);
+      });
+
+      test('rejects zero, which the API does not accept as a rule', () {
+        viewModel.setWorkloadEnabled(true);
+
+        expect(viewModel.validateWorkload('0'), isNotNull);
       });
 
       test('returns error for out of range values', () {
+        viewModel.setWorkloadEnabled(true);
+
         expect(viewModel.validateWorkload('-1'), isNotNull);
         expect(viewModel.validateWorkload('1000'), isNotNull);
+      });
+
+      test('returns null for valid values in range', () {
+        viewModel.setWorkloadEnabled(true);
+
+        expect(viewModel.validateWorkload('8'), isNull);
       });
     });
 
