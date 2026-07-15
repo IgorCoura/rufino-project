@@ -134,10 +134,10 @@ namespace PeopleManagement.Domain.AggregatesModel.DocumentTemplateAggregate
         {
             _policies.Clear();
 
-            if (DocumentValidityDuration.HasValue)
+            if (DocumentValidityDuration.HasValue && DocumentValidityDuration > TimeSpan.Zero)
                 AddPolicy(new ExpirationPolicy(DocumentValidityDuration.Value));
 
-            if (Workload.HasValue)
+            if (Workload.HasValue && Workload > TimeSpan.Zero)
                 AddPolicy(new WorkloadPolicy(Workload.Value));
         }
 

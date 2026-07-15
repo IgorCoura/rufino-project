@@ -39,13 +39,17 @@ namespace PeopleManagement.Infra.Migrations
             // (que permanecem como fonte da verdade nesta fase). Sem isso, um template anterior à migration
             // voltaria do banco sem policies. Os ticks reproduzem exatamente o payload que o
             // DocumentPolicyFactory grava — por isso o params viaja em ticks, e não como TimeSpan textual.
+            //
+            // O filtro > 0 espelha o guard de SyncPoliciesFromFields e a invariante das policies: coluna zerada
+            // é ausência de regra, não regra com valor zero. Sem ele o backfill criaria linhas que o domínio
+            // recusa a reidratar.
             migrationBuilder.Sql("""
                 INSERT INTO people_management."DocumentTemplatePolicies" ("DocumentTemplateId", "Type", "Params")
                 SELECT "Id",
                        1,
                        jsonb_build_object('DurationTicks', (EXTRACT(EPOCH FROM "DocumentValidityDuration") * 10000000)::bigint)
                 FROM people_management."DocumentTemplates"
-                WHERE "DocumentValidityDuration" IS NOT NULL;
+                WHERE "DocumentValidityDuration" > INTERVAL '0';
                 """);
 
             migrationBuilder.Sql("""
@@ -54,7 +58,7 @@ namespace PeopleManagement.Infra.Migrations
                        4,
                        jsonb_build_object('WorkloadTicks', (EXTRACT(EPOCH FROM "Workload") * 10000000)::bigint)
                 FROM people_management."DocumentTemplates"
-                WHERE "Workload" IS NOT NULL;
+                WHERE "Workload" > INTERVAL '0';
                 """);
         }
 

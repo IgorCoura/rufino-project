@@ -279,6 +279,53 @@ namespace PeopleManagement.IntegrationTests.Tests
             Assert.Equal(TimeSpan.FromHours(8), persisted.GetPolicy<IWorkloadPolicy>()!.Workload);
         }
 
+        // O backfill precisa espelhar a invariante das policies: coluna zerada é ausência de regra, não regra
+        // com zero. Sem o filtro > INTERVAL '0' a migration cria linhas que o domínio recusa a reidratar
+        // (DocumentPolicyFactory.ToPolicy lança), quebrando a leitura de qualquer template legado.
+        [Fact]
+        public async Task Backfill_OnTemplateWithZeroLegacyColumns_CreatesNoPolicies()
+        {
+            var cancellationToken = CancellationToken.None;
+
+            var context = GetContext();
+
+            var company = await context.InsertCompany(cancellationToken);
+            var documentGroup = await context.InsertDocumentGroup(company.Id, cancellationToken);
+
+            // Template legado: o app manda 0, a coluna guarda 00:00:00 e nenhuma policy é derivada.
+            var template = DocumentTemplate.Create(
+                Guid.NewGuid(), "NR35", "Description NR35", company.Id, 0d, 0d,
+                TemplateFileInfo.Create("dir", "index.html", "header.html", "footer.html", [RecoverDataType.Employee]),
+                true, [], documentGroup.Id);
+            await context.DocumentTemplates.AddAsync(template, cancellationToken);
+            await context.SaveChangesAsync(cancellationToken);
+
+            await context.Database.ExecuteSqlRawAsync("""
+                INSERT INTO people_management."DocumentTemplatePolicies" ("DocumentTemplateId", "Type", "Params")
+                SELECT "Id",
+                       1,
+                       jsonb_build_object('DurationTicks', (EXTRACT(EPOCH FROM "DocumentValidityDuration") * 10000000)::bigint)
+                FROM people_management."DocumentTemplates"
+                WHERE "DocumentValidityDuration" > INTERVAL '0';
+                """, cancellationToken);
+
+            await context.Database.ExecuteSqlRawAsync("""
+                INSERT INTO people_management."DocumentTemplatePolicies" ("DocumentTemplateId", "Type", "Params")
+                SELECT "Id",
+                       4,
+                       jsonb_build_object('WorkloadTicks', (EXTRACT(EPOCH FROM "Workload") * 10000000)::bigint)
+                FROM people_management."DocumentTemplates"
+                WHERE "Workload" > INTERVAL '0';
+                """, cancellationToken);
+
+            using var scope = _factory.Services.CreateScope();
+            var readContext = scope.ServiceProvider.GetRequiredService<PeopleManagementContext>();
+            var persisted = await readContext.DocumentTemplates.AsNoTracking()
+                .FirstAsync(x => x.Id == template.Id, cancellationToken);
+
+            Assert.Empty(persisted.Policies);
+        }
+
         // POST /documenttemplate com o bloco "policies" (Fase 2.4): as policies informadas mandam sobre os campos
         // escalares do payload, e os escalares são gravados como reflexo delas.
         [Fact]
