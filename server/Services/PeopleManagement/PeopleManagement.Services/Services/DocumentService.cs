@@ -8,6 +8,7 @@ using PeopleManagement.Domain.AggregatesModel.DocumentAggregate.Interfaces;
 using PeopleManagement.Domain.AggregatesModel.DocumentTemplateAggregate;
 using PeopleManagement.Domain.AggregatesModel.DocumentTemplateAggregate.Interfaces;
 using PeopleManagement.Domain.AggregatesModel.DocumentTemplateAggregate.options;
+using PeopleManagement.Domain.AggregatesModel.DocumentTemplateAggregate.Policies;
 using PeopleManagement.Domain.AggregatesModel.EmployeeAggregate.Events;
 using PeopleManagement.Domain.AggregatesModel.EmployeeAggregate.Interfaces;
 using PeopleManagement.Domain.AggregatesModel.RequireDocumentsAggregate;
@@ -278,16 +279,19 @@ namespace PeopleManagement.Services.Services
                 cancellation: cancellationToken)
                 ?? throw new DomainException(this, DomainErrors.ObjectNotFound(nameof(DocumentTemplate), document.DocumentTemplateId.ToString()));
 
+            var workloadPolicy = documentTemplate.GetPolicy<IWorkloadPolicy>();
+            var validityDuration = documentTemplate.GetPolicy<IExpirationPolicy>()?.Duration;
+
             DateOnly? workloadEndDate = null;
-            if (documentTemplate.Workload is not null && documentTemplate.Workload != TimeSpan.Zero)
+            if (workloadPolicy is not null && workloadPolicy.Workload != TimeSpan.Zero)
                 workloadEndDate = await VerifyTimeConflictBetweenDocument(employeeId, companyId, documentId, documentUnitDate,
-                    (TimeSpan)documentTemplate.Workload, cancellationToken);
+                    workloadPolicy.Workload, cancellationToken);
 
             string? content = "";
 
             DocumentUnit documentUnit;
 
-            documentUnit = document.UpdateDocumentUnitDetails(documentUnitId, documentUnitDate, documentTemplate.DocumentValidityDuration,
+            documentUnit = document.UpdateDocumentUnitDetails(documentUnitId, documentUnitDate, validityDuration,
             content);
     
 
@@ -316,7 +320,7 @@ namespace PeopleManagement.Services.Services
 
             }
 
-            documentUnit = document.UpdateDocumentUnitDetails(documentUnitId, documentUnitDate, documentTemplate.DocumentValidityDuration,
+            documentUnit = document.UpdateDocumentUnitDetails(documentUnitId, documentUnitDate, validityDuration,
                 content);
 
             if (workloadEndDate is not null)
@@ -495,7 +499,9 @@ namespace PeopleManagement.Services.Services
                     && x.CompanyId == companyId,
                     cancellation: cancellationToken);
 
-                if (documentTemplate?.Workload == null)
+                var templateWorkloadPolicy = documentTemplate?.GetPolicy<IWorkloadPolicy>();
+
+                if (templateWorkloadPolicy == null)
                     continue;
 
                 foreach (var unit in document.DocumentsUnits)
@@ -507,9 +513,9 @@ namespace PeopleManagement.Services.Services
                         continue;
                     }
 
-                    var unitPeriod = _workloadCalendarService.DistributeWorkload(unit.Date, (TimeSpan)documentTemplate.Workload, maxHours);
+                    var unitPeriod = _workloadCalendarService.DistributeWorkload(unit.Date, templateWorkloadPolicy.Workload, maxHours);
                     var currentDate = unit.Date;
-                    var remaining = documentTemplate.Workload.Value.TotalHours;
+                    var remaining = templateWorkloadPolicy.Workload.TotalHours;
 
                     while (remaining > 0)
                     {
