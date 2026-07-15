@@ -21,6 +21,7 @@ utils/CombinePDFs/output/
 
 server/data/*
 server/.containers/*
+server/TemplateEngineHost/
 
 client/rufino/secrets/*
 
