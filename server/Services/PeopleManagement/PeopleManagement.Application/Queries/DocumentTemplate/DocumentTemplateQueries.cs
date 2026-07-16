@@ -26,11 +26,13 @@ namespace PeopleManagement.Application.Queries.DocumentTemplate
         {
             var expiration = template.GetPolicy<IExpirationPolicy>();
             var workload = template.GetPolicy<IWorkloadPolicy>();
+            var period = template.GetPolicy<IPeriodPolicy>();
 
             return new PoliciesDto
             {
                 Expiration = expiration is null ? null : new ExpirationPolicyDto { DurationInDays = expiration.Duration.TotalDays },
                 Workload = workload is null ? null : new WorkloadPolicyDto { Hours = workload.Workload.TotalHours },
+                Period = period is null ? null : new PeriodPolicyDto { PeriodTypeId = period.PeriodType.Id, UsePreviousPeriod = period.UsePreviousPeriod },
             };
         }
         public async Task<IEnumerable<DocumentTemplateSimpleDto>> GetAllSimple(Guid companyId)

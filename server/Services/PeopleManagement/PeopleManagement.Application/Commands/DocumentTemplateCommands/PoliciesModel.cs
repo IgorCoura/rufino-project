@@ -1,3 +1,4 @@
+using PeopleManagement.Domain.AggregatesModel.DocumentAggregate;
 using PeopleManagement.Domain.AggregatesModel.DocumentTemplateAggregate.Policies;
 
 namespace PeopleManagement.Application.Commands.DocumentTemplateCommands
@@ -9,11 +10,11 @@ namespace PeopleManagement.Application.Commands.DocumentTemplateCommands
     /// Omitir "policies" no payload = caminho legado: as regras são derivadas de DocumentValidityDurationInDays
     /// e WorkloadInHours. Enviar "policies" (mesmo vazio) = as policies mandam, e aqueles campos passam a ser
     /// apenas reflexo delas.
-    ///
-    /// PeriodPolicy não está aqui de propósito: o domínio ainda não a consome (quem decide competência é o
-    /// fluxo do evento), então aceitá-la seria expor configuração sem efeito.
     /// </summary>
-    public record PoliciesModel(ExpirationPolicyModel? Expiration = null, WorkloadPolicyModel? Workload = null)
+    public record PoliciesModel(
+        ExpirationPolicyModel? Expiration = null,
+        WorkloadPolicyModel? Workload = null,
+        PeriodPolicyModel? Period = null)
     {
         public IEnumerable<IDocumentPolicy> ToPolicies()
         {
@@ -22,6 +23,9 @@ namespace PeopleManagement.Application.Commands.DocumentTemplateCommands
 
             if (Workload is not null)
                 yield return Workload.ToPolicy();
+
+            if (Period is not null)
+                yield return Period.ToPolicy();
         }
     }
 
@@ -33,5 +37,10 @@ namespace PeopleManagement.Application.Commands.DocumentTemplateCommands
     public record WorkloadPolicyModel(double Hours)
     {
         public IDocumentPolicy ToPolicy() => new WorkloadPolicy(TimeSpan.FromHours(Hours));
+    }
+
+    public record PeriodPolicyModel(int PeriodTypeId, bool UsePreviousPeriod)
+    {
+        public IDocumentPolicy ToPolicy() => new PeriodPolicy(PeriodType.CreateFromValue(PeriodTypeId), UsePreviousPeriod);
     }
 }

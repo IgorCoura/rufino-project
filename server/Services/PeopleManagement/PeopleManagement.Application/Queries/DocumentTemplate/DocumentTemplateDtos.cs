@@ -35,6 +35,7 @@ namespace PeopleManagement.Application.Queries.DocumentTemplate
         {
             public ExpirationPolicyDto? Expiration { get; init; }
             public WorkloadPolicyDto? Workload { get; init; }
+            public PeriodPolicyDto? Period { get; init; }
             public static PoliciesDto Empty => new();
         }
 
@@ -46,6 +47,12 @@ namespace PeopleManagement.Application.Queries.DocumentTemplate
         public record WorkloadPolicyDto
         {
             public double Hours { get; init; }
+        }
+
+        public record PeriodPolicyDto
+        {
+            public int PeriodTypeId { get; init; }
+            public bool UsePreviousPeriod { get; init; }
         }
 
         public record DocumentGroupDocumentTemplateDto

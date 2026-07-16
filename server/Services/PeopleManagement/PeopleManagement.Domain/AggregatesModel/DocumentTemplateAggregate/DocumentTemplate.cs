@@ -173,6 +173,12 @@ namespace PeopleManagement.Domain.AggregatesModel.DocumentTemplateAggregate
         {
             DocumentValidityDuration = GetPolicy<IExpirationPolicy>()?.Duration;
             Workload = GetPolicy<IWorkloadPolicy>()?.Workload;
+
+            // UsePreviousPeriod é a competência: quando há PeriodPolicy, ela manda; sem policy, o escalar fica
+            // como veio (caminho legado). O escalar segue depreciado, mas o read model ainda o lê.
+            var period = GetPolicy<IPeriodPolicy>();
+            if (period is not null)
+                UsePreviousPeriod = period.UsePreviousPeriod;
         }
 
         public bool IsSignable => AcceptsSignature;

@@ -3,7 +3,9 @@ using PeopleManagement.Application.Commands.DocumentTemplateCommands;
 using PeopleManagement.Application.Commands.DocumentTemplateCommands.CreateDocumentTemplate;
 using PeopleManagement.Application.Commands.DocumentTemplateCommands.EditDocumentTemplate;
 using PeopleManagement.Application.Commands.DocumentTemplateCommands.InsertDocumentTemplate;
+using PeopleManagement.Application.Queries.DocumentTemplate;
 using PeopleManagement.Domain.AggregatesModel.CompanyAggregate;
+using PeopleManagement.Domain.AggregatesModel.DocumentAggregate;
 using PeopleManagement.Domain.AggregatesModel.DocumentTemplateAggregate;
 using PeopleManagement.Domain.AggregatesModel.DocumentTemplateAggregate.options;
 using PeopleManagement.Domain.AggregatesModel.DocumentTemplateAggregate.Policies;
@@ -594,6 +596,48 @@ namespace PeopleManagement.IntegrationTests.Tests
             Assert.Equal(TimeSpan.FromHours(4), persisted.GetPolicy<IWorkloadPolicy>()!.Workload);
             Assert.Equal(TimeSpan.FromDays(30), persisted.DocumentValidityDuration);
             Assert.Equal(TimeSpan.FromHours(4), persisted.Workload);
+        }
+
+        // Fase 3 (Camada 2): o bloco "period" configura a competência do template. POST persiste a PeriodPolicy
+        // e o GET a devolve — é o caminho que substitui a configuração manual por SQL para os templates em conflito.
+        [Fact]
+        public async Task CreateDocumentTemplate_WithPeriodBlock_PersistsAndReturnsThePeriodPolicy()
+        {
+            var cancellationToken = CancellationToken.None;
+
+            var context = GetContext();
+            var client = CreateClient();
+
+            var company = await context.InsertCompany(cancellationToken);
+            var documentGroup = await context.InsertDocumentGroup(company.Id, cancellationToken);
+            await context.SaveChangesAsync(cancellationToken);
+
+            var command = new CreateDocumentTemplateCommand(
+                company.Id, "NR01", "Description NR01", (double?)null, null,
+                new TemplateFileInfoModel("index.html", "header.html", "footer.html", [RecoverDataType.Employee.Id]),
+                false, [], documentGroup.Id, false,
+                new PoliciesModel(Period: new PeriodPolicyModel(PeriodType.Monthly.Id, UsePreviousPeriod: true)));
+
+            client.InputHeaders([company.Id]);
+            var response = await client.PostAsJsonAsync($"/api/v1/{company.Id}/documenttemplate", command);
+
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+            var content = await response.Content.ReadFromJsonAsync<CreateDocumentTemplateResponse>() ?? throw new ArgumentNullException();
+
+            using var scope = _factory.Services.CreateScope();
+            var readContext = scope.ServiceProvider.GetRequiredService<PeopleManagementContext>();
+            var persisted = await readContext.DocumentTemplates.AsNoTracking().FirstAsync(x => x.Id == content.Id, cancellationToken);
+
+            var period = persisted.GetPolicy<IPeriodPolicy>();
+            Assert.NotNull(period);
+            Assert.Equal(PeriodType.Monthly, period!.PeriodType);
+            Assert.True(period.UsePreviousPeriod);
+            Assert.True(persisted.UsePreviousPeriod);
+
+            var dto = await scope.ServiceProvider.GetRequiredService<IDocumentTemplateQueries>().GetById(company.Id, content.Id);
+            Assert.NotNull(dto.Policies.Period);
+            Assert.Equal(PeriodType.Monthly.Id, dto.Policies.Period!.PeriodTypeId);
+            Assert.True(dto.Policies.Period.UsePreviousPeriod);
         }
 
         // "policies": {} = nenhuma regra ativa, mesmo com os campos escalares preenchidos no payload.

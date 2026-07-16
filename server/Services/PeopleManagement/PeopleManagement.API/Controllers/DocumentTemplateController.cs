@@ -5,6 +5,7 @@ using PeopleManagement.Application.Commands.DocumentTemplateCommands.InsertDocum
 using PeopleManagement.Application.Commands.Identified;
 using PeopleManagement.Application.Queries.DocumentTemplate;
 using PeopleManagement.Domain.AggregatesModel.DocumentTemplateAggregate;
+using PeopleManagement.Domain.AggregatesModel.DocumentAggregate;
 using PeopleManagement.Domain.AggregatesModel.DocumentTemplateAggregate.Policies;
 using PeopleManagement.Services.Services.RecoverInfoToDocument;
 using System.Text.Json.Nodes;
@@ -113,8 +114,17 @@ namespace PeopleManagement.API.Controllers
         [ProtectedResource("document-template", "view")]
         public ActionResult<IEnumerable<EnumerationDto>> GetAllPolicyTypes([FromRoute] Guid company)
         {
-            var supported = new[] { PolicyType.Expiration, PolicyType.Workload };
+            var supported = new[] { PolicyType.Expiration, PolicyType.Workload, PolicyType.Period };
             var dtos = supported.Select(x => new EnumerationDto { Id = x.Id, Name = x.Name });
+            return OkResponse(dtos);
+        }
+
+        // Granularidades de competência que a regra de período aceita — alimenta o dropdown da tela.
+        [HttpGet("PeriodType")]
+        [ProtectedResource("document-template", "view")]
+        public ActionResult<IEnumerable<EnumerationDto>> GetAllPeriodTypes([FromRoute] Guid company)
+        {
+            var dtos = PeriodType.GetAll<PeriodType>().Select(x => new EnumerationDto { Id = x.Id, Name = x.Name });
             return OkResponse(dtos);
         }
 

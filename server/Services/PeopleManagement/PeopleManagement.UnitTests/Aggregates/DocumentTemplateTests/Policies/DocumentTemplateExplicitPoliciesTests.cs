@@ -1,3 +1,4 @@
+using PeopleManagement.Domain.AggregatesModel.DocumentAggregate;
 using PeopleManagement.Domain.AggregatesModel.DocumentTemplateAggregate;
 using PeopleManagement.Domain.AggregatesModel.DocumentTemplateAggregate.Policies;
 using PeopleManagement.UnitTests.Aggregates.DocumentTemplateTests.Mothers;
@@ -54,6 +55,21 @@ namespace PeopleManagement.UnitTests.Aggregates.DocumentTemplateTests.Policies
             Assert.Equal(TimeSpan.FromDays(365), template.GetPolicy<IExpirationPolicy>()!.Duration);
             Assert.Equal(TimeSpan.FromHours(8), template.GetPolicy<IWorkloadPolicy>()!.Workload);
             Assert.Equal(TimeSpan.FromDays(365), template.DocumentValidityDuration);
+        }
+
+        // A PeriodPolicy carrega a competência; o escalar legado UsePreviousPeriod vira reflexo dela, senão o
+        // read model, que ainda lê o escalar, mentiria.
+        [Fact]
+        public void Create_WithPeriodPolicy_MirrorsUsePreviousPeriodFromThePolicy()
+        {
+            var template = DocumentTemplate.Create(
+                Guid.NewGuid(), "NR01", "Description NR01", Guid.NewGuid(), (double?)null, null,
+                DocumentTemplateMother.ValidFileInfo(), acceptsSignature: false, placeSignatures: [],
+                documentGroupId: Guid.NewGuid(), usePreviousPeriod: false,
+                policies: [new PeriodPolicy(PeriodType.Monthly, usePreviousPeriod: true)]);
+
+            Assert.Equal(PeriodType.Monthly, template.GetPolicy<IPeriodPolicy>()!.PeriodType);
+            Assert.True(template.UsePreviousPeriod);
         }
 
         [Fact]
