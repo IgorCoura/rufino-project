@@ -233,10 +233,28 @@ class PeriodRule {
 
 /// The rule that makes documents from a template expire after a period.
 class ExpirationRule {
-  const ExpirationRule({required this.durationInDays});
+  const ExpirationRule({required this.durationInDays, this.maxRenewals});
 
   /// How many days a generated document stays valid. Always positive.
   final int durationInDays;
+
+  /// How many times a document renews before it stops, or null when it renews
+  /// indefinitely. When set, always positive.
+  final int? maxRenewals;
+
+  /// Whether the document renews a limited number of times.
+  bool get isLimited => maxRenewals != null;
+
+  /// Returns a copy with the given fields replaced.
+  ///
+  /// [clearMaxRenewals] drops the limit (back to renewing forever) — needed
+  /// because a null [maxRenewals] argument can't distinguish "keep" from "clear".
+  ExpirationRule copyWith({int? durationInDays, int? maxRenewals, bool clearMaxRenewals = false}) {
+    return ExpirationRule(
+      durationInDays: durationInDays ?? this.durationInDays,
+      maxRenewals: clearMaxRenewals ? null : (maxRenewals ?? this.maxRenewals),
+    );
+  }
 
   /// Validates the duration typed by the user for this rule.
   ///
@@ -248,6 +266,21 @@ class ExpirationRule {
     }
     final days = int.tryParse(value.trim());
     if (days == null || days < 1 || days > 999) {
+      return 'Informe um valor entre 1 e 999.';
+    }
+    return null;
+  }
+
+  /// Validates the renewal limit typed by the user.
+  ///
+  /// Required and in the 1–999 range: the API rejects a limit below 1, since a
+  /// zero-renewal limit is not the purpose of the rule.
+  static String? validateMaxRenewals(String? value) {
+    if (value == null || value.trim().isEmpty) {
+      return 'Informe o número de renovações.';
+    }
+    final renewals = int.tryParse(value.trim());
+    if (renewals == null || renewals < 1 || renewals > 999) {
       return 'Informe um valor entre 1 e 999.';
     }
     return null;

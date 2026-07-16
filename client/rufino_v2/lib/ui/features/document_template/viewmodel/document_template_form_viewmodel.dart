@@ -41,6 +41,12 @@ class DocumentTemplateFormViewModel extends ChangeNotifier {
   /// the basic info section mirrors it through [validityDisplay].
   final validityController = TextEditingController();
 
+  /// Controller for the expiration rule's renewal limit.
+  ///
+  /// Only meaningful while [expirationEnabled] and [expirationLimited] are true;
+  /// otherwise the document renews indefinitely.
+  final maxRenewalsController = TextEditingController();
+
   /// Controller for the workload rule's hours.
   ///
   /// Only meaningful while [workloadEnabled] is true.
@@ -63,6 +69,12 @@ class DocumentTemplateFormViewModel extends ChangeNotifier {
     filter: {'#': RegExp(r'[0-9]')},
   );
 
+  /// Mask formatter for the renewal limit (up to 3 digits).
+  final maxRenewalsFormatter = MaskTextInputFormatter(
+    mask: '###',
+    filter: {'#': RegExp(r'[0-9]')},
+  );
+
   /// Mask formatter for workload in hours (up to 3 digits).
   final workloadFormatter = MaskTextInputFormatter(
     mask: '###',
@@ -79,6 +91,7 @@ class DocumentTemplateFormViewModel extends ChangeNotifier {
   /// Server-provided error messages extracted from the API response, if any.
   List<String> get serverErrors => _serverErrors;
   bool _expirationEnabled = false;
+  bool _expirationLimited = false;
   bool _workloadEnabled = false;
   bool _periodEnabled = false;
   PeriodGranularity? _selectedGranularity;
@@ -114,6 +127,12 @@ class DocumentTemplateFormViewModel extends ChangeNotifier {
   /// Whether the expiration rule is active for this template.
   bool get expirationEnabled => _expirationEnabled;
 
+  /// Whether the expiration rule limits how many times the document renews.
+  ///
+  /// Off = renews indefinitely; on = renews the number of times in
+  /// [maxRenewalsController].
+  bool get expirationLimited => _expirationLimited;
+
   /// Whether the workload rule is active for this template.
   bool get workloadEnabled => _workloadEnabled;
 
@@ -135,11 +154,17 @@ class DocumentTemplateFormViewModel extends ChangeNotifier {
         _expirationEnabled ? int.tryParse(validityController.text.trim()) : null;
     final hours =
         _workloadEnabled ? int.tryParse(workloadController.text.trim()) : null;
+    // Só há teto quando a assinatura de renovação limitada está ligada e o valor é válido.
+    final renewals = _expirationEnabled && _expirationLimited
+        ? int.tryParse(maxRenewalsController.text.trim())
+        : null;
 
     return TemplatePolicies(
       expiration: days == null || days <= 0
           ? null
-          : ExpirationRule(durationInDays: days),
+          : ExpirationRule(
+              durationInDays: days,
+              maxRenewals: renewals != null && renewals > 0 ? renewals : null),
       workload: hours == null || hours <= 0 ? null : WorkloadRule(hours: hours),
       period: _periodEnabled && _selectedGranularity != null
           ? PeriodRule(
@@ -203,7 +228,23 @@ class DocumentTemplateFormViewModel extends ChangeNotifier {
   /// toggle and reappear on save.
   void setExpirationEnabled(bool value) {
     _expirationEnabled = value;
-    if (!value) validityController.clear();
+    if (!value) {
+      validityController.clear();
+      // Desligar o vencimento leva junto o limite de renovações, senão um valor
+      // órfão reapareceria ao religar.
+      _expirationLimited = false;
+      maxRenewalsController.clear();
+    }
+    notifyListeners();
+  }
+
+  /// Turns the renewal limit on or off and notifies listeners.
+  ///
+  /// Turning it off clears the limit, so the document goes back to renewing
+  /// indefinitely and no stale value survives the toggle.
+  void setExpirationLimited(bool value) {
+    _expirationLimited = value;
+    if (!value) maxRenewalsController.clear();
     notifyListeners();
   }
 
@@ -411,6 +452,14 @@ class DocumentTemplateFormViewModel extends ChangeNotifier {
   String? validateValidity(String? v) =>
       _expirationEnabled ? ExpirationRule.validateDuration(v) : null;
 
+  /// Delegates to [ExpirationRule.validateMaxRenewals].
+  ///
+  /// Only applies while the expiration rule is on and limited.
+  String? validateMaxRenewals(String? v) =>
+      _expirationEnabled && _expirationLimited
+          ? ExpirationRule.validateMaxRenewals(v)
+          : null;
+
   /// Delegates to [WorkloadRule.validateHours].
   String? validateWorkload(String? v) =>
       _workloadEnabled ? WorkloadRule.validateHours(v) : null;
@@ -463,9 +512,12 @@ class DocumentTemplateFormViewModel extends ChangeNotifier {
           nameController.text = template.name;
           descriptionController.text = template.description;
           _expirationEnabled = template.policies.expiration != null;
+          _expirationLimited = template.policies.expiration?.isLimited ?? false;
           _workloadEnabled = template.policies.workload != null;
           validityController.text =
               template.policies.expiration?.durationInDays.toString() ?? '';
+          maxRenewalsController.text =
+              template.policies.expiration?.maxRenewals?.toString() ?? '';
           workloadController.text =
               template.policies.workload?.hours.toString() ?? '';
           final period = template.policies.period;
@@ -592,6 +644,7 @@ class DocumentTemplateFormViewModel extends ChangeNotifier {
     nameController.dispose();
     descriptionController.dispose();
     validityController.dispose();
+    maxRenewalsController.dispose();
     workloadController.dispose();
     bodyFileNameController.dispose();
     headerFileNameController.dispose();

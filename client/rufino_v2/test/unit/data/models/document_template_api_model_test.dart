@@ -250,7 +250,7 @@ void main() {
       final json = model.toJson();
       final policies = json['policies'] as Map<String, dynamic>;
 
-      expect(policies['expiration'], {'durationInDays': 365});
+      expect(policies['expiration'], {'durationInDays': 365, 'maxRenewals': null});
       expect(policies['workload'], {'hours': 8});
       expect(json['documentValidityDurationInDays'], 365);
     });
@@ -290,6 +290,82 @@ void main() {
       final json = model.toJson();
 
       expect(json['policies'], isNull);
+    });
+  });
+
+  group('DocumentTemplateApiModel expiration renewal limit', () {
+    test('fromJson parses maxRenewals from the expiration block', () {
+      final json = {
+        'id': 'tpl-1',
+        'name': 'NR01',
+        'description': 'Descrição',
+        'policies': {
+          'expiration': {'durationInDays': 365, 'maxRenewals': 2},
+        },
+      };
+
+      final model = DocumentTemplateApiModel.fromJson(json);
+
+      expect(model.policies!.expiration!.durationInDays, 365);
+      expect(model.policies!.expiration!.maxRenewals, 2);
+    });
+
+    test('fromJson maps an absent maxRenewals to null (renews forever)', () {
+      final json = {
+        'id': 'tpl-1',
+        'name': 'NR01',
+        'description': 'Descrição',
+        'policies': {
+          'expiration': {'durationInDays': 365},
+        },
+      };
+
+      final model = DocumentTemplateApiModel.fromJson(json);
+
+      expect(model.policies!.expiration!.maxRenewals, isNull);
+    });
+
+    test('toJson sends maxRenewals inside the expiration block', () {
+      const model = DocumentTemplateApiModel(
+        id: 'tpl-1',
+        name: 'NR01',
+        description: 'Descrição',
+        validityDurationInDays: 365,
+        workloadInHours: null,
+        usePreviousPeriod: false,
+        acceptsSignature: false,
+        policies: TemplatePolicies(
+          expiration: ExpirationRule(durationInDays: 365, maxRenewals: 3),
+        ),
+      );
+
+      final json = model.toJson();
+      final expiration =
+          (json['policies'] as Map<String, dynamic>)['expiration'] as Map<String, dynamic>;
+
+      expect(expiration['durationInDays'], 365);
+      expect(expiration['maxRenewals'], 3);
+    });
+
+    test('toJson sends maxRenewals null when the document renews forever', () {
+      const model = DocumentTemplateApiModel(
+        id: 'tpl-1',
+        name: 'NR01',
+        description: 'Descrição',
+        validityDurationInDays: 365,
+        workloadInHours: null,
+        usePreviousPeriod: false,
+        acceptsSignature: false,
+        policies: TemplatePolicies(
+          expiration: ExpirationRule(durationInDays: 365),
+        ),
+      );
+
+      final json = model.toJson();
+      final expiration =
+          (json['policies'] as Map<String, dynamic>)['expiration'] as Map<String, dynamic>;
+
+      expect(expiration['maxRenewals'], isNull);
     });
   });
 

@@ -125,7 +125,8 @@ class DocumentTemplateApiModel {
           ? null
           : ExpirationRule(
               durationInDays:
-                  (expiration['durationInDays'] as num?)?.toInt() ?? 0),
+                  (expiration['durationInDays'] as num?)?.toInt() ?? 0,
+              maxRenewals: (expiration['maxRenewals'] as num?)?.toInt()),
       workload: workload == null
           ? null
           : WorkloadRule(hours: (workload['hours'] as num?)?.toInt() ?? 0),
@@ -207,7 +208,11 @@ class DocumentTemplateApiModel {
     return {
       'expiration': rules.expiration == null
           ? null
-          : {'durationInDays': rules.expiration!.durationInDays},
+          : {
+              'durationInDays': rules.expiration!.durationInDays,
+              // null = renova sempre; presente = renova N vezes (ExpirationLimitedPolicy).
+              'maxRenewals': rules.expiration!.maxRenewals,
+            },
       'workload':
           rules.workload == null ? null : {'hours': rules.workload!.hours},
       'period': rules.period == null

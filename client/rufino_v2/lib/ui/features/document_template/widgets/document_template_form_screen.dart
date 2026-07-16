@@ -246,6 +246,7 @@ class _DocumentTemplateFormBody extends StatelessWidget {
                       controller: viewModel.validityController,
                       formatter: viewModel.validityFormatter,
                       validator: viewModel.validateValidity,
+                      extraChild: _ExpirationRenewalControl(viewModel: viewModel),
                     ),
                     const Divider(height: 1),
                     _RuleTile(
@@ -390,6 +391,7 @@ class _RuleTile extends StatelessWidget {
     required this.controller,
     required this.formatter,
     required this.validator,
+    this.extraChild,
   });
 
   /// Identifies this rule's switch and field for tests.
@@ -404,6 +406,10 @@ class _RuleTile extends StatelessWidget {
   final TextEditingController controller;
   final MaskTextInputFormatter formatter;
   final FormFieldValidator<String> validator;
+
+  /// Extra content revealed below the field when the rule is on (e.g. the
+  /// expiration rule's renewal-limit control). Null for rules that have none.
+  final Widget? extraChild;
 
   @override
   Widget build(BuildContext context) {
@@ -433,7 +439,55 @@ class _RuleTile extends StatelessWidget {
             inputFormatters: [formatter],
             validator: validator,
           ),
+          if (extraChild != null) extraChild!,
           const SizedBox(height: AppSpacing.md),
+        ],
+      ],
+    );
+  }
+}
+
+/// The renewal-limit control revealed under the expiration rule.
+///
+/// Off = the document renews indefinitely (the default). On = it renews the
+/// number of times typed below, then stops. Presence of the number maps to the
+/// API's `maxRenewals`.
+class _ExpirationRenewalControl extends StatelessWidget {
+  const _ExpirationRenewalControl({required this.viewModel});
+
+  final DocumentTemplateFormViewModel viewModel;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        SwitchListTile(
+          key: const ValueKey('rule-switch-maxRenewals'),
+          title: const Text('Limitar renovações'),
+          subtitle: const Text(
+            'Por padrão o documento renova indefinidamente. Ligue para parar '
+            'após um número de renovações.',
+          ),
+          value: viewModel.expirationLimited,
+          onChanged: viewModel.setExpirationLimited,
+          contentPadding: EdgeInsets.zero,
+        ),
+        if (viewModel.expirationLimited) ...[
+          const SizedBox(height: AppSpacing.sm),
+          TextFormField(
+            key: const ValueKey('rule-field-maxRenewals'),
+            controller: viewModel.maxRenewalsController,
+            decoration: const InputDecoration(
+              labelText: 'Número de renovações *',
+              prefixIcon: Icon(Icons.autorenew_outlined),
+              border: OutlineInputBorder(),
+              hintText: '1–999',
+            ),
+            keyboardType: TextInputType.number,
+            inputFormatters: [viewModel.maxRenewalsFormatter],
+            validator: viewModel.validateMaxRenewals,
+          ),
         ],
       ],
     );

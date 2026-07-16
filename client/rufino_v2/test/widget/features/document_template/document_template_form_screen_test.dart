@@ -111,6 +111,41 @@ void main() {
       expect(find.text('Definido em Regras'), findsNWidgets(2));
     });
 
+    testWidgets('shows the renewal-limit switch once expiration is on',
+        (tester) async {
+      await tester.pumpWidget(buildSubject());
+      await tester.pumpAndSettle();
+
+      expect(find.text('Limitar renovações'), findsNothing);
+
+      await tester
+          .ensureVisible(find.byKey(const ValueKey('rule-switch-expiration')));
+      await tester.tap(find.byKey(const ValueKey('rule-switch-expiration')));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Limitar renovações'), findsOneWidget);
+      expect(find.byKey(const ValueKey('rule-field-maxRenewals')), findsNothing);
+    });
+
+    testWidgets('reveals the renewal field when the limit is turned on',
+        (tester) async {
+      await tester.pumpWidget(buildSubject());
+      await tester.pumpAndSettle();
+
+      await tester
+          .ensureVisible(find.byKey(const ValueKey('rule-switch-expiration')));
+      await tester.tap(find.byKey(const ValueKey('rule-switch-expiration')));
+      await tester.pumpAndSettle();
+
+      await tester
+          .ensureVisible(find.byKey(const ValueKey('rule-switch-maxRenewals')));
+      await tester.tap(find.byKey(const ValueKey('rule-switch-maxRenewals')));
+      await tester.pumpAndSettle();
+
+      expect(
+          find.byKey(const ValueKey('rule-field-maxRenewals')), findsOneWidget);
+    });
+
     testWidgets('shows the competência switch', (tester) async {
       await tester.pumpWidget(buildSubject());
       await tester.pumpAndSettle();

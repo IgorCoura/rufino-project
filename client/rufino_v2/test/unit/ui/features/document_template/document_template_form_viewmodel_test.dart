@@ -160,6 +160,39 @@ void main() {
       expect(templateRepository.lastSentPolicies!.isEmpty, isTrue);
     });
 
+    test('save sends the renewal limit when the expiration rule is limited',
+        () async {
+      viewModel.nameController.text = 'NR01';
+      viewModel.descriptionController.text = 'Descrição';
+      viewModel.setExpirationEnabled(true);
+      viewModel.validityController.text = '365';
+      viewModel.setExpirationLimited(true);
+      viewModel.maxRenewalsController.text = '2';
+
+      await viewModel.save();
+
+      expect(templateRepository.lastSentPolicies!.expiration!.maxRenewals, 2);
+    });
+
+    test('expiration rule renews forever while the limit switch is off', () {
+      viewModel.setExpirationEnabled(true);
+      viewModel.validityController.text = '365';
+      viewModel.maxRenewalsController.text = '9'; // stale, but limit is off
+
+      expect(viewModel.policies.expiration!.maxRenewals, isNull);
+    });
+
+    test('setExpirationEnabled(false) clears the renewal limit', () {
+      viewModel.setExpirationEnabled(true);
+      viewModel.setExpirationLimited(true);
+      viewModel.maxRenewalsController.text = '3';
+
+      viewModel.setExpirationEnabled(false);
+
+      expect(viewModel.expirationLimited, isFalse);
+      expect(viewModel.maxRenewalsController.text, isEmpty);
+    });
+
     test('builds no period rule while the switch is off', () {
       viewModel.setPeriodGranularity(PeriodGranularity.monthly);
 

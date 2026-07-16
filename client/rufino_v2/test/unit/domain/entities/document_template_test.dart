@@ -293,6 +293,49 @@ void main() {
     });
   });
 
+  group('ExpirationRule renewal limit', () {
+    test('isLimited reflects whether maxRenewals is set', () {
+      expect(const ExpirationRule(durationInDays: 365).isLimited, isFalse);
+      expect(
+          const ExpirationRule(durationInDays: 365, maxRenewals: 2).isLimited,
+          isTrue);
+    });
+
+    test('copyWith replaces maxRenewals and keeps duration', () {
+      const rule = ExpirationRule(durationInDays: 365, maxRenewals: 2);
+
+      final updated = rule.copyWith(maxRenewals: 5);
+
+      expect(updated.durationInDays, 365);
+      expect(updated.maxRenewals, 5);
+    });
+
+    test('copyWith clears the limit with the clear flag', () {
+      const rule = ExpirationRule(durationInDays: 365, maxRenewals: 2);
+
+      final updated = rule.copyWith(clearMaxRenewals: true);
+
+      expect(updated.maxRenewals, isNull);
+      expect(updated.durationInDays, 365);
+    });
+
+    test('validateMaxRenewals returns error when empty, since it is required', () {
+      expect(ExpirationRule.validateMaxRenewals(null), isNotNull);
+      expect(ExpirationRule.validateMaxRenewals(''), isNotNull);
+    });
+
+    test('validateMaxRenewals returns error for zero and out of range', () {
+      expect(ExpirationRule.validateMaxRenewals('0'), isNotNull);
+      expect(ExpirationRule.validateMaxRenewals('1000'), isNotNull);
+      expect(ExpirationRule.validateMaxRenewals('abc'), isNotNull);
+    });
+
+    test('validateMaxRenewals returns null for a valid value', () {
+      expect(ExpirationRule.validateMaxRenewals('1'), isNull);
+      expect(ExpirationRule.validateMaxRenewals('12'), isNull);
+    });
+  });
+
   group('WorkloadRule.validateHours', () {
     test('returns error when empty, since an active rule needs hours', () {
       expect(WorkloadRule.validateHours(null), isNotNull);
