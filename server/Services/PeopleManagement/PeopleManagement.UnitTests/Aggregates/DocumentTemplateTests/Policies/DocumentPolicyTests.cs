@@ -1,4 +1,5 @@
 using PeopleManagement.Domain.AggregatesModel.DocumentAggregate;
+using PeopleManagement.Domain.AggregatesModel.DocumentTemplateAggregate;
 using PeopleManagement.Domain.AggregatesModel.DocumentTemplateAggregate.Policies;
 using PeopleManagement.Domain.ErrorTools;
 
@@ -53,6 +54,56 @@ namespace PeopleManagement.UnitTests.Aggregates.DocumentTemplateTests.Policies
 
             var restored = Assert.IsType<WorkloadPolicy>(DocumentPolicyFactory.ToPolicy(record));
             Assert.Equal(TimeSpan.FromHours(8), restored.Workload);
+        }
+
+        [Fact]
+        public void RoundTrip_SignaturePolicy_PreservesEveryPlaceSignatureField()
+        {
+            var place = PlaceSignature.Create(TypeSignature.Visa, 3, 10.5, 20.25, 30, 40);
+            var record = DocumentPolicyFactory.ToPersistence(new SignaturePolicy([place]));
+
+            var restored = Assert.IsType<SignaturePolicy>(DocumentPolicyFactory.ToPolicy(record));
+
+            var persisted = Assert.Single(restored.PlaceSignatures);
+            Assert.Equal(TypeSignature.Visa, persisted.Type);
+            Assert.Equal(3, persisted.Page.Value);
+            Assert.Equal(10.5, persisted.RelativePositionBotton.Value);
+            Assert.Equal(20.25, persisted.RelativePositionLeft.Value);
+            Assert.Equal(30, persisted.RelativeSizeX.Value);
+            Assert.Equal(40, persisted.RelativeSizeY.Value);
+        }
+
+        [Fact]
+        public void RoundTrip_SignaturePolicy_PreservesEveryPlaceSignature()
+        {
+            var policy = new SignaturePolicy([
+                PlaceSignature.Create(TypeSignature.Signature, 1, 1, 1, 1, 1),
+                PlaceSignature.Create(TypeSignature.Visa, 2, 2, 2, 2, 2),
+            ]);
+            var record = DocumentPolicyFactory.ToPersistence(policy);
+
+            var restored = Assert.IsType<SignaturePolicy>(DocumentPolicyFactory.ToPolicy(record));
+
+            Assert.Equal(2, restored.PlaceSignatures.Count);
+        }
+
+        // Aceitar assinatura sem definir local é legítimo: assina sem posicionamento fixo.
+        [Fact]
+        public void RoundTrip_SignaturePolicyWithoutPlaces_StaysPresentAndEmpty()
+        {
+            var record = DocumentPolicyFactory.ToPersistence(new SignaturePolicy());
+
+            var restored = Assert.IsType<SignaturePolicy>(DocumentPolicyFactory.ToPolicy(record));
+
+            Assert.Empty(restored.PlaceSignatures);
+        }
+
+        [Fact]
+        public void ToPersistence_SignaturePolicy_UsesSignatureDiscriminator()
+        {
+            var record = DocumentPolicyFactory.ToPersistence(new SignaturePolicy());
+
+            Assert.Equal(PolicyType.Signature, record.Type);
         }
 
         [Fact]

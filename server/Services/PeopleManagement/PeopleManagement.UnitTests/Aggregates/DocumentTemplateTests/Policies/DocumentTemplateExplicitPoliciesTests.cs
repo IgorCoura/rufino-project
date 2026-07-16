@@ -10,11 +10,13 @@ namespace PeopleManagement.UnitTests.Aggregates.DocumentTemplateTests.Policies
     /// </summary>
     public class DocumentTemplateExplicitPoliciesTests
     {
+        // acceptsSignature: false mantém o conjunto restrito às regras sob teste — a assinatura tem caminho
+        // próprio (parâmetros, não o bloco de policies) e é coberta em DocumentTemplateSignaturePolicyTests.
         private static DocumentTemplate CreateWith(IEnumerable<IDocumentPolicy>? policies, double? validityDays = 365, double? workloadHours = 8)
             => DocumentTemplate.Create(
                 Guid.NewGuid(), "NR01", "Description NR01", Guid.NewGuid(),
                 validityDays, workloadHours, DocumentTemplateMother.ValidFileInfo(),
-                acceptsSignature: true, placeSignatures: [], documentGroupId: Guid.NewGuid(),
+                acceptsSignature: false, placeSignatures: [], documentGroupId: Guid.NewGuid(),
                 usePreviousPeriod: false, policies: policies);
 
         [Fact]
@@ -93,7 +95,7 @@ namespace PeopleManagement.UnitTests.Aggregates.DocumentTemplateTests.Policies
         {
             var template = DocumentTemplateMother.Simple(validityDays: 365, workloadHours: 8);
 
-            template.Edit("NR01", "Description NR01", 365, 8, DocumentTemplateMother.ValidFileInfo(), true, [], Guid.NewGuid(),
+            template.Edit("NR01", "Description NR01", 365, 8, DocumentTemplateMother.ValidFileInfo(), false, [], Guid.NewGuid(),
                 usePreviousPeriod: false, policies: []);
 
             Assert.Empty(template.Policies);

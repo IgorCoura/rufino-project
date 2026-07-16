@@ -32,6 +32,25 @@ dotnet test --filter "FullyQualifiedName~ClassName"
 dotnet ef database update --project ../PeopleManagement.Infra
 ```
 
+### Certificado HTTPS de desenvolvimento (acesso pelo IP da LAN)
+
+Em Docker a API é servida em `https://<ip>:8041` (8041→443). O dev-cert padrão do ASP.NET só tem SAN para `localhost`/`127.0.0.1`, então **acessar pelo IP da rede o Chrome bloqueia** (`ERR_CERT_COMMON_NAME_INVALID`). Um cert [mkcert](https://github.com/FiloSottile/mkcert) cobre esse caso.
+
+- **Cert em uso:** `%APPDATA%\ASP.NET\Https\PeopleManagement.API.lan.pfx`, senha `changeit`, apontado explicitamente pelas envs `ASPNETCORE_Kestrel__Certificates__Default__Path/Password` no `docker-compose.override.yml`. O nome é `.lan.pfx` **de propósito**: o Visual Studio regenera/sobrescreve `PeopleManagement.API.pfx` (a convenção `Kestrel:Certificates:Development`) e apagaria o nosso. Config explícita `Certificates:Default` vence a convenção.
+- **SAN não aceita wildcard de IP** — `192.168.15.*` é inválido em X.509, o match de IP é exato. A cobertura da faixa vem de listar os 254 IPs individualmente.
+- **A pasta montada é `%APPDATA%\ASP.NET\Https`** (do override), não `%USERPROFILE%\.aspnet\https` (do `docker-compose.yml`) — os dois montam o mesmo destino e **o override vence**; confira com `docker compose --profile api config`.
+- Regenerar (renovar, ou trocar a faixa quando o IP da rede mudar):
+
+```bash
+mkcert -install   # cria/instala a CA local no trust store do Windows (Chrome usa esse)
+cd "$APPDATA/ASP.NET/Https"
+# ajuste a faixa se a rede mudar; repita o -pkcs12 se precisar de outra sub-rede
+mkcert -pkcs12 -p12-file PeopleManagement.API.lan.pfx \
+  localhost 127.0.0.1 ::1 host.docker.internal $(seq -f "192.168.15.%g" 1 254)
+```
+
+Outras máquinas/celulares da rede não confiam nessa CA: instale nelas o `rootCA.pem` de `mkcert -CAROOT`. Certificado é só para desenvolvimento.
+
 ## Architecture
 
 ```
@@ -53,7 +72,8 @@ Services/PeopleManagement/
 
 **DocumentTemplate policies:** `DocumentTemplate` composes an opt-in set of rules (`Policies/`) instead of one nullable field per rule — **presence in the set = rule active**. Consumers read by capability (`GetPolicy<IExpirationPolicy>()`), never off the raw fields. A new rule is a new class, not a new column.
 
-- **Capabilities:** `IExpirationPolicy` (validity + `CanRenew`), `IWorkloadPolicy`, `IPeriodPolicy`, all under the `IDocumentPolicy` marker. `PolicyType` is the smart-enum discriminator.
+- **Capabilities:** `IExpirationPolicy` (validity + `CanRenew`), `IWorkloadPolicy`, `IPeriodPolicy`, `ISignaturePolicy`, all under the `IDocumentPolicy` marker. `PolicyType` is the smart-enum discriminator.
+- **Signature is a policy.** Presence of `SignaturePolicy` = the template accepts signature, and it **carries the placements** — so a placement without acceptance is unrepresentable in the persisted model. `AcceptsSignature` and `PlaceSignatures` are derived getters (`Ignore`d in EF); there is no `AcceptsSignature` column and no `PlaceSignature` table. **The signature always comes from the `acceptsSignature`/`placeSignatures` parameters, never from the `policies` set** — the API sends it separately, so letting the set drive it would wipe the signature on every Edit carrying only the other rules. The old contradiction check survives at that parameter boundary (`SetSignature`), which is the last place the two can disagree.
 - **Zero is absence, not a rule.** Policy constructors reject a non-positive duration (`PMD.DOCT11`) — a rule that expires nothing is absence wearing a rule's clothes, and the Composite reads presence as "active". Three places must agree: the constructor throws, `SyncPoliciesFromFields` **skips** (legacy rows store `00:00:00` and must not blow up on edit), and the migration backfill filters `> INTERVAL '0'`. Break one and templates either grow phantom rules or fail to rehydrate.
 - **Persistence:** owned collection → child table `DocumentTemplatePolicies` (`Type` int + `Params` jsonb). `DocumentPolicyFactory` (de)serializes; durations travel **in ticks** so the migration backfill can reproduce the payload in SQL.
 - **Source of truth:** `Create`/`Edit` accept an optional policy set. Informed → policies win and the legacy scalars (`DocumentValidityDuration`, `Workload`) are mirrored from them. Omitted → legacy path, policies derived from the scalars. The scalars are **kept and deprecated**; the read model still reads them.

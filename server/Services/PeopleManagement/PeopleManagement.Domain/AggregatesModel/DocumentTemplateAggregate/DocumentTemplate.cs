@@ -17,8 +17,6 @@ namespace PeopleManagement.Domain.AggregatesModel.DocumentTemplateAggregate
         public TemplateFileInfo? TemplateFileInfo { get; private set; }
         public TimeSpan? DocumentValidityDuration { get; private set; }
         public TimeSpan? Workload { get; private set; }
-        public bool AcceptsSignature { get; private set; }
-        public List<PlaceSignature> PlaceSignatures { get; private set; } = [];
         public Guid DocumentGroupId { get; private set; }
         public bool UsePreviousPeriod { get; private set; }
 
@@ -28,6 +26,18 @@ namespace PeopleManagement.Domain.AggregatesModel.DocumentTemplateAggregate
         /// campos escalares legados (caminho retrocompatível).
         /// </summary>
         public IReadOnlyCollection<DocumentPolicy> Policies => _policies.AsReadOnly();
+
+        /// <summary>
+        /// Se documentos gerados por este template podem ser assinados. Derivado da presença da SignaturePolicy.
+        /// </summary>
+        public bool AcceptsSignature => HasPolicy<ISignaturePolicy>();
+
+        /// <summary>
+        /// Onde as assinaturas entram na página. Vazio quando o template não aceita assinatura — a lista mora
+        /// dentro da SignaturePolicy, então local sem aceite é inexprimível no estado persistido.
+        /// </summary>
+        public IReadOnlyList<PlaceSignature> PlaceSignatures =>
+            GetPolicy<ISignaturePolicy>()?.PlaceSignatures ?? [];
 
         private DocumentTemplate() { }
         private DocumentTemplate(Guid id, Name name, Description description, Guid companyId, TimeSpan? documentValidityDuration,
@@ -40,11 +50,9 @@ namespace PeopleManagement.Domain.AggregatesModel.DocumentTemplateAggregate
             DocumentValidityDuration = documentValidityDuration;
             Workload = workload;
             TemplateFileInfo = templateFileInfo;
-            AcceptsSignature = acceptsSignature;
-            SetPlaceSignatures(placeSignatures);
             DocumentGroupId = documentGroupId;
             UsePreviousPeriod = usePreviousPeriod;
-            ApplyPolicies(policies);
+            ApplyPolicies(policies, acceptsSignature, placeSignatures);
         }
 
         public static DocumentTemplate Create(Guid id, Name name, Description description, Guid companyId, TimeSpan? documentValidityDuration,
@@ -68,20 +76,29 @@ namespace PeopleManagement.Domain.AggregatesModel.DocumentTemplateAggregate
             DocumentValidityDuration = documentValidityDurationInDays.HasValue ? TimeSpan.FromDays((double)documentValidityDurationInDays!) : null;
             Workload = workloadInHours.HasValue ? TimeSpan.FromHours((double)workloadInHours!) : null;
             TemplateFileInfo = templateFileInfo;
-            AcceptsSignature = acceptsSignature;
-            SetPlaceSignatures(placeSignatures);
             DocumentGroupId = documentGroupId;
             UsePreviousPeriod = usePreviousPeriod;
-            ApplyPolicies(policies);
+            ApplyPolicies(policies, acceptsSignature, placeSignatures);
         }
 
-        private void SetPlaceSignatures(List<PlaceSignature> placeSignatures)
+        /// <summary>
+        /// Compõe (ou remove) a SignaturePolicy a partir do par aceite + locais.
+        ///
+        /// A contradição "tem local mas não aceita" não existe no modelo persistido — os locais moram dentro da
+        /// policy. Mas o caller ainda a informa como dois parâmetros soltos, então a checagem sobrevive aqui,
+        /// na fronteira: é o último ponto onde os dois podem discordar.
+        /// </summary>
+        private void SetSignature(bool acceptsSignature, List<PlaceSignature> placeSignatures)
         {
-            if (placeSignatures.Count > 0 && !AcceptsSignature)
+            if (placeSignatures.Count > 0 && !acceptsSignature)
             {
                 throw new DomainException(this, DomainErrors.DocumentTemplate.TemplateDoesNotAcceptSignature(Id));
             }
-            PlaceSignatures = placeSignatures;
+
+            RemovePolicy(PolicyType.Signature);
+
+            if (acceptsSignature)
+                AddPolicy(new SignaturePolicy(placeSignatures));
         }
 
         /// <summary>
@@ -108,21 +125,28 @@ namespace PeopleManagement.Domain.AggregatesModel.DocumentTemplateAggregate
         /// Define o conjunto de regras do template. Caller que não informa policies mantém o caminho legado
         /// (derivar dos campos escalares); caller que informa passa a mandar, e os escalares viram projeção.
         /// Conjunto vazio informado explicitamente = template sem regra alguma.
+        ///
+        /// A assinatura é a exceção: vem sempre dos parâmetros, nos dois caminhos. O contrato da API a informa
+        /// separadamente (acceptsSignature + placeSignatures), e não dentro do bloco de policies — deixá-la
+        /// depender do conjunto informado apagaria a assinatura em todo Edit que mandasse só as outras regras.
         /// </summary>
-        private void ApplyPolicies(IEnumerable<IDocumentPolicy>? policies)
+        private void ApplyPolicies(IEnumerable<IDocumentPolicy>? policies, bool acceptsSignature, List<PlaceSignature> placeSignatures)
         {
             if (policies is null)
             {
                 SyncPoliciesFromFields();
-                return;
+            }
+            else
+            {
+                _policies.Clear();
+
+                foreach (var policy in policies)
+                    AddPolicy(policy);
+
+                SyncFieldsFromPolicies();
             }
 
-            _policies.Clear();
-
-            foreach (var policy in policies)
-                AddPolicy(policy);
-
-            SyncFieldsFromPolicies();
+            SetSignature(acceptsSignature, placeSignatures);
         }
 
         /// <summary>

@@ -62,7 +62,7 @@ namespace PeopleManagement.UnitTests.Aggregates.DocumentTemplateTests.Policies
         [Fact]
         public void Create_WithoutValidityAndWorkload_HasNoPolicies()
         {
-            var template = DocumentTemplateMother.Simple(validityDays: null, workloadHours: null);
+            var template = DocumentTemplateMother.Simple(validityDays: null, workloadHours: null, acceptsSignature: false);
 
             Assert.Empty(template.Policies);
         }
@@ -106,7 +106,6 @@ namespace PeopleManagement.UnitTests.Aggregates.DocumentTemplateTests.Policies
 
             template.AddPolicy(new PeriodPolicy(PeriodType.Monthly, usePreviousPeriod: true));
 
-            Assert.Equal(2, template.Policies.Count);
             Assert.True(template.HasPolicy<IExpirationPolicy>());
             Assert.Equal(PeriodType.Monthly, template.GetPolicy<IPeriodPolicy>()!.PeriodType);
         }

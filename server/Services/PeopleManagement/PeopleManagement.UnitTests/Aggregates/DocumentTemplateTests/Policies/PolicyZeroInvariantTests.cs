@@ -43,7 +43,8 @@ namespace PeopleManagement.UnitTests.Aggregates.DocumentTemplateTests.Policies
         {
             var template = DocumentTemplateMother.Simple(validityDays: 0, workloadHours: 0);
 
-            Assert.Empty(template.Policies);
+            Assert.False(template.HasPolicy<IExpirationPolicy>());
+            Assert.False(template.HasPolicy<IWorkloadPolicy>());
         }
 
         [Fact]
@@ -53,7 +54,8 @@ namespace PeopleManagement.UnitTests.Aggregates.DocumentTemplateTests.Policies
 
             template.Edit("NR01", "Description NR01", 0, 0, DocumentTemplateMother.ValidFileInfo(), true, [], Guid.NewGuid());
 
-            Assert.Empty(template.Policies);
+            Assert.False(template.HasPolicy<IExpirationPolicy>());
+            Assert.False(template.HasPolicy<IWorkloadPolicy>());
         }
 
         // Caminho explícito (o que a API usa): pedir uma regra com zero é erro do caller, não silêncio.

@@ -30,4 +30,11 @@ namespace PeopleManagement.Domain.AggregatesModel.DocumentTemplateAggregate.Poli
     {
         TimeSpan Workload { get; }
     }
+
+    // Assinatura: o documento pode ser assinado, e onde as assinaturas são posicionadas.
+    // A policy carrega os locais, então local de assinatura sem aceitar assinatura é inexprimível.
+    public interface ISignaturePolicy : IDocumentPolicy
+    {
+        IReadOnlyList<PlaceSignature> PlaceSignatures { get; }
+    }
 }
