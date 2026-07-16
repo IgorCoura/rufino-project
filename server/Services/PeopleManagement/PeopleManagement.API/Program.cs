@@ -68,18 +68,24 @@ builder.Services.AddHangfire(configuration =>
                     options.UseNpgsqlConnection(builder.Configuration.GetConnectionString("HangfireConnection"));
                 }));
 
-builder.Services.AddHangfireServer(options =>
+// Em testes de integração os workers do Hangfire ficam desligados (determinismo): os jobs são apenas
+// agendados no storage, sem processamento — evita chamadas externas (ex.: refresh de webhook ZapSign)
+// e crashes por acesso a serviços já descartados após o fim da suíte.
+if (!string.Equals(builder.Environment.EnvironmentName, "IntegrationTest", StringComparison.OrdinalIgnoreCase))
 {
-    options.ServerName = "default-worker";
-    options.Queues = new[] { "default" };
-});
+    builder.Services.AddHangfireServer(options =>
+    {
+        options.ServerName = "default-worker";
+        options.Queues = new[] { "default" };
+    });
 
-builder.Services.AddHangfireServer(options =>
-{
-    options.ServerName = "whatsapp-serial-worker";
-    options.Queues = new[] { whatsAppQueueOptions.QueueName };
-    options.WorkerCount = 1;
-});
+    builder.Services.AddHangfireServer(options =>
+    {
+        options.ServerName = "whatsapp-serial-worker";
+        options.Queues = new[] { whatsAppQueueOptions.QueueName };
+        options.WorkerCount = 1;
+    });
+}
 
 
 builder.Services.AddCors(options => 

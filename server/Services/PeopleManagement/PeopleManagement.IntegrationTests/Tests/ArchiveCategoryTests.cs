@@ -8,17 +8,18 @@ using System.Net;
 
 namespace PeopleManagement.IntegrationTests.Tests
 {
-    public class ArchiveCategoryTests(PeopleManagementWebApplicationFactory factory) : IClassFixture<PeopleManagementWebApplicationFactory>
+    [Collection(nameof(IntegrationTestCollection))]
+    public class ArchiveCategoryTests(PeopleManagementWebApplicationFactory factory) : BaseIntegrationTest(factory)
     {
-        private readonly PeopleManagementWebApplicationFactory _factory = factory;
 
+        // POST /ArchiveCategory cria a categoria de arquivo com os eventos ouvidos [1,2] e persiste igual à esperada (ToArchiveCategory).
         [Fact]
         public async Task CreateArchiveCategoryWithSuccess()
         {
-            var cancellationToken = new CancellationToken();
+            var cancellationToken = CancellationToken.None;
 
-            var context = _factory.GetContext();
-            var client = _factory.CreateClient();
+            var context = GetContext();
+            var client = CreateClient();
 
             var company = await context.InsertCompany(cancellationToken);
             await context.SaveChangesAsync(cancellationToken);
@@ -34,13 +35,14 @@ namespace PeopleManagement.IntegrationTests.Tests
             Assert.Equal(command.ToCommand(company.Id).ToArchiveCategory(result.Id), result);
         }
 
+        // PUT /ArchiveCategory/event/add adiciona o evento ouvido (id 3) a uma categoria existente; o novo id passa a constar em ListenEventsIds.
         [Fact]
         public async Task AddListenEventWithSuccess()
         {
-            var cancellationToken = new CancellationToken();
+            var cancellationToken = CancellationToken.None;
 
-            var context = _factory.GetContext();
-            var client = _factory.CreateClient();
+            var context = GetContext();
+            var client = CreateClient();
 
             var company = await context.InsertCompany(cancellationToken);
             var archiveCategories = await context.InsertArchiveCategory(company.Id, cancellationToken);
@@ -59,13 +61,14 @@ namespace PeopleManagement.IntegrationTests.Tests
             Assert.Contains(listenEvenId, result.ListenEventsIds);
         }
 
+        // PUT /ArchiveCategory/event/remove remove o evento ouvido (id 1) da categoria; ListenEventsIds fica vazio.
         [Fact]
         public async Task RemoveListenEventWithSuccess()
         {
-            var cancellationToken = new CancellationToken();
+            var cancellationToken = CancellationToken.None;
 
-            var context = _factory.GetContext();
-            var client = _factory.CreateClient();
+            var context = GetContext();
+            var client = CreateClient();
 
             var company = await context.InsertCompany(cancellationToken);
             var archiveCategories = await context.InsertArchiveCategory(company.Id, cancellationToken);

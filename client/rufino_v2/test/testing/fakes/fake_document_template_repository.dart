@@ -21,6 +21,15 @@ class FakeDocumentTemplateRepository implements DocumentTemplateRepository {
   String? lastCreatedTemplateName;
   String? lastUpdatedTemplateId;
 
+  /// The rule set handed to the last create or update call.
+  TemplatePolicies? lastSentPolicies;
+
+  /// The signature acceptance flag handed to the last create or update call.
+  bool? lastSentAcceptsSignature;
+
+  /// The placements handed to the last create or update call.
+  List<PlaceSignatureData>? lastSentPlaceSignatures;
+
   @override
   Future<Result<List<DocumentTemplate>>> getDocumentTemplates(
       String companyId) async {
@@ -47,9 +56,7 @@ class FakeDocumentTemplateRepository implements DocumentTemplateRepository {
     String companyId, {
     required String name,
     required String description,
-    required int? validityInDays,
-    required int? workload,
-    required bool usePreviousPeriod,
+    required TemplatePolicies policies,
     required bool acceptsSignature,
     String bodyFileName = '',
     String headerFileName = '',
@@ -62,6 +69,9 @@ class FakeDocumentTemplateRepository implements DocumentTemplateRepository {
       return Result.error(Exception('createDocumentTemplate failed'));
     }
     lastCreatedTemplateName = name;
+    lastSentPolicies = policies;
+    lastSentAcceptsSignature = acceptsSignature;
+    lastSentPlaceSignatures = placeSignatures;
     return const Result.success('new-template-id');
   }
 
@@ -71,9 +81,7 @@ class FakeDocumentTemplateRepository implements DocumentTemplateRepository {
     required String id,
     required String name,
     required String description,
-    required int? validityInDays,
-    required int? workload,
-    required bool usePreviousPeriod,
+    required TemplatePolicies policies,
     required bool acceptsSignature,
     String bodyFileName = '',
     String headerFileName = '',
@@ -86,6 +94,9 @@ class FakeDocumentTemplateRepository implements DocumentTemplateRepository {
       return Result.error(Exception('updateDocumentTemplate failed'));
     }
     lastUpdatedTemplateId = id;
+    lastSentPolicies = policies;
+    lastSentAcceptsSignature = acceptsSignature;
+    lastSentPlaceSignatures = placeSignatures;
     return Result.success(id);
   }
 

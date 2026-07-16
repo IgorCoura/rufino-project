@@ -23,7 +23,51 @@ namespace PeopleManagement.Application.Queries.DocumentTemplate
             public bool UsePreviousPeriod { get; init; }
             public DocumentGroupDocumentTemplateDto DocumentGroup { get; init; } = DocumentGroupDocumentTemplateDto.Empty;
             public TemplateFileInfoDto TemplateFileInfo { get; init; } =  TemplateFileInfoDto.Empty;
+            public PoliciesDto Policies { get; init; } = PoliciesDto.Empty;
 
+        }
+
+        /// <summary>
+        /// Regras ativas do template. Bloco nulo = regra não se aplica — mesma semântica do Composite do domínio
+        /// e do contrato de escrita. A assinatura é uma regra como as outras: bloco presente = aceita assinatura,
+        /// e ele carrega os locais (mesma forma da SignaturePolicy no domínio). Assim o retorno é uniforme — nada
+        /// de assinatura solta no topo ou aninhada no arquivo.
+        /// </summary>
+        public record PoliciesDto
+        {
+            public ExpirationPolicyDto? Expiration { get; init; }
+            public WorkloadPolicyDto? Workload { get; init; }
+            public PeriodPolicyDto? Period { get; init; }
+            public SignaturePolicyDto? Signature { get; init; }
+            public static PoliciesDto Empty => new();
+        }
+
+        /// <summary>
+        /// Assinatura como regra: presença = aceita assinatura. Carrega os locais (pode ser lista vazia — aceita
+        /// assinatura sem posição fixa).
+        /// </summary>
+        public record SignaturePolicyDto
+        {
+            public PlaceSignatureDto[] PlaceSignatures { get; init; } = [];
+        }
+
+        public record ExpirationPolicyDto
+        {
+            public double DurationInDays { get; init; }
+
+            /// <summary>Quantas vezes o documento renova antes de parar; null = renovação indefinida.</summary>
+            public int? MaxRenewals { get; init; }
+        }
+
+        public record WorkloadPolicyDto
+        {
+            public double Hours { get; init; }
+        }
+
+        public record PeriodPolicyDto
+        {
+            public int PeriodTypeId { get; init; }
+            public bool UsePreviousPeriod { get; init; }
         }
 
         public record DocumentGroupDocumentTemplateDto
@@ -40,7 +84,6 @@ namespace PeopleManagement.Application.Queries.DocumentTemplate
             public string HeaderFileName { get; init; } = string.Empty;
             public string FooterFileName { get; init; } = string.Empty;
             public EnumerationDto[] RecoversDataType { get; init; } = [];
-            public PlaceSignatureDto[] PlaceSignatures { get; init; } = [];
             public static TemplateFileInfoDto Empty => new();
         }
 

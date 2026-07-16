@@ -200,6 +200,9 @@ namespace PeopleManagement.Infra.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");
 
+                    b.Property<int?>("PeriodType")
+                        .HasColumnType("integer");
+
                     b.Property<Guid>("RequiredDocumentId")
                         .HasColumnType("uuid");
 
@@ -319,9 +322,6 @@ namespace PeopleManagement.Infra.Migrations
                 {
                     b.Property<Guid>("Id")
                         .HasColumnType("uuid");
-
-                    b.Property<bool>("AcceptsSignature")
-                        .HasColumnType("boolean");
 
                     b.Property<Guid>("CompanyId")
                         .HasColumnType("uuid");
@@ -876,7 +876,7 @@ namespace PeopleManagement.Infra.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
-                    b.OwnsMany("PeopleManagement.Domain.AggregatesModel.DocumentTemplateAggregate.PlaceSignature", "PlaceSignatures", b1 =>
+                    b.OwnsMany("PeopleManagement.Domain.AggregatesModel.DocumentTemplateAggregate.Policies.DocumentPolicy", "Policies", b1 =>
                         {
                             b1.Property<Guid>("DocumentTemplateId")
                                 .HasColumnType("uuid");
@@ -887,27 +887,16 @@ namespace PeopleManagement.Infra.Migrations
 
                             NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b1.Property<int>("Id"));
 
-                            b1.Property<double>("Page")
-                                .HasColumnType("double precision");
-
-                            b1.Property<double>("RelativePositionBotton")
-                                .HasColumnType("double precision");
-
-                            b1.Property<double>("RelativePositionLeft")
-                                .HasColumnType("double precision");
-
-                            b1.Property<double>("RelativeSizeX")
-                                .HasColumnType("double precision");
-
-                            b1.Property<double>("RelativeSizeY")
-                                .HasColumnType("double precision");
+                            b1.Property<string>("Params")
+                                .IsRequired()
+                                .HasColumnType("jsonb");
 
                             b1.Property<int>("Type")
                                 .HasColumnType("integer");
 
                             b1.HasKey("DocumentTemplateId", "Id");
 
-                            b1.ToTable("PlaceSignature", "people_management");
+                            b1.ToTable("DocumentTemplatePolicies", "people_management");
 
                             b1.WithOwner()
                                 .HasForeignKey("DocumentTemplateId");
@@ -950,7 +939,7 @@ namespace PeopleManagement.Infra.Migrations
                                 .HasForeignKey("DocumentTemplateId");
                         });
 
-                    b.Navigation("PlaceSignatures");
+                    b.Navigation("Policies");
 
                     b.Navigation("TemplateFileInfo");
                 });

@@ -8,6 +8,7 @@ using PeopleManagement.Domain.AggregatesModel.DocumentAggregate.Interfaces;
 using PeopleManagement.Domain.AggregatesModel.DocumentTemplateAggregate;
 using PeopleManagement.Domain.AggregatesModel.DocumentTemplateAggregate.Interfaces;
 using PeopleManagement.Domain.AggregatesModel.DocumentTemplateAggregate.options;
+using PeopleManagement.Domain.AggregatesModel.DocumentTemplateAggregate.Policies;
 using PeopleManagement.Domain.AggregatesModel.EmployeeAggregate.Events;
 using PeopleManagement.Domain.AggregatesModel.EmployeeAggregate.Interfaces;
 using PeopleManagement.Domain.AggregatesModel.RequireDocumentsAggregate;
@@ -72,7 +73,10 @@ namespace PeopleManagement.Services.Services
                 return;
             }
 
-            var (periodType, referenceDate) = GetPeriodInfoFromEvent(eventId);
+            // A competência não vem mais do evento: quem decide é o template (via PeriodPolicy, copiada para o
+            // Document ao criá-lo). O evento só dispara a geração, então tudo que ele fornece é o "agora" no
+            // fuso local — a data que situa a unidade na competência corrente.
+            var referenceDate = NowInLocalTime();
 
             // Coletar todos os templateIds necessários para uma única query
             var allTemplateIds = requiredDocuments
@@ -126,23 +130,25 @@ namespace PeopleManagement.Services.Services
                             continue;
                         }
 
+                        var (usePreviousPeriod, periodType) = PeriodConfigOf(documentTemplate);
                         var documentId = Guid.NewGuid();
                         document = Document.Create(
-                            documentId, 
-                            employee.Id, 
-                            companyId, 
-                            requiredDocument.Id, 
-                            templateId,
-                            documentTemplate.Name.Value, 
-                            documentTemplate.Description.Value,
-                            documentTemplate.UsePreviousPeriod);
+                            id: documentId,
+                            employeeId: employee.Id,
+                            companyId: companyId,
+                            requiredDocumentId: requiredDocument.Id,
+                            documentTemplateId: templateId,
+                            name: documentTemplate.Name.Value,
+                            description: documentTemplate.Description.Value,
+                            usePreviousPeriod: usePreviousPeriod,
+                            periodType: periodType);
 
                         documentsToInsert.Add(document);
                         existingDocumentsByTemplateId[templateId] = document; // Adicionar ao dicionário para evitar duplicatas
                     }
 
                     var documentUnitId = Guid.NewGuid();
-                    document.NewDocumentUnit(documentUnitId, periodType, referenceDate);
+                    document.NewDocumentUnit(documentUnitId, referenceDate);
                 }
             }
 
@@ -220,21 +226,25 @@ namespace PeopleManagement.Services.Services
                             continue;
                         }
 
+                        var (usePreviousPeriod, periodType) = PeriodConfigOf(documentTemplate);
                         var documentId = Guid.NewGuid();
                         document = Document.Create(
-                            documentId,
-                            employee.Id,
-                            companyId,
-                            requireDocument.Id,
-                            templateId,
-                            documentTemplate.Name.Value,
-                            documentTemplate.Description.Value,
-                            documentTemplate.UsePreviousPeriod);
+                            id: documentId,
+                            employeeId: employee.Id,
+                            companyId: companyId,
+                            requiredDocumentId: requireDocument.Id,
+                            documentTemplateId: templateId,
+                            name: documentTemplate.Name.Value,
+                            description: documentTemplate.Description.Value,
+                            usePreviousPeriod: usePreviousPeriod,
+                            periodType: periodType);
 
                         documentsToInsert.Add(document);
                         existingDocumentsByTemplateId[templateId] = document;
                     }
 
+                    // Sem referenceDate: este fluxo não tem uma data de evento. Se o documento for por
+                    // competência, a unidade nasce na competência mínima, substituída quando uma data real chegar.
                     var documentUnitId = Guid.NewGuid();
                     document.NewDocumentUnit(documentUnitId);
                 }
@@ -250,17 +260,15 @@ namespace PeopleManagement.Services.Services
             _logger.LogInformation("Completed generating document units for RequireDocument {RequireDocumentId}.", requireDocumentId);
         }
 
-        private (PeriodType? periodType, DateTime? referenceDate) GetPeriodInfoFromEvent(int eventId)
-        {
-            var recurringEvent = RecurringEvents.FromValue(eventId);
-            var eventFrequency = recurringEvent?.GetFrequency() ?? RecurringEventFrequency.None;
-            var periodType = ConvertFrequencyToPeriodType(eventFrequency);
-            
-            DateTime? referenceDate = periodType != null 
-                ? TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, TimeZoneInfo.FindSystemTimeZoneById(_timeZone.TimeZoneId)) 
-                : null;
+        private DateTime NowInLocalTime()
+            => TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, TimeZoneInfo.FindSystemTimeZoneById(_timeZone.TimeZoneId));
 
-            return (periodType, referenceDate);
+        // Lê a configuração de competência do template pela PeriodPolicy. Null = template não é por competência,
+        // e o Document nasce sem competência. O Document copia esses valores e os congela.
+        private static (bool usePreviousPeriod, PeriodType? periodType) PeriodConfigOf(DocumentTemplate template)
+        {
+            var policy = template.GetPolicy<IPeriodPolicy>();
+            return (policy?.UsePreviousPeriod ?? false, policy?.PeriodType);
         }
 
         public async Task<DocumentUnit> UpdateDocumentUnitDetails(Guid documentUnitId, Guid documentId, Guid employeeId, Guid companyId,
@@ -278,16 +286,19 @@ namespace PeopleManagement.Services.Services
                 cancellation: cancellationToken)
                 ?? throw new DomainException(this, DomainErrors.ObjectNotFound(nameof(DocumentTemplate), document.DocumentTemplateId.ToString()));
 
+            var workloadPolicy = documentTemplate.GetPolicy<IWorkloadPolicy>();
+            var validityDuration = documentTemplate.GetPolicy<IExpirationPolicy>()?.Duration;
+
             DateOnly? workloadEndDate = null;
-            if (documentTemplate.Workload is not null && documentTemplate.Workload != TimeSpan.Zero)
+            if (workloadPolicy is not null && workloadPolicy.Workload != TimeSpan.Zero)
                 workloadEndDate = await VerifyTimeConflictBetweenDocument(employeeId, companyId, documentId, documentUnitDate,
-                    (TimeSpan)documentTemplate.Workload, cancellationToken);
+                    workloadPolicy.Workload, cancellationToken);
 
             string? content = "";
 
             DocumentUnit documentUnit;
 
-            documentUnit = document.UpdateDocumentUnitDetails(documentUnitId, documentUnitDate, documentTemplate.DocumentValidityDuration,
+            documentUnit = document.UpdateDocumentUnitDetails(documentUnitId, documentUnitDate, validityDuration,
             content);
     
 
@@ -316,7 +327,7 @@ namespace PeopleManagement.Services.Services
 
             }
 
-            documentUnit = document.UpdateDocumentUnitDetails(documentUnitId, documentUnitDate, documentTemplate.DocumentValidityDuration,
+            documentUnit = document.UpdateDocumentUnitDetails(documentUnitId, documentUnitDate, validityDuration,
                 content);
 
             if (workloadEndDate is not null)
@@ -495,7 +506,9 @@ namespace PeopleManagement.Services.Services
                     && x.CompanyId == companyId,
                     cancellation: cancellationToken);
 
-                if (documentTemplate?.Workload == null)
+                var templateWorkloadPolicy = documentTemplate?.GetPolicy<IWorkloadPolicy>();
+
+                if (templateWorkloadPolicy == null)
                     continue;
 
                 foreach (var unit in document.DocumentsUnits)
@@ -507,9 +520,9 @@ namespace PeopleManagement.Services.Services
                         continue;
                     }
 
-                    var unitPeriod = _workloadCalendarService.DistributeWorkload(unit.Date, (TimeSpan)documentTemplate.Workload, maxHours);
+                    var unitPeriod = _workloadCalendarService.DistributeWorkload(unit.Date, templateWorkloadPolicy.Workload, maxHours);
                     var currentDate = unit.Date;
-                    var remaining = documentTemplate.Workload.Value.TotalHours;
+                    var remaining = templateWorkloadPolicy.Workload.TotalHours;
 
                     while (remaining > 0)
                     {
@@ -541,19 +554,6 @@ namespace PeopleManagement.Services.Services
             }
 
             return fitResult.WorkloadEndDate;
-        }
-
-        private static PeriodType? ConvertFrequencyToPeriodType(RecurringEventFrequency frequency)
-        {
-            return frequency switch
-            {
-                RecurringEventFrequency.Daily => PeriodType.Daily,
-                RecurringEventFrequency.Weekly => PeriodType.Weekly,
-                RecurringEventFrequency.Monthly => PeriodType.Monthly,
-                RecurringEventFrequency.Yearly => PeriodType.Yearly,
-                RecurringEventFrequency.None => null,
-                _ => null
-            };
         }
 
 

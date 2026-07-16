@@ -1,5 +1,4 @@
-﻿using DotNet.Testcontainers.Builders;
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 using PeopleManagement.Application.Commands.EmployeeCommands.AlterAddressEmployee;
 using PeopleManagement.Application.Commands.EmployeeCommands.AlterContactEmployee;
 using PeopleManagement.Application.Commands.EmployeeCommands.AlterDependentEmployee;
@@ -23,36 +22,29 @@ using PeopleManagement.Infra.Context;
 using PeopleManagement.IntegrationTests.Configs;
 using PeopleManagement.IntegrationTests.Data;
 using System.Net;
-using System.Threading;
 using NameEmployee = PeopleManagement.Domain.AggregatesModel.EmployeeAggregate.Name;
-using Microsoft.Extensions.Logging;
-using System.Linq;
-using PeopleManagement.Domain.AggregatesModel.CompanyAggregate;
 using static PeopleManagement.IntegrationTests.Data.PopulateDataBase;
-using static PeopleManagement.IntegrationTests.Data.PopulateDatabaseDirectly;
 using PeopleManagement.Domain.AggregatesModel.RequireDocumentsAggregate;
 
 namespace PeopleManagement.IntegrationTests.Tests
 {
-    public class EmployeeTest(PeopleManagementWebApplicationFactory factory) : IClassFixture<PeopleManagementWebApplicationFactory>
+    [Collection(nameof(IntegrationTestCollection))]
+    public class EmployeeTest(PeopleManagementWebApplicationFactory factory) : BaseIntegrationTest(factory)
     {
-        private readonly PeopleManagementWebApplicationFactory _factory = factory;
 
+        // POST /employee cria o funcionário com nome/cargo/local de trabalho e persiste igual ao esperado (ToEmployee).
         [Fact]
         public async Task CreateEmployeeWithSuccess()
         {
-            var cancellationToken = new CancellationToken();
+            var cancellationToken = CancellationToken.None;
 
-            var context = _factory.GetContext();
-            var client = _factory.CreateClient();
+            var context = GetContext();
+            var client = CreateClient();
 
-            var company = CompanyDAO.CreateFix();
-            await company.InsertInDB(context, cancellationToken);
+            var company = await context.InsertCompany(cancellationToken);
             var role = await context.InsertRole(company.Id, cancellationToken);
             var workplace = await context.InsertWorkplace(company.Id, cancellationToken);
             await context.SaveChangesAsync(cancellationToken);
-
-            var id = Guid.NewGuid();
 
             var employee = new CreateEmployeeModel("Rosdevaldo Pereira", role.Id, workplace.Id);
 
@@ -66,13 +58,14 @@ namespace PeopleManagement.IntegrationTests.Tests
 
         }
 
+        // PUT /employee/address altera o endereço do funcionário; persiste o Address igual ao enviado (ToAddress).
         [Fact]
         public async Task AlterAddressWithSuccess()
         {
-            var cancellationToken = new CancellationToken();
+            var cancellationToken = CancellationToken.None;
 
-            var context = _factory.GetContext();
-            var client = _factory.CreateClient();
+            var context = GetContext();
+            var client = CreateClient();
 
             var employee = await context.InsertEmployeeWithMinimalInfos(cancellationToken);
             await context.SaveChangesAsync(cancellationToken);
@@ -96,16 +89,16 @@ namespace PeopleManagement.IntegrationTests.Tests
             var content = await response.Content.ReadFromJsonAsync(typeof(AlterAddressEmployeeResponse)) as AlterAddressEmployeeResponse ?? throw new ArgumentNullException();
             var result = await context.Employees.AsNoTracking().FirstOrDefaultAsync(x => x.Id == content.Id) ?? throw new ArgumentNullException();
             Assert.Equal(command.ToCommand(employee.CompanyId).ToAddress(), result.Address);
-            var archives = await context.Archives.AsNoTracking().Where(x => x.OwnerId == content.Id).ToListAsync(cancellationToken);           
         }
 
+        // PUT /employee/contact altera telefone/email do funcionário; persiste o Contact igual ao enviado (ToContact).
         [Fact]
         public async Task AlterContactWithSuccess()
         {
-            var cancellationToken = new CancellationToken();
+            var cancellationToken = CancellationToken.None;
 
-            var context = _factory.GetContext();
-            var client = _factory.CreateClient();
+            var context = GetContext();
+            var client = CreateClient();
 
             var employee = await context.InsertEmployeeWithMinimalInfos(cancellationToken);
             await context.SaveChangesAsync(cancellationToken);
@@ -125,12 +118,13 @@ namespace PeopleManagement.IntegrationTests.Tests
             Assert.Equal(command.ToCommand(employee.CompanyId).ToContact(), result.Contact);
         }
 
+        // PUT /employee/dependent/create adiciona um dependente (cônjuge); persiste o dependente e dispara a exigência de documento via DependentSpouseChangeEvent.
         [Fact]
         public async Task CreateDependentWithSuccess()
         {
-            var cancellationToken = new CancellationToken();
-            var context = _factory.GetContext();
-            var client = _factory.CreateClient();
+            var cancellationToken = CancellationToken.None;
+            var context = GetContext();
+            var client = CreateClient();
 
             var employee = await context.InsertEmployeeWithMinimalInfos(cancellationToken);
             await context.SaveChangesAsync(cancellationToken);
@@ -162,13 +156,14 @@ namespace PeopleManagement.IntegrationTests.Tests
             await CheckRequestDocumentEvent(context, EmployeeEvent.DependentSpouseChangeEvent(employee.Id, employee.CompanyId), cancellationToken);
         }
 
+        // PUT /employee/dependent/edit altera um dependente existente (filho); persiste os novos dados e dispara DependentChildChangeEvent.
         [Fact]
         public async Task AlterDependentWithSuccess()
         {
-            var cancellationToken = new CancellationToken();
+            var cancellationToken = CancellationToken.None;
 
-            var context = _factory.GetContext();
-            var client = _factory.CreateClient();
+            var context = GetContext();
+            var client = CreateClient();
 
             var employee = await context.InsertEmployeeWithOneDependent(cancellationToken);
             await context.SaveChangesAsync(cancellationToken);
@@ -204,13 +199,14 @@ namespace PeopleManagement.IntegrationTests.Tests
             await CheckRequestDocumentEvent(context, EmployeeEvent.DependentChildChangeEvent(employee.Id, employee.CompanyId), cancellationToken);
         }
 
+        // PUT /employee/idcard altera o RG/identidade do funcionário; persiste o IdCard igual ao enviado (ToIdCard).
         [Fact]
         public async Task AlterIdCardWithSuccess()
         {
-            var cancellationToken = new CancellationToken();
+            var cancellationToken = CancellationToken.None;
 
-            var context = _factory.GetContext();
-            var client = _factory.CreateClient();
+            var context = GetContext();
+            var client = CreateClient();
 
             var employee = await context.InsertEmployeeWithMinimalInfos(cancellationToken);
             await context.SaveChangesAsync(cancellationToken);
@@ -236,13 +232,14 @@ namespace PeopleManagement.IntegrationTests.Tests
             Assert.Equal(command.ToCommand(employee.CompanyId).ToIdCard(), result.IdCard);
         }
 
+        // PUT /employee/MedicalAdmissionExam registra o exame médico admissional (datas de realização/validade); persiste o MedicalAdmissionExam igual ao enviado.
         [Fact]
         public async Task AlterMedicalAdmissionExamWithSuccess()
         {
-            var cancellationToken = new CancellationToken();
+            var cancellationToken = CancellationToken.None;
 
-            var context = _factory.GetContext();
-            var client = _factory.CreateClient();
+            var context = GetContext();
+            var client = CreateClient();
 
             var employee = await context.InsertEmployeeWithMinimalInfos(cancellationToken);
             await context.SaveChangesAsync(cancellationToken);
@@ -262,13 +259,14 @@ namespace PeopleManagement.IntegrationTests.Tests
         }
 
 
+        // PUT /employee/MilitaryDocument altera o documento militar (reservista) do funcionário; persiste o MilitaryDocument igual ao enviado.
         [Fact]
         public async Task AlterMilitaryDocumentWithSuccess()
         {
-            var cancellationToken = new CancellationToken();
+            var cancellationToken = CancellationToken.None;
 
-            var context = _factory.GetContext();
-            var client = _factory.CreateClient();
+            var context = GetContext();
+            var client = CreateClient();
 
             var employee = await context.InsertEmployeeWithMinimalInfos(cancellationToken);
             await context.SaveChangesAsync(cancellationToken);
@@ -287,13 +285,14 @@ namespace PeopleManagement.IntegrationTests.Tests
             Assert.Equal(command.ToCommand(employee.CompanyId).ToMilitaryDocument(), result.MilitaryDocument);
         }
 
+        // PUT /employee/name altera o nome do funcionário; persiste o novo nome (comparação case-insensitive).
         [Fact]
         public async Task AlterNameWithSuccess()
         {
-            var cancellationToken = new CancellationToken();
+            var cancellationToken = CancellationToken.None;
 
-            var context = _factory.GetContext();
-            var client = _factory.CreateClient();
+            var context = GetContext();
+            var client = CreateClient();
 
             var employee = await context.InsertEmployeeWithMinimalInfos(cancellationToken);
             await context.SaveChangesAsync(cancellationToken);
@@ -311,13 +310,14 @@ namespace PeopleManagement.IntegrationTests.Tests
             Assert.Equal(command.Name, result.Name.ToString(), StringComparer.OrdinalIgnoreCase);
         }
 
+        // PUT /employee/personalinfo altera os dados pessoais (deficiência, estado civil, etc.); persiste o PersonalInfo igual ao enviado (ToPersonalInfo).
         [Fact]
         public async Task AlterPersonalInfoWithSuccess()
         {
-            var cancellationToken = new CancellationToken();
+            var cancellationToken = CancellationToken.None;
 
-            var context = _factory.GetContext();
-            var client = _factory.CreateClient();
+            var context = GetContext();
+            var client = CreateClient();
 
             var employee = await context.InsertEmployeeWithMinimalInfos(cancellationToken);
             await context.SaveChangesAsync(cancellationToken);
@@ -340,13 +340,14 @@ namespace PeopleManagement.IntegrationTests.Tests
             Assert.Equal(command.ToCommand(employee.CompanyId).ToPersonalInfo(), result.PersonalInfo);
         }
 
+        // PUT /employee/role troca o cargo de um funcionário ainda não ativo; persiste o novo RoleId (sem gerar documentos, pois não está ativo).
         [Fact]
         public async Task AlterRoleWithSuccess()
         {
-            var cancellationToken = new CancellationToken();
+            var cancellationToken = CancellationToken.None;
 
-            var context = _factory.GetContext();
-            var client = _factory.CreateClient();
+            var context = GetContext();
+            var client = CreateClient();
 
             var employee = await context.InsertEmployeeWithMinimalInfos(cancellationToken);
             var role = await context.InsertRole(employee.CompanyId, cancellationToken);
@@ -366,13 +367,14 @@ namespace PeopleManagement.IntegrationTests.Tests
             Assert.Equal(command.RoleId, result.RoleId);
         }
 
+        // PUT /employee/voteid altera o título de eleitor do funcionário; persiste o novo VoteId.
         [Fact]
         public async Task AlterVoteIdWithSuccess()
         {
-            var cancellationToken = new CancellationToken();
+            var cancellationToken = CancellationToken.None;
 
-            var context = _factory.GetContext();
-            var client = _factory.CreateClient();
+            var context = GetContext();
+            var client = CreateClient();
 
             var employee = await context.InsertEmployeeWithMinimalInfos(cancellationToken);
             await context.SaveChangesAsync(cancellationToken);
@@ -391,13 +393,14 @@ namespace PeopleManagement.IntegrationTests.Tests
             Assert.Equal(command.VoteIdNumber, result.VoteId);
         }
 
+        // PUT /employee/workplace troca o local de trabalho do funcionário; persiste o novo WorkPlaceId.
         [Fact]
         public async Task AlterWorkPlaceWithSuccess()
         {
-            var cancellationToken = new CancellationToken();
+            var cancellationToken = CancellationToken.None;
 
-            var context = _factory.GetContext();
-            var client = _factory.CreateClient();
+            var context = GetContext();
+            var client = CreateClient();
 
             var employee = await context.InsertEmployeeWithMinimalInfos(cancellationToken);
             var workplace = await context.InsertWorkplace(employee.CompanyId, cancellationToken);
@@ -417,14 +420,15 @@ namespace PeopleManagement.IntegrationTests.Tests
             Assert.Equal(command.WorkPlaceId, result.WorkPlaceId);
         }
 
+        // PUT /employee/admission/complete conclui a admissão (matrícula + contrato CLT): status vira Active, grava matrícula/contrato e dispara CompleteAdmissionEvent.
         [Fact]
         public async Task CompleteEmployeeAdmissionWithSuccess()
         {
 
-            var cancellationToken = new CancellationToken();
+            var cancellationToken = CancellationToken.None;
 
-            var context = _factory.GetContext();
-            var client = _factory.CreateClient();
+            var context = GetContext();
+            var client = CreateClient();
 
             var employee = await context.InsertEmployeeWithAllInfoToAdmission(cancellationToken);
             await context.SaveChangesAsync(cancellationToken);
@@ -447,14 +451,15 @@ namespace PeopleManagement.IntegrationTests.Tests
             await CheckRequestDocumentEvent(context, EmployeeEvent.CompleteAdmissionEvent(employee.Id, employee.CompanyId), cancellationToken);
         }
 
+        // PUT /employee/contract/finished encerra o contrato do funcionário: status vira Inactive, grava a data de término e dispara DemissionalExamRequestEvent.
         [Fact]
         public async Task FinishedContractEmployeeWithSuccess()
         {
 
-            var cancellationToken = new CancellationToken();
+            var cancellationToken = CancellationToken.None;
 
-            var context = _factory.GetContext();
-            var client = _factory.CreateClient();
+            var context = GetContext();
+            var client = CreateClient();
 
             var employee = await context.InsertEmployeeActive(cancellationToken);
             await context.SaveChangesAsync(cancellationToken);
@@ -464,7 +469,6 @@ namespace PeopleManagement.IntegrationTests.Tests
             var response = await client.PutAsJsonAsync($"/api/v1/{employee.CompanyId}/employee/contract/finished", command);
 
             Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-            var debug = await response.Content.ReadAsStringAsync();
             var content = await response.Content.ReadFromJsonAsync(typeof(FinishedContractEmployeeResponse)) as FinishedContractEmployeeResponse ?? throw new ArgumentNullException();
             var result = await context.Employees.AsNoTracking().FirstOrDefaultAsync(x => x.Id == content.Id) ?? throw new ArgumentNullException();
             Assert.Equal(Status.Inactive, result.Status);
@@ -473,14 +477,15 @@ namespace PeopleManagement.IntegrationTests.Tests
             await CheckRequestDocumentEvent(context, EmployeeEvent.DemissionalExamRequestEvent(employee.Id, employee.CompanyId), cancellationToken);
         }
 
+        // PUT /employee/role em funcionário ATIVO troca o cargo e, por exigir os documentos do novo cargo, gera um Document com DocumentUnit pendente (RequiredDocumentId do novo cargo).
         [Fact]
         public async Task ChangeEmployeeRoleWhenEmployeeIsActiveWithSuccess()
         {
 
-            var cancellationToken = new CancellationToken();
+            var cancellationToken = CancellationToken.None;
 
-            var context = _factory.GetContext();
-            var client = _factory.CreateClient();
+            var context = GetContext();
+            var client = CreateClient();
 
             var employee = await context.InsertEmployeeActive(cancellationToken);
             await context.SaveChangesAsync(cancellationToken);

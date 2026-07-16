@@ -101,6 +101,8 @@ namespace PeopleManagement.Domain.ErrorTools.ErrorsMessages
         public static class DocumentTemplate
         {
             public static Error TemplateDoesNotAcceptSignature(Guid templateId) => new("PMD.DOCT10", $"O template {templateId} não aceita assinatura. Não é possível definir locais de assinatura.", new { templateId });
+            public static Error PolicyDurationMustBePositive(string policy, TimeSpan duration) => new("PMD.DOCT11", $"A regra {policy} exige uma duração maior que zero. Valor informado: {duration}.", new { policy, duration });
+            public static Error PolicyMaxRenewalsMustBePositive(int maxRenewals) => new("PMD.DOCT12", $"A regra de vencimento limitado exige um número de renovações maior que zero. Valor informado: {maxRenewals}.", new { maxRenewals });
         }
     }
 }

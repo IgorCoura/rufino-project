@@ -27,9 +27,10 @@ namespace PeopleManagement.Application.Commands.DocumentTemplateCommands.EditDoc
                 request.WorkloadInHours,
                 request.TemplateFileInfo == null ? null : request.TemplateFileInfo?.ToTemplateFileInfo(documentTemplate.TemplateFileInfo?.Directory.Value ?? Guid.NewGuid().ToString()),
                 request.AcceptsSignature,
-                request.PlaceSignatures.Select(x => x.ToPlaceSignature()).ToList(), 
+                request.PlaceSignatures.Select(x => x.ToPlaceSignature()).ToList(),
                 request.DocumentGroupId,
-                request.UsePreviousPeriod
+                request.UsePreviousPeriod,
+                request.Policies?.ToPolicies().ToList()
                 );
 
 

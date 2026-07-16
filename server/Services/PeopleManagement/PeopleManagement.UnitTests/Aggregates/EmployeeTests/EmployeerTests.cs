@@ -98,6 +98,8 @@ namespace PeopleManagement.UnitTests.Aggregates.EmployeeTests
 
             employee.MilitaryDocument = MilitaryDocument.Create("2312312312", "Rersevista");
 
+            employee.SetImage(Extension.JPG);
+
             var dateNow = DateOnly.FromDateTime(DateTime.UtcNow);
 
             employee.CompleteAdmission("BBC2", dateNow,  EmploymentContractType.CLT);

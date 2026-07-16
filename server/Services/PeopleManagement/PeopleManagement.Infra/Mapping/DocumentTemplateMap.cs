@@ -1,4 +1,5 @@
-﻿using Microsoft.EntityFrameworkCore.ChangeTracking;
+﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.ChangeTracking;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using PeopleManagement.Domain.AggregatesModel.CompanyAggregate;
 using PeopleManagement.Domain.AggregatesModel.DocumentAggregate;
@@ -32,39 +33,30 @@ namespace PeopleManagement.Infra.Mapping
             builder.Property(x => x.Workload)
                .IsRequired(false);
 
-            builder.Property(x => x.AcceptsSignature)
-                .IsRequired();
+            // AcceptsSignature e PlaceSignatures são derivados da SignaturePolicy — presença da policy = aceita
+            // assinatura, e os locais moram dentro dela. Mapear qualquer um dos dois duplicaria no banco o que
+            // já vive no jsonb da policy.
+            builder.Ignore(x => x.AcceptsSignature);
+            builder.Ignore(x => x.PlaceSignatures);
 
             builder.Property(x => x.UsePreviousPeriod)
                 .IsRequired();
 
-            builder.OwnsMany(x => x.PlaceSignatures, prop =>
+            builder.OwnsMany(x => x.Policies, policy =>
             {
-                prop.Property(x => x.Type)
+                policy.ToTable("DocumentTemplatePolicies");
+
+                policy.Property(x => x.Type)
                     .HasConversion(x => x.Id, x => x)
                     .IsRequired();
 
-                prop.Property(x => x.Page)
-                    .HasConversion(x => x.Value, x => x)
+                policy.Property(x => x.Params)
+                    .HasColumnType("jsonb")
                     .IsRequired();
-
-                prop.Property(x => x.RelativePositionBotton)
-                    .HasConversion(x => x.Value, x => x)
-                    .IsRequired();
-
-                prop.Property(x => x.RelativePositionLeft)
-                    .HasConversion(x => x.Value, x => x)
-                    .IsRequired();
-
-                prop.Property(x => x.RelativeSizeX)
-                    .HasConversion(x => x.Value, x => x)
-                    .IsRequired();
-
-                prop.Property(x => x.RelativeSizeY)
-                    .HasConversion(x => x.Value, x => x)
-                    .IsRequired();
-
             });
+
+            builder.Navigation(x => x.Policies)
+                .UsePropertyAccessMode(PropertyAccessMode.Field);
 
             builder.OwnsOne(x => x.TemplateFileInfo, t =>
             {

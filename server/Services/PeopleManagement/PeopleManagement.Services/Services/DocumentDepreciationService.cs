@@ -7,18 +7,22 @@ using PeopleManagement.Domain.AggregatesModel.EmployeeAggregate;
 using PeopleManagement.Domain.AggregatesModel.EmployeeAggregate.Interfaces;
 using PeopleManagement.Domain.AggregatesModel.RequireDocumentsAggregate;
 using PeopleManagement.Domain.AggregatesModel.RequireDocumentsAggregate.Interfaces;
+using PeopleManagement.Domain.AggregatesModel.DocumentTemplateAggregate.Interfaces;
+using PeopleManagement.Domain.AggregatesModel.DocumentTemplateAggregate.Policies;
 using System.Threading;
 
 
 namespace PeopleManagement.Services.Services
 {
-    public class DocumentDepreciationService(ILogger<DocumentDepreciationService> logger, IDocumentRepository documentRepository, 
-        IRequireDocumentsRepository requireDocumentsRepository, IEmployeeRepository employeeRepository) : IDocumentDepreciationService
+    public class DocumentDepreciationService(ILogger<DocumentDepreciationService> logger, IDocumentRepository documentRepository,
+        IRequireDocumentsRepository requireDocumentsRepository, IEmployeeRepository employeeRepository,
+        IDocumentTemplateRepository documentTemplateRepository) : IDocumentDepreciationService
     {
         private readonly IDocumentRepository _documentRepository = documentRepository;
         private readonly ILogger<DocumentDepreciationService> _logger = logger;
         private readonly IRequireDocumentsRepository _requireDocumentsRepository = requireDocumentsRepository;
         private readonly IEmployeeRepository _employeeRepository = employeeRepository;
+        private readonly IDocumentTemplateRepository _documentTemplateRepository = documentTemplateRepository;
         public async Task DepreciateExpirateDocument(Guid documentUnitId, Guid documentId, Guid companyId,
             CancellationToken cancellationToken = default)
         {
@@ -50,9 +54,18 @@ namespace PeopleManagement.Services.Services
 
             if (isAssociation)
             {
+                // Renovação limitada é regra de dois aggregates (Document + DocumentTemplate), logo mora aqui, não
+                // no Document. Lê a policy do template e o contador de renovações (unidades já depreciadas); a
+                // unidade que venceu é sempre depreciada, mas só nasce uma nova enquanto a policy permitir renovar.
+                // Sem policy de vencimento (documento legado com data de validade avulsa) mantém o comportamento
+                // antigo: renova sempre.
+                var canRenew = await CanRenewAsync(document, companyId, cancellationToken);
+
                 var newDocumentUnitId = Guid.NewGuid();
                 document.MakeAsDocumentDeprecated(documentUnitId, newDocumentUnitId);
-                document.NewDocumentUnit(Guid.NewGuid());
+
+                if (canRenew)
+                    document.NewDocumentUnit(Guid.NewGuid());
             }
             else
             {
@@ -108,6 +121,22 @@ namespace PeopleManagement.Services.Services
             await _documentRepository.UnitOfWork.SaveChangesAsync(cancellationToken);
 
             _logger.LogInformation("Document with ID {DocumentId} has been marked as warning for company {CompanyId}.", documentId, companyId);
+        }
+
+        // Consulta a policy de vencimento do template do documento e decide, pelo contador de renovações
+        // (unidades depreciadas), se ainda pode renovar. Sem policy ⇒ renova sempre (retrocompatível).
+        private async Task<bool> CanRenewAsync(Document document, Guid companyId, CancellationToken cancellationToken)
+        {
+            var template = await _documentTemplateRepository.FirstOrDefaultAsync(
+                x => x.Id == document.DocumentTemplateId && x.CompanyId == companyId,
+                cancellation: cancellationToken);
+
+            var expirationPolicy = template?.GetPolicy<IExpirationPolicy>();
+            if (expirationPolicy is null)
+                return true;
+
+            var renewalCount = await _documentRepository.CountDeprecatedUnitsAsync(document.Id, companyId, cancellationToken);
+            return expirationPolicy.CanRenew(renewalCount);
         }
 
         public async Task<bool> DocumentHasAssociation(Document document, Employee employee, CancellationToken cancellationToken)

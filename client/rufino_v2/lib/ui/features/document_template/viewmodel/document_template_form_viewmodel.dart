@@ -35,10 +35,21 @@ class DocumentTemplateFormViewModel extends ChangeNotifier {
   /// Controller for the template description field.
   final descriptionController = TextEditingController();
 
-  /// Controller for the validity in days field.
+  /// Controller for the expiration rule's duration, in days.
+  ///
+  /// Only meaningful while [expirationEnabled] is true — the read-only field in
+  /// the basic info section mirrors it through [validityDisplay].
   final validityController = TextEditingController();
 
-  /// Controller for the workload field.
+  /// Controller for the expiration rule's renewal limit.
+  ///
+  /// Only meaningful while [expirationEnabled] and [expirationLimited] are true;
+  /// otherwise the document renews indefinitely.
+  final maxRenewalsController = TextEditingController();
+
+  /// Controller for the workload rule's hours.
+  ///
+  /// Only meaningful while [workloadEnabled] is true.
   final workloadController = TextEditingController();
 
   /// Controller for the body file name.
@@ -58,6 +69,12 @@ class DocumentTemplateFormViewModel extends ChangeNotifier {
     filter: {'#': RegExp(r'[0-9]')},
   );
 
+  /// Mask formatter for the renewal limit (up to 3 digits).
+  final maxRenewalsFormatter = MaskTextInputFormatter(
+    mask: '###',
+    filter: {'#': RegExp(r'[0-9]')},
+  );
+
   /// Mask formatter for workload in hours (up to 3 digits).
   final workloadFormatter = MaskTextInputFormatter(
     mask: '###',
@@ -73,6 +90,11 @@ class DocumentTemplateFormViewModel extends ChangeNotifier {
 
   /// Server-provided error messages extracted from the API response, if any.
   List<String> get serverErrors => _serverErrors;
+  bool _expirationEnabled = false;
+  bool _expirationLimited = false;
+  bool _workloadEnabled = false;
+  bool _periodEnabled = false;
+  PeriodGranularity? _selectedGranularity;
   bool _usePreviousPeriod = false;
   bool _acceptsSignature = false;
   String _selectedDocumentGroupId = '';
@@ -101,6 +123,67 @@ class DocumentTemplateFormViewModel extends ChangeNotifier {
 
   /// Human-readable error message set when [status] is [DocumentTemplateFormStatus.error].
   String? get errorMessage => _errorMessage;
+
+  /// Whether the expiration rule is active for this template.
+  bool get expirationEnabled => _expirationEnabled;
+
+  /// Whether the expiration rule limits how many times the document renews.
+  ///
+  /// Off = renews indefinitely; on = renews the number of times in
+  /// [maxRenewalsController].
+  bool get expirationLimited => _expirationLimited;
+
+  /// Whether the workload rule is active for this template.
+  bool get workloadEnabled => _workloadEnabled;
+
+  /// Whether the competência rule is active for this template.
+  bool get periodEnabled => _periodEnabled;
+
+  /// The competência granularity chosen in the form, or null when none.
+  PeriodGranularity? get selectedGranularity => _selectedGranularity;
+
+  /// The competência granularities the user can choose from.
+  List<PeriodGranularity> get periodGranularities => PeriodGranularity.values;
+
+  /// The rule set described by the form, ready to be persisted.
+  ///
+  /// A rule is only included when its switch is on and its input is valid,
+  /// mirroring how the API models absence.
+  TemplatePolicies get policies {
+    final days =
+        _expirationEnabled ? int.tryParse(validityController.text.trim()) : null;
+    final hours =
+        _workloadEnabled ? int.tryParse(workloadController.text.trim()) : null;
+    // Só há teto quando a assinatura de renovação limitada está ligada e o valor é válido.
+    final renewals = _expirationEnabled && _expirationLimited
+        ? int.tryParse(maxRenewalsController.text.trim())
+        : null;
+
+    return TemplatePolicies(
+      expiration: days == null || days <= 0
+          ? null
+          : ExpirationRule(
+              durationInDays: days,
+              maxRenewals: renewals != null && renewals > 0 ? renewals : null),
+      workload: hours == null || hours <= 0 ? null : WorkloadRule(hours: hours),
+      period: _periodEnabled && _selectedGranularity != null
+          ? PeriodRule(
+              granularity: _selectedGranularity!,
+              usePreviousPeriod: _usePreviousPeriod)
+          : null,
+    );
+  }
+
+  /// The validity to show in the read-only field of the basic info section.
+  ///
+  /// Empty when the rule is off — the legacy field is a mirror of the rule, not
+  /// an input of its own.
+  String get validityDisplay =>
+      _expirationEnabled ? validityController.text.trim() : '';
+
+  /// The workload to show in the read-only field of the basic info section.
+  String get workloadDisplay =>
+      _workloadEnabled ? workloadController.text.trim() : '';
 
   /// Whether the template uses the previous period as reference.
   bool get usePreviousPeriod => _usePreviousPeriod;
@@ -139,15 +222,71 @@ class DocumentTemplateFormViewModel extends ChangeNotifier {
 
   // ─── Setters ──────────────────────────────────────────────────────────────
 
+  /// Turns the expiration rule on or off and notifies listeners.
+  ///
+  /// Turning it off clears the duration, so a stale value cannot survive a
+  /// toggle and reappear on save.
+  void setExpirationEnabled(bool value) {
+    _expirationEnabled = value;
+    if (!value) {
+      validityController.clear();
+      // Desligar o vencimento leva junto o limite de renovações, senão um valor
+      // órfão reapareceria ao religar.
+      _expirationLimited = false;
+      maxRenewalsController.clear();
+    }
+    notifyListeners();
+  }
+
+  /// Turns the renewal limit on or off and notifies listeners.
+  ///
+  /// Turning it off clears the limit, so the document goes back to renewing
+  /// indefinitely and no stale value survives the toggle.
+  void setExpirationLimited(bool value) {
+    _expirationLimited = value;
+    if (!value) maxRenewalsController.clear();
+    notifyListeners();
+  }
+
+  /// Turns the workload rule on or off and notifies listeners.
+  void setWorkloadEnabled(bool value) {
+    _workloadEnabled = value;
+    if (!value) workloadController.clear();
+    notifyListeners();
+  }
+
+  /// Turns the competência rule on or off and notifies listeners.
+  ///
+  /// Turning it off clears the granularity and the retroactive flag, so a stale
+  /// choice cannot survive a toggle and reappear on save.
+  void setPeriodEnabled(bool value) {
+    _periodEnabled = value;
+    if (!value) {
+      _selectedGranularity = null;
+      _usePreviousPeriod = false;
+    }
+    notifyListeners();
+  }
+
+  /// Updates the competência granularity and notifies listeners.
+  void setPeriodGranularity(PeriodGranularity? value) {
+    _selectedGranularity = value;
+    notifyListeners();
+  }
+
   /// Updates the [usePreviousPeriod] flag and notifies listeners.
   void setUsePreviousPeriod(bool value) {
     _usePreviousPeriod = value;
     notifyListeners();
   }
 
-  /// Updates the [acceptsSignature] flag and notifies listeners.
+  /// Turns signature acceptance on or off and notifies listeners.
+  ///
+  /// Turning it off clears the placements, so a document that no longer accepts
+  /// signature cannot carry placements the API would reject (`PMD.DOCT10`).
   void setAcceptsSignature(bool value) {
     _acceptsSignature = value;
+    if (!value) _placeSignatures = [];
     notifyListeners();
   }
 
@@ -307,15 +446,34 @@ class DocumentTemplateFormViewModel extends ChangeNotifier {
   String? validateDescription(String? v) =>
       DocumentTemplate.validateDescription(v);
 
-  /// Delegates to [DocumentTemplate.validateValidity].
-  String? validateValidity(String? v) => DocumentTemplate.validateValidity(v);
+  /// Delegates to [ExpirationRule.validateDuration].
+  ///
+  /// Only applies while the rule is on; an off rule has no field to validate.
+  String? validateValidity(String? v) =>
+      _expirationEnabled ? ExpirationRule.validateDuration(v) : null;
 
-  /// Delegates to [DocumentTemplate.validateWorkload].
-  String? validateWorkload(String? v) => DocumentTemplate.validateWorkload(v);
+  /// Delegates to [ExpirationRule.validateMaxRenewals].
+  ///
+  /// Only applies while the expiration rule is on and limited.
+  String? validateMaxRenewals(String? v) =>
+      _expirationEnabled && _expirationLimited
+          ? ExpirationRule.validateMaxRenewals(v)
+          : null;
+
+  /// Delegates to [WorkloadRule.validateHours].
+  String? validateWorkload(String? v) =>
+      _workloadEnabled ? WorkloadRule.validateHours(v) : null;
 
   /// Delegates to [PlaceSignatureData.validateField].
   String? validateSignatureNumber(String? v, String label) =>
       PlaceSignatureData.validateField(v, label);
+
+  /// Delegates to [PlaceSignatureData.validateType].
+  ///
+  /// A placement without a type would be sent as `type: 0`, which the API
+  /// rejects (there is no signature type 0) — so the type is mandatory.
+  String? validateSignatureType(String? typeSignatureId) =>
+      PlaceSignatureData.validateType(typeSignatureId);
 
   /// Delegates to [DocumentTemplate.validateFileName].
   String? validateFileName(String? v) => DocumentTemplate.validateFileName(v);
@@ -353,10 +511,19 @@ class DocumentTemplateFormViewModel extends ChangeNotifier {
         onSuccess: (template) {
           nameController.text = template.name;
           descriptionController.text = template.description;
+          _expirationEnabled = template.policies.expiration != null;
+          _expirationLimited = template.policies.expiration?.isLimited ?? false;
+          _workloadEnabled = template.policies.workload != null;
           validityController.text =
-              template.validityInDays?.toString() ?? '';
-          workloadController.text = template.workload?.toString() ?? '';
-          _usePreviousPeriod = template.usePreviousPeriod;
+              template.policies.expiration?.durationInDays.toString() ?? '';
+          maxRenewalsController.text =
+              template.policies.expiration?.maxRenewals?.toString() ?? '';
+          workloadController.text =
+              template.policies.workload?.hours.toString() ?? '';
+          final period = template.policies.period;
+          _periodEnabled = period != null;
+          _selectedGranularity = period?.granularity;
+          _usePreviousPeriod = period?.usePreviousPeriod ?? false;
           _acceptsSignature = template.acceptsSignature;
           bodyFileNameController.text = template.bodyFileName;
           headerFileNameController.text = template.headerFileName;
@@ -426,21 +593,14 @@ class DocumentTemplateFormViewModel extends ChangeNotifier {
       final companyResult = await _companyRepository.getSelectedCompany();
       final companyId = companyResult.valueOrNull?.id ?? '';
 
-      final validityText = validityController.text.trim();
-      final workloadText = workloadController.text.trim();
-      final validityInDays =
-          validityText.isEmpty ? null : int.tryParse(validityText);
-      final workload =
-          workloadText.isEmpty ? null : int.tryParse(workloadText);
+      final selectedPolicies = policies;
 
       final result = _id.isEmpty
           ? await _documentTemplateRepository.createDocumentTemplate(
               companyId,
               name: nameController.text.trim(),
               description: descriptionController.text.trim(),
-              validityInDays: validityInDays,
-              workload: workload,
-              usePreviousPeriod: _usePreviousPeriod,
+              policies: selectedPolicies,
               acceptsSignature: _acceptsSignature,
               bodyFileName: bodyFileNameController.text.trim(),
               headerFileName: headerFileNameController.text.trim(),
@@ -454,9 +614,7 @@ class DocumentTemplateFormViewModel extends ChangeNotifier {
               id: _id,
               name: nameController.text.trim(),
               description: descriptionController.text.trim(),
-              validityInDays: validityInDays,
-              workload: workload,
-              usePreviousPeriod: _usePreviousPeriod,
+              policies: selectedPolicies,
               acceptsSignature: _acceptsSignature,
               bodyFileName: bodyFileNameController.text.trim(),
               headerFileName: headerFileNameController.text.trim(),
@@ -486,6 +644,7 @@ class DocumentTemplateFormViewModel extends ChangeNotifier {
     nameController.dispose();
     descriptionController.dispose();
     validityController.dispose();
+    maxRenewalsController.dispose();
     workloadController.dispose();
     bodyFileNameController.dispose();
     headerFileNameController.dispose();

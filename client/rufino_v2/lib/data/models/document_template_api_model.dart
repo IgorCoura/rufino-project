@@ -18,13 +18,33 @@ class DocumentTemplateApiModel {
     this.documentGroupName = '',
     this.recoverDataTypeIds = const [],
     this.placeSignatures = const [],
+    this.policies,
   });
 
   final String id;
   final String name;
   final String description;
-  final double validityDurationInDays;
-  final double workloadInHours;
+
+  /// Validity in days, or null when the template has no expiration rule.
+  ///
+  /// Null and zero are not interchangeable: the API reads a present value as
+  /// "rule active", so a template without expiration must send null.
+  ///
+  /// This mirrors [policies] on writes — it is the legacy shape, kept so an API
+  /// that predates the policies block still gets the rule.
+  final double? validityDurationInDays;
+
+  /// Workload in hours, or null when the template has no workload rule.
+  ///
+  /// Mirrors [policies], same as [validityDurationInDays].
+  final double? workloadInHours;
+
+  /// The rule set, or null when the API did not send the `policies` block.
+  ///
+  /// Null means "the server never mentioned policies" — the rules are then
+  /// derived from the legacy fields. It does not mean "no rules"; an empty
+  /// [TemplatePolicies] means that.
+  final TemplatePolicies? policies;
   final bool usePreviousPeriod;
   final bool acceptsSignature;
   final String bodyFileName;
@@ -42,8 +62,8 @@ class DocumentTemplateApiModel {
       id: json['id'] as String? ?? '',
       name: json['name'] as String? ?? '',
       description: json['description'] as String? ?? '',
-      validityDurationInDays: 0,
-      workloadInHours: 0,
+      validityDurationInDays: null,
+      workloadInHours: null,
       usePreviousPeriod: json['usePreviousPeriod'] as bool? ?? false,
       acceptsSignature: json['acceptsSignature'] as bool? ?? false,
     );
@@ -61,22 +81,27 @@ class DocumentTemplateApiModel {
       return (e as num).toInt();
     }).toList();
 
-    final rawSigs =
-        fileInfo['placeSignatures'] as List<dynamic>? ?? [];
+    // A assinatura vem no bloco policies.signature (padronizado): presença = aceita,
+    // e ele carrega os locais. Fallback para o topo (acceptsSignature) quando a API
+    // não enviar o bloco policies, mantendo a leitura resiliente.
+    final policiesJson = json['policies'] as Map<String, dynamic>?;
+    final signatureJson = policiesJson?['signature'] as Map<String, dynamic>?;
+    final rawSigs = signatureJson?['placeSignatures'] as List<dynamic>? ?? [];
     final signatures = rawSigs
         .map((s) => _parsePlaceSignature(s as Map<String, dynamic>))
         .toList();
+    final acceptsSignature = signatureJson != null ||
+        (policiesJson == null && (json['acceptsSignature'] as bool? ?? false));
 
     return DocumentTemplateApiModel(
       id: json['id'] as String? ?? '',
       name: json['name'] as String? ?? '',
       description: json['description'] as String? ?? '',
       validityDurationInDays:
-          (json['documentValidityDurationInDays'] as num?)?.toDouble() ?? 0,
-      workloadInHours:
-          (json['workloadInHours'] as num?)?.toDouble() ?? 0,
+          (json['documentValidityDurationInDays'] as num?)?.toDouble(),
+      workloadInHours: (json['workloadInHours'] as num?)?.toDouble(),
       usePreviousPeriod: json['usePreviousPeriod'] as bool? ?? false,
-      acceptsSignature: json['acceptsSignature'] as bool? ?? false,
+      acceptsSignature: acceptsSignature,
       bodyFileName: fileInfo['bodyFileName'] as String? ?? '',
       headerFileName: fileInfo['headerFileName'] as String? ?? '',
       footerFileName: fileInfo['footerFileName'] as String? ?? '',
@@ -84,6 +109,39 @@ class DocumentTemplateApiModel {
       documentGroupName: docGroup['name'] as String? ?? '',
       recoverDataTypeIds: typeIds,
       placeSignatures: signatures,
+      policies: _parsePolicies(policiesJson),
+    );
+  }
+
+  static TemplatePolicies? _parsePolicies(Map<String, dynamic>? json) {
+    if (json == null) return null;
+
+    final expiration = json['expiration'] as Map<String, dynamic>?;
+    final workload = json['workload'] as Map<String, dynamic>?;
+    final period = json['period'] as Map<String, dynamic>?;
+
+    return TemplatePolicies(
+      expiration: expiration == null
+          ? null
+          : ExpirationRule(
+              durationInDays:
+                  (expiration['durationInDays'] as num?)?.toInt() ?? 0,
+              maxRenewals: (expiration['maxRenewals'] as num?)?.toInt()),
+      workload: workload == null
+          ? null
+          : WorkloadRule(hours: (workload['hours'] as num?)?.toInt() ?? 0),
+      period: _parsePeriod(period),
+    );
+  }
+
+  static PeriodRule? _parsePeriod(Map<String, dynamic>? json) {
+    if (json == null) return null;
+    final granularity =
+        PeriodGranularity.fromId((json['periodTypeId'] as num?)?.toInt() ?? 0);
+    if (granularity == null) return null;
+    return PeriodRule(
+      granularity: granularity,
+      usePreviousPeriod: json['usePreviousPeriod'] as bool? ?? false,
     );
   }
 
@@ -99,17 +157,35 @@ class DocumentTemplateApiModel {
     );
   }
 
+  /// Returns [value] as an int, or null when it is absent or non-positive.
+  ///
+  /// Legacy templates persisted a zeroed duration instead of null, and the API
+  /// still echoes that zero back. Both mean "no rule".
+  static int? _positiveOrNull(double? value) =>
+      value != null && value > 0 ? value.toInt() : null;
+
+  /// The rule set for this template, falling back to the legacy fields.
+  ///
+  /// An API that predates the policies block sends only the legacy fields; the
+  /// rules are then whatever those fields describe.
+  TemplatePolicies _resolvePolicies() {
+    if (policies != null) return policies!;
+
+    final days = _positiveOrNull(validityDurationInDays);
+    final hours = _positiveOrNull(workloadInHours);
+    return TemplatePolicies(
+      expiration: days == null ? null : ExpirationRule(durationInDays: days),
+      workload: hours == null ? null : WorkloadRule(hours: hours),
+    );
+  }
+
   /// Converts this DTO to the domain [DocumentTemplate] entity.
   DocumentTemplate toEntity() {
     return DocumentTemplate(
       id: id,
       name: name,
       description: description,
-      validityInDays: validityDurationInDays > 0
-          ? validityDurationInDays.toInt()
-          : null,
-      workload: workloadInHours > 0 ? workloadInHours.toInt() : null,
-      usePreviousPeriod: usePreviousPeriod,
+      policies: _resolvePolicies(),
       acceptsSignature: acceptsSignature,
       bodyFileName: bodyFileName,
       headerFileName: headerFileName,
@@ -121,6 +197,33 @@ class DocumentTemplateApiModel {
     );
   }
 
+  /// Serialises [policies] to the API's `policies` block.
+  ///
+  /// Returns null when there is no rule set to send, which tells the API to
+  /// fall back to the legacy fields. A non-null block wins over them.
+  Map<String, dynamic>? _policiesToJson() {
+    final rules = policies;
+    if (rules == null) return null;
+
+    return {
+      'expiration': rules.expiration == null
+          ? null
+          : {
+              'durationInDays': rules.expiration!.durationInDays,
+              // null = renova sempre; presente = renova N vezes (ExpirationLimitedPolicy).
+              'maxRenewals': rules.expiration!.maxRenewals,
+            },
+      'workload':
+          rules.workload == null ? null : {'hours': rules.workload!.hours},
+      'period': rules.period == null
+          ? null
+          : {
+              'periodTypeId': rules.period!.granularity.id,
+              'usePreviousPeriod': rules.period!.usePreviousPeriod,
+            },
+    };
+  }
+
   /// Serialises this model to JSON without the [id] field (used for creates).
   Map<String, dynamic> toCreateJson() {
     final hasFileInfo =
@@ -130,6 +233,7 @@ class DocumentTemplateApiModel {
       'description': description,
       'documentValidityDurationInDays': validityDurationInDays,
       'workloadInHours': workloadInHours,
+      'policies': _policiesToJson(),
       'usePreviousPeriod': usePreviousPeriod,
       'acceptsSignature': acceptsSignature,
       'templateFileInfo': hasFileInfo || recoverDataTypeIds.isNotEmpty
@@ -166,6 +270,7 @@ class DocumentTemplateApiModel {
       'description': description,
       'documentValidityDurationInDays': validityDurationInDays,
       'workloadInHours': workloadInHours,
+      'policies': _policiesToJson(),
       'usePreviousPeriod': usePreviousPeriod,
       'acceptsSignature': acceptsSignature,
       'templateFileInfo': hasFileInfo || recoverDataTypeIds.isNotEmpty

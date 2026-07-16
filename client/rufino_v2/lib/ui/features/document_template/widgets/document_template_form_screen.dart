@@ -4,6 +4,7 @@ import '../../../../core/utils/file_saver_stub.dart'
     if (dart.library.io) '../../../../core/utils/file_saver.dart';
 import 'package:flutter_json_view/flutter_json_view.dart';
 import 'package:go_router/go_router.dart';
+import 'package:mask_text_input_formatter/mask_text_input_formatter.dart';
 
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../domain/entities/document_template.dart';
@@ -184,32 +185,20 @@ class _DocumentTemplateFormBody extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Expanded(
-                          child: TextFormField(
+                          child: _RuleMirrorField(
+                            label: 'Validade (dias)',
+                            icon: Icons.calendar_today_outlined,
                             controller: viewModel.validityController,
-                            decoration: const InputDecoration(
-                              labelText: 'Validade (dias)',
-                              prefixIcon: Icon(Icons.calendar_today_outlined),
-                              border: OutlineInputBorder(),
-                              hintText: '0–999',
-                            ),
-                            keyboardType: TextInputType.number,
-                            inputFormatters: [viewModel.validityFormatter],
-                            validator: viewModel.validateValidity,
+                            valueOf: () => viewModel.validityDisplay,
                           ),
                         ),
                         const SizedBox(width: AppSpacing.md),
                         Expanded(
-                          child: TextFormField(
+                          child: _RuleMirrorField(
+                            label: 'Carga horária (h)',
+                            icon: Icons.schedule_outlined,
                             controller: viewModel.workloadController,
-                            decoration: const InputDecoration(
-                              labelText: 'Carga horária (h)',
-                              prefixIcon: Icon(Icons.schedule_outlined),
-                              border: OutlineInputBorder(),
-                              hintText: '0–999',
-                            ),
-                            keyboardType: TextInputType.number,
-                            inputFormatters: [viewModel.workloadFormatter],
-                            validator: viewModel.validateWorkload,
+                            valueOf: () => viewModel.workloadDisplay,
                           ),
                         ),
                       ],
@@ -240,32 +229,51 @@ class _DocumentTemplateFormBody extends StatelessWidget {
                 ),
                 const SizedBox(height: AppSpacing.md),
 
-                // ─── Configurações ──────────────────────────────────
+                // ─── Regras ──────────────────────────────────────────
                 _SectionCard(
-                  icon: Icons.settings_outlined,
-                  label: 'Configurações',
+                  icon: Icons.rule_outlined,
+                  label: 'Regras',
                   children: [
-                    SwitchListTile(
-                      title: const Text('Competência de Período Anterior'),
-                      subtitle: const Text(
-                        'Usa a competência do período anterior para '
-                        'agrupamento e depreciação.',
-                      ),
-                      value: viewModel.usePreviousPeriod,
-                      onChanged: viewModel.setUsePreviousPeriod,
-                      contentPadding: EdgeInsets.zero,
+                    _RuleTile(
+                      ruleKey: 'expiration',
+                      title: 'Vencimento',
+                      subtitle: 'Documentos gerados vencem após o prazo '
+                          'definido e precisam ser renovados.',
+                      enabled: viewModel.expirationEnabled,
+                      onChanged: viewModel.setExpirationEnabled,
+                      fieldLabel: 'Validade (dias)',
+                      fieldIcon: Icons.calendar_today_outlined,
+                      controller: viewModel.validityController,
+                      formatter: viewModel.validityFormatter,
+                      validator: viewModel.validateValidity,
+                      extraChild: _ExpirationRenewalControl(viewModel: viewModel),
                     ),
                     const Divider(height: 1),
-                    SwitchListTile(
-                      title: const Text('Aceita Assinatura'),
-                      subtitle: const Text(
-                        'Documentos gerados a partir deste template '
-                        'poderão ser assinados.',
-                      ),
-                      value: viewModel.acceptsSignature,
-                      onChanged: viewModel.setAcceptsSignature,
-                      contentPadding: EdgeInsets.zero,
+                    _RuleTile(
+                      ruleKey: 'workload',
+                      title: 'Carga horária',
+                      subtitle: 'Associa uma carga de trabalho ao documento, '
+                          'distribuída em dias úteis.',
+                      enabled: viewModel.workloadEnabled,
+                      onChanged: viewModel.setWorkloadEnabled,
+                      fieldLabel: 'Carga horária (h)',
+                      fieldIcon: Icons.schedule_outlined,
+                      controller: viewModel.workloadController,
+                      formatter: viewModel.workloadFormatter,
+                      validator: viewModel.validateWorkload,
                     ),
+                    const Divider(height: 1),
+                    _PeriodRuleTile(
+                      enabled: viewModel.periodEnabled,
+                      onChanged: viewModel.setPeriodEnabled,
+                      granularity: viewModel.selectedGranularity,
+                      granularities: viewModel.periodGranularities,
+                      onGranularityChanged: viewModel.setPeriodGranularity,
+                      usePreviousPeriod: viewModel.usePreviousPeriod,
+                      onUsePreviousPeriodChanged: viewModel.setUsePreviousPeriod,
+                    ),
+                    const Divider(height: 1),
+                    _SignatureRuleTile(viewModel: viewModel),
                   ],
                 ),
                 const SizedBox(height: AppSpacing.md),
@@ -347,12 +355,6 @@ class _DocumentTemplateFormBody extends StatelessWidget {
                   const SizedBox(height: AppSpacing.md),
                 ],
 
-                // ─── Locais das Assinaturas ──────────────────────────
-                if (viewModel.acceptsSignature) ...[
-                  _PlaceSignaturesSection(viewModel: viewModel),
-                  const SizedBox(height: AppSpacing.md),
-                ],
-
                 // ─── Detalhes dos Modelos de Dados ───────────────────
                 _DataModelsSection(viewModel: viewModel),
                 const SizedBox(height: AppSpacing.xl),
@@ -373,6 +375,246 @@ class _DocumentTemplateFormBody extends StatelessWidget {
 }
 
 /// A labelled card section for grouping related form fields.
+/// A rule switch with the parameter field it reveals when turned on.
+///
+/// Presence of the rule is the switch itself: turning it off removes the rule
+/// from the template rather than zeroing it, which is what the API expects.
+class _RuleTile extends StatelessWidget {
+  const _RuleTile({
+    required this.ruleKey,
+    required this.title,
+    required this.subtitle,
+    required this.enabled,
+    required this.onChanged,
+    required this.fieldLabel,
+    required this.fieldIcon,
+    required this.controller,
+    required this.formatter,
+    required this.validator,
+    this.extraChild,
+  });
+
+  /// Identifies this rule's switch and field for tests.
+  final String ruleKey;
+
+  final String title;
+  final String subtitle;
+  final bool enabled;
+  final ValueChanged<bool> onChanged;
+  final String fieldLabel;
+  final IconData fieldIcon;
+  final TextEditingController controller;
+  final MaskTextInputFormatter formatter;
+  final FormFieldValidator<String> validator;
+
+  /// Extra content revealed below the field when the rule is on (e.g. the
+  /// expiration rule's renewal-limit control). Null for rules that have none.
+  final Widget? extraChild;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        SwitchListTile(
+          key: ValueKey('rule-switch-$ruleKey'),
+          title: Text(title),
+          subtitle: Text(subtitle),
+          value: enabled,
+          onChanged: onChanged,
+          contentPadding: EdgeInsets.zero,
+        ),
+        if (enabled) ...[
+          const SizedBox(height: AppSpacing.sm),
+          TextFormField(
+            key: ValueKey('rule-field-$ruleKey'),
+            controller: controller,
+            decoration: InputDecoration(
+              labelText: '$fieldLabel *',
+              prefixIcon: Icon(fieldIcon),
+              border: const OutlineInputBorder(),
+              hintText: '1–999',
+            ),
+            keyboardType: TextInputType.number,
+            inputFormatters: [formatter],
+            validator: validator,
+          ),
+          if (extraChild != null) extraChild!,
+          const SizedBox(height: AppSpacing.md),
+        ],
+      ],
+    );
+  }
+}
+
+/// The renewal-limit control revealed under the expiration rule.
+///
+/// Off = the document renews indefinitely (the default). On = it renews the
+/// number of times typed below, then stops. Presence of the number maps to the
+/// API's `maxRenewals`.
+class _ExpirationRenewalControl extends StatelessWidget {
+  const _ExpirationRenewalControl({required this.viewModel});
+
+  final DocumentTemplateFormViewModel viewModel;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        SwitchListTile(
+          key: const ValueKey('rule-switch-maxRenewals'),
+          title: const Text('Limitar renovações'),
+          subtitle: const Text(
+            'Por padrão o documento renova indefinidamente. Ligue para parar '
+            'após um número de renovações.',
+          ),
+          value: viewModel.expirationLimited,
+          onChanged: viewModel.setExpirationLimited,
+          contentPadding: EdgeInsets.zero,
+        ),
+        if (viewModel.expirationLimited) ...[
+          const SizedBox(height: AppSpacing.sm),
+          TextFormField(
+            key: const ValueKey('rule-field-maxRenewals'),
+            controller: viewModel.maxRenewalsController,
+            decoration: const InputDecoration(
+              labelText: 'Número de renovações *',
+              prefixIcon: Icon(Icons.autorenew_outlined),
+              border: OutlineInputBorder(),
+              hintText: '1–999',
+            ),
+            keyboardType: TextInputType.number,
+            inputFormatters: [viewModel.maxRenewalsFormatter],
+            validator: viewModel.validateMaxRenewals,
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+/// The competência rule switch and the two inputs it reveals: the granularity
+/// (daily/weekly/monthly/yearly) and whether it uses the previous competência.
+///
+/// A rule with its own shape, so it does not reuse the numeric [_RuleTile].
+/// Turning it off clears both inputs in the view model.
+class _PeriodRuleTile extends StatelessWidget {
+  const _PeriodRuleTile({
+    required this.enabled,
+    required this.onChanged,
+    required this.granularity,
+    required this.granularities,
+    required this.onGranularityChanged,
+    required this.usePreviousPeriod,
+    required this.onUsePreviousPeriodChanged,
+  });
+
+  final bool enabled;
+  final ValueChanged<bool> onChanged;
+  final PeriodGranularity? granularity;
+  final List<PeriodGranularity> granularities;
+  final ValueChanged<PeriodGranularity?> onGranularityChanged;
+  final bool usePreviousPeriod;
+  final ValueChanged<bool> onUsePreviousPeriodChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        SwitchListTile(
+          key: const ValueKey('rule-switch-period'),
+          title: const Text('Competência'),
+          subtitle: const Text(
+            'Organiza os documentos por período — cada competência espera '
+            'o seu documento.',
+          ),
+          value: enabled,
+          onChanged: onChanged,
+          contentPadding: EdgeInsets.zero,
+        ),
+        if (enabled) ...[
+          const SizedBox(height: AppSpacing.sm),
+          DropdownButtonFormField<PeriodGranularity>(
+            key: const ValueKey('rule-field-period'),
+            initialValue: granularity,
+            decoration: const InputDecoration(
+              labelText: 'Granularidade *',
+              prefixIcon: Icon(Icons.event_repeat_outlined),
+              border: OutlineInputBorder(),
+            ),
+            items: granularities
+                .map((g) => DropdownMenuItem<PeriodGranularity>(
+                    value: g, child: Text(g.label)))
+                .toList(),
+            validator: (value) =>
+                value == null ? 'Selecione a granularidade.' : null,
+            onChanged: onGranularityChanged,
+          ),
+          SwitchListTile(
+            title: const Text('Usa competência anterior'),
+            subtitle: const Text(
+              'O documento vale para a competência anterior à data de emissão.',
+            ),
+            value: usePreviousPeriod,
+            onChanged: onUsePreviousPeriodChanged,
+            contentPadding: EdgeInsets.zero,
+          ),
+          const SizedBox(height: AppSpacing.md),
+        ],
+      ],
+    );
+  }
+}
+
+/// A read-only field that mirrors the value of a rule.
+///
+/// Kept in the basic info section so the familiar fields stay where they were,
+/// but editing happens through the rule — the rule set is the source of truth.
+/// Listens to [controller] so typing in the rule reflects here immediately.
+class _RuleMirrorField extends StatelessWidget {
+  const _RuleMirrorField({
+    required this.label,
+    required this.icon,
+    required this.controller,
+    required this.valueOf,
+  });
+
+  final String label;
+  final IconData icon;
+  final TextEditingController controller;
+  final String Function() valueOf;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return ListenableBuilder(
+      listenable: controller,
+      builder: (context, _) {
+        final value = valueOf();
+        return InputDecorator(
+          decoration: InputDecoration(
+            labelText: label,
+            prefixIcon: Icon(icon),
+            border: const OutlineInputBorder(),
+            enabled: false,
+            helperText: 'Definido em Regras',
+          ),
+          child: Text(
+            value.isEmpty ? 'Não se aplica' : value,
+            style: theme.textTheme.bodyLarge?.copyWith(
+              color: value.isEmpty
+                  ? theme.colorScheme.onSurfaceVariant
+                  : theme.colorScheme.onSurface,
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
 class _SectionCard extends StatelessWidget {
   const _SectionCard({
     required this.icon,
@@ -516,58 +758,61 @@ class _FileSection extends StatelessWidget {
   }
 }
 
-/// Section for managing signature placements on the document template.
-class _PlaceSignaturesSection extends StatelessWidget {
-  const _PlaceSignaturesSection({required this.viewModel});
+/// The signature rule switch and the placement editor it reveals when on.
+///
+/// Acceptance and placements are one rule: the switch is presence of signature,
+/// and the placements below are where it goes. Turning it off clears the
+/// placements in the view model, so acceptance and placements can never disagree
+/// at save time (the API rejects placements without acceptance, `PMD.DOCT10`).
+class _SignatureRuleTile extends StatelessWidget {
+  const _SignatureRuleTile({required this.viewModel});
 
   final DocumentTemplateFormViewModel viewModel;
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     final signatures = viewModel.placeSignatures;
 
-    return Card.outlined(
-      child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.md),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Row(
-              children: [
-                Icon(
-                  Icons.draw_outlined,
-                  size: 20,
-                  color: theme.colorScheme.primary,
-                ),
-                const SizedBox(width: AppSpacing.sm),
-                Text(
-                  'Locais das Assinaturas',
-                  style: theme.textTheme.titleMedium?.copyWith(
-                    color: theme.colorScheme.primary,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: AppSpacing.md),
-            for (int i = 0; i < signatures.length; i++)
-              _SignatureCard(
-                key: ValueKey('sig-$i-${signatures.length}'),
-                index: i,
-                signature: signatures[i],
-                viewModel: viewModel,
-              ),
-            Align(
-              alignment: Alignment.centerLeft,
-              child: TextButton.icon(
-                onPressed: viewModel.addPlaceSignature,
-                icon: const Icon(Icons.add, size: 18),
-                label: const Text('Adicionar Assinatura'),
-              ),
-            ),
-          ],
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        SwitchListTile(
+          key: const ValueKey('rule-switch-signature'),
+          title: const Text('Assinatura'),
+          subtitle: const Text(
+            'Documentos gerados a partir deste template poderão ser assinados '
+            'nos locais definidos abaixo.',
+          ),
+          value: viewModel.acceptsSignature,
+          onChanged: viewModel.setAcceptsSignature,
+          contentPadding: EdgeInsets.zero,
         ),
-      ),
+        if (viewModel.acceptsSignature) ...[
+          const SizedBox(height: AppSpacing.sm),
+          Column(
+            key: const ValueKey('rule-field-signature'),
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              for (int i = 0; i < signatures.length; i++)
+                _SignatureCard(
+                  key: ValueKey('sig-$i-${signatures.length}'),
+                  index: i,
+                  signature: signatures[i],
+                  viewModel: viewModel,
+                ),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: TextButton.icon(
+                  onPressed: viewModel.addPlaceSignature,
+                  icon: const Icon(Icons.add, size: 18),
+                  label: const Text('Adicionar Assinatura'),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.md),
+        ],
+      ],
     );
   }
 }
@@ -635,7 +880,7 @@ class _SignatureCard extends StatelessWidget {
                     ? signature.typeSignatureId
                     : null,
                 decoration: const InputDecoration(
-                  labelText: 'Tipo de Assinatura',
+                  labelText: 'Tipo de Assinatura *',
                   border: OutlineInputBorder(),
                 ),
                 items: viewModel.typeSignatures
@@ -643,6 +888,7 @@ class _SignatureCard extends StatelessWidget {
                         DropdownMenuItem<String>(
                             value: t.id, child: Text(t.name)))
                     .toList(),
+                validator: (v) => viewModel.validateSignatureType(v),
                 onChanged: (v) => viewModel.updatePlaceSignatureAndNotify(
                   index,
                   viewModel.placeSignatures[index]

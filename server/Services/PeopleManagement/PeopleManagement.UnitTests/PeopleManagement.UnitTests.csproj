@@ -25,8 +25,10 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\PeopleManagement.Application\PeopleManagement.Application.csproj" />
     <ProjectReference Include="..\PeopleManagement.Domain\PeopleManagement.Domain.csproj" />
     <ProjectReference Include="..\PeopleManagement.Infra\PeopleManagement.Infra.csproj" />
+    <ProjectReference Include="..\PeopleManagement.Services\PeopleManagement.Services.csproj" />
   </ItemGroup>
 
 </Project>

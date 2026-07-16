@@ -4,6 +4,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
 
 import '../../../../core/result.dart';
+import '../../../../core/utils/concurrency.dart';
 import '../../../../core/utils/error_messages.dart';
 import '../../../../core/utils/fuzzy_name_matcher.dart';
 import '../../../../core/utils/page_rotation_finder.dart';
@@ -29,9 +30,15 @@ enum BatchDocumentStatus {
 ///
 /// Signature for a function that extracts text from PDF bytes.
 ///
-/// Defaults to [extractTextFromPdf]. Can be overridden in tests to avoid
-/// depending on real PDF files.
-typedef PdfTextExtractorFn = String Function(Uint8List bytes);
+/// Defaults to [_extractTextInIsolate] (which offloads [extractTextFromPdf]
+/// to a background isolate via `compute`). Can be overridden in tests with a
+/// synchronous-returning async stub to avoid spawning a real isolate.
+typedef PdfTextExtractorFn = Future<String> Function(Uint8List bytes);
+
+/// Default [PdfTextExtractorFn]: runs [extractTextFromPdf] on a background
+/// isolate so bulk text extraction never blocks the UI thread.
+Future<String> _extractTextInIsolate(Uint8List bytes) =>
+    compute(extractTextFromPdf, bytes);
 
 /// Signature for a function that detects the upright orientation of a
 /// scanned page and returns the rotated bytes + OCR text for it.
@@ -66,7 +73,7 @@ class BatchDocumentViewModel extends ChangeNotifier {
   })  : _batchDocumentRepository = batchDocumentRepository,
         _documentGroupRepository = documentGroupRepository,
         _companyId = companyId,
-        _textExtractor = textExtractor ?? extractTextFromPdf,
+        _textExtractor = textExtractor ?? _extractTextInIsolate,
         _scannerRepository = scannerRepository,
         _pageRotationFinder = pageRotationFinder ?? pickBestRotation;
 
@@ -314,48 +321,62 @@ class BatchDocumentViewModel extends ChangeNotifier {
 
   /// Loads pending document units with the current filters and pagination.
   ///
-  /// When "Todos" is selected, queries each template in the group and
-  /// merges the results into a single list.
+  /// When "Todos" is selected, queries every template in the group
+  /// concurrently. Each template's page is appended to [pendingUnits] as
+  /// soon as it arrives, so the list fills in progressively instead of
+  /// waiting for all templates. If any template fails, the whole load fails:
+  /// the accumulated units are discarded and [status] becomes
+  /// [BatchDocumentStatus.error].
   Future<void> loadPendingUnits() async {
     final templateIds = _activeTemplateIds;
     if (templateIds.isEmpty) return;
     _status = BatchDocumentStatus.loading;
+    _pendingUnits = [];
+    _totalCount = 0;
     notifyListeners();
     try {
-      final allItems = <BatchDocumentUnitItem>[];
-      var totalCount = 0;
+      Object? firstError;
 
-      for (final templateId in templateIds) {
-        final result = await _batchDocumentRepository.getPendingDocumentUnits(
-          _companyId,
-          templateId,
-          employeeStatusId: _employeeStatusFilter,
-          employeeName: _employeeNameFilter,
-          periodTypeId: _periodTypeFilter,
-          periodYear: _periodYearFilter,
-          periodMonth: _periodMonthFilter,
-          periodDay: _periodDayFilter,
-          periodWeek: _periodWeekFilter,
-          pageSize: _pageSize,
-          pageNumber: _pageNumber,
-        );
-        result.fold(
-          onSuccess: (page) {
-            allItems.addAll(page.items);
-            totalCount += page.totalCount;
-          },
-          onError: (e, _) {
-            _errorMessage =
-                _errorFrom(e, 'Falha ao carregar documentos pendentes.');
-            _status = BatchDocumentStatus.error;
-          },
-        );
-        if (_status == BatchDocumentStatus.error) break;
-      }
+      await mapWithConcurrency<String, void>(
+        templateIds,
+        (templateId) async {
+          final result = await _batchDocumentRepository.getPendingDocumentUnits(
+            _companyId,
+            templateId,
+            employeeStatusId: _employeeStatusFilter,
+            employeeName: _employeeNameFilter,
+            periodTypeId: _periodTypeFilter,
+            periodYear: _periodYearFilter,
+            periodMonth: _periodMonthFilter,
+            periodDay: _periodDayFilter,
+            periodWeek: _periodWeekFilter,
+            pageSize: _pageSize,
+            pageNumber: _pageNumber,
+          );
+          result.fold(
+            onSuccess: (page) {
+              // Progressive append: read+write happen synchronously with no
+              // await between them, so concurrent tasks never race.
+              _pendingUnits = [..._pendingUnits, ...page.items];
+              _totalCount += page.totalCount;
+              notifyListeners();
+            },
+            onError: (e, _) => firstError ??= e,
+          );
+        },
+      );
 
-      if (_status != BatchDocumentStatus.error) {
-        _pendingUnits = allItems;
-        _totalCount = totalCount;
+      if (firstError != null) {
+        // Fail-all policy: a single template failure discards everything.
+        _pendingUnits = [];
+        _totalCount = 0;
+        _errorMessage =
+            _errorFrom(firstError!, 'Falha ao carregar documentos pendentes.');
+        _status = BatchDocumentStatus.error;
+      } else {
+        // Note: errorMessage is intentionally NOT reset here — callers that
+        // reload after a failed op (upload/generate) rely on the message
+        // surviving this trailing reload.
         _status = BatchDocumentStatus.loaded;
       }
     } finally {
@@ -366,19 +387,29 @@ class BatchDocumentViewModel extends ChangeNotifier {
   // ─── Missing employees ───────────────────────────────────
 
   /// Loads employees who do not have a pending document for the selected template(s).
+  ///
+  /// When "Todos" is selected, queries every template concurrently and then
+  /// deduplicates the combined result by employee id in a single pass (a
+  /// barrier: all responses are collected before dedup runs), preserving the
+  /// first-seen order across templates.
   Future<void> loadMissingEmployees() async {
     final templateIds = _activeTemplateIds;
     if (templateIds.isEmpty) return;
     try {
-      final allMissing = <EmployeeMissingDocument>[];
-      final seenIds = <String>{};
-      for (final templateId in templateIds) {
-        final result = await _batchDocumentRepository.getMissingEmployees(
+      final results = await mapWithConcurrency<
+          String, Result<List<EmployeeMissingDocument>>>(
+        templateIds,
+        (templateId) => _batchDocumentRepository.getMissingEmployees(
           _companyId,
           templateId,
           employeeStatusId: _employeeStatusFilter,
           employeeName: _employeeNameFilter,
-        );
+        ),
+      );
+
+      final allMissing = <EmployeeMissingDocument>[];
+      final seenIds = <String>{};
+      for (final result in results) {
         result.fold(
           onSuccess: (employees) {
             for (final emp in employees) {
@@ -398,15 +429,25 @@ class BatchDocumentViewModel extends ChangeNotifier {
   // ─── Batch create ────────────────────────────────────────
 
   /// Creates document units in batch for the given [employeeIds].
+  ///
+  /// When "Todos" is selected, creates units for every template concurrently
+  /// before reloading the pending list.
   Future<void> batchCreateDocumentUnits(List<String> employeeIds) async {
     final templateIds = _activeTemplateIds;
     if (templateIds.isEmpty || employeeIds.isEmpty) return;
     _status = BatchDocumentStatus.loading;
     notifyListeners();
     try {
-      for (final templateId in templateIds) {
-        final result = await _batchDocumentRepository
-            .batchCreateDocumentUnits(_companyId, templateId, employeeIds);
+      final results = await mapWithConcurrency<String,
+          Result<List<BatchCreatedItem>>>(
+        templateIds,
+        (templateId) => _batchDocumentRepository.batchCreateDocumentUnits(
+          _companyId,
+          templateId,
+          employeeIds,
+        ),
+      );
+      for (final result in results) {
         result.fold(
           onSuccess: (_) => null,
           onError: (e, _) => _errorMessage =
@@ -795,13 +836,27 @@ class BatchDocumentViewModel extends ChangeNotifier {
           .where((u) => !_stagedFiles.containsKey(u.documentUnitId))
           .toList();
 
-      for (final file in files) {
-        if (file.bytes == null) {
+      // Phase 1: extract text from every file concurrently. Extraction is the
+      // expensive, isolate-backed step and the files are independent, so run
+      // them with bounded concurrency, reporting progress as each completes.
+      // Files without bytes yield `null` and are skipped in phase 2.
+      final texts = await mapWithConcurrency<PlatformFile, String?>(
+        files,
+        (file) async {
+          final bytes = file.bytes;
+          final text = bytes == null ? null : await _textExtractor(bytes);
           _bulkProcessedCount++;
-          continue;
-        }
+          notifyListeners();
+          return text;
+        },
+      );
 
-        final text = _textExtractor(file.bytes!);
+      // Phase 2: match serially so each file excludes the units already
+      // assigned to earlier files (the no-duplicate-assignment invariant).
+      for (var i = 0; i < files.length; i++) {
+        final text = texts[i];
+        if (text == null) continue;
+        final file = files[i];
 
         // Build candidates excluding already-assigned units in this batch.
         final candidates = availableUnits
@@ -835,16 +890,12 @@ class BatchDocumentViewModel extends ChangeNotifier {
           assignedUnitIds.add(match.matchedDocumentUnitId!);
         }
 
-        _bulkProcessedCount++;
         notifyListeners();
-
-        // Yield to the UI thread so the progress indicator can update.
-        await Future<void>.delayed(Duration.zero);
       }
 
       // Sort: unmatched first, then low, medium, high.
       _bulkMatches.sort((a, b) {
-        final order = {
+        const order = {
           MatchConfidenceLevel.none: 0,
           MatchConfidenceLevel.low: 1,
           MatchConfidenceLevel.medium: 2,
@@ -955,11 +1006,14 @@ class BatchDocumentViewModel extends ChangeNotifier {
         // Working copy so we can swap rotated bytes in place.
         final pages = List<Uint8List>.of(documents[i]);
 
-        // Step 1: Run OCR on each page on its original orientation.
-        final pageTexts = <String>[];
-        for (final page in pages) {
-          pageTexts.add(await _scannerRepository.recognizeText(page));
-        }
+        // Step 1: Run OCR on each page on its original orientation. Pages of
+        // the same document are independent, so recognize them concurrently
+        // (bounded) while keeping page order in the result.
+        final pageTexts = (await mapWithConcurrency<Uint8List, String>(
+          pages,
+          _scannerRepository.recognizeText,
+        ))
+            .toList();
 
         // Step 2: Fuzzy match excluding already-assigned units.
         final candidates = availableUnits

@@ -50,25 +50,46 @@ namespace PeopleManagement.Domain.AggregatesModel.DocumentAggregate
             return new(id,  document);
         }
 
-        public static DocumentUnit Create(Guid id, Document document, PeriodType? periodType, DateTime? referenceDate)
+        /// <summary>
+        /// Cria a unidade situando-a na competência do documento, quando ele for por competência.
+        ///
+        /// Quem sabe se há competência é o [document] — ele copiou a configuração do template ao nascer. Com
+        /// [referenceDate], a unidade cai na competência daquela data (e a data vira o Date da unidade). Sem
+        /// [referenceDate], a unidade ainda não tem data que a situe, então recebe a competência mínima possível
+        /// — que é substituída assim que uma data real chega por UpdateDetails.
+        /// </summary>
+        public static DocumentUnit Create(Guid id, Document document, DateTime? referenceDate = null)
         {
             var documentUnit = new DocumentUnit(id, document);
 
-            if (periodType is not null && referenceDate.HasValue)
+            if (document.IsPeriod)
             {
-                documentUnit.SetPeriod((PeriodType)periodType, (DateTime)referenceDate);
-                DateOnly? validity = null;
-                documentUnit.UpdateDetails(DateOnly.FromDateTime((DateTime)referenceDate), validity, "");
+                if (referenceDate.HasValue)
+                {
+                    documentUnit.SetPeriod(referenceDate.Value);
+                    documentUnit.UpdateDetails(DateOnly.FromDateTime(referenceDate.Value), (DateOnly?)null, "");
+                }
+                else
+                {
+                    documentUnit.Period = Period.CreateMinimum(document.PeriodType!);
+                }
             }
 
             return documentUnit;
         }
 
-        public void SetPeriod(PeriodType periodType, DateTime referenceDate)
+        /// <summary>
+        /// Recalcula a competência da unidade a partir de [referenceDate], usando a configuração congelada no
+        /// documento. Só faz sentido quando o documento é por competência.
+        /// </summary>
+        public void SetPeriod(DateTime referenceDate)
         {
+            if (!Document.IsPeriod)
+                return;
+
             Period = Document.UsePreviousPeriod
-                ? Period.CreatePreviousPeriod(periodType, referenceDate)
-                : Period.Create(periodType, referenceDate);
+                ? Period.CreatePreviousPeriod(Document.PeriodType!, referenceDate)
+                : Period.Create(Document.PeriodType!, referenceDate);
         }
 
         public void InsertWithRequireValidation(Name name, Extension extension)
@@ -96,7 +117,7 @@ namespace PeopleManagement.Domain.AggregatesModel.DocumentAggregate
             Validity = validity;    
             Content = content;
             if (IsPeriod)
-                SetPeriod(Period!.Type, date.ToDateTime(TimeOnly.MinValue));
+                SetPeriod(date.ToDateTime(TimeOnly.MinValue));
         }
 
         public void UpdateDetails(DateOnly date, TimeSpan? validity, string content)
@@ -111,7 +132,7 @@ namespace PeopleManagement.Domain.AggregatesModel.DocumentAggregate
             Validity = dateValidity;
             Content = content;
             if(IsPeriod)
-                SetPeriod(Period!.Type, date.ToDateTime(TimeOnly.MinValue));
+                SetPeriod(date.ToDateTime(TimeOnly.MinValue));
         }
 
 
