@@ -31,5 +31,17 @@ namespace PeopleManagement.Infra.Repository
             dbStatuses.AddRange(addedStatuses);
             return dbStatuses;
         }
+
+        public Task<int> CountDeprecatedUnitsAsync(Guid documentId, Guid companyId, CancellationToken cancellationToken = default)
+        {
+            // AsNoTracking de propósito: a contagem não pode anexar unidades ao change tracker e interferir no
+            // aggregate já carregado (com tracking) pelo fluxo de depreciação. As unidades já depreciadas em ciclos
+            // anteriores estão commitadas, então a contagem no banco reflete as renovações passadas.
+            return context.DocumentsUnits
+                .AsNoTracking()
+                .CountAsync(u => u.DocumentId == documentId
+                    && u.Document.CompanyId == companyId
+                    && u.Status == DocumentUnitStatus.Deprecated, cancellationToken);
+        }
     }
 }

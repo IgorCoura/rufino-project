@@ -1,6 +1,8 @@
 using Microsoft.EntityFrameworkCore;
 using PeopleManagement.Domain.AggregatesModel.DocumentAggregate;
 using PeopleManagement.Domain.AggregatesModel.DocumentAggregate.Interfaces;
+using PeopleManagement.Domain.AggregatesModel.DocumentTemplateAggregate;
+using PeopleManagement.Domain.AggregatesModel.DocumentTemplateAggregate.Policies;
 using PeopleManagement.Domain.AggregatesModel.RequireDocumentsAggregate;
 using PeopleManagement.Infra.Context;
 using PeopleManagement.IntegrationTests.Configs;
@@ -55,14 +57,58 @@ namespace PeopleManagement.IntegrationTests.Tests
             Assert.Single(result.DocumentsUnits.Where(u => u.Status == DocumentUnitStatus.Pending));
         }
 
+        // Fase 3b: vencimento limitado. Enquanto o contador de renovações (unidades depreciadas) está abaixo do
+        // teto, ainda renova — deprecia a vencida e cria uma nova Pending.
+        [Fact]
+        public async Task DepreciateExpirate_LimitedPolicyBelowMax_StillRenews()
+        {
+            var ct = CancellationToken.None;
+            var context = GetContext();
+
+            var (companyId, document, okUnitId) = await SeedDocumentWithOkUnitAsync(context, ct, maxRenewals: 2);
+
+            await DepreciateAsync(document.Id, okUnitId, companyId, ct);
+
+            var result = await GetDocumentAsync(document.Id, ct);
+            Assert.Equal(2, result.DocumentsUnits.Count);
+            Assert.Equal(DocumentUnitStatus.Deprecated, result.DocumentsUnits.First(u => u.Id == okUnitId).Status);
+            Assert.Single(result.DocumentsUnits.Where(u => u.Status == DocumentUnitStatus.Pending));
+        }
+
+        // Ao atingir o teto (maxRenewals=1: uma renovação já ocorreu), o vencimento seguinte deprecia a unidade
+        // mas NÃO cria uma nova — o documento para de renovar.
+        [Fact]
+        public async Task DepreciateExpirate_LimitedPolicyAtMax_DeprecatesWithoutRenewing()
+        {
+            var ct = CancellationToken.None;
+            var context = GetContext();
+
+            var (companyId, document, firstUnitId) = await SeedDocumentWithOkUnitAsync(context, ct, maxRenewals: 1);
+
+            await DepreciateAsync(document.Id, firstUnitId, companyId, ct);
+
+            var afterFirst = await GetDocumentAsync(document.Id, ct);
+            var secondUnitId = afterFirst.DocumentsUnits.First(u => u.Status == DocumentUnitStatus.Pending).Id;
+            await MakeUnitOkAsync(document.Id, secondUnitId, ct);
+
+            await DepreciateAsync(document.Id, secondUnitId, companyId, ct);
+
+            var result = await GetDocumentAsync(document.Id, ct);
+            Assert.Equal(2, result.DocumentsUnits.Count);
+            Assert.Equal(2, result.DocumentsUnits.Count(u => u.Status == DocumentUnitStatus.Deprecated));
+            Assert.Empty(result.DocumentsUnits.Where(u => u.Status == DocumentUnitStatus.Pending));
+        }
+
         // Semeia empresa/cargo/template + funcionário ativo associado ao cargo, um RequireDocuments associado
         // ao cargo, e um Document com uma unidade OK (elegível a vencer/renovar).
         private async Task<(Guid CompanyId, Document Document, Guid OkUnitId)> SeedDocumentWithOkUnitAsync(
-            PeopleManagementContext context, CancellationToken ct)
+            PeopleManagementContext context, CancellationToken ct, int? maxRenewals = null)
         {
             var company = await context.InsertCompany(ct);
             var role = await context.InsertRole(company.Id, ct);
-            var template = await context.InsertDocumentTemplate(company.Id, ct);
+            var template = maxRenewals is null
+                ? await context.InsertDocumentTemplate(company.Id, ct)
+                : await InsertLimitedTemplateAsync(context, company.Id, maxRenewals.Value, ct);
             await context.SaveChangesAsync(ct);
 
             var employee = await context.InsertEmployeeActive(company.Id, role.Id, ct);
@@ -80,6 +126,23 @@ namespace PeopleManagement.IntegrationTests.Tests
             await context.SaveChangesAsync(ct);
 
             return (company.Id, document, unit.Id);
+        }
+
+        // Template com vencimento limitado (renova N vezes). Difere do Mother padrão, que deriva ExpirationPolicy
+        // indefinida do escalar de 365 dias.
+        private static async Task<DocumentTemplate> InsertLimitedTemplateAsync(
+            PeopleManagementContext context, Guid companyId, int maxRenewals, CancellationToken ct)
+        {
+            var documentGroup = await context.InsertDocumentGroup(companyId, ct);
+            var template = DocumentTemplate.Create(
+                Guid.NewGuid(), "Limited NR01", "Description Limited NR01", companyId,
+                (double?)null, null,
+                TemplateFileInfo.Create("dir", "index.html", "header.html", "footer.html", [RecoverDataType.Employee]),
+                acceptsSignature: false, placeSignatures: [], documentGroupId: documentGroup.Id,
+                usePreviousPeriod: false,
+                policies: [new ExpirationLimitedPolicy(TimeSpan.FromDays(365), maxRenewals)]);
+            await context.DocumentTemplates.AddAsync(template, ct);
+            return template;
         }
 
         private async Task DepreciateAsync(Guid documentId, Guid unitId, Guid companyId, CancellationToken ct)
