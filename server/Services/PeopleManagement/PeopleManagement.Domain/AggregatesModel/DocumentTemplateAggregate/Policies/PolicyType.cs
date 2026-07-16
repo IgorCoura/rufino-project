@@ -12,7 +12,9 @@ namespace PeopleManagement.Domain.AggregatesModel.DocumentTemplateAggregate.Poli
     {
         public static readonly PolicyType Expiration = new(1, nameof(Expiration));
         public static readonly PolicyType Period = new(2, nameof(Period));
-        public static readonly PolicyType Generation = new(3, nameof(Generation));
+        // 3 era Generation, removido: o TemplateFileInfo é owned e aponta para arquivos em disco, então virar
+        // policy criaria duas fontes para onde os arquivos estão. Nenhuma linha foi gravada com 3 — o id fica
+        // livre, e os demais não podem ser renumerados por já estarem persistidos.
         public static readonly PolicyType Workload = new(4, nameof(Workload));
         public static readonly PolicyType Signature = new(5, nameof(Signature));
 

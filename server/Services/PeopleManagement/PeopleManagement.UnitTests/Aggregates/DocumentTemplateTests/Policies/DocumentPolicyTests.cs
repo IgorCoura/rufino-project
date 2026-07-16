@@ -106,13 +106,9 @@ namespace PeopleManagement.UnitTests.Aggregates.DocumentTemplateTests.Policies
             Assert.Equal(PolicyType.Signature, record.Type);
         }
 
-        [Fact]
-        public void ToPolicy_WithUnhandledDiscriminator_Throws()
-        {
-            var record = new DocumentPolicy(PolicyType.Generation, "{}");
-
-            Assert.Throws<DomainException>(() => DocumentPolicyFactory.ToPolicy(record));
-        }
+        // Não há teste do fallback de ToPolicy: depois que Generation saiu, todo PolicyType tem suporte na
+        // factory, e CreateFromValue recusa qualquer id fora da lista — o estado que aquele arm cobre deixou de
+        // ser construtível. Ele fica como guarda para quem adicionar um PolicyType e esquecer a factory.
 
         [Fact]
         public void ToPersistence_WithUnsupportedPolicy_Throws()
