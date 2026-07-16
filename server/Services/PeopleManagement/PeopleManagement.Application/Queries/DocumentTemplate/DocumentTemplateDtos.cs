@@ -29,14 +29,26 @@ namespace PeopleManagement.Application.Queries.DocumentTemplate
 
         /// <summary>
         /// Regras ativas do template. Bloco nulo = regra não se aplica — mesma semântica do Composite do domínio
-        /// e do contrato de escrita.
+        /// e do contrato de escrita. A assinatura é uma regra como as outras: bloco presente = aceita assinatura,
+        /// e ele carrega os locais (mesma forma da SignaturePolicy no domínio). Assim o retorno é uniforme — nada
+        /// de assinatura solta no topo ou aninhada no arquivo.
         /// </summary>
         public record PoliciesDto
         {
             public ExpirationPolicyDto? Expiration { get; init; }
             public WorkloadPolicyDto? Workload { get; init; }
             public PeriodPolicyDto? Period { get; init; }
+            public SignaturePolicyDto? Signature { get; init; }
             public static PoliciesDto Empty => new();
+        }
+
+        /// <summary>
+        /// Assinatura como regra: presença = aceita assinatura. Carrega os locais (pode ser lista vazia — aceita
+        /// assinatura sem posição fixa).
+        /// </summary>
+        public record SignaturePolicyDto
+        {
+            public PlaceSignatureDto[] PlaceSignatures { get; init; } = [];
         }
 
         public record ExpirationPolicyDto
@@ -69,7 +81,6 @@ namespace PeopleManagement.Application.Queries.DocumentTemplate
             public string HeaderFileName { get; init; } = string.Empty;
             public string FooterFileName { get; init; } = string.Empty;
             public EnumerationDto[] RecoversDataType { get; init; } = [];
-            public PlaceSignatureDto[] PlaceSignatures { get; init; } = [];
             public static TemplateFileInfoDto Empty => new();
         }
 

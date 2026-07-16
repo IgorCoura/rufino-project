@@ -356,6 +356,35 @@ void main() {
         expect(statuses, contains(DocumentTemplateFormStatus.saving));
         expect(statuses.last, DocumentTemplateFormStatus.saved);
       });
+
+      // Reprodução do relato: adicionar o primeiro local a uma lista vazia e salvar.
+      // O local (com seus valores) precisa chegar ao repositório.
+      test('sends the first placement added to an empty list', () async {
+        viewModel.nameController.text = 'Novo Template';
+        viewModel.descriptionController.text = 'Descrição';
+
+        viewModel.setAcceptsSignature(true);
+        viewModel.addPlaceSignature();
+        viewModel.updatePlaceSignature(
+          0,
+          const PlaceSignatureData(
+            typeSignatureId: '2',
+            page: '1',
+            positionBottom: '10',
+            positionLeft: '20',
+            sizeX: '30',
+            sizeY: '40',
+          ),
+        );
+
+        await viewModel.save();
+
+        expect(templateRepository.lastSentAcceptsSignature, isTrue);
+        expect(templateRepository.lastSentPlaceSignatures, hasLength(1));
+        expect(templateRepository.lastSentPlaceSignatures!.first.typeSignatureId,
+            '2');
+        expect(templateRepository.lastSentPlaceSignatures!.first.page, '1');
+      });
     });
 
     group('setters', () {
@@ -377,6 +406,17 @@ void main() {
 
         expect(viewModel.acceptsSignature, isTrue);
         expect(notified, isTrue);
+      });
+
+      test('setAcceptsSignature(false) clears the placements', () {
+        viewModel.setAcceptsSignature(true);
+        viewModel.addPlaceSignature();
+        viewModel.addPlaceSignature();
+
+        viewModel.setAcceptsSignature(false);
+
+        expect(viewModel.acceptsSignature, isFalse);
+        expect(viewModel.placeSignatures, isEmpty);
       });
 
       test('setDocumentGroupId updates selection and notifies', () {

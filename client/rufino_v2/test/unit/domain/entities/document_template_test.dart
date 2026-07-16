@@ -141,6 +141,18 @@ void main() {
     });
   });
 
+  group('PlaceSignatureData.validateType', () {
+    test('returns error when null or empty, since type is mandatory', () {
+      expect(PlaceSignatureData.validateType(null), isNotNull);
+      expect(PlaceSignatureData.validateType(''), isNotNull);
+      expect(PlaceSignatureData.validateType('   '), isNotNull);
+    });
+
+    test('returns null when a type is selected', () {
+      expect(PlaceSignatureData.validateType('2'), isNull);
+    });
+  });
+
   group('PlaceSignatureData.validateField', () {
     test('returns error when empty', () {
       expect(PlaceSignatureData.validateField(null, 'Página'), isNotNull);

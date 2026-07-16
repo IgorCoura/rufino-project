@@ -271,25 +271,8 @@ class _DocumentTemplateFormBody extends StatelessWidget {
                       usePreviousPeriod: viewModel.usePreviousPeriod,
                       onUsePreviousPeriodChanged: viewModel.setUsePreviousPeriod,
                     ),
-                  ],
-                ),
-                const SizedBox(height: AppSpacing.md),
-
-                // ─── Configurações ──────────────────────────────────
-                _SectionCard(
-                  icon: Icons.settings_outlined,
-                  label: 'Configurações',
-                  children: [
-                    SwitchListTile(
-                      title: const Text('Aceita Assinatura'),
-                      subtitle: const Text(
-                        'Documentos gerados a partir deste template '
-                        'poderão ser assinados.',
-                      ),
-                      value: viewModel.acceptsSignature,
-                      onChanged: viewModel.setAcceptsSignature,
-                      contentPadding: EdgeInsets.zero,
-                    ),
+                    const Divider(height: 1),
+                    _SignatureRuleTile(viewModel: viewModel),
                   ],
                 ),
                 const SizedBox(height: AppSpacing.md),
@@ -368,12 +351,6 @@ class _DocumentTemplateFormBody extends StatelessWidget {
                 // ─── Upload/Download (only when editing) ─────────────
                 if (!viewModel.isNew) ...[
                   _FileSection(viewModel: viewModel),
-                  const SizedBox(height: AppSpacing.md),
-                ],
-
-                // ─── Locais das Assinaturas ──────────────────────────
-                if (viewModel.acceptsSignature) ...[
-                  _PlaceSignaturesSection(viewModel: viewModel),
                   const SizedBox(height: AppSpacing.md),
                 ],
 
@@ -727,58 +704,61 @@ class _FileSection extends StatelessWidget {
   }
 }
 
-/// Section for managing signature placements on the document template.
-class _PlaceSignaturesSection extends StatelessWidget {
-  const _PlaceSignaturesSection({required this.viewModel});
+/// The signature rule switch and the placement editor it reveals when on.
+///
+/// Acceptance and placements are one rule: the switch is presence of signature,
+/// and the placements below are where it goes. Turning it off clears the
+/// placements in the view model, so acceptance and placements can never disagree
+/// at save time (the API rejects placements without acceptance, `PMD.DOCT10`).
+class _SignatureRuleTile extends StatelessWidget {
+  const _SignatureRuleTile({required this.viewModel});
 
   final DocumentTemplateFormViewModel viewModel;
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     final signatures = viewModel.placeSignatures;
 
-    return Card.outlined(
-      child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.md),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Row(
-              children: [
-                Icon(
-                  Icons.draw_outlined,
-                  size: 20,
-                  color: theme.colorScheme.primary,
-                ),
-                const SizedBox(width: AppSpacing.sm),
-                Text(
-                  'Locais das Assinaturas',
-                  style: theme.textTheme.titleMedium?.copyWith(
-                    color: theme.colorScheme.primary,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: AppSpacing.md),
-            for (int i = 0; i < signatures.length; i++)
-              _SignatureCard(
-                key: ValueKey('sig-$i-${signatures.length}'),
-                index: i,
-                signature: signatures[i],
-                viewModel: viewModel,
-              ),
-            Align(
-              alignment: Alignment.centerLeft,
-              child: TextButton.icon(
-                onPressed: viewModel.addPlaceSignature,
-                icon: const Icon(Icons.add, size: 18),
-                label: const Text('Adicionar Assinatura'),
-              ),
-            ),
-          ],
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        SwitchListTile(
+          key: const ValueKey('rule-switch-signature'),
+          title: const Text('Assinatura'),
+          subtitle: const Text(
+            'Documentos gerados a partir deste template poderão ser assinados '
+            'nos locais definidos abaixo.',
+          ),
+          value: viewModel.acceptsSignature,
+          onChanged: viewModel.setAcceptsSignature,
+          contentPadding: EdgeInsets.zero,
         ),
-      ),
+        if (viewModel.acceptsSignature) ...[
+          const SizedBox(height: AppSpacing.sm),
+          Column(
+            key: const ValueKey('rule-field-signature'),
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              for (int i = 0; i < signatures.length; i++)
+                _SignatureCard(
+                  key: ValueKey('sig-$i-${signatures.length}'),
+                  index: i,
+                  signature: signatures[i],
+                  viewModel: viewModel,
+                ),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: TextButton.icon(
+                  onPressed: viewModel.addPlaceSignature,
+                  icon: const Icon(Icons.add, size: 18),
+                  label: const Text('Adicionar Assinatura'),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.md),
+        ],
+      ],
     );
   }
 }
@@ -846,7 +826,7 @@ class _SignatureCard extends StatelessWidget {
                     ? signature.typeSignatureId
                     : null,
                 decoration: const InputDecoration(
-                  labelText: 'Tipo de Assinatura',
+                  labelText: 'Tipo de Assinatura *',
                   border: OutlineInputBorder(),
                 ),
                 items: viewModel.typeSignatures
@@ -854,6 +834,7 @@ class _SignatureCard extends StatelessWidget {
                         DropdownMenuItem<String>(
                             value: t.id, child: Text(t.name)))
                     .toList(),
+                validator: (v) => viewModel.validateSignatureType(v),
                 onChanged: (v) => viewModel.updatePlaceSignatureAndNotify(
                   index,
                   viewModel.placeSignatures[index]

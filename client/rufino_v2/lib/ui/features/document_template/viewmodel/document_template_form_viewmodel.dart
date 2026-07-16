@@ -239,9 +239,13 @@ class DocumentTemplateFormViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Updates the [acceptsSignature] flag and notifies listeners.
+  /// Turns signature acceptance on or off and notifies listeners.
+  ///
+  /// Turning it off clears the placements, so a document that no longer accepts
+  /// signature cannot carry placements the API would reject (`PMD.DOCT10`).
   void setAcceptsSignature(bool value) {
     _acceptsSignature = value;
+    if (!value) _placeSignatures = [];
     notifyListeners();
   }
 
@@ -414,6 +418,13 @@ class DocumentTemplateFormViewModel extends ChangeNotifier {
   /// Delegates to [PlaceSignatureData.validateField].
   String? validateSignatureNumber(String? v, String label) =>
       PlaceSignatureData.validateField(v, label);
+
+  /// Delegates to [PlaceSignatureData.validateType].
+  ///
+  /// A placement without a type would be sent as `type: 0`, which the API
+  /// rejects (there is no signature type 0) — so the type is mandatory.
+  String? validateSignatureType(String? typeSignatureId) =>
+      PlaceSignatureData.validateType(typeSignatureId);
 
   /// Delegates to [DocumentTemplate.validateFileName].
   String? validateFileName(String? v) => DocumentTemplate.validateFileName(v);

@@ -549,6 +549,85 @@ namespace PeopleManagement.IntegrationTests.Tests
             Assert.Equal(0, policiesLeft);
         }
 
+        // Regressão: os locais de assinatura moram na SignaturePolicy, não no TemplateFileInfo. A projeção da query
+        // aninhava PlaceSignatures dentro do TemplateFileInfoDto e devolvia o bloco vazio quando o template não tinha
+        // arquivo (TemplateFileInfo nulo) — então um template que aceita assinatura sem arquivo voltava do GET sem os
+        // locais (some ao reabrir no app). O GetById precisa emitir os locais mesmo sem arquivo.
+        [Fact]
+        public async Task GetById_TemplateAcceptsSignatureWithoutFileInfo_ReturnsThePlacements()
+        {
+            var cancellationToken = CancellationToken.None;
+
+            var context = GetContext();
+
+            var company = await context.InsertCompany(cancellationToken);
+            var documentGroup = await context.InsertDocumentGroup(company.Id, cancellationToken);
+
+            var template = DocumentTemplate.Create(
+                Guid.NewGuid(), "NR35", "Description NR35", company.Id, (double?)null, null,
+                templateFileInfo: null,
+                true, [PlaceSignature.Create(TypeSignature.Visa, 3, 10.5, 20.25, 30, 40)], documentGroup.Id);
+            await context.DocumentTemplates.AddAsync(template, cancellationToken);
+            await context.SaveChangesAsync(cancellationToken);
+
+            using var scope = _factory.Services.CreateScope();
+            var queries = scope.ServiceProvider.GetRequiredService<IDocumentTemplateQueries>();
+            var dto = await queries.GetById(company.Id, template.Id);
+
+            Assert.True(dto.AcceptsSignature);
+            Assert.NotNull(dto.Policies.Signature);
+            var place = Assert.Single(dto.Policies.Signature!.PlaceSignatures);
+            Assert.Equal(TypeSignature.Visa.Id, place.TypeSignature.Id);
+            Assert.Equal(3, place.Page);
+            Assert.Equal(10.5, place.RelativePositionBotton);
+            Assert.Equal(20.25, place.RelativePositionLeft);
+            Assert.Equal(30, place.RelativeSizeX);
+            Assert.Equal(40, place.RelativeSizeY);
+        }
+
+        // Round-trip completo do caminho do app: POST cria o template com assinatura e locais, sem arquivo (o app não
+        // manda TemplateFileInfo quando o usuário só configura assinatura), e o GET devolve os locais. Guarda o fluxo
+        // inteiro contra a regressão, não só a projeção.
+        [Fact]
+        public async Task CreateThenGetById_SignatureWithoutFileInfo_PlacementsSurviveTheRoundTrip()
+        {
+            var cancellationToken = CancellationToken.None;
+
+            var context = GetContext();
+            var client = CreateClient();
+
+            var company = await context.InsertCompany(cancellationToken);
+            var documentGroup = await context.InsertDocumentGroup(company.Id, cancellationToken);
+            await context.SaveChangesAsync(cancellationToken);
+
+            var command = new CreateDocumentTemplateCommand(
+                company.Id, "NR01", "Description NR01", (double?)null, null,
+                TemplateFileInfo: null,
+                AcceptsSignature: true,
+                [new PlaceSignatureModel(TypeSignature.Visa.Id, 3, 10.5, 20.25, 30, 40)],
+                documentGroup.Id);
+
+            client.InputHeaders([company.Id]);
+            var response = await client.PostAsJsonAsync($"/api/v1/{company.Id}/documenttemplate", command);
+
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+            var content = await response.Content.ReadFromJsonAsync<CreateDocumentTemplateResponse>() ?? throw new ArgumentNullException();
+
+            using var scope = _factory.Services.CreateScope();
+            var queries = scope.ServiceProvider.GetRequiredService<IDocumentTemplateQueries>();
+            var dto = await queries.GetById(company.Id, content.Id);
+
+            Assert.True(dto.AcceptsSignature);
+            Assert.NotNull(dto.Policies.Signature);
+            var place = Assert.Single(dto.Policies.Signature!.PlaceSignatures);
+            Assert.Equal(TypeSignature.Visa.Id, place.TypeSignature.Id);
+            Assert.Equal(3, place.Page);
+            Assert.Equal(10.5, place.RelativePositionBotton);
+            Assert.Equal(20.25, place.RelativePositionLeft);
+            Assert.Equal(30, place.RelativeSizeX);
+            Assert.Equal(40, place.RelativeSizeY);
+        }
+
         private sealed record LegacyPlaceSignatureRow(
             bool AcceptsSignature, int Type, double Page, double RelativePositionBotton, double RelativePositionLeft);
 
@@ -742,6 +821,94 @@ namespace PeopleManagement.IntegrationTests.Tests
             Assert.Null(persisted.GetPolicy<IExpirationPolicy>());
             Assert.Equal(TimeSpan.FromHours(4), persisted.GetPolicy<IWorkloadPolicy>()!.Workload);
             Assert.Null(persisted.DocumentValidityDuration);
+        }
+
+        // Reprodução do relato: adicionar o PRIMEIRO local de assinatura (lista vazia -> um) via Edit. O template
+        // nasce aceitando assinatura mas sem locais; o Edit manda um local. O local precisa persistir e voltar no GET.
+        [Fact]
+        public async Task EditDocumentTemplate_AddFirstPlacementToEmptyList_PersistsThePlacement()
+        {
+            var cancellationToken = CancellationToken.None;
+
+            var context = GetContext();
+            var client = CreateClient();
+
+            var company = await context.InsertCompany(cancellationToken);
+            var documentGroup = await context.InsertDocumentGroup(company.Id, cancellationToken);
+
+            // Template aceita assinatura, mas sem nenhum local (lista vazia) — o estado de partida do relato.
+            var template = DocumentTemplate.Create(
+                Guid.NewGuid(), "NR35", "Description NR35", company.Id, (double?)null, null,
+                templateFileInfo: null,
+                true, [], documentGroup.Id);
+            await context.DocumentTemplates.AddAsync(template, cancellationToken);
+            await context.SaveChangesAsync(cancellationToken);
+
+            var command = new EditDocumentTemplateModel(
+                template.Id, "NR35", "Description NR35",
+                TemplateFileInfo: null,
+                null, null, true,
+                [new EditPlaceSignatureModel(TypeSignature.Visa.Id, 3, 10.5, 20.25, 30, 40)],
+                documentGroup.Id, false, new PoliciesModel());
+
+            client.InputHeaders([company.Id]);
+            var response = await client.PutAsJsonAsync($"/api/v1/{company.Id}/documenttemplate", command);
+
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+            using var scope = _factory.Services.CreateScope();
+            var queries = scope.ServiceProvider.GetRequiredService<IDocumentTemplateQueries>();
+            var dto = await queries.GetById(company.Id, template.Id);
+
+            Assert.True(dto.AcceptsSignature);
+            Assert.NotNull(dto.Policies.Signature);
+            var place = Assert.Single(dto.Policies.Signature!.PlaceSignatures);
+            Assert.Equal(TypeSignature.Visa.Id, place.TypeSignature.Id);
+            Assert.Equal(3, place.Page);
+        }
+
+        // Fronteira do servidor: um local sem tipo (Type = 0) é inválido — TypeSignature.FromValue(0) não existe e
+        // lança ao materializar o command, então o Edit inteiro é recusado e o local não é salvo. Esse é o motivo do
+        // relato "não salva ao adicionar em lista vazia": o dropdown de tipo nasce sem seleção, e sem o tipo o app
+        // mandava type:0. A guarda real é o validador do cliente (o local nem é enviado); este teste apenas fixa que
+        // o servidor não aceita o valor caso escape. O local anterior (que já tem tipo) salva, por isso a lista
+        // não-vazia "funcionava".
+        [Fact]
+        public async Task EditDocumentTemplate_PlacementWithoutType_IsRejected()
+        {
+            var cancellationToken = CancellationToken.None;
+
+            var context = GetContext();
+            var client = CreateClient();
+
+            var company = await context.InsertCompany(cancellationToken);
+            var documentGroup = await context.InsertDocumentGroup(company.Id, cancellationToken);
+
+            var template = DocumentTemplate.Create(
+                Guid.NewGuid(), "NR35", "Description NR35", company.Id, (double?)null, null,
+                templateFileInfo: null,
+                true, [], documentGroup.Id);
+            await context.DocumentTemplates.AddAsync(template, cancellationToken);
+            await context.SaveChangesAsync(cancellationToken);
+
+            var command = new EditDocumentTemplateModel(
+                template.Id, "NR35", "Description NR35",
+                TemplateFileInfo: null,
+                null, null, true,
+                [new EditPlaceSignatureModel(0, 3, 10.5, 20.25, 30, 40)],
+                documentGroup.Id, false, new PoliciesModel());
+
+            client.InputHeaders([company.Id]);
+
+            await Assert.ThrowsAsync<InvalidOperationException>(
+                () => client.PutAsJsonAsync($"/api/v1/{company.Id}/documenttemplate", command));
+
+            // E nada foi persistido: o template segue aceitando assinatura, mas sem locais.
+            using var scope = _factory.Services.CreateScope();
+            var queries = scope.ServiceProvider.GetRequiredService<IDocumentTemplateQueries>();
+            var dto = await queries.GetById(company.Id, template.Id);
+            Assert.NotNull(dto.Policies.Signature);
+            Assert.Empty(dto.Policies.Signature!.PlaceSignatures);
         }
     }
 }

@@ -332,6 +332,17 @@ class PlaceSignatureData {
     return null;
   }
 
+  /// Validates the signature type selection.
+  ///
+  /// Mandatory: a placement without a type is sent as `type: 0`, which the API
+  /// rejects (there is no signature type 0), failing the whole save.
+  static String? validateType(String? typeSignatureId) {
+    if (typeSignatureId == null || typeSignatureId.trim().isEmpty) {
+      return 'Selecione o tipo de assinatura.';
+    }
+    return null;
+  }
+
   /// Returns a copy with the given overrides.
   PlaceSignatureData copyWith({
     String? typeSignatureId,

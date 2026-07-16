@@ -27,12 +27,43 @@ namespace PeopleManagement.Application.Queries.DocumentTemplate
             var expiration = template.GetPolicy<IExpirationPolicy>();
             var workload = template.GetPolicy<IWorkloadPolicy>();
             var period = template.GetPolicy<IPeriodPolicy>();
+            var signature = template.GetPolicy<ISignaturePolicy>();
 
             return new PoliciesDto
             {
                 Expiration = expiration is null ? null : new ExpirationPolicyDto { DurationInDays = expiration.Duration.TotalDays },
                 Workload = workload is null ? null : new WorkloadPolicyDto { Hours = workload.Workload.TotalHours },
                 Period = period is null ? null : new PeriodPolicyDto { PeriodTypeId = period.PeriodType.Id, UsePreviousPeriod = period.UsePreviousPeriod },
+                // Presença da SignaturePolicy = aceita assinatura. Os locais saem daqui — a mesma fonte do domínio —
+                // e não dependem de o template ter arquivo, o que fazia assinaturas novas sumirem no GET.
+                Signature = signature is null ? null : new SignaturePolicyDto
+                {
+                    PlaceSignatures = signature.PlaceSignatures.Select(ToPlaceSignatureDto).ToArray(),
+                },
+            };
+        }
+
+        private static PlaceSignatureDto ToPlaceSignatureDto(PlaceSignature p) => new()
+        {
+            TypeSignature = new EnumerationDto { Id = p.Type.Id, Name = p.Type.Name },
+            Page = p.Page.Value,
+            RelativePositionBotton = p.RelativePositionBotton.Value,
+            RelativePositionLeft = p.RelativePositionLeft.Value,
+            RelativeSizeX = p.RelativeSizeX.Value,
+            RelativeSizeY = p.RelativeSizeY.Value,
+        };
+
+        // O arquivo não carrega mais assinatura: os locais foram para o bloco policies.signature. Aqui ficam só os
+        // campos de arquivo, vazios quando o template não tem TemplateFileInfo.
+        private static TemplateFileInfoDto ToTemplateFileInfoDto(Domain.AggregatesModel.DocumentTemplateAggregate.DocumentTemplate template)
+        {
+            var fileInfo = template.TemplateFileInfo;
+            return new TemplateFileInfoDto
+            {
+                BodyFileName = fileInfo?.BodyFileName.Value ?? string.Empty,
+                HeaderFileName = fileInfo?.HeaderFileName.Value ?? string.Empty,
+                FooterFileName = fileInfo?.FooterFileName.Value ?? string.Empty,
+                RecoversDataType = fileInfo is null ? [] : fileInfo.RecoversDataType.Select(x => (EnumerationDto)x).ToArray(),
             };
         }
         public async Task<IEnumerable<DocumentTemplateSimpleDto>> GetAllSimple(Guid companyId)
@@ -80,26 +111,7 @@ namespace PeopleManagement.Application.Queries.DocumentTemplate
                     UsePreviousPeriod = entity.DocumentTemplates.UsePreviousPeriod,
                     AcceptsSignature = entity.DocumentTemplates.AcceptsSignature,
                     Policies = ToPoliciesDto(entity.DocumentTemplates),
-                    TemplateFileInfo = entity.DocumentTemplates.TemplateFileInfo == null ? new TemplateFileInfoDto() : new TemplateFileInfoDto
-                    {
-                        BodyFileName = entity.DocumentTemplates.TemplateFileInfo.BodyFileName.Value,
-                        HeaderFileName = entity.DocumentTemplates.TemplateFileInfo.HeaderFileName.Value,
-                        FooterFileName = entity.DocumentTemplates.TemplateFileInfo.FooterFileName.Value,
-                        RecoversDataType = entity.DocumentTemplates.TemplateFileInfo.RecoversDataType.Select(x => (EnumerationDto)x).ToArray(),
-                        PlaceSignatures = entity.DocumentTemplates.PlaceSignatures.Select(p => new PlaceSignatureDto
-                        {
-                            TypeSignature = new EnumerationDto
-                            {
-                                Id = p.Type.Id,
-                                Name = p.Type.Name
-                            },
-                            Page = p.Page.Value,
-                            RelativePositionBotton = p.RelativePositionBotton.Value,
-                            RelativePositionLeft = p.RelativePositionLeft.Value,
-                            RelativeSizeX = p.RelativeSizeX.Value,
-                            RelativeSizeY = p.RelativeSizeY.Value,
-                        }).ToArray(),
-                    },
+                    TemplateFileInfo = ToTemplateFileInfoDto(entity.DocumentTemplates),
                     DocumentGroup = new DocumentGroupDocumentTemplateDto
                     {
                         Id = entity.DocumentGroups.Id,
@@ -129,26 +141,7 @@ namespace PeopleManagement.Application.Queries.DocumentTemplate
                 AcceptsSignature = x.AcceptsSignature,
                 UsePreviousPeriod = x.UsePreviousPeriod,
                 Policies = ToPoliciesDto(x),
-                TemplateFileInfo = x.TemplateFileInfo == null ? new TemplateFileInfoDto() : new TemplateFileInfoDto
-                {
-                    BodyFileName = x.TemplateFileInfo.BodyFileName.Value,
-                    HeaderFileName = x.TemplateFileInfo.HeaderFileName.Value,
-                    FooterFileName = x.TemplateFileInfo.FooterFileName.Value,
-                    RecoversDataType = x.TemplateFileInfo.RecoversDataType.Select(x => (EnumerationDto)x).ToArray(),
-                    PlaceSignatures = x.PlaceSignatures.Select(p => new PlaceSignatureDto
-                    {
-                        TypeSignature = new EnumerationDto
-                        {
-                            Id = p.Type.Id,
-                            Name = p.Type.Name
-                        },
-                        Page = p.Page.Value,
-                        RelativePositionBotton = p.RelativePositionBotton.Value,
-                        RelativePositionLeft = p.RelativePositionLeft.Value,
-                        RelativeSizeX = p.RelativeSizeX.Value,
-                        RelativeSizeY = p.RelativeSizeY.Value,
-                    }).ToArray(),
-                }
+                TemplateFileInfo = ToTemplateFileInfoDto(x)
             });
 
                                                                                                                                                                                                

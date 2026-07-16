@@ -369,4 +369,105 @@ void main() {
       expect(period['usePreviousPeriod'], isTrue);
     });
   });
+
+  group('DocumentTemplateApiModel signature policy', () {
+    test('fromJson reads acceptance and placements from policies.signature', () {
+      final json = {
+        'id': 'tpl-1',
+        'name': 'NR01',
+        'description': 'Descrição',
+        'policies': {
+          'signature': {
+            'placeSignatures': [
+              {
+                'typeSignature': {'id': 2, 'name': 'Visto'},
+                'page': 3,
+                'relativePositionBotton': 10.5,
+                'relativePositionLeft': 20.25,
+                'relativeSizeX': 30,
+                'relativeSizeY': 40,
+              },
+            ],
+          },
+        },
+      };
+
+      final model = DocumentTemplateApiModel.fromJson(json);
+
+      expect(model.acceptsSignature, isTrue);
+      expect(model.placeSignatures, hasLength(1));
+      expect(model.placeSignatures.first.typeSignatureId, '2');
+      expect(model.placeSignatures.first.page, '3');
+      expect(model.placeSignatures.first.positionBottom, '10.5');
+    });
+
+    // Aceita assinatura sem posição fixa: o bloco existe com lista vazia.
+    test('fromJson treats a present signature block with no placements as accepting',
+        () {
+      final json = {
+        'id': 'tpl-1',
+        'name': 'NR01',
+        'description': 'Descrição',
+        'policies': {
+          'signature': {'placeSignatures': <dynamic>[]},
+        },
+      };
+
+      final model = DocumentTemplateApiModel.fromJson(json);
+
+      expect(model.acceptsSignature, isTrue);
+      expect(model.placeSignatures, isEmpty);
+    });
+
+    test('fromJson maps an absent signature block to not accepting', () {
+      final json = {
+        'id': 'tpl-1',
+        'name': 'NR01',
+        'description': 'Descrição',
+        'policies': {
+          'expiration': {'durationInDays': 365},
+        },
+      };
+
+      final model = DocumentTemplateApiModel.fromJson(json);
+
+      expect(model.acceptsSignature, isFalse);
+      expect(model.placeSignatures, isEmpty);
+    });
+
+    // Resiliência: sem o bloco policies, cai no acceptsSignature do topo.
+    test('fromJson falls back to the top-level flag when policies is absent', () {
+      final json = {
+        'id': 'tpl-1',
+        'name': 'NR01',
+        'description': 'Descrição',
+        'acceptsSignature': true,
+      };
+
+      final model = DocumentTemplateApiModel.fromJson(json);
+
+      expect(model.acceptsSignature, isTrue);
+    });
+
+    // O contrato de escrita não muda: assinatura vai no topo, não em policies.
+    test('toJson keeps signature at the top level, not inside policies', () {
+      const model = DocumentTemplateApiModel(
+        id: 'tpl-1',
+        name: 'NR01',
+        description: 'Descrição',
+        validityDurationInDays: null,
+        workloadInHours: null,
+        usePreviousPeriod: false,
+        acceptsSignature: true,
+        placeSignatures: [PlaceSignatureData(typeSignatureId: '2', page: '3')],
+        policies: TemplatePolicies(),
+      );
+
+      final json = model.toJson();
+
+      expect(json['acceptsSignature'], isTrue);
+      expect((json['placeSignatures'] as List).length, 1);
+      expect((json['policies'] as Map<String, dynamic>)['signature'], isNull);
+    });
+  });
 }

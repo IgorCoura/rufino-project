@@ -138,6 +138,158 @@ void main() {
 
       expect(find.byKey(const ValueKey('rule-field-period')), findsOneWidget);
     });
+
+    testWidgets('shows the signature switch', (tester) async {
+      await tester.pumpWidget(buildSubject());
+      await tester.pumpAndSettle();
+
+      expect(find.text('Assinatura'), findsOneWidget);
+    });
+
+    testWidgets('hides the placements while the signature rule is off',
+        (tester) async {
+      await tester.pumpWidget(buildSubject());
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const ValueKey('rule-field-signature')), findsNothing);
+    });
+
+    testWidgets('reveals the placements when the signature rule is turned on',
+        (tester) async {
+      await tester.pumpWidget(buildSubject());
+      await tester.pumpAndSettle();
+
+      await tester
+          .ensureVisible(find.byKey(const ValueKey('rule-switch-signature')));
+      await tester.tap(find.byKey(const ValueKey('rule-switch-signature')));
+      await tester.pumpAndSettle();
+
+      expect(
+          find.byKey(const ValueKey('rule-field-signature')), findsOneWidget);
+      expect(find.text('Adicionar Assinatura'), findsOneWidget);
+    });
+
+    testWidgets('hides the placements again when the rule is turned off',
+        (tester) async {
+      await tester.pumpWidget(buildSubject());
+      await tester.pumpAndSettle();
+
+      await tester
+          .ensureVisible(find.byKey(const ValueKey('rule-switch-signature')));
+      await tester.tap(find.byKey(const ValueKey('rule-switch-signature')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('rule-switch-signature')));
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const ValueKey('rule-field-signature')), findsNothing);
+    });
+  });
+
+  group('DocumentTemplateFormScreen signature placements', () {
+    // Router com pilha popável: o save de sucesso chama context.pop().
+    Widget buildPoppableSubject() => MaterialApp.router(
+          routerConfig: GoRouter(
+            initialLocation: '/home',
+            routes: [
+              GoRoute(
+                path: '/home',
+                builder: (context, __) => Scaffold(
+                  body: Center(
+                    child: ElevatedButton(
+                      onPressed: () => context.push('/form'),
+                      child: const Text('ir'),
+                    ),
+                  ),
+                ),
+              ),
+              GoRoute(
+                path: '/form',
+                builder: (_, __) =>
+                    DocumentTemplateFormScreen(viewModel: viewModel),
+              ),
+            ],
+          ),
+        );
+
+    Future<void> openForm(WidgetTester tester) async {
+      await tester.pumpWidget(buildPoppableSubject());
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('ir'));
+      await tester.pumpAndSettle();
+      viewModel.nameController.text = 'Novo Template';
+      viewModel.descriptionController.text = 'Descrição do template';
+    }
+
+    Future<void> addFirstPlacement(WidgetTester tester) async {
+      await tester
+          .ensureVisible(find.byKey(const ValueKey('rule-switch-signature')));
+      await tester.tap(find.byKey(const ValueKey('rule-switch-signature')));
+      await tester.pumpAndSettle();
+      await tester.ensureVisible(find.text('Adicionar Assinatura'));
+      await tester.tap(find.text('Adicionar Assinatura'));
+      await tester.pumpAndSettle();
+    }
+
+    Future<void> fill(WidgetTester tester, String label, String value) async {
+      final field = find.widgetWithText(TextFormField, label);
+      await tester.ensureVisible(field);
+      await tester.enterText(field, value);
+      await tester.pumpAndSettle();
+    }
+
+    Future<void> fillAllNumbers(WidgetTester tester) async {
+      await fill(tester, 'Página', '1');
+      await fill(tester, 'Pos. Inferior', '10');
+      await fill(tester, 'Pos. Esquerda', '20');
+      await fill(tester, 'Tam. Horizontal', '30');
+      await fill(tester, 'Tam. Vertical', '40');
+    }
+
+    Future<void> tapSave(WidgetTester tester) async {
+      await tester.ensureVisible(find.text('Salvar'));
+      await tester.tap(find.text('Salvar'));
+      await tester.pumpAndSettle();
+    }
+
+    // Reprodução do relato: adicionar o primeiro local a uma lista vazia, com tipo
+    // selecionado, e salvar. O local preenchido precisa chegar ao repositório.
+    testWidgets('sends the first placement added to an empty list',
+        (tester) async {
+      await openForm(tester);
+      await addFirstPlacement(tester);
+
+      await tester.ensureVisible(find.text('Tipo de Assinatura *'));
+      await tester.tap(find.text('Tipo de Assinatura *'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Visto').last);
+      await tester.pumpAndSettle();
+
+      await fillAllNumbers(tester);
+      await tapSave(tester);
+
+      expect(templateRepository.lastSentAcceptsSignature, isTrue);
+      expect(templateRepository.lastSentPlaceSignatures, hasLength(1));
+      final sent = templateRepository.lastSentPlaceSignatures!.first;
+      expect(sent.typeSignatureId, '2');
+      expect(sent.page, '1');
+      expect(sent.positionBottom, '10');
+      expect(sent.positionLeft, '20');
+      expect(sent.sizeX, '30');
+      expect(sent.sizeY, '40');
+    });
+
+    // A causa raiz do relato: sem o tipo selecionado, o app mandava type:0 e o
+    // backend derrubava o save inteiro. Agora o tipo é obrigatório: o save é
+    // bloqueado com erro inline e nada é enviado.
+    testWidgets('blocks the save when the placement has no type', (tester) async {
+      await openForm(tester);
+      await addFirstPlacement(tester);
+      await fillAllNumbers(tester); // números válidos, mas sem escolher o tipo
+      await tapSave(tester);
+
+      expect(find.text('Selecione o tipo de assinatura.'), findsOneWidget);
+      expect(templateRepository.lastSentPlaceSignatures, isNull);
+    });
   });
 
   group('DocumentTemplateFormScreen rules loaded from a template', () {

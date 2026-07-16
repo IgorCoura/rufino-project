@@ -81,11 +81,17 @@ class DocumentTemplateApiModel {
       return (e as num).toInt();
     }).toList();
 
-    final rawSigs =
-        fileInfo['placeSignatures'] as List<dynamic>? ?? [];
+    // A assinatura vem no bloco policies.signature (padronizado): presença = aceita,
+    // e ele carrega os locais. Fallback para o topo (acceptsSignature) quando a API
+    // não enviar o bloco policies, mantendo a leitura resiliente.
+    final policiesJson = json['policies'] as Map<String, dynamic>?;
+    final signatureJson = policiesJson?['signature'] as Map<String, dynamic>?;
+    final rawSigs = signatureJson?['placeSignatures'] as List<dynamic>? ?? [];
     final signatures = rawSigs
         .map((s) => _parsePlaceSignature(s as Map<String, dynamic>))
         .toList();
+    final acceptsSignature = signatureJson != null ||
+        (policiesJson == null && (json['acceptsSignature'] as bool? ?? false));
 
     return DocumentTemplateApiModel(
       id: json['id'] as String? ?? '',
@@ -95,7 +101,7 @@ class DocumentTemplateApiModel {
           (json['documentValidityDurationInDays'] as num?)?.toDouble(),
       workloadInHours: (json['workloadInHours'] as num?)?.toDouble(),
       usePreviousPeriod: json['usePreviousPeriod'] as bool? ?? false,
-      acceptsSignature: json['acceptsSignature'] as bool? ?? false,
+      acceptsSignature: acceptsSignature,
       bodyFileName: fileInfo['bodyFileName'] as String? ?? '',
       headerFileName: fileInfo['headerFileName'] as String? ?? '',
       footerFileName: fileInfo['footerFileName'] as String? ?? '',
@@ -103,7 +109,7 @@ class DocumentTemplateApiModel {
       documentGroupName: docGroup['name'] as String? ?? '',
       recoverDataTypeIds: typeIds,
       placeSignatures: signatures,
-      policies: _parsePolicies(json['policies'] as Map<String, dynamic>?),
+      policies: _parsePolicies(policiesJson),
     );
   }
 
