@@ -7,6 +7,7 @@ using PeopleManagement.Domain.AggregatesModel.CompanyAggregate;
 using PeopleManagement.Domain.AggregatesModel.DocumentTemplateAggregate;
 using PeopleManagement.Domain.AggregatesModel.DocumentTemplateAggregate.options;
 using PeopleManagement.Domain.AggregatesModel.DocumentTemplateAggregate.Policies;
+using PeopleManagement.Domain.ErrorTools;
 using PeopleManagement.Infra.Context;
 using PeopleManagement.IntegrationTests.Configs;
 using PeopleManagement.IntegrationTests.Data;
@@ -324,6 +325,64 @@ namespace PeopleManagement.IntegrationTests.Tests
                 .FirstAsync(x => x.Id == template.Id, cancellationToken);
 
             Assert.Empty(persisted.Policies);
+        }
+
+        // Migration RemoveZeroedDocumentTemplatePolicies: a primeira versão do backfill deixou linhas de policy
+        // zeradas nos bancos que a aplicaram antes da correção. Depois da invariante PMD.DOCT11 essas linhas
+        // param a leitura do template (GetPolicy reidrata e lança), então precisam ser removidas — quem já
+        // aplicou a migration corrigida no lugar não a re-executa.
+        //
+        // INSERT cru aqui é intencional: o estado é inalcançável pela porta do domínio, que hoje recusa criá-lo.
+        [Fact]
+        public async Task CleanupMigration_OnZeroedPolicyRow_RemovesItAndUnblocksReading()
+        {
+            var cancellationToken = CancellationToken.None;
+
+            var context = GetContext();
+
+            var company = await context.InsertCompany(cancellationToken);
+            var documentGroup = await context.InsertDocumentGroup(company.Id, cancellationToken);
+
+            var template = DocumentTemplate.Create(
+                Guid.NewGuid(), "NR35", "Description NR35", company.Id, 0d, 0d,
+                TemplateFileInfo.Create("dir", "index.html", "header.html", "footer.html", [RecoverDataType.Employee]),
+                true, [], documentGroup.Id);
+            await context.DocumentTemplates.AddAsync(template, cancellationToken);
+            await context.SaveChangesAsync(cancellationToken);
+
+            // Recria o que o backfill antigo (WHERE ... IS NOT NULL) gravava para a coluna zerada.
+            await context.Database.ExecuteSqlRawAsync("""
+                INSERT INTO people_management."DocumentTemplatePolicies" ("DocumentTemplateId", "Type", "Params")
+                SELECT "Id", 1, jsonb_build_object('DurationTicks', 0)
+                FROM people_management."DocumentTemplates"
+                WHERE "DocumentValidityDuration" IS NOT NULL;
+                """, cancellationToken);
+
+            await AssertReadingTemplateThrows(template.Id, cancellationToken);
+
+            await context.Database.ExecuteSqlRawAsync("""
+                DELETE FROM people_management."DocumentTemplatePolicies"
+                WHERE ("Type" = 1 AND COALESCE(("Params"->>'DurationTicks')::bigint, 0) <= 0)
+                   OR ("Type" = 4 AND COALESCE(("Params"->>'WorkloadTicks')::bigint, 0) <= 0);
+                """, cancellationToken);
+
+            using var scope = _factory.Services.CreateScope();
+            var readContext = scope.ServiceProvider.GetRequiredService<PeopleManagementContext>();
+            var persisted = await readContext.DocumentTemplates.AsNoTracking()
+                .FirstAsync(x => x.Id == template.Id, cancellationToken);
+
+            Assert.Empty(persisted.Policies);
+            Assert.Null(persisted.GetPolicy<IExpirationPolicy>());
+        }
+
+        private async Task AssertReadingTemplateThrows(Guid templateId, CancellationToken cancellationToken)
+        {
+            using var scope = _factory.Services.CreateScope();
+            var readContext = scope.ServiceProvider.GetRequiredService<PeopleManagementContext>();
+            var corrupted = await readContext.DocumentTemplates.AsNoTracking()
+                .FirstAsync(x => x.Id == templateId, cancellationToken);
+
+            Assert.Throws<DomainException>(() => corrupted.GetPolicy<IExpirationPolicy>());
         }
 
         // POST /documenttemplate com o bloco "policies" (Fase 2.4): as policies informadas mandam sobre os campos
