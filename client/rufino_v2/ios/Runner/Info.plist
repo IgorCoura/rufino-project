@@ -51,6 +51,8 @@
 	<string>O Rufino usa o microfone apenas durante a captura de vídeo na digitalização de documentos.</string>
 	<key>NSFaceIDUsageDescription</key>
 	<string>O Rufino usa o Face ID para proteger o acesso aos dados sigilosos da sua empresa.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>O Rufino não solicita nem coleta sua localização. Esta declaração é exigida por uma biblioteca de reconhecimento de texto (OCR) usada na digitalização de documentos.</string>
 	<key>CFBundleURLTypes</key>
 	<array>
 		<dict>
