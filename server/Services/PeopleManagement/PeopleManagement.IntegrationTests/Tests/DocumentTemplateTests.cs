@@ -677,6 +677,81 @@ namespace PeopleManagement.IntegrationTests.Tests
             Assert.Equal(TimeSpan.FromHours(4), persisted.Workload);
         }
 
+        // Fase 3b (contrato): o bloco expiration com maxRenewals persiste a ExpirationLimitedPolicy, e o GET
+        // devolve o teto — é como o app configura "renova N vezes".
+        [Fact]
+        public async Task CreateDocumentTemplate_WithMaxRenewals_PersistsLimitedPolicyAndReturnsIt()
+        {
+            var cancellationToken = CancellationToken.None;
+
+            var context = GetContext();
+            var client = CreateClient();
+
+            var company = await context.InsertCompany(cancellationToken);
+            var documentGroup = await context.InsertDocumentGroup(company.Id, cancellationToken);
+            await context.SaveChangesAsync(cancellationToken);
+
+            var command = new CreateDocumentTemplateCommand(
+                company.Id, "NR01", "Description NR01", (double?)null, null,
+                new TemplateFileInfoModel("index.html", "header.html", "footer.html", [RecoverDataType.Employee.Id]),
+                false, [], documentGroup.Id, false,
+                new PoliciesModel(new ExpirationPolicyModel(365, MaxRenewals: 2)));
+
+            client.InputHeaders([company.Id]);
+            var response = await client.PostAsJsonAsync($"/api/v1/{company.Id}/documenttemplate", command);
+
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+            var content = await response.Content.ReadFromJsonAsync<CreateDocumentTemplateResponse>() ?? throw new ArgumentNullException();
+
+            using var scope = _factory.Services.CreateScope();
+            var readContext = scope.ServiceProvider.GetRequiredService<PeopleManagementContext>();
+            var persisted = await readContext.DocumentTemplates.AsNoTracking().FirstAsync(x => x.Id == content.Id, cancellationToken);
+
+            var limited = Assert.IsType<ExpirationLimitedPolicy>(persisted.GetPolicy<IExpirationPolicy>());
+            Assert.Equal(TimeSpan.FromDays(365), limited.Duration);
+            Assert.Equal(2, limited.MaxRenewals);
+
+            var dto = await scope.ServiceProvider.GetRequiredService<IDocumentTemplateQueries>().GetById(company.Id, content.Id);
+            Assert.NotNull(dto.Policies.Expiration);
+            Assert.Equal(2, dto.Policies.Expiration!.MaxRenewals);
+        }
+
+        // Sem maxRenewals, o bloco expiration persiste a ExpirationPolicy indefinida e o GET devolve MaxRenewals null.
+        [Fact]
+        public async Task CreateDocumentTemplate_WithoutMaxRenewals_PersistsForeverPolicyAndReturnsNull()
+        {
+            var cancellationToken = CancellationToken.None;
+
+            var context = GetContext();
+            var client = CreateClient();
+
+            var company = await context.InsertCompany(cancellationToken);
+            var documentGroup = await context.InsertDocumentGroup(company.Id, cancellationToken);
+            await context.SaveChangesAsync(cancellationToken);
+
+            var command = new CreateDocumentTemplateCommand(
+                company.Id, "NR01", "Description NR01", (double?)null, null,
+                new TemplateFileInfoModel("index.html", "header.html", "footer.html", [RecoverDataType.Employee.Id]),
+                false, [], documentGroup.Id, false,
+                new PoliciesModel(new ExpirationPolicyModel(365)));
+
+            client.InputHeaders([company.Id]);
+            var response = await client.PostAsJsonAsync($"/api/v1/{company.Id}/documenttemplate", command);
+
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+            var content = await response.Content.ReadFromJsonAsync<CreateDocumentTemplateResponse>() ?? throw new ArgumentNullException();
+
+            using var scope = _factory.Services.CreateScope();
+            var readContext = scope.ServiceProvider.GetRequiredService<PeopleManagementContext>();
+            var persisted = await readContext.DocumentTemplates.AsNoTracking().FirstAsync(x => x.Id == content.Id, cancellationToken);
+
+            Assert.IsType<ExpirationPolicy>(persisted.GetPolicy<IExpirationPolicy>());
+
+            var dto = await scope.ServiceProvider.GetRequiredService<IDocumentTemplateQueries>().GetById(company.Id, content.Id);
+            Assert.NotNull(dto.Policies.Expiration);
+            Assert.Null(dto.Policies.Expiration!.MaxRenewals);
+        }
+
         // Fase 3 (Camada 2): o bloco "period" configura a competência do template. POST persiste a PeriodPolicy
         // e o GET a devolve — é o caminho que substitui a configuração manual por SQL para os templates em conflito.
         [Fact]

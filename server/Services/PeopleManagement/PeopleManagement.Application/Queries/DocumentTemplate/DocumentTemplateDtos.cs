@@ -54,6 +54,9 @@ namespace PeopleManagement.Application.Queries.DocumentTemplate
         public record ExpirationPolicyDto
         {
             public double DurationInDays { get; init; }
+
+            /// <summary>Quantas vezes o documento renova antes de parar; null = renovação indefinida.</summary>
+            public int? MaxRenewals { get; init; }
         }
 
         public record WorkloadPolicyDto

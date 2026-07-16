@@ -29,9 +29,13 @@ namespace PeopleManagement.Application.Commands.DocumentTemplateCommands
         }
     }
 
-    public record ExpirationPolicyModel(double DurationInDays)
+    // MaxRenewals opcional: ausente/null = renovação indefinida (ExpirationPolicy); informado = renovação
+    // limitada (ExpirationLimitedPolicy). Espelha o discriminador do jsonb.
+    public record ExpirationPolicyModel(double DurationInDays, int? MaxRenewals = null)
     {
-        public IDocumentPolicy ToPolicy() => new ExpirationPolicy(TimeSpan.FromDays(DurationInDays));
+        public IDocumentPolicy ToPolicy() => MaxRenewals is null
+            ? new ExpirationPolicy(TimeSpan.FromDays(DurationInDays))
+            : new ExpirationLimitedPolicy(TimeSpan.FromDays(DurationInDays), MaxRenewals.Value);
     }
 
     public record WorkloadPolicyModel(double Hours)

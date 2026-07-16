@@ -31,7 +31,12 @@ namespace PeopleManagement.Application.Queries.DocumentTemplate
 
             return new PoliciesDto
             {
-                Expiration = expiration is null ? null : new ExpirationPolicyDto { DurationInDays = expiration.Duration.TotalDays },
+                // MaxRenewals só existe na variante limitada; a indefinida devolve null (renova sempre).
+                Expiration = expiration is null ? null : new ExpirationPolicyDto
+                {
+                    DurationInDays = expiration.Duration.TotalDays,
+                    MaxRenewals = (expiration as ExpirationLimitedPolicy)?.MaxRenewals,
+                },
                 Workload = workload is null ? null : new WorkloadPolicyDto { Hours = workload.Workload.TotalHours },
                 Period = period is null ? null : new PeriodPolicyDto { PeriodTypeId = period.PeriodType.Id, UsePreviousPeriod = period.UsePreviousPeriod },
                 // Presença da SignaturePolicy = aceita assinatura. Os locais saem daqui — a mesma fonte do domínio —
