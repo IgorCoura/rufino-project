@@ -39,7 +39,6 @@ void main() {
       name: 'NR01',
       description: 'Descrição',
       policies: policies,
-      usePreviousPeriod: false,
       acceptsSignature: false,
     );
   }
@@ -125,7 +124,6 @@ void main() {
         policies: const TemplatePolicies(
           expiration: ExpirationRule(durationInDays: 30),
         ),
-        usePreviousPeriod: false,
         acceptsSignature: false,
       );
 
@@ -187,7 +185,6 @@ void main() {
         name: 'NR01',
         description: 'Descrição',
         policies: const TemplatePolicies(),
-        usePreviousPeriod: false,
         acceptsSignature: false,
       );
 

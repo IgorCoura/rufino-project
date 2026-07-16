@@ -11,7 +11,6 @@ void main() {
         expiration: ExpirationRule(durationInDays: 365),
         workload: WorkloadRule(hours: 8),
       ),
-      usePreviousPeriod: false,
       acceptsSignature: true,
       bodyFileName: 'body.html',
       documentGroupId: 'g1',
@@ -23,7 +22,6 @@ void main() {
       id: '2',
       name: 'Empty',
       description: '',
-      usePreviousPeriod: false,
       acceptsSignature: false,
     );
 
@@ -202,6 +200,61 @@ void main() {
 
       expect(updated.expiration, isNull);
       expect(updated.workload!.hours, 8);
+    });
+
+    test('isEmpty is false when only the period rule is active', () {
+      const policies = TemplatePolicies(
+        period: PeriodRule(granularity: PeriodGranularity.monthly),
+      );
+
+      expect(policies.isEmpty, isFalse);
+    });
+  });
+
+  group('DocumentTemplate competência', () {
+    test('usePreviousPeriod derives from the period rule', () {
+      const withRetroactive = DocumentTemplate(
+        id: '1',
+        name: 'X',
+        description: '',
+        policies: TemplatePolicies(
+          period: PeriodRule(
+              granularity: PeriodGranularity.monthly, usePreviousPeriod: true),
+        ),
+        acceptsSignature: false,
+      );
+
+      expect(withRetroactive.usePreviousPeriod, isTrue);
+      expect(withRetroactive.hasPeriod, isTrue);
+    });
+
+    test('usePreviousPeriod is false when there is no period rule', () {
+      const noPeriod = DocumentTemplate(
+        id: '1',
+        name: 'X',
+        description: '',
+        acceptsSignature: false,
+      );
+
+      expect(noPeriod.usePreviousPeriod, isFalse);
+      expect(noPeriod.hasPeriod, isFalse);
+    });
+  });
+
+  group('PeriodGranularity', () {
+    test('fromId returns the matching granularity', () {
+      expect(PeriodGranularity.fromId(3), PeriodGranularity.monthly);
+    });
+
+    test('fromId returns null for an unknown id', () {
+      expect(PeriodGranularity.fromId(99), isNull);
+    });
+
+    test('ids match the backend PeriodType smart enum', () {
+      expect(PeriodGranularity.daily.id, 1);
+      expect(PeriodGranularity.weekly.id, 2);
+      expect(PeriodGranularity.monthly.id, 3);
+      expect(PeriodGranularity.yearly.id, 4);
     });
   });
 

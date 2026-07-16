@@ -21,7 +21,6 @@ const _fakeTemplate = DocumentTemplate(
     expiration: ExpirationRule(durationInDays: 365),
     workload: WorkloadRule(hours: 44),
   ),
-  usePreviousPeriod: false,
   acceptsSignature: true,
   bodyFileName: 'corpo.html',
   headerFileName: 'header.html',
@@ -130,7 +129,6 @@ void main() {
         id: 'tpl-2',
         name: 'Sem regras',
         description: 'Template sem regras',
-        usePreviousPeriod: false,
         acceptsSignature: false,
       ));
 
@@ -160,6 +158,74 @@ void main() {
       await viewModel.save();
 
       expect(templateRepository.lastSentPolicies!.isEmpty, isTrue);
+    });
+
+    test('builds no period rule while the switch is off', () {
+      viewModel.setPeriodGranularity(PeriodGranularity.monthly);
+
+      expect(viewModel.policies.period, isNull);
+    });
+
+    test('builds no period rule when the switch is on but no granularity chosen',
+        () {
+      viewModel.setPeriodEnabled(true);
+
+      expect(viewModel.policies.period, isNull);
+    });
+
+    test('builds the period rule from the granularity and retroactive flag', () {
+      viewModel.setPeriodEnabled(true);
+      viewModel.setPeriodGranularity(PeriodGranularity.monthly);
+      viewModel.setUsePreviousPeriod(true);
+
+      final period = viewModel.policies.period;
+      expect(period!.granularity, PeriodGranularity.monthly);
+      expect(period.usePreviousPeriod, isTrue);
+    });
+
+    test('turning period off clears the granularity and the retroactive flag',
+        () {
+      viewModel.setPeriodEnabled(true);
+      viewModel.setPeriodGranularity(PeriodGranularity.yearly);
+      viewModel.setUsePreviousPeriod(true);
+
+      viewModel.setPeriodEnabled(false);
+
+      expect(viewModel.selectedGranularity, isNull);
+      expect(viewModel.usePreviousPeriod, isFalse);
+      expect(viewModel.policies.period, isNull);
+    });
+
+    test('loadTemplate turns on the period rule the template carries', () async {
+      templateRepository.setTemplate(const DocumentTemplate(
+        id: 'tpl-3',
+        name: 'Mensal',
+        description: 'Template mensal',
+        policies: TemplatePolicies(
+          period: PeriodRule(
+              granularity: PeriodGranularity.monthly, usePreviousPeriod: true),
+        ),
+        acceptsSignature: false,
+      ));
+
+      await viewModel.loadTemplate('tpl-3');
+
+      expect(viewModel.periodEnabled, isTrue);
+      expect(viewModel.selectedGranularity, PeriodGranularity.monthly);
+      expect(viewModel.usePreviousPeriod, isTrue);
+    });
+
+    test('save sends the period rule described by the form', () async {
+      viewModel.nameController.text = 'NR01';
+      viewModel.descriptionController.text = 'Descrição';
+      viewModel.setPeriodEnabled(true);
+      viewModel.setPeriodGranularity(PeriodGranularity.yearly);
+
+      await viewModel.save();
+
+      final period = templateRepository.lastSentPolicies!.period;
+      expect(period!.granularity, PeriodGranularity.yearly);
+      expect(period.usePreviousPeriod, isFalse);
     });
   });
 

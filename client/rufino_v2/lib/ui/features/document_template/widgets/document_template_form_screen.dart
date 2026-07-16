@@ -261,6 +261,16 @@ class _DocumentTemplateFormBody extends StatelessWidget {
                       formatter: viewModel.workloadFormatter,
                       validator: viewModel.validateWorkload,
                     ),
+                    const Divider(height: 1),
+                    _PeriodRuleTile(
+                      enabled: viewModel.periodEnabled,
+                      onChanged: viewModel.setPeriodEnabled,
+                      granularity: viewModel.selectedGranularity,
+                      granularities: viewModel.periodGranularities,
+                      onGranularityChanged: viewModel.setPeriodGranularity,
+                      usePreviousPeriod: viewModel.usePreviousPeriod,
+                      onUsePreviousPeriodChanged: viewModel.setUsePreviousPeriod,
+                    ),
                   ],
                 ),
                 const SizedBox(height: AppSpacing.md),
@@ -270,17 +280,6 @@ class _DocumentTemplateFormBody extends StatelessWidget {
                   icon: Icons.settings_outlined,
                   label: 'Configurações',
                   children: [
-                    SwitchListTile(
-                      title: const Text('Competência de Período Anterior'),
-                      subtitle: const Text(
-                        'Usa a competência do período anterior para '
-                        'agrupamento e depreciação.',
-                      ),
-                      value: viewModel.usePreviousPeriod,
-                      onChanged: viewModel.setUsePreviousPeriod,
-                      contentPadding: EdgeInsets.zero,
-                    ),
-                    const Divider(height: 1),
                     SwitchListTile(
                       title: const Text('Aceita Assinatura'),
                       subtitle: const Text(
@@ -456,6 +455,80 @@ class _RuleTile extends StatelessWidget {
             keyboardType: TextInputType.number,
             inputFormatters: [formatter],
             validator: validator,
+          ),
+          const SizedBox(height: AppSpacing.md),
+        ],
+      ],
+    );
+  }
+}
+
+/// The competência rule switch and the two inputs it reveals: the granularity
+/// (daily/weekly/monthly/yearly) and whether it uses the previous competência.
+///
+/// A rule with its own shape, so it does not reuse the numeric [_RuleTile].
+/// Turning it off clears both inputs in the view model.
+class _PeriodRuleTile extends StatelessWidget {
+  const _PeriodRuleTile({
+    required this.enabled,
+    required this.onChanged,
+    required this.granularity,
+    required this.granularities,
+    required this.onGranularityChanged,
+    required this.usePreviousPeriod,
+    required this.onUsePreviousPeriodChanged,
+  });
+
+  final bool enabled;
+  final ValueChanged<bool> onChanged;
+  final PeriodGranularity? granularity;
+  final List<PeriodGranularity> granularities;
+  final ValueChanged<PeriodGranularity?> onGranularityChanged;
+  final bool usePreviousPeriod;
+  final ValueChanged<bool> onUsePreviousPeriodChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        SwitchListTile(
+          key: const ValueKey('rule-switch-period'),
+          title: const Text('Competência'),
+          subtitle: const Text(
+            'Organiza os documentos por período — cada competência espera '
+            'o seu documento.',
+          ),
+          value: enabled,
+          onChanged: onChanged,
+          contentPadding: EdgeInsets.zero,
+        ),
+        if (enabled) ...[
+          const SizedBox(height: AppSpacing.sm),
+          DropdownButtonFormField<PeriodGranularity>(
+            key: const ValueKey('rule-field-period'),
+            initialValue: granularity,
+            decoration: const InputDecoration(
+              labelText: 'Granularidade *',
+              prefixIcon: Icon(Icons.event_repeat_outlined),
+              border: OutlineInputBorder(),
+            ),
+            items: granularities
+                .map((g) => DropdownMenuItem<PeriodGranularity>(
+                    value: g, child: Text(g.label)))
+                .toList(),
+            validator: (value) =>
+                value == null ? 'Selecione a granularidade.' : null,
+            onChanged: onGranularityChanged,
+          ),
+          SwitchListTile(
+            title: const Text('Usa competência anterior'),
+            subtitle: const Text(
+              'O documento vale para a competência anterior à data de emissão.',
+            ),
+            value: usePreviousPeriod,
+            onChanged: onUsePreviousPeriodChanged,
+            contentPadding: EdgeInsets.zero,
           ),
           const SizedBox(height: AppSpacing.md),
         ],

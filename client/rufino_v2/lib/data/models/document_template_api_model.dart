@@ -112,6 +112,7 @@ class DocumentTemplateApiModel {
 
     final expiration = json['expiration'] as Map<String, dynamic>?;
     final workload = json['workload'] as Map<String, dynamic>?;
+    final period = json['period'] as Map<String, dynamic>?;
 
     return TemplatePolicies(
       expiration: expiration == null
@@ -122,6 +123,18 @@ class DocumentTemplateApiModel {
       workload: workload == null
           ? null
           : WorkloadRule(hours: (workload['hours'] as num?)?.toInt() ?? 0),
+      period: _parsePeriod(period),
+    );
+  }
+
+  static PeriodRule? _parsePeriod(Map<String, dynamic>? json) {
+    if (json == null) return null;
+    final granularity =
+        PeriodGranularity.fromId((json['periodTypeId'] as num?)?.toInt() ?? 0);
+    if (granularity == null) return null;
+    return PeriodRule(
+      granularity: granularity,
+      usePreviousPeriod: json['usePreviousPeriod'] as bool? ?? false,
     );
   }
 
@@ -166,7 +179,6 @@ class DocumentTemplateApiModel {
       name: name,
       description: description,
       policies: _resolvePolicies(),
-      usePreviousPeriod: usePreviousPeriod,
       acceptsSignature: acceptsSignature,
       bodyFileName: bodyFileName,
       headerFileName: headerFileName,
@@ -192,6 +204,12 @@ class DocumentTemplateApiModel {
           : {'durationInDays': rules.expiration!.durationInDays},
       'workload':
           rules.workload == null ? null : {'hours': rules.workload!.hours},
+      'period': rules.period == null
+          ? null
+          : {
+              'periodTypeId': rules.period!.granularity.id,
+              'usePreviousPeriod': rules.period!.usePreviousPeriod,
+            },
     };
   }
 

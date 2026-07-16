@@ -110,6 +110,34 @@ void main() {
 
       expect(find.text('Definido em Regras'), findsNWidgets(2));
     });
+
+    testWidgets('shows the competência switch', (tester) async {
+      await tester.pumpWidget(buildSubject());
+      await tester.pumpAndSettle();
+
+      expect(find.text('Competência'), findsOneWidget);
+    });
+
+    testWidgets('hides the granularity dropdown while the rule is off',
+        (tester) async {
+      await tester.pumpWidget(buildSubject());
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const ValueKey('rule-field-period')), findsNothing);
+    });
+
+    testWidgets('reveals the granularity dropdown when the rule is turned on',
+        (tester) async {
+      await tester.pumpWidget(buildSubject());
+      await tester.pumpAndSettle();
+
+      await tester
+          .ensureVisible(find.byKey(const ValueKey('rule-switch-period')));
+      await tester.tap(find.byKey(const ValueKey('rule-switch-period')));
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const ValueKey('rule-field-period')), findsOneWidget);
+    });
   });
 
   group('DocumentTemplateFormScreen rules loaded from a template', () {
@@ -122,7 +150,6 @@ void main() {
         policies: TemplatePolicies(
           expiration: ExpirationRule(durationInDays: 365),
         ),
-        usePreviousPeriod: false,
         acceptsSignature: false,
       ));
 

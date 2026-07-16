@@ -21,7 +21,6 @@ const _fakeTemplate = DocumentTemplate(
     expiration: ExpirationRule(durationInDays: 365),
     workload: WorkloadRule(hours: 44),
   ),
-  usePreviousPeriod: false,
   acceptsSignature: true,
 );
 
@@ -32,7 +31,6 @@ const _fakeTemplate2 = DocumentTemplate(
   policies: TemplatePolicies(
     expiration: ExpirationRule(durationInDays: 30),
   ),
-  usePreviousPeriod: true,
   acceptsSignature: false,
 );
 

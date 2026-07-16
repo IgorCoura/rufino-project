@@ -80,6 +80,8 @@ class DocumentTemplateFormViewModel extends ChangeNotifier {
   List<String> get serverErrors => _serverErrors;
   bool _expirationEnabled = false;
   bool _workloadEnabled = false;
+  bool _periodEnabled = false;
+  PeriodGranularity? _selectedGranularity;
   bool _usePreviousPeriod = false;
   bool _acceptsSignature = false;
   String _selectedDocumentGroupId = '';
@@ -115,10 +117,19 @@ class DocumentTemplateFormViewModel extends ChangeNotifier {
   /// Whether the workload rule is active for this template.
   bool get workloadEnabled => _workloadEnabled;
 
+  /// Whether the competência rule is active for this template.
+  bool get periodEnabled => _periodEnabled;
+
+  /// The competência granularity chosen in the form, or null when none.
+  PeriodGranularity? get selectedGranularity => _selectedGranularity;
+
+  /// The competência granularities the user can choose from.
+  List<PeriodGranularity> get periodGranularities => PeriodGranularity.values;
+
   /// The rule set described by the form, ready to be persisted.
   ///
-  /// A rule is only included when its switch is on and its field holds a valid
-  /// number, mirroring how the API models absence.
+  /// A rule is only included when its switch is on and its input is valid,
+  /// mirroring how the API models absence.
   TemplatePolicies get policies {
     final days =
         _expirationEnabled ? int.tryParse(validityController.text.trim()) : null;
@@ -130,6 +141,11 @@ class DocumentTemplateFormViewModel extends ChangeNotifier {
           ? null
           : ExpirationRule(durationInDays: days),
       workload: hours == null || hours <= 0 ? null : WorkloadRule(hours: hours),
+      period: _periodEnabled && _selectedGranularity != null
+          ? PeriodRule(
+              granularity: _selectedGranularity!,
+              usePreviousPeriod: _usePreviousPeriod)
+          : null,
     );
   }
 
@@ -195,6 +211,25 @@ class DocumentTemplateFormViewModel extends ChangeNotifier {
   void setWorkloadEnabled(bool value) {
     _workloadEnabled = value;
     if (!value) workloadController.clear();
+    notifyListeners();
+  }
+
+  /// Turns the competência rule on or off and notifies listeners.
+  ///
+  /// Turning it off clears the granularity and the retroactive flag, so a stale
+  /// choice cannot survive a toggle and reappear on save.
+  void setPeriodEnabled(bool value) {
+    _periodEnabled = value;
+    if (!value) {
+      _selectedGranularity = null;
+      _usePreviousPeriod = false;
+    }
+    notifyListeners();
+  }
+
+  /// Updates the competência granularity and notifies listeners.
+  void setPeriodGranularity(PeriodGranularity? value) {
+    _selectedGranularity = value;
     notifyListeners();
   }
 
@@ -422,7 +457,10 @@ class DocumentTemplateFormViewModel extends ChangeNotifier {
               template.policies.expiration?.durationInDays.toString() ?? '';
           workloadController.text =
               template.policies.workload?.hours.toString() ?? '';
-          _usePreviousPeriod = template.usePreviousPeriod;
+          final period = template.policies.period;
+          _periodEnabled = period != null;
+          _selectedGranularity = period?.granularity;
+          _usePreviousPeriod = period?.usePreviousPeriod ?? false;
           _acceptsSignature = template.acceptsSignature;
           bodyFileNameController.text = template.bodyFileName;
           headerFileNameController.text = template.headerFileName;
@@ -500,7 +538,6 @@ class DocumentTemplateFormViewModel extends ChangeNotifier {
               name: nameController.text.trim(),
               description: descriptionController.text.trim(),
               policies: selectedPolicies,
-              usePreviousPeriod: _usePreviousPeriod,
               acceptsSignature: _acceptsSignature,
               bodyFileName: bodyFileNameController.text.trim(),
               headerFileName: headerFileNameController.text.trim(),
@@ -515,7 +552,6 @@ class DocumentTemplateFormViewModel extends ChangeNotifier {
               name: nameController.text.trim(),
               description: descriptionController.text.trim(),
               policies: selectedPolicies,
-              usePreviousPeriod: _usePreviousPeriod,
               acceptsSignature: _acceptsSignature,
               bodyFileName: bodyFileNameController.text.trim(),
               headerFileName: headerFileNameController.text.trim(),

@@ -292,4 +292,81 @@ void main() {
       expect(json['policies'], isNull);
     });
   });
+
+  group('DocumentTemplateApiModel period policy', () {
+    test('fromJson parses the period block into a rule', () {
+      final json = {
+        'id': 'tpl-1',
+        'name': 'NR01',
+        'description': 'Descrição',
+        'policies': {
+          'period': {'periodTypeId': 3, 'usePreviousPeriod': true},
+        },
+      };
+
+      final model = DocumentTemplateApiModel.fromJson(json);
+
+      expect(model.policies!.period!.granularity, PeriodGranularity.monthly);
+      expect(model.policies!.period!.usePreviousPeriod, isTrue);
+    });
+
+    test('fromJson maps an unknown periodTypeId to no period rule', () {
+      final json = {
+        'id': 'tpl-1',
+        'name': 'NR01',
+        'description': 'Descrição',
+        'policies': {
+          'period': {'periodTypeId': 99, 'usePreviousPeriod': false},
+        },
+      };
+
+      final model = DocumentTemplateApiModel.fromJson(json);
+
+      expect(model.policies!.period, isNull);
+    });
+
+    test('toEntity derives usePreviousPeriod from the period rule', () {
+      const model = DocumentTemplateApiModel(
+        id: 'tpl-1',
+        name: 'NR01',
+        description: 'Descrição',
+        validityDurationInDays: null,
+        workloadInHours: null,
+        usePreviousPeriod: false,
+        acceptsSignature: false,
+        policies: TemplatePolicies(
+          period: PeriodRule(
+              granularity: PeriodGranularity.monthly, usePreviousPeriod: true),
+        ),
+      );
+
+      final entity = model.toEntity();
+
+      expect(entity.usePreviousPeriod, isTrue);
+      expect(entity.policies.period!.granularity, PeriodGranularity.monthly);
+    });
+
+    test('toJson sends the period block with id and the retroactive flag', () {
+      const model = DocumentTemplateApiModel(
+        id: 'tpl-1',
+        name: 'NR01',
+        description: 'Descrição',
+        validityDurationInDays: null,
+        workloadInHours: null,
+        usePreviousPeriod: false,
+        acceptsSignature: false,
+        policies: TemplatePolicies(
+          period: PeriodRule(
+              granularity: PeriodGranularity.yearly, usePreviousPeriod: true),
+        ),
+      );
+
+      final json = model.toJson();
+      final period =
+          (json['policies'] as Map<String, dynamic>)['period'] as Map<String, dynamic>;
+
+      expect(period['periodTypeId'], 4);
+      expect(period['usePreviousPeriod'], isTrue);
+    });
+  });
 }

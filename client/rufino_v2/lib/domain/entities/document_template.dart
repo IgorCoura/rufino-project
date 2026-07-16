@@ -8,7 +8,6 @@ class DocumentTemplate {
     required this.id,
     required this.name,
     required this.description,
-    required this.usePreviousPeriod,
     required this.acceptsSignature,
     this.policies = const TemplatePolicies(),
     this.bodyFileName = '',
@@ -32,9 +31,6 @@ class DocumentTemplate {
 
   /// The rules this template applies. A rule is active when it is present.
   final TemplatePolicies policies;
-
-  /// Whether the template uses the previous period as reference.
-  final bool usePreviousPeriod;
 
   /// Whether the generated document accepts a digital signature.
   final bool acceptsSignature;
@@ -80,11 +76,19 @@ class DocumentTemplate {
   /// Whether this template belongs to a document group.
   bool get hasDocumentGroup => documentGroupId.isNotEmpty;
 
+  /// Whether the template uses the previous competência as reference.
+  ///
+  /// Derived from [policies] — the rule set is the single source of truth.
+  bool get usePreviousPeriod => policies.period?.usePreviousPeriod ?? false;
+
   /// Whether this template has a validity period configured.
   bool get hasValidity => policies.expiration != null;
 
   /// Whether this template has a workload configured.
   bool get hasWorkload => policies.workload != null;
+
+  /// Whether this template is organized by competência.
+  bool get hasPeriod => policies.period != null;
 
   /// Whether this template has any file name configured (body/header/footer).
   bool get hasFileConfiguration =>
@@ -148,7 +152,7 @@ class DocumentTemplate {
 /// carrying a zeroed value, so there is no such thing as an expiration of zero
 /// days: that is simply no expiration.
 class TemplatePolicies {
-  const TemplatePolicies({this.expiration, this.workload});
+  const TemplatePolicies({this.expiration, this.workload, this.period});
 
   /// The expiration rule, or null when documents from this template never
   /// expire.
@@ -157,22 +161,72 @@ class TemplatePolicies {
   /// The workload rule, or null when this template carries no workload.
   final WorkloadRule? workload;
 
+  /// The competência rule, or null when this template is not by competência.
+  final PeriodRule? period;
+
   /// Whether no rule at all is active.
-  bool get isEmpty => expiration == null && workload == null;
+  bool get isEmpty => expiration == null && workload == null && period == null;
 
   /// Returns a copy with the given rules replaced.
   ///
-  /// Passing `clearExpiration` or `clearWorkload` removes the rule, which a
-  /// null override cannot express.
+  /// Passing `clearExpiration`, `clearWorkload` or `clearPeriod` removes the
+  /// rule, which a null override cannot express.
   TemplatePolicies copyWith({
     ExpirationRule? expiration,
     WorkloadRule? workload,
+    PeriodRule? period,
     bool clearExpiration = false,
     bool clearWorkload = false,
+    bool clearPeriod = false,
   }) {
     return TemplatePolicies(
       expiration: clearExpiration ? null : (expiration ?? this.expiration),
       workload: clearWorkload ? null : (workload ?? this.workload),
+      period: clearPeriod ? null : (period ?? this.period),
+    );
+  }
+}
+
+/// The granularity of a template's competência.
+///
+/// Ids match the backend's PeriodType smart enum (Daily=1 … Yearly=4) — they are
+/// the contract; the labels are Portuguese presentation, kept here so the UI
+/// does not depend on a network round-trip for four stable values.
+enum PeriodGranularity {
+  daily(1, 'Diário'),
+  weekly(2, 'Semanal'),
+  monthly(3, 'Mensal'),
+  yearly(4, 'Anual');
+
+  const PeriodGranularity(this.id, this.label);
+
+  final int id;
+  final String label;
+
+  /// Returns the granularity with the given [id], or null when unknown.
+  static PeriodGranularity? fromId(int id) {
+    for (final value in values) {
+      if (value.id == id) return value;
+    }
+    return null;
+  }
+}
+
+/// The rule that organizes a template's documents by competência.
+class PeriodRule {
+  const PeriodRule({required this.granularity, this.usePreviousPeriod = false});
+
+  /// How the competência is bucketed (daily, weekly, monthly, yearly).
+  final PeriodGranularity granularity;
+
+  /// Whether the document uses the previous competência instead of the current.
+  final bool usePreviousPeriod;
+
+  /// Returns a copy with the given fields replaced.
+  PeriodRule copyWith({PeriodGranularity? granularity, bool? usePreviousPeriod}) {
+    return PeriodRule(
+      granularity: granularity ?? this.granularity,
+      usePreviousPeriod: usePreviousPeriod ?? this.usePreviousPeriod,
     );
   }
 }
