@@ -36,6 +36,32 @@ namespace PeopleManagement.UnitTests.Aggregates.DocumentTemplateTests.Policies
             Assert.Equal(TimeSpan.FromDays(1), policy.Duration);
         }
 
+        // A variante limitada herda a invariante da duração e ganha a do teto de renovações.
+        [Theory]
+        [InlineData(0)]
+        [InlineData(-1)]
+        public void ExpirationLimitedPolicy_WithNonPositiveDuration_Throws(int days)
+        {
+            Assert.Throws<DomainException>(() => new ExpirationLimitedPolicy(TimeSpan.FromDays(days), maxRenewals: 3));
+        }
+
+        [Theory]
+        [InlineData(0)]
+        [InlineData(-1)]
+        public void ExpirationLimitedPolicy_WithNonPositiveMaxRenewals_Throws(int maxRenewals)
+        {
+            Assert.Throws<DomainException>(() => new ExpirationLimitedPolicy(TimeSpan.FromDays(365), maxRenewals));
+        }
+
+        [Fact]
+        public void ExpirationLimitedPolicy_WithPositiveValues_IsCreated()
+        {
+            var policy = new ExpirationLimitedPolicy(TimeSpan.FromDays(365), maxRenewals: 2);
+
+            Assert.Equal(TimeSpan.FromDays(365), policy.Duration);
+            Assert.Equal(2, policy.MaxRenewals);
+        }
+
         // Derivação: escalar zerado é ausência de regra. Precisa PULAR, não lançar — templates legados
         // gravaram 00:00:00 na coluna e não podem quebrar ao serem editados.
         [Fact]

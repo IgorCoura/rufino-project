@@ -16,7 +16,10 @@ namespace PeopleManagement.Domain.AggregatesModel.DocumentTemplateAggregate.Poli
 
         public static DocumentPolicy ToPersistence(IDocumentPolicy policy) => policy switch
         {
-            IExpirationPolicy e => new DocumentPolicy(PolicyType.Expiration, Serialize(new ExpirationParams(e.Duration.Ticks))),
+            // A limitada casa antes da interface: casar por IExpirationPolicy engoliria a variante e perderia o
+            // MaxRenewals no jsonb. MaxRenewals null nos params = renovação indefinida (ExpirationPolicy).
+            ExpirationLimitedPolicy l => new DocumentPolicy(PolicyType.Expiration, Serialize(new ExpirationParams(l.Duration.Ticks, l.MaxRenewals))),
+            IExpirationPolicy e => new DocumentPolicy(PolicyType.Expiration, Serialize(new ExpirationParams(e.Duration.Ticks, null))),
             IPeriodPolicy p => new DocumentPolicy(PolicyType.Period, Serialize(new PeriodParams(p.PeriodType.Id, p.UsePreviousPeriod))),
             IWorkloadPolicy w => new DocumentPolicy(PolicyType.Workload, Serialize(new WorkloadParams(w.Workload.Ticks))),
             ISignaturePolicy s => new DocumentPolicy(PolicyType.Signature, Serialize(ToSignatureParams(s))),
@@ -25,12 +28,19 @@ namespace PeopleManagement.Domain.AggregatesModel.DocumentTemplateAggregate.Poli
 
         public static IDocumentPolicy ToPolicy(DocumentPolicy record) => record.Type.Id switch
         {
-            var id when id == PolicyType.Expiration.Id => new ExpirationPolicy(TimeSpan.FromTicks(Deserialize<ExpirationParams>(record.Params).DurationTicks)),
+            var id when id == PolicyType.Expiration.Id => ToExpirationPolicy(Deserialize<ExpirationParams>(record.Params)),
             var id when id == PolicyType.Period.Id => ToPeriodPolicy(Deserialize<PeriodParams>(record.Params)),
             var id when id == PolicyType.Workload.Id => new WorkloadPolicy(TimeSpan.FromTicks(Deserialize<WorkloadParams>(record.Params).WorkloadTicks)),
             var id when id == PolicyType.Signature.Id => ToSignaturePolicy(Deserialize<SignatureParams>(record.Params)),
             _ => throw new DomainException(nameof(DocumentPolicyFactory), DomainErrors.FieldInvalid(nameof(PolicyType), record.Type.ToString()))
         };
+
+        // MaxRenewals ausente/null (o caso das linhas gravadas antes da Fase 3b e do backfill) = renovação
+        // indefinida; presente = renovação limitada. É o discriminador entre as duas policies de vencimento.
+        private static IExpirationPolicy ToExpirationPolicy(ExpirationParams p)
+            => p.MaxRenewals is null
+                ? new ExpirationPolicy(TimeSpan.FromTicks(p.DurationTicks))
+                : new ExpirationLimitedPolicy(TimeSpan.FromTicks(p.DurationTicks), p.MaxRenewals.Value);
 
         private static PeriodPolicy ToPeriodPolicy(PeriodParams p)
             => new(PeriodType.CreateFromValue(p.PeriodTypeId), p.UsePreviousPeriod);
@@ -53,7 +63,9 @@ namespace PeopleManagement.Domain.AggregatesModel.DocumentTemplateAggregate.Poli
 
         // Durações viajam em ticks (não em TimeSpan) para que o backfill da migration consiga reproduzir
         // exatamente o mesmo payload a partir das colunas interval, sem depender do formato textual do STJ.
-        private sealed record ExpirationParams(long DurationTicks);
+        // MaxRenewals é nullable e opcional: linhas antigas (sem a chave) desserializam como null = indefinido,
+        // então a Fase 3b não precisa de migração de dados.
+        private sealed record ExpirationParams(long DurationTicks, int? MaxRenewals = null);
         private sealed record PeriodParams(int PeriodTypeId, bool UsePreviousPeriod);
         private sealed record WorkloadParams(long WorkloadTicks);
 

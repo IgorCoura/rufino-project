@@ -37,6 +37,42 @@ namespace PeopleManagement.UnitTests.Aggregates.DocumentTemplateTests.Policies
             Assert.Equal(TimeSpan.FromDays(365), restored.Duration);
         }
 
+        [Theory]
+        [InlineData(0, true)]
+        [InlineData(1, true)]
+        [InlineData(2, false)]
+        [InlineData(3, false)]
+        public void ExpirationLimitedPolicy_CanRenew_WhileBelowMax(int renewalCount, bool expected)
+        {
+            var policy = new ExpirationLimitedPolicy(TimeSpan.FromDays(365), maxRenewals: 2);
+
+            Assert.Equal(expected, policy.CanRenew(renewalCount));
+        }
+
+        // A armadilha da factory: casar por interface engoliria a limitada e perderia o MaxRenewals. O tipo
+        // concreto precisa sobreviver ao round-trip, com os dois valores.
+        [Fact]
+        public void RoundTrip_ExpirationLimitedPolicy_PreservesDurationAndMaxRenewals()
+        {
+            var record = DocumentPolicyFactory.ToPersistence(new ExpirationLimitedPolicy(TimeSpan.FromDays(180), maxRenewals: 3));
+
+            Assert.Equal(PolicyType.Expiration, record.Type);
+            var restored = Assert.IsType<ExpirationLimitedPolicy>(DocumentPolicyFactory.ToPolicy(record));
+            Assert.Equal(TimeSpan.FromDays(180), restored.Duration);
+            Assert.Equal(3, restored.MaxRenewals);
+        }
+
+        // Retrocompatibilidade: linha gravada antes da Fase 3b não tem a chave MaxRenewals. Deve reidratar como
+        // a policy indefinida (ExpirationPolicy), não quebrar nem virar limitada.
+        [Fact]
+        public void ToPolicy_ExpirationPayloadWithoutMaxRenewals_RehydratesAsForever()
+        {
+            var record = new DocumentPolicy(PolicyType.Expiration, $$"""{"DurationTicks":{{TimeSpan.FromDays(365).Ticks}}}""");
+
+            var restored = Assert.IsType<ExpirationPolicy>(DocumentPolicyFactory.ToPolicy(record));
+            Assert.Equal(TimeSpan.FromDays(365), restored.Duration);
+        }
+
         [Fact]
         public void RoundTrip_PeriodPolicy_PreservesPeriodTypeAndUsePreviousPeriod()
         {
