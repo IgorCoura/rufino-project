@@ -59,13 +59,23 @@ namespace PeopleManagement.Services.Services
                 // unidade que venceu é sempre depreciada, mas só nasce uma nova enquanto a policy permitir renovar.
                 // Sem policy de vencimento (documento legado com data de validade avulsa) mantém o comportamento
                 // antigo: renova sempre.
-                var canRenew = await CanRenewAsync(document, companyId, cancellationToken);
+                var template = await _documentTemplateRepository.FirstOrDefaultAsync(
+                    x => x.Id == document.DocumentTemplateId && x.CompanyId == companyId,
+                    cancellation: cancellationToken);
+
+                var canRenew = await CanRenewAsync(document, template, companyId, cancellationToken);
 
                 var newDocumentUnitId = Guid.NewGuid();
                 document.MakeAsDocumentDeprecated(documentUnitId, newDocumentUnitId);
 
                 if (canRenew)
-                    document.NewDocumentUnit(Guid.NewGuid());
+                {
+                    // A renovada nasce sem data de referência: se o template for por competência, cai na mínima e
+                    // espera a data real. A configuração é a ATUAL do template — editar o template vale para a
+                    // renovação seguinte.
+                    var periodPolicy = template?.GetPolicy<IPeriodPolicy>();
+                    document.NewDocumentUnit(Guid.NewGuid(), periodPolicy?.PeriodType, periodPolicy?.UsePreviousPeriod ?? false);
+                }
             }
             else
             {
@@ -125,12 +135,10 @@ namespace PeopleManagement.Services.Services
 
         // Consulta a policy de vencimento do template do documento e decide, pelo contador de renovações
         // (unidades depreciadas), se ainda pode renovar. Sem policy ⇒ renova sempre (retrocompatível).
-        private async Task<bool> CanRenewAsync(Document document, Guid companyId, CancellationToken cancellationToken)
+        private async Task<bool> CanRenewAsync(Document document,
+            Domain.AggregatesModel.DocumentTemplateAggregate.DocumentTemplate? template, Guid companyId,
+            CancellationToken cancellationToken)
         {
-            var template = await _documentTemplateRepository.FirstOrDefaultAsync(
-                x => x.Id == document.DocumentTemplateId && x.CompanyId == companyId,
-                cancellation: cancellationToken);
-
             var expirationPolicy = template?.GetPolicy<IExpirationPolicy>();
             if (expirationPolicy is null)
                 return true;

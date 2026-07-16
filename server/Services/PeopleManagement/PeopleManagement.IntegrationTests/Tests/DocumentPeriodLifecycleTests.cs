@@ -18,7 +18,8 @@ namespace PeopleManagement.IntegrationTests.Tests
     // a unidade nasce na competência mínima quando não há data, e é o UpdateDocumentUnitDetails — o fluxo real,
     // HTTP -> Application -> DocumentService -> Domain -> EF — que a move para a competência da data informada.
     // Cobre também a retroatividade (UsePreviousPeriod), a troca de competência, a invalidação de pendências
-    // duplicadas na mesma competência e o congelamento (editar o template não reescreve documentos existentes).
+    // duplicadas na mesma competência e a leitura ao vivo (editar o template vale imediatamente para as
+    // próximas operações; a competência já gravada nas units é história e não muda sozinha).
     //
     // Os templates aqui têm SÓ a PeriodPolicy: sem vencimento (o setter de Validity recusa validade no passado,
     // o que proibiria datas fixas) e sem carga horária (que exigiria dia útil) — as datas de 2024 ficam estáveis
@@ -102,10 +103,11 @@ namespace PeopleManagement.IntegrationTests.Tests
 
             var seed = await SeedGeneratedPeriodDocumentAsync(context, ct, usePreviousPeriod: false);
 
-            // Segunda pendência já situada em março/2024 (data de referência na criação).
+            // Segunda pendência já situada em março/2024 (data de referência na criação). A configuração de
+            // competência é passada por operação — aqui o teste faz o papel do caller que leu o template.
             var trackedDocument = await context.Documents.Include(x => x.DocumentsUnits)
                 .FirstAsync(x => x.Id == seed.DocumentId, ct);
-            var marchUnit = trackedDocument.NewDocumentUnit(Guid.NewGuid(), MarchDate.ToDateTime(TimeOnly.MinValue));
+            var marchUnit = trackedDocument.NewDocumentUnit(Guid.NewGuid(), PeriodType.Monthly, false, MarchDate.ToDateTime(TimeOnly.MinValue));
             await context.SaveChangesAsync(ct);
 
             // O update move a unidade da competência mínima para março — a mesma da outra Pending.
@@ -118,11 +120,12 @@ namespace PeopleManagement.IntegrationTests.Tests
             Assert.Equal(DocumentUnitStatus.Invalid, result.DocumentsUnits.First(u => u.Id == marchUnit.Id).Status);
         }
 
-        // O congelamento, ponta a ponta: a competência é copiada do template no NASCIMENTO do documento. Editar o
-        // template depois (Monthly -> Yearly) não reescreve o documento — o update seguinte ainda situa a unidade
-        // numa competência MENSAL. Sem isso, mudar o template corromperia o histórico de documentos emitidos.
+        // Leitura ao vivo, ponta a ponta: a competência NÃO é congelada no documento — toda operação lê a
+        // PeriodPolicy atual do template. Editar o template (Monthly -> Yearly) vale imediatamente: o update
+        // seguinte situa a unidade numa competência ANUAL. As competências já gravadas em units entregues são
+        // história por unidade e não mudam (coberto em DocumentPeriodLiveReadTests).
         [Fact]
-        public async Task EditTemplatePeriod_AfterDocumentExists_DoesNotRewriteTheDocument()
+        public async Task EditTemplatePeriod_AfterDocumentExists_AppliesToTheNextOperations()
         {
             var ct = CancellationToken.None;
             var context = GetContext();
@@ -144,11 +147,9 @@ namespace PeopleManagement.IntegrationTests.Tests
                 new UpdateDocumentUnitDetailsModel(seed.UnitId, seed.DocumentId, seed.EmployeeId, MarchDate));
 
             var result = await GetDocumentAsync(seed.DocumentId, ct);
-            Assert.Equal(PeriodType.Monthly, result.PeriodType);
             var unit = Assert.Single(result.DocumentsUnits);
-            Assert.True(unit.Period!.IsMonthly);
+            Assert.True(unit.Period!.IsYearly);
             Assert.Equal(2024, unit.Period.Year);
-            Assert.Equal(3, unit.Period.Month);
         }
 
         private sealed record PeriodDocumentSeed(

@@ -36,7 +36,8 @@ namespace PeopleManagement.Application.Queries.Document
                 CompanyId  = x.Document.CompanyId,
                 RequiredDocumentId = x.Document.RequiredDocumentId,
                 DocumentTemplateId = x.Document.DocumentTemplateId,
-                UsePreviousPeriod = x.Document.UsePreviousPeriod,
+                // A configuração de competência mora só no template (o Document não guarda cópia).
+                UsePreviousPeriod = x.Template.UsePreviousPeriod,
                 IsSignable = x.Template.IsSignable,
                 CanGenerateDocument = x.Template.CanGenerateDocuments,
                 CreateAt = x.Document.CreatedAt,
@@ -91,7 +92,8 @@ namespace PeopleManagement.Application.Queries.Document
                 CompanyId = document.CompanyId,
                 RequiredDocumentId = document.RequiredDocumentId,
                 DocumentTemplateId = document.DocumentTemplateId,
-                UsePreviousPeriod = document.UsePreviousPeriod,
+                // A configuração de competência mora só no template (o Document não guarda cópia).
+                UsePreviousPeriod = template.UsePreviousPeriod,
                 IsSignable = template.IsSignable,
                 CanGenerateDocument = template.CanGenerateDocuments,
                 CreateAt = document.CreatedAt,

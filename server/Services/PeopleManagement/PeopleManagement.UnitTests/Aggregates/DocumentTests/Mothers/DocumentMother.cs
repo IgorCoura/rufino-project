@@ -29,7 +29,9 @@ namespace PeopleManagement.UnitTests.Aggregates.DocumentTests.Mothers
                 "Documento Teste",
                 "Descrição do documento");
 
-        public static Document Simple(bool usePreviousPeriod = false, PeriodType? periodType = null)
+        // A configuração de competência não mora mais no Document — ela é passada por operação
+        // (NewDocumentUnit/UpdateDocumentUnitDetails), espelhando a leitura ao vivo do template.
+        public static Document Simple()
             => Document.Create(
                 Guid.NewGuid(),
                 employeeId: Guid.NewGuid(),
@@ -37,8 +39,6 @@ namespace PeopleManagement.UnitTests.Aggregates.DocumentTests.Mothers
                 requiredDocumentId: Guid.NewGuid(),
                 documentTemplateId: Guid.NewGuid(),
                 name: "Documento Teste",
-                description: "Descrição do documento",
-                usePreviousPeriod: usePreviousPeriod,
-                periodType: periodType);
+                description: "Descrição do documento");
     }
 }

@@ -45,33 +45,28 @@ namespace PeopleManagement.Domain.AggregatesModel.DocumentAggregate
             DocumentId = document.Id;
         }
 
-        public static DocumentUnit Create(Guid id,  Document document)
-        {
-            return new(id,  document);
-        }
-
         /// <summary>
-        /// Cria a unidade situando-a na competência do documento, quando ele for por competência.
+        /// Cria a unidade situando-a na competência configurada no template do documento, quando houver.
         ///
-        /// Quem sabe se há competência é o [document] — ele copiou a configuração do template ao nascer. Com
-        /// [referenceDate], a unidade cai na competência daquela data (e a data vira o Date da unidade). Sem
-        /// [referenceDate], a unidade ainda não tem data que a situe, então recebe a competência mínima possível
-        /// — que é substituída assim que uma data real chega por UpdateDetails.
+        /// A configuração ([periodType]/[usePreviousPeriod]) vem do template, lida pelo caller no momento da
+        /// operação — nem o documento nem a unidade guardam cópia da regra; a unidade guarda só a competência em
+        /// que caiu (a história). Com [referenceDate], a unidade cai na competência daquela data (e a data vira o
+        /// Date da unidade). Sem [referenceDate], a unidade ainda não tem data que a situe, então recebe a
+        /// competência mínima possível — substituída assim que uma data real chega por UpdateDetails.
         /// </summary>
-        public static DocumentUnit Create(Guid id, Document document, DateTime? referenceDate = null)
+        public static DocumentUnit Create(Guid id, Document document, PeriodType? periodType = null, bool usePreviousPeriod = false, DateTime? referenceDate = null)
         {
             var documentUnit = new DocumentUnit(id, document);
 
-            if (document.IsPeriod)
+            if (periodType is not null)
             {
                 if (referenceDate.HasValue)
                 {
-                    documentUnit.SetPeriod(referenceDate.Value);
-                    documentUnit.UpdateDetails(DateOnly.FromDateTime(referenceDate.Value), (DateOnly?)null, "");
+                    documentUnit.UpdateDetails(DateOnly.FromDateTime(referenceDate.Value), (DateOnly?)null, "", periodType, usePreviousPeriod);
                 }
                 else
                 {
-                    documentUnit.Period = Period.CreateMinimum(document.PeriodType!);
+                    documentUnit.Period = Period.CreateMinimum(periodType);
                 }
             }
 
@@ -79,17 +74,24 @@ namespace PeopleManagement.Domain.AggregatesModel.DocumentAggregate
         }
 
         /// <summary>
-        /// Recalcula a competência da unidade a partir de [referenceDate], usando a configuração congelada no
-        /// documento. Só faz sentido quando o documento é por competência.
+        /// Recalcula a competência da unidade a partir de [referenceDate], com a configuração atual do template
+        /// (lida pelo caller no momento da operação).
         /// </summary>
-        public void SetPeriod(DateTime referenceDate)
+        public void SetPeriod(DateTime referenceDate, PeriodType periodType, bool usePreviousPeriod)
         {
-            if (!Document.IsPeriod)
-                return;
+            Period = usePreviousPeriod
+                ? Period.CreatePreviousPeriod(periodType, referenceDate)
+                : Period.Create(periodType, referenceDate);
+        }
 
-            Period = Document.UsePreviousPeriod
-                ? Period.CreatePreviousPeriod(Document.PeriodType!, referenceDate)
-                : Period.Create(Document.PeriodType!, referenceDate);
+        /// <summary>
+        /// Re-situa a unidade na competência mínima de [periodType]. Usado quando uma pendente que espera data é
+        /// reaproveitada após o template trocar de granularidade — a mínima antiga não pode sobreviver com o tipo
+        /// velho, senão a próxima busca por pendente equivalente não a encontraria.
+        /// </summary>
+        public void ResetPeriodToMinimum(PeriodType periodType)
+        {
+            Period = Period.CreateMinimum(periodType);
         }
 
         public void InsertWithRequireValidation(Name name, Extension extension)
@@ -111,16 +113,20 @@ namespace PeopleManagement.Domain.AggregatesModel.DocumentAggregate
                 AddDomainEvent(ScheduleDocumentExpirationEvent.Create(Document.Id, Id, Document.CompanyId, (DateOnly)Validity, Date));
         }
 
-        public void UpdateDetails(DateOnly date, DateOnly? validity, string content)
+        // Com [periodType], a data recebida re-situa a unidade na competência correspondente — inclusive quando a
+        // unidade ainda não tinha competência (documento nascido antes de o template ganhar a PeriodPolicy passa
+        // a ser situado aqui). Sem [periodType] (template sem a regra), a competência existente fica intocada:
+        // ela é história, não configuração.
+        public void UpdateDetails(DateOnly date, DateOnly? validity, string content, PeriodType? periodType = null, bool usePreviousPeriod = false)
         {
             Date = date;
-            Validity = validity;    
+            Validity = validity;
             Content = content;
-            if (IsPeriod)
-                SetPeriod(date.ToDateTime(TimeOnly.MinValue));
+            if (periodType is not null)
+                SetPeriod(date.ToDateTime(TimeOnly.MinValue), periodType, usePreviousPeriod);
         }
 
-        public void UpdateDetails(DateOnly date, TimeSpan? validity, string content)
+        public void UpdateDetails(DateOnly date, TimeSpan? validity, string content, PeriodType? periodType = null, bool usePreviousPeriod = false)
         {
             Date = date;
             DateOnly? dateValidity = null;
@@ -131,8 +137,8 @@ namespace PeopleManagement.Domain.AggregatesModel.DocumentAggregate
             }
             Validity = dateValidity;
             Content = content;
-            if(IsPeriod)
-                SetPeriod(date.ToDateTime(TimeOnly.MinValue));
+            if (periodType is not null)
+                SetPeriod(date.ToDateTime(TimeOnly.MinValue), periodType, usePreviousPeriod);
         }
 
 
