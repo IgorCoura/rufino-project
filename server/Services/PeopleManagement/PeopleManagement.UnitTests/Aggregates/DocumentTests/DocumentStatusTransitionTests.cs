@@ -1,4 +1,4 @@
-using PeopleManagement.Domain.AggregatesModel.DocumentAggregate;
+﻿using PeopleManagement.Domain.AggregatesModel.DocumentAggregate;
 
 namespace PeopleManagement.UnitTests.Aggregates.DocumentTests
 {
@@ -18,7 +18,7 @@ namespace PeopleManagement.UnitTests.Aggregates.DocumentTests
         private static readonly DateOnly OfficialDate = new(2024, 1, 15);
         private static readonly DateTime ReferenceDate = new(2024, 1, 15, 10, 30, 0, DateTimeKind.Utc);
 
-        private static Document CreateDocument(bool usePreviousPeriod = false)
+        private static Document CreateDocument(bool usePreviousPeriod = false, PeriodType? periodType = null)
         {
             return Document.Create(
                 Guid.NewGuid(),
@@ -28,7 +28,8 @@ namespace PeopleManagement.UnitTests.Aggregates.DocumentTests
                 documentTemplateId: Guid.NewGuid(),
                 name: "Documento Teste",
                 description: "Descrição do documento",
-                usePreviousPeriod: usePreviousPeriod
+                usePreviousPeriod: usePreviousPeriod,
+                periodType: periodType
             );
         }
 
@@ -234,10 +235,10 @@ namespace PeopleManagement.UnitTests.Aggregates.DocumentTests
         [Fact]
         public void PeriodDocument_WithPendingUnit_ShouldBeRequiresDocument()
         {
-            var doc = CreateDocument();
+            var doc = CreateDocument(periodType: PeriodType.Monthly);
             var unitId = Guid.NewGuid();
 
-            var unit = doc.NewDocumentUnit(unitId, PeriodType.Monthly, ReferenceDate);
+            var unit = doc.NewDocumentUnit(unitId, ReferenceDate);
 
             Assert.Equal(DocumentUnitStatus.Pending, unit.Status);
             Assert.Equal(DocumentStatus.RequiresDocument, doc.Status);
@@ -246,17 +247,17 @@ namespace PeopleManagement.UnitTests.Aggregates.DocumentTests
         [Fact]
         public void PeriodDocument_TwoGroups_OneOkOnePending_ShouldPrioritizeRequiresDocument()
         {
-            var doc = CreateDocument();
+            var doc = CreateDocument(periodType: PeriodType.Monthly);
             var referenceDate = ReferenceDate;
 
             // Grupo A (mês corrente): unit OK
             var okId = Guid.NewGuid();
-            doc.NewDocumentUnit(okId, PeriodType.Monthly, referenceDate);
+            doc.NewDocumentUnit(okId, referenceDate);
             doc.InsertUnitWithoutRequireValidation(okId, "arquivo", "pdf");
 
             // Grupo B (mês seguinte): unit Pending
             var pendingId = Guid.NewGuid();
-            doc.NewDocumentUnit(pendingId, PeriodType.Monthly, referenceDate.AddMonths(1));
+            doc.NewDocumentUnit(pendingId, referenceDate.AddMonths(1));
 
             Assert.Equal(DocumentUnitStatus.OK, doc.GetDocumentUnit(okId).Status);
             Assert.Equal(DocumentUnitStatus.Pending, doc.GetDocumentUnit(pendingId).Status);
@@ -267,10 +268,10 @@ namespace PeopleManagement.UnitTests.Aggregates.DocumentTests
         [Fact]
         public void PeriodDocument_WithRequiresValidationUnit_ShouldBeRequiresValidation()
         {
-            var doc = CreateDocument();
+            var doc = CreateDocument(periodType: PeriodType.Monthly);
             var unitId = Guid.NewGuid();
 
-            doc.NewDocumentUnit(unitId, PeriodType.Monthly, ReferenceDate);
+            doc.NewDocumentUnit(unitId, ReferenceDate);
             doc.InsertUnitWithRequireValidation(unitId, "arquivo", "pdf");
 
             Assert.Equal(DocumentUnitStatus.RequiresValidation, doc.GetDocumentUnit(unitId).Status);
@@ -280,10 +281,10 @@ namespace PeopleManagement.UnitTests.Aggregates.DocumentTests
         [Fact]
         public void PeriodDocument_WithOkUnit_ShouldBeOk()
         {
-            var doc = CreateDocument();
+            var doc = CreateDocument(periodType: PeriodType.Monthly);
             var unitId = Guid.NewGuid();
 
-            doc.NewDocumentUnit(unitId, PeriodType.Monthly, ReferenceDate);
+            doc.NewDocumentUnit(unitId, ReferenceDate);
             doc.InsertUnitWithoutRequireValidation(unitId, "arquivo", "pdf");
 
             Assert.Equal(DocumentUnitStatus.OK, doc.GetDocumentUnit(unitId).Status);
@@ -293,10 +294,10 @@ namespace PeopleManagement.UnitTests.Aggregates.DocumentTests
         [Fact]
         public void PeriodDocument_WithAwaitingSignatureUnit_CollapsesToOk()
         {
-            var doc = CreateDocument();
+            var doc = CreateDocument(periodType: PeriodType.Monthly);
             var unitId = Guid.NewGuid();
 
-            doc.NewDocumentUnit(unitId, PeriodType.Monthly, ReferenceDate);
+            doc.NewDocumentUnit(unitId, ReferenceDate);
             doc.MarkAsAwaitingDocumentUnitSignature(unitId);
 
             Assert.Equal(DocumentUnitStatus.AwaitingSignature, doc.GetDocumentUnit(unitId).Status);

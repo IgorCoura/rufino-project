@@ -1,10 +1,10 @@
-using PeopleManagement.Domain.AggregatesModel.DocumentAggregate;
+﻿using PeopleManagement.Domain.AggregatesModel.DocumentAggregate;
 
 namespace PeopleManagement.UnitTests.Aggregates.DocumentTests
 {
     public class DocumentTests
     {
-        private static Document CreateDocument(bool usePreviousPeriod = false)
+        private static Document CreateDocument(bool usePreviousPeriod = false, PeriodType? periodType = null)
         {
             return Document.Create(
                 Guid.NewGuid(),
@@ -14,7 +14,8 @@ namespace PeopleManagement.UnitTests.Aggregates.DocumentTests
                 documentTemplateId: Guid.NewGuid(),
                 name: "Documento Teste",
                 description: "Descrição do documento",
-                usePreviousPeriod: usePreviousPeriod
+                usePreviousPeriod: usePreviousPeriod,
+                periodType: periodType
             );
         }
 
@@ -49,11 +50,11 @@ namespace PeopleManagement.UnitTests.Aggregates.DocumentTests
         [Fact]
         public void NewDocumentUnit_WithPeriod_ShouldCreateNewUnit()
         {
-            var document = CreateDocument();
+            var document = CreateDocument(periodType: PeriodType.Monthly);
             var unitId = Guid.NewGuid();
             var referenceDate = DateTime.UtcNow;
 
-            var result = document.NewDocumentUnit(unitId, PeriodType.Monthly, referenceDate);
+            var result = document.NewDocumentUnit(unitId, referenceDate);
 
             Assert.NotNull(result);
             Assert.Equal(unitId, result.Id);
@@ -63,13 +64,13 @@ namespace PeopleManagement.UnitTests.Aggregates.DocumentTests
         [Fact]
         public void NewDocumentUnit_WithSamePeriod_WhenPendingExists_ShouldReturnExisting()
         {
-            var document = CreateDocument();
+            var document = CreateDocument(periodType: PeriodType.Monthly);
             var firstUnitId = Guid.NewGuid();
             var secondUnitId = Guid.NewGuid();
             var referenceDate = DateTime.UtcNow;
 
-            var first = document.NewDocumentUnit(firstUnitId, PeriodType.Monthly, referenceDate);
-            var second = document.NewDocumentUnit(secondUnitId, PeriodType.Monthly, referenceDate);
+            var first = document.NewDocumentUnit(firstUnitId, referenceDate);
+            var second = document.NewDocumentUnit(secondUnitId, referenceDate);
 
             Assert.Same(first, second);
             Assert.Equal(firstUnitId, second.Id);
@@ -79,14 +80,14 @@ namespace PeopleManagement.UnitTests.Aggregates.DocumentTests
         [Fact]
         public void NewDocumentUnit_WithDifferentPeriod_ShouldCreateNewUnit()
         {
-            var document = CreateDocument();
+            var document = CreateDocument(periodType: PeriodType.Monthly);
             var firstUnitId = Guid.NewGuid();
             var secondUnitId = Guid.NewGuid();
             var referenceDate = DateTime.UtcNow;
             var differentReferenceDate = referenceDate.AddMonths(1);
 
-            var first = document.NewDocumentUnit(firstUnitId, PeriodType.Monthly, referenceDate);
-            var second = document.NewDocumentUnit(secondUnitId, PeriodType.Monthly, differentReferenceDate);
+            var first = document.NewDocumentUnit(firstUnitId, referenceDate);
+            var second = document.NewDocumentUnit(secondUnitId, differentReferenceDate);
 
             Assert.NotSame(first, second);
             Assert.Equal(2, document.DocumentsUnits.Count);
@@ -100,13 +101,13 @@ namespace PeopleManagement.UnitTests.Aggregates.DocumentTests
         public void NewDocumentUnit_WithSamePeriodType_WhenPendingExists_ShouldReturnExisting(int periodTypeId)
         {
             PeriodType periodType = periodTypeId;
-            var document = CreateDocument();
+            var document = CreateDocument(periodType: periodType);
             var firstUnitId = Guid.NewGuid();
             var secondUnitId = Guid.NewGuid();
             var referenceDate = DateTime.UtcNow;
 
-            var first = document.NewDocumentUnit(firstUnitId, periodType, referenceDate);
-            var second = document.NewDocumentUnit(secondUnitId, periodType, referenceDate);
+            var first = document.NewDocumentUnit(firstUnitId, referenceDate);
+            var second = document.NewDocumentUnit(secondUnitId, referenceDate);
 
             Assert.Same(first, second);
             Assert.Single(document.DocumentsUnits);
@@ -115,13 +116,13 @@ namespace PeopleManagement.UnitTests.Aggregates.DocumentTests
         [Fact]
         public void NewDocumentUnit_WithSamePeriod_UsePreviousPeriod_WhenPendingExists_ShouldReturnExisting()
         {
-            var document = CreateDocument(usePreviousPeriod: true);
+            var document = CreateDocument(usePreviousPeriod: true, periodType: PeriodType.Monthly);
             var firstUnitId = Guid.NewGuid();
             var secondUnitId = Guid.NewGuid();
             var referenceDate = DateTime.UtcNow;
 
-            var first = document.NewDocumentUnit(firstUnitId, PeriodType.Monthly, referenceDate);
-            var second = document.NewDocumentUnit(secondUnitId, PeriodType.Monthly, referenceDate);
+            var first = document.NewDocumentUnit(firstUnitId, referenceDate);
+            var second = document.NewDocumentUnit(secondUnitId, referenceDate);
 
             Assert.Same(first, second);
             Assert.Single(document.DocumentsUnits);
@@ -130,12 +131,12 @@ namespace PeopleManagement.UnitTests.Aggregates.DocumentTests
         [Fact]
         public void UpdateDocumentUnitDetails_WithPeriod_ShouldInvalidateDuplicatePending()
         {
-            var document = CreateDocument();
+            var document = CreateDocument(periodType: PeriodType.Monthly);
             var referenceDate = DateTime.UtcNow;
             var differentReferenceDate = referenceDate.AddMonths(1);
 
-            var firstUnit = document.NewDocumentUnit(Guid.NewGuid(), PeriodType.Monthly, referenceDate);
-            var secondUnit = document.NewDocumentUnit(Guid.NewGuid(), PeriodType.Monthly, differentReferenceDate);
+            var firstUnit = document.NewDocumentUnit(Guid.NewGuid(), referenceDate);
+            var secondUnit = document.NewDocumentUnit(Guid.NewGuid(), differentReferenceDate);
 
             Assert.Equal(2, document.DocumentsUnits.Count);
 
@@ -149,14 +150,14 @@ namespace PeopleManagement.UnitTests.Aggregates.DocumentTests
         [Fact]
         public void UpdateDocumentUnitDetails_WithPeriod_ShouldNotInvalidateNonPending()
         {
-            var document = CreateDocument();
+            var document = CreateDocument(periodType: PeriodType.Monthly);
             var referenceDate = DateTime.UtcNow;
             var differentReferenceDate = referenceDate.AddMonths(1);
 
-            var firstUnit = document.NewDocumentUnit(Guid.NewGuid(), PeriodType.Monthly, referenceDate);
+            var firstUnit = document.NewDocumentUnit(Guid.NewGuid(), referenceDate);
             firstUnit.InsertWithoutRequireValidation("arquivo", "pdf");
 
-            var secondUnit = document.NewDocumentUnit(Guid.NewGuid(), PeriodType.Monthly, differentReferenceDate);
+            var secondUnit = document.NewDocumentUnit(Guid.NewGuid(), differentReferenceDate);
 
             // Atualiza o segundo para ter o mesmo period do primeiro (que já é OK)
             document.UpdateDocumentUnitDetails(secondUnit.Id, DateOnly.FromDateTime(referenceDate), TimeSpan.Zero, "");
@@ -167,12 +168,12 @@ namespace PeopleManagement.UnitTests.Aggregates.DocumentTests
         [Fact]
         public void UpdateDocumentUnitDetails_WithDifferentPeriod_ShouldNotInvalidateAnything()
         {
-            var document = CreateDocument();
+            var document = CreateDocument(periodType: PeriodType.Monthly);
             var referenceDate = DateTime.UtcNow;
             var differentReferenceDate = referenceDate.AddMonths(1);
 
-            var firstUnit = document.NewDocumentUnit(Guid.NewGuid(), PeriodType.Monthly, referenceDate);
-            var secondUnit = document.NewDocumentUnit(Guid.NewGuid(), PeriodType.Monthly, differentReferenceDate);
+            var firstUnit = document.NewDocumentUnit(Guid.NewGuid(), referenceDate);
+            var secondUnit = document.NewDocumentUnit(Guid.NewGuid(), differentReferenceDate);
 
             // Atualiza o segundo mantendo um period diferente do primeiro
             document.UpdateDocumentUnitDetails(secondUnit.Id, DateOnly.FromDateTime(differentReferenceDate), TimeSpan.Zero, "");

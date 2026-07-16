@@ -6,6 +6,8 @@ namespace PeopleManagement.Domain.AggregatesModel.DocumentAggregate
 {
     public class Period : ValueObject
     {
+        public const int MIN_YEAR = 1900;
+
         public PeriodType Type { get; private set; }
         public int? Day { get; private set; }
         public int? Week { get; private set; }
@@ -40,6 +42,16 @@ namespace PeopleManagement.Domain.AggregatesModel.DocumentAggregate
             throw new DomainException(nameof(Period), DomainErrors.FieldInvalid(nameof(PeriodType), type.ToString()));
         }
 
+        /// <summary>
+        /// A menor competência que o domínio aceita, para o tipo dado (piso do ano em <see cref="MIN_YEAR"/>).
+        ///
+        /// Usada quando uma unidade nasce sem data: ela precisa de uma competência, mas ainda não há data que a
+        /// situe. Ignora "competência anterior" de propósito — não existe período antes do mínimo, e calcular o
+        /// anterior aqui estouraria o piso.
+        /// </summary>
+        public static Period CreateMinimum(PeriodType type)
+            => Create(type, new DateTime(MIN_YEAR, 1, 1));
+
         public static Period CreatePreviousPeriod(PeriodType type, DateTime date)
         {
             if (type.Equals(PeriodType.Daily))
@@ -71,7 +83,7 @@ namespace PeopleManagement.Domain.AggregatesModel.DocumentAggregate
 
         public static Period CreateDaily(int year, int month, int day)
         {
-            if (year < 1900 || year > 9999)
+            if (year < MIN_YEAR || year > 9999)
                 throw new DomainException(nameof(Period), DomainErrors.FieldInvalid(nameof(Year), year.ToString()));
 
             if (month < 1 || month > 12)
@@ -93,7 +105,7 @@ namespace PeopleManagement.Domain.AggregatesModel.DocumentAggregate
 
         public static Period CreateWeekly(int year, int month, int week)
         {
-            if (year < 1900 || year > 9999)
+            if (year < MIN_YEAR || year > 9999)
                 throw new DomainException(nameof(Period), DomainErrors.FieldInvalid(nameof(Year), year.ToString()));
 
             if (week < 1 || week > 53)
@@ -104,7 +116,7 @@ namespace PeopleManagement.Domain.AggregatesModel.DocumentAggregate
 
         public static Period CreateMonthly(int year, int month)
         {
-            if (year < 1900 || year > 9999)
+            if (year < MIN_YEAR || year > 9999)
                 throw new DomainException(nameof(Period), DomainErrors.FieldInvalid(nameof(Year), year.ToString()));
 
             if (month < 1 || month > 12)
@@ -115,7 +127,7 @@ namespace PeopleManagement.Domain.AggregatesModel.DocumentAggregate
 
         public static Period CreateYearly(int year)
         {
-            if (year < 1900 || year > 9999)
+            if (year < MIN_YEAR || year > 9999)
                 throw new DomainException(nameof(Period), DomainErrors.FieldInvalid(nameof(Year), year.ToString()));
 
             return new Period(PeriodType.Yearly, year, 1, null, null);

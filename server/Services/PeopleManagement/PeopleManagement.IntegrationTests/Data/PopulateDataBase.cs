@@ -5,6 +5,7 @@ using PeopleManagement.Domain.AggregatesModel.CompanyAggregate;
 using PeopleManagement.Domain.AggregatesModel.DepartmentAggregate;
 using PeopleManagement.Domain.AggregatesModel.DocumentAggregate;
 using PeopleManagement.Domain.AggregatesModel.DocumentGroupAggregate;
+using PeopleManagement.Domain.AggregatesModel.DocumentTemplateAggregate.Policies;
 using PeopleManagement.Domain.AggregatesModel.DocumentTemplateAggregate;
 using PeopleManagement.Domain.AggregatesModel.EmployeeAggregate;
 using PeopleManagement.Domain.AggregatesModel.EmployeeAggregate.Events;
@@ -280,15 +281,28 @@ namespace PeopleManagement.IntegrationTests.Data
             return documentGroup;
         }
 
-        public static async Task<DocumentTemplate> InsertDocumentTemplate(this PeopleManagementContext context, Guid companyId,  CancellationToken cancellationToken = default)
+        // periodType/usePreviousPeriod vêm depois do CancellationToken de propósito: os callers existentes passam
+        // (companyId, ct) posicionalmente, e mover o ct quebraria esse binding. Quem quer competência usa o
+        // parâmetro nomeado. Quando informado, o conjunto de policies vai completo (vencimento + carga + período),
+        // porque informar policies explícitas faz elas mandarem e zerarem o que não vier junto.
+        public static async Task<DocumentTemplate> InsertDocumentTemplate(this PeopleManagementContext context, Guid companyId, CancellationToken cancellationToken = default,
+            PeriodType? periodType = null, bool usePreviousPeriod = false)
         {
             var documentGroup = await context.InsertDocumentGroup(companyId, cancellationToken);
+
+            IEnumerable<IDocumentPolicy>? policies = periodType is null ? null :
+            [
+                new ExpirationPolicy(TimeSpan.FromDays(365)),
+                new WorkloadPolicy(TimeSpan.FromHours(8)),
+                new PeriodPolicy(periodType, usePreviousPeriod),
+            ];
+
             var documentTemplate = DocumentTemplate.Create(
                 Guid.NewGuid(),
-                "Template Nr01", 
+                "Template Nr01",
                 "Description Template Nr01",
-                companyId, 
-                TimeSpan.FromDays(365), 
+                companyId,
+                TimeSpan.FromDays(365),
                 TimeSpan.FromHours(8),
                 TemplateFileInfo.Create(
                     "NR01",
@@ -303,7 +317,8 @@ namespace PeopleManagement.IntegrationTests.Data
                     PlaceSignature.Create(TypeSignature.Signature,1,20.5, 5.3,5.2,5.5),
                     PlaceSignature.Create(TypeSignature.Visa,1,20,15,3,3),
                 ],
-                documentGroup.Id
+                documentGroup.Id,
+                policies: policies
                 );
             await context.DocumentTemplates.AddAsync(documentTemplate, cancellationToken);
             return documentTemplate;

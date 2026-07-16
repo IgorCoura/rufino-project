@@ -29,7 +29,7 @@ namespace PeopleManagement.UnitTests.Aggregates.DocumentTests.Mothers
                 "Documento Teste",
                 "Descrição do documento");
 
-        public static Document Simple(bool usePreviousPeriod = false)
+        public static Document Simple(bool usePreviousPeriod = false, PeriodType? periodType = null)
             => Document.Create(
                 Guid.NewGuid(),
                 employeeId: Guid.NewGuid(),
@@ -38,6 +38,7 @@ namespace PeopleManagement.UnitTests.Aggregates.DocumentTests.Mothers
                 documentTemplateId: Guid.NewGuid(),
                 name: "Documento Teste",
                 description: "Descrição do documento",
-                usePreviousPeriod: usePreviousPeriod);
+                usePreviousPeriod: usePreviousPeriod,
+                periodType: periodType);
     }
 }
