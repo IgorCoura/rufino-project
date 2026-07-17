@@ -181,5 +181,76 @@ namespace PeopleManagement.UnitTests.Aggregates.DocumentTests
             Assert.Equal(DocumentUnitStatus.Pending, firstUnit.Status);
             Assert.Equal(DocumentUnitStatus.Pending, secondUnit.Status);
         }
+
+        // -----------------------------------------------------------------
+        // Leitura ao vivo: troca de granularidade e heal de unidade sem competência.
+        // -----------------------------------------------------------------
+
+        // A pendente na competência mínima é uma unidade "esperando data": trocar a granularidade do template
+        // não pode deixá-la órfã nem criar uma segunda pendente — ela é reaproveitada e re-situada na mínima
+        // do tipo novo.
+        [Fact]
+        public void NewDocumentUnit_GranularityChanged_ShouldReuseAndResituateThePendingAtMinimumPeriod()
+        {
+            var document = CreateDocument();
+            var monthlyPending = document.NewDocumentUnit(Guid.NewGuid(), PeriodType.Monthly, false);
+            Assert.True(monthlyPending.Period!.IsMonthly);
+            Assert.Equal(Period.MIN_YEAR, monthlyPending.Period.Year);
+
+            var reused = document.NewDocumentUnit(Guid.NewGuid(), PeriodType.Yearly, false);
+
+            Assert.Same(monthlyPending, reused);
+            Assert.Single(document.DocumentsUnits);
+            Assert.True(reused.Period!.IsYearly);
+            Assert.Equal(Period.MIN_YEAR, reused.Period.Year);
+        }
+
+        [Fact]
+        public void NewDocumentUnit_SameGranularityAtMinimum_ShouldReuseWithoutChangingThePeriod()
+        {
+            var document = CreateDocument();
+            var pending = document.NewDocumentUnit(Guid.NewGuid(), PeriodType.Monthly, false);
+
+            var reused = document.NewDocumentUnit(Guid.NewGuid(), PeriodType.Monthly, false);
+
+            Assert.Same(pending, reused);
+            Assert.Single(document.DocumentsUnits);
+            Assert.True(reused.Period!.IsMonthly);
+            Assert.Equal(Period.MIN_YEAR, reused.Period.Year);
+        }
+
+        // Heal de legado: unidade nascida SEM competência (template ainda não tinha a PeriodPolicy) é situada
+        // quando um update chega com a configuração atual do template.
+        [Fact]
+        public void UpdateDocumentUnitDetails_UnitWithoutPeriod_WhenConfigInformed_ShouldSituateTheUnit()
+        {
+            var document = CreateDocument();
+            var unit = document.NewDocumentUnit(Guid.NewGuid());
+            Assert.Null(unit.Period);
+            var date = new DateOnly(2024, 3, 15);
+
+            document.UpdateDocumentUnitDetails(unit.Id, date, TimeSpan.Zero, "", PeriodType.Monthly, false);
+
+            Assert.NotNull(unit.Period);
+            Assert.True(unit.Period!.IsMonthly);
+            Assert.Equal(2024, unit.Period.Year);
+            Assert.Equal(3, unit.Period.Month);
+        }
+
+        // O inverso do heal: sem configuração (template sem a regra), a competência existente é história e o
+        // update não a recalcula nem a apaga.
+        [Fact]
+        public void UpdateDocumentUnitDetails_UnitWithPeriod_WhenConfigAbsent_ShouldLeaveThePeriodUntouched()
+        {
+            var document = CreateDocument();
+            var referenceDate = new DateTime(2024, 3, 15, 0, 0, 0, DateTimeKind.Utc);
+            var unit = document.NewDocumentUnit(Guid.NewGuid(), PeriodType.Monthly, false, referenceDate);
+
+            document.UpdateDocumentUnitDetails(unit.Id, new DateOnly(2024, 4, 10), TimeSpan.Zero, "");
+
+            Assert.True(unit.Period!.IsMonthly);
+            Assert.Equal(2024, unit.Period.Year);
+            Assert.Equal(3, unit.Period.Month);
+        }
     }
 }

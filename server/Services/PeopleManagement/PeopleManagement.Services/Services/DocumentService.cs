@@ -99,8 +99,11 @@ namespace PeopleManagement.Services.Services
             // Carregar todos os documentos e templates de uma vez. TODOS os templates, mesmo os de documentos já
             // existentes: a configuração de competência é lida do template em toda criação de unidade, não só na
             // criação do documento.
+            // Include das units: NewDocumentUnit deduplica varrendo DocumentsUnits — sem carregar a coleção, a
+            // pendente equivalente nunca é encontrada e cada geração criaria uma unidade duplicada.
             var existingDocuments = await _documentRepository.GetDataAsync(
                 x => allTemplateIds.Contains(x.DocumentTemplateId) && x.EmployeeId == employee.Id,
+                include: i => i.Include(x => x.DocumentsUnits),
                 cancellation: cancellationToken);
 
             var existingDocumentsByTemplateId = existingDocuments.ToDictionary(d => d.DocumentTemplateId);
@@ -193,8 +196,11 @@ namespace PeopleManagement.Services.Services
                 var scopedDocumentRepository = scope.ServiceProvider.GetRequiredService<IDocumentRepository>();
                 var scopedDocumentTemplateRepository = scope.ServiceProvider.GetRequiredService<IDocumentTemplateRepository>();
 
+                // Include das units: NewDocumentUnit deduplica varrendo DocumentsUnits — sem carregar a coleção,
+                // a pendente equivalente nunca é encontrada e cada geração criaria uma unidade duplicada.
                 var existingDocuments = await scopedDocumentRepository.GetDataAsync(
                     x => requireDocument.DocumentsTemplatesIds.Contains(x.DocumentTemplateId) && x.EmployeeId == employee.Id,
+                    include: i => i.Include(x => x.DocumentsUnits),
                     cancellation: ct);
 
                 var existingDocumentsByTemplateId = existingDocuments.ToDictionary(d => d.DocumentTemplateId);
