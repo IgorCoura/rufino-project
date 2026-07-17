@@ -31,9 +31,8 @@ namespace PeopleManagement.IntegrationTests.Tests
             var seed = await SeedAllPoliciesDocumentByEventAsync(context, ct);
 
             // 1) Nascimento pelo evento: a unidade nasce Pending já situada numa competência mensal (a do "agora"
-            //    do serviço) — o evento só dispara, quem decide a competência é o template.
+            //    do serviço) — o evento só dispara, quem decide a competência é o template (lido na hora).
             var born = await GetDocumentAsync(seed.DocumentId, ct);
-            Assert.Equal(PeriodType.Monthly, born.PeriodType);
             var bornUnit = Assert.Single(born.DocumentsUnits);
             Assert.NotNull(bornUnit.Period);
             Assert.True(bornUnit.Period!.IsMonthly);

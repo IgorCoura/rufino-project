@@ -47,16 +47,21 @@ namespace PeopleManagement.Services.Services
         private readonly TimeZoneOptions _timeZone = timeZoneOptions.Value;
         private readonly IWorkloadCalendarService _workloadCalendarService = workloadCalendarService;
 
-        public async Task<DocumentUnit> CreateDocumentUnit(Guid documentId, Guid employeeId, Guid companyId, 
+        public async Task<DocumentUnit> CreateDocumentUnit(Guid documentId, Guid employeeId, Guid companyId,
             CancellationToken cancellationToken = default)
         {
-            var document = await _documentRepository.FirstOrDefaultAsync(x => x.Id == documentId && x.EmployeeId == employeeId 
+            var document = await _documentRepository.FirstOrDefaultAsync(x => x.Id == documentId && x.EmployeeId == employeeId
                 && x.CompanyId == companyId, include: i => i.Include(x => x.DocumentsUnits), cancellation: cancellationToken)
                 ?? throw new DomainException(this, DomainErrors.ObjectNotFound(nameof(Document), documentId.ToString()));
 
+            var documentTemplate = await _documentTemplateRepository.FirstOrDefaultAsync(
+                x => x.Id == document.DocumentTemplateId && x.CompanyId == companyId, cancellation: cancellationToken)
+                ?? throw new DomainException(this, DomainErrors.ObjectNotFound(nameof(DocumentTemplate), document.DocumentTemplateId.ToString()));
+
+            var (usePreviousPeriod, periodType) = PeriodConfigOf(documentTemplate);
             var documentUnitId = Guid.NewGuid();
 
-            return document.NewDocumentUnit(documentUnitId);
+            return document.NewDocumentUnit(documentUnitId, periodType, usePreviousPeriod);
         }
 
         public async Task CreateDocumentUnitsForEvent(Guid employeeId, Guid companyId, int eventId, CancellationToken cancellationToken = default)
@@ -73,9 +78,9 @@ namespace PeopleManagement.Services.Services
                 return;
             }
 
-            // A competência não vem mais do evento: quem decide é o template (via PeriodPolicy, copiada para o
-            // Document ao criá-lo). O evento só dispara a geração, então tudo que ele fornece é o "agora" no
-            // fuso local — a data que situa a unidade na competência corrente.
+            // A competência não vem do evento: quem decide é o template (via PeriodPolicy, lida na hora da
+            // operação). O evento só dispara a geração, então tudo que ele fornece é o "agora" no fuso local —
+            // a data que situa a unidade na competência corrente.
             var referenceDate = NowInLocalTime();
 
             // Coletar todos os templateIds necessários para uma única query
@@ -91,24 +96,21 @@ namespace PeopleManagement.Services.Services
                 return;
             }
 
-            // Carregar todos os documentos e templates de uma vez
+            // Carregar todos os documentos e templates de uma vez. TODOS os templates, mesmo os de documentos já
+            // existentes: a configuração de competência é lida do template em toda criação de unidade, não só na
+            // criação do documento.
+            // Include das units: NewDocumentUnit deduplica varrendo DocumentsUnits — sem carregar a coleção, a
+            // pendente equivalente nunca é encontrada e cada geração criaria uma unidade duplicada.
             var existingDocuments = await _documentRepository.GetDataAsync(
                 x => allTemplateIds.Contains(x.DocumentTemplateId) && x.EmployeeId == employee.Id,
+                include: i => i.Include(x => x.DocumentsUnits),
                 cancellation: cancellationToken);
 
             var existingDocumentsByTemplateId = existingDocuments.ToDictionary(d => d.DocumentTemplateId);
 
-            // Obter apenas os templateIds que não têm documentos criados
-            var templateIdsWithoutDocuments = allTemplateIds
-                .Except(existingDocumentsByTemplateId.Keys)
-                .ToList();
-
-            // Carregar apenas os templates necessários (que não têm documentos)
-            var documentTemplates = templateIdsWithoutDocuments.Any()
-                ? await _documentTemplateRepository.GetDataAsync(
-                    x => templateIdsWithoutDocuments.Contains(x.Id) && x.CompanyId == companyId,
-                    cancellation: cancellationToken)
-                : [];
+            var documentTemplates = await _documentTemplateRepository.GetDataAsync(
+                x => allTemplateIds.Contains(x.Id) && x.CompanyId == companyId,
+                cancellation: cancellationToken);
 
             var documentTemplatesByTemplateId = documentTemplates.ToDictionary(dt => dt.Id);
 
@@ -121,16 +123,15 @@ namespace PeopleManagement.Services.Services
 
                 foreach (var templateId in requiredDocument.DocumentsTemplatesIds)
                 {
+                    if (!documentTemplatesByTemplateId.TryGetValue(templateId, out var documentTemplate))
+                    {
+                        _logger.LogWarning("Document template {TemplateId} not found for company {CompanyId}. Skipping.", templateId, companyId);
+                        continue;
+                    }
+
                     // Tentar obter documento existente ou criar novo
                     if (!existingDocumentsByTemplateId.TryGetValue(templateId, out var document))
                     {
-                        if (!documentTemplatesByTemplateId.TryGetValue(templateId, out var documentTemplate))
-                        {
-                            _logger.LogWarning("Document template {TemplateId} not found for company {CompanyId}. Skipping.", templateId, companyId);
-                            continue;
-                        }
-
-                        var (usePreviousPeriod, periodType) = PeriodConfigOf(documentTemplate);
                         var documentId = Guid.NewGuid();
                         document = Document.Create(
                             id: documentId,
@@ -139,16 +140,15 @@ namespace PeopleManagement.Services.Services
                             requiredDocumentId: requiredDocument.Id,
                             documentTemplateId: templateId,
                             name: documentTemplate.Name.Value,
-                            description: documentTemplate.Description.Value,
-                            usePreviousPeriod: usePreviousPeriod,
-                            periodType: periodType);
+                            description: documentTemplate.Description.Value);
 
                         documentsToInsert.Add(document);
                         existingDocumentsByTemplateId[templateId] = document; // Adicionar ao dicionário para evitar duplicatas
                     }
 
+                    var (usePreviousPeriod, periodType) = PeriodConfigOf(documentTemplate);
                     var documentUnitId = Guid.NewGuid();
-                    document.NewDocumentUnit(documentUnitId, referenceDate);
+                    document.NewDocumentUnit(documentUnitId, periodType, usePreviousPeriod, referenceDate);
                 }
             }
 
@@ -196,21 +196,20 @@ namespace PeopleManagement.Services.Services
                 var scopedDocumentRepository = scope.ServiceProvider.GetRequiredService<IDocumentRepository>();
                 var scopedDocumentTemplateRepository = scope.ServiceProvider.GetRequiredService<IDocumentTemplateRepository>();
 
+                // Include das units: NewDocumentUnit deduplica varrendo DocumentsUnits — sem carregar a coleção,
+                // a pendente equivalente nunca é encontrada e cada geração criaria uma unidade duplicada.
                 var existingDocuments = await scopedDocumentRepository.GetDataAsync(
                     x => requireDocument.DocumentsTemplatesIds.Contains(x.DocumentTemplateId) && x.EmployeeId == employee.Id,
+                    include: i => i.Include(x => x.DocumentsUnits),
                     cancellation: ct);
 
                 var existingDocumentsByTemplateId = existingDocuments.ToDictionary(d => d.DocumentTemplateId);
 
-                var templateIdsWithoutDocuments = requireDocument.DocumentsTemplatesIds
-                    .Except(existingDocumentsByTemplateId.Keys)
-                    .ToList();
-
-                var documentTemplates = templateIdsWithoutDocuments.Any()
-                    ? await scopedDocumentTemplateRepository.GetDataAsync(
-                        x => templateIdsWithoutDocuments.Contains(x.Id) && x.CompanyId == companyId,
-                        cancellation: ct)
-                    : [];
+                // TODOS os templates, mesmo os de documentos já existentes: a configuração de competência é lida
+                // do template em toda criação de unidade, não só na criação do documento.
+                var documentTemplates = await scopedDocumentTemplateRepository.GetDataAsync(
+                    x => requireDocument.DocumentsTemplatesIds.Contains(x.Id) && x.CompanyId == companyId,
+                    cancellation: ct);
 
                 var documentTemplatesByTemplateId = documentTemplates.ToDictionary(dt => dt.Id);
 
@@ -218,15 +217,14 @@ namespace PeopleManagement.Services.Services
 
                 foreach (var templateId in requireDocument.DocumentsTemplatesIds)
                 {
+                    if (!documentTemplatesByTemplateId.TryGetValue(templateId, out var documentTemplate))
+                    {
+                        _logger.LogWarning("Document template {TemplateId} not found for company {CompanyId}. Skipping.", templateId, companyId);
+                        continue;
+                    }
+
                     if (!existingDocumentsByTemplateId.TryGetValue(templateId, out var document))
                     {
-                        if (!documentTemplatesByTemplateId.TryGetValue(templateId, out var documentTemplate))
-                        {
-                            _logger.LogWarning("Document template {TemplateId} not found for company {CompanyId}. Skipping.", templateId, companyId);
-                            continue;
-                        }
-
-                        var (usePreviousPeriod, periodType) = PeriodConfigOf(documentTemplate);
                         var documentId = Guid.NewGuid();
                         document = Document.Create(
                             id: documentId,
@@ -235,18 +233,17 @@ namespace PeopleManagement.Services.Services
                             requiredDocumentId: requireDocument.Id,
                             documentTemplateId: templateId,
                             name: documentTemplate.Name.Value,
-                            description: documentTemplate.Description.Value,
-                            usePreviousPeriod: usePreviousPeriod,
-                            periodType: periodType);
+                            description: documentTemplate.Description.Value);
 
                         documentsToInsert.Add(document);
                         existingDocumentsByTemplateId[templateId] = document;
                     }
 
-                    // Sem referenceDate: este fluxo não tem uma data de evento. Se o documento for por
+                    // Sem referenceDate: este fluxo não tem uma data de evento. Se o template for por
                     // competência, a unidade nasce na competência mínima, substituída quando uma data real chegar.
+                    var (usePreviousPeriod, periodType) = PeriodConfigOf(documentTemplate);
                     var documentUnitId = Guid.NewGuid();
-                    document.NewDocumentUnit(documentUnitId);
+                    document.NewDocumentUnit(documentUnitId, periodType, usePreviousPeriod);
                 }
 
                 if (documentsToInsert.Any())
@@ -263,8 +260,10 @@ namespace PeopleManagement.Services.Services
         private DateTime NowInLocalTime()
             => TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, TimeZoneInfo.FindSystemTimeZoneById(_timeZone.TimeZoneId));
 
-        // Lê a configuração de competência do template pela PeriodPolicy. Null = template não é por competência,
-        // e o Document nasce sem competência. O Document copia esses valores e os congela.
+        // Lê a configuração de competência do template pela PeriodPolicy, no momento da operação. Null =
+        // template não é por competência. Ninguém guarda cópia: template é a configuração, a unit é a história —
+        // editar o template vale imediatamente para as próximas operações, e as competências já gravadas nas
+        // units não mudam.
         private static (bool usePreviousPeriod, PeriodType? periodType) PeriodConfigOf(DocumentTemplate template)
         {
             var policy = template.GetPolicy<IPeriodPolicy>();
@@ -288,6 +287,7 @@ namespace PeopleManagement.Services.Services
 
             var workloadPolicy = documentTemplate.GetPolicy<IWorkloadPolicy>();
             var validityDuration = documentTemplate.GetPolicy<IExpirationPolicy>()?.Duration;
+            var (usePreviousPeriod, periodType) = PeriodConfigOf(documentTemplate);
 
             DateOnly? workloadEndDate = null;
             if (workloadPolicy is not null && workloadPolicy.Workload != TimeSpan.Zero)
@@ -299,8 +299,8 @@ namespace PeopleManagement.Services.Services
             DocumentUnit documentUnit;
 
             documentUnit = document.UpdateDocumentUnitDetails(documentUnitId, documentUnitDate, validityDuration,
-            content);
-    
+            content, periodType, usePreviousPeriod);
+
 
             if (workloadEndDate is not null)
                 documentUnit.SetWorkloadEndDate(workloadEndDate.Value);
@@ -328,7 +328,7 @@ namespace PeopleManagement.Services.Services
             }
 
             documentUnit = document.UpdateDocumentUnitDetails(documentUnitId, documentUnitDate, validityDuration,
-                content);
+                content, periodType, usePreviousPeriod);
 
             if (workloadEndDate is not null)
                 documentUnit.SetWorkloadEndDate(workloadEndDate.Value);

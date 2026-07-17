@@ -7,6 +7,7 @@ using PeopleManagement.Domain.AggregatesModel.DocumentAggregate.Interfaces;
 using PeopleManagement.Domain.AggregatesModel.DocumentAggregate.Models;
 using PeopleManagement.Domain.AggregatesModel.DocumentTemplateAggregate;
 using PeopleManagement.Domain.AggregatesModel.DocumentTemplateAggregate.Interfaces;
+using PeopleManagement.Domain.AggregatesModel.DocumentTemplateAggregate.Policies;
 using PeopleManagement.Domain.AggregatesModel.EmployeeAggregate;
 using PeopleManagement.Domain.AggregatesModel.EmployeeAggregate.Interfaces;
 using PeopleManagement.Domain.ErrorTools;
@@ -236,11 +237,21 @@ namespace PeopleManagement.Services.Services
         {
             var sessionDocUnits = await GetAllSessionDocumentUnits(primaryUnit, primaryDocument, cancellationToken);
 
+            // A configuração de competência da unidade substituta é lida do template de cada documento, no
+            // momento da operação (os documentos da sessão podem ser de templates diferentes).
+            var templateIds = sessionDocUnits.Select(x => x.Item2.DocumentTemplateId).Distinct().ToList();
+            var templates = await _documentTemplateRepository.GetDataAsync(
+                x => templateIds.Contains(x.Id), cancellation: cancellationToken);
+            var templatesById = templates.ToDictionary(t => t.Id);
+
             foreach (var (unit, doc) in sessionDocUnits)
             {
                 doc.MarkAsInvalidDocumentUnit(unit.Id);
                 var newUnitId = Guid.NewGuid();
-                doc.NewDocumentUnit(newUnitId);
+                var periodPolicy = templatesById.TryGetValue(doc.DocumentTemplateId, out var template)
+                    ? template.GetPolicy<IPeriodPolicy>()
+                    : null;
+                doc.NewDocumentUnit(newUnitId, periodPolicy?.PeriodType, periodPolicy?.UsePreviousPeriod ?? false);
             }
 
             await _documentRepository.UnitOfWork.SaveChangesAsync(cancellationToken);

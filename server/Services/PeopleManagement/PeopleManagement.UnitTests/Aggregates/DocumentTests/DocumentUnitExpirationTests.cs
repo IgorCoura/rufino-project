@@ -106,9 +106,9 @@ namespace PeopleManagement.UnitTests.Aggregates.DocumentTests
         [Fact]
         public void NewDocumentUnit_WhenUsePreviousPeriodFalse_SetsCurrentPeriod()
         {
-            var document = DocumentMother.Simple(usePreviousPeriod: false, periodType: PeriodType.Monthly);
+            var document = DocumentMother.Simple();
 
-            var unit = document.NewDocumentUnit(Guid.NewGuid(), FixedReference);
+            var unit = document.NewDocumentUnit(Guid.NewGuid(), PeriodType.Monthly, usePreviousPeriod: false, FixedReference);
 
             Assert.Equal(2024, unit.Period!.Year);
             Assert.Equal(6, unit.Period.Month);
@@ -117,9 +117,9 @@ namespace PeopleManagement.UnitTests.Aggregates.DocumentTests
         [Fact]
         public void NewDocumentUnit_WhenUsePreviousPeriodTrue_SetsPreviousPeriod()
         {
-            var document = DocumentMother.Simple(usePreviousPeriod: true, periodType: PeriodType.Monthly);
+            var document = DocumentMother.Simple();
 
-            var unit = document.NewDocumentUnit(Guid.NewGuid(), FixedReference);
+            var unit = document.NewDocumentUnit(Guid.NewGuid(), PeriodType.Monthly, usePreviousPeriod: true, FixedReference);
 
             Assert.Equal(2024, unit.Period!.Year);
             Assert.Equal(5, unit.Period.Month);

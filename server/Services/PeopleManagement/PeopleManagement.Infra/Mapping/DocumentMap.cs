@@ -30,14 +30,6 @@ namespace PeopleManagement.Infra.Mapping
                 .HasMaxLength(Description.MAX_LENGTH)
                 .IsRequired();
 
-            builder.Property(x => x.UsePreviousPeriod)
-                .IsRequired();
-
-            // Competência congelada do template. Nullable: null = documento não é por competência.
-            builder.Property(x => x.PeriodType)
-                .HasConversion(x => x!.Id, x => PeriodType.FromValue<PeriodType>(x))
-                .IsRequired(false);
-
             builder.HasOne<DocumentTemplate>()
                 .WithMany()
                 .HasForeignKey(x => x.DocumentTemplateId)

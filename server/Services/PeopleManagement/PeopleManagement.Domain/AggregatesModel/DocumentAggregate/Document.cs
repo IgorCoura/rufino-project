@@ -29,27 +29,7 @@ namespace PeopleManagement.Domain.AggregatesModel.DocumentAggregate
         } 
         public Guid DocumentTemplateId { get; private set; }
 
-        /// <summary>
-        /// Se o documento usa a competência anterior. Cópia do template, feita quando o documento nasceu.
-        /// </summary>
-        public bool UsePreviousPeriod { get; private set; }
-
-        /// <summary>
-        /// A granularidade da competência, ou null quando o documento não é por competência.
-        ///
-        /// Cópia do template no momento da criação, e congelada a partir dali: mudar o template depois não
-        /// reescreve documento já emitido — só vale para os próximos. É por isso que o dado mora aqui e não é
-        /// consultado no template a cada uso.
-        /// </summary>
-        public PeriodType? PeriodType { get; private set; }
-
-        /// <summary>
-        /// Se este documento é organizado por competência.
-        /// </summary>
-        public bool IsPeriod => PeriodType is not null;
-
-        private Document(Guid id, Guid employeeId, Guid companyId, Guid requiredDocumentId, Guid documentTemplateId, Name name, Description description,
-            bool usePreviousPeriod = false, PeriodType? periodType = null) : base(id)
+        private Document(Guid id, Guid employeeId, Guid companyId, Guid requiredDocumentId, Guid documentTemplateId, Name name, Description description) : base(id)
         {
             EmployeeId = employeeId;
             CompanyId = companyId;
@@ -57,28 +37,36 @@ namespace PeopleManagement.Domain.AggregatesModel.DocumentAggregate
             DocumentTemplateId = documentTemplateId;
             Description = description;
             Name = name;
-            UsePreviousPeriod = usePreviousPeriod;
-            PeriodType = periodType;
         }
 
-        public static Document Create(Guid id, Guid employeeId, Guid companyId, Guid requiredDocumentId, Guid documentTemplateId, Name name, Description description,
-            bool usePreviousPeriod = false, PeriodType? periodType = null)
-            => new(id, employeeId, companyId, requiredDocumentId, documentTemplateId, name, description, usePreviousPeriod, periodType);
+        public static Document Create(Guid id, Guid employeeId, Guid companyId, Guid requiredDocumentId, Guid documentTemplateId, Name name, Description description)
+            => new(id, employeeId, companyId, requiredDocumentId, documentTemplateId, name, description);
 
         /// <summary>
         /// Cria a próxima unidade do documento, reaproveitando a pendente da mesma competência quando já existir.
         ///
-        /// A competência sai do próprio documento, não do caller: quem decide se o documento é por competência é
-        /// o template, no momento em que o documento nasce. [referenceDate] é só a data usada para calcular em
-        /// qual competência a unidade cai.
+        /// A configuração de competência ([periodType]/[usePreviousPeriod]) vem do template do documento, lida
+        /// pelo caller no momento da operação — o documento não guarda cópia: template é a configuração, a unit
+        /// é a história. [referenceDate] é só a data usada para calcular em qual competência a unidade cai.
         /// </summary>
-        public DocumentUnit NewDocumentUnit(Guid documentUnitId, DateTime? referenceDate = null)
+        public DocumentUnit NewDocumentUnit(Guid documentUnitId, PeriodType? periodType = null, bool usePreviousPeriod = false, DateTime? referenceDate = null)
         {
-            if (IsPeriod)
+            if (periodType is not null)
             {
-                var candidatePeriod = CandidatePeriodFor(referenceDate);
+                var candidatePeriod = CandidatePeriodFor(periodType, usePreviousPeriod, referenceDate);
 
                 var existingPending = DocumentsUnits.FirstOrDefault(x => x.Status == DocumentUnitStatus.Pending && x.Period != null && x.Period.Equals(candidatePeriod));
+
+                // Candidata na competência mínima: qualquer pendente na mínima é uma unidade "esperando data",
+                // reaproveitável mesmo que a granularidade do template tenha mudado desde que ela nasceu — sem
+                // isso, trocar a granularidade deixaria a pendente antiga órfã e criaria uma segunda. Ela é
+                // re-situada na mínima do tipo novo para não carregar a granularidade velha adiante.
+                if (existingPending is null && candidatePeriod.Year == Period.MIN_YEAR)
+                {
+                    existingPending = DocumentsUnits.FirstOrDefault(x => x.Status == DocumentUnitStatus.Pending && x.Period != null && x.Period.Year == Period.MIN_YEAR);
+                    existingPending?.ResetPeriodToMinimum(periodType);
+                }
+
                 if (existingPending is not null)
                     return existingPending;
             }
@@ -89,7 +77,7 @@ namespace PeopleManagement.Domain.AggregatesModel.DocumentAggregate
                     return existingPending;
             }
 
-            var documentUnit = DocumentUnit.Create(documentUnitId, this, referenceDate);
+            var documentUnit = DocumentUnit.Create(documentUnitId, this, periodType, usePreviousPeriod, referenceDate);
             DocumentsUnits.Add(documentUnit);
             RefreshDocumentStatus();
             return documentUnit;
@@ -97,15 +85,15 @@ namespace PeopleManagement.Domain.AggregatesModel.DocumentAggregate
 
         // A competência que uma nova unidade teria, usada só para achar uma pendente equivalente antes de criar
         // outra. Precisa espelhar exatamente o que DocumentUnit.Create faz: sem data -> mínima; com data ->
-        // corrente ou anterior conforme UsePreviousPeriod.
-        private Period CandidatePeriodFor(DateTime? referenceDate)
+        // corrente ou anterior conforme usePreviousPeriod.
+        private static Period CandidatePeriodFor(PeriodType periodType, bool usePreviousPeriod, DateTime? referenceDate)
         {
             if (!referenceDate.HasValue)
-                return Period.CreateMinimum(PeriodType!);
+                return Period.CreateMinimum(periodType);
 
-            return UsePreviousPeriod
-                ? Period.CreatePreviousPeriod(PeriodType!, referenceDate.Value)
-                : Period.Create(PeriodType!, referenceDate.Value);
+            return usePreviousPeriod
+                ? Period.CreatePreviousPeriod(periodType, referenceDate.Value)
+                : Period.Create(periodType, referenceDate.Value);
         }
 
         public void InsertUnitWithRequireValidation(Guid documentUnitId, Name name, Extension extension)
@@ -131,12 +119,13 @@ namespace PeopleManagement.Domain.AggregatesModel.DocumentAggregate
             return documentUnit.GetNameWithExtension;
         }
 
-        public DocumentUnit UpdateDocumentUnitDetails(Guid documentUnitId, DateOnly date, DateOnly? validity, string content)
+        public DocumentUnit UpdateDocumentUnitDetails(Guid documentUnitId, DateOnly date, DateOnly? validity, string content,
+            PeriodType? periodType = null, bool usePreviousPeriod = false)
         {
             var documentUnit = DocumentsUnits.FirstOrDefault(x => x.Id == documentUnitId)
                 ?? throw new DomainException(this, DomainErrors.ObjectNotFound(nameof(DocumentUnit), documentUnitId.ToString()));
 
-            documentUnit.UpdateDetails(date, validity, content);
+            documentUnit.UpdateDetails(date, validity, content, periodType, usePreviousPeriod);
 
             if (documentUnit.IsPeriod)
                 VerifyDuplicatedPendings(documentUnit);
@@ -145,12 +134,13 @@ namespace PeopleManagement.Domain.AggregatesModel.DocumentAggregate
             return documentUnit;
         }
 
-        public DocumentUnit UpdateDocumentUnitDetails(Guid documentUnitId, DateOnly date, TimeSpan? validity, string content)
+        public DocumentUnit UpdateDocumentUnitDetails(Guid documentUnitId, DateOnly date, TimeSpan? validity, string content,
+            PeriodType? periodType = null, bool usePreviousPeriod = false)
         {
             var documentUnit = DocumentsUnits.FirstOrDefault(x => x.Id == documentUnitId)
                 ?? throw new DomainException(this, DomainErrors.ObjectNotFound(nameof(DocumentUnit), documentUnitId.ToString()));
 
-            documentUnit.UpdateDetails(date, validity, content);
+            documentUnit.UpdateDetails(date, validity, content, periodType, usePreviousPeriod);
 
             if (documentUnit.IsPeriod)
                 VerifyDuplicatedPendings(documentUnit);
