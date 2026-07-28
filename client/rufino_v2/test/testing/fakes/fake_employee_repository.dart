@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:rufino_v2/core/result.dart';
@@ -29,6 +30,7 @@ class FakeEmployeeRepository implements EmployeeRepository {
   List<Employee> _employees = [];
   EmployeeProfile? _employeeProfile;
   bool _shouldFail = false;
+  Object? _editIdCardError;
   String _createdId = 'new-employee-id';
   Uint8List? _imageBytes;
 
@@ -147,6 +149,10 @@ class FakeEmployeeRepository implements EmployeeRepository {
   /// When true every method returns [Result.error] with a generic exception.
   void setShouldFail(bool value) => _shouldFail = value;
 
+  /// A specific error returned only by [editEmployeeIdCard], keeping every
+  /// other method (loads included) working normally.
+  void setEditIdCardError(Object? error) => _editIdCardError = error;
+
   /// The id returned by [createEmployee].
   void setCreatedId(String id) => _createdId = id;
 
@@ -241,6 +247,19 @@ class FakeEmployeeRepository implements EmployeeRepository {
   String? lastUploadedFileName;
   String? lastEditedName;
   int getEmployeesCallCount = 0;
+  int getEmployeeContactCallCount = 0;
+  int getEmployeeAddressCallCount = 0;
+  int getDocumentSigningOptionsCallCount = 0;
+  int getContractsCallCount = 0;
+  int getMedicalExamCallCount = 0;
+  int getDependentsCallCount = 0;
+
+  /// FIFO queue of gates holding [getEmployeeContact] responses in flight.
+  ///
+  /// Each call snapshots the contact value up front and, when a gate is
+  /// queued, only responds after the test completes it — letting tests
+  /// interleave two in-flight fetches carrying different data.
+  final List<Completer<void>> contactGates = [];
 
   String? lastSavedContactCellphone;
   String? lastSavedContactEmail;
@@ -365,10 +384,15 @@ class FakeEmployeeRepository implements EmployeeRepository {
     String companyId,
     String employeeId,
   ) async {
+    getEmployeeContactCallCount++;
+    final contact = _contact;
+    if (contactGates.isNotEmpty) {
+      await contactGates.removeAt(0).future;
+    }
     if (_shouldFail) {
       return Result.error(Exception('getEmployeeContact failed'));
     }
-    return Result.success(_contact);
+    return Result.success(contact);
   }
 
   @override
@@ -392,6 +416,7 @@ class FakeEmployeeRepository implements EmployeeRepository {
     String companyId,
     String employeeId,
   ) async {
+    getEmployeeAddressCallCount++;
     if (_shouldFail) {
       return Result.error(Exception('getEmployeeAddress failed'));
     }
@@ -467,6 +492,10 @@ class FakeEmployeeRepository implements EmployeeRepository {
     lastSavedIdCard = idCard;
     if (_shouldFail) {
       return Result.error(Exception('editEmployeeIdCard failed'));
+    }
+    final editError = _editIdCardError;
+    if (editError != null) {
+      return Result.error(editError);
     }
     _idCard = idCard;
     return const Result<void>.success(null);
@@ -563,6 +592,7 @@ class FakeEmployeeRepository implements EmployeeRepository {
     String companyId,
     String employeeId,
   ) async {
+    getMedicalExamCallCount++;
     if (_shouldFail) {
       return Result.error(Exception('getMedicalExam failed'));
     }
@@ -606,6 +636,7 @@ class FakeEmployeeRepository implements EmployeeRepository {
     String companyId,
     String employeeId,
   ) async {
+    getDependentsCallCount++;
     if (_shouldFail) {
       return Result.error(Exception('getDependents failed'));
     }
@@ -672,6 +703,7 @@ class FakeEmployeeRepository implements EmployeeRepository {
     String companyId,
     String employeeId,
   ) async {
+    getContractsCallCount++;
     if (_shouldFail) {
       return Result.error(Exception('getContracts failed'));
     }
@@ -716,6 +748,7 @@ class FakeEmployeeRepository implements EmployeeRepository {
   @override
   Future<Result<List<SelectionOption>>> getDocumentSigningOptions(
       String companyId) async {
+    getDocumentSigningOptionsCallCount++;
     if (_shouldFail) {
       return Result.error(Exception('getDocumentSigningOptions failed'));
     }

@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart' as http_testing;
+import 'package:rufino_v2/core/errors/auth_exception.dart';
 import 'package:rufino_v2/core/errors/http_exception.dart';
 import 'package:rufino_v2/data/services/http_status_helper.dart';
 
@@ -26,6 +27,22 @@ void main() {
     test('throws HttpException for 500 status code', () {
       final response = http.Response('', 500);
       expect(() => checkHttpStatus(response), throwsA(isA<HttpException>()));
+    });
+
+    test('throws SessionExpiredException for 401 status code', () {
+      final response = http.Response('{"error": "Authentication failed"}', 401);
+      expect(
+        () => checkHttpStatus(response),
+        throwsA(isA<SessionExpiredException>()),
+      );
+    });
+
+    test('throws AccessDeniedException for 403 status code', () {
+      final response = http.Response('', 403);
+      expect(
+        () => checkHttpStatus(response),
+        throwsA(isA<AccessDeniedException>()),
+      );
     });
 
     test('parses single error message from API response body', () {

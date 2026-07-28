@@ -49,9 +49,8 @@ class _RoleInfoSectionState extends State<RoleInfoSection> {
       );
       return;
     }
-    await widget.viewModel.saveEmployeeRole(_selectedRoleId!);
-    if (mounted &&
-        widget.viewModel.roleInfoStatus == SectionLoadStatus.loaded) {
+    final saved = await widget.viewModel.saveEmployeeRole(_selectedRoleId!);
+    if (mounted && saved) {
       setState(() => _isEditing = false);
     }
   }
@@ -78,7 +77,6 @@ class _RoleInfoSectionState extends State<RoleInfoSection> {
         final status = widget.viewModel.roleInfoStatus;
         return SectionCard(
           title: 'Informações de Função',
-          onLoad: widget.viewModel.loadRoleInfo,
           child: _buildContent(context, status),
         );
       },

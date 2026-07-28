@@ -40,7 +40,7 @@ void main() {
       await tester.pump();
 
       expect(find.byKey(const ValueKey('sso_login_button')), findsOneWidget);
-      expect(find.text('Entrar com SSO'), findsOneWidget);
+      expect(find.text('Entrar'), findsOneWidget);
       expect(
         find.textContaining('redirecionado ao provedor de identidade'),
         findsOneWidget,

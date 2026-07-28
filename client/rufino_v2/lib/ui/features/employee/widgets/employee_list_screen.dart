@@ -2,13 +2,61 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
 
 import '../../../../core/theme/app_breakpoints.dart';
 import '../../../../core/theme/app_spacing.dart';
+import '../../../../data/services/file_save_service.dart';
+import '../../../../data/services/spreadsheet_service.dart';
 import '../../../../domain/entities/employee.dart';
+import '../../../../domain/repositories/company_repository.dart';
+import '../../../../domain/repositories/department_repository.dart';
+import '../../../../domain/repositories/employee_repository.dart';
 import '../../../core/widgets/filter_sheet.dart';
 import '../../../core/widgets/permission_guard.dart';
 import '../viewmodel/employee_list_viewmodel.dart';
+
+/// Route-level entry point that owns the [EmployeeListViewModel] lifecycle.
+///
+/// go_router re-runs route builders whenever the navigation stack changes, so
+/// creating the view model inline in the builder would replace it with a fresh
+/// instance on every push/pop — wiping search, filters, and pagination. This
+/// widget creates the view model once in [State.initState]; the state object
+/// survives route rebuilds, so the same instance stays alive while the route
+/// is in the stack and is disposed when the route is truly removed.
+class EmployeeListPage extends StatefulWidget {
+  const EmployeeListPage({super.key});
+
+  @override
+  State<EmployeeListPage> createState() => _EmployeeListPageState();
+}
+
+class _EmployeeListPageState extends State<EmployeeListPage> {
+  late final EmployeeListViewModel _viewModel;
+
+  @override
+  void initState() {
+    super.initState();
+    _viewModel = EmployeeListViewModel(
+      companyRepository: context.read<CompanyRepository>(),
+      employeeRepository: context.read<EmployeeRepository>(),
+      departmentRepository: context.read<DepartmentRepository>(),
+      spreadsheetService: context.read<SpreadsheetService>(),
+      fileSaveService: context.read<FileSaveService>(),
+    );
+  }
+
+  @override
+  void dispose() {
+    _viewModel.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return EmployeeListScreen(viewModel: _viewModel);
+  }
+}
 
 /// Displays a paginated, searchable list of employees for the selected company.
 ///

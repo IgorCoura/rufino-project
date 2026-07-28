@@ -45,7 +45,7 @@ class SentryErrorReporter implements ErrorReporter {
     StackTrace? stackTrace, {
     Map<String, Object?>? context,
   }) {
-    if (error is ExpectedFailure) return;
+    if (isExpectedFailure(error)) return;
     final safeContext = context != null ? scrubJson(context) : null;
     final httpError = _findHttpException(error);
     final httpContext = httpError != null ? _httpContext(httpError) : null;

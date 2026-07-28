@@ -44,14 +44,6 @@ namespace PeopleManagement.API.Authentication
                             context.Scheme.Name, context.Error, context.ErrorDescription);
 
                         return context.Response.WriteAsync("{\"error\": \"Unauthorized access\"}");
-                    },
-                    OnMessageReceived = context =>
-                    {
-                        // Log the received message for debugging
-                        var logger = context.HttpContext.RequestServices.GetRequiredService<ILogger<Program>>();
-                        logger.LogInformation("Message received. Token: {Token}", context.Token);
-                       
-                        return Task.CompletedTask;
                     }
                 };
 

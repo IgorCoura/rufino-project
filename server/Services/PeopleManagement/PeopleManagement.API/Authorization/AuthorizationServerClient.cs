@@ -1,4 +1,4 @@
-﻿using System.Threading;
+using System.Net;
 
 namespace PeopleManagement.API.Authorization
 {
@@ -8,28 +8,48 @@ namespace PeopleManagement.API.Authorization
 
         private readonly AuthorizationOptions _authorizationOptions = authorizationOptions;
 
-        public async Task<bool> VerifyAccessToResouce(string permission, CancellationToken cancellationToken = default) 
+        public async Task<ResourceAccessResult> VerifyAccessToResouce(string permission, CancellationToken cancellationToken = default)
         {
-
             using var content = new FormUrlEncodedContent(this.GetContentRequest(permission));
-            var response = await _httpClient.PostAsync(_authorizationOptions.TokenEndpointPath, content, cancellationToken);
 
-            var result = await response.Content.ReadAsStringAsync();
-
-
-
-            if (!response.IsSuccessStatusCode)
+            HttpResponseMessage response;
+            try
             {
-                return false;
+                response = await _httpClient.PostAsync(_authorizationOptions.TokenEndpointPath, content, cancellationToken);
+            }
+            catch (HttpRequestException)
+            {
+                return ResourceAccessResult.ServerUnavailable;
             }
 
-         
+            using (response)
+            {
+                // Keycloak answers 401 when the propagated access token itself is
+                // rejected (expired, revoked, not-before) — that is an authentication
+                // problem, not a missing permission, and must surface as 401 upstream.
+                if (response.StatusCode == HttpStatusCode.Unauthorized)
+                {
+                    return ResourceAccessResult.InvalidToken;
+                }
 
-            return await this.ValidateScopesAsync(
-                    permission,
-                    response,
-                    cancellationToken
-                );
+                if ((int)response.StatusCode >= 500)
+                {
+                    return ResourceAccessResult.ServerUnavailable;
+                }
+
+                if (!response.IsSuccessStatusCode)
+                {
+                    return ResourceAccessResult.Denied;
+                }
+
+                var scopesGranted = await this.ValidateScopesAsync(
+                        permission,
+                        response,
+                        cancellationToken
+                    );
+
+                return scopesGranted ? ResourceAccessResult.Granted : ResourceAccessResult.Denied;
+            }
         }
 
         private Dictionary<string, string> GetContentRequest(string permission)
@@ -37,7 +57,7 @@ namespace PeopleManagement.API.Authorization
             var audience = _authorizationOptions.Resource;
             var responseMode =  _authorizationOptions.ResponseMode(permission.Contains(','));
 
-            return new Dictionary<string, string> 
+            return new Dictionary<string, string>
             {
                 { "grant_type", _authorizationOptions.GrantType},
                 { "response_mode", responseMode },
@@ -60,10 +80,10 @@ namespace PeopleManagement.API.Authorization
                 cancellationToken: cancellationToken
             );
 
-            return this.ValidateScopesAsync(resource, scopes, scopeResponse);
+            return this.ValidateScopes(resource, scopes, scopeResponse);
         }
 
-        private bool ValidateScopesAsync(string resource, List<string> scopesToValidate, ScopeResponse[]? scopeResponse)
+        private bool ValidateScopes(string resource, List<string> scopesToValidate, ScopeResponse[]? scopeResponse)
         {
             scopeResponse ??= [];
 
@@ -72,9 +92,12 @@ namespace PeopleManagement.API.Authorization
                 r => string.Equals(r.Rsname, resource, StringComparison.Ordinal)
             );
 
+            // Resource absent from the RPT means the server granted no scopes on it:
+            // a plain permission denial, never an unhandled exception (which would
+            // bubble out of the authorization middleware as a 500).
             if (resourceToValidate is null)
             {
-                throw new Exception($"Unable to find a resource - {resource}");
+                return false;
             }
 
             if (_authorizationOptions.ScopesValidationMode == ScopesValidationMode.AllOf)

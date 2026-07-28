@@ -1,4 +1,5 @@
 import 'employee.dart';
+import 'signing_option.dart';
 
 /// A detailed employee profile used by the employee detail screen.
 class EmployeeProfile {
@@ -29,7 +30,11 @@ class EmployeeProfile {
   final String documentSigningOptionsId;
 
   /// Whether the employee can be marked as inactive from the profile screen.
-  bool get canMarkAsInactive => status == EmployeeStatus.active;
+  ///
+  /// Mirrors the backend rule (PMD.EMP17): only a pending employee can be
+  /// marked as inactive directly. An active employee becomes inactive by
+  /// finishing its open contract instead.
+  bool get canMarkAsInactive => status == EmployeeStatus.pending;
 
   /// Whether this employee has a role assigned.
   bool get hasRole => roleId.isNotEmpty;
@@ -39,6 +44,14 @@ class EmployeeProfile {
 
   /// Whether this employee has document signing options configured.
   bool get hasSigningOptions => documentSigningOptionsId.isNotEmpty;
+
+  /// Whether this employee can receive files for digital signature.
+  ///
+  /// Only employees with a digital signing option active qualify — a
+  /// physical (wet-ink) signature or an unset option cannot receive
+  /// documents to sign digitally.
+  bool get canReceiveDocumentsToSign =>
+      hasSigningOptions && documentSigningOptionsId != SigningOption.physicalId;
 
   /// Whether this employee is currently active.
   bool get isActive => status == EmployeeStatus.active;

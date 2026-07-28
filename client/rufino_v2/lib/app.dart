@@ -7,7 +7,9 @@ import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'core/config/app_config.dart';
+import 'core/errors/auth_exception.dart';
 import 'core/monitoring/error_reporter.dart';
+import 'core/network/session_aware_http_client.dart';
 import 'core/storage/secure_storage.dart';
 import 'core/theme/app_theme.dart';
 import 'core/theme/theme_notifier.dart';
@@ -27,6 +29,7 @@ import 'data/repositories/document_template_repository_impl.dart';
 import 'data/repositories/require_document_repository_impl.dart';
 import 'data/repositories/batch_document_repository_impl.dart';
 import 'data/repositories/batch_download_repository_impl.dart';
+import 'data/repositories/document_dashboard_repository_impl.dart';
 import 'data/repositories/cep_repository_impl.dart';
 import 'data/repositories/document_scanner_repository_impl.dart';
 import 'core/utils/document_scanner_service.dart';
@@ -41,6 +44,7 @@ import 'data/services/document_template_api_service.dart';
 import 'data/services/require_document_api_service.dart';
 import 'data/services/batch_document_api_service.dart';
 import 'data/services/batch_download_api_service.dart';
+import 'data/services/document_dashboard_api_service.dart';
 import 'data/services/cep_api_service.dart';
 import 'data/services/file_save_service.dart';
 import 'data/services/spreadsheet_service.dart';
@@ -55,8 +59,11 @@ import 'domain/repositories/document_template_repository.dart';
 import 'domain/repositories/require_document_repository.dart';
 import 'domain/repositories/batch_document_repository.dart';
 import 'domain/repositories/batch_download_repository.dart';
+import 'domain/repositories/document_dashboard_repository.dart';
 import 'domain/repositories/cep_repository.dart';
 import 'domain/repositories/workplace_repository.dart';
+import 'ui/core/widgets/session_expired_listener.dart';
+import 'ui/features/auth/viewmodel/auth_session_notifier.dart';
 import 'ui/features/auth/viewmodel/login_sso_viewmodel.dart';
 import 'ui/features/auth/viewmodel/login_viewmodel.dart';
 import 'ui/features/auth/viewmodel/permission_notifier.dart';
@@ -87,7 +94,6 @@ import 'ui/features/require_document/viewmodel/require_document_list_viewmodel.d
 import 'ui/features/require_document/widgets/require_document_form_screen.dart';
 import 'ui/features/require_document/widgets/require_document_list_screen.dart';
 import 'ui/features/employee/viewmodel/employee_form_viewmodel.dart';
-import 'ui/features/employee/viewmodel/employee_list_viewmodel.dart';
 import 'ui/features/employee/viewmodel/employee_profile_viewmodel.dart';
 import 'ui/features/employee/widgets/employee_form_screen.dart';
 import 'ui/features/employee/widgets/employee_list_screen.dart';
@@ -96,6 +102,7 @@ import 'ui/features/batch_document/viewmodel/batch_document_viewmodel.dart';
 import 'ui/features/batch_document/widgets/batch_document_screen.dart';
 import 'ui/features/batch_download/viewmodel/batch_download_viewmodel.dart';
 import 'ui/features/batch_download/widgets/batch_download_screen.dart';
+import 'ui/features/document_dashboard/widgets/document_dashboard_screen.dart';
 import 'ui/features/debug/widgets/debug_screen.dart';
 import 'ui/features/home/viewmodel/home_viewmodel.dart';
 import 'ui/features/home/widgets/home_screen.dart';
@@ -134,7 +141,13 @@ class App extends StatelessWidget {
   List<SingleChildWidget> _buildProviders() {
     // Infrastructure
     const secureStorage = SecureStorage(FlutterSecureStorage());
-    final httpClient = errorReporter.wrapHttpClient(http.Client());
+    final authSessionNotifier = AuthSessionNotifier();
+    final httpClient = errorReporter.wrapHttpClient(
+      SessionAwareHttpClient(
+        http.Client(),
+        onSessionInvalid: authSessionNotifier.notifySessionExpired,
+      ),
+    );
 
     // Auth — pick the active flow at compile time.
     final authApiService = AppConfig.useAuthorizationCodeFlow
@@ -145,6 +158,7 @@ class App extends StatelessWidget {
             endSessionEndpoint: Uri.parse(AppConfig.endSessionEndpoint),
             identifier: AppConfig.identifier,
             secret: AppConfig.secret,
+            httpClient: httpClient,
           );
 
     AuthCodeApiService? authCodeApiService;
@@ -164,6 +178,7 @@ class App extends StatelessWidget {
         endSessionEndpoint: Uri.parse(AppConfig.endSessionEndpoint),
         identifier: AppConfig.identifier,
         secret: AppConfig.secret,
+        httpClient: httpClient,
       );
 
       // Web only: a redirect that brought the user back to the app
@@ -174,14 +189,29 @@ class App extends StatelessWidget {
       }
     }
 
+    // Auth failures inside the token callbacks (expired refresh, missing
+    // credentials) must raise the app-wide session flag before propagating.
+    Future<T> flagSessionLoss<T>(Future<T> Function() action) async {
+      try {
+        return await action();
+      } on SessionExpiredException {
+        authSessionNotifier.notifySessionExpired();
+        rethrow;
+      } on NoCredentialsException {
+        authSessionNotifier.notifySessionExpired();
+        rethrow;
+      }
+    }
+
     final getAccessToken = AppConfig.useAuthorizationCodeFlow
-        ? () async =>
-            (await authCodeApiService!.getCredentials()).accessToken
-        : () async => (await authApiService!.getCredentials()).accessToken;
+        ? () => flagSessionLoss(() async =>
+            (await authCodeApiService!.getCredentials()).accessToken)
+        : () => flagSessionLoss(
+            () async => (await authApiService!.getCredentials()).accessToken);
 
     final getAuthHeader = AppConfig.useAuthorizationCodeFlow
-        ? authCodeApiService!.getAuthorizationHeader
-        : authApiService!.getAuthorizationHeader;
+        ? () => flagSessionLoss(authCodeApiService!.getAuthorizationHeader)
+        : () => flagSessionLoss(authApiService!.getAuthorizationHeader);
 
     final permissionApiService = PermissionApiService(
       client: httpClient,
@@ -328,6 +358,17 @@ class App extends StatelessWidget {
       reporter: errorReporter,
     );
 
+    final documentDashboardApiService = DocumentDashboardApiService(
+      client: httpClient,
+      baseUrl: AppConfig.peopleManagementUrl,
+      getAuthHeader: getAuthHeader,
+    );
+    final DocumentDashboardRepository documentDashboardRepository =
+        DocumentDashboardRepositoryImpl(
+      apiService: documentDashboardApiService,
+      reporter: errorReporter,
+    );
+
     // Spreadsheet export — stateless, safe to share across the app.
     final spreadsheetService = SpreadsheetService();
     final fileSaveService = FileSaveService();
@@ -336,6 +377,7 @@ class App extends StatelessWidget {
       Provider<ErrorReporter>.value(value: errorReporter),
       ChangeNotifierProvider(create: (_) => ThemeNotifier()),
       ChangeNotifierProvider.value(value: permissionNotifier),
+      ChangeNotifierProvider.value(value: authSessionNotifier),
       Provider<AuthRepository>.value(value: authRepository),
       Provider<PermissionRepository>.value(value: permissionRepository),
       Provider<CompanyRepository>.value(value: companyRepository),
@@ -352,6 +394,8 @@ class App extends StatelessWidget {
           value: batchDocumentRepository),
       Provider<BatchDownloadRepository>.value(
           value: batchDownloadRepository),
+      Provider<DocumentDashboardRepository>.value(
+          value: documentDashboardRepository),
       Provider<CepRepository>.value(value: cepRepository),
       Provider<SpreadsheetService>.value(value: spreadsheetService),
       Provider<FileSaveService>.value(value: fileSaveService),
@@ -366,13 +410,17 @@ class _AppRouter extends StatefulWidget {
 
 class _AppRouterState extends State<_AppRouter> {
   late final GoRouter _router;
+  final _rootNavigatorKey = GlobalKey<NavigatorState>();
 
   @override
   void initState() {
     super.initState();
     _router = GoRouter(
+      navigatorKey: _rootNavigatorKey,
       initialLocation: '/',
       observers: [context.read<ErrorReporter>().navigatorObserver],
+      redirect: (context, state) =>
+          context.read<AuthSessionNotifier>().redirectFor(state.uri.path),
       routes: [
         GoRoute(
           path: '/',
@@ -610,15 +658,7 @@ class _AppRouterState extends State<_AppRouter> {
         // ─── Employee ─────────────────────────────────────────────────────
         GoRoute(
           path: '/employee',
-          builder: (context, state) => EmployeeListScreen(
-            viewModel: EmployeeListViewModel(
-              companyRepository: context.read<CompanyRepository>(),
-              employeeRepository: context.read<EmployeeRepository>(),
-              departmentRepository: context.read<DepartmentRepository>(),
-              spreadsheetService: context.read<SpreadsheetService>(),
-              fileSaveService: context.read<FileSaveService>(),
-            ),
-          ),
+          builder: (context, state) => const EmployeeListPage(),
         ),
         GoRoute(
           path: '/employee/create',
@@ -635,6 +675,11 @@ class _AppRouterState extends State<_AppRouter> {
           path: '/employee/:id',
           builder: (context, state) => EmployeeProfileScreen(
             employeeId: state.pathParameters['id']!,
+            initialTab: switch (state.uri.queryParameters['tab']) {
+              'documents' => EmployeeProfileTab.documents,
+              'contracts' => EmployeeProfileTab.employmentContract,
+              _ => EmployeeProfileTab.personalData,
+            },
             viewModel: EmployeeProfileViewModel(
               companyRepository: context.read<CompanyRepository>(),
               employeeRepository: context.read<EmployeeRepository>(),
@@ -714,6 +759,12 @@ class _AppRouterState extends State<_AppRouter> {
           },
         ),
 
+        // ─── Document Dashboard ────────────────────────────────
+        GoRoute(
+          path: '/document-dashboard',
+          builder: (context, state) => const DocumentDashboardPage(),
+        ),
+
         // ─── Debug ────────────────────────────────────────────────────────
         GoRoute(
           path: '/debug',
@@ -763,6 +814,11 @@ class _AppRouterState extends State<_AppRouter> {
       darkTheme: AppTheme.dark(),
       themeMode: themeMode,
       routerConfig: _router,
+      builder: (context, child) => SessionExpiredListener(
+        router: _router,
+        navigatorKey: _rootNavigatorKey,
+        child: child ?? const SizedBox.shrink(),
+      ),
     );
   }
 }

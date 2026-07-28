@@ -11,4 +11,8 @@ abstract class AuthRepository {
   Future<Result<bool>> hasValidCredentials();
 
   Future<Result<void>> logout();
+
+  /// Drops the locally stored credentials without contacting the identity
+  /// provider — used when the session is already known to be dead.
+  Future<Result<void>> clearLocalSession();
 }

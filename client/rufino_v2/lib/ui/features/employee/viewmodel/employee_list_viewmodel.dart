@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 
 import '../../../../data/services/file_save_service.dart'
     show FileSaveOutcome, FileSaveService;
+import '../../../../core/utils/error_messages.dart';
 import '../../../../data/services/spreadsheet_service.dart';
 import '../../../../domain/entities/company_detail.dart';
 import '../../../../domain/entities/department.dart';
@@ -625,9 +626,10 @@ class EmployeeListViewModel extends ChangeNotifier {
             _loadImageFor(employee.id);
           }
         },
-        onError: (_, __) {
+        onError: (error, _) {
           _status = EmployeeListStatus.error;
-          _errorMessage = 'Falha ao carregar funcionários.';
+          _errorMessage = extractServerMessages(error).firstOrNull ??
+              'Falha ao carregar funcionários.';
         },
       );
     } finally {

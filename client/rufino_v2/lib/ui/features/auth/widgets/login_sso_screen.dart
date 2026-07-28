@@ -68,6 +68,7 @@ class _LoginSsoScreenState extends State<LoginSsoScreen> {
         InvalidCredentialsException() => 'Login cancelado ou inválido.',
         SessionExpiredException() => 'Sessão expirada. Tente novamente.',
         NoCredentialsException() => 'Nenhuma credencial encontrada.',
+        AccessDeniedException() => 'Acesso negado.',
         NetworkAuthException() => 'Falha de conexão. Verifique sua internet.',
       };
 

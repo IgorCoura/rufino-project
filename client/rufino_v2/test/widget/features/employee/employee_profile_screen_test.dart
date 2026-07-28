@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
+import 'package:rufino_v2/core/errors/http_exception.dart';
 import 'package:rufino_v2/domain/entities/address.dart';
 import 'package:rufino_v2/domain/entities/company.dart';
 import 'package:rufino_v2/domain/entities/employee.dart';
@@ -20,6 +21,7 @@ import 'package:rufino_v2/domain/entities/workplace.dart';
 import 'package:rufino_v2/ui/features/auth/viewmodel/permission_notifier.dart';
 import 'package:rufino_v2/ui/features/employee/viewmodel/employee_profile_viewmodel.dart';
 import 'package:rufino_v2/ui/features/employee/widgets/employee_profile_screen.dart';
+import 'package:rufino_v2/ui/features/employee/widgets/components/contact_section.dart';
 import 'package:rufino_v2/ui/features/employee/widgets/components/id_card_section.dart';
 import 'package:rufino_v2/ui/features/employee/widgets/components/military_document_section.dart';
 import 'package:rufino_v2/ui/features/employee/widgets/components/medical_exam_section.dart';
@@ -179,7 +181,10 @@ void main() {
     permissionNotifier.dispose();
   });
 
-  Widget buildSubject() => ChangeNotifierProvider<PermissionNotifier>.value(
+  Widget buildSubject({
+    EmployeeProfileTab initialTab = EmployeeProfileTab.personalData,
+  }) =>
+      ChangeNotifierProvider<PermissionNotifier>.value(
         value: permissionNotifier,
         child: MaterialApp.router(
           routerConfig: GoRouter(
@@ -189,6 +194,7 @@ void main() {
                 builder: (_, __) => EmployeeProfileScreen(
                   viewModel: viewModel,
                   employeeId: 'emp-1',
+                  initialTab: initialTab,
                 ),
               ),
             ],
@@ -203,6 +209,104 @@ void main() {
       );
 
   group('EmployeeProfileScreen', () {
+    group('per-tab loading', () {
+      testWidgets(
+          "loads only the visible tab's sections when the profile opens",
+          (tester) async {
+        await tester.pumpWidget(buildSubject());
+        await tester.pumpAndSettle();
+
+        expect(employeeRepository.getEmployeeContactCallCount, 1);
+        expect(employeeRepository.getEmployeeAddressCallCount, 1);
+        expect(documentGroupRepository.getGroupsWithDocumentsCallCount, 0);
+        expect(employeeRepository.getDocumentSigningOptionsCallCount, 0);
+        expect(employeeRepository.getContractsCallCount, 0);
+        expect(employeeRepository.getMedicalExamCallCount, 0);
+      });
+
+      testWidgets(
+          'lands straight on the documents tab when initialTab requests it',
+          (tester) async {
+        await tester.pumpWidget(
+            buildSubject(initialTab: EmployeeProfileTab.documents));
+        await tester.pumpAndSettle();
+
+        expect(documentGroupRepository.getGroupsWithDocumentsCallCount, 1);
+        expect(employeeRepository.getDocumentSigningOptionsCallCount, 1);
+        expect(employeeRepository.getEmployeeContactCallCount, 0);
+        expect(find.text('Grupo Contratual'), findsOneWidget);
+      });
+
+      testWidgets("reloads a tab's data when the user returns to it",
+          (tester) async {
+        await tester.pumpWidget(buildSubject());
+        await tester.pumpAndSettle();
+
+        await tester.tap(find.widgetWithText(Tab, 'Documentos'));
+        await tester.pumpAndSettle();
+        expect(documentGroupRepository.getGroupsWithDocumentsCallCount, 1);
+
+        await tester.tap(find.widgetWithText(Tab, 'Dados Pessoais'));
+        await tester.pumpAndSettle();
+        expect(employeeRepository.getEmployeeContactCallCount, 2);
+
+        await tester.tap(find.widgetWithText(Tab, 'Documentos'));
+        await tester.pumpAndSettle();
+        expect(documentGroupRepository.getGroupsWithDocumentsCallCount, 2);
+      });
+
+      testWidgets(
+          'does not load the intermediate tab when jumping across tabs',
+          (tester) async {
+        await tester.pumpWidget(buildSubject());
+        await tester.pumpAndSettle();
+
+        await tester.tap(find.widgetWithText(Tab, 'Vínculo Empregatício'));
+        await tester.pumpAndSettle();
+
+        expect(employeeRepository.getContractsCallCount, 1);
+        expect(employeeRepository.getMedicalExamCallCount, 1);
+        expect(documentGroupRepository.getGroupsWithDocumentsCallCount, 0);
+        expect(employeeRepository.getDocumentSigningOptionsCallCount, 0);
+      });
+
+      testWidgets(
+          'discards an open edit form when the user returns to the tab',
+          (tester) async {
+        await tester.pumpWidget(buildSubject());
+        await tester.pumpAndSettle();
+
+        await tester.scrollUntilVisible(
+          findEditIn<ContactSection>(),
+          100,
+          scrollable: find.byType(Scrollable).first,
+        );
+        await tester.tap(findEditIn<ContactSection>());
+        await tester.pumpAndSettle();
+        expect(
+          find.descendant(
+            of: find.byType(ContactSection),
+            matching: find.text('Salvar'),
+          ),
+          findsOneWidget,
+        );
+
+        await tester.tap(find.widgetWithText(Tab, 'Documentos'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.widgetWithText(Tab, 'Dados Pessoais'));
+        await tester.pumpAndSettle();
+
+        expect(
+          find.descendant(
+            of: find.byType(ContactSection),
+            matching: find.text('Salvar'),
+          ),
+          findsNothing,
+        );
+        expect(findEditIn<ContactSection>(), findsOneWidget);
+      });
+    });
+
     testWidgets('shows loading indicator while fetching the profile',
         (tester) async {
       await tester.pumpWidget(buildSubject());
@@ -233,15 +337,13 @@ void main() {
 
     testWidgets('marks the employee as inactive after confirmation',
         (tester) async {
-      // Use a finished contract so the "Marcar como inativo" button appears.
-      employeeRepository.setContracts(const [
-        EmployeeContractInfo(
-          initDate: '01/01/2025',
-          finalDate: '31/12/2025',
-          typeId: '1',
-          typeName: 'CLT',
-        ),
-      ]);
+      // Only a pending employee (no contracts yet) can be marked as inactive,
+      // mirroring the backend rule (PMD.EMP17).
+      employeeRepository
+        ..setEmployeeProfile(
+          _fakeProfile.copyWith(status: EmployeeStatus.pending),
+        )
+        ..setContracts(const []);
 
       await tester.pumpWidget(buildSubject());
       await tester.pumpAndSettle();
@@ -268,6 +370,27 @@ void main() {
         find.text('Funcionário marcado como inativo com sucesso.'),
         findsOneWidget,
       );
+    });
+
+    testWidgets(
+        'does not show the inactive action for active employees with a '
+        'finished contract', (tester) async {
+      employeeRepository.setContracts(const [
+        EmployeeContractInfo(
+          initDate: '01/01/2025',
+          finalDate: '31/12/2025',
+          typeId: '1',
+          typeName: 'CLT',
+        ),
+      ]);
+
+      await tester.pumpWidget(buildSubject());
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.widgetWithText(Tab, 'Vínculo Empregatício'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Marcar como inativo'), findsNothing);
     });
 
     testWidgets('does not show the inactive action for inactive employees',
@@ -572,6 +695,68 @@ void main() {
       expect(
         find.text('Dados do documento atualizados com sucesso.'),
         findsOneWidget,
+      );
+    });
+
+    testWidgets(
+        'keeps the ID card edit form visible and shows the server message '
+        'when the server rejects the save with a validation error',
+        (tester) async {
+      // Simulates the backend rejecting the payload (blank father name) with
+      // the domain validation error PMD18 on the Name field.
+      const serverErrorBody = '{"errors":{"Name":[{"code":"PMD18",'
+          '"message":"O campo Name, está em um formato invalido.",'
+          '"properties":{"NameField":"Name"}}]}}';
+      employeeRepository.setEditIdCardError(
+        const HttpException(
+          statusCode: 400,
+          message: 'HTTP 400: Bad Request',
+          serverMessages: ['O campo Name, está em um formato invalido.'],
+          responseBody: serverErrorBody,
+        ),
+      );
+
+      await tester.pumpWidget(buildSubject());
+      await tester.pumpAndSettle();
+
+      await tester.scrollUntilVisible(
+        findEditIn<IdCardSection>(),
+        100,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.tap(findEditIn<IdCardSection>());
+      await tester.pumpAndSettle();
+
+      // Clear the (optional) father name so the payload reaches the server.
+      await tester.scrollUntilVisible(
+        find.widgetWithText(TextFormField, 'Nome do pai'),
+        100,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.enterText(
+        find.widgetWithText(TextFormField, 'Nome do pai'),
+        '',
+      );
+
+      await tester.scrollUntilVisible(
+        find.text('Salvar'),
+        100,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.tap(find.text('Salvar'));
+      await tester.pumpAndSettle();
+
+      // The server message is surfaced to the user.
+      expect(
+        find.text('O campo Name, está em um formato invalido.'),
+        findsOneWidget,
+      );
+      // The form stays available so the user can fix the field and retry.
+      expect(find.text('Salvar'), findsOneWidget);
+      // The load-error placeholder must not replace the form.
+      expect(
+        find.text('Não foi possível carregar os dados do documento.'),
+        findsNothing,
       );
     });
 

@@ -12,94 +12,23 @@ double _sectionInnerSpacing(BuildContext context) {
   return width < AppBreakpoints.mobile ? AppSpacing.sm : AppSpacing.md;
 }
 
-/// A helper that wraps content in a card with an [ExpansionTile].
+/// A card that frames a profile section with a title header.
 ///
-/// Triggers [onExpand] on first expansion so the section can lazy-load its data.
-class ExpandableSectionCard extends StatefulWidget {
-  const ExpandableSectionCard({
-    super.key,
-    required this.title,
-    required this.child,
-    required this.onExpand,
-    this.trailing,
-  });
-
-  final String title;
-  final Widget child;
-  final VoidCallback onExpand;
-
-  /// Optional trailing widget shown in the tile header.
-  final Widget? trailing;
-
-  @override
-  State<ExpandableSectionCard> createState() => _ExpandableSectionCardState();
-}
-
-class _ExpandableSectionCardState extends State<ExpandableSectionCard> {
-  /// Whether [widget.onExpand] has been triggered at least once.
-  bool _loadTriggered = false;
-
-  @override
-  Widget build(BuildContext context) {
-    final spacing = _sectionInnerSpacing(context);
-    return Card.outlined(
-      clipBehavior: Clip.antiAlias,
-      child: ExpansionTile(
-        title: Row(
-          children: [
-            Expanded(
-              child: Text(
-                widget.title,
-                style: Theme.of(context).textTheme.titleMedium,
-              ),
-            ),
-            if (widget.trailing != null) widget.trailing!,
-          ],
-        ),
-        onExpansionChanged: (expanded) {
-          if (expanded && !_loadTriggered) {
-            _loadTriggered = true;
-            widget.onExpand();
-          }
-        },
-        childrenPadding:
-            EdgeInsets.fromLTRB(spacing, 0, spacing, spacing),
-        children: [widget.child],
-      ),
-    );
-  }
-}
-
-/// A card that shows its content directly (no expansion) and triggers
-/// [onLoad] once when first built so the section can fetch its data.
-class SectionCard extends StatefulWidget {
+/// Section data is fetched by the tab orchestration
+/// (`EmployeeProfileViewModel.openTab`), not by this card.
+class SectionCard extends StatelessWidget {
   const SectionCard({
     super.key,
     required this.title,
     required this.child,
-    required this.onLoad,
     this.trailing,
   });
 
   final String title;
   final Widget child;
-  final VoidCallback onLoad;
 
   /// Optional trailing widget shown in the card header.
   final Widget? trailing;
-
-  @override
-  State<SectionCard> createState() => _SectionCardState();
-}
-
-class _SectionCardState extends State<SectionCard> {
-  @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      widget.onLoad();
-    });
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -115,15 +44,15 @@ class _SectionCardState extends State<SectionCard> {
               children: [
                 Expanded(
                   child: Text(
-                    widget.title,
+                    title,
                     style: Theme.of(context).textTheme.titleMedium,
                   ),
                 ),
-                if (widget.trailing != null) widget.trailing!,
+                if (trailing != null) trailing!,
               ],
             ),
             const SizedBox(height: AppSpacing.sm),
-            widget.child,
+            child,
           ],
         ),
       ),

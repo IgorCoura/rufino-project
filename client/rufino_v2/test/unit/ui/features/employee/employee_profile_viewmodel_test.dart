@@ -1,7 +1,9 @@
+import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
+import 'package:rufino_v2/core/errors/http_exception.dart';
 import 'package:rufino_v2/core/result.dart';
 import 'package:rufino_v2/domain/entities/address.dart';
 import 'package:rufino_v2/domain/entities/company.dart';
@@ -9,6 +11,7 @@ import 'package:rufino_v2/domain/entities/document_group_with_documents.dart';
 import 'package:rufino_v2/domain/entities/employee.dart';
 import 'package:rufino_v2/domain/entities/employee_document.dart';
 import 'package:rufino_v2/domain/entities/employee_contact.dart';
+import 'package:rufino_v2/domain/entities/employee_dependent.dart';
 import 'package:rufino_v2/domain/entities/employee_id_card.dart';
 import 'package:rufino_v2/domain/entities/employee_personal_info.dart';
 import 'package:rufino_v2/domain/entities/employee_profile.dart';
@@ -169,6 +172,9 @@ void main() {
 
     test('markAsInactive updates the profile status and exposes a snack message',
         () async {
+      employeeRepository.setEmployeeProfile(
+        _fakeProfile.copyWith(status: EmployeeStatus.pending),
+      );
       await viewModel.load('emp-1');
 
       await viewModel.markAsInactive();
@@ -181,6 +187,9 @@ void main() {
 
     test('markAsInactive sets error when the repository update fails',
         () async {
+      employeeRepository.setEmployeeProfile(
+        _fakeProfile.copyWith(status: EmployeeStatus.pending),
+      );
       await viewModel.load('emp-1');
       employeeRepository.setShouldFail(true);
 
@@ -190,13 +199,161 @@ void main() {
       expect(viewModel.errorMessage, contains('status'));
     });
 
+    test('markAsInactive does nothing when the employee is not pending',
+        () async {
+      await viewModel.load('emp-1');
+
+      await viewModel.markAsInactive();
+
+      expect(viewModel.profile?.status, EmployeeStatus.active);
+      expect(employeeRepository.lastMarkInactiveEmployeeId, isNull);
+    });
+
     test('consumeSnackMessage clears the transient message', () async {
+      employeeRepository.setEmployeeProfile(
+        _fakeProfile.copyWith(status: EmployeeStatus.pending),
+      );
       await viewModel.load('emp-1');
       await viewModel.markAsInactive();
 
       viewModel.consumeSnackMessage();
 
       expect(viewModel.snackMessage, isNull);
+    });
+
+    group('openTab', () {
+      test('openTab does nothing before the profile is loaded', () async {
+        await viewModel.openTab(EmployeeProfileTab.personalData);
+
+        expect(viewModel.contactStatus, SectionLoadStatus.notLoaded);
+        expect(employeeRepository.getEmployeeContactCallCount, 0);
+      });
+
+      test('openTab loads every personal data section', () async {
+        await viewModel.load('emp-1');
+
+        await viewModel.openTab(EmployeeProfileTab.personalData);
+
+        expect(viewModel.contactStatus, SectionLoadStatus.loaded);
+        expect(viewModel.addressStatus, SectionLoadStatus.loaded);
+        expect(viewModel.personalInfoStatus, SectionLoadStatus.loaded);
+        expect(viewModel.idCardStatus, SectionLoadStatus.loaded);
+        expect(viewModel.voteIdStatus, SectionLoadStatus.loaded);
+        expect(viewModel.socialIntegrationProgramStatus,
+            SectionLoadStatus.loaded);
+        expect(viewModel.dependentsStatus, SectionLoadStatus.loaded);
+        expect(viewModel.militaryDocumentStatus, SectionLoadStatus.loaded);
+        expect(viewModel.contact, isNotNull);
+      });
+
+      test("openTab loads only the requested tab's sections", () async {
+        await viewModel.load('emp-1');
+
+        await viewModel.openTab(EmployeeProfileTab.documents);
+
+        expect(viewModel.signingOptionsStatus, SectionLoadStatus.loaded);
+        expect(viewModel.documentsStatus, SectionLoadStatus.loaded);
+        expect(viewModel.contactStatus, SectionLoadStatus.notLoaded);
+        expect(viewModel.contractsStatus, SectionLoadStatus.notLoaded);
+        expect(employeeRepository.getEmployeeContactCallCount, 0);
+        expect(employeeRepository.getContractsCallCount, 0);
+      });
+
+      test("openTab re-fetches a tab's sections on re-entry", () async {
+        await viewModel.load('emp-1');
+
+        await viewModel.openTab(EmployeeProfileTab.personalData);
+        await viewModel.openTab(EmployeeProfileTab.employmentContract);
+        await viewModel.openTab(EmployeeProfileTab.personalData);
+        await viewModel.openTab(EmployeeProfileTab.employmentContract);
+
+        expect(employeeRepository.getEmployeeContactCallCount, 2);
+        expect(employeeRepository.getContractsCallCount, 2);
+      });
+
+      test('openTab reloads a section that previously failed', () async {
+        await viewModel.load('emp-1');
+        employeeRepository.setShouldFail(true);
+        await viewModel.openTab(EmployeeProfileTab.personalData);
+        expect(viewModel.contactStatus, SectionLoadStatus.error);
+
+        employeeRepository.setShouldFail(false);
+        await viewModel.openTab(EmployeeProfileTab.personalData);
+
+        expect(viewModel.contactStatus, SectionLoadStatus.loaded);
+      });
+
+      test('openTab resets the documents tab selection state', () async {
+        await viewModel.load('emp-1');
+        await viewModel.openTab(EmployeeProfileTab.documents);
+        viewModel.toggleRangeSelectionMode();
+        viewModel.toggleDocumentUnitSelection(const SelectedDocumentUnit(
+          documentId: 'doc-1',
+          documentUnitId: 'unit-1',
+          documentName: 'Contrato',
+          documentUnitDate: '01/01/2026',
+          canGenerate: true,
+          hasFile: true,
+        ));
+
+        await viewModel.openTab(EmployeeProfileTab.documents);
+
+        expect(viewModel.isSelectingRange, isFalse);
+        expect(viewModel.selectedDocumentUnits, isEmpty);
+      });
+
+      test('openTab discards a stale in-flight response after a reload',
+          () async {
+        employeeRepository.setContact(
+          const EmployeeContact(cellphone: '111', email: 'first@test.com'),
+        );
+        await viewModel.load('emp-1');
+
+        final firstGate = Completer<void>();
+        final secondGate = Completer<void>();
+        employeeRepository.contactGates.addAll([firstGate, secondGate]);
+
+        final firstOpen = viewModel.openTab(EmployeeProfileTab.personalData);
+        employeeRepository.setContact(
+          const EmployeeContact(cellphone: '222', email: 'second@test.com'),
+        );
+        final secondOpen = viewModel.openTab(EmployeeProfileTab.personalData);
+
+        // The second (fresh) response lands first; the first (stale) one
+        // arrives last and must be discarded.
+        secondGate.complete();
+        await Future<void>.delayed(Duration.zero);
+        firstGate.complete();
+        await Future.wait([firstOpen, secondOpen]);
+
+        expect(viewModel.contact?.email, 'second@test.com');
+        expect(viewModel.contactStatus, SectionLoadStatus.loaded);
+      });
+
+      test('load resets every section when switching employees', () async {
+        await viewModel.load('emp-1');
+        await viewModel.openTab(EmployeeProfileTab.personalData);
+        await viewModel.openTab(EmployeeProfileTab.documents);
+        await viewModel.openTab(EmployeeProfileTab.employmentContract);
+
+        await viewModel.load('emp-2');
+
+        expect(viewModel.contactStatus, SectionLoadStatus.notLoaded);
+        expect(viewModel.addressStatus, SectionLoadStatus.notLoaded);
+        expect(viewModel.personalInfoStatus, SectionLoadStatus.notLoaded);
+        expect(viewModel.idCardStatus, SectionLoadStatus.notLoaded);
+        expect(viewModel.voteIdStatus, SectionLoadStatus.notLoaded);
+        expect(viewModel.socialIntegrationProgramStatus,
+            SectionLoadStatus.notLoaded);
+        expect(viewModel.dependentsStatus, SectionLoadStatus.notLoaded);
+        expect(viewModel.militaryDocumentStatus, SectionLoadStatus.notLoaded);
+        expect(viewModel.signingOptionsStatus, SectionLoadStatus.notLoaded);
+        expect(viewModel.documentsStatus, SectionLoadStatus.notLoaded);
+        expect(viewModel.roleInfoStatus, SectionLoadStatus.notLoaded);
+        expect(viewModel.workplaceInfoStatus, SectionLoadStatus.notLoaded);
+        expect(viewModel.medicalExamStatus, SectionLoadStatus.notLoaded);
+        expect(viewModel.contractsStatus, SectionLoadStatus.notLoaded);
+      });
     });
 
     group('name editing', () {
@@ -358,15 +515,19 @@ void main() {
         expect(employeeRepository.lastSavedContactCellphone, '11888880000');
       });
 
-      test('saveContact sets error status when the repository call fails',
-          () async {
+      test(
+          'saveContact keeps the loaded status and exposes the error when the '
+          'repository call fails', () async {
         await viewModel.load('emp-1');
         await viewModel.loadContact();
         employeeRepository.setShouldFail(true);
 
-        await viewModel.saveContact('11888880000', 'new@email.com');
+        final saved =
+            await viewModel.saveContact('11888880000', 'new@email.com');
 
-        expect(viewModel.contactStatus, SectionLoadStatus.error);
+        expect(saved, isFalse);
+        expect(viewModel.contactStatus, SectionLoadStatus.loaded);
+        expect(viewModel.hasError, isTrue);
       });
     });
 
@@ -416,15 +577,18 @@ void main() {
         expect(employeeRepository.lastSavedAddress?.zipCode, '04538-132');
       });
 
-      test('saveAddress sets error status when the repository call fails',
-          () async {
+      test(
+          'saveAddress keeps the loaded status and exposes the error when the '
+          'repository call fails', () async {
         await viewModel.load('emp-1');
         await viewModel.loadAddress();
         employeeRepository.setShouldFail(true);
 
-        await viewModel.saveAddress(newAddress);
+        final saved = await viewModel.saveAddress(newAddress);
 
-        expect(viewModel.addressStatus, SectionLoadStatus.error);
+        expect(saved, isFalse);
+        expect(viewModel.addressStatus, SectionLoadStatus.loaded);
+        expect(viewModel.hasError, isTrue);
       });
     });
 
@@ -473,15 +637,17 @@ void main() {
       });
 
       test(
-          'savePersonalInfo sets error status when the repository call fails',
-          () async {
+          'savePersonalInfo keeps the loaded status and exposes the error '
+          'when the repository call fails', () async {
         await viewModel.load('emp-1');
         await viewModel.loadPersonalInfo();
         employeeRepository.setShouldFail(true);
 
-        await viewModel.savePersonalInfo(newPersonalInfo);
+        final saved = await viewModel.savePersonalInfo(newPersonalInfo);
 
-        expect(viewModel.personalInfoStatus, SectionLoadStatus.error);
+        expect(saved, isFalse);
+        expect(viewModel.personalInfoStatus, SectionLoadStatus.loaded);
+        expect(viewModel.hasError, isTrue);
       });
     });
 
@@ -522,23 +688,51 @@ void main() {
         await viewModel.load('emp-1');
         await viewModel.loadIdCard();
 
-        await viewModel.saveIdCard(newIdCard);
+        final saved = await viewModel.saveIdCard(newIdCard);
 
+        expect(saved, isTrue);
         expect(viewModel.idCardStatus, SectionLoadStatus.loaded);
         expect(viewModel.idCard?.motherName, 'Maria');
         expect(viewModel.snackMessage, contains('documento'));
         expect(employeeRepository.lastSavedIdCard?.cpf, '123.456.789-00');
       });
 
-      test('saveIdCard sets error status when the repository call fails',
-          () async {
+      test(
+          'saveIdCard keeps the loaded status and exposes the error when the '
+          'repository call fails', () async {
         await viewModel.load('emp-1');
         await viewModel.loadIdCard();
         employeeRepository.setShouldFail(true);
 
-        await viewModel.saveIdCard(newIdCard);
+        final saved = await viewModel.saveIdCard(newIdCard);
 
-        expect(viewModel.idCardStatus, SectionLoadStatus.error);
+        expect(saved, isFalse);
+        expect(viewModel.idCardStatus, SectionLoadStatus.loaded);
+        expect(viewModel.hasError, isTrue);
+        expect(viewModel.errorMessage, isNotNull);
+      });
+
+      test(
+          'saveIdCard exposes the server validation messages when the server '
+          'rejects the payload', () async {
+        await viewModel.load('emp-1');
+        await viewModel.loadIdCard();
+        employeeRepository.setEditIdCardError(
+          const HttpException(
+            statusCode: 400,
+            message: 'HTTP 400: Bad Request',
+            serverMessages: ['O campo Name, está em um formato invalido.'],
+          ),
+        );
+
+        final saved = await viewModel.saveIdCard(newIdCard);
+
+        expect(saved, isFalse);
+        expect(viewModel.idCardStatus, SectionLoadStatus.loaded);
+        expect(
+          viewModel.serverErrors,
+          ['O campo Name, está em um formato invalido.'],
+        );
       });
     });
 
@@ -578,15 +772,18 @@ void main() {
         expect(employeeRepository.lastSavedVoteIdNumber, '999999999999');
       });
 
-      test('saveVoteId sets error status when the repository call fails',
-          () async {
+      test(
+          'saveVoteId keeps the loaded status and exposes the error when the '
+          'repository call fails', () async {
         await viewModel.load('emp-1');
         await viewModel.loadVoteId();
         employeeRepository.setShouldFail(true);
 
-        await viewModel.saveVoteId('999999999999');
+        final saved = await viewModel.saveVoteId('999999999999');
 
-        expect(viewModel.voteIdStatus, SectionLoadStatus.error);
+        expect(saved, isFalse);
+        expect(viewModel.voteIdStatus, SectionLoadStatus.loaded);
+        expect(viewModel.hasError, isTrue);
       });
     });
 
@@ -635,16 +832,19 @@ void main() {
       });
 
       test(
-          'saveSocialIntegrationProgram sets error status when the repository '
-          'call fails', () async {
+          'saveSocialIntegrationProgram keeps the loaded status and exposes '
+          'the error when the repository call fails', () async {
         await viewModel.load('emp-1');
         await viewModel.loadSocialIntegrationProgram();
         employeeRepository.setShouldFail(true);
 
-        await viewModel.saveSocialIntegrationProgram('07183177441');
+        final saved =
+            await viewModel.saveSocialIntegrationProgram('07183177441');
 
+        expect(saved, isFalse);
         expect(viewModel.socialIntegrationProgramStatus,
-            SectionLoadStatus.error);
+            SectionLoadStatus.loaded);
+        expect(viewModel.hasError, isTrue);
       });
     });
 
@@ -679,6 +879,21 @@ void main() {
         expect(viewModel.militaryDocumentStatus, SectionLoadStatus.error);
       });
 
+      test('loadMilitaryDocument does nothing when already loaded', () async {
+        await viewModel.load('emp-1');
+        employeeRepository.setMilitaryDocument(fakeDoc);
+        await viewModel.loadMilitaryDocument();
+
+        employeeRepository.setMilitaryDocument(const EmployeeMilitaryDocument(
+          number: 'RM-00000',
+          type: 'Outro',
+          isRequired: false,
+        ));
+        await viewModel.loadMilitaryDocument();
+
+        expect(viewModel.militaryDocument?.number, 'RM-12345');
+      });
+
       test(
           'saveMilitaryDocument persists new values and shows a snack message',
           () async {
@@ -696,15 +911,18 @@ void main() {
       });
 
       test(
-          'saveMilitaryDocument sets error status when the repository call fails',
-          () async {
+          'saveMilitaryDocument keeps the loaded status and exposes the error '
+          'when the repository call fails', () async {
         await viewModel.load('emp-1');
         await viewModel.loadMilitaryDocument();
         employeeRepository.setShouldFail(true);
 
-        await viewModel.saveMilitaryDocument('RM-99999', 'Certificado');
+        final saved =
+            await viewModel.saveMilitaryDocument('RM-99999', 'Certificado');
 
-        expect(viewModel.militaryDocumentStatus, SectionLoadStatus.error);
+        expect(saved, isFalse);
+        expect(viewModel.militaryDocumentStatus, SectionLoadStatus.loaded);
+        expect(viewModel.hasError, isTrue);
       });
     });
 
@@ -736,6 +954,21 @@ void main() {
         expect(viewModel.medicalExamStatus, SectionLoadStatus.error);
       });
 
+      test('loadMedicalExam does nothing when already loaded', () async {
+        await viewModel.load('emp-1');
+        employeeRepository.setMedicalExam(fakeExam);
+        await viewModel.loadMedicalExam();
+
+        employeeRepository.setMedicalExam(const EmployeeMedicalExam(
+          dateExam: '01/06/2026',
+          validityExam: '01/06/2027',
+        ));
+        await viewModel.loadMedicalExam();
+
+        expect(viewModel.medicalExam?.dateExam, '15/01/2026');
+        expect(employeeRepository.getMedicalExamCallCount, 1);
+      });
+
       test('saveMedicalExam persists new values and shows a snack message',
           () async {
         await viewModel.load('emp-1');
@@ -751,15 +984,19 @@ void main() {
         expect(employeeRepository.lastSavedMedicalExamValidity, '20/03/2027');
       });
 
-      test('saveMedicalExam sets error status when the repository call fails',
-          () async {
+      test(
+          'saveMedicalExam keeps the loaded status and exposes the error when '
+          'the repository call fails', () async {
         await viewModel.load('emp-1');
         await viewModel.loadMedicalExam();
         employeeRepository.setShouldFail(true);
 
-        await viewModel.saveMedicalExam('20/03/2026', '20/03/2027');
+        final saved =
+            await viewModel.saveMedicalExam('20/03/2026', '20/03/2027');
 
-        expect(viewModel.medicalExamStatus, SectionLoadStatus.error);
+        expect(saved, isFalse);
+        expect(viewModel.medicalExamStatus, SectionLoadStatus.loaded);
+        expect(viewModel.hasError, isTrue);
       });
     });
 
@@ -804,6 +1041,17 @@ void main() {
         expect(viewModel.roleInfoStatus, SectionLoadStatus.error);
       });
 
+      test('loadRoleInfo does nothing when already loaded', () async {
+        departmentRepository.setDepartments(fakeDepartments);
+        await viewModel.load('emp-1');
+        await viewModel.loadRoleInfo();
+
+        departmentRepository.setDepartments(const []);
+        await viewModel.loadRoleInfo();
+
+        expect(viewModel.allDepartments, hasLength(1));
+      });
+
       test('saveEmployeeRole persists new roleId and shows a snack message',
           () async {
         departmentRepository.setDepartments(fakeDepartments);
@@ -818,16 +1066,18 @@ void main() {
       });
 
       test(
-          'saveEmployeeRole sets error status when the repository call fails',
-          () async {
+          'saveEmployeeRole keeps the loaded status and exposes the error '
+          'when the repository call fails', () async {
         departmentRepository.setDepartments(fakeDepartments);
         await viewModel.load('emp-1');
         await viewModel.loadRoleInfo();
         employeeRepository.setShouldFail(true);
 
-        await viewModel.saveEmployeeRole('role-1');
+        final saved = await viewModel.saveEmployeeRole('role-1');
 
-        expect(viewModel.roleInfoStatus, SectionLoadStatus.error);
+        expect(saved, isFalse);
+        expect(viewModel.roleInfoStatus, SectionLoadStatus.loaded);
+        expect(viewModel.hasError, isTrue);
       });
     });
 
@@ -1042,6 +1292,15 @@ void main() {
         expect(viewModel.dependentsStatus, SectionLoadStatus.error);
       });
 
+      test('loadDependents does nothing when already loaded', () async {
+        await viewModel.load('emp-1');
+        await viewModel.loadDependents();
+
+        await viewModel.loadDependents();
+
+        expect(employeeRepository.getDependentsCallCount, 1);
+      });
+
       test('removeDependent removes the dependent and shows a snack message',
           () async {
         await viewModel.load('emp-1');
@@ -1055,15 +1314,46 @@ void main() {
         expect(employeeRepository.lastRemovedDependentName, 'Maria Silva');
       });
 
-      test('removeDependent sets error status when the repository call fails',
-          () async {
+      test(
+          'createDependent keeps the loaded status and exposes the error '
+          'when the repository call fails', () async {
         await viewModel.load('emp-1');
         await viewModel.loadDependents();
         employeeRepository.setShouldFail(true);
 
-        await viewModel.removeDependent('Maria Silva');
+        final saved = await viewModel.createDependent(
+          const EmployeeDependent(
+            originalName: '',
+            name: 'João Silva',
+            genderId: '1',
+            dependencyTypeId: '1',
+            cpf: '111.444.777-35',
+            motherName: 'Maria Silva',
+            fatherName: '',
+            dateOfBirth: '01/01/2010',
+            birthCity: 'São Paulo',
+            birthState: 'SP',
+            nationality: 'Brasileira',
+          ),
+        );
 
-        expect(viewModel.dependentsStatus, SectionLoadStatus.error);
+        expect(saved, isFalse);
+        expect(viewModel.dependentsStatus, SectionLoadStatus.loaded);
+        expect(viewModel.hasError, isTrue);
+      });
+
+      test(
+          'removeDependent keeps the loaded status and exposes the error '
+          'when the repository call fails', () async {
+        await viewModel.load('emp-1');
+        await viewModel.loadDependents();
+        employeeRepository.setShouldFail(true);
+
+        final saved = await viewModel.removeDependent('Maria Silva');
+
+        expect(saved, isFalse);
+        expect(viewModel.dependentsStatus, SectionLoadStatus.loaded);
+        expect(viewModel.hasError, isTrue);
       });
     });
 
@@ -1090,6 +1380,17 @@ void main() {
         expect(viewModel.workplaceInfoStatus, SectionLoadStatus.error);
       });
 
+      test('loadWorkplaceInfo does nothing when already loaded', () async {
+        workplaceRepository.setWorkplaces([_fakeWorkplace]);
+        await viewModel.load('emp-1');
+        await viewModel.loadWorkplaceInfo();
+
+        workplaceRepository.setWorkplaces(const []);
+        await viewModel.loadWorkplaceInfo();
+
+        expect(viewModel.allWorkplaces, hasLength(1));
+      });
+
       test(
           'saveEmployeeWorkplace persists new workplaceId and shows a snack message',
           () async {
@@ -1105,16 +1406,18 @@ void main() {
       });
 
       test(
-          'saveEmployeeWorkplace sets error status when the repository call fails',
-          () async {
+          'saveEmployeeWorkplace keeps the loaded status and exposes the '
+          'error when the repository call fails', () async {
         workplaceRepository.setWorkplaces([_fakeWorkplace]);
         await viewModel.load('emp-1');
         await viewModel.loadWorkplaceInfo();
         employeeRepository.setShouldFail(true);
 
-        await viewModel.saveEmployeeWorkplace('wp-1');
+        final saved = await viewModel.saveEmployeeWorkplace('wp-1');
 
-        expect(viewModel.workplaceInfoStatus, SectionLoadStatus.error);
+        expect(saved, isFalse);
+        expect(viewModel.workplaceInfoStatus, SectionLoadStatus.loaded);
+        expect(viewModel.hasError, isTrue);
       });
     });
 
@@ -1139,6 +1442,44 @@ void main() {
         await viewModel.loadContracts();
 
         expect(viewModel.contractsStatus, SectionLoadStatus.error);
+      });
+
+      test('loadContracts does nothing when already loaded', () async {
+        await viewModel.load('emp-1');
+        await viewModel.loadContracts();
+
+        await viewModel.loadContracts();
+
+        expect(employeeRepository.getContractsCallCount, 1);
+      });
+
+      test(
+          'createContract keeps the loaded status and exposes the error when '
+          'the repository call fails', () async {
+        await viewModel.load('emp-1');
+        await viewModel.loadContracts();
+        employeeRepository.setShouldFail(true);
+
+        final saved =
+            await viewModel.createContract('01/01/2026', '1', 'R002');
+
+        expect(saved, isFalse);
+        expect(viewModel.contractsStatus, SectionLoadStatus.loaded);
+        expect(viewModel.hasError, isTrue);
+      });
+
+      test(
+          'finishContract keeps the loaded status and exposes the error when '
+          'the repository call fails', () async {
+        await viewModel.load('emp-1');
+        await viewModel.loadContracts();
+        employeeRepository.setShouldFail(true);
+
+        final saved = await viewModel.finishContract('31/12/2026');
+
+        expect(saved, isFalse);
+        expect(viewModel.contractsStatus, SectionLoadStatus.loaded);
+        expect(viewModel.hasError, isTrue);
       });
 
       test('validateContractInitDate returns null for a valid recent date', () {
@@ -1197,6 +1538,15 @@ void main() {
         expect(viewModel.signingOptionsStatus, SectionLoadStatus.error);
       });
 
+      test('loadSigningOptions does nothing when already loaded', () async {
+        await viewModel.load('emp-1');
+        await viewModel.loadSigningOptions();
+
+        await viewModel.loadSigningOptions();
+
+        expect(employeeRepository.getDocumentSigningOptionsCallCount, 1);
+      });
+
       test('saveSigningOption persists option and shows a snack message',
           () async {
         await viewModel.load('emp-1');
@@ -1210,15 +1560,17 @@ void main() {
       });
 
       test(
-          'saveSigningOption sets error status when the repository call fails',
-          () async {
+          'saveSigningOption keeps the loaded status and exposes the error '
+          'when the repository call fails', () async {
         await viewModel.load('emp-1');
         await viewModel.loadSigningOptions();
         employeeRepository.setShouldFail(true);
 
-        await viewModel.saveSigningOption('2');
+        final saved = await viewModel.saveSigningOption('2');
 
-        expect(viewModel.signingOptionsStatus, SectionLoadStatus.error);
+        expect(saved, isFalse);
+        expect(viewModel.signingOptionsStatus, SectionLoadStatus.loaded);
+        expect(viewModel.hasError, isTrue);
       });
     });
 
@@ -1267,6 +1619,15 @@ void main() {
         await viewModel.loadDocumentGroups();
 
         expect(viewModel.documentsStatus, SectionLoadStatus.error);
+      });
+
+      test('loadDocumentGroups does nothing when already loaded', () async {
+        await viewModel.load('emp-1');
+        await viewModel.loadDocumentGroups();
+
+        await viewModel.loadDocumentGroups();
+
+        expect(documentGroupRepository.getGroupsWithDocumentsCallCount, 1);
       });
     });
 

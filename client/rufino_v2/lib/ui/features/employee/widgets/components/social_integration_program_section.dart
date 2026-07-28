@@ -54,10 +54,9 @@ class _SocialIntegrationProgramSectionState
     if (_formKey.currentState?.validate() != true) return;
     final rawDigits =
         _numberController.text.replaceAll(RegExp(r'[^\d]'), '');
-    await widget.viewModel.saveSocialIntegrationProgram(rawDigits);
-    if (mounted &&
-        widget.viewModel.socialIntegrationProgramStatus ==
-            SectionLoadStatus.loaded) {
+    final saved =
+        await widget.viewModel.saveSocialIntegrationProgram(rawDigits);
+    if (mounted && saved) {
       setState(() => _isEditing = false);
     }
   }
@@ -72,7 +71,6 @@ class _SocialIntegrationProgramSectionState
         final status = widget.viewModel.socialIntegrationProgramStatus;
         return SectionCard(
           title: 'PIS / PASEP',
-          onLoad: widget.viewModel.loadSocialIntegrationProgram,
           child: _buildContent(context, status),
         );
       },

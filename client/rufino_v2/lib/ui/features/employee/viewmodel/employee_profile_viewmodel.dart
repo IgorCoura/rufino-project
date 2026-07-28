@@ -70,15 +70,18 @@ enum EmployeeProfileStatus { loading, idle, saving, error }
 /// Possible load/save states for a lazily-loaded profile section.
 enum SectionLoadStatus { notLoaded, loading, loaded, saving, error }
 
+/// The three top-level tabs of the employee profile screen.
+enum EmployeeProfileTab { personalData, documents, employmentContract }
+
 /// Manages state for the employee profile screen.
 ///
 /// Loads the selected company context, the employee profile, the profile image,
 /// and related role/workplace labels needed by the UI. The ViewModel also
 /// handles inline name editing, avatar upload, and the "mark as inactive" action.
 ///
-/// Additional sections (contact, address, personalInfo, idCard, voteId,
-/// militaryDocument) are lazily loaded on first expansion to avoid unnecessary
-/// API calls.
+/// Section data is loaded per tab via [openTab]: the screen calls it every
+/// time the user lands on a tab, which discards that tab's sections and
+/// fetches them again — a revisited tab always shows fresh data.
 class EmployeeProfileViewModel extends ChangeNotifier {
   EmployeeProfileViewModel({
     required CompanyRepository companyRepository,
@@ -105,6 +108,14 @@ class EmployeeProfileViewModel extends ChangeNotifier {
   final DocumentScannerRepository? _scannerRepository;
 
   EmployeeProfileStatus _status = EmployeeProfileStatus.idle;
+
+  /// Monotonic counter identifying the current load cycle.
+  ///
+  /// [load] and [openTab] bump it; every section load captures the value
+  /// before awaiting and discards its response when the counter has moved on,
+  /// so a stale in-flight fetch can never overwrite fresher data.
+  int _loadGeneration = 0;
+
   String? _companyId;
   EmployeeProfile? _profile;
   Uint8List? _imageBytes;
@@ -466,25 +477,14 @@ class EmployeeProfileViewModel extends ChangeNotifier {
 
   /// Loads the employee profile identified by [employeeId].
   Future<void> load(String employeeId) async {
+    _loadGeneration++;
     _status = EmployeeProfileStatus.loading;
     _errorMessage = null;
     _snackMessage = null;
-    _isEditingName = false;
-    _pendingName = '';
-    // Reset all lazy sections so they reload for the new employee.
-    _contactStatus = SectionLoadStatus.notLoaded;
-    _contact = null;
-    _addressStatus = SectionLoadStatus.notLoaded;
-    _address = null;
-    _personalInfoStatus = SectionLoadStatus.notLoaded;
-    _personalInfo = null;
-    _personalInfoOptions = null;
-    _idCardStatus = SectionLoadStatus.notLoaded;
-    _idCard = null;
-    _voteIdStatus = SectionLoadStatus.notLoaded;
-    _voteId = null;
-    _socialIntegrationProgramStatus = SectionLoadStatus.notLoaded;
-    _socialIntegrationProgram = null;
+    // Reset every section so a new employee never shows stale data.
+    _resetPersonalDataTab();
+    _resetDocumentsTab();
+    _resetEmploymentTab();
     notifyListeners();
 
     final companyResult = await _companyRepository.getSelectedCompany();
@@ -518,6 +518,103 @@ class EmployeeProfileViewModel extends ChangeNotifier {
 
     _status = EmployeeProfileStatus.idle;
     notifyListeners();
+  }
+
+  /// Discards the data of [tab] and fetches it again from the API.
+  ///
+  /// The screen calls this every time the user lands on a tab, so
+  /// re-entering a tab always refetches its sections — which also discards
+  /// any unsaved edit state held by the ViewModel for that tab. Any section
+  /// load still in flight from a previous cycle is invalidated. Does nothing
+  /// until the profile itself has loaded.
+  Future<void> openTab(EmployeeProfileTab tab) async {
+    if (_profile == null || _companyId == null) return;
+
+    _loadGeneration++;
+    switch (tab) {
+      case EmployeeProfileTab.personalData:
+        _resetPersonalDataTab();
+        notifyListeners();
+        await Future.wait([
+          loadContact(),
+          loadAddress(),
+          loadPersonalInfo(),
+          loadIdCard(),
+          loadVoteId(),
+          loadSocialIntegrationProgram(),
+          loadDependents(),
+          loadMilitaryDocument(),
+        ]);
+      case EmployeeProfileTab.documents:
+        _resetDocumentsTab();
+        notifyListeners();
+        await Future.wait([
+          loadSigningOptions(),
+          loadDocumentGroups(),
+        ]);
+      case EmployeeProfileTab.employmentContract:
+        _resetEmploymentTab();
+        notifyListeners();
+        await Future.wait([
+          loadRoleInfo(),
+          loadWorkplaceInfo(),
+          loadMedicalExam(),
+          loadContracts(),
+        ]);
+    }
+  }
+
+  /// Resets every section of the "Dados Pessoais" tab to [SectionLoadStatus.notLoaded].
+  void _resetPersonalDataTab() {
+    _isEditingName = false;
+    _pendingName = '';
+    _contactStatus = SectionLoadStatus.notLoaded;
+    _contact = null;
+    _addressStatus = SectionLoadStatus.notLoaded;
+    _address = null;
+    _isLookingUpCep = false;
+    _personalInfoStatus = SectionLoadStatus.notLoaded;
+    _personalInfo = null;
+    _personalInfoOptions = null;
+    _idCardStatus = SectionLoadStatus.notLoaded;
+    _idCard = null;
+    _voteIdStatus = SectionLoadStatus.notLoaded;
+    _voteId = null;
+    _socialIntegrationProgramStatus = SectionLoadStatus.notLoaded;
+    _socialIntegrationProgram = null;
+    _dependentsStatus = SectionLoadStatus.notLoaded;
+    _dependents = [];
+    _militaryDocumentStatus = SectionLoadStatus.notLoaded;
+    _militaryDocument = null;
+  }
+
+  /// Resets every section of the "Documentos" tab to [SectionLoadStatus.notLoaded].
+  void _resetDocumentsTab() {
+    _signingOptionsStatus = SectionLoadStatus.notLoaded;
+    _signingOptions = [];
+    _documentsStatus = SectionLoadStatus.notLoaded;
+    _documentGroups = [];
+    _isSelectingRange = false;
+    _selectedDocumentUnits = [];
+    _pageSizeMap.clear();
+    _uploadProgress = 0.0;
+  }
+
+  /// Resets every section of the "Vínculo Empregatício" tab to [SectionLoadStatus.notLoaded].
+  void _resetEmploymentTab() {
+    _roleInfoStatus = SectionLoadStatus.notLoaded;
+    _allDepartments = [];
+    _paymentUnits = [];
+    _salaryTypes = [];
+    _currentDepartmentId = '';
+    _currentPositionId = '';
+    _workplaceInfoStatus = SectionLoadStatus.notLoaded;
+    _allWorkplaces = [];
+    _medicalExamStatus = SectionLoadStatus.notLoaded;
+    _medicalExam = null;
+    _contractsStatus = SectionLoadStatus.notLoaded;
+    _contracts = [];
+    _contractTypes = [];
   }
 
   /// Enters inline name editing mode, pre-filling the draft with the current name.
@@ -667,6 +764,18 @@ class EmployeeProfileViewModel extends ChangeNotifier {
     _errorMessage = null;
   }
 
+  /// Records a failed section save so the error snackbar can present it.
+  ///
+  /// The snackbar is keyed off [serverErrors], so when [error] carries no
+  /// structured server messages the [fallbackMessage] becomes the single
+  /// entry — a failure must always contribute at least one message to be
+  /// visible.
+  void _recordSaveError(Object error, String fallbackMessage) {
+    final messages = extractServerMessages(error);
+    _serverErrors = messages.isNotEmpty ? messages : [fallbackMessage];
+    _errorMessage = _serverErrors.join('\n');
+  }
+
   // ─── Contact section methods ───────────────────────────────────────────────
 
   /// Lazily loads the employee contact section.
@@ -685,8 +794,10 @@ class EmployeeProfileViewModel extends ChangeNotifier {
     _contactStatus = SectionLoadStatus.loading;
     notifyListeners();
 
+    final generation = _loadGeneration;
     final result = await _employeeRepository.getEmployeeContact(
         companyId, currentProfile.id);
+    if (generation != _loadGeneration) return;
 
     result.fold(
       onSuccess: (data) {
@@ -703,11 +814,14 @@ class EmployeeProfileViewModel extends ChangeNotifier {
 
   /// Saves updated contact information for the current employee.
   ///
-  /// Shows a snack message on success.
-  Future<void> saveContact(String cellphone, String email) async {
+  /// Shows a snack message on success. On failure the section stays
+  /// [SectionLoadStatus.loaded] so the edit form remains available for retry.
+  ///
+  /// Returns whether the save succeeded.
+  Future<bool> saveContact(String cellphone, String email) async {
     final companyId = _companyId;
     final currentProfile = _profile;
-    if (companyId == null || currentProfile == null) return;
+    if (companyId == null || currentProfile == null) return false;
 
     _contactStatus = SectionLoadStatus.saving;
     notifyListeners();
@@ -719,22 +833,22 @@ class EmployeeProfileViewModel extends ChangeNotifier {
       email,
     );
 
+    var saved = false;
     result.fold(
       onSuccess: (_) {
         _contact = EmployeeContact(cellphone: cellphone, email: email);
         _snackMessage = 'Contato atualizado com sucesso.';
         _contactStatus = SectionLoadStatus.loaded;
+        saved = true;
       },
       onError: (error, _) {
-        _contactStatus = SectionLoadStatus.error;
-        _serverErrors = extractServerMessages(error);
-        _errorMessage = _serverErrors.isNotEmpty
-            ? _serverErrors.join('\n')
-            : 'Não foi possível salvar o contato.';
+        _contactStatus = SectionLoadStatus.loaded;
+        _recordSaveError(error, 'Não foi possível salvar o contato.');
       },
     );
 
     notifyListeners();
+    return saved;
   }
 
   // ─── Address section methods ───────────────────────────────────────────────
@@ -755,8 +869,10 @@ class EmployeeProfileViewModel extends ChangeNotifier {
     _addressStatus = SectionLoadStatus.loading;
     notifyListeners();
 
+    final generation = _loadGeneration;
     final result = await _employeeRepository.getEmployeeAddress(
         companyId, currentProfile.id);
+    if (generation != _loadGeneration) return;
 
     result.fold(
       onSuccess: (data) {
@@ -773,11 +889,14 @@ class EmployeeProfileViewModel extends ChangeNotifier {
 
   /// Saves updated address information for the current employee.
   ///
-  /// Shows a snack message on success.
-  Future<void> saveAddress(Address address) async {
+  /// Shows a snack message on success. On failure the section stays
+  /// [SectionLoadStatus.loaded] so the edit form remains available for retry.
+  ///
+  /// Returns whether the save succeeded.
+  Future<bool> saveAddress(Address address) async {
     final companyId = _companyId;
     final currentProfile = _profile;
-    if (companyId == null || currentProfile == null) return;
+    if (companyId == null || currentProfile == null) return false;
 
     _addressStatus = SectionLoadStatus.saving;
     notifyListeners();
@@ -788,22 +907,22 @@ class EmployeeProfileViewModel extends ChangeNotifier {
       address,
     );
 
+    var saved = false;
     result.fold(
       onSuccess: (_) {
         _address = address;
         _snackMessage = 'Endereço atualizado com sucesso.';
         _addressStatus = SectionLoadStatus.loaded;
+        saved = true;
       },
       onError: (error, _) {
-        _addressStatus = SectionLoadStatus.error;
-        _serverErrors = extractServerMessages(error);
-        _errorMessage = _serverErrors.isNotEmpty
-            ? _serverErrors.join('\n')
-            : 'Não foi possível salvar o endereço.';
+        _addressStatus = SectionLoadStatus.loaded;
+        _recordSaveError(error, 'Não foi possível salvar o endereço.');
       },
     );
 
     notifyListeners();
+    return saved;
   }
 
   /// Looks up the address associated with [cep] via the CEP repository.
@@ -851,10 +970,12 @@ class EmployeeProfileViewModel extends ChangeNotifier {
     _personalInfoStatus = SectionLoadStatus.loading;
     notifyListeners();
 
+    final generation = _loadGeneration;
     final infoResult = await _employeeRepository.getEmployeePersonalInfo(
         companyId, currentProfile.id);
     final optionsResult =
         await _employeeRepository.getPersonalInfoOptions(companyId);
+    if (generation != _loadGeneration) return;
 
     bool hasError = false;
 
@@ -875,11 +996,14 @@ class EmployeeProfileViewModel extends ChangeNotifier {
 
   /// Saves updated personal info for the current employee.
   ///
-  /// Shows a snack message on success.
-  Future<void> savePersonalInfo(EmployeePersonalInfo personalInfo) async {
+  /// Shows a snack message on success. On failure the section stays
+  /// [SectionLoadStatus.loaded] so the edit form remains available for retry.
+  ///
+  /// Returns whether the save succeeded.
+  Future<bool> savePersonalInfo(EmployeePersonalInfo personalInfo) async {
     final companyId = _companyId;
     final currentProfile = _profile;
-    if (companyId == null || currentProfile == null) return;
+    if (companyId == null || currentProfile == null) return false;
 
     _personalInfoStatus = SectionLoadStatus.saving;
     notifyListeners();
@@ -890,22 +1014,23 @@ class EmployeeProfileViewModel extends ChangeNotifier {
       personalInfo,
     );
 
+    var saved = false;
     result.fold(
       onSuccess: (_) {
         _personalInfo = personalInfo;
         _snackMessage = 'Informações pessoais atualizadas com sucesso.';
         _personalInfoStatus = SectionLoadStatus.loaded;
+        saved = true;
       },
       onError: (error, _) {
-        _personalInfoStatus = SectionLoadStatus.error;
-        _serverErrors = extractServerMessages(error);
-        _errorMessage = _serverErrors.isNotEmpty
-            ? _serverErrors.join('\n')
-            : 'Não foi possível salvar as informações pessoais.';
+        _personalInfoStatus = SectionLoadStatus.loaded;
+        _recordSaveError(
+            error, 'Não foi possível salvar as informações pessoais.');
       },
     );
 
     notifyListeners();
+    return saved;
   }
 
   // ─── ID card section methods ───────────────────────────────────────────────
@@ -926,8 +1051,10 @@ class EmployeeProfileViewModel extends ChangeNotifier {
     _idCardStatus = SectionLoadStatus.loading;
     notifyListeners();
 
+    final generation = _loadGeneration;
     final result =
         await _employeeRepository.getEmployeeIdCard(companyId, currentProfile.id);
+    if (generation != _loadGeneration) return;
 
     result.fold(
       onSuccess: (data) {
@@ -944,11 +1071,16 @@ class EmployeeProfileViewModel extends ChangeNotifier {
 
   /// Saves updated ID card (Identidade) information for the current employee.
   ///
-  /// Shows a snack message on success.
-  Future<void> saveIdCard(EmployeeIdCard idCard) async {
+  /// Shows a snack message on success. On failure the section stays
+  /// [SectionLoadStatus.loaded] — the previously loaded data is still valid
+  /// and the edit form must remain available for the user to fix the input
+  /// and retry.
+  ///
+  /// Returns whether the save succeeded.
+  Future<bool> saveIdCard(EmployeeIdCard idCard) async {
     final companyId = _companyId;
     final currentProfile = _profile;
-    if (companyId == null || currentProfile == null) return;
+    if (companyId == null || currentProfile == null) return false;
 
     _idCardStatus = SectionLoadStatus.saving;
     notifyListeners();
@@ -959,22 +1091,22 @@ class EmployeeProfileViewModel extends ChangeNotifier {
       idCard,
     );
 
+    var saved = false;
     result.fold(
       onSuccess: (_) {
         _idCard = idCard;
         _snackMessage = 'Dados do documento atualizados com sucesso.';
         _idCardStatus = SectionLoadStatus.loaded;
+        saved = true;
       },
       onError: (error, _) {
-        _idCardStatus = SectionLoadStatus.error;
-        _serverErrors = extractServerMessages(error);
-        _errorMessage = _serverErrors.isNotEmpty
-            ? _serverErrors.join('\n')
-            : 'Não foi possível salvar os dados do documento.';
+        _idCardStatus = SectionLoadStatus.loaded;
+        _recordSaveError(error, 'Não foi possível salvar os dados do documento.');
       },
     );
 
     notifyListeners();
+    return saved;
   }
 
   // ─── Vote ID section methods ───────────────────────────────────────────────
@@ -995,8 +1127,10 @@ class EmployeeProfileViewModel extends ChangeNotifier {
     _voteIdStatus = SectionLoadStatus.loading;
     notifyListeners();
 
+    final generation = _loadGeneration;
     final result = await _employeeRepository.getEmployeeVoteId(
         companyId, currentProfile.id);
+    if (generation != _loadGeneration) return;
 
     result.fold(
       onSuccess: (data) {
@@ -1013,11 +1147,14 @@ class EmployeeProfileViewModel extends ChangeNotifier {
 
   /// Saves updated voter registration (Título de Eleitor) for the current employee.
   ///
-  /// Shows a snack message on success.
-  Future<void> saveVoteId(String voteIdNumber) async {
+  /// Shows a snack message on success. On failure the section stays
+  /// [SectionLoadStatus.loaded] so the edit form remains available for retry.
+  ///
+  /// Returns whether the save succeeded.
+  Future<bool> saveVoteId(String voteIdNumber) async {
     final companyId = _companyId;
     final currentProfile = _profile;
-    if (companyId == null || currentProfile == null) return;
+    if (companyId == null || currentProfile == null) return false;
 
     _voteIdStatus = SectionLoadStatus.saving;
     notifyListeners();
@@ -1028,22 +1165,22 @@ class EmployeeProfileViewModel extends ChangeNotifier {
       voteIdNumber,
     );
 
+    var saved = false;
     result.fold(
       onSuccess: (_) {
         _voteId = EmployeeVoteId(number: voteIdNumber);
         _snackMessage = 'Título de eleitor atualizado com sucesso.';
         _voteIdStatus = SectionLoadStatus.loaded;
+        saved = true;
       },
       onError: (error, _) {
-        _voteIdStatus = SectionLoadStatus.error;
-        _serverErrors = extractServerMessages(error);
-        _errorMessage = _serverErrors.isNotEmpty
-            ? _serverErrors.join('\n')
-            : 'Não foi possível salvar o título de eleitor.';
+        _voteIdStatus = SectionLoadStatus.loaded;
+        _recordSaveError(error, 'Não foi possível salvar o título de eleitor.');
       },
     );
 
     notifyListeners();
+    return saved;
   }
 
   // ─── Social Integration Program (PIS) section methods ───────────────────
@@ -1064,10 +1201,12 @@ class EmployeeProfileViewModel extends ChangeNotifier {
     _socialIntegrationProgramStatus = SectionLoadStatus.loading;
     notifyListeners();
 
+    final generation = _loadGeneration;
     final result = await _employeeRepository.getEmployeeSocialIntegrationProgram(
       companyId,
       currentProfile.id,
     );
+    if (generation != _loadGeneration) return;
 
     result.fold(
       onSuccess: (data) {
@@ -1085,13 +1224,16 @@ class EmployeeProfileViewModel extends ChangeNotifier {
   /// Saves updated PIS/PASEP registration for the current employee.
   ///
   /// [socialIntegrationProgramNumber] must be the raw 11-digit value
-  /// (without separators).
-  Future<void> saveSocialIntegrationProgram(
+  /// (without separators). On failure the section stays
+  /// [SectionLoadStatus.loaded] so the edit form remains available for retry.
+  ///
+  /// Returns whether the save succeeded.
+  Future<bool> saveSocialIntegrationProgram(
     String socialIntegrationProgramNumber,
   ) async {
     final companyId = _companyId;
     final currentProfile = _profile;
-    if (companyId == null || currentProfile == null) return;
+    if (companyId == null || currentProfile == null) return false;
 
     _socialIntegrationProgramStatus = SectionLoadStatus.saving;
     notifyListeners();
@@ -1103,6 +1245,7 @@ class EmployeeProfileViewModel extends ChangeNotifier {
       socialIntegrationProgramNumber,
     );
 
+    var saved = false;
     result.fold(
       onSuccess: (_) {
         _socialIntegrationProgram = EmployeeSocialIntegrationProgram(
@@ -1110,33 +1253,40 @@ class EmployeeProfileViewModel extends ChangeNotifier {
         );
         _snackMessage = 'PIS atualizado com sucesso.';
         _socialIntegrationProgramStatus = SectionLoadStatus.loaded;
+        saved = true;
       },
       onError: (error, _) {
-        _socialIntegrationProgramStatus = SectionLoadStatus.error;
-        _serverErrors = extractServerMessages(error);
-        _errorMessage = _serverErrors.isNotEmpty
-            ? _serverErrors.join('\n')
-            : 'Não foi possível salvar o PIS.';
+        _socialIntegrationProgramStatus = SectionLoadStatus.loaded;
+        _recordSaveError(error, 'Não foi possível salvar o PIS.');
       },
     );
 
     notifyListeners();
+    return saved;
   }
 
   // ─── Military document section ────────────────────────────────────────────
 
-  /// Loads the military document for the current employee on first expansion.
+  /// Lazily loads the military document for the current employee.
+  ///
+  /// Does nothing if the section has already been loaded or is currently loading.
   Future<void> loadMilitaryDocument() async {
-    if (_militaryDocumentStatus != SectionLoadStatus.notLoaded) return;
     final companyId = _companyId;
     final currentProfile = _profile;
-    if (companyId == null || currentProfile == null) return;
+    if (companyId == null ||
+        currentProfile == null ||
+        _militaryDocumentStatus == SectionLoadStatus.loading ||
+        _militaryDocumentStatus == SectionLoadStatus.loaded) {
+      return;
+    }
 
     _militaryDocumentStatus = SectionLoadStatus.loading;
     notifyListeners();
 
+    final generation = _loadGeneration;
     final result = await _employeeRepository.getMilitaryDocument(
         companyId, currentProfile.id);
+    if (generation != _loadGeneration) return;
 
     result.fold(
       onSuccess: (data) {
@@ -1153,11 +1303,14 @@ class EmployeeProfileViewModel extends ChangeNotifier {
 
   /// Saves updated military document for the current employee.
   ///
-  /// Shows a snack message on success.
-  Future<void> saveMilitaryDocument(String number, String type) async {
+  /// Shows a snack message on success. On failure the section stays
+  /// [SectionLoadStatus.loaded] so the edit form remains available for retry.
+  ///
+  /// Returns whether the save succeeded.
+  Future<bool> saveMilitaryDocument(String number, String type) async {
     final companyId = _companyId;
     final currentProfile = _profile;
-    if (companyId == null || currentProfile == null) return;
+    if (companyId == null || currentProfile == null) return false;
 
     _militaryDocumentStatus = SectionLoadStatus.saving;
     notifyListeners();
@@ -1169,6 +1322,7 @@ class EmployeeProfileViewModel extends ChangeNotifier {
       type,
     );
 
+    var saved = false;
     result.fold(
       onSuccess: (_) {
         _militaryDocument = _militaryDocument?.copyWith(
@@ -1177,34 +1331,40 @@ class EmployeeProfileViewModel extends ChangeNotifier {
         );
         _snackMessage = 'Documento militar atualizado com sucesso.';
         _militaryDocumentStatus = SectionLoadStatus.loaded;
+        saved = true;
       },
       onError: (error, _) {
-        _militaryDocumentStatus = SectionLoadStatus.error;
-        _serverErrors = extractServerMessages(error);
-        _errorMessage = _serverErrors.isNotEmpty
-            ? _serverErrors.join('\n')
-            : 'Não foi possível salvar o documento militar.';
+        _militaryDocumentStatus = SectionLoadStatus.loaded;
+        _recordSaveError(error, 'Não foi possível salvar o documento militar.');
       },
     );
 
     notifyListeners();
+    return saved;
   }
 
   // ─── Medical exam section ─────────────────────────────────────────────────
 
-  /// Loads the medical admission exam for the current employee on first
-  /// expansion.
+  /// Lazily loads the medical admission exam for the current employee.
+  ///
+  /// Does nothing if the section has already been loaded or is currently loading.
   Future<void> loadMedicalExam() async {
-    if (_medicalExamStatus != SectionLoadStatus.notLoaded) return;
     final companyId = _companyId;
     final currentProfile = _profile;
-    if (companyId == null || currentProfile == null) return;
+    if (companyId == null ||
+        currentProfile == null ||
+        _medicalExamStatus == SectionLoadStatus.loading ||
+        _medicalExamStatus == SectionLoadStatus.loaded) {
+      return;
+    }
 
     _medicalExamStatus = SectionLoadStatus.loading;
     notifyListeners();
 
+    final generation = _loadGeneration;
     final result =
         await _employeeRepository.getMedicalExam(companyId, currentProfile.id);
+    if (generation != _loadGeneration) return;
 
     result.fold(
       onSuccess: (data) {
@@ -1222,11 +1382,14 @@ class EmployeeProfileViewModel extends ChangeNotifier {
   /// Saves the updated medical admission exam for the current employee.
   ///
   /// [dateExam] and [validityExam] must be in `dd/MM/yyyy` display format.
-  /// Shows a snack message on success.
-  Future<void> saveMedicalExam(String dateExam, String validityExam) async {
+  /// Shows a snack message on success. On failure the section stays
+  /// [SectionLoadStatus.loaded] so the edit form remains available for retry.
+  ///
+  /// Returns whether the save succeeded.
+  Future<bool> saveMedicalExam(String dateExam, String validityExam) async {
     final companyId = _companyId;
     final currentProfile = _profile;
-    if (companyId == null || currentProfile == null) return;
+    if (companyId == null || currentProfile == null) return false;
 
     _medicalExamStatus = SectionLoadStatus.saving;
     notifyListeners();
@@ -1238,6 +1401,7 @@ class EmployeeProfileViewModel extends ChangeNotifier {
       validityExam,
     );
 
+    var saved = false;
     result.fold(
       onSuccess: (_) {
         _medicalExam = EmployeeMedicalExam(
@@ -1246,33 +1410,40 @@ class EmployeeProfileViewModel extends ChangeNotifier {
         );
         _snackMessage = 'Exame médico admissional atualizado com sucesso.';
         _medicalExamStatus = SectionLoadStatus.loaded;
+        saved = true;
       },
       onError: (error, _) {
-        _medicalExamStatus = SectionLoadStatus.error;
-        _serverErrors = extractServerMessages(error);
-        _errorMessage = _serverErrors.isNotEmpty
-            ? _serverErrors.join('\n')
-            : 'Não foi possível salvar o exame médico.';
+        _medicalExamStatus = SectionLoadStatus.loaded;
+        _recordSaveError(error, 'Não foi possível salvar o exame médico.');
       },
     );
 
     notifyListeners();
+    return saved;
   }
 
   // ─── Role info section ─────────────────────────────────────────────────────
 
-  /// Loads the department hierarchy, payment units, salary types, and locates
-  /// the employee's current role.
+  /// Lazily loads the department hierarchy, payment units, salary types, and
+  /// locates the employee's current role.
+  ///
+  /// Does nothing if the section has already been loaded or is currently loading.
   Future<void> loadRoleInfo() async {
-    if (_roleInfoStatus != SectionLoadStatus.notLoaded) return;
     final companyId = _companyId;
     final currentProfile = _profile;
-    if (companyId == null || currentProfile == null) return;
+    if (companyId == null ||
+        currentProfile == null ||
+        _roleInfoStatus == SectionLoadStatus.loading ||
+        _roleInfoStatus == SectionLoadStatus.loaded) {
+      return;
+    }
 
     _roleInfoStatus = SectionLoadStatus.loading;
     notifyListeners();
 
+    final generation = _loadGeneration;
     final deptResult = await _departmentRepository.getDepartments(companyId);
+    if (generation != _loadGeneration) return;
     if (deptResult.isError) {
       _roleInfoStatus = SectionLoadStatus.error;
       notifyListeners();
@@ -1286,6 +1457,7 @@ class EmployeeProfileViewModel extends ChangeNotifier {
         await _departmentRepository.getPaymentUnits(companyId);
     final stResult =
         await _departmentRepository.getSalaryTypes(companyId);
+    if (generation != _loadGeneration) return;
     _paymentUnits = puResult.valueOrNull ?? [];
     _salaryTypes = stResult.valueOrNull ?? [];
     _findCurrentRoleInHierarchy(currentProfile.roleId);
@@ -1297,11 +1469,15 @@ class EmployeeProfileViewModel extends ChangeNotifier {
   /// Saves a new role assignment for the current employee.
   ///
   /// Updates the profile's roleId and refreshes the role label on success.
-  Future<void> saveEmployeeRole(String roleId) async {
+  /// On failure the section stays [SectionLoadStatus.loaded] so the edit
+  /// form remains available for retry.
+  ///
+  /// Returns whether the save succeeded.
+  Future<bool> saveEmployeeRole(String roleId) async {
     final companyId = _companyId;
     final currentProfile = _profile;
-    if (companyId == null || currentProfile == null) return;
-    if (roleId.isEmpty) return;
+    if (companyId == null || currentProfile == null) return false;
+    if (roleId.isEmpty) return false;
 
     _roleInfoStatus = SectionLoadStatus.saving;
     notifyListeners();
@@ -1312,6 +1488,7 @@ class EmployeeProfileViewModel extends ChangeNotifier {
       roleId,
     );
 
+    var saved = false;
     result.fold(
       onSuccess: (_) {
         _profile = currentProfile.copyWith(roleId: roleId);
@@ -1325,17 +1502,16 @@ class EmployeeProfileViewModel extends ChangeNotifier {
             .firstOrNull;
         _snackMessage = 'Função atualizada com sucesso.';
         _roleInfoStatus = SectionLoadStatus.loaded;
+        saved = true;
       },
       onError: (error, _) {
-        _roleInfoStatus = SectionLoadStatus.error;
-        _serverErrors = extractServerMessages(error);
-        _errorMessage = _serverErrors.isNotEmpty
-            ? _serverErrors.join('\n')
-            : 'Não foi possível salvar a função.';
+        _roleInfoStatus = SectionLoadStatus.loaded;
+        _recordSaveError(error, 'Não foi possível salvar a função.');
       },
     );
 
     notifyListeners();
+    return saved;
   }
 
   /// Walks the department→position→role hierarchy to find [roleId].
@@ -1357,17 +1533,25 @@ class EmployeeProfileViewModel extends ChangeNotifier {
 
   // ─── Workplace info section ─────────────────────────────────────────────
 
-  /// Loads all workplaces and locates the employee's current workplace.
+  /// Lazily loads all workplaces and locates the employee's current workplace.
+  ///
+  /// Does nothing if the section has already been loaded or is currently loading.
   Future<void> loadWorkplaceInfo() async {
-    if (_workplaceInfoStatus != SectionLoadStatus.notLoaded) return;
     final companyId = _companyId;
     final currentProfile = _profile;
-    if (companyId == null || currentProfile == null) return;
+    if (companyId == null ||
+        currentProfile == null ||
+        _workplaceInfoStatus == SectionLoadStatus.loading ||
+        _workplaceInfoStatus == SectionLoadStatus.loaded) {
+      return;
+    }
 
     _workplaceInfoStatus = SectionLoadStatus.loading;
     notifyListeners();
 
+    final generation = _loadGeneration;
     final result = await _workplaceRepository.getWorkplaces(companyId);
+    if (generation != _loadGeneration) return;
 
     result.fold(
       onSuccess: (workplaces) {
@@ -1385,12 +1569,15 @@ class EmployeeProfileViewModel extends ChangeNotifier {
   /// Saves a new workplace assignment for the current employee.
   ///
   /// Updates the profile's workplaceId and refreshes the workplace label on
-  /// success.
-  Future<void> saveEmployeeWorkplace(String workplaceId) async {
+  /// success. On failure the section stays [SectionLoadStatus.loaded] so the
+  /// edit form remains available for retry.
+  ///
+  /// Returns whether the save succeeded.
+  Future<bool> saveEmployeeWorkplace(String workplaceId) async {
     final companyId = _companyId;
     final currentProfile = _profile;
-    if (companyId == null || currentProfile == null) return;
-    if (workplaceId.isEmpty) return;
+    if (companyId == null || currentProfile == null) return false;
+    if (workplaceId.isEmpty) return false;
 
     _workplaceInfoStatus = SectionLoadStatus.saving;
     notifyListeners();
@@ -1401,6 +1588,7 @@ class EmployeeProfileViewModel extends ChangeNotifier {
       workplaceId,
     );
 
+    var saved = false;
     result.fold(
       onSuccess: (_) {
         _profile = currentProfile.copyWith(workplaceId: workplaceId);
@@ -1410,33 +1598,40 @@ class EmployeeProfileViewModel extends ChangeNotifier {
             .firstOrNull;
         _snackMessage = 'Local de trabalho atualizado com sucesso.';
         _workplaceInfoStatus = SectionLoadStatus.loaded;
+        saved = true;
       },
       onError: (error, _) {
-        _workplaceInfoStatus = SectionLoadStatus.error;
-        _serverErrors = extractServerMessages(error);
-        _errorMessage = _serverErrors.isNotEmpty
-            ? _serverErrors.join('\n')
-            : 'Não foi possível salvar o local de trabalho.';
+        _workplaceInfoStatus = SectionLoadStatus.loaded;
+        _recordSaveError(error, 'Não foi possível salvar o local de trabalho.');
       },
     );
 
     notifyListeners();
+    return saved;
   }
 
   // ─── Documents section ──────────────────────────────────────────────────
 
-  /// Loads the document groups with their documents on first expansion.
+  /// Lazily loads the document groups with their documents.
+  ///
+  /// Does nothing if the section has already been loaded or is currently loading.
   Future<void> loadDocumentGroups() async {
-    if (_documentsStatus != SectionLoadStatus.notLoaded) return;
     final companyId = _companyId;
     final currentProfile = _profile;
-    if (companyId == null || currentProfile == null) return;
+    if (companyId == null ||
+        currentProfile == null ||
+        _documentsStatus == SectionLoadStatus.loading ||
+        _documentsStatus == SectionLoadStatus.loaded) {
+      return;
+    }
 
     _documentsStatus = SectionLoadStatus.loading;
     notifyListeners();
 
+    final generation = _loadGeneration;
     final result = await _documentGroupRepository
         .getDocumentGroupsWithDocuments(companyId, currentProfile.id);
+    if (generation != _loadGeneration) return;
 
     result.fold(
       onSuccess: (data) {
@@ -1879,17 +2074,24 @@ class EmployeeProfileViewModel extends ChangeNotifier {
 
   // ─── Document signing options section ───────────────────────────────────
 
-  /// Loads the available signing options on first expansion.
+  /// Lazily loads the available signing options.
+  ///
+  /// Does nothing if the section has already been loaded or is currently loading.
   Future<void> loadSigningOptions() async {
-    if (_signingOptionsStatus != SectionLoadStatus.notLoaded) return;
     final companyId = _companyId;
-    if (companyId == null) return;
+    if (companyId == null ||
+        _signingOptionsStatus == SectionLoadStatus.loading ||
+        _signingOptionsStatus == SectionLoadStatus.loaded) {
+      return;
+    }
 
     _signingOptionsStatus = SectionLoadStatus.loading;
     notifyListeners();
 
+    final generation = _loadGeneration;
     final result =
         await _employeeRepository.getDocumentSigningOptions(companyId);
+    if (generation != _loadGeneration) return;
 
     result.fold(
       onSuccess: (options) {
@@ -1905,10 +2107,15 @@ class EmployeeProfileViewModel extends ChangeNotifier {
   }
 
   /// Saves the selected document signing option for the current employee.
-  Future<void> saveSigningOption(String optionId) async {
+  ///
+  /// On failure the section stays [SectionLoadStatus.loaded] so the edit
+  /// form remains available for retry.
+  ///
+  /// Returns whether the save succeeded.
+  Future<bool> saveSigningOption(String optionId) async {
     final companyId = _companyId;
     final currentProfile = _profile;
-    if (companyId == null || currentProfile == null) return;
+    if (companyId == null || currentProfile == null) return false;
 
     _signingOptionsStatus = SectionLoadStatus.saving;
     notifyListeners();
@@ -1919,6 +2126,7 @@ class EmployeeProfileViewModel extends ChangeNotifier {
       optionId,
     );
 
+    var saved = false;
     result.fold(
       onSuccess: (_) {
         _profile =
@@ -1926,36 +2134,44 @@ class EmployeeProfileViewModel extends ChangeNotifier {
         _snackMessage =
             'Opção de assinatura de documentos atualizada com sucesso.';
         _signingOptionsStatus = SectionLoadStatus.loaded;
+        saved = true;
       },
       onError: (error, _) {
-        _signingOptionsStatus = SectionLoadStatus.error;
-        _serverErrors = extractServerMessages(error);
-        _errorMessage = _serverErrors.isNotEmpty
-            ? _serverErrors.join('\n')
-            : 'Não foi possível salvar a opção de assinatura.';
+        _signingOptionsStatus = SectionLoadStatus.loaded;
+        _recordSaveError(
+            error, 'Não foi possível salvar a opção de assinatura.');
       },
     );
 
     notifyListeners();
+    return saved;
   }
 
   // ─── Contracts section ─────────────────────────────────────────────────
 
-  /// Loads the contract history and contract type options for the current
-  /// employee on first expansion.
+  /// Lazily loads the contract history and contract type options for the
+  /// current employee.
+  ///
+  /// Does nothing if the section has already been loaded or is currently loading.
   Future<void> loadContracts() async {
-    if (_contractsStatus != SectionLoadStatus.notLoaded) return;
     final companyId = _companyId;
     final currentProfile = _profile;
-    if (companyId == null || currentProfile == null) return;
+    if (companyId == null ||
+        currentProfile == null ||
+        _contractsStatus == SectionLoadStatus.loading ||
+        _contractsStatus == SectionLoadStatus.loaded) {
+      return;
+    }
 
     _contractsStatus = SectionLoadStatus.loading;
     notifyListeners();
 
+    final generation = _loadGeneration;
     final contractsResult =
         await _employeeRepository.getContracts(companyId, currentProfile.id);
     final typesResult =
         await _employeeRepository.getContractTypes(companyId);
+    if (generation != _loadGeneration) return;
 
     if (contractsResult.isError) {
       _contractsStatus = SectionLoadStatus.error;
@@ -1970,14 +2186,19 @@ class EmployeeProfileViewModel extends ChangeNotifier {
   }
 
   /// Creates a new contract and reloads the list on success.
-  Future<void> createContract(
+  ///
+  /// On failure the section stays [SectionLoadStatus.loaded] so the contract
+  /// list remains visible and the user can retry.
+  ///
+  /// Returns whether the contract was created.
+  Future<bool> createContract(
     String initDate,
     String contractTypeId,
     String registration,
   ) async {
     final companyId = _companyId;
     final currentProfile = _profile;
-    if (companyId == null || currentProfile == null) return;
+    if (companyId == null || currentProfile == null) return false;
 
     _contractsStatus = SectionLoadStatus.saving;
     notifyListeners();
@@ -1990,17 +2211,16 @@ class EmployeeProfileViewModel extends ChangeNotifier {
       registration,
     );
 
+    var saved = false;
     result.fold(
       onSuccess: (_) {
         _contractsStatus = SectionLoadStatus.notLoaded;
         _snackMessage = 'Contrato criado com sucesso.';
+        saved = true;
       },
       onError: (error, _) {
-        _contractsStatus = SectionLoadStatus.error;
-        _serverErrors = extractServerMessages(error);
-        _errorMessage = _serverErrors.isNotEmpty
-            ? _serverErrors.join('\n')
-            : 'Não foi possível criar o contrato.';
+        _contractsStatus = SectionLoadStatus.loaded;
+        _recordSaveError(error, 'Não foi possível criar o contrato.');
       },
     );
 
@@ -2009,13 +2229,19 @@ class EmployeeProfileViewModel extends ChangeNotifier {
     if (_contractsStatus == SectionLoadStatus.notLoaded) {
       await loadContracts();
     }
+    return saved;
   }
 
   /// Finishes the active contract and reloads the list on success.
-  Future<void> finishContract(String finalDate) async {
+  ///
+  /// On failure the section stays [SectionLoadStatus.loaded] so the contract
+  /// list remains visible and the user can retry.
+  ///
+  /// Returns whether the contract was finished.
+  Future<bool> finishContract(String finalDate) async {
     final companyId = _companyId;
     final currentProfile = _profile;
-    if (companyId == null || currentProfile == null) return;
+    if (companyId == null || currentProfile == null) return false;
 
     _contractsStatus = SectionLoadStatus.saving;
     notifyListeners();
@@ -2026,17 +2252,16 @@ class EmployeeProfileViewModel extends ChangeNotifier {
       finalDate,
     );
 
+    var saved = false;
     result.fold(
       onSuccess: (_) {
         _contractsStatus = SectionLoadStatus.notLoaded;
         _snackMessage = 'Contrato finalizado com sucesso.';
+        saved = true;
       },
       onError: (error, _) {
-        _contractsStatus = SectionLoadStatus.error;
-        _serverErrors = extractServerMessages(error);
-        _errorMessage = _serverErrors.isNotEmpty
-            ? _serverErrors.join('\n')
-            : 'Não foi possível finalizar o contrato.';
+        _contractsStatus = SectionLoadStatus.loaded;
+        _recordSaveError(error, 'Não foi possível finalizar o contrato.');
       },
     );
 
@@ -2045,23 +2270,30 @@ class EmployeeProfileViewModel extends ChangeNotifier {
     if (_contractsStatus == SectionLoadStatus.notLoaded) {
       await loadContracts();
     }
+    return saved;
   }
 
   // ─── Dependents section ─────────────────────────────────────────────────
 
-  /// Loads the list of dependents for the current employee on first expansion.
+  /// Lazily loads the list of dependents for the current employee.
   ///
   /// Also ensures the personal info options (genders) are available since the
-  /// dependent form needs them for the gender dropdown.
+  /// dependent form needs them for the gender dropdown. Does nothing if the
+  /// section has already been loaded or is currently loading.
   Future<void> loadDependents() async {
-    if (_dependentsStatus != SectionLoadStatus.notLoaded) return;
     final companyId = _companyId;
     final currentProfile = _profile;
-    if (companyId == null || currentProfile == null) return;
+    if (companyId == null ||
+        currentProfile == null ||
+        _dependentsStatus == SectionLoadStatus.loading ||
+        _dependentsStatus == SectionLoadStatus.loaded) {
+      return;
+    }
 
     _dependentsStatus = SectionLoadStatus.loading;
     notifyListeners();
 
+    final generation = _loadGeneration;
     final result =
         await _employeeRepository.getDependents(companyId, currentProfile.id);
 
@@ -2069,11 +2301,13 @@ class EmployeeProfileViewModel extends ChangeNotifier {
     if (_personalInfoOptions == null) {
       final optionsResult =
           await _employeeRepository.getPersonalInfoOptions(companyId);
+      if (generation != _loadGeneration) return;
       optionsResult.fold(
         onSuccess: (data) => _personalInfoOptions = data,
         onError: (_, __) {},
       );
     }
+    if (generation != _loadGeneration) return;
 
     result.fold(
       onSuccess: (data) {
@@ -2089,10 +2323,15 @@ class EmployeeProfileViewModel extends ChangeNotifier {
   }
 
   /// Creates a new dependent and reloads the list on success.
-  Future<void> createDependent(EmployeeDependent dependent) async {
+  ///
+  /// On failure the section stays [SectionLoadStatus.loaded] so the edit
+  /// form remains available for retry.
+  ///
+  /// Returns whether the dependent was created.
+  Future<bool> createDependent(EmployeeDependent dependent) async {
     final companyId = _companyId;
     final currentProfile = _profile;
-    if (companyId == null || currentProfile == null) return;
+    if (companyId == null || currentProfile == null) return false;
 
     _dependentsStatus = SectionLoadStatus.saving;
     notifyListeners();
@@ -2103,18 +2342,17 @@ class EmployeeProfileViewModel extends ChangeNotifier {
       dependent,
     );
 
+    var saved = false;
     result.fold(
       onSuccess: (_) {
         // Reload the list so the server-assigned data is reflected.
         _dependentsStatus = SectionLoadStatus.notLoaded;
         _snackMessage = 'Dependente criado com sucesso.';
+        saved = true;
       },
       onError: (error, _) {
-        _dependentsStatus = SectionLoadStatus.error;
-        _serverErrors = extractServerMessages(error);
-        _errorMessage = _serverErrors.isNotEmpty
-            ? _serverErrors.join('\n')
-            : 'Não foi possível salvar o dependente.';
+        _dependentsStatus = SectionLoadStatus.loaded;
+        _recordSaveError(error, 'Não foi possível salvar o dependente.');
       },
     );
 
@@ -2124,13 +2362,19 @@ class EmployeeProfileViewModel extends ChangeNotifier {
     if (_dependentsStatus == SectionLoadStatus.notLoaded) {
       await loadDependents();
     }
+    return saved;
   }
 
   /// Updates an existing dependent and reloads the list on success.
-  Future<void> editDependentData(EmployeeDependent dependent) async {
+  ///
+  /// On failure the section stays [SectionLoadStatus.loaded] so the edit
+  /// form remains available for retry.
+  ///
+  /// Returns whether the dependent was updated.
+  Future<bool> editDependentData(EmployeeDependent dependent) async {
     final companyId = _companyId;
     final currentProfile = _profile;
-    if (companyId == null || currentProfile == null) return;
+    if (companyId == null || currentProfile == null) return false;
 
     _dependentsStatus = SectionLoadStatus.saving;
     notifyListeners();
@@ -2141,17 +2385,16 @@ class EmployeeProfileViewModel extends ChangeNotifier {
       dependent,
     );
 
+    var saved = false;
     result.fold(
       onSuccess: (_) {
         _dependentsStatus = SectionLoadStatus.notLoaded;
         _snackMessage = 'Dependente atualizado com sucesso.';
+        saved = true;
       },
       onError: (error, _) {
-        _dependentsStatus = SectionLoadStatus.error;
-        _serverErrors = extractServerMessages(error);
-        _errorMessage = _serverErrors.isNotEmpty
-            ? _serverErrors.join('\n')
-            : 'Não foi possível atualizar o dependente.';
+        _dependentsStatus = SectionLoadStatus.loaded;
+        _recordSaveError(error, 'Não foi possível atualizar o dependente.');
       },
     );
 
@@ -2160,13 +2403,19 @@ class EmployeeProfileViewModel extends ChangeNotifier {
     if (_dependentsStatus == SectionLoadStatus.notLoaded) {
       await loadDependents();
     }
+    return saved;
   }
 
   /// Removes the dependent identified by [dependentName].
-  Future<void> removeDependent(String dependentName) async {
+  ///
+  /// On failure the section stays [SectionLoadStatus.loaded] so the list
+  /// remains visible and the user can retry.
+  ///
+  /// Returns whether the dependent was removed.
+  Future<bool> removeDependent(String dependentName) async {
     final companyId = _companyId;
     final currentProfile = _profile;
-    if (companyId == null || currentProfile == null) return;
+    if (companyId == null || currentProfile == null) return false;
 
     _dependentsStatus = SectionLoadStatus.saving;
     notifyListeners();
@@ -2177,19 +2426,23 @@ class EmployeeProfileViewModel extends ChangeNotifier {
       dependentName,
     );
 
+    var saved = false;
     result.fold(
       onSuccess: (_) {
         _dependents =
             _dependents.where((d) => d.originalName != dependentName).toList();
         _snackMessage = 'Dependente removido com sucesso.';
         _dependentsStatus = SectionLoadStatus.loaded;
+        saved = true;
       },
-      onError: (_, __) {
-        _dependentsStatus = SectionLoadStatus.error;
+      onError: (error, _) {
+        _dependentsStatus = SectionLoadStatus.loaded;
+        _recordSaveError(error, 'Não foi possível remover o dependente.');
       },
     );
 
     notifyListeners();
+    return saved;
   }
 
   // ─── Validators — delegated to domain entities ──────────────────────────

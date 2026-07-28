@@ -41,12 +41,11 @@ class _MilitaryDocumentSectionState extends State<MilitaryDocumentSection> {
 
   Future<void> _save() async {
     if (_formKey.currentState?.validate() != true) return;
-    await widget.viewModel.saveMilitaryDocument(
+    final saved = await widget.viewModel.saveMilitaryDocument(
       _numberController.text.trim(),
       _typeController.text.trim(),
     );
-    if (mounted &&
-        widget.viewModel.militaryDocumentStatus == SectionLoadStatus.loaded) {
+    if (mounted && saved) {
       setState(() => _isEditing = false);
     }
   }
@@ -61,7 +60,6 @@ class _MilitaryDocumentSectionState extends State<MilitaryDocumentSection> {
         final status = widget.viewModel.militaryDocumentStatus;
         return SectionCard(
           title: 'Documento Militar',
-          onLoad: widget.viewModel.loadMilitaryDocument,
           child: _buildContent(context, status),
         );
       },

@@ -4,6 +4,9 @@
 class SigningOption {
   SigningOption._();
 
+  /// The id of the physical (wet-ink) signature option.
+  static const physicalId = '1';
+
   /// Maps option IDs to their Portuguese display names.
   static const displayNames = {
     '1': 'Assinatura Física',

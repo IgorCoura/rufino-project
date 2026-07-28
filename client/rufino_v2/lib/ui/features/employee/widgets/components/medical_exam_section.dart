@@ -70,12 +70,11 @@ class _MedicalExamSectionState extends State<MedicalExamSection> {
 
   Future<void> _save() async {
     if (_formKey.currentState?.validate() != true) return;
-    await widget.viewModel.saveMedicalExam(
+    final saved = await widget.viewModel.saveMedicalExam(
       _dateExamController.text.trim(),
       _validityController.text.trim(),
     );
-    if (mounted &&
-        widget.viewModel.medicalExamStatus == SectionLoadStatus.loaded) {
+    if (mounted && saved) {
       setState(() => _isEditing = false);
     }
   }
@@ -90,7 +89,6 @@ class _MedicalExamSectionState extends State<MedicalExamSection> {
         final status = widget.viewModel.medicalExamStatus;
         return SectionCard(
           title: 'Exame Médico Admissional',
-          onLoad: widget.viewModel.loadMedicalExam,
           child: _buildContent(context, status),
         );
       },

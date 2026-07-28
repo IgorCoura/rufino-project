@@ -1,4 +1,5 @@
 ﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Authorization.Policy;
 using Microsoft.Net.Http.Headers;
 using PeopleManagement.Domain.AggregatesModel.DocumentAggregate.Interfaces;
 using PeopleManagement.Domain.AggregatesModel.DocumentTemplateAggregate.options;
@@ -29,6 +30,7 @@ namespace PeopleManagement.API.Authorization
             );
             services.AddSingleton<IAuthorizationHandler, ProtectedResourceRequirementHandler>();
             services.AddSingleton<IAuthorizationHandler, RouteAccessRequirementHandler>();
+            services.AddSingleton<IAuthorizationMiddlewareResultHandler, AuthorizationResultHandler>();
 
             services.AddHttpClient<IAuthorizationServerClient, AuthorizationServerClient>(httpClient =>
             {

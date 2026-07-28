@@ -68,4 +68,14 @@ class AuthCodeRepositoryImpl implements AuthRepository {
       return reporter.failure(NetworkAuthException(e), st);
     }
   }
+
+  @override
+  Future<Result<void>> clearLocalSession() async {
+    try {
+      await authCodeApiService.clearLocalSession();
+      return const Result.success(null);
+    } catch (e, st) {
+      return reporter.failure(NetworkAuthException(e), st);
+    }
+  }
 }

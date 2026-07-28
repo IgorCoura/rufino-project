@@ -23,8 +23,12 @@ void main() {
       workplaceId: '',
     );
 
-    test('canMarkAsInactive returns true only for active employees', () {
-      expect(profile.canMarkAsInactive, isTrue);
+    test('canMarkAsInactive returns true only for pending employees', () {
+      expect(
+        profile.copyWith(status: EmployeeStatus.pending).canMarkAsInactive,
+        isTrue,
+      );
+      expect(profile.canMarkAsInactive, isFalse);
       expect(emptyProfile.canMarkAsInactive, isFalse);
     });
 
@@ -41,6 +45,30 @@ void main() {
     test('hasSigningOptions returns true when id is not empty', () {
       expect(profile.hasSigningOptions, isTrue);
       expect(emptyProfile.hasSigningOptions, isFalse);
+    });
+
+    test(
+        'canReceiveDocumentsToSign returns true only for digital signing '
+        'options', () {
+      expect(
+        profile.copyWith(documentSigningOptionsId: '2').canReceiveDocumentsToSign,
+        isTrue,
+      );
+      expect(
+        profile.copyWith(documentSigningOptionsId: '6').canReceiveDocumentsToSign,
+        isTrue,
+      );
+    });
+
+    test('canReceiveDocumentsToSign returns false for physical signature', () {
+      expect(
+        profile.copyWith(documentSigningOptionsId: '1').canReceiveDocumentsToSign,
+        isFalse,
+      );
+    });
+
+    test('canReceiveDocumentsToSign returns false when option is not set', () {
+      expect(emptyProfile.canReceiveDocumentsToSign, isFalse);
     });
 
     test('isActive returns true only for active status', () {

@@ -83,7 +83,10 @@ void main() {
       );
 
       final policies = capturedBody['policies'] as Map<String, dynamic>;
-      expect(policies['expiration'], {'durationInDays': 365});
+      expect(
+        policies['expiration'],
+        {'durationInDays': 365, 'maxRenewals': null},
+      );
       expect(policies['workload'], {'hours': 8});
     });
 
@@ -131,7 +134,7 @@ void main() {
       expect(capturedBody['documentValidityDurationInDays'], 30);
       expect(capturedBody['workloadInHours'], isNull);
       expect((capturedBody['policies'] as Map<String, dynamic>)['expiration'],
-          {'durationInDays': 30});
+          {'durationInDays': 30, 'maxRenewals': null});
     });
 
     test('getDocumentTemplateById maps the policies block to the entity',

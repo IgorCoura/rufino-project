@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:rufino_v2/core/errors/auth_exception.dart';
 import 'package:rufino_v2/core/errors/http_exception.dart';
 import 'package:rufino_v2/core/utils/error_messages.dart';
 
@@ -70,6 +71,35 @@ void main() {
     test('returns empty list for a plain string error', () {
       final messages = extractServerMessages('plain string');
       expect(messages, isEmpty);
+    });
+
+    test('maps SessionExpiredException to the session expired message', () {
+      final messages = extractServerMessages(const SessionExpiredException());
+      expect(messages, [sessionExpiredMessage]);
+    });
+
+    test('maps NoCredentialsException to the session expired message', () {
+      final messages = extractServerMessages(const NoCredentialsException());
+      expect(messages, [sessionExpiredMessage]);
+    });
+
+    test('maps AccessDeniedException to the access denied message', () {
+      final messages = extractServerMessages(const AccessDeniedException());
+      expect(messages, [accessDeniedMessage]);
+    });
+
+    test('maps a NetworkException wrapping a SessionExpiredException to the session expired message',
+        () {
+      const wrapped = _FakeNetworkException(SessionExpiredException());
+      final messages = extractServerMessages(wrapped);
+      expect(messages, [sessionExpiredMessage]);
+    });
+
+    test('maps a NetworkException wrapping an AccessDeniedException to the access denied message',
+        () {
+      const wrapped = _FakeNetworkException(AccessDeniedException());
+      final messages = extractServerMessages(wrapped);
+      expect(messages, [accessDeniedMessage]);
     });
   });
 }

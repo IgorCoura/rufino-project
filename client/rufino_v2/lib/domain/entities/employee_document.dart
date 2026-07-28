@@ -76,7 +76,8 @@ class DocumentUnit {
   final String id;
 
   /// The unit status id (1=Pendente, 2=OK, 3=Obsoleto, 4=Inválido,
-  /// 5=Requer Validação, 6=Não Aplicável, 7=Aguardando Assinatura).
+  /// 5=Requer Validação, 6=Não Aplicável, 7=Aguardando Assinatura,
+  /// 8=A Vencer).
   final String statusId;
 
   /// The unit status display name.
@@ -121,6 +122,9 @@ class DocumentUnit {
   /// Whether this unit is waiting for a digital signature (status id 7).
   bool get isWaitingSignature => statusId == '7';
 
+  /// Whether this unit is close to its validity date (status id 8).
+  bool get isWarning => statusId == '8';
+
   /// Display label for the unit status.
   String get statusLabel => switch (statusId) {
         '1' => 'Pendente',
@@ -130,6 +134,7 @@ class DocumentUnit {
         '5' => 'Requer Validação',
         '6' => 'Não Aplicável',
         '7' => 'Aguardando Assinatura',
+        '8' => 'A Vencer',
         _ => statusName.isNotEmpty ? statusName : statusId,
       };
 

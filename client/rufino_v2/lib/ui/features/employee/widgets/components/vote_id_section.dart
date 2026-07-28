@@ -52,8 +52,9 @@ class _VoteIdSectionState extends State<VoteIdSection> {
 
   Future<void> _save() async {
     if (_formKey.currentState?.validate() != true) return;
-    await widget.viewModel.saveVoteId(_numberController.text.trim());
-    if (mounted && widget.viewModel.voteIdStatus == SectionLoadStatus.loaded) {
+    final saved =
+        await widget.viewModel.saveVoteId(_numberController.text.trim());
+    if (mounted && saved) {
       setState(() => _isEditing = false);
     }
   }
@@ -68,7 +69,6 @@ class _VoteIdSectionState extends State<VoteIdSection> {
         final status = widget.viewModel.voteIdStatus;
         return SectionCard(
           title: 'Título de Eleitor',
-          onLoad: widget.viewModel.loadVoteId,
           child: _buildContent(context, status),
         );
       },

@@ -33,10 +33,15 @@ class EmployeeProfileScreen extends StatefulWidget {
     super.key,
     required this.viewModel,
     required this.employeeId,
+    this.initialTab = EmployeeProfileTab.personalData,
   });
 
   final EmployeeProfileViewModel viewModel;
   final String employeeId;
+
+  /// The tab the profile lands on — deep links (e.g. the document dashboard)
+  /// use it to open straight on "Documentos".
+  final EmployeeProfileTab initialTab;
 
   @override
   State<EmployeeProfileScreen> createState() => _EmployeeProfileScreenState();
@@ -188,6 +193,7 @@ class _EmployeeProfileScreenState extends State<EmployeeProfileScreen> {
               viewModel: widget.viewModel,
               profile: profile,
               nameController: _nameController,
+              initialTab: widget.initialTab,
               onMarkAsInactive: _confirmMarkAsInactive,
               onPickAvatar: _pickAndUploadAvatar,
             );
@@ -200,11 +206,16 @@ class _EmployeeProfileScreenState extends State<EmployeeProfileScreen> {
 
 /// Renders the employee profile with a hero card and Chrome-style tab
 /// navigation for employee data, documents, and contracts.
-class _EmployeeProfileBody extends StatelessWidget {
+///
+/// Owns the [TabController] and drives the per-tab data loading: every time
+/// the user settles on a tab, [EmployeeProfileViewModel.openTab] refetches
+/// that tab's sections — including the initial landing on "Dados Pessoais".
+class _EmployeeProfileBody extends StatefulWidget {
   const _EmployeeProfileBody({
     required this.viewModel,
     required this.profile,
     required this.nameController,
+    required this.initialTab,
     required this.onMarkAsInactive,
     required this.onPickAvatar,
   });
@@ -214,8 +225,64 @@ class _EmployeeProfileBody extends StatelessWidget {
 
   /// Controller owned by [_EmployeeProfileScreenState] so it survives rebuilds.
   final TextEditingController nameController;
+
+  /// The tab the profile lands on when the body is first built.
+  final EmployeeProfileTab initialTab;
   final Future<void> Function() onMarkAsInactive;
   final Future<void> Function() onPickAvatar;
+
+  @override
+  State<_EmployeeProfileBody> createState() => _EmployeeProfileBodyState();
+}
+
+class _EmployeeProfileBodyState extends State<_EmployeeProfileBody>
+    with SingleTickerProviderStateMixin {
+  late final TabController _tabController;
+
+  /// The last tab index the controller settled on.
+  ///
+  /// Absorbs controller re-notifications and taps on the already-active tab
+  /// so each destination triggers exactly one
+  /// [EmployeeProfileViewModel.openTab] call. Initialized to the initial
+  /// tab's index in [initState].
+  late int _lastSettledIndex;
+
+  @override
+  void initState() {
+    super.initState();
+    _lastSettledIndex = widget.initialTab.index;
+    _tabController = TabController(
+      length: 3,
+      vsync: this,
+      initialIndex: widget.initialTab.index,
+    );
+    _tabController.addListener(_onTabChanged);
+    // Post-frame because openTab notifies synchronously and this body is
+    // built inside a ListenableBuilder listening to the same view model.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        widget.viewModel.openTab(widget.initialTab);
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
+  }
+
+  /// Fires [EmployeeProfileViewModel.openTab] once per settled destination.
+  ///
+  /// Skips notifications emitted mid tap-animation ([TabController.indexIsChanging])
+  /// so the tab the animation passes through never loads.
+  void _onTabChanged() {
+    if (_tabController.indexIsChanging) return;
+    if (_tabController.index == _lastSettledIndex) return;
+    _lastSettledIndex = _tabController.index;
+    widget.viewModel
+        .openTab(EmployeeProfileTab.values[_tabController.index]);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -226,55 +293,53 @@ class _EmployeeProfileBody extends StatelessWidget {
             ? AppSpacing.lg
             : AppSpacing.sm;
 
-    return DefaultTabController(
-      length: 3,
-      child: Column(
-        children: [
-          Padding(
-            padding: EdgeInsets.fromLTRB(
-              horizontalPadding,
-              width < AppBreakpoints.mobile
-                  ? AppSpacing.sm
-                  : AppSpacing.md,
-              horizontalPadding,
-              0,
+    return Column(
+      children: [
+        Padding(
+          padding: EdgeInsets.fromLTRB(
+            horizontalPadding,
+            width < AppBreakpoints.mobile
+                ? AppSpacing.sm
+                : AppSpacing.md,
+            horizontalPadding,
+            0,
+          ),
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 960),
+              child: _EmployeeHeroCard(
+                profile: widget.profile,
+                imageBytes: widget.viewModel.imageBytes,
+                isSaving: widget.viewModel.isSaving,
+                onPickAvatar: widget.onPickAvatar,
+              ),
             ),
+          ),
+        ),
+        SizedBox(
+          height: width < AppBreakpoints.mobile
+              ? AppSpacing.sm
+              : AppSpacing.md,
+        ),
+        Expanded(
+          child: Padding(
+            padding: EdgeInsets.symmetric(horizontal: horizontalPadding),
             child: Center(
               child: ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 960),
-                child: _EmployeeHeroCard(
-                  profile: profile,
-                  imageBytes: viewModel.imageBytes,
-                  isSaving: viewModel.isSaving,
-                  onPickAvatar: onPickAvatar,
+                child: _ChromeTabPanel(
+                  controller: _tabController,
+                  children: [
+                    _EmployeeDataTab(viewModel: widget.viewModel, profile: widget.profile, nameController: widget.nameController),
+                    _DocumentsTab(viewModel: widget.viewModel),
+                    _ContractsTab(viewModel: widget.viewModel, profile: widget.profile, onMarkAsInactive: widget.onMarkAsInactive),
+                  ],
                 ),
               ),
             ),
           ),
-          SizedBox(
-            height: width < AppBreakpoints.mobile
-                ? AppSpacing.sm
-                : AppSpacing.md,
-          ),
-          Expanded(
-            child: Padding(
-              padding: EdgeInsets.symmetric(horizontal: horizontalPadding),
-              child: Center(
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 960),
-                  child: _ChromeTabPanel(
-                    children: [
-                      _EmployeeDataTab(viewModel: viewModel, profile: profile, nameController: nameController),
-                      _DocumentsTab(viewModel: viewModel),
-                      _ContractsTab(viewModel: viewModel, profile: profile, onMarkAsInactive: onMarkAsInactive),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }
@@ -284,7 +349,10 @@ class _EmployeeProfileBody extends StatelessWidget {
 /// The bar has a `surfaceContainerHigh` background; the active tab and the
 /// content area share a `surface` background so they appear connected.
 class _ChromeTabPanel extends StatelessWidget {
-  const _ChromeTabPanel({required this.children});
+  const _ChromeTabPanel({required this.controller, required this.children});
+
+  /// The controller shared by the [TabBar] and [TabBarView].
+  final TabController controller;
 
   /// One widget per tab — passed straight into [TabBarView].
   final List<Widget> children;
@@ -311,6 +379,7 @@ class _ChromeTabPanel extends StatelessWidget {
             0,
           ),
           child: TabBar(
+            controller: controller,
             indicator: BoxDecoration(
               color: colorScheme.surface,
               borderRadius: const BorderRadius.only(
@@ -354,7 +423,7 @@ class _ChromeTabPanel extends StatelessWidget {
                 bottom: BorderSide(color: colorScheme.outlineVariant, width: 0.5),
               ),
             ),
-            child: TabBarView(children: children),
+            child: TabBarView(controller: controller, children: children),
           ),
         ),
       ],

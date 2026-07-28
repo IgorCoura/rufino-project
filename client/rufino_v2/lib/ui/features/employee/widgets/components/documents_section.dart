@@ -62,6 +62,7 @@ class _DocumentsSectionState extends State<DocumentsSection> {
     (id: 5, label: 'Requer Validação'),
     (id: 6, label: 'Não Aplicável'),
     (id: 7, label: 'Aguardando Assinatura'),
+    (id: 8, label: 'A Vencer'),
   ];
 
   /// Available page size options.
@@ -101,6 +102,7 @@ class _DocumentsSectionState extends State<DocumentsSection> {
       '5' => Colors.amber,
       '6' => Colors.blueGrey,
       '7' => Colors.blue,
+      '8' => Colors.deepOrange,
       _ => Colors.grey,
     };
   }
@@ -234,6 +236,13 @@ class _DocumentsSectionState extends State<DocumentsSection> {
     }
   }
 
+  /// Whether the employee can receive files for digital signature.
+  ///
+  /// Physical-signature (or unset) employees must never see the
+  /// send-to-signature actions.
+  bool get _canSendToSign =>
+      widget.viewModel.profile?.canReceiveDocumentsToSign ?? false;
+
   /// Shows a dialog to choose between generate or generate & send for
   /// signature.
   Future<void> _showGenerateDialog(
@@ -255,7 +264,7 @@ class _DocumentsSectionState extends State<DocumentsSection> {
               onPressed: () => Navigator.of(ctx).pop('generate'),
               child: const Text('Gerar arquivo'),
             ),
-            if (doc.isSignable)
+            if (doc.isSignable && _canSendToSign)
               PermissionGuard(
                 resource: 'document',
                 scope: 'send2sign',
@@ -330,7 +339,7 @@ class _DocumentsSectionState extends State<DocumentsSection> {
               onPressed: () => Navigator.of(ctx).pop('send'),
               child: const Text('Enviar arquivo'),
             ),
-            if (doc.isSignable)
+            if (doc.isSignable && _canSendToSign)
               PermissionGuard(
                 resource: 'document',
                 scope: 'send2sign',
@@ -1049,7 +1058,6 @@ class _DocumentsSectionState extends State<DocumentsSection> {
         final status = widget.viewModel.documentsStatus;
         return SectionCard(
           title: 'Documentos',
-          onLoad: widget.viewModel.loadDocumentGroups,
           trailing: _buildHeaderTrailing(),
           child: _buildContent(context, status),
         );

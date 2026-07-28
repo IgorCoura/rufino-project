@@ -124,8 +124,8 @@ class _AddressSectionState extends State<AddressSection> {
       state: _stateController.text.trim().toUpperCase(),
       country: _countryController.text.trim(),
     );
-    await widget.viewModel.saveAddress(address);
-    if (mounted && widget.viewModel.addressStatus == SectionLoadStatus.loaded) {
+    final saved = await widget.viewModel.saveAddress(address);
+    if (mounted && saved) {
       setState(() => _isEditing = false);
     }
   }
@@ -140,7 +140,6 @@ class _AddressSectionState extends State<AddressSection> {
         final status = widget.viewModel.addressStatus;
         return SectionCard(
           title: 'Endereço',
-          onLoad: widget.viewModel.loadAddress,
           child: _buildContent(context, status),
         );
       },

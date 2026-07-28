@@ -62,6 +62,7 @@ class _LoginScreenState extends State<LoginScreen> {
         InvalidCredentialsException() => 'Usuário ou senha incorretos.',
         SessionExpiredException() => 'Sessão expirada. Faça login novamente.',
         NoCredentialsException() => 'Nenhuma credencial encontrada.',
+        AccessDeniedException() => 'Acesso negado.',
         NetworkAuthException() => 'Falha de conexão. Verifique sua internet.',
       };
 

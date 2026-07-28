@@ -17,6 +17,12 @@ final class NoCredentialsException extends AuthException with ExpectedFailure {
   const NoCredentialsException();
 }
 
+/// The backend answered 403: the session is valid but the user lacks
+/// permission for the requested resource.
+final class AccessDeniedException extends AuthException with ExpectedFailure {
+  const AccessDeniedException();
+}
+
 final class NetworkAuthException extends AuthException {
   const NetworkAuthException(this.cause);
 
