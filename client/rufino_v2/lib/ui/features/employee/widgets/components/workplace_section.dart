@@ -40,9 +40,9 @@ class _WorkplaceSectionState extends State<WorkplaceSection> {
       );
       return;
     }
-    await widget.viewModel.saveEmployeeWorkplace(_selectedWorkplaceId!);
-    if (mounted &&
-        widget.viewModel.workplaceInfoStatus == SectionLoadStatus.loaded) {
+    final saved =
+        await widget.viewModel.saveEmployeeWorkplace(_selectedWorkplaceId!);
+    if (mounted && saved) {
       setState(() => _isEditing = false);
     }
   }

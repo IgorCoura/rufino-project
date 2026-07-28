@@ -29,6 +29,7 @@ class FakeEmployeeRepository implements EmployeeRepository {
   List<Employee> _employees = [];
   EmployeeProfile? _employeeProfile;
   bool _shouldFail = false;
+  Object? _editIdCardError;
   String _createdId = 'new-employee-id';
   Uint8List? _imageBytes;
 
@@ -146,6 +147,10 @@ class FakeEmployeeRepository implements EmployeeRepository {
 
   /// When true every method returns [Result.error] with a generic exception.
   void setShouldFail(bool value) => _shouldFail = value;
+
+  /// A specific error returned only by [editEmployeeIdCard], keeping every
+  /// other method (loads included) working normally.
+  void setEditIdCardError(Object? error) => _editIdCardError = error;
 
   /// The id returned by [createEmployee].
   void setCreatedId(String id) => _createdId = id;
@@ -467,6 +472,10 @@ class FakeEmployeeRepository implements EmployeeRepository {
     lastSavedIdCard = idCard;
     if (_shouldFail) {
       return Result.error(Exception('editEmployeeIdCard failed'));
+    }
+    final editError = _editIdCardError;
+    if (editError != null) {
+      return Result.error(editError);
     }
     _idCard = idCard;
     return const Result<void>.success(null);

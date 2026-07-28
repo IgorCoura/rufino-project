@@ -61,9 +61,10 @@ class _ContactSectionState extends State<ContactSection> {
     // Strip mask characters — send only the 11 raw digits to the API.
     final rawDigits =
         _cellphoneController.text.replaceAll(RegExp(r'[^\d]'), '');
-    await widget.viewModel.saveContact(rawDigits, _emailController.text.trim());
+    final saved = await widget.viewModel
+        .saveContact(rawDigits, _emailController.text.trim());
 
-    if (mounted && widget.viewModel.contactStatus == SectionLoadStatus.loaded) {
+    if (mounted && saved) {
       setState(() => _isEditing = false);
     }
   }

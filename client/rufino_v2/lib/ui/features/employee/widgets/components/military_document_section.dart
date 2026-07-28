@@ -41,12 +41,11 @@ class _MilitaryDocumentSectionState extends State<MilitaryDocumentSection> {
 
   Future<void> _save() async {
     if (_formKey.currentState?.validate() != true) return;
-    await widget.viewModel.saveMilitaryDocument(
+    final saved = await widget.viewModel.saveMilitaryDocument(
       _numberController.text.trim(),
       _typeController.text.trim(),
     );
-    if (mounted &&
-        widget.viewModel.militaryDocumentStatus == SectionLoadStatus.loaded) {
+    if (mounted && saved) {
       setState(() => _isEditing = false);
     }
   }

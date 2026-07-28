@@ -49,9 +49,8 @@ class _RoleInfoSectionState extends State<RoleInfoSection> {
       );
       return;
     }
-    await widget.viewModel.saveEmployeeRole(_selectedRoleId!);
-    if (mounted &&
-        widget.viewModel.roleInfoStatus == SectionLoadStatus.loaded) {
+    final saved = await widget.viewModel.saveEmployeeRole(_selectedRoleId!);
+    if (mounted && saved) {
       setState(() => _isEditing = false);
     }
   }

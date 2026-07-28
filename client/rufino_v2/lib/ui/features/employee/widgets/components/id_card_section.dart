@@ -94,8 +94,8 @@ class _IdCardSectionState extends State<IdCardSection> {
       birthState: _birthStateController.text.trim().toUpperCase(),
       nationality: _nationalityController.text.trim(),
     );
-    await widget.viewModel.saveIdCard(idCard);
-    if (mounted && widget.viewModel.idCardStatus == SectionLoadStatus.loaded) {
+    final saved = await widget.viewModel.saveIdCard(idCard);
+    if (mounted && saved) {
       setState(() => _isEditing = false);
     }
   }

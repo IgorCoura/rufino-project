@@ -65,9 +65,8 @@ class _PersonalInfoSectionState extends State<PersonalInfoSection> {
       disabilityIds: _selectedDisabilityIds,
       disabilityObservation: _observationController.text.trim(),
     );
-    await widget.viewModel.savePersonalInfo(personalInfo);
-    if (mounted &&
-        widget.viewModel.personalInfoStatus == SectionLoadStatus.loaded) {
+    final saved = await widget.viewModel.savePersonalInfo(personalInfo);
+    if (mounted && saved) {
       setState(() => _isEditing = false);
     }
   }

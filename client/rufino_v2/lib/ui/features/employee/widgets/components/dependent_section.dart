@@ -175,14 +175,11 @@ class _DependentSectionState extends State<DependentSection> {
       nationality: _nationalityCtrl.text.trim(),
     );
 
-    if (_editingIndex != null && _editingIndex! >= 0) {
-      await widget.viewModel.editDependentData(dependent);
-    } else {
-      await widget.viewModel.createDependent(dependent);
-    }
+    final saved = _editingIndex != null && _editingIndex! >= 0
+        ? await widget.viewModel.editDependentData(dependent)
+        : await widget.viewModel.createDependent(dependent);
 
-    if (mounted &&
-        widget.viewModel.dependentsStatus != SectionLoadStatus.error) {
+    if (mounted && saved) {
       setState(() => _editingIndex = null);
     }
   }

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
+import 'package:rufino_v2/core/errors/http_exception.dart';
 import 'package:rufino_v2/domain/entities/address.dart';
 import 'package:rufino_v2/domain/entities/company.dart';
 import 'package:rufino_v2/domain/entities/employee.dart';
@@ -591,6 +592,68 @@ void main() {
       expect(
         find.text('Dados do documento atualizados com sucesso.'),
         findsOneWidget,
+      );
+    });
+
+    testWidgets(
+        'keeps the ID card edit form visible and shows the server message '
+        'when the server rejects the save with a validation error',
+        (tester) async {
+      // Simulates the backend rejecting the payload (blank father name) with
+      // the domain validation error PMD18 on the Name field.
+      const serverErrorBody = '{"errors":{"Name":[{"code":"PMD18",'
+          '"message":"O campo Name, está em um formato invalido.",'
+          '"properties":{"NameField":"Name"}}]}}';
+      employeeRepository.setEditIdCardError(
+        const HttpException(
+          statusCode: 400,
+          message: 'HTTP 400: Bad Request',
+          serverMessages: ['O campo Name, está em um formato invalido.'],
+          responseBody: serverErrorBody,
+        ),
+      );
+
+      await tester.pumpWidget(buildSubject());
+      await tester.pumpAndSettle();
+
+      await tester.scrollUntilVisible(
+        findEditIn<IdCardSection>(),
+        100,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.tap(findEditIn<IdCardSection>());
+      await tester.pumpAndSettle();
+
+      // Clear the (optional) father name so the payload reaches the server.
+      await tester.scrollUntilVisible(
+        find.widgetWithText(TextFormField, 'Nome do pai'),
+        100,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.enterText(
+        find.widgetWithText(TextFormField, 'Nome do pai'),
+        '',
+      );
+
+      await tester.scrollUntilVisible(
+        find.text('Salvar'),
+        100,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.tap(find.text('Salvar'));
+      await tester.pumpAndSettle();
+
+      // The server message is surfaced to the user.
+      expect(
+        find.text('O campo Name, está em um formato invalido.'),
+        findsOneWidget,
+      );
+      // The form stays available so the user can fix the field and retry.
+      expect(find.text('Salvar'), findsOneWidget);
+      // The load-error placeholder must not replace the form.
+      expect(
+        find.text('Não foi possível carregar os dados do documento.'),
+        findsNothing,
       );
     });
 

@@ -41,9 +41,8 @@ class _SigningOptionsSectionState extends State<SigningOptionsSection> {
       );
       return;
     }
-    await widget.viewModel.saveSigningOption(_selectedOptionId!);
-    if (mounted &&
-        widget.viewModel.signingOptionsStatus == SectionLoadStatus.loaded) {
+    final saved = await widget.viewModel.saveSigningOption(_selectedOptionId!);
+    if (mounted && saved) {
       setState(() => _isEditing = false);
     }
   }

@@ -245,10 +245,17 @@ class _ContractSectionState extends State<ContractSection> {
             child: const Text('Cancelar'),
           ),
           FilledButton(
-            onPressed: () {
+            onPressed: () async {
               if (formKey.currentState?.validate() != true) return;
-              Navigator.pop(dialogContext);
-              widget.viewModel.finishContract(dateCtrl.text.trim());
+              if (widget.viewModel.contractsStatus ==
+                  SectionLoadStatus.saving) {
+                return;
+              }
+              final saved =
+                  await widget.viewModel.finishContract(dateCtrl.text.trim());
+              if (saved && dialogContext.mounted) {
+                Navigator.pop(dialogContext);
+              }
             },
             child: const Text('Confirmar'),
           ),
@@ -346,14 +353,20 @@ class _ContractSectionState extends State<ContractSection> {
               child: const Text('Cancelar'),
             ),
             FilledButton(
-              onPressed: () {
+              onPressed: () async {
                 if (formKey.currentState?.validate() != true) return;
-                Navigator.pop(dialogContext);
-                widget.viewModel.createContract(
+                if (widget.viewModel.contractsStatus ==
+                    SectionLoadStatus.saving) {
+                  return;
+                }
+                final saved = await widget.viewModel.createContract(
                   dateCtrl.text.trim(),
                   selectedTypeId!,
                   registrationCtrl.text.trim(),
                 );
+                if (saved && dialogContext.mounted) {
+                  Navigator.pop(dialogContext);
+                }
               },
               child: const Text('Confirmar'),
             ),
