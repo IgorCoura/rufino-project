@@ -43,6 +43,30 @@ void main() {
       expect(emptyProfile.hasSigningOptions, isFalse);
     });
 
+    test(
+        'canReceiveDocumentsToSign returns true only for digital signing '
+        'options', () {
+      expect(
+        profile.copyWith(documentSigningOptionsId: '2').canReceiveDocumentsToSign,
+        isTrue,
+      );
+      expect(
+        profile.copyWith(documentSigningOptionsId: '6').canReceiveDocumentsToSign,
+        isTrue,
+      );
+    });
+
+    test('canReceiveDocumentsToSign returns false for physical signature', () {
+      expect(
+        profile.copyWith(documentSigningOptionsId: '1').canReceiveDocumentsToSign,
+        isFalse,
+      );
+    });
+
+    test('canReceiveDocumentsToSign returns false when option is not set', () {
+      expect(emptyProfile.canReceiveDocumentsToSign, isFalse);
+    });
+
     test('isActive returns true only for active status', () {
       expect(profile.isActive, isTrue);
       expect(emptyProfile.isActive, isFalse);

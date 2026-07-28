@@ -234,6 +234,13 @@ class _DocumentsSectionState extends State<DocumentsSection> {
     }
   }
 
+  /// Whether the employee can receive files for digital signature.
+  ///
+  /// Physical-signature (or unset) employees must never see the
+  /// send-to-signature actions.
+  bool get _canSendToSign =>
+      widget.viewModel.profile?.canReceiveDocumentsToSign ?? false;
+
   /// Shows a dialog to choose between generate or generate & send for
   /// signature.
   Future<void> _showGenerateDialog(
@@ -255,7 +262,7 @@ class _DocumentsSectionState extends State<DocumentsSection> {
               onPressed: () => Navigator.of(ctx).pop('generate'),
               child: const Text('Gerar arquivo'),
             ),
-            if (doc.isSignable)
+            if (doc.isSignable && _canSendToSign)
               PermissionGuard(
                 resource: 'document',
                 scope: 'send2sign',
@@ -330,7 +337,7 @@ class _DocumentsSectionState extends State<DocumentsSection> {
               onPressed: () => Navigator.of(ctx).pop('send'),
               child: const Text('Enviar arquivo'),
             ),
-            if (doc.isSignable)
+            if (doc.isSignable && _canSendToSign)
               PermissionGuard(
                 resource: 'document',
                 scope: 'send2sign',
