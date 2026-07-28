@@ -87,7 +87,6 @@ import 'ui/features/require_document/viewmodel/require_document_list_viewmodel.d
 import 'ui/features/require_document/widgets/require_document_form_screen.dart';
 import 'ui/features/require_document/widgets/require_document_list_screen.dart';
 import 'ui/features/employee/viewmodel/employee_form_viewmodel.dart';
-import 'ui/features/employee/viewmodel/employee_list_viewmodel.dart';
 import 'ui/features/employee/viewmodel/employee_profile_viewmodel.dart';
 import 'ui/features/employee/widgets/employee_form_screen.dart';
 import 'ui/features/employee/widgets/employee_list_screen.dart';
@@ -610,15 +609,7 @@ class _AppRouterState extends State<_AppRouter> {
         // ─── Employee ─────────────────────────────────────────────────────
         GoRoute(
           path: '/employee',
-          builder: (context, state) => EmployeeListScreen(
-            viewModel: EmployeeListViewModel(
-              companyRepository: context.read<CompanyRepository>(),
-              employeeRepository: context.read<EmployeeRepository>(),
-              departmentRepository: context.read<DepartmentRepository>(),
-              spreadsheetService: context.read<SpreadsheetService>(),
-              fileSaveService: context.read<FileSaveService>(),
-            ),
-          ),
+          builder: (context, state) => const EmployeeListPage(),
         ),
         GoRoute(
           path: '/employee/create',
