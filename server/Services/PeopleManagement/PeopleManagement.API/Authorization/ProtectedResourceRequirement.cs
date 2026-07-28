@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using System.Text.RegularExpressions;
 
@@ -40,14 +40,24 @@ namespace PeopleManagement.API.Authorization
         {
             var permission = requirement.FillPermissionParams(_httpContextAccessor.HttpContext);
 
-            var success = await _authorizationServerClient.VerifyAccessToResouce(permission);
+            var cancellationToken = _httpContextAccessor.HttpContext?.RequestAborted ?? CancellationToken.None;
+            var result = await _authorizationServerClient.VerifyAccessToResouce(permission, cancellationToken);
 
-            if (success)
+            switch (result)
             {
-                context.Succeed(requirement);
-                return;
+                case ResourceAccessResult.Granted:
+                    context.Succeed(requirement);
+                    break;
+                case ResourceAccessResult.InvalidToken:
+                    context.Fail(new InvalidTokenFailureReason(this));
+                    break;
+                case ResourceAccessResult.ServerUnavailable:
+                    context.Fail(new AuthorizationServerUnavailableFailureReason(this));
+                    break;
+                default:
+                    context.Fail();
+                    break;
             }
-            context.Fail();
         }
     }
 }
