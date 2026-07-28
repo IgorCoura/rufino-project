@@ -370,6 +370,7 @@ class _DashboardFilters extends StatelessWidget {
               width: 220,
               child: DropdownButtonFormField<String?>(
                 key: const ValueKey('group-filter'),
+                isExpanded: true,
                 initialValue: viewModel.selectedGroupId,
                 decoration: const InputDecoration(
                   labelText: 'Grupo',
@@ -396,6 +397,7 @@ class _DashboardFilters extends StatelessWidget {
               child: DropdownButtonFormField<String?>(
                 key: ValueKey(
                     'template-filter-${viewModel.selectedGroupId ?? 'all'}'),
+                isExpanded: true,
                 initialValue: viewModel.selectedTemplateId,
                 decoration: const InputDecoration(
                   labelText: 'Template',
@@ -423,6 +425,7 @@ class _DashboardFilters extends StatelessWidget {
               width: 180,
               child: DropdownButtonFormField<int?>(
                 key: const ValueKey('employee-status-filter'),
+                isExpanded: true,
                 initialValue: viewModel.employeeStatusFilter,
                 decoration: const InputDecoration(
                   labelText: 'Funcionários',

@@ -181,7 +181,10 @@ void main() {
     permissionNotifier.dispose();
   });
 
-  Widget buildSubject() => ChangeNotifierProvider<PermissionNotifier>.value(
+  Widget buildSubject({
+    EmployeeProfileTab initialTab = EmployeeProfileTab.personalData,
+  }) =>
+      ChangeNotifierProvider<PermissionNotifier>.value(
         value: permissionNotifier,
         child: MaterialApp.router(
           routerConfig: GoRouter(
@@ -191,6 +194,7 @@ void main() {
                 builder: (_, __) => EmployeeProfileScreen(
                   viewModel: viewModel,
                   employeeId: 'emp-1',
+                  initialTab: initialTab,
                 ),
               ),
             ],
@@ -218,6 +222,19 @@ void main() {
         expect(employeeRepository.getDocumentSigningOptionsCallCount, 0);
         expect(employeeRepository.getContractsCallCount, 0);
         expect(employeeRepository.getMedicalExamCallCount, 0);
+      });
+
+      testWidgets(
+          'lands straight on the documents tab when initialTab requests it',
+          (tester) async {
+        await tester.pumpWidget(
+            buildSubject(initialTab: EmployeeProfileTab.documents));
+        await tester.pumpAndSettle();
+
+        expect(documentGroupRepository.getGroupsWithDocumentsCallCount, 1);
+        expect(employeeRepository.getDocumentSigningOptionsCallCount, 1);
+        expect(employeeRepository.getEmployeeContactCallCount, 0);
+        expect(find.text('Grupo Contratual'), findsOneWidget);
       });
 
       testWidgets("reloads a tab's data when the user returns to it",

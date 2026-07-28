@@ -768,6 +768,15 @@ The app distinguishes "session died" (401) from "no permission" (403) end to end
 
 ---
 
+## Document Dashboard (module)
+
+`/document-dashboard` (home card under `ModuleGuard('document')`) is the RH triage view over `api/v1/{company}/document-dashboard` (`GET /summary` + `GET /units`). Five buckets — Vencidos, A Vencer, Pendentes, Aguardando Assinatura, Requer Validação — where **counts and list share the same server-side predicate** (`DashboardBucket.apiValue` is the query param). Rules worth preserving:
+
+- **"A vencer" is validity-based**, not Warning-status-based: the horizon (30/60/90 days, `expiringInDays`) filters `validity` server-side; unit status 8 (Warning) is only a visual chip. **Unit status ids run 1–8** (`8 = 'A Vencer'`) — `DocumentUnit`, `BatchDocumentUnitItem` and `DashboardUnitItem` all map them.
+- **State preservation:** `DocumentDashboardPage` owns the ViewModel + `ScrollController` lifecycles (same pattern as `EmployeeListPage`) — never create them inside the route builder, or filters/bucket/page/scroll are wiped on every push/pop.
+- **Row navigation** uses `context.push('/employee/:id?tab=documents')`; the `/employee/:id` route maps `?tab=` (`documents` | `contracts`) to `EmployeeProfileScreen.initialTab`, so the profile lands on the Documentos tab and pop returns to the intact dashboard.
+- ViewModel invariant: bucket switch and pagination reload **only the list** (`isLoadingUnits`); filter/horizon changes reload **summary + list together** so the KPI cards never disagree with the rows. Default employee filter is Ativos (status 2).
+
 ## UI Design Guidelines (Material Design 3)
 
 Official references:
@@ -938,7 +947,7 @@ Toda configuração em `core/theme/`: `app_theme.dart` (entry point ThemeData li
 
 One sealed family per aggregate. **Add a new variant to the existing family before creating a new exception class.**
 
-`auth_exception.dart` (InvalidCredentials, SessionExpired, NoCredentials, NetworkAuthException) · `department_exception.dart` · `workplace_exception.dart` · `employee_exception.dart` · `document_template_exception.dart` · `document_group_exception.dart` · `require_document_exception.dart` · `permission_exception.dart` · `batch_document_exception.dart` · `batch_download_exception.dart` · `cep_exception.dart`
+`auth_exception.dart` (InvalidCredentials, SessionExpired, NoCredentials, NetworkAuthException) · `department_exception.dart` · `workplace_exception.dart` · `employee_exception.dart` · `document_template_exception.dart` · `document_group_exception.dart` · `require_document_exception.dart` · `permission_exception.dart` · `batch_document_exception.dart` · `batch_download_exception.dart` · `document_dashboard_exception.dart` · `cep_exception.dart`
 
 Plus `data/services/http_exception.dart` — raised by `http_status_helper.dart`, carries `statusCode` + `serverMessages`.
 
@@ -952,7 +961,7 @@ Plus `data/services/http_exception.dart` — raised by `http_status_helper.dart`
 
 One service per backend aggregate. Cross-cutting helpers (`http_exception`, `http_status_helper`, `multipart_upload_helper`, `request_id_helper`, `permission_cache_service`, `file_save_service`, `spreadsheet_service`) MUST be reused — do not inline equivalent logic in feature services.
 
-`auth_api_service` · `permission_api_service` · `permission_cache_service` · `company_api_service` · `department_api_service` (departments + positions + roles + payment-unit/salary-type lookups) · `workplace_api_service` · `employee_api_service` (the largest — covers profile, image, contact, address, personal info, ID card, voter ID, PIS/PASEP, military doc, medical exam, dependents, contracts, documents, signing, document-unit CRUD + range ops) · `document_template_api_service` · `document_group_api_service` · `require_document_api_service` · `batch_document_api_service` · `batch_download_api_service` · `cep_api_service`.
+`auth_api_service` · `permission_api_service` · `permission_cache_service` · `company_api_service` · `department_api_service` (departments + positions + roles + payment-unit/salary-type lookups) · `workplace_api_service` · `employee_api_service` (the largest — covers profile, image, contact, address, personal info, ID card, voter ID, PIS/PASEP, military doc, medical exam, dependents, contracts, documents, signing, document-unit CRUD + range ops) · `document_template_api_service` · `document_group_api_service` · `require_document_api_service` · `batch_document_api_service` · `batch_download_api_service` · `document_dashboard_api_service` · `cep_api_service`.
 
 ### Repositories
 
@@ -975,7 +984,7 @@ DTOs live in `data/models/<aggregate>_api_model.dart` (+ JSON ser/deser). Domain
   - **Read and write shapes differ.** On **read**, `DocumentTemplateApiModel.fromJson` sources signature from `policies.signature`: block present = accepts, and it carries `placeSignatures` (falls back to the top-level `acceptsSignature` only when the API omits the whole `policies` block). On **write**, `toJson`/`toCreateJson` still send `acceptsSignature` + `placeSignatures` as **top-level** fields (the API's write contract is unchanged) — so signature is **not** a `TemplatePolicies` member on the entity; the model keeps its own `acceptsSignature`/`placeSignatures` fields. Reading placements from the old `templateFileInfo.placeSignatures` location was the bug where signatures created after the policy refactor vanished on GET.
   - **The placement's type is mandatory** (`PlaceSignatureData.validateType`, wired into the type dropdown). A placement without a type is serialized as `type: 0`, which the API rejects hard — `TypeSignature.FromValue(0)` throws and fails the *whole* save (not just that placement). So the dropdown must be validated like the numeric fields; an unvalidated type is how "add the first placement to an empty list" silently failed to save.
 
-**Aggregates currently modeled** (each has DTO + entity unless noted): company / company_detail (entity-only) · workplace · department · position · role · remuneration (entity-only) · employee · employee_profile · employee_personal_info · employee_contact · employee_address (entity = `address`) · employee_id_card · employee_vote_id · employee_military_document · employee_medical_exam · employee_dependent · employee_contract · employee_social_integration_program · employee_document · document_template · document_group · document_group_with_templates · document_group_with_documents · document_range_item (DTO-only) · require_document · batch_document_unit · batch_download · period · permission · selection_option (entity-only) · personal_info_options (entity-only) · signing_option (entity-only) · scanned_document (entity-only) · bulk_upload_match (entity-only) · cep_lookup (DTO-only).
+**Aggregates currently modeled** (each has DTO + entity unless noted): company / company_detail (entity-only) · workplace · department · position · role · remuneration (entity-only) · employee · employee_profile · employee_personal_info · employee_contact · employee_address (entity = `address`) · employee_id_card · employee_vote_id · employee_military_document · employee_medical_exam · employee_dependent · employee_contract · employee_social_integration_program · employee_document · document_template · document_group · document_group_with_templates · document_group_with_documents · document_range_item (DTO-only) · require_document · batch_document_unit · batch_download · document_dashboard · period · permission · selection_option (entity-only) · personal_info_options (entity-only) · signing_option (entity-only) · scanned_document (entity-only) · bulk_upload_match (entity-only) · cep_lookup (DTO-only).
 
 ---
 
