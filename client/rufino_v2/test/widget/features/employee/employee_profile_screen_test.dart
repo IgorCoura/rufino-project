@@ -233,15 +233,13 @@ void main() {
 
     testWidgets('marks the employee as inactive after confirmation',
         (tester) async {
-      // Use a finished contract so the "Marcar como inativo" button appears.
-      employeeRepository.setContracts(const [
-        EmployeeContractInfo(
-          initDate: '01/01/2025',
-          finalDate: '31/12/2025',
-          typeId: '1',
-          typeName: 'CLT',
-        ),
-      ]);
+      // Only a pending employee (no contracts yet) can be marked as inactive,
+      // mirroring the backend rule (PMD.EMP17).
+      employeeRepository
+        ..setEmployeeProfile(
+          _fakeProfile.copyWith(status: EmployeeStatus.pending),
+        )
+        ..setContracts(const []);
 
       await tester.pumpWidget(buildSubject());
       await tester.pumpAndSettle();
@@ -268,6 +266,27 @@ void main() {
         find.text('Funcionário marcado como inativo com sucesso.'),
         findsOneWidget,
       );
+    });
+
+    testWidgets(
+        'does not show the inactive action for active employees with a '
+        'finished contract', (tester) async {
+      employeeRepository.setContracts(const [
+        EmployeeContractInfo(
+          initDate: '01/01/2025',
+          finalDate: '31/12/2025',
+          typeId: '1',
+          typeName: 'CLT',
+        ),
+      ]);
+
+      await tester.pumpWidget(buildSubject());
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.widgetWithText(Tab, 'Vínculo Empregatício'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Marcar como inativo'), findsNothing);
     });
 
     testWidgets('does not show the inactive action for inactive employees',

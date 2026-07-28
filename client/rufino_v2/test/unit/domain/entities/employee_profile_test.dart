@@ -23,8 +23,12 @@ void main() {
       workplaceId: '',
     );
 
-    test('canMarkAsInactive returns true only for active employees', () {
-      expect(profile.canMarkAsInactive, isTrue);
+    test('canMarkAsInactive returns true only for pending employees', () {
+      expect(
+        profile.copyWith(status: EmployeeStatus.pending).canMarkAsInactive,
+        isTrue,
+      );
+      expect(profile.canMarkAsInactive, isFalse);
       expect(emptyProfile.canMarkAsInactive, isFalse);
     });
 

@@ -30,7 +30,11 @@ class EmployeeProfile {
   final String documentSigningOptionsId;
 
   /// Whether the employee can be marked as inactive from the profile screen.
-  bool get canMarkAsInactive => status == EmployeeStatus.active;
+  ///
+  /// Mirrors the backend rule (PMD.EMP17): only a pending employee can be
+  /// marked as inactive directly. An active employee becomes inactive by
+  /// finishing its open contract instead.
+  bool get canMarkAsInactive => status == EmployeeStatus.pending;
 
   /// Whether this employee has a role assigned.
   bool get hasRole => roleId.isNotEmpty;

@@ -169,6 +169,9 @@ void main() {
 
     test('markAsInactive updates the profile status and exposes a snack message',
         () async {
+      employeeRepository.setEmployeeProfile(
+        _fakeProfile.copyWith(status: EmployeeStatus.pending),
+      );
       await viewModel.load('emp-1');
 
       await viewModel.markAsInactive();
@@ -181,6 +184,9 @@ void main() {
 
     test('markAsInactive sets error when the repository update fails',
         () async {
+      employeeRepository.setEmployeeProfile(
+        _fakeProfile.copyWith(status: EmployeeStatus.pending),
+      );
       await viewModel.load('emp-1');
       employeeRepository.setShouldFail(true);
 
@@ -190,7 +196,20 @@ void main() {
       expect(viewModel.errorMessage, contains('status'));
     });
 
+    test('markAsInactive does nothing when the employee is not pending',
+        () async {
+      await viewModel.load('emp-1');
+
+      await viewModel.markAsInactive();
+
+      expect(viewModel.profile?.status, EmployeeStatus.active);
+      expect(employeeRepository.lastMarkInactiveEmployeeId, isNull);
+    });
+
     test('consumeSnackMessage clears the transient message', () async {
+      employeeRepository.setEmployeeProfile(
+        _fakeProfile.copyWith(status: EmployeeStatus.pending),
+      );
       await viewModel.load('emp-1');
       await viewModel.markAsInactive();
 
