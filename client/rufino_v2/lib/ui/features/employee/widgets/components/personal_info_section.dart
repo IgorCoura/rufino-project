@@ -92,7 +92,6 @@ class _PersonalInfoSectionState extends State<PersonalInfoSection> {
         final status = widget.viewModel.personalInfoStatus;
         return SectionCard(
           title: 'Informações Pessoais',
-          onLoad: widget.viewModel.loadPersonalInfo,
           child: _buildContent(context, status),
         );
       },

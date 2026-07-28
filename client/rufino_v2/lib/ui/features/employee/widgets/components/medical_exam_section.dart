@@ -89,7 +89,6 @@ class _MedicalExamSectionState extends State<MedicalExamSection> {
         final status = widget.viewModel.medicalExamStatus;
         return SectionCard(
           title: 'Exame Médico Admissional',
-          onLoad: widget.viewModel.loadMedicalExam,
           child: _buildContent(context, status),
         );
       },

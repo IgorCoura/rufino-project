@@ -199,7 +199,6 @@ class _DependentSectionState extends State<DependentSection> {
         final status = widget.viewModel.dependentsStatus;
         return SectionCard(
           title: 'Dependentes',
-          onLoad: widget.viewModel.loadDependents,
           child: _buildContent(context, status),
         );
       },

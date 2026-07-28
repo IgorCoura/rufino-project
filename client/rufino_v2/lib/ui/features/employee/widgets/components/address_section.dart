@@ -140,7 +140,6 @@ class _AddressSectionState extends State<AddressSection> {
         final status = widget.viewModel.addressStatus;
         return SectionCard(
           title: 'Endereço',
-          onLoad: widget.viewModel.loadAddress,
           child: _buildContent(context, status),
         );
       },

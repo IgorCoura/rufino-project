@@ -60,7 +60,6 @@ class _MilitaryDocumentSectionState extends State<MilitaryDocumentSection> {
         final status = widget.viewModel.militaryDocumentStatus;
         return SectionCard(
           title: 'Documento Militar',
-          onLoad: widget.viewModel.loadMilitaryDocument,
           child: _buildContent(context, status),
         );
       },

@@ -57,7 +57,6 @@ class _SigningOptionsSectionState extends State<SigningOptionsSection> {
         final status = widget.viewModel.signingOptionsStatus;
         return SectionCard(
           title: 'Opções de Assinatura de Documentos',
-          onLoad: widget.viewModel.loadSigningOptions,
           child: _buildContent(context, status),
         );
       },

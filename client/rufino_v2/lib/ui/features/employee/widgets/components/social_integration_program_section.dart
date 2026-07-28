@@ -71,7 +71,6 @@ class _SocialIntegrationProgramSectionState
         final status = widget.viewModel.socialIntegrationProgramStatus;
         return SectionCard(
           title: 'PIS / PASEP',
-          onLoad: widget.viewModel.loadSocialIntegrationProgram,
           child: _buildContent(context, status),
         );
       },

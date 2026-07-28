@@ -21,16 +21,11 @@ class SectionCard extends StatelessWidget {
     super.key,
     required this.title,
     required this.child,
-    this.onLoad,
     this.trailing,
   });
 
   final String title;
   final Widget child;
-
-  /// Unused — kept only so existing sections compile until the per-tab
-  /// orchestration cleanup removes the parameter everywhere.
-  final VoidCallback? onLoad;
 
   /// Optional trailing widget shown in the card header.
   final Widget? trailing;

@@ -69,7 +69,6 @@ class _VoteIdSectionState extends State<VoteIdSection> {
         final status = widget.viewModel.voteIdStatus;
         return SectionCard(
           title: 'Título de Eleitor',
-          onLoad: widget.viewModel.loadVoteId,
           child: _buildContent(context, status),
         );
       },

@@ -79,7 +79,6 @@ class _ContactSectionState extends State<ContactSection> {
         final status = widget.viewModel.contactStatus;
         return SectionCard(
           title: 'Contato',
-          onLoad: widget.viewModel.loadContact,
           child: _buildContent(context, status),
         );
       },

@@ -110,7 +110,6 @@ class _IdCardSectionState extends State<IdCardSection> {
         final status = widget.viewModel.idCardStatus;
         return SectionCard(
           title: 'Documento (Identidade)',
-          onLoad: widget.viewModel.loadIdCard,
           child: _buildContent(context, status),
         );
       },

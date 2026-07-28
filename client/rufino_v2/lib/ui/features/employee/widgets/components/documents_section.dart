@@ -1056,7 +1056,6 @@ class _DocumentsSectionState extends State<DocumentsSection> {
         final status = widget.viewModel.documentsStatus;
         return SectionCard(
           title: 'Documentos',
-          onLoad: widget.viewModel.loadDocumentGroups,
           trailing: _buildHeaderTrailing(),
           child: _buildContent(context, status),
         );

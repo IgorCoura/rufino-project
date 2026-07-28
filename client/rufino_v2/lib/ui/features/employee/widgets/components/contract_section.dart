@@ -40,7 +40,6 @@ class _ContractSectionState extends State<ContractSection> {
         final status = widget.viewModel.contractsStatus;
         return SectionCard(
           title: 'Contratos',
-          onLoad: widget.viewModel.loadContracts,
           child: _buildContent(context, status),
         );
       },

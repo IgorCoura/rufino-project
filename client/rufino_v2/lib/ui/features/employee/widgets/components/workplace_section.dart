@@ -57,7 +57,6 @@ class _WorkplaceSectionState extends State<WorkplaceSection> {
         final status = widget.viewModel.workplaceInfoStatus;
         return SectionCard(
           title: 'Local de Trabalho',
-          onLoad: widget.viewModel.loadWorkplaceInfo,
           child: _buildContent(context, status),
         );
       },
