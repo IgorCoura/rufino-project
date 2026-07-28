@@ -122,6 +122,7 @@ void main() {
       documentSigningOptionsId: signingOptionId,
     ));
     await viewModel.load('emp-1');
+    await viewModel.openTab(EmployeeProfileTab.documents);
 
     await tester.pumpWidget(
       ChangeNotifierProvider<PermissionNotifier>.value(

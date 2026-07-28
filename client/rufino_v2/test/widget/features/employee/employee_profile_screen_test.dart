@@ -21,6 +21,7 @@ import 'package:rufino_v2/domain/entities/workplace.dart';
 import 'package:rufino_v2/ui/features/auth/viewmodel/permission_notifier.dart';
 import 'package:rufino_v2/ui/features/employee/viewmodel/employee_profile_viewmodel.dart';
 import 'package:rufino_v2/ui/features/employee/widgets/employee_profile_screen.dart';
+import 'package:rufino_v2/ui/features/employee/widgets/components/contact_section.dart';
 import 'package:rufino_v2/ui/features/employee/widgets/components/id_card_section.dart';
 import 'package:rufino_v2/ui/features/employee/widgets/components/military_document_section.dart';
 import 'package:rufino_v2/ui/features/employee/widgets/components/medical_exam_section.dart';
@@ -204,6 +205,91 @@ void main() {
       );
 
   group('EmployeeProfileScreen', () {
+    group('per-tab loading', () {
+      testWidgets(
+          "loads only the visible tab's sections when the profile opens",
+          (tester) async {
+        await tester.pumpWidget(buildSubject());
+        await tester.pumpAndSettle();
+
+        expect(employeeRepository.getEmployeeContactCallCount, 1);
+        expect(employeeRepository.getEmployeeAddressCallCount, 1);
+        expect(documentGroupRepository.getGroupsWithDocumentsCallCount, 0);
+        expect(employeeRepository.getDocumentSigningOptionsCallCount, 0);
+        expect(employeeRepository.getContractsCallCount, 0);
+        expect(employeeRepository.getMedicalExamCallCount, 0);
+      });
+
+      testWidgets("reloads a tab's data when the user returns to it",
+          (tester) async {
+        await tester.pumpWidget(buildSubject());
+        await tester.pumpAndSettle();
+
+        await tester.tap(find.widgetWithText(Tab, 'Documentos'));
+        await tester.pumpAndSettle();
+        expect(documentGroupRepository.getGroupsWithDocumentsCallCount, 1);
+
+        await tester.tap(find.widgetWithText(Tab, 'Dados Pessoais'));
+        await tester.pumpAndSettle();
+        expect(employeeRepository.getEmployeeContactCallCount, 2);
+
+        await tester.tap(find.widgetWithText(Tab, 'Documentos'));
+        await tester.pumpAndSettle();
+        expect(documentGroupRepository.getGroupsWithDocumentsCallCount, 2);
+      });
+
+      testWidgets(
+          'does not load the intermediate tab when jumping across tabs',
+          (tester) async {
+        await tester.pumpWidget(buildSubject());
+        await tester.pumpAndSettle();
+
+        await tester.tap(find.widgetWithText(Tab, 'Vínculo Empregatício'));
+        await tester.pumpAndSettle();
+
+        expect(employeeRepository.getContractsCallCount, 1);
+        expect(employeeRepository.getMedicalExamCallCount, 1);
+        expect(documentGroupRepository.getGroupsWithDocumentsCallCount, 0);
+        expect(employeeRepository.getDocumentSigningOptionsCallCount, 0);
+      });
+
+      testWidgets(
+          'discards an open edit form when the user returns to the tab',
+          (tester) async {
+        await tester.pumpWidget(buildSubject());
+        await tester.pumpAndSettle();
+
+        await tester.scrollUntilVisible(
+          findEditIn<ContactSection>(),
+          100,
+          scrollable: find.byType(Scrollable).first,
+        );
+        await tester.tap(findEditIn<ContactSection>());
+        await tester.pumpAndSettle();
+        expect(
+          find.descendant(
+            of: find.byType(ContactSection),
+            matching: find.text('Salvar'),
+          ),
+          findsOneWidget,
+        );
+
+        await tester.tap(find.widgetWithText(Tab, 'Documentos'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.widgetWithText(Tab, 'Dados Pessoais'));
+        await tester.pumpAndSettle();
+
+        expect(
+          find.descendant(
+            of: find.byType(ContactSection),
+            matching: find.text('Salvar'),
+          ),
+          findsNothing,
+        );
+        expect(findEditIn<ContactSection>(), findsOneWidget);
+      });
+    });
+
     testWidgets('shows loading indicator while fetching the profile',
         (tester) async {
       await tester.pumpWidget(buildSubject());
