@@ -5,6 +5,11 @@ services:
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
       - ASPNETCORE_URLS=https://+:443;http://+:80
+      # Certificado mkcert com SAN para localhost + toda a faixa 192.168.15.1-254,
+      # para acessar a API pelo IP da LAN sem o Chrome bloquear.
+      # Gerar/renovar: ver server/CLAUDE.md
+      - ASPNETCORE_Kestrel__Certificates__Default__Path=/root/.aspnet/https/PeopleManagement.API.lan.pfx
+      - ASPNETCORE_Kestrel__Certificates__Default__Password=changeit
     ports:
       - "80"
       - "443"
