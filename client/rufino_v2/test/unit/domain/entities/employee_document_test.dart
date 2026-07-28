@@ -42,6 +42,11 @@ void main() {
     test('isWaitingSignature returns true only for status 7', () {
       expect(unitWithStatus('7').isWaitingSignature, isTrue);
     });
+
+    test('isWarning returns true only for status 8', () {
+      expect(unitWithStatus('8').isWarning, isTrue);
+      expect(unitWithStatus('2').isWarning, isFalse);
+    });
   });
 
   group('EmployeeDocument computed properties', () {
@@ -205,6 +210,10 @@ void main() {
 
     test('returns Aguardando Assinatura for status id 7', () {
       expect(unitWithStatus('7').statusLabel, 'Aguardando Assinatura');
+    });
+
+    test('returns A Vencer for status id 8', () {
+      expect(unitWithStatus('8').statusLabel, 'A Vencer');
     });
 
     test('returns statusName as fallback for unknown status id', () {

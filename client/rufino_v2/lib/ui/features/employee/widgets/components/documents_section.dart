@@ -62,6 +62,7 @@ class _DocumentsSectionState extends State<DocumentsSection> {
     (id: 5, label: 'Requer Validação'),
     (id: 6, label: 'Não Aplicável'),
     (id: 7, label: 'Aguardando Assinatura'),
+    (id: 8, label: 'A Vencer'),
   ];
 
   /// Available page size options.
@@ -101,6 +102,7 @@ class _DocumentsSectionState extends State<DocumentsSection> {
       '5' => Colors.amber,
       '6' => Colors.blueGrey,
       '7' => Colors.blue,
+      '8' => Colors.deepOrange,
       _ => Colors.grey,
     };
   }
