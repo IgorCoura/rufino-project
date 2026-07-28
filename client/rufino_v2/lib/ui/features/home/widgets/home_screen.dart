@@ -273,6 +273,14 @@ class _HomeBody extends StatelessWidget {
                   ModuleGuard(
                     resource: 'document',
                     child: _MenuCard(
+                      icon: Icons.insert_chart_outlined_rounded,
+                      label: 'Dashboard de Documentos',
+                      onTap: () => context.go('/document-dashboard'),
+                    ),
+                  ),
+                  ModuleGuard(
+                    resource: 'document',
+                    child: _MenuCard(
                       icon: Icons.upload_file_outlined,
                       label: 'Gestão de Documentos em Lote',
                       onTap: () => context.go('/batch-document'),

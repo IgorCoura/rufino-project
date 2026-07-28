@@ -29,6 +29,7 @@ import 'data/repositories/document_template_repository_impl.dart';
 import 'data/repositories/require_document_repository_impl.dart';
 import 'data/repositories/batch_document_repository_impl.dart';
 import 'data/repositories/batch_download_repository_impl.dart';
+import 'data/repositories/document_dashboard_repository_impl.dart';
 import 'data/repositories/cep_repository_impl.dart';
 import 'data/repositories/document_scanner_repository_impl.dart';
 import 'core/utils/document_scanner_service.dart';
@@ -43,6 +44,7 @@ import 'data/services/document_template_api_service.dart';
 import 'data/services/require_document_api_service.dart';
 import 'data/services/batch_document_api_service.dart';
 import 'data/services/batch_download_api_service.dart';
+import 'data/services/document_dashboard_api_service.dart';
 import 'data/services/cep_api_service.dart';
 import 'data/services/file_save_service.dart';
 import 'data/services/spreadsheet_service.dart';
@@ -57,6 +59,7 @@ import 'domain/repositories/document_template_repository.dart';
 import 'domain/repositories/require_document_repository.dart';
 import 'domain/repositories/batch_document_repository.dart';
 import 'domain/repositories/batch_download_repository.dart';
+import 'domain/repositories/document_dashboard_repository.dart';
 import 'domain/repositories/cep_repository.dart';
 import 'domain/repositories/workplace_repository.dart';
 import 'ui/core/widgets/session_expired_listener.dart';
@@ -99,6 +102,7 @@ import 'ui/features/batch_document/viewmodel/batch_document_viewmodel.dart';
 import 'ui/features/batch_document/widgets/batch_document_screen.dart';
 import 'ui/features/batch_download/viewmodel/batch_download_viewmodel.dart';
 import 'ui/features/batch_download/widgets/batch_download_screen.dart';
+import 'ui/features/document_dashboard/widgets/document_dashboard_screen.dart';
 import 'ui/features/debug/widgets/debug_screen.dart';
 import 'ui/features/home/viewmodel/home_viewmodel.dart';
 import 'ui/features/home/widgets/home_screen.dart';
@@ -354,6 +358,17 @@ class App extends StatelessWidget {
       reporter: errorReporter,
     );
 
+    final documentDashboardApiService = DocumentDashboardApiService(
+      client: httpClient,
+      baseUrl: AppConfig.peopleManagementUrl,
+      getAuthHeader: getAuthHeader,
+    );
+    final DocumentDashboardRepository documentDashboardRepository =
+        DocumentDashboardRepositoryImpl(
+      apiService: documentDashboardApiService,
+      reporter: errorReporter,
+    );
+
     // Spreadsheet export — stateless, safe to share across the app.
     final spreadsheetService = SpreadsheetService();
     final fileSaveService = FileSaveService();
@@ -379,6 +394,8 @@ class App extends StatelessWidget {
           value: batchDocumentRepository),
       Provider<BatchDownloadRepository>.value(
           value: batchDownloadRepository),
+      Provider<DocumentDashboardRepository>.value(
+          value: documentDashboardRepository),
       Provider<CepRepository>.value(value: cepRepository),
       Provider<SpreadsheetService>.value(value: spreadsheetService),
       Provider<FileSaveService>.value(value: fileSaveService),
@@ -658,6 +675,11 @@ class _AppRouterState extends State<_AppRouter> {
           path: '/employee/:id',
           builder: (context, state) => EmployeeProfileScreen(
             employeeId: state.pathParameters['id']!,
+            initialTab: switch (state.uri.queryParameters['tab']) {
+              'documents' => EmployeeProfileTab.documents,
+              'contracts' => EmployeeProfileTab.employmentContract,
+              _ => EmployeeProfileTab.personalData,
+            },
             viewModel: EmployeeProfileViewModel(
               companyRepository: context.read<CompanyRepository>(),
               employeeRepository: context.read<EmployeeRepository>(),
@@ -735,6 +757,12 @@ class _AppRouterState extends State<_AppRouter> {
               },
             );
           },
+        ),
+
+        // ─── Document Dashboard ────────────────────────────────
+        GoRoute(
+          path: '/document-dashboard',
+          builder: (context, state) => const DocumentDashboardPage(),
         ),
 
         // ─── Debug ────────────────────────────────────────────────────────

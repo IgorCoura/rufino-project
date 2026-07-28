@@ -33,10 +33,15 @@ class EmployeeProfileScreen extends StatefulWidget {
     super.key,
     required this.viewModel,
     required this.employeeId,
+    this.initialTab = EmployeeProfileTab.personalData,
   });
 
   final EmployeeProfileViewModel viewModel;
   final String employeeId;
+
+  /// The tab the profile lands on — deep links (e.g. the document dashboard)
+  /// use it to open straight on "Documentos".
+  final EmployeeProfileTab initialTab;
 
   @override
   State<EmployeeProfileScreen> createState() => _EmployeeProfileScreenState();
@@ -188,6 +193,7 @@ class _EmployeeProfileScreenState extends State<EmployeeProfileScreen> {
               viewModel: widget.viewModel,
               profile: profile,
               nameController: _nameController,
+              initialTab: widget.initialTab,
               onMarkAsInactive: _confirmMarkAsInactive,
               onPickAvatar: _pickAndUploadAvatar,
             );
@@ -209,6 +215,7 @@ class _EmployeeProfileBody extends StatefulWidget {
     required this.viewModel,
     required this.profile,
     required this.nameController,
+    required this.initialTab,
     required this.onMarkAsInactive,
     required this.onPickAvatar,
   });
@@ -218,6 +225,9 @@ class _EmployeeProfileBody extends StatefulWidget {
 
   /// Controller owned by [_EmployeeProfileScreenState] so it survives rebuilds.
   final TextEditingController nameController;
+
+  /// The tab the profile lands on when the body is first built.
+  final EmployeeProfileTab initialTab;
   final Future<void> Function() onMarkAsInactive;
   final Future<void> Function() onPickAvatar;
 
@@ -233,19 +243,25 @@ class _EmployeeProfileBodyState extends State<_EmployeeProfileBody>
   ///
   /// Absorbs controller re-notifications and taps on the already-active tab
   /// so each destination triggers exactly one
-  /// [EmployeeProfileViewModel.openTab] call.
-  int _lastSettledIndex = 0;
+  /// [EmployeeProfileViewModel.openTab] call. Initialized to the initial
+  /// tab's index in [initState].
+  late int _lastSettledIndex;
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
+    _lastSettledIndex = widget.initialTab.index;
+    _tabController = TabController(
+      length: 3,
+      vsync: this,
+      initialIndex: widget.initialTab.index,
+    );
     _tabController.addListener(_onTabChanged);
     // Post-frame because openTab notifies synchronously and this body is
     // built inside a ListenableBuilder listening to the same view model.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
-        widget.viewModel.openTab(EmployeeProfileTab.personalData);
+        widget.viewModel.openTab(widget.initialTab);
       }
     });
   }
