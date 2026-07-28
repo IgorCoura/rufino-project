@@ -37,4 +37,14 @@ class FakeAuthRepository implements AuthRepository {
 
   @override
   Future<Result<void>> logout() async => const Result.success(null);
+
+  /// Number of times [clearLocalSession] was called.
+  int clearLocalSessionCalls = 0;
+
+  @override
+  Future<Result<void>> clearLocalSession() async {
+    clearLocalSessionCalls++;
+    _isAuthenticated = false;
+    return const Result.success(null);
+  }
 }

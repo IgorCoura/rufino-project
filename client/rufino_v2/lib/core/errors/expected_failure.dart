@@ -16,3 +16,18 @@
 /// }
 /// ```
 mixin ExpectedFailure {}
+
+/// Whether [error] is user-actionable — an [ExpectedFailure] itself or a
+/// wrapper (e.g. a `*NetworkException`) whose `cause` is one.
+///
+/// Repositories wrap unknown exceptions before reporting, so an expected
+/// failure raised deep in the data layer (session expired, access denied)
+/// would otherwise reach the crash dashboard disguised as a network error.
+bool isExpectedFailure(Object error) {
+  if (error is ExpectedFailure) return true;
+  try {
+    return (error as dynamic).cause is ExpectedFailure;
+  } catch (_) {
+    return false;
+  }
+}

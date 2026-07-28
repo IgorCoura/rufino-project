@@ -2,10 +2,16 @@ import 'dart:convert';
 
 import 'package:http/http.dart' as http;
 
+import '../../core/errors/auth_exception.dart';
 import '../../core/errors/http_exception.dart';
 import '../../core/utils/domain_error_logger.dart';
 
-/// Throws [HttpException] if [response] has a non-2xx status code.
+/// Throws a typed exception if [response] has a non-2xx status code.
+///
+/// A 401 means the API no longer accepts the session's token and becomes
+/// [SessionExpiredException]; a 403 means the session is valid but lacks
+/// permission and becomes [AccessDeniedException]. Every other failure
+/// status raises [HttpException].
 ///
 /// When the response body contains an `errors` map matching the API's
 /// domain-error structure, the error messages are extracted and included
@@ -22,6 +28,9 @@ void checkHttpStatus(http.Response response) {
     statusCode: response.statusCode,
     responseBody: response.body,
   );
+
+  if (response.statusCode == 401) throw const SessionExpiredException();
+  if (response.statusCode == 403) throw const AccessDeniedException();
 
   throw HttpException(
     statusCode: response.statusCode,

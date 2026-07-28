@@ -410,7 +410,7 @@ final class EmployeeNetworkException extends EmployeeException {
 }
 ```
 
-`SentryErrorReporter.capture` short-circuits when `error is ExpectedFailure`.
+`SentryErrorReporter.capture` short-circuits via `isExpectedFailure(error)` — true when the error itself is an `ExpectedFailure` **or** when its `cause` is one (repositories wrap unknown errors in `*NetworkException`, so a wrapped `SessionExpiredException`/`AccessDeniedException` must not reach Sentry disguised as a network bug).
 
 ---
 
@@ -752,6 +752,19 @@ All resource names are **lowercase, kebab-case**. Use **exactly** these strings 
 6. **Logout must clear permissions.** Already handled in `HomeViewModel.logout()` — no action needed unless a new logout flow is added.
 
 7. **Never hardcode role-to-permission mappings.** All authorization decisions come from Keycloak. The app only checks what Keycloak returns — if a resource/scope is added or removed in the Keycloak dashboard, the app reflects it automatically.
+
+---
+
+## Session Expiry & 401/403 Handling
+
+The app distinguishes "session died" (401) from "no permission" (403) end to end. Do not reintroduce generic handling.
+
+- **`checkHttpStatus`** (`data/services/http_status_helper.dart`) maps **401 → `SessionExpiredException`** and **403 → `AccessDeniedException`** (both in `core/errors/auth_exception.dart`, both `ExpectedFailure`). Everything else stays `HttpException`.
+- **App-wide 401 detection**: the shared `http.Client` is wrapped by `SessionAwareHttpClient` (`core/network/session_aware_http_client.dart`), which flips `AuthSessionNotifier` (`ui/features/auth/viewmodel/auth_session_notifier.dart`) on any 401. The token callbacks in `app.dart` (`flagSessionLoss`) do the same when `getCredentials()` raises `SessionExpiredException`/`NoCredentialsException`.
+- **`SessionExpiredListener`** (`ui/core/widgets/session_expired_listener.dart`, mounted in the `MaterialApp.router` `builder`) shows a blocking dialog ("Sessão expirada" → "Fazer login"), then calls `AuthRepository.clearLocalSession()` + `PermissionNotifier.clear()` and navigates to `/login`. On public routes (`/`, `/login`) it resets the flag silently. The `GoRouter` `redirect` also sends any protected navigation to `/login` while the flag is set.
+- **403 never logs the user out.** Screens surface it as a message: ViewModels must pass the error through `extractServerMessages` (`core/utils/error_messages.dart`), which yields `accessDeniedMessage` / `sessionExpiredMessage` for auth failures (direct or wrapped in a `*NetworkException` `cause`). Never discard the `onError` error object.
+- **Proactive refresh**: both auth services treat a token inside `tokenExpiryMargin` (60s) of expiry as needing refresh; a transient network failure during refresh keeps a still-valid token instead of killing the session, and `oauth2.AuthorizationException` (rejected refresh token) becomes `SessionExpiredException`.
+- Backend counterpart: the API answers **401** when Keycloak rejects the token in the UMA check (`AuthorizationResultHandler` in `PeopleManagement.API/Authorization`), **403** only for real permission denials, and **503** when Keycloak is unreachable.
 
 ---
 

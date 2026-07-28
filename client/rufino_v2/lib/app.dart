@@ -7,7 +7,9 @@ import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'core/config/app_config.dart';
+import 'core/errors/auth_exception.dart';
 import 'core/monitoring/error_reporter.dart';
+import 'core/network/session_aware_http_client.dart';
 import 'core/storage/secure_storage.dart';
 import 'core/theme/app_theme.dart';
 import 'core/theme/theme_notifier.dart';
@@ -57,6 +59,8 @@ import 'domain/repositories/batch_document_repository.dart';
 import 'domain/repositories/batch_download_repository.dart';
 import 'domain/repositories/cep_repository.dart';
 import 'domain/repositories/workplace_repository.dart';
+import 'ui/core/widgets/session_expired_listener.dart';
+import 'ui/features/auth/viewmodel/auth_session_notifier.dart';
 import 'ui/features/auth/viewmodel/login_sso_viewmodel.dart';
 import 'ui/features/auth/viewmodel/login_viewmodel.dart';
 import 'ui/features/auth/viewmodel/permission_notifier.dart';
@@ -133,7 +137,13 @@ class App extends StatelessWidget {
   List<SingleChildWidget> _buildProviders() {
     // Infrastructure
     const secureStorage = SecureStorage(FlutterSecureStorage());
-    final httpClient = errorReporter.wrapHttpClient(http.Client());
+    final authSessionNotifier = AuthSessionNotifier();
+    final httpClient = errorReporter.wrapHttpClient(
+      SessionAwareHttpClient(
+        http.Client(),
+        onSessionInvalid: authSessionNotifier.notifySessionExpired,
+      ),
+    );
 
     // Auth — pick the active flow at compile time.
     final authApiService = AppConfig.useAuthorizationCodeFlow
@@ -144,6 +154,7 @@ class App extends StatelessWidget {
             endSessionEndpoint: Uri.parse(AppConfig.endSessionEndpoint),
             identifier: AppConfig.identifier,
             secret: AppConfig.secret,
+            httpClient: httpClient,
           );
 
     AuthCodeApiService? authCodeApiService;
@@ -163,6 +174,7 @@ class App extends StatelessWidget {
         endSessionEndpoint: Uri.parse(AppConfig.endSessionEndpoint),
         identifier: AppConfig.identifier,
         secret: AppConfig.secret,
+        httpClient: httpClient,
       );
 
       // Web only: a redirect that brought the user back to the app
@@ -173,14 +185,29 @@ class App extends StatelessWidget {
       }
     }
 
+    // Auth failures inside the token callbacks (expired refresh, missing
+    // credentials) must raise the app-wide session flag before propagating.
+    Future<T> flagSessionLoss<T>(Future<T> Function() action) async {
+      try {
+        return await action();
+      } on SessionExpiredException {
+        authSessionNotifier.notifySessionExpired();
+        rethrow;
+      } on NoCredentialsException {
+        authSessionNotifier.notifySessionExpired();
+        rethrow;
+      }
+    }
+
     final getAccessToken = AppConfig.useAuthorizationCodeFlow
-        ? () async =>
-            (await authCodeApiService!.getCredentials()).accessToken
-        : () async => (await authApiService!.getCredentials()).accessToken;
+        ? () => flagSessionLoss(() async =>
+            (await authCodeApiService!.getCredentials()).accessToken)
+        : () => flagSessionLoss(
+            () async => (await authApiService!.getCredentials()).accessToken);
 
     final getAuthHeader = AppConfig.useAuthorizationCodeFlow
-        ? authCodeApiService!.getAuthorizationHeader
-        : authApiService!.getAuthorizationHeader;
+        ? () => flagSessionLoss(authCodeApiService!.getAuthorizationHeader)
+        : () => flagSessionLoss(authApiService!.getAuthorizationHeader);
 
     final permissionApiService = PermissionApiService(
       client: httpClient,
@@ -335,6 +362,7 @@ class App extends StatelessWidget {
       Provider<ErrorReporter>.value(value: errorReporter),
       ChangeNotifierProvider(create: (_) => ThemeNotifier()),
       ChangeNotifierProvider.value(value: permissionNotifier),
+      ChangeNotifierProvider.value(value: authSessionNotifier),
       Provider<AuthRepository>.value(value: authRepository),
       Provider<PermissionRepository>.value(value: permissionRepository),
       Provider<CompanyRepository>.value(value: companyRepository),
@@ -365,13 +393,17 @@ class _AppRouter extends StatefulWidget {
 
 class _AppRouterState extends State<_AppRouter> {
   late final GoRouter _router;
+  final _rootNavigatorKey = GlobalKey<NavigatorState>();
 
   @override
   void initState() {
     super.initState();
     _router = GoRouter(
+      navigatorKey: _rootNavigatorKey,
       initialLocation: '/',
       observers: [context.read<ErrorReporter>().navigatorObserver],
+      redirect: (context, state) =>
+          context.read<AuthSessionNotifier>().redirectFor(state.uri.path),
       routes: [
         GoRoute(
           path: '/',
@@ -754,6 +786,11 @@ class _AppRouterState extends State<_AppRouter> {
       darkTheme: AppTheme.dark(),
       themeMode: themeMode,
       routerConfig: _router,
+      builder: (context, child) => SessionExpiredListener(
+        router: _router,
+        navigatorKey: _rootNavigatorKey,
+        child: child ?? const SizedBox.shrink(),
+      ),
     );
   }
 }

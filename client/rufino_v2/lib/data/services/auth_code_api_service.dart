@@ -1,5 +1,6 @@
 import 'dart:ui';
 
+import 'package:http/http.dart' as http;
 import 'package:jwt_decoder/jwt_decoder.dart';
 import 'package:oauth2/oauth2.dart' as oauth2;
 
@@ -22,6 +23,7 @@ class AuthCodeApiService {
     required this.endSessionEndpoint,
     required this.identifier,
     required this.secret,
+    this.httpClient,
     this.onTokenRefreshed,
   });
 
@@ -31,6 +33,10 @@ class AuthCodeApiService {
   final Uri endSessionEndpoint;
   final String identifier;
   final String? secret;
+
+  /// Client used for the silent token refresh; when provided by the app it
+  /// carries the monitoring breadcrumbs wrapper.
+  final http.Client? httpClient;
 
   /// Called after a successful silent token refresh inside [getCredentials].
   VoidCallback? onTokenRefreshed;
@@ -61,24 +67,51 @@ class AuthCodeApiService {
     await storage.write(key: _credentialsKey, value: credentials.toJson());
   }
 
+  /// Safety margin subtracted from the token expiry: the API validates
+  /// lifetimes with near-zero clock skew, so a token about to die must be
+  /// refreshed before it is attached to a request.
+  static const tokenExpiryMargin = Duration(seconds: 60);
+
   Future<oauth2.Credentials> getCredentials() async {
     await _recoverCredentials();
-    var credentials = _credentials;
+    final credentials = _credentials;
     if (credentials == null) throw const NoCredentialsException();
 
-    if (credentials.isExpired) {
-      if (!credentials.canRefresh) {
-        throw const SessionExpiredException();
-      }
-      credentials = await credentials.refresh(
+    if (!_shouldRefresh(credentials)) {
+      if (credentials.isExpired) throw const SessionExpiredException();
+      return credentials;
+    }
+
+    final oauth2.Credentials refreshed;
+    try {
+      refreshed = await credentials.refresh(
         identifier: identifier,
         secret: secret,
+        httpClient: httpClient,
       );
-      _credentials = credentials;
-      await storage.write(key: _credentialsKey, value: credentials.toJson());
-      onTokenRefreshed?.call();
+    } on oauth2.AuthorizationException {
+      throw const SessionExpiredException();
+    } catch (e) {
+      // A transient failure (network, CORS) must not kill a still-valid
+      // session; only give up when the token is truly gone.
+      if (credentials.isExpired) throw NetworkAuthException(e);
+      return credentials;
     }
-    return credentials;
+
+    _credentials = refreshed;
+    await storage.write(key: _credentialsKey, value: refreshed.toJson());
+    onTokenRefreshed?.call();
+    return refreshed;
+  }
+
+  /// Whether [credentials] should be refreshed now: already expired or
+  /// inside [tokenExpiryMargin] of expiring, and refreshable at all.
+  bool _shouldRefresh(oauth2.Credentials credentials) {
+    if (!credentials.canRefresh) return false;
+    final expiration = credentials.expiration;
+    if (expiration == null) return false;
+    return DateTime.now()
+        .isAfter(expiration.subtract(tokenExpiryMargin));
   }
 
   Future<String> getAuthorizationHeader() async {
@@ -123,6 +156,13 @@ class AuthCodeApiService {
       await storage.delete(key: _credentialsKey);
       _credentials = null;
     }
+  }
+
+  /// Drops the locally stored credentials without contacting the identity
+  /// provider — used when the session is already known to be dead.
+  Future<void> clearLocalSession() async {
+    await storage.delete(key: _credentialsKey);
+    _credentials = null;
   }
 
   Future<void> _recoverCredentials() async {

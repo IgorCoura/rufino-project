@@ -28,7 +28,7 @@ class FakeErrorReporter implements ErrorReporter {
     StackTrace? stackTrace, {
     Map<String, Object?>? context,
   }) {
-    if (error is ExpectedFailure) return;
+    if (isExpectedFailure(error)) return;
     capturedErrors.add((error: error, stackTrace: stackTrace, context: context));
   }
 
