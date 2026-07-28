@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -218,6 +219,141 @@ void main() {
       viewModel.consumeSnackMessage();
 
       expect(viewModel.snackMessage, isNull);
+    });
+
+    group('openTab', () {
+      test('openTab does nothing before the profile is loaded', () async {
+        await viewModel.openTab(EmployeeProfileTab.personalData);
+
+        expect(viewModel.contactStatus, SectionLoadStatus.notLoaded);
+        expect(employeeRepository.getEmployeeContactCallCount, 0);
+      });
+
+      test('openTab loads every personal data section', () async {
+        await viewModel.load('emp-1');
+
+        await viewModel.openTab(EmployeeProfileTab.personalData);
+
+        expect(viewModel.contactStatus, SectionLoadStatus.loaded);
+        expect(viewModel.addressStatus, SectionLoadStatus.loaded);
+        expect(viewModel.personalInfoStatus, SectionLoadStatus.loaded);
+        expect(viewModel.idCardStatus, SectionLoadStatus.loaded);
+        expect(viewModel.voteIdStatus, SectionLoadStatus.loaded);
+        expect(viewModel.socialIntegrationProgramStatus,
+            SectionLoadStatus.loaded);
+        expect(viewModel.dependentsStatus, SectionLoadStatus.loaded);
+        expect(viewModel.militaryDocumentStatus, SectionLoadStatus.loaded);
+        expect(viewModel.contact, isNotNull);
+      });
+
+      test("openTab loads only the requested tab's sections", () async {
+        await viewModel.load('emp-1');
+
+        await viewModel.openTab(EmployeeProfileTab.documents);
+
+        expect(viewModel.signingOptionsStatus, SectionLoadStatus.loaded);
+        expect(viewModel.documentsStatus, SectionLoadStatus.loaded);
+        expect(viewModel.contactStatus, SectionLoadStatus.notLoaded);
+        expect(viewModel.contractsStatus, SectionLoadStatus.notLoaded);
+        expect(employeeRepository.getEmployeeContactCallCount, 0);
+        expect(employeeRepository.getContractsCallCount, 0);
+      });
+
+      test("openTab re-fetches a tab's sections on re-entry", () async {
+        await viewModel.load('emp-1');
+
+        await viewModel.openTab(EmployeeProfileTab.personalData);
+        await viewModel.openTab(EmployeeProfileTab.employmentContract);
+        await viewModel.openTab(EmployeeProfileTab.personalData);
+        await viewModel.openTab(EmployeeProfileTab.employmentContract);
+
+        expect(employeeRepository.getEmployeeContactCallCount, 2);
+        expect(employeeRepository.getContractsCallCount, 2);
+      });
+
+      test('openTab reloads a section that previously failed', () async {
+        await viewModel.load('emp-1');
+        employeeRepository.setShouldFail(true);
+        await viewModel.openTab(EmployeeProfileTab.personalData);
+        expect(viewModel.contactStatus, SectionLoadStatus.error);
+
+        employeeRepository.setShouldFail(false);
+        await viewModel.openTab(EmployeeProfileTab.personalData);
+
+        expect(viewModel.contactStatus, SectionLoadStatus.loaded);
+      });
+
+      test('openTab resets the documents tab selection state', () async {
+        await viewModel.load('emp-1');
+        await viewModel.openTab(EmployeeProfileTab.documents);
+        viewModel.toggleRangeSelectionMode();
+        viewModel.toggleDocumentUnitSelection(const SelectedDocumentUnit(
+          documentId: 'doc-1',
+          documentUnitId: 'unit-1',
+          documentName: 'Contrato',
+          documentUnitDate: '01/01/2026',
+          canGenerate: true,
+          hasFile: true,
+        ));
+
+        await viewModel.openTab(EmployeeProfileTab.documents);
+
+        expect(viewModel.isSelectingRange, isFalse);
+        expect(viewModel.selectedDocumentUnits, isEmpty);
+      });
+
+      test('openTab discards a stale in-flight response after a reload',
+          () async {
+        employeeRepository.setContact(
+          const EmployeeContact(cellphone: '111', email: 'first@test.com'),
+        );
+        await viewModel.load('emp-1');
+
+        final firstGate = Completer<void>();
+        final secondGate = Completer<void>();
+        employeeRepository.contactGates.addAll([firstGate, secondGate]);
+
+        final firstOpen = viewModel.openTab(EmployeeProfileTab.personalData);
+        employeeRepository.setContact(
+          const EmployeeContact(cellphone: '222', email: 'second@test.com'),
+        );
+        final secondOpen = viewModel.openTab(EmployeeProfileTab.personalData);
+
+        // The second (fresh) response lands first; the first (stale) one
+        // arrives last and must be discarded.
+        secondGate.complete();
+        await Future<void>.delayed(Duration.zero);
+        firstGate.complete();
+        await Future.wait([firstOpen, secondOpen]);
+
+        expect(viewModel.contact?.email, 'second@test.com');
+        expect(viewModel.contactStatus, SectionLoadStatus.loaded);
+      });
+
+      test('load resets every section when switching employees', () async {
+        await viewModel.load('emp-1');
+        await viewModel.openTab(EmployeeProfileTab.personalData);
+        await viewModel.openTab(EmployeeProfileTab.documents);
+        await viewModel.openTab(EmployeeProfileTab.employmentContract);
+
+        await viewModel.load('emp-2');
+
+        expect(viewModel.contactStatus, SectionLoadStatus.notLoaded);
+        expect(viewModel.addressStatus, SectionLoadStatus.notLoaded);
+        expect(viewModel.personalInfoStatus, SectionLoadStatus.notLoaded);
+        expect(viewModel.idCardStatus, SectionLoadStatus.notLoaded);
+        expect(viewModel.voteIdStatus, SectionLoadStatus.notLoaded);
+        expect(viewModel.socialIntegrationProgramStatus,
+            SectionLoadStatus.notLoaded);
+        expect(viewModel.dependentsStatus, SectionLoadStatus.notLoaded);
+        expect(viewModel.militaryDocumentStatus, SectionLoadStatus.notLoaded);
+        expect(viewModel.signingOptionsStatus, SectionLoadStatus.notLoaded);
+        expect(viewModel.documentsStatus, SectionLoadStatus.notLoaded);
+        expect(viewModel.roleInfoStatus, SectionLoadStatus.notLoaded);
+        expect(viewModel.workplaceInfoStatus, SectionLoadStatus.notLoaded);
+        expect(viewModel.medicalExamStatus, SectionLoadStatus.notLoaded);
+        expect(viewModel.contractsStatus, SectionLoadStatus.notLoaded);
+      });
     });
 
     group('name editing', () {

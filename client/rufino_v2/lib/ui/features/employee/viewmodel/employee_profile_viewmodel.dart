@@ -70,15 +70,18 @@ enum EmployeeProfileStatus { loading, idle, saving, error }
 /// Possible load/save states for a lazily-loaded profile section.
 enum SectionLoadStatus { notLoaded, loading, loaded, saving, error }
 
+/// The three top-level tabs of the employee profile screen.
+enum EmployeeProfileTab { personalData, documents, employmentContract }
+
 /// Manages state for the employee profile screen.
 ///
 /// Loads the selected company context, the employee profile, the profile image,
 /// and related role/workplace labels needed by the UI. The ViewModel also
 /// handles inline name editing, avatar upload, and the "mark as inactive" action.
 ///
-/// Additional sections (contact, address, personalInfo, idCard, voteId,
-/// militaryDocument) are lazily loaded on first expansion to avoid unnecessary
-/// API calls.
+/// Section data is loaded per tab via [openTab]: the screen calls it every
+/// time the user lands on a tab, which discards that tab's sections and
+/// fetches them again — a revisited tab always shows fresh data.
 class EmployeeProfileViewModel extends ChangeNotifier {
   EmployeeProfileViewModel({
     required CompanyRepository companyRepository,
@@ -105,6 +108,14 @@ class EmployeeProfileViewModel extends ChangeNotifier {
   final DocumentScannerRepository? _scannerRepository;
 
   EmployeeProfileStatus _status = EmployeeProfileStatus.idle;
+
+  /// Monotonic counter identifying the current load cycle.
+  ///
+  /// [load] and [openTab] bump it; every section load captures the value
+  /// before awaiting and discards its response when the counter has moved on,
+  /// so a stale in-flight fetch can never overwrite fresher data.
+  int _loadGeneration = 0;
+
   String? _companyId;
   EmployeeProfile? _profile;
   Uint8List? _imageBytes;
@@ -466,25 +477,14 @@ class EmployeeProfileViewModel extends ChangeNotifier {
 
   /// Loads the employee profile identified by [employeeId].
   Future<void> load(String employeeId) async {
+    _loadGeneration++;
     _status = EmployeeProfileStatus.loading;
     _errorMessage = null;
     _snackMessage = null;
-    _isEditingName = false;
-    _pendingName = '';
-    // Reset all lazy sections so they reload for the new employee.
-    _contactStatus = SectionLoadStatus.notLoaded;
-    _contact = null;
-    _addressStatus = SectionLoadStatus.notLoaded;
-    _address = null;
-    _personalInfoStatus = SectionLoadStatus.notLoaded;
-    _personalInfo = null;
-    _personalInfoOptions = null;
-    _idCardStatus = SectionLoadStatus.notLoaded;
-    _idCard = null;
-    _voteIdStatus = SectionLoadStatus.notLoaded;
-    _voteId = null;
-    _socialIntegrationProgramStatus = SectionLoadStatus.notLoaded;
-    _socialIntegrationProgram = null;
+    // Reset every section so a new employee never shows stale data.
+    _resetPersonalDataTab();
+    _resetDocumentsTab();
+    _resetEmploymentTab();
     notifyListeners();
 
     final companyResult = await _companyRepository.getSelectedCompany();
@@ -518,6 +518,103 @@ class EmployeeProfileViewModel extends ChangeNotifier {
 
     _status = EmployeeProfileStatus.idle;
     notifyListeners();
+  }
+
+  /// Discards the data of [tab] and fetches it again from the API.
+  ///
+  /// The screen calls this every time the user lands on a tab, so
+  /// re-entering a tab always refetches its sections — which also discards
+  /// any unsaved edit state held by the ViewModel for that tab. Any section
+  /// load still in flight from a previous cycle is invalidated. Does nothing
+  /// until the profile itself has loaded.
+  Future<void> openTab(EmployeeProfileTab tab) async {
+    if (_profile == null || _companyId == null) return;
+
+    _loadGeneration++;
+    switch (tab) {
+      case EmployeeProfileTab.personalData:
+        _resetPersonalDataTab();
+        notifyListeners();
+        await Future.wait([
+          loadContact(),
+          loadAddress(),
+          loadPersonalInfo(),
+          loadIdCard(),
+          loadVoteId(),
+          loadSocialIntegrationProgram(),
+          loadDependents(),
+          loadMilitaryDocument(),
+        ]);
+      case EmployeeProfileTab.documents:
+        _resetDocumentsTab();
+        notifyListeners();
+        await Future.wait([
+          loadSigningOptions(),
+          loadDocumentGroups(),
+        ]);
+      case EmployeeProfileTab.employmentContract:
+        _resetEmploymentTab();
+        notifyListeners();
+        await Future.wait([
+          loadRoleInfo(),
+          loadWorkplaceInfo(),
+          loadMedicalExam(),
+          loadContracts(),
+        ]);
+    }
+  }
+
+  /// Resets every section of the "Dados Pessoais" tab to [SectionLoadStatus.notLoaded].
+  void _resetPersonalDataTab() {
+    _isEditingName = false;
+    _pendingName = '';
+    _contactStatus = SectionLoadStatus.notLoaded;
+    _contact = null;
+    _addressStatus = SectionLoadStatus.notLoaded;
+    _address = null;
+    _isLookingUpCep = false;
+    _personalInfoStatus = SectionLoadStatus.notLoaded;
+    _personalInfo = null;
+    _personalInfoOptions = null;
+    _idCardStatus = SectionLoadStatus.notLoaded;
+    _idCard = null;
+    _voteIdStatus = SectionLoadStatus.notLoaded;
+    _voteId = null;
+    _socialIntegrationProgramStatus = SectionLoadStatus.notLoaded;
+    _socialIntegrationProgram = null;
+    _dependentsStatus = SectionLoadStatus.notLoaded;
+    _dependents = [];
+    _militaryDocumentStatus = SectionLoadStatus.notLoaded;
+    _militaryDocument = null;
+  }
+
+  /// Resets every section of the "Documentos" tab to [SectionLoadStatus.notLoaded].
+  void _resetDocumentsTab() {
+    _signingOptionsStatus = SectionLoadStatus.notLoaded;
+    _signingOptions = [];
+    _documentsStatus = SectionLoadStatus.notLoaded;
+    _documentGroups = [];
+    _isSelectingRange = false;
+    _selectedDocumentUnits = [];
+    _pageSizeMap.clear();
+    _uploadProgress = 0.0;
+  }
+
+  /// Resets every section of the "Vínculo Empregatício" tab to [SectionLoadStatus.notLoaded].
+  void _resetEmploymentTab() {
+    _roleInfoStatus = SectionLoadStatus.notLoaded;
+    _allDepartments = [];
+    _paymentUnits = [];
+    _salaryTypes = [];
+    _currentDepartmentId = '';
+    _currentPositionId = '';
+    _workplaceInfoStatus = SectionLoadStatus.notLoaded;
+    _allWorkplaces = [];
+    _medicalExamStatus = SectionLoadStatus.notLoaded;
+    _medicalExam = null;
+    _contractsStatus = SectionLoadStatus.notLoaded;
+    _contracts = [];
+    _contractTypes = [];
   }
 
   /// Enters inline name editing mode, pre-filling the draft with the current name.
@@ -697,8 +794,10 @@ class EmployeeProfileViewModel extends ChangeNotifier {
     _contactStatus = SectionLoadStatus.loading;
     notifyListeners();
 
+    final generation = _loadGeneration;
     final result = await _employeeRepository.getEmployeeContact(
         companyId, currentProfile.id);
+    if (generation != _loadGeneration) return;
 
     result.fold(
       onSuccess: (data) {
@@ -770,8 +869,10 @@ class EmployeeProfileViewModel extends ChangeNotifier {
     _addressStatus = SectionLoadStatus.loading;
     notifyListeners();
 
+    final generation = _loadGeneration;
     final result = await _employeeRepository.getEmployeeAddress(
         companyId, currentProfile.id);
+    if (generation != _loadGeneration) return;
 
     result.fold(
       onSuccess: (data) {
@@ -869,10 +970,12 @@ class EmployeeProfileViewModel extends ChangeNotifier {
     _personalInfoStatus = SectionLoadStatus.loading;
     notifyListeners();
 
+    final generation = _loadGeneration;
     final infoResult = await _employeeRepository.getEmployeePersonalInfo(
         companyId, currentProfile.id);
     final optionsResult =
         await _employeeRepository.getPersonalInfoOptions(companyId);
+    if (generation != _loadGeneration) return;
 
     bool hasError = false;
 
@@ -948,8 +1051,10 @@ class EmployeeProfileViewModel extends ChangeNotifier {
     _idCardStatus = SectionLoadStatus.loading;
     notifyListeners();
 
+    final generation = _loadGeneration;
     final result =
         await _employeeRepository.getEmployeeIdCard(companyId, currentProfile.id);
+    if (generation != _loadGeneration) return;
 
     result.fold(
       onSuccess: (data) {
@@ -1022,8 +1127,10 @@ class EmployeeProfileViewModel extends ChangeNotifier {
     _voteIdStatus = SectionLoadStatus.loading;
     notifyListeners();
 
+    final generation = _loadGeneration;
     final result = await _employeeRepository.getEmployeeVoteId(
         companyId, currentProfile.id);
+    if (generation != _loadGeneration) return;
 
     result.fold(
       onSuccess: (data) {
@@ -1094,10 +1201,12 @@ class EmployeeProfileViewModel extends ChangeNotifier {
     _socialIntegrationProgramStatus = SectionLoadStatus.loading;
     notifyListeners();
 
+    final generation = _loadGeneration;
     final result = await _employeeRepository.getEmployeeSocialIntegrationProgram(
       companyId,
       currentProfile.id,
     );
+    if (generation != _loadGeneration) return;
 
     result.fold(
       onSuccess: (data) {
@@ -1158,18 +1267,26 @@ class EmployeeProfileViewModel extends ChangeNotifier {
 
   // ─── Military document section ────────────────────────────────────────────
 
-  /// Loads the military document for the current employee on first expansion.
+  /// Lazily loads the military document for the current employee.
+  ///
+  /// Does nothing if the section has already been loaded or is currently loading.
   Future<void> loadMilitaryDocument() async {
-    if (_militaryDocumentStatus != SectionLoadStatus.notLoaded) return;
     final companyId = _companyId;
     final currentProfile = _profile;
-    if (companyId == null || currentProfile == null) return;
+    if (companyId == null ||
+        currentProfile == null ||
+        _militaryDocumentStatus == SectionLoadStatus.loading ||
+        _militaryDocumentStatus == SectionLoadStatus.loaded) {
+      return;
+    }
 
     _militaryDocumentStatus = SectionLoadStatus.loading;
     notifyListeners();
 
+    final generation = _loadGeneration;
     final result = await _employeeRepository.getMilitaryDocument(
         companyId, currentProfile.id);
+    if (generation != _loadGeneration) return;
 
     result.fold(
       onSuccess: (data) {
@@ -1228,19 +1345,26 @@ class EmployeeProfileViewModel extends ChangeNotifier {
 
   // ─── Medical exam section ─────────────────────────────────────────────────
 
-  /// Loads the medical admission exam for the current employee on first
-  /// expansion.
+  /// Lazily loads the medical admission exam for the current employee.
+  ///
+  /// Does nothing if the section has already been loaded or is currently loading.
   Future<void> loadMedicalExam() async {
-    if (_medicalExamStatus != SectionLoadStatus.notLoaded) return;
     final companyId = _companyId;
     final currentProfile = _profile;
-    if (companyId == null || currentProfile == null) return;
+    if (companyId == null ||
+        currentProfile == null ||
+        _medicalExamStatus == SectionLoadStatus.loading ||
+        _medicalExamStatus == SectionLoadStatus.loaded) {
+      return;
+    }
 
     _medicalExamStatus = SectionLoadStatus.loading;
     notifyListeners();
 
+    final generation = _loadGeneration;
     final result =
         await _employeeRepository.getMedicalExam(companyId, currentProfile.id);
+    if (generation != _loadGeneration) return;
 
     result.fold(
       onSuccess: (data) {
@@ -1300,18 +1424,26 @@ class EmployeeProfileViewModel extends ChangeNotifier {
 
   // ─── Role info section ─────────────────────────────────────────────────────
 
-  /// Loads the department hierarchy, payment units, salary types, and locates
-  /// the employee's current role.
+  /// Lazily loads the department hierarchy, payment units, salary types, and
+  /// locates the employee's current role.
+  ///
+  /// Does nothing if the section has already been loaded or is currently loading.
   Future<void> loadRoleInfo() async {
-    if (_roleInfoStatus != SectionLoadStatus.notLoaded) return;
     final companyId = _companyId;
     final currentProfile = _profile;
-    if (companyId == null || currentProfile == null) return;
+    if (companyId == null ||
+        currentProfile == null ||
+        _roleInfoStatus == SectionLoadStatus.loading ||
+        _roleInfoStatus == SectionLoadStatus.loaded) {
+      return;
+    }
 
     _roleInfoStatus = SectionLoadStatus.loading;
     notifyListeners();
 
+    final generation = _loadGeneration;
     final deptResult = await _departmentRepository.getDepartments(companyId);
+    if (generation != _loadGeneration) return;
     if (deptResult.isError) {
       _roleInfoStatus = SectionLoadStatus.error;
       notifyListeners();
@@ -1325,6 +1457,7 @@ class EmployeeProfileViewModel extends ChangeNotifier {
         await _departmentRepository.getPaymentUnits(companyId);
     final stResult =
         await _departmentRepository.getSalaryTypes(companyId);
+    if (generation != _loadGeneration) return;
     _paymentUnits = puResult.valueOrNull ?? [];
     _salaryTypes = stResult.valueOrNull ?? [];
     _findCurrentRoleInHierarchy(currentProfile.roleId);
@@ -1400,17 +1533,25 @@ class EmployeeProfileViewModel extends ChangeNotifier {
 
   // ─── Workplace info section ─────────────────────────────────────────────
 
-  /// Loads all workplaces and locates the employee's current workplace.
+  /// Lazily loads all workplaces and locates the employee's current workplace.
+  ///
+  /// Does nothing if the section has already been loaded or is currently loading.
   Future<void> loadWorkplaceInfo() async {
-    if (_workplaceInfoStatus != SectionLoadStatus.notLoaded) return;
     final companyId = _companyId;
     final currentProfile = _profile;
-    if (companyId == null || currentProfile == null) return;
+    if (companyId == null ||
+        currentProfile == null ||
+        _workplaceInfoStatus == SectionLoadStatus.loading ||
+        _workplaceInfoStatus == SectionLoadStatus.loaded) {
+      return;
+    }
 
     _workplaceInfoStatus = SectionLoadStatus.loading;
     notifyListeners();
 
+    final generation = _loadGeneration;
     final result = await _workplaceRepository.getWorkplaces(companyId);
+    if (generation != _loadGeneration) return;
 
     result.fold(
       onSuccess: (workplaces) {
@@ -1471,18 +1612,26 @@ class EmployeeProfileViewModel extends ChangeNotifier {
 
   // ─── Documents section ──────────────────────────────────────────────────
 
-  /// Loads the document groups with their documents on first expansion.
+  /// Lazily loads the document groups with their documents.
+  ///
+  /// Does nothing if the section has already been loaded or is currently loading.
   Future<void> loadDocumentGroups() async {
-    if (_documentsStatus != SectionLoadStatus.notLoaded) return;
     final companyId = _companyId;
     final currentProfile = _profile;
-    if (companyId == null || currentProfile == null) return;
+    if (companyId == null ||
+        currentProfile == null ||
+        _documentsStatus == SectionLoadStatus.loading ||
+        _documentsStatus == SectionLoadStatus.loaded) {
+      return;
+    }
 
     _documentsStatus = SectionLoadStatus.loading;
     notifyListeners();
 
+    final generation = _loadGeneration;
     final result = await _documentGroupRepository
         .getDocumentGroupsWithDocuments(companyId, currentProfile.id);
+    if (generation != _loadGeneration) return;
 
     result.fold(
       onSuccess: (data) {
@@ -1925,17 +2074,24 @@ class EmployeeProfileViewModel extends ChangeNotifier {
 
   // ─── Document signing options section ───────────────────────────────────
 
-  /// Loads the available signing options on first expansion.
+  /// Lazily loads the available signing options.
+  ///
+  /// Does nothing if the section has already been loaded or is currently loading.
   Future<void> loadSigningOptions() async {
-    if (_signingOptionsStatus != SectionLoadStatus.notLoaded) return;
     final companyId = _companyId;
-    if (companyId == null) return;
+    if (companyId == null ||
+        _signingOptionsStatus == SectionLoadStatus.loading ||
+        _signingOptionsStatus == SectionLoadStatus.loaded) {
+      return;
+    }
 
     _signingOptionsStatus = SectionLoadStatus.loading;
     notifyListeners();
 
+    final generation = _loadGeneration;
     final result =
         await _employeeRepository.getDocumentSigningOptions(companyId);
+    if (generation != _loadGeneration) return;
 
     result.fold(
       onSuccess: (options) {
@@ -1993,21 +2149,29 @@ class EmployeeProfileViewModel extends ChangeNotifier {
 
   // ─── Contracts section ─────────────────────────────────────────────────
 
-  /// Loads the contract history and contract type options for the current
-  /// employee on first expansion.
+  /// Lazily loads the contract history and contract type options for the
+  /// current employee.
+  ///
+  /// Does nothing if the section has already been loaded or is currently loading.
   Future<void> loadContracts() async {
-    if (_contractsStatus != SectionLoadStatus.notLoaded) return;
     final companyId = _companyId;
     final currentProfile = _profile;
-    if (companyId == null || currentProfile == null) return;
+    if (companyId == null ||
+        currentProfile == null ||
+        _contractsStatus == SectionLoadStatus.loading ||
+        _contractsStatus == SectionLoadStatus.loaded) {
+      return;
+    }
 
     _contractsStatus = SectionLoadStatus.loading;
     notifyListeners();
 
+    final generation = _loadGeneration;
     final contractsResult =
         await _employeeRepository.getContracts(companyId, currentProfile.id);
     final typesResult =
         await _employeeRepository.getContractTypes(companyId);
+    if (generation != _loadGeneration) return;
 
     if (contractsResult.isError) {
       _contractsStatus = SectionLoadStatus.error;
@@ -2111,19 +2275,25 @@ class EmployeeProfileViewModel extends ChangeNotifier {
 
   // ─── Dependents section ─────────────────────────────────────────────────
 
-  /// Loads the list of dependents for the current employee on first expansion.
+  /// Lazily loads the list of dependents for the current employee.
   ///
   /// Also ensures the personal info options (genders) are available since the
-  /// dependent form needs them for the gender dropdown.
+  /// dependent form needs them for the gender dropdown. Does nothing if the
+  /// section has already been loaded or is currently loading.
   Future<void> loadDependents() async {
-    if (_dependentsStatus != SectionLoadStatus.notLoaded) return;
     final companyId = _companyId;
     final currentProfile = _profile;
-    if (companyId == null || currentProfile == null) return;
+    if (companyId == null ||
+        currentProfile == null ||
+        _dependentsStatus == SectionLoadStatus.loading ||
+        _dependentsStatus == SectionLoadStatus.loaded) {
+      return;
+    }
 
     _dependentsStatus = SectionLoadStatus.loading;
     notifyListeners();
 
+    final generation = _loadGeneration;
     final result =
         await _employeeRepository.getDependents(companyId, currentProfile.id);
 
@@ -2131,11 +2301,13 @@ class EmployeeProfileViewModel extends ChangeNotifier {
     if (_personalInfoOptions == null) {
       final optionsResult =
           await _employeeRepository.getPersonalInfoOptions(companyId);
+      if (generation != _loadGeneration) return;
       optionsResult.fold(
         onSuccess: (data) => _personalInfoOptions = data,
         onError: (_, __) {},
       );
     }
+    if (generation != _loadGeneration) return;
 
     result.fold(
       onSuccess: (data) {
