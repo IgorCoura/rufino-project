@@ -743,6 +743,21 @@ void main() {
         expect(viewModel.militaryDocumentStatus, SectionLoadStatus.error);
       });
 
+      test('loadMilitaryDocument does nothing when already loaded', () async {
+        await viewModel.load('emp-1');
+        employeeRepository.setMilitaryDocument(fakeDoc);
+        await viewModel.loadMilitaryDocument();
+
+        employeeRepository.setMilitaryDocument(const EmployeeMilitaryDocument(
+          number: 'RM-00000',
+          type: 'Outro',
+          isRequired: false,
+        ));
+        await viewModel.loadMilitaryDocument();
+
+        expect(viewModel.militaryDocument?.number, 'RM-12345');
+      });
+
       test(
           'saveMilitaryDocument persists new values and shows a snack message',
           () async {
@@ -801,6 +816,21 @@ void main() {
         await viewModel.loadMedicalExam();
 
         expect(viewModel.medicalExamStatus, SectionLoadStatus.error);
+      });
+
+      test('loadMedicalExam does nothing when already loaded', () async {
+        await viewModel.load('emp-1');
+        employeeRepository.setMedicalExam(fakeExam);
+        await viewModel.loadMedicalExam();
+
+        employeeRepository.setMedicalExam(const EmployeeMedicalExam(
+          dateExam: '01/06/2026',
+          validityExam: '01/06/2027',
+        ));
+        await viewModel.loadMedicalExam();
+
+        expect(viewModel.medicalExam?.dateExam, '15/01/2026');
+        expect(employeeRepository.getMedicalExamCallCount, 1);
       });
 
       test('saveMedicalExam persists new values and shows a snack message',
@@ -873,6 +903,17 @@ void main() {
         await viewModel.loadRoleInfo();
 
         expect(viewModel.roleInfoStatus, SectionLoadStatus.error);
+      });
+
+      test('loadRoleInfo does nothing when already loaded', () async {
+        departmentRepository.setDepartments(fakeDepartments);
+        await viewModel.load('emp-1');
+        await viewModel.loadRoleInfo();
+
+        departmentRepository.setDepartments(const []);
+        await viewModel.loadRoleInfo();
+
+        expect(viewModel.allDepartments, hasLength(1));
       });
 
       test('saveEmployeeRole persists new roleId and shows a snack message',
@@ -1115,6 +1156,15 @@ void main() {
         expect(viewModel.dependentsStatus, SectionLoadStatus.error);
       });
 
+      test('loadDependents does nothing when already loaded', () async {
+        await viewModel.load('emp-1');
+        await viewModel.loadDependents();
+
+        await viewModel.loadDependents();
+
+        expect(employeeRepository.getDependentsCallCount, 1);
+      });
+
       test('removeDependent removes the dependent and shows a snack message',
           () async {
         await viewModel.load('emp-1');
@@ -1194,6 +1244,17 @@ void main() {
         expect(viewModel.workplaceInfoStatus, SectionLoadStatus.error);
       });
 
+      test('loadWorkplaceInfo does nothing when already loaded', () async {
+        workplaceRepository.setWorkplaces([_fakeWorkplace]);
+        await viewModel.load('emp-1');
+        await viewModel.loadWorkplaceInfo();
+
+        workplaceRepository.setWorkplaces(const []);
+        await viewModel.loadWorkplaceInfo();
+
+        expect(viewModel.allWorkplaces, hasLength(1));
+      });
+
       test(
           'saveEmployeeWorkplace persists new workplaceId and shows a snack message',
           () async {
@@ -1245,6 +1306,15 @@ void main() {
         await viewModel.loadContracts();
 
         expect(viewModel.contractsStatus, SectionLoadStatus.error);
+      });
+
+      test('loadContracts does nothing when already loaded', () async {
+        await viewModel.load('emp-1');
+        await viewModel.loadContracts();
+
+        await viewModel.loadContracts();
+
+        expect(employeeRepository.getContractsCallCount, 1);
       });
 
       test(
@@ -1332,6 +1402,15 @@ void main() {
         expect(viewModel.signingOptionsStatus, SectionLoadStatus.error);
       });
 
+      test('loadSigningOptions does nothing when already loaded', () async {
+        await viewModel.load('emp-1');
+        await viewModel.loadSigningOptions();
+
+        await viewModel.loadSigningOptions();
+
+        expect(employeeRepository.getDocumentSigningOptionsCallCount, 1);
+      });
+
       test('saveSigningOption persists option and shows a snack message',
           () async {
         await viewModel.load('emp-1');
@@ -1404,6 +1483,15 @@ void main() {
         await viewModel.loadDocumentGroups();
 
         expect(viewModel.documentsStatus, SectionLoadStatus.error);
+      });
+
+      test('loadDocumentGroups does nothing when already loaded', () async {
+        await viewModel.load('emp-1');
+        await viewModel.loadDocumentGroups();
+
+        await viewModel.loadDocumentGroups();
+
+        expect(documentGroupRepository.getGroupsWithDocumentsCallCount, 1);
       });
     });
 

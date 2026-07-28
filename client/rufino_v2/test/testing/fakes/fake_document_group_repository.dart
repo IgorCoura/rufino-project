@@ -31,6 +31,9 @@ class FakeDocumentGroupRepository implements DocumentGroupRepository {
   /// The id of the last group passed to [updateDocumentGroup].
   String? lastUpdatedGroupId;
 
+  /// How many times [getDocumentGroupsWithDocuments] was called.
+  int getGroupsWithDocumentsCallCount = 0;
+
   @override
   Future<Result<List<DocumentGroup>>> getDocumentGroups(
       String companyId) async {
@@ -81,6 +84,7 @@ class FakeDocumentGroupRepository implements DocumentGroupRepository {
   Future<Result<List<DocumentGroupWithDocuments>>>
       getDocumentGroupsWithDocuments(
           String companyId, String employeeId) async {
+    getGroupsWithDocumentsCallCount++;
     if (_shouldFail) {
       return Result.error(
           Exception('getDocumentGroupsWithDocuments failed'));
