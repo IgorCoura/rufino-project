@@ -12,64 +12,6 @@ double _sectionInnerSpacing(BuildContext context) {
   return width < AppBreakpoints.mobile ? AppSpacing.sm : AppSpacing.md;
 }
 
-/// A helper that wraps content in a card with an [ExpansionTile].
-///
-/// Triggers [onExpand] on first expansion so the section can lazy-load its data.
-class ExpandableSectionCard extends StatefulWidget {
-  const ExpandableSectionCard({
-    super.key,
-    required this.title,
-    required this.child,
-    required this.onExpand,
-    this.trailing,
-  });
-
-  final String title;
-  final Widget child;
-  final VoidCallback onExpand;
-
-  /// Optional trailing widget shown in the tile header.
-  final Widget? trailing;
-
-  @override
-  State<ExpandableSectionCard> createState() => _ExpandableSectionCardState();
-}
-
-class _ExpandableSectionCardState extends State<ExpandableSectionCard> {
-  /// Whether [widget.onExpand] has been triggered at least once.
-  bool _loadTriggered = false;
-
-  @override
-  Widget build(BuildContext context) {
-    final spacing = _sectionInnerSpacing(context);
-    return Card.outlined(
-      clipBehavior: Clip.antiAlias,
-      child: ExpansionTile(
-        title: Row(
-          children: [
-            Expanded(
-              child: Text(
-                widget.title,
-                style: Theme.of(context).textTheme.titleMedium,
-              ),
-            ),
-            if (widget.trailing != null) widget.trailing!,
-          ],
-        ),
-        onExpansionChanged: (expanded) {
-          if (expanded && !_loadTriggered) {
-            _loadTriggered = true;
-            widget.onExpand();
-          }
-        },
-        childrenPadding:
-            EdgeInsets.fromLTRB(spacing, 0, spacing, spacing),
-        children: [widget.child],
-      ),
-    );
-  }
-}
-
 /// A card that shows its content directly (no expansion) and triggers
 /// [onLoad] once when first built so the section can fetch its data.
 class SectionCard extends StatefulWidget {
