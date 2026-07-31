@@ -14,7 +14,8 @@ namespace PeopleManagement.Application.Commands.DocumentTemplateCommands
     public record PoliciesModel(
         ExpirationPolicyModel? Expiration = null,
         WorkloadPolicyModel? Workload = null,
-        PeriodPolicyModel? Period = null)
+        PeriodPolicyModel? Period = null,
+        NewContractDeprecationPolicyModel? NewContractDeprecation = null)
     {
         public IEnumerable<IDocumentPolicy> ToPolicies()
         {
@@ -26,6 +27,9 @@ namespace PeopleManagement.Application.Commands.DocumentTemplateCommands
 
             if (Period is not null)
                 yield return Period.ToPolicy();
+
+            if (NewContractDeprecation is not null)
+                yield return NewContractDeprecation.ToPolicy();
         }
     }
 
@@ -46,5 +50,14 @@ namespace PeopleManagement.Application.Commands.DocumentTemplateCommands
     public record PeriodPolicyModel(int PeriodTypeId, bool UsePreviousPeriod)
     {
         public IDocumentPolicy ToPolicy() => new PeriodPolicy(PeriodType.CreateFromValue(PeriodTypeId), UsePreviousPeriod);
+    }
+
+    /// <summary>
+    /// Regra sem parâmetro: mandar o bloco (mesmo vazio, <c>"newContractDeprecation": {}</c>) liga a regra;
+    /// omitir desliga. O record não tem campos porque não há nada a configurar — só presença.
+    /// </summary>
+    public record NewContractDeprecationPolicyModel()
+    {
+        public IDocumentPolicy ToPolicy() => new NewContractDeprecationPolicy();
     }
 }

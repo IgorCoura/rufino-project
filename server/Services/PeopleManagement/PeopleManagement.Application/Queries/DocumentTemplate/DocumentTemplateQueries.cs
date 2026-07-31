@@ -28,6 +28,7 @@ namespace PeopleManagement.Application.Queries.DocumentTemplate
             var workload = template.GetPolicy<IWorkloadPolicy>();
             var period = template.GetPolicy<IPeriodPolicy>();
             var signature = template.GetPolicy<ISignaturePolicy>();
+            var newContractDeprecation = template.GetPolicy<INewContractDeprecationPolicy>();
 
             return new PoliciesDto
             {
@@ -45,6 +46,8 @@ namespace PeopleManagement.Application.Queries.DocumentTemplate
                 {
                     PlaceSignatures = signature.PlaceSignatures.Select(ToPlaceSignatureDto).ToArray(),
                 },
+                // Regra sem parâmetro: o bloco vazio é o retorno inteiro — presença = ativa.
+                NewContractDeprecation = newContractDeprecation is null ? null : new NewContractDeprecationPolicyDto(),
             };
         }
 

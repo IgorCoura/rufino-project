@@ -114,7 +114,7 @@ namespace PeopleManagement.API.Controllers
         [ProtectedResource("document-template", "view")]
         public ActionResult<IEnumerable<EnumerationDto>> GetAllPolicyTypes([FromRoute] Guid company)
         {
-            var supported = new[] { PolicyType.Expiration, PolicyType.Workload, PolicyType.Period };
+            var supported = new[] { PolicyType.Expiration, PolicyType.Workload, PolicyType.Period, PolicyType.NewContractDeprecation };
             var dtos = supported.Select(x => new EnumerationDto { Id = x.Id, Name = x.Name });
             return OkResponse(dtos);
         }

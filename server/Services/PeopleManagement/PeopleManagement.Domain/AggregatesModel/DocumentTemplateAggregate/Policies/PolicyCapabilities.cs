@@ -37,4 +37,10 @@ namespace PeopleManagement.Domain.AggregatesModel.DocumentTemplateAggregate.Poli
     {
         IReadOnlyList<PlaceSignature> PlaceSignatures { get; }
     }
+
+    // Depreciação em novo contrato: quando um novo contrato de trabalho começa, os documentos entregues
+    // (unidades OK) do contrato anterior deixam de valer. Regra sem parâmetro — só presença/ausência.
+    public interface INewContractDeprecationPolicy : IDocumentPolicy
+    {
+    }
 }

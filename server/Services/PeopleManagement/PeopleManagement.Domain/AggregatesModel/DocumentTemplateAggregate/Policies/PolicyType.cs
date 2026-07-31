@@ -17,6 +17,7 @@ namespace PeopleManagement.Domain.AggregatesModel.DocumentTemplateAggregate.Poli
         // livre, e os demais não podem ser renumerados por já estarem persistidos.
         public static readonly PolicyType Workload = new(4, nameof(Workload));
         public static readonly PolicyType Signature = new(5, nameof(Signature));
+        public static readonly PolicyType NewContractDeprecation = new(6, nameof(NewContractDeprecation));
 
         private PolicyType(int id, string name) : base(id, name)
         {

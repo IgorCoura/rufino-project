@@ -119,6 +119,9 @@ class DocumentTemplateApiModel {
     final expiration = json['expiration'] as Map<String, dynamic>?;
     final workload = json['workload'] as Map<String, dynamic>?;
     final period = json['period'] as Map<String, dynamic>?;
+    // Bloco sem campos: só a presença importa, então não há nada a ler dentro dele.
+    final newContractDeprecation =
+        json['newContractDeprecation'] as Map<String, dynamic>?;
 
     return TemplatePolicies(
       expiration: expiration == null
@@ -131,6 +134,9 @@ class DocumentTemplateApiModel {
           ? null
           : WorkloadRule(hours: (workload['hours'] as num?)?.toInt() ?? 0),
       period: _parsePeriod(period),
+      newContractDeprecation: newContractDeprecation == null
+          ? null
+          : const NewContractDeprecationRule(),
     );
   }
 
@@ -221,6 +227,9 @@ class DocumentTemplateApiModel {
               'periodTypeId': rules.period!.granularity.id,
               'usePreviousPeriod': rules.period!.usePreviousPeriod,
             },
+      // Bloco vazio = regra ligada; null = desligada. Não há campo para mandar.
+      'newContractDeprecation':
+          rules.newContractDeprecation == null ? null : <String, dynamic>{},
     };
   }
 

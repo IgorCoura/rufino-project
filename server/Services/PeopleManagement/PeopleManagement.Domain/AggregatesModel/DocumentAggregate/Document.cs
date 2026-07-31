@@ -245,6 +245,37 @@ namespace PeopleManagement.Domain.AggregatesModel.DocumentAggregate
             RefreshDocumentStatus();
         }
 
+        /// <summary>
+        /// Deprecia as unidades já entregues do documento e devolve quantas foram. Usado quando um novo contrato
+        /// de trabalho começa e o template manda depreciar o que veio do contrato anterior.
+        ///
+        /// Entregue = <see cref="DocumentUnitStatus.OK"/> ou <see cref="DocumentUnitStatus.Warning"/>. Warning
+        /// entra porque é uma unidade OK que está vencendo (MarkAsWarning só dispara a partir de OK): deixá-la
+        /// viva atravessaria um documento do contrato anterior para o novo, e ao vencer ela seria renovada já
+        /// sob o vínculo errado.
+        ///
+        /// O que está em curso fica: pendente / aguardando assinatura / requer validação não são entrega de
+        /// contrato nenhum. Depreciado / inválido / não aplicável já saíram de cena. Diferente de
+        /// <see cref="MakeAsDeprecated"/>, que invalida tudo indiscriminadamente.
+        ///
+        /// Exige a coleção de unidades carregada por inteiro: o RefreshDocumentStatus varre DocumentsUnits para
+        /// recalcular o status do documento, e com uma coleção parcial ele mentiria.
+        /// </summary>
+        public int DeprecateDeliveredUnits()
+        {
+            var deliveredUnits = DocumentsUnits
+                .Where(x => x.Status == DocumentUnitStatus.OK || x.Status == DocumentUnitStatus.Warning)
+                .ToList();
+
+            if (deliveredUnits.Count == 0)
+                return 0;
+
+            deliveredUnits.ForEach(x => x.MarkAsDeprecatedOrInvalid());
+            RefreshDocumentStatus();
+
+            return deliveredUnits.Count;
+        }
+
         private void DeprecateDocumentsUnit(Guid? exceptionDocumentId = null)
         {
             if (DocumentsUnits.Any(x => x.Period != null))

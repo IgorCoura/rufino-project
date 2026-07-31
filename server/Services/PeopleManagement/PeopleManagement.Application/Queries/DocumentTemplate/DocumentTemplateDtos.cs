@@ -39,7 +39,16 @@ namespace PeopleManagement.Application.Queries.DocumentTemplate
             public WorkloadPolicyDto? Workload { get; init; }
             public PeriodPolicyDto? Period { get; init; }
             public SignaturePolicyDto? Signature { get; init; }
+            public NewContractDeprecationPolicyDto? NewContractDeprecation { get; init; }
             public static PoliciesDto Empty => new();
+        }
+
+        /// <summary>
+        /// Depreciação em novo contrato como regra: presença do bloco = ativa. Sem campos — não há nada a
+        /// configurar, e o bloco vazio é o que comunica a presença, igual ao contrato de escrita.
+        /// </summary>
+        public record NewContractDeprecationPolicyDto
+        {
         }
 
         /// <summary>
