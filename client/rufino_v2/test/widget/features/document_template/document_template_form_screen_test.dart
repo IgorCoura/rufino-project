@@ -188,7 +188,7 @@ void main() {
       await tester.pumpWidget(buildSubject());
       await tester.pumpAndSettle();
 
-      final switchKey = const ValueKey('rule-switch-newContractDeprecation');
+      const switchKey = ValueKey('rule-switch-newContractDeprecation');
       await tester.ensureVisible(find.byKey(switchKey));
       await tester.tap(find.byKey(switchKey));
       await tester.pumpAndSettle();

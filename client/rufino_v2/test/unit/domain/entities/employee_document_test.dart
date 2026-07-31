@@ -293,4 +293,114 @@ void main() {
       );
     });
   });
+
+  group('DocumentUnit scheduled signature send', () {
+    DocumentUnit unitScheduledOn(String sendOn) => DocumentUnit(
+          id: '1',
+          statusId: '1',
+          statusName: '',
+          date: '',
+          validity: '',
+          createdAt: '',
+          hasFile: false,
+          name: '',
+          scheduledSignatureSendOn: sendOn,
+        );
+
+    test('isSignatureScheduled reflects whether a send date is set', () {
+      expect(unitScheduledOn('15/03/2026').isSignatureScheduled, isTrue);
+      expect(unitScheduledOn('').isSignatureScheduled, isFalse);
+    });
+
+    test('a scheduled unit is still pending, since the schedule is an intent',
+        () {
+      expect(unitScheduledOn('15/03/2026').isPending, isTrue);
+    });
+  });
+
+  group('DocumentUnit.validateScheduleSendDate', () {
+    String todayPlus(int days) {
+      final target = DateTime.now().add(Duration(days: days));
+      final d = target.day.toString().padLeft(2, '0');
+      final m = target.month.toString().padLeft(2, '0');
+      return '$d/$m/${target.year}';
+    }
+
+    test('returns error when empty', () {
+      expect(DocumentUnit.validateScheduleSendDate(''), isNotNull);
+    });
+
+    test('returns error for an incomplete date', () {
+      expect(DocumentUnit.validateScheduleSendDate('15/03'), isNotNull);
+    });
+
+    test('returns error for a date in the past, which the API rejects', () {
+      expect(DocumentUnit.validateScheduleSendDate(todayPlus(-1)), isNotNull);
+    });
+
+    test('accepts today, since the send goes out on the same day', () {
+      expect(DocumentUnit.validateScheduleSendDate(todayPlus(0)), isNull);
+    });
+
+    test('accepts a future date', () {
+      expect(DocumentUnit.validateScheduleSendDate(todayPlus(30)), isNull);
+    });
+  });
+
+  group('DocumentUnit.validateSignDeadline', () {
+    test('returns error when empty', () {
+      expect(DocumentUnit.validateSignDeadline('', '15/03/2026'), isNotNull);
+    });
+
+    test('returns error when it is the same day as the send', () {
+      expect(
+        DocumentUnit.validateSignDeadline('15/03/2026', '15/03/2026'),
+        isNotNull,
+      );
+    });
+
+    test('returns error when it is before the send', () {
+      expect(
+        DocumentUnit.validateSignDeadline('14/03/2026', '15/03/2026'),
+        isNotNull,
+      );
+    });
+
+    test('accepts a deadline after the send', () {
+      expect(
+        DocumentUnit.validateSignDeadline('20/03/2026', '15/03/2026'),
+        isNull,
+      );
+    });
+
+    // O campo da data do envio é quem reporta o próprio erro — repetir aqui
+    // marcaria os dois campos em vermelho pelo mesmo problema.
+    test('only checks the format when the send date is unusable', () {
+      expect(DocumentUnit.validateSignDeadline('20/03/2026', ''), isNull);
+    });
+  });
+
+  group('EmployeeDocument suggested schedule date', () {
+    EmployeeDocument documentSuggesting(String date) => EmployeeDocument(
+          id: '1',
+          name: 'Holerite',
+          description: '',
+          statusId: '1',
+          statusName: '',
+          isSignable: true,
+          canGenerateDocument: true,
+          usePreviousPeriod: false,
+          totalUnitsCount: 0,
+          units: const [],
+          suggestedSignatureScheduleDate: date,
+        );
+
+    test('hasSuggestedSignatureScheduleDate reflects whether there is one', () {
+      expect(
+        documentSuggesting('15/03/2026').hasSuggestedSignatureScheduleDate,
+        isTrue,
+      );
+      expect(documentSuggesting('').hasSuggestedSignatureScheduleDate, isFalse);
+    });
+  });
 }

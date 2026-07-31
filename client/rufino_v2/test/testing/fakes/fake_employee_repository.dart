@@ -865,6 +865,44 @@ class FakeEmployeeRepository implements EmployeeRepository {
     return const Result<void>.success(null);
   }
 
+  /// The arguments of the last [scheduleSendToSign] call, or null when it was
+  /// never called.
+  ({String sendOn, String dateLimitToSign})? lastScheduledSend;
+
+  /// Whether [cancelScheduledSendToSign] was called.
+  bool cancelScheduledSendCalled = false;
+
+  @override
+  Future<Result<void>> scheduleSendToSign(
+    String companyId,
+    String employeeId,
+    String documentId,
+    String documentUnitId,
+    String sendOn,
+    String dateLimitToSign,
+    int reminderEveryNDays,
+  ) async {
+    if (_shouldFail) {
+      return Result.error(Exception('scheduleSendToSign failed'));
+    }
+    lastScheduledSend = (sendOn: sendOn, dateLimitToSign: dateLimitToSign);
+    return const Result<void>.success(null);
+  }
+
+  @override
+  Future<Result<void>> cancelScheduledSendToSign(
+    String companyId,
+    String employeeId,
+    String documentId,
+    String documentUnitId,
+  ) async {
+    if (_shouldFail) {
+      return Result.error(Exception('cancelScheduledSendToSign failed'));
+    }
+    cancelScheduledSendCalled = true;
+    return const Result<void>.success(null);
+  }
+
   @override
   Future<Result<Uint8List>> downloadDocumentUnit(
     String companyId,
