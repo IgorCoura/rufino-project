@@ -446,6 +446,91 @@ void main() {
     });
   });
 
+  group('DocumentTemplateApiModel new-contract deprecation policy', () {
+    test('fromJson reads an empty block as the rule being active', () {
+      final json = {
+        'id': 'tpl-1',
+        'name': 'NR01',
+        'description': 'Descrição',
+        'policies': {
+          'newContractDeprecation': <String, dynamic>{},
+        },
+      };
+
+      final model = DocumentTemplateApiModel.fromJson(json);
+
+      expect(model.policies!.newContractDeprecation, isNotNull);
+    });
+
+    test('fromJson reads an absent block as the rule being inactive', () {
+      final json = {
+        'id': 'tpl-1',
+        'name': 'NR01',
+        'description': 'Descrição',
+        'policies': <String, dynamic>{},
+      };
+
+      final model = DocumentTemplateApiModel.fromJson(json);
+
+      expect(model.policies!.newContractDeprecation, isNull);
+    });
+
+    test('toJson sends an empty block when the rule is active', () {
+      const model = DocumentTemplateApiModel(
+        id: 'tpl-1',
+        name: 'NR01',
+        description: 'Descrição',
+        validityDurationInDays: null,
+        workloadInHours: null,
+        usePreviousPeriod: false,
+        acceptsSignature: false,
+        policies: TemplatePolicies(
+          newContractDeprecation: NewContractDeprecationRule(),
+        ),
+      );
+
+      final json = model.toJson();
+      final policies = json['policies'] as Map<String, dynamic>;
+
+      expect(policies['newContractDeprecation'], isA<Map<String, dynamic>>());
+    });
+
+    test('toJson sends null for the block when the rule is inactive', () {
+      const model = DocumentTemplateApiModel(
+        id: 'tpl-1',
+        name: 'NR01',
+        description: 'Descrição',
+        validityDurationInDays: null,
+        workloadInHours: null,
+        usePreviousPeriod: false,
+        acceptsSignature: false,
+        policies: TemplatePolicies(workload: WorkloadRule(hours: 8)),
+      );
+
+      final json = model.toJson();
+      final policies = json['policies'] as Map<String, dynamic>;
+
+      expect(policies['newContractDeprecation'], isNull);
+    });
+
+    test('toEntity carries the rule through to the entity', () {
+      const model = DocumentTemplateApiModel(
+        id: 'tpl-1',
+        name: 'NR01',
+        description: 'Descrição',
+        validityDurationInDays: null,
+        workloadInHours: null,
+        usePreviousPeriod: false,
+        acceptsSignature: false,
+        policies: TemplatePolicies(
+          newContractDeprecation: NewContractDeprecationRule(),
+        ),
+      );
+
+      expect(model.toEntity().hasNewContractDeprecation, isTrue);
+    });
+  });
+
   group('DocumentTemplateApiModel signature policy', () {
     test('fromJson reads acceptance and placements from policies.signature', () {
       final json = {

@@ -174,6 +174,30 @@ void main() {
       expect(find.byKey(const ValueKey('rule-field-period')), findsOneWidget);
     });
 
+    testWidgets('shows the new-contract deprecation switch', (tester) async {
+      await tester.pumpWidget(buildSubject());
+      await tester.pumpAndSettle();
+
+      expect(find.text('Depreciar em novo contrato'), findsOneWidget);
+    });
+
+    // A regra é presença pura: o switch não revela campo nenhum, ao contrário
+    // das outras. Se um campo aparecer aqui, o tile errado foi usado.
+    testWidgets('reveals no field when the new-contract deprecation rule is on',
+        (tester) async {
+      await tester.pumpWidget(buildSubject());
+      await tester.pumpAndSettle();
+
+      final switchKey = const ValueKey('rule-switch-newContractDeprecation');
+      await tester.ensureVisible(find.byKey(switchKey));
+      await tester.tap(find.byKey(switchKey));
+      await tester.pumpAndSettle();
+
+      expect(tester.widget<SwitchListTile>(find.byKey(switchKey)).value, isTrue);
+      expect(find.byKey(const ValueKey('rule-field-newContractDeprecation')),
+          findsNothing);
+    });
+
     testWidgets('shows the signature switch', (tester) async {
       await tester.pumpWidget(buildSubject());
       await tester.pumpAndSettle();
