@@ -17,6 +17,7 @@ import '../../../../../core/utils/image_to_pdf_converter.dart';
 import '../../../../../core/utils/pdf_merger.dart';
 import '../../../../../domain/entities/document_group_with_documents.dart';
 import '../../../../../domain/entities/employee_document.dart';
+import '../../../../core/widgets/outdated_content_dialog.dart';
 import '../../../../core/widgets/permission_guard.dart';
 import '../../../../core/widgets/scanner_error_handler.dart';
 import '../../viewmodel/employee_profile_viewmodel.dart';
@@ -280,6 +281,20 @@ class _DocumentsSectionState extends State<DocumentsSection> {
 
     if (!mounted || action == null) return;
 
+    // O PDF é montado a partir do snapshot gravado na unidade, então os dois
+    // caminhos (gerar e gerar+assinar) passam pelo mesmo aviso.
+    final proceed = await _confirmSnapshotFreshness([
+      SelectedDocumentUnit(
+        documentId: doc.id,
+        documentUnitId: unit.id,
+        documentName: doc.name,
+        documentUnitDate: unit.date,
+        canGenerate: true,
+        hasFile: unit.hasFile,
+      ),
+    ]);
+    if (!proceed || !mounted) return;
+
     if (action == 'generate') {
       setState(() => _isBusy = true);
       final bytes = await widget.viewModel.generateDocument(doc.id, unit.id);
@@ -304,6 +319,44 @@ class _DocumentsSectionState extends State<DocumentsSection> {
       setState(() => _isBusy = false);
     } else if (action == 'generate_sign') {
       await _showSignDateDialog(doc, unit, isUpload: false);
+    }
+  }
+
+  /// Checks whether the snapshot of [units] is still current and, when it is
+  /// not, asks the user how to proceed.
+  ///
+  /// Returns whether the caller should carry on with the generation. Every
+  /// unit is listed so the user can see which ones are affected; only the
+  /// outdated ones are refreshed when the user asks for it.
+  Future<bool> _confirmSnapshotFreshness(
+    List<SelectedDocumentUnit> units,
+  ) async {
+    final outdated =
+        await widget.viewModel.checkOutdatedDocumentContent(units);
+    if (outdated.isEmpty) return true;
+    if (!mounted) return false;
+
+    final action = await showOutdatedContentDialog(
+      context,
+      rows: units
+          .map((u) => OutdatedDocumentRow(
+                title: u.documentName,
+                subtitle: u.documentUnitDate,
+                isOutdated: outdated.contains(u.documentUnitId),
+              ))
+          .toList(),
+    );
+    if (!mounted) return false;
+
+    switch (action) {
+      case OutdatedContentAction.cancel:
+        return false;
+      case OutdatedContentAction.continueAnyway:
+        return true;
+      case OutdatedContentAction.refreshAndContinue:
+        return widget.viewModel.refreshDocumentContent(
+          units.where((u) => outdated.contains(u.documentUnitId)).toList(),
+        );
     }
   }
 
@@ -1030,6 +1083,12 @@ class _DocumentsSectionState extends State<DocumentsSection> {
     );
 
     if (confirmed != true || !mounted) return;
+
+    // Só a geração lê o snapshot; o download entrega o arquivo já existente.
+    if (isGenerate) {
+      final proceed = await _confirmSnapshotFreshness(canExecute);
+      if (!proceed || !mounted) return;
+    }
 
     setState(() => _isBusy = true);
     final bytes = isGenerate

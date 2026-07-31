@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 
 import '../../../../core/result.dart';
 import '../../../../core/utils/concurrency.dart';
+import '../../../../data/models/document_content_status_api_model.dart';
 import '../../../../core/utils/error_messages.dart';
 import '../../../../core/utils/fuzzy_name_matcher.dart';
 import '../../../../core/utils/page_rotation_finder.dart';
@@ -13,6 +14,7 @@ import '../../../../domain/entities/batch_document_unit.dart';
 import '../../../../domain/entities/bulk_upload_match.dart';
 import '../../../../domain/entities/document_group_with_templates.dart';
 import '../../../../domain/repositories/batch_document_repository.dart';
+import '../../../../domain/repositories/document_content_repository.dart';
 import '../../../../domain/repositories/document_group_repository.dart';
 import '../../../../domain/repositories/document_scanner_repository.dart';
 
@@ -70,15 +72,18 @@ class BatchDocumentViewModel extends ChangeNotifier {
     PdfTextExtractorFn? textExtractor,
     DocumentScannerRepository? scannerRepository,
     PageRotationFinderFn? pageRotationFinder,
+    DocumentContentRepository? documentContentRepository,
   })  : _batchDocumentRepository = batchDocumentRepository,
         _documentGroupRepository = documentGroupRepository,
         _companyId = companyId,
         _textExtractor = textExtractor ?? _extractTextInIsolate,
         _scannerRepository = scannerRepository,
-        _pageRotationFinder = pageRotationFinder ?? pickBestRotation;
+        _pageRotationFinder = pageRotationFinder ?? pickBestRotation,
+        _documentContentRepository = documentContentRepository;
 
   final BatchDocumentRepository _batchDocumentRepository;
   final DocumentGroupRepository _documentGroupRepository;
+  final DocumentContentRepository? _documentContentRepository;
   final PdfTextExtractorFn _textExtractor;
   final DocumentScannerRepository? _scannerRepository;
   final PageRotationFinderFn _pageRotationFinder;
@@ -711,6 +716,47 @@ class BatchDocumentViewModel extends ChangeNotifier {
       notifyListeners();
     }
     await loadPendingUnits();
+  }
+
+  // ─── Snapshot freshness ──────────────────────────────────
+
+  /// Returns the ids of the currently selected units whose stored snapshot no
+  /// longer matches the employee's current data.
+  ///
+  /// Returns an empty set when the check cannot run (no repository injected)
+  /// or fails — a warning that cannot be trusted must never block generation.
+  /// The batch screen only reports the divergence; refreshing is done by
+  /// editing the document, one by one.
+  Future<Set<String>> checkOutdatedContent() async {
+    final repository = _documentContentRepository;
+    if (repository == null) return const {};
+
+    final items = _pendingUnits
+        .where((u) => _selectedUnitIds.contains(u.documentUnitId))
+        .toList();
+    if (items.isEmpty) return const {};
+
+    final result = await repository.checkOutdated(
+      _companyId,
+      items
+          .map((u) => DocumentUnitRefApiModel(
+                documentUnitId: u.documentUnitId,
+                documentId: u.documentId,
+                employeeId: u.employeeId,
+              ))
+          .toList(),
+    );
+
+    final outdated = <String>{};
+    result.fold(
+      onSuccess: (statuses) {
+        for (final status in statuses) {
+          if (status.needsWarning) outdated.add(status.documentUnitId);
+        }
+      },
+      onError: (_, __) {},
+    );
+    return outdated;
   }
 
   // ─── Selection ───────────────────────────────────────────

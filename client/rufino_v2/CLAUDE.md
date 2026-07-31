@@ -777,6 +777,17 @@ The app distinguishes "session died" (401) from "no permission" (403) end to end
 - **Row navigation** uses `context.push('/employee/:id?tab=documents')`; the `/employee/:id` route maps `?tab=` (`documents` | `contracts`) to `EmployeeProfileScreen.initialTab`, so the profile lands on the Documentos tab and pop returns to the intact dashboard.
 - ViewModel invariant: bucket switch and pagination reload **only the list** (`isLoadingUnits`); filter/horizon changes reload **summary + list together** so the KPI cards never disagree with the rows. Default employee filter is Ativos (status 2).
 
+## Outdated Document Snapshot (aviso ao gerar)
+
+O PDF é montado no backend a partir de um **snapshot** dos dados do funcionário gravado no `Content` da unidade quando a data foi atualizada. O cadastro muda depois, o snapshot não. Antes de gerar, o app pergunta ao backend se ele ainda bate.
+
+- **Um único serviço/repositório para as duas telas** — `data/services/document_content_api_service.dart` + `DocumentContentRepository` (`checkOutdated` / `refresh`). Não duplicar em `employee_api_service` ou `batch_document_api_service`: o endpoint é o mesmo, o consumo é dos dois lados.
+- **`checkFailed` nunca vira aviso.** `DocumentContentStatus.needsWarning` é `isOutdated && !checkFailed` — o servidor marca a verificação como inconclusiva quando um bloco de dado não carregou, e avisar aí levaria o usuário a sobrescrever um snapshot bom. Pela mesma razão, **falha na própria chamada do check não bloqueia a geração**: os ViewModels devolvem conjunto vazio no `onError`.
+- **`showOutdatedContentDialog`** (`ui/core/widgets/outdated_content_dialog.dart`) é compartilhado. Lista **todos** os documentos da operação e marca os desatualizados individualmente (badge "Desatualizado"; ícone `priority_high` no layout compacto) — ver os que estão OK é o que torna os marcados legíveis. Retorna `OutdatedContentAction { cancel, continueAnyway, refreshAndContinue }`.
+- **`allowRefresh` separa as duas telas.** Perfil: `true` → Cancelar / Gerar com os dados atuais / **Atualizar e gerar** (esta dentro de `PermissionGuard('document','edit')`). Lote: `false` → só Cancelar / Gerar assim mesmo; **atualizar no lote é decisão de produto — o usuário edita cada documento individualmente**. Por isso `BatchDocumentViewModel` tem só `checkOutdatedContent()`, sem refresh.
+- **Cobre gerar E gerar+assinar**, nos dois lados: é o mesmo `Content`. **Download não entra** — entrega arquivo já existente, não lê o snapshot. No perfil, o aviso do `generate_sign` aparece **antes** do diálogo de data-limite.
+- **Refresh não move a data.** O backend reusa a data já gravada na unidade; o cliente não reenvia data nenhuma. Só o perfil chama, e só para as unidades efetivamente divergentes.
+
 ## UI Design Guidelines (Material Design 3)
 
 Official references:
@@ -932,6 +943,7 @@ Toda configuração em `core/theme/`: `app_theme.dart` (entry point ThemeData li
 | Generate a request/correlation ID | `data/services/request_id_helper.dart` | UUID v4 for `x-requestid` on mutations. Wraps `uuid`. |
 | Send a multipart upload with progress | `data/services/multipart_upload_helper.dart` | Streams bytes and reports `0.0–1.0` via callback. |
 | Validate an HTTP response & raise typed errors | `data/services/http_status_helper.dart` | Throws `HttpException` on non-2xx, extracts server messages, logs via `DomainErrorLogger`. |
+| Saber se o snapshot de um documento envelheceu / regravá-lo | `data/services/document_content_api_service.dart` | `checkOutdated` + `refresh`. Usado pelo perfil E pelo lote — não replicar em serviço de feature. Ver "Outdated Document Snapshot". |
 | Read a server error message for the UI | `core/utils/error_messages.dart` | Extracts message from `HttpException` or wrappers exposing `cause`. |
 | Log a domain error to disk (debug only) | `core/utils/domain_error_logger.dart` | Conditional dart:io split via `_writer` / `_writer_stub`. |
 | Read/write encrypted secrets (tokens, etc.) | `core/storage/secure_storage.dart` | Wraps `flutter_secure_storage`. |
@@ -947,7 +959,7 @@ Toda configuração em `core/theme/`: `app_theme.dart` (entry point ThemeData li
 
 One sealed family per aggregate. **Add a new variant to the existing family before creating a new exception class.**
 
-`auth_exception.dart` (InvalidCredentials, SessionExpired, NoCredentials, NetworkAuthException) · `department_exception.dart` · `workplace_exception.dart` · `employee_exception.dart` · `document_template_exception.dart` · `document_group_exception.dart` · `require_document_exception.dart` · `permission_exception.dart` · `batch_document_exception.dart` · `batch_download_exception.dart` · `document_dashboard_exception.dart` · `cep_exception.dart`
+`auth_exception.dart` (InvalidCredentials, SessionExpired, NoCredentials, NetworkAuthException) · `department_exception.dart` · `workplace_exception.dart` · `employee_exception.dart` · `document_template_exception.dart` · `document_group_exception.dart` · `require_document_exception.dart` · `permission_exception.dart` · `batch_document_exception.dart` · `batch_download_exception.dart` · `document_dashboard_exception.dart` · `document_content_exception.dart` · `cep_exception.dart`
 
 Plus `data/services/http_exception.dart` — raised by `http_status_helper.dart`, carries `statusCode` + `serverMessages`.
 
@@ -961,7 +973,7 @@ Plus `data/services/http_exception.dart` — raised by `http_status_helper.dart`
 
 One service per backend aggregate. Cross-cutting helpers (`http_exception`, `http_status_helper`, `multipart_upload_helper`, `request_id_helper`, `permission_cache_service`, `file_save_service`, `spreadsheet_service`) MUST be reused — do not inline equivalent logic in feature services.
 
-`auth_api_service` · `permission_api_service` · `permission_cache_service` · `company_api_service` · `department_api_service` (departments + positions + roles + payment-unit/salary-type lookups) · `workplace_api_service` · `employee_api_service` (the largest — covers profile, image, contact, address, personal info, ID card, voter ID, PIS/PASEP, military doc, medical exam, dependents, contracts, documents, signing, document-unit CRUD + range ops) · `document_template_api_service` · `document_group_api_service` · `require_document_api_service` · `batch_document_api_service` · `batch_download_api_service` · `document_dashboard_api_service` · `cep_api_service`.
+`auth_api_service` · `permission_api_service` · `permission_cache_service` · `company_api_service` · `department_api_service` (departments + positions + roles + payment-unit/salary-type lookups) · `workplace_api_service` · `employee_api_service` (the largest — covers profile, image, contact, address, personal info, ID card, voter ID, PIS/PASEP, military doc, medical exam, dependents, contracts, documents, signing, document-unit CRUD + range ops) · `document_template_api_service` · `document_group_api_service` · `require_document_api_service` · `batch_document_api_service` · `batch_download_api_service` · `document_dashboard_api_service` · `document_content_api_service` (snapshot: check + refresh, compartilhado entre perfil e lote) · `cep_api_service`.
 
 ### Repositories
 
@@ -984,7 +996,7 @@ DTOs live in `data/models/<aggregate>_api_model.dart` (+ JSON ser/deser). Domain
   - **Read and write shapes differ.** On **read**, `DocumentTemplateApiModel.fromJson` sources signature from `policies.signature`: block present = accepts, and it carries `placeSignatures` (falls back to the top-level `acceptsSignature` only when the API omits the whole `policies` block). On **write**, `toJson`/`toCreateJson` still send `acceptsSignature` + `placeSignatures` as **top-level** fields (the API's write contract is unchanged) — so signature is **not** a `TemplatePolicies` member on the entity; the model keeps its own `acceptsSignature`/`placeSignatures` fields. Reading placements from the old `templateFileInfo.placeSignatures` location was the bug where signatures created after the policy refactor vanished on GET.
   - **The placement's type is mandatory** (`PlaceSignatureData.validateType`, wired into the type dropdown). A placement without a type is serialized as `type: 0`, which the API rejects hard — `TypeSignature.FromValue(0)` throws and fails the *whole* save (not just that placement). So the dropdown must be validated like the numeric fields; an unvalidated type is how "add the first placement to an empty list" silently failed to save.
 
-**Aggregates currently modeled** (each has DTO + entity unless noted): company / company_detail (entity-only) · workplace · department · position · role · remuneration (entity-only) · employee · employee_profile · employee_personal_info · employee_contact · employee_address (entity = `address`) · employee_id_card · employee_vote_id · employee_military_document · employee_medical_exam · employee_dependent · employee_contract · employee_social_integration_program · employee_document · document_template · document_group · document_group_with_templates · document_group_with_documents · document_range_item (DTO-only) · require_document · batch_document_unit · batch_download · document_dashboard · period · permission · selection_option (entity-only) · personal_info_options (entity-only) · signing_option (entity-only) · scanned_document (entity-only) · bulk_upload_match (entity-only) · cep_lookup (DTO-only).
+**Aggregates currently modeled** (each has DTO + entity unless noted): company / company_detail (entity-only) · workplace · department · position · role · remuneration (entity-only) · employee · employee_profile · employee_personal_info · employee_contact · employee_address (entity = `address`) · employee_id_card · employee_vote_id · employee_military_document · employee_medical_exam · employee_dependent · employee_contract · employee_social_integration_program · employee_document · document_template · document_group · document_group_with_templates · document_group_with_documents · document_range_item (DTO-only) · require_document · batch_document_unit · batch_download · document_dashboard · document_content_status · period · permission · selection_option (entity-only) · personal_info_options (entity-only) · signing_option (entity-only) · scanned_document (entity-only) · bulk_upload_match (entity-only) · cep_lookup (DTO-only).
 
 ---
 

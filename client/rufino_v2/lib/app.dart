@@ -29,6 +29,7 @@ import 'data/repositories/document_template_repository_impl.dart';
 import 'data/repositories/require_document_repository_impl.dart';
 import 'data/repositories/batch_document_repository_impl.dart';
 import 'data/repositories/batch_download_repository_impl.dart';
+import 'data/repositories/document_content_repository_impl.dart';
 import 'data/repositories/document_dashboard_repository_impl.dart';
 import 'data/repositories/cep_repository_impl.dart';
 import 'data/repositories/document_scanner_repository_impl.dart';
@@ -44,6 +45,7 @@ import 'data/services/document_template_api_service.dart';
 import 'data/services/require_document_api_service.dart';
 import 'data/services/batch_document_api_service.dart';
 import 'data/services/batch_download_api_service.dart';
+import 'data/services/document_content_api_service.dart';
 import 'data/services/document_dashboard_api_service.dart';
 import 'data/services/cep_api_service.dart';
 import 'data/services/file_save_service.dart';
@@ -59,6 +61,7 @@ import 'domain/repositories/document_template_repository.dart';
 import 'domain/repositories/require_document_repository.dart';
 import 'domain/repositories/batch_document_repository.dart';
 import 'domain/repositories/batch_download_repository.dart';
+import 'domain/repositories/document_content_repository.dart';
 import 'domain/repositories/document_dashboard_repository.dart';
 import 'domain/repositories/cep_repository.dart';
 import 'domain/repositories/workplace_repository.dart';
@@ -369,6 +372,19 @@ class App extends StatelessWidget {
       reporter: errorReporter,
     );
 
+    // Snapshot freshness — shared by the profile and the batch screen, so the
+    // check lives in one place instead of one copy per feature service.
+    final documentContentApiService = DocumentContentApiService(
+      client: httpClient,
+      baseUrl: AppConfig.peopleManagementUrl,
+      getAuthHeader: getAuthHeader,
+    );
+    final DocumentContentRepository documentContentRepository =
+        DocumentContentRepositoryImpl(
+      apiService: documentContentApiService,
+      reporter: errorReporter,
+    );
+
     // Spreadsheet export — stateless, safe to share across the app.
     final spreadsheetService = SpreadsheetService();
     final fileSaveService = FileSaveService();
@@ -396,6 +412,8 @@ class App extends StatelessWidget {
           value: batchDownloadRepository),
       Provider<DocumentDashboardRepository>.value(
           value: documentDashboardRepository),
+      Provider<DocumentContentRepository>.value(
+          value: documentContentRepository),
       Provider<CepRepository>.value(value: cepRepository),
       Provider<SpreadsheetService>.value(value: spreadsheetService),
       Provider<FileSaveService>.value(value: fileSaveService),
@@ -692,6 +710,8 @@ class _AppRouterState extends State<_AppRouter> {
                 scannerService: DocumentScannerService(),
                 reporter: context.read<ErrorReporter>(),
               ),
+              documentContentRepository:
+                  context.read<DocumentContentRepository>(),
             ),
           ),
         ),
@@ -752,6 +772,8 @@ class _AppRouterState extends State<_AppRouter> {
                       scannerService: DocumentScannerService(),
                       reporter: context.read<ErrorReporter>(),
                     ),
+                    documentContentRepository:
+                        context.read<DocumentContentRepository>(),
                   ),
                 );
               },

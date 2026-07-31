@@ -3,6 +3,7 @@ import 'dart:collection';
 import 'package:flutter/foundation.dart';
 
 import '../../../../core/result.dart';
+import '../../../../data/models/document_content_status_api_model.dart';
 import '../../../../data/models/document_range_item.dart';
 import '../../../../domain/entities/address.dart';
 import '../../../../domain/entities/employee.dart';
@@ -29,6 +30,7 @@ import '../../../../core/utils/error_messages.dart';
 import '../../../../domain/repositories/cep_repository.dart';
 import '../../../../domain/repositories/company_repository.dart';
 import '../../../../domain/repositories/department_repository.dart';
+import '../../../../domain/repositories/document_content_repository.dart';
 import '../../../../domain/repositories/document_group_repository.dart';
 import '../../../../domain/repositories/document_scanner_repository.dart';
 import '../../../../domain/repositories/employee_repository.dart';
@@ -91,13 +93,15 @@ class EmployeeProfileViewModel extends ChangeNotifier {
     required DocumentGroupRepository documentGroupRepository,
     required CepRepository cepRepository,
     DocumentScannerRepository? scannerRepository,
+    DocumentContentRepository? documentContentRepository,
   })  : _companyRepository = companyRepository,
         _employeeRepository = employeeRepository,
         _departmentRepository = departmentRepository,
         _workplaceRepository = workplaceRepository,
         _documentGroupRepository = documentGroupRepository,
         _cepRepository = cepRepository,
-        _scannerRepository = scannerRepository;
+        _scannerRepository = scannerRepository,
+        _documentContentRepository = documentContentRepository;
 
   final CompanyRepository _companyRepository;
   final EmployeeRepository _employeeRepository;
@@ -106,6 +110,7 @@ class EmployeeProfileViewModel extends ChangeNotifier {
   final DocumentGroupRepository _documentGroupRepository;
   final CepRepository _cepRepository;
   final DocumentScannerRepository? _scannerRepository;
+  final DocumentContentRepository? _documentContentRepository;
 
   EmployeeProfileStatus _status = EmployeeProfileStatus.idle;
 
@@ -1893,6 +1898,82 @@ class EmployeeProfileViewModel extends ChangeNotifier {
 
     notifyListeners();
     await loadDocumentUnits(documentId);
+  }
+
+  /// Returns the ids of the units in [units] whose stored snapshot no longer
+  /// matches the employee's current data.
+  ///
+  /// Returns an empty set when the check cannot run (no repository injected)
+  /// or fails — a warning that cannot be trusted must never block generation.
+  Future<Set<String>> checkOutdatedDocumentContent(
+    List<SelectedDocumentUnit> units,
+  ) async {
+    final companyId = _companyId;
+    final currentProfile = _profile;
+    final repository = _documentContentRepository;
+    if (companyId == null || currentProfile == null || repository == null) {
+      return const {};
+    }
+    if (units.isEmpty) return const {};
+
+    final result = await repository.checkOutdated(
+      companyId,
+      units
+          .map((u) => DocumentUnitRefApiModel(
+                documentUnitId: u.documentUnitId,
+                documentId: u.documentId,
+                employeeId: currentProfile.id,
+              ))
+          .toList(),
+    );
+
+    final outdated = <String>{};
+    result.fold(
+      onSuccess: (statuses) {
+        for (final status in statuses) {
+          if (status.needsWarning) outdated.add(status.documentUnitId);
+        }
+      },
+      onError: (_, __) {},
+    );
+    return outdated;
+  }
+
+  /// Rewrites the snapshot of [units] with the employee's current data.
+  ///
+  /// Returns whether the refresh succeeded. The document dates are untouched.
+  Future<bool> refreshDocumentContent(List<SelectedDocumentUnit> units) async {
+    final companyId = _companyId;
+    final currentProfile = _profile;
+    final repository = _documentContentRepository;
+    if (companyId == null || currentProfile == null || repository == null) {
+      return false;
+    }
+    if (units.isEmpty) return false;
+
+    final result = await repository.refresh(
+      companyId,
+      units
+          .map((u) => DocumentUnitRefApiModel(
+                documentUnitId: u.documentUnitId,
+                documentId: u.documentId,
+                employeeId: currentProfile.id,
+              ))
+          .toList(),
+    );
+
+    var refreshed = false;
+    result.fold(
+      onSuccess: (_) {
+        refreshed = true;
+        _snackMessage = 'Informações do documento atualizadas.';
+      },
+      onError: (e, __) => _snackMessage = extractServerMessages(e).firstOrNull
+          ?? 'Erro ao atualizar as informações do documento.',
+    );
+
+    notifyListeners();
+    return refreshed;
   }
 
   /// Generates a PDF for a document unit and returns the raw bytes.
