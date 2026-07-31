@@ -137,18 +137,18 @@ namespace PeopleManagement.UnitTests.Aggregates.DocumentTests
             Assert.Equal(DocumentStatus.Deprecated, doc.Status);
         }
 
-        // Com uma pendente ao lado da depreciada o documento continua Deprecated, não volta a RequiresDocument:
-        // GetStatusFromGroup ranqueia Deprecated acima do fallback. É a mesma leitura do fluxo de vencimento
-        // (unidade vencida + renovada pendente), e é o que o dashboard já classifica como "Vencidos".
+        // Com uma pendente ao lado da depreciada o documento fica RequiresDocument: depreciada é histórico com
+        // substituto, e o substituto aqui é justamente a pendente do novo contrato — o que falta é entregá-la.
+        // Diferente de uma unidade VENCIDA sem substituto, que deixa o documento Expired.
         [Fact]
-        public void DeprecateDeliveredUnits_WithPendingLeftBehind_ShouldKeepDocumentDeprecated()
+        public void DeprecateDeliveredUnits_WithPendingLeftBehind_ShouldLeaveDocumentRequiringTheNewOne()
         {
             var (doc, _) = DocumentWithOkUnit();
             var pendingUnitId = AddDatedUnit(doc);
 
             doc.DeprecateDeliveredUnits();
 
-            Assert.Equal(DocumentStatus.Deprecated, doc.Status);
+            Assert.Equal(DocumentStatus.RequiresDocument, doc.Status);
             Assert.Equal(DocumentUnitStatus.Pending, doc.GetDocumentUnit(pendingUnitId).Status);
         }
     }

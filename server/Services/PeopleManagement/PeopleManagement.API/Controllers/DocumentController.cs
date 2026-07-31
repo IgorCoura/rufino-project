@@ -16,6 +16,7 @@ using PeopleManagement.Application.Queries.DocumentTemplate;
 using static Microsoft.EntityFrameworkCore.DbLoggerCategory.Database;
 using PeopleManagement.Application.Commands.DocumentCommands.MarkAsInvalidDocumentUnit;
 using PeopleManagement.Application.Commands.DocumentCommands.MarkAsValidDocumentUnit;
+using PeopleManagement.Application.Commands.DocumentCommands.DeprecateDocumentUnit;
 using PeopleManagement.Application.Commands.DocumentCommands.MarkAsNotApplicableDocumentUnit;
 using PeopleManagement.Application.Commands.DocumentCommands.CheckOutdatedDocumentContent;
 using PeopleManagement.Application.Commands.DocumentCommands.RefreshDocumentContent;
@@ -285,6 +286,21 @@ namespace PeopleManagement.API.Controllers
         public async Task<ActionResult<MarkAsInvalidDocumentUnitResponse>> MarkAsInvalid([FromRoute] Guid company, [FromBody] MarkAsInvalidDocumentUnitModel request, [FromHeader(Name = "x-requestid")] Guid requestId)
         {
             var command = new IdentifiedCommand<MarkAsInvalidDocumentUnitCommand, MarkAsInvalidDocumentUnitResponse>(request.ToCommand(company), requestId);
+
+            SendingCommandLog(request.DocumentUnitId, request, requestId);
+
+            var result = await _mediator.Send(command);
+
+            CommandResultLog(result, request.DocumentUnitId, request, requestId);
+
+            return OkResponse(result);
+        }
+
+        [HttpPut("DocumentUnit/deprecate")]
+        [ProtectedResource("document", "deprecate")]
+        public async Task<ActionResult<DeprecateDocumentUnitResponse>> Deprecate([FromRoute] Guid company, [FromBody] DeprecateDocumentUnitModel request, [FromHeader(Name = "x-requestid")] Guid requestId)
+        {
+            var command = new IdentifiedCommand<DeprecateDocumentUnitCommand, DeprecateDocumentUnitResponse>(request.ToCommand(company), requestId);
 
             SendingCommandLog(request.DocumentUnitId, request, requestId);
 

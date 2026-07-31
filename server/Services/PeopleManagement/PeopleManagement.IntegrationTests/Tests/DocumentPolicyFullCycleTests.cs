@@ -54,27 +54,38 @@ namespace PeopleManagement.IntegrationTests.Tests
             // 3) Documento entregue e OK.
             await MakeUnitOkAsync(seed.DocumentId, bornUnit.Id, ct);
 
-            // 4) Primeiro vencimento: ainda dentro do teto (0 renovações consumidas < 1) — deprecia a vencida e
-            //    RENOVA. A unidade renovada nasce SEM data de referência, na competência mínima, esperando a real.
+            // 4) Primeiro vencimento: ainda dentro do teto (0 renovações consumidas < 1) — a vencida fica
+            //    VENCIDA (ainda não há substituto entregue) e RENOVA. A unidade renovada nasce SEM data de
+            //    referência, na competência mínima, esperando a real.
             await DepreciateAsync(seed.DocumentId, bornUnit.Id, seed.CompanyId, ct);
 
             var afterFirst = await GetDocumentAsync(seed.DocumentId, ct);
             Assert.Equal(2, afterFirst.DocumentsUnits.Count);
-            Assert.Equal(DocumentUnitStatus.Deprecated, afterFirst.DocumentsUnits.First(u => u.Id == bornUnit.Id).Status);
+            Assert.Equal(DocumentUnitStatus.Expired, afterFirst.DocumentsUnits.First(u => u.Id == bornUnit.Id).Status);
+            Assert.Equal(1, afterFirst.ExpirationCount);
             var renewedUnit = Assert.Single(afterFirst.DocumentsUnits, u => u.Status == DocumentUnitStatus.Pending);
             Assert.NotNull(renewedUnit.Period);
             Assert.Equal(Period.MIN_YEAR, renewedUnit.Period!.Year);
 
-            // 5) A renovada recebe a data real (sai da competência mínima), é entregue e vence: o teto
-            //    (1 renovação) foi atingido — deprecia e NÃO cria outra.
+            // 5) A renovada recebe a data real (sai da competência mínima) e é entregue: a entrega é o
+            //    substituto que a vencida esperava, então a primeira vira histórico (Deprecated).
             await SetUnitDateAsync(seed.DocumentId, renewedUnit.Id, date, ct);
             await MakeUnitOkAsync(seed.DocumentId, renewedUnit.Id, ct);
+
+            var afterReplacement = await GetDocumentAsync(seed.DocumentId, ct);
+            Assert.Equal(DocumentUnitStatus.Deprecated, afterReplacement.DocumentsUnits.First(u => u.Id == bornUnit.Id).Status);
+
+            // 6) A renovada vence: o teto (1 renovação) foi atingido — vence e NÃO cria outra. O documento fica
+            //    descoberto, que é exatamente o que o status Vencido comunica.
             await DepreciateAsync(seed.DocumentId, renewedUnit.Id, seed.CompanyId, ct);
 
             var final = await GetDocumentAsync(seed.DocumentId, ct);
             Assert.Equal(2, final.DocumentsUnits.Count);
-            Assert.Equal(2, final.DocumentsUnits.Count(u => u.Status == DocumentUnitStatus.Deprecated));
+            Assert.Equal(DocumentUnitStatus.Deprecated, final.DocumentsUnits.First(u => u.Id == bornUnit.Id).Status);
+            Assert.Equal(DocumentUnitStatus.Expired, final.DocumentsUnits.First(u => u.Id == renewedUnit.Id).Status);
+            Assert.Equal(2, final.ExpirationCount);
             Assert.DoesNotContain(final.DocumentsUnits, u => u.Status == DocumentUnitStatus.Pending);
+            Assert.Equal(DocumentStatus.Expired, final.Status);
         }
 
         private sealed record AllPoliciesSeed(Guid CompanyId, Guid DocumentId, Guid EmployeeId);

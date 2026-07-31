@@ -104,6 +104,14 @@ namespace PeopleManagement.Domain.ErrorTools.ErrorsMessages
                 $"O prazo de assinatura {DateLimitToSign:dd/MM/yyyy} precisa ser posterior à data do envio {SendOn:dd/MM/yyyy}.",
                 new { DateLimitToSign, SendOn });
 
+            public static Error CannotDeprecateDocumentUnit(Guid docUnitId, string currentStatus) => new("PMD.DOC23",
+                $"A unidade de documento {docUnitId} não pode ser depreciada com o status '{currentStatus}'. Só um documento em vigência pode virar histórico.",
+                new { docUnitId, currentStatus });
+
+            public static Error CannotInvalidateDocumentUnit(Guid docUnitId, string currentStatus) => new("PMD.DOC24",
+                $"A unidade de documento {docUnitId} não pode ser invalidada com o status '{currentStatus}'. Documentos já depreciados ou vencidos são a prova de um período e não podem ser apagados.",
+                new { docUnitId, currentStatus });
+
         }
 
         public static class DocumentTemplate

@@ -63,11 +63,18 @@ class EmployeeDocument {
   /// Returns the number of pending units.
   int get pendingUnitsCount => units.where((u) => u.isPending).length;
 
-  /// Display label for the document group status.
-  String get groupStatusLabel => switch (statusId) {
-        '1' => 'OK',
-        '2' => 'Pendente',
-        '3' => 'Inválido',
+  /// Display label for the document status.
+  ///
+  /// These ids are the document-level status (1–7), not the three-valued
+  /// compliance rollup used for groups and employees.
+  String get statusLabel => switch (statusId) {
+        '1' => 'Falta Entregar',
+        '2' => 'Requer Validação',
+        '3' => 'OK',
+        '4' => 'Obsoleto',
+        '5' => 'Aguardando Assinatura',
+        '6' => 'A Vencer',
+        '7' => 'Vencido',
         _ => statusName.isNotEmpty ? statusName : statusId,
       };
 }
@@ -91,7 +98,12 @@ class DocumentUnit {
 
   /// The unit status id (1=Pendente, 2=OK, 3=Obsoleto, 4=Inválido,
   /// 5=Requer Validação, 6=Não Aplicável, 7=Aguardando Assinatura,
-  /// 8=A Vencer).
+  /// 8=A Vencer, 9=Vencido).
+  ///
+  /// "Obsoleto" (3) and "Vencido" (9) are both documents that left validity.
+  /// The difference is whether a replacement already arrived: 3 has one and is
+  /// kept as proof of the period it covered, 9 does not and is a compliance
+  /// gap.
   final String statusId;
 
   /// The unit status display name.
@@ -149,6 +161,23 @@ class DocumentUnit {
   /// Whether this unit is close to its validity date (status id 8).
   bool get isWarning => statusId == '8';
 
+  /// Whether this unit expired and has no replacement yet (status id 9).
+  bool get isExpired => statusId == '9';
+
+  /// Whether this unit can be deprecated — only a document currently in force
+  /// can become history.
+  bool get canBeDeprecated => isOk;
+
+  /// Whether this unit can be invalidated.
+  ///
+  /// Deprecated and expired units are the proof that the employee was covered
+  /// in that period, so they are never invalidated.
+  bool get canBeInvalidated => isPending || isOk;
+
+  /// Whether this unit can be marked as not applicable — only while nothing
+  /// has been delivered for it.
+  bool get canBeMarkedNotApplicable => isPending;
+
   /// Display label for the unit status.
   String get statusLabel => switch (statusId) {
         '1' => 'Pendente',
@@ -159,6 +188,7 @@ class DocumentUnit {
         '6' => 'Não Aplicável',
         '7' => 'Aguardando Assinatura',
         '8' => 'A Vencer',
+        '9' => 'Vencido',
         _ => statusName.isNotEmpty ? statusName : statusId,
       };
 

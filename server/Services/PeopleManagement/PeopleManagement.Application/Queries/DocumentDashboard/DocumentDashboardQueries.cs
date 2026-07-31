@@ -142,29 +142,15 @@ namespace PeopleManagement.Application.Queries.DocumentDashboard
 
             return bucket switch
             {
-                // Deprecated/Invalid também surgem por substituição (reenvio validado deprecia a
-                // unidade antiga) — só é "vencido" a unidade mais recente do seu grupo de competência
-                // que não tenha sido resolvida por outra unidade válida. OK/Warning com validade no
-                // passado cobrem o intervalo entre a data de vencimento e a execução do job.
+                // "Vencido" agora é um status persistido: a unidade que caducou fica Expired e só vira
+                // Deprecated quando um substituto chega. Antes disso este bucket reconstruía a mesma
+                // pergunta em SQL — "Deprecated/Invalid sem substituto resolvido na competência" — e
+                // podia discordar do status do documento e do funcionário.
+                //
+                // A segunda cláusula continua necessária: cobre a janela entre a data de vencimento e a
+                // execução do job de depreciação, quando a unidade ainda está OK/Warning no banco.
                 DashboardBucket.Expired => rows.Where(r =>
-                    ((r.Unit.Status == DocumentUnitStatus.Deprecated || r.Unit.Status == DocumentUnitStatus.Invalid)
-                        && !_context.DocumentsUnits.Any(o => o.DocumentId == r.Unit.DocumentId
-                            && o.Id != r.Unit.Id
-                            && (o.Status == DocumentUnitStatus.OK
-                                || o.Status == DocumentUnitStatus.RequiresValidation
-                                || o.Status == DocumentUnitStatus.AwaitingSignature
-                                || o.Status == DocumentUnitStatus.Warning
-                                || o.Status == DocumentUnitStatus.NotApplicable
-                                || ((o.Status == DocumentUnitStatus.Deprecated || o.Status == DocumentUnitStatus.Invalid)
-                                    && o.Date > r.Unit.Date))
-                            && (r.Unit.Period == null
-                                ? o.Period == null
-                                : o.Period != null
-                                    && o.Period.Type == r.Unit.Period.Type
-                                    && o.Period.Year == r.Unit.Period.Year
-                                    && o.Period.Month == r.Unit.Period.Month
-                                    && o.Period.Day == r.Unit.Period.Day
-                                    && o.Period.Week == r.Unit.Period.Week)))
+                    r.Unit.Status == DocumentUnitStatus.Expired
                     || ((r.Unit.Status == DocumentUnitStatus.OK || r.Unit.Status == DocumentUnitStatus.Warning)
                         && r.Unit.Validity != null && r.Unit.Validity < today)),
 

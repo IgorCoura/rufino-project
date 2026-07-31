@@ -136,7 +136,7 @@ void main() {
     });
   });
 
-  group('EmployeeDocument.groupStatusLabel', () {
+  group('EmployeeDocument.statusLabel', () {
     EmployeeDocument docWithStatus(String id, {String name = ''}) =>
         EmployeeDocument(
           id: '1',
@@ -151,24 +151,25 @@ void main() {
           units: const [],
         );
 
-    test('returns OK for status id 1', () {
-      expect(docWithStatus('1').groupStatusLabel, 'OK');
+    test('reads the document-level scale, not the three-valued rollup', () {
+      expect(docWithStatus('1').statusLabel, 'Falta Entregar');
+      expect(docWithStatus('2').statusLabel, 'Requer Validação');
+      expect(docWithStatus('3').statusLabel, 'OK');
+      expect(docWithStatus('4').statusLabel, 'Obsoleto');
+      expect(docWithStatus('5').statusLabel, 'Aguardando Assinatura');
+      expect(docWithStatus('6').statusLabel, 'A Vencer');
     });
 
-    test('returns Pendente for status id 2', () {
-      expect(docWithStatus('2').groupStatusLabel, 'Pendente');
-    });
-
-    test('returns Inválido for status id 3', () {
-      expect(docWithStatus('3').groupStatusLabel, 'Inválido');
+    test('labels a document with expired coverage as Vencido', () {
+      expect(docWithStatus('7').statusLabel, 'Vencido');
     });
 
     test('returns statusName as fallback for unknown status id', () {
-      expect(docWithStatus('99', name: 'Custom').groupStatusLabel, 'Custom');
+      expect(docWithStatus('99', name: 'Custom').statusLabel, 'Custom');
     });
 
     test('returns raw status id when statusName is also empty', () {
-      expect(docWithStatus('99').groupStatusLabel, '99');
+      expect(docWithStatus('99').statusLabel, '99');
     });
   });
 
@@ -216,8 +217,59 @@ void main() {
       expect(unitWithStatus('8').statusLabel, 'A Vencer');
     });
 
+    test('returns Vencido for status id 9', () {
+      expect(unitWithStatus('9').statusLabel, 'Vencido');
+    });
+
     test('returns statusName as fallback for unknown status id', () {
       expect(unitWithStatus('99', name: 'Custom').statusLabel, 'Custom');
+    });
+  });
+
+  group('DocumentUnit status action rules', () {
+    DocumentUnit unitWithStatus(String id) => DocumentUnit(
+          id: '1',
+          statusId: id,
+          statusName: '',
+          date: '',
+          validity: '',
+          createdAt: '',
+          hasFile: false,
+          name: '',
+        );
+
+    test('only a document in force can be deprecated', () {
+      expect(unitWithStatus('2').canBeDeprecated, isTrue);
+
+      for (final other in ['1', '3', '4', '5', '6', '7', '8', '9']) {
+        expect(unitWithStatus(other).canBeDeprecated, isFalse,
+            reason: 'status $other should not be deprecatable');
+      }
+    });
+
+    test('a pending or delivered document can be invalidated', () {
+      expect(unitWithStatus('1').canBeInvalidated, isTrue);
+      expect(unitWithStatus('2').canBeInvalidated, isTrue);
+    });
+
+    // Depreciada e vencida provam que o funcionário esteve coberto no período.
+    test('deprecated and expired documents can never be invalidated', () {
+      expect(unitWithStatus('3').canBeInvalidated, isFalse);
+      expect(unitWithStatus('9').canBeInvalidated, isFalse);
+    });
+
+    test('only a pending document can be marked not applicable', () {
+      expect(unitWithStatus('1').canBeMarkedNotApplicable, isTrue);
+
+      for (final other in ['2', '3', '4', '5', '6', '7', '8', '9']) {
+        expect(unitWithStatus(other).canBeMarkedNotApplicable, isFalse,
+            reason: 'status $other should not be markable as not applicable');
+      }
+    });
+
+    test('isExpired reads status id 9', () {
+      expect(unitWithStatus('9').isExpired, isTrue);
+      expect(unitWithStatus('3').isExpired, isFalse);
     });
   });
 

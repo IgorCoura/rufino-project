@@ -101,7 +101,7 @@ class DashboardUnitItem {
   /// has no expiration.
   final String validity;
 
-  /// The unit status id (1=Pendente … 8=A Vencer).
+  /// The unit status id (1=Pendente … 8=A Vencer, 9=Vencido).
   final String statusId;
 
   /// The unit status display name.
@@ -126,6 +126,7 @@ class DashboardUnitItem {
         '6' => 'Não Aplicável',
         '7' => 'Aguardando Assinatura',
         '8' => 'A Vencer',
+        '9' => 'Vencido',
         _ => statusName.isNotEmpty ? statusName : statusId,
       };
 

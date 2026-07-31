@@ -65,6 +65,40 @@ namespace PeopleManagement.Services.Services
             return document.NewDocumentUnit(documentUnitId, periodType, usePreviousPeriod);
         }
 
+        public Task<DocumentUnit> DeprecateDocumentUnit(Guid documentUnitId, Guid documentId, Guid employeeId, Guid companyId,
+            CancellationToken cancellationToken = default)
+            => ReplaceDocumentUnit(documentUnitId, documentId, employeeId, companyId,
+                (document, unitId) => document.DeprecateDocumentUnit(unitId), cancellationToken);
+
+        public Task<DocumentUnit> InvalidateDocumentUnit(Guid documentUnitId, Guid documentId, Guid employeeId, Guid companyId,
+            CancellationToken cancellationToken = default)
+            => ReplaceDocumentUnit(documentUnitId, documentId, employeeId, companyId,
+                (document, unitId) => document.MarkAsInvalidDocumentUnit(unitId), cancellationToken);
+
+        // Tira a unidade de cena e devolve a pendente que fica no lugar. A criação da substituta precisa da
+        // configuração de competência do template — regra de outro aggregate — então mora aqui, e para o
+        // documento desce só o valor.
+        //
+        // NewDocumentUnit reaproveita uma pendente equivalente quando já existe, então chamar sempre é seguro:
+        // depreciar duas unidades da mesma competência não gera duas pendências.
+        private async Task<DocumentUnit> ReplaceDocumentUnit(Guid documentUnitId, Guid documentId, Guid employeeId, Guid companyId,
+            Action<Document, Guid> removeFromService, CancellationToken cancellationToken)
+        {
+            var document = await _documentRepository.FirstOrDefaultAsync(x => x.Id == documentId && x.EmployeeId == employeeId
+                && x.CompanyId == companyId, include: i => i.Include(x => x.DocumentsUnits), cancellation: cancellationToken)
+                ?? throw new DomainException(this, DomainErrors.ObjectNotFound(nameof(Document), documentId.ToString()));
+
+            var documentTemplate = await _documentTemplateRepository.FirstOrDefaultAsync(
+                x => x.Id == document.DocumentTemplateId && x.CompanyId == companyId, cancellation: cancellationToken)
+                ?? throw new DomainException(this, DomainErrors.ObjectNotFound(nameof(DocumentTemplate), document.DocumentTemplateId.ToString()));
+
+            removeFromService(document, documentUnitId);
+
+            var (usePreviousPeriod, periodType) = PeriodConfigOf(documentTemplate);
+
+            return document.NewDocumentUnit(Guid.NewGuid(), periodType, usePreviousPeriod);
+        }
+
         public async Task CreateDocumentUnitsForEvent(Guid employeeId, Guid companyId, int eventId, CancellationToken cancellationToken = default)
         {
             var employee = await _employeeRepository.FirstOrDefaultMemoryOrDatabase(x => x.Id == employeeId && x.CompanyId == companyId) 
@@ -271,6 +305,25 @@ namespace PeopleManagement.Services.Services
             return (policy?.UsePreviousPeriod ?? false, policy?.PeriodType);
         }
 
+        // A validade da unidade vem da regra de vencimento do template, EXCETO quando a cota de renovações do
+        // documento já se esgotou: aí esta é a última unidade do ciclo, e ela não vence mais — fica OK
+        // indefinidamente. Dar validade a ela criaria um vencimento que ninguém pode renovar, deixando o
+        // documento parado em "Vencido" para sempre.
+        //
+        // Cruza dois aggregates (regra no template, contador no documento), então a decisão mora aqui e para o
+        // aggregate desce só o valor.
+        private static TimeSpan? ValidityDurationFor(DocumentTemplate template, Document document)
+        {
+            var expirationPolicy = template.GetPolicy<IExpirationPolicy>();
+
+            if (expirationPolicy is null)
+                return null;
+
+            return expirationPolicy.CanRenew(document.ExpirationCount)
+                ? expirationPolicy.Duration
+                : null;
+        }
+
         public async Task<DocumentUnit> UpdateDocumentUnitDetails(Guid documentUnitId, Guid documentId, Guid employeeId, Guid companyId,
             DateOnly documentUnitDate, CancellationToken cancellationToken = default)
         {
@@ -287,7 +340,7 @@ namespace PeopleManagement.Services.Services
                 ?? throw new DomainException(this, DomainErrors.ObjectNotFound(nameof(DocumentTemplate), document.DocumentTemplateId.ToString()));
 
             var workloadPolicy = documentTemplate.GetPolicy<IWorkloadPolicy>();
-            var validityDuration = documentTemplate.GetPolicy<IExpirationPolicy>()?.Duration;
+            var validityDuration = ValidityDurationFor(documentTemplate, document);
             var (usePreviousPeriod, periodType) = PeriodConfigOf(documentTemplate);
 
             DateOnly? workloadEndDate = null;

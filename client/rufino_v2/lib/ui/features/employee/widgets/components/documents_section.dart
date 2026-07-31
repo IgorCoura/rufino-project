@@ -64,6 +64,7 @@ class _DocumentsSectionState extends State<DocumentsSection> {
     (id: 6, label: 'Não Aplicável'),
     (id: 7, label: 'Aguardando Assinatura'),
     (id: 8, label: 'A Vencer'),
+    (id: 9, label: 'Vencido'),
   ];
 
   /// Available page size options.
@@ -72,16 +73,19 @@ class _DocumentsSectionState extends State<DocumentsSection> {
   // ─── Status color helpers (visual concern — stays in UI) ────────────────
 
   /// Returns a color for a document-group-level status.
+  ///
+  /// Three-valued compliance scale, same ids as the employee list
+  /// (0=Okay, 1=A Vencer, 2=Requer Atenção).
   Color _groupStatusColor(String statusId) {
     return switch (statusId) {
-      '1' => Colors.green,
-      '2' => Colors.orange,
-      '3' => Colors.red,
+      '0' => Colors.green,
+      '1' => Colors.orange,
+      '2' => Colors.red,
       _ => Colors.grey,
     };
   }
 
-  /// Returns a color for a document-level status.
+  /// Returns a color for a document-level status (1–7).
   Color _documentStatusColor(String statusId) {
     return switch (statusId) {
       '1' => Colors.orange,
@@ -89,6 +93,8 @@ class _DocumentsSectionState extends State<DocumentsSection> {
       '3' => Colors.green,
       '4' => Colors.grey,
       '5' => Colors.blue,
+      '6' => Colors.deepOrange,
+      '7' => Colors.redAccent,
       _ => Colors.grey,
     };
   }
@@ -104,6 +110,8 @@ class _DocumentsSectionState extends State<DocumentsSection> {
       '6' => Colors.blueGrey,
       '7' => Colors.blue,
       '8' => Colors.deepOrange,
+      // Vencido é o único que representa falta de cobertura AGORA — cor mais forte que a de "a vencer".
+      '9' => Colors.redAccent,
       _ => Colors.grey,
     };
   }
@@ -205,35 +213,94 @@ class _DocumentsSectionState extends State<DocumentsSection> {
     dateCtrl.dispose();
   }
 
-  /// Shows a confirmation dialog before marking a unit as not applicable.
-  Future<void> _showNotApplicableDialog(
-    EmployeeDocument doc,
-    DocumentUnit unit,
-  ) async {
+  /// Asks the user to confirm a destructive status change on a unit.
+  ///
+  /// Returns whether the user confirmed. All three status actions go through
+  /// here — they change what the document proves, so none of them is a
+  /// single-tap operation.
+  Future<bool> _confirmUnitStatusChange({
+    required String title,
+    required String message,
+    required String confirmLabel,
+    required Key confirmKey,
+  }) async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) {
         return AlertDialog(
-          title: const Text('Confirmar'),
-          content: const Text(
-            'Deseja marcar este documento como não aplicável?',
-          ),
+          title: Text(title),
+          content: Text(message),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(ctx).pop(false),
               child: const Text('Cancelar'),
             ),
             FilledButton(
+              key: confirmKey,
               onPressed: () => Navigator.of(ctx).pop(true),
-              child: const Text('Confirmar'),
+              child: Text(confirmLabel),
             ),
           ],
         );
       },
     );
 
-    if (confirmed == true && mounted) {
+    return confirmed == true && mounted;
+  }
+
+  /// Shows a confirmation dialog before marking a unit as not applicable.
+  Future<void> _showNotApplicableDialog(
+    EmployeeDocument doc,
+    DocumentUnit unit,
+  ) async {
+    final confirmed = await _confirmUnitStatusChange(
+      title: 'Marcar como não aplicável',
+      message: 'Este documento deixa de ser exigido deste funcionário. '
+          'Deseja continuar?',
+      confirmLabel: 'Marcar',
+      confirmKey: const ValueKey('unit-not-applicable-confirm'),
+    );
+
+    if (confirmed) {
       await widget.viewModel.setDocumentUnitNotApplicable(doc.id, unit.id);
+    }
+  }
+
+  /// Shows a confirmation dialog before deprecating a unit.
+  Future<void> _showDeprecateDialog(
+    EmployeeDocument doc,
+    DocumentUnit unit,
+  ) async {
+    final confirmed = await _confirmUnitStatusChange(
+      title: 'Depreciar documento',
+      message: 'O documento sai de vigência mas continua guardado como '
+          'comprovação do período que cobriu. Uma nova pendência será criada '
+          'no lugar. Deseja continuar?',
+      confirmLabel: 'Depreciar',
+      confirmKey: const ValueKey('unit-deprecate-confirm'),
+    );
+
+    if (confirmed) {
+      await widget.viewModel.deprecateDocumentUnit(doc.id, unit.id);
+    }
+  }
+
+  /// Shows a confirmation dialog before invalidating a unit.
+  Future<void> _showInvalidateDialog(
+    EmployeeDocument doc,
+    DocumentUnit unit,
+  ) async {
+    final confirmed = await _confirmUnitStatusChange(
+      title: 'Invalidar documento',
+      message: 'Use quando o documento tem erro ou foi enviado por engano — '
+          'ele deixa de ter qualquer valor legal. Uma nova pendência será '
+          'criada no lugar. Deseja continuar?',
+      confirmLabel: 'Invalidar',
+      confirmKey: const ValueKey('unit-invalidate-confirm'),
+    );
+
+    if (confirmed) {
+      await widget.viewModel.invalidateDocumentUnit(doc.id, unit.id);
     }
   }
 
@@ -1476,25 +1543,12 @@ class _DocumentsSectionState extends State<DocumentsSection> {
     final totalPages =
         doc.totalUnitsCount == 0 ? 1 : (doc.totalUnitsCount / pageSize).ceil();
 
+    // Não há botão de criar unidade avulsa: pendência nasce do evento de admissão, da renovação por
+    // vencimento, ou de depreciar/invalidar a vigente — cada um desses já deixa a substituta no lugar.
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         ...units.map((unit) => _buildUnitRow(context, doc, unit)),
-        const SizedBox(height: AppSpacing.sm),
-        Align(
-          alignment: Alignment.centerLeft,
-          child: PermissionGuard(
-            resource: 'document',
-            scope: 'create',
-            child: TextButton.icon(
-              onPressed: _isBusy
-                  ? null
-                  : () => widget.viewModel.createDocumentUnit(doc.id),
-              icon: const Icon(Icons.add, size: 18),
-              label: const Text('Adicionar'),
-            ),
-          ),
-        ),
         const SizedBox(height: AppSpacing.sm),
         _buildPaginationBar(context, doc, currentPage, totalPages, pageSize),
       ],
@@ -1709,16 +1763,18 @@ class _DocumentsSectionState extends State<DocumentsSection> {
             onPressed: _isBusy ? null : () => _showEditDateDialog(doc, unit),
           ),
         ),
-        PermissionGuard(
-          resource: 'document',
-          scope: 'mark-not-applicable',
-          child: IconButton(
-            icon: const Icon(Icons.block, size: 20),
-            tooltip: 'Não aplicável',
-            onPressed:
-                _isBusy ? null : () => _showNotApplicableDialog(doc, unit),
+        if (unit.canBeMarkedNotApplicable)
+          PermissionGuard(
+            resource: 'document',
+            scope: 'mark-not-applicable',
+            child: IconButton(
+              key: const ValueKey('unit-not-applicable'),
+              icon: const Icon(Icons.block, size: 20),
+              tooltip: 'Não aplicável',
+              onPressed:
+                  _isBusy ? null : () => _showNotApplicableDialog(doc, unit),
+            ),
           ),
-        ),
         if (canGenerate)
           PermissionGuard(
             resource: 'document',
@@ -1759,6 +1815,29 @@ class _DocumentsSectionState extends State<DocumentsSection> {
             icon: const Icon(Icons.search, size: 20),
             tooltip: 'Visualizar',
             onPressed: _isBusy ? null : () => _viewUnit(doc, unit),
+          ),
+        ),
+      // Depreciar e invalidar valem para a unidade em vigência, então ficam fora do bloco de pendente.
+      if (unit.canBeDeprecated)
+        PermissionGuard(
+          resource: 'document',
+          scope: 'deprecate',
+          child: IconButton(
+            key: const ValueKey('unit-deprecate'),
+            icon: const Icon(Icons.history_toggle_off, size: 20),
+            tooltip: 'Depreciar',
+            onPressed: _isBusy ? null : () => _showDeprecateDialog(doc, unit),
+          ),
+        ),
+      if (unit.canBeInvalidated)
+        PermissionGuard(
+          resource: 'document',
+          scope: 'reject',
+          child: IconButton(
+            key: const ValueKey('unit-invalidate'),
+            icon: const Icon(Icons.report_gmailerrorred_outlined, size: 20),
+            tooltip: 'Invalidar',
+            onPressed: _isBusy ? null : () => _showInvalidateDialog(doc, unit),
           ),
         ),
     ];

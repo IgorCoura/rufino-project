@@ -705,7 +705,7 @@ All resource names are **lowercase, kebab-case**. Use **exactly** these strings 
 | `company` | `create`, `edit`, `view` |
 | `debug` | `view` |
 | `department` | `create`, `edit`, `view` |
-| `document` | `create`, `edit`, `view`, `upload`, `webhook`, `download`, `send2sign`, `generate` |
+| `document` | `create`, `edit`, `view`, `upload`, `webhook`, `download`, `send2sign`, `generate`, `approve`, `reject`, `deprecate`, `mark-not-applicable` |
 | `document-group` | `create`, `edit`, `view` |
 | `document-template` | `create`, `edit`, `view`, `upload`, `download` |
 | `employee` | `create`, `edit`, `view`, `upload`, `download` |
@@ -772,7 +772,7 @@ The app distinguishes "session died" (401) from "no permission" (403) end to end
 
 `/document-dashboard` (home card under `ModuleGuard('document')`) is the RH triage view over `api/v1/{company}/document-dashboard` (`GET /summary` + `GET /units`). Five buckets — Vencidos, A Vencer, Pendentes, Aguardando Assinatura, Requer Validação — where **counts and list share the same server-side predicate** (`DashboardBucket.apiValue` is the query param). Rules worth preserving:
 
-- **"A vencer" is validity-based**, not Warning-status-based: the horizon (30/60/90 days, `expiringInDays`) filters `validity` server-side; unit status 8 (Warning) is only a visual chip. **Unit status ids run 1–8** (`8 = 'A Vencer'`) — `DocumentUnit`, `BatchDocumentUnitItem` and `DashboardUnitItem` all map them.
+- **"A vencer" is validity-based**, not Warning-status-based: the horizon (30/60/90 days, `expiringInDays`) filters `validity` server-side; unit status 8 (Warning) is only a visual chip. **Unit status ids run 1–9** (`8 = 'A Vencer'`, `9 = 'Vencido'`) — `DocumentUnit`, `BatchDocumentUnitItem`, `BatchDownloadUnit` and `DashboardUnitItem` all map them. The "Vencidos" bucket is now status 9 plus the OK/Warning units whose validity already passed but the depreciation job has not run yet.
 - **State preservation:** `DocumentDashboardPage` owns the ViewModel + `ScrollController` lifecycles (same pattern as `EmployeeListPage`) — never create them inside the route builder, or filters/bucket/page/scroll are wiped on every push/pop.
 - **Row navigation** uses `context.push('/employee/:id?tab=documents')`; the `/employee/:id` route maps `?tab=` (`documents` | `contracts`) to `EmployeeProfileScreen.initialTab`, so the profile lands on the Documentos tab and pop returns to the intact dashboard.
 - ViewModel invariant: bucket switch and pagination reload **only the list** (`isLoadingUnits`); filter/horizon changes reload **summary + list together** so the KPI cards never disagree with the rows. Default employee filter is Ativos (status 2).
@@ -787,6 +787,16 @@ O PDF é montado no backend a partir de um **snapshot** dos dados do funcionári
 - **`allowRefresh` separa as duas telas.** Perfil: `true` → Cancelar / Gerar com os dados atuais / **Atualizar e gerar** (esta dentro de `PermissionGuard('document','edit')`). Lote: `false` → só Cancelar / Gerar assim mesmo; **atualizar no lote é decisão de produto — o usuário edita cada documento individualmente**. Por isso `BatchDocumentViewModel` tem só `checkOutdatedContent()`, sem refresh.
 - **Cobre gerar E gerar+assinar**, nos dois lados: é o mesmo `Content`. **Download não entra** — entrega arquivo já existente, não lê o snapshot. No perfil, o aviso do `generate_sign` aparece **antes** do diálogo de data-limite.
 - **Refresh não move a data.** O backend reusa a data já gravada na unidade; o cliente não reenvia data nenhuma. Só o perfil chama, e só para as unidades efetivamente divergentes.
+
+## Status das unidades e as três ações (perfil do funcionário)
+
+Os ids 1–9 vêm do servidor e o cliente só rotula. A distinção que importa na tela é **Obsoleto (3)** vs **Vencido (9)**: as duas são documentos que saíram de vigência, e o que as separa é já existir substituto — só o 9 é falta de cobertura agora.
+
+- **Não existe botão de criar unidade avulsa.** Foi removido junto com `createDocumentUnit` (repo/serviço/ViewModel). Pendência nasce do evento de admissão, da renovação por vencimento, ou de depreciar/invalidar a vigente — **os três caminhos do servidor já deixam a substituta no lugar**, então a lista recarregada mostra a nova pendente sozinha.
+- **Três ações, todas com diálogo de confirmação** (`_confirmUnitStatusChange`, chaves `unit-deprecate-confirm` / `unit-invalidate-confirm` / `unit-not-applicable-confirm`): mudam o que o documento prova, nenhuma é operação de um toque.
+- **A regra de habilitação mora na entidade**, não no widget — `DocumentUnit.canBeDeprecated` (só `OK`), `canBeInvalidated` (`Pending` ou `OK`), `canBeMarkedNotApplicable` (só `Pending`). Depreciada e vencida **nunca** são invalidáveis: são a prova do período coberto, e a API recusa (`PMD.DOC24`).
+- **Depreciar e invalidar ficam FORA do bloco `if (unit.isPending)`** — valem para a unidade em vigência, que é o caso mais comum de ambas. Scopes: `deprecate` (novo) e `reject`.
+- **Os erros de regra do servidor aparecem na tela**: os dois ViewModels passam o erro por `extractServerMessages` em vez de mensagem fixa, porque `PMD.DOC23`/`PMD.DOC24` explicam por que a ação foi recusada.
 
 ## Agendar Envio para Assinatura (perfil do funcionário)
 

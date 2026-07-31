@@ -55,18 +55,19 @@ namespace PeopleManagement.Services.Services
             if (isAssociation)
             {
                 // Renovação limitada é regra de dois aggregates (Document + DocumentTemplate), logo mora aqui, não
-                // no Document. Lê a policy do template e o contador de renovações (unidades já depreciadas); a
-                // unidade que venceu é sempre depreciada, mas só nasce uma nova enquanto a policy permitir renovar.
-                // Sem policy de vencimento (documento legado com data de validade avulsa) mantém o comportamento
-                // antigo: renova sempre.
+                // no Document. Lê a policy do template e o contador de vencimentos do documento; a unidade que
+                // venceu fica Vencida (não Depreciada — ainda não há substituto), mas só nasce uma nova enquanto a
+                // policy permitir renovar. Sem policy de vencimento (documento legado com data de validade avulsa)
+                // mantém o comportamento antigo: renova sempre.
                 var template = await _documentTemplateRepository.FirstOrDefaultAsync(
                     x => x.Id == document.DocumentTemplateId && x.CompanyId == companyId,
                     cancellation: cancellationToken);
 
-                var canRenew = await CanRenewAsync(document, template, companyId, cancellationToken);
+                // ANTES de expirar: CanRenew recebe quantos vencimentos já tinham acontecido, então o vencimento
+                // atual é justamente o que está pedindo a renovação de número ExpirationCount + 1.
+                var canRenew = CanRenew(document, template);
 
-                var newDocumentUnitId = Guid.NewGuid();
-                document.MakeAsDocumentDeprecated(documentUnitId, newDocumentUnitId);
+                document.ExpireDocumentUnit(documentUnitId);
 
                 if (canRenew)
                 {
@@ -186,18 +187,21 @@ namespace PeopleManagement.Services.Services
                 deprecatedUnits, employeeId, companyId);
         }
 
-        // Consulta a policy de vencimento do template do documento e decide, pelo contador de renovações
-        // (unidades depreciadas), se ainda pode renovar. Sem policy ⇒ renova sempre (retrocompatível).
-        private async Task<bool> CanRenewAsync(Document document,
-            Domain.AggregatesModel.DocumentTemplateAggregate.DocumentTemplate? template, Guid companyId,
-            CancellationToken cancellationToken)
+        // Consulta a policy de vencimento do template e decide, pelo contador de vencimentos do documento, se
+        // ainda pode renovar. Sem policy ⇒ renova sempre (retrocompatível).
+        //
+        // O contador é Document.ExpirationCount, e não uma contagem de unidades por status: a vencida vira
+        // Depreciada quando o substituto chega, e substituição por reenvio corrigido também deprecia — contar
+        // status fazia correção de documento consumir renovação.
+        private static bool CanRenew(Document document,
+            Domain.AggregatesModel.DocumentTemplateAggregate.DocumentTemplate? template)
         {
             var expirationPolicy = template?.GetPolicy<IExpirationPolicy>();
+
             if (expirationPolicy is null)
                 return true;
 
-            var renewalCount = await _documentRepository.CountDeprecatedUnitsAsync(document.Id, companyId, cancellationToken);
-            return expirationPolicy.CanRenew(renewalCount);
+            return expirationPolicy.CanRenew(document.ExpirationCount);
         }
 
         public async Task<bool> DocumentHasAssociation(Document document, Employee employee, CancellationToken cancellationToken)

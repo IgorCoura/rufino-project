@@ -12,6 +12,20 @@
     public interface IDocumentService
     {
         Task<DocumentUnit> CreateDocumentUnit(Guid documentId, Guid employeeId, Guid companyId, CancellationToken cancellation = default);
+
+        /// <summary>
+        /// Deprecia a unidade (sai de vigência, continua valendo como prova) e deixa uma pendente no lugar.
+        ///
+        /// A pendente substituta não é opcional: a exigência continua de pé, e desde que o botão de criar
+        /// unidade avulsa saiu da tela este é o único caminho para o RH voltar a ter o que preencher.
+        /// </summary>
+        Task<DocumentUnit> DeprecateDocumentUnit(Guid documentUnitId, Guid documentId, Guid employeeId, Guid companyId, CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Invalida a unidade (erro ou engano, sem valor legal) e deixa uma pendente no lugar. Mesmo caminho da
+        /// recusa de validação.
+        /// </summary>
+        Task<DocumentUnit> InvalidateDocumentUnit(Guid documentUnitId, Guid documentId, Guid employeeId, Guid companyId, CancellationToken cancellationToken = default);
         Task<DocumentUnit> UpdateDocumentUnitDetails(Guid documentUnitId, Guid documentId, Guid employeeId, Guid companyId, DateOnly documentUnitDate, CancellationToken cancellationToken = default);
         Task CreateDocumentUnitsForEvent(Guid employeeId, Guid companyId, int eventId, CancellationToken cancellationToken = default);
         Task<byte[]> GeneratePdf(Guid documentUnitId, Guid documentId, Guid employeeId, Guid companyId, CancellationToken cancellation = default);

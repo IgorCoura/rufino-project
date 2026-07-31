@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using PeopleManagement.Domain.AggregatesModel.DocumentAggregate;
 using PeopleManagement.Domain.AggregatesModel.DocumentAggregate.Interfaces;
 using PeopleManagement.Infra.Context;
@@ -14,10 +14,20 @@ namespace PeopleManagement.Infra.Repository
             // foi alterado mas ainda não persistido (os eventos de domínio são despachados ANTES do commit).
             // Carregando as entidades, o EF devolve as instâncias rastreadas com o status em memória (atual),
             // refletindo mudanças em andamento de documentos Modified — não só os Added.
-            var dbStatuses = (await context.Documents
+            var documents = await context.Documents
                 .Where(x => x.EmployeeId == employeeId && x.CompanyId == companyId)
                 .OrderByDescending(x => x.CreatedAt)
-                .ToListAsync(cancellationToken))
+                .ToListAsync(cancellationToken);
+
+            // Pelo mesmo motivo, o que já foi marcado para exclusão nesta unidade de trabalho não pode entrar na
+            // conta: o documento ainda está no banco, mas não será mais exigido do funcionário.
+            var deletedIds = context.ChangeTracker.Entries<Document>()
+                .Where(e => e.State == EntityState.Deleted)
+                .Select(e => e.Entity.Id)
+                .ToHashSet();
+
+            var statuses = documents
+                .Where(x => deletedIds.Contains(x.Id) == false)
                 .Select(x => x.Status)
                 .ToList();
 
@@ -28,20 +38,8 @@ namespace PeopleManagement.Infra.Repository
                 .Select(e => e.Entity.Status)
                 .ToList();
 
-            dbStatuses.AddRange(addedStatuses);
-            return dbStatuses;
-        }
-
-        public Task<int> CountDeprecatedUnitsAsync(Guid documentId, Guid companyId, CancellationToken cancellationToken = default)
-        {
-            // AsNoTracking de propósito: a contagem não pode anexar unidades ao change tracker e interferir no
-            // aggregate já carregado (com tracking) pelo fluxo de depreciação. As unidades já depreciadas em ciclos
-            // anteriores estão commitadas, então a contagem no banco reflete as renovações passadas.
-            return context.DocumentsUnits
-                .AsNoTracking()
-                .CountAsync(u => u.DocumentId == documentId
-                    && u.Document.CompanyId == companyId
-                    && u.Status == DocumentUnitStatus.Deprecated, cancellationToken);
+            statuses.AddRange(addedStatuses);
+            return statuses;
         }
     }
 }

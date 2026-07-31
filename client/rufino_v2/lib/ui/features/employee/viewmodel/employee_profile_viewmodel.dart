@@ -1825,21 +1825,57 @@ class EmployeeProfileViewModel extends ChangeNotifier {
     return bytes;
   }
 
-  /// Creates a new document unit and refreshes the document.
-  Future<void> createDocumentUnit(String documentId) async {
+  /// Deprecates a document unit and refreshes the document.
+  ///
+  /// The API leaves a replacement pending unit in its place, so the reload
+  /// shows both the deprecated document and the new pending one.
+  Future<void> deprecateDocumentUnit(
+    String documentId,
+    String documentUnitId,
+  ) async {
     final companyId = _companyId;
     final currentProfile = _profile;
     if (companyId == null || currentProfile == null) return;
 
-    final result = await _employeeRepository.createDocumentUnit(
+    final result = await _employeeRepository.deprecateDocumentUnit(
       companyId,
       currentProfile.id,
       documentId,
+      documentUnitId,
     );
 
     result.fold(
-      onSuccess: (_) => _snackMessage = 'Documento criado com sucesso.',
-      onError: (_, __) => _snackMessage = 'Erro ao criar documento.',
+      onSuccess: (_) => _snackMessage = 'Documento depreciado com sucesso.',
+      onError: (error, __) => _snackMessage =
+          extractServerMessages(error).firstOrNull ??
+              'Erro ao depreciar documento.',
+    );
+
+    notifyListeners();
+    await loadDocumentUnits(documentId);
+  }
+
+  /// Invalidates a document unit and refreshes the document.
+  Future<void> invalidateDocumentUnit(
+    String documentId,
+    String documentUnitId,
+  ) async {
+    final companyId = _companyId;
+    final currentProfile = _profile;
+    if (companyId == null || currentProfile == null) return;
+
+    final result = await _employeeRepository.invalidateDocumentUnit(
+      companyId,
+      currentProfile.id,
+      documentId,
+      documentUnitId,
+    );
+
+    result.fold(
+      onSuccess: (_) => _snackMessage = 'Documento invalidado com sucesso.',
+      onError: (error, __) => _snackMessage =
+          extractServerMessages(error).firstOrNull ??
+              'Erro ao invalidar documento.',
     );
 
     notifyListeners();

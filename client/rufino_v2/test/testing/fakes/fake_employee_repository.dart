@@ -799,13 +799,27 @@ class FakeEmployeeRepository implements EmployeeRepository {
   }
 
   @override
-  Future<Result<void>> createDocumentUnit(
+  Future<Result<void>> deprecateDocumentUnit(
     String companyId,
     String employeeId,
     String documentId,
+    String documentUnitId,
   ) async {
     if (_shouldFail) {
-      return Result.error(Exception('createDocumentUnit failed'));
+      return Result.error(Exception('deprecateDocumentUnit failed'));
+    }
+    return const Result<void>.success(null);
+  }
+
+  @override
+  Future<Result<void>> invalidateDocumentUnit(
+    String companyId,
+    String employeeId,
+    String documentId,
+    String documentUnitId,
+  ) async {
+    if (_shouldFail) {
+      return Result.error(Exception('invalidateDocumentUnit failed'));
     }
     return const Result<void>.success(null);
   }

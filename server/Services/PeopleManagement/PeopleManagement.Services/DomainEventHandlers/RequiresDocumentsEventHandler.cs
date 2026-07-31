@@ -10,6 +10,7 @@ using PeopleManagement.Domain.AggregatesModel.EmployeeAggregate.Events;
 using PeopleManagement.Domain.AggregatesModel.EmployeeAggregate.Interfaces;
 using PeopleManagement.Domain.AggregatesModel.RequireDocumentsAggregate;
 using PeopleManagement.Domain.AggregatesModel.RequireDocumentsAggregate.Interfaces;
+using PeopleManagement.Services.Services;
 
 
 namespace PeopleManagement.Services.DomainEventHandlers
@@ -19,19 +20,22 @@ namespace PeopleManagement.Services.DomainEventHandlers
         IDocumentTemplateRepository documentTemplateRepository, 
         IDocumentRepository documentRepository, 
         IEmployeeRepository employeeRepository,
-        ILogger<RequiresDocumentsEventHandler> logger) 
+        IEmployeeDocumentStatusRefresher statusRefresher,
+        ILogger<RequiresDocumentsEventHandler> logger)
         : INotificationHandler<RequestDocumentsEvent>
     {
         private readonly IRequireDocumentsRepository _requireDocumentsRepository = requireDocumentsRepository;
         private readonly IDocumentRepository _documentRepository = documentRepository;
         private readonly IDocumentTemplateRepository _documentTemplateRepository = documentTemplateRepository;
         private readonly IEmployeeRepository _employeeRepository = employeeRepository;
+        private readonly IEmployeeDocumentStatusRefresher _statusRefresher = statusRefresher;
         private readonly ILogger<RequiresDocumentsEventHandler> _logger = logger;
 
         public async Task Handle(RequestDocumentsEvent notification, CancellationToken cancellationToken)
         {
 
             var allEmployeeDocument = await _documentRepository.GetDataAsync(x => x.EmployeeId == notification.EmployeeId && x.CompanyId == notification.CompanyId, include: i => i.Include(x => x.DocumentsUnits), cancellation: cancellationToken);
+            var deletedAny = false;
 
             foreach (var document in allEmployeeDocument)
             {
@@ -51,10 +55,15 @@ namespace PeopleManagement.Services.DomainEventHandlers
                 if (document.CanBeDeleted())
                 {
                     await _documentRepository.DeleteAsync(document);
-
+                    deletedAny = true;
                 }
 
             }
+
+            // Excluir documento não dispara DocumentStatusChangedDomainEvent — sem isto o funcionário fica com
+            // "requer atenção" por causa de um documento que deixou de ser exigido dele.
+            if (deletedAny)
+                await _statusRefresher.RefreshAsync(notification.EmployeeId, notification.CompanyId, cancellationToken);
         }
 
     }

@@ -1,7 +1,7 @@
 ﻿using Microsoft.EntityFrameworkCore;
-using PeopleManagement.Application.Util;
 using PeopleManagement.Domain.AggregatesModel.DocumentAggregate;
 using PeopleManagement.Domain.AggregatesModel.EmployeeAggregate;
+using PeopleManagement.Domain.Services;
 using PeopleManagement.Infra.Context;
 using static PeopleManagement.Application.Queries.Base.BaseDtos;
 using static PeopleManagement.Application.Queries.DocumentGroup.DocumentGroupDtos;
@@ -69,13 +69,16 @@ namespace PeopleManagement.Application.Queries.DocumentGroup
 
 
 
+            // Mesma regra que decide o status do funcionário — o grupo não pode dizer "requer atenção" para um
+            // conjunto de documentos que a listagem de funcionários considera em dia.
             result = result.Select(record =>
             {
                 return record with
                 {
-                    DocumentsStatus = DocumentStatusUtil.GetDocumentGroupStatus(record.Documents.Select(x =>(DocumentStatus)x.Status.Id).ToList())
+                    DocumentsStatus = DocumentStatusRollup.Summarize(
+                        record.Documents.Select(x => (DocumentStatus)x.Status.Id))
                 };
-            }).ToList();    
+            }).ToList();
 
             return result;
         }

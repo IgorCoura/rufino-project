@@ -677,20 +677,34 @@ class EmployeeApiService {
     return EmployeeDocumentApiModel.fromJson(json);
   }
 
-  /// Creates a new document unit for [documentId].
-  Future<void> createDocumentUnit(
+  /// Deprecates a document unit — it leaves validity but is kept as proof of
+  /// the period it covered. The API creates the replacement pending unit.
+  Future<void> deprecateDocumentUnit(
     String companyId,
-    String employeeId,
-    String documentId,
+    Map<String, dynamic> body,
   ) async {
-    final uri = Uri.https(baseUrl, '/api/v1/$companyId/document');
-    final response = await client.post(
+    final uri =
+        Uri.https(baseUrl, '/api/v1/$companyId/Document/DocumentUnit/deprecate');
+    final response = await client.put(
       uri,
       headers: await _headers(),
-      body: jsonEncode({
-        'documentId': documentId,
-        'employeeId': employeeId,
-      }),
+      body: jsonEncode(body),
+    );
+    checkHttpStatus(response);
+  }
+
+  /// Invalidates a document unit — it has an error or was sent by mistake and
+  /// carries no legal value. The API creates the replacement pending unit.
+  Future<void> invalidateDocumentUnit(
+    String companyId,
+    Map<String, dynamic> body,
+  ) async {
+    final uri =
+        Uri.https(baseUrl, '/api/v1/$companyId/Document/DocumentUnit/invalid');
+    final response = await client.put(
+      uri,
+      headers: await _headers(),
+      body: jsonEncode(body),
     );
     checkHttpStatus(response);
   }

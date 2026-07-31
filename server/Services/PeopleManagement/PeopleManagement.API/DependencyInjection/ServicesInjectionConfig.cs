@@ -40,6 +40,8 @@ namespace PeopleManagement.API.DependencyInjection
             service.AddScoped<HangfireJobRegister>();
             service.AddScoped<IRecurringDocumentService, RecurringDocumentService>();
 
+            service.AddScoped<IEmployeeDocumentStatusRefresher, EmployeeDocumentStatusRefresher>();
+
             // Domain Services
             service.AddScoped<IEmployeeDocumentStatusService, EmployeeDocumentStatusService>();
             service.AddSingleton<IHolidayProvider, BrazilianHolidayProvider>();

@@ -26,8 +26,19 @@ namespace PeopleManagement.Domain.AggregatesModel.DocumentAggregate
                     AddDomainEvent(new DocumentStatusChangedDomainEvent(this.Id, this.EmployeeId, this.CompanyId, oldValue, value));
                 }
             } 
-        } 
+        }
         public Guid DocumentTemplateId { get; private set; }
+
+        /// <summary>
+        /// Quantas vezes este documento já venceu. É o contador de renovações consumido pela
+        /// <c>IExpirationPolicy</c> do template: fato bruto do histórico, incrementado só por
+        /// <see cref="ExpireDocumentUnit"/>.
+        ///
+        /// Existe como campo, e não como contagem de unidades por status, porque nenhum status serve de contador:
+        /// a vencida vira Deprecated quando o substituto chega, e substituição por reenvio corrigido também
+        /// deprecia — contar status faria correção de documento consumir renovação.
+        /// </summary>
+        public int ExpirationCount { get; private set; }
 
         private Document(Guid id, Guid employeeId, Guid companyId, Guid requiredDocumentId, Guid documentTemplateId, Name name, Description description) : base(id)
         {
@@ -113,9 +124,7 @@ namespace PeopleManagement.Domain.AggregatesModel.DocumentAggregate
 
             documentUnit.InsertWithoutRequireValidation(name, extension);
 
-
-            DeprecateDocumentsUnit(documentUnitId);
-            RefreshDocumentStatus();
+            SupersedeUnitsCoveredBy(documentUnitId);
             return documentUnit.GetNameWithExtension;
         }
 
@@ -155,7 +164,7 @@ namespace PeopleManagement.Domain.AggregatesModel.DocumentAggregate
                 .Where(x => x.Id != documentUnit.Id && x.Status == DocumentUnitStatus.Pending && x.Period != null && x.Period.Equals(documentUnit.Period))
                 .ToList();
 
-            duplicatePending.ForEach(x => x.MaskAsInvalid());
+            duplicatePending.ForEach(x => x.MarkAsInvalid());
         }
 
 
@@ -208,50 +217,84 @@ namespace PeopleManagement.Domain.AggregatesModel.DocumentAggregate
             documentUnit.CancelScheduledSignatureSend();
         }
 
+        /// <summary>
+        /// A unidade tem erro ou foi entregue por engano. Diferente de depreciar: aqui o documento não vale nada,
+        /// então não fica valendo como comprovação de período nenhum.
+        ///
+        /// É o mesmo caminho da recusa de validação — daí aceitar também <c>RequiresValidation</c>, que a regra
+        /// de tela da invalidação direta (só pendente ou OK) não contempla.
+        /// </summary>
         public void MarkAsInvalidDocumentUnit(Guid documentUnitId)
         {
-            var document = DocumentsUnits.FirstOrDefault(x => x.Id == documentUnitId)
+            var documentUnit = DocumentsUnits.FirstOrDefault(x => x.Id == documentUnitId)
                 ?? throw new DomainException(this, DomainErrors.ObjectNotFound(nameof(DocumentUnit), documentUnitId.ToString()));
 
-            document.MaskAsInvalid();
+            if (documentUnit.MarkAsInvalid() == false)
+                throw new DomainException(this,
+                    DomainErrors.Document.CannotInvalidateDocumentUnit(documentUnitId, documentUnit.Status.Name));
+
+            RefreshDocumentStatus();
+        }
+
+        /// <summary>
+        /// Depreciação manual: o documento continua válido como prova, mas não é mais o vigente.
+        ///
+        /// Só a partir de vigência — depreciar uma pendente não faz sentido (não há o que comprovar) e depreciar
+        /// uma inválida apagaria o registro de que houve erro.
+        /// </summary>
+        public void DeprecateDocumentUnit(Guid documentUnitId)
+        {
+            var documentUnit = DocumentsUnits.FirstOrDefault(x => x.Id == documentUnitId)
+                ?? throw new DomainException(this, DomainErrors.ObjectNotFound(nameof(DocumentUnit), documentUnitId.ToString()));
+
+            if (documentUnit.MarkAsDeprecated() == false)
+                throw new DomainException(this,
+                    DomainErrors.Document.CannotDeprecateDocumentUnit(documentUnitId, documentUnit.Status.Name));
 
             RefreshDocumentStatus();
         }
 
         public void MarkAsValidDocumentUnit(Guid documentUnitId)
         {
-            var document = DocumentsUnits.FirstOrDefault(x => x.Id == documentUnitId)
+            var documentUnit = DocumentsUnits.FirstOrDefault(x => x.Id == documentUnitId)
                 ?? throw new DomainException(this, DomainErrors.ObjectNotFound(nameof(DocumentUnit), documentUnitId.ToString()));
 
-            document.MaskAsValid();
-  
-            DeprecateDocumentsUnit(documentUnitId);
-            RefreshDocumentStatus();
+            documentUnit.MarkAsValid();
+
+            SupersedeUnitsCoveredBy(documentUnitId);
         }
 
         public bool MarkAsNotApplicableDocumentUnit(Guid documentUnitId)
         {
-            var document = DocumentsUnits.FirstOrDefault(x => x.Id == documentUnitId)
+            var documentUnit = DocumentsUnits.FirstOrDefault(x => x.Id == documentUnitId)
                ?? throw new DomainException(this, DomainErrors.ObjectNotFound(nameof(DocumentUnit), documentUnitId.ToString()));
 
-            var isNotApplicable = document.MarkAsNotApplicable();
+            var isNotApplicable = documentUnit.MarkAsNotApplicable();
             if (isNotApplicable)
             {
-                DeprecateDocumentsUnit(exceptionDocumentId: documentUnitId);
-                RefreshDocumentStatus();
+                SupersedeUnitsCoveredBy(documentUnitId);
                 return true;
             }
             return false;
         }
 
-        public bool MakeAsDocumentDeprecated(Guid documentUnitIdExpire, Guid newDocumentUnitId)
+        /// <summary>
+        /// A unidade venceu: a exigência fica descoberta até chegar substituto. Incrementa
+        /// <see cref="ExpirationCount"/>, que é o contador de renovações lido pela política de vencimento do
+        /// template.
+        /// </summary>
+        public bool ExpireDocumentUnit(Guid documentUnitId)
         {
-            var documentUnit = DocumentsUnits.FirstOrDefault(x => x.Id == documentUnitIdExpire)
-                ?? throw new DomainException(this, DomainErrors.ObjectNotFound(nameof(DocumentUnit), documentUnitIdExpire.ToString()));
+            var documentUnit = DocumentsUnits.FirstOrDefault(x => x.Id == documentUnitId)
+                ?? throw new DomainException(this, DomainErrors.ObjectNotFound(nameof(DocumentUnit), documentUnitId.ToString()));
 
-            var isDeprecatedOrInvalid = documentUnit.MarkAsDeprecatedOrInvalid();
+            var expired = documentUnit.MarkAsExpired();
+
+            if (expired)
+                ExpirationCount++;
+
             RefreshDocumentStatus();
-            return isDeprecatedOrInvalid;
+            return expired;
         }
 
         public bool MakeAsWarning(Guid documentUnitIdExpire)
@@ -259,20 +302,22 @@ namespace PeopleManagement.Domain.AggregatesModel.DocumentAggregate
             var documentUnit = DocumentsUnits.FirstOrDefault(x => x.Id == documentUnitIdExpire)
                 ?? throw new DomainException(this, DomainErrors.ObjectNotFound(nameof(DocumentUnit), documentUnitIdExpire.ToString()));
 
-            var isMarkAsWarning =  documentUnit.MarkAsWarning();
+            var isMarkAsWarning = documentUnit.MarkAsWarning();
 
-            if(isMarkAsWarning)
-            {
-                Status = DocumentStatus.Warning;
-                return true;
-            }
-            return false;
+            // Deriva como todo o resto em vez de atribuir Warning direto: com várias competências, uma delas
+            // entrando em aviso não pode apagar outra descoberta.
+            RefreshDocumentStatus();
+            return isMarkAsWarning;
         }
 
 
+        /// <summary>
+        /// O documento inteiro saiu de cena — deixou de ser exigido deste funcionário. Toda unidade é superada,
+        /// inclusive as que estavam em curso, sem exceção por competência.
+        /// </summary>
         public void MakeAsDeprecated()
         {
-            DeprecateDocumentsUnit();
+            DocumentsUnits.ForEach(x => x.Supersede());
             RefreshDocumentStatus();
         }
 
@@ -280,14 +325,15 @@ namespace PeopleManagement.Domain.AggregatesModel.DocumentAggregate
         /// Deprecia as unidades já entregues do documento e devolve quantas foram. Usado quando um novo contrato
         /// de trabalho começa e o template manda depreciar o que veio do contrato anterior.
         ///
-        /// Entregue = <see cref="DocumentUnitStatus.OK"/> ou <see cref="DocumentUnitStatus.Warning"/>. Warning
-        /// entra porque é uma unidade OK que está vencendo (MarkAsWarning só dispara a partir de OK): deixá-la
-        /// viva atravessaria um documento do contrato anterior para o novo, e ao vencer ela seria renovada já
-        /// sob o vínculo errado.
+        /// Entregue = <see cref="DocumentUnitStatus.OK"/>, <see cref="DocumentUnitStatus.Warning"/> ou
+        /// <see cref="DocumentUnitStatus.Expired"/>. Warning entra porque é uma unidade OK que está vencendo:
+        /// deixá-la viva atravessaria um documento do contrato anterior para o novo, e ao vencer ela seria
+        /// renovada já sob o vínculo errado. Expired entra pelo mesmo motivo — é entrega do contrato anterior, e
+        /// o novo contrato gera as suas próprias pendências, então ela deixa de ser uma cobrança em aberto.
         ///
         /// O que está em curso fica: pendente / aguardando assinatura / requer validação não são entrega de
         /// contrato nenhum. Depreciado / inválido / não aplicável já saíram de cena. Diferente de
-        /// <see cref="MakeAsDeprecated"/>, que invalida tudo indiscriminadamente.
+        /// <see cref="MakeAsDeprecated"/>, que supera tudo indiscriminadamente.
         ///
         /// Exige a coleção de unidades carregada por inteiro: o RefreshDocumentStatus varre DocumentsUnits para
         /// recalcular o status do documento, e com uma coleção parcial ele mentiria.
@@ -295,64 +341,48 @@ namespace PeopleManagement.Domain.AggregatesModel.DocumentAggregate
         public int DeprecateDeliveredUnits()
         {
             var deliveredUnits = DocumentsUnits
-                .Where(x => x.Status == DocumentUnitStatus.OK || x.Status == DocumentUnitStatus.Warning)
+                .Where(x => x.Status == DocumentUnitStatus.OK ||
+                    x.Status == DocumentUnitStatus.Warning ||
+                    x.Status == DocumentUnitStatus.Expired)
                 .ToList();
 
             if (deliveredUnits.Count == 0)
                 return 0;
 
-            deliveredUnits.ForEach(x => x.MarkAsDeprecatedOrInvalid());
+            deliveredUnits.ForEach(x => x.MarkAsDeprecated());
             RefreshDocumentStatus();
 
             return deliveredUnits.Count;
         }
 
-        private void DeprecateDocumentsUnit(Guid? exceptionDocumentId = null)
+        /// <summary>
+        /// Uma unidade passou a cobrir a exigência: as outras que cobriam a mesma coisa saem de cena.
+        ///
+        /// O alcance é a competência da unidade que resolveu — competências são obrigações independentes, e
+        /// entregar a de março não resolve a de abril. Unidades sem competência num documento periodizado são
+        /// legado e não pertencem a competência nenhuma, então qualquer entrega as supera.
+        ///
+        /// Fora desse alcance há uma exceção deliberada: TODA unidade vencida é depreciada, de qualquer
+        /// competência. Uma vencida está esperando substituto, e a renovação de um documento por competência cai
+        /// na competência SEGUINTE — exigir competência igual a deixaria esperando um substituto que, por
+        /// construção, nunca chega na dela.
+        /// </summary>
+        private void SupersedeUnitsCoveredBy(Guid resolvingUnitId)
         {
-            if (DocumentsUnits.Any(x => x.Period != null))
-            {
-                // Agrupa DocumentUnits por Period
-                var groupedByPeriod = DocumentsUnits
-                    .Where(x => x.Period != null)
-                    .GroupBy(x => x.Period);
+            var resolving = DocumentsUnits.FirstOrDefault(x => x.Id == resolvingUnitId);
 
-                foreach (var periodGroup in groupedByPeriod)
-                {
-                    // Encontra o DocumentUnit OK mais recente no período (baseado na data de criação/Id)
-                    var okDocuments = periodGroup.Where(x => x.IsOK).OrderByDescending(x => x.Date).ThenByDescending(x => x.Id).ToList();
+            if (resolving is null)
+                return;
 
-                    if (okDocuments.Count > 1)
-                    {
-                        // Mantém apenas o mais recente, deprecia os outros
-                        var mostRecent = okDocuments.First();
-                        foreach (var doc in okDocuments.Skip(1))
-                        {
-                            if (exceptionDocumentId == null || doc.Id != exceptionDocumentId)
-                            {
-                                doc.MarkAsDeprecatedOrInvalid();
-                            }
-                        }
-                    }
-                }
+            var superseded = DocumentsUnits
+                .Where(x => x.Id != resolvingUnitId)
+                .Where(x => x.IsExpired
+                    || (resolving.Period is null
+                        ? x.Period is null
+                        : x.Period is null || x.Period.Equals(resolving.Period)))
+                .ToList();
 
-                // Deprecia os documentos sem período ou que não são OK
-                DocumentsUnits.ForEach(x =>
-                {
-                    if (x.Period == null && !x.IsOK)
-                    {
-                        if (exceptionDocumentId == null || x.Id != exceptionDocumentId)
-                            x.MarkAsDeprecatedOrInvalid();
-                    }
-                });
-            }
-            else
-            {
-                DocumentsUnits.ForEach(x =>
-                {
-                    if (exceptionDocumentId == null || x.Id != exceptionDocumentId)
-                        x.MarkAsDeprecatedOrInvalid();
-                });
-            }
+            superseded.ForEach(x => x.Supersede());
 
             RefreshDocumentStatus();
         }
@@ -391,6 +421,15 @@ namespace PeopleManagement.Domain.AggregatesModel.DocumentAggregate
         }
 
         
+        /// <summary>
+        /// Recalcula o status do documento a partir das unidades. É o ÚNICO lugar que escreve
+        /// <see cref="Status"/>: cada competência vira um status pelo <see cref="GetStatusFromGroup"/>, e o
+        /// documento assume a pior delas por <see cref="DocumentStatus.Severity"/>.
+        ///
+        /// Documento sem competência é tratado como uma competência só — mesmo caminho, mesma ordem. A versão
+        /// anterior tinha dois caminhos com precedências diferentes, e o ramo por competência descartava
+        /// Deprecated e AwaitingSignature: um documento periodizado com tudo vencido reportava OK.
+        /// </summary>
         private void RefreshDocumentStatus()
         {
             if (DocumentsUnits.Count == 0)
@@ -399,36 +438,28 @@ namespace PeopleManagement.Domain.AggregatesModel.DocumentAggregate
                 return;
             }
 
+            var statusPerPeriod = DocumentsUnits
+                .GroupBy(x => x.Period)
+                .Select(GetStatusFromGroup);
 
-
-            if (DocumentsUnits.Any(x=> x.Period != null))
-            {
-                var periodStatuses = DocumentsUnits
-                    .GroupBy(x => x.Period)
-                    .Select(g => GetStatusFromGroup(g));
-                if (periodStatuses.Any(x => x == DocumentStatus.RequiresDocument))
-                    Status = DocumentStatus.RequiresDocument;
-                else if(periodStatuses.Any(x => x == DocumentStatus.RequiresValidation))
-                    Status = DocumentStatus.RequiresValidation;
-                else if (periodStatuses.Any(x => x == DocumentStatus.Warning))
-                    Status = DocumentStatus.Warning;    
-                else 
-                    Status = DocumentStatus.OK;
-            } 
-            else
-            {
-                var status = GetStatusFromGroup(DocumentsUnits);
-                Status = status;
-            }
+            Status = statusPerPeriod.MinBy(DocumentStatus.Severity) ?? DocumentStatus.OK;
         }
 
+        /// <summary>
+        /// O status de UMA competência. A melhor unidade define: basta uma cobrindo para a competência estar
+        /// resolvida, e só quando nenhuma cobre é que a pior notícia aparece.
+        /// </summary>
         private static DocumentStatus GetStatusFromGroup(IEnumerable<DocumentUnit> units)
         {
             if (!units.Any())
                 return DocumentStatus.OK;
 
-            if (units.Any(x => x.Status == DocumentUnitStatus.OK))
+            // NotApplicable cobre tanto quanto OK — é exceção deliberada à regra, não falta.
+            if (units.Any(x => x.IsOK || x.IsNotApplicable))
                 return DocumentStatus.OK;
+
+            if (units.Any(x => x.Status == DocumentUnitStatus.Warning))
+                return DocumentStatus.Warning;
 
             if (units.Any(x => x.Status == DocumentUnitStatus.RequiresValidation))
                 return DocumentStatus.RequiresValidation;
@@ -436,13 +467,16 @@ namespace PeopleManagement.Domain.AggregatesModel.DocumentAggregate
             if (units.Any(x => x.Status == DocumentUnitStatus.AwaitingSignature))
                 return DocumentStatus.AwaitingSignature;
 
-            if (units.Any(x => x.Status == DocumentUnitStatus.Warning))
-                return DocumentStatus.Warning;
+            // Vencida sem nada melhor na competência: houve cobertura e ela caducou.
+            if (units.Any(x => x.IsExpired))
+                return DocumentStatus.Expired;
 
-            if (units.Any(x => x.Status == DocumentUnitStatus.NotApplicable))
-                return DocumentStatus.OK;
+            if (units.Any(x => x.IsPending))
+                return DocumentStatus.RequiresDocument;
 
-            if (units.Any(x => x.Status == DocumentUnitStatus.Deprecated))
+            // Só sobraram unidades depreciadas e/ou inválidas. Depreciada sem substituto na competência é o
+            // documento inteiro fora de cena (MakeAsDeprecated); inválida não cobre nada.
+            if (units.All(x => x.Status == DocumentUnitStatus.Deprecated))
                 return DocumentStatus.Deprecated;
 
             return DocumentStatus.RequiresDocument;
