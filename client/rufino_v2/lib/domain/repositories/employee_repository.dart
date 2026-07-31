@@ -355,6 +355,31 @@ abstract class EmployeeRepository {
     int reminderEveryNDays,
   );
 
+  /// Schedules the document to be generated and sent for signature on
+  /// [sendOn], instead of sending it now.
+  ///
+  /// [dateLimitToSign] is the employee's deadline, counted from the send, so it
+  /// must be after [sendOn]. Both are `dd/MM/yyyy`.
+  Future<Result<void>> scheduleSendToSign(
+    String companyId,
+    String employeeId,
+    String documentId,
+    String documentUnitId,
+    String sendOn,
+    String dateLimitToSign,
+    int reminderEveryNDays,
+  );
+
+  /// Cancels the scheduled signature send of a document unit.
+  ///
+  /// Succeeds even when nothing was scheduled.
+  Future<Result<void>> cancelScheduledSendToSign(
+    String companyId,
+    String employeeId,
+    String documentId,
+    String documentUnitId,
+  );
+
   /// Downloads the file attached to a document unit.
   Future<Result<Uint8List>> downloadDocumentUnit(
     String companyId,

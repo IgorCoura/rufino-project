@@ -758,6 +758,40 @@ class EmployeeApiService {
     checkHttpStatus(response);
   }
 
+  /// Schedules a document to be generated and sent for signature on a date.
+  Future<void> scheduleSendToSign(
+    String companyId,
+    Map<String, dynamic> body,
+  ) async {
+    final uri = Uri.https(
+      baseUrl,
+      '/api/v1/$companyId/document/schedule/send2sign',
+    );
+    final response = await client.post(
+      uri,
+      headers: await _headers(),
+      body: jsonEncode(body),
+    );
+    checkHttpStatus(response);
+  }
+
+  /// Cancels a scheduled signature send for a document unit.
+  Future<void> cancelScheduledSendToSign(
+    String companyId,
+    Map<String, dynamic> body,
+  ) async {
+    final uri = Uri.https(
+      baseUrl,
+      '/api/v1/$companyId/document/schedule/send2sign/cancel',
+    );
+    final response = await client.post(
+      uri,
+      headers: await _headers(),
+      body: jsonEncode(body),
+    );
+    checkHttpStatus(response);
+  }
+
   /// Downloads the file attached to a document unit.
   Future<Uint8List> downloadDocumentUnit(
     String companyId,

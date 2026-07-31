@@ -14,6 +14,7 @@ class EmployeeDocumentApiModel {
     required this.usePreviousPeriod,
     required this.totalUnitsCount,
     required this.units,
+    this.suggestedSignatureScheduleDate = '',
   });
 
   final String id;
@@ -26,6 +27,9 @@ class EmployeeDocumentApiModel {
   final bool usePreviousPeriod;
   final int totalUnitsCount;
   final List<DocumentUnitApiModel> units;
+
+  /// Suggested date for scheduling the next signature send (`yyyy-MM-dd`).
+  final String suggestedSignatureScheduleDate;
 
   /// Parses a simple document (from the list endpoint, no units).
   factory EmployeeDocumentApiModel.fromJsonSimple(Map<String, dynamic> json) {
@@ -58,6 +62,8 @@ class EmployeeDocumentApiModel {
       canGenerateDocument: json['canGenerateDocument'] as bool? ?? false,
       usePreviousPeriod: json['usePreviousPeriod'] as bool? ?? false,
       totalUnitsCount: json['totalUnitsCount'] as int? ?? 0,
+      suggestedSignatureScheduleDate:
+          json['suggestedSignatureScheduleDate'] as String? ?? '',
       units: rawUnits
           .map((e) =>
               DocumentUnitApiModel.fromJson(e as Map<String, dynamic>))
@@ -77,6 +83,8 @@ class EmployeeDocumentApiModel {
       canGenerateDocument: canGenerateDocument,
       usePreviousPeriod: usePreviousPeriod,
       totalUnitsCount: totalUnitsCount,
+      suggestedSignatureScheduleDate:
+          DocumentUnitApiModel._dateToDisplay(suggestedSignatureScheduleDate),
       units: units.map((u) => u.toEntity()).toList(),
     );
   }
@@ -95,6 +103,7 @@ class DocumentUnitApiModel {
     required this.name,
     required this.extension,
     this.period,
+    this.scheduledSignatureSendOn = '',
   });
 
   final String id;
@@ -109,6 +118,9 @@ class DocumentUnitApiModel {
 
   /// The competency period, if the document has one.
   final PeriodApiModel? period;
+
+  /// Date the signature send is scheduled for (`yyyy-MM-dd`), empty when none.
+  final String scheduledSignatureSendOn;
 
   factory DocumentUnitApiModel.fromJson(Map<String, dynamic> json) {
     final status = json['status'] as Map<String, dynamic>? ?? {};
@@ -125,6 +137,8 @@ class DocumentUnitApiModel {
       extension: json['extension'] as String? ?? '',
       period:
           periodJson != null ? PeriodApiModel.fromJson(periodJson) : null,
+      scheduledSignatureSendOn:
+          json['scheduledSignatureSendOn'] as String? ?? '',
     );
   }
 
@@ -141,6 +155,7 @@ class DocumentUnitApiModel {
       hasFile: hasValidDate && extension.isNotEmpty,
       name: name,
       period: period?.toEntity(),
+      scheduledSignatureSendOn: _dateToDisplay(scheduledSignatureSendOn),
     );
   }
 

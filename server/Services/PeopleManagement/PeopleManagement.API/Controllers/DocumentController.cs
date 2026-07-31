@@ -19,6 +19,8 @@ using PeopleManagement.Application.Commands.DocumentCommands.MarkAsValidDocument
 using PeopleManagement.Application.Commands.DocumentCommands.MarkAsNotApplicableDocumentUnit;
 using PeopleManagement.Application.Commands.DocumentCommands.CheckOutdatedDocumentContent;
 using PeopleManagement.Application.Commands.DocumentCommands.RefreshDocumentContent;
+using PeopleManagement.Application.Commands.DocumentCommands.ScheduleDocumentToSign;
+using PeopleManagement.Application.Commands.DocumentCommands.CancelScheduledDocumentToSign;
 namespace PeopleManagement.API.Controllers
 {
     [Route("api/v1/{company}/[controller]")]
@@ -143,6 +145,38 @@ namespace PeopleManagement.API.Controllers
         public async Task<ActionResult<GenerateDocumentToSignResponse>> GeneratePdfToSign([FromRoute] Guid company, [FromBody] GenerateDocumentToSignModel request, [FromHeader(Name = "x-requestid")] Guid requestId)
         {
             var identifiedCommand = new IdentifiedCommand<GenerateDocumentToSignCommand, GenerateDocumentToSignResponse>(request.ToCommand(company), requestId);
+
+            SendingCommandLog(request.DocumentUnitId, request, requestId);
+
+            var result = await _mediator.Send(identifiedCommand);
+
+            CommandResultLog(result, request.DocumentUnitId, request, requestId);
+
+            return result;
+        }
+
+        // Agenda o envio para assinatura numa data futura, em vez de mandar agora. Mesmo escopo do envio
+        // imediato: quem pode enviar, pode agendar.
+        [HttpPost("schedule/send2sign")]
+        [ProtectedResource("document", ["generate", "send2sign"])]
+        public async Task<ActionResult<ScheduleDocumentToSignResponse>> ScheduleToSign([FromRoute] Guid company, [FromBody] ScheduleDocumentToSignModel request, [FromHeader(Name = "x-requestid")] Guid requestId)
+        {
+            var identifiedCommand = new IdentifiedCommand<ScheduleDocumentToSignCommand, ScheduleDocumentToSignResponse>(request.ToCommand(company), requestId);
+
+            SendingCommandLog(request.DocumentUnitId, request, requestId);
+
+            var result = await _mediator.Send(identifiedCommand);
+
+            CommandResultLog(result, request.DocumentUnitId, request, requestId);
+
+            return result;
+        }
+
+        [HttpPost("schedule/send2sign/cancel")]
+        [ProtectedResource("document", ["generate", "send2sign"])]
+        public async Task<ActionResult<CancelScheduledDocumentToSignResponse>> CancelScheduledToSign([FromRoute] Guid company, [FromBody] CancelScheduledDocumentToSignModel request, [FromHeader(Name = "x-requestid")] Guid requestId)
+        {
+            var identifiedCommand = new IdentifiedCommand<CancelScheduledDocumentToSignCommand, CancelScheduledDocumentToSignResponse>(request.ToCommand(company), requestId);
 
             SendingCommandLog(request.DocumentUnitId, request, requestId);
 

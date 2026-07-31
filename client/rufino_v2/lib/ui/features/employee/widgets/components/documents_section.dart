@@ -269,6 +269,16 @@ class _DocumentsSectionState extends State<DocumentsSection> {
               PermissionGuard(
                 resource: 'document',
                 scope: 'send2sign',
+                child: OutlinedButton(
+                  key: const ValueKey('generate-dialog-schedule-sign'),
+                  onPressed: () => Navigator.of(ctx).pop('schedule_sign'),
+                  child: const Text('Agendar envio'),
+                ),
+              ),
+            if (doc.isSignable && _canSendToSign)
+              PermissionGuard(
+                resource: 'document',
+                scope: 'send2sign',
                 child: FilledButton(
                   onPressed: () => Navigator.of(ctx).pop('generate_sign'),
                   child: const Text('Gerar e enviar para assinatura'),
@@ -280,6 +290,14 @@ class _DocumentsSectionState extends State<DocumentsSection> {
     );
 
     if (!mounted || action == null) return;
+
+    // Agendar não passa pelo aviso de snapshot: o PDF só é montado na data do
+    // disparo, então quem vale é o cadastro daquele momento — avisar agora
+    // sobre um dado que ainda vai mudar seria informação errada.
+    if (action == 'schedule_sign') {
+      await _showScheduleSignDialog(doc, unit);
+      return;
+    }
 
     // O PDF é montado a partir do snapshot gravado na unidade, então os dois
     // caminhos (gerar e gerar+assinar) passam pelo mesmo aviso.
@@ -810,6 +828,74 @@ class _DocumentsSectionState extends State<DocumentsSection> {
       ),
     ));
     await Future<void>.delayed(const Duration(milliseconds: 50));
+  }
+
+  /// Shows a dialog to schedule the signature send for a future date.
+  ///
+  /// The send date is prefilled with [EmployeeDocument.suggestedSignatureScheduleDate]
+  /// — when the current coverage expires — so the common case (renew exactly on
+  /// the expiry day) is one confirmation away.
+  Future<void> _showScheduleSignDialog(
+    EmployeeDocument doc,
+    DocumentUnit unit,
+  ) async {
+    final schedule = await showDialog<_ScheduleSignResult>(
+      context: context,
+      builder: (_) => _ScheduleSignDialog(
+        suggestedSendOn: doc.suggestedSignatureScheduleDate,
+      ),
+    );
+
+    if (schedule == null || !mounted) return;
+
+    setState(() => _isBusy = true);
+    try {
+      await widget.viewModel.scheduleSendToSign(
+        doc.id,
+        unit.id,
+        schedule.sendOn,
+        schedule.dateLimitToSign,
+        0,
+      );
+    } finally {
+      if (mounted) setState(() => _isBusy = false);
+    }
+  }
+
+  /// Asks the user to confirm cancelling a scheduled signature send.
+  Future<void> _confirmCancelScheduledSend(
+    EmployeeDocument doc,
+    DocumentUnit unit,
+  ) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Cancelar Agendamento'),
+        content: Text(
+          'O envio agendado para ${unit.scheduledSignatureSendOn} não será '
+          'realizado. O documento continua pendente.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Voltar'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('Cancelar agendamento'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true || !mounted) return;
+
+    setState(() => _isBusy = true);
+    try {
+      await widget.viewModel.cancelScheduledSendToSign(doc.id, unit.id);
+    } finally {
+      if (mounted) setState(() => _isBusy = false);
+    }
   }
 
   /// Shows a dialog to configure the sign date limit and reminder interval.
@@ -1653,6 +1739,18 @@ class _DocumentsSectionState extends State<DocumentsSection> {
               onPressed: _isBusy ? null : () => _showSendDialog(doc, unit),
             ),
           ),
+        if (unit.isSignatureScheduled)
+          PermissionGuard(
+            resource: 'document',
+            scope: 'send2sign',
+            child: IconButton(
+              key: const ValueKey('unit-cancel-scheduled-send'),
+              icon: const Icon(Icons.event_busy_outlined, size: 20),
+              tooltip: 'Cancelar agendamento',
+              onPressed:
+                  _isBusy ? null : () => _confirmCancelScheduledSend(doc, unit),
+            ),
+          ),
       ] else if (unit.hasFile)
         PermissionGuard(
           resource: 'document',
@@ -1700,6 +1798,14 @@ class _DocumentsSectionState extends State<DocumentsSection> {
                 .bodySmall
                 ?.copyWith(color: cs.onSurfaceVariant),
           ),
+        if (unit.isSignatureScheduled) ...[
+          const SizedBox(height: AppSpacing.xs),
+          _StatusBadge(
+            key: const ValueKey('unit-scheduled-send-badge'),
+            label: 'Envio agendado: ${unit.scheduledSignatureSendOn}',
+            color: cs.tertiary,
+          ),
+        ],
       ],
     );
 
@@ -1863,8 +1969,156 @@ class _DocumentsSectionState extends State<DocumentsSection> {
 }
 
 /// Small coloured badge used to display a document or unit status.
+/// The dates chosen in [_ScheduleSignDialog].
+typedef _ScheduleSignResult = ({String sendOn, String dateLimitToSign});
+
+/// Asks for the date the document should be sent for signature and the deadline
+/// the employee has to sign it.
+///
+/// A StatefulWidget, and not controllers built inside the caller, so the fields
+/// live and die with the dialog route — disposing them from the caller kills
+/// them mid exit-animation, and the deadline validator reads the send-date
+/// controller while the route is still tearing down.
+class _ScheduleSignDialog extends StatefulWidget {
+  const _ScheduleSignDialog({required this.suggestedSendOn});
+
+  /// Date to prefill the send field with, or empty when there is no suggestion.
+  final String suggestedSendOn;
+
+  @override
+  State<_ScheduleSignDialog> createState() => _ScheduleSignDialogState();
+}
+
+class _ScheduleSignDialogState extends State<_ScheduleSignDialog> {
+  final _formKey = GlobalKey<FormState>();
+  late final TextEditingController _sendOnCtrl;
+  final _deadlineCtrl = TextEditingController();
+  final _sendOnMask = _dateMask();
+  final _deadlineMask = _dateMask();
+
+  static MaskTextInputFormatter _dateMask() => MaskTextInputFormatter(
+        mask: '##/##/####',
+        filter: {'#': RegExp(r'[0-9]')},
+        type: MaskAutoCompletionType.lazy,
+      );
+
+  @override
+  void initState() {
+    super.initState();
+    _sendOnCtrl = TextEditingController(text: widget.suggestedSendOn);
+  }
+
+  @override
+  void dispose() {
+    _sendOnCtrl.dispose();
+    _deadlineCtrl.dispose();
+    super.dispose();
+  }
+
+  /// Writes the send date + [days] into the deadline field.
+  ///
+  /// Counted from the send date, not from today, because that is how the
+  /// deadline itself is counted.
+  void _setDeadlineFromSendDate(int days) {
+    final base = DocumentUnit.parseDate(_sendOnCtrl.text) ?? DateTime.now();
+    final target = base.add(Duration(days: days));
+    final d = target.day.toString().padLeft(2, '0');
+    final m = target.month.toString().padLeft(2, '0');
+    _deadlineMask.formatEditUpdate(
+      TextEditingValue.empty,
+      TextEditingValue(text: '$d$m${target.year}'),
+    );
+    _deadlineCtrl.text = _deadlineMask.getMaskedText();
+  }
+
+  void _submit() {
+    if (_formKey.currentState?.validate() != true) return;
+    Navigator.of(context).pop((
+      sendOn: _sendOnCtrl.text.trim(),
+      dateLimitToSign: _deadlineCtrl.text.trim(),
+    ));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Agendar Envio para Assinatura'),
+      content: Form(
+        key: _formKey,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              'O documento será gerado e enviado ao funcionário somente na '
+              'data escolhida.',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+            const SizedBox(height: AppSpacing.md),
+            TextFormField(
+              key: const ValueKey('schedule-send-on-field'),
+              controller: _sendOnCtrl,
+              decoration: InputDecoration(
+                labelText: 'Data do envio',
+                prefixIcon: const Icon(Icons.schedule_send_outlined),
+                border: const OutlineInputBorder(),
+                helperText: widget.suggestedSendOn.isNotEmpty
+                    ? 'Sugestão: vencimento do documento atual'
+                    : 'Ex: 15/03/2026',
+              ),
+              keyboardType: TextInputType.number,
+              inputFormatters: [_sendOnMask],
+              validator: DocumentUnit.validateScheduleSendDate,
+            ),
+            const SizedBox(height: AppSpacing.md),
+            TextFormField(
+              key: const ValueKey('schedule-deadline-field'),
+              controller: _deadlineCtrl,
+              decoration: const InputDecoration(
+                labelText: 'Data limite para assinatura',
+                prefixIcon: Icon(Icons.event_outlined),
+                border: OutlineInputBorder(),
+                helperText: 'Contada a partir da data do envio',
+              ),
+              keyboardType: TextInputType.number,
+              inputFormatters: [_deadlineMask],
+              validator: (value) =>
+                  DocumentUnit.validateSignDeadline(value, _sendOnCtrl.text),
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            Row(
+              children: [3, 5, 10].map((days) {
+                return Expanded(
+                  child: Padding(
+                    padding: EdgeInsets.only(
+                      right: days == 10 ? 0 : AppSpacing.sm,
+                    ),
+                    child: OutlinedButton(
+                      onPressed: () => _setDeadlineFromSendDate(days),
+                      child: Text('+$days dias'),
+                    ),
+                  ),
+                );
+              }).toList(),
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Cancelar'),
+        ),
+        FilledButton(
+          onPressed: _submit,
+          child: const Text('Agendar'),
+        ),
+      ],
+    );
+  }
+}
+
 class _StatusBadge extends StatelessWidget {
-  const _StatusBadge({required this.label, required this.color});
+  const _StatusBadge({required this.label, required this.color, super.key});
 
   final String label;
   final Color color;

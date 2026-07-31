@@ -50,6 +50,20 @@ namespace PeopleManagement.Infra.Mapping
             builder.Property(x => x.WorkloadEndDate)
                 .IsRequired(false);
 
+            // Owned opcional: a ausência do VO (todas as colunas null) é o estado "nada agendado". Os três
+            // valores nascem e morrem juntos, então nenhuma combinação parcial é representável.
+            builder.OwnsOne(x => x.ScheduledSignature, schedule =>
+            {
+                schedule.Property(c => c.SendOn)
+                    .IsRequired();
+
+                schedule.Property(c => c.DateLimitToSign)
+                    .IsRequired();
+
+                schedule.Property(c => c.ReminderEveryNDays)
+                    .IsRequired();
+            });
+
             builder.OwnsOne(x => x.Period, period =>
             {
                 period.Property(c => c.Type)

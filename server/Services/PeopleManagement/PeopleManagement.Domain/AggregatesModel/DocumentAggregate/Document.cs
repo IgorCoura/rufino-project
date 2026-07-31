@@ -177,6 +177,37 @@ namespace PeopleManagement.Domain.AggregatesModel.DocumentAggregate
             RefreshDocumentStatus();
         }
 
+        /// <summary>
+        /// Agenda o envio da unidade para assinatura numa data futura, em vez de mandá-la agora.
+        ///
+        /// As mesmas guardas do envio imediato valem aqui, e valem de novo no disparo: entre o agendamento e a
+        /// data escolhida o documento pode ter sido entregue, invalidado ou enviado por outro caminho.
+        /// </summary>
+        public void ScheduleSignatureSend(Guid documentUnitId, DateOnly sendOn, DateOnly dateLimitToSign, int reminderEveryNDays)
+        {
+            var documentUnit = DocumentsUnits.FirstOrDefault(x => x.Id == documentUnitId)
+                ?? throw new DomainException(this, DomainErrors.ObjectNotFound(nameof(DocumentUnit), documentUnitId.ToString()));
+
+            if (documentUnit.IsAwaitingSignature)
+                throw new DomainException(this, DomainErrors.Document.DocumentAlreadySentToSignature(documentUnitId));
+
+            if (documentUnit.IsPending == false)
+                throw new DomainException(this, DomainErrors.Document.IsNotPending());
+
+            documentUnit.ScheduleSignatureSend(ScheduledSignature.Create(sendOn, dateLimitToSign, reminderEveryNDays));
+        }
+
+        /// <summary>
+        /// Cancela o envio agendado da unidade. Sem agendamento, não faz nada.
+        /// </summary>
+        public void CancelScheduledSignatureSend(Guid documentUnitId)
+        {
+            var documentUnit = DocumentsUnits.FirstOrDefault(x => x.Id == documentUnitId)
+                ?? throw new DomainException(this, DomainErrors.ObjectNotFound(nameof(DocumentUnit), documentUnitId.ToString()));
+
+            documentUnit.CancelScheduledSignatureSend();
+        }
+
         public void MarkAsInvalidDocumentUnit(Guid documentUnitId)
         {
             var document = DocumentsUnits.FirstOrDefault(x => x.Id == documentUnitId)

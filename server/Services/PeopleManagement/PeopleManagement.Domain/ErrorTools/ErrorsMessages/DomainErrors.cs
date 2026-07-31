@@ -96,6 +96,14 @@ namespace PeopleManagement.Domain.ErrorTools.ErrorsMessages
                 $"A unidade de documento {docUnitId} não pode ser enviada para assinatura antes da sua data oficial {Date:dd/MM/yyyy}.",
                 new { docUnitId, Date });
 
+            public static Error ScheduleSendDateInPast(DateOnly SendOn, DateOnly Today) => new("PMD.DOC21",
+                $"O envio para assinatura não pode ser agendado para {SendOn:dd/MM/yyyy}, que já passou. Escolha uma data a partir de {Today:dd/MM/yyyy}.",
+                new { SendOn, Today });
+
+            public static Error ScheduleDateLimitBeforeSendDate(DateOnly DateLimitToSign, DateOnly SendOn) => new("PMD.DOC22",
+                $"O prazo de assinatura {DateLimitToSign:dd/MM/yyyy} precisa ser posterior à data do envio {SendOn:dd/MM/yyyy}.",
+                new { DateLimitToSign, SendOn });
+
         }
 
         public static class DocumentTemplate

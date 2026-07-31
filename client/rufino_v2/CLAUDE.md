@@ -788,6 +788,17 @@ O PDF é montado no backend a partir de um **snapshot** dos dados do funcionári
 - **Cobre gerar E gerar+assinar**, nos dois lados: é o mesmo `Content`. **Download não entra** — entrega arquivo já existente, não lê o snapshot. No perfil, o aviso do `generate_sign` aparece **antes** do diálogo de data-limite.
 - **Refresh não move a data.** O backend reusa a data já gravada na unidade; o cliente não reenvia data nenhuma. Só o perfil chama, e só para as unidades efetivamente divergentes.
 
+## Agendar Envio para Assinatura (perfil do funcionário)
+
+Na seção Documentos do perfil, o diálogo "Gerar Documento" de uma unidade pendente tem uma terceira ação — **"Agendar envio"** (`generate-dialog-schedule-sign`) — ao lado de "Gerar arquivo" e "Gerar e enviar para assinatura". O documento só é gerado e enviado ao funcionário **na data escolhida**.
+
+- **Agendar não passa pelo aviso de snapshot desatualizado.** O PDF só é montado na data do disparo, então quem vale é o cadastro daquele momento — avisar agora sobre um dado que ainda vai mudar seria informação errada. Os outros dois caminhos continuam passando por `_confirmSnapshotFreshness`.
+- **A data do envio vem pré-preenchida** com `EmployeeDocument.suggestedSignatureScheduleDate` (o vencimento da cobertura atual, calculado no servidor), então o caso comum — renovar exatamente no dia em que o documento vence — é uma confirmação. Sem sugestão, o campo nasce vazio.
+- **`_ScheduleSignDialog` é `StatefulWidget` e possui os próprios controllers.** Não construa controllers no caller e descarte-os depois do `await showDialog`: o diálogo continua vivo durante a animação de saída, e o validador do prazo lê o controller da data de envio — descartar de fora quebra o rebuild (`build scope unexpectedly does not contain that widget`).
+- **Validação espelha a API:** `DocumentUnit.validateScheduleSendDate` (hoje ou depois, `PMD.DOC21`) e `DocumentUnit.validateSignDeadline(value, sendOn)` (posterior ao envio, `PMD.DOC22`). O prazo é contado **do envio**, então os atalhos `+3/+5/+10 dias` somam sobre a data do envio, não sobre hoje. Quando a data de envio está inválida, o validador do prazo só checa formato — o outro campo já reporta o problema, e marcar os dois em vermelho pelo mesmo motivo confunde.
+- **Na linha da unidade:** chip "Envio agendado: dd/MM/yyyy" quando `unit.isSignatureScheduled`, e a ação "Cancelar agendamento" sob `PermissionGuard('document','send2sign')`. A unidade **continua Pendente** enquanto agendada — o agendamento é intenção, não envio, e por isso não há status novo.
+- **Só o caminho de gerar é agendável** — agendar upload exigiria guardar o arquivo até a data. `EmployeeRepository.scheduleSendToSign` manda datas puras (`yyyy-MM-dd`), diferente de `generateAndSendToSign`, que manda instante ISO.
+
 ## UI Design Guidelines (Material Design 3)
 
 Official references:

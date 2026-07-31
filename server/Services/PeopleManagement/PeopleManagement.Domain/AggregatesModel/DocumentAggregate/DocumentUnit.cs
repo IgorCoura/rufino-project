@@ -38,6 +38,12 @@ namespace PeopleManagement.Domain.AggregatesModel.DocumentAggregate
         public DateTime? SentToSignatureAt { get; private set; }
         public DateOnly? WorkloadEndDate { get; private set; }
 
+        /// <summary>
+        /// Envio para assinatura agendado, quando houver. Null = nada agendado; o envio imediato não passa por
+        /// aqui. Fica ao lado de <see cref="SentToSignatureAt"/> de propósito: um é a intenção, o outro é o fato.
+        /// </summary>
+        public ScheduledSignature? ScheduledSignature { get; private set; }
+
         private DocumentUnit() { }
         private DocumentUnit(Guid id, Document document) : base(id)
         {
@@ -142,6 +148,28 @@ namespace PeopleManagement.Domain.AggregatesModel.DocumentAggregate
         }
 
 
+
+        /// <summary>
+        /// Agenda o envio para assinatura. Agendar de novo substitui o agendamento anterior — o disparo antigo
+        /// compara a data que carrega com a gravada aqui e desiste sozinho quando elas divergem, então não é
+        /// preciso rastrear nem cancelar o job já criado.
+        /// </summary>
+        public void ScheduleSignatureSend(ScheduledSignature schedule)
+        {
+            ScheduledSignature = schedule;
+            AddDomainEvent(ScheduleDocumentSignatureSendEvent.Create(Document.Id, Id, Document.CompanyId, schedule.SendOn));
+        }
+
+        /// <summary>
+        /// Cancela o agendamento. No-op quando não há nenhum: cancelar duas vezes (ou cancelar o que o disparo
+        /// já consumiu) é a mesma intenção realizada, não um erro.
+        /// </summary>
+        public void CancelScheduledSignatureSend()
+        {
+            ScheduledSignature = null;
+        }
+
+        public bool IsSignatureScheduled => ScheduledSignature is not null;
 
         public void MaskAsInvalid()
         {

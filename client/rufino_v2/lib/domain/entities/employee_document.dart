@@ -14,6 +14,7 @@ class EmployeeDocument {
     required this.usePreviousPeriod,
     required this.totalUnitsCount,
     required this.units,
+    this.suggestedSignatureScheduleDate = '',
   });
 
   final String id;
@@ -40,6 +41,18 @@ class EmployeeDocument {
 
   /// The loaded document units for the current page.
   final List<DocumentUnit> units;
+
+  /// The date suggested when scheduling the next signature send, in
+  /// `dd/MM/yyyy`, or empty when there is none to suggest.
+  ///
+  /// It is when the current coverage expires — the validity of the delivered
+  /// unit the next one will replace. Comes from the server, not from [units]:
+  /// the list is one page, so the delivered unit may not even be loaded.
+  final String suggestedSignatureScheduleDate;
+
+  /// Whether there is a date to prefill the schedule field with.
+  bool get hasSuggestedSignatureScheduleDate =>
+      suggestedSignatureScheduleDate.isNotEmpty;
 
   /// Whether this document has any pending units.
   bool get hasPendingUnits => units.any((u) => u.isPending);
@@ -71,6 +84,7 @@ class DocumentUnit {
     required this.hasFile,
     required this.name,
     this.period,
+    this.scheduledSignatureSendOn = '',
   });
 
   final String id;
@@ -100,6 +114,16 @@ class DocumentUnit {
 
   /// The competency period, if the document has one.
   final Period? period;
+
+  /// The date this unit is scheduled to be sent for signature, in `dd/MM/yyyy`,
+  /// or empty when nothing is scheduled.
+  ///
+  /// The unit stays [isPending] while scheduled — the schedule is an intent,
+  /// not a send.
+  final String scheduledSignatureSendOn;
+
+  /// Whether this unit has a signature send scheduled for a future date.
+  bool get isSignatureScheduled => scheduledSignatureSendOn.isNotEmpty;
 
   /// Whether this unit is pending (status id 1).
   bool get isPending => statusId == '1';
@@ -168,6 +192,49 @@ class DocumentUnit {
       if (date == null) return 'Data inválida.';
     } catch (_) {
       return 'Data inválida.';
+    }
+    return null;
+  }
+
+  /// Parses a `dd/MM/yyyy` string, or returns null when it is not a valid date.
+  static DateTime? parseDate(String? value) {
+    final stripped = (value ?? '').replaceAll(RegExp(r'[^\d]'), '');
+    if (stripped.length != 8) return null;
+    final parts = value!.split('/');
+    if (parts.length != 3) return null;
+    return DateTime.tryParse('${parts[2]}-${parts[1]}-${parts[0]}');
+  }
+
+  /// Validates the date the signature send is scheduled for.
+  ///
+  /// Required, and today or later — the API rejects a past date (`PMD.DOC21`),
+  /// since a schedule in the past would fire at once, which is the opposite of
+  /// what scheduling is for.
+  static String? validateScheduleSendDate(String? value) {
+    final date = parseDate(value);
+    if (date == null) return 'Informe a data do envio (ex: 15/03/2026).';
+
+    final today = DateTime.now();
+    if (date.isBefore(DateTime(today.year, today.month, today.day))) {
+      return 'A data do envio não pode estar no passado.';
+    }
+    return null;
+  }
+
+  /// Validates the signing deadline against the scheduled send date [sendOn].
+  ///
+  /// The deadline is counted from the send, so it must be strictly after it —
+  /// same rule the API enforces (`PMD.DOC22`). With an unparseable [sendOn]
+  /// only the format is checked; the send-date field reports that problem.
+  static String? validateSignDeadline(String? value, String? sendOn) {
+    final deadline = parseDate(value);
+    if (deadline == null) return 'Informe a data limite (ex: 20/03/2026).';
+
+    final send = parseDate(sendOn);
+    if (send == null) return null;
+
+    if (!deadline.isAfter(send)) {
+      return 'A data limite precisa ser posterior à data do envio.';
     }
     return null;
   }

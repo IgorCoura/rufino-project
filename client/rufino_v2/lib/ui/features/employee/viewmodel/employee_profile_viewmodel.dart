@@ -2039,6 +2039,73 @@ class EmployeeProfileViewModel extends ChangeNotifier {
     await loadDocumentUnits(documentId);
   }
 
+  /// Schedules a document to be generated and sent for signature on [sendOn].
+  Future<void> scheduleSendToSign(
+    String documentId,
+    String documentUnitId,
+    String sendOn,
+    String dateLimitToSign,
+    int reminderEveryNDays,
+  ) async {
+    final companyId = _companyId;
+    final currentProfile = _profile;
+    if (companyId == null || currentProfile == null) return;
+
+    final result = await _employeeRepository.scheduleSendToSign(
+      companyId,
+      currentProfile.id,
+      documentId,
+      documentUnitId,
+      sendOn,
+      dateLimitToSign,
+      reminderEveryNDays,
+    );
+
+    result.fold(
+      onSuccess: (_) =>
+          _snackMessage = 'Envio para assinatura agendado para $sendOn.',
+      onError: (error, __) {
+        final messages = extractServerMessages(error);
+        _snackMessage = messages.isNotEmpty
+            ? messages.join('\n')
+            : 'Erro ao agendar o envio para assinatura.';
+      },
+    );
+
+    notifyListeners();
+    await loadDocumentUnits(documentId);
+  }
+
+  /// Cancels the scheduled signature send of a document unit.
+  Future<void> cancelScheduledSendToSign(
+    String documentId,
+    String documentUnitId,
+  ) async {
+    final companyId = _companyId;
+    final currentProfile = _profile;
+    if (companyId == null || currentProfile == null) return;
+
+    final result = await _employeeRepository.cancelScheduledSendToSign(
+      companyId,
+      currentProfile.id,
+      documentId,
+      documentUnitId,
+    );
+
+    result.fold(
+      onSuccess: (_) => _snackMessage = 'Agendamento cancelado.',
+      onError: (error, __) {
+        final messages = extractServerMessages(error);
+        _snackMessage = messages.isNotEmpty
+            ? messages.join('\n')
+            : 'Erro ao cancelar o agendamento.';
+      },
+    );
+
+    notifyListeners();
+    await loadDocumentUnits(documentId);
+  }
+
   /// Downloads the file attached to a document unit and returns the bytes.
   ///
   /// Returns null if the operation fails.
