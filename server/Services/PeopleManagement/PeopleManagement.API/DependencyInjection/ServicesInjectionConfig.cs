@@ -30,6 +30,7 @@ namespace PeopleManagement.API.DependencyInjection
 
             service.AddScoped<IArchiveService, ArchiveService>();
             service.AddScoped<ICompleteAdmissionService, CompleteAdmissionService>();
+            service.AddScoped<IDocumentContentBuilder, DocumentContentBuilder>();
             service.AddScoped<IDocumentService, DocumentService>();
             service.AddScoped<IArchiveCategoryService, ArchiveCategoryService>();
             service.AddScoped<ISignDocumentService, SignDocumentService>();

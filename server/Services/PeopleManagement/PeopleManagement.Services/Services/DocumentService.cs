@@ -33,7 +33,7 @@ namespace PeopleManagement.Services.Services
         IPdfService pdfService, IBlobService blobService, IDocumentTemplateRepository documentTemplateRepository,
         DocumentTemplatesOptions documentTemplatesOptions, IRequireDocumentsRepository requireDocumentsRepository,
         IEmployeeRepository employeeRepository, IOptions<TimeZoneOptions> timeZoneOptions, ILogger<DocumentService> logger,
-        IWorkloadCalendarService workloadCalendarService) : IDocumentService
+        IWorkloadCalendarService workloadCalendarService, IDocumentContentBuilder documentContentBuilder) : IDocumentService
     {
         private readonly IDocumentRepository _documentRepository = securityDocumentRepository;
         private readonly IPdfService _pdfService = pdfService;
@@ -46,6 +46,7 @@ namespace PeopleManagement.Services.Services
         private readonly ILogger<DocumentService> _logger = logger;
         private readonly TimeZoneOptions _timeZone = timeZoneOptions.Value;
         private readonly IWorkloadCalendarService _workloadCalendarService = workloadCalendarService;
+        private readonly IDocumentContentBuilder _documentContentBuilder = documentContentBuilder;
 
         public async Task<DocumentUnit> CreateDocumentUnit(Guid documentId, Guid employeeId, Guid companyId,
             CancellationToken cancellationToken = default)
@@ -307,24 +308,16 @@ namespace PeopleManagement.Services.Services
 
             if(documentTemplate.TemplateFileInfo is not null)
             {
-                content = await RecoverInfoToDocument(
+                var contentResult = await _documentContentBuilder.Build(
                     documentTemplate.TemplateFileInfo.RecoversDataType,
                     employeeId,
                     companyId,
-                    jsonObjects: [
-                        new JsonObject{
-                            ["date"] = $"{documentUnitDate}",
-                            ["validity"] = $"{documentUnit.Validity}",
-                            ["workloadEndDate"] = $"{workloadEndDate}"
-                        },
-                        ],
-                    cancellationToken: cancellationToken);
+                    documentUnitDate,
+                    documentUnit.Validity,
+                    workloadEndDate,
+                    cancellationToken);
 
-                if (content == null)
-                {
-                    throw new DomainException(this, DomainErrors.Document.ErrorRecoverData(documentId));
-                }
-
+                content = contentResult.Content;
             }
 
             documentUnit = document.UpdateDocumentUnitDetails(documentUnitId, documentUnitDate, validityDuration,
@@ -336,7 +329,95 @@ namespace PeopleManagement.Services.Services
             return documentUnit;
         }
 
-        public async Task<byte[]> GeneratePdf(Guid documentUnitId, Guid documentId, Guid employeeId, Guid companyId, 
+        public async Task<IReadOnlyList<DocumentUnitContentStatus>> CheckOutdatedContent(
+            IEnumerable<(Guid DocumentUnitId, Guid DocumentId, Guid EmployeeId)> items,
+            Guid companyId, CancellationToken cancellationToken = default)
+        {
+            var itemsList = items.ToList();
+            if (itemsList.Count == 0)
+                return [];
+
+            var documentIds = itemsList.Select(x => x.DocumentId).Distinct().ToList();
+
+            var documents = (await _documentRepository.GetDataAsync(
+                x => documentIds.Contains(x.Id) && x.CompanyId == companyId,
+                include: i => i.Include(x => x.DocumentsUnits),
+                cancellation: cancellationToken)).ToList();
+
+            var documentById = documents.ToDictionary(d => d.Id);
+
+            var templateIds = documents.Select(d => d.DocumentTemplateId).Distinct().ToList();
+            var templateById = (await _documentTemplateRepository.GetDataAsync(
+                x => templateIds.Contains(x.Id) && x.CompanyId == companyId,
+                cancellation: cancellationToken)).ToDictionary(t => t.Id);
+
+            var results = new List<DocumentUnitContentStatus>();
+
+            foreach (var item in itemsList)
+            {
+                if (!documentById.TryGetValue(item.DocumentId, out var document) || document.EmployeeId != item.EmployeeId)
+                    throw new DomainException(this, DomainErrors.ObjectNotFound(nameof(Document), item.DocumentId.ToString()));
+
+                var documentUnit = document.DocumentsUnits.FirstOrDefault(x => x.Id == item.DocumentUnitId)
+                    ?? throw new DomainException(this, DomainErrors.ObjectNotFound(nameof(DocumentUnit), item.DocumentUnitId.ToString()));
+
+                if (!templateById.TryGetValue(document.DocumentTemplateId, out var documentTemplate))
+                    throw new DomainException(this, DomainErrors.ObjectNotFound(nameof(DocumentTemplate), document.DocumentTemplateId.ToString()));
+
+                // Template sem arquivo não gera documento, e unidade sem conteúdo ainda não teve snapshot: nos dois
+                // casos não existe "antes" para comparar.
+                if (documentTemplate.TemplateFileInfo is null || documentUnit.HasContent == false)
+                {
+                    results.Add(new DocumentUnitContentStatus(documentUnit.Id, false, false));
+                    continue;
+                }
+
+                // As datas vêm da própria unidade, não do template: o que se quer detectar é dado do funcionário
+                // que mudou, e recalcular a carga horária aqui exigiria a verificação de conflito, que escreve e
+                // lança.
+                var rebuilt = await _documentContentBuilder.Build(
+                    documentTemplate.TemplateFileInfo.RecoversDataType,
+                    document.EmployeeId,
+                    companyId,
+                    documentUnit.Date,
+                    documentUnit.Validity,
+                    documentUnit.WorkloadEndDate,
+                    cancellationToken);
+
+                if (rebuilt.IsComplete == false)
+                {
+                    results.Add(new DocumentUnitContentStatus(documentUnit.Id, false, true));
+                    continue;
+                }
+
+                var isOutdated = string.Equals(rebuilt.Content, documentUnit.Content, StringComparison.Ordinal) == false;
+                results.Add(new DocumentUnitContentStatus(documentUnit.Id, isOutdated, false));
+            }
+
+            return results;
+        }
+
+        public async Task RefreshDocumentUnitContent(
+            IEnumerable<(Guid DocumentUnitId, Guid DocumentId, Guid EmployeeId)> items,
+            Guid companyId, CancellationToken cancellationToken = default)
+        {
+            foreach (var item in items)
+            {
+                var document = await _documentRepository.FirstOrDefaultAsync(x => x.Id == item.DocumentId
+                    && x.EmployeeId == item.EmployeeId && x.CompanyId == companyId,
+                    include: i => i.Include(x => x.DocumentsUnits), cancellation: cancellationToken)
+                    ?? throw new DomainException(this, DomainErrors.ObjectNotFound(nameof(Document), item.DocumentId.ToString()));
+
+                var documentUnit = document.DocumentsUnits.FirstOrDefault(x => x.Id == item.DocumentUnitId)
+                    ?? throw new DomainException(this, DomainErrors.ObjectNotFound(nameof(DocumentUnit), item.DocumentUnitId.ToString()));
+
+                // Reaproveita a data já gravada: renovar o snapshot nunca move a data do documento.
+                await UpdateDocumentUnitDetails(item.DocumentUnitId, item.DocumentId, item.EmployeeId, companyId,
+                    documentUnit.Date, cancellationToken);
+            }
+        }
+
+        public async Task<byte[]> GeneratePdf(Guid documentUnitId, Guid documentId, Guid employeeId, Guid companyId,
             CancellationToken cancellationToken = default)
         {
             var document = await _documentRepository.FirstOrDefaultAsync(x => x.Id == documentId && x.EmployeeId == employeeId 
@@ -440,48 +521,6 @@ namespace PeopleManagement.Services.Services
             await _blobService.UploadAsync(stream, fileNameWithExtesion, document.CompanyId.ToString(), overwrite: false, cancellationToken: cancellationToken);
         }
 
-
-        private async Task<string?> RecoverInfoToDocument(List<RecoverDataType> recoverDataTypes, Guid employeeId, Guid companyId, 
-            JsonObject[]? jsonObjects = null, CancellationToken cancellationToken = default)
-        {
-            var objects  = new List<JsonObject>();
-            if(jsonObjects != null)
-            {
-                var recoverDataService = GetServiceToRecoverData(RecoverDataType.ComplementaryInfo, _serviceProvider);
-                var jsonObject = await recoverDataService.RecoverInfo(employeeId, companyId, jsonObjects: jsonObjects, cancellation: cancellationToken);
-                objects.Add(jsonObject);
-            }
-                
-            foreach (var recoverDataType in recoverDataTypes)
-            {
-                try
-                {
-                    if(recoverDataType == RecoverDataType.ComplementaryInfo)
-                    {
-                        continue;
-                    }
-                    var recoverDataService = GetServiceToRecoverData(recoverDataType, _serviceProvider);
-                    var jsonObject = await recoverDataService.RecoverInfo(employeeId, companyId, cancellation: cancellationToken);
-                    objects.Add(jsonObject);
-                }
-                catch(Exception ex)
-                {
-                    _logger.LogWarning(ex, "Failed to recover data of type {RecoverDataType} for employee {EmployeeId} in company {CompanyId}. Skipping this data type.",
-                        recoverDataType.Name, employeeId, companyId);
-                    continue;                    
-                }
-            }
-            var result = objects.MergeListJsonObjects();
-            return result.ToString();
-        }
-
-
-        private static IRecoverInfoToDocumentTemplateService GetServiceToRecoverData(RecoverDataType doc, IServiceProvider provider)
-        {
-            var result = provider.GetRequiredService(doc.Type) as IRecoverInfoToDocumentTemplateService 
-                ?? throw new NullReferenceException($"O Serviço de tipo {doc.Type} não foi injetado.");
-            return result;
-        }
 
         private async Task<DateOnly> VerifyTimeConflictBetweenDocument(Guid employeeId, Guid companyId, Guid documentId, DateOnly documentUnitDate,
             TimeSpan workload, CancellationToken cancellationToken)

@@ -17,6 +17,8 @@ using static Microsoft.EntityFrameworkCore.DbLoggerCategory.Database;
 using PeopleManagement.Application.Commands.DocumentCommands.MarkAsInvalidDocumentUnit;
 using PeopleManagement.Application.Commands.DocumentCommands.MarkAsValidDocumentUnit;
 using PeopleManagement.Application.Commands.DocumentCommands.MarkAsNotApplicableDocumentUnit;
+using PeopleManagement.Application.Commands.DocumentCommands.CheckOutdatedDocumentContent;
+using PeopleManagement.Application.Commands.DocumentCommands.RefreshDocumentContent;
 namespace PeopleManagement.API.Controllers
 {
     [Route("api/v1/{company}/[controller]")]
@@ -51,6 +53,36 @@ namespace PeopleManagement.API.Controllers
             var result = await _mediator.Send(command);
 
             CommandResultLog(result, request.DocumentUnitId, request, requestId);
+
+            return OkResponse(result);
+        }
+
+        [HttpPost("content/check-outdated")]
+        [ProtectedResource("document", "generate")]
+        public async Task<ActionResult<CheckOutdatedDocumentContentResponse>> CheckOutdatedContent([FromRoute] Guid company, [FromBody] CheckOutdatedDocumentContentModel request)
+        {
+            var command = request.ToCommand(company);
+
+            SendingCommandLog(request.Items.Count(), request, Guid.Empty);
+
+            var result = await _mediator.Send(command);
+
+            CommandResultLog(result, request.Items.Count(), request, Guid.Empty);
+
+            return OkResponse(result);
+        }
+
+        [HttpPost("content/refresh")]
+        [ProtectedResource("document", "edit")]
+        public async Task<ActionResult<RefreshDocumentContentResponse>> RefreshContent([FromRoute] Guid company, [FromBody] RefreshDocumentContentModel request, [FromHeader(Name = "x-requestid")] Guid requestId)
+        {
+            var command = new IdentifiedCommand<RefreshDocumentContentCommand, RefreshDocumentContentResponse>(request.ToCommand(company), requestId);
+
+            SendingCommandLog(request.Items.Count(), request, requestId);
+
+            var result = await _mediator.Send(command);
+
+            CommandResultLog(result, request.Items.Count(), request, requestId);
 
             return OkResponse(result);
         }
