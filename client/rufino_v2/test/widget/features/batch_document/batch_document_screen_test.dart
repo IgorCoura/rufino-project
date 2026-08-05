@@ -38,7 +38,7 @@ void main() {
     BatchDocumentUnitItem(
       documentUnitId: 'du1',
       documentId: 'd1',
-      employeeId: 'e1',
+      documentTemplateId: 't1',      documentTemplateName: 'T1',      documentGroupName: 'Grupo',      employeeId: 'e1',
       employeeName: 'João Silva',
       employeeStatusId: '2',
       employeeStatusName: 'Ativo',
@@ -51,7 +51,7 @@ void main() {
     BatchDocumentUnitItem(
       documentUnitId: 'du2',
       documentId: 'd2',
-      employeeId: 'e2',
+      documentTemplateId: 't1',      documentTemplateName: 'T1',      documentGroupName: 'Grupo',      employeeId: 'e2',
       employeeName: 'Maria Santos',
       employeeStatusId: '2',
       employeeStatusName: 'Ativo',
@@ -71,9 +71,7 @@ void main() {
         .thenAnswer((_) async => const Result.success(groups));
 
     when(() => mockBatchRepo.getPendingDocumentUnits(
-          any(),
-          any(),
-          employeeStatusId: any(named: 'employeeStatusId'),
+          any(),          documentGroupId: any(named: 'documentGroupId'),          documentTemplateId: any(named: 'documentTemplateId'),          employeeId: any(named: 'employeeId'),                    employeeStatusId: any(named: 'employeeStatusId'),
           employeeName: any(named: 'employeeName'),
           periodTypeId: any(named: 'periodTypeId'),
           periodYear: any(named: 'periodYear'),
@@ -143,31 +141,22 @@ void main() {
       expect(find.text('Documentos em Lote'), findsOneWidget);
     });
 
-    testWidgets('renders the document selection section with dropdowns',
-        (tester) async {
+    testWidgets('renders the three scope fields', (tester) async {
       await tester.pumpWidget(buildSubject());
       await tester.pumpAndSettle();
 
-      expect(find.text('Selecione o Documento'), findsOneWidget);
+      expect(find.text('Escopo'), findsOneWidget);
+      expect(find.byKey(const ValueKey('employee-scope-field')),
+          findsOneWidget);
       expect(find.text('Grupo de Documentos'), findsOneWidget);
       expect(find.text('Documento'), findsOneWidget);
     });
 
-    testWidgets('shows filter and action sections after selecting a template',
+    testWidgets('shows filters, actions and list without choosing a scope',
         (tester) async {
       await tester.pumpWidget(buildSubject());
       await tester.pumpAndSettle();
-
-      // Select the group.
-      await tester.tap(find.text('Grupo de Documentos'));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('Admissão').last);
-      await tester.pumpAndSettle();
-
-      // Select the template.
-      await tester.tap(find.text('Documento'));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('Contrato').last);
+      await tester.drag(find.byType(CustomScrollView), const Offset(0, -300));
       await tester.pumpAndSettle();
 
       expect(find.text('Busca e filtros'), findsOneWidget);
@@ -175,20 +164,64 @@ void main() {
       expect(find.text('Criar Docs Faltantes'), findsOneWidget);
     });
 
-    testWidgets('shows employee names in the document list after loading',
+    testWidgets('disables creating pendings until a document scope is chosen',
         (tester) async {
       await tester.pumpWidget(buildSubject());
       await tester.pumpAndSettle();
+      await tester.drag(find.byType(CustomScrollView), const Offset(0, -300));
+      await tester.pumpAndSettle();
 
-      // Select group and template.
-      await tester.tap(find.text('Grupo de Documentos'));
+      final button = tester.widget<OutlinedButton>(
+        find.ancestor(
+          of: find.text('Criar Docs Faltantes'),
+          matching: find.byType(OutlinedButton),
+        ),
+      );
+      expect(button.onPressed, isNull);
+    });
+
+    testWidgets('scopes the query to the chosen group', (tester) async {
+      await tester.pumpWidget(buildSubject());
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byKey(const ValueKey('group-scope')));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Admissão').last);
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Documento'));
+      verify(() => mockBatchRepo.getPendingDocumentUnits(
+            any(),
+            documentGroupId: 'g1',
+            documentTemplateId: null,
+            employeeId: any(named: 'employeeId'),
+            employeeStatusId: any(named: 'employeeStatusId'),
+            employeeName: any(named: 'employeeName'),
+            periodTypeId: any(named: 'periodTypeId'),
+            periodYear: any(named: 'periodYear'),
+            periodMonth: any(named: 'periodMonth'),
+            periodDay: any(named: 'periodDay'),
+            periodWeek: any(named: 'periodWeek'),
+            pageSize: any(named: 'pageSize'),
+            pageNumber: any(named: 'pageNumber'),
+          )).called(1);
+    });
+
+    testWidgets('shows the group and template of each row', (tester) async {
+      await tester.pumpWidget(buildSubject());
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Contrato').last);
+
+      await tester.drag(
+        find.byType(CustomScrollView),
+        const Offset(0, -400),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Grupo · T1'), findsAtLeastNWidgets(1));
+    });
+
+    testWidgets('shows employee names in the document list after loading',
+        (tester) async {
+      await tester.pumpWidget(buildSubject());
       await tester.pumpAndSettle();
 
       // Scroll down to reveal list items below the filter section.
@@ -205,9 +238,7 @@ void main() {
     testWidgets('shows empty state when no pending units exist',
         (tester) async {
       when(() => mockBatchRepo.getPendingDocumentUnits(
-            any(),
-            any(),
-            employeeStatusId: any(named: 'employeeStatusId'),
+            any(),            documentGroupId: any(named: 'documentGroupId'),            documentTemplateId: any(named: 'documentTemplateId'),            employeeId: any(named: 'employeeId'),                        employeeStatusId: any(named: 'employeeStatusId'),
             employeeName: any(named: 'employeeName'),
             periodTypeId: any(named: 'periodTypeId'),
             periodYear: any(named: 'periodYear'),
@@ -223,16 +254,6 @@ void main() {
       await tester.pumpWidget(buildSubject());
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Grupo de Documentos'));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('Admissão').last);
-      await tester.pumpAndSettle();
-
-      await tester.tap(find.text('Documento'));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('Contrato').last);
-      await tester.pumpAndSettle();
-
       // Scroll down to reveal empty state below the filter section.
       await tester.drag(
         find.byType(CustomScrollView),
@@ -246,15 +267,7 @@ void main() {
     testWidgets('shows Selecionar Todos filter chip', (tester) async {
       await tester.pumpWidget(buildSubject());
       await tester.pumpAndSettle();
-
-      await tester.tap(find.text('Grupo de Documentos'));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('Admissão').last);
-      await tester.pumpAndSettle();
-
-      await tester.tap(find.text('Documento'));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('Contrato').last);
+      await tester.drag(find.byType(CustomScrollView), const Offset(0, -300));
       await tester.pumpAndSettle();
 
       expect(find.byType(FilterChip), findsOneWidget);
@@ -264,15 +277,7 @@ void main() {
         (tester) async {
       await tester.pumpWidget(buildSubject());
       await tester.pumpAndSettle();
-
-      await tester.tap(find.text('Grupo de Documentos'));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('Admissão').last);
-      await tester.pumpAndSettle();
-
-      await tester.tap(find.text('Documento'));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('Contrato').last);
+      await tester.drag(find.byType(CustomScrollView), const Offset(0, -300));
       await tester.pumpAndSettle();
 
       expect(find.text('Enviar (0)'), findsOneWidget);
@@ -281,16 +286,6 @@ void main() {
     testWidgets('shows status badges for employees and documents',
         (tester) async {
       await tester.pumpWidget(buildSubject());
-      await tester.pumpAndSettle();
-
-      await tester.tap(find.text('Grupo de Documentos'));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('Admissão').last);
-      await tester.pumpAndSettle();
-
-      await tester.tap(find.text('Documento'));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('Contrato').last);
       await tester.pumpAndSettle();
 
       // Scroll down to reveal list items.
@@ -321,16 +316,6 @@ void main() {
   group('keyboard dismissal in competência filter', () {
     Future<void> openFilterAndPickMensal(WidgetTester tester) async {
       await tester.pumpWidget(buildSubject());
-      await tester.pumpAndSettle();
-
-      await tester.tap(find.text('Grupo de Documentos'));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('Admissão').last);
-      await tester.pumpAndSettle();
-
-      await tester.tap(find.text('Documento'));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('Contrato').last);
       await tester.pumpAndSettle();
 
       await tester.tap(find.text('Competência').first);
@@ -388,16 +373,6 @@ void main() {
       await tester.pumpWidget(buildSubject());
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Grupo de Documentos'));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('Admissão').last);
-      await tester.pumpAndSettle();
-
-      await tester.tap(find.text('Documento'));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('Contrato').last);
-      await tester.pumpAndSettle();
-
       // Focus the name field.
       await tester
           .tap(find.widgetWithText(TextField, 'Nome do Funcionário'));
@@ -434,12 +409,13 @@ void main() {
       await tester.pumpWidget(buildSubject());
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Grupo de Documentos'));
+      await tester.tap(find.byKey(const ValueKey('group-scope')));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Admissão').last);
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Documento'));
+      await tester.tap(find.byKey(
+          const ValueKey('template-scope-g1')));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Contrato').last);
       await tester.pumpAndSettle();
@@ -465,6 +441,9 @@ void main() {
 
       // The action bar may render below the viewport; ensure it's
       // scrolled into view before tapping.
+      await tester.drag(find.byType(CustomScrollView), const Offset(0, -300));
+      await tester.pumpAndSettle();
+
       await tester.ensureVisible(find.text('Enviar (1)'));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Enviar (1)'));
@@ -498,6 +477,9 @@ void main() {
       );
       await tester.pumpAndSettle();
 
+      await tester.drag(find.byType(CustomScrollView), const Offset(0, -300));
+      await tester.pumpAndSettle();
+
       await tester.ensureVisible(find.text('Enviar (1)'));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Enviar (1)'));
@@ -518,9 +500,7 @@ void main() {
       // The pendingUnits fixture has canGenerateDocument=false; override
       // the response so the button enables.
       when(() => mockBatchRepo.getPendingDocumentUnits(
-            any(),
-            any(),
-            employeeStatusId: any(named: 'employeeStatusId'),
+            any(),            documentGroupId: any(named: 'documentGroupId'),            documentTemplateId: any(named: 'documentTemplateId'),            employeeId: any(named: 'employeeId'),                        employeeStatusId: any(named: 'employeeStatusId'),
             employeeName: any(named: 'employeeName'),
             periodTypeId: any(named: 'periodTypeId'),
             periodYear: any(named: 'periodYear'),
@@ -535,7 +515,7 @@ void main() {
                 BatchDocumentUnitItem(
                   documentUnitId: 'du1',
                   documentId: 'd1',
-                  employeeId: 'e1',
+                  documentTemplateId: 't1',                  documentTemplateName: 'T1',                  documentGroupName: 'Grupo',                  employeeId: 'e1',
                   employeeName: 'João Silva',
                   employeeStatusId: '2',
                   employeeStatusName: 'Ativo',
@@ -552,6 +532,9 @@ void main() {
 
       await selectGroupAndTemplate(tester);
       viewModel.toggleSelection('du1');
+      await tester.pumpAndSettle();
+
+      await tester.drag(find.byType(CustomScrollView), const Offset(0, -300));
       await tester.pumpAndSettle();
 
       await tester.ensureVisible(find.text('Gerar e Assinar'));

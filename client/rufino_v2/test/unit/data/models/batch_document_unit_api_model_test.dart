@@ -7,6 +7,9 @@ void main() {
       final json = {
         'documentUnitId': 'unit-1',
         'documentId': 'doc-1',
+        'documentTemplateId': 'tpl-1',
+        'documentTemplateName': 'Contrato',
+        'documentGroupName': 'Admissão',
         'employeeId': 'emp-1',
         'employeeName': 'João Silva',
         'employeeStatus': {'id': 2, 'name': 'Active'},
@@ -26,6 +29,9 @@ void main() {
       final model = BatchDocumentUnitApiModel.fromJson(json);
 
       expect(model.documentUnitId, 'unit-1');
+      expect(model.documentTemplateId, 'tpl-1');
+      expect(model.documentTemplateName, 'Contrato');
+      expect(model.documentGroupName, 'Admissão');
       expect(model.employeeName, 'João Silva');
       expect(model.employeeStatusId, 2);
       expect(model.documentUnitDate, '2026-03-15');
@@ -84,6 +90,8 @@ void main() {
         'employeeId': 'emp-1',
         'employeeName': 'Carlos',
         'employeeStatus': {'id': 2, 'name': 'Active'},
+        'documentTemplateId': 'tpl-1',
+        'documentTemplateName': 'Contrato',
       };
 
       final model = EmployeeMissingDocumentApiModel.fromJson(json);
@@ -92,6 +100,8 @@ void main() {
       expect(entity.employeeId, 'emp-1');
       expect(entity.employeeName, 'Carlos');
       expect(entity.employeeStatusId, '2');
+      expect(entity.documentTemplateId, 'tpl-1');
+      expect(entity.documentTemplateName, 'Contrato');
     });
   });
 

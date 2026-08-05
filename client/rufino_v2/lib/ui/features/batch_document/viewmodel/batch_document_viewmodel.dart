@@ -13,10 +13,12 @@ import '../../../../core/utils/pdf_text_extractor.dart';
 import '../../../../domain/entities/batch_document_unit.dart';
 import '../../../../domain/entities/bulk_upload_match.dart';
 import '../../../../domain/entities/document_group_with_templates.dart';
+import '../../../../domain/entities/employee.dart';
 import '../../../../domain/repositories/batch_document_repository.dart';
 import '../../../../domain/repositories/document_content_repository.dart';
 import '../../../../domain/repositories/document_group_repository.dart';
 import '../../../../domain/repositories/document_scanner_repository.dart';
+import '../../../../domain/repositories/employee_repository.dart';
 
 /// Possible states for the batch document screen.
 enum BatchDocumentStatus {
@@ -69,12 +71,14 @@ class BatchDocumentViewModel extends ChangeNotifier {
     required BatchDocumentRepository batchDocumentRepository,
     required DocumentGroupRepository documentGroupRepository,
     required String companyId,
+    EmployeeRepository? employeeRepository,
     PdfTextExtractorFn? textExtractor,
     DocumentScannerRepository? scannerRepository,
     PageRotationFinderFn? pageRotationFinder,
     DocumentContentRepository? documentContentRepository,
   })  : _batchDocumentRepository = batchDocumentRepository,
         _documentGroupRepository = documentGroupRepository,
+        _employeeRepository = employeeRepository,
         _companyId = companyId,
         _textExtractor = textExtractor ?? _extractTextInIsolate,
         _scannerRepository = scannerRepository,
@@ -83,14 +87,12 @@ class BatchDocumentViewModel extends ChangeNotifier {
 
   final BatchDocumentRepository _batchDocumentRepository;
   final DocumentGroupRepository _documentGroupRepository;
+  final EmployeeRepository? _employeeRepository;
   final DocumentContentRepository? _documentContentRepository;
   final PdfTextExtractorFn _textExtractor;
   final DocumentScannerRepository? _scannerRepository;
   final PageRotationFinderFn _pageRotationFinder;
   final String _companyId;
-
-  /// Sentinel value for the "Todos" option in the template dropdown.
-  static const allTemplatesId = '__all__';
 
   // ─── State ───────────────────────────────────────────────
 
@@ -102,6 +104,9 @@ class BatchDocumentViewModel extends ChangeNotifier {
 
   List<DocumentTemplateSummary> _groupTemplates = [];
   String? _selectedTemplateId;
+
+  String? _selectedEmployeeId;
+  String? _selectedEmployeeName;
 
   List<BatchDocumentUnitItem> _pendingUnits = [];
   int _totalCount = 0;
@@ -150,28 +155,60 @@ class BatchDocumentViewModel extends ChangeNotifier {
   UnmodifiableListView<DocumentTemplateSummary> get templates =>
       UnmodifiableListView(_groupTemplates);
 
-  /// The currently selected template identifier (or [allTemplatesId]).
+  /// The currently selected template identifier, or null for all templates.
   String? get selectedTemplateId => _selectedTemplateId;
 
-  /// Whether the "Todos" option is selected in the template dropdown.
-  bool get isAllTemplatesSelected => _selectedTemplateId == allTemplatesId;
+  /// The employee the list is scoped to, or null for all employees.
+  String? get selectedEmployeeId => _selectedEmployeeId;
 
-  /// The template ids to query — all in group when "Todos", single otherwise.
-  List<String> get _activeTemplateIds {
-    if (_selectedTemplateId == allTemplatesId) {
-      return _groupTemplates.map((t) => t.id).toList();
-    }
-    if (_selectedTemplateId != null) return [_selectedTemplateId!];
-    return [];
+  /// The display name of the employee the list is scoped to.
+  String? get selectedEmployeeName => _selectedEmployeeName;
+
+  /// The currently selected units, in list order.
+  List<BatchDocumentUnitItem> get _selectedUnits => _pendingUnits
+      .where((u) => _selectedUnitIds.contains(u.documentUnitId))
+      .toList();
+
+  /// Whether every selected unit comes from a template that generates PDFs.
+  ///
+  /// The list mixes templates, so the capability is a property of the
+  /// selection — not of the first row.
+  bool get canGenerateSelected {
+    final selected = _selectedUnits;
+    return selected.isNotEmpty &&
+        selected.every((u) => u.canGenerateDocument);
   }
 
-  /// Whether the current document template supports PDF generation.
-  bool get canGenerateDocument =>
-      _pendingUnits.isNotEmpty && _pendingUnits.first.canGenerateDocument;
+  /// Whether every selected unit comes from a signable template.
+  bool get canSignSelected {
+    final selected = _selectedUnits;
+    return selected.isNotEmpty && selected.every((u) => u.isSignable);
+  }
 
-  /// Whether the current document template supports digital signature.
-  bool get isSignable =>
-      _pendingUnits.isNotEmpty && _pendingUnits.first.isSignable;
+  /// Whether every unit with a staged file comes from a signable template.
+  ///
+  /// Uploading for signature acts on the staged files, not on the selection,
+  /// so this is the capability that gates that button.
+  bool get canSignStaged {
+    if (_stagedFiles.isEmpty) return false;
+    return _stagedFiles.keys.every((unitId) =>
+        _pendingUnits
+            .where((u) => u.documentUnitId == unitId)
+            .firstOrNull
+            ?.isSignable ??
+        false);
+  }
+
+  /// Whether creating missing pendings is possible — it needs a document
+  /// scope, since a pending is always created for a specific template.
+  bool get canCreateMissing =>
+      _selectedGroupId != null || _selectedTemplateId != null;
+
+  /// Whether any of the three scope axes is set.
+  bool get hasAnyScope =>
+      _selectedGroupId != null ||
+      _selectedTemplateId != null ||
+      _selectedEmployeeId != null;
 
   /// Pending document units on the current page.
   UnmodifiableListView<BatchDocumentUnitItem> get pendingUnits =>
@@ -298,92 +335,101 @@ class BatchDocumentViewModel extends ChangeNotifier {
     }
   }
 
-  /// Selects a document group and populates the template dropdown.
-  void selectGroup(String groupId) {
+  /// Scopes the list to [groupId], or to every group when null.
+  ///
+  /// Clears the template filter: a template only exists inside its group.
+  Future<void> selectGroup(String? groupId) async {
     _selectedGroupId = groupId;
     _selectedTemplateId = null;
     final group = _groupsWithTemplates.where((g) => g.id == groupId).firstOrNull;
     _groupTemplates = group?.templates ?? [];
-    _pendingUnits = [];
-    _totalCount = 0;
-    _selectedUnitIds.clear();
-    _stagedFiles.clear();
-    _uploadResults = [];
-    notifyListeners();
+    _resetScopedState();
+    await loadPendingUnits();
   }
 
-  /// Selects a template (or [allTemplatesId]) and loads pending units.
-  Future<void> selectTemplate(String templateId) async {
+  /// Scopes the list to [templateId], or to every template when null.
+  Future<void> selectTemplate(String? templateId) async {
     _selectedTemplateId = templateId;
+    _resetScopedState();
+    await loadPendingUnits();
+  }
+
+  /// Scopes the list to a single employee, or to every employee when null.
+  Future<void> selectEmployee(String? employeeId, String? employeeName) async {
+    _selectedEmployeeId = employeeId;
+    _selectedEmployeeName = employeeName;
+    _resetScopedState();
+    await loadPendingUnits();
+  }
+
+  /// Searches employees by [name] for the employee scope picker.
+  ///
+  /// Returns an empty list when no repository is available or the search
+  /// fails — the picker degrades to "no matches", never to an error screen.
+  Future<List<Employee>> searchEmployees(String name) async {
+    final repository = _employeeRepository;
+    if (repository == null || name.trim().isEmpty) return const [];
+    final result = await repository.getEmployees(_companyId, name: name.trim());
+    return result.fold(onSuccess: (employees) => employees, onError: (_, __) => const []);
+  }
+
+  /// Drops everything tied to the previous scope.
+  ///
+  /// Selection and staged files are keyed by document unit, and changing the
+  /// scope takes those units off the list — keeping them would send files for
+  /// rows the user can no longer see.
+  void _resetScopedState() {
     _pageNumber = 1;
     _selectedUnitIds.clear();
     _stagedFiles.clear();
     _uploadResults = [];
-    await loadPendingUnits();
+    _missingEmployees = [];
   }
 
   // ─── Pending units ───────────────────────────────────────
 
-  /// Loads pending document units with the current filters and pagination.
+  /// Loads pending document units with the current scope, filters and page.
   ///
-  /// When "Todos" is selected, queries every template in the group
-  /// concurrently. Each template's page is appended to [pendingUnits] as
-  /// soon as it arrives, so the list fills in progressively instead of
-  /// waiting for all templates. If any template fails, the whole load fails:
-  /// the accumulated units are discarded and [status] becomes
-  /// [BatchDocumentStatus.error].
+  /// A single request covers every scope — the server filters by group,
+  /// template and employee. It used to fan out one request per template and
+  /// sum the per-template totals, which made [totalCount] and the page
+  /// boundaries disagree with what the list actually held.
   Future<void> loadPendingUnits() async {
-    final templateIds = _activeTemplateIds;
-    if (templateIds.isEmpty) return;
     _status = BatchDocumentStatus.loading;
     _pendingUnits = [];
     _totalCount = 0;
     notifyListeners();
     try {
-      Object? firstError;
-
-      await mapWithConcurrency<String, void>(
-        templateIds,
-        (templateId) async {
-          final result = await _batchDocumentRepository.getPendingDocumentUnits(
-            _companyId,
-            templateId,
-            employeeStatusId: _employeeStatusFilter,
-            employeeName: _employeeNameFilter,
-            periodTypeId: _periodTypeFilter,
-            periodYear: _periodYearFilter,
-            periodMonth: _periodMonthFilter,
-            periodDay: _periodDayFilter,
-            periodWeek: _periodWeekFilter,
-            pageSize: _pageSize,
-            pageNumber: _pageNumber,
-          );
-          result.fold(
-            onSuccess: (page) {
-              // Progressive append: read+write happen synchronously with no
-              // await between them, so concurrent tasks never race.
-              _pendingUnits = [..._pendingUnits, ...page.items];
-              _totalCount += page.totalCount;
-              notifyListeners();
-            },
-            onError: (e, _) => firstError ??= e,
-          );
+      final result = await _batchDocumentRepository.getPendingDocumentUnits(
+        _companyId,
+        documentGroupId: _selectedGroupId,
+        documentTemplateId: _selectedTemplateId,
+        employeeId: _selectedEmployeeId,
+        employeeStatusId: _employeeStatusFilter,
+        employeeName: _employeeNameFilter,
+        periodTypeId: _periodTypeFilter,
+        periodYear: _periodYearFilter,
+        periodMonth: _periodMonthFilter,
+        periodDay: _periodDayFilter,
+        periodWeek: _periodWeekFilter,
+        pageSize: _pageSize,
+        pageNumber: _pageNumber,
+      );
+      result.fold(
+        onSuccess: (page) {
+          _pendingUnits = page.items;
+          _totalCount = page.totalCount;
+          // Note: errorMessage is intentionally NOT reset here — callers that
+          // reload after a failed op (upload/generate) rely on the message
+          // surviving this trailing reload.
+          _status = BatchDocumentStatus.loaded;
+        },
+        onError: (e, _) {
+          _errorMessage =
+              _errorFrom(e, 'Falha ao carregar documentos pendentes.');
+          _status = BatchDocumentStatus.error;
         },
       );
-
-      if (firstError != null) {
-        // Fail-all policy: a single template failure discards everything.
-        _pendingUnits = [];
-        _totalCount = 0;
-        _errorMessage =
-            _errorFrom(firstError!, 'Falha ao carregar documentos pendentes.');
-        _status = BatchDocumentStatus.error;
-      } else {
-        // Note: errorMessage is intentionally NOT reset here — callers that
-        // reload after a failed op (upload/generate) rely on the message
-        // surviving this trailing reload.
-        _status = BatchDocumentStatus.loaded;
-      }
     } finally {
       notifyListeners();
     }
@@ -391,41 +437,26 @@ class BatchDocumentViewModel extends ChangeNotifier {
 
   // ─── Missing employees ───────────────────────────────────
 
-  /// Loads employees who do not have a pending document for the selected template(s).
+  /// Loads the employee x template pairs without a pending document unit.
   ///
-  /// When "Todos" is selected, queries every template concurrently and then
-  /// deduplicates the combined result by employee id in a single pass (a
-  /// barrier: all responses are collected before dedup runs), preserving the
-  /// first-seen order across templates.
+  /// Each row names its own template, so a group-wide scope lists the same
+  /// employee once per missing document instead of collapsing them.
   Future<void> loadMissingEmployees() async {
-    final templateIds = _activeTemplateIds;
-    if (templateIds.isEmpty) return;
+    if (!canCreateMissing) return;
     try {
-      final results = await mapWithConcurrency<
-          String, Result<List<EmployeeMissingDocument>>>(
-        templateIds,
-        (templateId) => _batchDocumentRepository.getMissingEmployees(
-          _companyId,
-          templateId,
-          employeeStatusId: _employeeStatusFilter,
-          employeeName: _employeeNameFilter,
-        ),
+      final result = await _batchDocumentRepository.getMissingEmployees(
+        _companyId,
+        documentGroupId: _selectedGroupId,
+        documentTemplateId: _selectedTemplateId,
+        employeeId: _selectedEmployeeId,
+        employeeStatusId: _employeeStatusFilter,
+        employeeName: _employeeNameFilter,
       );
-
-      final allMissing = <EmployeeMissingDocument>[];
-      final seenIds = <String>{};
-      for (final result in results) {
-        result.fold(
-          onSuccess: (employees) {
-            for (final emp in employees) {
-              if (seenIds.add(emp.employeeId)) allMissing.add(emp);
-            }
-          },
-          onError: (e, _) => _errorMessage =
-              _errorFrom(e, 'Falha ao carregar funcionários.'),
-        );
-      }
-      _missingEmployees = allMissing;
+      result.fold(
+        onSuccess: (employees) => _missingEmployees = employees,
+        onError: (e, _) =>
+            _errorMessage = _errorFrom(e, 'Falha ao carregar funcionários.'),
+      );
     } finally {
       notifyListeners();
     }
@@ -433,23 +464,30 @@ class BatchDocumentViewModel extends ChangeNotifier {
 
   // ─── Batch create ────────────────────────────────────────
 
-  /// Creates document units in batch for the given [employeeIds].
+  /// Creates the pending units for the chosen employee x template pairs.
   ///
-  /// When "Todos" is selected, creates units for every template concurrently
-  /// before reloading the pending list.
-  Future<void> batchCreateDocumentUnits(List<String> employeeIds) async {
-    final templateIds = _activeTemplateIds;
-    if (templateIds.isEmpty || employeeIds.isEmpty) return;
+  /// The command is per template, so the pairs are grouped by template and
+  /// sent concurrently — one call per template, not one per pair.
+  Future<void> batchCreateDocumentUnits(
+      List<EmployeeMissingDocument> items) async {
+    if (items.isEmpty) return;
+    final byTemplate = <String, List<String>>{};
+    for (final item in items) {
+      byTemplate
+          .putIfAbsent(item.documentTemplateId, () => [])
+          .add(item.employeeId);
+    }
+
     _status = BatchDocumentStatus.loading;
     notifyListeners();
     try {
       final results = await mapWithConcurrency<String,
           Result<List<BatchCreatedItem>>>(
-        templateIds,
+        byTemplate.keys.toList(),
         (templateId) => _batchDocumentRepository.batchCreateDocumentUnits(
           _companyId,
           templateId,
-          employeeIds,
+          byTemplate[templateId]!,
         ),
       );
       for (final result in results) {
@@ -472,9 +510,7 @@ class BatchDocumentViewModel extends ChangeNotifier {
   /// The [date] must be in `yyyy-MM-dd` API format.
   Future<void> batchUpdateDate(String date) async {
     if (_selectedUnitIds.isEmpty) return;
-    final items = _pendingUnits
-        .where((u) => _selectedUnitIds.contains(u.documentUnitId))
-        .toList();
+    final items = _selectedUnits;
     if (items.isEmpty) return;
     _status = BatchDocumentStatus.loading;
     notifyListeners();
@@ -636,9 +672,7 @@ class BatchDocumentViewModel extends ChangeNotifier {
   /// Returns the raw ZIP bytes for the caller to save.
   Future<Uint8List?> generatePdfRange() async {
     if (_selectedUnitIds.isEmpty) return null;
-    final items = _pendingUnits
-        .where((u) => _selectedUnitIds.contains(u.documentUnitId))
-        .toList();
+    final items = _selectedUnits;
     if (items.isEmpty) return null;
 
     final invalidNames = _validateSelectedDates();
@@ -678,9 +712,7 @@ class BatchDocumentViewModel extends ChangeNotifier {
   /// Requires [globalSignDeadline] to be set before calling.
   Future<void> generateAndSignRange() async {
     if (_selectedUnitIds.isEmpty || _globalSignDeadline == null) return;
-    final items = _pendingUnits
-        .where((u) => _selectedUnitIds.contains(u.documentUnitId))
-        .toList();
+    final items = _selectedUnits;
     if (items.isEmpty) return;
 
     final invalidNames = _validateSelectedDates();
@@ -731,9 +763,7 @@ class BatchDocumentViewModel extends ChangeNotifier {
     final repository = _documentContentRepository;
     if (repository == null) return const {};
 
-    final items = _pendingUnits
-        .where((u) => _selectedUnitIds.contains(u.documentUnitId))
-        .toList();
+    final items = _selectedUnits;
     if (items.isEmpty) return const {};
 
     final result = await repository.checkOutdated(
