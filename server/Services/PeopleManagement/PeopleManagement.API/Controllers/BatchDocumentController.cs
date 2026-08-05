@@ -23,25 +23,33 @@ namespace PeopleManagement.API.Controllers
         private readonly IMediator _mediator = mediator;
         private readonly IBatchDocumentQueries _batchDocumentQueries = batchDocumentQueries;
 
-        [HttpGet("pending-units/{documentTemplateId}")]
+        /// <summary>
+        /// Unidades pendentes da empresa. Grupo, template e funcionario sao
+        /// filtros opcionais e independentes (query params) — nenhum deles
+        /// precisa estar preenchido, e qualquer combinacao vale.
+        /// </summary>
+        [HttpGet("pending-units")]
         [ProtectedResource("document", "view")]
         public async Task<ActionResult<BatchDocumentUnitsResult>> GetPendingUnits(
             [FromRoute] Guid company,
-            [FromRoute] Guid documentTemplateId,
             [FromQuery] BatchDocumentUnitParams filters)
         {
-            var result = await _batchDocumentQueries.GetPendingDocumentUnits(company, documentTemplateId, filters);
+            var result = await _batchDocumentQueries.GetPendingDocumentUnits(company, filters);
             return OkResponse(result);
         }
 
-        [HttpGet("missing-employees/{documentTemplateId}")]
+        /// <summary>
+        /// Pares funcionario x template sem unidade pendente. Exige
+        /// documentTemplateId ou documentGroupId — criar pendencia sem escopo
+        /// de documento nao e uma operacao valida.
+        /// </summary>
+        [HttpGet("missing-employees")]
         [ProtectedResource("document", "view")]
         public async Task<ActionResult<IEnumerable<EmployeeMissingDocumentDto>>> GetMissingEmployees(
             [FromRoute] Guid company,
-            [FromRoute] Guid documentTemplateId,
             [FromQuery] BatchDocumentUnitParams filters)
         {
-            var result = await _batchDocumentQueries.GetEmployeesWithoutPendingDocument(company, documentTemplateId, filters);
+            var result = await _batchDocumentQueries.GetEmployeesWithoutPendingDocument(company, filters);
             return OkResponse(result);
         }
 

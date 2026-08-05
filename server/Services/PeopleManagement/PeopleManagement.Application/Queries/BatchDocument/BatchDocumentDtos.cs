@@ -5,8 +5,16 @@ namespace PeopleManagement.Application.Queries.BatchDocument
 {
     public class BatchDocumentDtos
     {
+        /// <summary>
+        /// Filtros da tela de documentos em lote. Os tres eixos de escopo
+        /// (grupo, template e funcionario) sao independentes: informar nenhum
+        /// devolve todas as pendencias da empresa, e qualquer combinacao vale.
+        /// </summary>
         public record BatchDocumentUnitParams
         {
+            public Guid? DocumentGroupId { get; init; }
+            public Guid? DocumentTemplateId { get; init; }
+            public Guid? EmployeeId { get; init; }
             public int? EmployeeStatusId { get; init; }
             public string? EmployeeName { get; init; }
             public int? PeriodTypeId { get; init; }
@@ -22,6 +30,9 @@ namespace PeopleManagement.Application.Queries.BatchDocument
         {
             public Guid DocumentUnitId { get; init; }
             public Guid DocumentId { get; init; }
+            public Guid DocumentTemplateId { get; init; }
+            public string DocumentTemplateName { get; init; } = string.Empty;
+            public string DocumentGroupName { get; init; } = string.Empty;
             public Guid EmployeeId { get; init; }
             public string EmployeeName { get; init; } = string.Empty;
             public EnumerationDto EmployeeStatus { get; init; } = EnumerationDto.Empty;
@@ -38,11 +49,18 @@ namespace PeopleManagement.Application.Queries.BatchDocument
             public int TotalCount { get; init; }
         }
 
+        /// <summary>
+        /// Uma pendencia que falta criar: o par funcionario x template. Quando o
+        /// filtro e por grupo, o mesmo funcionario aparece uma vez por template
+        /// faltante — quem cria as unidades precisa saber de qual template.
+        /// </summary>
         public record EmployeeMissingDocumentDto
         {
             public Guid EmployeeId { get; init; }
             public string EmployeeName { get; init; } = string.Empty;
             public EnumerationDto EmployeeStatus { get; init; } = EnumerationDto.Empty;
+            public Guid DocumentTemplateId { get; init; }
+            public string DocumentTemplateName { get; init; } = string.Empty;
         }
     }
 }
