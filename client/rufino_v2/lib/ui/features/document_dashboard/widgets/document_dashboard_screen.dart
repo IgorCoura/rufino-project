@@ -96,6 +96,7 @@ class _DocumentDashboardScreenState extends State<DocumentDashboardScreen> {
 
   static const _employeeStatusOptions = [
     (id: null, label: 'Todos'),
+    (id: 1, label: 'Pendentes'),
     (id: 2, label: 'Ativos'),
     (id: 3, label: 'Férias'),
     (id: 4, label: 'Afastados'),
@@ -435,6 +436,8 @@ class _DashboardFilters extends StatelessWidget {
                 items: [
                   for (final option in employeeStatusOptions)
                     DropdownMenuItem<int?>(
+                      key: ValueKey(
+                          'employee-status-option-${option.id ?? 'all'}'),
                       value: option.id,
                       child: Text(option.label),
                     ),
