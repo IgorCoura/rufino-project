@@ -66,6 +66,10 @@ namespace PeopleManagement.Application.Queries.Document
                 .Query()
                 .AsNoTracking();
 
+            // Calculada ANTES do filtro de status: se o usuário filtrar a lista por "Pendente", a unidade que
+            // sustenta a sugestão (OK ou A Vencer) sai da consulta e a sugestão sumiria da tela sem motivo.
+            var suggestedSignatureScheduleDate = await SuggestedSignatureScheduleDate(unitsQuery);
+
             if (unitParams.StatusId.HasValue)
                 unitsQuery = unitsQuery.Where(x => x.Status == (DocumentUnitStatus)unitParams.StatusId);
 
@@ -99,8 +103,27 @@ namespace PeopleManagement.Application.Queries.Document
                 CreateAt = document.CreatedAt,
                 UpdateAt = document.UpdatedAt,
                 TotalUnitsCount = totalUnitsCount,
+                SuggestedSignatureScheduleDate = suggestedSignatureScheduleDate,
                 DocumentsUnits = pagedUnits
             };
+        }
+
+        /// <summary>
+        /// O dia em que a cobertura atual do documento acaba: a MAIOR validade entre as unidades entregues
+        /// (OK e A Vencer). É a data em que faz sentido o substituto chegar ao funcionário para assinar.
+        ///
+        /// Maior, e não menor: num documento por competência há várias unidades entregues ao mesmo tempo, e o
+        /// que interessa é quando a última delas deixa de valer. Validade já vencida não vira sugestão — o
+        /// agendamento não aceita data no passado (PMD.DOC21).
+        /// </summary>
+        private static async Task<DateOnly?> SuggestedSignatureScheduleDate(IQueryable<DocumentUnit> unitsQuery)
+        {
+            var today = DateOnly.FromDateTime(DateTime.UtcNow);
+
+            return await unitsQuery
+                .Where(x => (x.Status == DocumentUnitStatus.OK || x.Status == DocumentUnitStatus.Warning)
+                    && x.Validity != null && x.Validity >= today)
+                .MaxAsync(x => (DateOnly?)x.Validity);
         }
 
         public async Task<(Stream Stream, string EmployeeName, string DocumentName, DateOnly Date, string Extension)> DownloadDocumentUnit(Guid documentUnitId, Guid documentId, Guid employeeId, Guid companyId)

@@ -1,5 +1,4 @@
 ﻿using Microsoft.EntityFrameworkCore;
-using PeopleManagement.Application.Util;
 using PeopleManagement.Domain.AggregatesModel.CompanyAggregate;
 using PeopleManagement.Domain.AggregatesModel.DocumentAggregate;
 using PeopleManagement.Domain.AggregatesModel.DocumentAggregate.Interfaces;

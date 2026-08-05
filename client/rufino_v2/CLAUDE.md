@@ -705,7 +705,7 @@ All resource names are **lowercase, kebab-case**. Use **exactly** these strings 
 | `company` | `create`, `edit`, `view` |
 | `debug` | `view` |
 | `department` | `create`, `edit`, `view` |
-| `document` | `create`, `edit`, `view`, `upload`, `webhook`, `download`, `send2sign`, `generate` |
+| `document` | `create`, `edit`, `view`, `upload`, `webhook`, `download`, `send2sign`, `generate`, `approve`, `reject`, `deprecate`, `mark-not-applicable` |
 | `document-group` | `create`, `edit`, `view` |
 | `document-template` | `create`, `edit`, `view`, `upload`, `download` |
 | `employee` | `create`, `edit`, `view`, `upload`, `download` |
@@ -772,10 +772,42 @@ The app distinguishes "session died" (401) from "no permission" (403) end to end
 
 `/document-dashboard` (home card under `ModuleGuard('document')`) is the RH triage view over `api/v1/{company}/document-dashboard` (`GET /summary` + `GET /units`). Five buckets — Vencidos, A Vencer, Pendentes, Aguardando Assinatura, Requer Validação — where **counts and list share the same server-side predicate** (`DashboardBucket.apiValue` is the query param). Rules worth preserving:
 
-- **"A vencer" is validity-based**, not Warning-status-based: the horizon (30/60/90 days, `expiringInDays`) filters `validity` server-side; unit status 8 (Warning) is only a visual chip. **Unit status ids run 1–8** (`8 = 'A Vencer'`) — `DocumentUnit`, `BatchDocumentUnitItem` and `DashboardUnitItem` all map them.
+- **"A vencer" is validity-based**, not Warning-status-based: the horizon (30/60/90 days, `expiringInDays`) filters `validity` server-side; unit status 8 (Warning) is only a visual chip. **Unit status ids run 1–9** (`8 = 'A Vencer'`, `9 = 'Vencido'`) — `DocumentUnit`, `BatchDocumentUnitItem`, `BatchDownloadUnit` and `DashboardUnitItem` all map them. The "Vencidos" bucket is now status 9 plus the OK/Warning units whose validity already passed but the depreciation job has not run yet.
 - **State preservation:** `DocumentDashboardPage` owns the ViewModel + `ScrollController` lifecycles (same pattern as `EmployeeListPage`) — never create them inside the route builder, or filters/bucket/page/scroll are wiped on every push/pop.
 - **Row navigation** uses `context.push('/employee/:id?tab=documents')`; the `/employee/:id` route maps `?tab=` (`documents` | `contracts`) to `EmployeeProfileScreen.initialTab`, so the profile lands on the Documentos tab and pop returns to the intact dashboard.
 - ViewModel invariant: bucket switch and pagination reload **only the list** (`isLoadingUnits`); filter/horizon changes reload **summary + list together** so the KPI cards never disagree with the rows. Default employee filter is Ativos (status 2).
+
+## Outdated Document Snapshot (aviso ao gerar)
+
+O PDF é montado no backend a partir de um **snapshot** dos dados do funcionário gravado no `Content` da unidade quando a data foi atualizada. O cadastro muda depois, o snapshot não. Antes de gerar, o app pergunta ao backend se ele ainda bate.
+
+- **Um único serviço/repositório para as duas telas** — `data/services/document_content_api_service.dart` + `DocumentContentRepository` (`checkOutdated` / `refresh`). Não duplicar em `employee_api_service` ou `batch_document_api_service`: o endpoint é o mesmo, o consumo é dos dois lados.
+- **`checkFailed` nunca vira aviso.** `DocumentContentStatus.needsWarning` é `isOutdated && !checkFailed` — o servidor marca a verificação como inconclusiva quando um bloco de dado não carregou, e avisar aí levaria o usuário a sobrescrever um snapshot bom. Pela mesma razão, **falha na própria chamada do check não bloqueia a geração**: os ViewModels devolvem conjunto vazio no `onError`.
+- **`showOutdatedContentDialog`** (`ui/core/widgets/outdated_content_dialog.dart`) é compartilhado. Lista **todos** os documentos da operação e marca os desatualizados individualmente (badge "Desatualizado"; ícone `priority_high` no layout compacto) — ver os que estão OK é o que torna os marcados legíveis. Retorna `OutdatedContentAction { cancel, continueAnyway, refreshAndContinue }`.
+- **`allowRefresh` separa as duas telas.** Perfil: `true` → Cancelar / Gerar com os dados atuais / **Atualizar e gerar** (esta dentro de `PermissionGuard('document','edit')`). Lote: `false` → só Cancelar / Gerar assim mesmo; **atualizar no lote é decisão de produto — o usuário edita cada documento individualmente**. Por isso `BatchDocumentViewModel` tem só `checkOutdatedContent()`, sem refresh.
+- **Cobre gerar E gerar+assinar**, nos dois lados: é o mesmo `Content`. **Download não entra** — entrega arquivo já existente, não lê o snapshot. No perfil, o aviso do `generate_sign` aparece **antes** do diálogo de data-limite.
+- **Refresh não move a data.** O backend reusa a data já gravada na unidade; o cliente não reenvia data nenhuma. Só o perfil chama, e só para as unidades efetivamente divergentes.
+
+## Status das unidades e as três ações (perfil do funcionário)
+
+Os ids 1–9 vêm do servidor e o cliente só rotula. A distinção que importa na tela é **Obsoleto (3)** vs **Vencido (9)**: as duas são documentos que saíram de vigência, e o que as separa é já existir substituto — só o 9 é falta de cobertura agora.
+
+- **Não existe botão de criar unidade avulsa.** Foi removido junto com `createDocumentUnit` (repo/serviço/ViewModel). Pendência nasce do evento de admissão, da renovação por vencimento, ou de depreciar/invalidar a vigente — **os três caminhos do servidor já deixam a substituta no lugar**, então a lista recarregada mostra a nova pendente sozinha.
+- **Três ações, todas com diálogo de confirmação** (`_confirmUnitStatusChange`, chaves `unit-deprecate-confirm` / `unit-invalidate-confirm` / `unit-not-applicable-confirm`): mudam o que o documento prova, nenhuma é operação de um toque.
+- **A regra de habilitação mora na entidade**, não no widget — `DocumentUnit.canBeDeprecated` (só `OK`), `canBeInvalidated` (`Pending` ou `OK`), `canBeMarkedNotApplicable` (só `Pending`). Depreciada e vencida **nunca** são invalidáveis: são a prova do período coberto, e a API recusa (`PMD.DOC24`).
+- **Depreciar e invalidar ficam FORA do bloco `if (unit.isPending)`** — valem para a unidade em vigência, que é o caso mais comum de ambas. Scopes: `deprecate` (novo) e `reject`.
+- **Os erros de regra do servidor aparecem na tela**: os dois ViewModels passam o erro por `extractServerMessages` em vez de mensagem fixa, porque `PMD.DOC23`/`PMD.DOC24` explicam por que a ação foi recusada.
+
+## Agendar Envio para Assinatura (perfil do funcionário)
+
+Na seção Documentos do perfil, o diálogo "Gerar Documento" de uma unidade pendente tem uma terceira ação — **"Agendar envio"** (`generate-dialog-schedule-sign`) — ao lado de "Gerar arquivo" e "Gerar e enviar para assinatura". O documento só é gerado e enviado ao funcionário **na data escolhida**.
+
+- **Agendar não passa pelo aviso de snapshot desatualizado.** O PDF só é montado na data do disparo, então quem vale é o cadastro daquele momento — avisar agora sobre um dado que ainda vai mudar seria informação errada. Os outros dois caminhos continuam passando por `_confirmSnapshotFreshness`.
+- **A data do envio vem pré-preenchida** com `EmployeeDocument.suggestedSignatureScheduleDate` (o vencimento da cobertura atual, calculado no servidor), então o caso comum — renovar exatamente no dia em que o documento vence — é uma confirmação. Sem sugestão, o campo nasce vazio.
+- **`_ScheduleSignDialog` é `StatefulWidget` e possui os próprios controllers.** Não construa controllers no caller e descarte-os depois do `await showDialog`: o diálogo continua vivo durante a animação de saída, e o validador do prazo lê o controller da data de envio — descartar de fora quebra o rebuild (`build scope unexpectedly does not contain that widget`).
+- **Validação espelha a API:** `DocumentUnit.validateScheduleSendDate` (hoje ou depois, `PMD.DOC21`) e `DocumentUnit.validateSignDeadline(value, sendOn)` (posterior ao envio, `PMD.DOC22`). O prazo é contado **do envio**, então os atalhos `+3/+5/+10 dias` somam sobre a data do envio, não sobre hoje. Quando a data de envio está inválida, o validador do prazo só checa formato — o outro campo já reporta o problema, e marcar os dois em vermelho pelo mesmo motivo confunde.
+- **Na linha da unidade:** chip "Envio agendado: dd/MM/yyyy" quando `unit.isSignatureScheduled`, e a ação "Cancelar agendamento" sob `PermissionGuard('document','send2sign')`. A unidade **continua Pendente** enquanto agendada — o agendamento é intenção, não envio, e por isso não há status novo.
+- **Só o caminho de gerar é agendável** — agendar upload exigiria guardar o arquivo até a data. `EmployeeRepository.scheduleSendToSign` manda datas puras (`yyyy-MM-dd`), diferente de `generateAndSendToSign`, que manda instante ISO.
 
 ## UI Design Guidelines (Material Design 3)
 
@@ -932,6 +964,7 @@ Toda configuração em `core/theme/`: `app_theme.dart` (entry point ThemeData li
 | Generate a request/correlation ID | `data/services/request_id_helper.dart` | UUID v4 for `x-requestid` on mutations. Wraps `uuid`. |
 | Send a multipart upload with progress | `data/services/multipart_upload_helper.dart` | Streams bytes and reports `0.0–1.0` via callback. |
 | Validate an HTTP response & raise typed errors | `data/services/http_status_helper.dart` | Throws `HttpException` on non-2xx, extracts server messages, logs via `DomainErrorLogger`. |
+| Saber se o snapshot de um documento envelheceu / regravá-lo | `data/services/document_content_api_service.dart` | `checkOutdated` + `refresh`. Usado pelo perfil E pelo lote — não replicar em serviço de feature. Ver "Outdated Document Snapshot". |
 | Read a server error message for the UI | `core/utils/error_messages.dart` | Extracts message from `HttpException` or wrappers exposing `cause`. |
 | Log a domain error to disk (debug only) | `core/utils/domain_error_logger.dart` | Conditional dart:io split via `_writer` / `_writer_stub`. |
 | Read/write encrypted secrets (tokens, etc.) | `core/storage/secure_storage.dart` | Wraps `flutter_secure_storage`. |
@@ -947,7 +980,7 @@ Toda configuração em `core/theme/`: `app_theme.dart` (entry point ThemeData li
 
 One sealed family per aggregate. **Add a new variant to the existing family before creating a new exception class.**
 
-`auth_exception.dart` (InvalidCredentials, SessionExpired, NoCredentials, NetworkAuthException) · `department_exception.dart` · `workplace_exception.dart` · `employee_exception.dart` · `document_template_exception.dart` · `document_group_exception.dart` · `require_document_exception.dart` · `permission_exception.dart` · `batch_document_exception.dart` · `batch_download_exception.dart` · `document_dashboard_exception.dart` · `cep_exception.dart`
+`auth_exception.dart` (InvalidCredentials, SessionExpired, NoCredentials, NetworkAuthException) · `department_exception.dart` · `workplace_exception.dart` · `employee_exception.dart` · `document_template_exception.dart` · `document_group_exception.dart` · `require_document_exception.dart` · `permission_exception.dart` · `batch_document_exception.dart` · `batch_download_exception.dart` · `document_dashboard_exception.dart` · `document_content_exception.dart` · `cep_exception.dart`
 
 Plus `data/services/http_exception.dart` — raised by `http_status_helper.dart`, carries `statusCode` + `serverMessages`.
 
@@ -961,7 +994,7 @@ Plus `data/services/http_exception.dart` — raised by `http_status_helper.dart`
 
 One service per backend aggregate. Cross-cutting helpers (`http_exception`, `http_status_helper`, `multipart_upload_helper`, `request_id_helper`, `permission_cache_service`, `file_save_service`, `spreadsheet_service`) MUST be reused — do not inline equivalent logic in feature services.
 
-`auth_api_service` · `permission_api_service` · `permission_cache_service` · `company_api_service` · `department_api_service` (departments + positions + roles + payment-unit/salary-type lookups) · `workplace_api_service` · `employee_api_service` (the largest — covers profile, image, contact, address, personal info, ID card, voter ID, PIS/PASEP, military doc, medical exam, dependents, contracts, documents, signing, document-unit CRUD + range ops) · `document_template_api_service` · `document_group_api_service` · `require_document_api_service` · `batch_document_api_service` · `batch_download_api_service` · `document_dashboard_api_service` · `cep_api_service`.
+`auth_api_service` · `permission_api_service` · `permission_cache_service` · `company_api_service` · `department_api_service` (departments + positions + roles + payment-unit/salary-type lookups) · `workplace_api_service` · `employee_api_service` (the largest — covers profile, image, contact, address, personal info, ID card, voter ID, PIS/PASEP, military doc, medical exam, dependents, contracts, documents, signing, document-unit CRUD + range ops) · `document_template_api_service` · `document_group_api_service` · `require_document_api_service` · `batch_document_api_service` · `batch_download_api_service` · `document_dashboard_api_service` · `document_content_api_service` (snapshot: check + refresh, compartilhado entre perfil e lote) · `cep_api_service`.
 
 ### Repositories
 
@@ -971,11 +1004,12 @@ Every aggregate above has both an interface (`domain/repositories/<aggregate>_re
 
 DTOs live in `data/models/<aggregate>_api_model.dart` (+ JSON ser/deser). Domain entities live in `domain/entities/<aggregate>.dart`. Conversion is owned by the repository impl. Do not reuse a DTO as an entity or vice-versa, and do not duplicate fields between siblings — compose with nested DTOs/entities when an aggregate references another (see `employee_profile`, `document_group_with_*`).
 
-**DocumentTemplate rules (policies).** A template's rules live in `TemplatePolicies` (`expiration`, `workload`, `period`) inside `domain/entities/document_template.dart`. **A rule is active when it is present** — `null` is how "does not apply" is expressed, and `validityInDays` / `workload` / `usePreviousPeriod` on the entity are getters derived from the rule set, never stored twice.
+**DocumentTemplate rules (policies).** A template's rules live in `TemplatePolicies` (`expiration`, `workload`, `period`, `newContractDeprecation`) inside `domain/entities/document_template.dart`. **A rule is active when it is present** — `null` is how "does not apply" is expressed, and `validityInDays` / `workload` / `usePreviousPeriod` on the entity are getters derived from the rule set, never stored twice.
 
 - **`period` = competência.** `PeriodRule` carries a `PeriodGranularity` (daily/weekly/monthly/yearly, ids matching the backend `PeriodType`: 1–4) and `usePreviousPeriod`. The 4 granularities are hardcoded in the `PeriodGranularity` enum with PT labels — the ids are the contract, the labels are presentation, so no network round-trip for four stable values. The form's Regras section has a third switch (`_PeriodRuleTile`) revealing a granularity dropdown + a retroactive switch.
 
 - **`expiration` can be limited.** `ExpirationRule` carries an optional `maxRenewals` (`int?`): null = renews forever, a value = renews N times then stops (the API's `ExpirationPolicy` vs `ExpirationLimitedPolicy`). The expiration `_RuleTile` reveals a "Limitar renovações" switch (`_ExpirationRenewalControl`, key `rule-switch-maxRenewals`) that in turn reveals the count field; the view model's `_expirationLimited` gates it, and turning the expiration rule off clears both. `fromJson`/`toJson` carry `maxRenewals` inside the `expiration` block (null when forever).
+- **`newContractDeprecation` is presence-only.** `NewContractDeprecationRule` carries **no data** — the API's block is sent and returned empty (`{}` = on, `null` = off). It is a class rather than a `bool` so the rule set stays uniform (every rule active when present) and a future parameter has somewhere to land. In the form it is a `_ToggleRuleTile` (key `rule-switch-newContractDeprecation`): switch only, **no field to reveal** and nothing to clear when turned off — that is what separates it from `_RuleTile`. Backend effect: on the employee's next admission, documents from this template that were already delivered get deprecated.
 - **Zero is not a rule.** The API rejects a rule carrying a zeroed value (`PMD.DOCT11`), so an active switch requires a value ≥ 1. Legacy templates still echo `0` back in the legacy fields; the DTO maps that to "no rule".
 - **Writes send both shapes.** `DocumentTemplateRepositoryImpl._buildModel` makes `policies` the source of truth and mirrors it into `documentValidityDurationInDays` / `workloadInHours`. Sending both keeps the app correct on either side of a deploy — they cannot disagree because both come from the same rule set.
 - **Reads prefer the block.** `toEntity` uses the `policies` block when the API sends it and falls back to deriving from the legacy fields when it does not.
@@ -984,7 +1018,7 @@ DTOs live in `data/models/<aggregate>_api_model.dart` (+ JSON ser/deser). Domain
   - **Read and write shapes differ.** On **read**, `DocumentTemplateApiModel.fromJson` sources signature from `policies.signature`: block present = accepts, and it carries `placeSignatures` (falls back to the top-level `acceptsSignature` only when the API omits the whole `policies` block). On **write**, `toJson`/`toCreateJson` still send `acceptsSignature` + `placeSignatures` as **top-level** fields (the API's write contract is unchanged) — so signature is **not** a `TemplatePolicies` member on the entity; the model keeps its own `acceptsSignature`/`placeSignatures` fields. Reading placements from the old `templateFileInfo.placeSignatures` location was the bug where signatures created after the policy refactor vanished on GET.
   - **The placement's type is mandatory** (`PlaceSignatureData.validateType`, wired into the type dropdown). A placement without a type is serialized as `type: 0`, which the API rejects hard — `TypeSignature.FromValue(0)` throws and fails the *whole* save (not just that placement). So the dropdown must be validated like the numeric fields; an unvalidated type is how "add the first placement to an empty list" silently failed to save.
 
-**Aggregates currently modeled** (each has DTO + entity unless noted): company / company_detail (entity-only) · workplace · department · position · role · remuneration (entity-only) · employee · employee_profile · employee_personal_info · employee_contact · employee_address (entity = `address`) · employee_id_card · employee_vote_id · employee_military_document · employee_medical_exam · employee_dependent · employee_contract · employee_social_integration_program · employee_document · document_template · document_group · document_group_with_templates · document_group_with_documents · document_range_item (DTO-only) · require_document · batch_document_unit · batch_download · document_dashboard · period · permission · selection_option (entity-only) · personal_info_options (entity-only) · signing_option (entity-only) · scanned_document (entity-only) · bulk_upload_match (entity-only) · cep_lookup (DTO-only).
+**Aggregates currently modeled** (each has DTO + entity unless noted): company / company_detail (entity-only) · workplace · department · position · role · remuneration (entity-only) · employee · employee_profile · employee_personal_info · employee_contact · employee_address (entity = `address`) · employee_id_card · employee_vote_id · employee_military_document · employee_medical_exam · employee_dependent · employee_contract · employee_social_integration_program · employee_document · document_template · document_group · document_group_with_templates · document_group_with_documents · document_range_item (DTO-only) · require_document · batch_document_unit · batch_download · document_dashboard · document_content_status · period · permission · selection_option (entity-only) · personal_info_options (entity-only) · signing_option (entity-only) · scanned_document (entity-only) · bulk_upload_match (entity-only) · cep_lookup (DTO-only).
 
 ---
 

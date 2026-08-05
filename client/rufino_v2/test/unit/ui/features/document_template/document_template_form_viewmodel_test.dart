@@ -260,6 +260,65 @@ void main() {
       expect(period!.granularity, PeriodGranularity.yearly);
       expect(period.usePreviousPeriod, isFalse);
     });
+
+    test('builds no new-contract deprecation rule while the switch is off', () {
+      expect(viewModel.newContractDeprecationEnabled, isFalse);
+      expect(viewModel.policies.newContractDeprecation, isNull);
+    });
+
+    test('builds the new-contract deprecation rule when the switch is on', () {
+      viewModel.setNewContractDeprecationEnabled(true);
+
+      expect(viewModel.policies.newContractDeprecation, isNotNull);
+    });
+
+    test('turning new-contract deprecation off drops the rule', () {
+      viewModel.setNewContractDeprecationEnabled(true);
+
+      viewModel.setNewContractDeprecationEnabled(false);
+
+      expect(viewModel.policies.newContractDeprecation, isNull);
+    });
+
+    test('loadTemplate turns on the new-contract deprecation rule the template carries',
+        () async {
+      templateRepository.setTemplate(const DocumentTemplate(
+        id: 'tpl-4',
+        name: 'Depreciável',
+        description: 'Template que deprecia em novo contrato',
+        policies: TemplatePolicies(
+          newContractDeprecation: NewContractDeprecationRule(),
+        ),
+        acceptsSignature: false,
+      ));
+
+      await viewModel.loadTemplate('tpl-4');
+
+      expect(viewModel.newContractDeprecationEnabled, isTrue);
+    });
+
+    // Editar um template sem a regra não pode ligá-la por herança de estado do
+    // ViewModel — a ausência do bloco precisa desligar o switch.
+    test('loadTemplate leaves the new-contract deprecation rule off when absent',
+        () async {
+      viewModel.setNewContractDeprecationEnabled(true);
+
+      await viewModel.loadTemplate('tpl-1');
+
+      expect(viewModel.newContractDeprecationEnabled, isFalse);
+    });
+
+    test('save sends the new-contract deprecation rule described by the form',
+        () async {
+      viewModel.nameController.text = 'NR01';
+      viewModel.descriptionController.text = 'Descrição';
+      viewModel.setNewContractDeprecationEnabled(true);
+
+      await viewModel.save();
+
+      expect(templateRepository.lastSentPolicies!.newContractDeprecation,
+          isNotNull);
+    });
   });
 
   group('DocumentTemplateFormViewModel', () {

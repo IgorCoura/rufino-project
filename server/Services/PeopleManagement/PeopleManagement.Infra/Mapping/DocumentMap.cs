@@ -1,4 +1,5 @@
-﻿using Microsoft.EntityFrameworkCore.Metadata.Builders;
+﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using PeopleManagement.Domain.AggregatesModel.CompanyAggregate;
 using PeopleManagement.Domain.AggregatesModel.DocumentTemplateAggregate;
 using PeopleManagement.Domain.AggregatesModel.EmployeeAggregate;
@@ -18,6 +19,10 @@ namespace PeopleManagement.Infra.Mapping
 
             builder.Property(x => x.Status)
                 .HasConversion(x => x.Id, x => x)
+                .IsRequired();
+
+            builder.Property(x => x.ExpirationCount)
+                .HasDefaultValue(0)
                 .IsRequired();
 
             builder.Property(x => x.Name)

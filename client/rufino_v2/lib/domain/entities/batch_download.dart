@@ -84,7 +84,7 @@ class BatchDownloadUnit {
   /// The document unit date in `dd/MM/yyyy` display format.
   final String date;
 
-  /// The document unit status identifier (1-8).
+  /// The document unit status identifier (1-9).
   final int statusId;
 
   /// The document unit status display name.
@@ -106,6 +106,7 @@ class BatchDownloadUnit {
         6 => 'Nao Aplicavel',
         7 => 'Aguardando Assinatura',
         8 => 'Alerta',
+        9 => 'Vencido',
         _ => statusName.isNotEmpty ? statusName : statusId.toString(),
       };
 

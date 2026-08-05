@@ -6,10 +6,10 @@ namespace PeopleManagement.UnitTests.Aggregates.DocumentTests
     /// Cobre as transições de estado do <see cref="DocumentUnitStatus"/> e como elas
     /// se refletem no <see cref="DocumentStatus"/> derivado do <see cref="Document"/>.
     ///
-    /// DocumentUnitStatus (8): Pending, OK, Deprecated, Invalid, RequiresValidation,
-    ///                         NotApplicable, AwaitingSignature, Warning.
-    /// DocumentStatus (6):     RequiresDocument, RequiresValidation, OK, Deprecated,
-    ///                         AwaitingSignature, Warning.
+    /// DocumentUnitStatus (9): Pending, OK, Deprecated, Invalid, RequiresValidation,
+    ///                         NotApplicable, AwaitingSignature, Warning, Expired.
+    /// DocumentStatus (7):     RequiresDocument, RequiresValidation, OK, Deprecated,
+    ///                         AwaitingSignature, Warning, Expired.
     /// </summary>
     public class DocumentStatusTransitionTests
     {
@@ -289,8 +289,11 @@ namespace PeopleManagement.UnitTests.Aggregates.DocumentTests
             Assert.Equal(DocumentStatus.OK, doc.Status);
         }
 
+        // Regressão do ramo por competência: ele tinha uma precedência própria que só olhava
+        // RequiresDocument/RequiresValidation/Warning e mandava todo o resto para OK. Documento periodizado
+        // aguardando assinatura aparecia como OK, e o mesmo valia para vencido e depreciado.
         [Fact]
-        public void PeriodDocument_WithAwaitingSignatureUnit_CollapsesToOk()
+        public void PeriodDocument_WithAwaitingSignatureUnit_ShouldMakeDocumentAwaitingSignature()
         {
             var doc = CreateDocument();
             var unitId = Guid.NewGuid();
@@ -299,8 +302,41 @@ namespace PeopleManagement.UnitTests.Aggregates.DocumentTests
             doc.MarkAsAwaitingDocumentUnitSignature(unitId);
 
             Assert.Equal(DocumentUnitStatus.AwaitingSignature, doc.GetDocumentUnit(unitId).Status);
-            // Documenta o comportamento atual: no ramo por período, AwaitingSignature
-            // não é considerado e o Document resolve para OK.
+            Assert.Equal(DocumentStatus.AwaitingSignature, doc.Status);
+        }
+
+        [Fact]
+        public void PeriodDocument_WithExpiredUnit_ShouldMakeDocumentExpired()
+        {
+            var doc = CreateDocument();
+            var unitId = Guid.NewGuid();
+
+            doc.NewDocumentUnit(unitId, PeriodType.Monthly, false, ReferenceDate);
+            doc.InsertUnitWithoutRequireValidation(unitId, "arquivo", "pdf");
+            doc.ExpireDocumentUnit(unitId);
+
+            Assert.Equal(DocumentUnitStatus.Expired, doc.GetDocumentUnit(unitId).Status);
+            Assert.Equal(DocumentStatus.Expired, doc.Status);
+        }
+
+        // A renovação de um documento por competência cai na competência SEGUINTE, então é ela que supera a
+        // vencida — exigir mesma competência deixaria a vencida esperando para sempre.
+        [Fact]
+        public void PeriodDocument_WhenNextPeriodIsDelivered_ShouldDeprecateTheExpiredUnit()
+        {
+            var doc = CreateDocument();
+            var expiredUnitId = Guid.NewGuid();
+            var okUnitId = Guid.NewGuid();
+
+            doc.NewDocumentUnit(expiredUnitId, PeriodType.Monthly, false, ReferenceDate);
+            doc.InsertUnitWithoutRequireValidation(expiredUnitId, "arquivo", "pdf");
+            doc.ExpireDocumentUnit(expiredUnitId);
+
+            doc.NewDocumentUnit(okUnitId, PeriodType.Monthly, false, ReferenceDate.AddMonths(1));
+            doc.InsertUnitWithoutRequireValidation(okUnitId, "arquivo2", "pdf");
+
+            // A entrega da competência seguinte é o substituto que a vencida esperava.
+            Assert.Equal(DocumentUnitStatus.Deprecated, doc.GetDocumentUnit(expiredUnitId).Status);
             Assert.Equal(DocumentStatus.OK, doc.Status);
         }
     }

@@ -11,16 +11,18 @@ using PeopleManagement.IntegrationTests.Data;
 namespace PeopleManagement.IntegrationTests.Tests
 {
     // Caracterização do "vence sempre": para um documento com associação vigente, DepreciateExpirateDocument
-    // deprecia a unidade vencida E cria uma nova unidade Pending, reiniciando o ciclo indefinidamente.
-    // Fixa também a mecânica de contagem (unidades Deprecated acumulam), que a Fase 3 usará como contador de
-    // renovações (decisão: contar units) para a policy de "vence N vezes".
+    // marca a unidade como VENCIDA e cria uma nova unidade Pending, reiniciando o ciclo indefinidamente.
+    //
+    // Vencida ≠ depreciada: enquanto o substituto não é entregue a unidade fica Expired (a exigência está
+    // descoberta); ela só vira Deprecated quando a próxima entrega chega. Por isso o contador de renovações é
+    // Document.ExpirationCount, e não uma contagem de unidades por status — o status se move, o contador não.
     [Collection(nameof(IntegrationTestCollection))]
     public class DocumentExpirationRenewalTests(PeopleManagementWebApplicationFactory factory) : BaseIntegrationTest(factory)
     {
         private static readonly DateOnly OfficialDate = new(2024, 1, 15);
 
         [Fact]
-        public async Task DepreciateExpirate_WhenAssociated_DeprecatesUnitAndCreatesNewPendingUnit()
+        public async Task DepreciateExpirate_WhenAssociated_ExpiresUnitAndCreatesNewPendingUnit()
         {
             var ct = CancellationToken.None;
             var context = GetContext();
@@ -31,12 +33,15 @@ namespace PeopleManagement.IntegrationTests.Tests
 
             var result = await GetDocumentAsync(document.Id, ct);
             Assert.Equal(2, result.DocumentsUnits.Count);
-            Assert.Equal(DocumentUnitStatus.Deprecated, result.DocumentsUnits.First(u => u.Id == okUnitId).Status);
+            Assert.Equal(DocumentUnitStatus.Expired, result.DocumentsUnits.First(u => u.Id == okUnitId).Status);
             Assert.Single(result.DocumentsUnits.Where(u => u.Status == DocumentUnitStatus.Pending));
+            Assert.Equal(1, result.ExpirationCount);
         }
 
+        // A entrega da renovação é o que transforma a vencida em histórico: no fim do segundo ciclo há uma
+        // depreciada (já substituída), uma vencida (esperando substituto) e a pendente que vai substituí-la.
         [Fact]
-        public async Task DepreciateExpirate_WhenAssociatedTwice_AccumulatesDeprecatedUnits()
+        public async Task DepreciateExpirate_WhenAssociatedTwice_DeprecatesTheReplacedUnitAndExpiresTheCurrent()
         {
             var ct = CancellationToken.None;
             var context = GetContext();
@@ -53,12 +58,14 @@ namespace PeopleManagement.IntegrationTests.Tests
 
             var result = await GetDocumentAsync(document.Id, ct);
             Assert.Equal(3, result.DocumentsUnits.Count);
-            Assert.Equal(2, result.DocumentsUnits.Count(u => u.Status == DocumentUnitStatus.Deprecated));
+            Assert.Equal(DocumentUnitStatus.Deprecated, result.DocumentsUnits.First(u => u.Id == firstUnitId).Status);
+            Assert.Equal(DocumentUnitStatus.Expired, result.DocumentsUnits.First(u => u.Id == secondUnitId).Status);
             Assert.Single(result.DocumentsUnits.Where(u => u.Status == DocumentUnitStatus.Pending));
+            Assert.Equal(2, result.ExpirationCount);
         }
 
-        // Fase 3b: vencimento limitado. Enquanto o contador de renovações (unidades depreciadas) está abaixo do
-        // teto, ainda renova — deprecia a vencida e cria uma nova Pending.
+        // Vencimento limitado. Enquanto o contador de vencimentos do documento está abaixo do teto, ainda
+        // renova — vence a unidade e cria uma nova Pending.
         [Fact]
         public async Task DepreciateExpirate_LimitedPolicyBelowMax_StillRenews()
         {
@@ -71,14 +78,14 @@ namespace PeopleManagement.IntegrationTests.Tests
 
             var result = await GetDocumentAsync(document.Id, ct);
             Assert.Equal(2, result.DocumentsUnits.Count);
-            Assert.Equal(DocumentUnitStatus.Deprecated, result.DocumentsUnits.First(u => u.Id == okUnitId).Status);
+            Assert.Equal(DocumentUnitStatus.Expired, result.DocumentsUnits.First(u => u.Id == okUnitId).Status);
             Assert.Single(result.DocumentsUnits.Where(u => u.Status == DocumentUnitStatus.Pending));
         }
 
-        // Ao atingir o teto (maxRenewals=1: uma renovação já ocorreu), o vencimento seguinte deprecia a unidade
-        // mas NÃO cria uma nova — o documento para de renovar.
+        // Ao atingir o teto (maxRenewals=1: uma renovação já ocorreu), o vencimento seguinte vence a unidade
+        // mas NÃO cria uma nova — o documento para de renovar e fica descoberto.
         [Fact]
-        public async Task DepreciateExpirate_LimitedPolicyAtMax_DeprecatesWithoutRenewing()
+        public async Task DepreciateExpirate_LimitedPolicyAtMax_ExpiresWithoutRenewing()
         {
             var ct = CancellationToken.None;
             var context = GetContext();
@@ -95,7 +102,8 @@ namespace PeopleManagement.IntegrationTests.Tests
 
             var result = await GetDocumentAsync(document.Id, ct);
             Assert.Equal(2, result.DocumentsUnits.Count);
-            Assert.Equal(2, result.DocumentsUnits.Count(u => u.Status == DocumentUnitStatus.Deprecated));
+            Assert.Equal(DocumentUnitStatus.Deprecated, result.DocumentsUnits.First(u => u.Id == firstUnitId).Status);
+            Assert.Equal(DocumentUnitStatus.Expired, result.DocumentsUnits.First(u => u.Id == secondUnitId).Status);
             Assert.Empty(result.DocumentsUnits.Where(u => u.Status == DocumentUnitStatus.Pending));
         }
 

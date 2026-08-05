@@ -799,13 +799,27 @@ class FakeEmployeeRepository implements EmployeeRepository {
   }
 
   @override
-  Future<Result<void>> createDocumentUnit(
+  Future<Result<void>> deprecateDocumentUnit(
     String companyId,
     String employeeId,
     String documentId,
+    String documentUnitId,
   ) async {
     if (_shouldFail) {
-      return Result.error(Exception('createDocumentUnit failed'));
+      return Result.error(Exception('deprecateDocumentUnit failed'));
+    }
+    return const Result<void>.success(null);
+  }
+
+  @override
+  Future<Result<void>> invalidateDocumentUnit(
+    String companyId,
+    String employeeId,
+    String documentId,
+    String documentUnitId,
+  ) async {
+    if (_shouldFail) {
+      return Result.error(Exception('invalidateDocumentUnit failed'));
     }
     return const Result<void>.success(null);
   }
@@ -862,6 +876,44 @@ class FakeEmployeeRepository implements EmployeeRepository {
     if (_shouldFail) {
       return Result.error(Exception('generateAndSendToSign failed'));
     }
+    return const Result<void>.success(null);
+  }
+
+  /// The arguments of the last [scheduleSendToSign] call, or null when it was
+  /// never called.
+  ({String sendOn, String dateLimitToSign})? lastScheduledSend;
+
+  /// Whether [cancelScheduledSendToSign] was called.
+  bool cancelScheduledSendCalled = false;
+
+  @override
+  Future<Result<void>> scheduleSendToSign(
+    String companyId,
+    String employeeId,
+    String documentId,
+    String documentUnitId,
+    String sendOn,
+    String dateLimitToSign,
+    int reminderEveryNDays,
+  ) async {
+    if (_shouldFail) {
+      return Result.error(Exception('scheduleSendToSign failed'));
+    }
+    lastScheduledSend = (sendOn: sendOn, dateLimitToSign: dateLimitToSign);
+    return const Result<void>.success(null);
+  }
+
+  @override
+  Future<Result<void>> cancelScheduledSendToSign(
+    String companyId,
+    String employeeId,
+    String documentId,
+    String documentUnitId,
+  ) async {
+    if (_shouldFail) {
+      return Result.error(Exception('cancelScheduledSendToSign failed'));
+    }
+    cancelScheduledSendCalled = true;
     return const Result<void>.success(null);
   }
 

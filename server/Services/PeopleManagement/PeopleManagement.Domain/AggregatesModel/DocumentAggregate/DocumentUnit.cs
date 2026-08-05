@@ -38,6 +38,12 @@ namespace PeopleManagement.Domain.AggregatesModel.DocumentAggregate
         public DateTime? SentToSignatureAt { get; private set; }
         public DateOnly? WorkloadEndDate { get; private set; }
 
+        /// <summary>
+        /// Envio para assinatura agendado, quando houver. Null = nada agendado; o envio imediato não passa por
+        /// aqui. Fica ao lado de <see cref="SentToSignatureAt"/> de propósito: um é a intenção, o outro é o fato.
+        /// </summary>
+        public ScheduledSignature? ScheduledSignature { get; private set; }
+
         private DocumentUnit() { }
         private DocumentUnit(Guid id, Document document) : base(id)
         {
@@ -143,12 +149,50 @@ namespace PeopleManagement.Domain.AggregatesModel.DocumentAggregate
 
 
 
-        public void MaskAsInvalid()
+        /// <summary>
+        /// Agenda o envio para assinatura. Agendar de novo substitui o agendamento anterior — o disparo antigo
+        /// compara a data que carrega com a gravada aqui e desiste sozinho quando elas divergem, então não é
+        /// preciso rastrear nem cancelar o job já criado.
+        /// </summary>
+        public void ScheduleSignatureSend(ScheduledSignature schedule)
         {
-            Status = DocumentUnitStatus.Invalid;
+            ScheduledSignature = schedule;
+            AddDomainEvent(ScheduleDocumentSignatureSendEvent.Create(Document.Id, Id, Document.CompanyId, schedule.SendOn));
         }
 
-        public void MaskAsValid()
+        /// <summary>
+        /// Cancela o agendamento. No-op quando não há nenhum: cancelar duas vezes (ou cancelar o que o disparo
+        /// já consumiu) é a mesma intenção realizada, não um erro.
+        /// </summary>
+        public void CancelScheduledSignatureSend()
+        {
+            ScheduledSignature = null;
+        }
+
+        public bool IsSignatureScheduled => ScheduledSignature is not null;
+
+        /// <summary>
+        /// A unidade tem erro, ou foi entregue por engano: perde qualquer valor legal.
+        ///
+        /// Aceita o que ainda não virou história: pendente, entregue mas ainda em vigência, aguardando conferência
+        /// ou assinatura. <see cref="DocumentUnitStatus.Deprecated"/> e <see cref="DocumentUnitStatus.Expired"/> são
+        /// recusados de propósito — são a prova de que o funcionário teve documento válido naquele período, e
+        /// apagá-la é justamente o que a definição de Deprecated existe para impedir.
+        /// </summary>
+        public bool MarkAsInvalid()
+        {
+            if (Status == DocumentUnitStatus.Pending ||
+                Status == DocumentUnitStatus.OK ||
+                Status == DocumentUnitStatus.RequiresValidation ||
+                Status == DocumentUnitStatus.AwaitingSignature)
+            {
+                Status = DocumentUnitStatus.Invalid;
+                return true;
+            }
+            return false;
+        }
+
+        public void MarkAsValid()
         {
             if (Name != null && Extension != null)
             {
@@ -162,22 +206,45 @@ namespace PeopleManagement.Domain.AggregatesModel.DocumentAggregate
             }
         }
 
-        public bool MarkAsDeprecatedOrInvalid()
+        /// <summary>
+        /// A unidade venceu e ainda não há substituta entregue — a exigência está descoberta AGORA.
+        ///
+        /// Só a partir de vigência (OK ou Warning): vencer é o fim de uma vigência, não um estado que uma pendente
+        /// ou uma unidade já superada possa alcançar.
+        /// </summary>
+        public bool MarkAsExpired()
         {
             if (Status == DocumentUnitStatus.OK || Status == DocumentUnitStatus.Warning)
             {
-                Status = DocumentUnitStatus.Deprecated;
-                return true;
-            }
-            if(Status == DocumentUnitStatus.RequiresValidation ||
-                Status == DocumentUnitStatus.AwaitingSignature ||
-                Status == DocumentUnitStatus.Pending)
-            {
-                Status = DocumentUnitStatus.Invalid;
+                Status = DocumentUnitStatus.Expired;
                 return true;
             }
             return false;
         }
+
+        /// <summary>
+        /// A unidade sai de vigência mas continua valendo como prova de que o funcionário esteve coberto naquele
+        /// período. Aceita também a vencida: é exatamente a transição de <see cref="DocumentUnitStatus.Expired"/>
+        /// para <see cref="DocumentUnitStatus.Deprecated"/> quando o substituto finalmente chega.
+        /// </summary>
+        public bool MarkAsDeprecated()
+        {
+            if (Status == DocumentUnitStatus.OK ||
+                Status == DocumentUnitStatus.Warning ||
+                Status == DocumentUnitStatus.Expired)
+            {
+                Status = DocumentUnitStatus.Deprecated;
+                return true;
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// Outra unidade passou a cobrir a mesma exigência. O que já teve valor vira histórico
+        /// (<see cref="MarkAsDeprecated"/>); o que ainda estava em curso nunca chegou a valer nada e é descartado
+        /// (<see cref="MarkAsInvalid"/>). A ordem importa: uma unidade OK é histórico, não engano.
+        /// </summary>
+        public bool Supersede() => MarkAsDeprecated() || MarkAsInvalid();
 
         public bool MarkAsNotApplicable()
         {
@@ -224,6 +291,16 @@ namespace PeopleManagement.Domain.AggregatesModel.DocumentAggregate
         public bool RequiresVerification => Status == DocumentUnitStatus.RequiresValidation;
         public bool IsOK => Status == DocumentUnitStatus.OK;
         public bool IsPending => Status == DocumentUnitStatus.Pending;
+        public bool IsExpired => Status == DocumentUnitStatus.Expired;
+        public bool IsNotApplicable => Status == DocumentUnitStatus.NotApplicable;
+
+        /// <summary>
+        /// Se esta unidade cobre a exigência. NotApplicable cobre tanto quanto OK — é a exceção deliberada à
+        /// regra, não uma falta. Warning ainda está em vigência, só perto de vencer.
+        /// </summary>
+        public bool CoversRequirement => Status == DocumentUnitStatus.OK ||
+            Status == DocumentUnitStatus.Warning ||
+            Status == DocumentUnitStatus.NotApplicable;
         public string GetNameWithExtension => $"{Name}.{Extension}";
         public bool CanEdit => (Name == null || Name.IsNullOrEmpty) && Extension == null;
 

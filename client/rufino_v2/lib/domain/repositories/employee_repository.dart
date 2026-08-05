@@ -311,11 +311,22 @@ abstract class EmployeeRepository {
     int? statusId,
   });
 
-  /// Creates a new document unit for the given [documentId].
-  Future<Result<void>> createDocumentUnit(
+  /// Deprecates a document unit: it leaves validity but is kept as proof of the
+  /// period it covered, and a replacement pending unit takes its place.
+  Future<Result<void>> deprecateDocumentUnit(
     String companyId,
     String employeeId,
     String documentId,
+    String documentUnitId,
+  );
+
+  /// Invalidates a document unit: it has an error or was sent by mistake and
+  /// carries no legal value, and a replacement pending unit takes its place.
+  Future<Result<void>> invalidateDocumentUnit(
+    String companyId,
+    String employeeId,
+    String documentId,
+    String documentUnitId,
   );
 
   /// Updates the date of an existing document unit.
@@ -353,6 +364,31 @@ abstract class EmployeeRepository {
     String documentUnitId,
     String dateLimitToSign,
     int reminderEveryNDays,
+  );
+
+  /// Schedules the document to be generated and sent for signature on
+  /// [sendOn], instead of sending it now.
+  ///
+  /// [dateLimitToSign] is the employee's deadline, counted from the send, so it
+  /// must be after [sendOn]. Both are `dd/MM/yyyy`.
+  Future<Result<void>> scheduleSendToSign(
+    String companyId,
+    String employeeId,
+    String documentId,
+    String documentUnitId,
+    String sendOn,
+    String dateLimitToSign,
+    int reminderEveryNDays,
+  );
+
+  /// Cancels the scheduled signature send of a document unit.
+  ///
+  /// Succeeds even when nothing was scheduled.
+  Future<Result<void>> cancelScheduledSendToSign(
+    String companyId,
+    String employeeId,
+    String documentId,
+    String documentUnitId,
   );
 
   /// Downloads the file attached to a document unit.

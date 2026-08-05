@@ -61,20 +61,37 @@ const _fakeGroup = DocumentGroupWithDocuments(
 
 void main() {
   late FakeEmployeeRepository employeeRepository;
+  late FakeDocumentGroupRepository documentGroupRepository;
   late PermissionNotifier permissionNotifier;
   late EmployeeProfileViewModel viewModel;
+
+  /// Replaces the document the section renders, keeping the group around it.
+  void useDocument(EmployeeDocument document) {
+    employeeRepository.setDocumentsList([document]);
+    documentGroupRepository.setGroupsWithDocuments([
+      DocumentGroupWithDocuments(
+        id: _fakeGroup.id,
+        name: _fakeGroup.name,
+        description: _fakeGroup.description,
+        statusId: _fakeGroup.statusId,
+        statusName: _fakeGroup.statusName,
+        documents: [document],
+      ),
+    ]);
+  }
 
   setUp(() async {
     employeeRepository = FakeEmployeeRepository()
       ..setDocumentsList(const [_signableDocument]);
+    documentGroupRepository = FakeDocumentGroupRepository()
+      ..setGroupsWithDocuments(const [_fakeGroup]);
     viewModel = EmployeeProfileViewModel(
       companyRepository: FakeCompanyRepository()
         ..setSelectedCompany(_fakeCompany),
       employeeRepository: employeeRepository,
       departmentRepository: FakeDepartmentRepository(),
       workplaceRepository: FakeWorkplaceRepository(),
-      documentGroupRepository: FakeDocumentGroupRepository()
-        ..setGroupsWithDocuments(const [_fakeGroup]),
+      documentGroupRepository: documentGroupRepository,
       cepRepository: FakeCepRepository(),
     );
     final fakePermRepo = FakePermissionRepository()
@@ -210,4 +227,180 @@ void main() {
       expect(find.text('Gerar e enviar para assinatura'), findsNothing);
     });
   });
+
+  group('DocumentsSection schedule-signature-send', () {
+    testWidgets('offers scheduling alongside sending now in the generate dialog',
+        (tester) async {
+      await pumpExpandedSection(tester, signingOptionId: '2');
+
+      await tester.tap(find.byTooltip('Gerar'));
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const ValueKey('generate-dialog-schedule-sign')),
+          findsOneWidget);
+    });
+
+    testWidgets('hides scheduling when the employee signs physically',
+        (tester) async {
+      await pumpExpandedSection(tester, signingOptionId: '1');
+
+      await tester.tap(find.byTooltip('Gerar'));
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const ValueKey('generate-dialog-schedule-sign')),
+          findsNothing);
+    });
+
+    // O caso comum — renovar exatamente no dia em que o documento atual vence —
+    // fica a uma confirmação de distância.
+    testWidgets('prefills the send date with the suggestion from the server',
+        (tester) async {
+      final suggestion = _dateInDays(30);
+      useDocument(_documentSuggesting(suggestion));
+      await pumpExpandedSection(tester, signingOptionId: '2');
+
+      await tester.tap(find.byTooltip('Gerar'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('generate-dialog-schedule-sign')));
+      await tester.pumpAndSettle();
+
+      final field = tester.widget<TextFormField>(
+          find.byKey(const ValueKey('schedule-send-on-field')));
+      expect(field.controller?.text, suggestion);
+    });
+
+    testWidgets('leaves the send date empty when there is nothing to suggest',
+        (tester) async {
+      await pumpExpandedSection(tester, signingOptionId: '2');
+
+      await tester.tap(find.byTooltip('Gerar'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('generate-dialog-schedule-sign')));
+      await tester.pumpAndSettle();
+
+      final field = tester.widget<TextFormField>(
+          find.byKey(const ValueKey('schedule-send-on-field')));
+      expect(field.controller?.text, isEmpty);
+    });
+
+    // O prazo é contado a partir do envio; anterior a ele nasceria vencido.
+    testWidgets('refuses a deadline that is not after the send date',
+        (tester) async {
+      useDocument(_documentSuggesting(_dateInDays(30)));
+      await pumpExpandedSection(tester, signingOptionId: '2');
+
+      await tester.tap(find.byTooltip('Gerar'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('generate-dialog-schedule-sign')));
+      await tester.pumpAndSettle();
+
+      await tester.enterText(
+          find.byKey(const ValueKey('schedule-deadline-field')), _dateInDays(29));
+      await tester.tap(find.text('Agendar'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('A data limite precisa ser posterior à data do envio.'),
+          findsOneWidget);
+      expect(employeeRepository.lastScheduledSend, isNull);
+    });
+
+    testWidgets('schedules the send with both dates when the form is valid',
+        (tester) async {
+      final sendOn = _dateInDays(30);
+      final deadline = _dateInDays(35);
+      useDocument(_documentSuggesting(sendOn));
+      await pumpExpandedSection(tester, signingOptionId: '2');
+
+      await tester.tap(find.byTooltip('Gerar'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('generate-dialog-schedule-sign')));
+      await tester.pumpAndSettle();
+
+      await tester.enterText(
+          find.byKey(const ValueKey('schedule-deadline-field')), deadline);
+      await tester.tap(find.text('Agendar'));
+      await tester.pumpAndSettle();
+
+      expect(employeeRepository.lastScheduledSend?.sendOn, sendOn);
+      expect(employeeRepository.lastScheduledSend?.dateLimitToSign, deadline);
+    });
+
+    testWidgets('shows the scheduled date on the unit row', (tester) async {
+      final sendOn = _dateInDays(30);
+      useDocument(_documentScheduledOn(sendOn));
+      await pumpExpandedSection(tester, signingOptionId: '2');
+
+      expect(find.text('Envio agendado: $sendOn'), findsOneWidget);
+    });
+
+    testWidgets('cancels the scheduled send after confirmation',
+        (tester) async {
+      useDocument(_documentScheduledOn(_dateInDays(30)));
+      await pumpExpandedSection(tester, signingOptionId: '2');
+
+      await tester.tap(find.byTooltip('Cancelar agendamento'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Cancelar agendamento').last);
+      await tester.pumpAndSettle();
+
+      expect(employeeRepository.cancelScheduledSendCalled, isTrue);
+    });
+
+    testWidgets('hides the cancel action when nothing is scheduled',
+        (tester) async {
+      await pumpExpandedSection(tester, signingOptionId: '2');
+
+      expect(find.byTooltip('Cancelar agendamento'), findsNothing);
+    });
+  });
 }
+
+/// Formats today + [days] as `dd/MM/yyyy`.
+///
+/// Relativa a hoje de propósito: o campo de envio recusa data no passado, então
+/// uma data fixa faria o teste passar hoje e falhar quando ela vencesse.
+String _dateInDays(int days) {
+  final target = DateTime.now().add(Duration(days: days));
+  final d = target.day.toString().padLeft(2, '0');
+  final m = target.month.toString().padLeft(2, '0');
+  return '$d/$m/${target.year}';
+}
+
+EmployeeDocument _documentSuggesting(String suggestedDate) => EmployeeDocument(
+      id: _signableDocument.id,
+      name: _signableDocument.name,
+      description: _signableDocument.description,
+      statusId: _signableDocument.statusId,
+      statusName: _signableDocument.statusName,
+      isSignable: true,
+      canGenerateDocument: true,
+      usePreviousPeriod: false,
+      totalUnitsCount: 1,
+      units: _signableDocument.units,
+      suggestedSignatureScheduleDate: suggestedDate,
+    );
+
+EmployeeDocument _documentScheduledOn(String sendOn) => EmployeeDocument(
+      id: _signableDocument.id,
+      name: _signableDocument.name,
+      description: _signableDocument.description,
+      statusId: _signableDocument.statusId,
+      statusName: _signableDocument.statusName,
+      isSignable: true,
+      canGenerateDocument: true,
+      usePreviousPeriod: false,
+      totalUnitsCount: 1,
+      units: [
+        DocumentUnit(
+          id: 'unit-1',
+          statusId: '1',
+          statusName: 'Pendente',
+          date: '01/01/2026',
+          validity: '',
+          createdAt: '01/01/2026',
+          hasFile: false,
+          name: '',
+          scheduledSignatureSendOn: sendOn,
+        ),
+      ],
+    );

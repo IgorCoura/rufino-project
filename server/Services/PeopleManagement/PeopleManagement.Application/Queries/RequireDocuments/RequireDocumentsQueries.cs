@@ -1,5 +1,4 @@
 ﻿using Microsoft.EntityFrameworkCore;
-using PeopleManagement.Application.Util;
 using PeopleManagement.Domain.AggregatesModel.CompanyAggregate;
 using PeopleManagement.Domain.AggregatesModel.DocumentAggregate;
 using PeopleManagement.Domain.AggregatesModel.DocumentTemplateAggregate;
@@ -8,6 +7,7 @@ using PeopleManagement.Domain.AggregatesModel.EmployeeAggregate.Events;
 using PeopleManagement.Domain.AggregatesModel.RequireDocumentsAggregate;
 using PeopleManagement.Domain.ErrorTools;
 using PeopleManagement.Domain.ErrorTools.ErrorsMessages;
+using PeopleManagement.Domain.Services;
 using PeopleManagement.Infra.Context;
 using static Microsoft.EntityFrameworkCore.DbLoggerCategory.Database;
 using static PeopleManagement.Application.Queries.Base.BaseDtos;
@@ -233,13 +233,8 @@ namespace PeopleManagement.Application.Queries.RequireDocuments
                 .Select(x => x.Status)
                 .ToListAsync(cancellationToken);
 
-            var status = DocumentStatusUtil.GetDocumentGroupStatus(documentsStatus);
-            return new EnumerationDto
-            {
-                Id = status.Id,
-                Name = status.Name
-            };
-
+            // Mesma regra do status do funcionário e do grupo de documentos.
+            return DocumentStatusRollup.Summarize(documentsStatus);
         }
 
     }

@@ -136,7 +136,7 @@ void main() {
     });
   });
 
-  group('EmployeeDocument.groupStatusLabel', () {
+  group('EmployeeDocument.statusLabel', () {
     EmployeeDocument docWithStatus(String id, {String name = ''}) =>
         EmployeeDocument(
           id: '1',
@@ -151,24 +151,25 @@ void main() {
           units: const [],
         );
 
-    test('returns OK for status id 1', () {
-      expect(docWithStatus('1').groupStatusLabel, 'OK');
+    test('reads the document-level scale, not the three-valued rollup', () {
+      expect(docWithStatus('1').statusLabel, 'Falta Entregar');
+      expect(docWithStatus('2').statusLabel, 'Requer Validação');
+      expect(docWithStatus('3').statusLabel, 'OK');
+      expect(docWithStatus('4').statusLabel, 'Obsoleto');
+      expect(docWithStatus('5').statusLabel, 'Aguardando Assinatura');
+      expect(docWithStatus('6').statusLabel, 'A Vencer');
     });
 
-    test('returns Pendente for status id 2', () {
-      expect(docWithStatus('2').groupStatusLabel, 'Pendente');
-    });
-
-    test('returns Inválido for status id 3', () {
-      expect(docWithStatus('3').groupStatusLabel, 'Inválido');
+    test('labels a document with expired coverage as Vencido', () {
+      expect(docWithStatus('7').statusLabel, 'Vencido');
     });
 
     test('returns statusName as fallback for unknown status id', () {
-      expect(docWithStatus('99', name: 'Custom').groupStatusLabel, 'Custom');
+      expect(docWithStatus('99', name: 'Custom').statusLabel, 'Custom');
     });
 
     test('returns raw status id when statusName is also empty', () {
-      expect(docWithStatus('99').groupStatusLabel, '99');
+      expect(docWithStatus('99').statusLabel, '99');
     });
   });
 
@@ -216,8 +217,59 @@ void main() {
       expect(unitWithStatus('8').statusLabel, 'A Vencer');
     });
 
+    test('returns Vencido for status id 9', () {
+      expect(unitWithStatus('9').statusLabel, 'Vencido');
+    });
+
     test('returns statusName as fallback for unknown status id', () {
       expect(unitWithStatus('99', name: 'Custom').statusLabel, 'Custom');
+    });
+  });
+
+  group('DocumentUnit status action rules', () {
+    DocumentUnit unitWithStatus(String id) => DocumentUnit(
+          id: '1',
+          statusId: id,
+          statusName: '',
+          date: '',
+          validity: '',
+          createdAt: '',
+          hasFile: false,
+          name: '',
+        );
+
+    test('only a document in force can be deprecated', () {
+      expect(unitWithStatus('2').canBeDeprecated, isTrue);
+
+      for (final other in ['1', '3', '4', '5', '6', '7', '8', '9']) {
+        expect(unitWithStatus(other).canBeDeprecated, isFalse,
+            reason: 'status $other should not be deprecatable');
+      }
+    });
+
+    test('a pending or delivered document can be invalidated', () {
+      expect(unitWithStatus('1').canBeInvalidated, isTrue);
+      expect(unitWithStatus('2').canBeInvalidated, isTrue);
+    });
+
+    // Depreciada e vencida provam que o funcionário esteve coberto no período.
+    test('deprecated and expired documents can never be invalidated', () {
+      expect(unitWithStatus('3').canBeInvalidated, isFalse);
+      expect(unitWithStatus('9').canBeInvalidated, isFalse);
+    });
+
+    test('only a pending document can be marked not applicable', () {
+      expect(unitWithStatus('1').canBeMarkedNotApplicable, isTrue);
+
+      for (final other in ['2', '3', '4', '5', '6', '7', '8', '9']) {
+        expect(unitWithStatus(other).canBeMarkedNotApplicable, isFalse,
+            reason: 'status $other should not be markable as not applicable');
+      }
+    });
+
+    test('isExpired reads status id 9', () {
+      expect(unitWithStatus('9').isExpired, isTrue);
+      expect(unitWithStatus('3').isExpired, isFalse);
     });
   });
 
@@ -291,6 +343,116 @@ void main() {
         ),
         'BOB_SANTOS-2025_06_15-HOLERITE-5678.PNG',
       );
+    });
+  });
+
+  group('DocumentUnit scheduled signature send', () {
+    DocumentUnit unitScheduledOn(String sendOn) => DocumentUnit(
+          id: '1',
+          statusId: '1',
+          statusName: '',
+          date: '',
+          validity: '',
+          createdAt: '',
+          hasFile: false,
+          name: '',
+          scheduledSignatureSendOn: sendOn,
+        );
+
+    test('isSignatureScheduled reflects whether a send date is set', () {
+      expect(unitScheduledOn('15/03/2026').isSignatureScheduled, isTrue);
+      expect(unitScheduledOn('').isSignatureScheduled, isFalse);
+    });
+
+    test('a scheduled unit is still pending, since the schedule is an intent',
+        () {
+      expect(unitScheduledOn('15/03/2026').isPending, isTrue);
+    });
+  });
+
+  group('DocumentUnit.validateScheduleSendDate', () {
+    String todayPlus(int days) {
+      final target = DateTime.now().add(Duration(days: days));
+      final d = target.day.toString().padLeft(2, '0');
+      final m = target.month.toString().padLeft(2, '0');
+      return '$d/$m/${target.year}';
+    }
+
+    test('returns error when empty', () {
+      expect(DocumentUnit.validateScheduleSendDate(''), isNotNull);
+    });
+
+    test('returns error for an incomplete date', () {
+      expect(DocumentUnit.validateScheduleSendDate('15/03'), isNotNull);
+    });
+
+    test('returns error for a date in the past, which the API rejects', () {
+      expect(DocumentUnit.validateScheduleSendDate(todayPlus(-1)), isNotNull);
+    });
+
+    test('accepts today, since the send goes out on the same day', () {
+      expect(DocumentUnit.validateScheduleSendDate(todayPlus(0)), isNull);
+    });
+
+    test('accepts a future date', () {
+      expect(DocumentUnit.validateScheduleSendDate(todayPlus(30)), isNull);
+    });
+  });
+
+  group('DocumentUnit.validateSignDeadline', () {
+    test('returns error when empty', () {
+      expect(DocumentUnit.validateSignDeadline('', '15/03/2026'), isNotNull);
+    });
+
+    test('returns error when it is the same day as the send', () {
+      expect(
+        DocumentUnit.validateSignDeadline('15/03/2026', '15/03/2026'),
+        isNotNull,
+      );
+    });
+
+    test('returns error when it is before the send', () {
+      expect(
+        DocumentUnit.validateSignDeadline('14/03/2026', '15/03/2026'),
+        isNotNull,
+      );
+    });
+
+    test('accepts a deadline after the send', () {
+      expect(
+        DocumentUnit.validateSignDeadline('20/03/2026', '15/03/2026'),
+        isNull,
+      );
+    });
+
+    // O campo da data do envio é quem reporta o próprio erro — repetir aqui
+    // marcaria os dois campos em vermelho pelo mesmo problema.
+    test('only checks the format when the send date is unusable', () {
+      expect(DocumentUnit.validateSignDeadline('20/03/2026', ''), isNull);
+    });
+  });
+
+  group('EmployeeDocument suggested schedule date', () {
+    EmployeeDocument documentSuggesting(String date) => EmployeeDocument(
+          id: '1',
+          name: 'Holerite',
+          description: '',
+          statusId: '1',
+          statusName: '',
+          isSignable: true,
+          canGenerateDocument: true,
+          usePreviousPeriod: false,
+          totalUnitsCount: 0,
+          units: const [],
+          suggestedSignatureScheduleDate: date,
+        );
+
+    test('hasSuggestedSignatureScheduleDate reflects whether there is one', () {
+      expect(
+        documentSuggesting('15/03/2026').hasSuggestedSignatureScheduleDate,
+        isTrue,
+      );
+      expect(documentSuggesting('').hasSuggestedSignatureScheduleDate, isFalse);
     });
   });
 }

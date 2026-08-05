@@ -23,6 +23,7 @@ namespace PeopleManagement.Domain.AggregatesModel.DocumentTemplateAggregate.Poli
             IPeriodPolicy p => new DocumentPolicy(PolicyType.Period, Serialize(new PeriodParams(p.PeriodType.Id, p.UsePreviousPeriod))),
             IWorkloadPolicy w => new DocumentPolicy(PolicyType.Workload, Serialize(new WorkloadParams(w.Workload.Ticks))),
             ISignaturePolicy s => new DocumentPolicy(PolicyType.Signature, Serialize(ToSignatureParams(s))),
+            INewContractDeprecationPolicy => new DocumentPolicy(PolicyType.NewContractDeprecation, Serialize(new NewContractDeprecationParams())),
             _ => throw new DomainException(nameof(DocumentPolicyFactory), DomainErrors.FieldInvalid(nameof(policy), policy.GetType().Name))
         };
 
@@ -32,6 +33,8 @@ namespace PeopleManagement.Domain.AggregatesModel.DocumentTemplateAggregate.Poli
             var id when id == PolicyType.Period.Id => ToPeriodPolicy(Deserialize<PeriodParams>(record.Params)),
             var id when id == PolicyType.Workload.Id => new WorkloadPolicy(TimeSpan.FromTicks(Deserialize<WorkloadParams>(record.Params).WorkloadTicks)),
             var id when id == PolicyType.Signature.Id => ToSignaturePolicy(Deserialize<SignatureParams>(record.Params)),
+            // Regra sem parâmetro: o jsonb não é lido, a presença da linha já é a regra inteira.
+            var id when id == PolicyType.NewContractDeprecation.Id => new NewContractDeprecationPolicy(),
             _ => throw new DomainException(nameof(DocumentPolicyFactory), DomainErrors.FieldInvalid(nameof(PolicyType), record.Type.ToString()))
         };
 
@@ -68,6 +71,10 @@ namespace PeopleManagement.Domain.AggregatesModel.DocumentTemplateAggregate.Poli
         private sealed record ExpirationParams(long DurationTicks, int? MaxRenewals = null);
         private sealed record PeriodParams(int PeriodTypeId, bool UsePreviousPeriod);
         private sealed record WorkloadParams(long WorkloadTicks);
+
+        // Sem campos: a regra é presença/ausência. Existe como record (e não como literal "{}") para que um
+        // parâmetro futuro entre aqui sem mexer no formato gravado.
+        private sealed record NewContractDeprecationParams();
 
         // Os PlaceSignature viajam achatados: os VOs (TypeSignature, Number) não têm construtor público que o
         // STJ alcance, e prender o formato do jsonb à forma interna deles deixaria o payload refém de refatoração.

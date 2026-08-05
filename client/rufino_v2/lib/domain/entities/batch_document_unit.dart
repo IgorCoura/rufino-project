@@ -98,6 +98,7 @@ class BatchDocumentUnitItem {
         '6' => 'Não Aplicável',
         '7' => 'Aguardando Assinatura',
         '8' => 'A Vencer',
+        '9' => 'Vencido',
         _ => statusName.isNotEmpty ? statusName : statusId,
       };
 }

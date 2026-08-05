@@ -195,6 +195,11 @@ namespace PeopleManagement.Infra.Migrations
                     b.Property<Guid>("EmployeeId")
                         .HasColumnType("uuid");
 
+                    b.Property<int>("ExpirationCount")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(0);
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(100)
@@ -842,9 +847,33 @@ namespace PeopleManagement.Infra.Migrations
                                 .HasForeignKey("DocumentUnitId");
                         });
 
+                    b.OwnsOne("PeopleManagement.Domain.AggregatesModel.DocumentAggregate.ScheduledSignature", "ScheduledSignature", b1 =>
+                        {
+                            b1.Property<Guid>("DocumentUnitId")
+                                .HasColumnType("uuid");
+
+                            b1.Property<DateOnly>("DateLimitToSign")
+                                .HasColumnType("date");
+
+                            b1.Property<int>("ReminderEveryNDays")
+                                .HasColumnType("integer");
+
+                            b1.Property<DateOnly>("SendOn")
+                                .HasColumnType("date");
+
+                            b1.HasKey("DocumentUnitId");
+
+                            b1.ToTable("DocumentsUnits", "people_management");
+
+                            b1.WithOwner()
+                                .HasForeignKey("DocumentUnitId");
+                        });
+
                     b.Navigation("Document");
 
                     b.Navigation("Period");
+
+                    b.Navigation("ScheduledSignature");
                 });
 
             modelBuilder.Entity("PeopleManagement.Domain.AggregatesModel.DocumentGroupAggregate.DocumentGroup", b =>

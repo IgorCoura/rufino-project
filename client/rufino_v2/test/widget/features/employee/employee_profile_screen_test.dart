@@ -130,8 +130,8 @@ void main() {
           id: 'grp-1',
           name: 'Grupo Contratual',
           description: 'Documentos contratuais',
-          statusId: '1',
-          statusName: 'OK',
+          statusId: '0',
+          statusName: 'Okay',
           documents: [
             EmployeeDocument(
               id: 'doc-1',
@@ -170,7 +170,16 @@ void main() {
     final fakePermRepo = FakePermissionRepository()
       ..setPermissions(const [
         Permission(resource: 'employee', scopes: ['create', 'view', 'edit', 'upload', 'download']),
-        Permission(resource: 'document', scopes: ['create', 'view', 'edit', 'upload', 'download']),
+        Permission(resource: 'document', scopes: [
+          'create',
+          'view',
+          'edit',
+          'upload',
+          'download',
+          'deprecate',
+          'reject',
+          'mark-not-applicable',
+        ]),
       ]);
     permissionNotifier = PermissionNotifier(permissionRepository: fakePermRepo);
     await permissionNotifier.loadPermissions();
@@ -1907,6 +1916,73 @@ void main() {
       // Shows item count but no "Página X de Y" text.
       expect(find.text('1 item'), findsOneWidget);
       expect(find.textContaining('Página'), findsNothing);
+    });
+
+    // A unidade do fixture está OK, então depreciar e invalidar aparecem e "não aplicável" não —
+    // e não há mais botão de criar unidade avulsa em lugar nenhum.
+    testWidgets(
+        'offers deprecate and invalidate on a delivered unit, and no add button',
+        (tester) async {
+      await tester.pumpWidget(buildSubject());
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.widgetWithText(Tab, 'Documentos'));
+      await tester.pumpAndSettle();
+
+      await tester.scrollUntilVisible(
+        find.text('Grupo Contratual'),
+        200,
+        scrollable: find.byType(Scrollable).last,
+      );
+      await tester.tap(find.text('Grupo Contratual'));
+      await tester.pumpAndSettle();
+
+      await tester.scrollUntilVisible(
+        find.text('Contrato de Trabalho'),
+        200,
+        scrollable: find.byType(Scrollable).last,
+      );
+      await tester.tap(find.text('Contrato de Trabalho'));
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const ValueKey('unit-deprecate')), findsOneWidget);
+      expect(find.byKey(const ValueKey('unit-invalidate')), findsOneWidget);
+      expect(find.byKey(const ValueKey('unit-not-applicable')), findsNothing);
+      expect(find.widgetWithText(TextButton, 'Adicionar'), findsNothing);
+    });
+
+    testWidgets('asks for confirmation before deprecating a unit',
+        (tester) async {
+      await tester.pumpWidget(buildSubject());
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.widgetWithText(Tab, 'Documentos'));
+      await tester.pumpAndSettle();
+
+      await tester.scrollUntilVisible(
+        find.text('Grupo Contratual'),
+        200,
+        scrollable: find.byType(Scrollable).last,
+      );
+      await tester.tap(find.text('Grupo Contratual'));
+      await tester.pumpAndSettle();
+
+      await tester.scrollUntilVisible(
+        find.text('Contrato de Trabalho'),
+        200,
+        scrollable: find.byType(Scrollable).last,
+      );
+      await tester.tap(find.text('Contrato de Trabalho'));
+      await tester.pumpAndSettle();
+
+      await tester.ensureVisible(find.byKey(const ValueKey('unit-deprecate')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('unit-deprecate')));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Depreciar documento'), findsOneWidget);
+      expect(
+          find.byKey(const ValueKey('unit-deprecate-confirm')), findsOneWidget);
     });
 
     testWidgets(

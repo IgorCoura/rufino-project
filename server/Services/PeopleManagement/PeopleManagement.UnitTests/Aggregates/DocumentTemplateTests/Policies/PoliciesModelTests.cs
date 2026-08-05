@@ -58,6 +58,15 @@ namespace PeopleManagement.UnitTests.Aggregates.DocumentTemplateTests.Policies
             Assert.True(policy.UsePreviousPeriod);
         }
 
+        // Bloco sem campos: mandar "newContractDeprecation": {} é o que liga a regra.
+        [Fact]
+        public void ToPolicies_WithNewContractDeprecationBlock_YieldsTheRule()
+        {
+            var model = new PoliciesModel(NewContractDeprecation: new NewContractDeprecationPolicyModel());
+
+            Assert.IsType<NewContractDeprecationPolicy>(Assert.Single(model.ToPolicies()));
+        }
+
         [Fact]
         public void ToPolicies_WithAllThreeBlocks_YieldsAllPolicies()
         {

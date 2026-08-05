@@ -16,7 +16,12 @@ using PeopleManagement.Application.Queries.DocumentTemplate;
 using static Microsoft.EntityFrameworkCore.DbLoggerCategory.Database;
 using PeopleManagement.Application.Commands.DocumentCommands.MarkAsInvalidDocumentUnit;
 using PeopleManagement.Application.Commands.DocumentCommands.MarkAsValidDocumentUnit;
+using PeopleManagement.Application.Commands.DocumentCommands.DeprecateDocumentUnit;
 using PeopleManagement.Application.Commands.DocumentCommands.MarkAsNotApplicableDocumentUnit;
+using PeopleManagement.Application.Commands.DocumentCommands.CheckOutdatedDocumentContent;
+using PeopleManagement.Application.Commands.DocumentCommands.RefreshDocumentContent;
+using PeopleManagement.Application.Commands.DocumentCommands.ScheduleDocumentToSign;
+using PeopleManagement.Application.Commands.DocumentCommands.CancelScheduledDocumentToSign;
 namespace PeopleManagement.API.Controllers
 {
     [Route("api/v1/{company}/[controller]")]
@@ -51,6 +56,36 @@ namespace PeopleManagement.API.Controllers
             var result = await _mediator.Send(command);
 
             CommandResultLog(result, request.DocumentUnitId, request, requestId);
+
+            return OkResponse(result);
+        }
+
+        [HttpPost("content/check-outdated")]
+        [ProtectedResource("document", "generate")]
+        public async Task<ActionResult<CheckOutdatedDocumentContentResponse>> CheckOutdatedContent([FromRoute] Guid company, [FromBody] CheckOutdatedDocumentContentModel request)
+        {
+            var command = request.ToCommand(company);
+
+            SendingCommandLog(request.Items.Count(), request, Guid.Empty);
+
+            var result = await _mediator.Send(command);
+
+            CommandResultLog(result, request.Items.Count(), request, Guid.Empty);
+
+            return OkResponse(result);
+        }
+
+        [HttpPost("content/refresh")]
+        [ProtectedResource("document", "edit")]
+        public async Task<ActionResult<RefreshDocumentContentResponse>> RefreshContent([FromRoute] Guid company, [FromBody] RefreshDocumentContentModel request, [FromHeader(Name = "x-requestid")] Guid requestId)
+        {
+            var command = new IdentifiedCommand<RefreshDocumentContentCommand, RefreshDocumentContentResponse>(request.ToCommand(company), requestId);
+
+            SendingCommandLog(request.Items.Count(), request, requestId);
+
+            var result = await _mediator.Send(command);
+
+            CommandResultLog(result, request.Items.Count(), request, requestId);
 
             return OkResponse(result);
         }
@@ -111,6 +146,38 @@ namespace PeopleManagement.API.Controllers
         public async Task<ActionResult<GenerateDocumentToSignResponse>> GeneratePdfToSign([FromRoute] Guid company, [FromBody] GenerateDocumentToSignModel request, [FromHeader(Name = "x-requestid")] Guid requestId)
         {
             var identifiedCommand = new IdentifiedCommand<GenerateDocumentToSignCommand, GenerateDocumentToSignResponse>(request.ToCommand(company), requestId);
+
+            SendingCommandLog(request.DocumentUnitId, request, requestId);
+
+            var result = await _mediator.Send(identifiedCommand);
+
+            CommandResultLog(result, request.DocumentUnitId, request, requestId);
+
+            return result;
+        }
+
+        // Agenda o envio para assinatura numa data futura, em vez de mandar agora. Mesmo escopo do envio
+        // imediato: quem pode enviar, pode agendar.
+        [HttpPost("schedule/send2sign")]
+        [ProtectedResource("document", ["generate", "send2sign"])]
+        public async Task<ActionResult<ScheduleDocumentToSignResponse>> ScheduleToSign([FromRoute] Guid company, [FromBody] ScheduleDocumentToSignModel request, [FromHeader(Name = "x-requestid")] Guid requestId)
+        {
+            var identifiedCommand = new IdentifiedCommand<ScheduleDocumentToSignCommand, ScheduleDocumentToSignResponse>(request.ToCommand(company), requestId);
+
+            SendingCommandLog(request.DocumentUnitId, request, requestId);
+
+            var result = await _mediator.Send(identifiedCommand);
+
+            CommandResultLog(result, request.DocumentUnitId, request, requestId);
+
+            return result;
+        }
+
+        [HttpPost("schedule/send2sign/cancel")]
+        [ProtectedResource("document", ["generate", "send2sign"])]
+        public async Task<ActionResult<CancelScheduledDocumentToSignResponse>> CancelScheduledToSign([FromRoute] Guid company, [FromBody] CancelScheduledDocumentToSignModel request, [FromHeader(Name = "x-requestid")] Guid requestId)
+        {
+            var identifiedCommand = new IdentifiedCommand<CancelScheduledDocumentToSignCommand, CancelScheduledDocumentToSignResponse>(request.ToCommand(company), requestId);
 
             SendingCommandLog(request.DocumentUnitId, request, requestId);
 
@@ -219,6 +286,21 @@ namespace PeopleManagement.API.Controllers
         public async Task<ActionResult<MarkAsInvalidDocumentUnitResponse>> MarkAsInvalid([FromRoute] Guid company, [FromBody] MarkAsInvalidDocumentUnitModel request, [FromHeader(Name = "x-requestid")] Guid requestId)
         {
             var command = new IdentifiedCommand<MarkAsInvalidDocumentUnitCommand, MarkAsInvalidDocumentUnitResponse>(request.ToCommand(company), requestId);
+
+            SendingCommandLog(request.DocumentUnitId, request, requestId);
+
+            var result = await _mediator.Send(command);
+
+            CommandResultLog(result, request.DocumentUnitId, request, requestId);
+
+            return OkResponse(result);
+        }
+
+        [HttpPut("DocumentUnit/deprecate")]
+        [ProtectedResource("document", "deprecate")]
+        public async Task<ActionResult<DeprecateDocumentUnitResponse>> Deprecate([FromRoute] Guid company, [FromBody] DeprecateDocumentUnitModel request, [FromHeader(Name = "x-requestid")] Guid requestId)
+        {
+            var command = new IdentifiedCommand<DeprecateDocumentUnitCommand, DeprecateDocumentUnitResponse>(request.ToCommand(company), requestId);
 
             SendingCommandLog(request.DocumentUnitId, request, requestId);
 

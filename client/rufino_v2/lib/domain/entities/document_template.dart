@@ -90,6 +90,10 @@ class DocumentTemplate {
   /// Whether this template is organized by competência.
   bool get hasPeriod => policies.period != null;
 
+  /// Whether documents from this template are deprecated when the employee
+  /// starts a new employment contract.
+  bool get hasNewContractDeprecation => policies.newContractDeprecation != null;
+
   /// Whether this template has any file name configured (body/header/footer).
   bool get hasFileConfiguration =>
       bodyFileName.isNotEmpty ||
@@ -152,7 +156,12 @@ class DocumentTemplate {
 /// carrying a zeroed value, so there is no such thing as an expiration of zero
 /// days: that is simply no expiration.
 class TemplatePolicies {
-  const TemplatePolicies({this.expiration, this.workload, this.period});
+  const TemplatePolicies({
+    this.expiration,
+    this.workload,
+    this.period,
+    this.newContractDeprecation,
+  });
 
   /// The expiration rule, or null when documents from this template never
   /// expire.
@@ -164,27 +173,52 @@ class TemplatePolicies {
   /// The competência rule, or null when this template is not by competência.
   final PeriodRule? period;
 
+  /// The new-contract deprecation rule, or null when documents from this
+  /// template survive a new employment contract.
+  final NewContractDeprecationRule? newContractDeprecation;
+
   /// Whether no rule at all is active.
-  bool get isEmpty => expiration == null && workload == null && period == null;
+  bool get isEmpty =>
+      expiration == null &&
+      workload == null &&
+      period == null &&
+      newContractDeprecation == null;
 
   /// Returns a copy with the given rules replaced.
   ///
-  /// Passing `clearExpiration`, `clearWorkload` or `clearPeriod` removes the
-  /// rule, which a null override cannot express.
+  /// Passing `clearExpiration`, `clearWorkload`, `clearPeriod` or
+  /// `clearNewContractDeprecation` removes the rule, which a null override
+  /// cannot express.
   TemplatePolicies copyWith({
     ExpirationRule? expiration,
     WorkloadRule? workload,
     PeriodRule? period,
+    NewContractDeprecationRule? newContractDeprecation,
     bool clearExpiration = false,
     bool clearWorkload = false,
     bool clearPeriod = false,
+    bool clearNewContractDeprecation = false,
   }) {
     return TemplatePolicies(
       expiration: clearExpiration ? null : (expiration ?? this.expiration),
       workload: clearWorkload ? null : (workload ?? this.workload),
       period: clearPeriod ? null : (period ?? this.period),
+      newContractDeprecation: clearNewContractDeprecation
+          ? null
+          : (newContractDeprecation ?? this.newContractDeprecation),
     );
   }
+}
+
+/// The rule that deprecates delivered documents when the employee starts a new
+/// employment contract.
+///
+/// Carries no data: the rule is presence-only, matching the API's
+/// `newContractDeprecation` block, which is sent and returned empty. It exists
+/// as a class rather than a `bool` so the rule set stays uniform — every rule is
+/// active when present — and so a future parameter has a place to land.
+class NewContractDeprecationRule {
+  const NewContractDeprecationRule();
 }
 
 /// The granularity of a template's competência.

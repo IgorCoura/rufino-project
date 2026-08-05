@@ -273,6 +273,16 @@ class _DocumentTemplateFormBody extends StatelessWidget {
                       onUsePreviousPeriodChanged: viewModel.setUsePreviousPeriod,
                     ),
                     const Divider(height: 1),
+                    _ToggleRuleTile(
+                      ruleKey: 'newContractDeprecation',
+                      title: 'Depreciar em novo contrato',
+                      subtitle: 'Ao iniciar um novo contrato de trabalho, os '
+                          'documentos já entregues são depreciados e '
+                          'precisam ser entregues de novo.',
+                      enabled: viewModel.newContractDeprecationEnabled,
+                      onChanged: viewModel.setNewContractDeprecationEnabled,
+                    ),
+                    const Divider(height: 1),
                     _SignatureRuleTile(viewModel: viewModel),
                   ],
                 ),
@@ -443,6 +453,40 @@ class _RuleTile extends StatelessWidget {
           const SizedBox(height: AppSpacing.md),
         ],
       ],
+    );
+  }
+}
+
+/// A rule that is nothing but its switch — it carries no input to reveal.
+///
+/// Presence of the rule is the whole configuration, so unlike [_RuleTile] there
+/// is no field, no formatter and no validator.
+class _ToggleRuleTile extends StatelessWidget {
+  const _ToggleRuleTile({
+    required this.ruleKey,
+    required this.title,
+    required this.subtitle,
+    required this.enabled,
+    required this.onChanged,
+  });
+
+  /// Identifies this rule's switch for tests.
+  final String ruleKey;
+
+  final String title;
+  final String subtitle;
+  final bool enabled;
+  final ValueChanged<bool> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return SwitchListTile(
+      key: ValueKey('rule-switch-$ruleKey'),
+      title: Text(title),
+      subtitle: Text(subtitle),
+      value: enabled,
+      onChanged: onChanged,
+      contentPadding: EdgeInsets.zero,
     );
   }
 }

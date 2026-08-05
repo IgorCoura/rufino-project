@@ -735,13 +735,39 @@ class EmployeeRepositoryImpl implements EmployeeRepository {
   }
 
   @override
-  Future<Result<void>> createDocumentUnit(
+  Future<Result<void>> deprecateDocumentUnit(
     String companyId,
     String employeeId,
     String documentId,
+    String documentUnitId,
   ) async {
     try {
-      await apiService.createDocumentUnit(companyId, employeeId, documentId);
+      await apiService.deprecateDocumentUnit(companyId, {
+        'documentUnitId': documentUnitId,
+        'documentId': documentId,
+        'employeeId': employeeId,
+      });
+      return const Result<void>.success(null);
+    } on EmployeeException catch (e, st) {
+      return reporter.failure(e, st);
+    } catch (e, st) {
+      return reporter.failure(EmployeeNetworkException(e), st);
+    }
+  }
+
+  @override
+  Future<Result<void>> invalidateDocumentUnit(
+    String companyId,
+    String employeeId,
+    String documentId,
+    String documentUnitId,
+  ) async {
+    try {
+      await apiService.invalidateDocumentUnit(companyId, {
+        'documentUnitId': documentUnitId,
+        'documentId': documentId,
+        'employeeId': employeeId,
+      });
       return const Result<void>.success(null);
     } on EmployeeException catch (e, st) {
       return reporter.failure(e, st);
@@ -833,6 +859,58 @@ class EmployeeRepositoryImpl implements EmployeeRepository {
         'eminderEveryNDays': reminderEveryNDays,
       };
       await apiService.generateAndSendToSign(companyId, body);
+      return const Result<void>.success(null);
+    } on EmployeeException catch (e, st) {
+      return reporter.failure(e, st);
+    } catch (e, st) {
+      return reporter.failure(EmployeeNetworkException(e), st);
+    }
+  }
+
+  @override
+  Future<Result<void>> scheduleSendToSign(
+    String companyId,
+    String employeeId,
+    String documentId,
+    String documentUnitId,
+    String sendOn,
+    String dateLimitToSign,
+    int reminderEveryNDays,
+  ) async {
+    try {
+      // Datas puras (yyyy-MM-dd): o agendamento raciocina em dias, ao contrário
+      // do envio imediato, que manda um instante ISO.
+      final body = {
+        'documentUnitId': documentUnitId,
+        'documentId': documentId,
+        'employeeId': employeeId,
+        'sendOn': DocumentUnitApiModel.dateToApi(sendOn),
+        'dateLimitToSign': DocumentUnitApiModel.dateToApi(dateLimitToSign),
+        'eminderEveryNDays': reminderEveryNDays,
+      };
+      await apiService.scheduleSendToSign(companyId, body);
+      return const Result<void>.success(null);
+    } on EmployeeException catch (e, st) {
+      return reporter.failure(e, st);
+    } catch (e, st) {
+      return reporter.failure(EmployeeNetworkException(e), st);
+    }
+  }
+
+  @override
+  Future<Result<void>> cancelScheduledSendToSign(
+    String companyId,
+    String employeeId,
+    String documentId,
+    String documentUnitId,
+  ) async {
+    try {
+      final body = {
+        'documentUnitId': documentUnitId,
+        'documentId': documentId,
+        'employeeId': employeeId,
+      };
+      await apiService.cancelScheduledSendToSign(companyId, body);
       return const Result<void>.success(null);
     } on EmployeeException catch (e, st) {
       return reporter.failure(e, st);

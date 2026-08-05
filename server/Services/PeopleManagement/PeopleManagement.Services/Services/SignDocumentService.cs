@@ -1,5 +1,6 @@
 ﻿using Hangfire;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using PeopleManagement.Domain.AggregatesModel.CompanyAggregate;
 using PeopleManagement.Domain.AggregatesModel.CompanyAggregate.Interfaces;
 using PeopleManagement.Domain.AggregatesModel.DocumentAggregate;
@@ -23,8 +24,10 @@ namespace PeopleManagement.Services.Services
     public class SignDocumentService(IDocumentSignatureService documentSignatureService, IDocumentRepository documentRepository, 
         ICompanyRepository companyRepository, IEmployeeRepository employeeRepository, IDocumentTemplateRepository documentTemplateRepository, 
         IBlobService blobService,IDocumentService documentService , IWebHookManagementService webHookManagementService, IFileDownloadService fileDownloadService,
-        IBackgroundJobClient backgroundJobClient, IDocumentSignatureReminderService documentSignatureReminderService, IWhatsAppQueueService whatsAppQueueService) : ISignDocumentService
+        IBackgroundJobClient backgroundJobClient, IDocumentSignatureReminderService documentSignatureReminderService, IWhatsAppQueueService whatsAppQueueService,
+        ILogger<SignDocumentService> logger) : ISignDocumentService
     {
+        private readonly ILogger<SignDocumentService> _logger = logger;
         private readonly IDocumentSignatureService _documentSignatureService = documentSignatureService;
         private readonly IDocumentRepository _documentRepository = documentRepository;
         private readonly ICompanyRepository _companyRepository = companyRepository;
@@ -105,6 +108,75 @@ namespace PeopleManagement.Services.Services
                 documentTemplate.PlaceSignatures.ToArray() ?? [], dateLimitToSign, eminderEveryNDays, cancellationToken);
 
             return documentUnitId;
+        }
+
+        /// <summary>
+        /// Executa um envio para assinatura que foi agendado para hoje. Caminho de job: nunca lança — o que
+        /// mudou entre o agendamento e agora é estado legítimo do documento, não falha, e uma exception aqui só
+        /// viraria retry infinito no Hangfire.
+        ///
+        /// [expectedSendOn] é a data que este disparo veio atender. Reagendar substitui o VO gravado, e o
+        /// disparo antigo (que continua na fila do Hangfire) desiste ao ver que as datas divergem — é assim que
+        /// o reagendamento invalida o job anterior sem rastrear job id.
+        /// </summary>
+        public async Task SendScheduledDocumentToSign(Guid documentUnitId, Guid documentId, Guid companyId,
+            DateOnly expectedSendOn, CancellationToken cancellationToken = default)
+        {
+            var document = await _documentRepository.FirstOrDefaultAsync(
+                x => x.Id == documentId && x.CompanyId == companyId,
+                include: x => x.Include(y => y.DocumentsUnits),
+                cancellation: cancellationToken);
+
+            var documentUnit = document?.DocumentsUnits.FirstOrDefault(x => x.Id == documentUnitId);
+
+            if (document is null || documentUnit is null)
+            {
+                _logger.LogWarning("Skipping scheduled signature send — document {DocumentId} or unit {DocumentUnitId} not found for company {CompanyId}.",
+                    documentId, documentUnitId, companyId);
+                return;
+            }
+
+            if (documentUnit.ScheduledSignature is null)
+            {
+                _logger.LogInformation("Skipping scheduled signature send for unit {DocumentUnitId} — the schedule was cancelled.", documentUnitId);
+                return;
+            }
+
+            if (documentUnit.ScheduledSignature.SendOn != expectedSendOn)
+            {
+                _logger.LogInformation(
+                    "Skipping scheduled signature send for unit {DocumentUnitId} — rescheduled from {ExpectedSendOn} to {CurrentSendOn}.",
+                    documentUnitId, expectedSendOn, documentUnit.ScheduledSignature.SendOn);
+                return;
+            }
+
+            if (documentUnit.IsPending == false)
+            {
+                _logger.LogInformation(
+                    "Skipping scheduled signature send for unit {DocumentUnitId} — it is no longer pending (status {Status}).",
+                    documentUnitId, documentUnit.Status.Name);
+
+                // O agendamento perdeu o objeto: a unidade foi entregue, invalidada ou enviada por outro
+                // caminho. Limpar evita que a UI siga anunciando um envio que nunca vai acontecer.
+                documentUnit.CancelScheduledSignatureSend();
+                await _documentRepository.UnitOfWork.SaveChangesAsync(cancellationToken);
+                return;
+            }
+
+            var dateLimitToSign = documentUnit.ScheduledSignature.DateLimitToSign.ToDateTime(TimeOnly.MinValue);
+            var reminderEveryNDays = documentUnit.ScheduledSignature.ReminderEveryNDays;
+
+            // Consumido antes do envio: GenerateDocumentToSign salva por dentro, e deixar o VO para depois
+            // deixaria uma janela em que a unidade já está AwaitingSignature e ainda consta como agendada.
+            documentUnit.CancelScheduledSignatureSend();
+
+            await GenerateDocumentToSign(documentUnitId, documentId, document.EmployeeId, companyId,
+                dateLimitToSign, reminderEveryNDays, cancellationToken);
+
+            await _documentRepository.UnitOfWork.SaveChangesAsync(cancellationToken);
+
+            _logger.LogInformation("Scheduled signature send executed for unit {DocumentUnitId} of document {DocumentId}.",
+                documentUnitId, documentId);
         }
 
         public async Task<string> ReceiveWebhookDocument(JsonNode contentBody, CancellationToken cancellationToken = default)

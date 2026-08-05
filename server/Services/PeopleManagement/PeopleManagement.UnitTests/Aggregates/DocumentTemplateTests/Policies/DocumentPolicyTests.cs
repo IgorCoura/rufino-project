@@ -142,6 +142,24 @@ namespace PeopleManagement.UnitTests.Aggregates.DocumentTemplateTests.Policies
             Assert.Equal(PolicyType.Signature, record.Type);
         }
 
+        // Regra sem parâmetro: o que precisa sobreviver ao round-trip é o discriminador — a presença da linha é
+        // a regra inteira, e o jsonb vazio não é lido de volta.
+        [Fact]
+        public void ToPersistence_NewContractDeprecationPolicy_UsesItsOwnDiscriminator()
+        {
+            var record = DocumentPolicyFactory.ToPersistence(new NewContractDeprecationPolicy());
+
+            Assert.Equal(PolicyType.NewContractDeprecation, record.Type);
+        }
+
+        [Fact]
+        public void RoundTrip_NewContractDeprecationPolicy_StaysPresent()
+        {
+            var record = DocumentPolicyFactory.ToPersistence(new NewContractDeprecationPolicy());
+
+            Assert.IsType<NewContractDeprecationPolicy>(DocumentPolicyFactory.ToPolicy(record));
+        }
+
         // Não há teste do fallback de ToPolicy: depois que Generation saiu, todo PolicyType tem suporte na
         // factory, e CreateFromValue recusa qualquer id fora da lista — o estado que aquele arm cobre deixou de
         // ser construtível. Ele fica como guarda para quem adicionar um PolicyType e esquecer a factory.

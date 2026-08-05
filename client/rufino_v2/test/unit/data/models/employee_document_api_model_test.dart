@@ -130,4 +130,70 @@ void main() {
       expect(entity.units.first.period!.formattedPeriod, 'Mar/2026');
     });
   });
+
+  group('EmployeeDocumentApiModel scheduled signature send', () {
+    Map<String, dynamic> documentJson({
+      String? suggestedDate,
+      String? scheduledSendOn,
+    }) =>
+        <String, dynamic>{
+          'id': 'doc-1',
+          'name': 'Holerite',
+          'description': '',
+          'status': {'id': 1, 'name': 'OK'},
+          'isSignable': true,
+          'canGenerateDocument': true,
+          'usePreviousPeriod': false,
+          'totalUnitsCount': 1,
+          if (suggestedDate != null)
+            'suggestedSignatureScheduleDate': suggestedDate,
+          'documentsUnits': [
+            {
+              'id': 'unit-1',
+              'status': {'id': 1, 'name': 'Pendente'},
+              'date': '2026-03-01',
+              'validity': '',
+              'createAt': '2026-01-01',
+              'content': '',
+              'name': '',
+              'extension': '',
+              if (scheduledSendOn != null)
+                'scheduledSignatureSendOn': scheduledSendOn,
+            },
+          ],
+        };
+
+    test('converts the suggested schedule date to the display format', () {
+      final entity = EmployeeDocumentApiModel
+          .fromJson(documentJson(suggestedDate: '2026-06-30'))
+          .toEntity();
+
+      expect(entity.suggestedSignatureScheduleDate, '30/06/2026');
+      expect(entity.hasSuggestedSignatureScheduleDate, isTrue);
+    });
+
+    test('leaves the suggested schedule date empty when the API omits it', () {
+      final entity =
+          EmployeeDocumentApiModel.fromJson(documentJson()).toEntity();
+
+      expect(entity.suggestedSignatureScheduleDate, isEmpty);
+      expect(entity.hasSuggestedSignatureScheduleDate, isFalse);
+    });
+
+    test('converts the unit scheduled send date to the display format', () {
+      final entity = EmployeeDocumentApiModel
+          .fromJson(documentJson(scheduledSendOn: '2026-06-30'))
+          .toEntity();
+
+      expect(entity.units.first.scheduledSignatureSendOn, '30/06/2026');
+      expect(entity.units.first.isSignatureScheduled, isTrue);
+    });
+
+    test('reads a unit without a scheduled send as not scheduled', () {
+      final entity =
+          EmployeeDocumentApiModel.fromJson(documentJson()).toEntity();
+
+      expect(entity.units.first.isSignatureScheduled, isFalse);
+    });
+  });
 }

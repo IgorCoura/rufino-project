@@ -30,6 +30,7 @@ namespace PeopleManagement.API.DependencyInjection
 
             service.AddScoped<IArchiveService, ArchiveService>();
             service.AddScoped<ICompleteAdmissionService, CompleteAdmissionService>();
+            service.AddScoped<IDocumentContentBuilder, DocumentContentBuilder>();
             service.AddScoped<IDocumentService, DocumentService>();
             service.AddScoped<IArchiveCategoryService, ArchiveCategoryService>();
             service.AddScoped<ISignDocumentService, SignDocumentService>();
@@ -38,6 +39,8 @@ namespace PeopleManagement.API.DependencyInjection
             service.AddScoped<IWhatsAppQueueService, WhatsAppQueueService>();
             service.AddScoped<HangfireJobRegister>();
             service.AddScoped<IRecurringDocumentService, RecurringDocumentService>();
+
+            service.AddScoped<IEmployeeDocumentStatusRefresher, EmployeeDocumentStatusRefresher>();
 
             // Domain Services
             service.AddScoped<IEmployeeDocumentStatusService, EmployeeDocumentStatusService>();

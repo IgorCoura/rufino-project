@@ -1,4 +1,3 @@
-import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:file_picker/file_picker.dart';
@@ -11,7 +10,10 @@ import '../../../../core/errors/document_scanner_exception.dart';
 import '../../../../core/result.dart';
 import '../../../../core/theme/app_breakpoints.dart';
 import '../../../../core/theme/app_spacing.dart';
+import '../../../../core/utils/file_saver_stub.dart'
+    if (dart.library.io) '../../../../core/utils/file_saver.dart';
 import '../../../../domain/entities/batch_document_unit.dart';
+import '../../../core/widgets/outdated_content_dialog.dart';
 import '../../../core/widgets/permission_guard.dart';
 import '../../../core/widgets/scanner_error_handler.dart';
 import '../viewmodel/batch_document_viewmodel.dart';
@@ -533,26 +535,50 @@ class _BatchDocumentScreenState extends State<BatchDocumentScreen> {
     await widget.viewModel.batchUpdateDate(apiDate);
   }
 
+  /// Checks the snapshot of the current selection and, when any document is
+  /// outdated, shows which ones before letting the generation go on.
+  ///
+  /// The batch dialog has no refresh action on purpose: updating is done per
+  /// document, by editing it. Here the user only sees the warning.
+  Future<bool> _confirmSnapshotFreshness() async {
+    final vm = widget.viewModel;
+    final outdated = await vm.checkOutdatedContent();
+    if (outdated.isEmpty) return true;
+    if (!mounted) return false;
+
+    final selected = vm.pendingUnits
+        .where((u) => vm.selectedUnitIds.contains(u.documentUnitId))
+        .toList();
+
+    final action = await showOutdatedContentDialog(
+      context,
+      allowRefresh: false,
+      rows: selected
+          .map((u) => OutdatedDocumentRow(
+                title: u.employeeName,
+                subtitle: u.date.isEmpty ? '—' : u.date,
+                isOutdated: outdated.contains(u.documentUnitId),
+              ))
+          .toList(),
+    );
+    return action == OutdatedContentAction.continueAnyway;
+  }
+
   Future<void> _generatePdf() async {
+    if (!await _confirmSnapshotFreshness()) return;
+    if (!mounted) return;
     final bytes = await widget.viewModel.generatePdfRange();
     if (bytes == null || !mounted) return;
-    final result = await FilePicker.platform.saveFile(
-      dialogTitle: 'Salvar PDFs gerados',
-      fileName: 'documents.zip',
-    );
-    if (result != null) {
-      await File(result).writeAsBytes(bytes);
-      if (mounted) {
-        ScaffoldMessenger.of(context)
-          ..hideCurrentSnackBar()
-          ..showSnackBar(
-            const SnackBar(
-              content: Text('Arquivo salvo com sucesso.'),
-              behavior: SnackBarBehavior.floating,
-            ),
-          );
-      }
-    }
+    await saveFile(fileName: 'documents.zip', bytes: bytes);
+    if (!mounted) return;
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        const SnackBar(
+          content: Text('Arquivo salvo com sucesso.'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
   }
 
   Future<void> _showGenerateAndSignDialog() async {
@@ -589,6 +615,9 @@ class _BatchDocumentScreenState extends State<BatchDocumentScreen> {
       items: items,
     );
     if (!confirmed || !mounted) return;
+
+    if (!await _confirmSnapshotFreshness()) return;
+    if (!mounted) return;
 
     await widget.viewModel.generateAndSignRange();
   }
