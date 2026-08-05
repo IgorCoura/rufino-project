@@ -776,6 +776,7 @@ The app distinguishes "session died" (401) from "no permission" (403) end to end
 - **State preservation:** `DocumentDashboardPage` owns the ViewModel + `ScrollController` lifecycles (same pattern as `EmployeeListPage`) — never create them inside the route builder, or filters/bucket/page/scroll are wiped on every push/pop.
 - **Row navigation** uses `context.push('/employee/:id?tab=documents')`; the `/employee/:id` route maps `?tab=` (`documents` | `contracts`) to `EmployeeProfileScreen.initialTab`, so the profile lands on the Documentos tab and pop returns to the intact dashboard.
 - ViewModel invariant: bucket switch and pagination reload **only the list** (`isLoadingUnits`); filter/horizon changes reload **summary + list together** so the KPI cards never disagree with the rows. Default employee filter is Ativos (status 2).
+- **O filtro "Funcionários" lista os cinco status, id 1 (Pendentes) incluído.** Funcionário ainda em admissão já acumula pendência de documento — os `RequireDocuments` do servidor escutam eventos com `Status.Pending` —, então esconder o status 1 tirava da triagem justamente o recém-contratado. A opção nasceu faltando na lista hardcoded (`_employeeStatusOptions`), não por decisão: nada no servidor nem no ViewModel restringe o valor. Cuidado ao mexer: o label "Pendentes" colide com o do card de KPI (documentos pendentes), e é por isso que os itens do dropdown têm key própria (`employee-status-option-<id>`) — teste que busque por texto pega o card errado.
 
 ## Outdated Document Snapshot (aviso ao gerar)
 

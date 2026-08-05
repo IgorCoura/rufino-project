@@ -173,6 +173,20 @@ void main() {
       expect(find.text('João Souza'), findsOneWidget);
     });
 
+    testWidgets(
+        'filters by employees still in admission when Pendentes is selected',
+        (tester) async {
+      await pumpLoaded(tester);
+
+      await tester.tap(find.byKey(const ValueKey('employee-status-filter')));
+      await tester.pumpAndSettle();
+      await tester
+          .tap(find.byKey(const ValueKey('employee-status-option-1')).last);
+      await tester.pumpAndSettle();
+
+      expect(dashboardRepository.lastEmployeeStatusId, 1);
+    });
+
     testWidgets('shows the empty state when the bucket has no units',
         (tester) async {
       dashboardRepository.setUnitsPage(
