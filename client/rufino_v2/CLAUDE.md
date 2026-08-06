@@ -780,7 +780,9 @@ The app distinguishes "session died" (401) from "no permission" (403) end to end
 
 ## Documentos em Lote (escopo por funcionário, grupo e documento)
 
-`/batch-document` consulta `GET api/v1/{company}/batch-document/pending-units` e `/missing-employees`. **Os três eixos de escopo são independentes e opcionais** — só funcionário (`_ScopeSection` → `Autocomplete` sobre `EmployeeRepository.getEmployees`), só grupo, grupo+documento, ou nada (a empresa inteira). O template já foi segmento de rota obrigatório; hoje é query param.
+`/batch-document` consulta `GET api/v1/{company}/batch-document/pending-units` e `/missing-employees`. **Os três eixos de escopo são independentes e opcionais** — só funcionário, só grupo, grupo+documento, ou nada (a empresa inteira). O template já foi segmento de rota obrigatório; hoje é query param.
+
+- **O seletor de funcionário é um diálogo de busca (`_EmployeePickerDialog`), NÃO um `Autocomplete`.** O `optionsBuilder` do `Autocomplete` aceita `Future`, mas quando a busca resolve depois de o overlay de opções já ter sido escondido o framework estoura `_zOrderIndex != null` (`OverlayPortal.hide`, `overlay.dart`) — foi exatamente o que aconteceu na primeira versão. O diálogo é dono do próprio ciclo de vida e não cai nesse estado. Busca **no submit**, não por tecla: uma requisição por intenção.
 
 - **Uma requisição, não N.** O modo "Todos" fazia fan-out por template e **somava o `totalCount` de cada resposta** — `pageCount` e a paginação nunca fecharam. `_activeTemplateIds`, `allTemplatesId` e os `mapWithConcurrency` de leitura foram removidos; `null` nos dropdowns significa "todos" e o servidor filtra. O fan-out **sobrevive só na escrita** (`batchCreateDocumentUnits`), porque o command é por template.
 - **`EmployeeRepository` é injetado no ViewModel**, não consumido por outro repositório: quem combina dois agregados é o ViewModel. `searchEmployees` devolve lista vazia no erro — o seletor degrada para "sem resultados", nunca para tela de erro.

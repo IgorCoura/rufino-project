@@ -8,17 +8,20 @@ import 'package:provider/provider.dart';
 import 'package:rufino_v2/core/result.dart';
 import 'package:rufino_v2/domain/entities/batch_document_unit.dart';
 import 'package:rufino_v2/domain/entities/document_group_with_templates.dart';
+import 'package:rufino_v2/domain/entities/employee.dart';
 import 'package:rufino_v2/domain/entities/permission.dart';
 import 'package:rufino_v2/ui/features/auth/viewmodel/permission_notifier.dart';
 import 'package:rufino_v2/ui/features/batch_document/viewmodel/batch_document_viewmodel.dart';
 import 'package:rufino_v2/ui/features/batch_document/widgets/batch_document_screen.dart';
 
+import '../../../testing/fakes/fake_employee_repository.dart';
 import '../../../testing/fakes/fake_permission_repository.dart';
 import '../../../testing/mocks/mocks.dart';
 
 void main() {
   late MockBatchDocumentRepository mockBatchRepo;
   late MockDocumentGroupRepository mockGroupRepo;
+  late FakeEmployeeRepository fakeEmployeeRepo;
   late BatchDocumentViewModel viewModel;
   late PermissionNotifier permissionNotifier;
 
@@ -84,9 +87,22 @@ void main() {
           BatchDocumentUnitsPage(items: pendingUnits, totalCount: 2),
         ));
 
+    fakeEmployeeRepo = FakeEmployeeRepository()
+      ..setEmployees(const [
+        Employee(
+          id: 'e1',
+          name: 'João Silva',
+          registration: '001',
+          status: EmployeeStatus.active,
+          roleName: 'Pedreiro',
+          documentStatus: DocumentStatus.ok,
+        ),
+      ]);
+
     viewModel = BatchDocumentViewModel(
       batchDocumentRepository: mockBatchRepo,
       documentGroupRepository: mockGroupRepo,
+      employeeRepository: fakeEmployeeRepo,
       companyId: 'company-1',
     );
 
@@ -178,6 +194,57 @@ void main() {
         ),
       );
       expect(button.onPressed, isNull);
+    });
+
+    testWidgets('scopes the query to the employee picked in the dialog',
+        (tester) async {
+      await tester.pumpWidget(buildSubject());
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byKey(const ValueKey('employee-scope-field')));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Buscar Funcionário'), findsOneWidget);
+
+      await tester.enterText(
+          find.byKey(const ValueKey('employee-picker-search')), 'João');
+      await tester.testTextInput.receiveAction(TextInputAction.search);
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byKey(const ValueKey('employee-option-e1')));
+      await tester.pumpAndSettle();
+
+      expect(viewModel.selectedEmployeeId, 'e1');
+      expect(fakeEmployeeRepo.lastNameFilter, 'João');
+      verify(() => mockBatchRepo.getPendingDocumentUnits(
+            any(),
+            documentGroupId: any(named: 'documentGroupId'),
+            documentTemplateId: any(named: 'documentTemplateId'),
+            employeeId: 'e1',
+            employeeStatusId: any(named: 'employeeStatusId'),
+            employeeName: any(named: 'employeeName'),
+            periodTypeId: any(named: 'periodTypeId'),
+            periodYear: any(named: 'periodYear'),
+            periodMonth: any(named: 'periodMonth'),
+            periodDay: any(named: 'periodDay'),
+            periodWeek: any(named: 'periodWeek'),
+            pageSize: any(named: 'pageSize'),
+            pageNumber: any(named: 'pageNumber'),
+          )).called(1);
+    });
+
+    testWidgets('clears the employee scope back to all employees',
+        (tester) async {
+      await tester.pumpWidget(buildSubject());
+      await tester.pumpAndSettle();
+      await viewModel.selectEmployee('e1', 'João Silva');
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byKey(const ValueKey('employee-scope-clear')));
+      await tester.pumpAndSettle();
+
+      expect(viewModel.selectedEmployeeId, isNull);
+      expect(find.text('Todos os funcionários'), findsOneWidget);
     });
 
     testWidgets('scopes the query to the chosen group', (tester) async {

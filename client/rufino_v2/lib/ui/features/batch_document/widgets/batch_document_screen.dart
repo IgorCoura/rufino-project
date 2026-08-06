@@ -937,7 +937,12 @@ class _ScopeSection extends StatelessWidget {
   }
 }
 
-/// Employee scope picker — free-text search resolving to a single employee.
+/// Employee scope picker — opens a search dialog and resolves one employee.
+///
+/// Deliberately NOT a [Autocomplete]: its `optionsBuilder` accepts a Future,
+/// but when the search resolves after the options overlay was already hidden
+/// the framework asserts (`_zOrderIndex != null` in `OverlayPortal.hide`).
+/// A dialog owns its own lifecycle and cannot land in that state.
 class _EmployeeScopeField extends StatelessWidget {
   const _EmployeeScopeField({required this.vm});
 
@@ -945,32 +950,180 @@ class _EmployeeScopeField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (vm.selectedEmployeeId != null) {
-      return InputChip(
-        key: const ValueKey('employee-scope-chip'),
-        avatar: const Icon(Icons.person_outline, size: 18),
-        label: Text(vm.selectedEmployeeName ?? 'Funcionário'),
-        onDeleted: () => vm.selectEmployee(null, null),
-      );
-    }
+    final selectedName = vm.selectedEmployeeName;
 
-    return Autocomplete<Employee>(
-      displayStringForOption: (employee) => employee.name,
-      optionsBuilder: (value) => vm.searchEmployees(value.text),
-      onSelected: (employee) => vm.selectEmployee(employee.id, employee.name),
-      fieldViewBuilder: (context, controller, focusNode, onSubmitted) {
-        return TextField(
-          key: const ValueKey('employee-scope-field'),
-          controller: controller,
-          focusNode: focusNode,
-          decoration: const InputDecoration(
-            labelText: 'Funcionário',
-            hintText: 'Todos os funcionários',
-            border: OutlineInputBorder(),
-            prefixIcon: Icon(Icons.person_search_outlined),
+    return InputDecorator(
+      decoration: const InputDecoration(
+        labelText: 'Funcionário',
+        border: OutlineInputBorder(),
+        prefixIcon: Icon(Icons.person_search_outlined),
+        isDense: true,
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: InkWell(
+              key: const ValueKey('employee-scope-field'),
+              onTap: () => _openPicker(context),
+              child: Text(
+                selectedName ?? 'Todos os funcionários',
+                overflow: TextOverflow.ellipsis,
+                style: selectedName == null
+                    ? TextStyle(
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      )
+                    : null,
+              ),
+            ),
           ),
-        );
-      },
+          if (selectedName != null)
+            IconButton(
+              key: const ValueKey('employee-scope-clear'),
+              icon: const Icon(Icons.clear, size: 18),
+              tooltip: 'Todos os funcionários',
+              visualDensity: VisualDensity.compact,
+              onPressed: () => vm.selectEmployee(null, null),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _openPicker(BuildContext context) async {
+    final employee = await showDialog<Employee>(
+      context: context,
+      builder: (_) => _EmployeePickerDialog(vm: vm),
+    );
+    if (employee != null) {
+      await vm.selectEmployee(employee.id, employee.name);
+    }
+  }
+}
+
+/// Search dialog that resolves a single employee for the scope filter.
+class _EmployeePickerDialog extends StatefulWidget {
+  const _EmployeePickerDialog({required this.vm});
+
+  final BatchDocumentViewModel vm;
+
+  @override
+  State<_EmployeePickerDialog> createState() => _EmployeePickerDialogState();
+}
+
+class _EmployeePickerDialogState extends State<_EmployeePickerDialog> {
+  final _searchController = TextEditingController();
+  List<Employee> _results = const [];
+  bool _isSearching = false;
+  bool _hasSearched = false;
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  /// Searches on submit rather than per keystroke — one request per intent.
+  Future<void> _search() async {
+    final query = _searchController.text.trim();
+    if (query.isEmpty) return;
+    setState(() => _isSearching = true);
+    final employees = await widget.vm.searchEmployees(query);
+    if (!mounted) return;
+    setState(() {
+      _results = employees;
+      _isSearching = false;
+      _hasSearched = true;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
+
+    return AlertDialog(
+      icon: Icon(Icons.person_search_outlined, color: colorScheme.primary),
+      title: const Text('Buscar Funcionário'),
+      content: SizedBox(
+        width: 420,
+        height: 420,
+        child: Column(
+          children: [
+            TextField(
+              key: const ValueKey('employee-picker-search'),
+              controller: _searchController,
+              autofocus: true,
+              textInputAction: TextInputAction.search,
+              onSubmitted: (_) => _search(),
+              decoration: InputDecoration(
+                labelText: 'Nome do funcionário',
+                border: const OutlineInputBorder(),
+                isDense: true,
+                prefixIcon: const Icon(Icons.search),
+                suffixIcon: IconButton(
+                  icon: const Icon(Icons.arrow_forward),
+                  tooltip: 'Buscar',
+                  onPressed: _search,
+                ),
+              ),
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            Expanded(
+              child: _isSearching
+                  ? const Center(child: CircularProgressIndicator())
+                  : _results.isEmpty
+                      ? Center(
+                          child: Text(
+                            _hasSearched
+                                ? 'Nenhum funcionário encontrado.'
+                                : 'Digite um nome e busque.',
+                            style: textTheme.bodyMedium?.copyWith(
+                              color: colorScheme.onSurfaceVariant,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                        )
+                      : ListView.separated(
+                          itemCount: _results.length,
+                          separatorBuilder: (_, __) => const SizedBox(height: 2),
+                          itemBuilder: (context, i) {
+                            final employee = _results[i];
+                            return Card.outlined(
+                              child: ListTile(
+                                key: ValueKey('employee-option-${employee.id}'),
+                                leading: CircleAvatar(
+                                  backgroundColor: colorScheme.primaryContainer,
+                                  child: Text(
+                                    employee.name.isNotEmpty
+                                        ? employee.name[0].toUpperCase()
+                                        : '?',
+                                    style: TextStyle(
+                                      color: colorScheme.onPrimaryContainer,
+                                    ),
+                                  ),
+                                ),
+                                title: Text(employee.name,
+                                    overflow: TextOverflow.ellipsis),
+                                subtitle: Text(
+                                  '${employee.roleName} · '
+                                  '${employee.status.label}',
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                onTap: () => Navigator.pop(context, employee),
+                              ),
+                            );
+                          },
+                        ),
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cancelar'),
+        ),
+      ],
     );
   }
 }
