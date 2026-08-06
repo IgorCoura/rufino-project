@@ -4,11 +4,14 @@ import 'period_api_model.dart';
 /// API response model for a pending document unit in batch context.
 ///
 /// Parses the JSON returned by
-/// `GET /api/v1/{company}/batch-document/pending-units/{documentTemplateId}`.
+/// `GET /api/v1/{company}/batch-document/pending-units`.
 class BatchDocumentUnitApiModel {
   const BatchDocumentUnitApiModel({
     required this.documentUnitId,
     required this.documentId,
+    required this.documentTemplateId,
+    required this.documentTemplateName,
+    required this.documentGroupName,
     required this.employeeId,
     required this.employeeName,
     required this.employeeStatusId,
@@ -23,6 +26,9 @@ class BatchDocumentUnitApiModel {
 
   final String documentUnitId;
   final String documentId;
+  final String documentTemplateId;
+  final String documentTemplateName;
+  final String documentGroupName;
   final String employeeId;
   final String employeeName;
   final int employeeStatusId;
@@ -44,6 +50,9 @@ class BatchDocumentUnitApiModel {
     return BatchDocumentUnitApiModel(
       documentUnitId: json['documentUnitId'] as String? ?? '',
       documentId: json['documentId'] as String? ?? '',
+      documentTemplateId: json['documentTemplateId'] as String? ?? '',
+      documentTemplateName: json['documentTemplateName'] as String? ?? '',
+      documentGroupName: json['documentGroupName'] as String? ?? '',
       employeeId: json['employeeId'] as String? ?? '',
       employeeName: json['employeeName'] as String? ?? '',
       employeeStatusId: empStatus?['id'] as int? ?? 0,
@@ -66,6 +75,9 @@ class BatchDocumentUnitApiModel {
     return BatchDocumentUnitItem(
       documentUnitId: documentUnitId,
       documentId: documentId,
+      documentTemplateId: documentTemplateId,
+      documentTemplateName: documentTemplateName,
+      documentGroupName: documentGroupName,
       employeeId: employeeId,
       employeeName: employeeName,
       employeeStatusId: employeeStatusId.toString(),
@@ -89,19 +101,23 @@ class BatchDocumentUnitApiModel {
 
 // PeriodApiModel is now in period_api_model.dart.
 
-/// API response model for an employee missing the selected document.
+/// API response model for a missing employee x template pair.
 class EmployeeMissingDocumentApiModel {
   const EmployeeMissingDocumentApiModel({
     required this.employeeId,
     required this.employeeName,
     required this.employeeStatusId,
     required this.employeeStatusName,
+    required this.documentTemplateId,
+    required this.documentTemplateName,
   });
 
   final String employeeId;
   final String employeeName;
   final int employeeStatusId;
   final String employeeStatusName;
+  final String documentTemplateId;
+  final String documentTemplateName;
 
   /// Deserializes from the API JSON structure.
   factory EmployeeMissingDocumentApiModel.fromJson(
@@ -112,6 +128,8 @@ class EmployeeMissingDocumentApiModel {
       employeeName: json['employeeName'] as String? ?? '',
       employeeStatusId: empStatus?['id'] as int? ?? 0,
       employeeStatusName: empStatus?['name'] as String? ?? '',
+      documentTemplateId: json['documentTemplateId'] as String? ?? '',
+      documentTemplateName: json['documentTemplateName'] as String? ?? '',
     );
   }
 
@@ -122,6 +140,8 @@ class EmployeeMissingDocumentApiModel {
       employeeName: employeeName,
       employeeStatusId: employeeStatusId.toString(),
       employeeStatusName: employeeStatusName,
+      documentTemplateId: documentTemplateId,
+      documentTemplateName: documentTemplateName,
     );
   }
 }

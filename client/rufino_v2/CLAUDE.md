@@ -778,6 +778,20 @@ The app distinguishes "session died" (401) from "no permission" (403) end to end
 - ViewModel invariant: bucket switch and pagination reload **only the list** (`isLoadingUnits`); filter/horizon changes reload **summary + list together** so the KPI cards never disagree with the rows. Default employee filter is Ativos (status 2).
 - **O filtro "Funcionários" lista os cinco status, id 1 (Pendentes) incluído.** Funcionário ainda em admissão já acumula pendência de documento — os `RequireDocuments` do servidor escutam eventos com `Status.Pending` —, então esconder o status 1 tirava da triagem justamente o recém-contratado. A opção nasceu faltando na lista hardcoded (`_employeeStatusOptions`), não por decisão: nada no servidor nem no ViewModel restringe o valor. Cuidado ao mexer: o label "Pendentes" colide com o do card de KPI (documentos pendentes), e é por isso que os itens do dropdown têm key própria (`employee-status-option-<id>`) — teste que busque por texto pega o card errado.
 
+## Documentos em Lote (escopo por funcionário, grupo e documento)
+
+`/batch-document` consulta `GET api/v1/{company}/batch-document/pending-units` e `/missing-employees`. **Os três eixos de escopo são independentes e opcionais** — só funcionário, só grupo, grupo+documento, ou nada (a empresa inteira). O template já foi segmento de rota obrigatório; hoje é query param.
+
+- **O seletor de funcionário é um diálogo de busca (`_EmployeePickerDialog`), NÃO um `Autocomplete`.** O `optionsBuilder` do `Autocomplete` aceita `Future`, mas quando a busca resolve depois de o overlay de opções já ter sido escondido o framework estoura `_zOrderIndex != null` (`OverlayPortal.hide`, `overlay.dart`) — foi exatamente o que aconteceu na primeira versão. O diálogo é dono do próprio ciclo de vida e não cai nesse estado. Busca **no submit**, não por tecla: uma requisição por intenção.
+
+- **Uma requisição, não N.** O modo "Todos" fazia fan-out por template e **somava o `totalCount` de cada resposta** — `pageCount` e a paginação nunca fecharam. `_activeTemplateIds`, `allTemplatesId` e os `mapWithConcurrency` de leitura foram removidos; `null` nos dropdowns significa "todos" e o servidor filtra. O fan-out **sobrevive só na escrita** (`batchCreateDocumentUnits`), porque o command é por template.
+- **`EmployeeRepository` é injetado no ViewModel**, não consumido por outro repositório: quem combina dois agregados é o ViewModel. `searchEmployees` devolve lista vazia no erro — o seletor degrada para "sem resultados", nunca para tela de erro.
+- **Capacidade é da seleção, não da primeira linha.** `canGenerateSelected` / `canSignSelected` exigem que **todas** as unidades selecionadas suportem a ação; `canSignStaged` olha os arquivos staged, porque "Enviar para Assinar" age sobre o staged e não sobre a seleção. Antes vinha de `pendingUnits.first`, o que já mentia no modo "Todos" quando os templates divergiam.
+- **A linha mostra `grupo · documento`** nas duas variantes (wide e narrow). Sem template fixo a lista mistura documentos e o nome do funcionário sozinho não diz o que está pendente.
+- **Trocar qualquer eixo limpa seleção, staged e página** (`_resetScopedState`): as unidades saem da lista, e manter arquivos staged enviaria para linhas que o usuário não vê mais.
+- **"Criar Docs Faltantes" exige grupo ou documento** (`canCreateMissing`) — pendência nasce sempre de um template, e "todos os templates da empresa" não é operação válida. Cada linha do diálogo é o par **funcionário × template** (chave `'employeeId::templateId'`), então `batchCreateDocumentUnits` recebe os pares e agrupa por template.
+- **A lista carrega sem escopo escolhido**: `initState` chama `loadGroupsAndTemplates` e depois `loadPendingUnits`. Testes de widget precisam **rolar** (`drag(-300)`) antes de tocar na barra de ações — a seção de escopo empurrou-a para fora da viewport padrão.
+
 ## Outdated Document Snapshot (aviso ao gerar)
 
 O PDF é montado no backend a partir de um **snapshot** dos dados do funcionário gravado no `Content` da unidade quando a data foi atualizada. O cadastro muda depois, o snapshot não. Antes de gerar, o app pergunta ao backend se ele ainda bate.

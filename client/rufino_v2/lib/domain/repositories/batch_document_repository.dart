@@ -7,12 +7,16 @@ import '../entities/batch_document_unit.dart';
 ///
 /// All methods return [Result] — errors are values, never thrown.
 abstract class BatchDocumentRepository {
-  /// Fetches pending document units across all employees for a given template.
+  /// Fetches the company's pending document units.
   ///
-  /// Supports filtering by employee status, name, and exact period selection.
+  /// [documentGroupId], [documentTemplateId] and [employeeId] are independent
+  /// scope filters — none is required and any combination is valid. Also
+  /// supports filtering by employee status, name and exact period selection.
   Future<Result<BatchDocumentUnitsPage>> getPendingDocumentUnits(
-    String companyId,
-    String documentTemplateId, {
+    String companyId, {
+    String? documentGroupId,
+    String? documentTemplateId,
+    String? employeeId,
     int? employeeStatusId,
     String? employeeName,
     int? periodTypeId,
@@ -24,10 +28,15 @@ abstract class BatchDocumentRepository {
     int pageNumber,
   });
 
-  /// Fetches employees who do not have a pending document for the template.
+  /// Fetches the employee x template pairs without a pending document unit.
+  ///
+  /// Requires [documentTemplateId] or [documentGroupId]; without either the
+  /// result is empty.
   Future<Result<List<EmployeeMissingDocument>>> getMissingEmployees(
-    String companyId,
-    String documentTemplateId, {
+    String companyId, {
+    String? documentGroupId,
+    String? documentTemplateId,
+    String? employeeId,
     int? employeeStatusId,
     String? employeeName,
   });

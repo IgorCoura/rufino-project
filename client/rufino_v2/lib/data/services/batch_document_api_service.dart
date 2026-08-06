@@ -34,13 +34,17 @@ class BatchDocumentApiService {
     };
   }
 
-  /// Fetches pending document units across all employees for [documentTemplateId].
+  /// Fetches pending document units of the company.
   ///
-  /// Supports filtering by employee status, name, and exact period selection.
+  /// [documentGroupId], [documentTemplateId] and [employeeId] are independent
+  /// scope filters — none is required and any combination is valid. Also
+  /// supports filtering by employee status, name and exact period selection.
   /// Returns a paginated [BatchDocumentUnitsResponse].
   Future<BatchDocumentUnitsResponse> getPendingDocumentUnits(
-    String companyId,
-    String documentTemplateId, {
+    String companyId, {
+    String? documentGroupId,
+    String? documentTemplateId,
+    String? employeeId,
     int? employeeStatusId,
     String? employeeName,
     int? periodTypeId,
@@ -54,6 +58,9 @@ class BatchDocumentApiService {
     final queryParams = <String, String>{
       'PageSize': pageSize.toString(),
       'PageNumber': pageNumber.toString(),
+      if (documentGroupId != null) 'DocumentGroupId': documentGroupId,
+      if (documentTemplateId != null) 'DocumentTemplateId': documentTemplateId,
+      if (employeeId != null) 'EmployeeId': employeeId,
       if (employeeStatusId != null)
         'EmployeeStatusId': employeeStatusId.toString(),
       if (employeeName != null && employeeName.isNotEmpty)
@@ -66,7 +73,7 @@ class BatchDocumentApiService {
     };
     final uri = Uri.https(
       baseUrl,
-      '/api/v1/$companyId/batch-document/pending-units/$documentTemplateId',
+      '/api/v1/$companyId/batch-document/pending-units',
       queryParams,
     );
     final response = await client.get(uri, headers: await _headers());
@@ -75,14 +82,22 @@ class BatchDocumentApiService {
     return BatchDocumentUnitsResponse.fromJson(json);
   }
 
-  /// Fetches employees who do not have a pending document for [documentTemplateId].
+  /// Fetches the employee x template pairs without a pending document unit.
+  ///
+  /// Requires [documentTemplateId] or [documentGroupId] — the API answers with
+  /// an empty list when neither is given.
   Future<List<EmployeeMissingDocumentApiModel>> getMissingEmployees(
-    String companyId,
-    String documentTemplateId, {
+    String companyId, {
+    String? documentGroupId,
+    String? documentTemplateId,
+    String? employeeId,
     int? employeeStatusId,
     String? employeeName,
   }) async {
     final queryParams = <String, String>{
+      if (documentGroupId != null) 'DocumentGroupId': documentGroupId,
+      if (documentTemplateId != null) 'DocumentTemplateId': documentTemplateId,
+      if (employeeId != null) 'EmployeeId': employeeId,
       if (employeeStatusId != null)
         'EmployeeStatusId': employeeStatusId.toString(),
       if (employeeName != null && employeeName.isNotEmpty)
@@ -90,7 +105,7 @@ class BatchDocumentApiService {
     };
     final uri = Uri.https(
       baseUrl,
-      '/api/v1/$companyId/batch-document/missing-employees/$documentTemplateId',
+      '/api/v1/$companyId/batch-document/missing-employees',
       queryParams,
     );
     final response = await client.get(uri, headers: await _headers());

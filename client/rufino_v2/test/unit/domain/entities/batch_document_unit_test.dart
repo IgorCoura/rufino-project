@@ -6,7 +6,7 @@ void main() {
       BatchDocumentUnitItem(
         documentUnitId: 'unit-1',
         documentId: 'doc-1',
-        employeeId: 'emp-1',
+        documentTemplateId: 't1',        documentTemplateName: 'T1',        documentGroupName: 'Grupo',        employeeId: 'emp-1',
         employeeName: 'Maria da Silva',
         employeeStatusId: '2',
         employeeStatusName: 'Active',

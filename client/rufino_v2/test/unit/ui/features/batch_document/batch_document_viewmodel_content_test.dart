@@ -22,7 +22,7 @@ void main() {
       BatchDocumentUnitItem(
         documentUnitId: id,
         documentId: 'd-$id',
-        employeeId: 'e-$id',
+        documentTemplateId: 't1',        documentTemplateName: 'T1',        documentGroupName: 'Grupo',        employeeId: 'e-$id',
         employeeName: name,
         employeeStatusId: '2',
         employeeStatusName: 'Ativo',
@@ -62,9 +62,7 @@ void main() {
               ),
             ]));
     when(() => mockBatchRepo.getPendingDocumentUnits(
-          any(),
-          any(),
-          employeeStatusId: any(named: 'employeeStatusId'),
+          any(),          documentGroupId: any(named: 'documentGroupId'),          documentTemplateId: any(named: 'documentTemplateId'),          employeeId: any(named: 'employeeId'),                    employeeStatusId: any(named: 'employeeStatusId'),
           employeeName: any(named: 'employeeName'),
           periodTypeId: any(named: 'periodTypeId'),
           periodYear: any(named: 'periodYear'),
@@ -77,7 +75,7 @@ void main() {
         Result.success(BatchDocumentUnitsPage(items: units, totalCount: units.length)));
 
     await viewModel.loadGroupsAndTemplates();
-    viewModel.selectGroup('g1');
+    await viewModel.selectGroup('g1');
     await viewModel.selectTemplate('t1');
     viewModel.selectAll();
   }

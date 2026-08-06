@@ -767,6 +767,7 @@ class _AppRouterState extends State<_AppRouter> {
                         context.read<BatchDocumentRepository>(),
                     documentGroupRepository:
                         context.read<DocumentGroupRepository>(),
+                    employeeRepository: context.read<EmployeeRepository>(),
                     companyId: company.id,
                     scannerRepository: DocumentScannerRepositoryImpl(
                       scannerService: DocumentScannerService(),

@@ -75,8 +75,26 @@ void main() {
                   ),
                 ]));
 
+        when(() => mockBatchRepo.getPendingDocumentUnits(
+              any(),
+              documentGroupId: any(named: 'documentGroupId'),
+              documentTemplateId: any(named: 'documentTemplateId'),
+              employeeId: any(named: 'employeeId'),
+              employeeStatusId: any(named: 'employeeStatusId'),
+              employeeName: any(named: 'employeeName'),
+              periodTypeId: any(named: 'periodTypeId'),
+              periodYear: any(named: 'periodYear'),
+              periodMonth: any(named: 'periodMonth'),
+              periodDay: any(named: 'periodDay'),
+              periodWeek: any(named: 'periodWeek'),
+              pageSize: any(named: 'pageSize'),
+              pageNumber: any(named: 'pageNumber'),
+            )).thenAnswer((_) async => const Result.success(
+              BatchDocumentUnitsPage(items: [], totalCount: 0),
+            ));
+
         await viewModel.loadGroupsAndTemplates();
-        viewModel.selectGroup('g1');
+        await viewModel.selectGroup('g1');
 
         expect(viewModel.selectedGroupId, 'g1');
         expect(viewModel.templates.length, 1);
@@ -97,8 +115,7 @@ void main() {
                 ),
               ]));
       when(() => mockBatchRepo.getPendingDocumentUnits(
-            any(), any(),
-            employeeStatusId: any(named: 'employeeStatusId'),
+            any(),            documentGroupId: any(named: 'documentGroupId'),            documentTemplateId: any(named: 'documentTemplateId'),            employeeId: any(named: 'employeeId'),                        employeeStatusId: any(named: 'employeeStatusId'),
             employeeName: any(named: 'employeeName'),
             periodTypeId: any(named: 'periodTypeId'),
             periodYear: any(named: 'periodYear'),
@@ -111,7 +128,7 @@ void main() {
             BatchDocumentUnitsPage(items: [], totalCount: 0),
           ));
       await viewModel.loadGroupsAndTemplates();
-      viewModel.selectGroup('g1');
+      await viewModel.selectGroup('g1');
     }
 
     group('selectTemplate', () {
@@ -122,7 +139,9 @@ void main() {
         expect(viewModel.selectedTemplateId, 't1');
         verify(() => mockBatchRepo.getPendingDocumentUnits(
               'company-1',
-              't1',
+              documentGroupId: 'g1',
+              documentTemplateId: 't1',
+              employeeId: any(named: 'employeeId'),
               employeeStatusId: any(named: 'employeeStatusId'),
               employeeName: any(named: 'employeeName'),
               periodTypeId: any(named: 'periodTypeId'),
@@ -166,8 +185,7 @@ void main() {
                   ),
                 ]));
         when(() => mockBatchRepo.getPendingDocumentUnits(
-              any(), any(),
-              employeeStatusId: any(named: 'employeeStatusId'),
+              any(),              documentGroupId: any(named: 'documentGroupId'),              documentTemplateId: any(named: 'documentTemplateId'),              employeeId: any(named: 'employeeId'),                            employeeStatusId: any(named: 'employeeStatusId'),
               employeeName: any(named: 'employeeName'),
               periodTypeId: any(named: 'periodTypeId'),
               periodYear: any(named: 'periodYear'),
@@ -182,7 +200,7 @@ void main() {
                   BatchDocumentUnitItem(
                     documentUnitId: 'u1',
                     documentId: 'd1',
-                    employeeId: 'e1',
+                    documentTemplateId: 't1',                    documentTemplateName: 'T1',                    documentGroupName: 'Grupo',                    employeeId: 'e1',
                     employeeName: 'A',
                     employeeStatusId: '2',
                     employeeStatusName: 'Active',
@@ -197,7 +215,7 @@ void main() {
               ),
             ));
         await viewModel.loadGroupsAndTemplates();
-        viewModel.selectGroup('g1');
+        await viewModel.selectGroup('g1');
         await viewModel.selectTemplate('t1');
       });
 
@@ -256,8 +274,7 @@ void main() {
                   ),
                 ]));
         when(() => mockBatchRepo.getPendingDocumentUnits(
-              any(), any(),
-              employeeStatusId: any(named: 'employeeStatusId'),
+              any(),              documentGroupId: any(named: 'documentGroupId'),              documentTemplateId: any(named: 'documentTemplateId'),              employeeId: any(named: 'employeeId'),                            employeeStatusId: any(named: 'employeeStatusId'),
               employeeName: any(named: 'employeeName'),
               periodTypeId: any(named: 'periodTypeId'),
               periodYear: any(named: 'periodYear'),
@@ -272,7 +289,7 @@ void main() {
                   BatchDocumentUnitItem(
                     documentUnitId: 'u1',
                     documentId: 'd1',
-                    employeeId: 'e1',
+                    documentTemplateId: 't1',                    documentTemplateName: 'T1',                    documentGroupName: 'Grupo',                    employeeId: 'e1',
                     employeeName: 'A',
                     employeeStatusId: '2',
                     employeeStatusName: 'Active',
@@ -294,7 +311,7 @@ void main() {
             )).thenAnswer((_) async => const Result.success(1));
 
         await viewModel.loadGroupsAndTemplates();
-        viewModel.selectGroup('g1');
+        await viewModel.selectGroup('g1');
         await viewModel.selectTemplate('t1');
         viewModel.toggleSelection('u1');
 
