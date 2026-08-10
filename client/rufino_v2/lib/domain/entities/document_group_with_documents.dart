@@ -1,3 +1,4 @@
+import 'document_status_labels.dart';
 import 'employee_document.dart';
 
 /// A document group with its associated employee documents.
@@ -38,12 +39,8 @@ class DocumentGroupWithDocuments {
   final List<EmployeeDocument> documents;
 
   /// Display label for the group status.
-  String get groupStatusLabel => switch (statusId) {
-        '0' => 'OK',
-        '1' => 'A Vencer',
-        '2' => 'Requer Atenção',
-        _ => statusName.isNotEmpty ? statusName : statusId,
-      };
+  String get groupStatusLabel =>
+      documentComplianceStatusLabel(statusId, statusName);
 
   /// Returns a copy with [documents] replaced.
   DocumentGroupWithDocuments copyWithDocuments(

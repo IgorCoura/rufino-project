@@ -1,3 +1,4 @@
+import 'document_status_labels.dart';
 import 'period.dart';
 
 /// A required document (Documento) for an employee, containing a list of
@@ -67,16 +68,7 @@ class EmployeeDocument {
   ///
   /// These ids are the document-level status (1–7), not the three-valued
   /// compliance rollup used for groups and employees.
-  String get statusLabel => switch (statusId) {
-        '1' => 'Falta Entregar',
-        '2' => 'Requer Validação',
-        '3' => 'OK',
-        '4' => 'Obsoleto',
-        '5' => 'Aguardando Assinatura',
-        '6' => 'A Vencer',
-        '7' => 'Vencido',
-        _ => statusName.isNotEmpty ? statusName : statusId,
-      };
+  String get statusLabel => documentStatusLabel(statusId, statusName);
 }
 
 /// A single instance (unit) of a document.
@@ -184,18 +176,7 @@ class DocumentUnit {
   bool get canBeMarkedNotApplicable => isPending;
 
   /// Display label for the unit status.
-  String get statusLabel => switch (statusId) {
-        '1' => 'Pendente',
-        '2' => 'OK',
-        '3' => 'Obsoleto',
-        '4' => 'Inválido',
-        '5' => 'Requer Validação',
-        '6' => 'Não Aplicável',
-        '7' => 'Aguardando Assinatura',
-        '8' => 'A Vencer',
-        '9' => 'Vencido',
-        _ => statusName.isNotEmpty ? statusName : statusId,
-      };
+  String get statusLabel => documentUnitStatusLabel(statusId, statusName);
 
   /// Converts the [date] from `dd/MM/yyyy` to `yyyy_MM_dd` for file names.
   ///

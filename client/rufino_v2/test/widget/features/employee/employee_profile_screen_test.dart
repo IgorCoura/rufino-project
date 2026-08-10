@@ -2036,6 +2036,77 @@ void main() {
           find.byKey(const ValueKey('unit-invalidate-confirm')), findsOneWidget);
     });
 
+    // Blindagem contra a origem do inglês na tela: quando o id não bate (status
+    // novo no servidor, id vazio, formato inesperado), o rótulo cai no nome do
+    // smart enum. Traduzir também pelo nome mantém a tela em português.
+    testWidgets(
+        'labels document and unit in Portuguese when only the English enum '
+        'name matches', (tester) async {
+      const unmatchedIdDocument = EmployeeDocument(
+        id: 'doc-1',
+        name: 'Contrato de Trabalho',
+        description: 'Contrato CLT',
+        statusId: '',
+        statusName: 'AwaitingSignature',
+        isSignable: false,
+        canGenerateDocument: true,
+        usePreviousPeriod: false,
+        totalUnitsCount: 1,
+        units: [
+          DocumentUnit(
+            id: 'unit-1',
+            statusId: '',
+            statusName: 'Pending',
+            date: '01/01/2026',
+            validity: '',
+            createdAt: '01/01/2026',
+            hasFile: false,
+            name: '',
+          ),
+        ],
+      );
+
+      employeeRepository.setDocumentsList(const [unmatchedIdDocument]);
+      documentGroupRepository.setGroupsWithDocuments(const [
+        DocumentGroupWithDocuments(
+          id: 'grp-1',
+          name: 'Grupo Contratual',
+          description: 'Documentos contratuais',
+          statusId: '',
+          statusName: 'Okay',
+          documents: [unmatchedIdDocument],
+        ),
+      ]);
+
+      await tester.pumpWidget(buildSubject());
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.widgetWithText(Tab, 'Documentos'));
+      await tester.pumpAndSettle();
+
+      await tester.scrollUntilVisible(
+        find.text('Grupo Contratual'),
+        200,
+        scrollable: find.byType(Scrollable).last,
+      );
+      await tester.tap(find.text('Grupo Contratual'));
+      await tester.pumpAndSettle();
+
+      await tester.scrollUntilVisible(
+        find.text('Contrato de Trabalho'),
+        200,
+        scrollable: find.byType(Scrollable).last,
+      );
+      await tester.tap(find.text('Contrato de Trabalho'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Aguardando Assinatura'), findsOneWidget);
+      expect(find.text('Pendente'), findsWidgets);
+      expect(find.text('AwaitingSignature'), findsNothing);
+      expect(find.text('Pending'), findsNothing);
+      expect(find.text('Okay'), findsNothing);
+    });
+
     testWidgets('asks for confirmation before deprecating a unit',
         (tester) async {
       await tester.pumpWidget(buildSubject());

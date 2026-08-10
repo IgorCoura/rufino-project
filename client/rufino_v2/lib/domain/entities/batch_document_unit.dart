@@ -1,5 +1,6 @@
 import 'dart:typed_data';
 
+import 'document_status_labels.dart';
 import 'period.dart';
 export 'period.dart';
 
@@ -102,18 +103,7 @@ class BatchDocumentUnitItem {
   }
 
   /// Human-readable status label.
-  String get statusLabel => switch (statusId) {
-        '1' => 'Pendente',
-        '2' => 'OK',
-        '3' => 'Obsoleto',
-        '4' => 'Inválido',
-        '5' => 'Requer Validação',
-        '6' => 'Não Aplicável',
-        '7' => 'Aguardando Assinatura',
-        '8' => 'A Vencer',
-        '9' => 'Vencido',
-        _ => statusName.isNotEmpty ? statusName : statusId,
-      };
+  String get statusLabel => documentUnitStatusLabel(statusId, statusName);
 }
 
 /// A pending document that is missing: one employee paired with one template.

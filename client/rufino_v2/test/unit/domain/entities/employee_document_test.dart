@@ -164,6 +164,17 @@ void main() {
       expect(docWithStatus('7').statusLabel, 'Vencido');
     });
 
+    test('translates the English enum name when the id does not match', () {
+      expect(
+        docWithStatus('', name: 'RequiresDocument').statusLabel,
+        'Falta Entregar',
+      );
+      expect(
+        docWithStatus('', name: 'AwaitingSignature').statusLabel,
+        'Aguardando Assinatura',
+      );
+    });
+
     test('returns statusName as fallback for unknown status id', () {
       expect(docWithStatus('99', name: 'Custom').statusLabel, 'Custom');
     });
@@ -219,6 +230,18 @@ void main() {
 
     test('returns Vencido for status id 9', () {
       expect(unitWithStatus('9').statusLabel, 'Vencido');
+    });
+
+    test('translates the English enum name when the id does not match', () {
+      expect(unitWithStatus('', name: 'Pending').statusLabel, 'Pendente');
+      expect(
+        unitWithStatus('', name: 'AwaitingSignature').statusLabel,
+        'Aguardando Assinatura',
+      );
+      expect(
+        unitWithStatus('', name: 'NotApplicable').statusLabel,
+        'Não Aplicável',
+      );
     });
 
     test('returns statusName as fallback for unknown status id', () {

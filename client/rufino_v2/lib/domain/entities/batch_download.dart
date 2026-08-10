@@ -1,3 +1,4 @@
+import 'document_status_labels.dart';
 import 'period.dart';
 export 'period.dart';
 
@@ -97,18 +98,8 @@ class BatchDownloadUnit {
   final bool hasFile;
 
   /// Human-readable status label in Portuguese.
-  String get statusLabel => switch (statusId) {
-        1 => 'Pendente',
-        2 => 'OK',
-        3 => 'Obsoleto',
-        4 => 'Inválido',
-        5 => 'Requer Validação',
-        6 => 'Não Aplicável',
-        7 => 'Aguardando Assinatura',
-        8 => 'A Vencer',
-        9 => 'Vencido',
-        _ => statusName.isNotEmpty ? statusName : statusId.toString(),
-      };
+  String get statusLabel =>
+      documentUnitStatusLabel(statusId.toString(), statusName);
 
   /// Composite key for selection tracking.
   String get selectionKey => '$documentId:$documentUnitId';
