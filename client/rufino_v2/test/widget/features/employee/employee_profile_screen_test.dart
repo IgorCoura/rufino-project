@@ -1951,6 +1951,91 @@ void main() {
       expect(find.widgetWithText(TextButton, 'Adicionar'), findsNothing);
     });
 
+    // O servidor manda o nome do smart enum em inglês; a tela precisa rotular
+    // pelo id. Fixture com o nome cru para que traduzir de volta a statusName
+    // volte a quebrar o teste.
+    testWidgets(
+        'labels a not applicable unit in Portuguese and offers to require it '
+        'again', (tester) async {
+      const notApplicableDocument = EmployeeDocument(
+        id: 'doc-1',
+        name: 'Contrato de Trabalho',
+        description: 'Contrato CLT',
+        statusId: '3',
+        statusName: 'OK',
+        isSignable: false,
+        canGenerateDocument: true,
+        usePreviousPeriod: false,
+        totalUnitsCount: 1,
+        units: [
+          DocumentUnit(
+            id: 'unit-1',
+            statusId: '6',
+            statusName: 'NotApplicable',
+            date: '01/01/2026',
+            validity: '',
+            createdAt: '01/01/2026',
+            hasFile: false,
+            name: '',
+          ),
+        ],
+      );
+
+      // A lista de unidades vem do employeeRepository (expandir o documento
+      // recarrega a página); o grupo só desenha o tile.
+      employeeRepository.setDocumentsList(const [notApplicableDocument]);
+      documentGroupRepository.setGroupsWithDocuments(const [
+        DocumentGroupWithDocuments(
+          id: 'grp-1',
+          name: 'Grupo Contratual',
+          description: 'Documentos contratuais',
+          statusId: '0',
+          statusName: 'Okay',
+          documents: [notApplicableDocument],
+        ),
+      ]);
+
+      await tester.pumpWidget(buildSubject());
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.widgetWithText(Tab, 'Documentos'));
+      await tester.pumpAndSettle();
+
+      await tester.scrollUntilVisible(
+        find.text('Grupo Contratual'),
+        200,
+        scrollable: find.byType(Scrollable).last,
+      );
+      await tester.tap(find.text('Grupo Contratual'));
+      await tester.pumpAndSettle();
+
+      await tester.scrollUntilVisible(
+        find.text('Contrato de Trabalho'),
+        200,
+        scrollable: find.byType(Scrollable).last,
+      );
+      await tester.tap(find.text('Contrato de Trabalho'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Não Aplicável'), findsOneWidget);
+      expect(find.text('NotApplicable'), findsNothing);
+
+      // Invalidar é a única saída dessa unidade — sem ela o documento fica sem
+      // nenhuma ação possível na tela.
+      expect(find.byKey(const ValueKey('unit-invalidate')), findsOneWidget);
+      expect(find.byKey(const ValueKey('unit-deprecate')), findsNothing);
+      expect(find.byKey(const ValueKey('unit-not-applicable')), findsNothing);
+
+      await tester.ensureVisible(find.byKey(const ValueKey('unit-invalidate')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('unit-invalidate')));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Voltar a exigir documento'), findsOneWidget);
+      expect(
+          find.byKey(const ValueKey('unit-invalidate-confirm')), findsOneWidget);
+    });
+
     testWidgets('asks for confirmation before deprecating a unit',
         (tester) async {
       await tester.pumpWidget(buildSubject());

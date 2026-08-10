@@ -170,9 +170,14 @@ class DocumentUnit {
 
   /// Whether this unit can be invalidated.
   ///
+  /// Includes [isNotApplicable]: marking a document as not applicable is an
+  /// administrative decision, not proof of coverage, so undoing it when the
+  /// document becomes required again erases no period. It is also the only
+  /// action such a unit has — invalidating leaves a fresh pending in its place.
+  ///
   /// Deprecated and expired units are the proof that the employee was covered
   /// in that period, so they are never invalidated.
-  bool get canBeInvalidated => isPending || isOk;
+  bool get canBeInvalidated => isPending || isOk || isNotApplicable;
 
   /// Whether this unit can be marked as not applicable — only while nothing
   /// has been delivered for it.
