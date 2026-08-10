@@ -7,6 +7,8 @@ class DocumentStatus extends Enumeration {
     "3": "OK",
     "4": "Obsoleto",
     "5": "Aguardando Assinatura",
+    "6": "A Vencer",
+    "7": "Vencido",
   };
 
   DocumentStatus(String id, String name)

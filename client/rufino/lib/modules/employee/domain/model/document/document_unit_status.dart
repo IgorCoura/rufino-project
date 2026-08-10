@@ -9,6 +9,8 @@ class DocumentUnitStatus extends Enumeration {
     "5": "Requer Validação",
     "6": "Não Aplicável",
     "7": "Aguardando Assinatura",
+    "8": "A Vencer",
+    "9": "Vencido",
   };
 
   DocumentUnitStatus(String id, String name)
