@@ -164,6 +164,17 @@ void main() {
       expect(docWithStatus('7').statusLabel, 'Vencido');
     });
 
+    test('translates the English enum name when the id does not match', () {
+      expect(
+        docWithStatus('', name: 'RequiresDocument').statusLabel,
+        'Falta Entregar',
+      );
+      expect(
+        docWithStatus('', name: 'AwaitingSignature').statusLabel,
+        'Aguardando Assinatura',
+      );
+    });
+
     test('returns statusName as fallback for unknown status id', () {
       expect(docWithStatus('99', name: 'Custom').statusLabel, 'Custom');
     });
@@ -221,6 +232,18 @@ void main() {
       expect(unitWithStatus('9').statusLabel, 'Vencido');
     });
 
+    test('translates the English enum name when the id does not match', () {
+      expect(unitWithStatus('', name: 'Pending').statusLabel, 'Pendente');
+      expect(
+        unitWithStatus('', name: 'AwaitingSignature').statusLabel,
+        'Aguardando Assinatura',
+      );
+      expect(
+        unitWithStatus('', name: 'NotApplicable').statusLabel,
+        'Não Aplicável',
+      );
+    });
+
     test('returns statusName as fallback for unknown status id', () {
       expect(unitWithStatus('99', name: 'Custom').statusLabel, 'Custom');
     });
@@ -252,10 +275,24 @@ void main() {
       expect(unitWithStatus('2').canBeInvalidated, isTrue);
     });
 
+    // Dispensar o documento é decisão administrativa, não prova de cobertura:
+    // desfazê-la quando ele volta a ser exigido não apaga período nenhum, e é
+    // a única ação que essa unidade tem.
+    test('a not applicable document can be invalidated', () {
+      expect(unitWithStatus('6').canBeInvalidated, isTrue);
+    });
+
     // Depreciada e vencida provam que o funcionário esteve coberto no período.
     test('deprecated and expired documents can never be invalidated', () {
       expect(unitWithStatus('3').canBeInvalidated, isFalse);
       expect(unitWithStatus('9').canBeInvalidated, isFalse);
+    });
+
+    test('a document in flight or already invalid cannot be invalidated', () {
+      for (final other in ['4', '5', '7', '8']) {
+        expect(unitWithStatus(other).canBeInvalidated, isFalse,
+            reason: 'status $other should not be invalidatable');
+      }
     });
 
     test('only a pending document can be marked not applicable', () {

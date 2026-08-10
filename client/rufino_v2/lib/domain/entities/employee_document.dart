@@ -1,3 +1,4 @@
+import 'document_status_labels.dart';
 import 'period.dart';
 
 /// A required document (Documento) for an employee, containing a list of
@@ -67,16 +68,7 @@ class EmployeeDocument {
   ///
   /// These ids are the document-level status (1–7), not the three-valued
   /// compliance rollup used for groups and employees.
-  String get statusLabel => switch (statusId) {
-        '1' => 'Falta Entregar',
-        '2' => 'Requer Validação',
-        '3' => 'OK',
-        '4' => 'Obsoleto',
-        '5' => 'Aguardando Assinatura',
-        '6' => 'A Vencer',
-        '7' => 'Vencido',
-        _ => statusName.isNotEmpty ? statusName : statusId,
-      };
+  String get statusLabel => documentStatusLabel(statusId, statusName);
 }
 
 /// A single instance (unit) of a document.
@@ -170,27 +162,21 @@ class DocumentUnit {
 
   /// Whether this unit can be invalidated.
   ///
+  /// Includes [isNotApplicable]: marking a document as not applicable is an
+  /// administrative decision, not proof of coverage, so undoing it when the
+  /// document becomes required again erases no period. It is also the only
+  /// action such a unit has — invalidating leaves a fresh pending in its place.
+  ///
   /// Deprecated and expired units are the proof that the employee was covered
   /// in that period, so they are never invalidated.
-  bool get canBeInvalidated => isPending || isOk;
+  bool get canBeInvalidated => isPending || isOk || isNotApplicable;
 
   /// Whether this unit can be marked as not applicable — only while nothing
   /// has been delivered for it.
   bool get canBeMarkedNotApplicable => isPending;
 
   /// Display label for the unit status.
-  String get statusLabel => switch (statusId) {
-        '1' => 'Pendente',
-        '2' => 'OK',
-        '3' => 'Obsoleto',
-        '4' => 'Inválido',
-        '5' => 'Requer Validação',
-        '6' => 'Não Aplicável',
-        '7' => 'Aguardando Assinatura',
-        '8' => 'A Vencer',
-        '9' => 'Vencido',
-        _ => statusName.isNotEmpty ? statusName : statusId,
-      };
+  String get statusLabel => documentUnitStatusLabel(statusId, statusName);
 
   /// Converts the [date] from `dd/MM/yyyy` to `yyyy_MM_dd` for file names.
   ///

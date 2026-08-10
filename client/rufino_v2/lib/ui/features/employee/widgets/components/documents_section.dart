@@ -286,16 +286,25 @@ class _DocumentsSectionState extends State<DocumentsSection> {
   }
 
   /// Shows a confirmation dialog before invalidating a unit.
+  ///
+  /// A unit marked as not applicable gets its own wording: there is no error to
+  /// undo, the document simply became required again.
   Future<void> _showInvalidateDialog(
     EmployeeDocument doc,
     DocumentUnit unit,
   ) async {
     final confirmed = await _confirmUnitStatusChange(
-      title: 'Invalidar documento',
-      message: 'Use quando o documento tem erro ou foi enviado por engano — '
-          'ele deixa de ter qualquer valor legal. Uma nova pendência será '
-          'criada no lugar. Deseja continuar?',
-      confirmLabel: 'Invalidar',
+      title: unit.isNotApplicable
+          ? 'Voltar a exigir documento'
+          : 'Invalidar documento',
+      message: unit.isNotApplicable
+          ? 'Este documento voltou a ser exigido deste funcionário. A marcação '
+              'de "não aplicável" deixa de valer e uma nova pendência será '
+              'criada no lugar. Deseja continuar?'
+          : 'Use quando o documento tem erro ou foi enviado por engano — '
+              'ele deixa de ter qualquer valor legal. Uma nova pendência será '
+              'criada no lugar. Deseja continuar?',
+      confirmLabel: unit.isNotApplicable ? 'Voltar a exigir' : 'Invalidar',
       confirmKey: const ValueKey('unit-invalidate-confirm'),
     );
 
@@ -1406,8 +1415,10 @@ class _DocumentsSectionState extends State<DocumentsSection> {
   // ─── Document level ───────────────────────────────────────────────────────
 
   Widget _buildDocumentTile(BuildContext context, EmployeeDocument doc) {
-    final docStatusLabel =
-        doc.statusName.isNotEmpty ? doc.statusName : doc.statusId;
+    // statusLabel, nunca statusName: o servidor manda o nome do smart enum em
+    // inglês ("RequiresDocument"), e o statusName só serve de fallback dentro
+    // do próprio statusLabel.
+    final docStatusLabel = doc.statusLabel;
     final docStatusColor = _documentStatusColor(doc.statusId);
     final isExpanded = _expandedDocIds.contains(doc.id);
     final titleStyle = Theme.of(context).textTheme.titleSmall;
@@ -1836,7 +1847,7 @@ class _DocumentsSectionState extends State<DocumentsSection> {
           child: IconButton(
             key: const ValueKey('unit-invalidate'),
             icon: const Icon(Icons.report_gmailerrorred_outlined, size: 20),
-            tooltip: 'Invalidar',
+            tooltip: unit.isNotApplicable ? 'Voltar a exigir' : 'Invalidar',
             onPressed: _isBusy ? null : () => _showInvalidateDialog(doc, unit),
           ),
         ),
@@ -1847,7 +1858,7 @@ class _DocumentsSectionState extends State<DocumentsSection> {
       mainAxisSize: MainAxisSize.min,
       children: [
         Text(
-          unit.statusName,
+          unit.statusLabel,
           style: Theme.of(context)
               .textTheme
               .bodyMedium

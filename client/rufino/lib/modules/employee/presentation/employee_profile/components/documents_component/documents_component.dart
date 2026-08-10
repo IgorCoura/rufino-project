@@ -958,11 +958,11 @@ class DocumentsComponent extends StatelessWidget {
 
   Color _getDocumentGroupStatusColor(String statusId) {
     switch (statusId) {
-      case "1":
+      case "0":
         return Colors.green;
-      case "2":
+      case "1":
         return Colors.orange;
-      case "3":
+      case "2":
         return Colors.red;
       default:
         return Colors.grey;
@@ -981,6 +981,10 @@ class DocumentsComponent extends StatelessWidget {
         return Colors.grey;
       case "5":
         return Colors.blue;
+      case "6":
+        return Colors.deepOrange;
+      case "7":
+        return Colors.redAccent;
       default:
         return Colors.grey;
     }
@@ -1002,6 +1006,12 @@ class DocumentsComponent extends StatelessWidget {
         return Colors.blueGrey;
       case "7":
         return Colors.blue;
+      case "8":
+        return Colors.deepOrange;
+      // Vencido é o único que representa falta de cobertura AGORA — cor mais
+      // forte que a de "a vencer".
+      case "9":
+        return Colors.redAccent;
       default:
         return Colors.grey;
     }

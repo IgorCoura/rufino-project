@@ -218,11 +218,14 @@ namespace PeopleManagement.Domain.AggregatesModel.DocumentAggregate
         }
 
         /// <summary>
-        /// A unidade tem erro ou foi entregue por engano. Diferente de depreciar: aqui o documento não vale nada,
-        /// então não fica valendo como comprovação de período nenhum.
+        /// A unidade tem erro, foi entregue por engano, ou a dispensa que ela registrava deixou de valer. Diferente
+        /// de depreciar: aqui o documento não vale nada, então não fica valendo como comprovação de período nenhum.
         ///
         /// É o mesmo caminho da recusa de validação — daí aceitar também <c>RequiresValidation</c>, que a regra
-        /// de tela da invalidação direta (só pendente ou OK) não contempla.
+        /// de tela da invalidação direta (pendente, OK ou não aplicável) não contempla.
+        ///
+        /// Invalidar uma unidade <c>NotApplicable</c> é como o documento volta a ser exigido: a competência perde a
+        /// cobertura aqui, e quem chama pelo <c>DocumentService</c> ganha a pendente substituta no lugar.
         /// </summary>
         public void MarkAsInvalidDocumentUnit(Guid documentUnitId)
         {

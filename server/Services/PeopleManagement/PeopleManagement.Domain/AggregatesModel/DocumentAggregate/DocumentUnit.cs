@@ -172,19 +172,22 @@ namespace PeopleManagement.Domain.AggregatesModel.DocumentAggregate
         public bool IsSignatureScheduled => ScheduledSignature is not null;
 
         /// <summary>
-        /// A unidade tem erro, ou foi entregue por engano: perde qualquer valor legal.
+        /// A unidade tem erro, foi entregue por engano, ou a decisão que ela registrava deixou de valer: perde
+        /// qualquer valor legal.
         ///
-        /// Aceita o que ainda não virou história: pendente, entregue mas ainda em vigência, aguardando conferência
-        /// ou assinatura. <see cref="DocumentUnitStatus.Deprecated"/> e <see cref="DocumentUnitStatus.Expired"/> são
-        /// recusados de propósito — são a prova de que o funcionário teve documento válido naquele período, e
-        /// apagá-la é justamente o que a definição de Deprecated existe para impedir.
+        /// Aceita o que ainda não virou história — pendente, entregue mas ainda em vigência, aguardando conferência
+        /// ou assinatura — e também <see cref="DocumentUnitStatus.NotApplicable"/>: dispensar o documento é uma
+        /// decisão administrativa, não prova de cobertura, então voltar atrás quando o documento passa a ser exigido
+        /// de novo não apaga período nenhum. <see cref="DocumentUnitStatus.Deprecated"/> e
+        /// <see cref="DocumentUnitStatus.Expired"/> são recusados de propósito — são a prova de que o funcionário
+        /// teve documento válido naquele período, e apagá-la é justamente o que a definição de Deprecated existe
+        /// para impedir.
         /// </summary>
         public bool MarkAsInvalid()
         {
-            if (Status == DocumentUnitStatus.Pending ||
-                Status == DocumentUnitStatus.OK ||
-                Status == DocumentUnitStatus.RequiresValidation ||
-                Status == DocumentUnitStatus.AwaitingSignature)
+            if (Status == DocumentUnitStatus.OK ||
+                Status == DocumentUnitStatus.NotApplicable ||
+                IsUndelivered)
             {
                 Status = DocumentUnitStatus.Invalid;
                 return true;
@@ -242,9 +245,28 @@ namespace PeopleManagement.Domain.AggregatesModel.DocumentAggregate
         /// <summary>
         /// Outra unidade passou a cobrir a mesma exigência. O que já teve valor vira histórico
         /// (<see cref="MarkAsDeprecated"/>); o que ainda estava em curso nunca chegou a valer nada e é descartado
-        /// (<see cref="MarkAsInvalid"/>). A ordem importa: uma unidade OK é histórico, não engano.
+        /// (<see cref="DiscardUndelivered"/>). A ordem importa: uma unidade OK é histórico, não engano.
+        ///
+        /// <see cref="DocumentUnitStatus.NotApplicable"/> não entra em nenhum dos dois e sobrevive à supersessão:
+        /// dispensar o documento é uma decisão deliberada do RH, e uma entrega nova não a revoga sozinha. Desfazê-la
+        /// é o <see cref="MarkAsInvalid"/> chamado de propósito.
         /// </summary>
-        public bool Supersede() => MarkAsDeprecated() || MarkAsInvalid();
+        public bool Supersede() => MarkAsDeprecated() || DiscardUndelivered();
+
+        /// <summary>
+        /// Descarta o que ainda estava em curso. Existe separado de <see cref="MarkAsInvalid"/> porque aquele aceita
+        /// também OK e NotApplicable, que na supersessão têm destino próprio — virar histórico e sobreviver,
+        /// respectivamente.
+        /// </summary>
+        private bool DiscardUndelivered()
+        {
+            if (IsUndelivered)
+            {
+                Status = DocumentUnitStatus.Invalid;
+                return true;
+            }
+            return false;
+        }
 
         public bool MarkAsNotApplicable()
         {
@@ -293,6 +315,13 @@ namespace PeopleManagement.Domain.AggregatesModel.DocumentAggregate
         public bool IsPending => Status == DocumentUnitStatus.Pending;
         public bool IsExpired => Status == DocumentUnitStatus.Expired;
         public bool IsNotApplicable => Status == DocumentUnitStatus.NotApplicable;
+
+        /// <summary>
+        /// A unidade ainda está em curso: nada foi entregue e aceito, então ela não comprova nada nem dispensa nada.
+        /// </summary>
+        private bool IsUndelivered => Status == DocumentUnitStatus.Pending ||
+            Status == DocumentUnitStatus.RequiresValidation ||
+            Status == DocumentUnitStatus.AwaitingSignature;
 
         /// <summary>
         /// Se esta unidade cobre a exigência. NotApplicable cobre tanto quanto OK — é a exceção deliberada à
