@@ -37,6 +37,13 @@ namespace PeopleManagement.UnitTests.Aggregates.DocumentTests
             return unitId;
         }
 
+        private static Guid AddNotApplicableUnit(Document doc)
+        {
+            var unitId = AddPendingUnit(doc);
+            doc.MarkAsNotApplicableDocumentUnit(unitId);
+            return unitId;
+        }
+
         // Os erros ficam num dicionário por origem, com os Error boxed em object.
         private static void AssertHasErrorCode(DomainException exception, string code)
         {
@@ -222,6 +229,44 @@ namespace PeopleManagement.UnitTests.Aggregates.DocumentTests
             var exception = Assert.Throws<DomainException>(() => doc.MarkAsInvalidDocumentUnit(unitId));
 
             AssertHasErrorCode(exception, "PMD.DOC24");
+        }
+
+        // Dispensar o documento é decisão administrativa, não prova de cobertura: quando ele volta a ser exigido,
+        // invalidar a dispensa não apaga período nenhum e devolve a exigência para o RH.
+        [Fact]
+        public void MarkAsInvalidDocumentUnit_FromNotApplicable_ShouldMakeUnitInvalidAndRequireDocumentAgain()
+        {
+            var doc = CreateDocument();
+            var unitId = AddNotApplicableUnit(doc);
+
+            doc.MarkAsInvalidDocumentUnit(unitId);
+
+            Assert.Equal(DocumentUnitStatus.Invalid, doc.GetDocumentUnit(unitId).Status);
+            Assert.Equal(DocumentStatus.RequiresDocument, doc.Status);
+        }
+
+        // Regressão: MarkAsInvalid aceita NotApplicable, mas a supersessão NÃO — só a decisão explícita do RH
+        // desfaz a dispensa. Uma entrega qualquer não pode revogá-la de carona.
+        [Fact]
+        public void WhenAnotherUnitIsDelivered_NotApplicableUnitShouldSurvive()
+        {
+            var doc = CreateDocument();
+            var notApplicableUnitId = AddNotApplicableUnit(doc);
+
+            AddDeliveredUnit(doc);
+
+            Assert.Equal(DocumentUnitStatus.NotApplicable, doc.GetDocumentUnit(notApplicableUnitId).Status);
+        }
+
+        [Fact]
+        public void MakeAsDeprecated_ShouldNotDiscardNotApplicableUnit()
+        {
+            var doc = CreateDocument();
+            var notApplicableUnitId = AddNotApplicableUnit(doc);
+
+            doc.MakeAsDeprecated();
+
+            Assert.Equal(DocumentUnitStatus.NotApplicable, doc.GetDocumentUnit(notApplicableUnitId).Status);
         }
     }
 }
