@@ -28,6 +28,10 @@ builder.Services.Configure<CaptureSyncOptions>(builder.Configuration.GetSection(
 if (builder.Configuration.GetValue<bool>($"{CaptureSyncOptions.SectionName}:Enabled"))
 {
     builder.Services.AddHostedService<CaptureSyncBackgroundService>();
+
+    // Varrer caixa e processar artefato tem ritmos e modos de falha diferentes — um anexo lento
+    // nao pode atrasar a varredura, que e o que garante que nada fica para tras.
+    builder.Services.AddHostedService<CaptureProcessingBackgroundService>();
 }
 
 var app = builder.Build();

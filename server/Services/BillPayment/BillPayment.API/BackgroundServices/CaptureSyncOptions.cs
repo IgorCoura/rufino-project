@@ -26,4 +26,19 @@ public sealed class CaptureSyncOptions
 
     /// <summary>Quantas fontes por ciclo. Cada uma roda na sua própria transação.</summary>
     public int BatchSize { get; set; } = 20;
+
+    /// <summary>
+    /// Ritmo do processamento de artefatos, separado do da varredura.
+    /// </summary>
+    /// <remarks>
+    /// Mais curto que o da varredura porque aqui há fila de verdade: assim que a sincronização
+    /// ingere, o boleto deve chegar à tela de aprovação sem esperar o próximo minuto cheio.
+    /// </remarks>
+    public TimeSpan ProcessingInterval { get; set; } = TimeSpan.FromSeconds(15);
+
+    /// <summary>
+    /// Artefatos por ciclo. Menor que o lote de fontes porque cada um baixa bytes e roda
+    /// extração — um lote grande seguraria memória sem entregar mais rápido.
+    /// </summary>
+    public int ProcessingBatchSize { get; set; } = 10;
 }

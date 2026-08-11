@@ -46,6 +46,7 @@ public static class ApplicationDependencies
         services.AddScoped<IPayerProfileQueries, PayerProfileQueries>();
         services.AddScoped<ICaptureSourceQueries, CaptureSourceQueries>();
         services.AddScoped<ICaptureItemQueries, CaptureItemQueries>();
+        services.AddScoped<ICaptureItemWorkQueries, CaptureItemWorkQueries>();
 
         return services;
     }
