@@ -433,6 +433,16 @@ Quatro regras deste degrau que não podem erodir:
 3. **`ExtractionBudget` é guarda de conta, não afinação**: teto por tenant por dia (100) e intervalo mínimo entre chamadas (6 s = 10/min, o teto da conta gratuita). Estourado, o artefato vai para a quarentena e volta amanhã — nunca "aprova sem extrair".
 4. **A visão aceita imagem, o parser determinístico não.** `image/png`, `image/jpeg`, `image/webp`, e `application/octet-stream` normalizado para PDF. É a correção do buraco medido: **12 anexos recusados com `not_a_pdf`**, baixados e nunca lidos.
 
+**Ensaio contra o provedor real — 2026-08-11.** Três achados, e um deles bloqueia a próxima medição:
+
+1. **O extrator LÊ documento digitalizado.** Sonda dirigida contra `RBC04 - SEGURO DE VIDA.pdf`, um dos 4 do corpus **sem camada de texto**: devolveu uma linha de 47 dígitos que foi **aceita pelo domínio** (banco 033, vencimento 20/06/2026) e sobreviveu aos quatro DVs. É a tese da 2.4 provada ponta a ponta — o degrau 3 alcança o que o determinístico não alcança. Custo medido: **651 tokens de entrada, 90 de saída**.
+2. **`GET /models` mente.** A linha `gemini-2.5-*` aparece na listagem e devolve **404** em `generateContent`. Responderam `gemini-3.1-flash-lite`, `gemini-3.5-flash-lite` e o alias `gemini-flash-lite-latest`. O default virou `gemini-3.1-flash-lite` — nome fixo, não alias, porque alias flutua e trocaria a qualidade da extração sem nenhuma alteração no repositório.
+3. **O rendimento na fila real ficou por medir.** Das 12 chamadas do teto, 11 completaram e **nenhuma resolveu**: o modelo devolveu listas vazias (não alucinação — zero candidatos barrados). A fila é processada por ordem de chegada, e os mais antigos eram holerite e nota fiscal de remetente cadastrado, que são genuinamente `NotABill`. Amostra pequena e enviesada, não conclusão sobre o extrator.
+
+⚠️ **Não existe caminho para reprocessar item já triado** — `ListPendingAsync` traz só `Received`, e a ingestão é idempotente, então nem o `rescan` reavalia o que está em `Unrecognized`. Hoje a única saída é apagar as linhas no banco. **É pré-requisito da próxima medição** e da operação normal: o doc 10 prevê "reprocessamento do corpus quando o prompt mudar", e toda mudança de prompt vai precisar disso.
+
+⚠️ **O teto do `ExtractionBudget` é em memória e zera ao reiniciar a API.** Aceitável enquanto há um deployment só; vira problema ao escalar horizontalmente, onde cada instância teria seu próprio teto.
+
 **PDF cifrado não vai para a visão**: mandar um arquivo que não abre gastaria a chamada para o modelo ver a tela de senha.
 
 **Falta para a fase 2**: rodar a 2.4 contra a fila real e re-baselinar o corpus; a resolução de link (2.5), a resolução de link (2.5), o roteamento e a reivindicação (2.6), as expectativas (2.7). A purga dos itens antigos deixou de ser urgente — o handler já não guarda o que não é boleto.

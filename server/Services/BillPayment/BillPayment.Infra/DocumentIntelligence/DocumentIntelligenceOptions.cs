@@ -23,10 +23,17 @@ public sealed class DocumentIntelligenceOptions
     public string BaseUrl { get; set; } = "https://generativelanguage.googleapis.com/v1beta/";
 
     /// <summary>
-    /// Modelo de extração. O default é o mais barato da linha, porque a tarefa é ler número
-    /// impresso — não raciocinar — e porque a conta free tem cota diária apertada.
+    /// Modelo de extração. O default é o mais barato que <em>responde</em>, porque a tarefa é ler
+    /// número impresso — não raciocinar.
     /// </summary>
-    public string Model { get; set; } = "gemini-2.5-flash-lite";
+    /// <remarks>
+    /// <strong>Estar em <c>GET /models</c> não significa que aceita <c>generateContent</c>.</strong>
+    /// Medido em 2026-08-11: a linha <c>gemini-2.5-*</c> aparece na listagem e devolve
+    /// <c>404</c> na geração. Ao trocar de modelo, prove com uma chamada real — a listagem mente.
+    /// Nome fixo em vez de alias <c>-latest</c> de propósito: alias flutua, e modelo trocando por
+    /// baixo faria a qualidade da extração mudar sem nenhuma alteração no repositório.
+    /// </remarks>
+    public string Model { get; set; } = "gemini-3.1-flash-lite";
 
     public int TimeoutSeconds { get; set; } = 60;
 

@@ -81,6 +81,13 @@ Preços por milhão de tokens (verificados em 2026-07-31; confirme antes de fech
 | `gemini-3.1-flash-lite` | $0,25 | $1,50 | $0,125 / $0,75 |
 | `gemini-2.5-flash-lite` | $0,10 | $0,40 | $0,05 / $0,20 |
 
+> **Estar em `GET /models` não significa que aceita `generateContent`.** Medido em 2026-08-11
+> contra a conta real: a linha `gemini-2.5-*` **aparece na listagem** e devolve **404** na
+> geração. Responderam: `gemini-3.1-flash-lite`, `gemini-3.5-flash-lite` e o alias
+> `gemini-flash-lite-latest`. Ao trocar de modelo, **prove com uma chamada real** — a listagem
+> mente. E prefira nome fixo a alias `-latest`: alias flutua, e modelo trocando por baixo faria a
+> qualidade da extração mudar sem nenhuma alteração no repositório.
+
 ### O número que muda a decisão
 
 **Uma página de PDF custa ~258 tokens de entrada.** Somando o prompt e o schema, a extração de um boleto gira em torno de **~800 tokens de entrada** e **~300 de saída**.
