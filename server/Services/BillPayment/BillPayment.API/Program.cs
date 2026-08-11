@@ -36,10 +36,14 @@ if (builder.Configuration.GetValue<bool>($"{CaptureSyncOptions.SectionName}:Enab
 
 var app = builder.Build();
 
+// Migrações, não EnsureCreatedAsync. A diferença não é estilística: EnsureCreated decide por
+// "o banco tem alguma tabela?", não por "o schema bate com o modelo?" — então um Aggregate novo
+// nunca ganhava tabela num banco já existente, a aplicação subia com êxito, e a falha só
+// aparecia na primeira consulta como 42P01. Aconteceu de verdade em 2026-08-11 (gotchas.md).
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<BillPaymentDbContext>();
-    await db.Database.EnsureCreatedAsync();
+    await db.Database.MigrateAsync();
 }
 
 if (app.Environment.IsDevelopment())

@@ -105,3 +105,20 @@ Como o `Id` é value-converted, comparar `>` exige que o record struct declare o
 **Regra:** quando o `NULL` da coluna é um **valor de negócio** (aqui: "a caixa de entrada"), o índice precisa de `NULLS NOT DISTINCT` — no EF, `.AreNullsDistinct(false)`. O agregado já recusa (`BLP.CPS16`), mas o banco é quem garante sob concorrência, e a garantia sem essa cláusula simplesmente não existe.
 
 **Como pegar de novo:** ao escrever `HasIndex(...).IsUnique()` sobre coluna anulável, pergunte se o nulo é "ausência" ou "um caso concreto". Se for um caso concreto, `AreNullsDistinct(false)`.
+
+## Trocar `EnsureCreated` por `Migrate` tem dois efeitos colaterais na suíte, e os dois derrubam tudo
+
+**Quando:** 2026-08-11, ao criar a migração inicial.
+
+**O que aconteceu:** com `MigrateAsync` no lugar de `EnsureCreatedAsync`, **192 dos 257 testes de integração** passaram a falhar com `42P07: relation "bills" already exists`. Duas causas independentes, ambas invisíveis enquanto o schema era criado por `EnsureCreated`:
+
+1. **O contexto da fábrica não herdava o `MigrationsHistoryTable`.** Ele é construído à mão (`new DbContextOptionsBuilder<...>().UseNpgsql(cs)`), fora do DI, então não passava pelo `AddInfraDependencies` que configura `MigrationsHistoryTable("__ef_migrations_history", DEFAULT_SCHEMA)`. A fábrica migrava e gravava o histórico no lugar padrão do EF; o host subia, procurava no lugar configurado, não achava registro nenhum, e tentava criar tudo de novo.
+2. **O Respawn apagava a tabela de histórico.** Ela vive dentro do schema `bill_payment`, que está em `SchemasToInclude`, e histórico de migração **não é dado de teste** — apagá-lo faz o host seguinte concluir que o banco está vazio.
+
+**Por que é traiçoeiro:** `EnsureCreatedAsync` é no-op quando existe qualquer tabela, então ele tolerava as duas situações em silêncio. O sintoma também engana: falham testes de todos os agregados ao mesmo tempo, o que parece quebra de infraestrutura de teste, não de configuração de migração.
+
+**Regra:** quem constrói `DbContext` fora do DI **replica a configuração do provedor**, não só a connection string. E `__ef_migrations_history` entra no `TablesToIgnore` do Respawn.
+
+**Como pegar de novo:** `42P07 relation already exists` num banco que a suíte acabou de criar significa "migrei duas vezes achando que era a primeira" — procure onde o histórico está sendo gravado, e quem o está apagando.
+
+**Armadilha de método:** a execução que "passou" logo antes desta rodou contra binários velhos, porque o build havia falhado (analyzers no arquivo gerado) e o `dotnet test` reaproveitou o `bin` anterior. **Suíte verde depois de build vermelho não é suíte verde** — confira o resultado do build antes de acreditar no do teste.

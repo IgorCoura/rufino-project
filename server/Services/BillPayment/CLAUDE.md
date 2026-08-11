@@ -158,8 +158,12 @@ $bytes = New-Object byte[] 32
 dotnet user-secrets set "Secrets:MasterKey" "<base64 de 32 bytes>"
 dotnet user-secrets set "Storage:SecretKey" "billpayment-dev"
 
-# EF Core migrations (run from BillPayment.API folder once Infra has a DbContext)
-dotnet ef database update --project ../BillPayment.Infra
+# EF Core migrations — rodar de dentro de BillPayment.API/
+dotnet ef database update --project ../BillPayment.Infra --startup-project .
+dotnet ef migrations add <Nome> --project ../BillPayment.Infra --startup-project . --output-dir Migrations
+
+# Repovoar o cadastro de um tenant (PayerProfile, Payees, TrustedOrigins) — idempotente
+node BillPayment.Architecture/tools/seed-tenant.js --api=http://localhost:8100
 ```
 
 ### Port map (docker-compose)
@@ -171,11 +175,13 @@ dotnet ef database update --project ../BillPayment.Infra
 | `billpayment.storage`      | 8103      | 9000 (S3)      |
 | `billpayment.storage`      | 8104      | 9001 (console) |
 
-Postgres: `postgres:17-alpine`, schema `bill_payment`, database `BillPaymentDb`. Connection string injected via `ConnectionStrings__BillPayment` env var in compose, points at `billpayment.db` (compose-internal DNS). Healthcheck on DB ensures API waits. `EnsureCreatedAsync` runs at startup to create the schema.
+Postgres: `postgres:17-alpine`, schema `bill_payment`, database `BillPaymentDb`. Connection string injected via `ConnectionStrings__BillPayment` env var in compose, points at `billpayment.db` (compose-internal DNS). Healthcheck on DB ensures API waits. **`MigrateAsync` roda no startup** — ver abaixo.
 
 **Armazenamento de anexos em desenvolvimento**: `billpayment.storage` é um MinIO local, e `billpayment.storage-init` cria o balde `billpayment-captures` e sai (o adapter grava objeto, não provisiona balde — provisionar em tempo de escrita esconderia nome de balde digitado errado criando um novo em silêncio). **Em produção o alvo é o Garage já auto-hospedado**; o protocolo é o mesmo e o que muda é `Storage:AuthenticationRegion` — `us-east-1` no MinIO, **`garage` no Garage**.
 
-**`EnsureCreatedAsync` não atualiza schema existente — ele não faz nada.** Ele decide por "o banco tem alguma tabela?", não por "o schema bate com o modelo?". Um banco de desenvolvimento criado antes de um Aggregate novo **nunca ganha a tabela dele**, e a aplicação **sobe com êxito**: a falha só aparece na primeira consulta, como `42P01 relation ... does not exist`. Depois de acrescentar Aggregate, recrie o schema local (`DROP SCHEMA bill_payment CASCADE` + reiniciar). A suíte de integração não pega isso — o Testcontainers sobe um Postgres vazio a cada execução, que é justamente o caso em que `EnsureCreatedAsync` funciona. Registrado em `gotchas.md`.
+**O schema é criado e evoluído por MIGRAÇÕES, não por `EnsureCreatedAsync`** — em produção, em desenvolvimento e na suíte de integração. A troca foi feita em 2026-08-11 depois de o `EnsureCreated` causar incidente: ele decide por "o banco tem alguma tabela?", não por "o schema bate com o modelo?", então um Aggregate novo **nunca ganhava tabela** num banco já existente, a aplicação subia com êxito, e a falha só aparecia na primeira consulta como `42P01`. Acrescentou Aggregate ou mudou mapping? **Gere uma migração**; não recrie o banco à mão. Duas armadilhas da troca, ambas registradas em `gotchas.md`: quem constrói `DbContext` fora do DI precisa repetir o `MigrationsHistoryTable`, e `__ef_migrations_history` entra no `TablesToIgnore` do Respawn.
+- **Migração é código gerado e não se edita à mão.** `[**/Migrations/*.cs]` está com `generated_code = true` e análise desligada no `.editorconfig` — aplicar o estilo do BC ali exigiria reescrever a saída do `dotnet ef` a cada migração, e a geração seguinte desfaria. Corrigir uma migração aplicada = gerar outra. O **mapping** (`Infra/Mapping/`) é escrito à mão e segue todas as regras.
+- **O cadastro de um tenant é repovoável por arquivo.** `tools/seed-tenant.js` lê um JSON e cadastra `PayerProfile`, `Payee` e `TrustedOrigin` **pela API**, não por SQL — assim cada linha passa por `TaxId.Parse`, pelo dígito verificador e por toda invariante do agregado, e um documento inválido falha no cadastro em vez de meses depois numa consulta oficial. Idempotente: `409` conta como "já existia". O arquivo real (`*.local.json`) **não é versionado** — contém CNPJ e CPF reais; o versionado é o `seed-tenant.example.json`. Existe porque o desfecho de um artefato capturado depende do cadastro que existia quando ele passou, e refazer isso à mão a cada ambiente é como o cadastro diverge.
 
 **Rodar a API fora do container exige a stack do compose no ar** (`docker compose up -d billpayment.db`): a connection string do `appsettings.json` aponta para `localhost:8102`, que é a porta que o compose publica do Postgres. **Essa porta tem que casar com a tabela acima** — o valor herdado do clone do EconomicCore era `8092` e derrubava todo `dotnet run` com `SocketException (10061)` no `EnsureCreatedAsync`, antes mesmo do Kestrel subir. O compose não passa por esse arquivo (injeta `ConnectionStrings__BillPayment` por env var apontando para `billpayment.db:5432`), então a divergência só aparecia no run local.
 
@@ -571,6 +577,7 @@ BillPayment/
 │   ├── Storage/                      #   S3AttachmentStorage, StorageOptions, UnconfiguredAttachmentStorage
 │   ├── Secrets/                      #   SecretsOptions, EnvelopeSecretVault (AES-256-GCM), UnconfiguredSecretVault
 │   ├── BankDirectory/                #   BacenBankDirectory + bacen-participants.csv (EmbeddedResource)
+│   ├── Migrations/                   #   geradas por `dotnet ef` — analise desligada, nunca editadas a mao
 │   ├── Idempotency/                  #   RequestManager (impl de IRequestManager sobre client_requests)
 │   ├── Repositories/                 #   TrustedOriginRepository, PayeeRepository, PayerProfileRepository, CaptureSourceRepository, CaptureItemRepository
 │   └── Mapping/                      #   EF configurations de plataforma + TrustedOriginMap, PayeeMap, PayerProfileMap, CaptureSourceMap, CaptureItemMap, TaxIdConversions, CredentialRefConversions
@@ -584,7 +591,7 @@ BillPayment/
 └── BillPayment.Architecture/         # design rationale do BC — fonte de verdade do modelo
     ├── index.md                      #   índice de entrada (registre todo doc novo aqui)
     ├── 01..11-*.md                   #   visão, modelo, verificações, integrações, use cases, roadmap, multitenancy, corpus, captura, LLM, expectativas
-    ├── tools/                        #   analyze-boleto-corpus.js, probe-asaas-simulate.js, smoke-probe-{production,pix-decode,mailbox}.js, run-capture-chain.js, fetch-bacen-participants.js
+    ├── tools/                        #   analyze-boleto-corpus.js, probe-asaas-simulate.js, smoke-probe-{production,pix-decode,mailbox}.js, run-capture-chain.js, seed-tenant.js (+ .example.json), fetch-bacen-participants.js
     └── adr/                          #   ADR-001..014
 ```
 
@@ -631,8 +638,8 @@ Verificação: `dotnet build BillPayment.sln -p:TreatWarningsAsErrors=true` deve
 Itens que **devem** ser resolvidos antes do primeiro deploy em ambiente real. Marcar com `[x]` conforme forem concluídos.
 
 ### Banco de dados
-- [ ] **Criar migrações EF Core** — hoje o schema é criado via `EnsureCreatedAsync()` (Program.cs), que não suporta alterações incrementais. Trocar para `db.Database.MigrateAsync()` e gerar a migração inicial: `dotnet ef migrations add Initial --project ../BillPayment.Infra` (rodar de dentro de `BillPayment.API/`).
-- [ ] **Remover `EnsureCreatedAsync`** do Program.cs e do `IntegrationTestWebAppFactory` (testes devem usar `MigrateAsync` também).
+- [x] **Criar migrações EF Core** — **feito em 2026-08-11**, motivado por incidente real. Migração `Initial` em `Infra/Migrations/`; `Program.cs` e o `IntegrationTestWebAppFactory` usam `MigrateAsync`.
+- [x] **Remover `EnsureCreatedAsync`** — feito nos dois lugares.
 - [ ] **Seed data** — definir se dados estáticos serão semeados via migração ou via endpoint admin.
 
 ### Segurança e autenticação
@@ -660,7 +667,7 @@ Itens que **devem** ser resolvidos antes do primeiro deploy em ambiente real. Ma
 - [ ] **Rate limiting** — avaliar se endpoints públicos precisam de throttling.
 
 ### Qualidade e testes
-- [ ] **Testes de integração com migrações** — após criar migrações, trocar `EnsureCreatedAsync` por `MigrateAsync` nos testes.
+- [x] **Testes de integração com migrações** — feito; a suíte valida o mesmo schema que o deploy produz.
 - [ ] **CI pipeline** — configurar build + unit tests + integration tests no CI (GitHub Actions ou similar).
 - [ ] **Code coverage** — definir threshold mínimo e integrar no CI.
 - [ ] **Promover analyzer warnings a erros no CI** — Application/Infra/API hoje só emitem warning (ver "Static analysis"). No pipeline de CI, passar `/p:TreatWarningsAsErrors=true` na etapa de build. Domain já está blindado localmente.

@@ -573,3 +573,6 @@ FodyWeavers.xsd
 /wwwroot/node_modules
 
 # End of https://www.toptal.com/developers/gitignore/api/csharp,dotnetcore,aspnetcore
+# Cadastro de tenant para desenvolvimento: contem CNPJ e CPF reais, nao entra no repositorio.
+# O versionado e o seed-tenant.example.json, com a forma.
+*.local.json

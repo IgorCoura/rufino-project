@@ -232,3 +232,14 @@ dotnet_diagnostic.S2148.severity = none
 [**/{obj,bin}/**.cs]
 generated_code = true
 dotnet_analyzer_diagnostic.severity = none
+
+###############################
+# Migrações EF — geradas, nunca editadas à mão
+###############################
+# `dotnet ef migrations add` gera estes arquivos, e a regra do BC é gerar uma migração NOVA em vez
+# de corrigir uma existente (ver "Checklist pré-produção"). Aplicar o estilo do projeto aqui
+# exigiria reescrever código gerado a cada migração — e a geração seguinte desfaria a reescrita.
+# Não vale para o mapeamento: esse é escrito à mão, em Infra/Mapping, e segue todas as regras.
+[**/Migrations/*.cs]
+generated_code = true
+dotnet_analyzer_diagnostic.severity = none

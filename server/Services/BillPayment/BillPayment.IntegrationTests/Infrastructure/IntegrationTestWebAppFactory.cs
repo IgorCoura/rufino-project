@@ -68,12 +68,22 @@ public sealed class IntegrationTestWebAppFactory : WebApplicationFactory<Program
         await _postgres.StartAsync();
         _connectionString = _postgres.GetConnectionString();
 
+        // A tabela de histórico TEM que ser a mesma que a Infra configura. Este contexto é
+        // construído à mão, fora do DI, então ele não herda o MigrationsHistoryTable do
+        // AddInfraDependencies — e com o padrão do EF o histórico iria para outro lugar: a
+        // fábrica migraria, o host não acharia registro nenhum, tentaria criar tudo de novo e
+        // morreria em 42P07 "relation already exists", derrubando a suíte inteira.
         var options = new DbContextOptionsBuilder<BillPaymentDbContext>()
-            .UseNpgsql(_connectionString)
+            .UseNpgsql(_connectionString, npgsql =>
+                npgsql.MigrationsHistoryTable("__ef_migrations_history", BillPaymentDbContext.DEFAULT_SCHEMA))
             .Options;
 
+        // Migrações, como em produção. Com EnsureCreatedAsync a suíte validava um schema que o
+        // deploy nunca produziria — e era justamente por isso que ela não pegava o defeito de
+        // schema desatualizado: o Testcontainers sobe um Postgres vazio a cada execução, o único
+        // caso em que EnsureCreated funciona.
         await using var context = new BillPaymentDbContext(options);
-        await context.Database.EnsureCreatedAsync();
+        await context.Database.MigrateAsync();
 
         await using var connection = new NpgsqlConnection(_connectionString);
         await connection.OpenAsync();
@@ -82,6 +92,13 @@ public sealed class IntegrationTestWebAppFactory : WebApplicationFactory<Program
         {
             DbAdapter = DbAdapter.Postgres,
             SchemasToInclude = ["bill_payment"],
+
+            // O histórico de migrações NÃO é dado de teste: apagá-lo faz o próximo host subir
+            // achando que o banco está vazio e tentar criar tudo outra vez, morrendo em
+            // 42P07 "relation already exists". Com EnsureCreatedAsync isto não aparecia porque
+            // ele é no-op quando há qualquer tabela — foi o primeiro efeito colateral de trocar
+            // para MigrateAsync, e derrubou 192 testes de uma vez.
+            TablesToIgnore = [new Respawn.Graph.Table("bill_payment", "__ef_migrations_history")],
         });
     }
 

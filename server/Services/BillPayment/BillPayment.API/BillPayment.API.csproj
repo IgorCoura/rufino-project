@@ -20,6 +20,15 @@
       2.7.5 é a primeira versão corrigida da linha 2.x.
     -->
     <PackageReference Include="Microsoft.OpenApi" Version="2.7.5" />
+    <!--
+      Necessário para `dotnet ef migrations`: a ferramenta constrói o host a partir DESTE projeto
+      (é ele que tem a connection string e o AddInfraDependencies) e precisa do serviço de design
+      aqui, não só na Infra. analyzer-only: não vai para o runtime publicado.
+    -->
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.5">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
   </ItemGroup>
 
   <ItemGroup>
