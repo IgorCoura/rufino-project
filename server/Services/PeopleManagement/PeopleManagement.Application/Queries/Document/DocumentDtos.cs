@@ -67,11 +67,18 @@ namespace PeopleManagement.Application.Queries.Document
             /// <summary>Data do envio agendado para assinatura; null quando não há agendamento.</summary>
             public DateOnly? ScheduledSignatureSendOn { get; init; }
 
+            /// <summary>
+            /// A unidade que esta veio renovar; null quando não é uma renovação. O cliente usa para marcar a
+            /// linha como "Renovação" — sem isso ela é indistinguível de uma pendência qualquer na tela.
+            /// </summary>
+            public Guid? ReplacesDocumentUnitId { get; init; }
+
             public static implicit operator DocumentUnitDto(DocumentUnit documentUnit)
             {
                 return new DocumentUnitDto
                 {
                     ScheduledSignatureSendOn = documentUnit.ScheduledSignature?.SendOn,
+                    ReplacesDocumentUnitId = documentUnit.ReplacesDocumentUnitId,
                     Id = documentUnit.Id,
                     Content = documentUnit.Content,
                     Validity = documentUnit.Validity,

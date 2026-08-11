@@ -320,6 +320,18 @@ abstract class EmployeeRepository {
     String documentUnitId,
   );
 
+  /// Renews a document unit: a replacement pending unit is created linked to
+  /// it, and one renewal of the template's quota is consumed.
+  ///
+  /// The renewed unit stays in force — it is the delivery of the replacement
+  /// that turns it into history. Asking twice returns the same replacement.
+  Future<Result<void>> renewDocumentUnit(
+    String companyId,
+    String employeeId,
+    String documentId,
+    String documentUnitId,
+  );
+
   /// Invalidates a document unit: it has an error or was sent by mistake and
   /// carries no legal value, and a replacement pending unit takes its place.
   Future<Result<void>> invalidateDocumentUnit(

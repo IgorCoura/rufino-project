@@ -1,4 +1,6 @@
+using System.Net;
 using Microsoft.EntityFrameworkCore;
+using PeopleManagement.Application.Commands.DocumentCommands.RenewDocumentUnit;
 using PeopleManagement.Domain.AggregatesModel.DocumentAggregate;
 using PeopleManagement.Domain.AggregatesModel.DocumentAggregate.Interfaces;
 using PeopleManagement.Domain.AggregatesModel.DocumentTemplateAggregate;
@@ -10,106 +12,201 @@ using PeopleManagement.IntegrationTests.Data;
 
 namespace PeopleManagement.IntegrationTests.Tests
 {
-    // Caracterização do "vence sempre": para um documento com associação vigente, DepreciateExpirateDocument
-    // marca a unidade como VENCIDA e cria uma nova unidade Pending, reiniciando o ciclo indefinidamente.
+    // Vencer e renovar são coisas separadas.
+    //
+    // Os jobs (WarningExpirateDocument / DepreciateExpirateDocument) só movem o status da unidade: A Vencer e
+    // Vencido são avisos. Quem cria a substituta é o RH, pela ação "Renovar" — e é ela que vincula a substituta
+    // à substituída e consome a cota de renovações do template.
     //
     // Vencida ≠ depreciada: enquanto o substituto não é entregue a unidade fica Expired (a exigência está
-    // descoberta); ela só vira Deprecated quando a próxima entrega chega. Por isso o contador de renovações é
-    // Document.ExpirationCount, e não uma contagem de unidades por status — o status se move, o contador não.
+    // descoberta); ela só vira Deprecated quando a entrega chega.
     [Collection(nameof(IntegrationTestCollection))]
     public class DocumentExpirationRenewalTests(PeopleManagementWebApplicationFactory factory) : BaseIntegrationTest(factory)
     {
         private static readonly DateOnly OfficialDate = new(2024, 1, 15);
 
+        // --- Os jobs não criam nada -------------------------------------------
+
         [Fact]
-        public async Task DepreciateExpirate_WhenAssociated_ExpiresUnitAndCreatesNewPendingUnit()
+        public async Task DepreciateExpirate_WhenAssociated_ExpiresTheUnitWithoutCreatingAReplacement()
         {
             var ct = CancellationToken.None;
             var context = GetContext();
 
-            var (companyId, document, okUnitId) = await SeedDocumentWithOkUnitAsync(context, ct);
+            var seed = await SeedDocumentWithOkUnitAsync(context, ct);
 
-            await DepreciateAsync(document.Id, okUnitId, companyId, ct);
+            await ExpireAsync(seed.DocumentId, seed.UnitId, seed.CompanyId, ct);
 
-            var result = await GetDocumentAsync(document.Id, ct);
+            var result = await GetDocumentAsync(seed.DocumentId, ct);
+            var unit = Assert.Single(result.DocumentsUnits);
+            Assert.Equal(DocumentUnitStatus.Expired, unit.Status);
+            Assert.Equal(DocumentStatus.Expired, result.Status);
+            Assert.Equal(0, result.RenewalCount);
+        }
+
+        [Fact]
+        public async Task WarningExpirate_WhenAssociated_MarksTheUnitWithoutCreatingAReplacement()
+        {
+            var ct = CancellationToken.None;
+            var context = GetContext();
+
+            var seed = await SeedDocumentWithOkUnitAsync(context, ct);
+
+            await WarnAsync(seed.DocumentId, seed.UnitId, seed.CompanyId, ct);
+
+            var result = await GetDocumentAsync(seed.DocumentId, ct);
+            var unit = Assert.Single(result.DocumentsUnits);
+            Assert.Equal(DocumentUnitStatus.Warning, unit.Status);
+            Assert.Equal(DocumentStatus.Warning, result.Status);
+        }
+
+        // Regressão do Include filtrado: os jobs carregavam SÓ a unidade do disparo, e o RefreshDocumentStatus
+        // recalculava o status do documento inteiro a partir dela. Um job chegando sobre uma unidade já
+        // depreciada — entregue e superada antes do aviso — deixava o DOCUMENTO Deprecated, e como Deprecated
+        // rola para "Okay" no funcionário, um documento com pendência aberta aparecia em dia.
+        [Fact]
+        public async Task WarningExpirate_WhenTheUnitIsNoLongerInForce_ShouldNotRewriteTheDocumentStatus()
+        {
+            var ct = CancellationToken.None;
+            var context = GetContext();
+
+            var seed = await SeedDocumentWithOkUnitAsync(context, ct);
+            await DeprecateUnitAndLeavePendingAsync(seed.DocumentId, seed.UnitId, ct);
+
+            await WarnAsync(seed.DocumentId, seed.UnitId, seed.CompanyId, ct);
+
+            var result = await GetDocumentAsync(seed.DocumentId, ct);
+            Assert.Equal(DocumentStatus.RequiresDocument, result.Status);
+        }
+
+        // --- Renovação manual --------------------------------------------------
+
+        [Fact]
+        public async Task Renew_FromAnExpiredUnit_CreatesALinkedPendingAndConsumesTheQuota()
+        {
+            var ct = CancellationToken.None;
+            var context = GetContext();
+
+            var seed = await SeedDocumentWithOkUnitAsync(context, ct);
+            await ExpireAsync(seed.DocumentId, seed.UnitId, seed.CompanyId, ct);
+
+            var response = await RenewAsync(seed);
+
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+            var result = await GetDocumentAsync(seed.DocumentId, ct);
             Assert.Equal(2, result.DocumentsUnits.Count);
-            Assert.Equal(DocumentUnitStatus.Expired, result.DocumentsUnits.First(u => u.Id == okUnitId).Status);
-            Assert.Single(result.DocumentsUnits.Where(u => u.Status == DocumentUnitStatus.Pending));
-            Assert.Equal(1, result.ExpirationCount);
+            var replacement = Assert.Single(result.DocumentsUnits, u => u.Status == DocumentUnitStatus.Pending);
+            Assert.Equal(seed.UnitId, replacement.ReplacesDocumentUnitId);
+            Assert.Equal(1, result.RenewalCount);
+            // A vencida continua vencida: a exigência só volta a estar coberta quando a substituta é entregue.
+            Assert.Equal(DocumentUnitStatus.Expired, result.DocumentsUnits.First(u => u.Id == seed.UnitId).Status);
+            Assert.Equal(DocumentStatus.Expired, result.Status);
         }
 
-        // A entrega da renovação é o que transforma a vencida em histórico: no fim do segundo ciclo há uma
-        // depreciada (já substituída), uma vencida (esperando substituto) e a pendente que vai substituí-la.
+        // O caminho bom: renovar no aviso, antes de perder a cobertura. O documento continua "A Vencer" enquanto
+        // a substituta está em voo — pedir a renovação no prazo não pode deixar o documento pior do que ignorá-la.
         [Fact]
-        public async Task DepreciateExpirate_WhenAssociatedTwice_DeprecatesTheReplacedUnitAndExpiresTheCurrent()
+        public async Task Renew_BeforeExpiration_KeepsTheDocumentWarningUntilTheReplacementIsDelivered()
         {
             var ct = CancellationToken.None;
             var context = GetContext();
 
-            var (companyId, document, firstUnitId) = await SeedDocumentWithOkUnitAsync(context, ct);
+            var seed = await SeedDocumentWithOkUnitAsync(context, ct);
+            await WarnAsync(seed.DocumentId, seed.UnitId, seed.CompanyId, ct);
 
-            await DepreciateAsync(document.Id, firstUnitId, companyId, ct);
+            await RenewAsync(seed);
 
-            var afterFirst = await GetDocumentAsync(document.Id, ct);
-            var secondUnitId = afterFirst.DocumentsUnits.First(u => u.Status == DocumentUnitStatus.Pending).Id;
-            await MakeUnitOkAsync(document.Id, secondUnitId, ct);
+            var afterRenew = await GetDocumentAsync(seed.DocumentId, ct);
+            Assert.Equal(DocumentStatus.Warning, afterRenew.Status);
 
-            await DepreciateAsync(document.Id, secondUnitId, companyId, ct);
+            var replacementId = afterRenew.DocumentsUnits.First(u => u.Status == DocumentUnitStatus.Pending).Id;
+            await MakeUnitOkAsync(seed.DocumentId, replacementId, ct);
 
-            var result = await GetDocumentAsync(document.Id, ct);
-            Assert.Equal(3, result.DocumentsUnits.Count);
-            Assert.Equal(DocumentUnitStatus.Deprecated, result.DocumentsUnits.First(u => u.Id == firstUnitId).Status);
-            Assert.Equal(DocumentUnitStatus.Expired, result.DocumentsUnits.First(u => u.Id == secondUnitId).Status);
-            Assert.Single(result.DocumentsUnits.Where(u => u.Status == DocumentUnitStatus.Pending));
-            Assert.Equal(2, result.ExpirationCount);
+            var result = await GetDocumentAsync(seed.DocumentId, ct);
+            Assert.Equal(DocumentUnitStatus.Deprecated, result.DocumentsUnits.First(u => u.Id == seed.UnitId).Status);
+            Assert.Equal(DocumentUnitStatus.OK, result.DocumentsUnits.First(u => u.Id == replacementId).Status);
+            Assert.Equal(DocumentStatus.OK, result.Status);
         }
 
-        // Vencimento limitado. Enquanto o contador de vencimentos do documento está abaixo do teto, ainda
-        // renova — vence a unidade e cria uma nova Pending.
         [Fact]
-        public async Task DepreciateExpirate_LimitedPolicyBelowMax_StillRenews()
+        public async Task Renew_AskedTwice_ReturnsTheSameReplacementAndConsumesTheQuotaOnce()
         {
             var ct = CancellationToken.None;
             var context = GetContext();
 
-            var (companyId, document, okUnitId) = await SeedDocumentWithOkUnitAsync(context, ct, maxRenewals: 2);
+            var seed = await SeedDocumentWithOkUnitAsync(context, ct);
 
-            await DepreciateAsync(document.Id, okUnitId, companyId, ct);
+            await RenewAsync(seed);
+            await RenewAsync(seed);
 
-            var result = await GetDocumentAsync(document.Id, ct);
+            var result = await GetDocumentAsync(seed.DocumentId, ct);
             Assert.Equal(2, result.DocumentsUnits.Count);
-            Assert.Equal(DocumentUnitStatus.Expired, result.DocumentsUnits.First(u => u.Id == okUnitId).Status);
-            Assert.Single(result.DocumentsUnits.Where(u => u.Status == DocumentUnitStatus.Pending));
+            Assert.Equal(1, result.RenewalCount);
         }
 
-        // Ao atingir o teto (maxRenewals=1: uma renovação já ocorreu), o vencimento seguinte vence a unidade
-        // mas NÃO cria uma nova — o documento para de renovar e fica descoberto.
         [Fact]
-        public async Task DepreciateExpirate_LimitedPolicyAtMax_ExpiresWithoutRenewing()
+        public async Task Renew_FromAPendingUnit_IsRejected()
         {
             var ct = CancellationToken.None;
             var context = GetContext();
 
-            var (companyId, document, firstUnitId) = await SeedDocumentWithOkUnitAsync(context, ct, maxRenewals: 1);
+            var seed = await SeedDocumentWithOkUnitAsync(context, ct);
+            var pendingId = await DeprecateUnitAndLeavePendingAsync(seed.DocumentId, seed.UnitId, ct);
 
-            await DepreciateAsync(document.Id, firstUnitId, companyId, ct);
+            var response = await RenewAsync(seed with { UnitId = pendingId });
 
-            var afterFirst = await GetDocumentAsync(document.Id, ct);
-            var secondUnitId = afterFirst.DocumentsUnits.First(u => u.Status == DocumentUnitStatus.Pending).Id;
-            await MakeUnitOkAsync(document.Id, secondUnitId, ct);
-
-            await DepreciateAsync(document.Id, secondUnitId, companyId, ct);
-
-            var result = await GetDocumentAsync(document.Id, ct);
-            Assert.Equal(2, result.DocumentsUnits.Count);
-            Assert.Equal(DocumentUnitStatus.Deprecated, result.DocumentsUnits.First(u => u.Id == firstUnitId).Status);
-            Assert.Equal(DocumentUnitStatus.Expired, result.DocumentsUnits.First(u => u.Id == secondUnitId).Status);
-            Assert.Empty(result.DocumentsUnits.Where(u => u.Status == DocumentUnitStatus.Pending));
+            Assert.NotEqual(HttpStatusCode.OK, response.StatusCode);
+            Assert.Contains("PMD.DOC25", await response.Content.ReadAsStringAsync());
         }
+
+        // --- Teto de renovações ------------------------------------------------
+
+        // A regressão que motivou trocar o contador de vencimentos por contador de renovações: aqui NENHUMA
+        // unidade chega a vencer, porque o RH renova sempre no prazo. Contando vencimento, a cota nunca era
+        // consumida e um template limitado a 1 renovação renovaria para sempre.
+        [Fact]
+        public async Task Renew_WhenAlwaysDoneBeforeExpiration_StillConsumesTheQuotaAndStopsAtTheCap()
+        {
+            var ct = CancellationToken.None;
+            var context = GetContext();
+
+            var seed = await SeedDocumentWithOkUnitAsync(context, ct, maxRenewals: 1);
+
+            await RenewAsync(seed);
+            var afterFirst = await GetDocumentAsync(seed.DocumentId, ct);
+            var replacementId = afterFirst.DocumentsUnits.First(u => u.Status == DocumentUnitStatus.Pending).Id;
+            await MakeUnitOkAsync(seed.DocumentId, replacementId, ct);
+
+            var response = await RenewAsync(seed with { UnitId = replacementId });
+
+            Assert.NotEqual(HttpStatusCode.OK, response.StatusCode);
+            Assert.Contains("PMD.DOC26", await response.Content.ReadAsStringAsync());
+
+            var result = await GetDocumentAsync(seed.DocumentId, ct);
+            Assert.Equal(1, result.RenewalCount);
+            Assert.DoesNotContain(result.DocumentsUnits, u => u.Status == DocumentUnitStatus.Pending);
+        }
+
+        [Fact]
+        public async Task Renew_WhenBelowTheCap_StillRenews()
+        {
+            var ct = CancellationToken.None;
+            var context = GetContext();
+
+            var seed = await SeedDocumentWithOkUnitAsync(context, ct, maxRenewals: 2);
+
+            var response = await RenewAsync(seed);
+
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+            Assert.Equal(1, (await GetDocumentAsync(seed.DocumentId, ct)).RenewalCount);
+        }
+
+        private sealed record RenewalSeed(Guid CompanyId, Guid DocumentId, Guid EmployeeId, Guid UnitId);
 
         // Semeia empresa/cargo/template + funcionário ativo associado ao cargo, um RequireDocuments associado
-        // ao cargo, e um Document com uma unidade OK (elegível a vencer/renovar).
-        private async Task<(Guid CompanyId, Document Document, Guid OkUnitId)> SeedDocumentWithOkUnitAsync(
+        // ao cargo, e um Document com uma unidade OK (elegível a vencer e a ser renovada).
+        private async Task<RenewalSeed> SeedDocumentWithOkUnitAsync(
             PeopleManagementContext context, CancellationToken ct, int? maxRenewals = null)
         {
             var company = await context.InsertCompany(ct);
@@ -133,7 +230,7 @@ namespace PeopleManagement.IntegrationTests.Tests
             await context.Documents.AddAsync(document, ct);
             await context.SaveChangesAsync(ct);
 
-            return (company.Id, document, unit.Id);
+            return new RenewalSeed(company.Id, document.Id, employee.Id, unit.Id);
         }
 
         // Template com vencimento limitado (renova N vezes). Difere do Mother padrão, que deriva ExpirationPolicy
@@ -153,11 +250,26 @@ namespace PeopleManagement.IntegrationTests.Tests
             return template;
         }
 
-        private async Task DepreciateAsync(Guid documentId, Guid unitId, Guid companyId, CancellationToken ct)
+        private async Task<HttpResponseMessage> RenewAsync(RenewalSeed seed)
+        {
+            var client = CreateClient();
+            client.InputHeaders([seed.CompanyId]);
+            return await client.PostAsJsonAsync($"/api/v1/{seed.CompanyId}/document/documentunit/renew",
+                new RenewDocumentUnitModel(seed.UnitId, seed.DocumentId, seed.EmployeeId));
+        }
+
+        private async Task ExpireAsync(Guid documentId, Guid unitId, Guid companyId, CancellationToken ct)
         {
             using var scope = _factory.Services.CreateScope();
             var service = scope.ServiceProvider.GetRequiredService<IDocumentDepreciationService>();
             await service.DepreciateExpirateDocument(unitId, documentId, companyId, ct);
+        }
+
+        private async Task WarnAsync(Guid documentId, Guid unitId, Guid companyId, CancellationToken ct)
+        {
+            using var scope = _factory.Services.CreateScope();
+            var service = scope.ServiceProvider.GetRequiredService<IDocumentDepreciationService>();
+            await service.WarningExpirateDocument(unitId, documentId, companyId, ct);
         }
 
         private async Task MakeUnitOkAsync(Guid documentId, Guid unitId, CancellationToken ct)
@@ -168,6 +280,22 @@ namespace PeopleManagement.IntegrationTests.Tests
             document.UpdateDocumentUnitDetails(unitId, OfficialDate, TimeSpan.Zero, "content");
             document.InsertUnitWithoutRequireValidation(unitId, "file", "pdf");
             await context.SaveChangesAsync(ct);
+        }
+
+        // Depreciar tira a unidade de vigência E deixa uma pendente no lugar — é como se chega a um estado com
+        // pendência aberta sem passar pela renovação. Devolve o id da pendente substituta.
+        private async Task<Guid> DeprecateUnitAndLeavePendingAsync(Guid documentId, Guid unitId, CancellationToken ct)
+        {
+            using var scope = _factory.Services.CreateScope();
+            var context = scope.ServiceProvider.GetRequiredService<PeopleManagementContext>();
+            var document = await context.Documents.AsNoTracking().FirstAsync(x => x.Id == documentId, ct);
+
+            var service = scope.ServiceProvider.GetRequiredService<IDocumentService>();
+            var replacement = await service.DeprecateDocumentUnit(unitId, documentId, document.EmployeeId,
+                document.CompanyId, ct);
+
+            await scope.ServiceProvider.GetRequiredService<IDocumentRepository>().UnitOfWork.SaveChangesAsync(ct);
+            return replacement.Id;
         }
     }
 }

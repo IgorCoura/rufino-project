@@ -22,6 +22,7 @@ using PeopleManagement.Application.Commands.DocumentCommands.CheckOutdatedDocume
 using PeopleManagement.Application.Commands.DocumentCommands.RefreshDocumentContent;
 using PeopleManagement.Application.Commands.DocumentCommands.ScheduleDocumentToSign;
 using PeopleManagement.Application.Commands.DocumentCommands.CancelScheduledDocumentToSign;
+using PeopleManagement.Application.Commands.DocumentCommands.RenewDocumentUnit;
 namespace PeopleManagement.API.Controllers
 {
     [Route("api/v1/{company}/[controller]")]
@@ -331,6 +332,24 @@ namespace PeopleManagement.API.Controllers
         public async Task<ActionResult<MarkAsNotApplicableDocumentUnitResponse>> MarkAsNotApplicable([FromRoute] Guid company, [FromBody] MarkAsNotApplicableDocumentUnitModel request, [FromHeader(Name = "x-requestid")] Guid requestId)
         {
             var command = new IdentifiedCommand<MarkAsNotApplicableDocumentUnitCommand, MarkAsNotApplicableDocumentUnitResponse>(request.ToCommand(company), requestId);
+
+            SendingCommandLog(request.DocumentUnitId, request, requestId);
+
+            var result = await _mediator.Send(command);
+
+            CommandResultLog(result, request.DocumentUnitId, request, requestId);
+
+            return OkResponse(result);
+        }
+
+        // Escopo "create" e não um novo: renovar É criar a próxima unidade do documento, e é o mesmo escopo do
+        // POST que cria unidade avulsa. Um escopo novo obrigaria a mexer no Keycloak para uma permissão que já
+        // existe com o mesmo significado.
+        [HttpPost("DocumentUnit/renew")]
+        [ProtectedResource("document", "create")]
+        public async Task<ActionResult<RenewDocumentUnitResponse>> Renew([FromRoute] Guid company, [FromBody] RenewDocumentUnitModel request, [FromHeader(Name = "x-requestid")] Guid requestId)
+        {
+            var command = new IdentifiedCommand<RenewDocumentUnitCommand, RenewDocumentUnitResponse>(request.ToCommand(company), requestId);
 
             SendingCommandLog(request.DocumentUnitId, request, requestId);
 

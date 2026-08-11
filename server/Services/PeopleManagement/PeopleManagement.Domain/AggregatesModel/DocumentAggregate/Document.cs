@@ -30,15 +30,20 @@ namespace PeopleManagement.Domain.AggregatesModel.DocumentAggregate
         public Guid DocumentTemplateId { get; private set; }
 
         /// <summary>
-        /// Quantas vezes este documento já venceu. É o contador de renovações consumido pela
-        /// <c>IExpirationPolicy</c> do template: fato bruto do histórico, incrementado só por
-        /// <see cref="ExpireDocumentUnit"/>.
+        /// Quantas renovações este documento já consumiu. É o contador lido pela <c>IExpirationPolicy</c> do
+        /// template para decidir se ainda pode renovar, incrementado só por <see cref="RegisterRenewal"/>.
+        ///
+        /// Conta renovações EMITIDAS, não vencimentos. Já contou vencimentos (chamava-se <c>ExpirationCount</c>),
+        /// e funcionava enquanto renovar era consequência automática de vencer. Com a renovação virando decisão
+        /// explícita do RH, contar vencimento errava dos dois lados: renovar antes do prazo — que é o caminho bom —
+        /// nunca vencia a unidade e portanto nunca consumia cota, deixando um teto de N renovações renovar para
+        /// sempre; e um documento vencido e abandonado queimava a cota inteira sem nenhuma renovação ter existido.
         ///
         /// Existe como campo, e não como contagem de unidades por status, porque nenhum status serve de contador:
         /// a vencida vira Deprecated quando o substituto chega, e substituição por reenvio corrigido também
         /// deprecia — contar status faria correção de documento consumir renovação.
         /// </summary>
-        public int ExpirationCount { get; private set; }
+        public int RenewalCount { get; private set; }
 
         private Document(Guid id, Guid employeeId, Guid companyId, Guid requiredDocumentId, Guid documentTemplateId, Name name, Description description) : base(id)
         {
@@ -93,6 +98,45 @@ namespace PeopleManagement.Domain.AggregatesModel.DocumentAggregate
             RefreshDocumentStatus();
             return documentUnit;
         }
+
+        /// <summary>
+        /// Cria a substituta de [replacedUnitId] — a unidade que renova a que está saindo de vigência.
+        ///
+        /// É uma <see cref="NewDocumentUnit"/> com o vínculo carimbado, e por isso herda o reaproveitamento da
+        /// pendente equivalente: pedir renovação duas vezes devolve a mesma unidade, com o mesmo vínculo.
+        ///
+        /// Quem decide SE pode renovar é o serviço, que lê a política de vencimento do template — regra de dois
+        /// aggregates. Aqui só se registra o fato.
+        /// </summary>
+        public DocumentUnit NewReplacementUnit(Guid documentUnitId, Guid replacedUnitId, PeriodType? periodType = null,
+            bool usePreviousPeriod = false)
+        {
+            var replacedUnit = DocumentsUnits.FirstOrDefault(x => x.Id == replacedUnitId)
+                ?? throw new DomainException(this, DomainErrors.ObjectNotFound(nameof(DocumentUnit), replacedUnitId.ToString()));
+
+            if (replacedUnit.CanBeRenewed == false)
+                throw new DomainException(this,
+                    DomainErrors.Document.CannotRenewDocumentUnit(replacedUnitId, replacedUnit.Status.Name));
+
+            var replacement = NewDocumentUnit(documentUnitId, periodType, usePreviousPeriod);
+            replacement.SetReplacementOf(replacedUnitId);
+
+            // De novo depois do vínculo: uma substituta em voo não conta como falta enquanto a substituída
+            // ainda cobre, e é o vínculo que informa isso ao RefreshDocumentStatus.
+            RefreshDocumentStatus();
+            return replacement;
+        }
+
+        /// <summary>
+        /// A substituta de [documentUnitId] que ainda está de pé — em curso ou já cobrindo —, ou null quando a
+        /// renovação nunca foi pedida.
+        ///
+        /// Uma substituta descartada (inválida) não conta: a renovação pode ser pedida de novo. É o que torna
+        /// pedir renovação idempotente sem travar o RH depois de um engano.
+        /// </summary>
+        public DocumentUnit? LiveReplacementFor(Guid documentUnitId)
+            => DocumentsUnits.FirstOrDefault(x => x.ReplacesDocumentUnitId == documentUnitId &&
+                (x.IsInFlight || x.CoversRequirement));
 
         // A competência que uma nova unidade teria, usada só para achar uma pendente equivalente antes de criar
         // outra. Precisa espelhar exatamente o que DocumentUnit.Create faz: sem data -> mínima; com data ->
@@ -282,9 +326,10 @@ namespace PeopleManagement.Domain.AggregatesModel.DocumentAggregate
         }
 
         /// <summary>
-        /// A unidade venceu: a exigência fica descoberta até chegar substituto. Incrementa
-        /// <see cref="ExpirationCount"/>, que é o contador de renovações lido pela política de vencimento do
-        /// template.
+        /// A unidade venceu: a exigência fica descoberta até chegar substituto.
+        ///
+        /// Não mexe no <see cref="RenewalCount"/> — vencer não é renovar. Quem consome cota é
+        /// <see cref="RegisterRenewal"/>, chamado quando a substituta é efetivamente emitida.
         /// </summary>
         public bool ExpireDocumentUnit(Guid documentUnitId)
         {
@@ -293,11 +338,20 @@ namespace PeopleManagement.Domain.AggregatesModel.DocumentAggregate
 
             var expired = documentUnit.MarkAsExpired();
 
-            if (expired)
-                ExpirationCount++;
-
             RefreshDocumentStatus();
             return expired;
+        }
+
+        /// <summary>
+        /// Registra que uma renovação foi consumida. Chamado uma única vez por substituta efetivamente emitida —
+        /// pedir a renovação de novo devolve a mesma unidade e não conta de novo.
+        ///
+        /// Depreciar e invalidar também deixam uma pendente no lugar, e essas NÃO passam por aqui: são correção
+        /// de um documento errado, não a troca de um ciclo de validade por outro.
+        /// </summary>
+        public void RegisterRenewal()
+        {
+            RenewalCount++;
         }
 
         public bool MakeAsWarning(Guid documentUnitIdExpire)
@@ -365,10 +419,17 @@ namespace PeopleManagement.Domain.AggregatesModel.DocumentAggregate
         /// entregar a de março não resolve a de abril. Unidades sem competência num documento periodizado são
         /// legado e não pertencem a competência nenhuma, então qualquer entrega as supera.
         ///
-        /// Fora desse alcance há uma exceção deliberada: TODA unidade vencida é depreciada, de qualquer
-        /// competência. Uma vencida está esperando substituto, e a renovação de um documento por competência cai
-        /// na competência SEGUINTE — exigir competência igual a deixaria esperando um substituto que, por
-        /// construção, nunca chega na dela.
+        /// Fora desse alcance há duas exceções deliberadas:
+        ///
+        /// TODA unidade vencida é depreciada, de qualquer competência. Uma vencida está esperando substituto, e a
+        /// renovação de um documento por competência cai na competência SEGUINTE — exigir competência igual a
+        /// deixaria esperando um substituto que, por construção, nunca chega na dela.
+        ///
+        /// E a unidade que esta veio substituir (<see cref="DocumentUnit.ReplacesDocumentUnitId"/>) sai de cena
+        /// também, de qualquer competência. É o caso da renovação entregue ANTES do vencimento: a substituída
+        /// ainda está OK ou A Vencer, então nem a competência nem a regra da vencida a alcançariam, e ela ficaria
+        /// viva até vencer sozinha — deixando a substituta pendente e o documento cobrando duas vezes a mesma
+        /// coisa. Ela vira histórico, não engano: no dia da entrega ela ainda tinha valor.
         /// </summary>
         private void SupersedeUnitsCoveredBy(Guid resolvingUnitId)
         {
@@ -379,7 +440,8 @@ namespace PeopleManagement.Domain.AggregatesModel.DocumentAggregate
 
             var superseded = DocumentsUnits
                 .Where(x => x.Id != resolvingUnitId)
-                .Where(x => x.IsExpired
+                .Where(x => x.Id == resolving.ReplacesDocumentUnitId
+                    || x.IsExpired
                     || (resolving.Period is null
                         ? x.Period is null
                         : x.Period is null || x.Period.Equals(resolving.Period)))
@@ -432,6 +494,8 @@ namespace PeopleManagement.Domain.AggregatesModel.DocumentAggregate
         /// Documento sem competência é tratado como uma competência só — mesmo caminho, mesma ordem. A versão
         /// anterior tinha dois caminhos com precedências diferentes, e o ramo por competência descartava
         /// Deprecated e AwaitingSignature: um documento periodizado com tudo vencido reportava OK.
+        ///
+        /// A renovação em voo não entra na conta (ver <see cref="IsRenewalInFlight"/>).
         /// </summary>
         private void RefreshDocumentStatus()
         {
@@ -442,11 +506,29 @@ namespace PeopleManagement.Domain.AggregatesModel.DocumentAggregate
             }
 
             var statusPerPeriod = DocumentsUnits
+                .Where(x => IsRenewalInFlight(x) == false)
                 .GroupBy(x => x.Period)
                 .Select(GetStatusFromGroup);
 
             Status = statusPerPeriod.MinBy(DocumentStatus.Severity) ?? DocumentStatus.OK;
         }
+
+        /// <summary>
+        /// A unidade é a renovação de uma cobertura que ainda vale — pedida, ainda não entregue, e a substituída
+        /// continua cobrindo a exigência.
+        ///
+        /// Ela é ignorada no status do documento porque não é falta: o que ela representa já está coberto agora, e
+        /// o que ela promete é a cobertura do próximo ciclo. Sem isso, pedir a renovação de um documento A Vencer
+        /// piorava o status dele — a substituta nasce em outra competência (a mínima, esperando data), então virava
+        /// uma competência descoberta e o documento passava de "A Vencer" para "Falta Entregar". Pedir a renovação
+        /// no prazo não pode deixar o documento pior do que ignorá-la.
+        ///
+        /// Quando a substituída vence, ela deixa de cobrir e a substituta volta a contar — daí o documento fica
+        /// "Vencido" até a nova ser entregue, e não antes.
+        /// </summary>
+        private bool IsRenewalInFlight(DocumentUnit unit)
+            => unit.IsReplacement && unit.IsInFlight &&
+                DocumentsUnits.Any(x => x.Id == unit.ReplacesDocumentUnitId && x.CoversRequirement);
 
         /// <summary>
         /// O status de UMA competência. A melhor unidade define: basta uma cobrindo para a competência estar

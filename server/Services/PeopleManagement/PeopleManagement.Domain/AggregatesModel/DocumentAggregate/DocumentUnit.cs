@@ -44,6 +44,17 @@ namespace PeopleManagement.Domain.AggregatesModel.DocumentAggregate
         /// </summary>
         public ScheduledSignature? ScheduledSignature { get; private set; }
 
+        /// <summary>
+        /// A unidade que esta nasceu para substituir, quando ela veio de uma renovação. Null = unidade comum.
+        ///
+        /// A relação sempre existiu de fato — a renovada substitui a que está vencendo —, mas era implícita e
+        /// irrecuperável, e por isso três perguntas não tinham resposta: quem depreciar quando a substituta é
+        /// entregue (ela e a substituída podem estar em competências diferentes), se uma renovação já foi pedida
+        /// (para não pedir duas), e se uma pendente é cobrança de verdade ou apenas a renovação em voo de uma
+        /// cobertura que ainda vale.
+        /// </summary>
+        public Guid? ReplacesDocumentUnitId { get; private set; }
+
         private DocumentUnit() { }
         private DocumentUnit(Guid id, Document document) : base(id)
         {
@@ -172,6 +183,31 @@ namespace PeopleManagement.Domain.AggregatesModel.DocumentAggregate
         public bool IsSignatureScheduled => ScheduledSignature is not null;
 
         /// <summary>
+        /// Marca esta unidade como substituta de [replacedUnitId]. Chamado só pelo agregado, na renovação.
+        /// </summary>
+        internal void SetReplacementOf(Guid replacedUnitId)
+        {
+            ReplacesDocumentUnitId = replacedUnitId;
+        }
+
+        public bool IsReplacement => ReplacesDocumentUnitId is not null;
+
+        /// <summary>
+        /// Se faz sentido pedir a substituta desta unidade. Renovar é trocar uma entrega que teve valor por outra,
+        /// então só uma unidade que está (ou esteve) em vigência pode ser renovada — antes de vencer
+        /// (<see cref="DocumentUnitStatus.OK"/>, <see cref="DocumentUnitStatus.Warning"/>) ou depois
+        /// (<see cref="DocumentUnitStatus.Expired"/>).
+        ///
+        /// <see cref="DocumentUnitStatus.Deprecated"/> já foi substituída. Pendente, aguardando assinatura e
+        /// requer validação ainda são a entrega em curso — o que falta ali é entregar, não renovar.
+        /// <see cref="DocumentUnitStatus.NotApplicable"/> tem saída própria (invalidar volta a exigir o documento)
+        /// e <see cref="DocumentUnitStatus.Invalid"/> nunca teve valor a renovar.
+        /// </summary>
+        public bool CanBeRenewed => Status == DocumentUnitStatus.OK ||
+            Status == DocumentUnitStatus.Warning ||
+            Status == DocumentUnitStatus.Expired;
+
+        /// <summary>
         /// A unidade tem erro, foi entregue por engano, ou a decisão que ela registrava deixou de valer: perde
         /// qualquer valor legal.
         ///
@@ -187,7 +223,7 @@ namespace PeopleManagement.Domain.AggregatesModel.DocumentAggregate
         {
             if (Status == DocumentUnitStatus.OK ||
                 Status == DocumentUnitStatus.NotApplicable ||
-                IsUndelivered)
+                IsInFlight)
             {
                 Status = DocumentUnitStatus.Invalid;
                 return true;
@@ -260,7 +296,7 @@ namespace PeopleManagement.Domain.AggregatesModel.DocumentAggregate
         /// </summary>
         private bool DiscardUndelivered()
         {
-            if (IsUndelivered)
+            if (IsInFlight)
             {
                 Status = DocumentUnitStatus.Invalid;
                 return true;
@@ -319,7 +355,7 @@ namespace PeopleManagement.Domain.AggregatesModel.DocumentAggregate
         /// <summary>
         /// A unidade ainda está em curso: nada foi entregue e aceito, então ela não comprova nada nem dispensa nada.
         /// </summary>
-        private bool IsUndelivered => Status == DocumentUnitStatus.Pending ||
+        public bool IsInFlight => Status == DocumentUnitStatus.Pending ||
             Status == DocumentUnitStatus.RequiresValidation ||
             Status == DocumentUnitStatus.AwaitingSignature;
 

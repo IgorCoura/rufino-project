@@ -112,6 +112,14 @@ namespace PeopleManagement.Domain.ErrorTools.ErrorsMessages
                 $"A unidade de documento {docUnitId} não pode ser invalidada com o status '{currentStatus}'. Documentos já depreciados ou vencidos são a prova de um período e não podem ser apagados.",
                 new { docUnitId, currentStatus });
 
+            public static Error CannotRenewDocumentUnit(Guid docUnitId, string currentStatus) => new("PMD.DOC25",
+                $"A unidade de documento {docUnitId} não pode ser renovada com o status '{currentStatus}'. Só um documento que está ou esteve em vigência tem o que renovar.",
+                new { docUnitId, currentStatus });
+
+            public static Error RenewalLimitReached(Guid documentId, int renewalsUsed) => new("PMD.DOC26",
+                $"O documento {documentId} já usou as {renewalsUsed} renovações permitidas pelo seu tipo de documento e não pode ser renovado novamente.",
+                new { documentId, renewalsUsed });
+
         }
 
         public static class DocumentTemplate

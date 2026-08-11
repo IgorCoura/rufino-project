@@ -1,5 +1,6 @@
 using System.Net;
 using Microsoft.EntityFrameworkCore;
+using PeopleManagement.Application.Commands.DocumentCommands.RenewDocumentUnit;
 using PeopleManagement.Application.Commands.DocumentCommands.UpdateDocumentUnitDetails;
 using PeopleManagement.Domain.AggregatesModel.DocumentAggregate;
 using PeopleManagement.Domain.AggregatesModel.DocumentAggregate.Interfaces;
@@ -16,9 +17,11 @@ namespace PeopleManagement.IntegrationTests.Tests
 {
     // O teste-espinha-dorsal do Composite: um template com as QUATRO policies ao mesmo tempo (vencimento
     // limitado a 1 renovação + carga horária + competência mensal + assinatura) atravessa o ciclo inteiro —
-    // evento gera a unidade, o update aplica competência/validade/carga de uma vez, o documento fica OK, vence e
-    // renova (a renovada nasce na competência mínima, sem data de referência), vence de novo e PARA no teto.
-    // Prova que as policies agem juntas sem interferir umas nas outras.
+    // evento gera a unidade, o update aplica competência/validade/carga de uma vez, o documento fica OK, vence,
+    // é renovado à mão (a renovada nasce na competência mínima, sem data de referência), vence de novo e PARA no
+    // teto. Prova que as policies agem juntas sem interferir umas nas outras.
+    //
+    // A renovação é um passo explícito porque o vencimento não cria mais nada: o job só move o status.
     [Collection(nameof(IntegrationTestCollection))]
     public class DocumentPolicyFullCycleTests(PeopleManagementWebApplicationFactory factory) : BaseIntegrationTest(factory)
     {
@@ -54,20 +57,27 @@ namespace PeopleManagement.IntegrationTests.Tests
             // 3) Documento entregue e OK.
             await MakeUnitOkAsync(seed.DocumentId, bornUnit.Id, ct);
 
-            // 4) Primeiro vencimento: ainda dentro do teto (0 renovações consumidas < 1) — a vencida fica
-            //    VENCIDA (ainda não há substituto entregue) e RENOVA. A unidade renovada nasce SEM data de
-            //    referência, na competência mínima, esperando a real.
+            // 4) Primeiro vencimento: a unidade fica VENCIDA (não há substituto entregue) e nada mais acontece —
+            //    o job só avisa. Renovar é decisão do RH.
             await DepreciateAsync(seed.DocumentId, bornUnit.Id, seed.CompanyId, ct);
+
+            var afterExpiration = await GetDocumentAsync(seed.DocumentId, ct);
+            Assert.Equal(DocumentUnitStatus.Expired, Assert.Single(afterExpiration.DocumentsUnits).Status);
+            Assert.Equal(0, afterExpiration.RenewalCount);
+
+            // 5) O RH renova: ainda dentro do teto (0 renovações consumidas < 1). A substituta nasce SEM data de
+            //    referência, na competência mínima, esperando a real, e vinculada à que ela substitui.
+            await RenewAsync(seed.CompanyId, seed.DocumentId, seed.EmployeeId, bornUnit.Id);
 
             var afterFirst = await GetDocumentAsync(seed.DocumentId, ct);
             Assert.Equal(2, afterFirst.DocumentsUnits.Count);
-            Assert.Equal(DocumentUnitStatus.Expired, afterFirst.DocumentsUnits.First(u => u.Id == bornUnit.Id).Status);
-            Assert.Equal(1, afterFirst.ExpirationCount);
+            Assert.Equal(1, afterFirst.RenewalCount);
             var renewedUnit = Assert.Single(afterFirst.DocumentsUnits, u => u.Status == DocumentUnitStatus.Pending);
+            Assert.Equal(bornUnit.Id, renewedUnit.ReplacesDocumentUnitId);
             Assert.NotNull(renewedUnit.Period);
             Assert.Equal(Period.MIN_YEAR, renewedUnit.Period!.Year);
 
-            // 5) A renovada recebe a data real (sai da competência mínima) e é entregue: a entrega é o
+            // 6) A renovada recebe a data real (sai da competência mínima) e é entregue: a entrega é o
             //    substituto que a vencida esperava, então a primeira vira histórico (Deprecated).
             await SetUnitDateAsync(seed.DocumentId, renewedUnit.Id, date, ct);
             await MakeUnitOkAsync(seed.DocumentId, renewedUnit.Id, ct);
@@ -75,15 +85,19 @@ namespace PeopleManagement.IntegrationTests.Tests
             var afterReplacement = await GetDocumentAsync(seed.DocumentId, ct);
             Assert.Equal(DocumentUnitStatus.Deprecated, afterReplacement.DocumentsUnits.First(u => u.Id == bornUnit.Id).Status);
 
-            // 6) A renovada vence: o teto (1 renovação) foi atingido — vence e NÃO cria outra. O documento fica
-            //    descoberto, que é exatamente o que o status Vencido comunica.
+            // 7) A renovada vence e o RH tenta renovar de novo: o teto (1 renovação) foi atingido, a renovação é
+            //    recusada e o documento fica descoberto — que é exatamente o que o status Vencido comunica.
             await DepreciateAsync(seed.DocumentId, renewedUnit.Id, seed.CompanyId, ct);
+
+            var renewAtCap = await RenewAsync(seed.CompanyId, seed.DocumentId, seed.EmployeeId, renewedUnit.Id);
+            Assert.NotEqual(HttpStatusCode.OK, renewAtCap.StatusCode);
+            Assert.Contains("PMD.DOC26", await renewAtCap.Content.ReadAsStringAsync());
 
             var final = await GetDocumentAsync(seed.DocumentId, ct);
             Assert.Equal(2, final.DocumentsUnits.Count);
             Assert.Equal(DocumentUnitStatus.Deprecated, final.DocumentsUnits.First(u => u.Id == bornUnit.Id).Status);
             Assert.Equal(DocumentUnitStatus.Expired, final.DocumentsUnits.First(u => u.Id == renewedUnit.Id).Status);
-            Assert.Equal(2, final.ExpirationCount);
+            Assert.Equal(1, final.RenewalCount);
             Assert.DoesNotContain(final.DocumentsUnits, u => u.Status == DocumentUnitStatus.Pending);
             Assert.Equal(DocumentStatus.Expired, final.Status);
         }
@@ -174,6 +188,14 @@ namespace PeopleManagement.IntegrationTests.Tests
             var document = await context.Documents.Include(x => x.DocumentsUnits).FirstAsync(x => x.Id == documentId, ct);
             document.InsertUnitWithoutRequireValidation(unitId, "file", "pdf");
             await context.SaveChangesAsync(ct);
+        }
+
+        private async Task<HttpResponseMessage> RenewAsync(Guid companyId, Guid documentId, Guid employeeId, Guid unitId)
+        {
+            var client = CreateClient();
+            client.InputHeaders([companyId]);
+            return await client.PostAsJsonAsync($"/api/v1/{companyId}/document/documentunit/renew",
+                new RenewDocumentUnitModel(unitId, documentId, employeeId));
         }
 
         private async Task DepreciateAsync(Guid documentId, Guid unitId, Guid companyId, CancellationToken ct)

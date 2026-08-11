@@ -9,8 +9,9 @@ namespace PeopleManagement.UnitTests.Aggregates.DocumentTests
     /// Vencido = saiu de vigência e ainda não há substituto (risco de conformidade).
     /// Depreciado = saiu de vigência E já tem substituto (histórico, vale como prova).
     ///
-    /// Também cobre o contador de vencimentos do documento, que substituiu a contagem de unidades depreciadas
-    /// como base da renovação limitada.
+    /// Também cobre o contador de renovações do documento — base da renovação limitada — e o vínculo entre a
+    /// unidade substituta e a substituída, que é o que permite renovar ANTES do vencimento sem que o documento
+    /// passe a cobrar duas vezes a mesma coisa.
     /// </summary>
     public class DocumentUnitExpiredStatusTests
     {
@@ -135,37 +136,158 @@ namespace PeopleManagement.UnitTests.Aggregates.DocumentTests
             Assert.Equal(DocumentStatus.OK, doc.Status);
         }
 
-        // --- Contador de vencimentos ------------------------------------------
+        // --- Contador de renovações -------------------------------------------
 
         [Fact]
-        public void ExpirationCount_ShouldStartAtZero()
+        public void RenewalCount_ShouldStartAtZero()
         {
-            Assert.Equal(0, CreateDocument().ExpirationCount);
+            Assert.Equal(0, CreateDocument().RenewalCount);
         }
 
+        // Vencer não é renovar. O contador mede cota de renovação consumida, e um documento que venceu e ficou
+        // abandonado não consumiu renovação nenhuma — se vencer contasse, ele queimaria a cota sem nunca ter
+        // sido renovado.
         [Fact]
-        public void ExpirationCount_ShouldIncrementOnlyWhenTheUnitActuallyExpires()
+        public void RenewalCount_ShouldNotCountExpiration()
         {
             var doc = CreateDocument();
             var unitId = AddDeliveredUnit(doc);
 
             doc.ExpireDocumentUnit(unitId);
-            doc.ExpireDocumentUnit(unitId); // já vencida: não conta de novo
 
-            Assert.Equal(1, doc.ExpirationCount);
+            Assert.Equal(0, doc.RenewalCount);
         }
 
-        // O contador é o que separa vencimento de substituição: corrigir um documento por reenvio deprecia a
+        [Fact]
+        public void RenewalCount_ShouldCountEachRegisteredRenewal()
+        {
+            var doc = CreateDocument();
+
+            doc.RegisterRenewal();
+            doc.RegisterRenewal();
+
+            Assert.Equal(2, doc.RenewalCount);
+        }
+
+        // O contador é o que separa renovação de substituição: corrigir um documento por reenvio deprecia a
         // unidade antiga, e isso não pode consumir uma renovação.
         [Fact]
-        public void ExpirationCount_ShouldNotCountSupersession()
+        public void RenewalCount_ShouldNotCountSupersession()
         {
             var doc = CreateDocument();
             AddDeliveredUnit(doc);
 
             AddDeliveredUnit(doc, "arquivo-corrigido");
 
-            Assert.Equal(0, doc.ExpirationCount);
+            Assert.Equal(0, doc.RenewalCount);
+        }
+
+        // --- Renovação: o vínculo entre substituta e substituída ---------------
+
+        [Theory]
+        [InlineData(false)] // OK: renovação antecipada
+        [InlineData(true)]  // Vencida: renovação atrasada
+        public void NewReplacementUnit_FromInForceOrExpiredUnit_ShouldStampTheLink(bool expireFirst)
+        {
+            var doc = CreateDocument();
+            var replacedId = AddDeliveredUnit(doc);
+            if (expireFirst)
+                doc.ExpireDocumentUnit(replacedId);
+
+            var replacement = doc.NewReplacementUnit(Guid.NewGuid(), replacedId);
+
+            Assert.True(replacement.IsReplacement);
+            Assert.Equal(replacedId, replacement.ReplacesDocumentUnitId);
+        }
+
+        [Fact]
+        public void NewReplacementUnit_FromPendingUnit_ShouldThrow()
+        {
+            var doc = CreateDocument();
+            var pendingId = AddPendingUnit(doc);
+
+            var exception = Assert.Throws<DomainException>(() => doc.NewReplacementUnit(Guid.NewGuid(), pendingId));
+
+            AssertHasErrorCode(exception, "PMD.DOC25");
+        }
+
+        // A substituta em voo não piora o status: o documento continua contando com a cobertura que ainda vale.
+        // Sem essa regra, pedir a renovação de um documento A Vencer o rebaixava para "Falta Entregar" — pedir a
+        // renovação no prazo não pode deixar o documento pior do que ignorá-la.
+        [Fact]
+        public void DocumentStatus_WithRenewalInFlight_ShouldKeepReportingTheCoverageItStillHas()
+        {
+            var doc = CreateDocument();
+            var replacedId = AddDeliveredUnit(doc);
+            doc.MakeAsWarning(replacedId);
+
+            doc.NewReplacementUnit(Guid.NewGuid(), replacedId);
+
+            Assert.Equal(DocumentStatus.Warning, doc.Status);
+        }
+
+        // Quando a substituída vence ela deixa de cobrir, a substituta volta a contar, e o documento passa a
+        // cobrar — que é o que "Vencido" comunica.
+        [Fact]
+        public void DocumentStatus_WhenTheReplacedUnitExpires_ShouldReportExpired()
+        {
+            var doc = CreateDocument();
+            var replacedId = AddDeliveredUnit(doc);
+            doc.NewReplacementUnit(Guid.NewGuid(), replacedId);
+
+            doc.ExpireDocumentUnit(replacedId);
+
+            Assert.Equal(DocumentStatus.Expired, doc.Status);
+        }
+
+        // Entregar a substituta ANTES do vencimento é o caminho bom, e é o que nem a competência nem a regra da
+        // vencida alcançariam: a substituída ainda está OK. Sem o vínculo ela ficava viva até vencer sozinha, e
+        // o documento cobrava duas vezes a mesma coisa.
+        [Fact]
+        public void WhenTheReplacementIsDelivered_TheReplacedUnitShouldBecomeHistory()
+        {
+            var doc = CreateDocument();
+            var replacedId = AddDeliveredUnit(doc);
+            var replacementId = doc.NewReplacementUnit(Guid.NewGuid(), replacedId).Id;
+
+            doc.UpdateDocumentUnitDetails(replacementId, OfficialDate, TimeSpan.Zero, "");
+            doc.InsertUnitWithoutRequireValidation(replacementId, "arquivo-renovado", "pdf");
+
+            Assert.Equal(DocumentUnitStatus.Deprecated, doc.GetDocumentUnit(replacedId).Status);
+            Assert.Equal(DocumentUnitStatus.OK, doc.GetDocumentUnit(replacementId).Status);
+            Assert.Equal(DocumentStatus.OK, doc.Status);
+        }
+
+        [Fact]
+        public void LiveReplacementFor_WhenTheRenewalWasNotAsked_ShouldReturnNull()
+        {
+            var doc = CreateDocument();
+            var unitId = AddDeliveredUnit(doc);
+
+            Assert.Null(doc.LiveReplacementFor(unitId));
+        }
+
+        [Fact]
+        public void LiveReplacementFor_WhenTheRenewalWasAsked_ShouldReturnIt()
+        {
+            var doc = CreateDocument();
+            var replacedId = AddDeliveredUnit(doc);
+            var replacementId = doc.NewReplacementUnit(Guid.NewGuid(), replacedId).Id;
+
+            Assert.Equal(replacementId, doc.LiveReplacementFor(replacedId)?.Id);
+        }
+
+        // Uma substituta descartada não trava a renovação: o RH pode pedir de novo depois de um engano.
+        [Fact]
+        public void LiveReplacementFor_WhenTheReplacementWasDiscarded_ShouldReturnNull()
+        {
+            var doc = CreateDocument();
+            var replacedId = AddDeliveredUnit(doc);
+            var replacementId = doc.NewReplacementUnit(Guid.NewGuid(), replacedId).Id;
+
+            doc.MarkAsInvalidDocumentUnit(replacementId);
+
+            Assert.Null(doc.LiveReplacementFor(replacedId));
         }
 
         // --- Guardas de invalidação e depreciação manual -----------------------

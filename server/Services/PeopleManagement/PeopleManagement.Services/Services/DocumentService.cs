@@ -99,6 +99,44 @@ namespace PeopleManagement.Services.Services
             return document.NewDocumentUnit(Guid.NewGuid(), periodType, usePreviousPeriod);
         }
 
+        // Renovar cruza dois aggregates — a cota de renovações é regra do template, o contador é do documento —,
+        // então a decisão mora aqui e para o agregado desce só o fato.
+        //
+        // A ordem importa: idempotência primeiro. Um pedido repetido (duplo clique, retry de rede que passou pelo
+        // IdentifiedCommand) precisa devolver a mesma substituta em vez de estourar o teto por causa de uma
+        // renovação que já é a mesma.
+        public async Task<DocumentUnit> RenewDocumentUnit(Guid documentUnitId, Guid documentId, Guid employeeId, Guid companyId,
+            CancellationToken cancellationToken = default)
+        {
+            var document = await _documentRepository.FirstOrDefaultAsync(x => x.Id == documentId && x.EmployeeId == employeeId
+                && x.CompanyId == companyId, include: i => i.Include(x => x.DocumentsUnits), cancellation: cancellationToken)
+                ?? throw new DomainException(this, DomainErrors.ObjectNotFound(nameof(Document), documentId.ToString()));
+
+            var documentTemplate = await _documentTemplateRepository.FirstOrDefaultAsync(
+                x => x.Id == document.DocumentTemplateId && x.CompanyId == companyId, cancellation: cancellationToken)
+                ?? throw new DomainException(this, DomainErrors.ObjectNotFound(nameof(DocumentTemplate), document.DocumentTemplateId.ToString()));
+
+            var liveReplacement = document.LiveReplacementFor(documentUnitId);
+            if (liveReplacement is not null)
+                return liveReplacement;
+
+            // Sem policy de vencimento o documento renova sempre — é o documento com validade avulsa, que nunca
+            // teve teto nenhum a respeitar.
+            var expirationPolicy = documentTemplate.GetPolicy<IExpirationPolicy>();
+            if (expirationPolicy is not null && expirationPolicy.CanRenew(document.RenewalCount) == false)
+                throw new DomainException(this, DomainErrors.Document.RenewalLimitReached(documentId, document.RenewalCount));
+
+            // Sem data de referência: se o template for por competência, a substituta cai na mínima e espera a
+            // data real. A configuração é a ATUAL do template — editar o template vale da próxima renovação em
+            // diante.
+            var (usePreviousPeriod, periodType) = PeriodConfigOf(documentTemplate);
+            var replacement = document.NewReplacementUnit(Guid.NewGuid(), documentUnitId, periodType, usePreviousPeriod);
+
+            document.RegisterRenewal();
+
+            return replacement;
+        }
+
         public async Task CreateDocumentUnitsForEvent(Guid employeeId, Guid companyId, int eventId, CancellationToken cancellationToken = default)
         {
             var employee = await _employeeRepository.FirstOrDefaultMemoryOrDatabase(x => x.Id == employeeId && x.CompanyId == companyId) 
@@ -319,7 +357,7 @@ namespace PeopleManagement.Services.Services
             if (expirationPolicy is null)
                 return null;
 
-            return expirationPolicy.CanRenew(document.ExpirationCount)
+            return expirationPolicy.CanRenew(document.RenewalCount)
                 ? expirationPolicy.Duration
                 : null;
         }

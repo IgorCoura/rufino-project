@@ -812,6 +812,23 @@ class FakeEmployeeRepository implements EmployeeRepository {
   }
 
   @override
+  Future<Result<void>> renewDocumentUnit(
+    String companyId,
+    String employeeId,
+    String documentId,
+    String documentUnitId,
+  ) async {
+    if (_shouldFail) {
+      return Result.error(Exception('renewDocumentUnit failed'));
+    }
+    renewedDocumentUnitIds.add(documentUnitId);
+    return const Result<void>.success(null);
+  }
+
+  /// Ids of the units renewed through this fake, in call order.
+  final List<String> renewedDocumentUnitIds = [];
+
+  @override
   Future<Result<void>> invalidateDocumentUnit(
     String companyId,
     String employeeId,
