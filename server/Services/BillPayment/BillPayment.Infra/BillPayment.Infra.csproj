@@ -1,0 +1,42 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+  <ItemGroup>
+    <!-- Relação de participantes do STR (Bacen). Snapshot embutido de propósito: esta tabela
+         decide um check de pagamento e não pode depender do bcb.gov.br estar no ar em tempo
+         de validação. Atualize com tools/fetch-bacen-participants.js e revise o diff. -->
+    <EmbeddedResource Include="BankDirectory/bacen-participants.csv" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="AWSSDK.S3" Version="4.0.102" />
+    <PackageReference Include="EntityFrameworkCore.Exceptions.PostgreSQL" Version="10.0.0" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="10.0.5" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" Version="10.0.5" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="10.0.5">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="Microsoft.Extensions.Configuration.Binder" Version="10.0.10" />
+    <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" Version="10.0.10" />
+    <PackageReference Include="Microsoft.Extensions.Http.Resilience" Version="10.8.0" />
+    <PackageReference Include="Microsoft.Extensions.Options.ConfigurationExtensions" Version="10.0.10" />
+    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.0" />
+    <PackageReference Include="PdfPig" Version="0.1.15" />
+    <PackageReference Include="Polly.Core" Version="8.7.0" />
+    <PackageReference Include="ZXing.Net.Bindings.SkiaSharp" Version="0.16.22" />
+  </ItemGroup>
+  <ItemGroup>
+    <!-- Os adapters são internal de propósito (só o DI os instancia). A suíte precisa
+         construí-los com um HttpMessageHandler de teste para exercitar a tradução da resposta
+         do provedor sem rede — torná-los public só por causa do teste alargaria a superfície. -->
+    <InternalsVisibleTo Include="BillPayment.IntegrationTests" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\BillPayment.Domain\BillPayment.Domain.csproj" />
+  </ItemGroup>
+</Project>

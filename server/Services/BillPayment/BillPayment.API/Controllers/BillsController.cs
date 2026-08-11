@@ -1,0 +1,129 @@
+namespace BillPayment.API.Controllers;
+
+using BillPayment.Application.Bills.Commands;
+using BillPayment.Application.Mediator;
+using BillPayment.Application.Models.Bills;
+using BillPayment.Application.Queries.Bills;
+using Microsoft.AspNetCore.Mvc;
+
+/// <summary>
+/// Entrada e leitura de documentos de cobrança.
+/// </summary>
+/// <remarks>
+/// Autorização granular (<c>[ProtectedResource("bill", "import"|"view")]</c>) entra na fase 6,
+/// junto com o Keycloak — ver "Checklist pré-produção" no CLAUDE.md do BC.
+/// </remarks>
+[Route("api/v1/{tenantId:guid}/bills")]
+public sealed class BillsController(
+    IMediator mediator,
+    IBillQueries queries,
+    ILogger<BillsController> logger) : BaseController(logger)
+{
+    [HttpGet]
+    public async Task<ActionResult<BillPage>> List(
+        [FromRoute] Guid tenantId,
+        [FromQuery] string? cursor,
+        [FromQuery] int limit,
+        CancellationToken cancellationToken)
+        => OkResponse(await queries.ListAsync(tenantId, cursor, limit, cancellationToken));
+
+    [HttpGet("{id:guid}")]
+    public async Task<ActionResult<BillDto>> GetById(
+        [FromRoute] Guid tenantId,
+        [FromRoute] Guid id,
+        CancellationToken cancellationToken)
+    {
+        var bill = await queries.GetAsync(tenantId, id, cancellationToken);
+        return bill is null ? NotFound() : OkResponse(bill);
+    }
+
+    /// <summary>Importa um documento a partir da linha digitável, do QR Pix, ou dos dois.</summary>
+    [HttpPost("import")]
+    public async Task<ActionResult<ImportBillResponse>> Import(
+        [FromRoute] Guid tenantId,
+        [FromBody] ImportBillModel model,
+        [FromHeader(Name = "x-requestid")] Guid requestId,
+        CancellationToken cancellationToken)
+    {
+        var identified = new IdentifiedCommand<ImportBillCommand, ImportBillResponse>(
+            model.ToCommand(tenantId), EnsureRequestId(requestId));
+
+        return OkResponse(await mediator.Send(identified, cancellationToken));
+    }
+
+    /// <summary>Detalhe com as doze verificações e a evidência de cada uma.</summary>
+    [HttpGet("{id:guid}/detail")]
+    public async Task<ActionResult<BillDetailDto>> GetDetail(
+        [FromRoute] Guid tenantId,
+        [FromRoute] Guid id,
+        CancellationToken cancellationToken)
+    {
+        var detail = await queries.GetDetailAsync(tenantId, id, cancellationToken);
+        return detail is null ? NotFound() : OkResponse(detail);
+    }
+
+    /// <summary>
+    /// Reexecuta a consulta oficial e as verificações. É o botão de revalidar da tela, e o
+    /// caminho para o retrato voltar a estar dentro do prazo antes de aprovar.
+    /// </summary>
+    [HttpPost("{id:guid}/revalidate")]
+    public async Task<ActionResult<ValidateBillResponse>> Revalidate(
+        [FromRoute] Guid tenantId,
+        [FromRoute] Guid id,
+        [FromHeader(Name = "x-requestid")] Guid requestId,
+        CancellationToken cancellationToken)
+    {
+        var identified = new IdentifiedCommand<ValidateBillCommand, ValidateBillResponse>(
+            new ValidateBillCommand(tenantId, id), EnsureRequestId(requestId));
+
+        return OkResponse(await mediator.Send(identified, cancellationToken));
+    }
+
+    /// <summary>Autoriza o pagamento. Nenhum boleto é pago sem passar por aqui (ADR-007).</summary>
+    [HttpPost("{id:guid}/approve")]
+    public async Task<ActionResult<ApproveBillResponse>> Approve(
+        [FromRoute] Guid tenantId,
+        [FromRoute] Guid id,
+        [FromBody] ApproveBillModel model,
+        [FromHeader(Name = "x-requestid")] Guid requestId,
+        [FromHeader(Name = "x-user-id")] Guid userId,
+        CancellationToken cancellationToken)
+    {
+        var identified = new IdentifiedCommand<ApproveBillCommand, ApproveBillResponse>(
+            model.ToCommand(tenantId, id, ResolveDecidingUserId(userId)), EnsureRequestId(requestId));
+
+        return OkResponse(await mediator.Send(identified, cancellationToken));
+    }
+
+    /// <summary>Recusa o boleto. O motivo é obrigatório.</summary>
+    [HttpPost("{id:guid}/deny")]
+    public async Task<ActionResult<DenyBillResponse>> Deny(
+        [FromRoute] Guid tenantId,
+        [FromRoute] Guid id,
+        [FromBody] BillDecisionModel model,
+        [FromHeader(Name = "x-requestid")] Guid requestId,
+        [FromHeader(Name = "x-user-id")] Guid userId,
+        CancellationToken cancellationToken)
+    {
+        var identified = new IdentifiedCommand<DenyBillCommand, DenyBillResponse>(
+            model.ToDenyCommand(tenantId, id, ResolveDecidingUserId(userId)), EnsureRequestId(requestId));
+
+        return OkResponse(await mediator.Send(identified, cancellationToken));
+    }
+
+    /// <summary>Tira o boleto do fluxo — inclusive um que nem chegou a ser verificado.</summary>
+    [HttpPost("{id:guid}/cancel")]
+    public async Task<ActionResult<CancelBillResponse>> Cancel(
+        [FromRoute] Guid tenantId,
+        [FromRoute] Guid id,
+        [FromBody] BillDecisionModel model,
+        [FromHeader(Name = "x-requestid")] Guid requestId,
+        [FromHeader(Name = "x-user-id")] Guid userId,
+        CancellationToken cancellationToken)
+    {
+        var identified = new IdentifiedCommand<CancelBillCommand, CancelBillResponse>(
+            model.ToCancelCommand(tenantId, id, ResolveDecidingUserId(userId)), EnsureRequestId(requestId));
+
+        return OkResponse(await mediator.Send(identified, cancellationToken));
+    }
+}

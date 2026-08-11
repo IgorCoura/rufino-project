@@ -1,0 +1,4 @@
+services:
+  billpayment.api:
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development

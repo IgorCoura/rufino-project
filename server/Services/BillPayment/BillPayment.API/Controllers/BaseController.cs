@@ -1,0 +1,93 @@
+namespace BillPayment.API.Controllers;
+
+using System.Security.Claims;
+using Microsoft.AspNetCore.Mvc;
+
+[ApiController]
+public class BaseController(ILogger<BaseController> logger) : ControllerBase
+{
+    private readonly ILogger<BaseController> _logger = logger;
+
+    protected ActionResult OkResponse(object? result = null)
+    {
+        return Ok(result);
+    }
+
+    protected Guid GetUserId()
+    {
+        var sub = User.FindFirstValue(ClaimTypes.NameIdentifier)
+               ?? User.FindFirstValue("sub");
+
+        if (string.IsNullOrWhiteSpace(sub))
+            throw new UnauthorizedAccessException("Token bearer não contém o claim 'sub'.");
+
+        if (!Guid.TryParse(sub, out var userId))
+            throw new UnauthorizedAccessException("Claim 'sub' do token não é um GUID válido.");
+
+        return userId;
+    }
+
+    protected bool TryGetUserId(out Guid userId)
+    {
+        try
+        {
+            userId = GetUserId();
+            return true;
+        }
+        catch (UnauthorizedAccessException)
+        {
+            userId = Guid.Empty;
+            return false;
+        }
+    }
+
+    protected void SendingCommandLog(object? commandId, object? command, Guid requestId)
+    {
+        if (!_logger.IsEnabled(LogLevel.Information))
+            return;
+
+        _logger.LogInformation(
+            "----- Sending command: {CommandName} - {IdProperty}: {CommandId} ({@Command}) - RequestId : {RequestId} -----",
+            command?.GetType().Name,
+            commandId?.GetType().Name,
+            commandId,
+            command,
+            requestId);
+    }
+
+    protected void CommandResultLog(object? result, object? commandId, object? command, Guid requestId)
+    {
+        if (!_logger.IsEnabled(LogLevel.Information))
+            return;
+
+        _logger.LogInformation(
+            "----- Command result: {@Result} - {CommandName} - {IdProperty}: {CommandId} ({@Command}) - RequestId : {RequestId} -----",
+            result,
+            command?.GetType().Name,
+            commandId?.GetType().Name,
+            commandId,
+            command,
+            requestId);
+    }
+
+    /// <summary>
+    /// Quem está decidindo. Prefere o <c>sub</c> do token; sem token, cai para o header.
+    /// </summary>
+    /// <remarks>
+    /// <strong>O fallback por header é provisório e morre na fase 6.</strong> Nesta fase não há
+    /// Keycloak configurado e o <c>User</c> chega sem claims, então sem ele não haveria como
+    /// registrar quem aprovou — e o ADR-007 exige um <c>UserId</c> em todo pagamento. Quando o
+    /// token entrar, o caminho do claim vence sozinho e este método vira uma linha a apagar.
+    /// <para>
+    /// Devolve <c>Guid.Empty</c> quando nada identifica o usuário: quem recusa é o domínio
+    /// (<c>BLP.BIL22</c>), para a regra viver num lugar só.
+    /// </para>
+    /// </remarks>
+    protected Guid ResolveDecidingUserId(Guid headerUserId)
+        => TryGetUserId(out var fromToken) ? fromToken : headerUserId;
+
+    // Idempotência permissiva: header x-requestid ausente (Guid.Empty) gera um novo Id por request,
+    // de modo que cada chamada sem header é tratada como intenção distinta (nunca colide na tabela).
+    protected static Guid EnsureRequestId(Guid requestId)
+        => requestId == Guid.Empty ? Guid.NewGuid() : requestId;
+}

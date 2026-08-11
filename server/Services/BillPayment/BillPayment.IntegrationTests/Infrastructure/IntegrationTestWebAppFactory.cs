@@ -1,0 +1,150 @@
+namespace BillPayment.IntegrationTests.Infrastructure;
+
+using BillPayment.Domain.Ports;
+using BillPayment.Infra.Persistence;
+using BillPayment.Infra.Secrets;
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.AspNetCore.TestHost;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
+using Npgsql;
+using Respawn;
+using Testcontainers.PostgreSql;
+
+public sealed class IntegrationTestWebAppFactory : WebApplicationFactory<Program>, IAsyncLifetime
+{
+    private readonly PostgreSqlContainer _postgres = new PostgreSqlBuilder()
+        .WithImage("postgres:17")
+        .WithDatabase("bill_payment_tests")
+        .WithUsername("test")
+        .WithPassword("test")
+        .Build();
+
+    /// <summary>Master key só desta execução — nunca versionada, nunca reaproveitada.</summary>
+    public static readonly string TestMasterKey = SecretsOptions.GenerateMasterKey();
+
+    private Respawner _respawner = default!;
+    private string _connectionString = default!;
+
+    protected override void ConfigureWebHost(IWebHostBuilder builder)
+    {
+        builder.UseSetting("ConnectionStrings:BillPayment", _connectionString);
+        // Disable the polling worker in tests so the outbox is driven deterministically via IOutboxProcessor.
+        builder.UseSetting("Outbox:Enabled", "false");
+
+        // Master key descartável, gerada por execução. O cofre precisa de uma para existir, e
+        // a suíte não pode depender de segredo de máquina nem carregar um valor versionado.
+        // Nenhuma chave do Asaas é configurada de propósito: os testes não devem ter
+        // credencial capaz de pagar contas, então a consulta oficial cai nos substitutos.
+        builder.UseSetting("Secrets:MasterKey", TestMasterKey);
+
+        builder.UseEnvironment("Development");
+    }
+
+    public async Task InitializeAsync()
+    {
+        await _postgres.StartAsync();
+        _connectionString = _postgres.GetConnectionString();
+
+        var options = new DbContextOptionsBuilder<BillPaymentDbContext>()
+            .UseNpgsql(_connectionString)
+            .Options;
+
+        await using var context = new BillPaymentDbContext(options);
+        await context.Database.EnsureCreatedAsync();
+
+        await using var connection = new NpgsqlConnection(_connectionString);
+        await connection.OpenAsync();
+
+        _respawner = await Respawner.CreateAsync(connection, new RespawnerOptions
+        {
+            DbAdapter = DbAdapter.Postgres,
+            SchemasToInclude = ["bill_payment"],
+        });
+    }
+
+    public new async Task DisposeAsync()
+    {
+        await _postgres.DisposeAsync();
+        await base.DisposeAsync();
+    }
+
+    /// <summary>
+    /// Host irmão com a consulta oficial trocada por uma determinística.
+    /// </summary>
+    /// <remarks>
+    /// <strong>A troca é por classe de teste, não global.</strong> Trocá-la na fábrica
+    /// compartilhada derrubaria os testes que provam justamente o contrário — que sem chave
+    /// configurada a consulta degrada para <c>Unavailable</c> e nenhum boleto é dado como
+    /// verificado. O contêiner e o banco continuam sendo os mesmos.
+    /// </remarks>
+    public WebApplicationFactory<Program> WithFakeLookups()
+        => WithWebHostBuilder(builder => builder.ConfigureTestServices(services =>
+        {
+            services.AddSingleton<FakeLookupServices>();
+            services.RemoveAll<IBillLookupService>();
+            services.RemoveAll<IPixLookupService>();
+            services.AddSingleton<IBillLookupService>(sp => sp.GetRequiredService<FakeLookupServices>());
+            services.AddSingleton<IPixLookupService>(sp => sp.GetRequiredService<FakeLookupServices>());
+        }));
+
+    /// <summary>
+    /// Host irmão com a leitura de caixa trocada por uma que sempre concede acesso.
+    /// </summary>
+    /// <remarks>
+    /// Mesma regra do <see cref="WithFakeLookups"/>: a troca é <strong>por classe de teste</strong>.
+    /// A fábrica compartilhada continua com o <c>UnconfiguredMailboxReader</c> justamente porque
+    /// há teste provando que, sem adapter, conectar uma fonte <em>falha</em> em vez de criar uma
+    /// caixa silenciosa.
+    /// </remarks>
+    public WebApplicationFactory<Program> WithReachableMailbox()
+        => WithWebHostBuilder(builder => builder.ConfigureTestServices(services =>
+        {
+            services.AddSingleton<FakeMailboxReader>();
+            services.RemoveAll<IMailboxReader>();
+            services.AddSingleton<IMailboxReader>(sp => sp.GetRequiredService<FakeMailboxReader>());
+        }));
+
+    /// <summary>
+    /// Host irmão com a cadeia de captura completa: caixa falsa e armazenamento em memória.
+    /// </summary>
+    /// <remarks>
+    /// Mesma regra dos outros substitutos — a troca é <strong>por classe de teste</strong>. A
+    /// fábrica compartilhada mantém o armazenamento não configurado, que falha em toda escrita,
+    /// porque é assim que a aplicação se comporta antes de alguém configurar o balde.
+    /// </remarks>
+    public WebApplicationFactory<Program> WithCaptureChain()
+        => WithWebHostBuilder(builder => builder.ConfigureTestServices(services =>
+        {
+            services.AddSingleton<FakeMailboxReader>();
+            services.RemoveAll<IMailboxReader>();
+            services.AddSingleton<IMailboxReader>(sp => sp.GetRequiredService<FakeMailboxReader>());
+
+            services.AddSingleton<InMemoryAttachmentStorage>();
+            services.RemoveAll<IAttachmentStorage>();
+            services.AddSingleton<IAttachmentStorage>(sp => sp.GetRequiredService<InMemoryAttachmentStorage>());
+        }));
+
+    public async Task ResetDatabaseAsync()
+    {
+        await using var connection = new NpgsqlConnection(_connectionString);
+        await connection.OpenAsync();
+        await _respawner.ResetAsync(connection);
+    }
+
+    public async Task ExecuteDbContextAsync(Func<BillPaymentDbContext, Task> action)
+    {
+        using var scope = Services.CreateScope();
+        var context = scope.ServiceProvider.GetRequiredService<BillPaymentDbContext>();
+        await action(context);
+    }
+
+    public async Task<T> ExecuteDbContextAsync<T>(Func<BillPaymentDbContext, Task<T>> action)
+    {
+        using var scope = Services.CreateScope();
+        var context = scope.ServiceProvider.GetRequiredService<BillPaymentDbContext>();
+        return await action(context);
+    }
+}

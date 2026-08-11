@@ -1,0 +1,70 @@
+namespace BillPayment.Infra.Mailboxes.Graph;
+
+using System.Text.Json;
+using System.Text.Json.Serialization;
+
+/// <summary>
+/// O que a fonte guarda no cofre para falar com o Graph: o trio de <em>client credentials</em>.
+/// </summary>
+/// <remarks>
+/// <para>
+/// <strong>Este é o formato do campo <c>credential</c> da API</strong>, e ele é contrato do
+/// adapter — a Application guarda a string opaca e nunca a interpreta. Um JSON com três campos:
+/// </para>
+/// <code>
+/// {"directoryId":"&lt;guid do tenant no Entra ID&gt;","clientId":"&lt;guid do app&gt;","clientSecret":"&lt;segredo&gt;"}
+/// </code>
+/// <para>
+/// O cliente cria o registro no <em>próprio</em> Entra ID (ADR-006), concede a permissão de
+/// aplicativo <c>Mail.Read</c> e a restringe por <strong>Application Access Policy</strong> ao
+/// grupo com as caixas monitoradas. Sem essa política, <c>Mail.Read</c> alcança todas as caixas
+/// do tenant — é a diferença entre ler uma caixa e ler a empresa inteira.
+/// </para>
+/// <para>
+/// <strong>Nada aqui vai para log, exceção ou resposta de API.</strong> <see cref="ToString"/> é
+/// sobrescrito porque o <c>record</c> imprimiria o segredo em qualquer interpolação distraída.
+/// </para>
+/// </remarks>
+internal sealed record GraphMailboxCredential(
+    [property: JsonPropertyName("directoryId")] string DirectoryId,
+    [property: JsonPropertyName("clientId")] string ClientId,
+    [property: JsonPropertyName("clientSecret")] string ClientSecret)
+{
+    private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
+
+    public static bool TryParse(string? raw, out GraphMailboxCredential? credential)
+    {
+        credential = null;
+
+        if (string.IsNullOrWhiteSpace(raw))
+            return false;
+
+        try
+        {
+            var parsed = JsonSerializer.Deserialize<GraphMailboxCredential>(raw, Json);
+
+            if (parsed is null
+                || string.IsNullOrWhiteSpace(parsed.DirectoryId)
+                || string.IsNullOrWhiteSpace(parsed.ClientId)
+                || string.IsNullOrWhiteSpace(parsed.ClientSecret))
+            {
+                return false;
+            }
+
+            credential = parsed;
+            return true;
+        }
+        catch (JsonException)
+        {
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Identidade estável da credencial para cache de token — <strong>sem o segredo</strong>.
+    /// Trocar o segredo mantendo o mesmo app é raro e a expiração do cache cobre.
+    /// </summary>
+    public string CacheKey => $"{DirectoryId}/{ClientId}";
+
+    public override string ToString() => $"GraphMailboxCredential {{ DirectoryId = {DirectoryId}, ClientId = {ClientId} }}";
+}

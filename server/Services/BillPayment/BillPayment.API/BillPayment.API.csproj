@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UserSecretsId>0e91935b-cdef-4708-9f02-813694df3493</UserSecretsId>
+    <DockerDefaultTargetOS>Linux</DockerDefaultTargetOS>
+    <DockerfileContext>.</DockerfileContext>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.8" />
+    <PackageReference Include="Microsoft.VisualStudio.Azure.Containers.Tools.Targets" Version="1.23.0" />
+    <PackageReference Include="Swashbuckle.AspNetCore.SwaggerUI" Version="10.1.7" />
+    <!--
+      Microsoft.AspNetCore.OpenApi declara Microsoft.OpenApi [2.0.0, ), e o NuGet resolve o piso
+      exato (2.0.0) — vulnerável ao GHSA-v5pm-xwqc-g5wc (high, parsing aborta em schema circular).
+      Nenhuma versão 10.x do pacote pai sobe esse piso, então o pin direto é o único caminho.
+      2.7.5 é a primeira versão corrigida da linha 2.x.
+    -->
+    <PackageReference Include="Microsoft.OpenApi" Version="2.7.5" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\BillPayment.Application\BillPayment.Application.csproj" />
+    <ProjectReference Include="..\BillPayment.Infra\BillPayment.Infra.csproj" />
+  </ItemGroup>
+
+</Project>
