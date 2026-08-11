@@ -400,6 +400,24 @@ Os 9 que sobraram (22,0%) são o alvo da 2.4: 4 sem camada de texto e 5 com cont
 
 - **`ICaptureItemWorkQueries`** (fila do worker, separada da query de tela) e **`CaptureProcessingBackgroundService`**, registrado junto do agendador sob `Capture:Enabled`.
 
+**Ensaio de ponta a ponta contra a caixa real — 2026-08-11 ([`tools/run-capture-chain.js`](BillPayment.Architecture/tools/run-capture-chain.js)).** A cadeia inteira (Graph → download → cascata → triagem → balde) rodou contra `igor.coura@`, **404 anexos ingeridos**, duas vezes: antes e depois de cadastrar `PayerProfile`, 11 `Payee` e 15 `TrustedOrigin`.
+
+| Desfecho | Sem cadastro | **Com cadastro** |
+|---|---|---|
+| `Parsed` | 45 | **56** |
+| `Unrecognized` (quarentena com arquivo) | 0 | **95** |
+| `Locked` | 0 | **3** |
+| Descartado | 359 | **250** |
+
+Quatro achados que mudam a 2.4:
+
+1. **A senha derivada funcionou com volume: 11 PDFs cifrados abriram.** E **7 dos 11 abriram por documento _adicional_**, 5 deles pelo **CPF** — `cnpj_first_5_primary` (4), `cpf_first_3_additional_1` (3), `cpf_first_5_additional_1` (2), `cnpj_first_5_additional_0` (2). Derivar só do `PrimaryTaxId` teria perdido 7 boletos; os prefixos curtos dominam, como o doc 09 previa. Confirma com volume o que o corpus sugerira com um caso só.
+2. **O cadastro é pré-requisito de MEDIÇÃO, não só de qualidade.** Sem `Payee`/`TrustedOrigin`, tudo que a cascata não reconhece é descartado sem deixar arquivo — e aí não há como saber quantos boletos reais se perderam. Os 95 em quarentena (80 `no_instrument_in_document`, 12 `not_a_pdf`, 3 `no_text_layer`) **são** a fila de trabalho da 2.4, com documento guardado para medir em cima.
+3. **`not_a_pdf` é um buraco da cascata, não um desfecho.** A allowlist de content-type aceita `image/png` e `image/jpeg`, mas o `PdfBoletoDocumentParser` só abre PDF — então 12 anexos foram ingeridos, baixados e recusados **sem nunca serem lidos**. Boleto que chegue como imagem é inalcançável hoje. **A 2.4 tem que aceitar imagem direto**, não só PDF; é requisito novo daquela sprint.
+4. **O processamento custa ~0,5s por artefato (até 1,9s), dominado pelo download no provedor.** Uma caixa antiga de 404 anexos leva ~7 minutos na primeira varredura — o que dimensiona o teto de espera de qualquer ferramenta que acompanhe a fila, e explica por que a varredura e o processamento são workers separados.
+
+**Ruído conhecido da quarentena:** 72 dos 95 vêm de um endereço só — o do contador, que manda boleto de sindicato junto com holerite, rescisão e nota fiscal. Não é defeito: é o preço de manter o documento em vez de apagar. Reavaliar depois da 2.4, quando a visão resolver os que são boleto e o resto puder purgar por janela.
+
 **Falta para a fase 2**: o extrator de visão (2.4), a resolução de link (2.5), o roteamento e a reivindicação (2.6), as expectativas (2.7). A purga dos itens antigos deixou de ser urgente — o handler já não guarda o que não é boleto.
 
 **Ação fora de sprint, de maior impacto por unidade de esforço:** cadastrar **fatura digital por e-mail** em EDP, SABESP, ENEL, CPFL, VIVO e DAE. É o único degrau que retira volume da fase 5 sem escrever conector — mas **não elimina a fase 5**; sobrará portal ([`adr/ADR-012`](BillPayment.Architecture/adr/ADR-012-portais-reduzir-residuo.md)).

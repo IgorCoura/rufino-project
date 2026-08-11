@@ -82,8 +82,15 @@ const DEFAULT_API = 'http://localhost:5269';
 /** Tenant fixo: reexecutar o ensaio deve reencontrar a mesma fonte, não criar uma nova. */
 const DEFAULT_TENANT = '0195a1f0-0000-7000-8000-00000000f001';
 
-/** Quanto esperar o worker de processamento drenar a fila antes de desistir. */
-const DRAIN_TICKS = 40;
+/**
+ * Quanto esperar o worker de processamento drenar a fila antes de desistir.
+ *
+ * Medido em 2026-08-11 contra a caixa real: ~0,5s por artefato (até 1,9s), dominado pelo download
+ * do anexo no provedor. A primeira varredura de uma caixa antiga traz centenas de itens, então o
+ * teto tem que ser minutos, não segundos — com 2 minutos o ensaio desistia no meio e relatava uma
+ * fila que ainda estava andando.
+ */
+const DRAIN_TICKS = 240;
 const DRAIN_INTERVAL_MS = 3000;
 
 const verbose = process.argv.includes('--verboso');
@@ -231,22 +238,25 @@ async function sync(config, sourceId) {
  * está rodando ou que algo estoura em todo ciclo.
  */
 async function drain(config) {
-  process.stdout.write('\nProcessando');
+  console.log('\nProcessando (a fila anda a ~2 artefatos por segundo)...');
 
   for (let tick = 0; tick < DRAIN_TICKS; tick++) {
     const items = await listAll(config);
     const pending = items.filter((i) => i.status === 'Received').length;
 
     if (pending === 0) {
-      process.stdout.write(' pronto.\n');
+      console.log('  fila vazia.');
       return items;
     }
 
-    process.stdout.write('.');
+    // Contagem em vez de ponto: numa fila de centenas, uma fileira de pontos não diz se está
+    // andando ou travada — e essa é exatamente a pergunta de quem está olhando.
+    if (tick % 5 === 0) console.log(`  ${pending} pendentes`);
+
     await new Promise((resolve) => setTimeout(resolve, DRAIN_INTERVAL_MS));
   }
 
-  process.stdout.write(' teto atingido.\n');
+  console.log('  teto atingido.');
   console.log(
     '  AVISO: ainda há item em Received. O worker de captura está ligado (Capture:Enabled)?',
   );
