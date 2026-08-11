@@ -142,6 +142,11 @@ public static class InfraDependencies
             {
                 ServiceURL = options.ServiceUrl,
                 ForcePathStyle = options.ForcePathStyle,
+
+                // Sem região explícita o SDK infere uma da AWS e assina com ela; o serviço
+                // auto-hospedado recusa a assinatura e a falha só aparece ao gravar o primeiro
+                // anexo. IsConfigured garante que o valor existe.
+                AuthenticationRegion = options.AuthenticationRegion,
             }));
 
         services.AddScoped<IAttachmentStorage, S3AttachmentStorage>();

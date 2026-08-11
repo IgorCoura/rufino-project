@@ -22,10 +22,15 @@ internal sealed class PayeeQueries(BillPaymentDbContext context) : IPayeeQueries
 
         var query = context.Payees.AsNoTracking().Where(p => p.TenantId == tenant);
 
-        // Keyset por CreatedAt, não por Id: o Id é value-converted e o EF não traduz
-        // comparação de ordem sobre ele. CreatedAt é DateTime e traduz direto.
-        if (CursorCodec.TryDecode(cursor, out var afterCreatedAt))
-            query = query.Where(p => p.CreatedAt > afterCreatedAt);
+        // Keyset ascendente por (CreatedAt, Id) — o Id desempata, senão um lote gravado no mesmo
+        // instante torna inalcançável tudo além da primeira página (ver CursorCodec).
+        if (CursorCodec.TryDecode(cursor, out var afterCreatedAt, out var afterId))
+        {
+            var afterPayeeId = PayeeId.From(afterId);
+
+            query = query.Where(p =>
+                p.CreatedAt > afterCreatedAt || (p.CreatedAt == afterCreatedAt && p.Id > afterPayeeId));
+        }
 
         var rows = await query
             .OrderBy(p => p.CreatedAt)
@@ -37,7 +42,9 @@ internal sealed class PayeeQueries(BillPaymentDbContext context) : IPayeeQueries
         if (hasMore)
             rows.RemoveAt(rows.Count - 1);
 
-        var nextCursor = hasMore && rows.Count > 0 ? CursorCodec.Encode(rows[^1].CreatedAt) : null;
+        var nextCursor = hasMore && rows.Count > 0
+            ? CursorCodec.Encode(rows[^1].CreatedAt, rows[^1].Id.Value)
+            : null;
 
         return new PayeePage(rows.ConvertAll(ToDto), nextCursor);
     }

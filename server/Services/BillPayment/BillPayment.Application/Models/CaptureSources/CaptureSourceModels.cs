@@ -56,3 +56,17 @@ public sealed record ReplaceCaptureSourceCredentialModel([property: JsonRequired
     public ReplaceCaptureSourceCredentialCommand ToCommand(Guid tenantId, Guid captureSourceId)
         => new(tenantId, captureSourceId, Credential);
 }
+
+/// <summary>
+/// Acrescenta uma pasta à lista acompanhada. Nulo ou ausente = a caixa de entrada.
+/// </summary>
+/// <remarks>
+/// O caminho vai no <strong>corpo</strong>, não na rota: nome de pasta é texto livre e contém
+/// <c>/</c> por definição — no path viraria outro segmento e a requisição morreria em 404 de
+/// roteamento, antes de chegar ao controller.
+/// </remarks>
+public sealed record AddCaptureSourceFolderModel(string? FolderPath)
+{
+    public AddCaptureSourceFolderCommand ToCommand(Guid tenantId, Guid captureSourceId)
+        => new(tenantId, captureSourceId, FolderPath);
+}

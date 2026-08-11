@@ -20,14 +20,23 @@ internal static class CaptureSourceMother
         string? address = null,
         CredentialRef? credential = null,
         DateTime? occurredAt = null,
-        TenantId? tenantId = null)
+        TenantId? tenantId = null,
+        string? folderPath = null)
         => ConnectVerbatim(
             kind ?? CaptureSourceKind.MicrosoftGraphMailbox,
             displayName ?? "Caixa de contas a pagar",
             address ?? DefaultMailbox,
             credential ?? DefaultCredential,
             occurredAt,
-            tenantId);
+            tenantId,
+            folderPath);
+
+    /// <summary>
+    /// A pasta de uma fonte recém-conectada — a caixa de entrada, a menos que outra tenha sido
+    /// informada. Existe porque cursor e erro passaram a ser por pasta, e todo teste de
+    /// sincronização precisa dizer de qual pasta está falando.
+    /// </summary>
+    public static MonitoredFolder OnlyFolder(CaptureSource source) => source.Folders.First();
 
     /// <summary>
     /// Repassa <c>kind</c> e <c>credential</c> sem coalescer — é o único caminho capaz de
@@ -40,20 +49,22 @@ internal static class CaptureSourceMother
         string address,
         CredentialRef? credential,
         DateTime? occurredAt = null,
-        TenantId? tenantId = null)
+        TenantId? tenantId = null,
+        string? folderPath = null)
         => CaptureSource.Connect(
             tenantId ?? DefaultTenant,
             kind,
             displayName,
             address,
             credential,
-            occurredAt ?? DefaultOccurredAt);
+            occurredAt ?? DefaultOccurredAt,
+            folderPath);
 
-    /// <summary>Fonte já sincronizada uma vez, com cursor no lugar.</summary>
+    /// <summary>Fonte já sincronizada uma vez, com cursor no lugar na única pasta dela.</summary>
     public static CaptureSource Synced(string cursor = "deltaLink-abc123")
     {
         var source = Connect();
-        source.RecordSyncSuccess(cursor, DefaultOccurredAt.AddMinutes(5));
+        source.RecordSyncSuccess(OnlyFolder(source).Id, cursor, DefaultOccurredAt.AddMinutes(5));
         return source;
     }
 }

@@ -15,14 +15,42 @@ public sealed record CaptureSourceDto(
     string DisplayName,
     string Address,
 
-    /// <summary>Pasta monitorada; nulo = a caixa de entrada inteira.</summary>
-    string? FolderPath,
+    /// <summary>
+    /// As pastas acompanhadas, sempre ao menos uma. Cada uma traz o próprio estado de varredura.
+    /// </summary>
+    IReadOnlyList<MonitoredFolderDto> Folders,
 
     bool HasCredential,
     bool IsEnabled,
+
+    /// <summary>Última tentativa concluída em qualquer pasta.</summary>
     DateTime? LastSyncAt,
+
+    /// <summary>
+    /// Resumo: o motivo da falha de alguma pasta, ou nulo quando todas foram bem. O diagnóstico
+    /// por pasta está em <see cref="Folders"/> — colapsar os dois esconderia uma pasta quebrada
+    /// enquanto as outras rodam.
+    /// </summary>
     string? LastSyncError,
-    bool HasSyncCursor,
+
     DateTime CreatedAt);
+
+/// <summary>
+/// Uma pasta acompanhada, do ponto de vista de quem opera.
+/// </summary>
+/// <remarks>
+/// <strong>O cursor não sai daqui</strong> — só a informação de que existe. É um
+/// <c>deltaLink</c> do provedor, com token opaco dentro: devolvê-lo por API entregaria um
+/// ponteiro de leitura da caixa a quem só precisa saber se a varredura já rodou.
+/// </remarks>
+public sealed record MonitoredFolderDto(
+    Guid Id,
+
+    /// <summary>Caminho da pasta; nulo = a caixa de entrada.</summary>
+    string? Path,
+
+    bool HasSyncCursor,
+    DateTime? LastSyncAt,
+    string? LastSyncError);
 
 public sealed record CaptureSourcePage(IReadOnlyList<CaptureSourceDto> Items, string? NextCursor);

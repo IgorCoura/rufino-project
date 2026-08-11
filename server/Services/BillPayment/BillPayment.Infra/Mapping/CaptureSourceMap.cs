@@ -46,15 +46,12 @@ internal sealed class CaptureSourceMap : IEntityTypeConfiguration<CaptureSource>
             .HasMaxLength(CredentialRefConversions.MAX_LENGTH)
             .HasConversion(CredentialRefConversions.Single, CredentialRefConversions.SingleComparer);
 
-        // Nulo = caixa de entrada inteira. Minimizacao de dado na origem: o que nao e lido
-        // nao precisa ser protegido, cifrado nem apagado depois.
-        builder.Property(e => e.FolderPath)
-            .HasColumnName("folder_path")
-            .HasMaxLength(CaptureSource.FOLDER_PATH_MAX_LENGTH);
-
-        builder.Property(e => e.SyncCursor)
-            .HasColumnName("sync_cursor")
-            .HasMaxLength(CaptureSource.SYNC_CURSOR_MAX_LENGTH);
+        // Tabela filha, e nao coluna jsonb: a pasta tem ciclo de vida proprio (cursor que avanca,
+        // erro que aparece e some) e o EF rastreia bem coleção owned de escalares — é o mesmo
+        // critério que colocou bill_checks em tabela e os retratos de consulta em jsonb.
+        // Coleção owned: carrega junto com a raiz sem Include, e não existe fora dela — que é
+        // exatamente a fronteira do Aggregate. Não há repositório de pasta, por desenho.
+        builder.OwnsMany(e => e.Folders, ConfigureFolders);
 
         builder.Property(e => e.LastSyncAt).HasColumnName("last_sync_at");
 
@@ -83,5 +80,60 @@ internal sealed class CaptureSourceMap : IEntityTypeConfiguration<CaptureSource>
         // Cobre a varredura do worker de sincronização, que busca as fontes habilitadas.
         builder.HasIndex(e => new { e.IsEnabled, e.LastSyncAt })
             .HasDatabaseName("ix_capture_sources_enabled_last_sync");
+    }
+
+    /// <summary>
+    /// As pastas acompanhadas, cada uma com o próprio cursor.
+    /// </summary>
+    /// <remarks>
+    /// <strong>O caminho nulo é a caixa de entrada, e o índice único precisa lidar com isso.</strong>
+    /// No Postgres, <c>NULL</c> não colide com <c>NULL</c> em índice único comum, então duas
+    /// linhas de caixa de entrada passariam pelo banco — quem recusa é o agregado
+    /// (<c>BLP.CPS16</c>), e o índice usa <c>NULLS NOT DISTINCT</c> para o banco recusar também
+    /// sob concorrência.
+    /// </remarks>
+    private static void ConfigureFolders(OwnedNavigationBuilder<CaptureSource, MonitoredFolder> folders)
+    {
+        folders.ToTable("capture_source_folders");
+
+        // A FK sombra tem que ter o MESMO tipo da chave da raiz — CaptureSourceId, não Guid.
+        // Declarada como Guid, o EF recusa o modelo inteiro na validação ("cannot target the
+        // primary key ... because it is not compatible"), e a falha derruba o OnModelCreating,
+        // levando junto toda a suíte de integração.
+        folders.Property<CaptureSourceId>("capture_source_id")
+            .HasColumnName("capture_source_id")
+            .HasConversion(id => id.Value, value => CaptureSourceId.From(value));
+
+        folders.WithOwner().HasForeignKey("capture_source_id");
+
+        folders.HasKey(f => f.Id);
+        folders.Property(f => f.Id)
+            .HasColumnName("id")
+            .HasConversion(id => id.Value, value => MonitoredFolderId.From(value))
+            .ValueGeneratedNever();
+
+        // Nulo = caixa de entrada. Nulo em vez do nome traduzido porque "Caixa de Entrada" muda
+        // com o idioma da conta, e o adapter resolve o nome bem-conhecido do provedor.
+        folders.Property(f => f.Path)
+            .HasColumnName("path")
+            .HasMaxLength(MonitoredFolder.PATH_MAX_LENGTH);
+
+        folders.Property(f => f.SyncCursor)
+            .HasColumnName("sync_cursor")
+            .HasMaxLength(MonitoredFolder.SYNC_CURSOR_MAX_LENGTH);
+
+        folders.Property(f => f.LastSyncAt).HasColumnName("last_sync_at");
+
+        folders.Property(f => f.LastSyncError)
+            .HasColumnName("last_sync_error")
+            .HasMaxLength(MonitoredFolder.SYNC_ERROR_MAX_LENGTH);
+
+        folders.Property(f => f.CreatedAt).HasColumnName("created_at").IsRequired();
+        folders.Property(f => f.UpdatedAt).HasColumnName("updated_at").IsRequired();
+
+        folders.HasIndex("capture_source_id", nameof(MonitoredFolder.Path))
+            .IsUnique()
+            .AreNullsDistinct(false)
+            .HasDatabaseName("ix_capture_source_folders_source_path");
     }
 }

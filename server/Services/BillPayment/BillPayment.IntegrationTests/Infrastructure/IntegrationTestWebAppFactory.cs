@@ -40,6 +40,26 @@ public sealed class IntegrationTestWebAppFactory : WebApplicationFactory<Program
         // credencial capaz de pagar contas, então a consulta oficial cai nos substitutos.
         builder.UseSetting("Secrets:MasterKey", TestMasterKey);
 
+        // A suíte roda como Development, então ela lê o appsettings.Development.json E os
+        // user-secrets da máquina de quem está desenvolvendo. Nada disso pode dirigir os testes:
+        //  - Capture ligado registraria os dois workers, que varreriam e processariam por conta
+        //    própria enquanto o Respawn limpa o banco entre testes.
+        //  - Graph ligado trocaria o UnconfiguredMailboxReader por um adapter que tenta rede.
+        //  - Storage configurado apontaria a fábrica compartilhada para um balde de verdade,
+        //    justamente onde ela existe para exercitar o armazenamento NÃO configurado.
+        // Cada classe que precisa da cadeia pede um host irmão (WithCaptureChain etc.).
+        builder.UseSetting("Capture:Enabled", "false");
+        builder.UseSetting("Graph:Enabled", "false");
+        builder.UseSetting("Storage:ServiceUrl", string.Empty);
+
+        // A chave do Asaas idem, e esta já era regra escrita — só não estava executável. Quem a
+        // sustentava era a ausência do segredo na máquina, e no dia em que alguém rodou
+        // `dotnet user-secrets set "Asaas:ApiKey"` a suíte passou a fazer chamada de rede ao
+        // provedor: os UnconfiguredLookupTests, que existem para provar que SEM chave a consulta
+        // degrada para Unavailable, voltaram Unresolved — resposta real do Asaas. Além de não
+        // provarem mais nada, tornam a suíte refém do provedor estar no ar.
+        builder.UseSetting("Asaas:ApiKey", string.Empty);
+
         builder.UseEnvironment("Development");
     }
 

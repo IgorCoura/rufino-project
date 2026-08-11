@@ -22,14 +22,21 @@ internal sealed class BillQueries(BillPaymentDbContext context) : IBillQueries
 
         var query = context.Bills.AsNoTracking().Where(b => b.TenantId == tenant);
 
-        // Keyset por CreatedAt: o Id é value-converted e o EF não traduz comparação de ordem
-        // sobre ele. Mais recente primeiro — é a ordem em que a fila é trabalhada.
-        if (CursorCodec.TryDecode(cursor, out var beforeCreatedAt))
-            query = query.Where(b => b.CreatedAt < beforeCreatedAt);
+        // Keyset descendente por (CreatedAt, Id) — mais recente primeiro, que é a ordem em que a
+        // fila é trabalhada. O desempate é DESCENDENTE junto com a chave: esta lista ordenava
+        // CreatedAt desc e desempatava Id asc, e direções cruzadas fazem ORDER BY e WHERE
+        // discordarem sobre quem já foi visto.
+        if (CursorCodec.TryDecode(cursor, out var beforeCreatedAt, out var beforeId))
+        {
+            var beforeBillId = BillId.From(beforeId);
+
+            query = query.Where(b =>
+                b.CreatedAt < beforeCreatedAt || (b.CreatedAt == beforeCreatedAt && b.Id < beforeBillId));
+        }
 
         var rows = await query
             .OrderByDescending(b => b.CreatedAt)
-            .ThenBy(b => b.Id)
+            .ThenByDescending(b => b.Id)
             .Take(effectiveLimit + 1)
             .ToListAsync(cancellationToken);
 
@@ -37,7 +44,9 @@ internal sealed class BillQueries(BillPaymentDbContext context) : IBillQueries
         if (hasMore)
             rows.RemoveAt(rows.Count - 1);
 
-        var nextCursor = hasMore && rows.Count > 0 ? CursorCodec.Encode(rows[^1].CreatedAt) : null;
+        var nextCursor = hasMore && rows.Count > 0
+            ? CursorCodec.Encode(rows[^1].CreatedAt, rows[^1].Id.Value)
+            : null;
 
         return new BillPage(rows.ConvertAll(ToDto), nextCursor);
     }

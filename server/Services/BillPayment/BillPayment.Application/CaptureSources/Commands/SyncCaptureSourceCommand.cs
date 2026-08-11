@@ -66,22 +66,38 @@ public sealed class SyncCaptureSourceCommandHandler(
         if (!source.Kind.SupportsIncrementalSync)
             return new SyncCaptureSourceResponse(source.Id.Value, "NotApplicable", 0, 0);
 
-        // Recusa fonte desativada (BLP.CPS12) e devolve de onde retomar, numa chamada só.
-        var cursor = source.BeginSync();
+        // Recusa fonte desativada (BLP.CPS12) e devolve as pastas a varrer, numa chamada só.
+        var folders = source.BeginSync();
 
         var now = clock.GetUtcNow();
-        var result = await mailboxReader.ReadAsync(
-            source.Address, source.Credential!, source.FolderPath, cursor, cancellationToken);
+        var ingested = 0;
+        var skipped = 0;
+        var statuses = new List<MailboxStatus>(folders.Count);
 
-        var (ingested, skipped) = result.IsOk
-            ? await IngestAsync(source, result, now.UtcDateTime, cancellationToken)
-            : (0, 0);
+        // Uma pasta por vez, cada uma com o próprio cursor e o próprio desfecho. Uma pasta
+        // renomeada no cliente de e-mail registra a falha dela e NÃO impede as outras de
+        // sincronizar — mesma disciplina que faz uma caixa fora do ar não travar as demais.
+        foreach (var folder in folders)
+        {
+            var result = await mailboxReader.ReadAsync(
+                source.Address, source.Credential!, folder.Path, folder.SyncCursor, cancellationToken);
 
-        RecordOutcome(source, result, now.UtcDateTime);
+            if (result.IsOk)
+            {
+                var (folderIngested, folderSkipped) =
+                    await IngestAsync(source, result, now.UtcDateTime, cancellationToken);
+
+                ingested += folderIngested;
+                skipped += folderSkipped;
+            }
+
+            RecordOutcome(source, folder.Id, result, now.UtcDateTime);
+            statuses.Add(result.Status);
+        }
 
         await unitOfWork.SaveEntitiesAsync(cancellationToken);
 
-        return new SyncCaptureSourceResponse(source.Id.Value, result.Status.Name, ingested, skipped);
+        return new SyncCaptureSourceResponse(source.Id.Value, Summarize(statuses), ingested, skipped);
     }
 
     /// <summary>
@@ -138,20 +154,41 @@ public sealed class SyncCaptureSourceCommandHandler(
     /// Traduz o desfecho da leitura para o agregado. Quem sabe o que cada status significa para o
     /// cursor é o próprio <c>MailboxStatus</c> — o handler só encaminha.
     /// </summary>
-    private static void RecordOutcome(CaptureSource source, MailboxReadResult result, DateTime occurredAt)
+    private static void RecordOutcome(
+        CaptureSource source,
+        MonitoredFolderId folderId,
+        MailboxReadResult result,
+        DateTime occurredAt)
     {
         if (result.IsOk)
         {
-            source.RecordSyncSuccess(result.NextCursor, occurredAt);
+            source.RecordSyncSuccess(folderId, result.NextCursor, occurredAt);
             return;
         }
 
-        // Cursor invalidado pelo provedor: descartar é a resposta, e sem isso a fonte pararia de
+        // Cursor invalidado pelo provedor: descartar é a resposta, e sem isso a pasta pararia de
         // sincronizar em silêncio. A falha continua registrada para o usuário ver o que houve.
         if (result.RequiresCursorReset)
-            source.ResetCursor(occurredAt);
+            source.ResetCursor(folderId, occurredAt);
 
-        source.RecordSyncFailure(result.ReasonCode!, occurredAt);
+        source.RecordSyncFailure(folderId, result.ReasonCode!, occurredAt);
+    }
+
+    /// <summary>
+    /// Um desfecho só para a resposta, a partir dos desfechos de cada pasta.
+    /// </summary>
+    /// <remarks>
+    /// <strong>A falha vence o êxito.</strong> Devolver <c>Ok</c> porque a maioria das pastas foi
+    /// bem esconderia a que não foi — e quem chamou o endereço manualmente está justamente
+    /// conferindo se a conexão funciona. O detalhe por pasta está na consulta da fonte.
+    /// </remarks>
+    private static string Summarize(List<MailboxStatus> statuses)
+    {
+        if (statuses.Count == 0)
+            return "NotApplicable";
+
+        var failure = statuses.Find(s => s != MailboxStatus.Ok);
+        return (failure ?? MailboxStatus.Ok).Name;
     }
 }
 

@@ -143,6 +143,70 @@ public sealed class CaptureSourcesController(
         return OkResponse(await mediator.Send(identified, cancellationToken));
     }
 
+    /// <summary>
+    /// Acrescenta uma pasta à lista acompanhada. Corpo vazio ou <c>folderPath</c> nulo = caixa de entrada.
+    /// </summary>
+    /// <remarks>
+    /// A pasta nasce sem cursor, então a primeira varredura dela lê tudo o que já está lá. Não há
+    /// recursão: subpasta que não estiver na lista não é lida.
+    /// </remarks>
+    [HttpPost("{id:guid}/folders")]
+    public async Task<ActionResult<AddCaptureSourceFolderResponse>> AddFolder(
+        [FromRoute] Guid tenantId,
+        [FromRoute] Guid id,
+        [FromBody] AddCaptureSourceFolderModel model,
+        [FromHeader(Name = "x-requestid")] Guid requestId,
+        CancellationToken cancellationToken)
+    {
+        var identified = new IdentifiedCommand<AddCaptureSourceFolderCommand, AddCaptureSourceFolderResponse>(
+            model.ToCommand(tenantId, id), EnsureRequestId(requestId));
+
+        return OkResponse(await mediator.Send(identified, cancellationToken));
+    }
+
+    /// <summary>
+    /// Deixa de acompanhar uma pasta. Recusa remover a última (<c>BLP.CPS18</c>).
+    /// </summary>
+    /// <remarks>
+    /// O caminho vai em query string, não no path: nome de pasta contém <c>/</c> por definição e
+    /// no segmento de rota morreria em 404 antes do controller. Ausente = a caixa de entrada.
+    /// </remarks>
+    [HttpDelete("{id:guid}/folders")]
+    public async Task<ActionResult<RemoveCaptureSourceFolderResponse>> RemoveFolder(
+        [FromRoute] Guid tenantId,
+        [FromRoute] Guid id,
+        [FromQuery] string? folderPath,
+        [FromHeader(Name = "x-requestid")] Guid requestId,
+        CancellationToken cancellationToken)
+    {
+        var identified = new IdentifiedCommand<RemoveCaptureSourceFolderCommand, RemoveCaptureSourceFolderResponse>(
+            new RemoveCaptureSourceFolderCommand(tenantId, id, folderPath), EnsureRequestId(requestId));
+
+        return OkResponse(await mediator.Send(identified, cancellationToken));
+    }
+
+    /// <summary>
+    /// Descarta o cursor de todas as pastas: a próxima varredura relê a caixa inteira.
+    /// </summary>
+    /// <remarks>
+    /// Serve para reavaliar o que já passou depois de mudar o cadastro — sem <c>PayerProfile</c>
+    /// não há senha derivada, e sem <c>Payee</c>/<c>TrustedOrigin</c> o que a cascata não
+    /// reconhece é descartado em vez de ir para a quarentena. Reler <strong>não duplica</strong>:
+    /// a ingestão é idempotente por <c>(tenant, fonte, mensagem, anexo)</c>.
+    /// </remarks>
+    [HttpPost("{id:guid}/rescan")]
+    public async Task<ActionResult<RescanCaptureSourceResponse>> Rescan(
+        [FromRoute] Guid tenantId,
+        [FromRoute] Guid id,
+        [FromHeader(Name = "x-requestid")] Guid requestId,
+        CancellationToken cancellationToken)
+    {
+        var identified = new IdentifiedCommand<RescanCaptureSourceCommand, RescanCaptureSourceResponse>(
+            new RescanCaptureSourceCommand(tenantId, id), EnsureRequestId(requestId));
+
+        return OkResponse(await mediator.Send(identified, cancellationToken));
+    }
+
     /// <summary>Desconecta a fonte e apaga a credencial. Os itens já ingeridos permanecem.</summary>
     [HttpDelete("{id:guid}")]
     public async Task<ActionResult<DisconnectCaptureSourceResponse>> Disconnect(

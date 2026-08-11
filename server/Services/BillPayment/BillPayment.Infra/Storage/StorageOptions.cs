@@ -29,12 +29,27 @@ public sealed class StorageOptions
     public bool ForcePathStyle { get; set; } = true;
 
     /// <summary>
-    /// Sem endpoint e credencial configurados entra o substituto que falha em toda operação —
-    /// e a falha barulhenta é o ponto: guardar em lugar nenhum sem avisar faria o sistema
-    /// pagar boleto cujo original ninguém consegue mais recuperar.
+    /// Região usada para assinar a requisição (SigV4). <strong>Não tem default de propósito.</strong>
+    /// </summary>
+    /// <remarks>
+    /// Serviço auto-hospedado não fica em região da AWS, mas o SigV4 assina com uma mesmo assim —
+    /// e o servidor recusa a assinatura quando a região não é a que ele espera. O Garage usa
+    /// <c>garage</c> (é o que o BC <c>PeopleManagement</c> configura contra o mesmo servidor); o
+    /// MinIO e a maioria dos compatíveis usam <c>us-east-1</c>. Qualquer default aqui estaria
+    /// errado para metade dos alvos e a falha apareceria só em runtime, como
+    /// <c>SignatureDoesNotMatch</c> ao gravar o primeiro anexo — por isso o valor entra em
+    /// <see cref="IsConfigured"/> e a ausência desliga o armazenamento em vez de adivinhar.
+    /// </remarks>
+    public string? AuthenticationRegion { get; set; }
+
+    /// <summary>
+    /// Sem endpoint, credencial e região configurados entra o substituto que falha em toda
+    /// operação — e a falha barulhenta é o ponto: guardar em lugar nenhum sem avisar faria o
+    /// sistema pagar boleto cujo original ninguém consegue mais recuperar.
     /// </summary>
     public bool IsConfigured =>
         !string.IsNullOrWhiteSpace(ServiceUrl)
         && !string.IsNullOrWhiteSpace(AccessKey)
-        && !string.IsNullOrWhiteSpace(SecretKey);
+        && !string.IsNullOrWhiteSpace(SecretKey)
+        && !string.IsNullOrWhiteSpace(AuthenticationRegion);
 }

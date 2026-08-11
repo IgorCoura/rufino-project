@@ -21,10 +21,15 @@ internal sealed class TrustedOriginQueries(BillPaymentDbContext context) : ITrus
 
         var query = context.TrustedOrigins.AsNoTracking().Where(o => o.TenantId == tenant);
 
-        // Keyset por CreatedAt, não por Id: o Id é value-converted e o EF não traduz
-        // comparação de ordem sobre ele. CreatedAt é DateTime e traduz direto.
-        if (CursorCodec.TryDecode(cursor, out var afterCreatedAt))
-            query = query.Where(o => o.CreatedAt > afterCreatedAt);
+        // Keyset ascendente por (CreatedAt, Id) — o Id desempata, senão um lote gravado no mesmo
+        // instante torna inalcançável tudo além da primeira página (ver CursorCodec).
+        if (CursorCodec.TryDecode(cursor, out var afterCreatedAt, out var afterId))
+        {
+            var afterOriginId = TrustedOriginId.From(afterId);
+
+            query = query.Where(o =>
+                o.CreatedAt > afterCreatedAt || (o.CreatedAt == afterCreatedAt && o.Id > afterOriginId));
+        }
 
         var rows = await query
             .OrderBy(o => o.CreatedAt)
@@ -36,7 +41,9 @@ internal sealed class TrustedOriginQueries(BillPaymentDbContext context) : ITrus
         if (hasMore)
             rows.RemoveAt(rows.Count - 1);
 
-        var nextCursor = hasMore && rows.Count > 0 ? CursorCodec.Encode(rows[^1].CreatedAt) : null;
+        var nextCursor = hasMore && rows.Count > 0
+            ? CursorCodec.Encode(rows[^1].CreatedAt, rows[^1].Id.Value)
+            : null;
 
         return new TrustedOriginPage(rows.ConvertAll(ToDto), nextCursor);
     }

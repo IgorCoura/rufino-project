@@ -26,8 +26,16 @@ internal sealed class CaptureItemQueries(BillPaymentDbContext context) : ICaptur
         if (TryParseStatus(status, out var parsed))
             query = query.Where(i => i.Status == parsed);
 
-        if (CursorCodec.TryDecode(cursor, out var afterCreatedAt))
-            query = query.Where(i => i.CreatedAt > afterCreatedAt);
+        // Keyset ascendente por (CreatedAt, Id). O Id não é enfeite: a varredura carimba um
+        // instante só para todos os itens que ingere, então CreatedAt empata às centenas — e um
+        // cursor só com a data faria a página 2 voltar vazia, escondendo o resto da fila.
+        if (CursorCodec.TryDecode(cursor, out var afterCreatedAt, out var afterId))
+        {
+            var afterItemId = CaptureItemId.From(afterId);
+
+            query = query.Where(i =>
+                i.CreatedAt > afterCreatedAt || (i.CreatedAt == afterCreatedAt && i.Id > afterItemId));
+        }
 
         var rows = await query
             .OrderBy(i => i.CreatedAt)
@@ -39,7 +47,9 @@ internal sealed class CaptureItemQueries(BillPaymentDbContext context) : ICaptur
         if (hasMore)
             rows.RemoveAt(rows.Count - 1);
 
-        var nextCursor = hasMore && rows.Count > 0 ? CursorCodec.Encode(rows[^1].CreatedAt) : null;
+        var nextCursor = hasMore && rows.Count > 0
+            ? CursorCodec.Encode(rows[^1].CreatedAt, rows[^1].Id.Value)
+            : null;
 
         return new CaptureItemPage(rows.ConvertAll(CaptureItemDto.From), nextCursor);
     }

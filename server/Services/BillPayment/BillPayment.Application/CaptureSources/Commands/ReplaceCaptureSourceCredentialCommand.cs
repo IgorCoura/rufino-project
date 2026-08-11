@@ -46,8 +46,10 @@ public sealed class ReplaceCaptureSourceCredentialCommandHandler(
 
         if (source.Kind == CaptureSourceKind.MicrosoftGraphMailbox)
         {
+            // Uma pasta basta para provar o alcance: a Application Access Policy é por caixa, não
+            // por pasta. Provar todas transformaria a troca de credencial numa varredura.
             var probe = await mailboxReader.ProbeAccessAsync(
-                source.Address, credential, source.FolderPath, cancellationToken);
+                source.Address, credential, source.Folders.First().Path, cancellationToken);
             if (!probe.IsOk)
             {
                 throw probe.Status.IsRetryable

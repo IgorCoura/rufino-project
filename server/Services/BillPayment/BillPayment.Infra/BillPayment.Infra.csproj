@@ -28,6 +28,17 @@
     <PackageReference Include="PdfPig" Version="0.1.15" />
     <PackageReference Include="Polly.Core" Version="8.7.0" />
     <PackageReference Include="ZXing.Net.Bindings.SkiaSharp" Version="0.16.22" />
+    <!--
+      O SkiaSharp 3.119.1 que vem pelo ZXing traz nativo só para Windows e macOS. Em Linux —
+      que é onde isto roda em contêiner — `libSkiaSharp` não existe, e o QrCodeScanner engole
+      o DllNotFoundException em LogDebug: TODO QR ficaria ilegível sem uma linha de log em
+      nível Information. Foi medido: o leitor de QR vale 17 pontos percentuais da cascata e é
+      o único caminho pelo qual o trilho Pix existe (ADR-010).
+
+      NoDependencies de propósito: a variante completa exige libfontconfig1 na imagem, que só
+      serve para renderizar texto. Aqui a Skia decodifica imagem e nada mais.
+    -->
+    <PackageReference Include="SkiaSharp.NativeAssets.Linux.NoDependencies" Version="3.119.1" />
   </ItemGroup>
   <ItemGroup>
     <!-- Os adapters são internal de propósito (só o DI os instancia). A suíte precisa

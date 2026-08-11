@@ -40,6 +40,23 @@ internal sealed class FakeMailboxReader : IMailboxReader
 
     public int ReadCount { get; private set; }
 
+    /// <summary>
+    /// Resposta por pasta, quando o teste precisa que uma pasta se comporte diferente da outra.
+    /// A chave é o caminho normalizado; <see cref="INBOX"/> representa a caixa de entrada.
+    /// </summary>
+    /// <remarks>
+    /// Existe porque cursor e falha passaram a ser <strong>por pasta</strong>: sem isto não há
+    /// como provar que uma pasta quebrada não contamina as outras. Pasta sem entrada aqui cai no
+    /// <see cref="ReadResult"/>, então os testes de pasta única seguem intactos.
+    /// </remarks>
+    public Dictionary<string, MailboxReadResult> ResultsByFolder { get; } = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>Chave de <see cref="ResultsByFolder"/> para a caixa de entrada.</summary>
+    public const string INBOX = "";
+
+    /// <summary>Toda leitura desta execução, na ordem — pasta e cursor recebidos.</summary>
+    public List<(string? Folder, string? Cursor)> Reads { get; } = [];
+
     public Task<MailboxAccessProbe> ProbeAccessAsync(
         string mailboxAddress,
         CredentialRef credential,
@@ -57,7 +74,10 @@ internal sealed class FakeMailboxReader : IMailboxReader
         LastFolderPath = folderPath;
         LastCursor = cursor;
         ReadCount++;
-        return Task.FromResult(ReadResult);
+        Reads.Add((folderPath, cursor));
+
+        return Task.FromResult(
+            ResultsByFolder.TryGetValue(folderPath ?? INBOX, out var perFolder) ? perFolder : ReadResult);
     }
 
     /// <summary>Conteúdo devolvido no download, por chave de artefato.</summary>

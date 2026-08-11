@@ -37,3 +37,6 @@ public sealed record CaptureItemResponseDto(
     DateTime? ClaimedAt);
 
 public sealed record CaptureItemPageDto(IReadOnlyList<CaptureItemResponseDto> Items, string? NextCursor);
+
+/// <param name="FoldersReset">Quantas pastas voltarão a ser lidas por inteiro.</param>
+public sealed record RescanCaptureSourceResponseDto(Guid Id, int FoldersReset);

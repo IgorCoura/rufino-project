@@ -21,7 +21,7 @@ using BillPayment.Domain.SharedKernel;
 internal sealed class UnconfiguredAttachmentStorage : IAttachmentStorage
 {
     private const string MESSAGE =
-        "Armazenamento de artefatos não configurado: defina Storage:ServiceUrl, AccessKey e SecretKey.";
+        "Armazenamento de artefatos não configurado: defina Storage:ServiceUrl, AccessKey, SecretKey e AuthenticationRegion.";
 
     public Task<string> StoreAsync(
         TenantId tenantId,

@@ -21,10 +21,15 @@ internal sealed class CaptureSourceQueries(BillPaymentDbContext context) : ICapt
 
         var query = context.CaptureSources.AsNoTracking().Where(s => s.TenantId == tenant);
 
-        // Keyset por CreatedAt, não por Id: o Id é value-converted e o EF não traduz comparação
-        // de ordem sobre ele. CreatedAt é DateTime e traduz direto.
-        if (CursorCodec.TryDecode(cursor, out var afterCreatedAt))
-            query = query.Where(s => s.CreatedAt > afterCreatedAt);
+        // Keyset ascendente por (CreatedAt, Id) — o Id desempata, senão um lote gravado no mesmo
+        // instante torna inalcançável tudo além da primeira página (ver CursorCodec).
+        if (CursorCodec.TryDecode(cursor, out var afterCreatedAt, out var afterId))
+        {
+            var afterSourceId = CaptureSourceId.From(afterId);
+
+            query = query.Where(s =>
+                s.CreatedAt > afterCreatedAt || (s.CreatedAt == afterCreatedAt && s.Id > afterSourceId));
+        }
 
         var rows = await query
             .OrderBy(s => s.CreatedAt)
@@ -36,7 +41,9 @@ internal sealed class CaptureSourceQueries(BillPaymentDbContext context) : ICapt
         if (hasMore)
             rows.RemoveAt(rows.Count - 1);
 
-        var nextCursor = hasMore && rows.Count > 0 ? CursorCodec.Encode(rows[^1].CreatedAt) : null;
+        var nextCursor = hasMore && rows.Count > 0
+            ? CursorCodec.Encode(rows[^1].CreatedAt, rows[^1].Id.Value)
+            : null;
 
         return new CaptureSourcePage(rows.ConvertAll(ToDto), nextCursor);
     }
@@ -56,18 +63,25 @@ internal sealed class CaptureSourceQueries(BillPaymentDbContext context) : ICapt
         return source is null ? null : ToDto(source);
     }
 
-    // O ponteiro do cofre nunca sai daqui — só a informação de que existe uma credencial.
+    // Nem o ponteiro do cofre nem o cursor das pastas saem daqui — só a informação de que existem.
     private static CaptureSourceDto ToDto(CaptureSource s)
         => new(
             s.Id.Value,
             s.Kind.Name,
             s.DisplayName,
             s.Address,
-            s.FolderPath,
+            [.. s.Folders.OrderBy(f => f.Path ?? string.Empty, StringComparer.OrdinalIgnoreCase).Select(ToDto)],
             s.Credential is not null,
             s.IsEnabled,
             s.LastSyncAt,
             s.LastSyncError,
-            !string.IsNullOrEmpty(s.SyncCursor),
             s.CreatedAt);
+
+    private static MonitoredFolderDto ToDto(MonitoredFolder f)
+        => new(
+            f.Id.Value,
+            f.Path,
+            !string.IsNullOrEmpty(f.SyncCursor),
+            f.LastSyncAt,
+            f.LastSyncError);
 }

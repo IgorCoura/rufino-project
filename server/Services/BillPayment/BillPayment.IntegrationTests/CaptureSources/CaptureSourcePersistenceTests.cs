@@ -35,7 +35,7 @@ public sealed class CaptureSourcePersistenceTests : BaseIntegrationTest
         Assert.Same(CaptureSourceKind.MicrosoftGraphMailbox, stored.Kind);
         Assert.Equal(credential, stored.Credential);
         Assert.True(stored.IsEnabled);
-        Assert.Null(stored.SyncCursor);
+        Assert.Null(stored.Folders.First().SyncCursor);
         Assert.Null(stored.LastSyncAt);
     }
 
@@ -49,14 +49,14 @@ public sealed class CaptureSourcePersistenceTests : BaseIntegrationTest
         await ExecuteDbContextAsync(async db =>
         {
             var source = await db.CaptureSources.FirstAsync(s => s.Id == id);
-            source.RecordSyncSuccess("deltaLink-abc", OccurredAt.AddMinutes(1));
+            source.RecordSyncSuccess(source.Folders.First().Id, "deltaLink-abc", OccurredAt.AddMinutes(1));
             await db.SaveEntitiesAsync();
         });
 
         await ExecuteDbContextAsync(async db =>
         {
             var source = await db.CaptureSources.FirstAsync(s => s.Id == id);
-            source.RecordSyncFailure("503 Service Unavailable", OccurredAt.AddMinutes(2));
+            source.RecordSyncFailure(source.Folders.First().Id, "503 Service Unavailable", OccurredAt.AddMinutes(2));
             await db.SaveEntitiesAsync();
         });
 
@@ -65,7 +65,7 @@ public sealed class CaptureSourcePersistenceTests : BaseIntegrationTest
             .FirstAsync(s => s.Id == id));
 
         // A falha não pode ter mexido no cursor: avançá-lo pularia mensagens, apagá-lo varreria a caixa.
-        Assert.Equal("deltaLink-abc", stored.SyncCursor);
+        Assert.Equal("deltaLink-abc", stored.Folders.First().SyncCursor);
         Assert.Equal("503 Service Unavailable", stored.LastSyncError);
     }
 
@@ -132,7 +132,7 @@ public sealed class CaptureSourcePersistenceTests : BaseIntegrationTest
         await ExecuteDbContextAsync(async db =>
         {
             var sincronizada = await db.CaptureSources.FirstAsync(s => s.Id == sincronizadaId);
-            sincronizada.RecordSyncSuccess("cursor", OccurredAt.AddMinutes(1));
+            sincronizada.RecordSyncSuccess(sincronizada.Folders.First().Id, "cursor", OccurredAt.AddMinutes(1));
 
             var desligada = await db.CaptureSources.FirstAsync(s => s.Id == desligadaId);
             desligada.SetEnabled(false, OccurredAt.AddMinutes(1));

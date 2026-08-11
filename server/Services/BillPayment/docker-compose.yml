@@ -8,10 +8,28 @@ services:
       ASPNETCORE_ENVIRONMENT: Development
       ASPNETCORE_HTTP_PORTS: "8080"
       ConnectionStrings__BillPayment: "Host=billpayment.db;Port=5432;Database=BillPaymentDb;Username=admin;Password=5up3rS3nh@;Search Path=bill_payment"
+      Storage__ServiceUrl: "http://billpayment.storage:9000"
+      Storage__AccessKey: "billpayment"
+      Storage__SecretKey: "billpayment-dev"
+      Storage__AuthenticationRegion: "us-east-1"
+
+      # A master key vem do arquivo .env (ignorado pelo git E pelo .dockerignore), não do
+      # user-secrets: dentro do contêiner o caminho do user-secrets é outro, e variável de
+      # ambiente é exatamente como isto chega no Dokploy — o ambiente de dev espelha o de
+      # produção em vez de inventar um terceiro caminho.
+      #
+      # A sintaxe :? faz o `docker compose up` FALHAR quando a variável não existe, em vez de
+      # subir uma API cujo cofre falha em toda operação e só se descobre ao conectar uma caixa.
+      Secrets__MasterKey: ${BILLPAYMENT_MASTER_KEY:?defina BILLPAYMENT_MASTER_KEY no arquivo .env (32 bytes em base64)}
+
+      # Graph e Capture já vêm ligados pelo appsettings.Development.json, que este serviço
+      # carrega por ASPNETCORE_ENVIRONMENT=Development.
     ports:
       - 8100:8080
     depends_on:
       billpayment.db:
+        condition: service_healthy
+      billpayment.storage:
         condition: service_healthy
 
   billpayment.db:
@@ -32,5 +50,39 @@ services:
       timeout: 5s
       retries: 5
 
+  # Balde dos artefatos capturados, só para desenvolvimento. Em produção o alvo é o Garage
+  # já auto-hospedado — mesmo protocolo, e o que muda é Storage:AuthenticationRegion
+  # ("us-east-1" aqui, "garage" lá). Credenciais fracas de propósito: são locais e descartáveis.
+  billpayment.storage:
+    image: minio/minio:RELEASE.2025-04-22T22-12-26Z
+    restart: always
+    command: server /data --console-address ":9001"
+    volumes:
+      - billpayment-storage:/data
+    environment:
+      MINIO_ROOT_USER: "billpayment"
+      MINIO_ROOT_PASSWORD: "billpayment-dev"
+    ports:
+      - 8103:9000
+      - 8104:9001
+    healthcheck:
+      test: ["CMD-SHELL", "mc ready local"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # Cria o balde e sai. Sem isto o primeiro anexo falha com NoSuchBucket — o adapter grava
+  # objeto, não provisiona balde, e provisionar em tempo de escrita esconderia digitação errada
+  # no nome do balde criando um novo em silêncio.
+  billpayment.storage-init:
+    image: minio/mc:RELEASE.2025-04-16T18-13-26Z
+    depends_on:
+      billpayment.storage:
+        condition: service_healthy
+    entrypoint: >
+      sh -c "mc alias set local http://billpayment.storage:9000 billpayment billpayment-dev &&
+             mc mb --ignore-existing local/billpayment-captures"
+
 volumes:
   billpayment-db:
+  billpayment-storage:

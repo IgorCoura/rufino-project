@@ -200,6 +200,59 @@ public static class CaptureSourceErrors
             parameters: new object[] { maxLength },
             sourcePath: BuildSourcePath(filePath, memberName, lineNumber));
 
+    public static DomainException FolderAlreadyMonitored(
+        string folderPath,
+        [CallerFilePath] string filePath = "",
+        [CallerMemberName] string memberName = "",
+        [CallerLineNumber] int lineNumber = 0)
+        => new(
+            id: $"{AGGREGATE_PREFIX}16",
+            messageTemplate: "A pasta '{0}' já é acompanhada por esta fonte.",
+            parameters: new object[] { folderPath },
+            sourcePath: BuildSourcePath(filePath, memberName, lineNumber),
+            category: DomainErrorCategory.Conflict);
+
+    public static DomainException FolderNotMonitored(
+        string folderPath,
+        [CallerFilePath] string filePath = "",
+        [CallerMemberName] string memberName = "",
+        [CallerLineNumber] int lineNumber = 0)
+        => new(
+            id: $"{AGGREGATE_PREFIX}17",
+            messageTemplate: "A pasta '{0}' não é acompanhada por esta fonte.",
+            parameters: new object[] { folderPath },
+            sourcePath: BuildSourcePath(filePath, memberName, lineNumber),
+            category: DomainErrorCategory.NotFound);
+
+    /// <summary>
+    /// Uma fonte sem pasta nenhuma não varreria nada — e não avisaria, porque zero pasta produz
+    /// zero item exatamente como uma caixa vazia. Desligar a captura é o que existe para isso.
+    /// </summary>
+    public static DomainException CannotRemoveLastFolder(
+        [CallerFilePath] string filePath = "",
+        [CallerMemberName] string memberName = "",
+        [CallerLineNumber] int lineNumber = 0)
+        => new(
+            id: $"{AGGREGATE_PREFIX}18",
+            messageTemplate: "A fonte precisa acompanhar ao menos uma pasta. Para parar de varrer, desative a fonte.",
+            parameters: [],
+            sourcePath: BuildSourcePath(filePath, memberName, lineNumber));
+
+    /// <summary>
+    /// Cada pasta acompanhada é uma chamada ao provedor por ciclo de varredura; sem teto, um
+    /// cadastro distraído vira limitação de taxa na caixa inteira.
+    /// </summary>
+    public static DomainException TooManyFolders(
+        int maxFolders,
+        [CallerFilePath] string filePath = "",
+        [CallerMemberName] string memberName = "",
+        [CallerLineNumber] int lineNumber = 0)
+        => new(
+            id: $"{AGGREGATE_PREFIX}19",
+            messageTemplate: "Uma fonte pode acompanhar no máximo {0} pastas.",
+            parameters: new object[] { maxFolders },
+            sourcePath: BuildSourcePath(filePath, memberName, lineNumber));
+
     private static string BuildSourcePath(string filePath, string memberName, int lineNumber)
         => $"{Path.GetFileName(filePath)}:{lineNumber} ({memberName})";
 }

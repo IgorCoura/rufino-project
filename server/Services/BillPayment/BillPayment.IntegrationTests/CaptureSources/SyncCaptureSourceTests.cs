@@ -84,7 +84,7 @@ public sealed class SyncCaptureSourceTests : BaseIntegrationTest
         Assert.Equal("deltaLink-2", _mailbox.LastCursor);
 
         var stored = await LoadAsync(sourceId);
-        Assert.Equal("deltaLink-2", stored.SyncCursor);
+        Assert.Equal("deltaLink-2", stored.Folders.First().SyncCursor);
         Assert.Null(stored.LastSyncError);
     }
 
@@ -102,7 +102,7 @@ public sealed class SyncCaptureSourceTests : BaseIntegrationTest
         Assert.Equal("Unavailable", result.Status);
 
         var stored = await LoadAsync(sourceId);
-        Assert.Equal("deltaLink-1", stored.SyncCursor);
+        Assert.Equal("deltaLink-1", stored.Folders.First().SyncCursor);
         Assert.Equal("throttled", stored.LastSyncError);
     }
 
@@ -122,7 +122,7 @@ public sealed class SyncCaptureSourceTests : BaseIntegrationTest
         Assert.Equal("CursorExpired", result.Status);
 
         var stored = await LoadAsync(sourceId);
-        Assert.Null(stored.SyncCursor);
+        Assert.Null(stored.Folders.First().SyncCursor);
         Assert.Equal("delta_token_expired", stored.LastSyncError);
 
         // E a varredura seguinte de fato recomeça do zero.
