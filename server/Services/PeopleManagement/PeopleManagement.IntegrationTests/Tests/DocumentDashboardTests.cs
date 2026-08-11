@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using PeopleManagement.Application.Commands.DocumentCommands.RenewDocumentUnit;
 using PeopleManagement.Domain.AggregatesModel.DocumentAggregate;
 using PeopleManagement.Domain.AggregatesModel.DocumentAggregate.Interfaces;
 using PeopleManagement.Domain.AggregatesModel.DocumentTemplateAggregate;
@@ -42,8 +43,8 @@ namespace PeopleManagement.IntegrationTests.Tests
             var summary = await response.Content.ReadFromJsonAsync<DashboardSummaryDto>() ?? throw new ArgumentNullException();
             Assert.Equal(1, summary.Expired);
             Assert.Equal(1, summary.Expiring);
-            // Pendente semeado + pendente de renovação criado pela depreciação.
-            Assert.Equal(2, summary.Pending);
+            // Só o pendente semeado: vencer não cria pendência — a substituta nasce quando o RH renova.
+            Assert.Equal(1, summary.Pending);
             Assert.Equal(1, summary.RequiresValidation);
             Assert.Equal(0, summary.AwaitingSignature);
         }
@@ -77,6 +78,7 @@ namespace PeopleManagement.IntegrationTests.Tests
 
             var (document, okUnitId) = await SeedOkDocumentAsync(context, scenario, validityInDays: 5, ct);
             await DepreciateAsync(document.Id, okUnitId, scenario.CompanyId, ct);
+            await RenewAsync(scenario, document.Id, okUnitId);
             await MakeRenewalUnitOkAsync(document.Id, validityInDays: 300, ct);
 
             var client = CreateClient();
@@ -87,6 +89,51 @@ namespace PeopleManagement.IntegrationTests.Tests
             Assert.Equal(0, summary.Expired);
             Assert.Equal(0, summary.Pending);
             Assert.Equal(0, summary.Expiring);
+        }
+
+        // A renovação pedida no prazo não vira uma segunda cobrança: a substituída ainda cobre a exigência, e o
+        // documento já aparece em "A Vencer". Contá-la também em "Pendentes" faria o número de pendências subir
+        // a cada renovação feita na hora certa — punindo justamente quem age cedo.
+        [Fact]
+        public async Task GetSummary_WhenTheRenewalIsInFlightAndTheReplacedUnitStillCovers_DoesNotCountAsPending()
+        {
+            var ct = CancellationToken.None;
+            var context = GetContext();
+            var scenario = await SeedCompanyWithEmployeeAsync(context, ct);
+
+            var (document, okUnitId) = await SeedOkDocumentAsync(context, scenario, validityInDays: 10, ct);
+
+            await RenewAsync(scenario, document.Id, okUnitId);
+
+            var client = CreateClient();
+            client.InputHeaders([scenario.CompanyId]);
+            var summary = await client.GetFromJsonAsync<DashboardSummaryDto>(
+                $"/api/v1/{scenario.CompanyId}/document-dashboard/summary") ?? throw new ArgumentNullException();
+
+            Assert.Equal(0, summary.Pending);
+            Assert.Equal(1, summary.Expiring);
+        }
+
+        // Quando a cobertura cai, a mesma unidade passa a contar: aí sim há uma entrega a fazer.
+        [Fact]
+        public async Task GetSummary_WhenTheReplacedUnitExpires_TheRenewalStartsCountingAsPending()
+        {
+            var ct = CancellationToken.None;
+            var context = GetContext();
+            var scenario = await SeedCompanyWithEmployeeAsync(context, ct);
+
+            var (document, okUnitId) = await SeedOkDocumentAsync(context, scenario, validityInDays: 10, ct);
+            await RenewAsync(scenario, document.Id, okUnitId);
+
+            await DepreciateAsync(document.Id, okUnitId, scenario.CompanyId, ct);
+
+            var client = CreateClient();
+            client.InputHeaders([scenario.CompanyId]);
+            var summary = await client.GetFromJsonAsync<DashboardSummaryDto>(
+                $"/api/v1/{scenario.CompanyId}/document-dashboard/summary") ?? throw new ArgumentNullException();
+
+            Assert.Equal(1, summary.Pending);
+            Assert.Equal(1, summary.Expired);
         }
 
         [Fact]
@@ -221,6 +268,16 @@ namespace PeopleManagement.IntegrationTests.Tests
             using var scope = _factory.Services.CreateScope();
             var service = scope.ServiceProvider.GetRequiredService<IDocumentDepreciationService>();
             await service.DepreciateExpirateDocument(unitId, documentId, companyId, ct);
+        }
+
+        // Pede a renovação da unidade — é o único caminho que cria a substituta pendente.
+        private async Task RenewAsync(DashboardScenario scenario, Guid documentId, Guid unitId)
+        {
+            var client = CreateClient();
+            client.InputHeaders([scenario.CompanyId]);
+            var response = await client.PostAsJsonAsync($"/api/v1/{scenario.CompanyId}/document/documentunit/renew",
+                new RenewDocumentUnitModel(unitId, documentId, scenario.EmployeeId));
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         }
 
         // Valida a unidade Pending criada pela renovação, tornando-a a unidade vigente do documento.

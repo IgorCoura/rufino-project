@@ -50,6 +50,11 @@ namespace PeopleManagement.Infra.Mapping
             builder.Property(x => x.WorkloadEndDate)
                 .IsRequired(false);
 
+            // Sem FK: aponta para uma linha da mesma tabela, e uma FK real obrigaria a decidir um comportamento
+            // de delete para um vínculo que é histórico — a substituída nunca é apagada, ela vira Deprecated.
+            builder.Property(x => x.ReplacesDocumentUnitId)
+                .IsRequired(false);
+
             // Owned opcional: a ausência do VO (todas as colunas null) é o estado "nada agendado". Os três
             // valores nascem e morrem juntos, então nenhuma combinação parcial é representável.
             builder.OwnsOne(x => x.ScheduledSignature, schedule =>

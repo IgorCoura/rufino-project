@@ -21,7 +21,7 @@ namespace PeopleManagement.Infra.Mapping
                 .HasConversion(x => x.Id, x => x)
                 .IsRequired();
 
-            builder.Property(x => x.ExpirationCount)
+            builder.Property(x => x.RenewalCount)
                 .HasDefaultValue(0)
                 .IsRequired();
 

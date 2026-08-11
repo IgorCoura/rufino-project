@@ -23,13 +23,26 @@ namespace PeopleManagement.Services.Services
         private readonly IRequireDocumentsRepository _requireDocumentsRepository = requireDocumentsRepository;
         private readonly IEmployeeRepository _employeeRepository = employeeRepository;
         private readonly IDocumentTemplateRepository _documentTemplateRepository = documentTemplateRepository;
+        /// <summary>
+        /// A unidade chegou na data de validade: fica <c>Vencida</c> — cobertura que caducou e ainda não tem
+        /// substituto.
+        ///
+        /// O job NÃO cria a substituta. Renovar é decisão do RH, feita pela ação "Renovar"
+        /// (<see cref="IDocumentService.RenewDocumentUnit"/>): é ela que sabe se ainda há cota de renovação e é
+        /// ela que carimba o vínculo entre a substituta e a substituída. Um job criando pendências sozinho
+        /// enchia a fila de trabalho com unidades que ninguém pediu.
+        /// </summary>
         public async Task DepreciateExpirateDocument(Guid documentUnitId, Guid documentId, Guid companyId,
             CancellationToken cancellationToken = default)
         {
             _logger.LogInformation("Depreciating document with ID {DocumentId} for company {CompanyId}.", documentId, companyId);
 
+            // Coleção INTEIRA: MakeAsDeprecated varre todas as unidades e RefreshDocumentStatus recalcula o
+            // status do documento a partir delas. Com um Include filtrado pela unidade do job, o documento
+            // assumia o status de uma unidade só — um job disparando sobre unidade já depreciada deixava o
+            // documento inteiro Deprecated, e o funcionário aparecia Okay.
             Document? document = await _documentRepository.FirstOrDefaultAsync(x => x.Id == documentId &&
-                x.CompanyId == companyId, include: x => x.Include(y => y.DocumentsUnits.Where(x => x.Id == documentUnitId)),
+                x.CompanyId == companyId, include: x => x.Include(y => y.DocumentsUnits),
                 cancellation: cancellationToken);
 
             if (document is null)
@@ -54,28 +67,14 @@ namespace PeopleManagement.Services.Services
 
             if (isAssociation)
             {
-                // Renovação limitada é regra de dois aggregates (Document + DocumentTemplate), logo mora aqui, não
-                // no Document. Lê a policy do template e o contador de vencimentos do documento; a unidade que
-                // venceu fica Vencida (não Depreciada — ainda não há substituto), mas só nasce uma nova enquanto a
-                // policy permitir renovar. Sem policy de vencimento (documento legado com data de validade avulsa)
-                // mantém o comportamento antigo: renova sempre.
-                var template = await _documentTemplateRepository.FirstOrDefaultAsync(
-                    x => x.Id == document.DocumentTemplateId && x.CompanyId == companyId,
-                    cancellation: cancellationToken);
-
-                // ANTES de expirar: CanRenew recebe quantos vencimentos já tinham acontecido, então o vencimento
-                // atual é justamente o que está pedindo a renovação de número ExpirationCount + 1.
-                var canRenew = CanRenew(document, template);
-
-                document.ExpireDocumentUnit(documentUnitId);
-
-                if (canRenew)
+                // Só o vencimento. A unidade que caducou fica Vencida (não Depreciada — ainda não há substituto)
+                // e o documento passa a cobrar. Quem decide renovar é o RH.
+                if (document.ExpireDocumentUnit(documentUnitId) == false)
                 {
-                    // A renovada nasce sem data de referência: se o template for por competência, cai na mínima e
-                    // espera a data real. A configuração é a ATUAL do template — editar o template vale para a
-                    // renovação seguinte.
-                    var periodPolicy = template?.GetPolicy<IPeriodPolicy>();
-                    document.NewDocumentUnit(Guid.NewGuid(), periodPolicy?.PeriodType, periodPolicy?.UsePreviousPeriod ?? false);
+                    _logger.LogInformation(
+                        "Skipping expiration for document unit {DocumentUnitId} — it is no longer in force.",
+                        documentUnitId);
+                    return;
                 }
             }
             else
@@ -90,13 +89,18 @@ namespace PeopleManagement.Services.Services
         }
 
 
+        /// <summary>
+        /// A unidade está perto de vencer: entra em <c>A Vencer</c> para o RH providenciar o substituto pela ação
+        /// "Renovar". Nada é criado aqui — o aviso é aviso.
+        /// </summary>
         public async Task WarningExpirateDocument(Guid documentUnitId, Guid documentId, Guid companyId,
             CancellationToken cancellationToken = default)
         {
             _logger.LogInformation("Warning expirate document with ID {DocumentId} for company {CompanyId}.", documentId, companyId);
 
+            // Coleção INTEIRA pelo mesmo motivo do vencimento: RefreshDocumentStatus varre DocumentsUnits.
             Document? document = await _documentRepository.FirstOrDefaultAsync(x => x.Id == documentId &&
-                x.CompanyId == companyId, include: x => x.Include(y => y.DocumentsUnits.Where(x => x.Id == documentUnitId)),
+                x.CompanyId == companyId, include: x => x.Include(y => y.DocumentsUnits),
                 cancellation: cancellationToken);
 
             if (document is null)
@@ -121,7 +125,16 @@ namespace PeopleManagement.Services.Services
 
             if (isAssociation)
             {
-                document.MakeAsWarning(documentUnitId);
+                // Sai sem salvar quando não há transição: o aviso só se aplica a unidade em vigência, e o job
+                // pode chegar depois de ela ter sido entregue, superada ou invalidada. Sem essa guarda o
+                // RefreshDocumentStatus rodava à toa e o job deixava de ser idempotente.
+                if (document.MakeAsWarning(documentUnitId) == false)
+                {
+                    _logger.LogInformation(
+                        "Skipping warning for document unit {DocumentUnitId} — it is no longer in force.",
+                        documentUnitId);
+                    return;
+                }
             }
             else
             {
@@ -185,23 +198,6 @@ namespace PeopleManagement.Services.Services
             _logger.LogInformation(
                 "Deprecated {UnitCount} document unit(s) for employee {EmployeeId} of company {CompanyId} on new contract.",
                 deprecatedUnits, employeeId, companyId);
-        }
-
-        // Consulta a policy de vencimento do template e decide, pelo contador de vencimentos do documento, se
-        // ainda pode renovar. Sem policy ⇒ renova sempre (retrocompatível).
-        //
-        // O contador é Document.ExpirationCount, e não uma contagem de unidades por status: a vencida vira
-        // Depreciada quando o substituto chega, e substituição por reenvio corrigido também deprecia — contar
-        // status fazia correção de documento consumir renovação.
-        private static bool CanRenew(Document document,
-            Domain.AggregatesModel.DocumentTemplateAggregate.DocumentTemplate? template)
-        {
-            var expirationPolicy = template?.GetPolicy<IExpirationPolicy>();
-
-            if (expirationPolicy is null)
-                return true;
-
-            return expirationPolicy.CanRenew(document.ExpirationCount);
         }
 
         public async Task<bool> DocumentHasAssociation(Document document, Employee employee, CancellationToken cancellationToken)

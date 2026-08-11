@@ -79,8 +79,12 @@ namespace PeopleManagement.Application.Queries.Document
 
             var skip = (unitParams.PageNumber - 1) * unitParams.PageSize;
 
+            // Unidade sem data primeiro, depois da mais recente para a mais antiga. Unidade recém-criada nasce
+            // com Date = DateOnly.MinValue, então uma ordenação só por data decrescente a jogava para a ÚLTIMA
+            // página — a substituta que o RH acabou de pedir sumia da tela num documento com histórico.
             var pagedUnits = units
-                .OrderByDescending(x => x.Date)
+                .OrderByDescending(x => x.Date == DateOnly.MinValue)
+                .ThenByDescending(x => x.Date)
                 .Skip(skip)
                 .Take(unitParams.PageSize)
                 .Select(x => (DocumentUnitDto)x)

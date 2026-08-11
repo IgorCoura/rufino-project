@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using PeopleManagement.Infra.Context;
@@ -12,9 +13,11 @@ using PeopleManagement.Infra.Context;
 namespace PeopleManagement.Infra.Migrations
 {
     [DbContext(typeof(PeopleManagementContext))]
-    partial class PeopleManagementContextModelSnapshot : ModelSnapshot
+    [Migration("20260811215623_AddReplacesDocumentUnitIdToDocumentUnit")]
+    partial class AddReplacesDocumentUnitIdToDocumentUnit
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -195,15 +198,15 @@ namespace PeopleManagement.Infra.Migrations
                     b.Property<Guid>("EmployeeId")
                         .HasColumnType("uuid");
 
+                    b.Property<int>("ExpirationCount")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(0);
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");
-
-                    b.Property<int>("RenewalCount")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer")
-                        .HasDefaultValue(0);
 
                     b.Property<Guid>("RequiredDocumentId")
                         .HasColumnType("uuid");

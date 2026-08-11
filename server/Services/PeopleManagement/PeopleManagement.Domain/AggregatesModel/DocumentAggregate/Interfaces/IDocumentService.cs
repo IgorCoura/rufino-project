@@ -11,6 +11,11 @@
 
     public interface IDocumentService
     {
+        /// <summary>
+        /// Cria uma unidade avulsa no documento. Ainda serve o app legado (<c>POST /document</c>); o Rufino v2
+        /// não chama mais — lá a pendência nasce do evento de admissão, de depreciar/invalidar a vigente, ou da
+        /// renovação explícita (<see cref="RenewDocumentUnit"/>).
+        /// </summary>
         Task<DocumentUnit> CreateDocumentUnit(Guid documentId, Guid employeeId, Guid companyId, CancellationToken cancellation = default);
 
         /// <summary>
@@ -26,6 +31,17 @@
         /// recusa de validação.
         /// </summary>
         Task<DocumentUnit> InvalidateDocumentUnit(Guid documentUnitId, Guid documentId, Guid employeeId, Guid companyId, CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Renova a unidade: cria a substituta pendente vinculada a ela e consome uma renovação da cota do
+        /// template. Vale antes de vencer (OK, A Vencer) e depois (Vencido).
+        ///
+        /// A unidade renovada NÃO sai de vigência aqui — é a entrega da substituta que a deprecia. Enquanto isso
+        /// o documento continua contando com ela, então renovar no prazo não deixa o documento pior.
+        ///
+        /// Idempotente: pedir de novo devolve a mesma substituta, sem consumir cota outra vez.
+        /// </summary>
+        Task<DocumentUnit> RenewDocumentUnit(Guid documentUnitId, Guid documentId, Guid employeeId, Guid companyId, CancellationToken cancellationToken = default);
         Task<DocumentUnit> UpdateDocumentUnitDetails(Guid documentUnitId, Guid documentId, Guid employeeId, Guid companyId, DateOnly documentUnitDate, CancellationToken cancellationToken = default);
         Task CreateDocumentUnitsForEvent(Guid employeeId, Guid companyId, int eventId, CancellationToken cancellationToken = default);
         Task<byte[]> GeneratePdf(Guid documentUnitId, Guid documentId, Guid employeeId, Guid companyId, CancellationToken cancellation = default);
