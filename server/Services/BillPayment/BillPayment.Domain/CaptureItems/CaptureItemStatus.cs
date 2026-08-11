@@ -104,7 +104,18 @@ public sealed class CaptureItemStatus : Enumeration
             _ when this == Unrouted && (target == Promoted || target == ForeignPayer || target == Discarded) => true,
 
             // O humano informa a linha digitável à mão sobre o que o parser não reconheceu.
-            _ when this == Unrecognized && (target == Parsed || target == Discarded) => true,
+            // → Received é a reabertura: a cascata mudou (prompt novo, modelo novo, degrau novo)
+            // e vale reavaliar o mesmo artefato. Sem isto, o desfecho de um item ficaria congelado
+            // no estado da cascata do dia em que ele passou.
+            _ when this == Unrecognized && (target == Parsed || target == Received || target == Discarded) => true,
+
+            // Locked reabre pelo mesmo motivo, e por mais um: o cadastro pode ter ganho o
+            // documento que deriva a senha depois que o item já tinha sido triado.
+            _ when this == Locked && target == Received => true,
+
+            // LinkFailed reabre porque a nova tentativa de download é decisão de quem opera —
+            // é o que faz o item voltar à fila sem alguém mexer no banco.
+            _ when this == LinkFailed && target == Received => true,
 
             _ => false,
         };

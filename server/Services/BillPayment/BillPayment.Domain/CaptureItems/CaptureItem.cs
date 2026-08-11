@@ -188,6 +188,36 @@ public sealed class CaptureItem : AggregateRoot<CaptureItemId>
         Reason = RequireReason(reason);
     }
 
+    /// <summary>
+    /// Devolve o artefato à fila para ser avaliado de novo pela cascata de hoje.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <strong>O desfecho de um artefato é do dia em que ele passou, não para sempre.</strong> A
+    /// cascata muda — degrau novo, prompt novo, modelo novo — e o cadastro também: sem
+    /// <c>PayerProfile</c> não há senha derivada, e sem <c>Payee</c> nem <c>TrustedOrigin</c> o
+    /// que o parser erra é descartado. Um item julgado antes disso ficaria congelado num veredito
+    /// que a versão atual do sistema não daria.
+    /// </para>
+    /// <para>
+    /// <strong>Volta para <c>Received</c> em vez de reprocessar aqui</strong>: assim ele atravessa
+    /// exatamente o mesmo caminho do primeiro processamento, pelo mesmo worker, com a mesma
+    /// transação e a mesma retenção por desfecho. Um segundo caminho de processamento seria um
+    /// segundo lugar para as regras envelhecerem.
+    /// </para>
+    /// <para>
+    /// <strong>Nada é apagado.</strong> O artefato continua no armazenamento e a chave continua
+    /// no item — é justamente o que permite reavaliar sem baixar de novo do provedor.
+    /// </para>
+    /// </remarks>
+    public void Reopen(DateTime occurredAt)
+    {
+        Transition(CaptureItemStatus.Received, occurredAt);
+        Reason = null;
+        Extraction = null;
+        UnlockedBy = null;
+    }
+
     /// <summary>Roteou para este tenant e virou boleto.</summary>
     public void Promote(BillId billId, RoutingConfidence confidence, DateTime occurredAt)
     {

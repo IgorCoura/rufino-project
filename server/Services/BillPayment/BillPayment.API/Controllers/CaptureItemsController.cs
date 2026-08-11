@@ -1,5 +1,7 @@
 namespace BillPayment.API.Controllers;
 
+using BillPayment.Application.CaptureItems.Commands;
+using BillPayment.Application.Mediator;
 using BillPayment.Application.Queries.CaptureItems;
 using Microsoft.AspNetCore.Mvc;
 
@@ -19,6 +21,7 @@ using Microsoft.AspNetCore.Mvc;
 /// </remarks>
 [Route("api/v1/{tenantId:guid}/capture-items")]
 public sealed class CaptureItemsController(
+    IMediator mediator,
     ICaptureItemQueries queries,
     ILogger<CaptureItemsController> logger) : BaseController(logger)
 {
@@ -43,5 +46,34 @@ public sealed class CaptureItemsController(
     {
         var item = await queries.GetAsync(tenantId, id, cancellationToken);
         return item is null ? NotFound() : OkResponse(item);
+    }
+
+    /// <summary>
+    /// Devolve o artefato à fila para a cascata de hoje avaliá-lo de novo.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// O desfecho de um item é do dia em que ele passou: a cascata ganha degraus, o prompt muda e
+    /// o cadastro muda — sem <c>PayerProfile</c> não há senha derivada, e sem <c>Payee</c> nem
+    /// <c>TrustedOrigin</c> o que o parser erra é descartado. Sem este endpoint, reavaliar exigia
+    /// apagar linha no banco.
+    /// </para>
+    /// <para>
+    /// <strong>Um por vez, de propósito</strong>: a extração por visão custa por documento e a
+    /// conta tem teto diário — reabrir a quarentena inteira queimaria a cota antes de chegar nos
+    /// itens que interessam.
+    /// </para>
+    /// </remarks>
+    [HttpPost("{id:guid}/reprocess")]
+    public async Task<ActionResult<ReprocessCaptureItemResponse>> Reprocess(
+        [FromRoute] Guid tenantId,
+        [FromRoute] Guid id,
+        [FromHeader(Name = "x-requestid")] Guid requestId,
+        CancellationToken cancellationToken)
+    {
+        var identified = new IdentifiedCommand<ReprocessCaptureItemCommand, ReprocessCaptureItemResponse>(
+            new ReprocessCaptureItemCommand(tenantId, id), EnsureRequestId(requestId));
+
+        return OkResponse(await mediator.Send(identified, cancellationToken));
     }
 }
