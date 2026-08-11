@@ -308,6 +308,40 @@ void main() {
       expect(unitWithStatus('9').isExpired, isTrue);
       expect(unitWithStatus('3').isExpired, isFalse);
     });
+
+    // Renovar troca uma entrega que teve valor pela próxima, então vale antes
+    // de vencer (OK, A Vencer) e depois (Vencido).
+    test('a document in force or already expired can be renewed', () {
+      expect(unitWithStatus('2').canBeRenewed, isTrue);
+      expect(unitWithStatus('8').canBeRenewed, isTrue);
+      expect(unitWithStatus('9').canBeRenewed, isTrue);
+    });
+
+    // Obsoleta já tem substituto; pendente, requer validação e aguardando
+    // assinatura são a entrega em curso — ali falta entregar, não renovar.
+    test('a document that has nothing to renew cannot be renewed', () {
+      for (final other in ['1', '3', '4', '5', '6', '7']) {
+        expect(unitWithStatus(other).canBeRenewed, isFalse,
+            reason: 'status $other should not be renewable');
+      }
+    });
+
+    test('a unit is a renewal only when it points to the unit it replaces', () {
+      expect(unitWithStatus('1').isRenewal, isFalse);
+
+      final renewal = DocumentUnit(
+        id: '2',
+        statusId: '1',
+        statusName: '',
+        date: '',
+        validity: '',
+        createdAt: '',
+        hasFile: false,
+        name: '',
+        replacesDocumentUnitId: 'unit-1',
+      );
+      expect(renewal.isRenewal, isTrue);
+    });
   });
 
   group('DocumentUnit.dateForFileName', () {

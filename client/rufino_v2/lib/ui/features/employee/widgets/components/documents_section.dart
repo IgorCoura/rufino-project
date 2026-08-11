@@ -285,6 +285,31 @@ class _DocumentsSectionState extends State<DocumentsSection> {
     }
   }
 
+  /// Shows a confirmation dialog before renewing a unit.
+  ///
+  /// The wording separates renewing from deprecating: here the current document
+  /// keeps covering until the replacement is delivered.
+  Future<void> _showRenewDialog(
+    EmployeeDocument doc,
+    DocumentUnit unit,
+  ) async {
+    final confirmed = await _confirmUnitStatusChange(
+      title: 'Renovar documento',
+      message: unit.isExpired
+          ? 'Uma nova pendência será criada para substituir o documento '
+              'vencido. Deseja continuar?'
+          : 'Uma nova pendência será criada para substituir este documento. '
+              'O documento atual continua valendo até o novo ser entregue. '
+              'Deseja continuar?',
+      confirmLabel: 'Renovar',
+      confirmKey: const ValueKey('unit-renew-confirm'),
+    );
+
+    if (confirmed) {
+      await widget.viewModel.renewDocumentUnit(doc.id, unit.id);
+    }
+  }
+
   /// Shows a confirmation dialog before invalidating a unit.
   ///
   /// A unit marked as not applicable gets its own wording: there is no error to
@@ -1828,7 +1853,19 @@ class _DocumentsSectionState extends State<DocumentsSection> {
             onPressed: _isBusy ? null : () => _viewUnit(doc, unit),
           ),
         ),
-      // Depreciar e invalidar valem para a unidade em vigência, então ficam fora do bloco de pendente.
+      // Renovar, depreciar e invalidar valem para a unidade em vigência, então ficam fora do bloco de pendente.
+      // Renovar usa o escopo 'create' porque é criar a próxima unidade do documento.
+      if (unit.canBeRenewed)
+        PermissionGuard(
+          resource: 'document',
+          scope: 'create',
+          child: IconButton(
+            key: const ValueKey('unit-renew'),
+            icon: const Icon(Icons.autorenew, size: 20),
+            tooltip: 'Renovar',
+            onPressed: _isBusy ? null : () => _showRenewDialog(doc, unit),
+          ),
+        ),
       if (unit.canBeDeprecated)
         PermissionGuard(
           resource: 'document',
@@ -1888,6 +1925,17 @@ class _DocumentsSectionState extends State<DocumentsSection> {
                 .bodySmall
                 ?.copyWith(color: cs.onSurfaceVariant),
           ),
+        // Sem isso a substituta é indistinguível de uma pendência qualquer, e a
+        // linha não explica por que ela apareceu ao lado de um documento que
+        // ainda vale.
+        if (unit.isRenewal) ...[
+          const SizedBox(height: AppSpacing.xs),
+          _StatusBadge(
+            key: const ValueKey('unit-renewal-badge'),
+            label: 'Renovação',
+            color: cs.secondary,
+          ),
+        ],
         if (unit.isSignatureScheduled) ...[
           const SizedBox(height: AppSpacing.xs),
           _StatusBadge(

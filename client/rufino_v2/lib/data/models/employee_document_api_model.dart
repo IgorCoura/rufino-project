@@ -104,6 +104,7 @@ class DocumentUnitApiModel {
     required this.extension,
     this.period,
     this.scheduledSignatureSendOn = '',
+    this.replacesDocumentUnitId = '',
   });
 
   final String id;
@@ -122,6 +123,9 @@ class DocumentUnitApiModel {
   /// Date the signature send is scheduled for (`yyyy-MM-dd`), empty when none.
   final String scheduledSignatureSendOn;
 
+  /// Id of the unit this one renews, empty when it is not a renewal.
+  final String replacesDocumentUnitId;
+
   factory DocumentUnitApiModel.fromJson(Map<String, dynamic> json) {
     final status = json['status'] as Map<String, dynamic>? ?? {};
     final periodJson = json['period'] as Map<String, dynamic>?;
@@ -139,6 +143,8 @@ class DocumentUnitApiModel {
           periodJson != null ? PeriodApiModel.fromJson(periodJson) : null,
       scheduledSignatureSendOn:
           json['scheduledSignatureSendOn'] as String? ?? '',
+      replacesDocumentUnitId:
+          json['replacesDocumentUnitId'] as String? ?? '',
     );
   }
 
@@ -156,6 +162,7 @@ class DocumentUnitApiModel {
       name: name,
       period: period?.toEntity(),
       scheduledSignatureSendOn: _dateToDisplay(scheduledSignatureSendOn),
+      replacesDocumentUnitId: replacesDocumentUnitId,
     );
   }
 

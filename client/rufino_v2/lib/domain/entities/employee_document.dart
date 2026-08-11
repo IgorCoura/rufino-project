@@ -84,6 +84,7 @@ class DocumentUnit {
     required this.name,
     this.period,
     this.scheduledSignatureSendOn = '',
+    this.replacesDocumentUnitId = '',
   });
 
   final String id;
@@ -125,6 +126,17 @@ class DocumentUnit {
   /// The unit stays [isPending] while scheduled — the schedule is an intent,
   /// not a send.
   final String scheduledSignatureSendOn;
+
+  /// Id of the unit this one renews, or empty when it is not a renewal.
+  ///
+  /// A renewal is the next validity cycle of a document that is expiring or has
+  /// expired — not a new requirement. While the renewed unit still covers, this
+  /// one is the renewal in flight and the document keeps reporting the coverage
+  /// it still has.
+  final String replacesDocumentUnitId;
+
+  /// Whether this unit was created to renew another one.
+  bool get isRenewal => replacesDocumentUnitId.isNotEmpty;
 
   /// Whether this unit has a signature send scheduled for a future date.
   bool get isSignatureScheduled => scheduledSignatureSendOn.isNotEmpty;
@@ -174,6 +186,19 @@ class DocumentUnit {
   /// Whether this unit can be marked as not applicable — only while nothing
   /// has been delivered for it.
   bool get canBeMarkedNotApplicable => isPending;
+
+  /// Whether a replacement can be asked for this unit.
+  ///
+  /// Renewing is trading a delivery that had value for the next one, so it
+  /// applies to a unit that is (or was) in force — before it expires ([isOk],
+  /// [isWarning]) or after ([isExpired]).
+  ///
+  /// Different from deprecating: deprecating drops the coverage right away,
+  /// renewing keeps it until the replacement arrives. Obsolete units already
+  /// have a replacement; pending, awaiting signature and requires-validation
+  /// are the delivery still in progress — what is missing there is delivering,
+  /// not renewing.
+  bool get canBeRenewed => isOk || isWarning || isExpired;
 
   /// Display label for the unit status.
   String get statusLabel => documentUnitStatusLabel(statusId, statusName);

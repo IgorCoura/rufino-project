@@ -756,6 +756,27 @@ class EmployeeRepositoryImpl implements EmployeeRepository {
   }
 
   @override
+  Future<Result<void>> renewDocumentUnit(
+    String companyId,
+    String employeeId,
+    String documentId,
+    String documentUnitId,
+  ) async {
+    try {
+      await apiService.renewDocumentUnit(companyId, {
+        'documentUnitId': documentUnitId,
+        'documentId': documentId,
+        'employeeId': employeeId,
+      });
+      return const Result<void>.success(null);
+    } on EmployeeException catch (e, st) {
+      return reporter.failure(e, st);
+    } catch (e, st) {
+      return reporter.failure(EmployeeNetworkException(e), st);
+    }
+  }
+
+  @override
   Future<Result<void>> invalidateDocumentUnit(
     String companyId,
     String employeeId,

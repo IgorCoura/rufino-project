@@ -1855,6 +1855,41 @@ class EmployeeProfileViewModel extends ChangeNotifier {
     await loadDocumentUnits(documentId);
   }
 
+  /// Renews a document unit and refreshes the document.
+  ///
+  /// The renewed unit stays in force — it is the delivery of the replacement
+  /// that turns it into history — so the reload shows the current document and
+  /// the new pending one side by side.
+  Future<void> renewDocumentUnit(
+    String documentId,
+    String documentUnitId,
+  ) async {
+    final companyId = _companyId;
+    final currentProfile = _profile;
+    if (companyId == null || currentProfile == null) return;
+
+    final result = await _employeeRepository.renewDocumentUnit(
+      companyId,
+      currentProfile.id,
+      documentId,
+      documentUnitId,
+    );
+
+    result.fold(
+      onSuccess: (_) => _snackMessage =
+          'Renovação criada. Preencha o novo documento.',
+      // A mensagem do servidor explica o motivo da recusa (cota de renovações
+      // esgotada, status que não permite renovar) — descartá-la deixaria o
+      // usuário sem saber o que fazer.
+      onError: (error, __) => _snackMessage =
+          extractServerMessages(error).firstOrNull ??
+              'Erro ao renovar documento.',
+    );
+
+    notifyListeners();
+    await loadDocumentUnits(documentId);
+  }
+
   /// Invalidates a document unit and refreshes the document.
   Future<void> invalidateDocumentUnit(
     String documentId,

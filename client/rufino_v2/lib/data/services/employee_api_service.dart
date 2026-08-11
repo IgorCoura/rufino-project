@@ -693,6 +693,25 @@ class EmployeeApiService {
     checkHttpStatus(response);
   }
 
+  /// Renews a document unit — the API creates the replacement pending unit
+  /// linked to it and consumes one renewal of the template's quota.
+  ///
+  /// POST, not PUT like the sibling unit actions: this one creates a unit
+  /// rather than moving the status of an existing one.
+  Future<void> renewDocumentUnit(
+    String companyId,
+    Map<String, dynamic> body,
+  ) async {
+    final uri =
+        Uri.https(baseUrl, '/api/v1/$companyId/Document/DocumentUnit/renew');
+    final response = await client.post(
+      uri,
+      headers: await _headers(),
+      body: jsonEncode(body),
+    );
+    checkHttpStatus(response);
+  }
+
   /// Invalidates a document unit — it has an error or was sent by mistake and
   /// carries no legal value. The API creates the replacement pending unit.
   Future<void> invalidateDocumentUnit(

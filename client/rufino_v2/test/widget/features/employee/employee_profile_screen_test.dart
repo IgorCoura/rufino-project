@@ -1947,8 +1947,108 @@ void main() {
 
       expect(find.byKey(const ValueKey('unit-deprecate')), findsOneWidget);
       expect(find.byKey(const ValueKey('unit-invalidate')), findsOneWidget);
+      expect(find.byKey(const ValueKey('unit-renew')), findsOneWidget);
       expect(find.byKey(const ValueKey('unit-not-applicable')), findsNothing);
       expect(find.widgetWithText(TextButton, 'Adicionar'), findsNothing);
+    });
+
+    // Renovar é a saída de uma unidade vencida: sem ela o documento fica sem
+    // nenhuma ação possível, já que vencida não é depreciável nem invalidável e
+    // o vencimento não cria mais a substituta sozinho.
+    testWidgets('offers renew on an expired unit and marks the replacement',
+        (tester) async {
+      const expiredDocument = EmployeeDocument(
+        id: 'doc-1',
+        name: 'Contrato de Trabalho',
+        description: 'Contrato CLT',
+        statusId: '7',
+        statusName: 'Expired',
+        isSignable: false,
+        canGenerateDocument: true,
+        usePreviousPeriod: false,
+        totalUnitsCount: 2,
+        units: [
+          DocumentUnit(
+            id: 'unit-1',
+            statusId: '9',
+            statusName: 'Expired',
+            date: '01/01/2026',
+            validity: '01/02/2026',
+            createdAt: '01/01/2026',
+            hasFile: true,
+            name: 'contrato.pdf',
+          ),
+          DocumentUnit(
+            id: 'unit-2',
+            statusId: '1',
+            statusName: 'Pending',
+            date: '',
+            validity: '',
+            createdAt: '01/02/2026',
+            hasFile: false,
+            name: '',
+            replacesDocumentUnitId: 'unit-1',
+          ),
+        ],
+      );
+
+      employeeRepository.setDocumentsList(const [expiredDocument]);
+      documentGroupRepository.setGroupsWithDocuments(const [
+        DocumentGroupWithDocuments(
+          id: 'grp-1',
+          name: 'Grupo Contratual',
+          description: 'Documentos contratuais',
+          statusId: '2',
+          statusName: 'RequiresAttention',
+          documents: [expiredDocument],
+        ),
+      ]);
+
+      await tester.pumpWidget(buildSubject());
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.widgetWithText(Tab, 'Documentos'));
+      await tester.pumpAndSettle();
+
+      await tester.scrollUntilVisible(
+        find.text('Grupo Contratual'),
+        200,
+        scrollable: find.byType(Scrollable).last,
+      );
+      await tester.tap(find.text('Grupo Contratual'));
+      await tester.pumpAndSettle();
+
+      await tester.scrollUntilVisible(
+        find.text('Contrato de Trabalho'),
+        200,
+        scrollable: find.byType(Scrollable).last,
+      );
+      await tester.tap(find.text('Contrato de Trabalho'));
+      await tester.pumpAndSettle();
+
+      // Renovar é a única ação da vencida; depreciar não aparece em nenhuma das
+      // duas linhas. O invalidar que sobra é o da pendente substituta, não o da
+      // vencida — vencida é a prova do período coberto e a API recusa.
+      expect(find.byKey(const ValueKey('unit-renew')), findsOneWidget);
+      expect(find.byKey(const ValueKey('unit-deprecate')), findsNothing);
+      expect(find.byKey(const ValueKey('unit-invalidate')), findsOneWidget);
+
+      // A substituta se identifica na lista — sem isso ela é indistinguível de
+      // uma pendência qualquer.
+      expect(find.byKey(const ValueKey('unit-renewal-badge')), findsOneWidget);
+
+      await tester.ensureVisible(find.byKey(const ValueKey('unit-renew')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('unit-renew')));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Renovar documento'), findsOneWidget);
+      expect(find.byKey(const ValueKey('unit-renew-confirm')), findsOneWidget);
+
+      await tester.tap(find.byKey(const ValueKey('unit-renew-confirm')));
+      await tester.pumpAndSettle();
+
+      expect(employeeRepository.renewedDocumentUnitIds, ['unit-1']);
     });
 
     // O servidor manda o nome do smart enum em inglês; a tela precisa rotular
