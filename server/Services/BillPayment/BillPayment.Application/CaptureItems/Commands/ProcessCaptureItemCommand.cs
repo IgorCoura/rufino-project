@@ -4,6 +4,7 @@ using BillPayment.Application.Mediator;
 using BillPayment.Domain.CaptureItems;
 using BillPayment.Domain.CaptureSources;
 using BillPayment.Domain.Extraction;
+using BillPayment.Domain.Payees;
 using BillPayment.Domain.PayerProfiles;
 using BillPayment.Domain.Ports;
 using BillPayment.Domain.SeedWork;
@@ -41,8 +42,10 @@ public sealed class ProcessCaptureItemCommandHandler(
     ICaptureSourceRepository sources,
     ITrustedOriginRepository origins,
     IPayerProfileRepository payerProfiles,
+    IPayeeRepository payees,
     IMailboxReader mailboxReader,
     IBoletoDocumentParser parser,
+    IDocumentIntelligence documentIntelligence,
     IAttachmentStorage storage,
     TimeProvider clock,
     IUnitOfWork unitOfWork,
@@ -90,6 +93,17 @@ public sealed class ProcessCaptureItemCommandHandler(
             cancellationToken);
 
         var origin = await ResolveOriginAsync(item, tenantId, cancellationToken);
+
+        // Degrau 3: só o que o determinístico não resolveu, e só quando vale gastar. PDF cifrado
+        // não entra — mandar um arquivo que não abre gastaria a chamada para o modelo ver a tela
+        // de senha.
+        if (!extraction.Resolved && !extraction.IsLocked)
+        {
+            extraction = await TryVisionAsync(
+                item, tenantId, profile, origin, content.Value, now.UtcDateTime, cancellationToken)
+                ?? extraction;
+        }
+
         var decision = CaptureTriageService.Decide(extraction, origin);
 
         await ApplyAsync(item, decision, extraction, content.Value, tenantId, now.UtcDateTime, cancellationToken);
@@ -154,6 +168,114 @@ public sealed class ProcessCaptureItemCommandHandler(
 
         logger.LogInformation(
             "Item de remetente cadastrado ficou em quarentena sem instrumento reconhecido.");
+    }
+
+    /// <summary>
+    /// Degrau 3 da cascata: o extrator de visão propõe, o domínio dispõe.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <strong>Devolve <c>null</c> quando não vale a pena ou nada resolveu</strong>, para quem
+    /// chamou preservar o motivo original da cascata determinística — <c>no_text_layer</c> diz
+    /// mais para quem opera do que um motivo genérico de visão.
+    /// </para>
+    /// <para>
+    /// <strong>O que volta do modelo não é boleto: é string.</strong> Quem converte é o
+    /// <c>CandidateValidationService</c>, e ele só aceita o que sobrevive ao DV da linha
+    /// digitável ou ao CRC do BR Code (ADR-011). Lista vazia depois de o modelo ter respondido é
+    /// desfecho normal — inclusive quando ele alucinou, e é essa a defesa.
+    /// </para>
+    /// </remarks>
+    private async Task<ExtractionResult?> TryVisionAsync(
+        CaptureItem item,
+        TenantId tenantId,
+        PayerProfile? profile,
+        TrustedOrigin? origin,
+        ReadOnlyMemory<byte> content,
+        DateTime occurredAt,
+        CancellationToken cancellationToken)
+    {
+        if (!documentIntelligence.IsEnabled)
+            return null;
+
+        // O tipo vem do nome do arquivo porque o adapter de caixa não o guarda no item; a
+        // allowlist dele já barrou o que não é documento.
+        var mediaType = MediaTypeOf(item.ArtifactKey);
+        if (!DocumentPayload.IsSupported(mediaType))
+            return null;
+
+        if (!VisionGateService.ShouldAttempt(origin, item.Subject, item.ArtifactKey))
+            return null;
+
+        var hints = await BuildHintsAsync(tenantId, profile, item.Sender, cancellationToken);
+        var extracted = await documentIntelligence.ExtractAsync(
+            DocumentPayload.From(tenantId, content, mediaType), hints, cancellationToken);
+
+        var instruments = CandidateValidationService.Validate(extracted, occurredAt);
+
+        if (instruments.Count == 0)
+        {
+            // Métrica do doc 10: quantas vezes o funil determinístico salvou o sistema de uma
+            // extração errada. Não deve ser zero — zero significa que o funil não está sendo
+            // exercitado, e provavelmente que a métrica está errada.
+            if (extracted.HasCandidates)
+            {
+                logger.LogInformation(
+                    "Extração por IA propôs candidatos e NENHUM sobreviveu à validação determinística.");
+            }
+
+            return null;
+        }
+
+        return ExtractionResult.Found(instruments, ExtractionMethod.Vision);
+    }
+
+    /// <summary>
+    /// O que o sistema já sabe, para reduzir alucinação em campo cortado.
+    /// </summary>
+    /// <remarks>
+    /// Só dado do próprio tenant sai daqui — documentos do <c>PayerProfile</c> dele e nomes de
+    /// beneficiários que ele cadastrou. Nada de outro tenant, nem o conteúdo da caixa.
+    /// </remarks>
+    private async Task<ExtractionHints> BuildHintsAsync(
+        TenantId tenantId,
+        PayerProfile? profile,
+        string? sender,
+        CancellationToken cancellationToken)
+    {
+        var taxIds = profile is null
+            ? []
+            : new[] { profile.PrimaryTaxId.Value }
+                .Concat(profile.AdditionalTaxIds.Select(t => t.Value))
+                .ToList();
+
+        var knownPayees = await payees.ListByTenantAsync(tenantId, cancellationToken);
+
+        return ExtractionHints.From(
+            taxIds,
+            knownPayees.Select(p => p.LegalName),
+            sender);
+    }
+
+    /// <summary>
+    /// Tipo de mídia deduzido da extensão do anexo.
+    /// </summary>
+    /// <remarks>
+    /// <strong>Imagem entra aqui, e é a correção de um buraco medido.</strong> A cascata
+    /// determinística só abre PDF, e a varredura de 2026-08-11 recusou <strong>12 anexos com
+    /// <c>not_a_pdf</c></strong> — baixados e nunca lidos. Se a visão também exigisse PDF, esses
+    /// documentos seguiriam inalcançáveis.
+    /// </remarks>
+    private static string MediaTypeOf(string artifactKey)
+    {
+        var name = artifactKey?.Trim().ToLowerInvariant() ?? string.Empty;
+
+        if (name.EndsWith(".png", StringComparison.Ordinal)) return "image/png";
+        if (name.EndsWith(".jpg", StringComparison.Ordinal)) return "image/jpeg";
+        if (name.EndsWith(".jpeg", StringComparison.Ordinal)) return "image/jpeg";
+        if (name.EndsWith(".webp", StringComparison.Ordinal)) return "image/webp";
+
+        return DocumentPayload.PDF;
     }
 
     private Task<TrustedOrigin?> ResolveOriginAsync(

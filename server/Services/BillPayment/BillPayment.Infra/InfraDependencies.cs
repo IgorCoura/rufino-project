@@ -11,6 +11,8 @@ using BillPayment.Domain.TrustedOrigins;
 using Amazon.S3;
 using BillPayment.Infra.Asaas;
 using BillPayment.Infra.BankDirectory;
+using BillPayment.Infra.DocumentIntelligence;
+using BillPayment.Infra.DocumentIntelligence.Gemini;
 using BillPayment.Infra.Extraction;
 using BillPayment.Infra.Idempotency;
 using BillPayment.Infra.Mailboxes;
@@ -59,6 +61,7 @@ public static class InfraDependencies
         services.AddScoped<IBoletoDocumentParser, PdfBoletoDocumentParser>();
 
         services.AddAttachmentStorage(configuration);
+        services.AddDocumentIntelligence(configuration);
 
         // Singleton: o snapshot do Bacen é lido do assembly uma vez e é imutável depois.
         services.AddSingleton<IBankDirectory, BacenBankDirectory>();
@@ -150,6 +153,52 @@ public static class InfraDependencies
             }));
 
         services.AddScoped<IAttachmentStorage, S3AttachmentStorage>();
+    }
+
+    /// <summary>
+    /// Extrator de documentos por IA — o degrau 3 da cascata.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Sem provedor ou sem chave entra o <c>NullDocumentIntelligence</c>, que devolve vazio: a
+    /// cascata termina no parser determinístico e o que não resolve vai para a quarentena, como
+    /// antes da 2.4. É degradação, não falha — ao contrário do armazenamento, cuja ausência
+    /// perderia um comprovante que ninguém recupera.
+    /// </para>
+    /// <para>
+    /// <strong>Este cliente NÃO retenta</strong>, e é a diferença em relação ao Asaas e ao Graph:
+    /// cada tentativa consome cota de uma conta com teto diário, e insistir num PDF que o modelo
+    /// recusou gastaria o dia num documento só. A retentativa é a fila de quarentena, no dia
+    /// seguinte — mais barata e visível.
+    /// </para>
+    /// </remarks>
+    private static void AddDocumentIntelligence(this IServiceCollection services, IConfiguration configuration)
+    {
+        var section = configuration.GetSection(DocumentIntelligenceOptions.SectionName);
+        services.Configure<DocumentIntelligenceOptions>(section);
+
+        var options = section.Get<DocumentIntelligenceOptions>() ?? new DocumentIntelligenceOptions();
+
+        if (!options.IsConfigured)
+        {
+            services.AddSingleton<IDocumentIntelligence, NullDocumentIntelligence>();
+            return;
+        }
+
+        // Singleton: o teto diário e o intervalo mínimo só significam alguma coisa se o contador
+        // for o mesmo entre requisições.
+        services.AddSingleton<ExtractionBudget>();
+
+        services.AddHttpClient(GeminiDocumentIntelligence.CLIENT_NAME, http =>
+        {
+            http.Timeout = TimeSpan.FromSeconds(options.TimeoutSeconds);
+
+            // A chave vai no cabeçalho, não na query string: URL entra em log de proxy e em
+            // telemetria de cliente HTTP, e segredo em log é segredo vazado.
+            http.DefaultRequestHeaders.Add("x-goog-api-key", options.ApiKey);
+        });
+
+        services.AddScoped<IDocumentIntelligence, GeminiDocumentIntelligence>();
     }
 
     /// <summary>

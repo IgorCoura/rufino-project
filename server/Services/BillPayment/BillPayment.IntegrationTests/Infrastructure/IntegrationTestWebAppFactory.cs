@@ -60,6 +60,13 @@ public sealed class IntegrationTestWebAppFactory : WebApplicationFactory<Program
         // provarem mais nada, tornam a suíte refém do provedor estar no ar.
         builder.UseSetting("Asaas:ApiKey", string.Empty);
 
+        // O extrator de visão idem, e aqui o risco é maior que o do Asaas: a chave do Gemini está
+        // no user-secrets e o perfil de dev liga o provedor, então sem isto a suíte gastaria cota
+        // de uma conta gratuita a cada execução — e os testes deixariam de ser determinísticos,
+        // porque a mesma entrada pode devolver leituras diferentes. Quem exercita o degrau 3 pede
+        // WithCaptureChain(), que injeta o FakeDocumentIntelligence.
+        builder.UseSetting("DocumentIntelligence:Provider", "None");
+
         builder.UseEnvironment("Development");
     }
 
@@ -162,6 +169,13 @@ public sealed class IntegrationTestWebAppFactory : WebApplicationFactory<Program
             services.AddSingleton<InMemoryAttachmentStorage>();
             services.RemoveAll<IAttachmentStorage>();
             services.AddSingleton<IAttachmentStorage>(sp => sp.GetRequiredService<InMemoryAttachmentStorage>());
+
+            // O extrator de visão entra junto, e desligado por padrão (`Result` vazio): assim os
+            // testes da cascata determinística que já existiam continuam medindo o que mediam, e
+            // quem quer exercitar o degrau 3 programa a resposta — inclusive a errada.
+            services.AddSingleton<FakeDocumentIntelligence>();
+            services.RemoveAll<IDocumentIntelligence>();
+            services.AddSingleton<IDocumentIntelligence>(sp => sp.GetRequiredService<FakeDocumentIntelligence>());
         }));
 
     public async Task ResetDatabaseAsync()
