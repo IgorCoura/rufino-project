@@ -1,6 +1,7 @@
 namespace BillPayment.Application.CaptureItems.Commands;
 
 using BillPayment.Application.Mediator;
+using BillPayment.Domain.Bills;
 using BillPayment.Domain.CaptureItems;
 using BillPayment.Domain.CaptureSources;
 using BillPayment.Domain.Extraction;
@@ -27,15 +28,33 @@ using Microsoft.Extensions.Logging;
 /// num depósito de documento pessoal — medido no corpus real: 8 de 11 anexos da primeira página
 /// de uma caixa de uso misto não eram conta a pagar, incluindo CNH e contrato.
 /// </para>
+/// <para>
+/// <strong>É <c>IMultiAggregateCommand</c> desde a 2.6</strong>, e a justificativa é atomicidade
+/// entre o item e o boleto que ele gera: <c>CaptureItem.Promote</c> guarda o <c>BillId</c>, então
+/// criar a <c>Bill</c> noutra transação produziria — numa falha no meio — ou um boleto que item
+/// nenhum aponta (invisível na fila e sem trilha de origem) ou um item marcado <c>Promoted</c>
+/// apontando para um boleto que não existe. Consistência eventual por Domain Event não resolve:
+/// o id do boleto é o próprio dado que precisa atravessar, e ele só existe depois da criação.
+/// Como há um único <c>SaveEntitiesAsync</c>, a transação implícita do EF cobre os dois.
+/// </para>
 /// </remarks>
 public sealed record ProcessCaptureItemCommand(Guid TenantId, Guid CaptureItemId)
-    : IRequest<ProcessCaptureItemResponse>;
+    : IRequest<ProcessCaptureItemResponse>, IMultiAggregateCommand;
 
 /// <param name="Decision">
 /// <c>Parse</c>, <c>Lock</c>, <c>Quarantine</c> ou <c>Drop</c> — e <c>Drop</c> significa que o
 /// item deixou de existir.
 /// </param>
-public sealed record ProcessCaptureItemResponse(Guid Id, string Decision, int InstrumentsFound);
+/// <param name="Routing">
+/// O desfecho da escada de roteamento — <c>Promote</c>, <c>Foreign</c> ou <c>Unrouted</c>. Nulo
+/// quando a cascata não chegou a achar boleto, e portanto não houve o que rotear.
+/// </param>
+public sealed record ProcessCaptureItemResponse(
+    Guid Id,
+    string Decision,
+    int InstrumentsFound,
+    string? Routing = null,
+    Guid? BillId = null);
 
 public sealed class ProcessCaptureItemCommandHandler(
     ICaptureItemRepository items,
@@ -43,6 +62,7 @@ public sealed class ProcessCaptureItemCommandHandler(
     ITrustedOriginRepository origins,
     IPayerProfileRepository payerProfiles,
     IPayeeRepository payees,
+    IBillRepository bills,
     IMailboxReader mailboxReader,
     IBoletoDocumentParser parser,
     IDocumentLinkResolver linkResolver,
@@ -53,6 +73,12 @@ public sealed class ProcessCaptureItemCommandHandler(
     ILogger<ProcessCaptureItemCommandHandler> logger)
     : IRequestHandler<ProcessCaptureItemCommand, ProcessCaptureItemResponse>
 {
+    /// <summary>
+    /// A escada atribuiu o boleto a este tenant, mas ele já está sob gestão de outra conta.
+    /// Genérico de propósito — a exceção 2 do doc 07 informa que existe, nunca de quem é.
+    /// </summary>
+    private const string BILL_UNDER_ANOTHER_ACCOUNT = "bill_under_another_account";
+
     public async Task<ProcessCaptureItemResponse> Handle(
         ProcessCaptureItemCommand request,
         CancellationToken cancellationToken)
@@ -137,9 +163,156 @@ public sealed class ProcessCaptureItemCommandHandler(
         await ApplyAsync(
             item, decision, extraction, payload, payloadType, tenantId, now.UtcDateTime, cancellationToken);
 
+        // A escada só roda sobre o que a cascata reconheceu como boleto: sem instrumento não há
+        // o que rotear, e os demais desfechos já param no próprio estado que a triagem escolheu.
+        var routing = decision == CaptureTriageDecision.Parse
+            ? await RouteAsync(item, extraction, profile, tenantId, now.UtcDateTime, cancellationToken)
+            : null;
+
         await unitOfWork.SaveEntitiesAsync(cancellationToken);
 
-        return new ProcessCaptureItemResponse(item.Id.Value, decision.Name, extraction.Instruments.Count);
+        return new ProcessCaptureItemResponse(
+            item.Id.Value,
+            decision.Name,
+            extraction.Instruments.Count,
+            routing?.Outcome.Name,
+            item.BillId?.Value);
+    }
+
+    /// <summary>
+    /// Decide de quem é o boleto e aplica o desfecho — a escada de roteamento do doc 07.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <strong>Nenhum boleto vira <c>Bill</c> sem rota determinada.</strong> Não existe atribuição
+    /// por default ao dono da fonte: uma caixa compartilhada traz a conta dos dois, e assumir que
+    /// é de quem conectou é exatamente como um usuário acabaria pagando a conta do outro.
+    /// </para>
+    /// <para>
+    /// Quem decide é o <c>BillRoutingService</c>. Aqui só se resolve o que ele não pode buscar —
+    /// a exclusividade do beneficiário, que exige a travessia de tenant do ADR-008.
+    /// </para>
+    /// </remarks>
+    private async Task<RoutingDecision> RouteAsync(
+        CaptureItem item,
+        ExtractionResult extraction,
+        PayerProfile? profile,
+        TenantId tenantId,
+        DateTime occurredAt,
+        CancellationToken cancellationToken)
+    {
+        var exclusive = await ResolveExclusivePayeesAsync(tenantId, extraction, cancellationToken);
+        var routing = BillRoutingService.Route(extraction, profile, exclusive);
+
+        if (routing.Outcome == RoutingOutcome.Foreign)
+        {
+            item.MarkForeign(routing.Reason, occurredAt);
+            return routing;
+        }
+
+        if (routing.Outcome == RoutingOutcome.Unrouted)
+        {
+            item.MarkUnrouted(routing.Reason, occurredAt);
+            return routing;
+        }
+
+        await PromoteAsync(item, extraction, routing, tenantId, occurredAt, cancellationToken);
+        return routing;
+    }
+
+    /// <summary>
+    /// Beneficiários cadastrados por este tenant, e por mais ninguém, que aparecem no documento.
+    /// </summary>
+    /// <remarks>
+    /// A pergunta cruza tenant e por isso passa pela travessia autorizada, que devolve
+    /// <c>bool</c> — nunca quem é o outro. Um beneficiário que dois tenants cadastraram
+    /// simplesmente não entra: a evidência vira ambígua e escolher seria adivinhar de quem é a
+    /// conta.
+    /// </remarks>
+    private async Task<IReadOnlyCollection<TaxId>> ResolveExclusivePayeesAsync(
+        TenantId tenantId,
+        ExtractionResult extraction,
+        CancellationToken cancellationToken)
+    {
+        if (extraction.Parties.Count == 0)
+            return [];
+
+        var registered = await payees.ListByTenantAsync(tenantId, cancellationToken);
+
+        var inDocument = registered
+            .Where(p => extraction.Parties.Any(c => c.TaxId.Equals(p.TaxId)))
+            .Select(p => p.TaxId);
+
+        var exclusive = new List<TaxId>();
+
+        foreach (var taxId in inDocument)
+        {
+            if (!await payees.IsRegisteredByAnotherTenantAsync(tenantId, taxId, cancellationToken))
+                exclusive.Add(taxId);
+        }
+
+        return exclusive;
+    }
+
+    /// <summary>
+    /// O item vira boleto deste tenant, com o degrau que o atribuiu registrado.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <strong>Um compromisso é pago uma vez, globalmente.</strong> A sondagem de duplicata separa
+    /// os dois casos que parecem iguais no índice e são opostos na intenção: o boleto já é
+    /// <em>deste</em> tenant — reprocessamento do mesmo artefato, e o item volta a apontar para o
+    /// boleto que já existe — ou é de outra conta, e aí este item não pode virar boleto nenhum.
+    /// Sem essa distinção, reprocessar um item promovido o mandaria para a quarentena.
+    /// </para>
+    /// <para>
+    /// O aviso do segundo caso é <strong>genérico por desenho</strong> (exceção 2 do doc 07): o
+    /// usuário precisa saber que o documento já está sob gestão, e não de quem.
+    /// </para>
+    /// </remarks>
+    private async Task PromoteAsync(
+        CaptureItem item,
+        ExtractionResult extraction,
+        RoutingDecision routing,
+        TenantId tenantId,
+        DateTime occurredAt,
+        CancellationToken cancellationToken)
+    {
+        var bill = Bill.Capture(
+            tenantId,
+            extraction.Instruments,
+            BillOrigin.Create(
+                BillSourceKind.Mailbox,
+                item.ReceivedAt,
+                item.SourceId.Value,
+                item.Sender,
+                item.ExternalMessageId,
+                item.ContentHash,
+                item.StorageKey),
+            occurredAt,
+            routing.PayerTaxId is null ? null : PartyInfo.Of(name: null, routing.PayerTaxId),
+            routing.Confidence);
+
+        if (bill.DedupKey is not null)
+        {
+            var duplicate = await bills.ProbeActiveDuplicateAsync(
+                bill.DedupKey, tenantId, bill.Id, cancellationToken);
+
+            if (duplicate.OriginalBillId is { } original)
+            {
+                item.Promote(original, routing.Confidence!, occurredAt);
+                return;
+            }
+
+            if (duplicate.Exists)
+            {
+                item.MarkUnrouted(BILL_UNDER_ANOTHER_ACCOUNT, occurredAt);
+                return;
+            }
+        }
+
+        await bills.AddAsync(bill, cancellationToken);
+        item.Promote(bill.Id, routing.Confidence!, occurredAt);
     }
 
     /// <summary>
@@ -311,5 +484,5 @@ public sealed class ProcessCaptureItemIdentifiedCommandHandler(
     : IdentifiedCommandHandler<ProcessCaptureItemCommand, ProcessCaptureItemResponse>(mediator, requestManager, logger)
 {
     protected override ProcessCaptureItemResponse CreateResultForDuplicateRequest()
-        => new(Guid.Empty, string.Empty, 0);
+        => new(Guid.Empty, string.Empty, 0, null, null);
 }

@@ -10,7 +10,7 @@ Aggregates, Value Objects, eventos e invariantes do BC. Convenções gerais (str
 | `PayerProfile` | `BLP.PRF` | Identidade fiscal do tenant (PF ou PJ): CPF/CNPJ próprios, filiais, referência da subconta Asaas | 1 |
 | `Payee` | `BLP.PYE` | Beneficiário esperado: identidade fiscal, bancos recebedores aceitos, política de valor | 1 |
 | `TrustedOrigin` | `BLP.ORG` | Allowlist/blocklist de remetentes e domínios por tenant | 1 |
-| `RoutingRule` | `BLP.RTR` | Regra aprendida que liga (beneficiário, referência de conta) a um tenant | 2 |
+| ~~`RoutingRule`~~ | ~~`BLP.RTR`~~ | **Abandonado na 2.6** — a chave medida não distingue pagadores; o aprendizado passou para o `Payee` vinculado ao tenant (doc 07, degrau 2) | — |
 | `BillExpectation` | `BLP.EXP` | O que o tenant **espera** receber e quando; ciclos, lembretes e alerta de ausência | 2 |
 | `CaptureSource` | `BLP.CPS` | Caixa de e-mail ou portal monitorado + cursor de sincronização | 2 |
 | `CaptureItem` | `BLP.CPI` | Item bruto ingerido (mensagem/anexo), inclusive os que não viraram Bill | 2 |
@@ -294,7 +294,7 @@ Por isso `DigitableLine` aplica **filtros de plausibilidade** depois do DV: banc
 | Serviço | Por que é serviço |
 |---|---|
 | `BillValidationService` | Cruza `Bill` + `Payee` + `TrustedOrigin` + `PayerProfile` — quatro Aggregates. Recebe os roots carregados, produz `IReadOnlyCollection<CheckResult>` (valores), e o handler passa esses valores para `bill.RecordChecks(...)`. **Nunca** passa a entidade `Payee` para dentro do `Bill`. |
-| `BillRoutingService` | Decide de qual tenant é um `CaptureItem`, percorrendo a escada de cinco degraus de [`07-multitenancy-and-routing.md`](07-multitenancy-and-routing.md). Cruza `CaptureItem` + `PayerProfile` + `RoutingRule` + `Payee`. Devolve `RoutingDecision` (valor), nunca muta nada. |
+| `BillRoutingService` | Decide de qual tenant é um `CaptureItem`, percorrendo a escada (0, 1, 3, 4 — o degrau 2 foi abandonado) de [`07-multitenancy-and-routing.md`](07-multitenancy-and-routing.md). Cruza `CaptureItem` + `PayerProfile` + `RoutingRule` + `Payee`. Devolve `RoutingDecision` (valor), nunca muta nada. |
 | `PayeeResolutionService` | Resolve o `beneficiaryCpfCnpj` do `LookupSnapshot` para um `PayeeId` cadastrado, com fallback por nome normalizado. |
 | `PaymentSchedulingService` | Decide a data efetiva de agendamento a partir da data pedida, do calendário de dias úteis, do horário de corte e do `MinimumScheduleDate` do snapshot. |
 | `ExpectationMatchingService` | Casa `Bill` com o ciclo aberto de uma `BillExpectation` — dois Aggregates. Devolve `ExpectationMatch` (valor); quem muta é `expectation.Fulfill(...)`. |
@@ -323,7 +323,7 @@ Vivem em `BillPayment.Domain/Ports/` — pasta nova, irmã de `SeedWork/`. Motiv
 
 `IBillRepository`, `IPayerProfileRepository`, `IPayeeRepository`, `ITrustedOriginRepository`, `IRoutingRuleRepository`, `IBillExpectationRepository`, `ICaptureSourceRepository`, `ICaptureItemRepository`, `IPaymentOrderRepository` — todos com busca *tracked* filtrando por `TenantId` e `ExistsAsync` para validação de ids externos. Sem `Update()`: change tracking + `SaveEntitiesAsync`.
 
-**Três métodos são as únicas travessias autorizadas de tenant** e devolvem `bool` ou aviso genérico, nunca conteúdo (ver [`adr/ADR-008`](adr/ADR-008-fontes-compartilhadas-e-isolamento.md)): `ICaptureSourceRepository.IsAddressMonitoredByAnyTenantAsync(address)`, `IBillRepository.ExistsActiveByDigitableLineAsync(line)` (global), `IRoutingRuleRepository.ExistsForPairInAnyTenantAsync(payeeTaxId, accountRef)`. Qualquer outro método sem `TenantId` é violação.
+**Três métodos são as únicas travessias autorizadas de tenant** e devolvem `bool` ou aviso genérico, nunca conteúdo (ver [`adr/ADR-008`](adr/ADR-008-fontes-compartilhadas-e-isolamento.md)): `ICaptureSourceRepository.IsAddressMonitoredByAnyTenantAsync(address)`, `IBillRepository.ExistsActiveByDigitableLineAsync(line)` (global), `IPayeeRepository.IsRegisteredByAnotherTenantAsync(excluindo, taxId)` (substituiu `IRoutingRuleRepository.ExistsForPairInAnyTenantAsync`, abandonado na 2.6). Qualquer outro método sem `TenantId` é violação.
 
 ## Read side (CQRS)
 

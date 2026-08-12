@@ -25,12 +25,25 @@ public sealed class ExtractionResult : ValueObject
     public const int UNLOCKED_BY_MAX_LENGTH = 100;
 
     private readonly List<PaymentInstrument> _instruments;
+    private readonly List<PartyCandidate> _parties;
 
     /// <summary>
     /// Os instrumentos encontrados. Mais de um é normal: documento híbrido traz código de barras
     /// e QR, e uma página pode ter QR de outra finalidade — a consulta oficial desempata.
     /// </summary>
     public IReadOnlyList<PaymentInstrument> Instruments => _instruments.AsReadOnly();
+
+    /// <summary>
+    /// Os documentos fiscais lidos do artefato — do pagador <em>e</em> do beneficiário, sem
+    /// distinção garantida entre eles.
+    /// </summary>
+    /// <remarks>
+    /// Alimenta a escada de roteamento, e é por isso que a lista vem crua: quem sabe qual desses
+    /// números importa é o <c>BillRoutingService</c>, confrontando com o cadastro do tenant. A
+    /// extração não tem como decidir sozinha, e fingir que tem é o que faria o CNPJ da
+    /// concessionária ser lido como o do pagador.
+    /// </remarks>
+    public IReadOnlyList<PartyCandidate> Parties => _parties.AsReadOnly();
 
     /// <summary>Qual degrau da cascata resolveu. Nulo quando nada resolveu.</summary>
     public ExtractionMethod? Method { get; }
@@ -45,11 +58,13 @@ public sealed class ExtractionResult : ValueObject
 
     private ExtractionResult(
         List<PaymentInstrument> instruments,
+        List<PartyCandidate> parties,
         ExtractionMethod? method,
         string? unlockedBy,
         string? reasonCode)
     {
         _instruments = instruments;
+        _parties = parties;
         Method = method;
         UnlockedBy = unlockedBy;
         ReasonCode = reasonCode;
@@ -60,7 +75,8 @@ public sealed class ExtractionResult : ValueObject
     public static ExtractionResult Found(
         IEnumerable<PaymentInstrument> instruments,
         ExtractionMethod method,
-        string? unlockedBy = null)
+        string? unlockedBy = null,
+        IEnumerable<PartyCandidate>? parties = null)
     {
         ArgumentNullException.ThrowIfNull(instruments);
         ArgumentNullException.ThrowIfNull(method);
@@ -69,7 +85,12 @@ public sealed class ExtractionResult : ValueObject
         if (list.Count == 0)
             throw ExtractionErrors.InstrumentRequired();
 
-        return new ExtractionResult(list, method, Clamp(unlockedBy, UNLOCKED_BY_MAX_LENGTH), reasonCode: null);
+        return new ExtractionResult(
+            list,
+            parties?.Distinct().ToList() ?? [],
+            method,
+            Clamp(unlockedBy, UNLOCKED_BY_MAX_LENGTH),
+            reasonCode: null);
     }
 
     /// <summary>
@@ -79,7 +100,8 @@ public sealed class ExtractionResult : ValueObject
     public static ExtractionResult NotFound(string reasonCode)
         => string.IsNullOrWhiteSpace(reasonCode)
             ? throw ExtractionErrors.ReasonCodeRequired()
-            : new ExtractionResult([], method: null, unlockedBy: null, Clamp(reasonCode, REASON_CODE_MAX_LENGTH));
+            : new ExtractionResult(
+                [], [], method: null, unlockedBy: null, Clamp(reasonCode, REASON_CODE_MAX_LENGTH));
 
     /// <summary>
     /// PDF cifrado que nenhum candidato de senha abriu. Distinto de <see cref="NotFound"/> de
@@ -87,7 +109,7 @@ public sealed class ExtractionResult : ValueObject
     /// documento que talvez seja exatamente o que se procura.
     /// </summary>
     public static ExtractionResult Locked()
-        => new([], method: null, unlockedBy: null, "pdf_locked");
+        => new([], [], method: null, unlockedBy: null, "pdf_locked");
 
     public bool IsLocked => string.Equals(ReasonCode, "pdf_locked", StringComparison.Ordinal);
 
@@ -99,6 +121,9 @@ public sealed class ExtractionResult : ValueObject
 
         foreach (var instrument in _instruments)
             yield return instrument;
+
+        foreach (var party in _parties)
+            yield return party;
     }
 
     private static string? Clamp(string? value, int maxLength)

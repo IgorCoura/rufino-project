@@ -35,5 +35,22 @@ internal sealed class PayeeRepository : IPayeeRepository
             .OrderBy(p => p.CreatedAt)
             .ToListAsync(cancellationToken);
 
+    /// <summary>
+    /// <strong>Travessia de tenant autorizada nº 3 (ADR-008)</strong> — o único caminho de código
+    /// que consulta <c>payees</c> sem filtrar por tenant.
+    /// </summary>
+    /// <remarks>
+    /// <c>AnyAsync</c> não é otimização, é o contrato: não existe projeção de onde extrair id,
+    /// nome ou contagem do outro tenant. Trocar por <c>CountAsync</c> ou acrescentar um
+    /// <c>Select</c> viola o ADR-008.
+    /// </remarks>
+    public Task<bool> IsRegisteredByAnotherTenantAsync(
+        TenantId excludingTenantId,
+        TaxId taxId,
+        CancellationToken cancellationToken = default)
+        => _context.Payees
+            .AsNoTracking()
+            .AnyAsync(p => p.TaxId == taxId && p.TenantId != excludingTenantId, cancellationToken);
+
     public void Remove(Payee payee) => _context.Payees.Remove(payee);
 }

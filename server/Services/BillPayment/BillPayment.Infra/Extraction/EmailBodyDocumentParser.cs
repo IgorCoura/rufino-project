@@ -48,7 +48,8 @@ internal sealed class EmailBodyDocumentParser : IBoletoDocumentParser
         // de link entra, e o motivo precisa dizer isso para a métrica separar um do outro.
         return Task.FromResult(instruments.Count == 0
             ? ExtractionResult.NotFound("no_instrument_in_body")
-            : ExtractionResult.Found(instruments, ExtractionMethod.EmailBody));
+            : ExtractionResult.Found(
+                instruments, ExtractionMethod.EmailBody, unlockedBy: null, TaxIdScanner.Scan(text)));
     }
 
     /// <summary>

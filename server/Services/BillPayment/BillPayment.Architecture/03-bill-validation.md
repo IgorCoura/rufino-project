@@ -13,7 +13,7 @@ Este é o coração do BC: provar que o boleto é legítimo **antes** de qualque
 | **PDF do documento** (texto embutido, senha derivada, visão) | Baixa | Nome e CNPJ do **pagador**, referência de conta, descrição. Único lugar onde o pagador existe. Saída de LLM entra aqui como *candidato* ([`adr/ADR-011`](adr/ADR-011-llm-propoe-codigo-dispoe.md)) |
 | **Senha do PDF** | Alta para *propriedade* | Derivada do documento fiscal do pagador pelo emissor — abrir com o CNPJ do tenant é evidência forte de posse ([`09-capture-channels.md`](09-capture-channels.md)) |
 | **Metadados da origem** (remetente, domínio) | Média | Sinal de procedência, não de conteúdo |
-| **Cadastro do tenant** (`PayerProfile`, `Payee`, `TrustedOrigin`, `RoutingRule`) | É a expectativa contra a qual tudo é comparado | |
+| **Cadastro do tenant** (`PayerProfile`, `Payee`, `TrustedOrigin`) | É a expectativa contra a qual tudo é comparado | |
 
 > **O ponto que define o desenho:** a consulta oficial devolve o **beneficiário**, mas **não devolve o pagador**. Não existe API que confirme "esse boleto foi emitido para o meu CNPJ" — o pagador impresso é informativo, e no corpus real só está presente em 38% dos boletos. É o único check que trabalha com dado não autoritativo, e ao mesmo tempo é o que sustenta o isolamento entre tenants numa caixa de e-mail compartilhada. A resolução dessa tensão — bloquear quando contradiz, não liberar quando confirma, e rotear por uma escada de cinco degraus — está em [`adr/ADR-004`](adr/ADR-004-pagador-nao-autoritativo.md) e [`07-multitenancy-and-routing.md`](07-multitenancy-and-routing.md).
 
@@ -181,7 +181,7 @@ Registra o degrau da escada de roteamento que atribuiu o boleto, com a evidênci
 | Confiança | Origem da atribuição | Outcome |
 |---|---|---|
 | `Strong` | TaxId do pagador extraído casou com o `PayerProfile` | `Passed` |
-| `Learned` | `RoutingRule` aprendida casou por (beneficiário, referência de conta) | `Passed` |
+| ~~`Learned`~~ | ~~`RoutingRule` aprendida~~ — **sem produtor desde a 2.6**, quando o degrau 2 foi abandonado ([doc 07](07-multitenancy-and-routing.md)). O valor segue no Smart Enum para não renumerar os ids persistidos | `Passed` |
 | `Weak` | Beneficiário é exclusivo deste tenant entre os que monitoram a fonte | `Inconclusive` |
 | `Claimed` | Um usuário reivindicou explicitamente o item na quarentena | `Inconclusive`, com `UserId` e instante na evidência |
 | Importação manual | O usuário trouxe o boleto | `Skipped` |

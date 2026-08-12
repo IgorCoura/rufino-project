@@ -70,7 +70,11 @@ public sealed class EmailBodyExtractionTests : BaseIntegrationTest
         Assert.Equal("Parse", result.Decision);
 
         var stored = await LoadAsync(itemId);
-        Assert.Same(CaptureItemStatus.Parsed, stored!.Status);
+        // `Parsed` virou estado de PASSAGEM na 2.6: a escada de roteamento roda logo depois da
+        // cascata, e sem `PayerProfile` cadastrado ela não tem contra o quê comparar — o item
+        // segue para a fila de reivindicação. O que este teste mede é o degrau da cascata, e
+        // esse não mudou.
+        Assert.Same(CaptureItemStatus.Unrouted, stored!.Status);
         Assert.Same(ExtractionMethod.EmailBody, stored.Extraction);
 
         // O degrau de link nem foi consultado: buscar o PDF de uma fatura cujo Pix já está no
@@ -118,7 +122,11 @@ public sealed class EmailBodyExtractionTests : BaseIntegrationTest
         Assert.Equal("Parse", result.Decision);
 
         var stored = await LoadAsync(itemId);
-        Assert.Same(CaptureItemStatus.Parsed, stored!.Status);
+        // `Parsed` virou estado de PASSAGEM na 2.6: a escada de roteamento roda logo depois da
+        // cascata, e sem `PayerProfile` cadastrado ela não tem contra o quê comparar — o item
+        // segue para a fila de reivindicação. O que este teste mede é o degrau da cascata, e
+        // esse não mudou.
+        Assert.Same(CaptureItemStatus.Unrouted, stored!.Status);
         Assert.Equal(BillUrl, stored.SourceUrl);
 
         // O degrau relatado é o do documento BUSCADO, não o do corpo: quem achou a linha foi o

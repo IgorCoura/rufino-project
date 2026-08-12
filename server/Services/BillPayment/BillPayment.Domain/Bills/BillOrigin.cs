@@ -15,7 +15,17 @@ public sealed class BillOrigin : ValueObject
     public const int SENDER_ADDRESS_MAX_LENGTH = 320;
     public const int EXTERNAL_MESSAGE_ID_MAX_LENGTH = 500;
     public const int STORAGE_KEY_MAX_LENGTH = 500;
-    public const int CONTENT_HASH_MAX_LENGTH = 64;
+    /// <summary>
+    /// O mesmo limite do <c>CaptureItem.ContentHash</c>, e por isso 100 e não 64.
+    /// </summary>
+    /// <remarks>
+    /// O hash viaja <strong>com o nome do algoritmo</strong> (<c>sha256:</c> + 64 hexadecimais =
+    /// 71 caracteres), para que trocar de algoritmo depois não torne ilegível o que já foi
+    /// gravado. Dimensionar este campo para o hash cru fazia a promoção de um item capturado
+    /// estourar na criação da origem — o valor vem de lá, e os dois lados precisam descrever o
+    /// mesmo dado com o mesmo tamanho.
+    /// </remarks>
+    public const int CONTENT_HASH_MAX_LENGTH = 100;
 
     public BillSourceKind SourceKind { get; private set; } = default!;
 

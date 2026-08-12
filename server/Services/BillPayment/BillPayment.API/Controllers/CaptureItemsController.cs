@@ -10,11 +10,6 @@ using Microsoft.AspNetCore.Mvc;
 /// </summary>
 /// <remarks>
 /// <para>
-/// <strong>Somente leitura nesta sprint.</strong> A reivindicação de um item <c>Unrouted</c>
-/// (<c>POST /{id}/claim</c>) entra na 2.6, junto com a escada de roteamento que a torna
-/// significativa — ela precisa criar a <c>Bill</c> e a <c>RoutingRule</c> correspondentes.
-/// </para>
-/// <para>
 /// O conteúdo devolvido é filtrado pelo status do item, e quem decide isso é o domínio
 /// (<c>CaptureItemStatus.ExposesFinancialDetail</c>), não este controller nem a tela.
 /// </para>
@@ -73,6 +68,37 @@ public sealed class CaptureItemsController(
     {
         var identified = new IdentifiedCommand<ReprocessCaptureItemCommand, ReprocessCaptureItemResponse>(
             new ReprocessCaptureItemCommand(tenantId, id), EnsureRequestId(requestId));
+
+        return OkResponse(await mediator.Send(identified, cancellationToken));
+    }
+
+    /// <summary>
+    /// Assume que um item <c>Unrouted</c> é desta conta, e o promove a boleto.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// É o degrau 4 da escada: a escada não descobriu de quem é, e uma pessoa decide. A
+    /// <c>Bill</c> nasce com <c>TenantRouting = Claimed</c>, que aparece como
+    /// <c>Inconclusive</c> na tela de aprovação — reivindicar não pula a aprovação, só resolve a
+    /// atribuição.
+    /// </para>
+    /// <para>
+    /// Recusas, ambas <c>409</c>: pagador extraído que contradiz esta conta (<c>BLP.CPI04</c> — a
+    /// escada já sabia que não era dela) e boleto já sob gestão de outra conta
+    /// (<c>BLP.BIL02</c>, com aviso genérico que não identifica quem).
+    /// </para>
+    /// </remarks>
+    [HttpPost("{id:guid}/claim")]
+    public async Task<ActionResult<ClaimCaptureItemResponse>> Claim(
+        [FromRoute] Guid tenantId,
+        [FromRoute] Guid id,
+        [FromHeader(Name = "x-requestid")] Guid requestId,
+        [FromHeader(Name = "x-user-id")] Guid userId,
+        CancellationToken cancellationToken)
+    {
+        var identified = new IdentifiedCommand<ClaimCaptureItemCommand, ClaimCaptureItemResponse>(
+            new ClaimCaptureItemCommand(tenantId, id, ResolveDecidingUserId(userId)),
+            EnsureRequestId(requestId));
 
         return OkResponse(await mediator.Send(identified, cancellationToken));
     }

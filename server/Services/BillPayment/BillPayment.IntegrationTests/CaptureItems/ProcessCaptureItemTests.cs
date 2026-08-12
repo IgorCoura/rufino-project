@@ -65,7 +65,11 @@ public sealed class ProcessCaptureItemTests : BaseIntegrationTest
         Assert.Equal(1, result.InstrumentsFound);
 
         var stored = await LoadAsync(itemId);
-        Assert.Same(CaptureItemStatus.Parsed, stored!.Status);
+        // `Parsed` virou estado de PASSAGEM na 2.6: a escada de roteamento roda logo depois da
+        // cascata, e sem `PayerProfile` cadastrado ela não tem contra o quê comparar — o item
+        // segue para a fila de reivindicação. O que este teste mede é o degrau da cascata, e
+        // esse não mudou.
+        Assert.Same(CaptureItemStatus.Unrouted, stored!.Status);
         Assert.NotNull(stored.StorageKey);
         Assert.StartsWith("sha256:", stored.ContentHash!, StringComparison.Ordinal);
     }

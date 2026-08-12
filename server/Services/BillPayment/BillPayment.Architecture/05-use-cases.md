@@ -108,7 +108,7 @@ Desfecho por item — a pipeline **nunca** atribui ao dono da fonte por default:
 
 | Rota | Status | Vira Bill? |
 |---|---|---|
-| Degrau 1 ou 2 apontou para este tenant | `Promoted` | sim, confiança `Strong`/`Learned` |
+| Degrau 0 ou 1 apontou para este tenant | `Promoted` | sim, confiança `Strong` |
 | Degrau 3 (beneficiário exclusivo) | `Promoted` | sim, confiança `Weak`, destacado na aprovação |
 | Pagador identificado e é de outro | `ForeignPayer` | não |
 | Nada resolveu | `Unrouted` | não — vai para a fila de reivindicação |
@@ -124,9 +124,9 @@ Desfecho por item — a pipeline **nunca** atribui ao dono da fonte por default:
 
 `POST /api/v1/{tenantId}/capture-items/{id}/claim`
 
-Promove o item a `Bill` deste tenant e **cria a `RoutingRule`** de `(beneficiário, referência de conta)`, para o próximo boleto da mesma conta rotear sozinho. É o mecanismo que faz o sistema convergir: trabalho manual no primeiro boleto de cada conta recorrente, automático nos seguintes.
+Promove o item a `Bill` deste tenant. **Não cria `RoutingRule`** — o Aggregate foi abandonado na 2.6 ([doc 07](07-multitenancy-and-routing.md)); quem faz o próximo boleto do mesmo beneficiário rotear sozinho é o `Payee` cadastrado, pelo degrau 3. É o mecanismo que faz o sistema convergir: trabalho manual no primeiro boleto de cada conta recorrente, automático nos seguintes.
 
-Recusas: `409` se o pagador extraído contradiz este tenant (`BLP.CPI04` — a escada já sabia que não era dele); `409` com aviso genérico se outro tenant já reivindicou o mesmo item ou já tem regra para o mesmo par (`BLP.RTR02`).
+Recusas: `409` se o pagador extraído contradiz este tenant (`BLP.CPI04` — a escada já sabia que não era dele); `409` com aviso genérico se o mesmo instrumento já está sob gestão de outra conta (`BLP.BIL02`, unicidade global).
 
 A `Bill` resultante nasce com `TenantRouting = Claimed`, com `UserId` e instante na evidência — aprovar um boleto reivindicado é decisão consciente, nunca caminho silencioso.
 

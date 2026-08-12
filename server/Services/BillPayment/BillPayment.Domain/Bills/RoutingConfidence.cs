@@ -22,7 +22,16 @@ public sealed class RoutingConfidence : Enumeration
     /// <summary>O documento fiscal do pagador extraído casou com o <c>PayerProfile</c>.</summary>
     public static readonly RoutingConfidence Strong = new(1, nameof(Strong), isConclusive: true);
 
-    /// <summary>Uma <c>RoutingRule</c> aprendida casou por (beneficiário, referência de conta).</summary>
+    /// <summary>
+    /// <strong>Sem produtor desde a sprint 2.6.</strong> Era o degrau 2 — uma <c>RoutingRule</c>
+    /// aprendida casando por (beneficiário, referência de conta) —, abandonado quando a medição
+    /// mostrou que a referência de conta não distingue pagadores (doc 07).
+    /// </summary>
+    /// <remarks>
+    /// O valor permanece porque o id é persistido: removê-lo renumeraria os demais e reescreveria
+    /// o significado de linhas já gravadas. Só volte a produzi-lo se o degrau 2 for reaberto com
+    /// uma chave que de fato distinga tenants.
+    /// </remarks>
     public static readonly RoutingConfidence Learned = new(2, nameof(Learned), isConclusive: true);
 
     /// <summary>O beneficiário é exclusivo deste tenant entre os que monitoram a fonte.</summary>

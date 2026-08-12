@@ -90,6 +90,17 @@ internal sealed class PayeeMap : IEntityTypeConfiguration<Payee>
         builder.HasIndex(e => new { e.TenantId, e.TaxId })
             .IsUnique()
             .HasDatabaseName("ix_payees_tenant_tax_id");
+
+        // ATENÇÃO: índice sobre o documento SEM tenant_id, e deliberadamente NÃO único —
+        // exatamente como o ix_capture_sources_address_global e pelo mesmo motivo. Dois tenants
+        // cadastrarem o mesmo beneficiário é o caso normal (a concessionária atende os dois), e
+        // torná-lo único quebraria o cadastro do segundo.
+        // Serve a UM caminho de código, IPayeeRepository.IsRegisteredByAnotherTenantAsync, que
+        // sustenta o degrau 3 da escada de roteamento e devolve bool e nada mais. O índice de
+        // cima não atende essa consulta: tax_id é a segunda coluna dele.
+        // Qualquer outra consulta sem tenant_id sobre esta tabela é violação do isolamento.
+        builder.HasIndex(e => e.TaxId)
+            .HasDatabaseName("ix_payees_tax_id_global");
     }
 
     private static string Serialize(AmountPolicy policy)

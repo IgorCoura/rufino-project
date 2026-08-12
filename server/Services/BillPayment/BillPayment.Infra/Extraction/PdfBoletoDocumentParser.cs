@@ -60,11 +60,13 @@ internal sealed class PdfBoletoDocumentParser(
             return Task.FromResult(ExtractionResult.NotFound(reason));
         }
 
-        return Task.FromResult(ExtractionResult.Found(scan.Instruments, scan.Method!, scan.UnlockedBy));
+        return Task.FromResult(
+            ExtractionResult.Found(scan.Instruments, scan.Method!, scan.UnlockedBy, scan.Parties));
     }
 
     private sealed record ScanOutcome(
         IReadOnlyList<PaymentInstrument> Instruments,
+        IReadOnlyList<PartyCandidate> Parties,
         ExtractionMethod? Method,
         string? UnlockedBy,
         bool Locked,
@@ -127,11 +129,11 @@ internal sealed class PdfBoletoDocumentParser(
                 // PDF corrompido ou fora do padrão não é documento cifrado — não adianta tentar
                 // outra senha, e insistir só gastaria o teto à toa.
                 logger.LogWarning(ex, "Não foi possível abrir o PDF para extração.");
-                return new ScanOutcome([], null, null, Locked: false, HadText: false);
+                return new ScanOutcome([], [], null, null, Locked: false, HadText: false);
             }
         }
 
-        return new ScanOutcome([], null, null, Locked: true, HadText: false);
+        return new ScanOutcome([], [], null, null, Locked: true, HadText: false);
     }
 
     private ScanOutcome Harvest(
@@ -177,6 +179,9 @@ internal sealed class PdfBoletoDocumentParser(
 
         return new ScanOutcome(
             instruments,
+            // Os documentos fiscais saem da MESMA passagem de texto que já foi feita: reabrir o
+            // PDF só para procurá-los dobraria o custo do degrau mais barato da cascata.
+            TaxIdScanner.Scan(body),
             method,
             unlockedBy,
             Locked: false,

@@ -172,6 +172,23 @@ public static class CaptureItemErrors
             parameters: Array.Empty<object>(),
             sourcePath: BuildSourcePath(filePath, memberName, lineNumber));
 
+    /// <summary>
+    /// A reivindicação relê o artefato guardado para montar o boleto, e não achou instrumento
+    /// nenhum. Acontece quando o que está no armazenamento não é mais o documento que gerou o
+    /// item — reprocessar é o caminho, reivindicar às cegas não é.
+    /// </summary>
+    public static DomainException NoInstrumentToClaim(
+        Guid captureItemId,
+        [CallerFilePath] string filePath = "",
+        [CallerMemberName] string memberName = "",
+        [CallerLineNumber] int lineNumber = 0)
+        => new(
+            id: $"{AGGREGATE_PREFIX}15",
+            messageTemplate: "Não foi possível ler um boleto no artefato do item {0} para reivindicá-lo.",
+            parameters: new object[] { captureItemId },
+            sourcePath: BuildSourcePath(filePath, memberName, lineNumber),
+            category: DomainErrorCategory.Conflict);
+
     private static string BuildSourcePath(string filePath, string memberName, int lineNumber)
         => $"{Path.GetFileName(filePath)}:{lineNumber} ({memberName})";
 }

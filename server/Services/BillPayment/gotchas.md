@@ -168,3 +168,39 @@ Como o `Id` é value-converted, comparar `>` exige que o record struct declare o
 **Por que importa:** o degrau novo (`ExtractionMethod.EmailBody`) é mais barato que todos os planejados e **não abre superfície de ataque nenhuma**. Sem a medição, a sprint teria entregue rede para buscar o que estava escrito no texto.
 
 **Regra:** medir a realidade antes de implementar o plano, mesmo quando o plano parece óbvio — sobretudo quando parece óbvio. Já é o quarto achado desta natureza no BC (o `$top` da delta query, o `TryGetPng` em DCTDecode, o `MaxPages` nunca aplicado, e agora este).
+
+## A chave que "identifica a conta" pode identificar o credor, não o devedor
+
+**Quando:** 2026-08-12, ao medir a sprint 2.6 antes de criar o Aggregate `RoutingRule`.
+
+**O que aconteceu:** o doc 07 previa aprender a rota por `(beneficiário, referência de conta)`, com a referência saindo do campo livre do código de barras. Agrupando 714 boletos de 14 meses por fornecedor, o campo livre parecia perfeito: 13 a 19 posições estáveis entre meses, com cara de número de conta. **Só que comparando dois pagadores diferentes do mesmo emissor, as posições estáveis eram as MESMAS** — DESPACON 19/25 idênticas entre dois tenants, SECONCI 17/25. O que se repete é a agência/conta do **beneficiário**; o que varia é o nosso número.
+
+**Por que é traiçoeiro:** a primeira medição (estabilidade entre meses) confirma a hipótese com folga. É preciso fazer a segunda — estabilidade **entre pagadores** — para descobrir que a chave não discrimina. Uma regra criada pelo tenant A casaria com o boleto do tenant B e roteria a conta errada, que é a falha que o ADR-008 inteiro existe para impedir.
+
+**Regra:** ao propor uma chave de identificação, meça as duas coisas: que ela é **estável no mesmo sujeito** e que ela **difere entre sujeitos**. Só a primeira é armadilha.
+
+**Como pegar de novo:** `tools/analyze-account-reference.js` roda as duas comparações.
+
+## Janela deslizante serve para linha digitável e NÃO serve para CNPJ
+
+**Quando:** 2026-08-12, ao escrever o `TaxIdScanner`.
+
+**O que aconteceu:** o reflexo era copiar a doutrina do `CandidateScanner` — gerar todas as janelas e deixar o dígito verificador reprovar. Medido sobre os mesmos 714 documentos: a regra deslizante **fabricaria um CNPJ aparentemente válido dentro do próprio código de barras em 46,9% deles**.
+
+**Por que é traiçoeiro:** a doutrina é correta e está documentada — só que ela depende de o filtro ser forte. A linha digitável tem quatro dígitos verificadores; o CNPJ tem dois, e um bloco de 44 posições oferece trinta e uma janelas. Pior: um número fabricado pode cair ao lado de um rótulo de "Pagador" e mandar uma conta legítima para a quarentena cega, de onde o usuário não consegue reivindicá-la.
+
+**Regra:** exigir a sequência **exata** (11 ou 14 dígitos) para documento fiscal. Não custa cobertura — emissor imprime documento fiscal isolado ou formatado, e a letra do rótulo seguinte encerra a sequência.
+
+**Como pegar de novo:** antes de reusar uma estratégia de varredura, conte os dígitos verificadores do que ela vai validar e as janelas que a entrada oferece.
+
+## Medir com uma ferramenta e executar com outra
+
+**Quando:** 2026-08-12, quando os testes de integração da 2.6 falharam todos em `Unrouted`.
+
+**O que aconteceu:** a medição dos 93,3% foi feita com `pdftotext -layout`. O sistema lê com **PdfPig**, cuja saída é diferente: os blocos vêm concatenados sem espaço (`CPF/CNPJ21.692.055/0001-80Registro2506564`). O fixture sintético do teste colava o CNPJ direto na linha digitável, produzindo uma sequência de 61 dígitos que a regra de tamanho exato recusa — corretamente.
+
+**Por que é traiçoeiro:** a medição continuava válida (em documento real o rótulo separa os campos, e isso foi conferido), mas ela **não provava** o que o código faz, porque o extrator era outro. O teste é que estava descrevendo um documento que não existe.
+
+**Regra:** quando a medição alimenta uma decisão de código, confira a mesma amostra **pelo caminho que o código usa**. E fixture sintético tem que reproduzir a forma real da saída do extrator, não a forma idealizada.
+
+**Como pegar de novo:** se a medição e a implementação usam bibliotecas diferentes para o mesmo passo, sonde uma amostra pela biblioteca da implementação antes de confiar no número.
