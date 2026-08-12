@@ -122,3 +122,49 @@ Como o `Id` é value-converted, comparar `>` exige que o record struct declare o
 **Como pegar de novo:** `42P07 relation already exists` num banco que a suíte acabou de criar significa "migrei duas vezes achando que era a primeira" — procure onde o histórico está sendo gravado, e quem o está apagando.
 
 **Armadilha de método:** a execução que "passou" logo antes desta rodou contra binários velhos, porque o build havia falhado (analyzers no arquivo gerado) e o `dotnet test` reaproveitou o `bin` anterior. **Suíte verde depois de build vermelho não é suíte verde** — confira o resultado do build antes de acreditar no do teste.
+
+## O `href` não é o endereço que será visitado
+
+**Quando:** 2026-08-12, ao desenhar a escada de resolução de link (sprint 2.5).
+
+**O que aconteceu:** a primeira ideia era simples — allowlist de domínio sobre o `href` do e-mail. A varredura de um ano da caixa real mostrou que **todo** boleto por link chega embrulhado em rastreador de campanha: `https://vjmh2gkk.r.us-east-1.awstrack.me/L0/https:%2F%2F…destino…/1/…`. O endereço de verdade vive percent-encoded **dentro do caminho**, e o `href` aponta para o rastreador.
+
+**Por que é traiçoeiro:** o texto visível da âncora mostra a URL certa; só o atributo é que aponta para o rastreador. Lendo o e-mail renderizado, a allowlist parece funcionar. E as duas saídas óbvias estão erradas nos dois sentidos: autorizar o host do rastreador autoriza redirecionamento para **qualquer** lugar (o mesmo rastreador serve qualquer campanha de qualquer remetente); recusá-lo sem desembrulhar perde **todos** os boletos por link que existem.
+
+**Regra:** a allowlist decide sobre o endereço **desembrulhado**, e o desembrulho é feito **sem rede** — decodificar o segmento é mais barato que seguir o redirecionamento, não pode ser enganado por um `Location` diferente do anunciado, e não entrega ao remetente a confirmação de que a mensagem foi aberta.
+
+**Como pegar de novo:** ao ver um host de rastreamento numa allowlist de saída, pergunte quem mais pode publicar naquele host. Se a resposta for "qualquer um", a allowlist não está protegendo nada.
+
+## O host que serve o documento não é o do remetente
+
+**Quando:** 2026-08-12, mesma sondagem.
+
+**O que aconteceu:** a segunda ideia era derivar a autorização do domínio de quem mandou o e-mail — parecia o critério mais natural e o mais fechado. Medido: a **SABESP** publica o PDF da fatura em `file-pdf.7az.com.br:7446` e a **EDP** em `wwwl.montreal.com.br`. Nenhum dos dois tem relação com o domínio do remetente.
+
+**Por que é traiçoeiro:** a regra erra nas duas direções ao mesmo tempo. Recusa os dois únicos casos reais **e** autoriza qualquer coisa hospedada no domínio de quem mandou o e-mail — que é justamente o que um remetente hostil controla.
+
+**Regra:** allowlist é **explícita por receita** (host + porta + prefixo de caminho), nunca derivada do remetente. E a porta faz parte dela: `:7446` não é detalhe, é onde o único PDF direto vive.
+
+**Como pegar de novo:** antes de escrever qualquer regra de "de onde eu aceito baixar", sonde os endereços reais e compare com o `From:` do e-mail.
+
+## URL de boleto é credencial ao portador
+
+**Quando:** 2026-08-12, ao sondar os quatro endereços.
+
+**O que aconteceu:** os quatro responderam `200` sem autenticação nenhuma — `ssl.brcondos.com.br/Bill/<guid>`, `file-pdf.7az.com.br:7446/dx/<guid>.pdf`, `perfil.simplificamais.com.br/directScript?hash=<md5>` e `pagamento.sabesp.com.br/checkout?code=<guid>`. Quem tem o link tem o boleto.
+
+**Por que é traiçoeiro:** URL parece metadado inofensivo — vai para log de aplicação, para telemetria de cliente HTTP, para mensagem de erro, para tela de diagnóstico. Nenhum desses lugares seria aceitável para o próprio PDF, e o efeito é o mesmo.
+
+**Regra:** `CaptureItem.SourceUrl` sai por API só sob o portão do ADR-008 (o mesmo que esconde o `StorageKey`), e **o log só recebe o host**. No `HttpDocumentLinkResolver` o host é extraído para variável local antes de qualquer `Log*` — não por estilo, mas para não haver a tentação de logar `uri` inteiro.
+
+**Como pegar de novo:** ao logar qualquer coisa derivada de um endereço de documento, pergunte se você logaria o documento. Se não, logue só o host.
+
+## O plano da sprint pode estar resolvendo o problema errado
+
+**Quando:** 2026-08-12, antes de escrever a primeira linha da 2.5.
+
+**O que aconteceu:** a sprint estava desenhada como "escada de resolução de link", com três degraus de rede. A varredura de um ano da caixa mostrou que **dois dos cinco arquétipos já traziam o dado pagável escrito no corpo do e-mail** — a SABESP manda o BR Code inteiro no formato novo e a linha digitável de arrecadação no formato antigo. Ambos resolvem sem abrir arquivo e sem tocar a rede, com o `CandidateScanner` que já existia desde a 2.3.
+
+**Por que importa:** o degrau novo (`ExtractionMethod.EmailBody`) é mais barato que todos os planejados e **não abre superfície de ataque nenhuma**. Sem a medição, a sprint teria entregue rede para buscar o que estava escrito no texto.
+
+**Regra:** medir a realidade antes de implementar o plano, mesmo quando o plano parece óbvio — sobretudo quando parece óbvio. Já é o quarto achado desta natureza no BC (o `$top` da delta query, o `TryGetPng` em DCTDecode, o `MaxPages` nunca aplicado, e agora este).

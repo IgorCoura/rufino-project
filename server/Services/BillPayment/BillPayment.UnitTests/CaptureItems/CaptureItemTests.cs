@@ -287,6 +287,50 @@ public class CaptureItemTests
         Assert.Equal("duplicate_content", duplicata.Reason);
     }
 
+    // Registrar de onde o documento veio é PROCEDÊNCIA, não transição: a resolução do link
+    // acontece dentro do mesmo processamento que já vai decidir o destino do item, e passar por
+    // LinkPending só para voltar no instante seguinte inventaria um estado que ninguém observa.
+    [Fact]
+    public void RecordResolvedLink_ShouldKeepTheStatusUntouched()
+    {
+        var item = CaptureItemMother.Ingest(artifactKey: "message-body", contentType: "text/html");
+
+        item.RecordResolvedLink("https://ssl.exemplo.com.br/Bill/abc-123", Later);
+
+        Assert.Same(CaptureItemStatus.Received, item.Status);
+        Assert.Equal("https://ssl.exemplo.com.br/Bill/abc-123", item.SourceUrl);
+        Assert.Equal(Later, item.UpdatedAt);
+    }
+
+    // Endereço vazio é recusado: documento trazido da rede sem procedência seria documento sem
+    // evidência — um boleto que chegou por link não tem anexo para reapresentar.
+    [Theory]
+    [InlineData("")]
+    [InlineData("   ")]
+    public void RecordResolvedLink_WithBlankUrl_ShouldThrowBLP_CPI14(string url)
+    {
+        var item = CaptureItemMother.Ingest();
+
+        var exception = Assert.Throws<DomainException>(() => item.RecordResolvedLink(url, Later));
+
+        Assert.Equal("BLP.CPI14", exception.Id);
+    }
+
+    // Reabrir apaga a procedência junto com o resto do veredito: a escada vai ser percorrida de
+    // novo, com as receitas de hoje, e pode trazer o documento de outro endereço — ou de nenhum.
+    [Fact]
+    public void Reopen_ShouldClearTheResolvedLink()
+    {
+        var item = CaptureItemMother.Ingest(contentType: "text/html");
+        item.RecordResolvedLink("https://ssl.exemplo.com.br/Bill/abc-123", Later);
+        item.MarkUnrecognized("no_instrument_in_body", Later);
+
+        item.Reopen(Later.AddHours(1));
+
+        Assert.Same(CaptureItemStatus.Received, item.Status);
+        Assert.Null(item.SourceUrl);
+    }
+
     // Estado terminal não aceita mais nenhuma transição — BLP.CPI03.
     [Fact]
     public void Transition_FromTerminalStatus_ShouldThrowBLP_CPI03()

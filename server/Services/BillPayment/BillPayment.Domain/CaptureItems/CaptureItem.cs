@@ -168,6 +168,34 @@ public sealed class CaptureItem : AggregateRoot<CaptureItemId>
         SourceUrl = url;
     }
 
+    /// <summary>
+    /// Registra de qual endereço o documento foi trazido, sem mexer no status.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <strong>Não é transição, é procedência.</strong> A resolução do link acontece dentro do
+    /// mesmo processamento que já vai decidir o destino do item — passar por <c>LinkPending</c> só
+    /// para voltar no instante seguinte inventaria um estado intermediário que ninguém observa e
+    /// que a máquina de estados teria de admitir em todas as direções.
+    /// </para>
+    /// <para>
+    /// <strong>A URL é tão sigilosa quanto o documento.</strong> Medido em 2026-08-11: os endereços
+    /// de boleto respondem <c>200</c> sem autenticação nenhuma — quem tem o link tem o boleto. Ele
+    /// sai por API só sob o mesmo portão do ADR-008 que já cobre o <see cref="StorageKey"/>.
+    /// </para>
+    /// </remarks>
+    public void RecordResolvedLink(string sourceUrl, DateTime occurredAt)
+    {
+        var url = sourceUrl?.Trim();
+        if (string.IsNullOrEmpty(url))
+            throw CaptureItemErrors.SourceUrlRequired();
+        if (url.Length > SOURCE_URL_MAX_LENGTH)
+            throw CaptureItemErrors.TextTooLong(nameof(SourceUrl), SOURCE_URL_MAX_LENGTH);
+
+        SourceUrl = url;
+        UpdatedAt = occurredAt;
+    }
+
     /// <summary>A escada de resolução esgotou sem trazer o documento.</summary>
     public void MarkLinkFailed(string reason, DateTime occurredAt)
     {
@@ -237,6 +265,11 @@ public sealed class CaptureItem : AggregateRoot<CaptureItemId>
         Reason = null;
         Extraction = null;
         UnlockedBy = null;
+
+        // A procedência também é do dia em que o item passou: a escada de link vai ser percorrida
+        // de novo, com as receitas de hoje, e pode trazer o documento de outro endereço — ou de
+        // nenhum. Manter o anterior descreveria uma busca que não foi a que aconteceu.
+        SourceUrl = null;
     }
 
     /// <summary>Roteou para este tenant e virou boleto.</summary>

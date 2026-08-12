@@ -37,6 +37,13 @@ internal sealed record GraphMessage(
     [property: JsonPropertyName("from")] GraphRecipient? From,
 
     /// <summary>
+    /// O corpo da mensagem. Vem na própria delta query desde a 2.5 — a alternativa seria uma
+    /// chamada por mensagem, e a caixa real mostrou que a maioria das contas por link não tem
+    /// anexo nenhum para justificar a ida.
+    /// </summary>
+    [property: JsonPropertyName("body")] GraphItemBody? Body,
+
+    /// <summary>
     /// Presente quando a mensagem foi apagada ou movida para fora da pasta desde o último
     /// cursor. Ignoramos: o que já foi ingerido é trilha de auditoria e não se desfaz porque
     /// alguém arrumou a caixa de entrada.
@@ -44,6 +51,11 @@ internal sealed record GraphMessage(
     [property: JsonPropertyName("@removed")] GraphRemoved? Removed);
 
 internal sealed record GraphRemoved([property: JsonPropertyName("reason")] string? Reason);
+
+/// <summary>Corpo da mensagem. <c>contentType</c> é <c>html</c> ou <c>text</c>.</summary>
+internal sealed record GraphItemBody(
+    [property: JsonPropertyName("contentType")] string? ContentType,
+    [property: JsonPropertyName("content")] string? Content);
 
 internal sealed record GraphRecipient([property: JsonPropertyName("emailAddress")] GraphEmailAddress? EmailAddress);
 

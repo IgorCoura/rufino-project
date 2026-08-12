@@ -14,6 +14,7 @@ using BillPayment.Infra.BankDirectory;
 using BillPayment.Infra.DocumentIntelligence;
 using BillPayment.Infra.DocumentIntelligence.Gemini;
 using BillPayment.Infra.Extraction;
+using BillPayment.Infra.Extraction.Links;
 using BillPayment.Infra.Idempotency;
 using BillPayment.Infra.Mailboxes;
 using BillPayment.Infra.Mailboxes.Graph;
@@ -58,10 +59,13 @@ public static class InfraDependencies
         // Cascata de extração. Sem opção de desligar: é determinística, local e gratuita — e é
         // ela que permite descartar o que não é boleto sem encher fila.
         services.Configure<ExtractionOptions>(configuration.GetSection(ExtractionOptions.SectionName));
-        services.AddScoped<IBoletoDocumentParser, PdfBoletoDocumentParser>();
+        services.AddScoped<PdfBoletoDocumentParser>();
+        services.AddScoped<EmailBodyDocumentParser>();
+        services.AddScoped<IBoletoDocumentParser, CascadingBoletoDocumentParser>();
 
         services.AddAttachmentStorage(configuration);
         services.AddDocumentIntelligence(configuration);
+        services.AddLinkResolution(configuration);
 
         // Singleton: o snapshot do Bacen é lido do assembly uma vez e é imutável depois.
         services.AddSingleton<IBankDirectory, BacenBankDirectory>();
@@ -172,6 +176,93 @@ public static class InfraDependencies
     /// seguinte — mais barata e visível.
     /// </para>
     /// </remarks>
+    /// <summary>
+    /// Escada de resolução de link — degraus 2 e 3 do doc 09.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <strong>As receitas padrão são as medidas, e só elas.</strong> Em 2026-08-11 quatro
+    /// endereços de boleto foram sondados a partir da caixa real: dois entregam documento e dois
+    /// exigem portal. Só os dois primeiros viraram receita — configurar um host que não se sabe
+    /// responder faria a escada gastar requisição em silêncio e o desfecho parecer falha do
+    /// emissor.
+    /// </para>
+    /// <para>
+    /// <strong>O cliente HTTP não segue redirecionamento e não retenta.</strong> Um <c>302</c> é o
+    /// jeito mais simples de burlar allowlist; e retentar contra um link expirado só multiplica
+    /// requisição partindo da nossa rede para o servidor de outra empresa.
+    /// </para>
+    /// </remarks>
+    private static void AddLinkResolution(this IServiceCollection services, IConfiguration configuration)
+    {
+        var section = configuration.GetSection(LinkResolutionOptions.SectionName);
+        var options = section.Get<LinkResolutionOptions>() ?? new LinkResolutionOptions();
+
+        // Lista vazia recebe os padrões medidos. Não são default de propriedade porque o binder de
+        // configuração mescla coleção por índice: um appsettings com uma receita sobrescreveria a
+        // primeira e manteria as demais, produzindo uma allowlist que ninguém escreveu.
+        if (options.Recipes.Count == 0)
+            options.Recipes = DefaultLinkRecipes();
+
+        services.Configure<LinkResolutionOptions>(o =>
+        {
+            o.Enabled = options.Enabled;
+            o.TimeoutSeconds = options.TimeoutSeconds;
+            o.MaxBytes = options.MaxBytes;
+            o.MaxFetchesPerMessage = options.MaxFetchesPerMessage;
+            o.Recipes = options.Recipes;
+        });
+
+        if (!options.Enabled || options.Recipes.Count == 0)
+        {
+            services.AddSingleton<IDocumentLinkResolver, NullDocumentLinkResolver>();
+            return;
+        }
+
+        services.AddHttpClient(HttpDocumentLinkResolver.CLIENT_NAME, http =>
+            {
+                http.Timeout = TimeSpan.FromSeconds(options.TimeoutSeconds);
+
+                // Identificar-se é o oposto de evadir anti-bot (ADR-012): quem hospeda o documento
+                // tem direito de saber quem está buscando e de bloquear se quiser.
+                http.DefaultRequestHeaders.UserAgent.ParseAdd("RufinoBillPayment/1.0 (+contas-a-pagar)");
+            })
+            .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler
+            {
+                AllowAutoRedirect = false,
+                UseCookies = false,
+            });
+
+        services.AddScoped<IDocumentLinkResolver, HttpDocumentLinkResolver>();
+    }
+
+    /// <summary>
+    /// As receitas provadas contra a caixa real em 2026-08-11.
+    /// </summary>
+    private static List<LinkRecipe> DefaultLinkRecipes() =>
+    [
+        // SABESP, formato novo: o PDF sai direto, em porta não-padrão. Sondado: 200,
+        // application/pdf, 141 KB, sem autenticação.
+        new LinkRecipe
+        {
+            Host = "file-pdf.7az.com.br",
+            Port = 7446,
+            PathPrefix = "/dx/",
+            DirectDocument = true,
+        },
+
+        // Condomínio (BRCondos): o endereço do boleto responde uma página. Sondado: 200,
+        // text/html, 82 KB, sem autenticação. O prefixo /bill/ é o que separa o botão do boleto
+        // do link de propaganda que vem logo abaixo dele no mesmo e-mail.
+        new LinkRecipe
+        {
+            Host = "ssl.brcondos.com.br",
+            Port = 443,
+            PathPrefix = "/bill/",
+            DirectDocument = false,
+        },
+    ];
+
     private static void AddDocumentIntelligence(this IServiceCollection services, IConfiguration configuration)
     {
         var section = configuration.GetSection(DocumentIntelligenceOptions.SectionName);

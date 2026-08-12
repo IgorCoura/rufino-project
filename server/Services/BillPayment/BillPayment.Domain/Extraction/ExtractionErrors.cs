@@ -81,6 +81,20 @@ public static class ExtractionErrors
             parameters: new object[] { mediaType },
             sourcePath: BuildSourcePath(filePath, memberName, lineNumber));
 
+    /// <summary>
+    /// Documento trazido da rede sem o endereço que o produziu seria documento sem procedência:
+    /// um boleto que chegou por link não tem anexo para reapresentar, e a URL é a única evidência.
+    /// </summary>
+    public static DomainException SourceUrlRequired(
+        [CallerFilePath] string filePath = "",
+        [CallerMemberName] string memberName = "",
+        [CallerLineNumber] int lineNumber = 0)
+        => new(
+            id: $"{PREFIX}07",
+            messageTemplate: "Um documento resolvido por link precisa registrar o endereço de origem.",
+            parameters: Array.Empty<object>(),
+            sourcePath: BuildSourcePath(filePath, memberName, lineNumber));
+
     private static string BuildSourcePath(string filePath, string memberName, int lineNumber)
         => $"{Path.GetFileName(filePath)}:{lineNumber} ({memberName})";
 }

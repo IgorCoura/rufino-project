@@ -1,6 +1,7 @@
 namespace BillPayment.IntegrationTests.Mailboxes;
 
 using System.Net;
+using BillPayment.Domain.Extraction;
 using BillPayment.Domain.Mailboxes;
 using BillPayment.Domain.Ports;
 using BillPayment.Domain.Secrets;
@@ -304,8 +305,30 @@ public sealed class GraphMailboxReaderTests
         var tokenProvider = new GraphTokenProvider(
             factory, options, clock, NullLogger<GraphTokenProvider>.Instance);
 
+        // Sem receita de link: o portão do corpo passa a depender só do que estiver escrito no
+        // texto, que é o que estes testes exercitam.
         return new GraphMailboxReader(
-            factory, vault, tokenProvider, options, clock, NullLogger<GraphMailboxReader>.Instance);
+            factory,
+            vault,
+            tokenProvider,
+            new NoRecipeLinkResolver(),
+            options,
+            clock,
+            NullLogger<GraphMailboxReader>.Instance);
+    }
+
+    /// <summary>Resolvedor sem receita nenhuma — nenhum host é buscável.</summary>
+    private sealed class NoRecipeLinkResolver : IDocumentLinkResolver
+    {
+        public bool IsEnabled => false;
+
+        public IReadOnlyCollection<string> ResolvableHosts => [];
+
+        public Task<ResolvedDocument?> ResolveAsync(
+            ReadOnlyMemory<byte> body,
+            string? contentType,
+            CancellationToken cancellationToken)
+            => Task.FromResult<ResolvedDocument?>(null);
     }
 
     /// <summary>Cofre de teste: devolve o que foi programado. O cofre real tem suíte própria.</summary>

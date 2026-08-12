@@ -32,5 +32,17 @@ public sealed class ExtractionMethod : Enumeration
     /// <summary>Uma pessoa informou a linha digitável — degrau 4, a quarentena resolvida à mão.</summary>
     public static readonly ExtractionMethod Manual = new(4, nameof(Manual));
 
+    /// <summary>
+    /// O instrumento estava escrito no próprio corpo da mensagem — degrau 1, o mais barato de
+    /// todos (sprint 2.5).
+    /// </summary>
+    /// <remarks>
+    /// Nasceu de uma medição que contrariou o plano: a SABESP manda o BR Code inteiro no texto do
+    /// e-mail, e no outro formato manda a linha digitável. Os dois resolvem <strong>sem abrir
+    /// arquivo e sem tocar a rede</strong> — mais barato que o texto embutido em PDF, que ainda
+    /// exige baixar o anexo.
+    /// </remarks>
+    public static readonly ExtractionMethod EmailBody = new(5, nameof(EmailBody));
+
     private ExtractionMethod(int id, string name) : base(id, name) { }
 }

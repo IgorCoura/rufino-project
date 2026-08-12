@@ -45,6 +45,7 @@ public sealed class ProcessCaptureItemCommandHandler(
     IPayeeRepository payees,
     IMailboxReader mailboxReader,
     IBoletoDocumentParser parser,
+    IDocumentLinkResolver linkResolver,
     IDocumentIntelligence documentIntelligence,
     IAttachmentStorage storage,
     TimeProvider clock,
@@ -94,19 +95,47 @@ public sealed class ProcessCaptureItemCommandHandler(
 
         var origin = await ResolveOriginAsync(item, tenantId, cancellationToken);
 
+        // O que é processado, guardado e mandado para a visão deixa de ser necessariamente o que
+        // foi baixado: quando o artefato é o corpo de um e-mail e o boleto está atrás de um link,
+        // é o documento buscado que assume o lugar dele daqui para a frente.
+        var payload = content.Value;
+        var payloadType = item.ContentType;
+
+        // Degrau 2: só quando o corpo não trazia o instrumento escrito nele. Buscar o PDF de uma
+        // fatura cujo Pix já está no texto seria gastar rede — e abrir superfície de ataque — para
+        // descobrir o que já estava ali.
+        if (!extraction.Resolved && !extraction.IsLocked)
+        {
+            var resolved = await linkResolver.ResolveAsync(payload, payloadType, cancellationToken);
+
+            if (resolved is not null)
+            {
+                // A procedência é registrada mesmo que o documento buscado não resolva: saber
+                // ONDE o sistema foi procurar é o que permite corrigir a receita depois.
+                item.RecordResolvedLink(resolved.SourceUrl, now.UtcDateTime);
+
+                payload = resolved.Content;
+                payloadType = resolved.MediaType;
+
+                extraction = await parser.ParseAsync(
+                    payload, payloadType, passwords, DateOnly.FromDateTime(now.UtcDateTime), cancellationToken);
+            }
+        }
+
         // Degrau 3: só o que o determinístico não resolveu, e só quando vale gastar. PDF cifrado
         // não entra — mandar um arquivo que não abre gastaria a chamada para o modelo ver a tela
         // de senha.
         if (!extraction.Resolved && !extraction.IsLocked)
         {
             extraction = await TryVisionAsync(
-                item, tenantId, profile, origin, content.Value, now.UtcDateTime, cancellationToken)
+                item, tenantId, profile, origin, payload, payloadType, now.UtcDateTime, cancellationToken)
                 ?? extraction;
         }
 
         var decision = CaptureTriageService.Decide(extraction, origin);
 
-        await ApplyAsync(item, decision, extraction, content.Value, tenantId, now.UtcDateTime, cancellationToken);
+        await ApplyAsync(
+            item, decision, extraction, payload, payloadType, tenantId, now.UtcDateTime, cancellationToken);
 
         await unitOfWork.SaveEntitiesAsync(cancellationToken);
 
@@ -126,6 +155,7 @@ public sealed class ProcessCaptureItemCommandHandler(
         CaptureTriageDecision decision,
         ExtractionResult extraction,
         ReadOnlyMemory<byte> content,
+        string? contentType,
         TenantId tenantId,
         DateTime occurredAt,
         CancellationToken cancellationToken)
@@ -140,8 +170,10 @@ public sealed class ProcessCaptureItemCommandHandler(
 
         if (decision == CaptureTriageDecision.Parse)
         {
+            // O tipo guardado é o do que foi realmente lido: quando o boleto veio por link, o
+            // artefato é o PDF buscado, e não o corpo do e-mail que apontava para ele.
             var storageKey = await storage.StoreAsync(
-                tenantId, item.ArtifactKey, "application/pdf", content, cancellationToken);
+                tenantId, item.ArtifactKey, contentType ?? "application/pdf", content, cancellationToken);
 
             var hash = Sha256Of(content.Span);
 
@@ -192,6 +224,7 @@ public sealed class ProcessCaptureItemCommandHandler(
         PayerProfile? profile,
         TrustedOrigin? origin,
         ReadOnlyMemory<byte> content,
+        string? contentType,
         DateTime occurredAt,
         CancellationToken cancellationToken)
     {
@@ -201,7 +234,7 @@ public sealed class ProcessCaptureItemCommandHandler(
         // O tipo é o DECLARADO na ingestão, nunca deduzido do nome: a chave do artefato é opaca
         // no provedor, e adivinhar dali rotulava toda imagem como PDF — o extrator recusava, e os
         // anexos que não eram PDF seguiam inalcançáveis mesmo com a visão existindo.
-        if (!DocumentPayload.IsSupported(item.ContentType))
+        if (!DocumentPayload.IsSupported(contentType))
             return null;
 
         // FileName, não ArtifactKey: a chave é opaca no provedor, então procurar sinal de cobrança
@@ -211,7 +244,7 @@ public sealed class ProcessCaptureItemCommandHandler(
 
         var hints = await BuildHintsAsync(tenantId, profile, item.Sender, cancellationToken);
         var extracted = await documentIntelligence.ExtractAsync(
-            DocumentPayload.From(tenantId, content, item.ContentType), hints, cancellationToken);
+            DocumentPayload.From(tenantId, content, contentType), hints, cancellationToken);
 
         var instruments = CandidateValidationService.Validate(extracted, occurredAt);
 

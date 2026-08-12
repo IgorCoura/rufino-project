@@ -67,6 +67,13 @@ public sealed class IntegrationTestWebAppFactory : WebApplicationFactory<Program
         // WithCaptureChain(), que injeta o FakeDocumentIntelligence.
         builder.UseSetting("DocumentIntelligence:Provider", "None");
 
+        // A escada de resolução de link idem, e esta é a única que faz requisição de saída para
+        // um servidor de TERCEIRO — não para um provedor com quem há contrato. Ligada, a suíte
+        // buscaria endereços de verdade em máquina de desenvolvedor e em CI, com resultado
+        // dependente de o servidor do emissor estar no ar. Quem exercita os degraus 2 e 3 injeta
+        // o resolvedor de teste.
+        builder.UseSetting("LinkResolution:Enabled", "false");
+
         builder.UseEnvironment("Development");
     }
 
@@ -176,6 +183,13 @@ public sealed class IntegrationTestWebAppFactory : WebApplicationFactory<Program
             services.AddSingleton<FakeDocumentIntelligence>();
             services.RemoveAll<IDocumentIntelligence>();
             services.AddSingleton<IDocumentIntelligence>(sp => sp.GetRequiredService<FakeDocumentIntelligence>());
+
+            // A escada de link entra pelo mesmo caminho e também desligada por padrão. O
+            // resolvedor de verdade sai de cena aqui: ele faz requisição para servidor de
+            // terceiro, e um teste que dependesse disso passaria a medir se o emissor está no ar.
+            services.AddSingleton<FakeDocumentLinkResolver>();
+            services.RemoveAll<IDocumentLinkResolver>();
+            services.AddSingleton<IDocumentLinkResolver>(sp => sp.GetRequiredService<FakeDocumentLinkResolver>());
         }));
 
     public async Task ResetDatabaseAsync()

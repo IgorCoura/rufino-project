@@ -1,8 +1,11 @@
 namespace BillPayment.Infra.Mailboxes.Graph;
 
+using System.Text;
 using BillPayment.Domain.Mailboxes;
 using BillPayment.Domain.Ports;
 using BillPayment.Domain.Secrets;
+using BillPayment.Domain.Services;
+using BillPayment.Infra.Extraction;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
@@ -24,10 +27,21 @@ internal sealed class GraphMailboxReader(
     IHttpClientFactory httpClientFactory,
     ISecretVault vault,
     GraphTokenProvider tokenProvider,
+    IDocumentLinkResolver linkResolver,
     IOptions<GraphOptions> options,
     TimeProvider clock,
     ILogger<GraphMailboxReader> logger) : IMailboxReader
 {
+    /// <summary>
+    /// A chave do artefato que representa o corpo da mensagem.
+    /// </summary>
+    /// <remarks>
+    /// Literal fixo porque a chave só precisa distinguir os irmãos de <em>uma</em> mensagem, e o
+    /// corpo é um só. Não colide com anexo: no Graph a chave de anexo é um identificador opaco
+    /// longo, em base64.
+    /// </remarks>
+    internal const string BODY_ARTIFACT_KEY = "message-body";
+
     private readonly GraphOptions _options = options.Value;
 
     public async Task<MailboxAccessProbe> ProbeAccessAsync(
@@ -195,11 +209,40 @@ internal sealed class GraphMailboxReader(
 
         var http = httpClientFactory.CreateClient(GraphHttp.CLIENT_NAME);
 
+        if (string.Equals(artifactKey, BODY_ARTIFACT_KEY, StringComparison.Ordinal))
+            return await DownloadBodyAsync(http, token, mailboxAddress, externalMessageId, cancellationToken);
+
         // `/$value` devolve o conteúdo bruto do anexo, sem o envelope JSON do Graph.
         var url = $"{Base}users/{Escape(mailboxAddress)}/messages/{Escape(externalMessageId)}"
             + $"/attachments/{Escape(artifactKey)}/$value";
 
         return await http.GetBytesAsync(url, token, _options.MaxAttachmentBytes, logger, cancellationToken);
+    }
+
+    /// <summary>
+    /// Rebusca o corpo da mensagem no momento do processamento, em vez de guardá-lo da varredura.
+    /// </summary>
+    /// <remarks>
+    /// <strong>O corpo carrega a linha digitável e o BR Code</strong> — é instrumento de pagamento,
+    /// e quem o tem, paga. Segurá-lo em memória entre a varredura e o processamento o espalharia
+    /// por dumps e por qualquer diagnóstico do worker; a segunda leitura custa uma chamada e mantém
+    /// o dado sensível com tempo de vida curto, do mesmo jeito que o anexo nunca viaja na listagem.
+    /// </remarks>
+    private async Task<ReadOnlyMemory<byte>?> DownloadBodyAsync(
+        HttpClient http,
+        string token,
+        string mailboxAddress,
+        string externalMessageId,
+        CancellationToken cancellationToken)
+    {
+        var url = $"{Base}users/{Escape(mailboxAddress)}/messages/{Escape(externalMessageId)}?$select=body";
+
+        var (message, failure) = await http.GetAsync<GraphMessage>(url, token, logger, cancellationToken);
+
+        if (failure is not null || string.IsNullOrEmpty(message?.Body?.Content))
+            return null;
+
+        return Encoding.UTF8.GetBytes(message.Body.Content);
     }
 
     /// <summary>Resolve o ponteiro do cofre e troca o segredo por um token de aplicativo.</summary>
@@ -236,9 +279,11 @@ internal sealed class GraphMailboxReader(
     /// maioria antes de gastar a chamada.
     /// </para>
     /// <para>
-    /// <strong>Mensagem sem anexo utilizável não vira item</strong> — inclusive a que traz o
-    /// boleto no corpo ou por link, que é caso da sprint 2.5. Nada se perde de forma definitiva:
-    /// <c>ResetCursor</c> faz o Graph devolver tudo que ainda está na caixa.
+    /// <strong>Desde a 2.5 o corpo também é artefato.</strong> Antes, mensagem sem anexo não virava
+    /// item — e a medição de um ano da caixa real mostrou contas que <em>nunca</em> terão anexo: a
+    /// Perfil Líder informa por escrito que não envia boleto por e-mail, e a SABESP manda o BR Code
+    /// no próprio texto. Quem decide se o corpo vale um item é o <c>BodyCaptureGateService</c>;
+    /// sem portão, toda conversa da caixa viraria item e a fila de quarentena ficaria inútil.
     /// </para>
     /// </remarks>
     private async Task<List<MailboxMessage>> BuildMessagesAsync(
@@ -249,10 +294,16 @@ internal sealed class GraphMailboxReader(
         CancellationToken cancellationToken)
     {
         var messages = new List<MailboxMessage>();
+        var resolvableHosts = linkResolver.ResolvableHosts;
 
         foreach (var message in source)
         {
-            var artifacts = await ListAttachmentsAsync(http, token, mailboxAddress, message.Id!, cancellationToken);
+            var artifacts = message.HasAttachments == true
+                ? await ListAttachmentsAsync(http, token, mailboxAddress, message.Id!, cancellationToken)
+                : [];
+
+            if (CarriesPayableBody(message, resolvableHosts))
+                artifacts.Add(BodyArtifact(message));
 
             if (artifacts.Count == 0)
                 continue;
@@ -291,15 +342,51 @@ internal sealed class GraphMailboxReader(
             .ToList();
     }
 
+    /// <summary>
+    /// Se o corpo desta mensagem carrega sinal de algo pagável.
+    /// </summary>
+    /// <remarks>
+    /// A conversão para texto e a colheita de links acontecem aqui, na varredura, porque o corpo já
+    /// veio na página da delta query — decidir depois obrigaria a baixar de novo, uma chamada por
+    /// mensagem, para descartar a maioria.
+    /// </remarks>
+    private static bool CarriesPayableBody(GraphMessage message, IReadOnlyCollection<string> resolvableHosts)
+    {
+        var content = message.Body?.Content;
+
+        if (string.IsNullOrWhiteSpace(content))
+            return false;
+
+        var isHtml = string.Equals(message.Body!.ContentType, "html", StringComparison.OrdinalIgnoreCase);
+        var text = isHtml ? HtmlText.ToPlainText(content) : content;
+        var links = isHtml ? HtmlLinkHarvester.Harvest(content) : [];
+
+        return BodyCaptureGateService.ShouldCapture(text, links, resolvableHosts);
+    }
+
+    private static MailboxArtifact BodyArtifact(GraphMessage message)
+        => MailboxArtifact.From(
+            BODY_ARTIFACT_KEY,
+            fileName: null,
+            string.Equals(message.Body?.ContentType, "html", StringComparison.OrdinalIgnoreCase)
+                ? "text/html"
+                : "text/plain",
+            message.Body?.Content?.Length ?? 0);
+
     /// <summary>Mensagem sem id, ou removida da pasta desde o último cursor, é ignorada.</summary>
     /// <remarks>
+    /// <para>
     /// O que já foi ingerido é trilha de auditoria e não se desfaz porque alguém arrumou a caixa
     /// de entrada — um boleto já pago não pode sumir do histórico por arquivamento do e-mail.
+    /// </para>
+    /// <para>
+    /// <strong>Não exige mais <c>hasAttachments</c>.</strong> Exigir era o que tornava invisível a
+    /// conta que só chega por link — e é a maior parte das contas de concessionária hoje. Quem
+    /// filtra agora é o portão do corpo, que examina o conteúdo em vez do formato da mensagem.
+    /// </para>
     /// </remarks>
     private static bool IsIngestable(GraphMessage message)
-        => !string.IsNullOrEmpty(message.Id)
-            && message.Removed is null
-            && message.HasAttachments == true;
+        => !string.IsNullOrEmpty(message.Id) && message.Removed is null;
 
     private bool IsCandidateAttachment(GraphAttachment attachment)
     {
@@ -326,7 +413,7 @@ internal sealed class GraphMailboxReader(
     /// </remarks>
     private string InitialDeltaUrl(string mailboxAddress, string folder)
         => $"{Base}users/{Escape(mailboxAddress)}/mailFolders/{folder}/messages/delta"
-            + "?$select=id,subject,receivedDateTime,hasAttachments,from";
+            + "?$select=id,subject,receivedDateTime,hasAttachments,from,body";
 
     private string Base => _options.BaseUrl.EndsWith('/') ? _options.BaseUrl : _options.BaseUrl + "/";
 
