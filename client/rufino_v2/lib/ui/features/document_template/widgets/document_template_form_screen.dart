@@ -493,9 +493,11 @@ class _ToggleRuleTile extends StatelessWidget {
 
 /// The renewal-limit control revealed under the expiration rule.
 ///
-/// Off = the document renews indefinitely (the default). On = it renews the
-/// number of times typed below, then stops. Presence of the number maps to the
-/// API's `maxRenewals`.
+/// Off = the document expires indefinitely (the default). On = it expires the
+/// number of times typed below and then stops expiring — the units issued after
+/// that come with no validity date. The limit never blocks the HR from renewing,
+/// replacing or deprecating. Presence of the number maps to the API's
+/// `maxRenewals`.
 class _ExpirationRenewalControl extends StatelessWidget {
   const _ExpirationRenewalControl({required this.viewModel});
 
@@ -510,8 +512,9 @@ class _ExpirationRenewalControl extends StatelessWidget {
           key: const ValueKey('rule-switch-maxRenewals'),
           title: const Text('Limitar renovações'),
           subtitle: const Text(
-            'Por padrão o documento renova indefinidamente. Ligue para parar '
-            'após um número de renovações.',
+            'Por padrão o documento vence sempre. Ligue para ele parar de '
+            'vencer após um número de renovações — as próximas versões passam '
+            'a valer por prazo indeterminado.',
           ),
           value: viewModel.expirationLimited,
           onChanged: viewModel.setExpirationLimited,

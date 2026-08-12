@@ -99,12 +99,19 @@ namespace PeopleManagement.Services.Services
             return document.NewDocumentUnit(Guid.NewGuid(), periodType, usePreviousPeriod);
         }
 
-        // Renovar cruza dois aggregates — a cota de renovações é regra do template, o contador é do documento —,
-        // então a decisão mora aqui e para o agregado desce só o fato.
+        // Renovar cruza dois aggregates — a cota de ciclos de validade é regra do template, o contador é do
+        // documento —, então a decisão mora aqui e para o agregado desce só o fato.
+        //
+        // Renovar NUNCA é recusado por causa do teto. O teto diz quantas vezes o documento vence, não quantas
+        // vezes o RH pode agir: esgotado, a substituta continua sendo criada, só que sem validade (ver
+        // ValidityDurationFor) — e por isso não consome ciclo. Enquanto o teto recusava a renovação, uma unidade
+        // vencida com a cota esgotada ficava sem saída nenhuma na tela: não dava para renovar, e vencida também
+        // não é invalidável (é a prova do período coberto). Chegava-se lá por dado legado (o contador foi
+        // backfillado de vencimentos), por edição do teto no template, ou simplesmente descartando a substituta
+        // de uma renovação já feita.
         //
         // A ordem importa: idempotência primeiro. Um pedido repetido (duplo clique, retry de rede que passou pelo
-        // IdentifiedCommand) precisa devolver a mesma substituta em vez de estourar o teto por causa de uma
-        // renovação que já é a mesma.
+        // IdentifiedCommand) precisa devolver a mesma substituta em vez de consumir um segundo ciclo.
         public async Task<DocumentUnit> RenewDocumentUnit(Guid documentUnitId, Guid documentId, Guid employeeId, Guid companyId,
             CancellationToken cancellationToken = default)
         {
@@ -120,11 +127,13 @@ namespace PeopleManagement.Services.Services
             if (liveReplacement is not null)
                 return liveReplacement;
 
-            // Sem policy de vencimento o documento renova sempre — é o documento com validade avulsa, que nunca
-            // teve teto nenhum a respeitar.
+            // Esta renovação abre um ciclo de validade novo? Sem policy de vencimento, nunca houve ciclo a gastar
+            // — é o documento com validade avulsa. Com o teto esgotado, a substituta vai nascer sem validade, e o
+            // que não vence não consome cota: é o que mantém o contador significando "ciclos gastos" e faz
+            // aumentar o teto no template devolver ciclos de verdade.
             var expirationPolicy = documentTemplate.GetPolicy<IExpirationPolicy>();
-            if (expirationPolicy is not null && expirationPolicy.CanRenew(document.RenewalCount) == false)
-                throw new DomainException(this, DomainErrors.Document.RenewalLimitReached(documentId, document.RenewalCount));
+            var opensNewValidityCycle = expirationPolicy is not null &&
+                expirationPolicy.HasValidityCycleLeft(document.RenewalCount);
 
             // Sem data de referência: se o template for por competência, a substituta cai na mínima e espera a
             // data real. A configuração é a ATUAL do template — editar o template vale da próxima renovação em
@@ -132,7 +141,8 @@ namespace PeopleManagement.Services.Services
             var (usePreviousPeriod, periodType) = PeriodConfigOf(documentTemplate);
             var replacement = document.NewReplacementUnit(Guid.NewGuid(), documentUnitId, periodType, usePreviousPeriod);
 
-            document.RegisterRenewal();
+            if (opensNewValidityCycle)
+                document.RegisterRenewal();
 
             return replacement;
         }
@@ -343,10 +353,12 @@ namespace PeopleManagement.Services.Services
             return (policy?.UsePreviousPeriod ?? false, policy?.PeriodType);
         }
 
-        // A validade da unidade vem da regra de vencimento do template, EXCETO quando a cota de renovações do
-        // documento já se esgotou: aí esta é a última unidade do ciclo, e ela não vence mais — fica OK
-        // indefinidamente. Dar validade a ela criaria um vencimento que ninguém pode renovar, deixando o
-        // documento parado em "Vencido" para sempre.
+        // A validade da unidade vem da regra de vencimento do template, EXCETO quando os ciclos do documento já se
+        // esgotaram: daí em diante toda unidade nasce SEM validade e fica OK indefinidamente, exatamente como num
+        // template sem regra de vencimento.
+        //
+        // É aqui — e só aqui — que o teto do template age. Ele não recusa nada ao RH: renovar, substituir,
+        // depreciar e invalidar continuam disponíveis; o que acaba é o vencimento, não a ação.
         //
         // Cruza dois aggregates (regra no template, contador no documento), então a decisão mora aqui e para o
         // aggregate desce só o valor.
@@ -357,7 +369,7 @@ namespace PeopleManagement.Services.Services
             if (expirationPolicy is null)
                 return null;
 
-            return expirationPolicy.CanRenew(document.RenewalCount)
+            return expirationPolicy.HasValidityCycleLeft(document.RenewalCount)
                 ? expirationPolicy.Duration
                 : null;
         }

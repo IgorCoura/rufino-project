@@ -1,6 +1,7 @@
 using System.Net;
 using Microsoft.EntityFrameworkCore;
 using PeopleManagement.Application.Commands.DocumentCommands.RenewDocumentUnit;
+using PeopleManagement.Application.Commands.DocumentCommands.UpdateDocumentUnitDetails;
 using PeopleManagement.Domain.AggregatesModel.DocumentAggregate;
 using PeopleManagement.Domain.AggregatesModel.DocumentAggregate.Interfaces;
 using PeopleManagement.Domain.AggregatesModel.DocumentTemplateAggregate;
@@ -24,6 +25,10 @@ namespace PeopleManagement.IntegrationTests.Tests
     public class DocumentExpirationRenewalTests(PeopleManagementWebApplicationFactory factory) : BaseIntegrationTest(factory)
     {
         private static readonly DateOnly OfficialDate = new(2024, 1, 15);
+
+        // A validade não pode nascer no passado, então tudo que precisa ATRAVESSAR o cálculo de validade
+        // (ValidityDurationFor) ancora em hoje. A data fixa acima serve só ao que não vence.
+        private static DateOnly Today => DateOnly.FromDateTime(DateTime.UtcNow);
 
         // --- Os jobs não criam nada -------------------------------------------
 
@@ -160,13 +165,16 @@ namespace PeopleManagement.IntegrationTests.Tests
             Assert.Contains("PMD.DOC25", await response.Content.ReadAsStringAsync());
         }
 
-        // --- Teto de renovações ------------------------------------------------
+        // --- Teto de ciclos de validade ----------------------------------------
 
-        // A regressão que motivou trocar o contador de vencimentos por contador de renovações: aqui NENHUMA
-        // unidade chega a vencer, porque o RH renova sempre no prazo. Contando vencimento, a cota nunca era
-        // consumida e um template limitado a 1 renovação renovaria para sempre.
+        // O teto governa VALIDADE, não permissão. Esgotados os ciclos, a unidade nova nasce sem data de validade
+        // — como num template sem regra de vencimento — e o documento simplesmente para de vencer.
+        //
+        // Também é a regressão que motivou trocar o contador de vencimentos por contador de renovações: aqui
+        // NENHUMA unidade chega a vencer, porque o RH renova no prazo. Contando vencimento, a cota nunca era
+        // consumida e um template limitado a 1 ciclo venceria para sempre.
         [Fact]
-        public async Task Renew_WhenAlwaysDoneBeforeExpiration_StillConsumesTheQuotaAndStopsAtTheCap()
+        public async Task Renew_WhenAlwaysDoneBeforeExpiration_ConsumesTheCycleAndTheReplacementStopsExpiring()
         {
             var ct = CancellationToken.None;
             var context = GetContext();
@@ -174,22 +182,20 @@ namespace PeopleManagement.IntegrationTests.Tests
             var seed = await SeedDocumentWithOkUnitAsync(context, ct, maxRenewals: 1);
 
             await RenewAsync(seed);
-            var afterFirst = await GetDocumentAsync(seed.DocumentId, ct);
-            var replacementId = afterFirst.DocumentsUnits.First(u => u.Status == DocumentUnitStatus.Pending).Id;
-            await MakeUnitOkAsync(seed.DocumentId, replacementId, ct);
 
-            var response = await RenewAsync(seed with { UnitId = replacementId });
+            var afterRenew = await GetDocumentAsync(seed.DocumentId, ct);
+            Assert.Equal(1, afterRenew.RenewalCount);
+            var replacementId = afterRenew.DocumentsUnits.First(u => u.Status == DocumentUnitStatus.Pending).Id;
 
-            Assert.NotEqual(HttpStatusCode.OK, response.StatusCode);
-            Assert.Contains("PMD.DOC26", await response.Content.ReadAsStringAsync());
+            await PutUnitDateAsync(seed, replacementId, Today);
 
             var result = await GetDocumentAsync(seed.DocumentId, ct);
-            Assert.Equal(1, result.RenewalCount);
-            Assert.DoesNotContain(result.DocumentsUnits, u => u.Status == DocumentUnitStatus.Pending);
+            Assert.Null(result.DocumentsUnits.First(u => u.Id == replacementId).Validity);
         }
 
+        // O contraponto: dentro do teto a substituta recebe validade normalmente e o ciclo é consumido.
         [Fact]
-        public async Task Renew_WhenBelowTheCap_StillRenews()
+        public async Task Renew_WhenBelowTheCap_StillRenewsAndTheReplacementKeepsExpiring()
         {
             var ct = CancellationToken.None;
             var context = GetContext();
@@ -199,7 +205,84 @@ namespace PeopleManagement.IntegrationTests.Tests
             var response = await RenewAsync(seed);
 
             Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-            Assert.Equal(1, (await GetDocumentAsync(seed.DocumentId, ct)).RenewalCount);
+
+            var afterRenew = await GetDocumentAsync(seed.DocumentId, ct);
+            Assert.Equal(1, afterRenew.RenewalCount);
+            var replacementId = afterRenew.DocumentsUnits.First(u => u.Status == DocumentUnitStatus.Pending).Id;
+
+            await PutUnitDateAsync(seed, replacementId, Today);
+
+            var result = await GetDocumentAsync(seed.DocumentId, ct);
+            Assert.Equal(Today.AddDays(365), result.DocumentsUnits.First(u => u.Id == replacementId).Validity);
+        }
+
+        // O beco sem saída que o teto criava: unidade VENCIDA num documento que já gastou todos os ciclos.
+        // Renovar era recusado pelo teto, e vencida também não é invalidável (é a prova do período coberto) —
+        // então o documento ficava parado em Vencido sem nenhuma ação possível na tela.
+        //
+        // O vencimento aqui é forçado pelo job porque, com os ciclos esgotados, nada mais vence sozinho: é o
+        // estado que dado legado (o contador foi backfillado de vencimentos) e edição do teto no template
+        // produzem em produção.
+        [Fact]
+        public async Task Renew_WithTheCyclesExhaustedOverAnExpiredUnit_RenewsWithoutValidityAndRecoversTheDocument()
+        {
+            var ct = CancellationToken.None;
+            var context = GetContext();
+
+            var seed = await SeedDocumentWithOkUnitAsync(context, ct, maxRenewals: 1);
+
+            await RenewAsync(seed);
+            var afterRenew = await GetDocumentAsync(seed.DocumentId, ct);
+            var replacementId = afterRenew.DocumentsUnits.First(u => u.Status == DocumentUnitStatus.Pending).Id;
+            await PutUnitDateAsync(seed, replacementId, Today);
+            await DeliverUnitAsync(seed.DocumentId, replacementId, ct);
+            await ExpireAsync(seed.DocumentId, replacementId, seed.CompanyId, ct);
+
+            var response = await RenewAsync(seed with { UnitId = replacementId });
+
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+            var atCap = await GetDocumentAsync(seed.DocumentId, ct);
+            // Não consumiu ciclo: a substituta não vence, então não há ciclo a consumir.
+            Assert.Equal(1, atCap.RenewalCount);
+            var lastUnit = Assert.Single(atCap.DocumentsUnits, u => u.Status == DocumentUnitStatus.Pending);
+            Assert.Equal(replacementId, lastUnit.ReplacesDocumentUnitId);
+
+            await PutUnitDateAsync(seed, lastUnit.Id, Today);
+            await DeliverUnitAsync(seed.DocumentId, lastUnit.Id, ct);
+
+            var result = await GetDocumentAsync(seed.DocumentId, ct);
+            Assert.Null(result.DocumentsUnits.First(u => u.Id == lastUnit.Id).Validity);
+            Assert.Equal(DocumentUnitStatus.Deprecated, result.DocumentsUnits.First(u => u.Id == replacementId).Status);
+            Assert.Equal(DocumentStatus.OK, result.Status);
+        }
+
+        // Um engano não pode travar a renovação: a substituta descartada não conta como renovação em voo
+        // (LiveReplacementFor a ignora de propósito), então pedir de novo tem que funcionar — inclusive com os
+        // ciclos esgotados, que era exatamente quando o teto recusava.
+        [Fact]
+        public async Task Renew_WithTheCyclesExhaustedAfterTheReplacementWasDiscarded_IsStillPossible()
+        {
+            var ct = CancellationToken.None;
+            var context = GetContext();
+
+            var seed = await SeedDocumentWithOkUnitAsync(context, ct, maxRenewals: 1);
+            await ExpireAsync(seed.DocumentId, seed.UnitId, seed.CompanyId, ct);
+
+            await RenewAsync(seed);
+            var afterRenew = await GetDocumentAsync(seed.DocumentId, ct);
+            var replacementId = afterRenew.DocumentsUnits.First(u => u.Status == DocumentUnitStatus.Pending).Id;
+            await InvalidateUnitAsync(seed.DocumentId, replacementId, ct);
+
+            var response = await RenewAsync(seed);
+
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+            var result = await GetDocumentAsync(seed.DocumentId, ct);
+            Assert.Equal(1, result.RenewalCount);
+            Assert.Equal(DocumentUnitStatus.Invalid, result.DocumentsUnits.First(u => u.Id == replacementId).Status);
+            var live = Assert.Single(result.DocumentsUnits, u => u.Status == DocumentUnitStatus.Pending);
+            Assert.Equal(seed.UnitId, live.ReplacesDocumentUnitId);
         }
 
         private sealed record RenewalSeed(Guid CompanyId, Guid DocumentId, Guid EmployeeId, Guid UnitId);
@@ -256,6 +339,43 @@ namespace PeopleManagement.IntegrationTests.Tests
             client.InputHeaders([seed.CompanyId]);
             return await client.PostAsJsonAsync($"/api/v1/{seed.CompanyId}/document/documentunit/renew",
                 new RenewDocumentUnitModel(seed.UnitId, seed.DocumentId, seed.EmployeeId));
+        }
+
+        // Dá a data real à unidade pelo ENDPOINT, não pelo agregado: é o caminho que passa por
+        // DocumentService.ValidityDurationFor, que é onde o teto de ciclos decide se a unidade recebe validade.
+        private async Task PutUnitDateAsync(RenewalSeed seed, Guid unitId, DateOnly date)
+        {
+            var client = CreateClient();
+            client.InputHeaders([seed.CompanyId]);
+            var response = await client.PutAsJsonAsync($"/api/v1/{seed.CompanyId}/document/documentunit",
+                new UpdateDocumentUnitDetailsModel(unitId, seed.DocumentId, seed.EmployeeId, date));
+            var body = await response.Content.ReadAsStringAsync();
+            Assert.True(HttpStatusCode.OK == response.StatusCode, $"Expected 200, got {(int)response.StatusCode}: {body}");
+        }
+
+        // Entrega sem mexer na data — ao contrário de MakeUnitOkAsync, que a reescreve com a OfficialDate fixa e
+        // apagaria a validade que o teste quer observar.
+        private async Task DeliverUnitAsync(Guid documentId, Guid unitId, CancellationToken ct)
+        {
+            using var scope = _factory.Services.CreateScope();
+            var context = scope.ServiceProvider.GetRequiredService<PeopleManagementContext>();
+            var document = await context.Documents.Include(x => x.DocumentsUnits).FirstAsync(x => x.Id == documentId, ct);
+            document.InsertUnitWithoutRequireValidation(unitId, "file", "pdf");
+            await context.SaveChangesAsync(ct);
+        }
+
+        // Invalidar deixa uma pendente no lugar, como sempre — o que interessa aqui é a substituta descartada
+        // deixar de valer como renovação em voo.
+        private async Task InvalidateUnitAsync(Guid documentId, Guid unitId, CancellationToken ct)
+        {
+            using var scope = _factory.Services.CreateScope();
+            var context = scope.ServiceProvider.GetRequiredService<PeopleManagementContext>();
+            var document = await context.Documents.AsNoTracking().FirstAsync(x => x.Id == documentId, ct);
+
+            var service = scope.ServiceProvider.GetRequiredService<IDocumentService>();
+            await service.InvalidateDocumentUnit(unitId, documentId, document.EmployeeId, document.CompanyId, ct);
+
+            await scope.ServiceProvider.GetRequiredService<IDocumentRepository>().UnitOfWork.SaveChangesAsync(ct);
         }
 
         private async Task ExpireAsync(Guid documentId, Guid unitId, Guid companyId, CancellationToken ct)

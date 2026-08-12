@@ -321,7 +321,9 @@ abstract class EmployeeRepository {
   );
 
   /// Renews a document unit: a replacement pending unit is created linked to
-  /// it, and one renewal of the template's quota is consumed.
+  /// it, consuming one validity cycle of the template's limit when there is one
+  /// left. Once the limit is spent the renewal still goes through — the
+  /// replacement is simply issued with no validity date.
   ///
   /// The renewed unit stays in force — it is the delivery of the replacement
   /// that turns it into history. Asking twice returns the same replacement.

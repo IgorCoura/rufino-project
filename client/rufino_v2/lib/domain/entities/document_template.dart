@@ -272,11 +272,15 @@ class ExpirationRule {
   /// How many days a generated document stays valid. Always positive.
   final int durationInDays;
 
-  /// How many times a document renews before it stops, or null when it renews
-  /// indefinitely. When set, always positive.
+  /// How many times a document expires before it stops expiring, or null when
+  /// it expires indefinitely. When set, always positive.
+  ///
+  /// The limit caps expiries, not actions: past it the HR keeps renewing,
+  /// replacing and deprecating, and the units issued from then on carry no
+  /// validity date.
   final int? maxRenewals;
 
-  /// Whether the document renews a limited number of times.
+  /// Whether the document expires a limited number of times.
   bool get isLimited => maxRenewals != null;
 
   /// Returns a copy with the given fields replaced.
