@@ -42,6 +42,16 @@ internal sealed class CaptureItemMap : IEntityTypeConfiguration<CaptureItem>
             .HasMaxLength(CaptureItem.ARTIFACT_KEY_MAX_LENGTH)
             .IsRequired();
 
+        // Tipo declarado pelo provedor. Guardado porque artifact_key NÃO é nome de arquivo — no
+        // Graph é identificador opaco, sem extensão —, e deduzir dali fazia todo anexo parecer PDF.
+        builder.Property(e => e.ContentType)
+            .HasColumnName("content_type")
+            .HasMaxLength(CaptureItem.CONTENT_TYPE_MAX_LENGTH);
+
+        builder.Property(e => e.FileName)
+            .HasColumnName("file_name")
+            .HasMaxLength(CaptureItem.FILE_NAME_MAX_LENGTH);
+
         builder.Property(e => e.Sender)
             .HasColumnName("sender")
             .HasMaxLength(CaptureItem.SENDER_MAX_LENGTH)

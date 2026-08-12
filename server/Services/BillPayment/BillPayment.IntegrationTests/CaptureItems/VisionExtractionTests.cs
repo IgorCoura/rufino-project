@@ -113,7 +113,7 @@ public sealed class VisionExtractionTests : BaseIntegrationTest
         await SeedTrustedOriginAsync();
         _vision.Result = ExtractedDocument.From(digitableLineCandidates: [ValidBankSlip]);
 
-        var itemId = await SeedAsync(KnownSender, "Boleto", [1, 2, 3, 4], extension: ".png");
+        var itemId = await SeedAsync(KnownSender, "Boleto", [1, 2, 3, 4], contentType: "image/png");
         var result = await ProcessAsync(itemId);
 
         Assert.Equal("Parse", result.Decision);
@@ -151,6 +151,33 @@ public sealed class VisionExtractionTests : BaseIntegrationTest
 
         Assert.Equal("Quarantine", result.Decision);
         Assert.Equal(0, _vision.CallCount);
+    }
+
+    // TESTE DE REGRESSÃO. O tipo vem do que o provedor DECLAROU, nunca da chave do artefato —
+    // que no Graph é opaca. Sem tipo declarado o extrator não é chamado, em vez de receber o
+    // arquivo rotulado como PDF por chute e o provedor recusar.
+    [Fact]
+    public async Task Process_WithoutADeclaredContentType_ShouldNotCallTheExtractor()
+    {
+        await SeedTrustedOriginAsync();
+
+        var itemId = await SeedAsync(KnownSender, "Boleto", PdfWith("documento"), contentType: null);
+        await ProcessAsync(itemId);
+
+        Assert.Equal(0, _vision.CallCount);
+    }
+
+    // O portão de gasto examina o NOME do arquivo, não a chave opaca — senão o sinal de cobrança
+    // no anexo nunca casaria com nada.
+    [Fact]
+    public async Task Process_WithABillingSignalInTheFileName_ShouldSpend()
+    {
+        var itemId = await SeedAsync(
+            UnknownSender, "ENC:", PdfWith("documento"), fileName: "boleto-agosto.pdf");
+
+        await ProcessAsync(itemId);
+
+        Assert.Equal(1, _vision.CallCount);
     }
 
     /// <summary>Troca um dígito do meio — a alucinação típica, que "parece" a linha certa.</summary>
@@ -221,7 +248,12 @@ public sealed class VisionExtractionTests : BaseIntegrationTest
             await db.SaveEntitiesAsync();
         });
 
-    private async Task<CaptureItemId> SeedAsync(string sender, string subject, byte[] content, string extension = ".pdf")
+    private async Task<CaptureItemId> SeedAsync(
+        string sender,
+        string subject,
+        byte[] content,
+        string? contentType = "application/pdf",
+        string? fileName = null)
     {
         var sourceId = await ExecuteDbContextAsync(async db =>
         {
@@ -238,13 +270,16 @@ public sealed class VisionExtractionTests : BaseIntegrationTest
             return source.Id;
         });
 
-        var artifactKey = $"anexo-{Guid.CreateVersion7():N}{extension}";
+        // Chave OPACA, como a do Graph: sem extensão, para nenhum teste passar por acidente
+        // deduzindo o tipo dela.
+        var artifactKey = $"AAMkAGI2{Guid.CreateVersion7():N}";
         _services.GetRequiredService<FakeMailboxReader>().Artifacts[artifactKey] = content;
 
         return await ExecuteDbContextAsync(async db =>
         {
             var item = CaptureItem.Ingest(
-                Tenant, sourceId, "AAMkAGI2THVSAAA=", artifactKey, sender, subject, OccurredAt, OccurredAt);
+                Tenant, sourceId, "AAMkAGI2THVSAAA=", artifactKey, sender, subject, OccurredAt, OccurredAt,
+                contentType, fileName);
 
             await db.CaptureItems.AddAsync(item);
             await db.SaveEntitiesAsync();

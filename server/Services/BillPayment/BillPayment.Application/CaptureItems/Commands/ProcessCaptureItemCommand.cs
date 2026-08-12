@@ -87,7 +87,7 @@ public sealed class ProcessCaptureItemCommandHandler(
 
         var extraction = await parser.ParseAsync(
             content.Value,
-            contentType: null,
+            item.ContentType,
             passwords,
             DateOnly.FromDateTime(now.UtcDateTime),
             cancellationToken);
@@ -198,18 +198,20 @@ public sealed class ProcessCaptureItemCommandHandler(
         if (!documentIntelligence.IsEnabled)
             return null;
 
-        // O tipo vem do nome do arquivo porque o adapter de caixa não o guarda no item; a
-        // allowlist dele já barrou o que não é documento.
-        var mediaType = MediaTypeOf(item.ArtifactKey);
-        if (!DocumentPayload.IsSupported(mediaType))
+        // O tipo é o DECLARADO na ingestão, nunca deduzido do nome: a chave do artefato é opaca
+        // no provedor, e adivinhar dali rotulava toda imagem como PDF — o extrator recusava, e os
+        // anexos que não eram PDF seguiam inalcançáveis mesmo com a visão existindo.
+        if (!DocumentPayload.IsSupported(item.ContentType))
             return null;
 
-        if (!VisionGateService.ShouldAttempt(origin, item.Subject, item.ArtifactKey))
+        // FileName, não ArtifactKey: a chave é opaca no provedor, então procurar sinal de cobrança
+        // nela nunca casaria com nada — o portão ficaria decidindo só pelo assunto.
+        if (!VisionGateService.ShouldAttempt(origin, item.Subject, item.FileName))
             return null;
 
         var hints = await BuildHintsAsync(tenantId, profile, item.Sender, cancellationToken);
         var extracted = await documentIntelligence.ExtractAsync(
-            DocumentPayload.From(tenantId, content, mediaType), hints, cancellationToken);
+            DocumentPayload.From(tenantId, content, item.ContentType), hints, cancellationToken);
 
         var instruments = CandidateValidationService.Validate(extracted, occurredAt);
 
@@ -255,27 +257,6 @@ public sealed class ProcessCaptureItemCommandHandler(
             taxIds,
             knownPayees.Select(p => p.LegalName),
             sender);
-    }
-
-    /// <summary>
-    /// Tipo de mídia deduzido da extensão do anexo.
-    /// </summary>
-    /// <remarks>
-    /// <strong>Imagem entra aqui, e é a correção de um buraco medido.</strong> A cascata
-    /// determinística só abre PDF, e a varredura de 2026-08-11 recusou <strong>12 anexos com
-    /// <c>not_a_pdf</c></strong> — baixados e nunca lidos. Se a visão também exigisse PDF, esses
-    /// documentos seguiriam inalcançáveis.
-    /// </remarks>
-    private static string MediaTypeOf(string artifactKey)
-    {
-        var name = artifactKey?.Trim().ToLowerInvariant() ?? string.Empty;
-
-        if (name.EndsWith(".png", StringComparison.Ordinal)) return "image/png";
-        if (name.EndsWith(".jpg", StringComparison.Ordinal)) return "image/jpeg";
-        if (name.EndsWith(".jpeg", StringComparison.Ordinal)) return "image/jpeg";
-        if (name.EndsWith(".webp", StringComparison.Ordinal)) return "image/webp";
-
-        return DocumentPayload.PDF;
     }
 
     private Task<TrustedOrigin?> ResolveOriginAsync(

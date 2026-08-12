@@ -29,6 +29,8 @@ public sealed class CaptureItem : AggregateRoot<CaptureItemId>
     public const int ARTIFACT_KEY_MAX_LENGTH = 512;
     public const int SENDER_MAX_LENGTH = 320;
     public const int SUBJECT_MAX_LENGTH = 500;
+    public const int CONTENT_TYPE_MAX_LENGTH = 150;
+    public const int FILE_NAME_MAX_LENGTH = 255;
     public const int CONTENT_HASH_MAX_LENGTH = 100;
     public const int STORAGE_KEY_MAX_LENGTH = 512;
     public const int SOURCE_URL_MAX_LENGTH = 2000;
@@ -46,6 +48,21 @@ public sealed class CaptureItem : AggregateRoot<CaptureItemId>
     /// Distingue os irmãos que compartilham o mesmo <see cref="ExternalMessageId"/>.
     /// </summary>
     public string ArtifactKey { get; private set; } = string.Empty;
+
+    /// <summary>
+    /// Tipo de mídia declarado pelo provedor na ingestão.
+    /// </summary>
+    /// <remarks>
+    /// <strong>Guardado porque o <see cref="ArtifactKey"/> não é nome de arquivo.</strong> No
+    /// Microsoft Graph ele é um identificador opaco, sem extensão nenhuma — deduzir o tipo dali
+    /// faz todo anexo parecer PDF. Medido em 2026-08-11: o extrator de visão recebia imagem
+    /// rotulada como <c>application/pdf</c> e o provedor recusava, então os anexos que não eram
+    /// PDF continuavam inalcançáveis mesmo depois de a visão existir.
+    /// </remarks>
+    public string? ContentType { get; private set; }
+
+    /// <summary>Nome do arquivo, quando o provedor informa. Diagnóstico e triagem — nunca chave.</summary>
+    public string? FileName { get; private set; }
 
     public string Sender { get; private set; } = string.Empty;
     public string? Subject { get; private set; }
@@ -97,7 +114,9 @@ public sealed class CaptureItem : AggregateRoot<CaptureItemId>
         string sender,
         string? subject,
         DateTime receivedAt,
-        DateTime occurredAt)
+        DateTime occurredAt,
+        string? contentType = null,
+        string? fileName = null)
     {
         if (sourceId.Equals(CaptureSourceId.Empty))
             throw CaptureItemErrors.SourceRequired();
@@ -114,6 +133,8 @@ public sealed class CaptureItem : AggregateRoot<CaptureItemId>
         item.SetArtifactKey(artifactKey);
         item.SetSender(sender);
         item.SetSubject(subject);
+        item.SetContentType(contentType);
+        item.SetFileName(fileName);
 
         item.CreatedAt = occurredAt;
         item.UpdatedAt = occurredAt;
@@ -309,6 +330,29 @@ public sealed class CaptureItem : AggregateRoot<CaptureItemId>
             throw CaptureItemErrors.TextTooLong(nameof(ArtifactKey), ARTIFACT_KEY_MAX_LENGTH);
 
         ArtifactKey = trimmed;
+    }
+
+    /// <summary>
+    /// Guarda o tipo declarado, aparado — nunca deduzido.
+    /// </summary>
+    /// <remarks>
+    /// Truncar em vez de recusar: o tipo vem do provedor e um valor esquisito não pode impedir a
+    /// ingestão de um boleto. Quem decide se o extrator sabe abrir aquilo é <c>DocumentPayload</c>.
+    /// </remarks>
+    private void SetContentType(string? value)
+    {
+        var trimmed = value?.Trim();
+        ContentType = string.IsNullOrEmpty(trimmed)
+            ? null
+            : trimmed[..Math.Min(trimmed.Length, CONTENT_TYPE_MAX_LENGTH)];
+    }
+
+    private void SetFileName(string? value)
+    {
+        var trimmed = value?.Trim();
+        FileName = string.IsNullOrEmpty(trimmed)
+            ? null
+            : trimmed[..Math.Min(trimmed.Length, FILE_NAME_MAX_LENGTH)];
     }
 
     private void SetSender(string value)

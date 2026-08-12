@@ -141,7 +141,12 @@ public sealed class SyncCaptureSourceCommandHandler(
                 message.Sender,
                 message.Subject,
                 message.ReceivedAt.UtcDateTime,
-                occurredAt);
+                occurredAt,
+
+                // O tipo declarado tem que ser guardado AGORA: a chave do artefato é opaca no
+                // provedor e o processamento não teria de onde deduzi-lo depois.
+                artifact.ContentType,
+                artifact.FileName);
 
             await items.AddAsync(item, cancellationToken);
             ingested++;

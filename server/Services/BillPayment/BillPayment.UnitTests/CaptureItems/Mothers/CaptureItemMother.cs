@@ -29,7 +29,9 @@ internal static class CaptureItemMother
         DateTime? receivedAt = null,
         DateTime? occurredAt = null,
         TenantId? tenantId = null,
-        CaptureSourceId? sourceId = null)
+        CaptureSourceId? sourceId = null,
+        string? contentType = "application/pdf",
+        string? fileName = null)
         => CaptureItem.Ingest(
             tenantId ?? DefaultTenant,
             sourceId ?? DefaultSource,
@@ -38,7 +40,12 @@ internal static class CaptureItemMother
             sender ?? DefaultSender,
             subject,
             receivedAt ?? DefaultReceivedAt,
-            occurredAt ?? DefaultOccurredAt);
+            occurredAt ?? DefaultOccurredAt,
+
+            // Repassados SEM coalescer: o teste que prova "sem tipo declarado o extrator não é
+            // chamado" precisa conseguir passar nulo de verdade.
+            contentType,
+            fileName);
 
     /// <summary>Item com o artefato já armazenado — pré-requisito de qualquer processamento.</summary>
     public static CaptureItem Stored()
