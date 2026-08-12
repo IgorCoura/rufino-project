@@ -30,14 +30,21 @@ namespace PeopleManagement.Domain.AggregatesModel.DocumentAggregate
         public Guid DocumentTemplateId { get; private set; }
 
         /// <summary>
-        /// Quantas renovações este documento já consumiu. É o contador lido pela <c>IExpirationPolicy</c> do
-        /// template para decidir se ainda pode renovar, incrementado só por <see cref="RegisterRenewal"/>.
+        /// Quantos ciclos de validade este documento já gastou. É o contador lido pela <c>IExpirationPolicy</c>
+        /// do template (<c>HasValidityCycleLeft</c>) para decidir se a próxima unidade ainda nasce com validade,
+        /// incrementado só por <see cref="RegisterRenewal"/>.
         ///
-        /// Conta renovações EMITIDAS, não vencimentos. Já contou vencimentos (chamava-se <c>ExpirationCount</c>),
-        /// e funcionava enquanto renovar era consequência automática de vencer. Com a renovação virando decisão
-        /// explícita do RH, contar vencimento errava dos dois lados: renovar antes do prazo — que é o caminho bom —
-        /// nunca vencia a unidade e portanto nunca consumia cota, deixando um teto de N renovações renovar para
-        /// sempre; e um documento vencido e abandonado queimava a cota inteira sem nenhuma renovação ter existido.
+        /// Conta renovações EMITIDAS que abriram um ciclo novo, não vencimentos. Já contou vencimentos (chamava-se
+        /// <c>ExpirationCount</c>), e funcionava enquanto renovar era consequência automática de vencer. Com a
+        /// renovação virando decisão explícita do RH, contar vencimento errava dos dois lados: renovar antes do
+        /// prazo — que é o caminho bom — nunca vencia a unidade e portanto nunca consumia cota, deixando um teto de
+        /// N ciclos valer para sempre; e um documento vencido e abandonado queimava a cota inteira sem nenhuma
+        /// renovação ter existido.
+        ///
+        /// Renovar com a cota esgotada NÃO incrementa: a unidade criada ali nasce sem validade, então não abre
+        /// ciclo nenhum. É o que mantém o contador significando "ciclos gastos" — e o que faz aumentar o teto no
+        /// template devolver ciclos de verdade, em vez de esbarrar num número inflado por renovações que não
+        /// venceram nada.
         ///
         /// Existe como campo, e não como contagem de unidades por status, porque nenhum status serve de contador:
         /// a vencida vira Deprecated quando o substituto chega, e substituição por reenvio corrigido também
@@ -343,11 +350,13 @@ namespace PeopleManagement.Domain.AggregatesModel.DocumentAggregate
         }
 
         /// <summary>
-        /// Registra que uma renovação foi consumida. Chamado uma única vez por substituta efetivamente emitida —
-        /// pedir a renovação de novo devolve a mesma unidade e não conta de novo.
+        /// Registra que um ciclo de validade foi aberto. Chamado uma única vez por substituta efetivamente
+        /// emitida — pedir a renovação de novo devolve a mesma unidade e não conta de novo.
         ///
-        /// Depreciar e invalidar também deixam uma pendente no lugar, e essas NÃO passam por aqui: são correção
-        /// de um documento errado, não a troca de um ciclo de validade por outro.
+        /// Quem decide SE este ciclo existe é o serviço, que lê o teto do template (regra de dois aggregates):
+        /// com a cota esgotada a substituta nasce sem validade e não passa por aqui. Depreciar e invalidar também
+        /// deixam uma pendente no lugar e também não passam: são correção de um documento errado, não a troca de
+        /// um ciclo de validade por outro.
         /// </summary>
         public void RegisterRenewal()
         {

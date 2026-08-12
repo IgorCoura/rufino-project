@@ -116,10 +116,9 @@ namespace PeopleManagement.Domain.ErrorTools.ErrorsMessages
                 $"A unidade de documento {docUnitId} não pode ser renovada com o status '{currentStatus}'. Só um documento que está ou esteve em vigência tem o que renovar.",
                 new { docUnitId, currentStatus });
 
-            public static Error RenewalLimitReached(Guid documentId, int renewalsUsed) => new("PMD.DOC26",
-                $"O documento {documentId} já usou as {renewalsUsed} renovações permitidas pelo seu tipo de documento e não pode ser renovado novamente.",
-                new { documentId, renewalsUsed });
-
+            // PMD.DOC26 (RenewalLimitReached) foi aposentado: o teto de renovações do template parou de recusar a
+            // renovação e passou a significar só quantos ciclos de validade o documento tem. Esgotados, o RH
+            // continua renovando — as unidades novas é que nascem sem validade. O código não deve ser reutilizado.
         }
 
         public static class DocumentTemplate

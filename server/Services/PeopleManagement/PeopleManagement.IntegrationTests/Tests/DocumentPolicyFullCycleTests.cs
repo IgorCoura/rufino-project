@@ -16,12 +16,15 @@ using PeopleManagement.IntegrationTests.Data;
 namespace PeopleManagement.IntegrationTests.Tests
 {
     // O teste-espinha-dorsal do Composite: um template com as QUATRO policies ao mesmo tempo (vencimento
-    // limitado a 1 renovação + carga horária + competência mensal + assinatura) atravessa o ciclo inteiro —
-    // evento gera a unidade, o update aplica competência/validade/carga de uma vez, o documento fica OK, vence,
-    // é renovado à mão (a renovada nasce na competência mínima, sem data de referência), vence de novo e PARA no
-    // teto. Prova que as policies agem juntas sem interferir umas nas outras.
+    // limitado a 1 ciclo + carga horária + competência mensal + assinatura) atravessa o ciclo inteiro — evento
+    // gera a unidade, o update aplica competência/validade/carga de uma vez, o documento fica OK, vence, é
+    // renovado à mão (a renovada nasce na competência mínima, sem data de referência), e aí o teto age: a
+    // renovada nasce SEM validade e o documento para de vencer. Prova que as policies agem juntas sem interferir
+    // umas nas outras.
     //
     // A renovação é um passo explícito porque o vencimento não cria mais nada: o job só move o status.
+    //
+    // O teto não recusa ação nenhuma — no fim o RH renova de novo com os ciclos esgotados e é atendido.
     [Collection(nameof(IntegrationTestCollection))]
     public class DocumentPolicyFullCycleTests(PeopleManagementWebApplicationFactory factory) : BaseIntegrationTest(factory)
     {
@@ -77,29 +80,35 @@ namespace PeopleManagement.IntegrationTests.Tests
             Assert.NotNull(renewedUnit.Period);
             Assert.Equal(Period.MIN_YEAR, renewedUnit.Period!.Year);
 
-            // 6) A renovada recebe a data real (sai da competência mínima) e é entregue: a entrega é o
-            //    substituto que a vencida esperava, então a primeira vira histórico (Deprecated).
-            await SetUnitDateAsync(seed.DocumentId, renewedUnit.Id, date, ct);
+            // 6) A renovada recebe a data real pelo endpoint (sai da competência mínima). O teto de 1 ciclo já
+            //    foi gasto na renovação, então ela nasce SEM validade: o documento parou de vencer, e é o teto
+            //    agindo no único lugar em que ele age. Entregue, é o substituto que a vencida esperava, e a
+            //    primeira vira histórico (Deprecated).
+            await PutUnitDetailsAsync(seed.CompanyId,
+                new UpdateDocumentUnitDetailsModel(renewedUnit.Id, seed.DocumentId, seed.EmployeeId, date));
+
+            var afterDate = await GetDocumentAsync(seed.DocumentId, ct);
+            Assert.Null(afterDate.DocumentsUnits.First(u => u.Id == renewedUnit.Id).Validity);
+
             await MakeUnitOkAsync(seed.DocumentId, renewedUnit.Id, ct);
 
             var afterReplacement = await GetDocumentAsync(seed.DocumentId, ct);
             Assert.Equal(DocumentUnitStatus.Deprecated, afterReplacement.DocumentsUnits.First(u => u.Id == bornUnit.Id).Status);
 
-            // 7) A renovada vence e o RH tenta renovar de novo: o teto (1 renovação) foi atingido, a renovação é
-            //    recusada e o documento fica descoberto — que é exatamente o que o status Vencido comunica.
-            await DepreciateAsync(seed.DocumentId, renewedUnit.Id, seed.CompanyId, ct);
-
+            // 7) Com os ciclos esgotados o RH ainda renova: o teto governa validade, não permissão. A nova
+            //    substituta é criada, vinculada, e NÃO consome ciclo (não vence, não há ciclo a consumir). O
+            //    documento continua OK — a renovação em voo não conta enquanto a substituída cobre.
             var renewAtCap = await RenewAsync(seed.CompanyId, seed.DocumentId, seed.EmployeeId, renewedUnit.Id);
-            Assert.NotEqual(HttpStatusCode.OK, renewAtCap.StatusCode);
-            Assert.Contains("PMD.DOC26", await renewAtCap.Content.ReadAsStringAsync());
+            Assert.Equal(HttpStatusCode.OK, renewAtCap.StatusCode);
 
             var final = await GetDocumentAsync(seed.DocumentId, ct);
-            Assert.Equal(2, final.DocumentsUnits.Count);
+            Assert.Equal(3, final.DocumentsUnits.Count);
             Assert.Equal(DocumentUnitStatus.Deprecated, final.DocumentsUnits.First(u => u.Id == bornUnit.Id).Status);
-            Assert.Equal(DocumentUnitStatus.Expired, final.DocumentsUnits.First(u => u.Id == renewedUnit.Id).Status);
+            Assert.Equal(DocumentUnitStatus.OK, final.DocumentsUnits.First(u => u.Id == renewedUnit.Id).Status);
             Assert.Equal(1, final.RenewalCount);
-            Assert.DoesNotContain(final.DocumentsUnits, u => u.Status == DocumentUnitStatus.Pending);
-            Assert.Equal(DocumentStatus.Expired, final.Status);
+            var atCapUnit = Assert.Single(final.DocumentsUnits, u => u.Status == DocumentUnitStatus.Pending);
+            Assert.Equal(renewedUnit.Id, atCapUnit.ReplacesDocumentUnitId);
+            Assert.Equal(DocumentStatus.OK, final.Status);
         }
 
         private sealed record AllPoliciesSeed(Guid CompanyId, Guid DocumentId, Guid EmployeeId);
@@ -168,17 +177,6 @@ namespace PeopleManagement.IntegrationTests.Tests
             var response = await client.PutAsJsonAsync($"/api/v1/{companyId}/document/documentunit", command);
             var body = await response.Content.ReadAsStringAsync();
             Assert.True(HttpStatusCode.OK == response.StatusCode, $"Expected 200, got {(int)response.StatusCode}: {body}");
-        }
-
-        // Dá a data real à unidade (a renovada nasce sem data, na competência mínima) — pré-requisito para
-        // entregá-la, pois InsertUnitWithoutRequireValidation recusa unidade sem data válida.
-        private async Task SetUnitDateAsync(Guid documentId, Guid unitId, DateOnly date, CancellationToken ct)
-        {
-            using var scope = _factory.Services.CreateScope();
-            var context = scope.ServiceProvider.GetRequiredService<PeopleManagementContext>();
-            var document = await context.Documents.Include(x => x.DocumentsUnits).FirstAsync(x => x.Id == documentId, ct);
-            document.UpdateDocumentUnitDetails(unitId, date, TimeSpan.Zero, "");
-            await context.SaveChangesAsync(ct);
         }
 
         private async Task MakeUnitOkAsync(Guid documentId, Guid unitId, CancellationToken ct)
