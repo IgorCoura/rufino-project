@@ -35,6 +35,12 @@ public sealed class BillExpectationTests : BaseIntegrationTest
 
     private const string PayeeCnpj = "11444777000161";
 
+    /// <summary>
+    /// Os desfechos que provam que a varredura agiu. Qual deles sai depende do dia em que o
+    /// teste roda em relação ao vencimento — o domínio não lê relógio, mas o job lê.
+    /// </summary>
+    private static readonly string[] SweepDidSomething = ["CycleOpened", "Missed", "Alerted"];
+
     public BillExpectationTests(IntegrationTestWebAppFactory factory) : base(factory) { }
 
     // O cadastro grava a expectativa com a antecedência derivada do prazo observado — e é o
@@ -94,7 +100,7 @@ public sealed class BillExpectationTests : BaseIntegrationTest
 
         var response = await SendAsync(new SweepBillExpectationCommand(Tenant.Value, expectationId.Value));
 
-        Assert.Contains(response.Outcome, new[] { "CycleOpened", "Missed", "Alerted" }, StringComparer.Ordinal);
+        Assert.Contains(response.Outcome, SweepDidSomething, StringComparer.Ordinal);
 
         var stored = await LoadAsync(expectationId);
         Assert.Single(stored!.Cycles);

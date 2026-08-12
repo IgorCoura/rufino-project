@@ -15,9 +15,12 @@ using BillPayment.Domain.SharedKernel;
 /// outro é esperado — que é exatamente o erro que apagaria a distinção.
 /// </para>
 /// <para>
-/// Nulo é o caso majoritário <strong>por medição</strong>: o CNPJ do pagador aparece em apenas
-/// 38% dos boletos reais do corpus. Contas de concessionária identificam o pagador por conta
-/// contrato ou matrícula, não por documento fiscal.
+/// <strong>Nulo deixou de ser o caso majoritário</strong>, e o número que dizia o contrário foi
+/// reconciliado na sprint 2.6: os 38% do doc 08 contavam todos os arquivos do corpus, inclusive
+/// os que não têm camada de texto. Sobre os documentos que produzem instrumento — que são os
+/// únicos que chegam aqui — o documento fiscal do pagador aparece em <strong>93,3%</strong>
+/// (326 documentos, 14 meses). Continua nulo quando a concessionária identifica o pagador só por
+/// conta contrato ou matrícula, e quando a escada não constatou de quem é o boleto.
 /// </para>
 /// </remarks>
 public sealed class PartyInfo : ValueObject

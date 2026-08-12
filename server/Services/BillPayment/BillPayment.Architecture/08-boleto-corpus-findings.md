@@ -23,7 +23,7 @@ node tools/analyze-boleto-corpus.js txt <cnpj-tenant-1> <cnpj-tenant-2>
 | — das quais **falso positivo** (lixo que passou no DV) | 1 | 3% |
 | Texto extraível, mas sem linha digitável | 10 | 26% |
 | **PDF sem nenhuma camada de texto** (imagem pura) | 7 | **18%** |
-| Pagador identificado (CPF/CNPJ com DV válido) | 15 | **38%** |
+| Pagador identificado (CPF/CNPJ com DV válido, 2 CNPJs) | 15 | **38%** |
 
 Entre as 22 linhas extraídas: **12 cobrança bancária, 10 arrecadação**.
 
@@ -81,7 +81,21 @@ O detalhe que importa: o fator tem 4 dígitos e **já deu a volta**, então qual
 
 Fator `0000` significa "sem vencimento" e não vira data. Casos de teste obrigatórios no `DigitableLine`: os fatores 1493 e 1337 acima, o `0000`, e um fator ambíguo verificando que a escolha cai na época correta.
 
-## Achado 5 — o CNPJ do pagador só aparece em 38% dos boletos
+## Achado 5 — a presença do pagador depende do denominador
+
+> ⚠️ **Reconciliado em 2026-08-12, na sprint 2.6.** Os 38% abaixo estão corretos e são reproduzíveis, mas o número foi lido por muito tempo como "o pagador raramente é identificável" — e essa leitura levou o doc 07 a apostar num degrau 2 que a medição depois derrubou. O que muda a conclusão é **o denominador** e **quantos documentos do tenant entram na busca**:
+>
+> | Denominador | Documentos do tenant usados | Cobertura |
+> |---|---|---|
+> | Todos os 39 arquivos do corpus | 2 CNPJs | **38%** |
+> | Todos os 39 arquivos do corpus | 2 CNPJs + o CPF do titular | **51%** |
+> | **Só os que têm linha digitável válida** | 2 CNPJs + o CPF | **93,3%** |
+>
+> A última linha é a que importa para o **roteamento**, porque a escada só roda sobre documento que produziu instrumento — os 7 PDFs só-imagem e os 10 com texto sem linha não têm documento fiscal a achar, e ainda assim entravam no denominador. O mesmo 93,3% saiu de 326 documentos ao longo de 14 meses ([`tools/analyze-account-reference.js`](tools/analyze-account-reference.js) e a medição da 2.6), então não é efeito de mês atípico.
+>
+> **O que continua verdadeiro deste achado:** as contas de concessionária identificam o pagador por conta contrato ou instalação, e não trazem o documento fiscal de forma proeminente — o que sustenta a leitura qualitativa abaixo. O que **não** se sustenta é usar os 38% para dimensionar o degrau 1 da escada de roteamento.
+
+### O número original
 
 Este é o achado que muda o desenho de roteamento multi-tenant.
 
