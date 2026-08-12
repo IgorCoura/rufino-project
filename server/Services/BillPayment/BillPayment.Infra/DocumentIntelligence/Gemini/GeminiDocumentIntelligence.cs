@@ -60,9 +60,16 @@ internal sealed class GeminiDocumentIntelligence(
         if (!reserved)
             return ExtractedDocument.Empty;
 
+        // Só as primeiras páginas: boleto está na primeira ou na segunda, e mandar um relatório
+        // de trinta páginas custa proporcional sem aumentar a chance de achar o código de barras.
+        // Sem isto, chamadas batiam no timeout de 60s e a vazão caía de ~70 para ~8 por minuto.
+        var content = string.Equals(payload.MediaType, DocumentPayload.PDF, StringComparison.Ordinal)
+            ? PdfPageTrimmer.TakeFirstPages(payload.Content, _options.MaxPages, logger)
+            : payload.Content;
+
         var request = new GeminiRequest(
             [new GeminiContent([
-                GeminiPart.FromDocument(payload.MediaType, payload.Content),
+                GeminiPart.FromDocument(payload.MediaType, content),
                 GeminiPart.FromText(GeminiPrompt.Build(hints)),
             ])],
             new GeminiGenerationConfig("application/json", GeminiPrompt.ResponseSchema, Temperature: 0));

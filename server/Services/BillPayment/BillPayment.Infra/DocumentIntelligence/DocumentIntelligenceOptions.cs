@@ -35,7 +35,11 @@ public sealed class DocumentIntelligenceOptions
     /// </remarks>
     public string Model { get; set; } = "gemini-3.1-flash-lite";
 
-    public int TimeoutSeconds { get; set; } = 60;
+    /// <summary>
+    /// Teto por chamada. Curto de propósito: o worker processa em série, então uma chamada
+    /// pendurada não atrasa um documento — atrasa a fila inteira.
+    /// </summary>
+    public int TimeoutSeconds { get; set; } = 30;
 
     /// <summary>
     /// Chamadas por dia, por tenant. <strong>É guarda de conta, não afinação.</strong>
