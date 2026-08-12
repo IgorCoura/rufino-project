@@ -2,6 +2,7 @@ namespace BillPayment.Infra.Persistence;
 
 using BillPayment.Domain.Bills;
 using BillPayment.Domain.CaptureItems;
+using BillPayment.Domain.Expectations;
 using BillPayment.Domain.CaptureSources;
 using BillPayment.Domain.Payees;
 using BillPayment.Domain.PayerProfiles;
@@ -19,6 +20,7 @@ public sealed class BillPaymentDbContext : DbContext, IUnitOfWork
     public DbSet<PayerProfile> PayerProfiles => Set<PayerProfile>();
     public DbSet<CaptureSource> CaptureSources => Set<CaptureSource>();
     public DbSet<CaptureItem> CaptureItems => Set<CaptureItem>();
+    public DbSet<BillExpectation> BillExpectations => Set<BillExpectation>();
 
     public DbSet<OutboxMessage> OutboxMessages => Set<OutboxMessage>();
     public DbSet<OutboxDeadLetter> OutboxDeadLetters => Set<OutboxDeadLetter>();
@@ -91,6 +93,7 @@ public sealed class BillPaymentDbContext : DbContext, IUnitOfWork
             var drained = entry.Entity switch
             {
                 AggregateRoot<BillId> aggregate => aggregate.PullDomainEvents(),
+                AggregateRoot<BillExpectationId> aggregate => aggregate.PullDomainEvents(),
                 _ => null,
             };
 

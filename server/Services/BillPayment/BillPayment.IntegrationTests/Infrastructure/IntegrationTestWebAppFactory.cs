@@ -74,6 +74,12 @@ public sealed class IntegrationTestWebAppFactory : WebApplicationFactory<Program
         // o resolvedor de teste.
         builder.UseSetting("LinkResolution:Enabled", "false");
 
+        // A varredura de expectativas é a única que vem LIGADA por padrão, e por isso precisa ser
+        // desligada aqui explicitamente: rodando de seis em seis horas ela abriria ciclo e
+        // registraria alerta enquanto o Respawn limpa o banco, e os testes que dirigem a varredura
+        // deixariam de ser determinísticos. Quem exercita o job chama o comando.
+        builder.UseSetting("Expectations:Enabled", "false");
+
         builder.UseEnvironment("Development");
     }
 

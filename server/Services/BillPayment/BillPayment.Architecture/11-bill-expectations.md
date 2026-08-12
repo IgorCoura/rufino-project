@@ -8,7 +8,7 @@ O sistema sabe o que espera receber e avisa quando não recebeu. Racional em [`a
 |---|---|---|
 | `Id` / `TenantId` | | |
 | `PayeeId` | `PayeeId` | Beneficiário esperado |
-| `AccountReference` / `ReferenceKind` | `string` / Smart Enum | Mesma chave da `RoutingRule` — instalação, matrícula, conta contrato |
+| `AccountReference` | `string` (vazio, nunca nulo) | **Informada no cadastro, nunca deduzida** — ver a nota abaixo. Vazio quando o tenant tem uma conta só com aquele beneficiário |
 | `Label` | `string` | O que o usuário lê no alerta: "EDP — Casa Florentino" |
 | `Recurrence` | `Recurrence` (Smart Enum) | `Monthly` \| `Bimonthly` \| `Quarterly` \| `Annual` |
 | `ExpectedDueDay` | `int` | Dia do mês do vencimento, aprendido |
@@ -18,6 +18,10 @@ O sistema sabe o que espera receber e avisa quando não recebeu. Racional em [`a
 | `ObservationCount` | `int` | Quantos ciclos alimentaram o aprendizado |
 | `HintSourceId` | `CaptureSourceId?` | Por onde costuma chegar — vira o link acionável do alerta |
 | `IsActive` / `PausedUntil` | `bool` / `DateOnly?` | |
+
+> ⚠️ **Corrigido pela medição na sprint 2.7 (2026-08-12).** O desenho tirava a referência de conta do documento, como a `RoutingRule` da 2.6 — que foi abandonada porque a chave não distinguia pagadores. Aqui a pergunta é outra e a conclusão também: a expectativa precisa separar **contas do mesmo tenant**, e isso importa porque **10 dos 20 grupos de beneficiário do arquivo real têm mais de uma conta** (quatro instalações da EDP, três do DAE). A referência existe no campo livre em arrecadação — EDP nos 13 dígitos finais, DAE no meio —, mas **a posição muda por emissor**, então ela é informada por quem cadastra. O `ExpectationLearningService` **recusa aprender** quando o histórico mostra mais de uma conta, e notifica em vez de adivinhar: uma expectativa por beneficiário seria cumprida pela primeira conta que chegasse e esconderia as demais.
+>
+> `ReferenceKind` não foi criado: sem dedução automática, o tipo da referência é informação de tela, não invariante de domínio.
 
 **Invariantes**
 
@@ -106,8 +110,8 @@ Alerta indevido treina o usuário a ignorar alerta, o que destrói o mecanismo. 
 
 | Serviço | Por que é serviço |
 |---|---|
-| `ExpectationMatchingService` | Cruza `Bill` + `BillExpectation` — dois Aggregates. Casa por `(PayeeId, AccountReference)` com vencimento dentro da janela do ciclo. Devolve `ExpectationMatch` (valor); quem muta é `expectation.Fulfill(...)`. |
-| `ExpectationLearningService` | Cruza histórico de `Bill` + `Payee` + `RoutingRule` para propor expectativas. Devolve candidatas, nunca persiste. |
+| `ExpectationMatchingService` | Cruza `Bill` + `BillExpectation` — dois Aggregates. Casa pelo **vencimento** dentro da janela do ciclo (±15 dias) entre as expectativas do beneficiário. Ambiguidade devolve `null` em vez de desempatar: cumprir a expectativa errada apagaria o alerta da conta que não chegou. Quem muta é `expectation.Fulfill(...)`. |
+| `ExpectationLearningService` | Cruza histórico de `Bill` + `Payee` para propor expectativas — e para **recusá-las**, com motivo (`TooFewOccurrences`, `Irregular`, `MultipleAccounts`). Devolve candidatas, nunca persiste. Não usa `RoutingRule`, que não existe. |
 
 ## Eventos e portas
 

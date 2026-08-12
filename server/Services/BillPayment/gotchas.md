@@ -204,3 +204,27 @@ Como o `Id` é value-converted, comparar `>` exige que o record struct declare o
 **Regra:** quando a medição alimenta uma decisão de código, confira a mesma amostra **pelo caminho que o código usa**. E fixture sintético tem que reproduzir a forma real da saída do extrator, não a forma idealizada.
 
 **Como pegar de novo:** se a medição e a implementação usam bibliotecas diferentes para o mesmo passo, sonde uma amostra pela biblioteca da implementação antes de confiar no número.
+
+## Um achado negativo não se generaliza sem reler a pergunta
+
+**Quando:** 2026-08-12, ao começar a 2.7 logo depois de a 2.6 ter abandonado a `RoutingRule`.
+
+**O que aconteceu:** a 2.6 mediu e concluiu que a "referência de conta" do código de barras não serve de chave. A 2.7 usa uma referência com o mesmo nome, e o reflexo foi concluir que ela também não serve. **As duas perguntas são diferentes:** o roteamento precisa distinguir *tenants* — e para isso a referência é inútil, porque o campo livre carrega a agência/conta do beneficiário; a expectativa precisa distinguir *contas do mesmo tenant* — e para isso ela existe, medida: quatro instalações da EDP com 13 dígitos finais distintos e estáveis, três matrículas do DAE.
+
+**Por que é traiçoeiro:** o achado da 2.6 está escrito, é forte e é verdadeiro. Aplicá-lo à pergunta errada teria produzido uma expectativa por beneficiário, cumprida pela primeira conta que chegasse, escondendo as outras três — a falha silenciosa que a sprint inteira existe para impedir.
+
+**Regra:** ao reusar um achado, releia **qual pergunta** ele respondeu. "Esta chave não distingue X" não é o mesmo que "esta chave não distingue nada".
+
+**Como pegar de novo:** `tools/multi-account` (a segunda medição da 2.6) responde a pergunta invertida — dentro do mesmo pagador, e não entre pagadores.
+
+## A mediana confirma a hipótese que os dados negam
+
+**Quando:** 2026-08-12, num teste de aprendizado de recorrência que passou quando deveria falhar.
+
+**O que aconteceu:** o serviço deduzia a recorrência da mediana dos intervalos entre vencimentos. Ocorrências em 10/01, 25/02 e 08/07 têm intervalos de 46 e 133 dias — visivelmente irregulares —, e mediana 90, que é exatamente trimestral. O serviço propôs uma expectativa trimestral para uma sequência que não é periódica.
+
+**Por que é traiçoeiro:** a mediana de dois valores muito diferentes cai no meio deles, e o meio tem chance real de coincidir com uma recorrência conhecida. O estatístico que existe para resistir a outlier vira, com poucas amostras, um gerador de falso positivo.
+
+**Regra:** a mediana escolhe o candidato; **cada** observação tem que caber nele depois. Duas conferências, não uma.
+
+**Como pegar de novo:** teste com dados propositalmente irregulares cujo intervalo médio caia em cima de uma recorrência válida — é o caso que passa despercebido.

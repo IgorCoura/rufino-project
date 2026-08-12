@@ -4,6 +4,8 @@ using BillPayment.Domain.Bills;
 using BillPayment.Domain.CaptureItems;
 using BillPayment.Domain.CaptureSources;
 using BillPayment.Domain.Payees;
+using BillPayment.Infra.Notifications;
+using BillPayment.Domain.Expectations;
 using BillPayment.Domain.Ports;
 using BillPayment.Domain.PayerProfiles;
 using BillPayment.Domain.SeedWork;
@@ -53,6 +55,13 @@ public static class InfraDependencies
         services.AddScoped<IPayerProfileRepository, PayerProfileRepository>();
         services.AddScoped<ICaptureSourceRepository, CaptureSourceRepository>();
         services.AddScoped<ICaptureItemRepository, CaptureItemRepository>();
+        services.AddScoped<IBillExpectationRepository, BillExpectationRepository>();
+
+        // O aviso vai para o log enquanto não há canal externo. NÃO é substituto que falha alto,
+        // ao contrário do cofre e do armazenamento: derrubar a varredura porque o e-mail não está
+        // configurado apagaria o REGISTRO do alerta, e é ele que sustenta o painel de pendências
+        // e a regra de não repetir nível. Adapter de e-mail é item do checklist pré-produção.
+        services.AddScoped<INotificationSender, LoggingNotificationSender>();
 
         services.AddMailboxReader(configuration);
 
@@ -362,7 +371,8 @@ public static class InfraDependencies
         services.AddSingleton<IOutboxEventTypeResolver, OutboxEventTypeResolver>();
         services.AddSingleton<IOutboxProcessor, OutboxProcessor>();
 
-        // Handlers de Domain Event (IDomainEventHandler<TEvent>) entram aqui junto com os primeiros eventos do BC.
+        // Handlers de Domain Event moram na Application (precisam do mediator) e são registrados
+        // lá — Infra → Application seria ciclo. Ver ApplicationDependencies.
 
         var enabled = configuration.GetSection(OutboxOptions.SectionName).GetValue<bool?>("Enabled") ?? true;
         if (enabled)

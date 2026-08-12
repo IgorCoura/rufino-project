@@ -34,6 +34,16 @@ if (builder.Configuration.GetValue<bool>($"{CaptureSyncOptions.SectionName}:Enab
     builder.Services.AddHostedService<CaptureProcessingBackgroundService>();
 }
 
+// A varredura de expectativas é LIGADA por padrão, ao contrário da captura. A captura desligada
+// apenas não captura; a expectativa desligada desliga a rede de segurança — e o modo de falha
+// dela é o silêncio, que é o que o ADR-014 existe para evitar. Sem expectativa cadastrada o
+// ciclo não faz nada e não custa nada.
+builder.Services.Configure<ExpectationSweepOptions>(
+    builder.Configuration.GetSection(ExpectationSweepOptions.SectionName));
+
+if (builder.Configuration.GetValue<bool?>($"{ExpectationSweepOptions.SectionName}:Enabled") ?? true)
+    builder.Services.AddHostedService<ExpectationSweepBackgroundService>();
+
 var app = builder.Build();
 
 // Migrações, não EnsureCreatedAsync. A diferença não é estilística: EnsureCreated decide por

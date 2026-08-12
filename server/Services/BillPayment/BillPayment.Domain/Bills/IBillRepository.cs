@@ -35,6 +35,20 @@ public interface IBillRepository
     /// O boleto sendo verificado. Ele já está gravado e ocupa a própria chave, então sem
     /// excluí-lo toda validação encontraria a si mesma como duplicata.
     /// </param>
+    /// <summary>
+    /// O histórico de boletos de um beneficiário, do mais recente para o mais antigo.
+    /// </summary>
+    /// <remarks>
+    /// Alimenta o aprendizado de expectativa, que precisa da cadência das ocorrências. O teto
+    /// existe porque a dedução olha para o padrão recente: um beneficiário com anos de histórico
+    /// não fica mais previsível por trazer tudo, e a carga cresceria sem limite.
+    /// </remarks>
+    Task<IReadOnlyCollection<Bill>> ListByPayeeAsync(
+        TenantId tenantId,
+        Payees.PayeeId payeeId,
+        int limit,
+        CancellationToken cancellationToken = default);
+
     Task<DuplicateProbe> ProbeActiveDuplicateAsync(
         string dedupKey,
         TenantId tenantId,

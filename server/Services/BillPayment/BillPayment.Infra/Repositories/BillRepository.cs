@@ -1,6 +1,7 @@
 namespace BillPayment.Infra.Repositories;
 
 using BillPayment.Domain.Bills;
+using BillPayment.Domain.Payees;
 using BillPayment.Domain.SeedWork;
 using BillPayment.Domain.SharedKernel;
 using BillPayment.Infra.Persistence;
@@ -48,6 +49,23 @@ internal sealed class BillRepository : IBillRepository
     /// <em>aqui dentro</em> se o id pode sair. Um boleto de outro tenant sai como
     /// <c>FoundInAnotherTenant</c>, sem id — o chamador não tem como reconstruir de quem é.
     /// </summary>
+    /// <summary>
+    /// Histórico do beneficiário para o aprendizado de expectativa. Traz os instrumentos porque
+    /// é deles que sai o vencimento, e a carga é limitada pelo teto que o chamador informa.
+    /// </summary>
+    public async Task<IReadOnlyCollection<Bill>> ListByPayeeAsync(
+        TenantId tenantId,
+        PayeeId payeeId,
+        int limit,
+        CancellationToken cancellationToken = default)
+        => await _context.Bills
+            .AsNoTracking()
+            .Include(b => b.Instruments)
+            .Where(b => b.TenantId == tenantId && b.PayeeId == payeeId)
+            .OrderByDescending(b => b.CreatedAt)
+            .Take(limit)
+            .ToListAsync(cancellationToken);
+
     public async Task<DuplicateProbe> ProbeActiveDuplicateAsync(
         string dedupKey,
         TenantId tenantId,

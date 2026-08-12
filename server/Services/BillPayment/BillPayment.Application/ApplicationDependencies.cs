@@ -8,6 +8,9 @@ using BillPayment.Domain.Bills;
 using BillPayment.Domain.SeedWork;
 using BillPayment.Application.Queries.Bills;
 using BillPayment.Application.Queries.CaptureItems;
+using BillPayment.Application.Expectations.EventHandlers;
+using BillPayment.Domain.Expectations;
+using BillPayment.Application.Queries.Expectations;
 using BillPayment.Application.Queries.CaptureSources;
 using BillPayment.Application.Queries.Payees;
 using BillPayment.Application.Queries.PayerProfiles;
@@ -40,6 +43,14 @@ public static class ApplicationDependencies
         // Infra → Application seria ciclo — o dispatcher do outbox os resolve pelo contêiner.
         services.AddScoped<IDomainEventHandler<BillCapturedDomainEvent>, BillCapturedDomainEventHandler>();
 
+        // Expectativa (2.7): o par cumprimento/aprendizado fecha o ciclo, e os três de aviso
+        // levam o alerta ao usuário. Todos passam pelo outbox, então precisam ser idempotentes.
+        services.AddScoped<IDomainEventHandler<BillValidatedDomainEvent>, FulfillExpectationOnBillValidatedHandler>();
+        services.AddScoped<IDomainEventHandler<BillApprovedDomainEvent>, LearnExpectationOnBillApprovedHandler>();
+        services.AddScoped<IDomainEventHandler<BillExpectationLearnedDomainEvent>, NotifyExpectationLearnedHandler>();
+        services.AddScoped<IDomainEventHandler<BillExpectationMissedDomainEvent>, NotifyExpectationMissedHandler>();
+        services.AddScoped<IDomainEventHandler<BillExpectationCaptureFailedDomainEvent>, NotifyExpectationCaptureFailedHandler>();
+
         services.AddScoped<ITrustedOriginQueries, TrustedOriginQueries>();
         services.AddScoped<IBillQueries, BillQueries>();
         services.AddScoped<IPayeeQueries, PayeeQueries>();
@@ -47,6 +58,7 @@ public static class ApplicationDependencies
         services.AddScoped<ICaptureSourceQueries, CaptureSourceQueries>();
         services.AddScoped<ICaptureItemQueries, CaptureItemQueries>();
         services.AddScoped<ICaptureItemWorkQueries, CaptureItemWorkQueries>();
+        services.AddScoped<IBillExpectationQueries, BillExpectationQueries>();
 
         return services;
     }
