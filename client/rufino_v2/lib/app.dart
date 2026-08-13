@@ -8,11 +8,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'core/config/app_config.dart';
 import 'core/errors/auth_exception.dart';
-import 'core/monitoring/error_reporter.dart';
-import 'core/network/session_aware_http_client.dart';
-import 'core/storage/secure_storage.dart';
-import 'core/theme/app_theme.dart';
-import 'core/theme/theme_notifier.dart';
+import 'package:rufino_core/rufino_core.dart';
 import 'data/repositories/auth_code_repository_impl.dart';
 import 'data/repositories/auth_repository_impl.dart';
 import 'data/repositories/permission_repository_impl.dart';

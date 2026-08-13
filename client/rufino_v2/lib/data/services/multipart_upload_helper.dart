@@ -2,8 +2,7 @@ import 'dart:async';
 
 import 'package:http/http.dart' as http;
 
-import '../../core/errors/http_exception.dart';
-
+import 'package:rufino_core/rufino_core.dart';
 /// Callback invoked during multipart upload with progress from 0.0 to 1.0.
 typedef UploadProgressCallback = void Function(double progress);
 

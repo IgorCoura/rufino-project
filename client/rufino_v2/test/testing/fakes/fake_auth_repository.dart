@@ -1,4 +1,4 @@
-import 'package:rufino_v2/core/result.dart';
+import 'package:rufino_core/rufino_core.dart';
 import 'package:rufino_v2/domain/repositories/auth_repository.dart';
 
 class FakeAuthRepository implements AuthRepository {

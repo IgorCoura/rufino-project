@@ -1,8 +1,6 @@
 import 'package:flutter/widgets.dart';
 import 'package:http/http.dart' as http;
-import 'package:rufino_v2/core/errors/expected_failure.dart';
-import 'package:rufino_v2/core/monitoring/error_reporter.dart';
-
+import 'package:rufino_core/rufino_core.dart';
 /// A recording [ErrorReporter] for tests.
 ///
 /// Captures every call to [capture] in [capturedErrors] for assertions, and

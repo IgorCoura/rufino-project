@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../../../../core/theme/app_breakpoints.dart';
-import '../../../../../core/theme/app_spacing.dart';
-
+import 'package:rufino_core/rufino_core.dart';
 /// Returns the inner padding used by profile section cards.
 ///
 /// Mobile viewports get a tighter padding so the nested cards don't stack

@@ -10,7 +10,6 @@ import 'package:rufino_v2/data/services/document_dashboard_api_service.dart';
 import 'package:rufino_v2/domain/entities/document_dashboard.dart';
 
 import '../../../testing/fakes/fake_error_reporter.dart';
-
 void main() {
   late FakeErrorReporter reporter;
   Uri? capturedUri;

@@ -1,5 +1,4 @@
-import 'expected_failure.dart';
-
+import 'package:rufino_core/rufino_core.dart';
 sealed class AuthException implements Exception {
   const AuthException();
 }

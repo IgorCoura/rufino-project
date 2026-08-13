@@ -1,7 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:rufino_v2/core/errors/auth_exception.dart';
-import 'package:rufino_v2/core/result.dart';
+import 'package:rufino_core/rufino_core.dart';
 import 'package:rufino_v2/ui/features/auth/viewmodel/login_viewmodel.dart';
 
 import '../../../../testing/mocks/mocks.dart';

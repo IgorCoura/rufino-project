@@ -1,8 +1,7 @@
 import 'dart:typed_data';
 
 import '../../core/errors/document_template_exception.dart';
-import '../../core/monitoring/error_reporter.dart';
-import '../../core/result.dart';
+import 'package:rufino_core/rufino_core.dart';
 import '../../domain/entities/document_template.dart';
 import '../../domain/entities/selection_option.dart';
 import '../../domain/repositories/document_template_repository.dart';

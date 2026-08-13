@@ -1,6 +1,5 @@
 import '../errors/auth_exception.dart';
-import '../errors/http_exception.dart';
-
+import 'package:rufino_core/rufino_core.dart';
 /// User-facing message shown when the session is no longer valid.
 const String sessionExpiredMessage =
     'Sua sessão expirou. Faça login novamente.';

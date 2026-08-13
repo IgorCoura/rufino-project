@@ -1,5 +1,4 @@
-import '../../core/result.dart';
-
+import 'package:rufino_core/rufino_core.dart';
 abstract class AuthRepository {
   Future<Result<void>> login({
     required String username,

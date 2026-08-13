@@ -1,6 +1,6 @@
 import 'package:flutter/foundation.dart';
 
-import '../../../../core/monitoring/error_reporter.dart';
+import 'package:rufino_core/rufino_core.dart';
 import '../../../../domain/repositories/auth_repository.dart';
 import '../../../../domain/repositories/company_repository.dart';
 import 'permission_notifier.dart';

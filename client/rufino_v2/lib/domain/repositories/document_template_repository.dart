@@ -1,6 +1,6 @@
 import 'dart:typed_data';
 
-import '../../core/result.dart';
+import 'package:rufino_core/rufino_core.dart';
 import '../entities/document_template.dart';
 import '../entities/selection_option.dart';
 

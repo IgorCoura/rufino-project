@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../../core/theme/app_breakpoints.dart';
-import '../../../../core/theme/app_spacing.dart';
+import 'package:rufino_core/rufino_core.dart';
 import '../../../../core/utils/file_saver_stub.dart'
     if (dart.library.io) '../../../../core/utils/file_saver.dart';
 import '../viewmodel/batch_download_viewmodel.dart';

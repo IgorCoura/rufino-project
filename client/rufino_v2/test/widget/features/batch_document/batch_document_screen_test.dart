@@ -5,7 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:provider/provider.dart';
-import 'package:rufino_v2/core/result.dart';
+import 'package:rufino_core/rufino_core.dart';
 import 'package:rufino_v2/domain/entities/batch_document_unit.dart';
 import 'package:rufino_v2/domain/entities/document_group_with_templates.dart';
 import 'package:rufino_v2/domain/entities/permission.dart';

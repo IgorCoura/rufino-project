@@ -5,8 +5,7 @@ import 'package:jwt_decoder/jwt_decoder.dart';
 import 'package:oauth2/oauth2.dart' as oauth2;
 
 import '../../core/errors/auth_exception.dart';
-import '../../core/storage/secure_storage.dart';
-
+import 'package:rufino_core/rufino_core.dart';
 /// Handles OAuth2 authentication against Keycloak.
 ///
 /// Manages login, token refresh, and credential persistence via

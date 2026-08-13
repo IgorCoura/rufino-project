@@ -1,6 +1,5 @@
 import '../../core/errors/department_exception.dart';
-import '../../core/monitoring/error_reporter.dart';
-import '../../core/result.dart';
+import 'package:rufino_core/rufino_core.dart';
 import '../../domain/entities/department.dart';
 import '../../domain/entities/position.dart';
 import '../../domain/entities/remuneration.dart';

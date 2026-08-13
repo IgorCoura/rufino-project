@@ -1,5 +1,5 @@
 import 'package:rufino_v2/core/errors/cep_exception.dart';
-import 'package:rufino_v2/core/result.dart';
+import 'package:rufino_core/rufino_core.dart';
 import 'package:rufino_v2/domain/entities/address.dart';
 import 'package:rufino_v2/domain/repositories/cep_repository.dart';
 

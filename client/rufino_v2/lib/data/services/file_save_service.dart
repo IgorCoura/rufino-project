@@ -4,8 +4,7 @@ import 'dart:typed_data';
 import 'package:file_saver/file_saver.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 
-import '../../core/result.dart';
-
+import 'package:rufino_core/rufino_core.dart';
 /// Returned by [FileSaveService.saveXlsx] to differentiate a real save from
 /// the user dismissing the platform's "save as" dialog.
 enum FileSaveOutcome {

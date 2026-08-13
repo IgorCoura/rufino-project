@@ -1,5 +1,4 @@
-import 'expected_failure.dart';
-
+import 'package:rufino_core/rufino_core.dart';
 /// Base sealed class for all document-scanner errors.
 ///
 /// Subtypes are thrown by [DocumentScannerService] implementations and

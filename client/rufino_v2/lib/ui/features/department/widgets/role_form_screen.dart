@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../../core/theme/app_spacing.dart';
+import 'package:rufino_core/rufino_core.dart';
 import '../../../core/widgets/error_dialog.dart';
 import '../viewmodel/role_form_viewmodel.dart';
 

@@ -3,10 +3,10 @@ import 'dart:typed_data';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:rufino_v2/core/errors/document_scanner_exception.dart';
-import 'package:rufino_v2/core/result.dart';
+import 'package:rufino_core/rufino_core.dart';
+import '../../../testing/fakes/fake_error_reporter.dart';
 import 'package:rufino_v2/data/repositories/document_scanner_repository_impl.dart';
 
-import '../../../testing/fakes/fake_error_reporter.dart';
 import '../../../testing/mocks/mocks.dart';
 
 void main() {

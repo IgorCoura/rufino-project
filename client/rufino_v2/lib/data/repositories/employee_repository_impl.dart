@@ -1,8 +1,7 @@
 import 'dart:typed_data';
 
 import '../../core/errors/employee_exception.dart';
-import '../../core/monitoring/error_reporter.dart';
-import '../../core/result.dart';
+import 'package:rufino_core/rufino_core.dart';
 import '../models/document_range_item.dart';
 import '../../domain/entities/address.dart';
 import '../../domain/entities/employee.dart';

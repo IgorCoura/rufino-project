@@ -3,7 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:rufino_v2/ui/features/auth/viewmodel/permission_notifier.dart';
 
-import '../../../../core/theme/app_spacing.dart';
+import 'package:rufino_core/rufino_core.dart';
 import '../../../../domain/entities/require_document.dart';
 import '../../../core/widgets/permission_guard.dart';
 import '../viewmodel/require_document_list_viewmodel.dart';

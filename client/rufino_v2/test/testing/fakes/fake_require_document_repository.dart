@@ -1,4 +1,4 @@
-import 'package:rufino_v2/core/result.dart';
+import 'package:rufino_core/rufino_core.dart';
 import 'package:rufino_v2/domain/entities/require_document.dart';
 import 'package:rufino_v2/domain/entities/selection_option.dart';
 import 'package:rufino_v2/domain/repositories/require_document_repository.dart';

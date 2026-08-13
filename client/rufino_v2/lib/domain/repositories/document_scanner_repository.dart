@@ -1,7 +1,6 @@
 import 'dart:typed_data';
 
-import '../../core/result.dart';
-
+import 'package:rufino_core/rufino_core.dart';
 /// Domain contract for the document scanner aggregate.
 ///
 /// All fallible operations return [Result] so callers are forced by the

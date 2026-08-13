@@ -1,5 +1,4 @@
-import 'package:rufino_v2/core/storage/secure_storage.dart';
-
+import 'package:rufino_core/rufino_core.dart';
 /// In-memory [SecureStorage] for tests.
 class FakeSecureStorage implements SecureStorage {
   final Map<String, String> values = {};

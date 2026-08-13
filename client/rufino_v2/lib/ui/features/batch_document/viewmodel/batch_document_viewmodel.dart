@@ -3,7 +3,7 @@ import 'dart:collection';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
 
-import '../../../../core/result.dart';
+import 'package:rufino_core/rufino_core.dart';
 import '../../../../core/utils/concurrency.dart';
 import '../../../../core/utils/error_messages.dart';
 import '../../../../core/utils/fuzzy_name_matcher.dart';

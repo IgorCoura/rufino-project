@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../../../../core/theme/app_spacing.dart';
+import 'package:rufino_core/rufino_core.dart';
 import '../../../../../domain/entities/employee_personal_info.dart';
 import '../../../../../domain/entities/personal_info_options.dart';
 import '../../../../../domain/entities/selection_option.dart';

@@ -1,8 +1,7 @@
 import 'dart:typed_data';
 
 import '../../core/errors/batch_download_exception.dart';
-import '../../core/monitoring/error_reporter.dart';
-import '../../core/result.dart';
+import 'package:rufino_core/rufino_core.dart';
 import '../../domain/entities/batch_download.dart';
 import '../../domain/repositories/batch_download_repository.dart';
 import '../services/batch_download_api_service.dart';

@@ -1,9 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:rufino_v2/core/errors/auth_exception.dart';
-import 'package:rufino_v2/core/errors/expected_failure.dart';
-
+import 'package:rufino_core/rufino_core.dart';
 import '../../../testing/fakes/fake_error_reporter.dart';
-
 /// Mirrors the `*NetworkException` wrapper pattern used by repositories.
 class _WrapperException implements Exception {
   const _WrapperException(this.cause);

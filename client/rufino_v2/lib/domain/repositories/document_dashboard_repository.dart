@@ -1,4 +1,4 @@
-import '../../core/result.dart';
+import 'package:rufino_core/rufino_core.dart';
 import '../entities/document_dashboard.dart';
 
 /// Read-only access to the company-wide document dashboard.

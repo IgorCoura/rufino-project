@@ -1,6 +1,5 @@
 import '../../core/errors/document_group_exception.dart';
-import '../../core/monitoring/error_reporter.dart';
-import '../../core/result.dart';
+import 'package:rufino_core/rufino_core.dart';
 import '../../domain/entities/document_group.dart';
 import '../../domain/entities/document_group_with_documents.dart';
 import '../../domain/entities/document_group_with_templates.dart';

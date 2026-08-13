@@ -8,8 +8,7 @@ library;
 import 'package:flutter/material.dart';
 import 'package:syncfusion_flutter_pdfviewer/pdfviewer.dart';
 
-import '../../../../core/theme/app_breakpoints.dart';
-import '../../../../core/theme/app_spacing.dart';
+import 'package:rufino_core/rufino_core.dart';
 import '../../../../core/utils/fuzzy_name_matcher.dart';
 import '../../../../domain/entities/batch_document_unit.dart';
 import '../../../../domain/entities/bulk_upload_match.dart';

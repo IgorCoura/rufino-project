@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:mask_text_input_formatter/mask_text_input_formatter.dart';
 
-import '../../../../core/result.dart';
+import 'package:rufino_core/rufino_core.dart';
 import '../../../../core/utils/error_messages.dart';
 import '../../../../domain/entities/address.dart';
 import '../../../../domain/entities/company.dart';

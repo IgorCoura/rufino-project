@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:rufino_v2/ui/core/widgets/permission_guard.dart';
 
-import '../../../../core/theme/app_spacing.dart';
+import 'package:rufino_core/rufino_core.dart';
 import '../../../../domain/entities/company.dart';
 import '../viewmodel/company_selection_viewmodel.dart';
 

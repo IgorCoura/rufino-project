@@ -1,6 +1,5 @@
 import '../../core/errors/auth_exception.dart';
-import '../../core/monitoring/error_reporter.dart';
-import '../../core/result.dart';
+import 'package:rufino_core/rufino_core.dart';
 import '../../domain/repositories/auth_repository.dart';
 import '../services/auth_api_service.dart';
 

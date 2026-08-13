@@ -11,7 +11,7 @@ import 'dart:typed_data';
 import 'package:pdf_combiner/models/merge_input.dart';
 import 'package:syncfusion_flutter_pdf/pdf.dart';
 
-import '../result.dart';
+import 'package:rufino_core/rufino_core.dart';
 import 'pdf_merger_io.dart' if (dart.library.js_interop) 'pdf_merger_web.dart'
     as platform;
 

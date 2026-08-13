@@ -1,6 +1,5 @@
 import '../../core/errors/workplace_exception.dart';
-import '../../core/monitoring/error_reporter.dart';
-import '../../core/result.dart';
+import 'package:rufino_core/rufino_core.dart';
 import '../../domain/entities/workplace.dart';
 import '../../domain/repositories/workplace_repository.dart';
 import '../models/workplace_api_model.dart';

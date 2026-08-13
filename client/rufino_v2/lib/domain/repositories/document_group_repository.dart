@@ -1,4 +1,4 @@
-import '../../core/result.dart';
+import 'package:rufino_core/rufino_core.dart';
 import '../entities/document_group.dart';
 import '../entities/document_group_with_documents.dart';
 import '../entities/document_group_with_templates.dart';

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../../../core/theme/app_spacing.dart';
+import 'package:rufino_core/rufino_core.dart';
 import '../../../../domain/entities/batch_download.dart';
 import '../viewmodel/batch_download_viewmodel.dart';
 

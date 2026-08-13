@@ -1,4 +1,4 @@
-import '../../core/result.dart';
+import 'package:rufino_core/rufino_core.dart';
 import '../entities/workplace.dart';
 
 /// Contract for accessing and mutating workplace data.

@@ -1,12 +1,28 @@
 name: rufino_v2
-description: "Rufino — gestão de pessoas"
+description: "Rufino — app de gestão de pessoas e de contas a pagar"
 publish_to: 'none'
 version: 2.0.0+6
 
+# Dois produtos distintos dividem esta casca de app: gestão de pessoas e contas a
+# pagar. Eles vivem em pacotes separados para que o limite entre os dois seja
+# imposto pelo compilador, e não combinado — um pacote só enxerga o que declara
+# aqui, então `bill_payment` não consegue importar `people_management` nem por
+# engano.
+#
+# É um pub workspace: um único `flutter pub get`, um único lockfile na raiz.
+# Rodar teste de um pacote é `flutter test` de dentro dele.
+workspace:
+  - packages/rufino_core
+  - packages/bill_payment
+
 environment:
-  sdk: ^3.5.2
+  # 3.6 é o piso do pub workspace. Abaixo disso a resolução acima é ignorada em
+  # silêncio e cada pacote volta a ter o próprio lockfile.
+  sdk: ^3.6.0
 
 dependencies:
+  rufino_core:
+    path: packages/rufino_core
   sentry_flutter: ^9.19.0
   flutter:
     sdk: flutter

@@ -1,8 +1,6 @@
 import 'dart:convert';
 
-import '../../core/monitoring/error_reporter.dart';
-import '../../core/result.dart';
-import '../../core/storage/secure_storage.dart';
+import 'package:rufino_core/rufino_core.dart';
 import '../../domain/entities/company.dart';
 import '../../domain/entities/company_detail.dart';
 import '../../domain/repositories/company_repository.dart';

@@ -4,7 +4,7 @@ import 'dart:typed_data';
 import 'package:http/http.dart' as http;
 
 import '../../core/errors/employee_exception.dart';
-import '../../core/errors/http_exception.dart';
+import 'package:rufino_core/rufino_core.dart';
 import '../models/employee_api_model.dart';
 import '../models/employee_address_api_model.dart';
 import '../models/employee_contact_api_model.dart';

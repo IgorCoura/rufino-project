@@ -6,7 +6,7 @@ import 'package:flutter_json_view/flutter_json_view.dart';
 import 'package:go_router/go_router.dart';
 import 'package:mask_text_input_formatter/mask_text_input_formatter.dart';
 
-import '../../../../core/theme/app_spacing.dart';
+import 'package:rufino_core/rufino_core.dart';
 import '../../../../domain/entities/document_template.dart';
 import '../../../core/widgets/error_dialog.dart';
 import '../viewmodel/document_template_form_viewmodel.dart';

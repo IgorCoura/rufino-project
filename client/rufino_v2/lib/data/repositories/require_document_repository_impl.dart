@@ -1,6 +1,5 @@
 import '../../core/errors/require_document_exception.dart';
-import '../../core/monitoring/error_reporter.dart';
-import '../../core/result.dart';
+import 'package:rufino_core/rufino_core.dart';
 import '../../domain/entities/require_document.dart';
 import '../../domain/entities/selection_option.dart';
 import '../../domain/repositories/require_document_repository.dart';

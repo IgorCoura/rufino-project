@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../../../../core/theme/app_spacing.dart';
+import 'package:rufino_core/rufino_core.dart';
 import '../../../../../domain/entities/department.dart';
 import '../../../../../domain/entities/position.dart';
 import '../../../../../domain/entities/role.dart';

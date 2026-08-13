@@ -1,6 +1,6 @@
 import 'dart:typed_data';
 
-import '../../core/result.dart';
+import 'package:rufino_core/rufino_core.dart';
 import '../../data/models/document_range_item.dart';
 import '../../data/services/multipart_upload_helper.dart';
 import '../entities/address.dart';

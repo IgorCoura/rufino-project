@@ -1,8 +1,7 @@
 import 'package:flutter/widgets.dart';
 import 'package:http/http.dart' as http;
 
-import '../result.dart';
-
+import 'package:rufino_core/rufino_core.dart';
 /// A provider-agnostic facade for capturing runtime errors and breadcrumbs.
 ///
 /// Only one concrete implementation imports a vendor SDK; the rest of the

@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../../core/theme/app_spacing.dart';
-
+import 'package:rufino_core/rufino_core.dart';
 /// Opens a modal bottom sheet that hosts a set of filter fields.
 ///
 /// The sheet uses [showModalBottomSheet] with `isScrollControlled: true` so it

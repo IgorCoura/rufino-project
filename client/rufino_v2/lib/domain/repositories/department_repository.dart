@@ -1,4 +1,4 @@
-import '../../core/result.dart';
+import 'package:rufino_core/rufino_core.dart';
 import '../entities/department.dart';
 import '../entities/position.dart';
 import '../entities/remuneration.dart';

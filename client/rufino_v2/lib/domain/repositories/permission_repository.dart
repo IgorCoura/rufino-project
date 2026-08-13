@@ -1,4 +1,4 @@
-import '../../core/result.dart';
+import 'package:rufino_core/rufino_core.dart';
 import '../entities/permission.dart';
 
 /// Contract for fetching and caching the current user's permissions from

@@ -1,6 +1,5 @@
 import '../../core/errors/permission_exception.dart';
-import '../../core/monitoring/error_reporter.dart';
-import '../../core/result.dart';
+import 'package:rufino_core/rufino_core.dart';
 import '../../domain/entities/permission.dart';
 import '../../domain/repositories/permission_repository.dart';
 import '../services/permission_api_service.dart';

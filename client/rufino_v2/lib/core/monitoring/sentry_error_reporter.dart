@@ -3,11 +3,7 @@ import 'package:http/http.dart' as http;
 import 'package:sentry_flutter/sentry_flutter.dart';
 
 import '../config/app_config.dart';
-import '../errors/expected_failure.dart';
-import '../errors/http_exception.dart';
-import 'error_reporter.dart';
-import 'pii_scrubber.dart';
-
+import 'package:rufino_core/rufino_core.dart';
 /// An [ErrorReporter] backed by `sentry_flutter`.
 ///
 /// This is the only file in the app that imports `package:sentry_flutter`.

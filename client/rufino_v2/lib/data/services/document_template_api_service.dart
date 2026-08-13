@@ -3,7 +3,7 @@ import 'dart:typed_data';
 
 import 'package:http/http.dart' as http;
 
-import '../../core/errors/http_exception.dart';
+import 'package:rufino_core/rufino_core.dart';
 import '../models/document_template_api_model.dart';
 import 'http_status_helper.dart';
 import 'request_id_helper.dart';

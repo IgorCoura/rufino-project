@@ -2,7 +2,7 @@ import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
-import 'package:rufino_v2/core/result.dart';
+import 'package:rufino_core/rufino_core.dart';
 import 'package:rufino_v2/core/utils/fuzzy_name_matcher.dart';
 import 'package:rufino_v2/core/utils/page_rotation_finder.dart';
 import 'package:rufino_v2/domain/entities/batch_document_unit.dart';

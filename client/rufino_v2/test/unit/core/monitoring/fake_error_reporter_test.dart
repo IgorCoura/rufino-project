@@ -1,10 +1,8 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart' as http_testing;
-import 'package:rufino_v2/core/errors/expected_failure.dart';
-
+import 'package:rufino_core/rufino_core.dart';
 import '../../../testing/fakes/fake_error_reporter.dart';
-
 class _BugException implements Exception {
   const _BugException();
 }

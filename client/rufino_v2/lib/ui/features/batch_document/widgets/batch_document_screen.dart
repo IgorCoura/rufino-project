@@ -8,9 +8,7 @@ import 'package:go_router/go_router.dart';
 import 'package:mask_text_input_formatter/mask_text_input_formatter.dart';
 
 import '../../../../core/errors/document_scanner_exception.dart';
-import '../../../../core/result.dart';
-import '../../../../core/theme/app_breakpoints.dart';
-import '../../../../core/theme/app_spacing.dart';
+import 'package:rufino_core/rufino_core.dart';
 import '../../../../domain/entities/batch_document_unit.dart';
 import '../../../core/widgets/permission_guard.dart';
 import '../../../core/widgets/scanner_error_handler.dart';

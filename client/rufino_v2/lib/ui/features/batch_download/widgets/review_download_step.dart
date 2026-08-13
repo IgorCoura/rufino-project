@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../../../core/theme/app_spacing.dart';
+import 'package:rufino_core/rufino_core.dart';
 import '../viewmodel/batch_download_viewmodel.dart';
 
 /// Step 3: Review selection and download.

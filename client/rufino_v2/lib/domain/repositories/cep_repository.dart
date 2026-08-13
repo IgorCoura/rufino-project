@@ -1,4 +1,4 @@
-import '../../core/result.dart';
+import 'package:rufino_core/rufino_core.dart';
 import '../entities/address.dart';
 
 /// Contract for resolving a Brazilian CEP into a populated [Address].

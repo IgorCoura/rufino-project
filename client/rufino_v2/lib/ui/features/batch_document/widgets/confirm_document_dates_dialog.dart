@@ -12,8 +12,7 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 
-import '../../../../core/theme/app_breakpoints.dart';
-import '../../../../core/theme/app_spacing.dart';
+import 'package:rufino_core/rufino_core.dart';
 import '../../../../core/utils/document_date_extractor.dart';
 import '../../../../domain/entities/batch_document_unit.dart';
 

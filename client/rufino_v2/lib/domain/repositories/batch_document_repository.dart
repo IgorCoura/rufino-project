@@ -1,6 +1,6 @@
 import 'dart:typed_data';
 
-import '../../core/result.dart';
+import 'package:rufino_core/rufino_core.dart';
 import '../entities/batch_document_unit.dart';
 
 /// Contract for batch document management operations.

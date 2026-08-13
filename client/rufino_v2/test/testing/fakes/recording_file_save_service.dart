@@ -1,6 +1,6 @@
 import 'dart:typed_data';
 
-import 'package:rufino_v2/core/result.dart';
+import 'package:rufino_core/rufino_core.dart';
 import 'package:rufino_v2/data/services/file_save_service.dart';
 
 /// In-memory [FileSaveService] used by tests.

@@ -5,7 +5,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
-import 'package:rufino_v2/core/result.dart';
+import 'package:rufino_core/rufino_core.dart';
 import 'package:rufino_v2/domain/entities/batch_document_unit.dart';
 import 'package:rufino_v2/domain/entities/document_group_with_templates.dart';
 import 'package:rufino_v2/ui/features/batch_document/viewmodel/batch_document_viewmodel.dart';

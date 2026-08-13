@@ -1,4 +1,4 @@
-import 'package:rufino_v2/core/result.dart';
+import 'package:rufino_core/rufino_core.dart';
 import 'package:rufino_v2/domain/entities/document_dashboard.dart';
 import 'package:rufino_v2/domain/repositories/document_dashboard_repository.dart';
 

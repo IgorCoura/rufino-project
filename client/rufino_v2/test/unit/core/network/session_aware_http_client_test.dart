@@ -1,8 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart' as http_testing;
-import 'package:rufino_v2/core/network/session_aware_http_client.dart';
-
+import 'package:rufino_core/rufino_core.dart';
 void main() {
   group('SessionAwareHttpClient', () {
     http.Client innerWithStatus(int statusCode) {

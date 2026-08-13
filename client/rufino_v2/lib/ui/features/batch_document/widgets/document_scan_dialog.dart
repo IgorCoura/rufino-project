@@ -11,8 +11,7 @@ import 'dart:typed_data';
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 
-import '../../../../core/theme/app_spacing.dart';
-
+import 'package:rufino_core/rufino_core.dart';
 /// Dialog that provides a camera-based document capture experience.
 ///
 /// Returns a `List<Uint8List>` of captured page images via [Navigator.pop]

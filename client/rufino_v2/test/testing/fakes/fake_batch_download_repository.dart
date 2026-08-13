@@ -1,6 +1,6 @@
 import 'dart:typed_data';
 
-import 'package:rufino_v2/core/result.dart';
+import 'package:rufino_core/rufino_core.dart';
 import 'package:rufino_v2/domain/entities/batch_download.dart';
 import 'package:rufino_v2/domain/repositories/batch_download_repository.dart';
 

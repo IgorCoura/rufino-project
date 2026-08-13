@@ -8,7 +8,6 @@ import 'package:rufino_v2/data/services/document_template_api_service.dart';
 import 'package:rufino_v2/domain/entities/document_template.dart';
 
 import '../../../testing/fakes/fake_error_reporter.dart';
-
 /// Asserts on the raw request body because that is the contract with the API:
 /// a present `documentValidityDurationInDays` means "expiration rule active",
 /// so sending zero for an absent rule silently creates a rule server-side.
