@@ -32,3 +32,42 @@ rule" into "expiration rule of zero days" all the way to the server.
 **How to apply.** If the API distinguishes absent from zero, the DTO field must
 be nullable end to end. Assert on the **raw request body** in tests — a test
 against the returned `Result` cannot see the difference.
+
+## Pacote separado não separa nada por si só
+
+**What happened.** Two products were split into packages so that changes in one
+could not break the other. The claim on the table — mine — was that importing
+across packages would be a compile error. It is not. In a pub workspace every
+package shares one `package_config`, so `import 'package:rufino_v2/...'` from
+inside `bill_payment` resolves and compiles; the analyzer only emits an `info`
+for `depend_on_referenced_packages`.
+
+**Why it is treacherous.** The structure *looks* isolated — separate folder,
+separate `pubspec.yaml`, dependency not declared. Everything about it suggests
+a wall, and the build stays green while code crosses it.
+
+**The rule.** A boundary that nothing enforces is documentation. Promote
+`depend_on_referenced_packages` to `error` in each package's
+`analysis_options.yaml`, and know what that buys: `flutter analyze` breaks,
+`flutter build` alone still passes. If it must hold, it runs in CI.
+
+**How to apply.** After declaring any boundary, write the violation on purpose
+and watch it fail. If it does not fail, the boundary does not exist yet.
+
+## Reimportação em massa: ancore o padrão no separador
+
+**What happened.** Moving `error_reporter.dart` into a package, a regex rewrote
+every import ending in that name — and silently caught
+`sentry_error_reporter.dart` and `fake_error_reporter.dart` too. Sixteen files
+lost the import they actually needed.
+
+**Why it is treacherous.** The mechanical rewrite reports success; the damage
+surfaces as unrelated-looking errors ("The function 'FakeErrorReporter' isn't
+defined") far from the file that was moved.
+
+**The rule.** In a filename pattern, anchor on the path separator or the start
+of the path — never on the bare name, because Dart filenames compose by prefix.
+
+**How to apply.** Run `flutter analyze` after *every* bulk rewrite, before the
+tests. It localizes the breakage in seconds; the test suite only tells you that
+something is wrong.

@@ -105,12 +105,103 @@ Official reference: https://dart.dev/effective-dart/documentation
 
 ## Project Overview
 
-Flutter cross-platform app for HR/people management (employees, documents, departments, workplaces). Backend is a .NET service (`people-management-service`) with Keycloak OAuth2 auth.
+Flutter cross-platform app hosting **two distinct products** that share one shell:
+
+| Produto | Escopo | Backend | Estado |
+|---|---|---|---|
+| **People Management** | funcionários, documentos, departamentos, locais de trabalho | `people-management-service` (.NET) + Keycloak | maduro — é todo o `lib/` de hoje |
+| **Bill Payment** | captura de boletos, verificação, aprovação, expectativas | `BillPayment` (.NET), fases 1–2 concluídas | UI por construir — `packages/bill_payment/` |
+
+**Eles não se conhecem, e isso é imposto por ferramenta.** Ver "Two-product architecture" abaixo antes de acrescentar qualquer coisa.
+
+
+## Two-product architecture — decisions of record
+
+Decidido em 2026-08-12/13, ao começar a UI de contas a pagar. O objetivo declarado pelo usuário: *"que o código dos dois seja o mais independente possível, para que mudanças em um não quebrem o outro"*.
+
+### D1 — Pub workspace com pacotes, não pastas
+
+`lib/modules/<produto>/` seria mais barato, mas o limite seria **combinado**, e combinado erode. Os produtos vivem em pacotes sob `packages/`, resolvidos por **pub workspace** (piso `sdk: ^3.6.0`): um `flutter pub get`, um `pubspec.lock` na raiz, hot reload normal.
+
+> ⚠️ **Abaixo de 3.6 a chave `workspace:` é ignorada em silêncio** e cada pacote volta a ter lockfile próprio. Não baixe o constraint.
+
+### D2 — O limite é imposto pelo ANALISADOR, não pelo compilador
+
+**Pacote separado sozinho não impede import cruzado.** Num workspace todos dividem o mesmo `package_config`, então `import 'package:rufino_v2/...'` de dentro de `bill_payment` **resolve e compila** — sai apenas como `info` do lint `depend_on_referenced_packages`. Verificado com sonda deliberada, não suposto.
+
+O que cria o limite é a promoção dessa regra a **erro** no `analysis_options.yaml` de cada pacote:
+
+```yaml
+analyzer:
+  errors:
+    depend_on_referenced_packages: error
+```
+
+**Consequência que precisa ser sabida:** `flutter analyze` quebra, `flutter build` sozinho **passa**. Se houver CI, a regra tem de rodar lá — é o único lugar onde ela vira garantia.
+
+### D3 — O critério do que entra em `rufino_core`
+
+> *"Se o outro produto mudar isto, este deveria se importar?"* Se não, **não é core** — é do módulo.
+
+| Entra | Não entra, nunca |
+|---|---|
+| `Result<T>`, `ExpectedFailure`, `HttpException` | entities, repositories, api services |
+| tema e design tokens, `ThemeNotifier` | exceções de domínio de produto |
+| `SecureStorage` | viewmodels, telas, rotas |
+| porta `ErrorReporter` + no-op + `PiiScrubber` | qualquer coisa que cite um produto pelo nome |
+| `SessionAwareHttpClient` | |
+
+**`SentryErrorReporter` fica no app, de propósito.** Ele lê `AppConfig`, que carrega a URL do people-management. A **porta** é do core; o **adapter concreto** é da casca. Mover o adapter arrastaria a configuração de um produto para dentro da fundação do outro.
+
+### D4 — `Company` (PM) e `TenantId` (BillPayment) NÃO são a mesma entidade
+
+Decisão do usuário. Consequências, todas obrigatórias:
+
+- Cada produto tem o **próprio seletor de contexto**; nenhum deles sobe para `rufino_core` nem para a casca.
+- O usuário troca de contexto duas vezes se usar os dois produtos. É aceito.
+- Não crie um "contexto unificado" para economizar tela — isso reintroduziria o acoplamento que estes pacotes existem para impedir.
+
+### D5 — BillPayment manda `x-user-id`, e isso é provisório
+
+O BC ainda **não tem Keycloak** (é fase 6 do backend): ele aceita `tenantId` na rota sem validar contra token e resolve quem decide pelo header `x-user-id`. A UI manda esse header por ora — decisão do usuário.
+
+**Morre junto com a fase 6 do backend.** Quando o token entrar, o caminho do claim vence sozinho e o header sai dos dois lados no mesmo passo.
+
+### D6 — A costura entre módulo e casca
+
+Cada módulo exporta **exatamente três coisas**, e a casca não conhece mais nada dele:
+
+```dart
+abstract class AppModule {
+  List<RouteBase>         routes();
+  List<SingleChildWidget> providers();
+  List<HomeEntry>         homeEntries();
+}
+```
+
+É isso que resolve o `app.dart` de 824 linhas, o menu do home com destinos fixos no código, e o ligar/desligar de um produto em uma linha. **Ainda não implementado** — entra na Fase 3.
+
+### Sequência de migração
+
+| Fase | O que | Estado |
+|---|---|---|
+| 0 | workspace + pacotes vazios | ✅ `705689be` |
+| 1 | extrair `rufino_core` | ✅ `705689be` |
+| 4 | `bill_payment` nasce isolado | ⬜ próxima |
+| 2 | extrair `rufino_auth` | ⬜ adiada |
+| 3 | mover PM para pacote + costura `AppModule` | ⬜ adiada |
+
+**A ordem 0 → 1 → 4 é deliberada:** entrega o código novo isolado sem tocar nos 263 arquivos que funcionam. O PM migra quando houver motivo; o estado final é o mesmo.
+
+### Pendências que bloqueiam a Fase 4
+
+- [ ] `AppConfig.billPaymentUrl` + a chave correspondente nos `secrets/*.json`
+- [ ] Como o usuário escolhe o `tenantId` — build fixo (`--dart-define`) ou seletor próprio do módulo
 
 
 ## Tech Stack
 
-**Language**: Dart 3.5.2+ / Flutter (all platforms)
+**Language**: Dart 3.6+ / Flutter (all platforms) — o piso subiu de 3.5.2 por causa do pub workspace (D1)
 **State**: ChangeNotifier + `ListenableBuilder` (MVVM)
 **Routing**: `go_router`
 **DI**: `provider`
@@ -156,7 +247,20 @@ Reference app: https://github.com/flutter/samples/tree/main/compass_app
 
 ### Folder Structure
 
-`lib/main*.dart`, `lib/app.dart`, `lib/core/{network,storage,theme,widgets,utils}/`, `lib/core/result.dart`, `lib/data/{services,models,repositories}/`, `lib/domain/{entities,repositories}/`, `lib/ui/core/widgets/`, `lib/ui/features/<feature>/{viewmodel,widgets}/`. Detalhes específicos de capacidades em **Code & Capability Index** e **Package Index** abaixo.
+```
+client/rufino_v2/
+├── lib/                     casca do app + People Management
+│   ├── main*.dart, app.dart
+│   ├── core/{config,errors,monitoring,utils}/     ← o que sobrou é do PM ou da casca
+│   ├── data/{services,models,repositories}/
+│   ├── domain/{entities,repositories}/
+│   └── ui/core/widgets/ · ui/features/<feature>/{viewmodel,widgets}/
+└── packages/
+    ├── rufino_core/         fundação compartilhada — ver D3
+    └── bill_payment/        contas a pagar
+```
+
+`Result<T>`, tema, `SecureStorage`, `ErrorReporter` e `SessionAwareHttpClient` **saíram de `lib/core/`** e vivem em `package:rufino_core/rufino_core.dart` — importe pelo barril, nunca por caminho relativo. Detalhes específicos de capacidades em **Code & Capability Index** e **Package Index** abaixo.
 
 ---
 
