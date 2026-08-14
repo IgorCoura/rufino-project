@@ -39,18 +39,6 @@ class CompanyApiService {
     return CompanyApiModel.fromJson(jsonDecode(response.body) as Map<String, dynamic>);
   }
 
-  Future<String> createCompany(CompanyApiModel model) async {
-    final uri = Uri.https(baseUrl, '/api/v1/company');
-    final response = await client.post(
-      uri,
-      headers: await _headers(),
-      body: jsonEncode(model.toCreateJson()),
-    );
-    checkHttpStatus(response);
-    final json = jsonDecode(response.body) as Map<String, dynamic>;
-    return json['id'] as String;
-  }
-
   Future<String> updateCompany(CompanyApiModel model) async {
     final uri = Uri.https(baseUrl, '/api/v1/company');
     final response = await client.put(

@@ -1,4 +1,3 @@
-import '../../core/errors/cep_exception.dart';
 import 'package:rufino_core/rufino_core.dart';
 import '../../domain/entities/address.dart';
 import '../../domain/repositories/cep_repository.dart';

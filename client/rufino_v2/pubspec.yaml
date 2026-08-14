@@ -14,6 +14,7 @@ version: 2.0.0+6
 workspace:
   - packages/rufino_core
   - packages/bill_payment
+  - packages/tenant_management
 
 environment:
   # 3.6 é o piso do pub workspace. Abaixo disso a resolução acima é ignorada em
@@ -23,6 +24,10 @@ environment:
 dependencies:
   rufino_core:
     path: packages/rufino_core
+  # O seletor de tenant é a porta de entrada do app, e o back-office vive no
+  # mesmo pacote. A casca compõe; o pacote não conhece a casca.
+  tenant_management:
+    path: packages/tenant_management
   sentry_flutter: ^9.19.0
   flutter:
     sdk: flutter

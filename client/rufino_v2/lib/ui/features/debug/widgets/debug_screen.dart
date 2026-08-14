@@ -5,7 +5,6 @@ import 'package:provider/provider.dart';
 
 import '../../../../core/config/app_config.dart';
 import 'package:rufino_core/rufino_core.dart';
-import '../../auth/viewmodel/permission_notifier.dart';
 
 /// A screen with developer tools used to diagnose issues in production.
 ///

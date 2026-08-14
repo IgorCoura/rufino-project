@@ -41,32 +41,6 @@ class CompanyRepositoryImpl implements CompanyRepository {
   }
 
   @override
-  Future<Result<String>> createCompany(CompanyDetail company) async {
-    try {
-      final model = CompanyApiModel(
-        id: company.id,
-        corporateName: company.corporateName,
-        fantasyName: company.fantasyName,
-        cnpj: company.cnpj,
-        email: company.email,
-        phone: company.phone,
-        zipCode: company.zipCode,
-        street: company.street,
-        number: company.number,
-        complement: company.complement,
-        neighborhood: company.neighborhood,
-        city: company.city,
-        state: company.state,
-        country: company.country,
-      );
-      final id = await companyApiService.createCompany(model);
-      return Result.success(id);
-    } catch (e, st) {
-      return reporter.failure(e, st);
-    }
-  }
-
-  @override
   Future<Result<String>> updateCompany(CompanyDetail company) async {
     try {
       final model = CompanyApiModel(
@@ -128,21 +102,12 @@ class CompanyRepositoryImpl implements CompanyRepository {
   }
 
   @override
-  Future<Result<bool>> verifyAndSelectCompany(List<String> validIds) async {
-    // Try to load saved company and verify it is still valid
-    final savedResult = await getSelectedCompany();
-    if (savedResult.isSuccess) {
-      final saved = savedResult.valueOrNull!;
-      if (validIds.contains(saved.id)) {
-        // Refresh company data from API
-        final detailResult = await getCompanyDetail(saved.id);
-        if (detailResult.isSuccess) {
-          final refreshed = detailResult.valueOrNull!;
-          await selectCompany(refreshed);
-          return const Result.success(true);
-        }
-      }
+  Future<Result<void>> clearSelectedCompany() async {
+    try {
+      await storage.delete(key: _selectedCompanyKey);
+      return const Result.success(null);
+    } catch (e, st) {
+      return reporter.failure(e, st);
     }
-    return const Result.success(false);
   }
 }

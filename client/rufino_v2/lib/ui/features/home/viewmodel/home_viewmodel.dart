@@ -1,63 +1,101 @@
 import 'package:flutter/foundation.dart';
-
 import 'package:rufino_core/rufino_core.dart';
-import '../../../../domain/entities/company.dart';
+import 'package:tenant_management/tenant_management.dart';
+
+import '../../../../core/tenant/tenant_session_bridge.dart';
 import '../../../../domain/repositories/auth_repository.dart';
-import '../../../../domain/repositories/company_repository.dart';
-import '../../../features/auth/viewmodel/permission_notifier.dart';
 
-enum HomeStatus { loading, loaded, error }
+/// Stage of the home screen.
+enum HomeStatus {
+  /// Waiting for the context to be known.
+  loading,
 
+  /// A tenant is in context.
+  loaded,
+
+  /// No tenant is in context — nothing can be shown.
+  noTenant,
+}
+
+/// Drives the hub the app opens on.
+///
+/// The home shows the features of the products the **selected tenant** has
+/// enabled and the person is allowed to use. There is no company to load here
+/// anymore: the context is the tenant, and it is already in memory by the
+/// time this screen is built.
 class HomeViewModel extends ChangeNotifier {
+  /// Creates the view model.
   HomeViewModel({
     required AuthRepository authRepository,
-    required CompanyRepository companyRepository,
+    required TenantContextNotifier tenantContext,
+    required TenantSessionBridge tenantSessionBridge,
     required PermissionNotifier permissionNotifier,
+    required TenantPermissionNotifier tenantPermissionNotifier,
     required ErrorReporter errorReporter,
   })  : _authRepository = authRepository,
-        _companyRepository = companyRepository,
+        _tenantContext = tenantContext,
+        _tenantSessionBridge = tenantSessionBridge,
         _permissionNotifier = permissionNotifier,
+        _tenantPermissionNotifier = tenantPermissionNotifier,
         _errorReporter = errorReporter;
 
   final AuthRepository _authRepository;
-  final CompanyRepository _companyRepository;
+  final TenantContextNotifier _tenantContext;
+  final TenantSessionBridge _tenantSessionBridge;
   final PermissionNotifier _permissionNotifier;
+  final TenantPermissionNotifier _tenantPermissionNotifier;
   final ErrorReporter _errorReporter;
 
-  Company? _company;
-  HomeStatus _status = HomeStatus.loading;
-  String? _errorMessage;
+  /// The tenant currently in context.
+  SelectedTenant? get tenant => _tenantContext.current;
 
-  Company? get company => _company;
-  HomeStatus get status => _status;
-  String? get errorMessage => _errorMessage;
-  bool get isLoading => _status == HomeStatus.loading;
+  /// The stage of the screen.
+  HomeStatus get status =>
+      _tenantContext.hasTenant ? HomeStatus.loaded : HomeStatus.noTenant;
 
-  /// Returns the best display name for the loaded company, or "Rufino" as
-  /// fallback when no company is loaded.
-  String get companyDisplayName => _company?.displayName ?? 'Rufino';
+  /// Whether the screen is waiting for something.
+  bool get isLoading => false;
 
-  Future<void> loadCompany() async {
-    _status = HomeStatus.loading;
-    notifyListeners();
+  /// The name to show in the app bar.
+  String get tenantDisplayName => tenant?.displayName ?? 'Rufino';
 
-    final result = await _companyRepository.getSelectedCompany();
-    result.fold(
-      onSuccess: (company) {
-        _company = company;
-        _status = HomeStatus.loaded;
-      },
-      onError: (_, __) {
-        _status = HomeStatus.error;
-        _errorMessage = 'Falha ao carregar empresa.';
-      },
-    );
-    notifyListeners();
+  /// The document-less subtitle: the kind of customer, in words.
+  ///
+  /// `GET /me/tenants` does not return the document, and asking the
+  /// back-office for it would need a permission a customer does not have —
+  /// so the subtitle says what is actually known.
+  String get tenantSubtitle {
+    final current = tenant;
+    if (current == null) return '';
+    final kind = TenantKinds.label(current.kind);
+    return current.isSuspended ? '$kind · Suspenso' : kind;
   }
 
+  /// Whether People Management can be used for the current tenant.
+  bool get isPeopleManagementReady =>
+      _tenantSessionBridge.isPeopleManagementReady;
+
+  /// Whether the tenant has People Management enabled but no company answers
+  /// for it — a migration that has not finished.
+  bool get isPeopleManagementPending =>
+      (tenant?.hasProduct(TenantProducts.peopleManagement) ?? false) &&
+      !isPeopleManagementReady;
+
+  /// Reloads the permissions of both audiences.
+  Future<void> refreshPermissions() async {
+    await Future.wait([
+      _permissionNotifier.loadPermissions(),
+      _tenantPermissionNotifier.loadPermissions(),
+    ]);
+  }
+
+  /// Signs out, clearing every trace of the session.
   Future<void> logout() async {
     await _authRepository.logout();
     await _permissionNotifier.clear();
+    await _tenantPermissionNotifier.clear();
+    await _tenantContext.clear();
+    await _tenantSessionBridge.clear();
     _errorReporter.clearUser();
   }
 }

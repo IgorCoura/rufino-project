@@ -59,7 +59,7 @@ class _CompanyFormScreenState extends State<CompanyFormScreen> {
             behavior: SnackBarBehavior.floating,
           ),
         );
-        context.go('/company');
+        context.go('/home');
       case CompanyFormStatus.error:
         showErrorSnackBar(
           context,
@@ -97,7 +97,7 @@ class _CompanyFormScreenState extends State<CompanyFormScreen> {
             viewModel: widget.viewModel,
             formKey: _formKey,
             onSave: _onSave,
-            onCancel: () => context.go('/company'),
+            onCancel: () => context.go('/home'),
           );
         },
       ),

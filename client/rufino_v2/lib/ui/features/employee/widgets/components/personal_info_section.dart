@@ -6,7 +6,6 @@ import '../../../../../domain/entities/personal_info_options.dart';
 import '../../../../../domain/entities/selection_option.dart';
 import '../../viewmodel/employee_profile_viewmodel.dart';
 import 'profile_shared_widgets.dart';
-import '../../../../core/widgets/permission_guard.dart';
 
 /// Expandable card for viewing and editing employee personal information.
 class PersonalInfoSection extends StatefulWidget {

@@ -112,7 +112,9 @@ Flutter cross-platform app hosting **two distinct products** that share one shel
 | **People Management** | funcionários, documentos, departamentos, locais de trabalho | `people-management-service` (.NET) + Keycloak | maduro — é todo o `lib/` de hoje |
 | **Bill Payment** | captura de boletos, verificação, aprovação, expectativas | `BillPayment` (.NET), fases 1–2 concluídas | UI por construir — `packages/bill_payment/` |
 
-**Eles não se conhecem, e isso é imposto por ferramenta.** Ver "Two-product architecture" abaixo antes de acrescentar qualquer coisa.
+Mais um módulo, que não é produto: **Tenant Management** (`packages/tenant_management/`) — a identidade do cliente da plataforma. É **a porta de entrada do app**: o usuário escolhe um tenant e só então chega ao Home, que mostra as funcionalidades dos produtos daquele cliente. Backend: `TenantManagement` (.NET).
+
+**Os produtos não se conhecem, e isso é imposto por ferramenta.** Ver "Two-product architecture" abaixo antes de acrescentar qualquer coisa.
 
 
 ## Two-product architecture — decisions of record
@@ -150,16 +152,32 @@ analyzer:
 | `SecureStorage` | viewmodels, telas, rotas |
 | porta `ErrorReporter` + no-op + `PiiScrubber` | qualquer coisa que cite um produto pelo nome |
 | `SessionAwareHttpClient` | |
+| **stack de permissão** (UMA por audiência, notifier, cache, guards) | |
+| **`TenantContext` + `SelectedTenant` + `ProductGuard`** | |
+| **`checkApiStatus`** (shape `{id,message}` dos BCs novos) | |
+| **`CepLookupService`** (ViaCEP puro) | |
+| **`SectionCard` / `InfoRow`** | |
 
 **`SentryErrorReporter` fica no app, de propósito.** Ele lê `AppConfig`, que carrega a URL do people-management. A **porta** é do core; o **adapter concreto** é da casca. Mover o adapter arrastaria a configuração de um produto para dentro da fundação do outro.
 
-### D4 — `Company` (PM) e `TenantId` (BillPayment) NÃO são a mesma entidade
+### ~~D4~~ → **D4′ — Seletor ÚNICO de tenant, para todos os produtos**
 
-Decisão do usuário. Consequências, todas obrigatórias:
+> A D4 original dizia que cada produto teria o próprio seletor de contexto. **Foi revertida em 2026-08-14**, quando o `TenantManagement` entrou no app: o contexto passou a ser um só.
 
-- Cada produto tem o **próprio seletor de contexto**; nenhum deles sobe para `rufino_core` nem para a casca.
-- O usuário troca de contexto duas vezes se usar os dois produtos. É aceito.
-- Não crie um "contexto unificado" para economizar tela — isso reintroduziria o acoplamento que estes pacotes existem para impedir.
+**O contexto do app é o tenant, escolhido uma vez.** Login → seleção de cliente → Home com as funcionalidades dos produtos que aquele cliente tem habilitados **e** que a pessoa pode usar.
+
+- O tenant corrente vive em `TenantContext` (`rufino_core`) — é fundação, não módulo, justamente para que `bill_payment` leia o tenant sem depender do pacote que desenha a tela de seleção.
+- **A `Company` do PeopleManagement continua sendo o cadastro local daquele produto** (ADR-002 do servidor), mas deixou de ser o que o usuário escolhe: ela é **resolvida a partir do id do tenant selecionado**, que é o mesmo Guid. Quem faz isso é `TenantSessionBridge` (`lib/core/tenant/`), que grava na mesma chave `selected_company` que os **19 ViewModels do PM já liam** — por isso trocar a porta de entrada do app não virou reescrita do produto atrás dela.
+- **Depende do backfill do servidor ter preservado o Guid.** Sem isso o seletor abre vazio e o PM fica inacessível. É pré-requisito de implantação, não detalhe.
+- A seleção de **empresa** e o **cadastro de empresa** saíram do app (rotas `/company` e `/company/create`, `CompanySelectionScreen`, `createCompany` fim a fim). Cliente novo nasce como **tenant**.
+
+### D7 — A tela de seleção de tenant é a única porta de cadastro
+
+Novo tenant só nasce em `/tenant/select`, sob `PermissionGuard(tenant, create)` — que na prática só o `tenant-admin` vê, mantendo o "não faz autosserviço" da visão do BC sem regra extra na UI. **O back-office (`/tenant`) não tem FAB de criação**, de propósito: uma porta só é uma regra só.
+
+### D8 — Edição em bloco, no lugar, como no `EmployeeProfile`
+
+O detalhe do tenant lê em blocos e edita **inline**: o card vira formulário no lugar, com Cancelar/Salvar. Um bloco = um endpoint = um `x-requestid`. Sem diálogo e sem rota de edição — diálogo só para confirmação crítica (suspender, revogar acesso).
 
 ### D5 — BillPayment manda `x-user-id`, e isso é provisório
 
@@ -187,16 +205,22 @@ abstract class AppModule {
 |---|---|---|
 | 0 | workspace + pacotes vazios | ✅ `705689be` |
 | 1 | extrair `rufino_core` | ✅ `705689be` |
+| 5 | `tenant_management`: seletor único + back-office | ✅ 2026-08-14 |
 | 4 | `bill_payment` nasce isolado | ⬜ próxima |
 | 2 | extrair `rufino_auth` | ⬜ adiada |
 | 3 | mover PM para pacote + costura `AppModule` | ⬜ adiada |
 
-**A ordem 0 → 1 → 4 é deliberada:** entrega o código novo isolado sem tocar nos 263 arquivos que funcionam. O PM migra quando houver motivo; o estado final é o mesmo.
+**A ordem 0 → 1 → 5 → 4 é deliberada:** entrega o código novo isolado sem tocar nos 263 arquivos que funcionam. O PM migra quando houver motivo; o estado final é o mesmo.
 
 ### Pendências que bloqueiam a Fase 4
 
 - [ ] `AppConfig.billPaymentUrl` + a chave correspondente nos `secrets/*.json`
-- [ ] Como o usuário escolhe o `tenantId` — build fixo (`--dart-define`) ou seletor próprio do módulo
+- [x] **Como o usuário escolhe o `tenantId`** — resolvido em 2026-08-14. `GET /api/v1/me/tenants`
+      devolve, a partir do e-mail do próprio token, os tenants da pessoa. O seletor é **único**
+      (D4′) e vive em `packages/tenant_management/`; `bill_payment` lê o tenant corrente pelo
+      `TenantContext` de `rufino_core` e **não depende** do pacote de tenants.
+- [x] `AppConfig.tenantManagementUrl` — existe e é obrigatório em `assertConfigured()`.
+      **Falta a chave `tenant_management_url` nos `secrets/*.json`**, senão o app não sobe.
 
 
 ## Tech Stack
@@ -251,14 +275,17 @@ Reference app: https://github.com/flutter/samples/tree/main/compass_app
 client/rufino_v2/
 ├── lib/                     casca do app + People Management
 │   ├── main*.dart, app.dart
-│   ├── core/{config,errors,monitoring,utils}/     ← o que sobrou é do PM ou da casca
+│   ├── core/{config,errors,monitoring,tenant,utils}/  ← o que sobrou é do PM ou da casca
 │   ├── data/{services,models,repositories}/
 │   ├── domain/{entities,repositories}/
 │   └── ui/core/widgets/ · ui/features/<feature>/{viewmodel,widgets}/
 └── packages/
     ├── rufino_core/         fundação compartilhada — ver D3
+    ├── tenant_management/   identidade do cliente: seletor único + back-office
     └── bill_payment/        contas a pagar
 ```
+
+Vários arquivos de `lib/` viraram **reexport** do que subiu para `rufino_core` (permissões, exceções de auth/CEP, `SectionCard`): existem para os pontos de uso não trocarem de import. Código novo importa `package:rufino_core/rufino_core.dart` direto.
 
 `Result<T>`, tema, `SecureStorage`, `ErrorReporter` e `SessionAwareHttpClient` **saíram de `lib/core/`** e vivem em `package:rufino_core/rufino_core.dart` — importe pelo barril, nunca por caminho relativo. Detalhes específicos de capacidades em **Code & Capability Index** e **Package Index** abaixo.
 
@@ -783,26 +810,42 @@ The app enforces **client-side permission checks** that mirror the backend's `[P
 
 ### How It Works
 
-1. After login, `SplashViewModel` calls `permissionNotifier.loadPermissions()`.
-2. A single POST to the Keycloak token endpoint (`grant_type=urn:ietf:params:oauth:grant-type:uma-ticket`, `audience=people-management-api`, `response_mode=permissions`) returns all granted resource/scope pairs.
-3. `PermissionNotifier` (a `ChangeNotifier` provided app-wide) caches the result and exposes `hasPermission(resource, scope)` and `hasAnyScope(resource)`.
-4. UI widgets use `PermissionGuard` or `ModuleGuard` to conditionally render — unauthorized elements are **completely hidden** (`SizedBox.shrink`), never disabled.
+1. After login, `SplashViewModel` loads permissions of **both audiences, em paralelo**.
+2. Um POST por audiência ao token endpoint do Keycloak (`grant_type=urn:ietf:params:oauth:grant-type:uma-ticket`, `audience=<resource server>`, `response_mode=permissions`) devolve os pares recurso/escopo concedidos.
+3. `PermissionNotifier` (em `rufino_core`) guarda o resultado **de uma audiência** e expõe `hasPermission` / `hasAnyScope`. A segunda audiência usa a **subclasse** `TenantPermissionNotifier`, porque `provider` resolve por tipo: sem tipos distintos, o último registrado responderia pelas duas.
+4. Guards renderizam condicionalmente — o elemento não autorizado **some** (`SizedBox.shrink`), nunca fica desabilitado.
+
+> ⚠️ **403 do Keycloak numa audiência significa "nenhuma permissão", não erro.** Quem não é operador da plataforma recebe 403 no `tenant-management-api`, e `PermissionApiService` traduz isso em **lista vazia**. Tratar como falha poria todo usuário de RH diante de uma tela de erro por causa do outro produto. Coberto por teste.
 
 ### Key Files
 
 | File | Purpose |
 |------|---------|
-| `lib/domain/entities/permission.dart` | `Permission` entity (resource + scopes) |
-| `lib/domain/repositories/permission_repository.dart` | Repository interface |
-| `lib/data/services/permission_api_service.dart` | Keycloak UMA RPT request |
-| `lib/data/repositories/permission_repository_impl.dart` | Repository implementation |
-| `lib/ui/features/auth/viewmodel/permission_notifier.dart` | `PermissionNotifier` — holds state, exposes `hasPermission` / `hasAnyScope` / `clear` |
-| `lib/ui/core/widgets/permission_guard.dart` | `PermissionGuard` and `ModuleGuard` widgets |
-| `test/testing/fakes/fake_permission_repository.dart` | Fake for tests |
+| `packages/rufino_core/lib/src/auth/permission.dart` | `Permission` + `PermissionModel` |
+| `packages/rufino_core/lib/src/auth/permission_api_service.dart` | UMA RPT por audiência (403 → lista vazia) |
+| `packages/rufino_core/lib/src/auth/permission_cache_service.dart` | Cache — **chave por audiência**, senão uma sobrescreve a outra |
+| `packages/rufino_core/lib/src/auth/permission_repository.dart` | Contrato + implementação |
+| `packages/rufino_core/lib/src/auth/permission_notifier.dart` | `PermissionNotifier` (uma audiência por instância) |
+| `packages/rufino_core/lib/src/auth/permission_guard.dart` | `PermissionGuard<T>` / `ModuleGuard<T>` — o tipo escolhe a audiência; omitir resolve para o PM |
+| `packages/tenant_management/lib/src/tenant_permissions.dart` | `TenantPermissionNotifier` + `TenantPermissionGuard` / `TenantModuleGuard` |
+| `packages/rufino_core/lib/src/tenant/product_guard.dart` | `ProductGuard` — a **outra** porteira: o produto está habilitado neste tenant? |
+| `test/testing/fakes/fake_permission_repository.dart` | Fake para testes |
+
+Os arquivos antigos em `lib/` (`domain/entities/permission.dart`, `ui/core/widgets/permission_guard.dart`, …) permanecem como **reexport**.
 
 ### Canonical Resource & Scope Names
 
-All resource names are **lowercase, kebab-case**. Use **exactly** these strings in `PermissionGuard` / `ModuleGuard`:
+All resource names are **lowercase, kebab-case**. Use **exactly** these strings in `PermissionGuard` / `ModuleGuard`.
+
+**Audiência `tenant-management-api`** — use `TenantPermissionGuard` / `TenantModuleGuard` (ou `PermissionGuard<TenantPermissionNotifier>`), nunca os guards sem tipo:
+
+| Resource | Scopes | Papéis do realm |
+|----------|--------|-----------------|
+| `tenant` | `view`, `create`, `edit`, `suspend` | `view`: tenant-support e tenant-admin · resto: tenant-admin |
+| `tenant-access` | `view`, `edit` | idem |
+| `tenant-product` | `view`, `edit` | idem |
+
+**Audiência `people-management-api`** — guards sem parâmetro de tipo:
 
 | Resource | Scopes |
 |----------|--------|
@@ -880,6 +923,27 @@ The app distinguishes "session died" (401) from "no permission" (403) end to end
 - **State preservation:** `DocumentDashboardPage` owns the ViewModel + `ScrollController` lifecycles (same pattern as `EmployeeListPage`) — never create them inside the route builder, or filters/bucket/page/scroll are wiped on every push/pop.
 - **Row navigation** uses `context.push('/employee/:id?tab=documents')`; the `/employee/:id` route maps `?tab=` (`documents` | `contracts`) to `EmployeeProfileScreen.initialTab`, so the profile lands on the Documentos tab and pop returns to the intact dashboard.
 - ViewModel invariant: bucket switch and pagination reload **only the list** (`isLoadingUnits`); filter/horizon changes reload **summary + list together** so the KPI cards never disagree with the rows. Default employee filter is Ativos (status 2).
+
+## Tenant Management (pacote `packages/tenant_management/`)
+
+A identidade do cliente da plataforma: **a porta de entrada do app** e o back-office que a mantém. Consome o BC `TenantManagement` (`server/Services/TenantManagement/`).
+
+| Rota | Tela | Guard |
+|---|---|---|
+| `/tenant/select` | Seleção de cliente — porta de entrada e **única** porta de cadastro | nenhum (só autenticado) |
+| `/tenant` | Back-office: busca, filtros, cursor. **Sem FAB** (D7) | `tenant/view` |
+| `/tenant/create` | Cadastro PF/PJ + titular + produtos | `tenant/create` |
+| `/tenant/:id` | Detalhe: abas Cadastro (edição inline), Acessos, Produtos | `tenant/view` |
+
+Coisas que não podem erodir:
+
+- **O splash decide com três informações**: credencial, permissões das duas audiências e `GET /me/tenants`. Um tenant selecionável → entra direto; vários → seleção; nenhum → seleção com mensagem honesta e "Sair". O tenant guardado é **reentrado pelo servidor** (produtos e papel podem ter mudado).
+- **Tenant suspenso aparece e não entra.** Sumir seria mentir sobre um cadastro que existe.
+- **O guard de rota só decide com as permissões carregadas.** Na web o `go_router` abre direto na URL, sem passar pelo splash; recusar naquele instante expulsaria o operador a cada F5. Coberto por teste.
+- **O cadastro responde só com o id.** O estado do convite vive no detalhe, porque `POST /tenants` devolve 200 mesmo com o provedor de identidade falhando — a falha é engolida no servidor de propósito. A UI **nunca** reporta como concedido um acesso que não chegou: banner + "Reenviar acessos" (idempotente).
+- **O último responsável não mostra "Revogar"** (`TNM.TNT20`), e a tela ainda trata a recusa do servidor, porque pode estar olhando estado velho.
+- **Recusa de regra ≠ falha.** `TenantRepositoryImpl` classifica 4xx com mensagem de domínio como `TenantRuleException` (`ExpectedFailure`, não vai para o Sentry) e o resto como `TenantNetworkException`.
+- **Suspenso desabilita, não esconde.** Esconder é para falta de permissão; desabilitar com o motivo à vista é para estado do cadastro.
 
 ## UI Design Guidelines (Material Design 3)
 
@@ -1046,6 +1110,11 @@ Toda configuração em `core/theme/`: `app_theme.dart` (entry point ThemeData li
 | Read app config / OAuth endpoints | `core/config/app_config.dart` | `--dart-define-from-file`-driven. |
 | Trust self-signed certs in dev | `core/config/dev_http_overrides.dart` (+ `_stub`) | Local dev only. Never call from prod path. |
 | Return a fallible result from data/domain | `core/result.dart` (`Result<T>` + `Success`/`Failure`) | Mandatory — see "Error Handling" rule. Never `throw` across layers. |
+| Validar resposta de um BC **novo** (`{id, message}`) | `checkApiStatus` (`rufino_core`) | TenantManagement e BillPayment. **Não** use `checkHttpStatus` neles: ele só entende `{errors:{…}}` do PM e engoliria a mensagem. |
+| Saber qual tenant está selecionado | `TenantContext` (`rufino_core`) | Fonte única do contexto do app (D4′). |
+| Esconder algo que depende do produto contratado | `ProductGuard` (`rufino_core`) | Sempre **junto** com um `PermissionGuard`: produto habilitado ≠ pessoa autorizada. |
+| Consultar CEP a partir de um pacote | `CepLookupService` (`rufino_core`) | `lib/data/services/cep_api_service.dart` é o adaptador do PM sobre ele. |
+| Emoldurar um bloco "ler, então editar no lugar" | `SectionCard` + `InfoRow` (`rufino_core`) | Padrão do `EmployeeProfile` e do detalhe do tenant (D8). |
 
 ### Domain exception hierarchies (`core/errors/`)
 
@@ -1089,6 +1158,8 @@ DTOs live in `data/models/<aggregate>_api_model.dart` (+ JSON ser/deser). Domain
   - **The placement's type is mandatory** (`PlaceSignatureData.validateType`, wired into the type dropdown). A placement without a type is serialized as `type: 0`, which the API rejects hard — `TypeSignature.FromValue(0)` throws and fails the *whole* save (not just that placement). So the dropdown must be validated like the numeric fields; an unvalidated type is how "add the first placement to an empty list" silently failed to save.
 
 **Aggregates currently modeled** (each has DTO + entity unless noted): company / company_detail (entity-only) · workplace · department · position · role · remuneration (entity-only) · employee · employee_profile · employee_personal_info · employee_contact · employee_address (entity = `address`) · employee_id_card · employee_vote_id · employee_military_document · employee_medical_exam · employee_dependent · employee_contract · employee_social_integration_program · employee_document · document_template · document_group · document_group_with_templates · document_group_with_documents · document_range_item (DTO-only) · require_document · batch_document_unit · batch_download · document_dashboard · period · permission · selection_option (entity-only) · personal_info_options (entity-only) · signing_option (entity-only) · scanned_document (entity-only) · bulk_upload_match (entity-only) · cep_lookup (DTO-only).
+
+**Entidades do `tenant_management`** (no pacote, não em `lib/`): `Tenant` (+ `TenantAddress`, `TenantContact`, `TenantMembership`, `TenantProductInfo`) · `MyTenant` · `TenantSummary` / `TenantPage` / `TenantListFilter` · `TaxId` (validação de CPF/CNPJ com DV) · `RegisterTenantInput`. Os valores de arame dos Smart Enums do servidor vivem em `TenantKinds` / `TenantStatuses` / `MembershipRoles` / `ProvisioningStatuses`; os códigos de produto ficam em `TenantProducts` (`rufino_core`), porque a casca e os dois produtos os leem.
 
 ---
 
@@ -1176,6 +1247,8 @@ DTOs live in `data/models/<aggregate>_api_model.dart` (+ JSON ser/deser). Domain
 Secrets live in `secrets/` (not committed):
 - `local_config.json` — local Keycloak + API endpoints
 - `prod_config.json` — Azure Keycloak + API endpoints
+
+Chaves obrigatórias (`AppConfig.assertConfigured` falha rápido sem elas): `end_session_endpoint`, `identifier`, `people_management_url`, **`tenant_management_url`** (aceita `host:porta` — HTTPS — ou origem completa `http://host:porta`, porque o BC roda em HTTP no desenvolvimento), e o par do fluxo de auth em uso.
 
 ## Deployment (Android / Google Play)
 

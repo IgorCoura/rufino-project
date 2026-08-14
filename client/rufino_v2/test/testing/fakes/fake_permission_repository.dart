@@ -1,6 +1,4 @@
 import 'package:rufino_core/rufino_core.dart';
-import 'package:rufino_v2/domain/entities/permission.dart';
-import 'package:rufino_v2/domain/repositories/permission_repository.dart';
 
 class FakePermissionRepository implements PermissionRepository {
   List<Permission> _permissions = const [];

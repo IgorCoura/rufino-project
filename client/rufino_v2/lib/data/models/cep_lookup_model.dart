@@ -1,9 +1,16 @@
+import 'package:rufino_core/rufino_core.dart';
+
 import '../../domain/entities/address.dart';
 
 /// DTO representing a ViaCEP API response.
 ///
 /// Mirrors the JSON payload returned by `https://viacep.com.br/ws/{cep}/json/`.
+///
+/// The HTTP call itself lives in `rufino_core` so both products can look a
+/// CEP up; what stays here is the mapping to this product's [Address], which
+/// is the part the foundation must not know about.
 class CepLookupModel {
+  /// Creates the DTO with the raw ViaCEP field names.
   const CepLookupModel({
     required this.cep,
     required this.logradouro,
@@ -12,13 +19,6 @@ class CepLookupModel {
     required this.localidade,
     required this.uf,
   });
-
-  final String cep;
-  final String logradouro;
-  final String complemento;
-  final String bairro;
-  final String localidade;
-  final String uf;
 
   /// Parses a ViaCEP JSON response into a [CepLookupModel].
   factory CepLookupModel.fromJson(Map<String, dynamic> json) {
@@ -31,6 +31,36 @@ class CepLookupModel {
       uf: (json['uf'] as String?) ?? '',
     );
   }
+
+  /// Adapts the shared [CepLookup] result into this product's DTO.
+  factory CepLookupModel.fromLookup(CepLookup lookup) {
+    return CepLookupModel(
+      cep: lookup.zipCode,
+      logradouro: lookup.street,
+      complemento: lookup.complement,
+      bairro: lookup.neighborhood,
+      localidade: lookup.city,
+      uf: lookup.state,
+    );
+  }
+
+  /// The postal code as ViaCEP formatted it.
+  final String cep;
+
+  /// Street name.
+  final String logradouro;
+
+  /// Complement, often empty.
+  final String complemento;
+
+  /// Neighborhood.
+  final String bairro;
+
+  /// City.
+  final String localidade;
+
+  /// Two-letter state code.
+  final String uf;
 
   /// Converts this DTO into an [Address] domain entity.
   ///

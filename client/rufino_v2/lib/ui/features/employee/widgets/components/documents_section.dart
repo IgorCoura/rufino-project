@@ -15,11 +15,9 @@ import '../../../../../core/utils/image_to_pdf_converter.dart';
 import '../../../../../core/utils/pdf_merger.dart';
 import '../../../../../domain/entities/document_group_with_documents.dart';
 import '../../../../../domain/entities/employee_document.dart';
-import '../../../../core/widgets/permission_guard.dart';
 import '../../../../core/widgets/scanner_error_handler.dart';
 import '../../viewmodel/employee_profile_viewmodel.dart';
 import '../../../batch_document/widgets/document_scan_dialog.dart';
-import 'profile_shared_widgets.dart';
 
 /// Expandable card that displays the employee's required documents grouped
 /// by document group, with nested expansion for document units, status

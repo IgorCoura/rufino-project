@@ -4,7 +4,6 @@ import 'package:rufino_core/rufino_core.dart';
 import '../../../../../domain/entities/signing_option.dart';
 import '../../viewmodel/employee_profile_viewmodel.dart';
 import 'profile_shared_widgets.dart';
-import '../../../../core/widgets/permission_guard.dart';
 
 /// Expandable card for viewing and editing the employee's document signing
 /// option (Opções de Assinatura de Documentos).

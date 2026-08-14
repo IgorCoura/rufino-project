@@ -3,7 +3,6 @@ import 'package:go_router/go_router.dart';
 
 import 'package:rufino_core/rufino_core.dart';
 import '../../../../domain/entities/workplace.dart';
-import '../../../core/widgets/permission_guard.dart';
 import '../viewmodel/workplace_list_viewmodel.dart';
 
 /// Displays the list of workplaces for the currently selected company.

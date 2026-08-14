@@ -1,0 +1,14 @@
+include: ../../analysis_options.yaml
+
+analyzer:
+  errors:
+    # ESTA LINHA É O LIMITE ENTRE OS PRODUTOS.
+    #
+    # Num pub workspace todos os pacotes dividem o mesmo package_config, então
+    # `import 'package:rufino_v2/...'` daqui RESOLVE e compila — o pub sozinho
+    # não separa nada. O que separa é esta regra promovida a erro: importar um
+    # pacote que não está no `dependencies` do pubspec passa a quebrar o
+    # `flutter analyze`, que é obrigatório antes de dar uma tarefa por pronta.
+    #
+    # Sem ela o isolamento seria só combinado — e combinado é o que erode.
+    depend_on_referenced_packages: error

@@ -12,7 +12,6 @@ import '../../../../domain/repositories/company_repository.dart';
 import '../../../../domain/repositories/department_repository.dart';
 import '../../../../domain/repositories/employee_repository.dart';
 import '../../../core/widgets/filter_sheet.dart';
-import '../../../core/widgets/permission_guard.dart';
 import '../viewmodel/employee_list_viewmodel.dart';
 
 /// Route-level entry point that owns the [EmployeeListViewModel] lifecycle.

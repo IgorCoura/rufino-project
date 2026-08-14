@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:mask_text_input_formatter/mask_text_input_formatter.dart';
 
-import 'package:rufino_core/rufino_core.dart';
 import '../../../../core/utils/error_messages.dart';
 import '../../../../domain/entities/address.dart';
 import '../../../../domain/entities/company.dart';
@@ -129,12 +128,8 @@ class CompanyFormViewModel extends ChangeNotifier {
         country: countryController.text,
       );
 
-      final Result<String> result;
-      if (_id.isEmpty) {
-        result = await _companyRepository.createCompany(company);
-      } else {
-        result = await _companyRepository.updateCompany(company);
-      }
+      // Só edição: empresa nova nasce como tenant, no cadastro da plataforma.
+      final result = await _companyRepository.updateCompany(company);
 
       result.fold(
         onSuccess: (_) => _status = CompanyFormStatus.saved,

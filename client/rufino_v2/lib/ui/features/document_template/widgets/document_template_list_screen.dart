@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
-import 'package:rufino_v2/ui/core/widgets/permission_guard.dart';
-import 'package:rufino_v2/ui/features/auth/viewmodel/permission_notifier.dart';
 
 import 'package:rufino_core/rufino_core.dart';
 import '../../../../domain/entities/document_template.dart';

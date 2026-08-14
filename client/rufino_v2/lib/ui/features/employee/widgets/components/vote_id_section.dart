@@ -4,7 +4,6 @@ import 'package:mask_text_input_formatter/mask_text_input_formatter.dart';
 import 'package:rufino_core/rufino_core.dart';
 import '../../viewmodel/employee_profile_viewmodel.dart';
 import 'profile_shared_widgets.dart';
-import '../../../../core/widgets/permission_guard.dart';
 
 /// Expandable card for viewing and editing employee voter registration
 /// (Titulo de Eleitor) data.

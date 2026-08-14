@@ -3,7 +3,6 @@ import 'package:go_router/go_router.dart';
 
 import 'package:rufino_core/rufino_core.dart';
 import '../../../core/widgets/error_dialog.dart';
-import '../../../core/widgets/permission_guard.dart';
 import '../viewmodel/require_document_form_viewmodel.dart';
 
 /// Form screen for creating or editing a require document.

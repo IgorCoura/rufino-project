@@ -1,5 +1,4 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:rufino_v2/core/errors/auth_exception.dart';
 import 'package:rufino_core/rufino_core.dart';
 import 'package:rufino_v2/core/utils/error_messages.dart';
 

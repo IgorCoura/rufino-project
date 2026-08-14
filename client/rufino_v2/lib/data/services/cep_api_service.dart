@@ -1,57 +1,26 @@
-import 'dart:convert';
-
 import 'package:http/http.dart' as http;
+import 'package:rufino_core/rufino_core.dart';
 
-import '../../core/errors/cep_exception.dart';
 import '../models/cep_lookup_model.dart';
 
-/// Queries the public ViaCEP service to resolve a Brazilian postal code (CEP)
-/// into its corresponding address components.
+/// Resolves a Brazilian postal code (CEP) into this product's DTO.
 ///
-/// See https://viacep.com.br for the public API contract.
+/// The ViaCEP call itself lives in `rufino_core` — it is the same request for
+/// every product. This adapter exists only to hand the result back in the
+/// shape the People Management repositories already consume.
 class CepApiService {
+  /// Creates the service over [client].
   CepApiService({required this.client});
 
+  /// The HTTP client used for the lookup.
   final http.Client client;
-
-  static final Uri _baseUri = Uri.parse('https://viacep.com.br/ws');
 
   /// Looks up the address associated with [cep].
   ///
-  /// The [cep] may be passed with or without formatting — non-digit
-  /// characters are stripped. Throws [CepNotFoundException] when ViaCEP
-  /// reports the CEP does not exist, or [CepLookupException] on any other
-  /// failure.
+  /// Throws `CepNotFoundException` when ViaCEP reports the CEP does not
+  /// exist, or `CepLookupException` on any other failure.
   Future<CepLookupModel> lookup(String cep) async {
-    final digits = cep.replaceAll(RegExp(r'[^\d]'), '');
-
-    final uri = _baseUri.replace(
-      pathSegments: [..._baseUri.pathSegments, digits, 'json'],
-    );
-
-    try {
-      final response = await client.get(uri);
-
-      if (response.statusCode < 200 || response.statusCode >= 300) {
-        throw CepLookupException(
-          'HTTP ${response.statusCode}: ${response.reasonPhrase}',
-        );
-      }
-
-      final body = jsonDecode(response.body);
-      if (body is! Map<String, dynamic>) {
-        throw const CepLookupException('Unexpected ViaCEP response shape');
-      }
-
-      if (body['erro'] == true) {
-        throw const CepNotFoundException();
-      }
-
-      return CepLookupModel.fromJson(body);
-    } on CepException {
-      rethrow;
-    } catch (e) {
-      throw CepLookupException(e);
-    }
+    final lookup = await CepLookupService(client: client).lookup(cep);
+    return CepLookupModel.fromLookup(lookup);
   }
 }

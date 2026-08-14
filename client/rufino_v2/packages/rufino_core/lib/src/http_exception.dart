@@ -16,6 +16,7 @@ class HttpException implements Exception {
     required this.statusCode,
     required this.message,
     this.serverMessages = const [],
+    this.domainErrorId,
     this.responseBody,
     this.requestMethod,
     this.requestUrl,
@@ -32,6 +33,13 @@ class HttpException implements Exception {
   /// Empty when the response body does not contain the expected error
   /// structure.
   final List<String> serverMessages;
+
+  /// The backend's domain-error code (e.g. `"TNM.TNT20"`), when the response
+  /// carried one.
+  ///
+  /// Lets a screen react to a specific rule instead of matching on the
+  /// message text, which is written for humans and free to change.
+  final String? domainErrorId;
 
   /// The raw response body returned by the server, when available.
   ///

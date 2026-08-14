@@ -3,7 +3,6 @@ import 'package:go_router/go_router.dart';
 
 import 'package:rufino_core/rufino_core.dart';
 import '../../../../domain/entities/department.dart';
-import '../../../core/widgets/permission_guard.dart';
 import '../../../../domain/entities/position.dart';
 import '../../../../domain/entities/role.dart';
 import '../viewmodel/department_list_viewmodel.dart';

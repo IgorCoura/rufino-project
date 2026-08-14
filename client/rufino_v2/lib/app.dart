@@ -6,17 +6,17 @@ import 'package:nested/nested.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'package:tenant_management/tenant_management.dart';
+
 import 'core/config/app_config.dart';
-import 'core/errors/auth_exception.dart';
+import 'core/tenant/tenant_session_bridge.dart';
 import 'package:rufino_core/rufino_core.dart';
 import 'data/repositories/auth_code_repository_impl.dart';
 import 'data/repositories/auth_repository_impl.dart';
-import 'data/repositories/permission_repository_impl.dart';
 import 'data/services/auth_code_api_service.dart';
 import 'data/services/oauth_login_strategy.dart';
 import 'data/services/oauth_login_strategy_factory.dart';
 import 'data/services/pending_web_redirect_result.dart';
-import 'data/services/permission_cache_service.dart';
 import 'data/repositories/company_repository_impl.dart';
 import 'data/repositories/department_repository_impl.dart';
 import 'data/repositories/employee_repository_impl.dart';
@@ -31,7 +31,6 @@ import 'data/repositories/document_scanner_repository_impl.dart';
 import 'core/utils/document_scanner_service.dart';
 import 'data/repositories/workplace_repository_impl.dart';
 import 'data/services/auth_api_service.dart';
-import 'data/services/permission_api_service.dart';
 import 'data/services/company_api_service.dart';
 import 'data/services/department_api_service.dart';
 import 'data/services/document_group_api_service.dart';
@@ -46,7 +45,6 @@ import 'data/services/file_save_service.dart';
 import 'data/services/spreadsheet_service.dart';
 import 'data/services/workplace_api_service.dart';
 import 'domain/repositories/auth_repository.dart';
-import 'domain/repositories/permission_repository.dart';
 import 'domain/repositories/company_repository.dart';
 import 'domain/repositories/department_repository.dart';
 import 'domain/repositories/document_group_repository.dart';
@@ -62,15 +60,12 @@ import 'ui/core/widgets/session_expired_listener.dart';
 import 'ui/features/auth/viewmodel/auth_session_notifier.dart';
 import 'ui/features/auth/viewmodel/login_sso_viewmodel.dart';
 import 'ui/features/auth/viewmodel/login_viewmodel.dart';
-import 'ui/features/auth/viewmodel/permission_notifier.dart';
 import 'ui/features/auth/viewmodel/splash_viewmodel.dart';
 import 'ui/features/auth/widgets/login_screen.dart';
 import 'ui/features/auth/widgets/login_sso_screen.dart';
 import 'ui/features/auth/widgets/splash_screen.dart';
 import 'ui/features/company/viewmodel/company_form_viewmodel.dart';
-import 'ui/features/company/viewmodel/company_selection_viewmodel.dart';
 import 'ui/features/company/widgets/company_form_screen.dart';
-import 'ui/features/company/widgets/company_selection_screen.dart';
 import 'ui/features/department/viewmodel/department_form_viewmodel.dart';
 import 'ui/features/document_group/viewmodel/document_group_form_viewmodel.dart';
 import 'ui/features/document_group/viewmodel/document_group_with_templates_viewmodel.dart';
@@ -209,15 +204,27 @@ class App extends StatelessWidget {
         ? () => flagSessionLoss(authCodeApiService!.getAuthorizationHeader)
         : () => flagSessionLoss(authApiService!.getAuthorizationHeader);
 
+    final tokenEndpoint = Uri.parse(
+      AppConfig.useDirectAccessGrants
+          ? AppConfig.authorizationEndpoint
+          : AppConfig.authCodeTokenEndpoint,
+    );
+
     final permissionApiService = PermissionApiService(
       client: httpClient,
-      tokenEndpoint: Uri.parse(
-        AppConfig.useDirectAccessGrants
-            ? AppConfig.authorizationEndpoint
-            : AppConfig.authCodeTokenEndpoint,
-      ),
+      tokenEndpoint: tokenEndpoint,
       getAccessToken: getAccessToken,
-      audience: 'people-management-api',
+      audience: AppConfig.peopleManagementAudience,
+    );
+
+    // Segunda audiência: o back-office de tenants vive noutro resource
+    // server, e quem não é operador da plataforma recebe 403 aqui — que o
+    // cliente UMA traduz como "nenhuma permissão", não como erro.
+    final tenantPermissionApiService = PermissionApiService(
+      client: httpClient,
+      tokenEndpoint: tokenEndpoint,
+      getAccessToken: getAccessToken,
+      audience: AppConfig.tenantManagementAudience,
     );
 
     final companyApiService = CompanyApiService(
@@ -244,14 +251,32 @@ class App extends StatelessWidget {
       permissionRepository: permissionRepository,
     );
 
-    // Reload permissions automatically when the access token is refreshed.
+    // Chave de cache própria: duas audiências dividindo uma só se
+    // sobrescreveriam, e qual venceria dependeria da ordem de chegada.
+    final tenantPermissionRepository = PermissionRepositoryImpl(
+      permissionApiService: tenantPermissionApiService,
+      permissionCacheService: PermissionCacheService(
+        prefs: prefs,
+        cacheKey: 'cached_permissions_tenant_management',
+      ),
+      reporter: errorReporter,
+    );
+    final tenantPermissionNotifier = TenantPermissionNotifier(
+      permissionRepository: tenantPermissionRepository,
+    );
+
+    // Reload permissions automatically when the access token is refreshed —
+    // both audiences, or one of them silently goes stale.
+    void reloadAllPermissions() {
+      permissionNotifier.loadPermissions();
+      tenantPermissionNotifier.loadPermissions();
+    }
+
     if (authApiService != null) {
-      authApiService.onTokenRefreshed =
-          () => permissionNotifier.loadPermissions();
+      authApiService.onTokenRefreshed = reloadAllPermissions;
     }
     if (authCodeApiService != null) {
-      authCodeApiService.onTokenRefreshed =
-          () => permissionNotifier.loadPermissions();
+      authCodeApiService.onTokenRefreshed = reloadAllPermissions;
     }
 
     final AuthRepository authRepository = AppConfig.useAuthorizationCodeFlow
@@ -365,6 +390,27 @@ class App extends StatelessWidget {
       reporter: errorReporter,
     );
 
+    // Tenant: a identidade do cliente da plataforma. O contexto é um só e
+    // vive em `rufino_core`, para que todo produto o leia sem depender do
+    // pacote que desenha a tela de seleção.
+    final tenantContextNotifier = TenantContextNotifier(
+      storage: secureStorage,
+    );
+    final TenantRepository tenantRepository = TenantRepositoryImpl(
+      apiService: TenantApiService(
+        client: httpClient,
+        baseUrl: AppConfig.tenantManagementUrl,
+        getAuthHeader: getAuthHeader,
+      ),
+      reporter: errorReporter,
+    );
+    final tenantSessionBridge = TenantSessionBridge(
+      companyRepository: companyRepository,
+      permissionNotifier: permissionNotifier,
+      tenantPermissionNotifier: tenantPermissionNotifier,
+      errorReporter: errorReporter,
+    );
+
     // Spreadsheet export — stateless, safe to share across the app.
     final spreadsheetService = SpreadsheetService();
     final fileSaveService = FileSaveService();
@@ -373,6 +419,15 @@ class App extends StatelessWidget {
       Provider<ErrorReporter>.value(value: errorReporter),
       ChangeNotifierProvider(create: (_) => ThemeNotifier()),
       ChangeNotifierProvider.value(value: permissionNotifier),
+      ChangeNotifierProvider.value(value: tenantPermissionNotifier),
+      ChangeNotifierProvider.value(value: tenantContextNotifier),
+      ChangeNotifierProvider.value(value: tenantSessionBridge),
+      Provider<TenantRepository>.value(value: tenantRepository),
+      // Consulta de CEP compartilhada: o cadastro de tenant exige endereço,
+      // e a chamada é a mesma que o cadastro de funcionário já fazia.
+      Provider<CepLookupService>.value(
+        value: CepLookupService(client: httpClient),
+      ),
       ChangeNotifierProvider.value(value: authSessionNotifier),
       Provider<AuthRepository>.value(value: authRepository),
       Provider<PermissionRepository>.value(value: permissionRepository),
@@ -423,8 +478,12 @@ class _AppRouterState extends State<_AppRouter> {
           builder: (context, state) => SplashScreen(
             viewModel: SplashViewModel(
               authRepository: context.read<AuthRepository>(),
-              companyRepository: context.read<CompanyRepository>(),
+              tenantRepository: context.read<TenantRepository>(),
+              tenantContext: context.read<TenantContextNotifier>(),
+              tenantSessionBridge: context.read<TenantSessionBridge>(),
               permissionNotifier: context.read<PermissionNotifier>(),
+              tenantPermissionNotifier:
+                  context.read<TenantPermissionNotifier>(),
               errorReporter: context.read<ErrorReporter>(),
             ),
           ),
@@ -446,24 +505,34 @@ class _AppRouterState extends State<_AppRouter> {
             );
           },
         ),
-        GoRoute(
-          path: '/company',
-          builder: (context, state) => CompanySelectionScreen(
-            viewModel: CompanySelectionViewModel(
-              authRepository: context.read<AuthRepository>(),
-              companyRepository: context.read<CompanyRepository>(),
-              permissionNotifier: context.read<PermissionNotifier>(),
-              errorReporter: context.read<ErrorReporter>(),
-            ),
-          ),
-        ),
-        GoRoute(
-          path: '/company/create',
-          builder: (context, state) => CompanyFormScreen(
-            viewModel: CompanyFormViewModel(
-              companyRepository: context.read<CompanyRepository>(),
-            ),
-          ),
+        // A seleção de EMPRESA deixou de existir: o contexto do app é o
+        // tenant, escolhido uma vez e lido por todos os produtos. Cadastro de
+        // empresa nova também saiu — cliente novo nasce como tenant.
+        ...tenantManagementRoutes(
+          homeRoute: '/home',
+          cepService: context.read<CepLookupService>(),
+          onTenantSelected: (tenant) =>
+              context.read<TenantSessionBridge>().onTenantSelected(tenant),
+          onLogout: (routeContext) async {
+            // Tudo é lido ANTES do primeiro await: depois dele o context pode
+            // já não estar montado, e o logout não pode ficar pela metade.
+            final auth = routeContext.read<AuthRepository>();
+            final permissions = routeContext.read<PermissionNotifier>();
+            final tenantPermissions =
+                routeContext.read<TenantPermissionNotifier>();
+            final tenantContext = routeContext.read<TenantContextNotifier>();
+            final bridge = routeContext.read<TenantSessionBridge>();
+            final reporter = routeContext.read<ErrorReporter>();
+            final router = GoRouter.of(routeContext);
+
+            await auth.logout();
+            await permissions.clear();
+            await tenantPermissions.clear();
+            await tenantContext.clear();
+            await bridge.clear();
+            reporter.clearUser();
+            router.go('/login');
+          },
         ),
         GoRoute(
           path: '/company/edit/:id',
@@ -479,8 +548,11 @@ class _AppRouterState extends State<_AppRouter> {
           builder: (context, state) => HomeScreen(
             viewModel: HomeViewModel(
               authRepository: context.read<AuthRepository>(),
-              companyRepository: context.read<CompanyRepository>(),
+              tenantContext: context.read<TenantContextNotifier>(),
+              tenantSessionBridge: context.read<TenantSessionBridge>(),
               permissionNotifier: context.read<PermissionNotifier>(),
+              tenantPermissionNotifier:
+                  context.read<TenantPermissionNotifier>(),
               errorReporter: context.read<ErrorReporter>(),
             ),
           ),

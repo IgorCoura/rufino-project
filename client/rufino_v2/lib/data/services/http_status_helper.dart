@@ -2,7 +2,6 @@ import 'dart:convert';
 
 import 'package:http/http.dart' as http;
 
-import '../../core/errors/auth_exception.dart';
 import 'package:rufino_core/rufino_core.dart';
 import '../../core/utils/domain_error_logger.dart';
 

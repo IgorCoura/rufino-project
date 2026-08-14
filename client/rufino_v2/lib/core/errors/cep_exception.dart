@@ -1,19 +1,9 @@
-/// Base class for CEP (Brazilian postal code) lookup exceptions.
-sealed class CepException implements Exception {
-  const CepException();
-}
-
-/// Thrown when the ViaCEP service reports that the requested CEP does not
-/// exist (response body contains `{"erro": true}`).
-final class CepNotFoundException extends CepException {
-  const CepNotFoundException();
-}
-
-/// Thrown when the CEP lookup request fails for any reason other than
-/// "not found" — non-2xx status code, network failure, malformed response.
-final class CepLookupException extends CepException {
-  const CepLookupException(this.cause);
-
-  /// The underlying error that caused the failure.
-  final Object cause;
-}
+/// Reexporta a família que agora vive em `rufino_core`.
+///
+/// A consulta de CEP é ViaCEP puro — não cita produto nenhum —, e o cadastro
+/// de tenant precisa dela tanto quanto o de funcionário.
+///
+/// Código novo deve importar `package:rufino_core/rufino_core.dart`.
+library;
+export 'package:rufino_core/rufino_core.dart'
+    show CepException, CepLookupException, CepNotFoundException;

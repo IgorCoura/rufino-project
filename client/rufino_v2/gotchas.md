@@ -71,3 +71,28 @@ of the path — never on the bare name, because Dart filenames compose by prefix
 **How to apply.** Run `flutter analyze` after *every* bulk rewrite, before the
 tests. It localizes the breakage in seconds; the test suite only tells you that
 something is wrong.
+
+## O `.gitignore` da raiz engoliu o pub workspace inteiro
+
+**What happened.** `packages/rufino_core` e `packages/bill_payment` foram criados
+num commit que dizia extrair a fundação — e chegaram ao repositório **pela
+metade**: 13 arquivos rastreados, 5 faltando, entre eles os dois `pubspec.yaml`,
+os dois `analysis_options.yaml` e os dois barris. Um clone limpo não resolvia
+dependência nenhuma.
+
+**Why it is treacherous.** O `.gitignore` da raiz é o template do Visual Studio e
+traz `**/packages/*`, que existe para a pasta `packages/` do NuGet. Ele exclui os
+**diretórios** dos pacotes, então o Git nem desce neles. O que salvou os 13
+arquivos foi acidente: eles vieram de `git mv`, que estagia o destino
+**ignorando o .gitignore**. Arquivo criado do zero era descartado em silêncio —
+`git status` limpo, `git commit` bem-sucedido, e o pacote incompleto no remoto.
+
+**The rule.** Depois de criar pasta nova que o template do repositório possa
+cobrir (`packages/`, `debug/`, `build/`), rode
+`git status --untracked-files=all <pasta>` e confira a contagem contra o disco.
+`git status` sozinho mente por omissão: ele não lista o que está ignorado.
+
+**How to apply.** Antes de commitar estrutura nova:
+`git check-ignore -v --no-index <um arquivo dentro dela>`. Se responder alguma
+regra, escreva a exceção no `.gitignore` mais próximo — regra de arquivo mais
+fundo vence a da raiz, e é assim que `lib/ui/features/debug/` já era tratado.

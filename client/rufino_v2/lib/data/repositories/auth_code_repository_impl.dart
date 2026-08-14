@@ -1,4 +1,3 @@
-import '../../core/errors/auth_exception.dart';
 import 'package:rufino_core/rufino_core.dart';
 import '../../domain/repositories/auth_repository.dart';
 import '../services/auth_code_api_service.dart';

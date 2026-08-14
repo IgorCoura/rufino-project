@@ -4,7 +4,6 @@ import 'package:http/http.dart' as http;
 import 'package:jwt_decoder/jwt_decoder.dart';
 import 'package:oauth2/oauth2.dart' as oauth2;
 
-import '../../core/errors/auth_exception.dart';
 import 'package:rufino_core/rufino_core.dart';
 import 'oauth_login_strategy.dart';
 

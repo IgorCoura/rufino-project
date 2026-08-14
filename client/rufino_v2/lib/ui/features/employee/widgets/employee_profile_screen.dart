@@ -8,7 +8,6 @@ import 'package:rufino_core/rufino_core.dart';
 import '../../../../domain/entities/employee.dart';
 import '../../../../domain/entities/employee_profile.dart';
 import '../../../core/widgets/error_dialog.dart';
-import '../../../core/widgets/permission_guard.dart';
 import '../viewmodel/employee_profile_viewmodel.dart';
 import 'components/address_section.dart';
 import 'components/contact_section.dart';

@@ -1,12 +1,6 @@
-/// Base class for permission-related exceptions.
-sealed class PermissionException implements Exception {
-  const PermissionException();
-}
-
-/// Thrown when the permission fetch request to Keycloak fails.
-final class PermissionFetchException extends PermissionException {
-  const PermissionFetchException(this.cause);
-
-  /// The underlying error that caused the failure.
-  final Object cause;
-}
+/// Reexporta a família que agora vive em `rufino_core`.
+///
+/// Código novo deve importar `package:rufino_core/rufino_core.dart`.
+library;
+export 'package:rufino_core/rufino_core.dart'
+    show PermissionException, PermissionFetchException;
