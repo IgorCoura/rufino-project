@@ -1,0 +1,26 @@
+<Project>
+
+  <!--
+    Aplicamos só a .csproj C#. O .sln contém docker-compose.dcproj (Microsoft.Docker.Sdk),
+    que não tem TargetFramework e quebra se tentarmos adicionar PackageReference de analyzer.
+  -->
+  <PropertyGroup>
+    <_TenantManagementIsCSharpProject Condition=" '$(MSBuildProjectExtension)' == '.csproj' ">true</_TenantManagementIsCSharpProject>
+    <IsTestProject Condition=" '$(_TenantManagementIsCSharpProject)' == 'true' AND '$(IsTestProject)' == '' AND $(MSBuildProjectName.EndsWith('Tests')) ">true</IsTestProject>
+  </PropertyGroup>
+
+  <PropertyGroup Condition=" '$(_TenantManagementIsCSharpProject)' == 'true' ">
+    <AnalysisLevel>latest</AnalysisLevel>
+    <AnalysisMode Condition=" '$(IsTestProject)' != 'true' ">Recommended</AnalysisMode>
+    <AnalysisMode Condition=" '$(IsTestProject)' == 'true' ">Minimum</AnalysisMode>
+    <EnforceCodeStyleInBuild Condition=" '$(IsTestProject)' != 'true' ">true</EnforceCodeStyleInBuild>
+  </PropertyGroup>
+
+  <ItemGroup Condition=" '$(_TenantManagementIsCSharpProject)' == 'true' AND '$(IsTestProject)' != 'true' ">
+    <PackageReference Include="SonarAnalyzer.CSharp" Version="10.27.0.140913">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+  </ItemGroup>
+
+</Project>

@@ -6,6 +6,20 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 .NET 8 (C# 12) REST API for employee and document management ("People Management"). Uses Clean Architecture with Domain-Driven Design (DDD) and CQRS pattern via MediatR.
 
+> **Este arquivo descreve o BC `PeopleManagement`.** O servidor tem três Bounded Contexts, cada um
+> com `.sln`, banco e deploy próprios — e os outros dois têm CLAUDE.md próprio, que **sobrepõe**
+> este:
+>
+> | BC | Pasta | O que faz | Portas (host) |
+> |---|---|---|---|
+> | PeopleManagement | `Services/PeopleManagement/` | Funcionários e documentos | 8040–8042 |
+> | BillPayment | `Services/BillPayment/` | Captura, valida e paga boletos | 8100–8104 |
+> | TenantManagement | `Services/TenantManagement/` | **Emite o `TenantId`** e diz quem acessa cada tenant (PF e PJ) | 8110, 8112 |
+>
+> O `Company` deste BC e o `Tenant` do TenantManagement **não são a mesma entidade**: o Tenant é o
+> registro-mestre da identidade, o `Company` continua sendo o cadastro local do RH. O claim
+> `companies` que este BC lê segue intocado.
+
 ## Build, Run & Test
 
 ```bash

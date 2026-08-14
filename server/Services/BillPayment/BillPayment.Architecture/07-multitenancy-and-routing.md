@@ -6,6 +6,11 @@ Base empírica das decisões: [`08-boleto-corpus-findings.md`](08-boleto-corpus-
 
 ## O tenant
 
+> **Quem emite o `TenantId` é o BC `TenantManagement`** (`server/Services/TenantManagement/`),
+> criado em 2026-08-13. Ele cadastra pessoa física e jurídica, emite o Id que este BC usa na rota,
+> e escreve o claim **`tenants`** que a fase 6 vai validar. O `PayerProfile` continua sendo o
+> cadastro fiscal **deste** produto — o Tenant não o substitui nem o alimenta (ADR-002 de lá).
+
 `TenantId` é a unidade de isolamento e de dinheiro: um tenant tem seu cadastro fiscal, suas fontes, seus beneficiários, sua subconta Asaas e seu saldo. Um tenant é **uma pessoa física ou uma pessoa jurídica** — a diferença mora em três lugares e em nenhum outro:
 
 | | PF | PJ |

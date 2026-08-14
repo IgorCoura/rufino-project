@@ -1,0 +1,40 @@
+[
+  {
+    "id": "00000000-0000-0000-0000-000000000001",
+    "kind": "Company",
+    "legalName": "EMPRESA EXEMPLO LTDA",
+    "tradeName": "EXEMPLO",
+    "primaryTaxId": "11222333000181",
+    "contactEmail": "contato@exemplo.com.br",
+    "contactPhone": "11987654321",
+    "address": {
+      "zipCode": "01310-100",
+      "street": "Avenida Paulista",
+      "number": "1000",
+      "complement": "Conjunto 51",
+      "neighborhood": "Bela Vista",
+      "city": "Sao Paulo",
+      "state": "SP",
+      "country": "BRASIL"
+    },
+    "ownerEmail": "titular@exemplo.com.br",
+    "products": ["PeopleManagement"]
+  },
+  {
+    "id": "00000000-0000-0000-0000-000000000002",
+    "kind": "Individual",
+    "legalName": "NOME COMPLETO DA PESSOA",
+    "primaryTaxId": "52998224725",
+    "contactEmail": "pessoa@exemplo.com.br",
+    "address": {
+      "zipCode": "30130-010",
+      "street": "Avenida Afonso Pena",
+      "number": "500",
+      "neighborhood": "Centro",
+      "city": "Belo Horizonte",
+      "state": "MG"
+    },
+    "ownerEmail": "pessoa@exemplo.com.br",
+    "products": ["BillPayment"]
+  }
+]
