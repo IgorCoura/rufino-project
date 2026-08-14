@@ -116,6 +116,16 @@ Rotas do próprio tenant, se existirem no futuro, usam `/api/v1/{tenantId}/...` 
   seria uma segunda versão da mesma informação, livre para divergir.
 - **O vínculo é chaveado por e-mail**, não pelo id da pessoa no provedor: na hora da concessão ela
   pode ainda não existir lá. Revogar não apaga a linha; reconceder reaproveita.
+- **A porta de provisionamento NÃO recebe nome de pessoa, e isso é a correção de um bug real.**
+  `GrantAccessAsync` recebia um `displayName`, o handler passava o `TenantLegalName` do evento, e o
+  adapter gravava aquilo em `firstName` — o titular aparecia no Keycloak chamando-se
+  "Padaria do Zé LTDA". Este BC **não conhece** o nome de quem está do outro lado do e-mail; o
+  cadastro que ele guarda é o do TENANT. Quem informa o próprio nome é a pessoa, e por isso o
+  convite pede `UPDATE_PROFILE` além de `UPDATE_PASSWORD` e `VERIFY_EMAIL`. A assinatura sem o
+  parâmetro é o que torna o erro irrepresentável; `KeycloakUserPayloadTests` guarda o payload.
+- **A atualização de quem já existe parte da representação lida.** É o que preserva o nome que a
+  pessoa informou e o `companies` de que o PeopleManagement depende — montar um objeto novo só
+  com `tenants` apagaria os dois.
 - **Eventos são despachados DEPOIS do commit**, in-process, sem outbox. Despachar antes poderia
   conceder acesso a um tenant que a transação seguinte desfaz. O preço: se o processo morrer entre
   o commit e o despacho, o vínculo fica `Pending` até alguém reprovisionar — aceito para um
@@ -191,7 +201,7 @@ build/run/test muda. Não duplique o que está em `TenantManagement.Architecture
 | 1 | Esqueleto do BC (6 projetos, sln, compose, analyzers) | ✅ |
 | 2 | Domain + 160 testes unitários | ✅ |
 | 3 | Application (11 commands, 3 queries), Infra (EF + adapter Keycloak), API | ✅ |
-| 4 | 44 testes de integração (Testcontainers + Respawn) | ✅ |
+| 4 | 48 testes de integração (Testcontainers + Respawn) | ✅ |
 | 5 | Config do Keycloak: 2 clients, `tenant-scope`, resources/scopes/policies | ✅ (exportada; falta aplicar no realm) |
 | 6 | Backfill dos cadastros existentes preservando o Guid | ✅ (ferramenta pronta; falta executar) |
 | 7 | Documentação (Architecture, ADRs, este arquivo) | ✅ |

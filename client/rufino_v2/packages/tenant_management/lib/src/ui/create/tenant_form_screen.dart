@@ -5,6 +5,7 @@ import 'package:rufino_core/rufino_core.dart';
 import '../../data/tenant_api_models.dart';
 import '../../domain/tenant.dart';
 import '../../domain/tenant_enums.dart';
+import '../tenant_back_button.dart';
 import 'tenant_form_viewmodel.dart';
 
 const _cpfMaskPattern = '###.###.###-##';
@@ -19,11 +20,15 @@ class TenantFormScreen extends StatefulWidget {
   const TenantFormScreen({
     super.key,
     required this.viewModel,
+    required this.backFallback,
     required this.onRegistered,
   });
 
   /// Drives the screen.
   final TenantFormViewModel viewModel;
+
+  /// Para onde o voltar leva quando não há pilha.
+  final String backFallback;
 
   /// Called with the id of the tenant that was just registered.
   final void Function(String id) onRegistered;
@@ -162,7 +167,10 @@ class _TenantFormScreenState extends State<TenantFormScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Cadastrar cliente')),
+      appBar: AppBar(
+        title: const Text('Cadastrar cliente'),
+        leading: TenantBackButton(fallback: widget.backFallback),
+      ),
       body: SafeArea(
         child: ListenableBuilder(
           listenable: widget.viewModel,

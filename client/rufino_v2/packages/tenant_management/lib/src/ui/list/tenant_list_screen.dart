@@ -4,6 +4,7 @@ import 'package:rufino_core/rufino_core.dart';
 
 import '../../domain/tenant_enums.dart';
 import '../../domain/tenant_summary.dart';
+import '../tenant_back_button.dart';
 import 'tenant_list_viewmodel.dart';
 
 /// The back-office listing: find a customer, and see what went wrong.
@@ -16,11 +17,16 @@ class TenantListScreen extends StatefulWidget {
   const TenantListScreen({
     super.key,
     required this.viewModel,
+    required this.backFallback,
     required this.onOpenTenant,
   });
 
   /// Drives the screen.
   final TenantListViewModel viewModel;
+
+  /// Para onde o voltar leva quando não há pilha — o Home do app, já que o
+  /// menu chega aqui por substituição.
+  final String backFallback;
 
   /// Called with the id of the tenant to open.
   final void Function(String id) onOpenTenant;
@@ -61,7 +67,10 @@ class _TenantListScreenState extends State<TenantListScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Clientes da plataforma')),
+      appBar: AppBar(
+        title: const Text('Clientes da plataforma'),
+        leading: TenantBackButton(fallback: widget.backFallback),
+      ),
       body: SafeArea(
         child: ListenableBuilder(
           listenable: widget.viewModel,

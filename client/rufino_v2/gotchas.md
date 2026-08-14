@@ -96,3 +96,36 @@ cobrir (`packages/`, `debug/`, `build/`), rode
 `git check-ignore -v --no-index <um arquivo dentro dela>`. Se responder alguma
 regra, escreva a exceção no `.gitignore` mais próximo — regra de arquivo mais
 fundo vence a da raiz, e é assim que `lib/ui/features/debug/` já era tratado.
+
+## ViewModel criado no builder da rota: a tela volta e gira para sempre
+
+**What happened.** Voltar do cadastro para o seletor deixava o seletor com o
+spinner eterno. O mesmo do detalhe para a listagem. Nada no log, nada de erro —
+só a tela girando.
+
+**Why it is treacherous.** O `go_router` reexecuta o builder da rota a cada
+mudança na pilha. O builder criava o ViewModel, então cada `pop` produzia uma
+instância **nova**, em `loading`. Mas o `State` da tela sobrevive ao rebuild
+(mesmo tipo, mesma posição), então o `initState` — o único lugar que chamava
+`load()` — **não roda de novo**. A tela fica ligada a um ViewModel que ninguém
+mandou carregar. E o teste de widget comum não pega: ele monta a tela uma vez.
+
+**The rule.** Página `StatefulWidget` dona do ViewModel (`late final` no
+`initState`, `dispose` no fim); o builder da rota só constrói a página. Já
+estava escrito no `CLAUDE.md` para o `DocumentDashboardPage` — e mesmo assim se
+repetiu, porque o sintoma não parece um problema de ciclo de vida.
+
+**How to apply.** Teste de navegação com `GoRouter` de verdade: entre na tela,
+navegue para a seguinte, volte, e afirme que os **dados** ainda estão lá e que
+não há `CircularProgressIndicator`. É o único formato que reproduz o bug.
+
+## Tela alcançada por `go` não tem para onde dar `pop`
+
+**What happened.** As telas novas ficaram sem botão de voltar, e o back do
+Android não tinha para onde ir: o menu do Home chega nelas com `context.go`,
+que **substitui** a pilha.
+
+**The rule.** Botão de voltar sempre `context.canPop() ? context.pop() :
+context.go(fallback)`. E ele precisa existir em **todos** os estados da tela —
+uma tela que só desenha a `AppBar` depois de carregar tranca o usuário enquanto
+a rede não responde.

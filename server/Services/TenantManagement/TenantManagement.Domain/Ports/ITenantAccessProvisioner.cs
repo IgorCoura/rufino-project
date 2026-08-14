@@ -21,10 +21,16 @@ public interface ITenantAccessProvisioner
     /// Garante que a pessoa exista no provedor e que ela enxergue este tenant. Devolve o
     /// identificador dela — que pode ser a primeira vez que este BC fica sabendo dele.
     /// </summary>
+    /// <remarks>
+    /// <strong>Não recebe nome de pessoa, e isso é deliberado.</strong> O vínculo é chaveado
+    /// por e-mail justamente porque este BC não conhece quem está do outro lado — o cadastro
+    /// que ele guarda é o do TENANT. Passar o nome do tenant como se fosse o da pessoa é o
+    /// erro que já aconteceu: o titular apareceu no provedor chamando-se "Padaria do Zé LTDA".
+    /// Quem informa o próprio nome é a pessoa, no primeiro acesso.
+    /// </remarks>
     Task<AccessGrantResult> GrantAccessAsync(
         TenantId tenantId,
         string emailAddress,
-        string displayName,
         CancellationToken cancellationToken = default);
 
     /// <summary>

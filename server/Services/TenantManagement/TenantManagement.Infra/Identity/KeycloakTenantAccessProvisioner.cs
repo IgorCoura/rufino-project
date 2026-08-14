@@ -38,7 +38,13 @@ internal sealed class KeycloakTenantAccessProvisioner(
     ILogger<KeycloakTenantAccessProvisioner> logger) : ITenantAccessProvisioner, IDisposable
 {
     private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
-    private static readonly string[] InvitationActions = ["UPDATE_PASSWORD", "VERIFY_EMAIL"];
+    /// <summary>
+    /// O que a pessoa precisa fazer no primeiro acesso. <c>UPDATE_PROFILE</c> está aqui porque
+    /// este BC <strong>não sabe o nome dela</strong> — o vínculo é chaveado por e-mail, e o único
+    /// nome que o cadastro conhece é o do TENANT. Quem informa o nome é a própria pessoa.
+    /// </summary>
+    private static readonly string[] InvitationActions =
+        ["UPDATE_PASSWORD", "UPDATE_PROFILE", "VERIFY_EMAIL"];
 
     private readonly SemaphoreSlim _tokenLock = new(1, 1);
     private readonly TenantProvisioningOptions _options = options.Value;
@@ -49,7 +55,6 @@ internal sealed class KeycloakTenantAccessProvisioner(
     public async Task<AccessGrantResult> GrantAccessAsync(
         TenantId tenantId,
         string emailAddress,
-        string displayName,
         CancellationToken cancellationToken = default)
     {
         var email = EmailSyntax.Normalize(emailAddress);
@@ -60,7 +65,7 @@ internal sealed class KeycloakTenantAccessProvisioner(
 
         if (user is null)
         {
-            await CreateUserAsync(email, displayName, tenant, cancellationToken);
+            await CreateUserAsync(email, tenant, cancellationToken);
             user = await FindUserByEmailAsync(email, cancellationToken)
                 ?? throw new InvalidOperationException($"Usuário {email} não foi encontrado logo após ser criado.");
             created = true;
@@ -135,13 +140,20 @@ internal sealed class KeycloakTenantAccessProvisioner(
         return users?.Count > 0 ? users[0] : null;
     }
 
-    private async Task CreateUserAsync(string email, string displayName, string tenant, CancellationToken cancellationToken)
+    /// <summary>
+    /// Cria a pessoa com o mínimo: e-mail, o tenant e o convite.
+    /// </summary>
+    /// <remarks>
+    /// <strong>Sem nome.</strong> O único nome que este BC tem é o do tenant, e gravá-lo em
+    /// <c>firstName</c> fazia o titular aparecer no provedor chamando-se "Padaria do Zé LTDA".
+    /// Nome de pessoa é dado que a pessoa informa — daí o <c>UPDATE_PROFILE</c> no convite.
+    /// </remarks>
+    private async Task CreateUserAsync(string email, string tenant, CancellationToken cancellationToken)
     {
         var payload = new KeycloakUser
         {
             Username = email,
             Email = email,
-            FirstName = displayName,
             Enabled = true,
             EmailVerified = false,
             Attributes = new Dictionary<string, List<string>>(StringComparer.Ordinal)

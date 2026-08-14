@@ -35,6 +35,7 @@ void main() {
         ],
         child: MaterialApp(
           home: TenantSelectionScreen(
+            backFallback: '/home',
             viewModel: TenantSelectionViewModel(
               repository: repository,
               tenantContext: tenantContext,

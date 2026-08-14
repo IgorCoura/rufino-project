@@ -43,6 +43,7 @@ void main() {
         value: notifier,
         child: MaterialApp(
           home: TenantDetailScreen(
+            backFallback: '/tenant',
             viewModel: TenantDetailViewModel(
               repository: repository,
               tenantId: 'tenant-1',

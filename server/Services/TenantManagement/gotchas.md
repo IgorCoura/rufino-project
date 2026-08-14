@@ -83,3 +83,24 @@ Eram boilerplate — nada neste BC pede permissão para o recurso default: o
   lista, e a comparação com o id da rota falha.
 
 Ambas falham em silêncio: o login funciona, o token chega, e o acesso é negado sem explicação.
+
+## 8. Nome de tenant virando nome de pessoa
+
+**Sintoma:** o titular aparece no Keycloak chamando-se "Padaria do Zé LTDA".
+
+**Causa:** `ITenantAccessProvisioner.GrantAccessAsync` recebia um `displayName`, e o único nome à
+mão no handler era o do tenant (`domainEvent.TenantLegalName`). O adapter gravava aquilo em
+`firstName`. Nada acusa: o usuário é criado, o acesso funciona, e o erro só aparece quando alguém
+olha a lista de usuários.
+
+**Correção:** o parâmetro **saiu da porta**. Este BC não conhece o nome da pessoa — o vínculo é
+chaveado por e-mail justamente por isso. O convite passou a pedir `UPDATE_PROFILE`, e quem informa
+o nome é a própria pessoa no primeiro acesso.
+
+**Como pegar de novo:** `KeycloakUserPayloadTests` afirma que o payload de criação não tem
+`firstName`, que o convite pede `UPDATE_PROFILE`, e que pessoa **já existente** conserva o nome que
+tinha. Verificado por sonda: reintroduzir o `FirstName` faz o primeiro teste falhar.
+
+> ⚠️ **Quem já foi criado errado não se conserta sozinho.** A atualização parte da representação
+> lida, então o `firstName` errado é preservado de propósito. Limpe o campo no console do Keycloak
+> — a pessoa preenche o próprio nome no primeiro acesso.

@@ -20,7 +20,6 @@ internal sealed class UnconfiguredTenantAccessProvisioner(ILogger<UnconfiguredTe
     public Task<AccessGrantResult> GrantAccessAsync(
         TenantId tenantId,
         string emailAddress,
-        string displayName,
         CancellationToken cancellationToken = default)
         => throw NotConfigured(tenantId);
 

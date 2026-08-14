@@ -26,4 +26,6 @@ export 'src/ui/list/tenant_list_screen.dart';
 export 'src/ui/list/tenant_list_viewmodel.dart';
 export 'src/ui/select/tenant_selection_screen.dart';
 export 'src/ui/select/tenant_selection_viewmodel.dart';
+export 'src/ui/tenant_back_button.dart';
+export 'src/ui/tenant_pages.dart';
 export 'src/ui/tenant_routes.dart';

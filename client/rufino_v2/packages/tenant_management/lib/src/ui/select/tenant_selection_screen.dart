@@ -5,6 +5,7 @@ import 'package:rufino_core/rufino_core.dart';
 import '../../domain/my_tenant.dart';
 import '../../domain/tenant_enums.dart';
 import '../../tenant_permissions.dart';
+import '../tenant_back_button.dart';
 import 'tenant_selection_viewmodel.dart';
 
 /// The app's front door: pick which customer you are operating as.
@@ -18,6 +19,7 @@ class TenantSelectionScreen extends StatefulWidget {
   const TenantSelectionScreen({
     super.key,
     required this.viewModel,
+    required this.backFallback,
     required this.onSelected,
     required this.onCreateTenant,
     required this.onOpenBackOffice,
@@ -26,6 +28,10 @@ class TenantSelectionScreen extends StatefulWidget {
 
   /// Drives the screen.
   final TenantSelectionViewModel viewModel;
+
+  /// Para onde o voltar leva. Só aparece quando já existe um cliente em
+  /// contexto: sem contexto nenhum, não há tela anterior — a saída é o Sair.
+  final String backFallback;
 
   /// Called once a tenant became the current context.
   final VoidCallback onSelected;
@@ -74,6 +80,9 @@ class _TenantSelectionScreenState extends State<TenantSelectionScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Selecionar cliente'),
+        leading: widget.viewModel.currentTenantId == null
+            ? null
+            : TenantBackButton(fallback: widget.backFallback),
         actions: [
           IconButton(
             tooltip: 'Sair',

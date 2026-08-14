@@ -944,6 +944,8 @@ Coisas que não podem erodir:
 - **O último responsável não mostra "Revogar"** (`TNM.TNT20`), e a tela ainda trata a recusa do servidor, porque pode estar olhando estado velho.
 - **Recusa de regra ≠ falha.** `TenantRepositoryImpl` classifica 4xx com mensagem de domínio como `TenantRuleException` (`ExpectedFailure`, não vai para o Sentry) e o resto como `TenantNetworkException`.
 - **Suspenso desabilita, não esconde.** Esconder é para falta de permissão; desabilitar com o motivo à vista é para estado do cadastro.
+- **A PÁGINA é dona do ViewModel, nunca o builder da rota.** `tenant_pages.dart` existe só para isso. O `go_router` reexecuta o builder a cada mudança de pilha; criando o ViewModel lá dentro, cada `push`/`pop` produz uma instância nova em estado `loading` — e como o `State` da tela sobrevive ao rebuild, o `initState` que dispara o carregamento **não roda de novo**. O resultado é a tela anterior girando para sempre ao voltar. Mesma disciplina do `DocumentDashboardPage`.
+- **Voltar é `pop` OU `go`, nunca só `pop`.** Estas telas chegam pelos dois caminhos: empilhadas pelo seletor e por substituição pelo menu do Home. `TenantBackButton` volta se houver pilha e vai para a rota de origem quando não houver — sem ele, quem entra pelo menu fica sem saída. O detalhe leva o botão **também nos estados de carregando e de erro**, senão uma rede lenta tranca a tela.
 
 ## UI Design Guidelines (Material Design 3)
 

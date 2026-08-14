@@ -9,16 +9,24 @@ import 'components/access_tab.dart';
 import 'components/address_section.dart';
 import 'components/contact_section.dart';
 import 'components/identification_section.dart';
+import '../tenant_back_button.dart';
 import 'components/products_tab.dart';
 import 'tenant_detail_viewmodel.dart';
 
 /// The full cadastro of one tenant: identity, access and products.
 class TenantDetailScreen extends StatefulWidget {
   /// Creates the screen.
-  const TenantDetailScreen({super.key, required this.viewModel});
+  const TenantDetailScreen({
+    super.key,
+    required this.viewModel,
+    required this.backFallback,
+  });
 
   /// Drives the screen.
   final TenantDetailViewModel viewModel;
+
+  /// Para onde o voltar leva quando não há pilha.
+  final String backFallback;
 
   @override
   State<TenantDetailScreen> createState() => _TenantDetailScreenState();
@@ -107,15 +115,24 @@ class _TenantDetailScreenState extends State<TenantDetailScreen> {
         final tenant = widget.viewModel.tenant;
 
         if (widget.viewModel.status == TenantDetailStatus.loading) {
-          return const Scaffold(
-            body: Center(child: CircularProgressIndicator()),
+          // Com AppBar mesmo carregando: sem ela, uma carga lenta ou falha de
+          // rede deixaria a tela sem nenhuma saída.
+          return Scaffold(
+            appBar: AppBar(
+              title: const Text('Cliente'),
+              leading: TenantBackButton(fallback: widget.backFallback),
+            ),
+            body: const Center(child: CircularProgressIndicator()),
           );
         }
 
         if (widget.viewModel.status == TenantDetailStatus.error ||
             tenant == null) {
           return Scaffold(
-            appBar: AppBar(title: const Text('Cliente')),
+            appBar: AppBar(
+              title: const Text('Cliente'),
+              leading: TenantBackButton(fallback: widget.backFallback),
+            ),
             body: Center(
               child: Padding(
                 padding: const EdgeInsets.all(AppSpacing.lg),
@@ -145,6 +162,7 @@ class _TenantDetailScreenState extends State<TenantDetailScreen> {
           child: Scaffold(
             appBar: AppBar(
               title: Text(tenant.displayName),
+              leading: TenantBackButton(fallback: widget.backFallback),
               actions: [
                 TenantPermissionGuard(
                   resource: TenantResources.tenant,

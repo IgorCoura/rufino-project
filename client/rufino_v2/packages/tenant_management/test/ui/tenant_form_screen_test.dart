@@ -25,6 +25,7 @@ void main() {
       MaterialApp(
         home: TenantFormScreen(
           viewModel: TenantFormViewModel(repository: repository),
+          backFallback: '/tenant/select',
           onRegistered: registered.add,
         ),
       ),

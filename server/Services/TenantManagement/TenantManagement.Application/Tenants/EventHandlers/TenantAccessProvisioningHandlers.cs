@@ -41,7 +41,6 @@ public sealed class MembershipGrantedDomainEventHandler(
             var result = await provisioner.GrantAccessAsync(
                 domainEvent.TenantId,
                 domainEvent.Email,
-                domainEvent.TenantLegalName,
                 cancellationToken);
 
             tenant.ConfirmAccessProvisioned(domainEvent.Email, result.UserId, occurredAt);

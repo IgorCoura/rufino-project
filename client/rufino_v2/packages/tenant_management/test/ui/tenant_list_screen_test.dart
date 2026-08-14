@@ -26,6 +26,7 @@ void main() {
         child: MaterialApp(
           home: TenantListScreen(
             viewModel: TenantListViewModel(repository: repository),
+            backFallback: '/home',
             onOpenTenant: opened.add,
           ),
         ),

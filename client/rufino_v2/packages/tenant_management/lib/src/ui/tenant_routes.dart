@@ -3,16 +3,9 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:rufino_core/rufino_core.dart';
 
-import '../domain/tenant_repository.dart';
 import '../tenant_permissions.dart';
-import 'create/tenant_form_screen.dart';
-import 'create/tenant_form_viewmodel.dart';
-import 'detail/tenant_detail_screen.dart';
-import 'detail/tenant_detail_viewmodel.dart';
-import 'list/tenant_list_screen.dart';
-import 'list/tenant_list_viewmodel.dart';
-import 'select/tenant_selection_screen.dart';
 import 'select/tenant_selection_viewmodel.dart';
+import 'tenant_pages.dart';
 
 /// Route paths this module owns.
 ///
@@ -46,12 +39,9 @@ List<RouteBase> tenantManagementRoutes({
   return [
     GoRoute(
       path: TenantRoutes.select,
-      builder: (context, state) => TenantSelectionScreen(
-        viewModel: TenantSelectionViewModel(
-          repository: context.read<TenantRepository>(),
-          tenantContext: context.read<TenantContextNotifier>(),
-          onTenantSelected: onTenantSelected,
-        ),
+      builder: (context, state) => TenantSelectionPage(
+        onTenantSelected: onTenantSelected,
+        homeRoute: homeRoute,
         onSelected: () => context.go(homeRoute),
         onCreateTenant: () => context.push(TenantRoutes.create),
         onOpenBackOffice: () => context.push(TenantRoutes.list),
@@ -67,11 +57,9 @@ List<RouteBase> tenantManagementRoutes({
         scope: TenantScopes.create,
         fallback: TenantRoutes.select,
       ),
-      builder: (context, state) => TenantFormScreen(
-        viewModel: TenantFormViewModel(
-          repository: context.read<TenantRepository>(),
-          cepService: cepService,
-        ),
+      builder: (context, state) => TenantFormPage(
+        cepService: cepService,
+        backFallback: TenantRoutes.select,
         // O cadastro responde só com o id; o estado do convite está no
         // detalhe, e é lá que a pessoa descobre se o acesso chegou.
         onRegistered: (id) => context.pushReplacement(TenantRoutes.detail(id)),
@@ -84,10 +72,8 @@ List<RouteBase> tenantManagementRoutes({
         scope: TenantScopes.view,
         fallback: homeRoute,
       ),
-      builder: (context, state) => TenantListScreen(
-        viewModel: TenantListViewModel(
-          repository: context.read<TenantRepository>(),
-        ),
+      builder: (context, state) => TenantListPage(
+        backFallback: homeRoute,
         onOpenTenant: (id) => context.push(TenantRoutes.detail(id)),
       ),
     ),
@@ -98,12 +84,10 @@ List<RouteBase> tenantManagementRoutes({
         scope: TenantScopes.view,
         fallback: homeRoute,
       ),
-      builder: (context, state) => TenantDetailScreen(
-        viewModel: TenantDetailViewModel(
-          repository: context.read<TenantRepository>(),
-          tenantId: state.pathParameters['id']!,
-          cepService: cepService,
-        ),
+      builder: (context, state) => TenantDetailPage(
+        tenantId: state.pathParameters['id']!,
+        cepService: cepService,
+        backFallback: TenantRoutes.list,
       ),
     ),
   ];

@@ -39,7 +39,6 @@ public sealed class RecordingTenantAccessProvisioner : ITenantAccessProvisioner
     public Task<AccessGrantResult> GrantAccessAsync(
         TenantId tenantId,
         string emailAddress,
-        string displayName,
         CancellationToken cancellationToken = default)
     {
         if (FailGrants)
