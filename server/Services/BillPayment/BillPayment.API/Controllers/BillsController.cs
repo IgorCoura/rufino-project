@@ -45,10 +45,15 @@ public sealed class BillsController(
         [FromHeader(Name = "x-requestid")] Guid requestId,
         CancellationToken cancellationToken)
     {
+        var command = model.ToCommand(tenantId);
         var identified = new IdentifiedCommand<ImportBillCommand, ImportBillResponse>(
-            model.ToCommand(tenantId), EnsureRequestId(requestId));
+            command, EnsureRequestId(requestId));
 
-        return OkResponse(await mediator.Send(identified, cancellationToken));
+        SendingCommandLog(tenantId, command, identified.Id);
+        var result = await mediator.Send(identified, cancellationToken);
+        CommandResultLog(result, tenantId, command, identified.Id);
+
+        return OkResponse(result);
     }
 
     /// <summary>Detalhe com as doze verificações e a evidência de cada uma.</summary>
@@ -73,10 +78,15 @@ public sealed class BillsController(
         [FromHeader(Name = "x-requestid")] Guid requestId,
         CancellationToken cancellationToken)
     {
+        var command = new ValidateBillCommand(tenantId, id);
         var identified = new IdentifiedCommand<ValidateBillCommand, ValidateBillResponse>(
-            new ValidateBillCommand(tenantId, id), EnsureRequestId(requestId));
+            command, EnsureRequestId(requestId));
 
-        return OkResponse(await mediator.Send(identified, cancellationToken));
+        SendingCommandLog(id, command, identified.Id);
+        var result = await mediator.Send(identified, cancellationToken);
+        CommandResultLog(result, id, command, identified.Id);
+
+        return OkResponse(result);
     }
 
     /// <summary>Autoriza o pagamento. Nenhum boleto é pago sem passar por aqui (ADR-007).</summary>
@@ -89,10 +99,15 @@ public sealed class BillsController(
         [FromHeader(Name = "x-user-id")] Guid userId,
         CancellationToken cancellationToken)
     {
+        var command = model.ToCommand(tenantId, id, ResolveDecidingUserId(userId));
         var identified = new IdentifiedCommand<ApproveBillCommand, ApproveBillResponse>(
-            model.ToCommand(tenantId, id, ResolveDecidingUserId(userId)), EnsureRequestId(requestId));
+            command, EnsureRequestId(requestId));
 
-        return OkResponse(await mediator.Send(identified, cancellationToken));
+        SendingCommandLog(id, command, identified.Id);
+        var result = await mediator.Send(identified, cancellationToken);
+        CommandResultLog(result, id, command, identified.Id);
+
+        return OkResponse(result);
     }
 
     /// <summary>Recusa o boleto. O motivo é obrigatório.</summary>
@@ -105,10 +120,15 @@ public sealed class BillsController(
         [FromHeader(Name = "x-user-id")] Guid userId,
         CancellationToken cancellationToken)
     {
+        var command = model.ToDenyCommand(tenantId, id, ResolveDecidingUserId(userId));
         var identified = new IdentifiedCommand<DenyBillCommand, DenyBillResponse>(
-            model.ToDenyCommand(tenantId, id, ResolveDecidingUserId(userId)), EnsureRequestId(requestId));
+            command, EnsureRequestId(requestId));
 
-        return OkResponse(await mediator.Send(identified, cancellationToken));
+        SendingCommandLog(id, command, identified.Id);
+        var result = await mediator.Send(identified, cancellationToken);
+        CommandResultLog(result, id, command, identified.Id);
+
+        return OkResponse(result);
     }
 
     /// <summary>Tira o boleto do fluxo — inclusive um que nem chegou a ser verificado.</summary>
@@ -121,9 +141,14 @@ public sealed class BillsController(
         [FromHeader(Name = "x-user-id")] Guid userId,
         CancellationToken cancellationToken)
     {
+        var command = model.ToCancelCommand(tenantId, id, ResolveDecidingUserId(userId));
         var identified = new IdentifiedCommand<CancelBillCommand, CancelBillResponse>(
-            model.ToCancelCommand(tenantId, id, ResolveDecidingUserId(userId)), EnsureRequestId(requestId));
+            command, EnsureRequestId(requestId));
 
-        return OkResponse(await mediator.Send(identified, cancellationToken));
+        SendingCommandLog(id, command, identified.Id);
+        var result = await mediator.Send(identified, cancellationToken);
+        CommandResultLog(result, id, command, identified.Id);
+
+        return OkResponse(result);
     }
 }

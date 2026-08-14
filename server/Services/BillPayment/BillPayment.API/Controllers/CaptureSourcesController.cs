@@ -55,10 +55,15 @@ public sealed class CaptureSourcesController(
         [FromHeader(Name = "x-requestid")] Guid requestId,
         CancellationToken cancellationToken)
     {
+        var command = model.ToCommand(tenantId);
         var identified = new IdentifiedCommand<ConnectCaptureSourceCommand, ConnectCaptureSourceResponse>(
-            model.ToCommand(tenantId), EnsureRequestId(requestId));
+            command, EnsureRequestId(requestId));
 
-        return OkResponse(await mediator.Send(identified, cancellationToken));
+        SendingCommandLog(tenantId, command, identified.Id);
+        var result = await mediator.Send(identified, cancellationToken);
+        CommandResultLog(result, tenantId, command, identified.Id);
+
+        return OkResponse(result);
     }
 
     [HttpPut("{id:guid}/name")]
@@ -69,10 +74,15 @@ public sealed class CaptureSourcesController(
         [FromHeader(Name = "x-requestid")] Guid requestId,
         CancellationToken cancellationToken)
     {
+        var command = model.ToCommand(tenantId, id);
         var identified = new IdentifiedCommand<RenameCaptureSourceCommand, RenameCaptureSourceResponse>(
-            model.ToCommand(tenantId, id), EnsureRequestId(requestId));
+            command, EnsureRequestId(requestId));
 
-        return OkResponse(await mediator.Send(identified, cancellationToken));
+        SendingCommandLog(id, command, identified.Id);
+        var result = await mediator.Send(identified, cancellationToken);
+        CommandResultLog(result, id, command, identified.Id);
+
+        return OkResponse(result);
     }
 
     [HttpPut("{id:guid}/activation")]
@@ -83,10 +93,15 @@ public sealed class CaptureSourcesController(
         [FromHeader(Name = "x-requestid")] Guid requestId,
         CancellationToken cancellationToken)
     {
+        var command = model.ToCommand(tenantId, id);
         var identified = new IdentifiedCommand<AlterCaptureSourceActivationCommand, AlterCaptureSourceActivationResponse>(
-            model.ToCommand(tenantId, id), EnsureRequestId(requestId));
+            command, EnsureRequestId(requestId));
 
-        return OkResponse(await mediator.Send(identified, cancellationToken));
+        SendingCommandLog(id, command, identified.Id);
+        var result = await mediator.Send(identified, cancellationToken);
+        CommandResultLog(result, id, command, identified.Id);
+
+        return OkResponse(result);
     }
 
     /// <summary>Rotação do segredo, ou reconexão depois de uma revogação.</summary>
@@ -98,10 +113,15 @@ public sealed class CaptureSourcesController(
         [FromHeader(Name = "x-requestid")] Guid requestId,
         CancellationToken cancellationToken)
     {
+        var command = model.ToCommand(tenantId, id);
         var identified = new IdentifiedCommand<ReplaceCaptureSourceCredentialCommand, ReplaceCaptureSourceCredentialResponse>(
-            model.ToCommand(tenantId, id), EnsureRequestId(requestId));
+            command, EnsureRequestId(requestId));
 
-        return OkResponse(await mediator.Send(identified, cancellationToken));
+        SendingCommandLog(id, command, identified.Id);
+        var result = await mediator.Send(identified, cancellationToken);
+        CommandResultLog(result, id, command, identified.Id);
+
+        return OkResponse(result);
     }
 
     /// <summary>
@@ -116,10 +136,15 @@ public sealed class CaptureSourcesController(
         [FromHeader(Name = "x-requestid")] Guid requestId,
         CancellationToken cancellationToken)
     {
+        var command = model.ToCommand(tenantId, id);
         var identified = new IdentifiedCommand<ChangeCaptureSourceFolderCommand, ChangeCaptureSourceFolderResponse>(
-            model.ToCommand(tenantId, id), EnsureRequestId(requestId));
+            command, EnsureRequestId(requestId));
 
-        return OkResponse(await mediator.Send(identified, cancellationToken));
+        SendingCommandLog(id, command, identified.Id);
+        var result = await mediator.Send(identified, cancellationToken);
+        CommandResultLog(result, id, command, identified.Id);
+
+        return OkResponse(result);
     }
 
     /// <summary>
@@ -137,10 +162,15 @@ public sealed class CaptureSourcesController(
         [FromHeader(Name = "x-requestid")] Guid requestId,
         CancellationToken cancellationToken)
     {
+        var command = new SyncCaptureSourceCommand(tenantId, id);
         var identified = new IdentifiedCommand<SyncCaptureSourceCommand, SyncCaptureSourceResponse>(
-            new SyncCaptureSourceCommand(tenantId, id), EnsureRequestId(requestId));
+            command, EnsureRequestId(requestId));
 
-        return OkResponse(await mediator.Send(identified, cancellationToken));
+        SendingCommandLog(id, command, identified.Id);
+        var result = await mediator.Send(identified, cancellationToken);
+        CommandResultLog(result, id, command, identified.Id);
+
+        return OkResponse(result);
     }
 
     /// <summary>
@@ -158,10 +188,15 @@ public sealed class CaptureSourcesController(
         [FromHeader(Name = "x-requestid")] Guid requestId,
         CancellationToken cancellationToken)
     {
+        var command = model.ToCommand(tenantId, id);
         var identified = new IdentifiedCommand<AddCaptureSourceFolderCommand, AddCaptureSourceFolderResponse>(
-            model.ToCommand(tenantId, id), EnsureRequestId(requestId));
+            command, EnsureRequestId(requestId));
 
-        return OkResponse(await mediator.Send(identified, cancellationToken));
+        SendingCommandLog(id, command, identified.Id);
+        var result = await mediator.Send(identified, cancellationToken);
+        CommandResultLog(result, id, command, identified.Id);
+
+        return OkResponse(result);
     }
 
     /// <summary>
@@ -179,10 +214,15 @@ public sealed class CaptureSourcesController(
         [FromHeader(Name = "x-requestid")] Guid requestId,
         CancellationToken cancellationToken)
     {
+        var command = new RemoveCaptureSourceFolderCommand(tenantId, id, folderPath);
         var identified = new IdentifiedCommand<RemoveCaptureSourceFolderCommand, RemoveCaptureSourceFolderResponse>(
-            new RemoveCaptureSourceFolderCommand(tenantId, id, folderPath), EnsureRequestId(requestId));
+            command, EnsureRequestId(requestId));
 
-        return OkResponse(await mediator.Send(identified, cancellationToken));
+        SendingCommandLog(id, command, identified.Id);
+        var result = await mediator.Send(identified, cancellationToken);
+        CommandResultLog(result, id, command, identified.Id);
+
+        return OkResponse(result);
     }
 
     /// <summary>
@@ -201,10 +241,15 @@ public sealed class CaptureSourcesController(
         [FromHeader(Name = "x-requestid")] Guid requestId,
         CancellationToken cancellationToken)
     {
+        var command = new RescanCaptureSourceCommand(tenantId, id);
         var identified = new IdentifiedCommand<RescanCaptureSourceCommand, RescanCaptureSourceResponse>(
-            new RescanCaptureSourceCommand(tenantId, id), EnsureRequestId(requestId));
+            command, EnsureRequestId(requestId));
 
-        return OkResponse(await mediator.Send(identified, cancellationToken));
+        SendingCommandLog(id, command, identified.Id);
+        var result = await mediator.Send(identified, cancellationToken);
+        CommandResultLog(result, id, command, identified.Id);
+
+        return OkResponse(result);
     }
 
     /// <summary>Desconecta a fonte e apaga a credencial. Os itens já ingeridos permanecem.</summary>
@@ -215,9 +260,14 @@ public sealed class CaptureSourcesController(
         [FromHeader(Name = "x-requestid")] Guid requestId,
         CancellationToken cancellationToken)
     {
+        var command = new DisconnectCaptureSourceCommand(tenantId, id);
         var identified = new IdentifiedCommand<DisconnectCaptureSourceCommand, DisconnectCaptureSourceResponse>(
-            new DisconnectCaptureSourceCommand(tenantId, id), EnsureRequestId(requestId));
+            command, EnsureRequestId(requestId));
 
-        return OkResponse(await mediator.Send(identified, cancellationToken));
+        SendingCommandLog(id, command, identified.Id);
+        var result = await mediator.Send(identified, cancellationToken);
+        CommandResultLog(result, id, command, identified.Id);
+
+        return OkResponse(result);
     }
 }

@@ -37,10 +37,15 @@ public sealed class PayerProfileController(
         [FromHeader(Name = "x-requestid")] Guid requestId,
         CancellationToken cancellationToken)
     {
+        var command = model.ToCommand(tenantId);
         var identified = new IdentifiedCommand<RegisterPayerProfileCommand, RegisterPayerProfileResponse>(
-            model.ToCommand(tenantId), EnsureRequestId(requestId));
+            command, EnsureRequestId(requestId));
 
-        return OkResponse(await mediator.Send(identified, cancellationToken));
+        SendingCommandLog(tenantId, command, identified.Id);
+        var result = await mediator.Send(identified, cancellationToken);
+        CommandResultLog(result, tenantId, command, identified.Id);
+
+        return OkResponse(result);
     }
 
     [HttpPut("legal-name")]
@@ -50,10 +55,15 @@ public sealed class PayerProfileController(
         [FromHeader(Name = "x-requestid")] Guid requestId,
         CancellationToken cancellationToken)
     {
+        var command = model.ToCommand(tenantId);
         var identified = new IdentifiedCommand<RenamePayerProfileCommand, RenamePayerProfileResponse>(
-            model.ToCommand(tenantId), EnsureRequestId(requestId));
+            command, EnsureRequestId(requestId));
 
-        return OkResponse(await mediator.Send(identified, cancellationToken));
+        SendingCommandLog(tenantId, command, identified.Id);
+        var result = await mediator.Send(identified, cancellationToken);
+        CommandResultLog(result, tenantId, command, identified.Id);
+
+        return OkResponse(result);
     }
 
     [HttpPost("tax-ids")]
@@ -63,10 +73,15 @@ public sealed class PayerProfileController(
         [FromHeader(Name = "x-requestid")] Guid requestId,
         CancellationToken cancellationToken)
     {
+        var command = model.ToAddCommand(tenantId);
         var identified = new IdentifiedCommand<AddPayerProfileTaxIdCommand, AddPayerProfileTaxIdResponse>(
-            model.ToAddCommand(tenantId), EnsureRequestId(requestId));
+            command, EnsureRequestId(requestId));
 
-        return OkResponse(await mediator.Send(identified, cancellationToken));
+        SendingCommandLog(tenantId, command, identified.Id);
+        var result = await mediator.Send(identified, cancellationToken);
+        CommandResultLog(result, tenantId, command, identified.Id);
+
+        return OkResponse(result);
     }
 
     /// <summary>
@@ -80,10 +95,15 @@ public sealed class PayerProfileController(
         [FromHeader(Name = "x-requestid")] Guid requestId,
         CancellationToken cancellationToken)
     {
+        var command = new RemovePayerProfileTaxIdCommand(tenantId, taxId);
         var identified = new IdentifiedCommand<RemovePayerProfileTaxIdCommand, RemovePayerProfileTaxIdResponse>(
-            new RemovePayerProfileTaxIdCommand(tenantId, taxId), EnsureRequestId(requestId));
+            command, EnsureRequestId(requestId));
 
-        return OkResponse(await mediator.Send(identified, cancellationToken));
+        SendingCommandLog(tenantId, command, identified.Id);
+        var result = await mediator.Send(identified, cancellationToken);
+        CommandResultLog(result, tenantId, command, identified.Id);
+
+        return OkResponse(result);
     }
 
     [HttpPut("cnpj-root-matching")]
@@ -93,10 +113,15 @@ public sealed class PayerProfileController(
         [FromHeader(Name = "x-requestid")] Guid requestId,
         CancellationToken cancellationToken)
     {
+        var command = model.ToCommand(tenantId);
         var identified = new IdentifiedCommand<AlterCnpjRootMatchingCommand, AlterCnpjRootMatchingResponse>(
-            model.ToCommand(tenantId), EnsureRequestId(requestId));
+            command, EnsureRequestId(requestId));
 
-        return OkResponse(await mediator.Send(identified, cancellationToken));
+        SendingCommandLog(tenantId, command, identified.Id);
+        var result = await mediator.Send(identified, cancellationToken);
+        CommandResultLog(result, tenantId, command, identified.Id);
+
+        return OkResponse(result);
     }
 
     [HttpPut("asaas-account")]
@@ -106,9 +131,14 @@ public sealed class PayerProfileController(
         [FromHeader(Name = "x-requestid")] Guid requestId,
         CancellationToken cancellationToken)
     {
+        var command = model.ToCommand(tenantId);
         var identified = new IdentifiedCommand<LinkAsaasAccountCommand, LinkAsaasAccountResponse>(
-            model.ToCommand(tenantId), EnsureRequestId(requestId));
+            command, EnsureRequestId(requestId));
 
-        return OkResponse(await mediator.Send(identified, cancellationToken));
+        SendingCommandLog(tenantId, command, identified.Id);
+        var result = await mediator.Send(identified, cancellationToken);
+        CommandResultLog(result, tenantId, command, identified.Id);
+
+        return OkResponse(result);
     }
 }

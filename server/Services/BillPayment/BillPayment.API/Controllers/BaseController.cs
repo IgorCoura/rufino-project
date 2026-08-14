@@ -1,6 +1,7 @@
 namespace BillPayment.API.Controllers;
 
 using System.Security.Claims;
+using BillPayment.Application.Mediator;
 using Microsoft.AspNetCore.Mvc;
 
 [ApiController]
@@ -41,34 +42,52 @@ public class BaseController(ILogger<BaseController> logger) : ControllerBase
         }
     }
 
+    // Substitui o payload de um ISensitiveCommand. Não é "[REDACTED]" genérico de propósito: a linha
+    // precisa dizer que a omissão foi decidida, senão ela lê como campo que faltou.
+    private const string SENSITIVE_PAYLOAD = "[omitido: ISensitiveCommand]";
+
+    /// <summary>
+    /// Registra o Command imediatamente antes do despacho. Sai o nome do Command, o id da rota e o
+    /// <c>x-requestid</c> efetivo — os três que permitem correlacionar esta linha com a do resultado,
+    /// com o <c>LoggingBehavior</c> e com o <c>IdentifiedCommandHandler</c>.
+    /// </summary>
+    /// <remarks>
+    /// O payload é destrinchado por <c>{@Command}</c> e por isso passa por <see cref="Loggable"/>:
+    /// credencial de cofre e instrumento de pagamento nunca entram no log (ADR-009).
+    /// </remarks>
     protected void SendingCommandLog(object? commandId, object? command, Guid requestId)
     {
         if (!_logger.IsEnabled(LogLevel.Information))
             return;
 
         _logger.LogInformation(
-            "----- Sending command: {CommandName} - {IdProperty}: {CommandId} ({@Command}) - RequestId : {RequestId} -----",
+            "----- Sending command: {CommandName} - Id: {CommandId} - RequestId: {RequestId} ({@Command}) -----",
             command?.GetType().Name,
-            commandId?.GetType().Name,
             commandId,
-            command,
-            requestId);
+            requestId,
+            Loggable(command));
     }
 
+    /// <summary>
+    /// Registra o desfecho do despacho. O payload NÃO se repete aqui — ele já saiu na linha de envio
+    /// e as duas se correlacionam pelo <c>RequestId</c>; repeti-lo dobraria o volume e a superfície de
+    /// vazamento sem acrescentar informação.
+    /// </summary>
     protected void CommandResultLog(object? result, object? commandId, object? command, Guid requestId)
     {
         if (!_logger.IsEnabled(LogLevel.Information))
             return;
 
         _logger.LogInformation(
-            "----- Command result: {@Result} - {CommandName} - {IdProperty}: {CommandId} ({@Command}) - RequestId : {RequestId} -----",
+            "----- Command result: {@Result} - {CommandName} - Id: {CommandId} - RequestId: {RequestId} -----",
             result,
             command?.GetType().Name,
-            commandId?.GetType().Name,
             commandId,
-            command,
             requestId);
     }
+
+    private static object? Loggable(object? command)
+        => command is ISensitiveCommand ? SENSITIVE_PAYLOAD : command;
 
     /// <summary>
     /// Quem está decidindo. Prefere o <c>sub</c> do token; sem token, cai para o header.

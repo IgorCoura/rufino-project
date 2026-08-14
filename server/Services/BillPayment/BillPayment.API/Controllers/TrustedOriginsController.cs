@@ -63,7 +63,11 @@ public sealed class TrustedOriginsController(
         var identified = new IdentifiedCommand<RegisterTrustedOriginCommand, RegisterTrustedOriginResponse>(
             command, EnsureRequestId(requestId));
 
-        return OkResponse(await mediator.Send(identified, cancellationToken));
+        SendingCommandLog(tenantId, command, identified.Id);
+        var result = await mediator.Send(identified, cancellationToken);
+        CommandResultLog(result, tenantId, command, identified.Id);
+
+        return OkResponse(result);
     }
 
     [HttpPut("{id:guid}/decision")]
@@ -78,7 +82,11 @@ public sealed class TrustedOriginsController(
         var identified = new IdentifiedCommand<ChangeTrustedOriginDecisionCommand, ChangeTrustedOriginDecisionResponse>(
             command, EnsureRequestId(requestId));
 
-        return OkResponse(await mediator.Send(identified, cancellationToken));
+        SendingCommandLog(id, command, identified.Id);
+        var result = await mediator.Send(identified, cancellationToken);
+        CommandResultLog(result, id, command, identified.Id);
+
+        return OkResponse(result);
     }
 
     [HttpDelete("{id:guid}")]
@@ -88,9 +96,14 @@ public sealed class TrustedOriginsController(
         [FromHeader(Name = "x-requestid")] Guid requestId,
         CancellationToken cancellationToken)
     {
+        var command = new DeleteTrustedOriginCommand(tenantId, id);
         var identified = new IdentifiedCommand<DeleteTrustedOriginCommand, DeleteTrustedOriginResponse>(
-            new DeleteTrustedOriginCommand(tenantId, id), EnsureRequestId(requestId));
+            command, EnsureRequestId(requestId));
 
-        return OkResponse(await mediator.Send(identified, cancellationToken));
+        SendingCommandLog(id, command, identified.Id);
+        var result = await mediator.Send(identified, cancellationToken);
+        CommandResultLog(result, id, command, identified.Id);
+
+        return OkResponse(result);
     }
 }

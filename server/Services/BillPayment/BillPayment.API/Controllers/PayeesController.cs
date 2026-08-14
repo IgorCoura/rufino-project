@@ -62,10 +62,15 @@ public sealed class PayeesController(
         [FromHeader(Name = "x-requestid")] Guid requestId,
         CancellationToken cancellationToken)
     {
+        var command = model.ToCommand(tenantId);
         var identified = new IdentifiedCommand<RegisterPayeeCommand, RegisterPayeeResponse>(
-            model.ToCommand(tenantId), EnsureRequestId(requestId));
+            command, EnsureRequestId(requestId));
 
-        return OkResponse(await mediator.Send(identified, cancellationToken));
+        SendingCommandLog(tenantId, command, identified.Id);
+        var result = await mediator.Send(identified, cancellationToken);
+        CommandResultLog(result, tenantId, command, identified.Id);
+
+        return OkResponse(result);
     }
 
     [HttpPut("{id:guid}/legal-name")]
@@ -76,10 +81,15 @@ public sealed class PayeesController(
         [FromHeader(Name = "x-requestid")] Guid requestId,
         CancellationToken cancellationToken)
     {
+        var command = model.ToCommand(tenantId, id);
         var identified = new IdentifiedCommand<RenamePayeeCommand, RenamePayeeResponse>(
-            model.ToCommand(tenantId, id), EnsureRequestId(requestId));
+            command, EnsureRequestId(requestId));
 
-        return OkResponse(await mediator.Send(identified, cancellationToken));
+        SendingCommandLog(id, command, identified.Id);
+        var result = await mediator.Send(identified, cancellationToken);
+        CommandResultLog(result, id, command, identified.Id);
+
+        return OkResponse(result);
     }
 
     [HttpPut("{id:guid}/amount-policy")]
@@ -90,10 +100,15 @@ public sealed class PayeesController(
         [FromHeader(Name = "x-requestid")] Guid requestId,
         CancellationToken cancellationToken)
     {
+        var command = model.ToCommand(tenantId, id);
         var identified = new IdentifiedCommand<AlterPayeeAmountPolicyCommand, AlterPayeeAmountPolicyResponse>(
-            model.ToCommand(tenantId, id), EnsureRequestId(requestId));
+            command, EnsureRequestId(requestId));
 
-        return OkResponse(await mediator.Send(identified, cancellationToken));
+        SendingCommandLog(id, command, identified.Id);
+        var result = await mediator.Send(identified, cancellationToken);
+        CommandResultLog(result, id, command, identified.Id);
+
+        return OkResponse(result);
     }
 
     [HttpPost("{id:guid}/aliases")]
@@ -104,10 +119,15 @@ public sealed class PayeesController(
         [FromHeader(Name = "x-requestid")] Guid requestId,
         CancellationToken cancellationToken)
     {
+        var command = model.ToAddCommand(tenantId, id);
         var identified = new IdentifiedCommand<AddPayeeAliasCommand, AddPayeeAliasResponse>(
-            model.ToAddCommand(tenantId, id), EnsureRequestId(requestId));
+            command, EnsureRequestId(requestId));
 
-        return OkResponse(await mediator.Send(identified, cancellationToken));
+        SendingCommandLog(id, command, identified.Id);
+        var result = await mediator.Send(identified, cancellationToken);
+        CommandResultLog(result, id, command, identified.Id);
+
+        return OkResponse(result);
     }
 
     /// <summary>O apelido vai na query: é texto livre e pode conter barra.</summary>
@@ -119,10 +139,15 @@ public sealed class PayeesController(
         [FromHeader(Name = "x-requestid")] Guid requestId,
         CancellationToken cancellationToken)
     {
+        var command = new RemovePayeeAliasCommand(tenantId, id, alias);
         var identified = new IdentifiedCommand<RemovePayeeAliasCommand, RemovePayeeAliasResponse>(
-            new RemovePayeeAliasCommand(tenantId, id, alias), EnsureRequestId(requestId));
+            command, EnsureRequestId(requestId));
 
-        return OkResponse(await mediator.Send(identified, cancellationToken));
+        SendingCommandLog(id, command, identified.Id);
+        var result = await mediator.Send(identified, cancellationToken);
+        CommandResultLog(result, id, command, identified.Id);
+
+        return OkResponse(result);
     }
 
     [HttpPost("{id:guid}/accepted-banks")]
@@ -133,10 +158,15 @@ public sealed class PayeesController(
         [FromHeader(Name = "x-requestid")] Guid requestId,
         CancellationToken cancellationToken)
     {
+        var command = model.ToAllowCommand(tenantId, id);
         var identified = new IdentifiedCommand<AllowPayeeBankCommand, AllowPayeeBankResponse>(
-            model.ToAllowCommand(tenantId, id), EnsureRequestId(requestId));
+            command, EnsureRequestId(requestId));
 
-        return OkResponse(await mediator.Send(identified, cancellationToken));
+        SendingCommandLog(id, command, identified.Id);
+        var result = await mediator.Send(identified, cancellationToken);
+        CommandResultLog(result, id, command, identified.Id);
+
+        return OkResponse(result);
     }
 
     [HttpDelete("{id:guid}/accepted-banks/{bankCode}")]
@@ -147,10 +177,15 @@ public sealed class PayeesController(
         [FromHeader(Name = "x-requestid")] Guid requestId,
         CancellationToken cancellationToken)
     {
+        var command = new DisallowPayeeBankCommand(tenantId, id, bankCode);
         var identified = new IdentifiedCommand<DisallowPayeeBankCommand, DisallowPayeeBankResponse>(
-            new DisallowPayeeBankCommand(tenantId, id, bankCode), EnsureRequestId(requestId));
+            command, EnsureRequestId(requestId));
 
-        return OkResponse(await mediator.Send(identified, cancellationToken));
+        SendingCommandLog(id, command, identified.Id);
+        var result = await mediator.Send(identified, cancellationToken);
+        CommandResultLog(result, id, command, identified.Id);
+
+        return OkResponse(result);
     }
 
     [HttpPut("{id:guid}/activation")]
@@ -161,10 +196,15 @@ public sealed class PayeesController(
         [FromHeader(Name = "x-requestid")] Guid requestId,
         CancellationToken cancellationToken)
     {
+        var command = model.ToCommand(tenantId, id);
         var identified = new IdentifiedCommand<AlterPayeeActivationCommand, AlterPayeeActivationResponse>(
-            model.ToCommand(tenantId, id), EnsureRequestId(requestId));
+            command, EnsureRequestId(requestId));
 
-        return OkResponse(await mediator.Send(identified, cancellationToken));
+        SendingCommandLog(id, command, identified.Id);
+        var result = await mediator.Send(identified, cancellationToken);
+        CommandResultLog(result, id, command, identified.Id);
+
+        return OkResponse(result);
     }
 
     [HttpDelete("{id:guid}")]
@@ -174,9 +214,14 @@ public sealed class PayeesController(
         [FromHeader(Name = "x-requestid")] Guid requestId,
         CancellationToken cancellationToken)
     {
+        var command = new DeletePayeeCommand(tenantId, id);
         var identified = new IdentifiedCommand<DeletePayeeCommand, DeletePayeeResponse>(
-            new DeletePayeeCommand(tenantId, id), EnsureRequestId(requestId));
+            command, EnsureRequestId(requestId));
 
-        return OkResponse(await mediator.Send(identified, cancellationToken));
+        SendingCommandLog(id, command, identified.Id);
+        var result = await mediator.Send(identified, cancellationToken);
+        CommandResultLog(result, id, command, identified.Id);
+
+        return OkResponse(result);
     }
 }

@@ -75,10 +75,15 @@ public sealed class ExpectationsController(
         [FromHeader(Name = "x-requestid")] Guid requestId,
         CancellationToken cancellationToken)
     {
+        var command = model.ToCommand(tenantId);
         var identified = new IdentifiedCommand<RegisterBillExpectationCommand, RegisterBillExpectationResponse>(
-            model.ToCommand(tenantId), EnsureRequestId(requestId));
+            command, EnsureRequestId(requestId));
 
-        return OkResponse(await mediator.Send(identified, cancellationToken));
+        SendingCommandLog(tenantId, command, identified.Id);
+        var result = await mediator.Send(identified, cancellationToken);
+        CommandResultLog(result, tenantId, command, identified.Id);
+
+        return OkResponse(result);
     }
 
     /// <summary>Pausa, retoma ou desativa o monitoramento.</summary>
@@ -90,10 +95,15 @@ public sealed class ExpectationsController(
         [FromHeader(Name = "x-requestid")] Guid requestId,
         CancellationToken cancellationToken)
     {
+        var command = model.ToCommand(tenantId, id);
         var identified = new IdentifiedCommand<AlterBillExpectationWatchCommand, AlterBillExpectationWatchResponse>(
-            model.ToCommand(tenantId, id), EnsureRequestId(requestId));
+            command, EnsureRequestId(requestId));
 
-        return OkResponse(await mediator.Send(identified, cancellationToken));
+        SendingCommandLog(id, command, identified.Id);
+        var result = await mediator.Send(identified, cancellationToken);
+        CommandResultLog(result, id, command, identified.Id);
+
+        return OkResponse(result);
     }
 
     /// <summary>
@@ -113,10 +123,14 @@ public sealed class ExpectationsController(
         [FromHeader(Name = "x-user-id")] Guid userId,
         CancellationToken cancellationToken)
     {
+        var command = model.ToCommand(tenantId, id, cycleId, ResolveDecidingUserId(userId));
         var identified = new IdentifiedCommand<WaiveExpectationCycleCommand, WaiveExpectationCycleResponse>(
-            model.ToCommand(tenantId, id, cycleId, ResolveDecidingUserId(userId)),
-            EnsureRequestId(requestId));
+            command, EnsureRequestId(requestId));
 
-        return OkResponse(await mediator.Send(identified, cancellationToken));
+        SendingCommandLog(id, command, identified.Id);
+        var result = await mediator.Send(identified, cancellationToken);
+        CommandResultLog(result, id, command, identified.Id);
+
+        return OkResponse(result);
     }
 }

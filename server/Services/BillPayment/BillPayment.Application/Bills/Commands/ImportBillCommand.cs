@@ -24,7 +24,7 @@ public sealed record ImportBillCommand(
     string? SenderAddress,
     string? ExternalMessageId,
     string? ContentHash,
-    string? StorageKey) : IRequest<ImportBillResponse>;
+    string? StorageKey) : IRequest<ImportBillResponse>, ISensitiveCommand;
 
 public sealed record ImportBillResponse(Guid Id, string Kind, string Rail);
 

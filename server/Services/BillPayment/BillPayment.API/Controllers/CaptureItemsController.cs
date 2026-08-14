@@ -66,10 +66,15 @@ public sealed class CaptureItemsController(
         [FromHeader(Name = "x-requestid")] Guid requestId,
         CancellationToken cancellationToken)
     {
+        var command = new ReprocessCaptureItemCommand(tenantId, id);
         var identified = new IdentifiedCommand<ReprocessCaptureItemCommand, ReprocessCaptureItemResponse>(
-            new ReprocessCaptureItemCommand(tenantId, id), EnsureRequestId(requestId));
+            command, EnsureRequestId(requestId));
 
-        return OkResponse(await mediator.Send(identified, cancellationToken));
+        SendingCommandLog(id, command, identified.Id);
+        var result = await mediator.Send(identified, cancellationToken);
+        CommandResultLog(result, id, command, identified.Id);
+
+        return OkResponse(result);
     }
 
     /// <summary>
@@ -96,10 +101,14 @@ public sealed class CaptureItemsController(
         [FromHeader(Name = "x-user-id")] Guid userId,
         CancellationToken cancellationToken)
     {
+        var command = new ClaimCaptureItemCommand(tenantId, id, ResolveDecidingUserId(userId));
         var identified = new IdentifiedCommand<ClaimCaptureItemCommand, ClaimCaptureItemResponse>(
-            new ClaimCaptureItemCommand(tenantId, id, ResolveDecidingUserId(userId)),
-            EnsureRequestId(requestId));
+            command, EnsureRequestId(requestId));
 
-        return OkResponse(await mediator.Send(identified, cancellationToken));
+        SendingCommandLog(id, command, identified.Id);
+        var result = await mediator.Send(identified, cancellationToken);
+        CommandResultLog(result, id, command, identified.Id);
+
+        return OkResponse(result);
     }
 }

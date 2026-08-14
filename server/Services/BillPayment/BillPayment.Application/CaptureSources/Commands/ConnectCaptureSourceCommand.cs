@@ -22,7 +22,7 @@ public sealed record ConnectCaptureSourceCommand(
     string DisplayName,
     string Address,
     string Credential,
-    string? FolderPath) : IRequest<ConnectCaptureSourceResponse>;
+    string? FolderPath) : IRequest<ConnectCaptureSourceResponse>, ISensitiveCommand;
 
 /// <summary>
 /// <paramref name="AlreadyMonitoredByAnotherAccount"/> é o aviso do ADR-008 — e é
