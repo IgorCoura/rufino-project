@@ -366,6 +366,19 @@ namespace PeopleManagement.Domain.AggregatesModel.DocumentAggregate
         public bool CoversRequirement => Status == DocumentUnitStatus.OK ||
             Status == DocumentUnitStatus.Warning ||
             Status == DocumentUnitStatus.NotApplicable;
+
+        /// <summary>
+        /// Se esta unidade ainda ocupa a competência em que está — ou seja, se ela responde por aquele período,
+        /// seja cobrindo (OK, A Vencer, Não Aplicável), em curso (pendente, requer validação, aguardando
+        /// assinatura) ou já caducada (vencida, esperando substituto).
+        ///
+        /// Mais amplo que <see cref="CoversRequirement"/> de propósito: quem pergunta isto quer saber se há
+        /// espaço para criar OUTRA unidade na competência, e uma pendente já é o espaço ocupado. Só
+        /// <see cref="DocumentUnitStatus.Invalid"/> (nunca teve valor) e <see cref="DocumentUnitStatus.Deprecated"/>
+        /// (já foi substituída) desocupam.
+        /// </summary>
+        public bool OccupiesPeriod => Status != DocumentUnitStatus.Invalid &&
+            Status != DocumentUnitStatus.Deprecated;
         public string GetNameWithExtension => $"{Name}.{Extension}";
         public bool CanEdit => (Name == null || Name.IsNullOrEmpty) && Extension == null;
 

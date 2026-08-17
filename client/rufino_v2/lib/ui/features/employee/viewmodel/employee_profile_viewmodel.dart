@@ -1825,6 +1825,35 @@ class EmployeeProfileViewModel extends ChangeNotifier {
     return bytes;
   }
 
+  /// Creates a document unit for the competência of [date] (`dd/MM/yyyy`) and
+  /// refreshes the document.
+  ///
+  /// The rule that decides whether the competência is free lives on the server —
+  /// it sees every unit of the document, while this page holds one page of them.
+  /// So its message is what reaches the user when the creation is refused.
+  Future<void> createDocumentUnit(String documentId, String date) async {
+    final companyId = _companyId;
+    final currentProfile = _profile;
+    if (companyId == null || currentProfile == null) return;
+
+    final result = await _employeeRepository.createDocumentUnit(
+      companyId,
+      currentProfile.id,
+      documentId,
+      date,
+    );
+
+    result.fold(
+      onSuccess: (_) => _snackMessage = 'Documento criado com sucesso.',
+      onError: (error, __) => _snackMessage =
+          extractServerMessages(error).firstOrNull ??
+              'Erro ao criar documento.',
+    );
+
+    notifyListeners();
+    await loadDocumentUnits(documentId);
+  }
+
   /// Deprecates a document unit and refreshes the document.
   ///
   /// The API leaves a replacement pending unit in its place, so the reload

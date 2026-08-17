@@ -107,6 +107,33 @@ namespace PeopleManagement.Domain.AggregatesModel.DocumentAggregate
         }
 
         /// <summary>
+        /// Cria a unidade de UMA competência específica, pedida à mão pelo RH — o caso do documento por
+        /// competência cuja unidade de um período nunca chegou a ser criada.
+        ///
+        /// Diferente de <see cref="NewDocumentUnit"/>, que reaproveita a pendente equivalente em silêncio: aqui
+        /// competência ocupada é recusa, não devolução da unidade existente. Quem pede a criação manual quer uma
+        /// unidade A MAIS; se já há quem responda por aquele período — cobrindo, em curso ou vencida — a saída é
+        /// depreciar ou invalidar a existente antes. Só inválida e depreciada desocupam
+        /// (<see cref="DocumentUnit.OccupiesPeriod"/>).
+        ///
+        /// [referenceDate] é a data do documento: situa a unidade na competência e vira o <c>Date</c> dela.
+        /// </summary>
+        public DocumentUnit NewDocumentUnitForPeriod(Guid documentUnitId, PeriodType periodType, bool usePreviousPeriod,
+            DateTime referenceDate)
+        {
+            var candidatePeriod = CandidatePeriodFor(periodType, usePreviousPeriod, referenceDate);
+
+            var occupyingUnit = DocumentsUnits.FirstOrDefault(x => x.OccupiesPeriod && x.Period != null
+                && x.Period.Equals(candidatePeriod));
+
+            if (occupyingUnit is not null)
+                throw new DomainException(this, DomainErrors.Document.PeriodAlreadyHasDocumentUnit(
+                    candidatePeriod.Describe(), occupyingUnit.Status.Name));
+
+            return NewDocumentUnit(documentUnitId, periodType, usePreviousPeriod, referenceDate);
+        }
+
+        /// <summary>
         /// Cria a substituta de [replacedUnitId] — a unidade que renova a que está saindo de vigência.
         ///
         /// É uma <see cref="NewDocumentUnit"/> com o vínculo carimbado, e por isso herda o reaproveitamento da

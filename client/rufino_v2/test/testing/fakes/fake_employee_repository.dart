@@ -31,6 +31,7 @@ class FakeEmployeeRepository implements EmployeeRepository {
   EmployeeProfile? _employeeProfile;
   bool _shouldFail = false;
   Object? _editIdCardError;
+  Object? _createDocumentUnitError;
   String _createdId = 'new-employee-id';
   Uint8List? _imageBytes;
 
@@ -153,6 +154,11 @@ class FakeEmployeeRepository implements EmployeeRepository {
   /// other method (loads included) working normally.
   void setEditIdCardError(Object? error) => _editIdCardError = error;
 
+  /// A specific error returned only by [createDocumentUnit], keeping the
+  /// document reload that follows it working normally.
+  void setCreateDocumentUnitError(Object? error) =>
+      _createDocumentUnitError = error;
+
   /// The id returned by [createEmployee].
   void setCreatedId(String id) => _createdId = id;
 
@@ -273,6 +279,7 @@ class FakeEmployeeRepository implements EmployeeRepository {
   String? lastSavedMedicalExamDate;
   String? lastSavedMedicalExamValidity;
   String? lastSavedRoleId;
+  String? lastCreatedDocumentUnitDate;
   EmployeeDependent? lastCreatedDependent;
   EmployeeDependent? lastEditedDependent;
   String? lastRemovedDependentName;
@@ -796,6 +803,23 @@ class FakeEmployeeRepository implements EmployeeRepository {
       return Result.error(Exception('Document not found'));
     }
     return Result.success(doc);
+  }
+
+  @override
+  Future<Result<void>> createDocumentUnit(
+    String companyId,
+    String employeeId,
+    String documentId,
+    String date,
+  ) async {
+    lastCreatedDocumentUnitDate = date;
+    if (_createDocumentUnitError != null) {
+      return Result.error(_createDocumentUnitError!);
+    }
+    if (_shouldFail) {
+      return Result.error(Exception('createDocumentUnit failed'));
+    }
+    return const Result<void>.success(null);
   }
 
   @override

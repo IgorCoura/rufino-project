@@ -677,6 +677,24 @@ class EmployeeApiService {
     return EmployeeDocumentApiModel.fromJson(json);
   }
 
+  /// Creates a document unit for the competência of the date in [body].
+  ///
+  /// The API refuses when that competência already has a unit that is neither
+  /// invalid nor obsolete, and when the document is not organized by
+  /// competência at all.
+  Future<void> createDocumentUnit(
+    String companyId,
+    Map<String, dynamic> body,
+  ) async {
+    final uri = Uri.https(baseUrl, '/api/v1/$companyId/Document');
+    final response = await client.post(
+      uri,
+      headers: await _headers(),
+      body: jsonEncode(body),
+    );
+    checkHttpStatus(response);
+  }
+
   /// Deprecates a document unit — it leaves validity but is kept as proof of
   /// the period it covered. The API creates the replacement pending unit.
   Future<void> deprecateDocumentUnit(

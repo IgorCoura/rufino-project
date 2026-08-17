@@ -1,3 +1,9 @@
+import 'period.dart';
+
+// PeriodGranularity mora em period.dart — é a granularidade da competência, não uma regra do template. O
+// re-export mantém quem importa este arquivo enxergando o enum, que é onde ele sempre foi usado.
+export 'period.dart' show PeriodGranularity;
+
 /// A document template belonging to a company.
 ///
 /// Templates define the structure and metadata for documents that can be
@@ -219,31 +225,6 @@ class TemplatePolicies {
 /// active when present — and so a future parameter has a place to land.
 class NewContractDeprecationRule {
   const NewContractDeprecationRule();
-}
-
-/// The granularity of a template's competência.
-///
-/// Ids match the backend's PeriodType smart enum (Daily=1 … Yearly=4) — they are
-/// the contract; the labels are Portuguese presentation, kept here so the UI
-/// does not depend on a network round-trip for four stable values.
-enum PeriodGranularity {
-  daily(1, 'Diário'),
-  weekly(2, 'Semanal'),
-  monthly(3, 'Mensal'),
-  yearly(4, 'Anual');
-
-  const PeriodGranularity(this.id, this.label);
-
-  final int id;
-  final String label;
-
-  /// Returns the granularity with the given [id], or null when unknown.
-  static PeriodGranularity? fromId(int id) {
-    for (final value in values) {
-      if (value.id == id) return value;
-    }
-    return null;
-  }
 }
 
 /// The rule that organizes a template's documents by competência.

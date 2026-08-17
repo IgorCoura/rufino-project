@@ -15,6 +15,7 @@ class EmployeeDocument {
     required this.usePreviousPeriod,
     required this.totalUnitsCount,
     required this.units,
+    this.periodTypeId,
     this.suggestedSignatureScheduleDate = '',
   });
 
@@ -37,6 +38,15 @@ class EmployeeDocument {
   /// Whether this document uses a previous period reference.
   final bool usePreviousPeriod;
 
+  /// The competência granularity id configured in the template (1=Diário …
+  /// 4=Anual), or null when the document is not organized by competência.
+  ///
+  /// Only the detail endpoint sends it, so it is null until the document's units
+  /// are loaded. [usePreviousPeriod] does not answer the same question: it is
+  /// false both for a document without competência and for one that uses the
+  /// current period.
+  final int? periodTypeId;
+
   /// Total number of units across all pages (for pagination).
   final int totalUnitsCount;
 
@@ -54,6 +64,18 @@ class EmployeeDocument {
   /// Whether there is a date to prefill the schedule field with.
   bool get hasSuggestedSignatureScheduleDate =>
       suggestedSignatureScheduleDate.isNotEmpty;
+
+  /// Whether this document is organized by competência.
+  ///
+  /// It is the only kind that can hold more than one unit in force at a time —
+  /// one per period — and therefore the only one where creating a unit by hand
+  /// makes sense. Everywhere else the next unit comes from deprecating,
+  /// invalidating or renewing the current one.
+  bool get isByCompetency => periodTypeId != null;
+
+  /// The competência granularity, or null when the document has none.
+  PeriodGranularity? get periodGranularity =>
+      periodTypeId == null ? null : PeriodGranularity.fromId(periodTypeId!);
 
   /// Whether this document has any pending units.
   bool get hasPendingUnits => units.any((u) => u.isPending);

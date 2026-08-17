@@ -1,5 +1,6 @@
 using System.Net;
 using Microsoft.EntityFrameworkCore;
+using PeopleManagement.Application.Commands.DocumentCommands.CreateDocument;
 using PeopleManagement.Application.Commands.DocumentCommands.UpdateDocumentUnitDetails;
 using PeopleManagement.Application.Commands.DocumentTemplateCommands;
 using PeopleManagement.Application.Commands.DocumentTemplateCommands.EditDocumentTemplate;
@@ -152,6 +153,105 @@ namespace PeopleManagement.IntegrationTests.Tests
             Assert.Equal(2024, unit.Period.Year);
         }
 
+        // --- Criação manual de uma competência ---------------------------------
+
+        // POST /document com data: o RH preenchendo à mão a competência que ficou sem unidade. A unidade nasce
+        // já situada na competência da data E com a data gravada — não é "esperando data" como a criação avulsa.
+        [Fact]
+        public async Task PostDocument_WithADate_CreatesTheUnitOnThatCompetency()
+        {
+            var ct = CancellationToken.None;
+            var context = GetContext();
+
+            var seed = await SeedGeneratedPeriodDocumentAsync(context, ct, usePreviousPeriod: false);
+
+            var response = await PostDocumentAsync(seed, MarchDate);
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+            var result = await GetDocumentAsync(seed.DocumentId, ct);
+            Assert.Equal(2, result.DocumentsUnits.Count);
+
+            var created = result.DocumentsUnits.First(u => u.Id != seed.UnitId);
+            Assert.Equal(DocumentUnitStatus.Pending, created.Status);
+            Assert.Equal(MarchDate, created.Date);
+            Assert.True(created.Period!.IsMonthly);
+            Assert.Equal(2024, created.Period.Year);
+            Assert.Equal(3, created.Period.Month);
+        }
+
+        [Fact]
+        public async Task PostDocument_WithADateOnATemplateThatUsesPreviousPeriod_LandsOnThePriorCompetency()
+        {
+            var ct = CancellationToken.None;
+            var context = GetContext();
+
+            var seed = await SeedGeneratedPeriodDocumentAsync(context, ct, usePreviousPeriod: true);
+
+            await PostDocumentAsync(seed, MarchDate);
+
+            var result = await GetDocumentAsync(seed.DocumentId, ct);
+            var created = result.DocumentsUnits.First(u => u.Id != seed.UnitId);
+            Assert.Equal(2, created.Period!.Month);
+        }
+
+        // A recusa é o ponto do fluxo: a segunda criação na mesma competência não devolve a unidade existente em
+        // silêncio (como faz a criação avulsa) — ela para, e a mensagem manda depreciar ou invalidar a de lá.
+        [Fact]
+        public async Task PostDocument_WhenTheCompetencyIsAlreadyOccupied_IsRejected()
+        {
+            var ct = CancellationToken.None;
+            var context = GetContext();
+
+            var seed = await SeedGeneratedPeriodDocumentAsync(context, ct, usePreviousPeriod: false);
+
+            await PostDocumentAsync(seed, MarchDate);
+            var response = await PostDocumentAsync(seed, MarchDate);
+
+            Assert.NotEqual(HttpStatusCode.OK, response.StatusCode);
+            Assert.Contains("PMD.DOC27", await response.Content.ReadAsStringAsync());
+
+            var result = await GetDocumentAsync(seed.DocumentId, ct);
+            Assert.Equal(2, result.DocumentsUnits.Count);
+        }
+
+        // Documento sem competência não aceita a criação manual: duas unidades não podem cobrir ao mesmo tempo,
+        // e a próxima nasce de depreciar/invalidar a vigente ou de renovar.
+        [Fact]
+        public async Task PostDocument_WithADateOnANonPeriodicTemplate_IsRejected()
+        {
+            var ct = CancellationToken.None;
+            var context = GetContext();
+
+            var seed = await SeedGeneratedPeriodDocumentAsync(context, ct, usePreviousPeriod: false, periodic: false);
+
+            var response = await PostDocumentAsync(seed, MarchDate);
+
+            Assert.NotEqual(HttpStatusCode.OK, response.StatusCode);
+            Assert.Contains("PMD.DOC28", await response.Content.ReadAsStringAsync());
+
+            var result = await GetDocumentAsync(seed.DocumentId, ct);
+            Assert.Single(result.DocumentsUnits);
+        }
+
+        // Sem data, o caminho antigo (app legado) segue intacto: a pendente que espera data é reaproveitada em
+        // vez de virar uma segunda pendência.
+        [Fact]
+        public async Task PostDocument_WithoutADate_StillReusesThePendingWaitingForADate()
+        {
+            var ct = CancellationToken.None;
+            var context = GetContext();
+
+            var seed = await SeedGeneratedPeriodDocumentAsync(context, ct, usePreviousPeriod: false);
+
+            var response = await PostDocumentAsync(seed, date: null);
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+            var result = await GetDocumentAsync(seed.DocumentId, ct);
+            var unit = Assert.Single(result.DocumentsUnits);
+            Assert.Equal(seed.UnitId, unit.Id);
+            Assert.Equal(Period.MIN_YEAR, unit.Period!.Year);
+        }
+
         private sealed record PeriodDocumentSeed(
             Guid CompanyId, Guid DocumentId, Guid UnitId, Guid EmployeeId, Guid TemplateId, Guid DocumentGroupId);
 
@@ -159,7 +259,7 @@ namespace PeopleManagement.IntegrationTests.Tests
         // conteúdo), RequireDocuments por cargo sem evento, e a geração real via serviço — a unidade nasce SEM
         // data, na competência mínima.
         private async Task<PeriodDocumentSeed> SeedGeneratedPeriodDocumentAsync(
-            PeopleManagementContext context, CancellationToken ct, bool usePreviousPeriod)
+            PeopleManagementContext context, CancellationToken ct, bool usePreviousPeriod, bool periodic = true)
         {
             var company = await context.InsertCompany(ct);
             var role = await context.InsertRole(company.Id, ct);
@@ -171,7 +271,7 @@ namespace PeopleManagement.IntegrationTests.Tests
                 templateFileInfo: null,
                 acceptsSignature: false, placeSignatures: [], documentGroupId: documentGroup.Id,
                 usePreviousPeriod: false,
-                policies: [new PeriodPolicy(PeriodType.Monthly, usePreviousPeriod)]);
+                policies: periodic ? [new PeriodPolicy(PeriodType.Monthly, usePreviousPeriod)] : []);
             await context.DocumentTemplates.AddAsync(template, ct);
             await context.SaveChangesAsync(ct);
 
@@ -202,6 +302,14 @@ namespace PeopleManagement.IntegrationTests.Tests
             var response = await client.PutAsJsonAsync($"/api/v1/{companyId}/document/documentunit", command);
             var body = await response.Content.ReadAsStringAsync();
             Assert.True(HttpStatusCode.OK == response.StatusCode, $"Expected 200, got {(int)response.StatusCode}: {body}");
+        }
+
+        private async Task<HttpResponseMessage> PostDocumentAsync(PeriodDocumentSeed seed, DateOnly? date)
+        {
+            var client = CreateClient();
+            client.InputHeaders([seed.CompanyId]);
+            return await client.PostAsJsonAsync($"/api/v1/{seed.CompanyId}/document",
+                new CreateDocumentModel(seed.DocumentId, seed.EmployeeId, date));
         }
 
         private async Task<Document> GetDocumentForTemplateAsync(Guid employeeId, Guid templateId, CancellationToken ct)

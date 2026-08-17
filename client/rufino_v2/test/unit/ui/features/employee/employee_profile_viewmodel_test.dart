@@ -1629,6 +1629,57 @@ void main() {
 
         expect(documentGroupRepository.getGroupsWithDocumentsCallCount, 1);
       });
+
+      test('createDocumentUnit sends the informed date and reports success',
+          () async {
+        await viewModel.load('emp-1');
+
+        await viewModel.createDocumentUnit('doc-1', '15/03/2026');
+
+        expect(employeeRepository.lastCreatedDocumentUnitDate, '15/03/2026');
+        expect(viewModel.snackMessage, contains('criado'));
+      });
+
+      test('createDocumentUnit does nothing before the profile is loaded',
+          () async {
+        await viewModel.createDocumentUnit('doc-1', '15/03/2026');
+
+        expect(employeeRepository.lastCreatedDocumentUnitDate, isNull);
+        expect(viewModel.snackMessage, isNull);
+      });
+
+      // A recusa por competência ocupada só é acionável se a mensagem do
+      // servidor chegar à tela — ela é que diz qual documento depreciar ou
+      // invalidar antes de tentar de novo.
+      test('createDocumentUnit surfaces the message the server refused with',
+          () async {
+        await viewModel.load('emp-1');
+        employeeRepository.setCreateDocumentUnitError(
+          const HttpException(
+            statusCode: 400,
+            message: 'HTTP 400: Bad Request',
+            serverMessages: [
+              'Já existe um documento na competência 03/2026 com o status '
+                  "'Pending'. Deprecie ou invalide o documento existente antes "
+                  'de criar outro.',
+            ],
+          ),
+        );
+
+        await viewModel.createDocumentUnit('doc-1', '15/03/2026');
+
+        expect(viewModel.snackMessage, contains('competência 03/2026'));
+      });
+
+      test('createDocumentUnit falls back to a generic message on failure',
+          () async {
+        await viewModel.load('emp-1');
+        employeeRepository.setCreateDocumentUnitError(Exception('boom'));
+
+        await viewModel.createDocumentUnit('doc-1', '15/03/2026');
+
+        expect(viewModel.snackMessage, 'Erro ao criar documento.');
+      });
     });
 
     group('upload progress', () {

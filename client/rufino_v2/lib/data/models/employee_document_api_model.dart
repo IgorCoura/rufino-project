@@ -14,6 +14,7 @@ class EmployeeDocumentApiModel {
     required this.usePreviousPeriod,
     required this.totalUnitsCount,
     required this.units,
+    this.periodTypeId,
     this.suggestedSignatureScheduleDate = '',
   });
 
@@ -25,6 +26,10 @@ class EmployeeDocumentApiModel {
   final bool isSignable;
   final bool canGenerateDocument;
   final bool usePreviousPeriod;
+
+  /// Competência granularity id from the template; null when the document is
+  /// not organized by competência. Only the detail endpoint sends it.
+  final int? periodTypeId;
   final int totalUnitsCount;
   final List<DocumentUnitApiModel> units;
 
@@ -61,6 +66,7 @@ class EmployeeDocumentApiModel {
       isSignable: json['isSignable'] as bool? ?? false,
       canGenerateDocument: json['canGenerateDocument'] as bool? ?? false,
       usePreviousPeriod: json['usePreviousPeriod'] as bool? ?? false,
+      periodTypeId: (json['periodTypeId'] as num?)?.toInt(),
       totalUnitsCount: json['totalUnitsCount'] as int? ?? 0,
       suggestedSignatureScheduleDate:
           json['suggestedSignatureScheduleDate'] as String? ?? '',
@@ -82,6 +88,7 @@ class EmployeeDocumentApiModel {
       isSignable: isSignable,
       canGenerateDocument: canGenerateDocument,
       usePreviousPeriod: usePreviousPeriod,
+      periodTypeId: periodTypeId,
       totalUnitsCount: totalUnitsCount,
       suggestedSignatureScheduleDate:
           DocumentUnitApiModel._dateToDisplay(suggestedSignatureScheduleDate),

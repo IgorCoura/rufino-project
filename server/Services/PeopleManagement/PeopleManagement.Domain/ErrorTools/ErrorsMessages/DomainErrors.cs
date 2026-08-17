@@ -116,6 +116,14 @@ namespace PeopleManagement.Domain.ErrorTools.ErrorsMessages
                 $"A unidade de documento {docUnitId} não pode ser renovada com o status '{currentStatus}'. Só um documento que está ou esteve em vigência tem o que renovar.",
                 new { docUnitId, currentStatus });
 
+            public static Error PeriodAlreadyHasDocumentUnit(string period, string currentStatus) => new("PMD.DOC27",
+                $"Já existe um documento na competência {period} com o status '{currentStatus}'. Deprecie ou invalide o documento existente antes de criar outro.",
+                new { period, currentStatus });
+
+            public static Error DocumentIsNotPeriodic(Guid docId) => new("PMD.DOC28",
+                $"O documento {docId} não é por competência, então não aceita a criação de uma unidade para uma data específica. Para gerar a próxima, deprecie ou invalide a unidade vigente.",
+                new { docId });
+
             // PMD.DOC26 (RenewalLimitReached) foi aposentado: o teto de renovações do template parou de recusar a
             // renovação e passou a significar só quantos ciclos de validade o documento tem. Esgotados, o RH
             // continua renovando — as unidades novas é que nascem sem validade. O código não deve ser reutilizado.

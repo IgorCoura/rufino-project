@@ -5,6 +5,7 @@ using PeopleManagement.Domain.ErrorTools;
 using PeopleManagement.Infra.Context;
 using static PeopleManagement.Application.Queries.Document.DocumentDtos;
 using PeopleManagement.Domain.AggregatesModel.DocumentTemplateAggregate.options;
+using PeopleManagement.Domain.AggregatesModel.DocumentTemplateAggregate.Policies;
 using PeopleManagement.Infra.Services;
 using PeopleManagement.Domain.AggregatesModel.DocumentAggregate.Interfaces;
 using PeopleManagement.Domain.AggregatesModel.DocumentAggregate;
@@ -100,8 +101,10 @@ namespace PeopleManagement.Application.Queries.Document
                 CompanyId = document.CompanyId,
                 RequiredDocumentId = document.RequiredDocumentId,
                 DocumentTemplateId = document.DocumentTemplateId,
-                // A configuração de competência mora só no template (o Document não guarda cópia).
+                // A configuração de competência mora só no template (o Document não guarda cópia). GetPolicy
+                // desserializa o jsonb em memória — o template já foi materializado acima, então pode ser lido.
                 UsePreviousPeriod = template.UsePreviousPeriod,
+                PeriodTypeId = template.GetPolicy<IPeriodPolicy>()?.PeriodType.Id,
                 IsSignable = template.IsSignable,
                 CanGenerateDocument = template.CanGenerateDocuments,
                 CreateAt = document.CreatedAt,

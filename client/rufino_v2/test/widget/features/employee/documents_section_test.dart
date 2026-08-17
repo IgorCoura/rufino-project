@@ -353,7 +353,107 @@ void main() {
       expect(find.byTooltip('Cancelar agendamento'), findsNothing);
     });
   });
+
+  group('DocumentsSection add unit by competency', () {
+    /// Swaps the granted permissions, keeping a single notifier alive for the
+    /// tearDown to dispose.
+    Future<void> grantOnly(List<String> scopes) async {
+      final previous = permissionNotifier;
+      final repository = FakePermissionRepository()
+        ..setPermissions([Permission(resource: 'document', scopes: scopes)]);
+      permissionNotifier = PermissionNotifier(permissionRepository: repository);
+      await permissionNotifier.loadPermissions();
+      previous.dispose();
+    }
+
+    testWidgets('offers adding a unit on a document by competência',
+        (tester) async {
+      useDocument(_monthlyDocument());
+      await pumpExpandedSection(tester, signingOptionId: '2');
+
+      expect(find.byKey(const ValueKey('document-add-unit')), findsOneWidget);
+    });
+
+    // Fora da competência não existe segunda unidade em vigência: a próxima
+    // nasce de renovar ou de depreciar/invalidar a atual.
+    testWidgets('hides adding on a document without competência',
+        (tester) async {
+      await pumpExpandedSection(tester, signingOptionId: '2');
+
+      expect(find.byKey(const ValueKey('document-add-unit')), findsNothing);
+    });
+
+    testWidgets('hides adding without the create permission', (tester) async {
+      await grantOnly(['view', 'edit']);
+      useDocument(_monthlyDocument());
+      await pumpExpandedSection(tester, signingOptionId: '2');
+
+      expect(find.byKey(const ValueKey('document-add-unit')), findsNothing);
+    });
+
+    testWidgets('names the granularity in the dialog', (tester) async {
+      useDocument(_monthlyDocument());
+      await pumpExpandedSection(tester, signingOptionId: '2');
+
+      await tester.tap(find.byKey(const ValueKey('document-add-unit')));
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('competência mensal'), findsOneWidget);
+    });
+
+    testWidgets('refuses an empty date', (tester) async {
+      useDocument(_monthlyDocument());
+      await pumpExpandedSection(tester, signingOptionId: '2');
+
+      await tester.tap(find.byKey(const ValueKey('document-add-unit')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('add-unit-confirm')));
+      await tester.pumpAndSettle();
+
+      expect(find.text('A data não pode ser vazia.'), findsOneWidget);
+      expect(employeeRepository.lastCreatedDocumentUnitDate, isNull);
+    });
+
+    testWidgets('creates the unit with the informed date', (tester) async {
+      useDocument(_monthlyDocument());
+      await pumpExpandedSection(tester, signingOptionId: '2');
+
+      await tester.tap(find.byKey(const ValueKey('document-add-unit')));
+      await tester.pumpAndSettle();
+      await tester.enterText(
+          find.byKey(const ValueKey('add-unit-date-field')), '15/03/2026');
+      await tester.tap(find.byKey(const ValueKey('add-unit-confirm')));
+      await tester.pumpAndSettle();
+
+      expect(employeeRepository.lastCreatedDocumentUnitDate, '15/03/2026');
+    });
+
+    testWidgets('offers adding even when the filter returns no unit',
+        (tester) async {
+      useDocument(_monthlyDocument(units: const []));
+      await pumpExpandedSection(tester, signingOptionId: '2');
+
+      expect(find.text('Nenhuma unidade encontrada para o filtro.'),
+          findsOneWidget);
+      expect(find.byKey(const ValueKey('document-add-unit')), findsOneWidget);
+    });
+  });
 }
+
+EmployeeDocument _monthlyDocument({List<DocumentUnit>? units}) =>
+    EmployeeDocument(
+      id: _signableDocument.id,
+      name: _signableDocument.name,
+      description: _signableDocument.description,
+      statusId: _signableDocument.statusId,
+      statusName: _signableDocument.statusName,
+      isSignable: true,
+      canGenerateDocument: true,
+      usePreviousPeriod: false,
+      periodTypeId: 3,
+      totalUnitsCount: units?.length ?? _signableDocument.units.length,
+      units: units ?? _signableDocument.units,
+    );
 
 /// Formats today + [days] as `dd/MM/yyyy`.
 ///

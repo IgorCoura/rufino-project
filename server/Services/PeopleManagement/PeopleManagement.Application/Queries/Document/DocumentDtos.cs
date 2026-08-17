@@ -34,6 +34,16 @@ namespace PeopleManagement.Application.Queries.Document
             public Guid RequiredDocumentId { get; init; }
             public Guid DocumentTemplateId { get; init; }
             public bool UsePreviousPeriod { get; init; }
+
+            /// <summary>
+            /// A granularidade da competência configurada no template (1=Diária, 2=Semanal, 3=Mensal, 4=Anual),
+            /// ou null quando o documento não é por competência.
+            ///
+            /// É o que diz ao cliente se aquele documento pode ter mais de uma unidade cobrindo ao mesmo tempo —
+            /// e portanto se a criação manual de uma competência faz sentido ali. <c>UsePreviousPeriod</c> sozinho
+            /// não responde isso: ele é falso tanto no documento sem competência quanto no que usa a corrente.
+            /// </summary>
+            public int? PeriodTypeId { get; init; }
             public bool IsSignable { get; init; }
             public bool CanGenerateDocument { get; init; }
             public List<DocumentUnitDto> DocumentsUnits { get; init; } = [];
