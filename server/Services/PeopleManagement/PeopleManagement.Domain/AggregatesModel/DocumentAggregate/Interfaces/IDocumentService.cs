@@ -12,17 +12,24 @@
     public interface IDocumentService
     {
         /// <summary>
-        /// Cria uma unidade avulsa no documento. Ainda serve o app legado (<c>POST /document</c>); o Rufino v2
-        /// não chama mais — lá a pendência nasce do evento de admissão, de depreciar/invalidar a vigente, ou da
-        /// renovação explícita (<see cref="RenewDocumentUnit"/>).
+        /// Cria uma unidade no documento (<c>POST /document</c>).
+        ///
+        /// Sem [date], é a criação avulsa que serve o app legado: a unidade nasce esperando data — na competência
+        /// mínima, quando o template é por competência.
+        ///
+        /// Com [date], é a criação manual de UMA competência: só vale para documento por competência (os demais
+        /// não podem ter duas unidades cobrindo ao mesmo tempo, e a próxima nasce de depreciar/invalidar a
+        /// vigente ou de renovar), a competência precisa estar livre, e a unidade já nasce com data, validade e
+        /// snapshot — o mesmo estado que "editar data" deixaria.
         /// </summary>
-        Task<DocumentUnit> CreateDocumentUnit(Guid documentId, Guid employeeId, Guid companyId, CancellationToken cancellation = default);
+        Task<DocumentUnit> CreateDocumentUnit(Guid documentId, Guid employeeId, Guid companyId, DateOnly? date = null, CancellationToken cancellation = default);
 
         /// <summary>
         /// Deprecia a unidade (sai de vigência, continua valendo como prova) e deixa uma pendente no lugar.
         ///
-        /// A pendente substituta não é opcional: a exigência continua de pé, e desde que o botão de criar
-        /// unidade avulsa saiu da tela este é o único caminho para o RH voltar a ter o que preencher.
+        /// A pendente substituta não é opcional: a exigência continua de pé, e num documento que não é por
+        /// competência este (com o renovar) é o caminho para o RH voltar a ter o que preencher — lá a criação
+        /// manual não existe, justamente porque duas unidades não podem cobrir ao mesmo tempo.
         /// </summary>
         Task<DocumentUnit> DeprecateDocumentUnit(Guid documentUnitId, Guid documentId, Guid employeeId, Guid companyId, CancellationToken cancellationToken = default);
 

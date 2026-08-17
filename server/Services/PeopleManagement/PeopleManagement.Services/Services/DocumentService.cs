@@ -48,8 +48,14 @@ namespace PeopleManagement.Services.Services
         private readonly IWorkloadCalendarService _workloadCalendarService = workloadCalendarService;
         private readonly IDocumentContentBuilder _documentContentBuilder = documentContentBuilder;
 
+        // Criar com data é o RH preenchendo uma competência que ficou sem unidade. Só documento por competência
+        // aceita: nos demais duas unidades não podem cobrir ao mesmo tempo, e é por isso que a próxima nasce de
+        // depreciar/invalidar a vigente ou de renovar. A guarda de competência ocupada é do agregado
+        // (NewDocumentUnitForPeriod) — aqui mora só o que depende do template, que é outro aggregate.
+        //
+        // Sem data o caminho é o de antes, intacto, porque o app legado ainda cria unidade assim.
         public async Task<DocumentUnit> CreateDocumentUnit(Guid documentId, Guid employeeId, Guid companyId,
-            CancellationToken cancellationToken = default)
+            DateOnly? date = null, CancellationToken cancellationToken = default)
         {
             var document = await _documentRepository.FirstOrDefaultAsync(x => x.Id == documentId && x.EmployeeId == employeeId
                 && x.CompanyId == companyId, include: i => i.Include(x => x.DocumentsUnits), cancellation: cancellationToken)
@@ -62,7 +68,19 @@ namespace PeopleManagement.Services.Services
             var (usePreviousPeriod, periodType) = PeriodConfigOf(documentTemplate);
             var documentUnitId = Guid.NewGuid();
 
-            return document.NewDocumentUnit(documentUnitId, periodType, usePreviousPeriod);
+            if (date is null)
+                return document.NewDocumentUnit(documentUnitId, periodType, usePreviousPeriod);
+
+            if (periodType is null)
+                throw new DomainException(this, DomainErrors.Document.DocumentIsNotPeriodic(documentId));
+
+            var documentUnit = document.NewDocumentUnitForPeriod(documentUnitId, periodType, usePreviousPeriod,
+                date.Value.ToDateTime(TimeOnly.MinValue));
+
+            // Preenche já: sem isso a unidade nasceria com a data mas sem validade nem snapshot, e o RH teria de
+            // digitar a mesma data de novo em "editar data" antes de conseguir gerar o documento.
+            return await FillUnitDetails(document, documentTemplate, documentUnit.Id, date.Value, employeeId, companyId,
+                cancellationToken);
         }
 
         public Task<DocumentUnit> DeprecateDocumentUnit(Guid documentUnitId, Guid documentId, Guid employeeId, Guid companyId,
@@ -389,27 +407,38 @@ namespace PeopleManagement.Services.Services
                 cancellation: cancellationToken)
                 ?? throw new DomainException(this, DomainErrors.ObjectNotFound(nameof(DocumentTemplate), document.DocumentTemplateId.ToString()));
 
+            return await FillUnitDetails(document, documentTemplate, documentUnitId, documentUnitDate, employeeId,
+                companyId, cancellationToken);
+        }
+
+        // Grava data, validade, competência e snapshot numa unidade pendente. Recebe o documento e o template já
+        // carregados porque os dois callers (atualizar a data e criar a unidade de uma competência) já os têm em
+        // mãos — recarregar aqui dispararia uma segunda query sobre a mesma unidade de trabalho.
+        //
+        // Escreve duas vezes de propósito: a primeira passada calcula a validade a partir da data, e é dela que o
+        // construtor de conteúdo lê o vencimento que vai impresso no documento.
+        private async Task<DocumentUnit> FillUnitDetails(Document document, DocumentTemplate documentTemplate,
+            Guid documentUnitId, DateOnly documentUnitDate, Guid employeeId, Guid companyId,
+            CancellationToken cancellationToken)
+        {
             var workloadPolicy = documentTemplate.GetPolicy<IWorkloadPolicy>();
             var validityDuration = ValidityDurationFor(documentTemplate, document);
             var (usePreviousPeriod, periodType) = PeriodConfigOf(documentTemplate);
 
             DateOnly? workloadEndDate = null;
             if (workloadPolicy is not null && workloadPolicy.Workload != TimeSpan.Zero)
-                workloadEndDate = await VerifyTimeConflictBetweenDocument(employeeId, companyId, documentId, documentUnitDate,
+                workloadEndDate = await VerifyTimeConflictBetweenDocument(employeeId, companyId, document.Id, documentUnitDate,
                     workloadPolicy.Workload, cancellationToken);
 
             string? content = "";
 
-            DocumentUnit documentUnit;
-
-            documentUnit = document.UpdateDocumentUnitDetails(documentUnitId, documentUnitDate, validityDuration,
-            content, periodType, usePreviousPeriod);
-
+            var documentUnit = document.UpdateDocumentUnitDetails(documentUnitId, documentUnitDate, validityDuration,
+                content, periodType, usePreviousPeriod);
 
             if (workloadEndDate is not null)
                 documentUnit.SetWorkloadEndDate(workloadEndDate.Value);
 
-            if(documentTemplate.TemplateFileInfo is not null)
+            if (documentTemplate.TemplateFileInfo is not null)
             {
                 var contentResult = await _documentContentBuilder.Build(
                     documentTemplate.TemplateFileInfo.RecoversDataType,

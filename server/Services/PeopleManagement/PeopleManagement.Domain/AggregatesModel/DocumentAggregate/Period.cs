@@ -180,6 +180,28 @@ namespace PeopleManagement.Domain.AggregatesModel.DocumentAggregate
             return targetDate.Month;
         }
 
+        /// <summary>
+        /// A competência como o RH a lê. Existe ao lado do <see cref="ToString"/> técnico porque as mensagens de
+        /// erro do domínio são as únicas escritas para o usuário final, e "Monthly: 2026-07" não é competência
+        /// para ninguém fora do código.
+        /// </summary>
+        public string Describe()
+        {
+            if (Type.Equals(PeriodType.Daily) && Day.HasValue)
+                return $"{Day:D2}/{Month:D2}/{Year}";
+
+            if (Type.Equals(PeriodType.Weekly) && Week.HasValue)
+                return $"semana {Week} de {Year}";
+
+            if (Type.Equals(PeriodType.Monthly))
+                return $"{Month:D2}/{Year}";
+
+            if (Type.Equals(PeriodType.Yearly))
+                return $"{Year}";
+
+            return ToString();
+        }
+
         public override string ToString()
         {
             if (Type.Equals(PeriodType.Daily))
