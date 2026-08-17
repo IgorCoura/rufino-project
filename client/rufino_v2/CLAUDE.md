@@ -793,6 +793,16 @@ The app distinguishes "session died" (401) from "no permission" (403) end to end
 - **"Criar Docs Faltantes" exige grupo ou documento** (`canCreateMissing`) — pendência nasce sempre de um template, e "todos os templates da empresa" não é operação válida. Cada linha do diálogo é o par **funcionário × template** (chave `'employeeId::templateId'`), então `batchCreateDocumentUnits` recebe os pares e agrupa por template.
 - **A lista carrega sem escopo escolhido**: `initState` chama `loadGroupsAndTemplates` e depois `loadPendingUnits`. Testes de widget precisam **rolar** (`drag(-300)`) antes de tocar na barra de ações — a seção de escopo empurrou-a para fora da viewport padrão.
 
+### Dividir a digitalização
+
+O diálogo de fim de digitalização (`_showScanSessionDialog`) tem uma quarta ação — **Dividir** — que corta uma pilha digitalizada em documentos de tamanho igual. O caso de uso é o RH escanear a pilha inteira de uma vez (uma ficha de 2 páginas por funcionário) em vez de digitalizar um funcionário por vez.
+
+- **Dividir só aparece com UM documento de duas ou mais páginas** na sessão (`canSplit`). Com dois ou mais, o usuário já traçou as fronteiras à mão usando "Digitalizar Mais" e cortar por cima delas apagaria essa decisão; com uma página só não há o que cortar. É por isso que Dividir e Digitalizar Mais só aparecem juntos no primeiro documento.
+- **A divisão precisa dar número inteiro.** Sobra de página significa que a pilha não era o que o usuário pensava, e adivinhar onde as páginas ímpares entram anexaria página ao funcionário errado. `validatePagesPerDocument` (`core/utils/page_splitter.dart`) recusa vazio, não-inteiro, `< 1`, maior que o total e resto — e é a mesma função que alimenta a prévia ao vivo ("5 documentos de 2 páginas") no `TextFormField`.
+- **`_resolveScanSession` resolve a divisão num laço próprio**, não no laço de `_scanDocument`: lá `continue` **reabre o scanner**, então cancelar a divisão dispararia uma nova digitalização em vez de voltar à pergunta. Cancelar desfaz só o corte; Descartar (no diálogo pós-divisão) joga a sessão inteira fora, mesmo sentido do Descartar que já existia.
+- **O ViewModel não é tocado.** `processScannedDocuments` já trata cada entrada de `List<List<Uint8List>>` como um documento independente (PDF, OCR, match difuso, reserva da unidade em `assignedUnitIds`), então dividir é só entregar mais entradas. Nome de arquivo (`scan_..._001.pdf`) e o contador do `_BulkProcessingDialog` acertam sozinhos. `splitIntoEqualParts` usa `sublist` — as partes referenciam as mesmas páginas, sem copiar bytes.
+- **A sessão de digitalização é estado local da tela** (`scannedDocuments` em `_scanDocument`), não do VM. A regra mora em `page_splitter.dart`, puro e testado em unit; a tela só chama. Se um dia a sessão subir para o ViewModel, é refactor à parte.
+
 ## Outdated Document Snapshot (aviso ao gerar)
 
 O PDF é montado no backend a partir de um **snapshot** dos dados do funcionário gravado no `Content` da unidade quando a data foi atualizada. O cadastro muda depois, o snapshot não. Antes de gerar, o app pergunta ao backend se ele ainda bate.
@@ -983,6 +993,7 @@ Toda configuração em `core/theme/`: `app_theme.dart` (entry point ThemeData li
 | Scan a document (camera) + OCR | `core/utils/document_scanner_service.dart` | Platform-abstracted (`_mobile` / `_web` / `_stub`). Wraps `cunning_document_scanner`, `camera`, `google_mlkit_text_recognition`. |
 | Build the combined-PDF filename for batch download | `core/utils/combine_file_namer.dart` | Mirrors backend `BatchDownloadQueries.DownloadBatchDocumentUnits` naming. |
 | Fuzzy-match Brazilian names | `core/utils/fuzzy_name_matcher.dart` | Jaro-Winkler + token overlap, accent-insensitive, handles PT connectors. |
+| Cortar uma pilha de páginas digitalizadas em documentos iguais | `core/utils/page_splitter.dart` | `splitIntoEqualParts` (sublists, não copia bytes) + `validatePagesPerDocument` (validator de formulário, recusa resto). Ver "Dividir a digitalização". |
 | Run many async tasks with a concurrency cap | `core/utils/concurrency.dart` | `mapWithConcurrency` — bounded worker pool, preserves input order, `Future.wait` error semantics. Used by batch fan-out (per-template queries, per-page OCR, per-file text extraction). |
 | Generate a request/correlation ID | `data/services/request_id_helper.dart` | UUID v4 for `x-requestid` on mutations. Wraps `uuid`. |
 | Send a multipart upload with progress | `data/services/multipart_upload_helper.dart` | Streams bytes and reports `0.0–1.0` via callback. |

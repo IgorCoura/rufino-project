@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:provider/provider.dart';
 import 'package:rufino_v2/core/result.dart';
+import 'package:rufino_v2/core/utils/page_rotation_finder.dart';
 import 'package:rufino_v2/domain/entities/batch_document_unit.dart';
 import 'package:rufino_v2/domain/entities/document_group_with_templates.dart';
 import 'package:rufino_v2/domain/entities/employee.dart';
@@ -629,6 +630,139 @@ void main() {
             any(),
             any(),
           )).called(1);
+    });
+  });
+
+  group('BatchDocumentScreen scanning session', () {
+    late MockDocumentScannerRepository mockScanner;
+
+    /// Rotation stub that never rotates, so the real image decoder and the
+    /// compute isolate stay out of the widget test.
+    Future<RotationCandidate?> noRotation({
+      required Uint8List originalBytes,
+      required String originalText,
+      required Future<String> Function(Uint8List) recognizeText,
+    }) async =>
+        null;
+
+    List<Uint8List> pages(int count) => [
+          for (var i = 0; i < count; i++) Uint8List.fromList([0xFF, 0xD8, i]),
+        ];
+
+    setUp(() {
+      registerFallbackValue(Uint8List(0));
+      registerFallbackValue(<Uint8List>[]);
+
+      mockScanner = MockDocumentScannerRepository();
+      when(() => mockScanner.isPlatformSupported).thenReturn(true);
+      when(() => mockScanner.recognizeText(any())).thenAnswer((_) async => '');
+      when(() => mockScanner.imagesToPdf(any()))
+          .thenAnswer((_) async => Uint8List.fromList([0x25, 0x50, 0x44]));
+
+      viewModel.dispose();
+      viewModel = BatchDocumentViewModel(
+        batchDocumentRepository: mockBatchRepo,
+        documentGroupRepository: mockGroupRepo,
+        employeeRepository: fakeEmployeeRepo,
+        companyId: 'company-1',
+        scannerRepository: mockScanner,
+        pageRotationFinder: noRotation,
+        textExtractor: (_) async => '',
+      );
+    });
+
+    /// Opens the screen, scans one stack of [pageCount] pages and stops at
+    /// the session dialog.
+    Future<void> scanOnce(WidgetTester tester, int pageCount) async {
+      when(() => mockScanner.scanPages())
+          .thenAnswer((_) async => Result.success(pages(pageCount)));
+
+      await tester.pumpWidget(buildSubject());
+      await tester.pumpAndSettle();
+      await tester.drag(find.byType(CustomScrollView), const Offset(0, -300));
+      await tester.pumpAndSettle();
+
+      await tester.ensureVisible(find.text('Digitalizar'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Digitalizar'));
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('offers splitting a lone scan of several pages',
+        (tester) async {
+      await scanOnce(tester, 4);
+
+      expect(find.text('1 documento digitalizado'), findsOneWidget);
+      expect(find.byKey(const Key('scan-session-split')), findsOneWidget);
+    });
+
+    testWidgets('does not offer splitting a single page', (tester) async {
+      await scanOnce(tester, 1);
+
+      expect(find.byKey(const Key('scan-session-split')), findsNothing);
+      expect(find.byKey(const Key('scan-session-scan-more')), findsOneWidget);
+    });
+
+    testWidgets('does not offer splitting once a second document is scanned',
+        (tester) async {
+      await scanOnce(tester, 4);
+
+      await tester.tap(find.byKey(const Key('scan-session-scan-more')));
+      await tester.pumpAndSettle();
+
+      expect(find.text('2 documentos digitalizados'), findsOneWidget);
+      expect(find.byKey(const Key('scan-session-split')), findsNothing);
+    });
+
+    testWidgets('processes one document per part after a split',
+        (tester) async {
+      await scanOnce(tester, 4);
+
+      await tester.tap(find.byKey(const Key('scan-session-split')));
+      await tester.pumpAndSettle();
+
+      expect(find.text('4 páginas capturadas.'), findsOneWidget);
+      await tester.enterText(find.byKey(const Key('split-pages-field')), '2');
+      await tester.tap(find.byKey(const Key('split-scan-confirm')));
+      await tester.pumpAndSettle();
+
+      expect(find.text('2 documentos'), findsOneWidget);
+      await tester.tap(find.byKey(const Key('split-result-process')));
+      await tester.pumpAndSettle();
+
+      // One PDF per part: the four scanned pages became two documents.
+      verify(() => mockScanner.imagesToPdf(any())).called(2);
+    });
+
+    testWidgets('returns to the session dialog when the split is cancelled',
+        (tester) async {
+      await scanOnce(tester, 4);
+
+      await tester.tap(find.byKey(const Key('scan-session-split')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('split-scan-cancel')));
+      await tester.pumpAndSettle();
+
+      expect(find.text('1 documento digitalizado'), findsOneWidget);
+      expect(find.byKey(const Key('scan-session-split')), findsOneWidget);
+      verifyNever(() => mockScanner.imagesToPdf(any()));
+    });
+
+    testWidgets('processes nothing when the split result is discarded',
+        (tester) async {
+      await scanOnce(tester, 4);
+
+      await tester.tap(find.byKey(const Key('scan-session-split')));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byKey(const Key('split-pages-field')), '2');
+      await tester.tap(find.byKey(const Key('split-scan-confirm')));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byKey(const Key('split-result-discard')));
+      await tester.pumpAndSettle();
+
+      verifyNever(() => mockScanner.imagesToPdf(any()));
+      expect(find.text('2 documentos'), findsNothing);
     });
   });
 }

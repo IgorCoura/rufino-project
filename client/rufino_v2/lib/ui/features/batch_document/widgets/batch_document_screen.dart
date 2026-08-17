@@ -12,6 +12,7 @@ import '../../../../core/theme/app_breakpoints.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/utils/file_saver_stub.dart'
     if (dart.library.io) '../../../../core/utils/file_saver.dart';
+import '../../../../core/utils/page_splitter.dart';
 import '../../../../domain/entities/batch_document_unit.dart';
 import '../../../../domain/entities/employee.dart';
 import '../../../core/widgets/outdated_content_dialog.dart';
@@ -21,9 +22,10 @@ import '../viewmodel/batch_document_viewmodel.dart';
 import 'bulk_upload_verification_dialog.dart';
 import 'confirm_document_dates_dialog.dart';
 import 'document_scan_dialog.dart';
+import 'split_scan_dialog.dart';
 
 /// Possible actions during a multi-document scanning session.
-enum _ScanSessionAction { scanMore, process, discard }
+enum _ScanSessionAction { scanMore, split, process, discard }
 
 /// Main screen for batch document management.
 ///
@@ -234,7 +236,7 @@ class _BatchDocumentScreenState extends State<BatchDocumentScreen> {
       if (pages == null || pages.isEmpty) {
         if (scannedDocuments.isEmpty) return;
         // If documents were already scanned, ask what to do.
-        final action = await _showScanSessionDialog(scannedDocuments.length);
+        final action = await _resolveScanSession(scannedDocuments);
         if (!mounted) return;
         if (action == _ScanSessionAction.process) break;
         if (action == _ScanSessionAction.discard) return;
@@ -245,7 +247,7 @@ class _BatchDocumentScreenState extends State<BatchDocumentScreen> {
       scannedDocuments.add(pages);
 
       // Ask the user if they want to scan another or process all.
-      final action = await _showScanSessionDialog(scannedDocuments.length);
+      final action = await _resolveScanSession(scannedDocuments);
       if (!mounted) return;
       if (action == _ScanSessionAction.process) break;
       if (action == _ScanSessionAction.discard) return;
@@ -276,9 +278,58 @@ class _BatchDocumentScreenState extends State<BatchDocumentScreen> {
     }
   }
 
+  /// Asks what to do next with [scannedDocuments], looping while the user
+  /// experiments with a split.
+  ///
+  /// Splitting is resolved here rather than by the caller because cancelling
+  /// it must return to this question, while the caller's loop would reopen
+  /// the scanner. On a confirmed split, replaces the contents of
+  /// [scannedDocuments] with the resulting documents and returns
+  /// [_ScanSessionAction.process].
+  Future<_ScanSessionAction> _resolveScanSession(
+    List<List<Uint8List>> scannedDocuments,
+  ) async {
+    while (true) {
+      final action = await _showScanSessionDialog(scannedDocuments);
+      if (!mounted) return _ScanSessionAction.discard;
+      if (action != _ScanSessionAction.split) return action;
+
+      final pages = scannedDocuments.single;
+      final pagesPerDocument = await showSplitScanDialog(
+        context,
+        totalPages: pages.length,
+      );
+      if (!mounted) return _ScanSessionAction.discard;
+      // Cancelled the split — ask again, session untouched.
+      if (pagesPerDocument == null) continue;
+
+      final parts = splitIntoEqualParts(pages, pagesPerDocument);
+      final process = await showSplitResultDialog(
+        context,
+        documentCount: parts.length,
+        pagesPerDocument: pagesPerDocument,
+      );
+      if (!mounted) return _ScanSessionAction.discard;
+      if (!process) return _ScanSessionAction.discard;
+
+      scannedDocuments
+        ..clear()
+        ..addAll(parts);
+      return _ScanSessionAction.process;
+    }
+  }
+
   /// Shows a dialog for the user to choose the next action during a
   /// scanning session. Displays the current count of scanned documents.
-  Future<_ScanSessionAction> _showScanSessionDialog(int scannedCount) async {
+  ///
+  /// "Dividir" is offered only for a lone scan of two or more pages: with
+  /// several documents the user already drew the boundaries by hand, and a
+  /// single page has nothing to cut.
+  Future<_ScanSessionAction> _showScanSessionDialog(
+    List<List<Uint8List>> scannedDocuments,
+  ) async {
+    final scannedCount = scannedDocuments.length;
+    final canSplit = scannedCount == 1 && scannedDocuments.single.length > 1;
     final result = await showDialog<_ScanSessionAction>(
       context: context,
       barrierDismissible: false,
@@ -298,8 +349,10 @@ class _BatchDocumentScreenState extends State<BatchDocumentScreen> {
             'Deseja digitalizar mais documentos ou processar os já capturados?',
             style: textTheme.bodyMedium,
           ),
+          actionsOverflowButtonSpacing: AppSpacing.xs,
           actions: [
             TextButton(
+              key: const Key('scan-session-discard'),
               onPressed: () =>
                   Navigator.of(ctx).pop(_ScanSessionAction.discard),
               child: Text(
@@ -307,13 +360,23 @@ class _BatchDocumentScreenState extends State<BatchDocumentScreen> {
                 style: TextStyle(color: colorScheme.error),
               ),
             ),
+            if (canSplit)
+              OutlinedButton.icon(
+                key: const Key('scan-session-split'),
+                onPressed: () =>
+                    Navigator.of(ctx).pop(_ScanSessionAction.split),
+                icon: const Icon(Icons.content_cut, size: 18),
+                label: const Text('Dividir'),
+              ),
             OutlinedButton.icon(
+              key: const Key('scan-session-scan-more'),
               onPressed: () =>
                   Navigator.of(ctx).pop(_ScanSessionAction.scanMore),
               icon: const Icon(Icons.document_scanner_outlined, size: 18),
               label: const Text('Digitalizar Mais'),
             ),
             FilledButton.icon(
+              key: const Key('scan-session-process'),
               onPressed: () =>
                   Navigator.of(ctx).pop(_ScanSessionAction.process),
               icon: const Icon(Icons.check, size: 18),
