@@ -1918,8 +1918,9 @@ void main() {
       expect(find.textContaining('Página'), findsNothing);
     });
 
-    // A unidade do fixture está OK, então depreciar e invalidar aparecem e "não aplicável" não —
-    // e não há mais botão de criar unidade avulsa em lugar nenhum.
+    // A unidade do fixture está OK, então depreciar e invalidar aparecem e "não aplicável" não.
+    // O documento do fixture não é por competência, então criar unidade à mão também não aparece:
+    // ali duas unidades não podem cobrir ao mesmo tempo.
     testWidgets(
         'offers deprecate and invalidate on a delivered unit, and no add button',
         (tester) async {
@@ -1949,7 +1950,7 @@ void main() {
       expect(find.byKey(const ValueKey('unit-invalidate')), findsOneWidget);
       expect(find.byKey(const ValueKey('unit-renew')), findsOneWidget);
       expect(find.byKey(const ValueKey('unit-not-applicable')), findsNothing);
-      expect(find.widgetWithText(TextButton, 'Adicionar'), findsNothing);
+      expect(find.byKey(const ValueKey('document-add-unit')), findsNothing);
     });
 
     // Renovar é a saída de uma unidade vencida: sem ela o documento fica sem

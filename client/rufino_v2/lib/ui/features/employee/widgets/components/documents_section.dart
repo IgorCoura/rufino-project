@@ -17,6 +17,7 @@ import '../../../../../core/utils/image_to_pdf_converter.dart';
 import '../../../../../core/utils/pdf_merger.dart';
 import '../../../../../domain/entities/document_group_with_documents.dart';
 import '../../../../../domain/entities/employee_document.dart';
+import '../../../../../domain/entities/period.dart';
 import '../../../../core/widgets/outdated_content_dialog.dart';
 import '../../../../core/widgets/permission_guard.dart';
 import '../../../../core/widgets/scanner_error_handler.dart';
@@ -142,6 +143,27 @@ class _DocumentsSectionState extends State<DocumentsSection> {
   }
 
   // ─── Dialogs ───────────────────────────────────────────────────────────────
+
+  /// Shows a dialog asking for the date of the document unit to be created.
+  ///
+  /// The date is what places the unit in a competência — the client does not
+  /// resolve which one. Week-of-year and the retroactive shift are the server's
+  /// arithmetic, and recomputing them here would be a second implementation of
+  /// the same rule, free to disagree. The created row shows the competência the
+  /// server decided on.
+  Future<void> _showAddUnitDialog(EmployeeDocument doc) async {
+    final date = await showDialog<String>(
+      context: context,
+      builder: (ctx) => _AddUnitDialog(
+        granularity: doc.periodGranularity,
+        validateDate: widget.viewModel.validateDocumentUnitDate,
+      ),
+    );
+
+    if (date != null && mounted) {
+      await widget.viewModel.createDocumentUnit(doc.id, date);
+    }
+  }
 
   /// Shows a dialog to edit the date of a document unit.
   Future<void> _showEditDateDialog(
@@ -1567,10 +1589,39 @@ class _DocumentsSectionState extends State<DocumentsSection> {
   Widget _buildUnitsList(BuildContext context, EmployeeDocument doc) {
     final units = doc.units;
 
+    // Criar à mão só existe no documento por competência, que é o único capaz de ter mais de uma unidade
+    // cobrindo ao mesmo tempo — uma por período — e onde pode faltar a de um período específico. Nos demais a
+    // próxima unidade nasce de renovar ou de depreciar/invalidar a vigente, que já deixam a substituta no lugar.
+    //
+    // Aparece também com a lista vazia: um filtro sem resultado não é motivo para esconder a criação, e é
+    // justamente quando falta unidade que ela é procurada.
+    final addButton = doc.isByCompetency
+        ? PermissionGuard(
+            resource: 'document',
+            scope: 'create',
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: OutlinedButton.icon(
+                key: const ValueKey('document-add-unit'),
+                icon: const Icon(Icons.add, size: 20),
+                label: const Text('Adicionar'),
+                onPressed: _isBusy ? null : () => _showAddUnitDialog(doc),
+              ),
+            ),
+          )
+        : const SizedBox.shrink();
+
     if (units.isEmpty) {
-      return const Padding(
-        padding: EdgeInsets.symmetric(vertical: AppSpacing.sm),
-        child: Center(child: Text('Nenhuma unidade encontrada para o filtro.')),
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: AppSpacing.sm),
+            child:
+                Center(child: Text('Nenhuma unidade encontrada para o filtro.')),
+          ),
+          addButton,
+        ],
       );
     }
 
@@ -1579,12 +1630,12 @@ class _DocumentsSectionState extends State<DocumentsSection> {
     final totalPages =
         doc.totalUnitsCount == 0 ? 1 : (doc.totalUnitsCount / pageSize).ceil();
 
-    // Não há botão de criar unidade avulsa: pendência nasce do evento de admissão, da renovação por
-    // vencimento, ou de depreciar/invalidar a vigente — cada um desses já deixa a substituta no lugar.
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         ...units.map((unit) => _buildUnitRow(context, doc, unit)),
+        const SizedBox(height: AppSpacing.sm),
+        addButton,
         const SizedBox(height: AppSpacing.sm),
         _buildPaginationBar(context, doc, currentPage, totalPages, pageSize),
       ],
@@ -2102,6 +2153,98 @@ class _DocumentsSectionState extends State<DocumentsSection> {
           ),
         ],
       ),
+    );
+  }
+}
+
+/// Asks for the date of the document unit to be created, and returns it as
+/// `dd/MM/yyyy` — or null when the user backs out.
+///
+/// A StatefulWidget for the same reason as [_ScheduleSignDialog]: the field
+/// lives and dies with the dialog route. Disposing the controller in the caller
+/// kills it mid exit-animation, and the reload that follows the creation
+/// rebuilds the tree while the route is still tearing down.
+class _AddUnitDialog extends StatefulWidget {
+  const _AddUnitDialog({required this.granularity, required this.validateDate});
+
+  /// The competência granularity of the document, when it is known.
+  final PeriodGranularity? granularity;
+
+  final String? Function(String?) validateDate;
+
+  @override
+  State<_AddUnitDialog> createState() => _AddUnitDialogState();
+}
+
+class _AddUnitDialogState extends State<_AddUnitDialog> {
+  final _formKey = GlobalKey<FormState>();
+  final _dateCtrl = TextEditingController();
+  final _dateMask = MaskTextInputFormatter(
+    mask: '##/##/####',
+    filter: {'#': RegExp(r'[0-9]')},
+    type: MaskAutoCompletionType.lazy,
+  );
+
+  @override
+  void dispose() {
+    _dateCtrl.dispose();
+    super.dispose();
+  }
+
+  void _submit() {
+    if (_formKey.currentState?.validate() != true) return;
+    Navigator.of(context).pop(_dateCtrl.text.trim());
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final granularity = widget.granularity;
+
+    return AlertDialog(
+      title: const Text('Adicionar documento'),
+      content: Form(
+        key: _formKey,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              granularity == null
+                  ? 'A data informada define a competência do documento.'
+                  : 'Documento de competência '
+                      '${granularity.label.toLowerCase()}. A data informada '
+                      'define em qual competência ele entra.',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+            const SizedBox(height: AppSpacing.md),
+            TextFormField(
+              key: const ValueKey('add-unit-date-field'),
+              controller: _dateCtrl,
+              autofocus: true,
+              decoration: const InputDecoration(
+                labelText: 'Data do documento',
+                prefixIcon: Icon(Icons.event_outlined),
+                border: OutlineInputBorder(),
+                helperText: 'Ex: 15/03/2026',
+              ),
+              keyboardType: TextInputType.number,
+              inputFormatters: [_dateMask],
+              validator: widget.validateDate,
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Cancelar'),
+        ),
+        FilledButton(
+          key: const ValueKey('add-unit-confirm'),
+          onPressed: _submit,
+          child: const Text('Criar'),
+        ),
+      ],
     );
   }
 }

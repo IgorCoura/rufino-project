@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:rufino_v2/domain/entities/employee_document.dart';
+import 'package:rufino_v2/domain/entities/period.dart';
 
 void main() {
   group('DocumentUnit status getters', () {
@@ -329,7 +330,7 @@ void main() {
     test('a unit is a renewal only when it points to the unit it replaces', () {
       expect(unitWithStatus('1').isRenewal, isFalse);
 
-      final renewal = DocumentUnit(
+      const renewal = DocumentUnit(
         id: '2',
         statusId: '1',
         statusName: '',
@@ -524,6 +525,60 @@ void main() {
         isTrue,
       );
       expect(documentSuggesting('').hasSuggestedSignatureScheduleDate, isFalse);
+    });
+  });
+
+  group('EmployeeDocument competency', () {
+    EmployeeDocument documentWithPeriodType(int? periodTypeId) =>
+        EmployeeDocument(
+          id: '1',
+          name: 'Doc',
+          description: '',
+          statusId: '1',
+          statusName: '',
+          isSignable: false,
+          canGenerateDocument: false,
+          usePreviousPeriod: false,
+          periodTypeId: periodTypeId,
+          totalUnitsCount: 0,
+          units: const [],
+        );
+
+    test('a document is by competency only when the template sets one', () {
+      expect(documentWithPeriodType(3).isByCompetency, isTrue);
+      expect(documentWithPeriodType(null).isByCompetency, isFalse);
+    });
+
+    // usePreviousPeriod é falso tanto no documento sem competência quanto no que
+    // usa a corrente — por isso ele não serve para responder essa pergunta.
+    test('a document that uses the current period is still by competency', () {
+      const doc = EmployeeDocument(
+        id: '1',
+        name: 'Doc',
+        description: '',
+        statusId: '1',
+        statusName: '',
+        isSignable: false,
+        canGenerateDocument: false,
+        usePreviousPeriod: false,
+        periodTypeId: 4,
+        totalUnitsCount: 0,
+        units: [],
+      );
+      expect(doc.isByCompetency, isTrue);
+    });
+
+    test('the granularity is resolved from the period type id', () {
+      expect(documentWithPeriodType(1).periodGranularity,
+          PeriodGranularity.daily);
+      expect(documentWithPeriodType(3).periodGranularity,
+          PeriodGranularity.monthly);
+      expect(documentWithPeriodType(null).periodGranularity, isNull);
+    });
+
+    test('an unknown period type id resolves to no granularity', () {
+      expect(documentWithPeriodType(99).periodGranularity, isNull);
+      expect(documentWithPeriodType(99).isByCompetency, isTrue);
     });
   });
 }

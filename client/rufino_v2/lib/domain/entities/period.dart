@@ -1,3 +1,28 @@
+/// The granularity of a competência.
+///
+/// Ids match the backend's PeriodType smart enum (Daily=1 … Yearly=4) — they are
+/// the contract; the labels are Portuguese presentation, kept here so the UI
+/// does not depend on a network round-trip for four stable values.
+enum PeriodGranularity {
+  daily(1, 'Diário'),
+  weekly(2, 'Semanal'),
+  monthly(3, 'Mensal'),
+  yearly(4, 'Anual');
+
+  const PeriodGranularity(this.id, this.label);
+
+  final int id;
+  final String label;
+
+  /// Returns the granularity with the given [id], or null when unknown.
+  static PeriodGranularity? fromId(int id) {
+    for (final value in values) {
+      if (value.id == id) return value;
+    }
+    return null;
+  }
+}
+
 /// A competency period associated with a document unit.
 ///
 /// Period types: Daily (1), Weekly (2), Monthly (3), Yearly (4).

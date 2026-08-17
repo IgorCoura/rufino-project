@@ -735,6 +735,27 @@ class EmployeeRepositoryImpl implements EmployeeRepository {
   }
 
   @override
+  Future<Result<void>> createDocumentUnit(
+    String companyId,
+    String employeeId,
+    String documentId,
+    String date,
+  ) async {
+    try {
+      await apiService.createDocumentUnit(companyId, {
+        'documentId': documentId,
+        'employeeId': employeeId,
+        'date': DocumentUnitApiModel.dateToApi(date),
+      });
+      return const Result<void>.success(null);
+    } on EmployeeException catch (e, st) {
+      return reporter.failure(e, st);
+    } catch (e, st) {
+      return reporter.failure(EmployeeNetworkException(e), st);
+    }
+  }
+
+  @override
   Future<Result<void>> deprecateDocumentUnit(
     String companyId,
     String employeeId,

@@ -311,6 +311,18 @@ abstract class EmployeeRepository {
     int? statusId,
   });
 
+  /// Creates a document unit for the competência of [date] (`dd/MM/yyyy`).
+  ///
+  /// Only for documents organized by competência, and only when that competência
+  /// has no unit left other than invalid or obsolete ones — the server owns both
+  /// rules, since the client only ever sees one page of units.
+  Future<Result<void>> createDocumentUnit(
+    String companyId,
+    String employeeId,
+    String documentId,
+    String date,
+  );
+
   /// Deprecates a document unit: it leaves validity but is kept as proof of the
   /// period it covered, and a replacement pending unit takes its place.
   Future<Result<void>> deprecateDocumentUnit(
