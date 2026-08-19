@@ -1,0 +1,166 @@
+{
+  "allowRemoteResourceManagement": true,
+  "policyEnforcementMode": "ENFORCING",
+  "resources": [
+    {
+      "name": "bill",
+      "type": "None",
+      "ownerManagedAccess": false,
+      "displayName": "Boletos: entrada, verificacao e decisao",
+      "scopes": [
+        { "name": "view" },
+        { "name": "import" },
+        { "name": "validate" },
+        { "name": "approve" },
+        { "name": "deny" },
+        { "name": "cancel" }
+      ]
+    },
+    {
+      "name": "payer-profile",
+      "type": "None",
+      "ownerManagedAccess": false,
+      "displayName": "Cadastro fiscal do tenant (deriva senha de PDF e roteamento)",
+      "scopes": [{ "name": "view" }, { "name": "manage" }]
+    },
+    {
+      "name": "payee",
+      "type": "None",
+      "ownerManagedAccess": false,
+      "displayName": "Beneficiarios cadastrados",
+      "scopes": [{ "name": "view" }, { "name": "manage" }]
+    },
+    {
+      "name": "origin",
+      "type": "None",
+      "ownerManagedAccess": false,
+      "displayName": "Origens confiaveis (remetentes)",
+      "scopes": [{ "name": "view" }, { "name": "manage" }]
+    },
+    {
+      "name": "capture-source",
+      "type": "None",
+      "ownerManagedAccess": false,
+      "displayName": "Caixas de e-mail monitoradas",
+      "scopes": [{ "name": "view" }, { "name": "manage" }, { "name": "sync" }]
+    },
+    {
+      "name": "capture-item",
+      "type": "None",
+      "ownerManagedAccess": false,
+      "displayName": "Artefatos capturados e quarentena",
+      "scopes": [{ "name": "view" }, { "name": "claim" }, { "name": "reprocess" }]
+    },
+    {
+      "name": "expectation",
+      "type": "None",
+      "ownerManagedAccess": false,
+      "displayName": "Expectativas de boleto e alertas do que nao chegou",
+      "scopes": [{ "name": "view" }, { "name": "manage" }, { "name": "waive" }]
+    }
+  ],
+  "policies": [
+    {
+      "name": "Bill Admin Policy",
+      "description": "Administra o BC inteiro: cadastros, captura, expectativas e decisao sobre boleto.",
+      "type": "role",
+      "logic": "POSITIVE",
+      "decisionStrategy": "UNANIMOUS",
+      "config": {
+        "roles": "[{\"id\":\"bill-payment-api/bill-admin\",\"required\":false}]"
+      }
+    },
+    {
+      "name": "Bill Approver Policy",
+      "description": "Decide o destino do boleto. E o papel sensivel: aprovar e o que autoriza dinheiro sair (ADR-007).",
+      "type": "role",
+      "logic": "POSITIVE",
+      "decisionStrategy": "UNANIMOUS",
+      "config": {
+        "roles": "[{\"id\":\"bill-payment-api/bill-admin\",\"required\":false},{\"id\":\"bill-payment-api/bill-approver\",\"required\":false}]"
+      }
+    },
+    {
+      "name": "Bill Operator Policy",
+      "description": "Opera o dia a dia: importa, revalida, mantem cadastros, sincroniza caixa e reivindica item. NAO decide boleto.",
+      "type": "role",
+      "logic": "POSITIVE",
+      "decisionStrategy": "UNANIMOUS",
+      "config": {
+        "roles": "[{\"id\":\"bill-payment-api/bill-admin\",\"required\":false},{\"id\":\"bill-payment-api/bill-operator\",\"required\":false}]"
+      }
+    },
+    {
+      "name": "Bill Viewer Policy",
+      "description": "So leitura. Todo papel deste BC alcanca a leitura.",
+      "type": "role",
+      "logic": "POSITIVE",
+      "decisionStrategy": "UNANIMOUS",
+      "config": {
+        "roles": "[{\"id\":\"bill-payment-api/bill-admin\",\"required\":false},{\"id\":\"bill-payment-api/bill-approver\",\"required\":false},{\"id\":\"bill-payment-api/bill-operator\",\"required\":false},{\"id\":\"bill-payment-api/bill-viewer\",\"required\":false}]"
+      }
+    },
+    {
+      "name": "Bill Read Permission",
+      "description": "Consultar boletos, cadastros, captura e expectativas.",
+      "type": "scope",
+      "logic": "POSITIVE",
+      "decisionStrategy": "UNANIMOUS",
+      "config": {
+        "resources": "[\"bill\",\"payer-profile\",\"payee\",\"origin\",\"capture-source\",\"capture-item\",\"expectation\"]",
+        "scopes": "[\"view\"]",
+        "applyPolicies": "[\"Bill Viewer Policy\"]"
+      }
+    },
+    {
+      "name": "Bill Operation Permission",
+      "description": "Importar, revalidar, manter cadastros, sincronizar caixa, reivindicar, reprocessar e cadastrar expectativa.",
+      "type": "scope",
+      "logic": "POSITIVE",
+      "decisionStrategy": "UNANIMOUS",
+      "config": {
+        "resources": "[\"bill\",\"payer-profile\",\"payee\",\"origin\",\"capture-source\",\"capture-item\",\"expectation\"]",
+        "scopes": "[\"import\",\"validate\",\"manage\",\"sync\",\"claim\",\"reprocess\"]",
+        "applyPolicies": "[\"Bill Operator Policy\"]"
+      }
+    },
+    {
+      "name": "Bill Decision Permission",
+      "description": "Aprovar, recusar e cancelar boleto. Separada da operacao de proposito: quem importa nao decide.",
+      "type": "scope",
+      "logic": "POSITIVE",
+      "decisionStrategy": "UNANIMOUS",
+      "config": {
+        "resources": "[\"bill\"]",
+        "scopes": "[\"approve\",\"deny\",\"cancel\"]",
+        "applyPolicies": "[\"Bill Approver Policy\"]"
+      }
+    },
+    {
+      "name": "Expectation Waive Permission",
+      "description": "Dispensar ciclo de expectativa e silenciar a rede de seguranca daquela conta (ADR-014) — por isso vai com quem decide, nao com quem cadastra.",
+      "type": "scope",
+      "logic": "POSITIVE",
+      "decisionStrategy": "UNANIMOUS",
+      "config": {
+        "resources": "[\"expectation\"]",
+        "scopes": "[\"waive\"]",
+        "applyPolicies": "[\"Bill Approver Policy\"]"
+      }
+    }
+  ],
+  "scopes": [
+    { "name": "view" },
+    { "name": "import" },
+    { "name": "validate" },
+    { "name": "approve" },
+    { "name": "deny" },
+    { "name": "cancel" },
+    { "name": "manage" },
+    { "name": "sync" },
+    { "name": "claim" },
+    { "name": "reprocess" },
+    { "name": "waive" }
+  ],
+  "decisionStrategy": "UNANIMOUS"
+}

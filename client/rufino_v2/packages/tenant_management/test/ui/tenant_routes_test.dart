@@ -93,8 +93,10 @@ void main() {
         ],
       );
 
+      // Cai na listagem, que o `view` alcança — e lá o FAB não aparece.
+      expect(find.byType(FloatingActionButton), findsNothing);
       expect(find.text('Cadastrar cliente'), findsNothing);
-      expect(find.text('Selecionar cliente'), findsOneWidget);
+      expect(find.text('Clientes da plataforma'), findsOneWidget);
     });
 
     testWidgets('the cadastro opens for whoever may create', (tester) async {

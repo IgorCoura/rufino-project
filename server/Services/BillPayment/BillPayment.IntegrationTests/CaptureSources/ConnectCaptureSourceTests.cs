@@ -18,7 +18,7 @@ public sealed class ConnectCaptureSourceTests : BaseIntegrationTest
     private readonly HttpClient _reachable;
 
     public ConnectCaptureSourceTests(IntegrationTestWebAppFactory factory) : base(factory)
-        => _reachable = factory.WithReachableMailbox().CreateClient();
+        => _reachable = factory.WithReachableMailbox().CreateClient().Authenticated();
 
     private static Uri RouteFor(Guid tenantId) => new($"/api/v1/{tenantId}/capture-sources", UriKind.Relative);
 

@@ -42,7 +42,6 @@ void main() {
               onTenantSelected: (_) async {},
             ),
             onSelected: () => navigations.add('home'),
-            onCreateTenant: () => navigations.add('create'),
             onOpenBackOffice: () => navigations.add('back-office'),
             onLogout: () async => navigations.add('logout'),
           ),
@@ -108,18 +107,16 @@ void main() {
       expect(navigations, isEmpty);
     });
 
-    testWidgets('without permission there is no way to register a customer',
+    testWidgets('without permission there is no door to the back-office',
         (tester) async {
       repository.setMyTenants([myTenant()]);
 
       await pumpScreen(tester);
 
-      expect(find.text('Cadastrar cliente'), findsNothing);
       expect(find.text('Clientes'), findsNothing);
     });
 
-    testWidgets('an operator sees the single door to the cadastro',
-        (tester) async {
+    testWidgets('an operator sees the door to the back-office', (tester) async {
       repository.setMyTenants(const []);
 
       await pumpScreen(
@@ -132,16 +129,34 @@ void main() {
         ],
       );
 
-      expect(find.text('Cadastrar cliente'), findsOneWidget);
       expect(find.text('Clientes'), findsOneWidget);
 
-      await tester.tap(find.text('Cadastrar cliente'));
+      await tester.tap(find.text('Clientes'));
       await tester.pumpAndSettle();
-      expect(navigations, contains('create'));
+      expect(navigations, contains('back-office'));
     });
 
-    testWidgets('read-only support reaches the back-office but cannot register',
+    testWidgets('the cadastro is never offered here, not even to who may create',
         (tester) async {
+      // O cadastro é trabalho de back-office: nasce em `/tenant`, não no
+      // seletor. Ver a porta é o máximo que esta tela oferece.
+      repository.setMyTenants(const []);
+
+      await pumpScreen(
+        tester,
+        permissions: const [
+          Permission(
+            resource: TenantResources.tenant,
+            scopes: ['view', 'create'],
+          ),
+        ],
+      );
+
+      expect(find.text('Cadastrar cliente'), findsNothing);
+      expect(find.byType(FloatingActionButton), findsNothing);
+    });
+
+    testWidgets('read-only support reaches the back-office', (tester) async {
       repository.setMyTenants(const []);
 
       await pumpScreen(

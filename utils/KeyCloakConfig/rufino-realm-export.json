@@ -2378,7 +2378,7 @@
     {
       "id": "b6f1a4c2-0000-4a10-9d6e-1c7a5b0e4d92",
       "name": "tenant-scope",
-      "description": "Lista de tenants que a pessoa acessa (claim tenants).",
+      "description": "Tenants que a pessoa acessa: claim `tenants` (identidade) e um claim por produto (`bp_tenants`, `pm_tenants`) com os tenants em que aquele produto esta habilitado.",
       "protocol": "openid-connect",
       "attributes": {
         "include.in.token.scope": "true",
@@ -2403,6 +2403,44 @@
             "lightweight.claim": "false",
             "access.token.claim": "true",
             "claim.name": "tenants",
+            "jsonType.label": "String"
+          }
+        },
+        {
+          "id": "b6f1a4c2-0002-4a10-9d6e-1c7a5b0e4d92",
+          "name": "bp-tenants-user-attribute",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-attribute-mapper",
+          "consentRequired": false,
+          "config": {
+            "aggregate.attrs": "false",
+            "introspection.token.claim": "true",
+            "multivalued": "true",
+            "userinfo.token.claim": "true",
+            "user.attribute": "bp_tenants",
+            "id.token.claim": "true",
+            "lightweight.claim": "false",
+            "access.token.claim": "true",
+            "claim.name": "bp_tenants",
+            "jsonType.label": "String"
+          }
+        },
+        {
+          "id": "b6f1a4c2-0003-4a10-9d6e-1c7a5b0e4d92",
+          "name": "pm-tenants-user-attribute",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-attribute-mapper",
+          "consentRequired": false,
+          "config": {
+            "aggregate.attrs": "false",
+            "introspection.token.claim": "true",
+            "multivalued": "true",
+            "userinfo.token.claim": "true",
+            "user.attribute": "pm_tenants",
+            "id.token.claim": "true",
+            "lightweight.claim": "false",
+            "access.token.claim": "true",
+            "claim.name": "pm_tenants",
             "jsonType.label": "String"
           }
         }

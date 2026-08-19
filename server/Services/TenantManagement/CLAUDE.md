@@ -20,11 +20,18 @@ O design rationale vive em `TenantManagement.Architecture/` — o ponto de entra
 `infra-codegen-ddd-dotnet`, `api-codegen-ddd-dotnet`, `tests-domain-ddd-dotnet` e
 `tests-integration-ddd-dotnet` — **invoque-as via Skill em vez de escrever DDD à mão**.
 
-### Quatro regras que não podem erodir
+### Cinco regras que não podem erodir
 
 **Este BC não é chamado em runtime pelos produtos.** A única coisa que atravessa é o claim do
 token. Um `HttpClient` apontando para cá dentro do PeopleManagement ou do BillPayment é violação
-(ADR-002).
+(ADR-002). O que o cadastro precisa **impor** aos produtos — suspensão e entitlement de produto —
+viaja pelo provedor de identidade, nem por chamada nem por evento (ADR-005).
+
+**Suspender um tenant corta o acesso de todo mundo, o titular incluído.** É o que
+`TenantStatus.Suspended` declara e o que os handlers cumprem. A revogação passa pelo
+**provisionador**, nunca por `RevokeMembership`: o método de domínio protege o último responsável
+(`TNM.TNT20`) e recusaria cortar justamente o dono, deixando a suspensão pela metade. O vínculo
+continua ativo no cadastro — suspender preserva o cadastro.
 
 **Nenhum termo do provedor de identidade cruza a porta.** `grep -ri keycloak` fora de
 `Infra/Identity/`, `API/Authentication/`, `API/Authorization/` e dos `appsettings` é violação.
@@ -39,7 +46,10 @@ e o último responsável não pode perder o acesso (`TNM.TNT20`).
 
 ## Build, Run & Test
 
-Este BC tem **`.sln` própria** — não faz parte do `../../RufinoProject.sln`. Sempre opere desta pasta.
+Este BC tem **`.sln` própria** — e, desde 2026-08-18, os 6 projetos também estão incluídos na
+`../../RufinoProject.sln` (que abre os 3 BCs juntos no Visual Studio). Para trabalhar SÓ neste BC,
+continue operando desta pasta; o compose da raiz (`server/docker-compose.yml`) sobe os 3 BCs +
+Keycloak + storage e publica **as mesmas portas** deste compose — use um OU outro.
 
 ```powershell
 dotnet build TenantManagement.sln
@@ -112,8 +122,30 @@ Rotas do próprio tenant, se existirem no futuro, usam `/api/v1/{tenantId}/...` 
 
 ## Architecture — o que é não-óbvio
 
-- **`AccessProvisioning` do tenant é derivado dos vínculos** (`Ignore`d no EF). Um campo próprio
-  seria uma segunda versão da mesma informação, livre para divergir.
+- **`AccessProvisioning` e `ActiveProducts` são derivados e `Ignore`dos no EF.** Um campo próprio
+  seria uma segunda versão da mesma informação, livre para divergir. **Esquecer o `Ignore` não é
+  falha estética**: o EF passa a tratar a coleção como mapeável, o modelo diverge das migrações e
+  a suíte de integração inteira morre em `PendingModelChangesWarning` antes do primeiro teste.
+- **Um único caminho sincroniza o acesso: `TenantAccessSynchronizer`.** Suspender, reativar, ativar
+  produto e desativar produto mudam a mesma coisa — quem enxerga aquele tenant e em quais produtos
+  —, então os quatro handlers delegam a ele, e ele **deriva o estado desejado do agregado**, nunca
+  do payload do evento. Ler o evento faria cada handler recalcular a resposta por conta própria, e
+  três deles acertariam. O quinto e o sexto caminhos (`MembershipGranted`/`Revoked`) continuam
+  agindo sobre **um** e-mail, porque é isso que mudou ali.
+- **A porta de provisionamento declara ESTADO DESEJADO, não incremento.** `GrantAccessAsync` recebe
+  os produtos ativos do tenant e o adapter **retira** o tenant dos atributos dos produtos que não
+  estão na lista. É o que faz a mesma chamada servir para conceder acesso, ativar produto e
+  desativar produto — o provedor não precisa saber qual das três aconteceu, só qual é o resultado.
+- **Um atributo por produto, além do `tenants` genérico.** `bp_tenants` e `pm_tenants` trazem os
+  tenants em que a pessoa tem vínculo ativo **e** aquele produto está habilitado; é o que faz o
+  produto governar o acesso. **O nome não é livre**: o guard casa o *tipo* do claim por `Contains`,
+  e `"bp_tenants".Contains("tenants")` é verdadeiro. O sentido que importa está seguro
+  (`"tenants".Contains("bp_tenants")` é falso, então o BillPayment não aceita o genérico), mas
+  produto novo exige nome que nenhum outro contenha.
+- **`RequeueFailedAccessProvisioning` consulta o status do tenant.** Num tenant suspenso ele emite
+  **revogação**, não concessão — mesmo com o vínculo ativo, porque num tenant suspenso o estado
+  desejado no provedor é "ninguém tem acesso". Sem isso, `POST /tenants/{id}/access/reprovision`
+  seria a forma de burlar a suspensão: bastava pedir o conserto de um vínculo pendente.
 - **O vínculo é chaveado por e-mail**, não pelo id da pessoa no provedor: na hora da concessão ela
   pode ainda não existir lá. Revogar não apaga a linha; reconceder reaproveita.
 - **A porta de provisionamento NÃO recebe nome de pessoa, e isso é a correção de um bug real.**
@@ -199,23 +231,51 @@ build/run/test muda. Não duplique o que está em `TenantManagement.Architecture
 | Fase | Escopo | Estado |
 |---|---|---|
 | 1 | Esqueleto do BC (6 projetos, sln, compose, analyzers) | ✅ |
-| 2 | Domain + 160 testes unitários | ✅ |
+| 2 | Domain + 163 testes unitários | ✅ |
 | 3 | Application (11 commands, 3 queries), Infra (EF + adapter Keycloak), API | ✅ |
-| 4 | 48 testes de integração (Testcontainers + Respawn) | ✅ |
+| 4 | 59 testes de integração (Testcontainers + Respawn) | ✅ |
 | 5 | Config do Keycloak: 2 clients, `tenant-scope`, resources/scopes/policies | ✅ (exportada; falta aplicar no realm) |
 | 6 | Backfill dos cadastros existentes preservando o Guid | ✅ (ferramenta pronta; falta executar) |
 | 7 | Documentação (Architecture, ADRs, este arquivo) | ✅ |
+| 8 | **Integração com os produtos pelo claim** (ADR-005): suspensão corta acesso, produto governa entitlement | ✅ (2026-08-17) |
 
 ## Checklist pré-produção
 
 - [ ] **Aplicar a config no realm** — importar `utils/KeyCloakConfig/tenant-management-authz-config.json`
-      no client `tenant-management-api` e criar o `tenant-management-provisioner` com
-      `manage-users`/`view-users` do `realm-management`.
-- [ ] **Segredos por variável de ambiente** — `Keycloak__Credentials__secret` e
-      `TenantProvisioning__ClientSecret`. Nunca no `appsettings.json`.
-- [ ] **`TenantProvisioning:Enabled=true`** — desligado por padrão; ligar é decisão de quem configura.
+      no client `tenant-management-api`. **O `tenant-management-provisioner` já existe**: ele está no
+      export da nuvem de 2026-08-18 e no realm local, com `manage-users`/`view-users` do
+      `realm-management` na conta de serviço (verificado em 2026-08-19). O que falta é o **segredo**,
+      que os exports do admin console mascaram — regenere em Credentials → Regenerate.
+- [ ] **Segredos por variável de ambiente EM PRODUÇÃO** — `Keycloak__Credentials__secret` e
+      `TenantProvisioning__ClientSecret`. Nunca no `appsettings.json`. **Em desenvolvimento é o
+      oposto**: o segredo vem do `dotnet user-secrets` e o compose **não pode** defini-lo, porque
+      `${VAR:-}` injeta string vazia e variável de ambiente vence user-secrets — ver o aviso em
+      `../../CLAUDE.md`.
+- [x] **`TenantProvisioning:Enabled`** — está **`true`** no `appsettings.json`, não desligado como
+      esta linha afirmava. Com ele ligado e sem segredo, `IsConfigured` é falso, o DI registra o
+      `UnconfiguredTenantAccessProvisioner` e todo vínculo sai `Failed` — que é o modo de falha
+      correto (acesso que ninguém concedeu não é reportado como concedido), mas engana quem procura
+      o defeito no Keycloak em vez de na configuração.
 - [ ] **CORS de produção** — popular `Cors:AllowedOrigins` (sem wildcard).
 - [ ] **Executar o backfill** ANTES de o BillPayment ligar a validação do claim.
+- [ ] **Declarar `bp_tenants` e `pm_tenants` no User Profile do realm** (Realm settings → User
+      profile), multivalorados, `view: [admin, user]` / `edit: [admin]` — copie a entrada de
+      `tenants`. **Isto é separado do mapper e não é opcional**: o mapper transforma atributo em
+      claim, mas quem autoriza o atributo a existir é o User Profile. Com
+      `unmanagedAttributePolicy` ausente (o caso do realm), o Keycloak **descarta atributo não
+      declarado e responde HTTP 204** — o `KeycloakTenantAccessProvisioner` lê isso como sucesso,
+      marca o vínculo `Done`, e o claim nunca chega ao token. Medido em 2026-08-19: era a causa de
+      todo endpoint do BillPayment responder 403 com o papel `bill-admin` corretamente atribuído.
+      Já está no `realm-import-2026-08-18.json`; realm importado antes dessa correção precisa do
+      passo à mão.
+- [ ] **Reprovisionar TODOS os tenants depois de importar os mappers novos** (`bp_tenants`,
+      `pm_tenants`) e antes de o produto passar a ler o claim dele. A ordem é
+      backfill → **User Profile** → mappers → reprovisionamento → produto lê o claim novo; fora
+      dela o atributo nasce vazio e **todo cliente legítimo toma 403** (ADR-005).
+      ⚠️ `POST /tenants/{id}/access/reprovision` **só recoloca na fila vínculo que não está
+      `Done`** (`NeedsProvisioning() => !Done`). Vínculo já marcado `Done` por uma escrita que o
+      Keycloak descartou **não** é reprocessado por ele: use desativar+reativar o produto, ou
+      suspender+reativar o tenant, que passam pelo `TenantAccessSynchronizer`.
 - [ ] **Papéis no realm** — `tenant-admin` e `tenant-support` atribuídos a quem opera o back-office.
 - [ ] **Health check do Postgres** e logging estruturado com correlation id. **Parcialmente
       coberto**: as 11 escritas já logam Command + resultado, o `LoggingBehavior` mede duração com o

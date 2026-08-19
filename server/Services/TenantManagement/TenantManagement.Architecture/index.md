@@ -7,7 +7,7 @@ Design rationale do Bounded Context. **Todo documento novo de arquitetura deve s
 | [`01-context-and-vision.md`](01-context-and-vision.md) | O que é um tenant, escopo do BC, o que fica de fora, linguagem ubíqua |
 | [`02-domain-model.md`](02-domain-model.md) | Aggregate `Tenant`, VOs, entidades filhas, invariantes, eventos, portas, prefixos de erro |
 | [`03-access-provisioning.md`](03-access-provisioning.md) | Como o acesso chega ao provedor de identidade, o claim `tenants`, e o que fazer quando falha |
-| [`adr/`](adr/) | ADR-001 a ADR-004 — o **porquê** de cada decisão estrutural |
+| [`adr/`](adr/) | ADR-001 a ADR-005 — o **porquê** de cada decisão estrutural |
 
 **Antes de propor mudança estrutural, leia o ADR correspondente.** Decisões fechadas e greppáveis:
 
@@ -15,6 +15,7 @@ Design rationale do Bounded Context. **Todo documento novo de arquitetura deve s
 - **O Tenant é registro-mestre; `Company` e `PayerProfile` continuam sendo cadastro local de cada produto** ([ADR-002](adr/ADR-002-registro-mestre.md)).
 - **O claim se chama `tenants`, não `tenant_ids`** ([ADR-003](adr/ADR-003-claim-tenants.md)).
 - **A camada de autorização é copiada do PeopleManagement, não compartilhada** ([ADR-004](adr/ADR-004-autorizacao-copiada.md)).
+- **Suspensão e entitlement de produto trafegam pelo claim — nem chamada síncrona, nem mensageria** ([ADR-005](adr/ADR-005-integracao-pelo-claim.md)).
 
 ## Ferramentas
 

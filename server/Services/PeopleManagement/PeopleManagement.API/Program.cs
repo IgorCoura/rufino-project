@@ -40,6 +40,13 @@ builder.Services.AddDbContext<PeopleManagementContext>(options =>
         builder.Configuration.GetConnectionString("Postgresql"),
         npgsqlOptionsAction: sqlOptions =>
         {
+            // O schema é obrigatório aqui. A connection string traz SearchPath=people_management, e o
+            // Migrate cria a tabela de histórico ANTES de aplicar qualquer migração — ou seja, antes do
+            // EnsureSchema que criaria o schema. Sem o schema explícito o CREATE TABLE sai sem qualificação,
+            // o Postgres procura no search_path vazio e morre em 3F000 "no schema has been selected to
+            // create in" em todo banco virgem. O nome tem que continuar sendo o padrão do EF: os ambientes
+            // já existentes gravaram o histórico com ele, e renomear faria o EF reaplicar tudo do zero.
+            sqlOptions.MigrationsHistoryTable("__EFMigrationsHistory", PeopleManagementContext.DEFAULT_SCHEMA);
             sqlOptions.EnableRetryOnFailure(maxRetryCount: 15, maxRetryDelay: TimeSpan.FromSeconds(30), errorCodesToAdd: null);
         })
         .UseExceptionProcessor();
@@ -52,6 +59,11 @@ builder.Services.AddDbContextFactory<PeopleManagementContext>(options =>
         builder.Configuration.GetConnectionString("Postgresql"),
         npgsqlOptionsAction: sqlOptions =>
         {
+            // Tem que repetir o do registro acima: esta é a última registração de
+            // DbContextOptions<PeopleManagementContext>, então é ela que o contexto resolvido pelo DI
+            // recebe — inclusive o que roda o Migrate. Configurar só num dos dois deixa o histórico
+            // de migração em lugar diferente do que o outro procura.
+            sqlOptions.MigrationsHistoryTable("__EFMigrationsHistory", PeopleManagementContext.DEFAULT_SCHEMA);
             sqlOptions.EnableRetryOnFailure(maxRetryCount: 15, maxRetryDelay: TimeSpan.FromSeconds(30), errorCodesToAdd: null);
         })
         .UseExceptionProcessor();
@@ -133,11 +145,12 @@ using var scope = app.Services.CreateScope();
 var services = scope.ServiceProvider;
 
 var context = services.GetRequiredService<PeopleManagementContext>();
-context.Database.ExecuteSqlRaw($"CREATE SCHEMA IF NOT EXISTS {PeopleManagementContext.DEFAULT_SCHEMA}");
-if (context.Database.GetPendingMigrations().Any())
-{
-    context.Database.Migrate();
-}
+// Migrate vem PRIMEIRO e incondicional: ele cria o database quando não existe (Postgres virgem)
+// e é no-op quando tudo já foi aplicado. Qualquer comando cru antes dele — o CREATE SCHEMA
+// abaixo, ou o GetPendingMigrations do if antigo — abre conexão direta no database e morre em
+// 3D000 num volume novo, antes de o Migrate ter chance de criá-lo.
+context.Database.Migrate();
+//context.Database.ExecuteSqlRaw($"CREATE SCHEMA IF NOT EXISTS {PeopleManagementContext.DEFAULT_SCHEMA}"); //Se o migration já foi aplicado não tem o porque criar um schema que já foi teoricamente criado no migration.
 
 // Configure the HTTP request pipeline.
 if (env != null && env.Equals("Development"))

@@ -1,3 +1,5 @@
+# ⚠️ NUNCA publique a porta 8080 do HOST: ela é reservada para o Flutter web em desenvolvimento
+# (--web-port=8080, redirect URI registrado no realm). A 8080 INTERNA do container é ok.
 services:
   tenantmanagement.api:
     image: ${DOCKER_REGISTRY-}tenantmanagementapi

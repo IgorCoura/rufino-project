@@ -1,5 +1,6 @@
 namespace BillPayment.API.Controllers;
 
+using BillPayment.API.Authorization;
 using BillPayment.Application.Mediator;
 using BillPayment.Application.Models.TrustedOrigins;
 using BillPayment.Application.Queries.TrustedOrigins;
@@ -11,9 +12,9 @@ using Microsoft.AspNetCore.Mvc;
 /// estado válido e comum, por isso <c>resolve</c> devolve 204 em vez de 404.
 /// </summary>
 /// <remarks>
-/// Autorização granular (<c>[ProtectedResource("origin", "view"|"manage")]</c>) entra na
-/// fase 6, junto com o Keycloak. Até lá os endpoints estão abertos — ver "Checklist
-/// pré-produção" no CLAUDE.md do BC.
+/// O recurso de autorização se chama <c>origin</c>, no singular e sem o prefixo <c>trusted</c>,
+/// para casar com o catálogo do doc 05 — o nome da rota e o nome do recurso não precisam
+/// coincidir, e mudá-lo depois exigiria reconfigurar o realm.
 /// </remarks>
 [Route("api/v1/{tenantId:guid}/trusted-origins")]
 public sealed class TrustedOriginsController(
@@ -22,6 +23,7 @@ public sealed class TrustedOriginsController(
     ILogger<TrustedOriginsController> logger) : BaseController(logger)
 {
     [HttpGet]
+    [ProtectedResource("origin", "view")]
     public async Task<ActionResult<TrustedOriginPage>> List(
         [FromRoute] Guid tenantId,
         [FromQuery] string? cursor,
@@ -30,6 +32,7 @@ public sealed class TrustedOriginsController(
         => OkResponse(await queries.ListAsync(tenantId, cursor, limit, cancellationToken));
 
     [HttpGet("{id:guid}")]
+    [ProtectedResource("origin", "view")]
     public async Task<ActionResult<TrustedOriginDto>> GetById(
         [FromRoute] Guid tenantId,
         [FromRoute] Guid id,
@@ -41,6 +44,7 @@ public sealed class TrustedOriginsController(
 
     /// <summary>Resolve o remetente respeitando a precedência endereço &gt; domínio.</summary>
     [HttpGet("resolve")]
+    [ProtectedResource("origin", "view")]
     public async Task<ActionResult<TrustedOriginDto>> Resolve(
         [FromRoute] Guid tenantId,
         [FromQuery] string sender,
@@ -53,13 +57,14 @@ public sealed class TrustedOriginsController(
     }
 
     [HttpPost]
+    [ProtectedResource("origin", "manage")]
     public async Task<ActionResult<RegisterTrustedOriginResponse>> Register(
         [FromRoute] Guid tenantId,
         [FromBody] RegisterTrustedOriginModel model,
         [FromHeader(Name = "x-requestid")] Guid requestId,
         CancellationToken cancellationToken)
     {
-        var command = model.ToCommand(tenantId);
+        var command = model.ToCommand(tenantId, ResolveDecidingUserId());
         var identified = new IdentifiedCommand<RegisterTrustedOriginCommand, RegisterTrustedOriginResponse>(
             command, EnsureRequestId(requestId));
 
@@ -71,6 +76,7 @@ public sealed class TrustedOriginsController(
     }
 
     [HttpPut("{id:guid}/decision")]
+    [ProtectedResource("origin", "manage")]
     public async Task<ActionResult<ChangeTrustedOriginDecisionResponse>> ChangeDecision(
         [FromRoute] Guid tenantId,
         [FromRoute] Guid id,
@@ -78,7 +84,7 @@ public sealed class TrustedOriginsController(
         [FromHeader(Name = "x-requestid")] Guid requestId,
         CancellationToken cancellationToken)
     {
-        var command = model.ToCommand(tenantId, id);
+        var command = model.ToCommand(tenantId, id, ResolveDecidingUserId());
         var identified = new IdentifiedCommand<ChangeTrustedOriginDecisionCommand, ChangeTrustedOriginDecisionResponse>(
             command, EnsureRequestId(requestId));
 
@@ -90,6 +96,7 @@ public sealed class TrustedOriginsController(
     }
 
     [HttpDelete("{id:guid}")]
+    [ProtectedResource("origin", "manage")]
     public async Task<ActionResult<DeleteTrustedOriginResponse>> Delete(
         [FromRoute] Guid tenantId,
         [FromRoute] Guid id,

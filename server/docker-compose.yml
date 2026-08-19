@@ -1,6 +1,33 @@
-version: '3.4'
+# Stack completa da plataforma Rufino: os 3 Bounded Contexts + Keycloak + storage S3.
+#
+#   docker compose --profile api up --build    # sobe TUDO: 3 APIs, 3 bancos, Keycloak, storage
+#   docker compose up -d                       # só as dependências (bancos + storage), para rodar
+#                                              # as APIs pelo Visual Studio / dotnet run
+#   docker compose --profile keycloak up -d    # dependências + Keycloak local
+#
+# ⚠️ Este compose e os composes por BC (Services/TenantManagement, Services/BillPayment) publicam
+# as MESMAS portas do host — use um OU outro, nunca os dois ao mesmo tempo. Os volumes são
+# independentes (prefixados pelo nome do projeto compose), então os dados não se misturam.
+#
+# Variáveis opcionais em ./.env — ver .env.example.
+#
+# ⚠️ NENHUM SEGREDO é injetado por variável de ambiente aqui, e isso é deliberado. A forma
+# `${VAR:-}` NÃO deixa a variável ausente quando VAR não está definida: ela define a variável
+# com STRING VAZIA. E variável de ambiente vem DEPOIS do user-secrets na ordem de configuração
+# do ASP.NET Core, então a string vazia **sobrescreve o segredo do `dotnet user-secrets`** —
+# silenciosamente, porque o valor existe, só que vazio. Foi assim que o provisionamento de tenant
+# ficou `Failed` em 2026-08-19 com o segredo corretamente configurado no secrets.json.
+# Em desenvolvimento os segredos vêm do user-secrets (o compose do VS já monta a pasta); em
+# produção o orquestrador define as variáveis com valor de verdade. Se precisar injetar um
+# segredo aqui, use `${VAR:?mensagem}` (falha alto quando ausente), nunca `${VAR:-}`.
+#
+# ⚠️ NUNCA publique a porta 8080 do HOST em nenhum compose da plataforma: ela é reservada para o
+# Flutter web em desenvolvimento (launch.json roda com --web-port=8080, e os redirect URIs do
+# realm apontam para http://localhost:8080). Porta 8080 INTERNA de container é ok — só o mapeamento
+# de host é proibido.
 
 services:
+  # ── PeopleManagement ────────────────────────────────────────────────────────
   peoplemanagement.api:
     profiles: ["api"]
     image: ${DOCKER_REGISTRY-}peoplemanagementapi
@@ -10,8 +37,13 @@ services:
     environment:
         ASPNETCORE_URLS: "https://+;http://+"
         ASPNETCORE_HTTPS_PORT: "443"
-        ASPNETCORE_ENVIRONMENT: Developmen
+        ASPNETCORE_ENVIRONMENT: Development
         PUPPETEER_EXECUTABLE_PATH: "/usr/bin/google-chrome-stable"
+        # Por padrão as APIs continuam apontando para o Keycloak da nuvem (é onde o realm
+        # completo vive). Para usar o Keycloak local do profile "keycloak", defina no .env:
+        #   KEYCLOAK_URL=http://host.docker.internal:8082
+        Keycloak__AuthServerUrl: ${KEYCLOAK_URL:-https://keycloak.couratechsafety.cloud}
+        # Sem Keycloak__Credentials__secret aqui: viria vazio e apagaria o user-secrets (ver topo).
     volumes:
         - ${APPDATA}\microsoft\UserSecrets\:/root/.microsoft/usersecrets
         - ${USERPROFILE}\.aspnet\https:/root/.aspnet/https/
@@ -19,60 +51,211 @@ services:
         - 8040:80
         - 8041:443
     depends_on:
-        - peoplemanagement.db
-        # - blob-azure-storage
-        # - keycloak
+        peoplemanagement.db:
+          condition: service_healthy
 
   peoplemanagement.db:
     image: postgres:16.4-alpine
     restart: always
     volumes:
       - peoplemanagement-db:/var/lib/postgresql/data
+      # Roda SÓ na primeira subida de um volume vazio — cria o hangfiredb, que o
+      # Hangfire não cria sozinho. Volume já inicializado não reexecuta: recrie o
+      # volume ou crie os databases à mão via psql.
+      - ./db-init/peoplemanagement-create-hangfiredb.sql:/docker-entrypoint-initdb.d/peoplemanagement-create-hangfiredb.sql:ro
     environment:
         POSTGRES_USER: "admin"
         POSTGRES_PASSWORD: "5up3rS3nh@"
+        # Sem isto, um volume virgem nasce só com o database "admin" e o startup do
+        # PM morre em 3D000 antes do Migrate ter chance de criar o database.
+        POSTGRES_DB: "PeopleManagementDb"
         PGDATA: /var/lib/postgresql/data/pgdata
     ports:
         - 8042:5432
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U admin -d PeopleManagementDb"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
+  # ── TenantManagement — emite o TenantId e diz quem acessa cada tenant ───────
+  tenantmanagement.api:
+    profiles: ["api"]
+    image: ${DOCKER_REGISTRY-}tenantmanagementapi
+    build:
+      context: Services/TenantManagement
+      dockerfile: TenantManagement.API/Dockerfile
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_HTTP_PORTS: "8080"
+      ConnectionStrings__TenantManagement: "Host=tenantmanagement.db;Port=5432;Database=TenantManagementDb;Username=admin;Password=5up3rS3nh@;Search Path=tenant_management"
+      Keycloak__AuthServerUrl: ${KEYCLOAK_URL:-https://keycloak.couratechsafety.cloud}
+      # O provisionador é um client SEPARADO do resource server: este cria pessoa e concede
+      # tenant. Sem o segredo o provisionamento falha alto e o vínculo fica visível como Failed.
+      TenantProvisioning__AuthServerUrl: ${KEYCLOAK_URL:-https://keycloak.couratechsafety.cloud}
+      # Os dois segredos (Keycloak__Credentials__secret e TenantProvisioning__ClientSecret) NÃO
+      # entram aqui: viriam vazios e apagariam o user-secrets (ver topo do arquivo).
+    ports:
+      - 8110:8080
+    depends_on:
+      tenantmanagement.db:
+        condition: service_healthy
 
+  tenantmanagement.db:
+    image: postgres:17-alpine
+    restart: always
+    volumes:
+      - tenantmanagement-db:/var/lib/postgresql/data
+    environment:
+      POSTGRES_USER: "admin"
+      POSTGRES_PASSWORD: "5up3rS3nh@"
+      POSTGRES_DB: "TenantManagementDb"
+      PGDATA: /var/lib/postgresql/data/pgdata
+    ports:
+      - 8112:5432
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U admin -d TenantManagementDb"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
-  # keycloak:
-  #   image: quay.io/keycloak/keycloak:25.0.4
-  #   command: start-dev
-  #   environment:
-  #     KC_HOSTNAME: http://192.168.15.8:8080
-  #     KC_HOSTNAME_BACKCHANNEL_DYNAMIC: true
-  #     KC_HTTP_ENABLED: true
-  #     KC_HOSTNAME_STRICT_HTTPS: false
-  #     KC_HEALTH_ENABLED: true
-  #     KC_METRICS_ENABLED: true
-  #     KEYCLOAK_ADMIN: Admin
-  #     KEYCLOAK_ADMIN_PASSWORD: Admin
-  #     KC_DB: postgres
-  #     KC_DB_URL: jdbc:postgresql://keycloak.db/keycloakDb
-  #     KC_DB_USERNAME: admin
-  #     KC_DB_PASSWORD: 5up3rS3nh@
-  #     KC_FEATURES: hostname:v2
-  #   ports:
-  #     - 8082:8082
-  #     - 8080:8080
-  #     - 9000:9000
-  #   depends_on:
-  #     - keycloak.db
-                    
-  # keycloak.db:
-  #   image: postgres:16.4-alpine
-  #   restart: always
-  #   volumes:
-  #     - keycloak-db:/var/lib/postgresql/data
-  #   environment:
-  #     POSTGRES_DB: keycloakDb
-  #     POSTGRES_USER: admin
-  #     POSTGRES_PASSWORD: 5up3rS3nh@
-  #     PGDATA: /var/lib/postgresql/data/pgdata
-  #   ports:
-  #       - 8081:5432
+  # ── BillPayment — captura, verifica e aprova boletos ────────────────────────
+  billpayment.api:
+    profiles: ["api"]
+    image: ${DOCKER_REGISTRY-}billpaymentapi
+    build:
+      context: Services/BillPayment
+      dockerfile: BillPayment.API/Dockerfile
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_HTTP_PORTS: "8080"
+      ConnectionStrings__BillPayment: "Host=billpayment.db;Port=5432;Database=BillPaymentDb;Username=admin;Password=5up3rS3nh@;Search Path=bill_payment"
+      Storage__ServiceUrl: "http://billpayment.storage:9000"
+      Storage__AccessKey: "billpayment"
+      Storage__SecretKey: "billpayment-dev"
+      Storage__AuthenticationRegion: "us-east-1"
+      Keycloak__AuthServerUrl: ${KEYCLOAK_URL:-https://keycloak.couratechsafety.cloud}
+
+      # Nem Keycloak__Credentials__secret nem Secrets__MasterKey entram aqui: viriam vazios e
+      # apagariam o user-secrets (ver topo do arquivo). A master key do cofre (32 bytes em base64)
+      # vem de `dotnet user-secrets set "Secrets:MasterKey"` — sem ela o cofre falha em toda
+      # operação e conectar uma caixa é recusado. Gere com o comando PowerShell do
+      # Services/BillPayment/CLAUDE.md.
+    ports:
+      - 8100:8080
+    depends_on:
+      billpayment.db:
+        condition: service_healthy
+      billpayment.storage:
+        condition: service_healthy
+
+  billpayment.db:
+    image: postgres:17-alpine
+    restart: always
+    volumes:
+      - billpayment-db:/var/lib/postgresql/data
+    environment:
+      POSTGRES_USER: "admin"
+      POSTGRES_PASSWORD: "5up3rS3nh@"
+      POSTGRES_DB: "BillPaymentDb"
+      PGDATA: /var/lib/postgresql/data/pgdata
+    ports:
+      - 8102:5432
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U admin -d BillPaymentDb"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # Balde S3 dos artefatos capturados, só para desenvolvimento. Em produção o alvo é o Garage
+  # auto-hospedado — MESMO protocolo; o que muda é Storage:AuthenticationRegion ("us-east-1"
+  # aqui, "garage" lá). O PeopleManagement continua apontando para o Garage da nuvem por padrão.
+  billpayment.storage:
+    image: minio/minio:RELEASE.2025-04-22T22-12-26Z
+    restart: always
+    command: server /data --console-address ":9001"
+    volumes:
+      - billpayment-storage:/data
+    environment:
+      MINIO_ROOT_USER: "billpayment"
+      MINIO_ROOT_PASSWORD: "billpayment-dev"
+    ports:
+      - 8103:9000
+      - 8104:9001
+    healthcheck:
+      test: ["CMD-SHELL", "mc ready local"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # Cria o balde e sai. Sem isto o primeiro anexo falha com NoSuchBucket — o adapter grava
+  # objeto, não provisiona balde.
+  billpayment.storage-init:
+    image: minio/mc:RELEASE.2025-04-16T18-13-26Z
+    depends_on:
+      billpayment.storage:
+        condition: service_healthy
+    entrypoint: >
+      sh -c "mc alias set local http://billpayment.storage:9000 billpayment billpayment-dev &&
+             mc mb --ignore-existing local/billpayment-captures"
+
+  # ── Keycloak local (opcional) ───────────────────────────────────────────────
+  # Importa o realm `rufino` de ../utils/KeyCloakConfig/RufinoRealm/realm-import-2026-08-18.json
+  # na PRIMEIRA subida (import só acontece quando o realm ainda não existe no banco). Esse
+  # arquivo é o export da nuvem de 18/08 + o client `bill-payment-api` (authz completo), os
+  # papéis bill-*, e os mappers bp_tenants/pm_tenants/audience no tenant-scope.
+  #
+  # ⚠️ O export do admin console MASCARA os secrets dos clients confidenciais ("**********").
+  # Depois de importar: regenere os secrets (bill-payment-api nasce sem secret — o Keycloak
+  # gera um) e configure-os no .env / user-secrets das APIs.
+  #
+  # KC_HOSTNAME é pinado numa URL alcançável PELO HOST e PELOS contêineres ao mesmo tempo
+  # (host.docker.internal funciona nos dois no Docker Desktop) — sem isso o issuer do token
+  # emitido pelo app (via localhost) diverge do que a API valida (via DNS interno) e todo
+  # request morre em 401.
+  keycloak:
+    profiles: ["api", "keycloak"]
+    image: quay.io/keycloak/keycloak:26.3
+    command: start-dev --import-realm
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: Admin
+      KC_BOOTSTRAP_ADMIN_PASSWORD: Admin
+      KC_HOSTNAME: ${KEYCLOAK_LOCAL_URL:-http://host.docker.internal:8082}
+      KC_HOSTNAME_BACKCHANNEL_DYNAMIC: true
+      KC_HTTP_ENABLED: true
+      KC_HEALTH_ENABLED: true
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://keycloak.db/keycloakDb
+      KC_DB_USERNAME: admin
+      KC_DB_PASSWORD: 5up3rS3nh@
+    volumes:
+      - ../utils/KeyCloakConfig/RufinoRealm/realm-import-2026-08-18.json:/opt/keycloak/data/import/rufino-realm.json:ro
+    ports:
+      # 8082 no host, NÃO 8080 — a 8080 do host é do Flutter web (ver aviso no topo do arquivo).
+      - 8082:8080
+      - 9000:9000
+    depends_on:
+      keycloak.db:
+        condition: service_healthy
+
+  keycloak.db:
+    profiles: ["api", "keycloak"]
+    image: postgres:16.4-alpine
+    restart: always
+    volumes:
+      - keycloak-db:/var/lib/postgresql/data
+    environment:
+      POSTGRES_DB: keycloakDb
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: 5up3rS3nh@
+      PGDATA: /var/lib/postgresql/data/pgdata
+    ports:
+      - 8081:5432
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U admin -d keycloakDb"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
   # evolution-api:
   #   container_name: evolution_api
@@ -101,11 +284,12 @@ services:
   #   ports:
   #       - 5432:5432
 
-
 volumes:
   peoplemanagement-db:
-  # keycloak-db:
+  tenantmanagement-db:
+  billpayment-db:
+  billpayment-storage:
+  keycloak-db:
   # evolution-db:
   # evolution_store:
   # evolution_instances:
-  

@@ -26,7 +26,7 @@ public sealed class UnconfiguredDocumentIntelligenceTests : BaseIntegrationTest
 {
     private static readonly TenantId Tenant = TenantId.From(new Guid("0195a1f0-0000-7000-8000-0000000000d1"));
 
-    public UnconfiguredDocumentIntelligenceTests(IntegrationTestWebAppFactory factory) : base(factory) { }
+    public UnconfiguredDocumentIntelligenceTests(IntegrationTestWebAppFactory factory) : base(factory, Tenant.Value) { }
 
     // Sem provedor configurado, o extrator se declara desligado — e quem chama nem monta o
     // payload, em vez de serializar megabytes em base64 para descartar em seguida.

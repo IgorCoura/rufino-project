@@ -16,6 +16,17 @@
             ],
         },
         {
+            "name": "rufino local keyclaok",
+            "request": "launch",
+            "flutterMode": "debug",
+            "type": "dart",
+            "toolArgs": [
+                "--dart-define-from-file",
+                "secrets/local_keycloak_config.json",
+                "--web-port=8080"
+            ],
+        },
+        {
             "name": "rufino prod",
             "request": "launch",
             "flutterMode": "debug",

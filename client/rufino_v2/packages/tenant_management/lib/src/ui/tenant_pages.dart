@@ -35,7 +35,6 @@ class TenantSelectionPage extends StatefulWidget {
     super.key,
     required this.onTenantSelected,
     required this.onSelected,
-    required this.onCreateTenant,
     required this.onOpenBackOffice,
     required this.onLogout,
     required this.homeRoute,
@@ -46,9 +45,6 @@ class TenantSelectionPage extends StatefulWidget {
 
   /// Navegação após a escolha.
   final VoidCallback onSelected;
-
-  /// Abre o cadastro de um cliente novo.
-  final VoidCallback onCreateTenant;
 
   /// Abre o back-office.
   final VoidCallback onOpenBackOffice;
@@ -88,7 +84,6 @@ class _TenantSelectionPageState extends State<TenantSelectionPage> {
       viewModel: _viewModel,
       backFallback: widget.homeRoute,
       onSelected: widget.onSelected,
-      onCreateTenant: widget.onCreateTenant,
       onOpenBackOffice: widget.onOpenBackOffice,
       onLogout: widget.onLogout,
     );
@@ -101,11 +96,15 @@ class TenantListPage extends StatefulWidget {
   const TenantListPage({
     super.key,
     required this.onOpenTenant,
+    required this.onCreateTenant,
     required this.backFallback,
   });
 
   /// Abre um tenant da lista.
   final void Function(String id) onOpenTenant;
+
+  /// Abre o cadastro de um cliente novo.
+  final VoidCallback onCreateTenant;
 
   /// Para onde o voltar leva quando não há pilha.
   final String backFallback;
@@ -135,6 +134,7 @@ class _TenantListPageState extends State<TenantListPage> {
       viewModel: _viewModel,
       backFallback: widget.backFallback,
       onOpenTenant: widget.onOpenTenant,
+      onCreateTenant: widget.onCreateTenant,
     );
   }
 }

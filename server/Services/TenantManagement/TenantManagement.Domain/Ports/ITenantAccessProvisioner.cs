@@ -5,7 +5,7 @@ using TenantManagement.Domain.Tenants;
 
 /// <summary>
 /// Leva a concessão de acesso até o provedor de identidade — o lugar de onde os produtos
-/// leem, no token, a quais tenants a pessoa pertence.
+/// leem, no token, a quais tenants a pessoa pertence e em quais deles cada produto vale.
 /// </summary>
 /// <remarks>
 /// O domínio não sabe qual é o provedor, e nenhum termo dele (realm, claim, grupo, atributo)
@@ -18,9 +18,16 @@ using TenantManagement.Domain.Tenants;
 public interface ITenantAccessProvisioner
 {
     /// <summary>
-    /// Garante que a pessoa exista no provedor e que ela enxergue este tenant. Devolve o
-    /// identificador dela — que pode ser a primeira vez que este BC fica sabendo dele.
+    /// Garante que a pessoa exista no provedor e que ela enxergue este tenant nos produtos
+    /// informados. Devolve o identificador dela — que pode ser a primeira vez que este BC fica
+    /// sabendo dele.
     /// </summary>
+    /// <param name="products">
+    /// Os produtos ativos do tenant <strong>neste momento</strong>. A operação declara o estado
+    /// desejado, não um incremento: produto ausente da lista tem o acesso <em>retirado</em>. É o
+    /// que permite a mesma chamada servir para conceder acesso, ativar produto e desativar
+    /// produto — sem que o provedor precise saber qual das três aconteceu.
+    /// </param>
     /// <remarks>
     /// <strong>Não recebe nome de pessoa, e isso é deliberado.</strong> O vínculo é chaveado
     /// por e-mail justamente porque este BC não conhece quem está do outro lado — o cadastro
@@ -31,11 +38,12 @@ public interface ITenantAccessProvisioner
     Task<AccessGrantResult> GrantAccessAsync(
         TenantId tenantId,
         string emailAddress,
+        IReadOnlyCollection<ProductCode> products,
         CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Retira o tenant da lista de acessos da pessoa. Não apaga a pessoa: ela pode ter
-    /// acesso a outros tenants, e apagá-la seria decidir por eles.
+    /// Retira o tenant da lista de acessos da pessoa, em todos os produtos. Não apaga a
+    /// pessoa: ela pode ter acesso a outros tenants, e apagá-la seria decidir por eles.
     /// </summary>
     Task RevokeAccessAsync(
         TenantId tenantId,

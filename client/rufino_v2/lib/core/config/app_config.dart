@@ -36,8 +36,24 @@ abstract final class AppConfig {
     'tenant_management_url',
   );
 
+  /// Host of the BillPayment service — captura, verificação e aprovação de
+  /// boletos.
+  ///
+  /// Accepts `host:port` (served over HTTPS) or a full origin
+  /// (`http://host:port`) — this bounded context runs over plain HTTP in
+  /// development (docker compose publishes it at `http://<host>:8100`).
+  static const String billPaymentUrl = String.fromEnvironment(
+    'bill_payment_url',
+  );
+
   /// The Keycloak client id of the People Management resource server.
   static const String peopleManagementAudience = 'people-management-api';
+
+  /// The Keycloak client id of the BillPayment resource server.
+  ///
+  /// A third audience, asked for separately — a permission granted on one
+  /// resource server says nothing about the others.
+  static const String billPaymentAudience = 'bill-payment-api';
 
   /// The Keycloak client id of the TenantManagement resource server.
   ///
@@ -166,6 +182,7 @@ abstract final class AppConfig {
     // Sem ele o app não tem por onde escolher o cliente — e a seleção é a
     // porta de entrada, não um detalhe de um produto.
     if (tenantManagementUrl.isEmpty) missing.add('tenant_management_url');
+    if (billPaymentUrl.isEmpty) missing.add('bill_payment_url');
 
     if (useDirectAccessGrants) {
       if (authorizationEndpoint.isEmpty) {

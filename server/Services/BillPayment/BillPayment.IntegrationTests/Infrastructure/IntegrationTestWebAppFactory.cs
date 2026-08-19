@@ -1,8 +1,11 @@
 namespace BillPayment.IntegrationTests.Infrastructure;
 
+using BillPayment.API.Authorization;
 using BillPayment.Domain.Ports;
 using BillPayment.Infra.Persistence;
 using BillPayment.Infra.Secrets;
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
@@ -81,6 +84,55 @@ public sealed class IntegrationTestWebAppFactory : WebApplicationFactory<Program
         builder.UseSetting("Expectations:Enabled", "false");
 
         builder.UseEnvironment("Development");
+
+        builder.ConfigureTestServices(ConfigureAuthDoubles);
+    }
+
+    /// <summary>
+    /// Troca o que depende de um Keycloak no ar, e <strong>só isso</strong>.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Saem: o esquema JWT (não há emissor para validar assinatura) e o
+    /// <c>ProtectedResourceRequirementHandler</c>, que faria uma chamada UMA por request. Quem
+    /// concede escopo é o realm, e isso não é código deste BC.
+    /// </para>
+    /// <para>
+    /// <strong>Fica o <c>RouteAccessRequirementHandler</c> de produção</strong> — o guard
+    /// anti-IDOR é código daqui, e substituí-lo faria a suíte medir o dublê. É por isso que todo
+    /// cliente da suíte declara seus tenants (ver <c>BaseIntegrationTest</c>).
+    /// </para>
+    /// </remarks>
+    private static void ConfigureAuthDoubles(IServiceCollection services)
+    {
+        services.AddAuthentication(options =>
+        {
+            options.DefaultAuthenticateScheme = MockAuthenticationHandler.AuthScheme;
+            options.DefaultChallengeScheme = MockAuthenticationHandler.AuthScheme;
+        })
+        .AddScheme<AuthenticationSchemeOptions, MockAuthenticationHandler>(MockAuthenticationHandler.AuthScheme, _ => { });
+
+        // Tira SÓ o handler que fala com o Keycloak, pelo tipo de implementação.
+        //
+        // `RemoveAll<IAuthorizationHandler>()` seria o caminho óbvio e está errado: ele leva junto
+        // o `PassThroughAuthorizationHandler` do ASP.NET Core, que é quem avalia os requirements
+        // que implementam IAuthorizationHandler em si mesmos — o `DenyAnonymousAuthorizationRequirement`
+        // do `RequireAuthenticatedUser()` é um deles. Sem ele o requirement nunca é avaliado, a
+        // policy nunca conclui, e TODA requisição autenticada volta 403. Medido: 134 testes
+        // vermelhos, incluindo o que afirma que o tenant no claim deveria passar.
+        var keycloakHandlers = services
+            .Where(d => d.ServiceType == typeof(IAuthorizationHandler)
+                     && d.ImplementationType == typeof(ProtectedResourceRequirementHandler))
+            .ToList();
+
+        foreach (var descriptor in keycloakHandlers)
+            services.Remove(descriptor);
+
+        services.AddSingleton<IAuthorizationHandler, MockProtectedResourceHandler>();
+
+        services.RemoveAll<IAuthorizationPolicyProvider>();
+        services.AddSingleton<IAuthorizationPolicyProvider>(sp =>
+            new MockPolicyProvider(sp.GetRequiredService<BillPayment.API.Authorization.AuthorizationOptions>()));
     }
 
     public async Task InitializeAsync()

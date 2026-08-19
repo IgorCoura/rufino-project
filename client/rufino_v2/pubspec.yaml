@@ -28,6 +28,9 @@ dependencies:
   # mesmo pacote. A casca compõe; o pacote não conhece a casca.
   tenant_management:
     path: packages/tenant_management
+  # Contas a pagar: captura, verificação, aprovação e expectativas.
+  bill_payment:
+    path: packages/bill_payment
   sentry_flutter: ^9.19.0
   flutter:
     sdk: flutter

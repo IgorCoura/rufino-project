@@ -38,9 +38,13 @@ public sealed class MembershipGrantedDomainEventHandler(
 
         try
         {
+            // Os produtos vêm do agregado, não do evento: o que o provedor precisa saber é em
+            // quais produtos este tenant vale AGORA, e o payload de um evento antigo diria o que
+            // valia quando ele foi emitido.
             var result = await provisioner.GrantAccessAsync(
                 domainEvent.TenantId,
                 domainEvent.Email,
+                tenant.ActiveProducts,
                 cancellationToken);
 
             tenant.ConfirmAccessProvisioned(domainEvent.Email, result.UserId, occurredAt);

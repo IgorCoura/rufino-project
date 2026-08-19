@@ -90,20 +90,24 @@ public class BaseController(ILogger<BaseController> logger) : ControllerBase
         => command is ISensitiveCommand ? SENSITIVE_PAYLOAD : command;
 
     /// <summary>
-    /// Quem está decidindo. Prefere o <c>sub</c> do token; sem token, cai para o header.
+    /// Quem está decidindo. Vem do <c>sub</c> do token, e de nenhum outro lugar.
     /// </summary>
     /// <remarks>
-    /// <strong>O fallback por header é provisório e morre na fase 6.</strong> Nesta fase não há
-    /// Keycloak configurado e o <c>User</c> chega sem claims, então sem ele não haveria como
-    /// registrar quem aprovou — e o ADR-007 exige um <c>UserId</c> em todo pagamento. Quando o
-    /// token entrar, o caminho do claim vence sozinho e este método vira uma linha a apagar.
     /// <para>
-    /// Devolve <c>Guid.Empty</c> quando nada identifica o usuário: quem recusa é o domínio
-    /// (<c>BLP.BIL22</c>), para a regra viver num lugar só.
+    /// <strong>Havia um fallback pelo header <c>x-user-id</c>, e ele morreu quando o Keycloak
+    /// entrou.</strong> Enquanto não havia token, o header ERA a identidade — qualquer um que
+    /// alcançasse a API escolhia em nome de quem aprovar, e o ADR-007 apoia toda a trilha de
+    /// autorização de pagamento nesse campo. Não recoloque o parâmetro "para as ferramentas":
+    /// os scripts precisam de token de qualquer forma, porque quem os barra é a autenticação.
+    /// </para>
+    /// <para>
+    /// Devolve <c>Guid.Empty</c> quando o token não traz <c>sub</c> utilizável: quem recusa é o
+    /// domínio (<c>BLP.BIL22</c>), para a regra viver num lugar só — lançar daqui trocaria uma
+    /// recusa de negócio por um 500.
     /// </para>
     /// </remarks>
-    protected Guid ResolveDecidingUserId(Guid headerUserId)
-        => TryGetUserId(out var fromToken) ? fromToken : headerUserId;
+    protected Guid ResolveDecidingUserId()
+        => TryGetUserId(out var fromToken) ? fromToken : Guid.Empty;
 
     // Idempotência permissiva: header x-requestid ausente (Guid.Empty) gera um novo Id por request,
     // de modo que cada chamada sem header é tratada como intenção distinta (nunca colide na tabela).

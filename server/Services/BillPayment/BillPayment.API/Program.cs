@@ -1,3 +1,5 @@
+using BillPayment.API.Authentication;
+using BillPayment.API.Authorization;
 using BillPayment.API.BackgroundServices;
 using BillPayment.API.Extension;
 using BillPayment.API.Filters;
@@ -17,8 +19,13 @@ builder.Services.AddApplicationDependencies(builder.Configuration);
 builder.Services.AddInfraDependencies(builder.Configuration);
 builder.Services.AddCorsForFront(builder.Configuration, builder.Environment);
 
+// Autenticação e autorização iguais às dos outros dois BCs: JWT do Keycloak + policy montada em
+// tempo de execução a partir de [ProtectedResource]. Os papéis vivem no realm, não aqui.
+builder.Services.AddKeycloakAuthentication(builder.Configuration);
+builder.Services.AddKeycloakAuthorization(builder.Configuration);
+
 builder.Services.AddSingleton(TimeProvider.System);
-builder.Services.AddOpenApi();
+builder.Services.AddOpenApiWithBearer();
 
 // Agendador de captura. Desligado por padrão e registrado só quando Capture:Enabled=true — sem
 // adapter de provedor ele só produziria falhas registradas em toda fonte, e a suíte de
@@ -68,6 +75,10 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseCors();
+
+// UseAuthentication ANTES de UseAuthorization: sem ele o User chega sem claims e toda policy
+// reprova — ou pior, o guard de rota acha claim nenhum e o 403 lê como falta de permissão.
+app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
 

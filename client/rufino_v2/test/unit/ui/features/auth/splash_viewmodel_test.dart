@@ -1,5 +1,6 @@
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:bill_payment/bill_payment.dart';
 import 'package:rufino_core/rufino_core.dart';
 import 'package:rufino_v2/core/tenant/tenant_session_bridge.dart';
 import 'package:rufino_v2/domain/entities/company.dart';
@@ -39,6 +40,7 @@ void main() {
   late TenantContextNotifier tenantContext;
   late PermissionNotifier permissionNotifier;
   late TenantPermissionNotifier tenantPermissionNotifier;
+  late BillPaymentPermissionNotifier billPaymentPermissionNotifier;
   late TenantSessionBridge bridge;
   late SplashViewModel viewModel;
 
@@ -50,6 +52,7 @@ void main() {
       tenantSessionBridge: bridge,
       permissionNotifier: permissionNotifier,
       tenantPermissionNotifier: tenantPermissionNotifier,
+      billPaymentPermissionNotifier: billPaymentPermissionNotifier,
       errorReporter: FakeErrorReporter(),
     );
   }
@@ -66,10 +69,14 @@ void main() {
     tenantPermissionNotifier = TenantPermissionNotifier(
       permissionRepository: FakePermissionRepository(),
     );
+    billPaymentPermissionNotifier = BillPaymentPermissionNotifier(
+      permissionRepository: FakePermissionRepository(),
+    );
     bridge = TenantSessionBridge(
       companyRepository: companyRepository,
       permissionNotifier: permissionNotifier,
       tenantPermissionNotifier: tenantPermissionNotifier,
+      billPaymentPermissionNotifier: billPaymentPermissionNotifier,
       errorReporter: FakeErrorReporter(),
     );
     viewModel = buildViewModel();
@@ -79,6 +86,7 @@ void main() {
     viewModel.dispose();
     permissionNotifier.dispose();
     tenantPermissionNotifier.dispose();
+    billPaymentPermissionNotifier.dispose();
   });
 
   group('SplashViewModel', () {

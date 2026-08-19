@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:bill_payment/bill_payment.dart';
 import 'package:rufino_core/rufino_core.dart';
 import 'package:tenant_management/tenant_management.dart';
 
@@ -22,15 +23,18 @@ class TenantSessionBridge extends ChangeNotifier {
     required CompanyRepository companyRepository,
     required PermissionNotifier permissionNotifier,
     required TenantPermissionNotifier tenantPermissionNotifier,
+    required BillPaymentPermissionNotifier billPaymentPermissionNotifier,
     required ErrorReporter errorReporter,
   })  : _companyRepository = companyRepository,
         _permissionNotifier = permissionNotifier,
         _tenantPermissionNotifier = tenantPermissionNotifier,
+        _billPaymentPermissionNotifier = billPaymentPermissionNotifier,
         _errorReporter = errorReporter;
 
   final CompanyRepository _companyRepository;
   final PermissionNotifier _permissionNotifier;
   final TenantPermissionNotifier _tenantPermissionNotifier;
+  final BillPaymentPermissionNotifier _billPaymentPermissionNotifier;
   final ErrorReporter _errorReporter;
 
   bool _isPeopleManagementReady = false;
@@ -55,6 +59,7 @@ class TenantSessionBridge extends ChangeNotifier {
     await Future.wait([
       _permissionNotifier.loadPermissions(),
       _tenantPermissionNotifier.loadPermissions(),
+      _billPaymentPermissionNotifier.loadPermissions(),
     ]);
 
     _errorReporter.setUser(userId: null, companyId: tenant.id);

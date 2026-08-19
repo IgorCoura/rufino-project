@@ -36,7 +36,7 @@ public sealed class ApproveBillTests : BaseIntegrationTest, IDisposable
     {
         _host = factory.WithFakeLookups();
         _lookups = _host.Services.GetRequiredService<FakeLookupServices>();
-        _client = _host.CreateClient();
+        _client = _host.CreateClient().Authenticated();
     }
 
     public void Dispose()

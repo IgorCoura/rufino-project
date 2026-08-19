@@ -24,7 +24,7 @@ public sealed class CaptureItemPaginationTests : BaseIntegrationTest
     /// <summary>O mesmo instante para todos, que é o que a varredura faz.</summary>
     private static readonly DateTime SameInstant = new(2026, 8, 11, 18, 14, 25, DateTimeKind.Utc);
 
-    public CaptureItemPaginationTests(IntegrationTestWebAppFactory factory) : base(factory) { }
+    public CaptureItemPaginationTests(IntegrationTestWebAppFactory factory) : base(factory, Tenant.Value) { }
 
     // Teste de regressão. Bug de 2026-08-11: o cursor carregava só o CreatedAt, então a página 2
     // filtrava CreatedAt > T e voltava VAZIA — com 404 itens no banco carimbados no mesmo

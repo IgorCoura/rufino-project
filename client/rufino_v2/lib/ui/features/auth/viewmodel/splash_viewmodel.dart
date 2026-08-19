@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:bill_payment/bill_payment.dart';
 import 'package:rufino_core/rufino_core.dart';
 import 'package:tenant_management/tenant_management.dart';
 
@@ -41,6 +42,7 @@ class SplashViewModel extends ChangeNotifier {
     required TenantSessionBridge tenantSessionBridge,
     required PermissionNotifier permissionNotifier,
     required TenantPermissionNotifier tenantPermissionNotifier,
+    required BillPaymentPermissionNotifier billPaymentPermissionNotifier,
     required ErrorReporter errorReporter,
   })  : _authRepository = authRepository,
         _tenantRepository = tenantRepository,
@@ -48,6 +50,7 @@ class SplashViewModel extends ChangeNotifier {
         _tenantSessionBridge = tenantSessionBridge,
         _permissionNotifier = permissionNotifier,
         _tenantPermissionNotifier = tenantPermissionNotifier,
+        _billPaymentPermissionNotifier = billPaymentPermissionNotifier,
         _errorReporter = errorReporter;
 
   final AuthRepository _authRepository;
@@ -56,6 +59,7 @@ class SplashViewModel extends ChangeNotifier {
   final TenantSessionBridge _tenantSessionBridge;
   final PermissionNotifier _permissionNotifier;
   final TenantPermissionNotifier _tenantPermissionNotifier;
+  final BillPaymentPermissionNotifier _billPaymentPermissionNotifier;
   final ErrorReporter _errorReporter;
 
   SplashStatus _status = SplashStatus.loading;
@@ -91,6 +95,7 @@ class SplashViewModel extends ChangeNotifier {
       await Future.wait([
         _permissionNotifier.loadPermissions(),
         _tenantPermissionNotifier.loadPermissions(),
+        _billPaymentPermissionNotifier.loadPermissions(),
         _tenantContext.restore(),
       ]);
 

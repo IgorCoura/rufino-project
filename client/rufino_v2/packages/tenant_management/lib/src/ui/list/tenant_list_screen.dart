@@ -4,10 +4,12 @@ import 'package:rufino_core/rufino_core.dart';
 
 import '../../domain/tenant_enums.dart';
 import '../../domain/tenant_summary.dart';
+import '../../tenant_permissions.dart';
 import '../tenant_back_button.dart';
 import 'tenant_list_viewmodel.dart';
 
-/// The back-office listing: find a customer, and see what went wrong.
+/// The back-office listing: find a customer, register one, and see what went
+/// wrong.
 ///
 /// Two badges carry the weight here — the cadastro's status and the state of
 /// the access grant. The second is the reason this screen exists: a customer
@@ -19,6 +21,7 @@ class TenantListScreen extends StatefulWidget {
     required this.viewModel,
     required this.backFallback,
     required this.onOpenTenant,
+    required this.onCreateTenant,
   });
 
   /// Drives the screen.
@@ -30,6 +33,9 @@ class TenantListScreen extends StatefulWidget {
 
   /// Called with the id of the tenant to open.
   final void Function(String id) onOpenTenant;
+
+  /// Called to open the cadastro of a new tenant.
+  final VoidCallback onCreateTenant;
 
   @override
   State<TenantListScreen> createState() => _TenantListScreenState();
@@ -70,6 +76,15 @@ class _TenantListScreenState extends State<TenantListScreen> {
       appBar: AppBar(
         title: const Text('Clientes da plataforma'),
         leading: TenantBackButton(fallback: widget.backFallback),
+      ),
+      floatingActionButton: TenantPermissionGuard(
+        resource: TenantResources.tenant,
+        scope: TenantScopes.create,
+        child: FloatingActionButton.extended(
+          onPressed: widget.onCreateTenant,
+          icon: const Icon(Icons.add),
+          label: const Text('Cadastrar cliente'),
+        ),
       ),
       body: SafeArea(
         child: ListenableBuilder(
@@ -243,7 +258,8 @@ class _Results extends StatelessWidget {
             AppSpacing.md,
             0,
             AppSpacing.md,
-            AppSpacing.lg,
+            // Vão do FAB: sem ele o botão cobre a última linha da lista.
+            AppSpacing.lg + 72,
           ),
           itemCount: viewModel.items.length + (viewModel.hasMore ? 1 : 0),
           itemBuilder: (context, index) {

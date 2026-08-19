@@ -15,14 +15,18 @@ public sealed class RegisterTrustedOriginTests : BaseIntegrationTest
 
     private static Uri Route => new($"/api/v1/{TenantId}/trusted-origins", UriKind.Relative);
 
-    public RegisterTrustedOriginTests(IntegrationTestWebAppFactory factory) : base(factory) { }
+    // Quem decide vem do sub do token — o dublê de autenticação o traduz do header x-user-id.
+    public RegisterTrustedOriginTests(IntegrationTestWebAppFactory factory) : base(factory)
+    {
+        Client.DefaultRequestHeaders.Add(MockAuthenticationHandler.UserIdHeader, DecidedBy.ToString());
+    }
 
     // Cadastrar uma origem confiável responde 200 e grava a linha com o valor normalizado.
     [Fact]
     public async Task PostTrustedOrigin_WithValidPayload_ShouldPersistNormalizedValue()
     {
         var request = new RegisterTrustedOriginRequest(
-            "EmailAddress", "  FINANCEIRO@Fornecedor.COM.BR ", "Trusted", DecidedBy, "cadastrado no onboarding");
+            "EmailAddress", "  FINANCEIRO@Fornecedor.COM.BR ", "Trusted", "cadastrado no onboarding");
 
         var response = await Client.PostAsJsonAsync(Route, request);
 
@@ -45,12 +49,56 @@ public sealed class RegisterTrustedOriginTests : BaseIntegrationTest
         Assert.Equal(TenantId, persisted.TenantId.Value);
     }
 
+    // Regressão da remoção do decidedBy do contrato (2026-08-17): um corpo que ainda mande o
+    // campo não forja a autoria — quem vale é o sub do token, e o campo extra é ignorado.
+    [Fact]
+    public async Task PostTrustedOrigin_WithDecidedByInTheBody_ShouldIgnoreItAndUseTheToken()
+    {
+        var forged = new Guid("0195a1f0-0000-7000-8000-0000000000c9");
+        var payload = new
+        {
+            kind = "EmailAddress",
+            value = "financeiro@fornecedor.com.br",
+            decision = "Trusted",
+            decidedBy = forged,
+            note = (string?)null,
+        };
+
+        var response = await Client.PostAsJsonAsync(Route, payload);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var body = await response.Content.ReadFromJsonAsync<TrustedOriginIdResponse>();
+
+        var persisted = await ExecuteDbContextAsync(db => db.TrustedOrigins
+            .AsNoTracking()
+            .SingleAsync(o => o.Id == TrustedOriginId.From(body!.Id)));
+
+        Assert.Equal(DecidedBy, persisted.DecidedBy.Value);
+        Assert.NotEqual(forged, persisted.DecidedBy.Value);
+    }
+
+    // Token sem sub utilizável não decide: o domínio recusa com BLP.ORG10 e nada é gravado.
+    [Fact]
+    public async Task PostTrustedOrigin_WithoutAUsableSub_ShouldReturnBadRequest()
+    {
+        using var client = Factory.CreateClient().Authenticated();
+
+        var response = await client.PostAsJsonAsync(Route, new RegisterTrustedOriginRequest(
+            "EmailAddress", "financeiro@fornecedor.com.br", "Trusted", null));
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        var error = await response.Content.ReadFromJsonAsync<ApiErrorResponse>();
+        Assert.Equal("BLP.ORG10", error!.Id);
+
+        Assert.Equal(0, await ExecuteDbContextAsync(db => db.TrustedOrigins.CountAsync()));
+    }
+
     // Cadastrar a mesma origem duas vezes responde 409 e não cria linha duplicada — BLP.ORG01.
     [Fact]
     public async Task PostTrustedOrigin_WhenAlreadyRegistered_ShouldReturnConflict()
     {
         var request = new RegisterTrustedOriginRequest(
-            "EmailDomain", "fornecedor.com.br", "Trusted", DecidedBy, null);
+            "EmailDomain", "fornecedor.com.br", "Trusted", null);
 
         var first = await Client.PostAsJsonAsync(Route, request);
         Assert.Equal(HttpStatusCode.OK, first.StatusCode);
@@ -70,10 +118,10 @@ public sealed class RegisterTrustedOriginTests : BaseIntegrationTest
     public async Task PostTrustedOrigin_WhenDuplicateDiffersOnlyByCasing_ShouldReturnConflict()
     {
         await Client.PostAsJsonAsync(Route, new RegisterTrustedOriginRequest(
-            "EmailDomain", "fornecedor.com.br", "Trusted", DecidedBy, null));
+            "EmailDomain", "fornecedor.com.br", "Trusted", null));
 
         var second = await Client.PostAsJsonAsync(Route, new RegisterTrustedOriginRequest(
-            "EmailDomain", "  FORNECEDOR.COM.BR  ", "Blocked", DecidedBy, null));
+            "EmailDomain", "  FORNECEDOR.COM.BR  ", "Blocked", null));
 
         Assert.Equal(HttpStatusCode.Conflict, second.StatusCode);
     }
@@ -87,7 +135,7 @@ public sealed class RegisterTrustedOriginTests : BaseIntegrationTest
         string kind, string value, string expectedErrorId)
     {
         var response = await Client.PostAsJsonAsync(Route, new RegisterTrustedOriginRequest(
-            kind, value, "Trusted", DecidedBy, null));
+            kind, value, "Trusted", null));
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
         var error = await response.Content.ReadFromJsonAsync<ApiErrorResponse>();
@@ -103,7 +151,7 @@ public sealed class RegisterTrustedOriginTests : BaseIntegrationTest
     public async Task PostTrustedOrigin_WithUnknownEnumeration_ShouldReturnBadRequest(string kind, string decision)
     {
         var response = await Client.PostAsJsonAsync(Route, new RegisterTrustedOriginRequest(
-            kind, "financeiro@fornecedor.com.br", decision, DecidedBy, null));
+            kind, "financeiro@fornecedor.com.br", decision, null));
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }
@@ -114,7 +162,7 @@ public sealed class RegisterTrustedOriginTests : BaseIntegrationTest
     {
         var requestId = new Guid("0195a1f0-0000-7000-8000-0000000000f1");
         var payload = new RegisterTrustedOriginRequest(
-            "EmailAddress", "financeiro@fornecedor.com.br", "Trusted", DecidedBy, null);
+            "EmailAddress", "financeiro@fornecedor.com.br", "Trusted", null);
 
         using var first = BuildRequest(payload, requestId);
         var firstResponse = await Client.SendAsync(first);

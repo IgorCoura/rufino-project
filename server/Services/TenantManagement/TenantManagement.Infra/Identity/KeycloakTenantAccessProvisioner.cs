@@ -55,8 +55,11 @@ internal sealed class KeycloakTenantAccessProvisioner(
     public async Task<AccessGrantResult> GrantAccessAsync(
         TenantId tenantId,
         string emailAddress,
+        IReadOnlyCollection<ProductCode> products,
         CancellationToken cancellationToken = default)
     {
+        ArgumentNullException.ThrowIfNull(products);
+
         var email = EmailSyntax.Normalize(emailAddress);
         var tenant = tenantId.ToString();
 
@@ -65,7 +68,7 @@ internal sealed class KeycloakTenantAccessProvisioner(
 
         if (user is null)
         {
-            await CreateUserAsync(email, tenant, cancellationToken);
+            await CreateUserAsync(email, tenant, products, cancellationToken);
             user = await FindUserByEmailAsync(email, cancellationToken)
                 ?? throw new InvalidOperationException($"Usuário {email} não foi encontrado logo após ser criado.");
             created = true;
@@ -75,7 +78,7 @@ internal sealed class KeycloakTenantAccessProvisioner(
         }
         else
         {
-            await WriteTenantsAsync(user, Union(CurrentTenants(user), tenant), cancellationToken);
+            await WriteAccessAsync(user, tenant, products, cancellationToken);
         }
 
         if (!Guid.TryParse(user.Id, out var userId))
@@ -102,22 +105,70 @@ internal sealed class KeycloakTenantAccessProvisioner(
         if (user is null)
             return;
 
-        var remaining = CurrentTenants(user)
-            .Where(t => !string.Equals(t, tenant, StringComparison.OrdinalIgnoreCase))
-            .ToList();
+        // Revogar tira o tenant do atributo genérico E de todos os de produto. Deixar um para
+        // trás manteria o token dizendo que aquele produto vale para um tenant que a pessoa não
+        // acessa mais — e o guard daquele produto concederia.
+        var attributes = CopyAttributes(user);
+
+        SetTenants(attributes, _options.TenantsAttribute, Without(Read(attributes, _options.TenantsAttribute), tenant));
+
+        foreach (var productAttribute in _options.ProductAttributes.Values)
+            SetTenants(attributes, productAttribute, Without(Read(attributes, productAttribute), tenant));
 
         // A pessoa não é apagada mesmo sem nenhum tenant: ela pode voltar, e apagá-la
         // destruiria histórico de login que não é deste BC decidir sobre.
-        await WriteTenantsAsync(user, remaining, cancellationToken);
+        await WriteAttributesAsync(user, attributes, cancellationToken);
 
         if (logger.IsEnabled(LogLevel.Information))
             logger.LogInformation("Acesso do tenant {TenantId} revogado no provedor de identidade.", tenantId);
     }
 
-    private List<string> CurrentTenants(KeycloakUser user)
-        => user.Attributes is not null && user.Attributes.TryGetValue(_options.TenantsAttribute, out var values)
-            ? values
-            : [];
+    /// <summary>
+    /// Escreve o estado desejado: o tenant entra no atributo genérico e nos atributos dos
+    /// produtos informados, e <strong>sai</strong> dos demais.
+    /// </summary>
+    /// <remarks>
+    /// A saída é o que faz desativar produto funcionar sem uma operação própria na porta — e é
+    /// também o que impede o atributo de acumular produto cancelado, que ninguém notaria porque
+    /// o efeito é acesso a mais, não a menos.
+    /// </remarks>
+    private async Task WriteAccessAsync(
+        KeycloakUser user,
+        string tenant,
+        IReadOnlyCollection<ProductCode> products,
+        CancellationToken cancellationToken)
+    {
+        var attributes = CopyAttributes(user);
+        var active = products.Select(p => p.Name).ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        SetTenants(attributes, _options.TenantsAttribute, Union(Read(attributes, _options.TenantsAttribute), tenant));
+
+        foreach (var (product, attribute) in _options.ProductAttributes)
+        {
+            var current = Read(attributes, attribute);
+            SetTenants(attributes, attribute, active.Contains(product) ? Union(current, tenant) : Without(current, tenant));
+        }
+
+        await WriteAttributesAsync(user, attributes, cancellationToken);
+    }
+
+    private static Dictionary<string, List<string>> CopyAttributes(KeycloakUser user)
+        => user.Attributes is null
+            ? new Dictionary<string, List<string>>(StringComparer.Ordinal)
+            : new Dictionary<string, List<string>>(user.Attributes, StringComparer.Ordinal);
+
+    private static List<string> Read(Dictionary<string, List<string>> attributes, string name)
+        => attributes.TryGetValue(name, out var values) ? values : [];
+
+    private static void SetTenants(Dictionary<string, List<string>> attributes, string name, List<string> tenants)
+    {
+        // Atributo vazio é removido, não gravado como lista vazia: o Keycloak mantém a chave e o
+        // mapper emitiria um claim vazio, que lê como "existe e não tem nada" em vez de "não existe".
+        if (tenants.Count == 0)
+            attributes.Remove(name);
+        else
+            attributes[name] = tenants;
+    }
 
     private static List<string> Union(List<string> current, string tenant)
     {
@@ -126,6 +177,9 @@ internal sealed class KeycloakTenantAccessProvisioner(
             result.Add(tenant);
         return result;
     }
+
+    private static List<string> Without(List<string> current, string tenant)
+        => current.Where(t => !string.Equals(t, tenant, StringComparison.OrdinalIgnoreCase)).ToList();
 
     private async Task<KeycloakUser?> FindUserByEmailAsync(string email, CancellationToken cancellationToken)
     {
@@ -148,18 +202,30 @@ internal sealed class KeycloakTenantAccessProvisioner(
     /// <c>firstName</c> fazia o titular aparecer no provedor chamando-se "Padaria do Zé LTDA".
     /// Nome de pessoa é dado que a pessoa informa — daí o <c>UPDATE_PROFILE</c> no convite.
     /// </remarks>
-    private async Task CreateUserAsync(string email, string tenant, CancellationToken cancellationToken)
+    private async Task CreateUserAsync(
+        string email,
+        string tenant,
+        IReadOnlyCollection<ProductCode> products,
+        CancellationToken cancellationToken)
     {
+        var attributes = new Dictionary<string, List<string>>(StringComparer.Ordinal)
+        {
+            [_options.TenantsAttribute] = [tenant],
+        };
+
+        foreach (var product in products)
+        {
+            if (_options.ProductAttributes.TryGetValue(product.Name, out var attribute))
+                attributes[attribute] = [tenant];
+        }
+
         var payload = new KeycloakUser
         {
             Username = email,
             Email = email,
             Enabled = true,
             EmailVerified = false,
-            Attributes = new Dictionary<string, List<string>>(StringComparer.Ordinal)
-            {
-                [_options.TenantsAttribute] = [tenant],
-            },
+            Attributes = attributes,
             RequiredActions = [.. InvitationActions],
         };
 
@@ -176,17 +242,11 @@ internal sealed class KeycloakTenantAccessProvisioner(
             response.EnsureSuccessStatusCode();
     }
 
-    private async Task WriteTenantsAsync(KeycloakUser user, List<string> tenants, CancellationToken cancellationToken)
+    private async Task WriteAttributesAsync(
+        KeycloakUser user,
+        Dictionary<string, List<string>> attributes,
+        CancellationToken cancellationToken)
     {
-        var attributes = user.Attributes is null
-            ? new Dictionary<string, List<string>>(StringComparer.Ordinal)
-            : new Dictionary<string, List<string>>(user.Attributes, StringComparer.Ordinal);
-
-        if (tenants.Count == 0)
-            attributes.Remove(_options.TenantsAttribute);
-        else
-            attributes[_options.TenantsAttribute] = tenants;
-
         var payload = user with { Attributes = attributes };
 
         using var request = new HttpRequestMessage(HttpMethod.Put, $"{_options.AdminBaseUrl}users/{user.Id}")

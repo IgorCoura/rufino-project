@@ -8,6 +8,7 @@ public interface IBillQueries
 {
     Task<BillPage> ListAsync(
         Guid tenantId,
+        string? status,
         string? cursor,
         int limit,
         CancellationToken cancellationToken = default);

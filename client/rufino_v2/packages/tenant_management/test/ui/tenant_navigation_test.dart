@@ -87,13 +87,13 @@ void main() {
       expect(find.text('Clientes da plataforma'), findsOneWidget);
     });
 
-    testWidgets('o cadastro volta para o seletor', (tester) async {
+    testWidgets('o cadastro volta para a listagem', (tester) async {
       await pumpApp(tester, at: TenantRoutes.create);
 
       await tester.tap(find.byIcon(Icons.arrow_back));
       await tester.pumpAndSettle();
 
-      expect(find.text('Selecionar cliente'), findsOneWidget);
+      expect(find.text('Clientes da plataforma'), findsOneWidget);
     });
 
     testWidgets('o seletor não oferece voltar quando não há contexto nenhum',
@@ -124,10 +124,10 @@ void main() {
     // `loading`; o `State` da tela sobrevivia ao rebuild, então o `initState`
     // que dispara o carregamento não rodava de novo — e a tela ficava com o
     // spinner para sempre.
-    testWidgets('voltar do cadastro para o seletor mostra a lista de novo',
+    testWidgets('voltar do cadastro para a listagem mostra as linhas de novo',
         (tester) async {
-      await pumpApp(tester, at: TenantRoutes.select);
-      expect(find.text('Pão Quente'), findsWidgets);
+      await pumpApp(tester, at: TenantRoutes.list);
+      expect(find.text('Pão Quente'), findsOneWidget);
 
       await tester.tap(find.text('Cadastrar cliente'));
       await tester.pumpAndSettle();
@@ -138,8 +138,8 @@ void main() {
       await tester.tap(find.byIcon(Icons.arrow_back));
       await tester.pumpAndSettle();
 
-      expect(find.text('Selecionar cliente'), findsOneWidget);
-      expect(find.text('Pão Quente'), findsWidgets);
+      expect(find.text('Clientes da plataforma'), findsOneWidget);
+      expect(find.text('Pão Quente'), findsOneWidget);
       expect(find.byType(CircularProgressIndicator), findsNothing);
     });
 

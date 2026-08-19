@@ -122,9 +122,9 @@ Fase por último, mas **com peso real**: sem DDA, sobrará portal mesmo migrando
 
 Puxa o "Checklist pré-produção" do `CLAUDE.md` do BC, mais o que este BC acrescenta:
 
-- Migrações EF Core substituindo `EnsureCreatedAsync` (aplicação e testes).
-- Keycloak: JWT Bearer, `TenantAuthorizationFilter` validando `{tenantId}` da rota contra o token, `[ProtectedResource]` nos endpoints com os recursos de [`05-use-cases.md`](05-use-cases.md).
-- **Alçada e segregação de funções**: teto por usuário; avaliar exigir aprovador diferente de quem importou.
+- ✅ Migrações EF Core substituindo `EnsureCreatedAsync` (aplicação e testes) — feito em 2026-08-11.
+- ✅ **Keycloak: JWT Bearer + `[ProtectedResource]` nos 55 endpoints** — feito em 2026-08-15, com a camada copiada do TenantManagement (ADR-004 daquele BC). O guard `{tenantId}` × claim `tenants` **não é um filtro**, ao contrário do que este item previa: é o `RouteAccessRequirement` dentro da policy, como nos outros dois BCs — nenhum deles jamais teve um `TenantAuthorizationFilter`. Junto morreu o fallback `x-user-id`, que era a identidade do aprovador enquanto não havia token.
+- **Alçada e segregação de funções**: teto por usuário; avaliar exigir aprovador diferente de quem importou. **Ainda por fazer** — o teto segue sendo único da instalação; o que a autorização destravou é a identidade confiável de quem decide.
 - Auto-aprovação por política, se aprovada — condições em [`adr/ADR-007-aprovacao-humana-obrigatoria.md`](adr/ADR-007-aprovacao-humana-obrigatoria.md).
 - Observabilidade: log estruturado com correlation id, métricas de backlog do outbox, alerta de falha de sincronização e de pagamento.
 - CI com `TreatWarningsAsErrors` em todos os projetos + as duas suítes.

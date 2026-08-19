@@ -15,7 +15,7 @@ using TenantManagement.Domain.Tenants;
 /// </remarks>
 public sealed class RecordingTenantAccessProvisioner : ITenantAccessProvisioner
 {
-    private readonly ConcurrentBag<(TenantId TenantId, string Email)> _granted = [];
+    private readonly ConcurrentBag<(TenantId TenantId, string Email, IReadOnlyCollection<ProductCode> Products)> _granted = [];
     private readonly ConcurrentBag<(TenantId TenantId, string Email)> _revoked = [];
 
     /// <summary>Quando ligado, toda concessão falha — é o caminho do vínculo que fica pendente.</summary>
@@ -23,7 +23,12 @@ public sealed class RecordingTenantAccessProvisioner : ITenantAccessProvisioner
 
     public bool FailRevocations { get; set; }
 
-    public IReadOnlyCollection<(TenantId TenantId, string Email)> Granted => _granted.ToList();
+    /// <summary>
+    /// O que foi concedido, com os produtos que acompanharam. Os produtos importam: a mesma
+    /// chamada serve para conceder acesso, ativar e desativar produto, e é a lista que distingue
+    /// as três.
+    /// </summary>
+    public IReadOnlyCollection<(TenantId TenantId, string Email, IReadOnlyCollection<ProductCode> Products)> Granted => _granted.ToList();
 
     public IReadOnlyCollection<(TenantId TenantId, string Email)> Revoked => _revoked.ToList();
 
@@ -39,12 +44,13 @@ public sealed class RecordingTenantAccessProvisioner : ITenantAccessProvisioner
     public Task<AccessGrantResult> GrantAccessAsync(
         TenantId tenantId,
         string emailAddress,
+        IReadOnlyCollection<ProductCode> products,
         CancellationToken cancellationToken = default)
     {
         if (FailGrants)
             throw new InvalidOperationException("Falha programada no provedor de identidade.");
 
-        _granted.Add((tenantId, emailAddress));
+        _granted.Add((tenantId, emailAddress, products));
         return Task.FromResult(new AccessGrantResult(UserIdFor(emailAddress), UserWasCreated: true));
     }
 

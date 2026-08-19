@@ -2,6 +2,7 @@ namespace BillPayment.Application.Queries.Bills;
 
 using BillPayment.Domain.Bills;
 using BillPayment.Domain.Instruments;
+using BillPayment.Domain.SeedWork;
 using BillPayment.Domain.SharedKernel;
 using BillPayment.Infra.Persistence;
 using Microsoft.EntityFrameworkCore;
@@ -13,6 +14,7 @@ internal sealed class BillQueries(BillPaymentDbContext context) : IBillQueries
 
     public async Task<BillPage> ListAsync(
         Guid tenantId,
+        string? status,
         string? cursor,
         int limit,
         CancellationToken cancellationToken = default)
@@ -21,6 +23,9 @@ internal sealed class BillQueries(BillPaymentDbContext context) : IBillQueries
         var tenant = TenantId.From(tenantId);
 
         var query = context.Bills.AsNoTracking().Where(b => b.TenantId == tenant);
+
+        if (TryParseStatus(status, out var parsed))
+            query = query.Where(b => b.Status == parsed);
 
         // Keyset descendente por (CreatedAt, Id) — mais recente primeiro, que é a ordem em que a
         // fila é trabalhada. O desempate é DESCENDENTE junto com a chave: esta lista ordenava
@@ -133,6 +138,22 @@ internal sealed class BillQueries(BillPaymentDbContext context) : IBillQueries
                 bill.Origin.SenderAddress,
                 bill.Origin.ReceivedAt),
             bill.CreatedAt);
+    }
+
+    /// <summary>
+    /// Status desconhecido devolve a lista inteira em vez de estourar: o filtro vem da query
+    /// string e um valor inválido é erro do cliente, não motivo para 500.
+    /// </summary>
+    private static bool TryParseStatus(string? status, out BillStatus parsed)
+    {
+        parsed = default!;
+        if (string.IsNullOrWhiteSpace(status))
+            return false;
+
+        parsed = Enumeration.GetAll<BillStatus>()
+            .FirstOrDefault(s => string.Equals(s.Name, status.Trim(), StringComparison.OrdinalIgnoreCase))!;
+
+        return parsed is not null;
     }
 
     private static DateTime? ToDateTime(DateOnly? date)

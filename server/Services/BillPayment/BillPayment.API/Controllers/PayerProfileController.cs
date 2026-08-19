@@ -1,5 +1,6 @@
 namespace BillPayment.API.Controllers;
 
+using BillPayment.API.Authorization;
 using BillPayment.Application.Mediator;
 using BillPayment.Application.Models.PayerProfiles;
 using BillPayment.Application.PayerProfiles.Commands;
@@ -12,8 +13,9 @@ using Microsoft.AspNetCore.Mvc;
 /// uma segunda forma de endereçar o mesmo recurso.
 /// </summary>
 /// <remarks>
-/// Autorização granular (<c>[ProtectedResource("payer-profile", "view"|"manage")]</c>) entra
-/// na fase 6, junto com o Keycloak — ver "Checklist pré-produção" no CLAUDE.md do BC.
+/// O cadastro fiscal é o que deriva a senha de PDF e sustenta o degrau 0 do roteamento, então
+/// <c>payer-profile:manage</c> não é um cadastro qualquer: mexer nele muda de quem o sistema
+/// entende que os boletos são.
 /// </remarks>
 [Route("api/v1/{tenantId:guid}/payer-profile")]
 public sealed class PayerProfileController(
@@ -22,6 +24,7 @@ public sealed class PayerProfileController(
     ILogger<PayerProfileController> logger) : BaseController(logger)
 {
     [HttpGet]
+    [ProtectedResource("payer-profile", "view")]
     public async Task<ActionResult<PayerProfileDto>> Get(
         [FromRoute] Guid tenantId,
         CancellationToken cancellationToken)
@@ -31,6 +34,7 @@ public sealed class PayerProfileController(
     }
 
     [HttpPost]
+    [ProtectedResource("payer-profile", "manage")]
     public async Task<ActionResult<RegisterPayerProfileResponse>> Register(
         [FromRoute] Guid tenantId,
         [FromBody] RegisterPayerProfileModel model,
@@ -49,6 +53,7 @@ public sealed class PayerProfileController(
     }
 
     [HttpPut("legal-name")]
+    [ProtectedResource("payer-profile", "manage")]
     public async Task<ActionResult<RenamePayerProfileResponse>> Rename(
         [FromRoute] Guid tenantId,
         [FromBody] RenamePayerProfileModel model,
@@ -67,6 +72,7 @@ public sealed class PayerProfileController(
     }
 
     [HttpPost("tax-ids")]
+    [ProtectedResource("payer-profile", "manage")]
     public async Task<ActionResult<AddPayerProfileTaxIdResponse>> AddTaxId(
         [FromRoute] Guid tenantId,
         [FromBody] PayerProfileTaxIdModel model,
@@ -89,6 +95,7 @@ public sealed class PayerProfileController(
     /// viraria outro segmento de rota.
     /// </summary>
     [HttpDelete("tax-ids")]
+    [ProtectedResource("payer-profile", "manage")]
     public async Task<ActionResult<RemovePayerProfileTaxIdResponse>> RemoveTaxId(
         [FromRoute] Guid tenantId,
         [FromQuery] string taxId,
@@ -107,6 +114,7 @@ public sealed class PayerProfileController(
     }
 
     [HttpPut("cnpj-root-matching")]
+    [ProtectedResource("payer-profile", "manage")]
     public async Task<ActionResult<AlterCnpjRootMatchingResponse>> AlterCnpjRootMatching(
         [FromRoute] Guid tenantId,
         [FromBody] AlterCnpjRootMatchingModel model,
@@ -125,6 +133,7 @@ public sealed class PayerProfileController(
     }
 
     [HttpPut("asaas-account")]
+    [ProtectedResource("payer-profile", "manage")]
     public async Task<ActionResult<LinkAsaasAccountResponse>> LinkAsaasAccount(
         [FromRoute] Guid tenantId,
         [FromBody] LinkAsaasAccountModel model,

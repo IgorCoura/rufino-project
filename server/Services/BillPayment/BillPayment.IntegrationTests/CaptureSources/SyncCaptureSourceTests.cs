@@ -23,7 +23,7 @@ public sealed class SyncCaptureSourceTests : BaseIntegrationTest
     public SyncCaptureSourceTests(IntegrationTestWebAppFactory factory) : base(factory)
     {
         var host = factory.WithReachableMailbox();
-        _client = host.CreateClient();
+        _client = host.CreateClient().Authenticated();
         _mailbox = host.Services.GetRequiredService<FakeMailboxReader>();
     }
 

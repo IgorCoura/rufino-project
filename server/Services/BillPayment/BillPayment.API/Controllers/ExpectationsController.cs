@@ -1,5 +1,6 @@
 namespace BillPayment.API.Controllers;
 
+using BillPayment.API.Authorization;
 using BillPayment.Application.Expectations.Commands;
 using BillPayment.Application.Mediator;
 using BillPayment.Application.Models.Expectations;
@@ -20,6 +21,12 @@ using Microsoft.AspNetCore.Mvc;
 /// <strong>O painel é o canal que sempre funciona.</strong> O alerta é registrado no agregado, não
 /// no meio de envio, então ele aparece em <c>GET /pending</c> mesmo que nenhum e-mail saia.
 /// </para>
+/// <para>
+/// <c>waive</c> tem escopo PRÓPRIO pelo que ele faz: dispensar um ciclo é silenciar a rede de
+/// segurança para aquela conta. Sob o mesmo escopo de <c>manage</c>, quem cadastra expectativa
+/// também poderia apagar o aviso de que a conta não chegou — que é a falha silenciosa que o
+/// ADR-014 existe para impedir.
+/// </para>
 /// </remarks>
 [Route("api/v1/{tenantId:guid}/expectations")]
 public sealed class ExpectationsController(
@@ -28,6 +35,7 @@ public sealed class ExpectationsController(
     ILogger<ExpectationsController> logger) : BaseController(logger)
 {
     [HttpGet]
+    [ProtectedResource("expectation", "view")]
     public async Task<ActionResult<BillExpectationPage>> List(
         [FromRoute] Guid tenantId,
         [FromQuery] string? cursor,
@@ -43,6 +51,7 @@ public sealed class ExpectationsController(
     /// segunda leva ao item resolvível em um clique, e a terceira é só antecedência.
     /// </remarks>
     [HttpGet("pending")]
+    [ProtectedResource("expectation", "view")]
     public async Task<ActionResult<PendingExpectationsView>> Pending(
         [FromRoute] Guid tenantId,
         [FromQuery] int dueSoonWindowDays,
@@ -50,6 +59,7 @@ public sealed class ExpectationsController(
         => OkResponse(await queries.ListPendingAsync(tenantId, dueSoonWindowDays, cancellationToken));
 
     [HttpGet("{id:guid}")]
+    [ProtectedResource("expectation", "view")]
     public async Task<ActionResult<BillExpectationDto>> GetById(
         [FromRoute] Guid tenantId,
         [FromRoute] Guid id,
@@ -69,6 +79,7 @@ public sealed class ExpectationsController(
     /// onde deduzi-la.
     /// </remarks>
     [HttpPost]
+    [ProtectedResource("expectation", "manage")]
     public async Task<ActionResult<RegisterBillExpectationResponse>> Register(
         [FromRoute] Guid tenantId,
         [FromBody] RegisterBillExpectationModel model,
@@ -88,6 +99,7 @@ public sealed class ExpectationsController(
 
     /// <summary>Pausa, retoma ou desativa o monitoramento.</summary>
     [HttpPut("{id:guid}/watch")]
+    [ProtectedResource("expectation", "manage")]
     public async Task<ActionResult<AlterBillExpectationWatchResponse>> AlterWatch(
         [FromRoute] Guid tenantId,
         [FromRoute] Guid id,
@@ -114,16 +126,16 @@ public sealed class ExpectationsController(
     /// seria desativar a expectativa inteira — e ninguém a reativaria depois.
     /// </remarks>
     [HttpPost("{id:guid}/cycles/{cycleId:guid}/waive")]
+    [ProtectedResource("expectation", "waive")]
     public async Task<ActionResult<WaiveExpectationCycleResponse>> WaiveCycle(
         [FromRoute] Guid tenantId,
         [FromRoute] Guid id,
         [FromRoute] Guid cycleId,
         [FromBody] WaiveExpectationCycleModel model,
         [FromHeader(Name = "x-requestid")] Guid requestId,
-        [FromHeader(Name = "x-user-id")] Guid userId,
         CancellationToken cancellationToken)
     {
-        var command = model.ToCommand(tenantId, id, cycleId, ResolveDecidingUserId(userId));
+        var command = model.ToCommand(tenantId, id, cycleId, ResolveDecidingUserId());
         var identified = new IdentifiedCommand<WaiveExpectationCycleCommand, WaiveExpectationCycleResponse>(
             command, EnsureRequestId(requestId));
 

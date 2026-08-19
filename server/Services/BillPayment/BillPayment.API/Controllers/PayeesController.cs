@@ -1,5 +1,6 @@
 namespace BillPayment.API.Controllers;
 
+using BillPayment.API.Authorization;
 using BillPayment.Application.Mediator;
 using BillPayment.Application.Models.Payees;
 using BillPayment.Application.Payees.Commands;
@@ -21,6 +22,7 @@ public sealed class PayeesController(
     ILogger<PayeesController> logger) : BaseController(logger)
 {
     [HttpGet]
+    [ProtectedResource("payee", "view")]
     public async Task<ActionResult<PayeePage>> List(
         [FromRoute] Guid tenantId,
         [FromQuery] string? cursor,
@@ -29,6 +31,7 @@ public sealed class PayeesController(
         => OkResponse(await queries.ListAsync(tenantId, cursor, limit, cancellationToken));
 
     [HttpGet("{id:guid}")]
+    [ProtectedResource("payee", "view")]
     public async Task<ActionResult<PayeeDto>> GetById(
         [FromRoute] Guid tenantId,
         [FromRoute] Guid id,
@@ -44,6 +47,7 @@ public sealed class PayeesController(
     /// segmento de rota.
     /// </summary>
     [HttpGet("by-tax-id")]
+    [ProtectedResource("payee", "view")]
     public async Task<ActionResult<PayeeDto>> GetByTaxId(
         [FromRoute] Guid tenantId,
         [FromQuery] string taxId,
@@ -56,6 +60,7 @@ public sealed class PayeesController(
     }
 
     [HttpPost]
+    [ProtectedResource("payee", "manage")]
     public async Task<ActionResult<RegisterPayeeResponse>> Register(
         [FromRoute] Guid tenantId,
         [FromBody] RegisterPayeeModel model,
@@ -74,6 +79,7 @@ public sealed class PayeesController(
     }
 
     [HttpPut("{id:guid}/legal-name")]
+    [ProtectedResource("payee", "manage")]
     public async Task<ActionResult<RenamePayeeResponse>> Rename(
         [FromRoute] Guid tenantId,
         [FromRoute] Guid id,
@@ -93,6 +99,7 @@ public sealed class PayeesController(
     }
 
     [HttpPut("{id:guid}/amount-policy")]
+    [ProtectedResource("payee", "manage")]
     public async Task<ActionResult<AlterPayeeAmountPolicyResponse>> AlterAmountPolicy(
         [FromRoute] Guid tenantId,
         [FromRoute] Guid id,
@@ -112,6 +119,7 @@ public sealed class PayeesController(
     }
 
     [HttpPost("{id:guid}/aliases")]
+    [ProtectedResource("payee", "manage")]
     public async Task<ActionResult<AddPayeeAliasResponse>> AddAlias(
         [FromRoute] Guid tenantId,
         [FromRoute] Guid id,
@@ -132,6 +140,7 @@ public sealed class PayeesController(
 
     /// <summary>O apelido vai na query: é texto livre e pode conter barra.</summary>
     [HttpDelete("{id:guid}/aliases")]
+    [ProtectedResource("payee", "manage")]
     public async Task<ActionResult<RemovePayeeAliasResponse>> RemoveAlias(
         [FromRoute] Guid tenantId,
         [FromRoute] Guid id,
@@ -151,6 +160,7 @@ public sealed class PayeesController(
     }
 
     [HttpPost("{id:guid}/accepted-banks")]
+    [ProtectedResource("payee", "manage")]
     public async Task<ActionResult<AllowPayeeBankResponse>> AllowBank(
         [FromRoute] Guid tenantId,
         [FromRoute] Guid id,
@@ -170,6 +180,7 @@ public sealed class PayeesController(
     }
 
     [HttpDelete("{id:guid}/accepted-banks/{bankCode}")]
+    [ProtectedResource("payee", "manage")]
     public async Task<ActionResult<DisallowPayeeBankResponse>> DisallowBank(
         [FromRoute] Guid tenantId,
         [FromRoute] Guid id,
@@ -189,6 +200,7 @@ public sealed class PayeesController(
     }
 
     [HttpPut("{id:guid}/activation")]
+    [ProtectedResource("payee", "manage")]
     public async Task<ActionResult<AlterPayeeActivationResponse>> AlterActivation(
         [FromRoute] Guid tenantId,
         [FromRoute] Guid id,
@@ -208,6 +220,7 @@ public sealed class PayeesController(
     }
 
     [HttpDelete("{id:guid}")]
+    [ProtectedResource("payee", "manage")]
     public async Task<ActionResult<DeletePayeeResponse>> Delete(
         [FromRoute] Guid tenantId,
         [FromRoute] Guid id,

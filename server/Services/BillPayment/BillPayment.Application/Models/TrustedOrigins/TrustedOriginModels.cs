@@ -1,6 +1,5 @@
 namespace BillPayment.Application.Models.TrustedOrigins;
 
-using System.Text.Json.Serialization;
 using BillPayment.Application.TrustedOrigins.Commands;
 
 /// <summary>
@@ -8,27 +7,26 @@ using BillPayment.Application.TrustedOrigins.Commands;
 /// tenant no body abriria caminho para divergir do path e virar IDOR.
 /// </summary>
 /// <remarks>
-/// <c>DecidedBy</c> vem do corpo apenas enquanto não há autenticação. Na fase 6, com o
-/// Keycloak, passa a sair do claim <c>sub</c> do token (<c>BaseController.GetUserId</c>) e
-/// sai do contrato — aceitar o autor da decisão do cliente permitiria forjar a autoria.
-/// O <c>[JsonRequired]</c> impede que a omissão vire <c>Guid.Empty</c> silenciosamente.
+/// Quem decide vem do <c>sub</c> do token (<c>BaseController.ResolveDecidingUserId</c>), nunca
+/// do corpo — aceitar o autor da decisão do cliente permitiria forjar a autoria. O campo
+/// <c>DecidedBy</c> existiu no contrato enquanto não havia autenticação e saiu em 2026-08-17,
+/// alinhando este agregado com bill/claim/waive. Identidade ausente é recusada pelo domínio
+/// (<c>BLP.ORG</c>), não pelo controller, para a regra viver num lugar só.
 /// </remarks>
 public sealed record RegisterTrustedOriginModel(
     string Kind,
     string Value,
     string Decision,
-    [property: JsonRequired] Guid DecidedBy,
     string? Note)
 {
-    public RegisterTrustedOriginCommand ToCommand(Guid tenantId)
-        => new(tenantId, Kind, Value, Decision, DecidedBy, Note);
+    public RegisterTrustedOriginCommand ToCommand(Guid tenantId, Guid decidedBy)
+        => new(tenantId, Kind, Value, Decision, decidedBy, Note);
 }
 
 public sealed record ChangeTrustedOriginDecisionModel(
     string Decision,
-    [property: JsonRequired] Guid DecidedBy,
     string? Note)
 {
-    public ChangeTrustedOriginDecisionCommand ToCommand(Guid tenantId, Guid trustedOriginId)
-        => new(tenantId, trustedOriginId, Decision, DecidedBy, Note);
+    public ChangeTrustedOriginDecisionCommand ToCommand(Guid tenantId, Guid trustedOriginId, Guid decidedBy)
+        => new(tenantId, trustedOriginId, Decision, decidedBy, Note);
 }

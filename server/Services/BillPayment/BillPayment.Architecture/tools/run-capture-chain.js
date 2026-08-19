@@ -61,6 +61,10 @@
  *   $env:GRAPH_MAILBOX      = "<caixa@empresa.com.br>"
  *
  *   # A API pelo docker-compose responde em 8100; pelo `dotnet run`, em 5269 (o default).
+ *   # O token e obrigatorio: a API exige autenticacao, e o tenant do ensaio precisa estar no
+ *   # claim `tenants` de quem o emitiu — senao a resposta e 403 em vez de 401.
+ *   $env:BILLPAYMENT_TOKEN  = "<access token do Keycloak>"
+ *
  *   node run-capture-chain.js --confirmar --api=http://localhost:8100
  *   node run-capture-chain.js --confirmar --verboso
  *   node run-capture-chain.js --confirmar --desconectar
@@ -124,7 +128,19 @@ function readConfig() {
   const config = {
     api: (flag?.slice('--api='.length) || process.env.BILLPAYMENT_API || DEFAULT_API).replace(/\/+$/, ''),
     tenantId: process.env.BILLPAYMENT_TENANT_ID || DEFAULT_TENANT,
+    token: (
+      process.argv.find((a) => a.startsWith('--token='))?.slice('--token='.length) ||
+      process.env.BILLPAYMENT_TOKEN ||
+      ''
+    ).trim(),
   };
+
+  if (!config.token) {
+    fail(
+      'informe o access token: --token=<jwt> ou $env:BILLPAYMENT_TOKEN.\n' +
+        '  A API exige autenticacao; sem token o ensaio para no primeiro 401.',
+    );
+  }
 
   for (const [key, name] of Object.entries(ENV)) {
     const value = process.env[name];
@@ -146,6 +162,7 @@ async function call(config, method, path, body) {
         'content-type': 'application/json',
         // Idempotência: cada chamada do ensaio é uma intenção distinta.
         'x-requestid': crypto.randomUUID(),
+        authorization: `Bearer ${config.token}`,
       },
       body: body === undefined ? undefined : JSON.stringify(body),
     });

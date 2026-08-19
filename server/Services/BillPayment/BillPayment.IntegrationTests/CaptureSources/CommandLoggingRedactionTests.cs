@@ -21,10 +21,10 @@ public sealed class CommandLoggingRedactionTests : BaseIntegrationTest
     private readonly RecordingLoggerProvider _logs = new();
     private readonly HttpClient _client;
 
-    public CommandLoggingRedactionTests(IntegrationTestWebAppFactory factory) : base(factory)
+    public CommandLoggingRedactionTests(IntegrationTestWebAppFactory factory) : base(factory, Tenant)
         => _client = factory.WithReachableMailbox()
             .WithWebHostBuilder(builder => builder.ConfigureLogging(logging => logging.AddProvider(_logs)))
-            .CreateClient();
+            .CreateClient().Authenticated(Tenant);
 
     // A credencial mandada para POST /capture-sources não aparece em nenhuma linha de log.
     [Fact]
@@ -59,7 +59,7 @@ public sealed class CommandLoggingRedactionTests : BaseIntegrationTest
     public async Task RegisterTrustedOrigin_WhenCommandIsNotSensitive_ShouldLogThePayload()
     {
         var payload = new RegisterTrustedOriginRequest(
-            "EmailAddress", "financeiro@fornecedor.com.br", "Trusted", Guid.NewGuid(), null);
+            "EmailAddress", "financeiro@fornecedor.com.br", "Trusted", null);
 
         await _client.PostAsJsonAsync(new Uri($"/api/v1/{Tenant}/trusted-origins", UriKind.Relative), payload);
 

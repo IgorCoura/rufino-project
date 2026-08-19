@@ -228,3 +228,27 @@ Como o `Id` é value-converted, comparar `>` exige que o record struct declare o
 **Regra:** a mediana escolhe o candidato; **cada** observação tem que caber nele depois. Duas conferências, não uma.
 
 **Como pegar de novo:** teste com dados propositalmente irregulares cujo intervalo médio caia em cima de uma recorrência válida — é o caso que passa despercebido.
+
+## `RemoveAll<IAuthorizationHandler>()` desliga o `RequireAuthenticatedUser()`
+
+**Quando:** 2026-08-15, ao montar os dublês de autorização da suíte. 134 testes vermelhos com 403, inclusive o que afirma que o tenant presente no claim **deveria** passar.
+
+**O que aconteceu:** a fábrica de teste precisava tirar de cena o handler que fala com o Keycloak. `services.RemoveAll<IAuthorizationHandler>()` seguido de re-registrar os handlers desejados parecia o caminho limpo. Ele leva junto o `PassThroughAuthorizationHandler` do próprio ASP.NET Core — que é quem avalia os requirements que implementam `IAuthorizationHandler` **em si mesmos**. O `DenyAnonymousAuthorizationRequirement`, que o `RequireAuthenticatedUser()` acrescenta, é um deles: sem o pass-through ele nunca é avaliado, a policy nunca conclui, e toda requisição autenticada vira 403.
+
+**Por que é traiçoeiro:** o 403 é indistinguível de "não tem permissão". Sem um teste afirmando o caminho do SUCESSO do guard, a leitura natural teria sido "os testes precisam declarar mais coisa" — e a correção seria afrouxar a suíte para contornar um defeito que estava na fábrica.
+
+**Regra:** remova serviço de framework **pelo `ImplementationType`**, nunca por `RemoveAll<TService>()`, quando o contrato tiver registros do próprio ASP.NET Core.
+
+**Como pegar de novo:** todo guard precisa de teste dos dois lados. Um que só afirma a negativa passa mesmo quando o guard nega tudo.
+
+## O guard de tenant casa pelo NOME do parâmetro de rota
+
+**Quando:** 2026-08-15, ao aplicar a autorização nos 55 endpoints.
+
+**O que aconteceu:** `RouteAccessRequirementHandler` lê `GetRouteValue("tenantId")`. Achando `null`, ele **concede** — comportamento correto, é o que permite endpoint que não pertence a tenant nenhum (o back-office do TenantManagement depende disso, e por isso lá o parâmetro se chama `{id}` de propósito). A consequência é que um controller novo com `{tenant:guid}` ou `{id:guid}` nasce **sem** guard anti-IDOR.
+
+**Por que é traiçoeiro:** não há erro, não há log, e o teste do endpoint novo passa — ele testa a funcionalidade, não a ausência de proteção. O defeito só aparece quando alguém acessa dado de outro tenant.
+
+**Regra:** rota de tenant chama o parâmetro de `tenantId`, sempre. Quem garante é `Authorization/EndpointProtectionTests`, que varre o `EndpointDataSource`.
+
+**Como pegar de novo:** teste que enumera endpoints em vez de testar um endpoint. É o único formato que cobre o controller que ainda não foi escrito.

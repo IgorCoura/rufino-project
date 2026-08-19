@@ -1,22 +1,31 @@
 # 05 — Casos de uso e contratos de API
 
-Convenções: rota `api/v1/{tenantId}/[controller]`, comandos de escrita embrulhados em `IdentifiedCommand` com header `x-requestid`, leitura por `IXxxQueries` injetada direto no controller (sem mediator). Autorização granular via `[ProtectedResource(recurso, ação)]` — os recursos ficam definidos abaixo e são plugados na fase 6, quando o Keycloak entra.
+Convenções: rota `api/v1/{tenantId}/[controller]`, comandos de escrita embrulhados em `IdentifiedCommand` com header `x-requestid`, leitura por `IXxxQueries` injetada direto no controller (sem mediator). Autorização granular via `[ProtectedResource(recurso, ação)]` — **plugada em 2026-08-15**, nos 55 endpoints existentes.
 
 ## Recursos e ações de autorização
 
-| Recurso | Ações |
-|---|---|
-| `bill` | `view`, `import`, `validate`, `approve`, `deny`, `cancel` |
-| `payer-profile` | `view`, `manage` |
-| `payee` | `view`, `manage` |
-| `origin` | `view`, `manage` |
-| `routing-rule` | `view`, `manage` |
-| `capture-source` | `view`, `manage`, `sync` |
-| `capture-item` | `view`, `claim` |
-| `payment` | `view`, `cancel` |
-| `report` | `view`, `export` |
+| Recurso | Ações | Estado |
+|---|---|---|
+| `bill` | `view`, `import`, `validate`, `approve`, `deny`, `cancel` | ✅ aplicado |
+| `payer-profile` | `view`, `manage` | ✅ aplicado |
+| `payee` | `view`, `manage` | ✅ aplicado |
+| `origin` | `view`, `manage` | ✅ aplicado |
+| `capture-source` | `view`, `manage`, `sync` | ✅ aplicado |
+| `capture-item` | `view`, `claim`, **`reprocess`** | ✅ aplicado |
+| `expectation` | `view`, `manage`, **`waive`** | ✅ aplicado |
+| ~~`routing-rule`~~ | — | **abandonado na 2.6** — a chave que a regra usaria não distingue pagadores |
+| `payment` | `view`, `cancel` | previsto (fase 3) |
+| `report` | `view`, `export` | previsto (fase 4) |
 
-`bill:approve` é a ação sensível — é ela que autoriza dinheiro sair, e é onde a alçada por usuário se aplica.
+**Três escopos não estavam neste catálogo e a implementação os acrescentou**, cada um porque a ação que ele cobre custa algo que a leitura não custa:
+
+- **`capture-item:reprocess`** — reprocessar chama o extrator de visão, que consome cota de uma conta com teto diário. Sob o escopo de leitura, quem só revisa a quarentena poderia queimar o teto do dia e parar a captura.
+- **`expectation:waive`** — dispensar um ciclo silencia a rede de segurança daquela conta (ADR-014). Fica com quem decide, não com quem cadastra.
+- **`expectation` como recurso** — a 2.7 criou o Aggregate depois deste catálogo ser escrito.
+
+`bill:approve` é a ação sensível — é ela que autoriza dinheiro sair, e é onde a alçada por usuário se aplica **quando ela existir**: hoje o teto é único da instalação, e amarrá-lo a pessoa é trabalho ainda por fazer (ver `06-roadmap.md`, fase 6).
+
+A configuração do realm que materializa esta tabela vive em [`utils/KeyCloakConfig/bill-payment-authz-config.json`](../../../../utils/KeyCloakConfig/bill-payment-authz-config.json), com quatro papéis: `bill-admin`, `bill-approver` (decide e dispensa ciclo), `bill-operator` (opera, não decide) e `bill-viewer`.
 
 ---
 
@@ -47,6 +56,8 @@ Resposta `200` com o Bill e a lista de checks.
 `GET /api/v1/{tenantId}/bills?status=&from=&to=&payeeId=&search=&cursor=`
 
 Cursor pagination. Ordenação padrão: os que exigem atenção primeiro (`Rejected`, depois `AwaitingApproval` com advisory falhando), depois por vencimento ascendente. A tela de trabalho do usuário é essa lista.
+
+> **Estado (2026-08-17):** `status=` está implementado, no mesmo contrato do filtro de capture-items — casa pelo nome do `BillStatus`, case-insensitive, e valor desconhecido devolve a lista inteira. `from`/`to`/`payeeId`/`search` e a ordenação por atenção seguem por fazer; a ordenação real é `CreatedAt DESC, Id DESC`.
 
 ### UC-04 — Detalhar boleto
 

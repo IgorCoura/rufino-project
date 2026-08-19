@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
+import 'package:bill_payment/bill_payment.dart';
 import 'package:rufino_core/rufino_core.dart';
 import 'package:rufino_v2/core/tenant/tenant_session_bridge.dart';
 import 'package:rufino_v2/ui/features/auth/viewmodel/splash_viewmodel.dart';
@@ -30,6 +31,7 @@ void main() {
   late FakeTenantRepository tenantRepository;
   late PermissionNotifier permissionNotifier;
   late TenantPermissionNotifier tenantPermissionNotifier;
+  late BillPaymentPermissionNotifier billPaymentPermissionNotifier;
   late SplashViewModel viewModel;
 
   setUp(() {
@@ -41,6 +43,9 @@ void main() {
     tenantPermissionNotifier = TenantPermissionNotifier(
       permissionRepository: FakePermissionRepository(),
     );
+    billPaymentPermissionNotifier = BillPaymentPermissionNotifier(
+      permissionRepository: FakePermissionRepository(),
+    );
     viewModel = SplashViewModel(
       authRepository: authRepository,
       tenantRepository: tenantRepository,
@@ -49,10 +54,12 @@ void main() {
         companyRepository: companyRepository,
         permissionNotifier: permissionNotifier,
         tenantPermissionNotifier: tenantPermissionNotifier,
+        billPaymentPermissionNotifier: billPaymentPermissionNotifier,
         errorReporter: FakeErrorReporter(),
       ),
       permissionNotifier: permissionNotifier,
       tenantPermissionNotifier: tenantPermissionNotifier,
+      billPaymentPermissionNotifier: billPaymentPermissionNotifier,
       errorReporter: FakeErrorReporter(),
     );
   });

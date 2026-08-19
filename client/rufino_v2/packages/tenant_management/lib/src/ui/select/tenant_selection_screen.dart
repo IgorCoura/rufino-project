@@ -12,8 +12,8 @@ import 'tenant_selection_viewmodel.dart';
 ///
 /// Serves two audiences with one screen. A customer sees the tenants they
 /// belong to; a platform operator usually belongs to none, and sees instead
-/// the door to the back-office and the button that registers a new customer —
-/// which is the **only** place a tenant is created.
+/// the door to the back-office. **Registering a customer is not offered
+/// here** — the cadastro is back-office work, and lives in the listing.
 class TenantSelectionScreen extends StatefulWidget {
   /// Creates the screen.
   const TenantSelectionScreen({
@@ -21,7 +21,6 @@ class TenantSelectionScreen extends StatefulWidget {
     required this.viewModel,
     required this.backFallback,
     required this.onSelected,
-    required this.onCreateTenant,
     required this.onOpenBackOffice,
     required this.onLogout,
   });
@@ -35,9 +34,6 @@ class TenantSelectionScreen extends StatefulWidget {
 
   /// Called once a tenant became the current context.
   final VoidCallback onSelected;
-
-  /// Called to open the cadastro of a new tenant.
-  final VoidCallback onCreateTenant;
 
   /// Called to open the back-office listing.
   final VoidCallback onOpenBackOffice;
@@ -92,15 +88,6 @@ class _TenantSelectionScreenState extends State<TenantSelectionScreen> {
           const SizedBox(width: AppSpacing.sm),
         ],
       ),
-      floatingActionButton: TenantPermissionGuard(
-        resource: TenantResources.tenant,
-        scope: TenantScopes.create,
-        child: FloatingActionButton.extended(
-          onPressed: widget.onCreateTenant,
-          icon: const Icon(Icons.add),
-          label: const Text('Cadastrar cliente'),
-        ),
-      ),
       body: SafeArea(
         child: ListenableBuilder(
           listenable: widget.viewModel,
@@ -139,12 +126,7 @@ class _Body extends StatelessWidget {
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: AppBreakpoints.tablet),
         child: ListView(
-          padding: const EdgeInsets.fromLTRB(
-            AppSpacing.md,
-            AppSpacing.md,
-            AppSpacing.md,
-            AppSpacing.md + 72,
-          ),
+          padding: const EdgeInsets.all(AppSpacing.md),
           children: [
             if (viewModel.status == TenantSelectionStatus.error)
               _ErrorState(

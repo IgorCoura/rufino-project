@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
+import 'package:bill_payment/bill_payment.dart';
 import 'package:rufino_core/rufino_core.dart';
 import 'package:rufino_v2/core/tenant/tenant_session_bridge.dart';
 import 'package:rufino_v2/ui/features/home/viewmodel/home_viewmodel.dart';
@@ -33,6 +34,7 @@ void main() {
   late TenantSessionBridge bridge;
   late PermissionNotifier permissionNotifier;
   late TenantPermissionNotifier tenantPermissionNotifier;
+  late BillPaymentPermissionNotifier billPaymentPermissionNotifier;
 
   setUp(() {
     companyRepository = FakeCompanyRepository();
@@ -60,10 +62,16 @@ void main() {
         TenantPermissionNotifier(permissionRepository: tenantPermissionRepo);
     await tenantPermissionNotifier.loadPermissions();
 
+    billPaymentPermissionNotifier = BillPaymentPermissionNotifier(
+      permissionRepository: FakePermissionRepository(),
+    );
+    await billPaymentPermissionNotifier.loadPermissions();
+
     bridge = TenantSessionBridge(
       companyRepository: companyRepository,
       permissionNotifier: permissionNotifier,
       tenantPermissionNotifier: tenantPermissionNotifier,
+      billPaymentPermissionNotifier: billPaymentPermissionNotifier,
       errorReporter: FakeErrorReporter(),
     );
 
@@ -79,6 +87,9 @@ void main() {
           ChangeNotifierProvider<TenantPermissionNotifier>.value(
             value: tenantPermissionNotifier,
           ),
+          ChangeNotifierProvider<BillPaymentPermissionNotifier>.value(
+            value: billPaymentPermissionNotifier,
+          ),
           ChangeNotifierProvider<TenantContextNotifier>.value(
             value: tenantContext,
           ),
@@ -92,6 +103,7 @@ void main() {
               tenantSessionBridge: bridge,
               permissionNotifier: permissionNotifier,
               tenantPermissionNotifier: tenantPermissionNotifier,
+              billPaymentPermissionNotifier: billPaymentPermissionNotifier,
               errorReporter: FakeErrorReporter(),
             ),
           ),

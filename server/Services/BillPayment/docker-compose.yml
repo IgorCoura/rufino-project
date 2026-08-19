@@ -1,3 +1,5 @@
+# ⚠️ NUNCA publique a porta 8080 do HOST: ela é reservada para o Flutter web em desenvolvimento
+# (--web-port=8080, redirect URI registrado no realm). A 8080 INTERNA do container é ok.
 services:
   billpayment.api:
     image: ${DOCKER_REGISTRY-}billpaymentapi
@@ -21,6 +23,14 @@ services:
       # A sintaxe :? faz o `docker compose up` FALHAR quando a variável não existe, em vez de
       # subir uma API cujo cofre falha em toda operação e só se descobre ao conectar uma caixa.
       Secrets__MasterKey: ${BILLPAYMENT_MASTER_KEY:?defina BILLPAYMENT_MASTER_KEY no arquivo .env (32 bytes em base64)}
+
+      # O segredo do client resource server NÃO é injetado aqui, e a razão derrubou o
+      # provisionamento de tenant em 2026-08-19: `${VAR:-}` não deixa a variável ausente quando
+      # VAR não está definida — define com STRING VAZIA. Como variável de ambiente vem DEPOIS do
+      # user-secrets na ordem de configuração do ASP.NET Core, a string vazia sobrescreve o
+      # segredo do `dotnet user-secrets` sem dizer nada. Em desenvolvimento ele vem do
+      # user-secrets; em produção o orquestrador define a variável com valor de verdade.
+      # Se algum dia precisar injetar por aqui, use `${VAR:?mensagem}`, nunca `${VAR:-}`.
 
       # Graph e Capture já vêm ligados pelo appsettings.Development.json, que este serviço
       # carrega por ASPNETCORE_ENVIRONMENT=Development.

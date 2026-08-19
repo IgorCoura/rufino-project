@@ -27,9 +27,29 @@ public sealed class TenantProvisioningOptions
 
     /// <summary>
     /// Atributo multivalorado da pessoa que lista os tenants dela. É o que o mapper do realm
-    /// expõe como claim <c>tenants</c>, e é o que os produtos comparam com o id da rota.
+    /// expõe como claim <c>tenants</c> — a identidade, sem recorte de produto.
     /// </summary>
     public string TenantsAttribute { get; set; } = "tenants";
+
+    /// <summary>
+    /// Atributo por produto: além do <c>tenants</c> genérico, cada produto tem o seu, com os
+    /// tenants em que a pessoa tem vínculo ativo <strong>e</strong> aquele produto está habilitado.
+    /// É o que faz o produto governar o acesso — sem isto, quem tem o tenant no token usa todos
+    /// os produtos, inclusive os que o tenant nunca contratou.
+    /// </summary>
+    /// <remarks>
+    /// <strong>O nome importa e a escolha não é livre.</strong> O guard dos produtos casa o TIPO do
+    /// claim por <c>Contains</c>: <c>"bp_tenants".Contains("tenants")</c> é verdadeiro, então um
+    /// produto configurado para ler <c>tenants</c> aceitaria também os valores de <c>bp_tenants</c>.
+    /// O sentido que importa está seguro — <c>"tenants".Contains("bp_tenants")</c> é falso, logo o
+    /// BillPayment NÃO aceita o claim genérico. Ao acrescentar produto, escolha um nome que
+    /// nenhum outro contenha.
+    /// </remarks>
+    public Dictionary<string, string> ProductAttributes { get; } = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["BillPayment"] = "bp_tenants",
+        ["PeopleManagement"] = "pm_tenants",
+    };
 
     /// <summary>Convite por e-mail para quem foi criado agora (definir senha e verificar e-mail).</summary>
     public bool SendInvitationEmail { get; set; } = true;

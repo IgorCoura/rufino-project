@@ -1,5 +1,6 @@
 namespace BillPayment.API.Controllers;
 
+using BillPayment.API.Authorization;
 using BillPayment.Application.CaptureSources.Commands;
 using BillPayment.Application.Mediator;
 using BillPayment.Application.Models.CaptureSources;
@@ -15,9 +16,9 @@ using Microsoft.AspNetCore.Mvc;
 /// leitura informa apenas que a fonte <em>tem</em> credencial.
 /// </para>
 /// <para>
-/// Autorização granular (<c>[ProtectedResource("capture-source", "view"|"manage")]</c>) entra na
-/// fase 6, junto com o Keycloak. Até lá os endpoints estão abertos — ver "Checklist
-/// pré-produção" no CLAUDE.md do BC.
+/// <c>sync</c> é escopo separado de <c>manage</c> de propósito: disparar varredura é operação de
+/// rotina, e quem a executa não precisa poder trocar a credencial da caixa. <c>rescan</c> cai no
+/// mesmo escopo porque é a mesma varredura, apenas desde o começo.
 /// </para>
 /// </remarks>
 [Route("api/v1/{tenantId:guid}/capture-sources")]
@@ -27,6 +28,7 @@ public sealed class CaptureSourcesController(
     ILogger<CaptureSourcesController> logger) : BaseController(logger)
 {
     [HttpGet]
+    [ProtectedResource("capture-source", "view")]
     public async Task<ActionResult<CaptureSourcePage>> List(
         [FromRoute] Guid tenantId,
         [FromQuery] string? cursor,
@@ -35,6 +37,7 @@ public sealed class CaptureSourcesController(
         => OkResponse(await queries.ListAsync(tenantId, cursor, limit, cancellationToken));
 
     [HttpGet("{id:guid}")]
+    [ProtectedResource("capture-source", "view")]
     public async Task<ActionResult<CaptureSourceDto>> GetById(
         [FromRoute] Guid tenantId,
         [FromRoute] Guid id,
@@ -49,6 +52,7 @@ public sealed class CaptureSourcesController(
     /// resposta traz o aviso genérico de caixa já monitorada por outra conta (ADR-008).
     /// </summary>
     [HttpPost]
+    [ProtectedResource("capture-source", "manage")]
     public async Task<ActionResult<ConnectCaptureSourceResponse>> Connect(
         [FromRoute] Guid tenantId,
         [FromBody] ConnectCaptureSourceModel model,
@@ -67,6 +71,7 @@ public sealed class CaptureSourcesController(
     }
 
     [HttpPut("{id:guid}/name")]
+    [ProtectedResource("capture-source", "manage")]
     public async Task<ActionResult<RenameCaptureSourceResponse>> Rename(
         [FromRoute] Guid tenantId,
         [FromRoute] Guid id,
@@ -86,6 +91,7 @@ public sealed class CaptureSourcesController(
     }
 
     [HttpPut("{id:guid}/activation")]
+    [ProtectedResource("capture-source", "manage")]
     public async Task<ActionResult<AlterCaptureSourceActivationResponse>> AlterActivation(
         [FromRoute] Guid tenantId,
         [FromRoute] Guid id,
@@ -106,6 +112,7 @@ public sealed class CaptureSourcesController(
 
     /// <summary>Rotação do segredo, ou reconexão depois de uma revogação.</summary>
     [HttpPut("{id:guid}/credential")]
+    [ProtectedResource("capture-source", "manage")]
     public async Task<ActionResult<ReplaceCaptureSourceCredentialResponse>> ReplaceCredential(
         [FromRoute] Guid tenantId,
         [FromRoute] Guid id,
@@ -129,6 +136,7 @@ public sealed class CaptureSourcesController(
     /// incremental do provedor e por pasta.
     /// </summary>
     [HttpPut("{id:guid}/folder")]
+    [ProtectedResource("capture-source", "manage")]
     public async Task<ActionResult<ChangeCaptureSourceFolderResponse>> ChangeFolder(
         [FromRoute] Guid tenantId,
         [FromRoute] Guid id,
@@ -156,6 +164,7 @@ public sealed class CaptureSourcesController(
     /// nos testes, como o worker do outbox.
     /// </remarks>
     [HttpPost("{id:guid}/sync")]
+    [ProtectedResource("capture-source", "sync")]
     public async Task<ActionResult<SyncCaptureSourceResponse>> Sync(
         [FromRoute] Guid tenantId,
         [FromRoute] Guid id,
@@ -181,6 +190,7 @@ public sealed class CaptureSourcesController(
     /// recursão: subpasta que não estiver na lista não é lida.
     /// </remarks>
     [HttpPost("{id:guid}/folders")]
+    [ProtectedResource("capture-source", "manage")]
     public async Task<ActionResult<AddCaptureSourceFolderResponse>> AddFolder(
         [FromRoute] Guid tenantId,
         [FromRoute] Guid id,
@@ -207,6 +217,7 @@ public sealed class CaptureSourcesController(
     /// no segmento de rota morreria em 404 antes do controller. Ausente = a caixa de entrada.
     /// </remarks>
     [HttpDelete("{id:guid}/folders")]
+    [ProtectedResource("capture-source", "manage")]
     public async Task<ActionResult<RemoveCaptureSourceFolderResponse>> RemoveFolder(
         [FromRoute] Guid tenantId,
         [FromRoute] Guid id,
@@ -235,6 +246,7 @@ public sealed class CaptureSourcesController(
     /// a ingestão é idempotente por <c>(tenant, fonte, mensagem, anexo)</c>.
     /// </remarks>
     [HttpPost("{id:guid}/rescan")]
+    [ProtectedResource("capture-source", "sync")]
     public async Task<ActionResult<RescanCaptureSourceResponse>> Rescan(
         [FromRoute] Guid tenantId,
         [FromRoute] Guid id,
@@ -254,6 +266,7 @@ public sealed class CaptureSourcesController(
 
     /// <summary>Desconecta a fonte e apaga a credencial. Os itens já ingeridos permanecem.</summary>
     [HttpDelete("{id:guid}")]
+    [ProtectedResource("capture-source", "manage")]
     public async Task<ActionResult<DisconnectCaptureSourceResponse>> Disconnect(
         [FromRoute] Guid tenantId,
         [FromRoute] Guid id,

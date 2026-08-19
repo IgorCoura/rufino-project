@@ -33,8 +33,14 @@
  * USO
  *
  *   cp seed-tenant.example.json seed-tenant.local.json   # e edite
- *   node seed-tenant.js --api=http://localhost:8100
- *   node seed-tenant.js --api=http://localhost:8100 --arquivo=outro.json
+ *   node seed-tenant.js --api=http://localhost:8100 --token=<access token>
+ *   node seed-tenant.js --api=... --token=... --arquivo=outro.json
+ *
+ * O TOKEN E OBRIGATORIO desde que a API passou a exigir autenticacao: sem ele toda chamada
+ * volta 401, e o cadastro nao acontece. Pegue um access token do Keycloak (realm `rufino`,
+ * client `rufino-app`) da pessoa que opera este tenant — o tenant precisa estar no claim
+ * `tenants` dela, senao a resposta e 403 em vez de 401. Alternativa: variavel de ambiente
+ * BILLPAYMENT_TOKEN, para o segredo nao ficar no historico do shell.
  */
 const DEFAULT_FILE = 'seed-tenant.local.json';
 const DEFAULT_API = 'http://localhost:8100';
@@ -54,6 +60,14 @@ async function main() {
   const { readFile } = await import('node:fs/promises');
   const path = arg('arquivo', DEFAULT_FILE);
   const api = arg('api', DEFAULT_API).replace(/\/+$/, '');
+  const token = arg('token', process.env.BILLPAYMENT_TOKEN);
+
+  if (!token || !token.trim()) {
+    fail(
+      'informe o access token: --token=<jwt> ou $env:BILLPAYMENT_TOKEN.\n' +
+        '  A API exige autenticacao; sem token toda chamada volta 401 e nada e cadastrado.',
+    );
+  }
 
   let raw;
   try {
@@ -68,7 +82,7 @@ async function main() {
   const seed = JSON.parse(raw);
   if (!seed.tenantId) fail('o arquivo precisa de "tenantId".');
 
-  const ctx = { api, tenantId: seed.tenantId, created: 0, existed: 0 };
+  const ctx = { api, token, tenantId: seed.tenantId, created: 0, existed: 0 };
 
   console.log(`Cadastro do tenant ${seed.tenantId}`);
   console.log(`  API: ${api}\n`);
@@ -93,7 +107,11 @@ async function post(ctx, path, body, label, options = {}) {
   try {
     response = await fetch(url, {
       method: 'POST',
-      headers: { 'content-type': 'application/json', 'x-requestid': crypto.randomUUID() },
+      headers: {
+        'content-type': 'application/json',
+        'x-requestid': crypto.randomUUID(),
+        authorization: `Bearer ${ctx.token}`,
+      },
       body: JSON.stringify(body),
     });
   } catch (cause) {
@@ -205,7 +223,7 @@ async function seedTrustedOrigins(ctx, origins) {
         kind: origin.kind,
         value: origin.value,
         decision: origin.decision ?? 'Trusted',
-        decidedBy: origin.decidedBy ?? ctx.tenantId,
+        // decidedBy saiu do contrato em 2026-08-17: quem decide é o sub do token.
         note: origin.note ?? null,
       },
       `${origin.value} (${origin.decision ?? 'Trusted'})`,

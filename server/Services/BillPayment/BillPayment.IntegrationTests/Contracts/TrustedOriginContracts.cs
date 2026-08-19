@@ -8,12 +8,10 @@ internal sealed record RegisterTrustedOriginRequest(
     string Kind,
     string Value,
     string Decision,
-    Guid DecidedBy,
     string? Note);
 
 internal sealed record ChangeTrustedOriginDecisionRequest(
     string Decision,
-    Guid DecidedBy,
     string? Note);
 
 internal sealed record TrustedOriginIdResponse(Guid Id);

@@ -37,6 +37,18 @@ public sealed class Tenant : AggregateRoot<TenantId>
     public IReadOnlyCollection<TenantMembership> Memberships => _memberships.AsReadOnly();
 
     /// <summary>
+    /// Os produtos habilitados <strong>agora</strong> — o estado que o provedor de identidade
+    /// precisa refletir para que o token diga em quais produtos este tenant vale.
+    /// </summary>
+    /// <remarks>
+    /// Derivado de propósito, e exposto aqui em vez de o filtro ser reescrito por quem sincroniza:
+    /// a linha desativada continua existindo (o histórico é o que explica cobrança e acesso
+    /// passados), então quem esquecer o <c>IsActive</c> concede acesso a produto cancelado.
+    /// </remarks>
+    public IReadOnlyCollection<ProductCode> ActiveProducts
+        => _products.FindAll(p => p.IsActive).ConvertAll(p => p.Code).AsReadOnly();
+
+    /// <summary>
     /// Estado da concessão de acesso no provedor de identidade, somando todos os vínculos.
     /// Derivado de propósito: a verdade está em cada vínculo, e um campo próprio no tenant
     /// seria uma segunda versão da mesma informação, livre para divergir.
@@ -269,15 +281,24 @@ public sealed class Tenant : AggregateRoot<TenantId>
     /// Recoloca na fila todo vínculo que não chegou ao provedor. É o caminho de conserto de
     /// um provisionamento que falhou — e é idempotente porque o que já está feito fica quieto.
     /// </summary>
+    /// <remarks>
+    /// <strong>Num tenant suspenso, reprocessar REVOGA — nunca reconcede.</strong> O que a fila
+    /// persegue é o estado desejado no provedor, e num tenant suspenso esse estado é "ninguém
+    /// tem acesso a este tenant", independentemente de o vínculo seguir ativo no cadastro (ele
+    /// segue, de propósito: suspender preserva o cadastro). Emitir concessão aqui transformaria
+    /// o endpoint de reprovisionamento na forma de burlar a suspensão — bastava pedir o conserto
+    /// de um vínculo pendente para todo mundo voltar a entrar.
+    /// </remarks>
     public IReadOnlyCollection<TenantMembership> RequeueFailedAccessProvisioning(DateTime occurredAt)
     {
         var pending = _memberships.FindAll(m => m.NeedsProvisioning());
+        var suspended = Status.Equals(TenantStatus.Suspended);
 
         foreach (var membership in pending)
         {
             membership.MarkProvisioningPending(occurredAt);
 
-            if (membership.IsActive)
+            if (membership.IsActive && !suspended)
                 AddDomainEvent(new MembershipGrantedDomainEvent(Id, membership.Email, membership.Role.Name, LegalName, occurredAt));
             else
                 AddDomainEvent(new MembershipRevokedDomainEvent(Id, membership.Email, occurredAt));

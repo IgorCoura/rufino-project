@@ -293,7 +293,7 @@ public sealed class BillRoutingTests : BaseIntegrationTest
         request.Headers.Add("x-requestid", Guid.CreateVersion7().ToString());
         request.Content = JsonContent.Create(new { });
 
-        return _host.CreateClient().SendAsync(request);
+        return _host.CreateClient().Authenticated().SendAsync(request);
     }
 
     private async Task<ProcessCaptureItemResponse> ProcessAsync(CaptureItemId itemId)

@@ -6,6 +6,7 @@ import 'package:nested/nested.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'package:bill_payment/bill_payment.dart';
 import 'package:tenant_management/tenant_management.dart';
 
 import 'core/config/app_config.dart';
@@ -265,11 +266,30 @@ class App extends StatelessWidget {
       permissionRepository: tenantPermissionRepository,
     );
 
+    // Terceira audiência: o BillPayment é outro resource server, com cache
+    // próprio — duas audiências numa chave só se sobrescreveriam.
+    final billPaymentPermissionNotifier = BillPaymentPermissionNotifier(
+      permissionRepository: PermissionRepositoryImpl(
+        permissionApiService: PermissionApiService(
+          client: httpClient,
+          tokenEndpoint: tokenEndpoint,
+          getAccessToken: getAccessToken,
+          audience: AppConfig.billPaymentAudience,
+        ),
+        permissionCacheService: PermissionCacheService(
+          prefs: prefs,
+          cacheKey: 'cached_permissions_bill_payment',
+        ),
+        reporter: errorReporter,
+      ),
+    );
+
     // Reload permissions automatically when the access token is refreshed —
-    // both audiences, or one of them silently goes stale.
+    // every audience, or one of them silently goes stale.
     void reloadAllPermissions() {
       permissionNotifier.loadPermissions();
       tenantPermissionNotifier.loadPermissions();
+      billPaymentPermissionNotifier.loadPermissions();
     }
 
     if (authApiService != null) {
@@ -408,7 +428,89 @@ class App extends StatelessWidget {
       companyRepository: companyRepository,
       permissionNotifier: permissionNotifier,
       tenantPermissionNotifier: tenantPermissionNotifier,
+      billPaymentPermissionNotifier: billPaymentPermissionNotifier,
       errorReporter: errorReporter,
+    );
+
+    // BillPayment: os serviços do produto. Toda rota do BC carrega o tenant
+    // corrente, lido do contexto único.
+    String getBillPaymentTenantId() {
+      final tenantId = tenantContextNotifier.tenantId;
+      if (tenantId == null) {
+        // As rotas do módulo vivem atrás da seleção de tenant; chegar aqui
+        // sem contexto é bug de navegação, não estado esperado.
+        throw StateError('Nenhum cliente selecionado.');
+      }
+      return tenantId;
+    }
+
+    final BillRepository billRepository = BillRepositoryImpl(
+      apiService: BillApiService(
+        client: httpClient,
+        baseUrl: AppConfig.billPaymentUrl,
+        getAuthHeader: getAuthHeader,
+        getTenantId: getBillPaymentTenantId,
+      ),
+      reporter: errorReporter,
+    );
+    final CaptureItemRepository captureItemRepository =
+        CaptureItemRepositoryImpl(
+      apiService: CaptureItemApiService(
+        client: httpClient,
+        baseUrl: AppConfig.billPaymentUrl,
+        getAuthHeader: getAuthHeader,
+        getTenantId: getBillPaymentTenantId,
+      ),
+      reporter: errorReporter,
+    );
+    final CaptureSourceRepository captureSourceRepository =
+        CaptureSourceRepositoryImpl(
+      apiService: CaptureSourceApiService(
+        client: httpClient,
+        baseUrl: AppConfig.billPaymentUrl,
+        getAuthHeader: getAuthHeader,
+        getTenantId: getBillPaymentTenantId,
+      ),
+      reporter: errorReporter,
+    );
+    final PayeeRepository payeeRepository = PayeeRepositoryImpl(
+      apiService: PayeeApiService(
+        client: httpClient,
+        baseUrl: AppConfig.billPaymentUrl,
+        getAuthHeader: getAuthHeader,
+        getTenantId: getBillPaymentTenantId,
+      ),
+      reporter: errorReporter,
+    );
+    final PayerProfileRepository payerProfileRepository =
+        PayerProfileRepositoryImpl(
+      apiService: PayerProfileApiService(
+        client: httpClient,
+        baseUrl: AppConfig.billPaymentUrl,
+        getAuthHeader: getAuthHeader,
+        getTenantId: getBillPaymentTenantId,
+      ),
+      reporter: errorReporter,
+    );
+    final TrustedOriginRepository trustedOriginRepository =
+        TrustedOriginRepositoryImpl(
+      apiService: TrustedOriginApiService(
+        client: httpClient,
+        baseUrl: AppConfig.billPaymentUrl,
+        getAuthHeader: getAuthHeader,
+        getTenantId: getBillPaymentTenantId,
+      ),
+      reporter: errorReporter,
+    );
+    final ExpectationRepository expectationRepository =
+        ExpectationRepositoryImpl(
+      apiService: ExpectationApiService(
+        client: httpClient,
+        baseUrl: AppConfig.billPaymentUrl,
+        getAuthHeader: getAuthHeader,
+        getTenantId: getBillPaymentTenantId,
+      ),
+      reporter: errorReporter,
     );
 
     // Spreadsheet export — stateless, safe to share across the app.
@@ -420,6 +522,7 @@ class App extends StatelessWidget {
       ChangeNotifierProvider(create: (_) => ThemeNotifier()),
       ChangeNotifierProvider.value(value: permissionNotifier),
       ChangeNotifierProvider.value(value: tenantPermissionNotifier),
+      ChangeNotifierProvider.value(value: billPaymentPermissionNotifier),
       ChangeNotifierProvider.value(value: tenantContextNotifier),
       ChangeNotifierProvider.value(value: tenantSessionBridge),
       Provider<TenantRepository>.value(value: tenantRepository),
@@ -450,6 +553,15 @@ class App extends StatelessWidget {
       Provider<CepRepository>.value(value: cepRepository),
       Provider<SpreadsheetService>.value(value: spreadsheetService),
       Provider<FileSaveService>.value(value: fileSaveService),
+      Provider<BillRepository>.value(value: billRepository),
+      Provider<CaptureItemRepository>.value(value: captureItemRepository),
+      Provider<CaptureSourceRepository>.value(
+          value: captureSourceRepository),
+      Provider<PayeeRepository>.value(value: payeeRepository),
+      Provider<PayerProfileRepository>.value(value: payerProfileRepository),
+      Provider<TrustedOriginRepository>.value(
+          value: trustedOriginRepository),
+      Provider<ExpectationRepository>.value(value: expectationRepository),
     ];
   }
 }
@@ -484,6 +596,8 @@ class _AppRouterState extends State<_AppRouter> {
               permissionNotifier: context.read<PermissionNotifier>(),
               tenantPermissionNotifier:
                   context.read<TenantPermissionNotifier>(),
+              billPaymentPermissionNotifier:
+                  context.read<BillPaymentPermissionNotifier>(),
               errorReporter: context.read<ErrorReporter>(),
             ),
           ),
@@ -520,6 +634,8 @@ class _AppRouterState extends State<_AppRouter> {
             final permissions = routeContext.read<PermissionNotifier>();
             final tenantPermissions =
                 routeContext.read<TenantPermissionNotifier>();
+            final billPaymentPermissions =
+                routeContext.read<BillPaymentPermissionNotifier>();
             final tenantContext = routeContext.read<TenantContextNotifier>();
             final bridge = routeContext.read<TenantSessionBridge>();
             final reporter = routeContext.read<ErrorReporter>();
@@ -528,12 +644,15 @@ class _AppRouterState extends State<_AppRouter> {
             await auth.logout();
             await permissions.clear();
             await tenantPermissions.clear();
+            await billPaymentPermissions.clear();
             await tenantContext.clear();
             await bridge.clear();
             reporter.clearUser();
             router.go('/login');
           },
         ),
+        // Contas a Pagar: o módulo fornece as telas, a casca fornece o home.
+        ...billPaymentRoutes(homeRoute: '/home'),
         GoRoute(
           path: '/company/edit/:id',
           builder: (context, state) => CompanyFormScreen(
@@ -553,6 +672,8 @@ class _AppRouterState extends State<_AppRouter> {
               permissionNotifier: context.read<PermissionNotifier>(),
               tenantPermissionNotifier:
                   context.read<TenantPermissionNotifier>(),
+              billPaymentPermissionNotifier:
+                  context.read<BillPaymentPermissionNotifier>(),
               errorReporter: context.read<ErrorReporter>(),
             ),
           ),

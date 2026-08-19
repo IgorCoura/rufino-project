@@ -54,6 +54,11 @@ namespace PeopleManagement.IntegrationTests.Configs
             {
                 DbAdapter = DbAdapter.Postgres,
                 SchemasToInclude = ["people_management"],
+
+                // O histórico de migrações vive dentro de people_management e NÃO é dado de teste:
+                // apagá-lo faz o próximo host subir achando que o banco está vazio e tentar criar tudo
+                // outra vez, morrendo em 42P07 "relation already exists".
+                TablesToIgnore = [new Respawn.Graph.Table("people_management", "__EFMigrationsHistory")],
             });
         }
 
@@ -77,6 +82,11 @@ namespace PeopleManagement.IntegrationTests.Configs
                         _dbContainer.GetConnectionString(),
                         npgsqlOptionsAction: sqlOptions =>
                         {
+                            // Repete o que o Program.cs configura. Esta registração é a última, então é
+                            // ela que vale para o contexto resolvido pelo DI — inclusive o que roda o
+                            // Migrate. Sem isto a suíte validaria um layout de histórico que o deploy
+                            // nunca produz, que é justamente o tipo de defeito que ela existe para pegar.
+                            sqlOptions.MigrationsHistoryTable("__EFMigrationsHistory", PeopleManagementContext.DEFAULT_SCHEMA);
                             sqlOptions.EnableRetryOnFailure(maxRetryCount: 15, maxRetryDelay: TimeSpan.FromSeconds(30), errorCodesToAdd: null);
                         }).UseExceptionProcessor()
                         .EnableDetailedErrors()

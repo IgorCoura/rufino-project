@@ -18,17 +18,28 @@ public sealed class TrustedOriginLifecycleTests : BaseIntegrationTest
 
     private static Uri RouteFor(Guid tenantId) => new($"/api/v1/{tenantId}/trusted-origins", UriKind.Relative);
 
-    public TrustedOriginLifecycleTests(IntegrationTestWebAppFactory factory) : base(factory) { }
+    // Quem decide vem do sub do token — o dublê de autenticação o traduz do header x-user-id.
+    public TrustedOriginLifecycleTests(IntegrationTestWebAppFactory factory) : base(factory)
+    {
+        Client.DefaultRequestHeaders.Add(MockAuthenticationHandler.UserIdHeader, DecidedBy.ToString());
+    }
 
-    // Promover uma origem bloqueada a confiável grava a nova decisão, o autor e a observação.
+    // Promover uma origem bloqueada a confiável grava a nova decisão, o autor — que sai do
+    // token de QUEM alterou, não do cadastro original — e a observação.
     [Fact]
     public async Task PutDecision_WhenOriginExists_ShouldReplaceDecisionAndAudit()
     {
         var id = await RegisterAsync("EmailAddress", "financeiro@fornecedor.com.br", "Blocked");
 
-        var response = await Client.PutAsJsonAsync(
-            new Uri($"{RouteFor(TenantId)}/{id}/decision", UriKind.Relative),
-            new ChangeTrustedOriginDecisionRequest("Trusted", AnotherUser, "revisado por telefone"));
+        using var request = new HttpRequestMessage(
+            HttpMethod.Put,
+            new Uri($"{RouteFor(TenantId)}/{id}/decision", UriKind.Relative))
+        {
+            Content = JsonContent.Create(new ChangeTrustedOriginDecisionRequest("Trusted", "revisado por telefone")),
+        };
+        request.Headers.Add(MockAuthenticationHandler.UserIdHeader, AnotherUser.ToString());
+
+        var response = await Client.SendAsync(request);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
 
@@ -47,7 +58,7 @@ public sealed class TrustedOriginLifecycleTests : BaseIntegrationTest
     {
         var response = await Client.PutAsJsonAsync(
             new Uri($"{RouteFor(TenantId)}/{UnknownId}/decision", UriKind.Relative),
-            new ChangeTrustedOriginDecisionRequest("Trusted", DecidedBy, null));
+            new ChangeTrustedOriginDecisionRequest("Trusted", null));
 
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
         var error = await response.Content.ReadFromJsonAsync<ApiErrorResponse>();
@@ -62,7 +73,7 @@ public sealed class TrustedOriginLifecycleTests : BaseIntegrationTest
 
         var response = await Client.PutAsJsonAsync(
             new Uri($"{RouteFor(OtherTenantId)}/{id}/decision", UriKind.Relative),
-            new ChangeTrustedOriginDecisionRequest("Blocked", DecidedBy, null));
+            new ChangeTrustedOriginDecisionRequest("Blocked", null));
 
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
@@ -195,7 +206,7 @@ public sealed class TrustedOriginLifecycleTests : BaseIntegrationTest
     {
         var response = await Client.PostAsJsonAsync(
             RouteFor(tenantId ?? TenantId),
-            new RegisterTrustedOriginRequest(kind, value, decision, DecidedBy, null));
+            new RegisterTrustedOriginRequest(kind, value, decision, null));
 
         response.EnsureSuccessStatusCode();
         var body = await response.Content.ReadFromJsonAsync<TrustedOriginIdResponse>();

@@ -29,7 +29,7 @@ public sealed class CaptureSourceFoldersTests : BaseIntegrationTest
     public CaptureSourceFoldersTests(IntegrationTestWebAppFactory factory) : base(factory)
     {
         var host = factory.WithReachableMailbox();
-        _client = host.CreateClient();
+        _client = host.CreateClient().Authenticated();
         _mailbox = host.Services.GetRequiredService<FakeMailboxReader>();
     }
 

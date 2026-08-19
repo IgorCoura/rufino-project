@@ -53,6 +53,11 @@ internal sealed class TenantMap : IEntityTypeConfiguration<Tenant>
         // versão da mesma informação, livre para divergir do que os vínculos dizem.
         builder.Ignore(e => e.AccessProvisioning);
 
+        // Derivada dos produtos, pelo mesmo motivo — e ignorá-la não é zelo: sem isto o EF trata
+        // a coleção como mapeável, o modelo passa a divergir das migrações e TODA a suíte de
+        // integração morre em PendingModelChangesWarning antes do primeiro teste.
+        builder.Ignore(e => e.ActiveProducts);
+
         builder.OwnsOne(e => e.Contact, contact =>
         {
             contact.Property(c => c.Email)

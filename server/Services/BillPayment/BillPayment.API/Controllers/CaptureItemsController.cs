@@ -1,5 +1,6 @@
 namespace BillPayment.API.Controllers;
 
+using BillPayment.API.Authorization;
 using BillPayment.Application.CaptureItems.Commands;
 using BillPayment.Application.Mediator;
 using BillPayment.Application.Queries.CaptureItems;
@@ -13,6 +14,11 @@ using Microsoft.AspNetCore.Mvc;
 /// O conteúdo devolvido é filtrado pelo status do item, e quem decide isso é o domínio
 /// (<c>CaptureItemStatus.ExposesFinancialDetail</c>), não este controller nem a tela.
 /// </para>
+/// <para>
+/// <c>reprocess</c> tem escopo PRÓPRIO, e não é zelo: reprocessar chama o extrator de visão, que
+/// consome cota de uma conta com teto diário. Sob o mesmo escopo da leitura, quem só revisa a
+/// quarentena poderia queimar o teto do dia e parar a captura de todo mundo.
+/// </para>
 /// </remarks>
 [Route("api/v1/{tenantId:guid}/capture-items")]
 public sealed class CaptureItemsController(
@@ -25,6 +31,7 @@ public sealed class CaptureItemsController(
     /// <c>Unrouted</c> é a fila de reivindicação do dono da fonte.
     /// </summary>
     [HttpGet]
+    [ProtectedResource("capture-item", "view")]
     public async Task<ActionResult<CaptureItemPage>> List(
         [FromRoute] Guid tenantId,
         [FromQuery] string? status,
@@ -34,6 +41,7 @@ public sealed class CaptureItemsController(
         => OkResponse(await queries.ListAsync(tenantId, status, cursor, limit, cancellationToken));
 
     [HttpGet("{id:guid}")]
+    [ProtectedResource("capture-item", "view")]
     public async Task<ActionResult<CaptureItemDto>> GetById(
         [FromRoute] Guid tenantId,
         [FromRoute] Guid id,
@@ -60,6 +68,7 @@ public sealed class CaptureItemsController(
     /// </para>
     /// </remarks>
     [HttpPost("{id:guid}/reprocess")]
+    [ProtectedResource("capture-item", "reprocess")]
     public async Task<ActionResult<ReprocessCaptureItemResponse>> Reprocess(
         [FromRoute] Guid tenantId,
         [FromRoute] Guid id,
@@ -94,14 +103,14 @@ public sealed class CaptureItemsController(
     /// </para>
     /// </remarks>
     [HttpPost("{id:guid}/claim")]
+    [ProtectedResource("capture-item", "claim")]
     public async Task<ActionResult<ClaimCaptureItemResponse>> Claim(
         [FromRoute] Guid tenantId,
         [FromRoute] Guid id,
         [FromHeader(Name = "x-requestid")] Guid requestId,
-        [FromHeader(Name = "x-user-id")] Guid userId,
         CancellationToken cancellationToken)
     {
-        var command = new ClaimCaptureItemCommand(tenantId, id, ResolveDecidingUserId(userId));
+        var command = new ClaimCaptureItemCommand(tenantId, id, ResolveDecidingUserId());
         var identified = new IdentifiedCommand<ClaimCaptureItemCommand, ClaimCaptureItemResponse>(
             command, EnsureRequestId(requestId));
 

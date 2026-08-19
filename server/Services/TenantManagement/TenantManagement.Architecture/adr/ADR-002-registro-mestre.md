@@ -28,6 +28,12 @@ token**.
 
 - **Divergência de cadastro é possível e aceita.** Razão social alterada aqui não se propaga
   sozinha. Se incomodar, vira evento de sincronização depois — não agora.
+- **O que atravessa pelo claim ficou definido no [ADR-005](ADR-005-integracao-pelo-claim.md)
+  (2026-08-17).** Este ADR dizia o que **não** atravessa e deixava em aberto o que fazer quando
+  este BC sabe algo que o produto precisa obedecer. A resposta: suspensão e entitlement de produto
+  viajam pelo provedor de identidade — a suspensão revogando o acesso de todos os vínculos, o
+  produto ganhando um atributo próprio (`bp_tenants`, `pm_tenants`). Continua valendo que nenhum
+  produto chama este BC em runtime.
 - O `PayerProfile` continua sendo criado **dentro do BillPayment**, pelo próprio usuário. Este BC
   **não** chama o BillPayment para semeá-lo: seria exatamente o acoplamento que o ADR-001 evita.
 - O backfill preserva o Guid dos cadastros existentes; sem isso, todo acesso teria de ser

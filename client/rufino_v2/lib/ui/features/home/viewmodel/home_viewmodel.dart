@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:bill_payment/bill_payment.dart';
 import 'package:rufino_core/rufino_core.dart';
 import 'package:tenant_management/tenant_management.dart';
 
@@ -31,12 +32,14 @@ class HomeViewModel extends ChangeNotifier {
     required TenantSessionBridge tenantSessionBridge,
     required PermissionNotifier permissionNotifier,
     required TenantPermissionNotifier tenantPermissionNotifier,
+    required BillPaymentPermissionNotifier billPaymentPermissionNotifier,
     required ErrorReporter errorReporter,
   })  : _authRepository = authRepository,
         _tenantContext = tenantContext,
         _tenantSessionBridge = tenantSessionBridge,
         _permissionNotifier = permissionNotifier,
         _tenantPermissionNotifier = tenantPermissionNotifier,
+        _billPaymentPermissionNotifier = billPaymentPermissionNotifier,
         _errorReporter = errorReporter;
 
   final AuthRepository _authRepository;
@@ -44,6 +47,7 @@ class HomeViewModel extends ChangeNotifier {
   final TenantSessionBridge _tenantSessionBridge;
   final PermissionNotifier _permissionNotifier;
   final TenantPermissionNotifier _tenantPermissionNotifier;
+  final BillPaymentPermissionNotifier _billPaymentPermissionNotifier;
   final ErrorReporter _errorReporter;
 
   /// The tenant currently in context.
@@ -86,6 +90,7 @@ class HomeViewModel extends ChangeNotifier {
     await Future.wait([
       _permissionNotifier.loadPermissions(),
       _tenantPermissionNotifier.loadPermissions(),
+      _billPaymentPermissionNotifier.loadPermissions(),
     ]);
   }
 
@@ -94,6 +99,7 @@ class HomeViewModel extends ChangeNotifier {
     await _authRepository.logout();
     await _permissionNotifier.clear();
     await _tenantPermissionNotifier.clear();
+    await _billPaymentPermissionNotifier.clear();
     await _tenantContext.clear();
     await _tenantSessionBridge.clear();
     _errorReporter.clearUser();

@@ -125,4 +125,29 @@ public class TenantProductTests
         Assert.True(tenant.HasActiveProduct(ProductCode.PeopleManagement));
         Assert.True(tenant.HasActiveProduct(ProductCode.BillPayment));
     }
+
+    // ActiveProducts traz só o que está habilitado agora — é ele que o provedor de identidade
+    // reflete no token, e produto desativado ali significaria acesso concedido a produto cancelado.
+    [Fact]
+    public void ActiveProducts_ShouldNotIncludeDeactivatedProducts()
+    {
+        var tenant = TenantMother.Provisioned();
+        tenant.ActivateProduct(ProductCode.PeopleManagement, TenantMother.DefaultOccurredAt);
+        tenant.ActivateProduct(ProductCode.BillPayment, TenantMother.DefaultOccurredAt);
+
+        tenant.DeactivateProduct(ProductCode.PeopleManagement, TenantMother.DefaultOccurredAt);
+
+        // A linha desativada continua existindo — o histórico é o que explica cobrança passada.
+        Assert.Equal(2, tenant.Products.Count);
+        Assert.Equal([ProductCode.BillPayment], tenant.ActiveProducts);
+    }
+
+    // Tenant sem produto habilitado devolve lista vazia, não nula: quem sincroniza itera sobre ela.
+    [Fact]
+    public void ActiveProducts_WhenNoProductIsEnabled_ShouldBeEmpty()
+    {
+        var tenant = TenantMother.Provisioned();
+
+        Assert.Empty(tenant.ActiveProducts);
+    }
 }

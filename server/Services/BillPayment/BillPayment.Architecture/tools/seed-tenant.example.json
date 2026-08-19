@@ -31,7 +31,7 @@
     }
   ],
 
-  "_trustedOrigins": "Remetentes conhecidos. E o que transforma 'nao reconheci' em quarentena revisavel em vez de descarte — sem isto, todo boleto que a cascata errar some sem deixar arquivo. kind: EmailAddress ou EmailDomain. decision: Trusted ou Blocked. decidedBy: GUID de quem decidiu (nesta fase, sem Keycloak, use o proprio tenantId).",
+  "_trustedOrigins": "Remetentes conhecidos. E o que transforma 'nao reconheci' em quarentena revisavel em vez de descarte — sem isto, todo boleto que a cascata errar some sem deixar arquivo. kind: EmailAddress ou EmailDomain. decision: Trusted ou Blocked. Quem decidiu sai do sub do token de quem roda o seed — o campo decidedBy nao existe mais no contrato.",
   "trustedOrigins": [
     { "kind": "EmailDomain", "value": "edpbr.com.br", "decision": "Trusted", "note": "conta de luz" },
     { "kind": "EmailDomain", "value": "seconci-sp.org.br", "decision": "Trusted" },

@@ -9,16 +9,21 @@ import '../fakes/fakes.dart';
 void main() {
   late FakeTenantRepository repository;
   late List<String> opened;
+  late List<String> navigations;
 
   setUp(() {
     repository = FakeTenantRepository();
     opened = [];
+    navigations = [];
   });
 
-  Future<void> pumpList(WidgetTester tester) async {
-    final notifier = await tenantPermissions(const [
+  Future<void> pumpList(
+    WidgetTester tester, {
+    List<Permission> permissions = const [
       Permission(resource: TenantResources.tenant, scopes: ['view']),
-    ]);
+    ],
+  }) async {
+    final notifier = await tenantPermissions(permissions);
 
     await tester.pumpWidget(
       ChangeNotifierProvider<TenantPermissionNotifier>.value(
@@ -28,6 +33,7 @@ void main() {
             viewModel: TenantListViewModel(repository: repository),
             backFallback: '/home',
             onOpenTenant: opened.add,
+            onCreateTenant: () => navigations.add('create'),
           ),
         ),
       ),
@@ -87,13 +93,33 @@ void main() {
       expect(find.text('Suspenso'), findsOneWidget);
     });
 
-    testWidgets('there is no way to register a customer from the back-office',
+    testWidgets('quem pode criar cadastra a partir do back-office',
         (tester) async {
+      repository.setPage(TenantPage(items: [tenantSummary()]));
+
+      await pumpList(
+        tester,
+        permissions: const [
+          Permission(
+            resource: TenantResources.tenant,
+            scopes: ['view', 'create'],
+          ),
+        ],
+      );
+
+      expect(find.text('Cadastrar cliente'), findsOneWidget);
+
+      await tester.tap(find.text('Cadastrar cliente'));
+      await tester.pumpAndSettle();
+
+      expect(navigations, contains('create'));
+    });
+
+    testWidgets('sem permissão de criar não há como cadastrar', (tester) async {
       repository.setPage(TenantPage(items: [tenantSummary()]));
 
       await pumpList(tester);
 
-      // Porta única: o cadastro nasce só na tela de seleção.
       expect(find.byType(FloatingActionButton), findsNothing);
       expect(find.text('Cadastrar cliente'), findsNothing);
     });

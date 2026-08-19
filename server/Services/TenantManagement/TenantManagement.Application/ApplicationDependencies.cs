@@ -28,6 +28,16 @@ public static class ApplicationDependencies
         services.AddScoped<IDomainEventHandler<MembershipGrantedDomainEvent>, MembershipGrantedDomainEventHandler>();
         services.AddScoped<IDomainEventHandler<MembershipRevokedDomainEvent>, MembershipRevokedDomainEventHandler>();
 
+        // Suspensão, reativação e produto mudam a MESMA coisa — quem enxerga aquele tenant e em
+        // quais produtos —, então os quatro delegam ao mesmo sincronizador, que deriva o estado
+        // desejado do agregado. Sem estes handlers os eventos eram emitidos e ninguém escutava:
+        // suspender um tenant não cortava acesso nenhum, e habilitar produto não governava nada.
+        services.AddScoped<TenantAccessSynchronizer>();
+        services.AddScoped<IDomainEventHandler<TenantSuspendedDomainEvent>, TenantSuspendedDomainEventHandler>();
+        services.AddScoped<IDomainEventHandler<TenantReactivatedDomainEvent>, TenantReactivatedDomainEventHandler>();
+        services.AddScoped<IDomainEventHandler<ProductActivatedDomainEvent>, ProductActivatedDomainEventHandler>();
+        services.AddScoped<IDomainEventHandler<ProductDeactivatedDomainEvent>, ProductDeactivatedDomainEventHandler>();
+
         // Query side (CQRS): interface chamada direto pelo controller, fora do mediator.
         services.AddScoped<ITenantQueries, TenantQueries>();
 

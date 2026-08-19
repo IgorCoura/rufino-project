@@ -18,7 +18,7 @@ abstract final class TenantRoutes {
   /// Back-office listing of every tenant on the platform.
   static const String list = '/tenant';
 
-  /// Cadastro of a new tenant — reachable only from [select].
+  /// Cadastro of a new tenant — reachable only from [list].
   static const String create = '/tenant/create';
 
   /// Full cadastro of one tenant.
@@ -43,7 +43,6 @@ List<RouteBase> tenantManagementRoutes({
         onTenantSelected: onTenantSelected,
         homeRoute: homeRoute,
         onSelected: () => context.go(homeRoute),
-        onCreateTenant: () => context.push(TenantRoutes.create),
         onOpenBackOffice: () => context.push(TenantRoutes.list),
         onLogout: () => onLogout(context),
       ),
@@ -55,11 +54,13 @@ List<RouteBase> tenantManagementRoutes({
       redirect: (context, state) => _requireTenantScope(
         context,
         scope: TenantScopes.create,
-        fallback: TenantRoutes.select,
+        // Quem não pode criar cai na listagem; se nem `view` tiver, o
+        // redirect de lá encaminha para o Home.
+        fallback: TenantRoutes.list,
       ),
       builder: (context, state) => TenantFormPage(
         cepService: cepService,
-        backFallback: TenantRoutes.select,
+        backFallback: TenantRoutes.list,
         // O cadastro responde só com o id; o estado do convite está no
         // detalhe, e é lá que a pessoa descobre se o acesso chegou.
         onRegistered: (id) => context.pushReplacement(TenantRoutes.detail(id)),
@@ -75,6 +76,7 @@ List<RouteBase> tenantManagementRoutes({
       builder: (context, state) => TenantListPage(
         backFallback: homeRoute,
         onOpenTenant: (id) => context.push(TenantRoutes.detail(id)),
+        onCreateTenant: () => context.push(TenantRoutes.create),
       ),
     ),
     GoRoute(

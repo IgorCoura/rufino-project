@@ -16,6 +16,40 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 > | BillPayment | `Services/BillPayment/` | Captura, valida e paga boletos | 8100–8104 |
 > | TenantManagement | `Services/TenantManagement/` | **Emite o `TenantId`** e diz quem acessa cada tenant (PF e PJ) | 8110, 8112 |
 >
+> Desde 2026-08-18 a **`RufinoProject.sln` inclui os três BCs** (pastas de solução
+> `Services/TenantManagement` e `Services/BillPayment`) — as `.sln` por BC continuam existindo
+> para trabalho isolado. O `docker-compose.yml` desta pasta sobe a plataforma inteira:
+>
+> ```bash
+> docker compose --profile api up --build   # 3 APIs + 3 bancos + storage S3 + Keycloak local
+> docker compose up -d                      # só as dependências (bancos + storage)
+> docker compose --profile keycloak up -d   # dependências + Keycloak local (realm rufino
+>                                           # importado de utils/KeyCloakConfig na 1ª subida)
+> ```
+>
+> Variáveis opcionais em `server/.env` (ver `.env.example`): `KEYCLOAK_URL` e
+> `KEYCLOAK_LOCAL_URL` — as APIs apontam para a nuvem por padrão; defina as duas, **com a mesma
+> URL**, para usar o Keycloak local. **Segredo NÃO vai no `.env`** (ver o aviso abaixo).
+> ⚠️ O compose da raiz e os composes por BC publicam as mesmas portas —
+> use um OU outro. O realm importado é
+> `utils/KeyCloakConfig/RufinoRealm/realm-import-2026-08-18.json` — o export da nuvem de 18/08
+> **mais** o client `bill-payment-api` (authz completo), os papéis `bill-*`, os mappers
+> `bp_tenants`/`pm_tenants`/audience no `tenant-scope` e a **declaração de `bp_tenants` e
+> `pm_tenants` no User Profile** (gerado em 2026-08-18; o mesmo arquivo
+> serve para importar o BillPayment no Keycloak da nuvem via partial import). ⚠️ Exports do
+> admin console mascaram secrets: depois de importar, regenere os secrets dos clients
+> confidenciais e configure-os nas APIs.
+>
+> ⚠️ **Mapper e atributo são coisas separadas, e faltar o segundo falha em silêncio.** O mapper
+> (em `clientScopes`) só diz como um atributo vira claim; **quem autoriza o atributo a existir é o
+> User Profile** (em `components` → `org.keycloak.userprofile.UserProfileProvider`). Como
+> `unmanagedAttributePolicy` está ausente no realm, atributo não declarado é **descartado na
+> escrita com HTTP 204** — o provisionador recebe "sucesso", marca o vínculo como `Done`, e o
+> atributo nunca existe. Foi o que aconteceu em 2026-08-19: os mappers estavam certos, o claim
+> nunca chegava no token, e todo endpoint do BillPayment respondia 403. **Produto novo exige os
+> dois passos**: o mapper no `tenant-scope` e a declaração no User Profile (multivalorado,
+> `view: [admin, user]`, `edit: [admin]` — copie a entrada de `tenants`).
+>
 > O `Company` deste BC e o `Tenant` do TenantManagement **não são a mesma entidade**: o Tenant é o
 > registro-mestre da identidade, o `Company` continua sendo o cadastro local do RH. O claim
 > `companies` que este BC lê segue intocado.
@@ -102,7 +136,15 @@ Services/PeopleManagement/
 
 **Database:** PostgreSQL via EF Core 9 (Npgsql). Schema: `people_management`. Unit of Work pattern implemented in `PeopleManagementContext`. Domain events are dispatched during `SaveEntitiesAsync`.
 
+- **A tabela de histórico de migração TEM que ser declarada com o schema explícito**, nos dois `UseNpgsql` do `Program.cs` **e** no da `PeopleManagementWebApplicationFactory`: `MigrationsHistoryTable("__EFMigrationsHistory", PeopleManagementContext.DEFAULT_SCHEMA)`. A connection string traz `SearchPath=people_management`, e o `Migrate()` cria essa tabela **antes** de aplicar qualquer migração — ou seja, antes do `EnsureSchema` que criaria o schema. Sem o schema explícito o `CREATE TABLE` sai sem qualificação, o Postgres procura num `search_path` que aponta para schema inexistente, e **todo banco virgem morre em `3F000: no schema has been selected to create in`**. Com o schema declarado, o EF emite o `CREATE SCHEMA IF NOT EXISTS` junto com a tabela e a ordem se resolve sozinha. Aconteceu de verdade em 2026-08-19, quando o volume de desenvolvimento foi recriado; o defeito era latente desde que um `ExecuteSqlRaw("CREATE SCHEMA IF NOT EXISTS …")` foi comentado no `Program.cs` sob o raciocínio de que a migração já criava o schema — verdade, mas tarde demais. **Não restaure aquele comando**: SQL cru antes do `Migrate()` abre conexão num database que pode não existir e reintroduz o `3D000` que o comentário acima do `Migrate()` documenta.
+- **O nome tem que continuar `__EFMigrationsHistory`**, o padrão do EF — e **não** o `__ef_migrations_history` que o BillPayment usa. Os ambientes já existentes gravaram o histórico com o nome padrão (o `search_path` resolvia para `people_management` quando o schema existia), então renomear faria o EF não encontrar registro nenhum e tentar reaplicar as 14 migrações num banco que já as tem.
+- **A registração que vale é a última.** `AddDbContextFactory` re-registra `DbContextOptions<PeopleManagementContext>`, então é ela que o contexto resolvido pelo DI recebe — inclusive o que roda o `Migrate()`. É por isso que a fábrica de teste, que só substitui o `IDbContextFactory`, também precisa repetir a configuração: sem isso a suíte validaria um layout de histórico que o deploy nunca produz.
+- **O histórico entra no `TablesToIgnore` do Respawn** (`PeopleManagementWebApplicationFactory`). Ele vive dentro de `people_management`, que está em `SchemasToInclude`, e histórico de migração não é dado de teste — apagá-lo faz o host seguinte concluir que o banco está vazio e morrer em `42P07 relation already exists`. Mesma dupla de armadilhas registrada no `gotchas.md` do BillPayment.
+
 **Auth:** Keycloak JWT Bearer tokens. Custom `[ProtectedResource("resource", "action")]` attribute for route-level authorization. Auth config in `PeopleManagement.API/Authentication/` and `Authorization/`.
+
+- **Segredo de desenvolvimento vem do `dotnet user-secrets`, e o compose NÃO pode injetá-lo por variável de ambiente.** Vale para os três BCs. A forma `${VAR:-}` do Compose **não deixa a variável ausente** quando `VAR` não está definida: ela define a variável com **string vazia**. E variável de ambiente vem **depois** do user-secrets na ordem de configuração do ASP.NET Core — então a string vazia **sobrescreve o segredo do user-secrets**, em silêncio, porque o valor existe e só está vazio. Aconteceu em 2026-08-19: `TenantProvisioning:ClientSecret` estava corretamente configurado no `secrets.json`, o container montava a pasta e enxergava a chave, e mesmo assim o DI registrava o `UnconfiguredTenantAccessProvisioner` e todo vínculo saía `Failed` — porque `TenantProvisioning__ClientSecret=` chegava vazio pelo compose. Os cinco pontos que faziam isso foram removidos do `server/docker-compose.yml` e do `Services/BillPayment/docker-compose.yml`. **Se algum dia precisar injetar segredo pelo compose, use `${VAR:?mensagem}`** — falha alto quando ausente — **nunca `${VAR:-}`**.
+- **Rodar fora do contêiner aponta para a NUVEM.** Os `appsettings.json` dos três BCs trazem `Keycloak:AuthServerUrl` (e o `TenantProvisioning:AuthServerUrl` do TenantManagement) apontando para `https://keycloak.couratechsafety.cloud`. Quem sobrepõe para o Keycloak local é o compose, via `KEYCLOAK_URL`. Logo, `dotnet run` fora do Docker — workflow documentado nos CLAUDE.md por BC — fala com a nuvem mesmo com a stack local no ar, e o token do Keycloak local é recusado. Para esse caminho, configure a URL local em `appsettings.Development.json` ou no user-secrets da API.
 
 **API routes:** All follow `/api/v1/{company}/{resource}` pattern. The `{company}` segment scopes operations to a company.
 

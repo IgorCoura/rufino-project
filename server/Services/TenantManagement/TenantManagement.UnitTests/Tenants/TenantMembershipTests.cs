@@ -227,6 +227,26 @@ public class TenantMembershipTests
         Assert.Empty(tenant.PullDomainEvents());
     }
 
+    // REGRESSÃO: num tenant SUSPENSO o reprovisionamento reemitia concessão para todo vínculo
+    // ativo — e o vínculo continua ativo de propósito, porque suspender preserva o cadastro. Na
+    // prática, pedir o conserto de um provisionamento pendente devolvia o acesso de todo mundo,
+    // e o endpoint de reprovisionamento virava a forma de burlar a suspensão.
+    [Fact]
+    public void RequeueFailedAccessProvisioning_WhenTenantIsSuspended_ShouldReemitRevokedNotGranted()
+    {
+        var tenant = TenantMother.Provisioned();
+        tenant.GrantMembership(SecondEmail, MembershipRole.Member, TenantMother.DefaultOccurredAt);
+        tenant.MarkAccessProvisioningFailed(SecondEmail, TenantMother.DefaultOccurredAt);
+        tenant.Suspend("Inadimplência", TenantMother.DefaultOccurredAt);
+        tenant.ClearDomainEvents();
+
+        var requeued = tenant.RequeueFailedAccessProvisioning(TenantMother.DefaultOccurredAt);
+
+        Assert.Single(requeued);
+        var revoked = Assert.IsType<MembershipRevokedDomainEvent>(Assert.Single(tenant.PullDomainEvents()));
+        Assert.Equal(SecondEmail, revoked.Email);
+    }
+
     // Um vínculo revogado que não chegou ao provedor volta à fila como revogação, não como concessão.
     [Fact]
     public void RequeueFailedAccessProvisioning_ForRevokedMembership_ShouldReemitRevoked()

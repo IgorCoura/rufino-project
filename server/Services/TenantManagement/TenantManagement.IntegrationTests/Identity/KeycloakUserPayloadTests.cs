@@ -25,7 +25,7 @@ public sealed class KeycloakUserPayloadTests
     {
         var (provisioner, handler) = Build();
 
-        await provisioner.GrantAccessAsync(TenantId.From(Tenant), "dono@paoquente.com.br");
+        await provisioner.GrantAccessAsync(TenantId.From(Tenant), "dono@paoquente.com.br", [ProductCode.BillPayment]);
 
         var created = handler.CreatedUser;
         Assert.NotNull(created);
@@ -41,7 +41,7 @@ public sealed class KeycloakUserPayloadTests
     {
         var (provisioner, handler) = Build();
 
-        await provisioner.GrantAccessAsync(TenantId.From(Tenant), "dono@paoquente.com.br");
+        await provisioner.GrantAccessAsync(TenantId.From(Tenant), "dono@paoquente.com.br", [ProductCode.BillPayment]);
 
         var actions = handler.CreatedUser!.Value
             .GetProperty("requiredActions")
@@ -60,7 +60,7 @@ public sealed class KeycloakUserPayloadTests
     {
         var (provisioner, handler) = Build();
 
-        await provisioner.GrantAccessAsync(TenantId.From(Tenant), "dono@paoquente.com.br");
+        await provisioner.GrantAccessAsync(TenantId.From(Tenant), "dono@paoquente.com.br", [ProductCode.BillPayment]);
 
         var tenants = handler.CreatedUser!.Value
             .GetProperty("attributes")
@@ -88,7 +88,7 @@ public sealed class KeycloakUserPayloadTests
             }
             """);
 
-        await provisioner.GrantAccessAsync(TenantId.From(Tenant), "dono@paoquente.com.br");
+        await provisioner.GrantAccessAsync(TenantId.From(Tenant), "dono@paoquente.com.br", [ProductCode.BillPayment]);
 
         var updated = handler.UpdatedUser;
         Assert.NotNull(updated);
@@ -98,6 +98,83 @@ public sealed class KeycloakUserPayloadTests
             Tenant.ToString(),
             updated.Value.GetProperty("attributes").GetProperty("tenants")[0].GetString());
         Assert.Null(handler.CreatedUser);
+    }
+
+    // O produto habilitado ganha atributo próprio, além do `tenants` genérico: é ele que faz o
+    // token dizer em QUAIS produtos aquele tenant vale.
+    [Fact]
+    public async Task Criar_pessoa_leva_o_tenant_no_atributo_do_produto()
+    {
+        var (provisioner, handler) = Build();
+
+        await provisioner.GrantAccessAsync(TenantId.From(Tenant), "dono@paoquente.com.br", [ProductCode.BillPayment]);
+
+        var attributes = handler.CreatedUser!.Value.GetProperty("attributes");
+
+        Assert.Equal(Tenant.ToString(), attributes.GetProperty("bp_tenants")[0].GetString());
+        Assert.Equal(Tenant.ToString(), attributes.GetProperty("tenants")[0].GetString());
+
+        // Produto não habilitado não ganha atributo — nem vazio.
+        Assert.False(attributes.TryGetProperty("pm_tenants", out _));
+    }
+
+    // Desativar um produto RETIRA o tenant do atributo daquele produto e preserva o dos demais.
+    // É o que torna a mesma chamada suficiente para conceder, ativar e desativar produto.
+    [Fact]
+    public async Task Produto_desativado_sai_do_atributo_e_nao_leva_os_outros_junto()
+    {
+        var (provisioner, handler) = Build(existingUser: $$"""
+            {
+              "id": "0f9c1d3a-5b6e-4c7d-8a9b-0c1d2e3f4a5b",
+              "username": "dono@paoquente.com.br",
+              "email": "dono@paoquente.com.br",
+              "enabled": true,
+              "attributes": {
+                "tenants": ["{{Tenant}}"],
+                "bp_tenants": ["{{Tenant}}"],
+                "pm_tenants": ["{{Tenant}}"]
+              }
+            }
+            """);
+
+        await provisioner.GrantAccessAsync(TenantId.From(Tenant), "dono@paoquente.com.br", [ProductCode.PeopleManagement]);
+
+        var attributes = handler.UpdatedUser!.Value.GetProperty("attributes");
+
+        Assert.False(attributes.TryGetProperty("bp_tenants", out _));
+        Assert.Equal(Tenant.ToString(), attributes.GetProperty("pm_tenants")[0].GetString());
+        Assert.Equal(Tenant.ToString(), attributes.GetProperty("tenants")[0].GetString());
+    }
+
+    // Revogar tira o tenant do genérico E de todos os atributos de produto. Deixar um para trás
+    // manteria o token concedendo aquele produto para um tenant que a pessoa não acessa mais.
+    [Fact]
+    public async Task Revogar_tira_o_tenant_de_todos_os_atributos()
+    {
+        var other = Guid.Parse("22222222-2222-2222-2222-222222222222");
+        var (provisioner, handler) = Build(existingUser: $$"""
+            {
+              "id": "0f9c1d3a-5b6e-4c7d-8a9b-0c1d2e3f4a5b",
+              "username": "dono@paoquente.com.br",
+              "email": "dono@paoquente.com.br",
+              "enabled": true,
+              "attributes": {
+                "tenants": ["{{Tenant}}", "{{other}}"],
+                "bp_tenants": ["{{Tenant}}", "{{other}}"],
+                "pm_tenants": ["{{Tenant}}"]
+              }
+            }
+            """);
+
+        await provisioner.RevokeAccessAsync(TenantId.From(Tenant), "dono@paoquente.com.br");
+
+        var attributes = handler.UpdatedUser!.Value.GetProperty("attributes");
+
+        Assert.Equal([other.ToString()], attributes.GetProperty("tenants").EnumerateArray().Select(t => t.GetString()));
+        Assert.Equal([other.ToString()], attributes.GetProperty("bp_tenants").EnumerateArray().Select(t => t.GetString()));
+
+        // O outro tenant sobrevive; o atributo que ficou sem nada some em vez de virar lista vazia.
+        Assert.False(attributes.TryGetProperty("pm_tenants", out _));
     }
 
     private static (KeycloakTenantAccessProvisioner Provisioner, RecordingHandler Handler) Build(

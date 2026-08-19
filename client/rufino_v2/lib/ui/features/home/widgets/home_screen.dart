@@ -1,3 +1,4 @@
+import 'package:bill_payment/bill_payment.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
@@ -276,6 +277,57 @@ const _peopleManagementEntries = <_Entry>[
   ),
 ];
 
+const _billPaymentEntries = <_Entry>[
+  _Entry(
+    icon: Icons.pending_actions_outlined,
+    label: 'Painel de Contas',
+    route: BillPaymentRoutes.pending,
+    resource: BillPaymentResources.expectation,
+  ),
+  _Entry(
+    icon: Icons.receipt_long_outlined,
+    label: 'Boletos',
+    route: BillPaymentRoutes.bills,
+    resource: BillPaymentResources.bill,
+  ),
+  _Entry(
+    icon: Icons.inbox_outlined,
+    label: 'Quarentena',
+    route: BillPaymentRoutes.captureItems,
+    resource: BillPaymentResources.captureItem,
+  ),
+  _Entry(
+    icon: Icons.storefront_outlined,
+    label: 'Beneficiários',
+    route: BillPaymentRoutes.payees,
+    resource: BillPaymentResources.payee,
+  ),
+  _Entry(
+    icon: Icons.notifications_active_outlined,
+    label: 'Expectativas',
+    route: BillPaymentRoutes.expectations,
+    resource: BillPaymentResources.expectation,
+  ),
+  _Entry(
+    icon: Icons.mark_email_read_outlined,
+    label: 'Fontes de Captura',
+    route: BillPaymentRoutes.captureSources,
+    resource: BillPaymentResources.captureSource,
+  ),
+  _Entry(
+    icon: Icons.verified_user_outlined,
+    label: 'Origens Confiáveis',
+    route: BillPaymentRoutes.trustedOrigins,
+    resource: BillPaymentResources.origin,
+  ),
+  _Entry(
+    icon: Icons.account_balance_wallet_outlined,
+    label: 'Perfil do Pagador',
+    route: BillPaymentRoutes.payerProfile,
+    resource: BillPaymentResources.payerProfile,
+  ),
+];
+
 const _platformEntries = <_Entry>[
   _Entry(
     icon: Icons.manage_accounts_outlined,
@@ -318,6 +370,13 @@ class _HomeBody extends StatelessWidget {
         ? _peopleManagementEntries.where((e) => e.isVisibleFor(permissions))
         : const <_Entry>[];
 
+    final billPaymentPermissions =
+        context.watch<BillPaymentPermissionNotifier>();
+    final billPayment = tenantContext.hasProduct(TenantProducts.billPayment)
+        ? _billPaymentEntries
+            .where((e) => e.isVisibleFor(billPaymentPermissions))
+        : const <_Entry>[];
+
     final platform =
         _platformEntries.where((e) => e.isVisibleFor(tenantPermissions));
 
@@ -337,9 +396,11 @@ class _HomeBody extends StatelessWidget {
                   child: _PendingProductNotice(),
                 ),
               _Group(title: 'GESTÃO DE PESSOAS', entries: peopleManagement),
+              _Group(title: 'CONTAS A PAGAR', entries: billPayment),
               _Group(title: 'ADMINISTRAÇÃO DA PLATAFORMA', entries: platform),
               _Group(title: 'FERRAMENTAS', entries: tools),
               if (peopleManagement.isEmpty &&
+                  billPayment.isEmpty &&
                   platform.isEmpty &&
                   tools.isEmpty)
                 const _NothingAvailable(),

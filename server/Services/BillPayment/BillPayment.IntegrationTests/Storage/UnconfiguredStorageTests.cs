@@ -19,7 +19,7 @@ public sealed class UnconfiguredStorageTests : BaseIntegrationTest
 {
     private static readonly TenantId Tenant = TenantId.From(new Guid("0195a1f0-0000-7000-8000-0000000000a1"));
 
-    public UnconfiguredStorageTests(IntegrationTestWebAppFactory factory) : base(factory) { }
+    public UnconfiguredStorageTests(IntegrationTestWebAppFactory factory) : base(factory, Tenant.Value) { }
 
     // Sem balde configurado, guardar artefato falha alto: guardar em lugar nenhum sem avisar
     // faria o sistema pagar boleto cujo original ninguém recupera depois.

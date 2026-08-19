@@ -110,7 +110,7 @@ Flutter cross-platform app hosting **two distinct products** that share one shel
 | Produto | Escopo | Backend | Estado |
 |---|---|---|---|
 | **People Management** | funcionários, documentos, departamentos, locais de trabalho | `people-management-service` (.NET) + Keycloak | maduro — é todo o `lib/` de hoje |
-| **Bill Payment** | captura de boletos, verificação, aprovação, expectativas | `BillPayment` (.NET), fases 1–2 concluídas | UI por construir — `packages/bill_payment/` |
+| **Bill Payment** | captura de boletos, verificação, aprovação, expectativas | `BillPayment` (.NET), fases 1–2 concluídas | ✅ UI completa até `Approved` — `packages/bill_payment/` (fase 3 do backend, pagamento, não existe) |
 
 Mais um módulo, que não é produto: **Tenant Management** (`packages/tenant_management/`) — a identidade do cliente da plataforma. É **a porta de entrada do app**: o usuário escolhe um tenant e só então chega ao Home, que mostra as funcionalidades dos produtos daquele cliente. Backend: `TenantManagement` (.NET).
 
@@ -171,19 +171,24 @@ analyzer:
 - **Depende do backfill do servidor ter preservado o Guid.** Sem isso o seletor abre vazio e o PM fica inacessível. É pré-requisito de implantação, não detalhe.
 - A seleção de **empresa** e o **cadastro de empresa** saíram do app (rotas `/company` e `/company/create`, `CompanySelectionScreen`, `createCompany` fim a fim). Cliente novo nasce como **tenant**.
 
-### D7 — A tela de seleção de tenant é a única porta de cadastro
+### ~~D7~~ → **D7′ — O cadastro nasce no back-office, não no seletor**
 
-Novo tenant só nasce em `/tenant/select`, sob `PermissionGuard(tenant, create)` — que na prática só o `tenant-admin` vê, mantendo o "não faz autosserviço" da visão do BC sem regra extra na UI. **O back-office (`/tenant`) não tem FAB de criação**, de propósito: uma porta só é uma regra só.
+> A D7 original punha a única porta de cadastro em `/tenant/select`, e o back-office ficava **sem FAB** de propósito. **Foi revertida em 2026-08-18**: cadastrar cliente é trabalho de back-office, e ficava numa tela cuja função é escolher contexto.
+
+Novo tenant nasce em **`/tenant`** (a listagem), sob `TenantPermissionGuard(tenant, create)` — que na prática só o `tenant-admin` vê, mantendo o "não faz autosserviço" da visão do BC sem regra extra na UI. **O seletor (`/tenant/select`) não oferece cadastro**: ele mostra os clientes da pessoa e a porta para o back-office, nada além. Continua valendo o que a D7 protegia — **uma porta só**, agora do lado certo: `/tenant/create` volta para `/tenant` e o redirect de quem não pode criar cai na listagem (e de lá, sem `view`, no Home).
 
 ### D8 — Edição em bloco, no lugar, como no `EmployeeProfile`
 
 O detalhe do tenant lê em blocos e edita **inline**: o card vira formulário no lugar, com Cancelar/Salvar. Um bloco = um endpoint = um `x-requestid`. Sem diálogo e sem rota de edição — diálogo só para confirmação crítica (suspender, revogar acesso).
 
-### D5 — BillPayment manda `x-user-id`, e isso é provisório
+### ~~D5~~ — MORTA em 2026-08-15: o BillPayment tem Keycloak e o `x-user-id` não existe mais
 
-O BC ainda **não tem Keycloak** (é fase 6 do backend): ele aceita `tenantId` na rota sem validar contra token e resolve quem decide pelo header `x-user-id`. A UI manda esse header por ora — decisão do usuário.
-
-**Morre junto com a fase 6 do backend.** Quando o token entrar, o caminho do claim vence sozinho e o header sai dos dois lados no mesmo passo.
+A D5 dizia que a UI mandaria `x-user-id` enquanto o BC não tivesse token. **O backend aplicou
+Keycloak em 2026-08-15**: os 55 endpoints têm `[ProtectedResource]`, o `tenantId` da rota é
+validado contra o claim **`bp_tenants`**, e quem decide é o **`sub` do token** — os endpoints de
+decisão perderam o `[FromHeader("x-user-id")]`. A UI manda só o `Authorization`; mandar
+`x-user-id` não faz nada. Audience do resource server: **`bill-payment-api`**
+(`AppConfig.billPaymentAudience`).
 
 ### D6 — A costura entre módulo e casca
 
@@ -206,7 +211,7 @@ abstract class AppModule {
 | 0 | workspace + pacotes vazios | ✅ `705689be` |
 | 1 | extrair `rufino_core` | ✅ `705689be` |
 | 5 | `tenant_management`: seletor único + back-office | ✅ 2026-08-14 |
-| 4 | `bill_payment` nasce isolado | ⬜ próxima |
+| 4 | `bill_payment` nasce isolado | ✅ 2026-08-18 |
 | 2 | extrair `rufino_auth` | ⬜ adiada |
 | 3 | mover PM para pacote + costura `AppModule` | ⬜ adiada |
 
@@ -214,7 +219,10 @@ abstract class AppModule {
 
 ### Pendências que bloqueiam a Fase 4
 
-- [ ] `AppConfig.billPaymentUrl` + a chave correspondente nos `secrets/*.json`
+- [x] `AppConfig.billPaymentUrl` + `bill_payment_url` no `secrets/local_config.json` —
+      feito em 2026-08-18 (`http://192.168.15.41:8100`). **Falta a chave no
+      `prod_config.json`** (junto com a `tenant_management_url`, pendência antiga): o
+      `assertConfigured()` exige as duas, então o build de produção não sobe sem elas.
 - [x] **Como o usuário escolhe o `tenantId`** — resolvido em 2026-08-14. `GET /api/v1/me/tenants`
       devolve, a partir do e-mail do próprio token, os tenants da pessoa. O seletor é **único**
       (D4′) e vive em `packages/tenant_management/`; `bill_payment` lê o tenant corrente pelo
@@ -930,9 +938,9 @@ A identidade do cliente da plataforma: **a porta de entrada do app** e o back-of
 
 | Rota | Tela | Guard |
 |---|---|---|
-| `/tenant/select` | Seleção de cliente — porta de entrada e **única** porta de cadastro | nenhum (só autenticado) |
-| `/tenant` | Back-office: busca, filtros, cursor. **Sem FAB** (D7) | `tenant/view` |
-| `/tenant/create` | Cadastro PF/PJ + titular + produtos | `tenant/create` |
+| `/tenant/select` | Seleção de cliente — porta de entrada. **Não cadastra** (D7′) | nenhum (só autenticado) |
+| `/tenant` | Back-office: busca, filtros, cursor. **FAB "Cadastrar cliente"** — única porta do cadastro (D7′) | `tenant/view` |
+| `/tenant/create` | Cadastro PF/PJ + titular + produtos. Volta para `/tenant` | `tenant/create` |
 | `/tenant/:id` | Detalhe: abas Cadastro (edição inline), Acessos, Produtos | `tenant/view` |
 
 Coisas que não podem erodir:
@@ -946,6 +954,48 @@ Coisas que não podem erodir:
 - **Suspenso desabilita, não esconde.** Esconder é para falta de permissão; desabilitar com o motivo à vista é para estado do cadastro.
 - **A PÁGINA é dona do ViewModel, nunca o builder da rota.** `tenant_pages.dart` existe só para isso. O `go_router` reexecuta o builder a cada mudança de pilha; criando o ViewModel lá dentro, cada `push`/`pop` produz uma instância nova em estado `loading` — e como o `State` da tela sobrevive ao rebuild, o `initState` que dispara o carregamento **não roda de novo**. O resultado é a tela anterior girando para sempre ao voltar. Mesma disciplina do `DocumentDashboardPage`.
 - **Voltar é `pop` OU `go`, nunca só `pop`.** Estas telas chegam pelos dois caminhos: empilhadas pelo seletor e por substituição pelo menu do Home. `TenantBackButton` volta se houver pilha e vai para a rota de origem quando não houver — sem ele, quem entra pelo menu fica sem saída. O detalhe leva o botão **também nos estados de carregando e de erro**, senão uma rede lenta tranca a tela.
+
+## Bill Payment (pacote `packages/bill_payment/`)
+
+Contas a pagar: captura, verificação, aprovação e expectativas. Consome o BC `BillPayment`
+(`server/Services/BillPayment/`) — rotas `api/v1/{tenantId}/...`, com o tenant lido do
+`TenantContext` via callback `getTenantId` injetado pela casca. **Terceira audiência de
+permissão**: `BillPaymentPermissionNotifier` (audience `bill-payment-api`, cacheKey
+`cached_permissions_bill_payment`), recarregada no splash, no `TenantSessionBridge`, no
+refresh de token e limpa no logout — junto com as outras duas.
+
+| Rota | Tela | Guard (recurso/escopo) |
+|---|---|---|
+| `/bill-payment/pending` | Painel diário: fila de aprovação + 3 listas de pendências + nudge de onboarding | `expectation`/`view` |
+| `/bill-payment/bills` | Fila de boletos, filtro `?status=` **no servidor**, abre em Aguardando aprovação | `bill`/`view` |
+| `/bill-payment/bills/import` | Importação manual (linha digitável e/ou Pix) | `bill`/`import` |
+| `/bill-payment/bills/:id` | Aprovação: 12 verificações + revalidar/negar/cancelar/aprovar | `bill`/`view` |
+| `/bill-payment/capture-items` (+`/:id`) | Quarentena: filtro server-side, claim/reprocess | `capture-item`/`view` |
+| `/bill-payment/capture-sources` (+`/connect`, `/:id`) | Caixas monitoradas: stepper Entra ID, pastas, sync/rescan | `capture-source`/`view`·`manage` |
+| `/bill-payment/payees` (+`/create`, `/:id`) | Beneficiários: política de valor, apelidos, bancos aceitos | `payee`/`view`·`manage` |
+| `/bill-payment/payer-profile` | Perfil do pagador (1:1) — 404 = modo onboarding | `payer-profile`/`view` |
+| `/bill-payment/trusted-origins` | Origens confiáveis: resolve tester + cadastro em sheet + ações na linha | `origin`/`view` |
+| `/bill-payment/expectations` (+`/create`, `/:id`) | Expectativas: watch, ciclos, waive por ciclo | `expectation`/`view` |
+
+Coisas que não podem erodir:
+
+- **`checkApiStatus`, nunca `checkHttpStatus`** — o `DomainExceptionFilter` do BC emite
+  `{id, message}`. Telas reagem por `domainErrorId` (`BLP.BIL02`, `BLP.CPI04`…), nunca por texto.
+- **A API nunca devolve linha digitável nem payload Pix** — a tela de aprovação não os mostra
+  nem sugere que existam. Contexto de report carrega só IDs.
+- **A regra das 12 horas é do cliente também**: `BillDetail.isSnapshotStaleAt` espelha
+  `Approval:MaxSnapshotAgeHours`; retrato velho desabilita Aprovar com o motivo à vista e
+  oferece Revalidar. Motivo de negar/cancelar é obrigatório no form.
+- **`CheckReasons` é contrato de tradução**: `check_translations.dart` traduz o **código**;
+  código desconhecido cai para a `evidence` do servidor (coberto por teste que varre os 46).
+- **A quarentena renderiza o que veio** — os campos financeiros chegam `null` fora de
+  `Promoted`/`Unrouted` porque o servidor decide a visibilidade, nunca a tela.
+- **O painel não colapsa as três listas** (`missing` / `captureFailed` / `dueSoon`): cada uma
+  tem uma ação diferente. `captureFailed` navega para o item da quarentena.
+- **Mesmas disciplinas do tenant_management**: Pages donas do ViewModel (`bill_payment_pages.dart`),
+  rotas literais antes de `:id` (coberto por `bill_payment_routes_test.dart`), voltar =
+  `canPop ? pop : go`, guard de rota libera enquanto permissões não carregaram (F5 na web),
+  erro de `loadMore` mantém as linhas na tela.
 
 ## UI Design Guidelines (Material Design 3)
 
