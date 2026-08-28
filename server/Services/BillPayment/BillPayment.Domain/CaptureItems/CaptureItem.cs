@@ -486,6 +486,11 @@ public sealed class CaptureItem : AggregateRoot<CaptureItemId>
     }
 
     /// <summary>O pagador foi identificado e não é deste tenant.</summary>
+    /// <remarks>
+    /// Sem chamador de produção desde 2026-08-28 — o processamento passou a DESCARTAR o documento
+    /// de outro pagador em vez de guardá-lo como item terminal. Fica pelas linhas persistidas
+    /// antes disso e pelos testes do portão de visibilidade, que precisam construir o estado.
+    /// </remarks>
     public void MarkForeign(string reason, DateTime occurredAt)
     {
         Transition(CaptureItemStatus.ForeignPayer, occurredAt);

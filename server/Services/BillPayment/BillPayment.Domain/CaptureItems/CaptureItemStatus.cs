@@ -36,6 +36,13 @@ public sealed class CaptureItemStatus : Enumeration
         new(6, nameof(Promoted), isTerminal: true, exposesFinancialDetail: true);
 
     /// <summary>O pagador foi identificado e <strong>não</strong> é deste tenant.</summary>
+    /// <remarks>
+    /// <strong>Não é mais produzido desde 2026-08-28.</strong> O documento de outro pagador passou
+    /// a ser descartado no processamento — sem item, sem arquivo, só a linha do livro-caixa —,
+    /// pela regra de que um tenant nunca fica sabendo do boleto de outro. O estado continua
+    /// existindo porque há linhas persistidas antes disso, e o portão de visibilidade que ele
+    /// sustenta (<see cref="ExposesFinancialDetail"/> falso) precisa continuar valendo para elas.
+    /// </remarks>
     public static readonly CaptureItemStatus ForeignPayer = new(7, nameof(ForeignPayer), isTerminal: true);
 
     /// <summary>Não foi possível determinar o dono. Fica na fila de reivindicação.</summary>

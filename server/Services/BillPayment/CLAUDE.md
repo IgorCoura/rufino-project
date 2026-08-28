@@ -757,6 +757,17 @@ O que cada fase mudou e **por quê**, na ordem em que aterrissou:
   o valor oficial e, na falta dele, o **valor impresso no instrumento** (protegido por DV); com
   teto e sem valor nenhum (QR estático sem campo 54), recusa com **`BLP.BIL30`** em vez de
   presumir.
+- **Fase 3 — de quem é o boleto.** (a) O documento fiscal lido pela IA entra na escada **sem o
+  rótulo de pagador**: o modelo devolve em `payerTaxId` o CNPJ do beneficiário impresso com
+  frequência suficiente (DV válido por construção) para que ele decidisse `ForeignPayer` — terminal,
+  sem reivindicação — e o usuário perdesse a própria conta. Agora o documento do tenant ainda
+  promove pelo degrau 1, e o de terceiro vai para `Unrouted`, onde uma pessoa decide (ADR-011
+  estendido à posse do boleto). (b) O `Foreign` **determinístico** (documento de terceiro sob
+  rótulo) deixou de virar item terminal e passou a ser **descarte**: a escada decide antes de o
+  arquivo ir para o balde, o item some, e o livro-caixa fica com `Discarded` + motivo. É a regra
+  de isolamento do usuário: um tenant nunca fica sabendo do boleto de outro. `CaptureItemStatus.ForeignPayer`
+  e `CaptureItem.MarkForeign` **não têm mais produtor** — ficam pelas linhas persistidas antes
+  disso e pelo portão de visibilidade, que precisa continuar provável por teste.
 
 ## Architecture — what is non-obvious
 

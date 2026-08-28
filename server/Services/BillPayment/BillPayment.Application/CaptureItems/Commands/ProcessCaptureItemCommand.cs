@@ -246,17 +246,32 @@ public sealed class ProcessCaptureItemCommandHandler(
         // remetente não cadastrado é sempre descarte, e emissor novo desaparece em silêncio.
         var decision = CaptureTriageService.Decide(extraction, origin, item.Subject);
 
+        // A escada decide ANTES de qualquer coisa ser guardada: só roda sobre o que a cascata
+        // reconheceu como boleto, e o documento de outro pagador é descartado como qualquer
+        // não-boleto — sem arquivo no balde, sem item, só a linha do livro-caixa. É a regra de
+        // isolamento fechada em 2026-08-28: o que não é deste tenant some, e ninguém fica sabendo
+        // de quem era (ADR-008, revisado).
+        var routing = decision == CaptureTriageDecision.Parse
+            ? await DecideRouteAsync(extraction, profile, tenantId, cancellationToken)
+            : null;
+
+        var isForeign = routing?.Outcome == RoutingOutcome.Foreign;
+        if (isForeign)
+            decision = CaptureTriageDecision.Drop;
+
         await ApplyAsync(
             item, decision, extraction, payload, payloadType, tenantId, now.UtcDateTime, cancellationToken);
 
-        // A escada só roda sobre o que a cascata reconheceu como boleto: sem instrumento não há
-        // o que rotear, e os demais desfechos já param no próprio estado que a triagem escolheu.
-        var routing = decision == CaptureTriageDecision.Parse
-            ? await RouteAsync(item, extraction, reading, profile, tenantId, now.UtcDateTime, cancellationToken)
-            : null;
+        if (decision == CaptureTriageDecision.Parse)
+            await ApplyRoutingAsync(item, extraction, reading, routing!, tenantId, now.UtcDateTime, cancellationToken);
 
         await RecordCapturedOutcomeAsync(
-            item, OutcomeOf(decision, item), item.Reason, tenantId, now.UtcDateTime, cancellationToken);
+            item,
+            OutcomeOf(decision, item),
+            isForeign ? routing!.Reason : item.Reason,
+            tenantId,
+            now.UtcDateTime,
+            cancellationToken);
 
         await unitOfWork.SaveEntitiesAsync(cancellationToken);
 
@@ -368,32 +383,36 @@ public sealed class ProcessCaptureItemCommandHandler(
     /// a exclusividade do beneficiário, que exige a travessia de tenant do ADR-008.
     /// </para>
     /// </remarks>
-    private async Task<RoutingDecision> RouteAsync(
+    private async Task<RoutingDecision> DecideRouteAsync(
+        ExtractionResult extraction,
+        PayerProfile? profile,
+        TenantId tenantId,
+        CancellationToken cancellationToken)
+    {
+        var exclusive = await ResolveExclusivePayeesAsync(tenantId, extraction, cancellationToken);
+        return BillRoutingService.Route(extraction, profile, exclusive);
+    }
+
+    /// <summary>
+    /// Aplica o desfecho da escada ao item já guardado. <c>Foreign</c> nunca chega aqui — virou
+    /// descarte antes de o arquivo ir para o balde.
+    /// </summary>
+    private async Task ApplyRoutingAsync(
         CaptureItem item,
         ExtractionResult extraction,
         DocumentReading? reading,
-        PayerProfile? profile,
+        RoutingDecision routing,
         TenantId tenantId,
         DateTime occurredAt,
         CancellationToken cancellationToken)
     {
-        var exclusive = await ResolveExclusivePayeesAsync(tenantId, extraction, cancellationToken);
-        var routing = BillRoutingService.Route(extraction, profile, exclusive);
-
-        if (routing.Outcome == RoutingOutcome.Foreign)
-        {
-            item.MarkForeign(routing.Reason, occurredAt);
-            return routing;
-        }
-
         if (routing.Outcome == RoutingOutcome.Unrouted)
         {
             item.MarkUnrouted(routing.Reason, occurredAt);
-            return routing;
+            return;
         }
 
         await PromoteAsync(item, extraction, reading, routing, tenantId, occurredAt, cancellationToken);
-        return routing;
     }
 
     /// <summary>
@@ -520,7 +539,9 @@ public sealed class ProcessCaptureItemCommandHandler(
         if (decision == CaptureTriageDecision.Drop)
         {
             // Some sem deixar rastro nem arquivo. É o desfecho mais comum numa caixa de uso
-            // misto, e é o que mantém a fila de quarentena utilizável por uma pessoa.
+            // misto, e é o que mantém a fila de quarentena utilizável por uma pessoa. Desde
+            // 2026-08-28 é também o desfecho do boleto de OUTRO pagador: o registro do livro-caixa
+            // fica com o motivo, e o documento nunca chega ao balde.
             items.Remove(item);
             return;
         }
@@ -627,9 +648,14 @@ public sealed class ProcessCaptureItemCommandHandler(
         }
 
         // O documento do pagador lido pela visão entra na escada de roteamento — é o que faz um
-        // documento ESCANEADO subir ao degrau 1 em vez de cair na reivindicação. Rotulado como
-        // pagador porque foi isso que se pediu ao modelo, e o DV já o provou.
-        var parties = PartyCandidate.TryCreate(extracted.PayerTaxId, underPayerLabel: true) is { } party
+        // documento ESCANEADO subir ao degrau 1 em vez de cair na reivindicação. Entra SEM o
+        // rótulo de pagador, de propósito: o rótulo é o que autoriza o degrau negativo, e o
+        // modelo devolve em payerTaxId o CNPJ do beneficiário impresso com frequência suficiente
+        // (DV válido por construção) para que "é de outra pessoa" decidido por ele fosse perder a
+        // conta do tenant sem caminho de volta. Sem rótulo, o documento do tenant ainda promove
+        // (degrau 1 casa com o cadastro) e o de terceiro vai para a reivindicação, onde uma
+        // pessoa decide (auditoria 2026-08-28, ADR-011 estendido à posse do boleto).
+        var parties = PartyCandidate.TryCreate(extracted.PayerTaxId, underPayerLabel: false) is { } party
             ? new[] { party }
             : [];
 

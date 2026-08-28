@@ -117,9 +117,11 @@ public sealed class BillRoutingTests : BaseIntegrationTest
     }
 
     // Degrau 1 negativo: documento de terceiro SOB RÓTULO de pagador é a única evidência que
-    // autoriza a quarentena cega — aí o sistema sabe que não é deste tenant.
+    // autoriza concluir "não é deste tenant" — e desde 2026-08-28 a conclusão é DESCARTE, como
+    // qualquer não-boleto: o item some, o arquivo nunca chega ao balde, e a resposta não diz de
+    // quem era. Um tenant não fica sabendo do boleto de outro (ADR-008, revisado).
     [Fact]
-    public async Task Process_WhenALabelledPayerIsSomeoneElse_ShouldQuarantineAsForeign()
+    public async Task Process_WhenALabelledPayerIsSomeoneElse_ShouldDiscardWithoutKeepingTheDocument()
     {
         await SeedPayerProfileAsync();
         var itemId = await SeedAsync(BoletoWith("Pagador", SomeoneElsesCnpj));
@@ -127,10 +129,11 @@ public sealed class BillRoutingTests : BaseIntegrationTest
         var result = await ProcessAsync(itemId);
 
         Assert.Equal("Foreign", result.Routing);
+        Assert.Equal("Drop", result.Decision);
+        Assert.Null(result.BillId);
 
-        var stored = await LoadAsync(itemId);
-        Assert.Same(CaptureItemStatus.ForeignPayer, stored!.Status);
-        Assert.Null(stored.BillId);
+        Assert.Null(await LoadAsync(itemId));
+        Assert.Equal(0, _services.GetRequiredService<InMemoryAttachmentStorage>().Count);
     }
 
     // Degrau 3: o beneficiário é cadastrado só por este tenant. Promove, mas com confiança Weak
@@ -218,10 +221,12 @@ public sealed class BillRoutingTests : BaseIntegrationTest
         Assert.Null(bill.ExtractedPayer);
     }
 
-    // A escada já sabia que o pagador é outro, e a reivindicação não pode sobrepor a única
-    // evidência CONSTATADA de propriedade — BLP.CPI04, o erro fixado pelo doc 07.
+    // A escada já sabia que o pagador é outro e o item foi descartado: reivindicá-lo é 404,
+    // como qualquer id que não existe — sem distinguir "nunca existiu" de "era de outra pessoa".
+    // (A guarda BLP.CPI04 do domínio continua valendo para linhas ForeignPayer anteriores a
+    // 2026-08-28, e é coberta por unidade.)
     [Fact]
-    public async Task Claim_WhenTheExtractedPayerContradictsTheTenant_ShouldBeRefused()
+    public async Task Claim_WhenTheItemWasDiscardedAsAnotherPayers_ShouldReturnNotFound()
     {
         await SeedPayerProfileAsync();
         var itemId = await SeedAsync(BoletoWith("Pagador", SomeoneElsesCnpj));
@@ -229,10 +234,7 @@ public sealed class BillRoutingTests : BaseIntegrationTest
 
         var response = await ClaimOverHttpAsync(itemId);
 
-        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
-        Assert.Contains("BLP.CPI04", await response.Content.ReadAsStringAsync(), StringComparison.Ordinal);
-
-        Assert.Same(CaptureItemStatus.ForeignPayer, (await LoadAsync(itemId))!.Status);
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
 
     // Exceção 2 do doc 07: o mesmo boleto já está sob gestão de outra conta. O aviso é genérico

@@ -3,6 +3,7 @@ namespace BillPayment.IntegrationTests.CaptureItems;
 using BillPayment.Application.CaptureItems.Commands;
 using BillPayment.Application.Mediator;
 using BillPayment.Application.Queries.CaptureItems;
+using BillPayment.Domain.Bills;
 using BillPayment.Domain.CaptureItems;
 using BillPayment.Domain.CaptureSources;
 using BillPayment.Domain.Extraction;
@@ -69,6 +70,45 @@ public sealed class VisionExtractionTests : BaseIntegrationTest
         // esse não mudou.
         Assert.Same(CaptureItemStatus.Unrouted, stored!.Status);
         Assert.Same(ExtractionMethod.Vision, stored.Extraction);
+    }
+
+    // Regressão (auditoria 2026-08-28): o CNPJ que o modelo devolve como "pagador" é candidato,
+    // não constatação — com frequência é o do beneficiário impresso. Antes, ele decidia
+    // ForeignPayer (terminal, sem reivindicação) e o usuário perdia a própria conta. Agora vai
+    // para a reivindicação, onde uma pessoa decide.
+    [Fact]
+    public async Task Process_WhenVisionReadsSomeoneElsesTaxIdAsPayer_ShouldQueueForClaimInsteadOfDiscarding()
+    {
+        await SeedTrustedOriginAsync();
+        await SeedPayerProfileAsync();
+        _vision.Result = ExtractedDocument.From(
+            digitableLineCandidates: [ValidBankSlip], payerTaxId: "45.997.418/0001-53");
+
+        var itemId = await SeedAsync(KnownSender, "Boleto de agosto", PdfWith("documento escaneado"));
+        var result = await ProcessAsync(itemId);
+
+        Assert.Equal("Unrouted", result.Routing);
+        var stored = await LoadAsync(itemId);
+        Assert.Same(CaptureItemStatus.Unrouted, stored!.Status);
+    }
+
+    // Contraprova: o documento do PRÓPRIO tenant lido pela visão continua promovendo pelo
+    // degrau 1 — o que mudou foi o degrau negativo, não a atribuição.
+    [Fact]
+    public async Task Process_WhenVisionReadsTheTenantsOwnTaxId_ShouldStillPromoteAsStrong()
+    {
+        await SeedTrustedOriginAsync();
+        await SeedPayerProfileAsync();
+        _vision.Result = ExtractedDocument.From(
+            digitableLineCandidates: [ValidBankSlip], payerTaxId: TenantCnpj);
+
+        var itemId = await SeedAsync(KnownSender, "Boleto de agosto", PdfWith("documento escaneado"));
+        var result = await ProcessAsync(itemId);
+
+        Assert.Equal("Promote", result.Routing);
+        var stored = await LoadAsync(itemId);
+        Assert.Same(CaptureItemStatus.Promoted, stored!.Status);
+        Assert.Same(RoutingConfidence.Strong, stored.Routing);
     }
 
     // TESTE ÂNCORA DO ADR-011. O modelo devolve uma linha com um dígito trocado — o erro típico
