@@ -73,6 +73,7 @@ internal sealed class CaptureSourceQueries(BillPaymentDbContext context) : ICapt
             [.. s.Folders.OrderBy(f => f.Path ?? string.Empty, StringComparer.OrdinalIgnoreCase).Select(ToDto)],
             s.Credential is not null,
             s.IsEnabled,
+            s.CaptureSince,
             s.LastSyncAt,
             s.LastSyncError,
             s.CreatedAt);

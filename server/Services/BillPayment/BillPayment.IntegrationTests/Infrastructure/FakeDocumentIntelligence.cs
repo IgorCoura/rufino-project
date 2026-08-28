@@ -26,6 +26,13 @@ internal sealed class FakeDocumentIntelligence : IDocumentIntelligence
     /// <summary>O que o "modelo" devolve. Vazio por padrão — o desfecho mais comum.</summary>
     public ExtractedDocument Result { get; set; } = ExtractedDocument.Empty;
 
+    /// <summary>
+    /// Desfecho a simular. <strong>Existe para o teste poder dizer "o provedor caiu"</strong> —
+    /// até 2026-08-27 o fake só sabia devolver resultado, e por isso não havia teste nenhum
+    /// cobrindo indisponibilidade: a porta não sabia expressá-la.
+    /// </summary>
+    public ExtractionStatus Outcome { get; set; } = ExtractionStatus.Resolved;
+
     /// <summary>Quantas vezes foi chamado — é o que prova que o portão de gasto funcionou.</summary>
     public int CallCount { get; private set; }
 
@@ -35,7 +42,7 @@ internal sealed class FakeDocumentIntelligence : IDocumentIntelligence
     /// <summary>As dicas recebidas, para provar que só dado do próprio tenant sai do perímetro.</summary>
     public ExtractionHints? LastHints { get; private set; }
 
-    public Task<ExtractedDocument> ExtractAsync(
+    public Task<ExtractionAttempt> ExtractAsync(
         DocumentPayload payload,
         ExtractionHints hints,
         CancellationToken cancellationToken)
@@ -44,6 +51,15 @@ internal sealed class FakeDocumentIntelligence : IDocumentIntelligence
         ReceivedMediaTypes.Add(payload.MediaType);
         LastHints = hints;
 
-        return Task.FromResult(Result);
+        if (Outcome == ExtractionStatus.Unavailable)
+            return Task.FromResult(ExtractionAttempt.Unavailable("provider_503"));
+
+        if (Outcome == ExtractionStatus.Rejected)
+            return Task.FromResult(ExtractionAttempt.Rejected("provider_400"));
+
+        if (Outcome == ExtractionStatus.BudgetExhausted)
+            return Task.FromResult(ExtractionAttempt.BudgetExhausted());
+
+        return Task.FromResult(ExtractionAttempt.Answered(Result));
     }
 }

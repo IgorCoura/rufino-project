@@ -8,6 +8,7 @@ import '../bill_payment_back_button.dart';
 import '../shared/formats.dart';
 import '../shared/message_panel.dart';
 import '../shared/status_badge.dart';
+import 'capture_since_field.dart';
 import 'capture_source_detail_viewmodel.dart';
 
 /// The capture source detail: folders, sync actions and the credential
@@ -173,6 +174,16 @@ class _BodyState extends State<_Body> {
                     label: 'Última sincronização',
                     value: source.lastSyncError ??
                         formatDateTime(source.lastSyncAt),
+                  ),
+                  const SizedBox(height: AppSpacing.md),
+                  CaptureSinceField(
+                    value: source.captureSince,
+                    enabled: !viewModel.isMutating,
+                    helperText:
+                        'Nada recebido antes desta data é lido. Alterar '
+                        'faz a caixa ser relida desde a data nova — sem '
+                        'duplicar o que já entrou.',
+                    onChanged: (date) => viewModel.changeCaptureSince(date),
                   ),
                 ],
               ),

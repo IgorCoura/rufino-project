@@ -40,6 +40,7 @@ Design rationale do Bounded Context **BillPayment**: captura de boletos (e-mail 
 | [`ADR-012`](adr/ADR-012-portais-reduzir-residuo.md) | **DDA está fora.** Fatura digital → débito automático → integração oficial → automação assistida. Sem evasão de anti-bot |
 | [`ADR-013`](adr/ADR-013-gemini-atras-de-porta-agnostica.md) | Gemini como provedor, atrás de porta agnóstica; nenhum termo de IA cruza a fronteira do BC |
 | [`ADR-014`](adr/ADR-014-expectativa-e-lembretes.md) | O sistema sabe o que espera receber e avisa quando não recebeu — rede de segurança obrigatória sem DDA |
+| [`ADR-015`](adr/ADR-015-risco-classificado-humano-decide.md) | Fim da rejeição automática: a validação classifica Seguro/Atenção/Perigo, e quem decide é sempre o humano — Perigo exige aceite explícito gravado na trilha |
 
 ## Como ler
 

@@ -1,4 +1,4 @@
-namespace BillPayment.Infra.Mailboxes.Graph;
+﻿namespace BillPayment.Infra.Mailboxes.Graph;
 
 using System.Text;
 using BillPayment.Domain.Mailboxes;
@@ -40,7 +40,7 @@ internal sealed class GraphMailboxReader(
     /// corpo é um só. Não colide com anexo: no Graph a chave de anexo é um identificador opaco
     /// longo, em base64.
     /// </remarks>
-    internal const string BODY_ARTIFACT_KEY = "message-body";
+    internal const string BODY_ARTIFACT_KEY = IMailboxReader.BODY_ARTIFACT_KEY;
 
     private readonly GraphOptions _options = options.Value;
 
@@ -128,6 +128,7 @@ internal sealed class GraphMailboxReader(
         CredentialRef credential,
         string? folderPath,
         string? cursor,
+        DateOnly? capturedSince,
         CancellationToken cancellationToken)
     {
         var now = clock.GetUtcNow();
@@ -157,7 +158,7 @@ internal sealed class GraphMailboxReader(
             if (folder is null)
                 return Read(folderFailure!, now);
 
-            url = InitialDeltaUrl(mailboxAddress, folder);
+            url = InitialDeltaUrl(mailboxAddress, folder, capturedSince);
         }
         else
         {
@@ -168,6 +169,8 @@ internal sealed class GraphMailboxReader(
         }
 
         var collected = new List<GraphMessage>();
+        var scanned = 0;
+        var reachedTheEnd = false;
         string? nextCursor = null;
 
         for (var page = 0; page < _options.MaxPagesPerSync; page++)
@@ -178,7 +181,9 @@ internal sealed class GraphMailboxReader(
             if (pageFailure is not null)
                 return Read(pageFailure, now);
 
-            collected.AddRange((body!.Value ?? []).Where(IsIngestable));
+            var messagesInPage = body!.Value ?? [];
+            scanned += messagesInPage.Count;
+            collected.AddRange(messagesInPage.Where(IsIngestable));
 
             // O deltaLink só aparece na última página; o nextLink continua a MESMA varredura.
             // Guardar o nextLink como cursor é o que permite parar no teto de páginas sem perder
@@ -186,14 +191,24 @@ internal sealed class GraphMailboxReader(
             nextCursor = body.DeltaLink ?? body.NextLink;
 
             if (body.DeltaLink is not null || body.NextLink is null)
+            {
+                reachedTheEnd = true;
                 break;
+            }
 
             url = body.NextLink;
         }
 
+        WarnIfNearFilteredDeltaCap(capturedSince, scanned);
+
         var messages = await BuildMessagesAsync(http, token, mailboxAddress, collected, cancellationToken);
 
-        return MailboxReadResult.Ok(messages, nextCursor, now);
+        // Parar no teto de páginas não é o mesmo que chegar ao fim da caixa. O agendador precisa
+        // saber a diferença: a enumeração do provedor vai do mais antigo para o mais novo, então
+        // a mensagem recém-chegada está no FIM — e dormir o intervalo cheio sobre uma varredura
+        // truncada a deixa horas fora de alcance. Medido em 2026-08-26: 12.422 mensagens na caixa,
+        // 1.000 por varredura, intervalo de uma hora — treze horas até alcançar o topo.
+        return MailboxReadResult.Ok(messages, nextCursor, now, hasMorePages: !reachedTheEnd);
     }
 
     public async Task<ReadOnlyMemory<byte>?> DownloadArtifactAsync(
@@ -217,6 +232,87 @@ internal sealed class GraphMailboxReader(
             + $"/attachments/{Escape(artifactKey)}/$value";
 
         return await http.GetBytesAsync(url, token, _options.MaxAttachmentBytes, logger, cancellationToken);
+    }
+
+    public async Task<MailboxMessage?> ReadSingleMessageAsync(
+        string mailboxAddress,
+        CredentialRef credential,
+        string externalMessageId,
+        CancellationToken cancellationToken)
+    {
+        var (token, _) = await AuthenticateAsync(credential, cancellationToken);
+        if (token is null)
+            return null;
+
+        var http = httpClientFactory.CreateClient(GraphHttp.CLIENT_NAME);
+
+        var url = $"{Base}users/{Escape(mailboxAddress)}/messages/{Escape(externalMessageId)}"
+            + "?$select=id,internetMessageId,subject,receivedDateTime,hasAttachments,from,body";
+
+        var (message, failure) = await http.GetAsync<GraphMessage>(url, token, logger, cancellationToken);
+
+        if (failure is not null || message is null)
+            return null;
+
+        // Passa pelo MESMO mapeamento da varredura: os filtros de anexo e o portão do corpo têm
+        // de valer aqui também, senão a recaptura ingeriria o que a varredura recusa.
+        var mapped = await BuildMessagesAsync(http, token, mailboxAddress, [message], cancellationToken);
+
+        return mapped.Count > 0 ? mapped[0] : null;
+    }
+
+    /// <summary>
+    /// Reencontra a mensagem pelo <c>Message-ID</c> do cabeçalho e devolve os ids de hoje.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <strong>É o plano B de quando o endereço de armazenamento morre.</strong> O
+    /// <c>ImmutableId</c> resolve a causa comum — mudança de pasta —, mas não cobre item movido
+    /// para caixa de arquivo morto nem exportado e reimportado. Nesses, o id gravado deixa de
+    /// resolver e o download repete 404 para sempre, por mais que alguém clique em reprocessar.
+    /// </para>
+    /// <para>
+    /// A busca é por <c>$filter</c> em <c>/messages</c>, que varre a caixa inteira e não só a
+    /// pasta monitorada — a mensagem procurada, por definição, saiu do lugar onde estava.
+    /// </para>
+    /// </remarks>
+    public async Task<RelocatedArtifact?> RelocateArtifactAsync(
+        string mailboxAddress,
+        CredentialRef credential,
+        string internetMessageId,
+        string? fileName,
+        CancellationToken cancellationToken)
+    {
+        var (token, _) = await AuthenticateAsync(credential, cancellationToken);
+        if (token is null)
+            return null;
+
+        var http = httpClientFactory.CreateClient(GraphHttp.CLIENT_NAME);
+
+        var filter = Uri.EscapeDataString($"internetMessageId eq '{internetMessageId.Replace("'", "''", StringComparison.Ordinal)}'");
+        var url = $"{Base}users/{Escape(mailboxAddress)}/messages?$filter={filter}&$select=id&$top=1";
+
+        var (page, failure) = await http.GetAsync<GraphMessagePage>(url, token, logger, cancellationToken);
+
+        var found = page?.Value;
+        var messageId = found is { Count: > 0 } ? found[0].Id : null;
+        if (failure is not null || string.IsNullOrEmpty(messageId))
+        {
+            logger.LogWarning("Mensagem não reencontrada pelo identificador permanente do cabeçalho.");
+            return null;
+        }
+
+        var attachments = await ListAttachmentsAsync(http, token, mailboxAddress, messageId, cancellationToken);
+
+        // Casa pelo nome quando há um: a mesma mensagem pode ter vários anexos, e reatribuir o
+        // errado trocaria o documento silenciosamente. Sem nome, só um anexo é caso decidível.
+        MailboxArtifact? artifact;
+        if (string.IsNullOrEmpty(fileName))
+            artifact = attachments.Count == 1 ? attachments[0] : null;
+        else
+            artifact = attachments.Find(a => string.Equals(a.FileName, fileName, StringComparison.OrdinalIgnoreCase));
+
+        return artifact is null ? null : new RelocatedArtifact(messageId, artifact.Key);
     }
 
     /// <summary>
@@ -305,15 +401,19 @@ internal sealed class GraphMailboxReader(
             if (CarriesPayableBody(message, resolvableHosts))
                 artifacts.Add(BodyArtifact(message));
 
-            if (artifacts.Count == 0)
-                continue;
-
+            // Mensagem SEM artefato continua subindo, com a lista vazia. Ela não vira item — a
+            // fila de quarentena segue sendo só o que tem documento —, mas precisa chegar ao
+            // livro-caixa, que existe justamente para responder "o que houve com o e-mail que eu
+            // mandei". Descartá-la aqui a fazia sumir de TODAS as telas: medido em 2026-08-26,
+            // três e-mails na caixa de entrada — um com assunto "uma cobrança foi gerada para
+            // você" — invisíveis para quem operava o sistema.
             messages.Add(MailboxMessage.From(
                 message.Id!,
                 message.From?.EmailAddress?.Address ?? string.Empty,
                 message.Subject,
                 message.ReceivedDateTime ?? clock.GetUtcNow(),
-                artifacts));
+                artifacts,
+                message.InternetMessageId));
         }
 
         return messages;
@@ -361,7 +461,10 @@ internal sealed class GraphMailboxReader(
         var text = isHtml ? HtmlText.ToPlainText(content) : content;
         var links = isHtml ? HtmlLinkHarvester.Harvest(content) : [];
 
-        return BodyCaptureGateService.ShouldCapture(text, links, resolvableHosts);
+        // O assunto entra como sinal fraco: um link para host sem receita passa a valer quando a
+        // mensagem se parece com cobrança. Sem isso, emissor novo é invisível — medido em
+        // 2026-08-26 com a cobrança da Asaas, que sumiu inteira por não ter anexo.
+        return BodyCaptureGateService.ShouldCapture(text, links, resolvableHosts, message.Subject);
     }
 
     private static MailboxArtifact BodyArtifact(GraphMessage message)
@@ -411,9 +514,59 @@ internal sealed class GraphMailboxReader(
     /// real: a delta query o ignora e devolve o tamanho de página dela. Quem manda é o header
     /// <c>Prefer: odata.maxpagesize</c>, aplicado em <c>GraphHttp.GetAsync</c>.
     /// </remarks>
-    private string InitialDeltaUrl(string mailboxAddress, string folder)
-        => $"{Base}users/{Escape(mailboxAddress)}/mailFolders/{folder}/messages/delta"
-            + "?$select=id,subject,receivedDateTime,hasAttachments,from,body";
+    private string InitialDeltaUrl(string mailboxAddress, string folder, DateOnly? capturedSince)
+    {
+        var url = $"{Base}users/{Escape(mailboxAddress)}/mailFolders/{folder}/messages/delta"
+            + "?$select=id,internetMessageId,subject,receivedDateTime,hasAttachments,from,body";
+
+        return capturedSince is { } since ? url + $"&$filter={Escape(FloorFilter(since))}" : url;
+    }
+
+    /// <summary>
+    /// O único <c>$filter</c> que a delta query aceita, na forma que ela aceita.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// A documentação é explícita: <em>"The only supported <c>$filter</c> expressions are
+    /// <c>$filter=receivedDateTime ge {value}</c> or <c>$filter=receivedDateTime gt {value}</c>"</em>.
+    /// Não há teto, não há filtro por remetente, e <c>$search</c> não existe aqui.
+    /// </para>
+    /// <para>
+    /// <strong>A data vira meia-noite UTC</strong>, e não meia-noite local. No fuso do Brasil isso
+    /// inclui as últimas horas do dia anterior — erra para <em>mais</em> e-mail, que é a direção
+    /// certa num sistema cujo modo de falha é a conta que não chegou (ADR-014).
+    /// </para>
+    /// </remarks>
+    private static string FloorFilter(DateOnly since)
+        => $"receivedDateTime ge {since:yyyy-MM-dd}T00:00:00Z";
+
+    /// <summary>
+    /// Teto documentado da delta query <em>com</em> <c>$filter</c>: <em>"Applying <c>$filter</c>
+    /// in a delta query returns only up to 5,000 messages"</em>.
+    /// </summary>
+    private const int FILTERED_DELTA_MESSAGE_CAP = 5_000;
+
+    /// <summary>
+    /// Avisa quando a varredura filtrada se aproxima do teto do provedor.
+    /// </summary>
+    /// <remarks>
+    /// <strong>O corte do provedor é silencioso</strong>: alcançado o teto, vem um
+    /// <c>deltaLink</c> como se a varredura tivesse terminado, e o que ficou de fora não deixa
+    /// rastro nenhum. Um piso muito antigo numa caixa movimentada perderia boleto sem que
+    /// ninguém soubesse — que é exatamente a falha que o ADR-014 existe para impedir. O aviso não
+    /// conserta o corte; ele transforma perda muda em linha de log acionável (baixar o piso, ou
+    /// dividir a caixa em pastas).
+    /// </remarks>
+    private void WarnIfNearFilteredDeltaCap(DateOnly? capturedSince, int scanned)
+    {
+        if (capturedSince is null || scanned < FILTERED_DELTA_MESSAGE_CAP)
+            return;
+
+        logger.LogWarning(
+            "Varredura com piso temporal alcançou {Scanned} mensagens, no teto de {Cap} que o provedor "
+            + "aplica quando há filtro. Mensagens podem ter ficado de fora sem aviso do provedor.",
+            scanned, FILTERED_DELTA_MESSAGE_CAP);
+    }
 
     private string Base => _options.BaseUrl.EndsWith('/') ? _options.BaseUrl : _options.BaseUrl + "/";
 

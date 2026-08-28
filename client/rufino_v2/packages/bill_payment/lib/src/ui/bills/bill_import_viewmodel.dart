@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 
 import '../../domain/bill_payment_exception.dart';
 import '../../domain/bill_repository.dart';
+import '../shared/document_picker.dart';
 
 /// Drives the manual import form.
 class BillImportViewModel extends ChangeNotifier {
@@ -24,10 +25,22 @@ class BillImportViewModel extends ChangeNotifier {
   /// The outcome of a successful import.
   ImportOutcome? get outcome => _outcome;
 
+  PickedDocument? _document;
+
+  /// The file chosen for this import, when there is one.
+  PickedDocument? get document => _document;
+
+  /// Attaches [document] to the next import, or clears it when `null`.
+  void setDocument(PickedDocument? document) {
+    _document = document;
+    _errorMessage = null;
+    notifyListeners();
+  }
+
   /// Imports the bill. Resolves to its id, or `null`.
   ///
-  /// At least one of the two instruments is required — the form enforces
-  /// it, and the domain enforces it again.
+  /// At least one of the three — digitable line, Pix payload, file — is
+  /// required. The form enforces it, and the domain enforces it again.
   Future<String?> import({String? digitableLine, String? pixPayload}) async {
     _isSaving = true;
     _errorMessage = null;
@@ -40,6 +53,9 @@ class BillImportViewModel extends ChangeNotifier {
         digitableLine:
             (digitableLine?.trim().isEmpty ?? true) ? null : digitableLine,
         pixPayload: (pixPayload?.trim().isEmpty ?? true) ? null : pixPayload,
+        documentBytes: _document?.bytes,
+        documentFileName: _document?.fileName,
+        documentContentType: _document?.contentType,
       );
       result.fold(
         onSuccess: (outcome) {

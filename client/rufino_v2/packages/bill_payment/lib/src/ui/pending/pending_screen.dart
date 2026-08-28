@@ -172,10 +172,21 @@ class _Body extends StatelessWidget {
               ),
             ),
             const SizedBox(height: AppSpacing.md),
+            // Vencidas primeiro: aqui há encargos correndo, e é a lista que
+            // não pode se perder no meio das outras.
+            _PendingList(
+              title: 'Vencidas e não chegaram',
+              subtitle: 'Passou do vencimento e a conta nunca apareceu — '
+                  'há encargos correndo.',
+              items: view.overdue,
+              onTap: (pending) =>
+                  widget.onOpenExpectation(pending.expectationId),
+            ),
+            const SizedBox(height: AppSpacing.md),
             _PendingList(
               title: 'Não chegaram',
               subtitle: 'A conta era esperada e não apareceu — vá buscá-la '
-                  'no portal ou importe à mão.',
+                  'no portal ou importe à mão. Ainda dá tempo.',
               items: view.missing,
               onTap: (pending) =>
                   widget.onOpenExpectation(pending.expectationId),

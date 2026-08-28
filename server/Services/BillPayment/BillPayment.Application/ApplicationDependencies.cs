@@ -2,17 +2,23 @@ namespace BillPayment.Application;
 
 using BillPayment.Application.Behaviors;
 using BillPayment.Application.Bills.Commands;
+using BillPayment.Application.CaptureItems.Commands;
 using BillPayment.Application.Bills.EventHandlers;
 using BillPayment.Application.Mediator;
 using BillPayment.Domain.Bills;
 using BillPayment.Domain.SeedWork;
+using BillPayment.Application.Bills;
 using BillPayment.Application.Queries.Bills;
 using BillPayment.Application.Queries.CaptureItems;
 using BillPayment.Application.Expectations.EventHandlers;
 using BillPayment.Domain.Expectations;
 using BillPayment.Application.Queries.Expectations;
+using BillPayment.Application.Queries.Notifications;
+using BillPayment.Domain.CaptureItems;
+using BillPayment.Application.Queries.CapturedMessages;
 using BillPayment.Application.Queries.CaptureSources;
 using BillPayment.Application.Queries.Payees;
+using BillPayment.Application.Queries.Retention;
 using BillPayment.Application.Queries.PayerProfiles;
 using BillPayment.Application.Queries.TrustedOrigins;
 using Microsoft.Extensions.Configuration;
@@ -27,6 +33,10 @@ public static class ApplicationDependencies
         // Política de aprovação: prazo de validade do retrato e teto de valor. É regra de
         // negócio configurável, não infraestrutura — por isso é registrada aqui.
         services.Configure<ApprovalOptions>(configuration.GetSection(ApprovalOptions.SectionName));
+
+        // Quantas vezes insistir num artefato antes de ele virar caso para uma pessoa. Também é
+        // regra de negócio: o worker escolhe o ritmo, o negócio escolhe quanto vale insistir.
+        services.Configure<CaptureRetryOptions>(configuration.GetSection(CaptureRetryOptions.SectionName));
 
         // Mediator próprio (sem MediatR) — escaneia handlers e behaviors do assembly da Application.
         services.AddCustomMediator(typeof(ApplicationDependencies).Assembly);
@@ -48,17 +58,34 @@ public static class ApplicationDependencies
         services.AddScoped<IDomainEventHandler<BillValidatedDomainEvent>, FulfillExpectationOnBillValidatedHandler>();
         services.AddScoped<IDomainEventHandler<BillApprovedDomainEvent>, LearnExpectationOnBillApprovedHandler>();
         services.AddScoped<IDomainEventHandler<BillExpectationLearnedDomainEvent>, NotifyExpectationLearnedHandler>();
-        services.AddScoped<IDomainEventHandler<BillExpectationMissedDomainEvent>, NotifyExpectationMissedHandler>();
         services.AddScoped<IDomainEventHandler<BillExpectationCaptureFailedDomainEvent>, NotifyExpectationCaptureFailedHandler>();
+
+        // Quem notifica o escalonamento é o alerta, não a transição para "não cumprido": esta
+        // acontece uma vez por ciclo e aquele, quatro. Enquanto o aviso pendurou no evento de
+        // Missing, os níveis Warning/Urgent/Overdue eram gravados e nunca chegavam a ninguém.
+        services.AddScoped<IDomainEventHandler<BillExpectationAlertRaisedDomainEvent>, NotifyExpectationAlertRaisedHandler>();
+
+        // A ponte captura → expectativa: o artefato que trava marca o ciclo que ele vinha
+        // cumprir, e o que destrava solta o ciclo para o painel parar de apontar para ele.
+        services.AddScoped<IDomainEventHandler<CaptureItemStuckDomainEvent>, RecordCaptureFailureOnItemStuckHandler>();
+        services.AddScoped<IDomainEventHandler<CaptureItemUnstuckDomainEvent>, ClearCaptureFailureOnItemUnstuckHandler>();
 
         services.AddScoped<ITrustedOriginQueries, TrustedOriginQueries>();
         services.AddScoped<IBillQueries, BillQueries>();
+        services.AddScoped<IBillReadingWorkQueries, BillReadingWorkQueries>();
+
+        // Compartilhado pela fila de análise e pelo pedido manual de reler — duas cópias
+        // divergiriam, e a divergência apareceria como "pela fila lê, pelo botão não".
+        services.AddScoped<IBillReadingSource, BillReadingSource>();
         services.AddScoped<IPayeeQueries, PayeeQueries>();
         services.AddScoped<IPayerProfileQueries, PayerProfileQueries>();
         services.AddScoped<ICaptureSourceQueries, CaptureSourceQueries>();
         services.AddScoped<ICaptureItemQueries, CaptureItemQueries>();
         services.AddScoped<ICaptureItemWorkQueries, CaptureItemWorkQueries>();
         services.AddScoped<IBillExpectationQueries, BillExpectationQueries>();
+        services.AddScoped<ITenantNotificationQueries, TenantNotificationQueries>();
+        services.AddScoped<ICapturedMessageQueries, CapturedMessageQueries>();
+        services.AddScoped<ICaptureRetentionQueries, CaptureRetentionQueries>();
 
         return services;
     }

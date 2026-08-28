@@ -8,12 +8,17 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
 /// <summary>Um humano autoriza o pagamento e escolhe a data.</summary>
+/// <param name="AcknowledgeRisk">
+/// ADR-015: obrigatório <c>true</c> para aprovar boleto classificado como Perigo — é o aceite
+/// explícito que a trilha de auditoria grava.
+/// </param>
 public sealed record ApproveBillCommand(
     Guid TenantId,
     Guid BillId,
     Guid UserId,
     DateOnly ScheduleFor,
-    string? Note) : IRequest<ApproveBillResponse>;
+    string? Note,
+    bool AcknowledgeRisk = false) : IRequest<ApproveBillResponse>;
 
 public sealed record ApproveBillResponse(Guid Id, string Status, DateOnly ScheduledFor);
 
@@ -41,7 +46,8 @@ public sealed class ApproveBillCommandHandler(
             request.Note,
             options.Value.ToPolicy(),
             DateOnly.FromDateTime(now.UtcDateTime),
-            now.UtcDateTime);
+            now.UtcDateTime,
+            request.AcknowledgeRisk);
 
         await unitOfWork.SaveEntitiesAsync(cancellationToken);
 

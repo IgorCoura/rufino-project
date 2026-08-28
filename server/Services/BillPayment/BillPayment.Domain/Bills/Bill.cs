@@ -18,6 +18,18 @@ using BillPayment.Domain.SharedKernel;
 /// </remarks>
 public sealed class Bill : AggregateRoot<BillId>
 {
+    /// <summary>
+    /// Teto da espera entre tentativas de leitura por IA. A espera dobra a cada falha e para aqui.
+    /// </summary>
+    /// <remarks>
+    /// Meia hora é o mesmo teto da fila de captura: além disso a espera passa a ser maior que a
+    /// folga que um boleto costuma ter, e o retrato chegaria tarde demais para servir à decisão.
+    /// </remarks>
+    private static readonly TimeSpan MAX_READING_RETRY_DELAY = TimeSpan.FromMinutes(30);
+
+    /// <summary>Quantas duplicações de espera antes de o expoente parar de crescer.</summary>
+    private const int MAX_READING_BACKOFF_SHIFT = 10;
+
     private readonly List<PaymentInstrument> _instruments = [];
     private readonly List<BillCheck> _checks = [];
     private readonly List<BillLookupRecord> _lookupHistory = [];
@@ -48,6 +60,41 @@ public sealed class Bill : AggregateRoot<BillId>
     public PixLookupSnapshot? PixLookup { get; private set; }
 
     /// <summary>
+    /// O retrato da leitura por IA do documento e do corpo do e-mail. Nulo até a extração rodar.
+    /// Enriquecimento e contradição — nunca decisão de pagamento (ADR-011).
+    /// </summary>
+    public DocumentReading? Reading { get; private set; }
+
+    /// <summary>
+    /// Em que pé está a leitura por IA. <strong>Nunca bloqueia o boleto</strong> — ver
+    /// <see cref="ReadingStatus"/>.
+    /// </summary>
+    public ReadingStatus ReadingState { get; private set; } = ReadingStatus.NotApplicable;
+
+    /// <summary>Quantas vezes a fila já tentou ler este documento.</summary>
+    public int ReadingAttempts { get; private set; }
+
+    /// <summary>
+    /// Até quando a análise é de um worker — e, depois de uma falha passageira, a partir de
+    /// quando vale tentar de novo.
+    /// </summary>
+    /// <remarks>
+    /// Uma coluna só, porque é a mesma pergunta: já posso mexer nisto? Dois campos divergiriam.
+    /// É a mesma escolha do aluguel da fila de captura.
+    /// </remarks>
+    public DateTime? ReadingLeaseExpiresAt { get; private set; }
+
+    /// <summary>
+    /// O retrato chegou DEPOIS de alguém já ter decidido sobre o boleto.
+    /// </summary>
+    /// <remarks>
+    /// Marca que a verificação não foi refeita: revalidar um boleto aprovado derruba a aprovação
+    /// incondicionalmente, e desfazer em silêncio uma decisão humana por causa de um
+    /// enriquecimento de fundo seria a pior troca possível.
+    /// </remarks>
+    public bool ReadingArrivedAfterDecision { get; private set; }
+
+    /// <summary>
     /// Pagador lido do documento. <strong>Não autoritativo</strong> — só serve para contradizer
     /// (ADR-004). Nulo é o caso majoritário por medição.
     /// </summary>
@@ -62,11 +109,29 @@ public sealed class Bill : AggregateRoot<BillId>
     /// <summary>As doze verificações apuradas na última validação. Substituídas inteiras a cada rodada.</summary>
     public IReadOnlyCollection<BillCheck> Checks => _checks.AsReadOnly();
 
+    /// <summary>
+    /// A classificação de risco derivada da última validação — Seguro, Atenção ou Perigo.
+    /// Nula até a primeira rodada de verificações (ADR-015).
+    /// </summary>
+    public RiskLevel? Risk { get; private set; }
+
     /// <summary>Toda tentativa de consulta, em ordem. Só cresce — ver <see cref="BillLookupRecord"/>.</summary>
     public IReadOnlyList<BillLookupRecord> LookupHistory => _lookupHistory.AsReadOnly();
 
     /// <summary>Quem decidiu, quando e por quê. Nulo enquanto ninguém decidiu.</summary>
     public ApprovalRecord? Approval { get; private set; }
+
+    /// <summary>
+    /// Vencimento consolidado do boleto, <strong>materializado</strong> para a listagem ordenar
+    /// e filtrar em SQL — jsonb não serve a esse propósito.
+    /// </summary>
+    /// <remarks>
+    /// A precedência é a mesma de <see cref="PayableAmount"/> e <see cref="Beneficiary"/>:
+    /// consulta oficial do trilho que paga primeiro, o outro trilho como reserva, e a data
+    /// embutida na linha digitável por último. Recomputado em cada ponto que muda uma das
+    /// fontes — nunca atribuído de fora.
+    /// </remarks>
+    public DateOnly? DueDate { get; private set; }
 
     /// <summary>Data pedida na aprovação. A data efetiva é do agendamento, na fase 3.</summary>
     public DateOnly? ScheduledFor { get; private set; }
@@ -126,7 +191,8 @@ public sealed class Bill : AggregateRoot<BillId>
         BillOrigin origin,
         DateTime occurredAt,
         PartyInfo? extractedPayer = null,
-        RoutingConfidence? routing = null)
+        RoutingConfidence? routing = null,
+        DocumentReading? reading = null)
     {
         if (instruments is null || instruments.Count == 0)
             throw BillErrors.InstrumentRequired();
@@ -154,9 +220,13 @@ public sealed class Bill : AggregateRoot<BillId>
             DedupKey = ChooseDedupKey(accepted),
             ExtractedPayer = extractedPayer,
             Routing = routing,
+            Reading = reading,
+
+            ReadingState = InitialReadingState(reading, origin),
         };
 
         bill._instruments.AddRange(accepted);
+        bill.RecomputeDueDate();
         bill.CreatedAt = occurredAt;
         bill.UpdatedAt = occurredAt;
 
@@ -196,7 +266,127 @@ public sealed class Bill : AggregateRoot<BillId>
                 PixLookup = pix.Snapshot;
         }
 
+        RecomputeDueDate();
         UpdatedAt = occurredAt;
+    }
+
+    /// <summary>
+    /// Anexa (ou substitui) o retrato da leitura por IA. Sem guarda de status de propósito:
+    /// é metadado do documento, e enriquecer um boleto já decidido só melhora o histórico.
+    /// </summary>
+    public void AttachReading(DocumentReading reading, DateTime occurredAt)
+    {
+        ArgumentNullException.ThrowIfNull(reading);
+
+        Reading = reading;
+        ReadingState = ReadingStatus.Done;
+        ReadingLeaseExpiresAt = null;
+
+        // O retrato que chega depois da decisão não refaz a verificação — quem marca isso é o
+        // chamador, que é quem sabe em que situação o boleto estava.
+        RecomputeDueDate();
+        UpdatedAt = occurredAt;
+    }
+
+    /// <summary>Põe (ou repõe) o boleto na fila de análise por IA.</summary>
+    /// <remarks>
+    /// Zera as tentativas porque reenfileirar é decisão de quem opera, e decisão de gente ganha
+    /// orçamento novo — mesma regra do <c>Reopen</c> da quarentena. Boleto sem documento guardado
+    /// não entra: não há o que ler, e a fila giraria nele para sempre.
+    /// </remarks>
+    public bool QueueReading(DateTime occurredAt)
+    {
+        if (string.IsNullOrEmpty(Origin.StorageKey))
+            return false;
+
+        ReadingState = ReadingStatus.Queued;
+        ReadingAttempts = 0;
+        ReadingLeaseExpiresAt = null;
+        UpdatedAt = occurredAt;
+        return true;
+    }
+
+    /// <summary>Marca que um worker assumiu a análise até o instante informado.</summary>
+    /// <remarks>
+    /// A tentativa conta na SAÍDA da fila, não no fim do processamento: um worker que morre antes
+    /// de escrever qualquer coisa deixaria o boleto voltando para sempre. Mesma lição da captura.
+    /// </remarks>
+    public void LeaseReading(DateTime expiresAt, DateTime occurredAt)
+    {
+        ReadingAttempts++;
+        ReadingLeaseExpiresAt = expiresAt;
+        UpdatedAt = occurredAt;
+    }
+
+    /// <summary>
+    /// A análise falhou. Devolve <c>true</c> quando o boleto desistiu de vez.
+    /// </summary>
+    /// <remarks>
+    /// <strong>Permanente desiste na hora; passageira ganha as tentativas.</strong> É a mesma
+    /// classificação da fila de captura, e errar para o lado de "passageira" é o lado seguro: no
+    /// máximo se gasta o teto, ao passo que tratar indisponibilidade como definitiva deixaria o
+    /// boleto sem retrato por causa de um 503.
+    /// </remarks>
+    public bool RecordReadingFailure(
+        bool permanent,
+        int maxAttempts,
+        TimeSpan baseRetryDelay,
+        DateTime occurredAt)
+    {
+        if (!permanent && ReadingAttempts < maxAttempts)
+        {
+            ReadingLeaseExpiresAt = NextReadingAttemptAt(baseRetryDelay, occurredAt);
+            UpdatedAt = occurredAt;
+            return false;
+        }
+
+        ReadingState = ReadingStatus.Unavailable;
+        ReadingLeaseExpiresAt = null;
+        UpdatedAt = occurredAt;
+        return true;
+    }
+
+    /// <summary>Registra que o retrato chegou depois de o boleto já ter sido decidido.</summary>
+    public void MarkReadingArrivedAfterDecision(DateTime occurredAt)
+    {
+        ReadingArrivedAfterDecision = true;
+        UpdatedAt = occurredAt;
+    }
+
+    /// <summary>A verificação ainda pode ser refeita sem desfazer decisão de ninguém.</summary>
+    /// <remarks>
+    /// <c>AcceptsValidation</c> inclui <c>Approved</c>, e revalidar ali derruba a aprovação. Para
+    /// um enriquecimento de fundo isso é inaceitável — quem decide é gente, e um retrato que
+    /// chegou atrasado não pode desfazer a decisão em silêncio.
+    /// </remarks>
+    public bool AcceptsSilentRevalidation
+        => Status == BillStatus.Captured || Status == BillStatus.AwaitingApproval;
+
+    /// <summary>
+    /// Em que pé a análise nasce.
+    /// </summary>
+    /// <remarks>
+    /// A leitura que a captura já obteve vem <strong>de graça</strong>: a chamada ao extrator
+    /// aconteceu para resolver o instrumento e o retrato veio junto. Enfileirar é só para o
+    /// boleto que ficou SEM retrato — o provedor falhou, ou o degrau de visão nem foi acionado.
+    /// </remarks>
+    private static ReadingStatus InitialReadingState(DocumentReading? reading, BillOrigin origin)
+    {
+        if (reading is not null)
+            return ReadingStatus.Done;
+
+        return string.IsNullOrEmpty(origin.StorageKey)
+            ? ReadingStatus.NotApplicable
+            : ReadingStatus.Queued;
+    }
+
+    /// <summary>A espera dobra a cada falha, com o mesmo teto da fila de captura.</summary>
+    private DateTime NextReadingAttemptAt(TimeSpan baseRetryDelay, DateTime occurredAt)
+    {
+        var shift = Math.Min(Math.Max(ReadingAttempts - 1, 0), MAX_READING_BACKOFF_SHIFT);
+        var scaled = baseRetryDelay.Ticks * (1L << shift);
+
+        return occurredAt.AddTicks(Math.Min(scaled, MAX_READING_RETRY_DELAY.Ticks));
     }
 
     /// <summary>Vincula (ou desvincula) o beneficiário cadastrado que a consulta resolveu.</summary>
@@ -253,19 +443,25 @@ public sealed class Bill : AggregateRoot<BillId>
         _checks.Clear();
         _checks.AddRange(accepted.Select(r => BillCheck.From(r, occurredAt)));
 
+        // ADR-015: a validação CLASSIFICA, nunca rejeita. Falha que era bloqueante vira Perigo
+        // — aprovável só com o risco explicitamente assumido —, inconclusivo ou aviso vira
+        // Atenção, e todo boleto validado fica aguardando a decisão humana.
         var blocking = accepted.Where(r => r.IsBlockingFailure).ToList();
         var attention = accepted.Count(r => r.Outcome.RequiresAttention);
-        var target = blocking.Count > 0 ? BillStatus.Rejected : BillStatus.AwaitingApproval;
 
-        TransitionTo(target);
+        if (blocking.Count > 0)
+            Risk = RiskLevel.Danger;
+        else if (attention > 0)
+            Risk = RiskLevel.Attention;
+        else
+            Risk = RiskLevel.Safe;
+
+        TransitionTo(BillStatus.AwaitingApproval);
         UpdatedAt = occurredAt;
 
-        AddDomainEvent(blocking.Count > 0
-            ? new BillRejectedDomainEvent(
-                Id, TenantId, blocking.Select(b => b.ReasonCode ?? b.Type.Name).ToList(), occurredAt)
-            : new BillValidatedDomainEvent(Id, TenantId, attention, occurredAt));
+        AddDomainEvent(new BillValidatedDomainEvent(Id, TenantId, attention, occurredAt));
 
-        return ValidationOutcome.Of(target, blocking.Count, attention);
+        return ValidationOutcome.Of(BillStatus.AwaitingApproval, blocking.Count, attention);
     }
 
     /// <summary>
@@ -284,20 +480,21 @@ public sealed class Bill : AggregateRoot<BillId>
         string? note,
         ApprovalPolicy policy,
         DateOnly today,
-        DateTime occurredAt)
+        DateTime occurredAt,
+        bool acknowledgeRisk = false)
     {
         ArgumentNullException.ThrowIfNull(policy);
         EnsureDecidable(ApprovalDecision.Approved, BillStatus.Approved);
 
         EnsureChecksAreComplete();
-        EnsureNoBlockingFailure();
+        EnsureRiskIsAcknowledged(acknowledgeRisk);
         EnsureSnapshotIsFresh(policy, occurredAt);
         EnsureScheduleDateIsAllowed(scheduleFor, today);
 
         if (PayableAmount is { } amount && !policy.Allows(amount))
             throw BillErrors.AboveApprovalLimit(amount.Amount);
 
-        Approval = ApprovalRecord.Approve(approvedBy, occurredAt, note);
+        Approval = ApprovalRecord.Approve(approvedBy, occurredAt, note, Risk);
         ScheduledFor = scheduleFor;
         Status = BillStatus.Approved;
         UpdatedAt = occurredAt;
@@ -353,12 +550,16 @@ public sealed class Bill : AggregateRoot<BillId>
             throw BillErrors.ChecksNotEvaluated();
     }
 
-    private void EnsureNoBlockingFailure()
+    // ADR-015: Perigo não bloqueia — exige que o aprovador assuma o risco explicitamente, e a
+    // trilha grava o nível assumido. Sem o aceite, a recusa lista os motivos para a tela.
+    private void EnsureRiskIsAcknowledged(bool acknowledgeRisk)
     {
-        var blocking = _checks.FindAll(c => c.IsBlockingFailure);
-        if (blocking.Count > 0)
-            throw BillErrors.BlockedByFailedChecks(
-                string.Join(", ", blocking.Select(c => c.ReasonCode ?? c.Type.Name)));
+        if (Risk != RiskLevel.Danger || acknowledgeRisk)
+            return;
+
+        var reasons = _checks.FindAll(c => c.IsBlockingFailure);
+        throw BillErrors.DangerRequiresAcknowledgment(
+            string.Join(", ", reasons.Select(c => c.ReasonCode ?? c.Type.Name)));
     }
 
     private void EnsureSnapshotIsFresh(ApprovalPolicy policy, DateTime occurredAt)
@@ -378,6 +579,29 @@ public sealed class Bill : AggregateRoot<BillId>
 
         if (Lookup?.MinimumScheduleDate is { } minimum && scheduleFor < minimum)
             throw BillErrors.ScheduleDateBeforeProviderMinimum(scheduleFor, minimum);
+    }
+
+    private void RecomputeDueDate()
+    {
+        var official = Rail == PaymentRail.Pix
+            ? PixLookup?.DueDate ?? Lookup?.DueDate
+            : Lookup?.DueDate ?? PixLookup?.DueDate;
+
+        // A leitura por IA é a ÚLTIMA reserva, atrás da linha digitável: a data embutida é
+        // protegida por DV, a lida é transcrição de modelo. Só QR estático sem consulta chega nela.
+        DueDate = official ?? EmbeddedDueDate() ?? Reading?.DueDate;
+    }
+
+    // Consultar o Kind antes é obrigatório: acessar a linha digitável de um instrumento Pix
+    // lança BLP.INS03, por desenho.
+    private DateOnly? EmbeddedDueDate()
+    {
+        var embedded = _instruments
+            .Where(i => i.Kind == PaymentInstrumentKind.Barcode)
+            .Select(i => i.DigitableLine.DueDate)
+            .FirstOrDefault(d => d is not null);
+
+        return embedded is { } date ? DateOnly.FromDateTime(date) : null;
     }
 
     private void EnsureAcceptsValidation()

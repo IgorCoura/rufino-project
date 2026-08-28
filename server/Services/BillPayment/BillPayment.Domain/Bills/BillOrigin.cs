@@ -69,8 +69,11 @@ public sealed class BillOrigin : ValueObject
         var hash = Normalize(contentHash, "hash do conteúdo", CONTENT_HASH_MAX_LENGTH);
 
         // Sem nenhum identificador, a origem não reconstrói caminho nenhum e a evidência
-        // seria só o carimbo de data — que não distingue um documento de outro.
-        if (sourceId is null && sender is null && messageId is null && storage is null && hash is null)
+        // seria só o carimbo de data — que não distingue um documento de outro. Vale para o que
+        // entrou sozinho; na importação manual a identidade é o instrumento digitado, e exigir
+        // rastro externo ali recusava toda importação feita pela tela (ver RequiresOriginIdentifier).
+        if (sourceKind.RequiresOriginIdentifier
+            && sourceId is null && sender is null && messageId is null && storage is null && hash is null)
             throw BillErrors.OriginWithoutAnyIdentifier();
 
         return new BillOrigin

@@ -70,6 +70,7 @@ abstract class CaptureSourceRepository {
     required String address,
     required GraphCredentialInput credential,
     String? folderPath,
+    DateTime? captureSince,
   });
 
   /// Renames the source.
@@ -93,6 +94,14 @@ abstract class CaptureSourceRepository {
 
   /// Removes a watched folder. The server refuses removing the last one.
   Future<Result<void>> removeFolder(String id, String? folderPath);
+
+  /// Moves the capture's time floor. `null` returns the source to the whole
+  /// mailbox.
+  ///
+  /// The server drops every folder cursor as part of this: the provider
+  /// stores the query options inside the delta link, so a cursor obtained
+  /// with the old date would keep filtering by it.
+  Future<Result<void>> changeCaptureSince(String id, DateTime? captureSince);
 
   /// Discards every folder cursor so the next sweep rereads the whole
   /// mailbox. Does not duplicate — ingestion is idempotent.

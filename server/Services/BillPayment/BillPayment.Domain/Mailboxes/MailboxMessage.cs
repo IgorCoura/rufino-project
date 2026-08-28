@@ -1,4 +1,4 @@
-namespace BillPayment.Domain.Mailboxes;
+﻿namespace BillPayment.Domain.Mailboxes;
 
 using BillPayment.Domain.SeedWork;
 using BillPayment.Domain.SharedKernel;
@@ -77,7 +77,21 @@ public sealed class MailboxMessage : ValueObject
     public const int MESSAGE_ID_MAX_LENGTH = 512;
     public const int SUBJECT_MAX_LENGTH = 500;
 
+    /// <summary>O <c>Message-ID</c> do cabeçalho RFC-822 cabe folgado em 512.</summary>
+    public const int INTERNET_MESSAGE_ID_MAX_LENGTH = 512;
+
     public string MessageId { get; }
+
+    /// <summary>
+    /// O <c>Message-ID</c> do cabeçalho da mensagem — <strong>do e-mail, não da cópia</strong>.
+    /// </summary>
+    /// <remarks>
+    /// <see cref="MessageId"/> é o endereço de onde o item está guardado, e a pasta faz parte
+    /// dele: mover a mensagem o invalida. Este aqui é escrito pelo remetente e acompanha o
+    /// e-mail para sempre, o que o torna a única chave capaz de reencontrar a mensagem depois
+    /// que o id de armazenamento morre. Nulo quando o provedor não o informa.
+    /// </remarks>
+    public string? InternetMessageId { get; }
     public string Sender { get; }
     public string? Subject { get; }
     public DateTimeOffset ReceivedAt { get; }
@@ -87,12 +101,14 @@ public sealed class MailboxMessage : ValueObject
 
     private MailboxMessage(
         string messageId,
+        string? internetMessageId,
         string sender,
         string? subject,
         DateTimeOffset receivedAt,
         List<MailboxArtifact> artifacts)
     {
         MessageId = messageId;
+        InternetMessageId = internetMessageId;
         Sender = sender;
         Subject = subject;
         ReceivedAt = receivedAt;
@@ -104,7 +120,8 @@ public sealed class MailboxMessage : ValueObject
         string sender,
         string? subject,
         DateTimeOffset receivedAt,
-        IEnumerable<MailboxArtifact> artifacts)
+        IEnumerable<MailboxArtifact> artifacts,
+        string? internetMessageId = null)
     {
         ArgumentNullException.ThrowIfNull(artifacts);
 
@@ -124,8 +141,13 @@ public sealed class MailboxMessage : ValueObject
 
         var trimmedSubject = subject?.Trim();
 
+        var trimmedInternetId = internetMessageId?.Trim();
+
         return new MailboxMessage(
             trimmedId.Length > MESSAGE_ID_MAX_LENGTH ? trimmedId[..MESSAGE_ID_MAX_LENGTH] : trimmedId,
+            string.IsNullOrEmpty(trimmedInternetId)
+                ? null
+                : trimmedInternetId[..Math.Min(trimmedInternetId.Length, INTERNET_MESSAGE_ID_MAX_LENGTH)],
             EmailSyntax.Normalize(sender),
             string.IsNullOrEmpty(trimmedSubject)
                 ? null
@@ -137,6 +159,7 @@ public sealed class MailboxMessage : ValueObject
     protected override IEnumerable<object?> GetEqualityComponents()
     {
         yield return MessageId;
+        yield return InternetMessageId;
         yield return Sender;
         yield return Subject;
         yield return ReceivedAt;

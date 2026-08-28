@@ -4,9 +4,13 @@ import 'package:provider/provider.dart';
 import 'package:rufino_core/rufino_core.dart';
 
 import '../../bill_payment_permissions.dart';
+import '../../domain/bill_payment_enums.dart';
 import '../../domain/payee.dart';
+import '../../domain/payee_repository.dart';
 import '../bill_payment_back_button.dart';
+import '../shared/amount_policy_view.dart';
 import '../shared/message_panel.dart';
+import '../shared/number_field.dart';
 import '../shared/status_badge.dart';
 import 'payee_detail_viewmodel.dart';
 
@@ -103,6 +107,8 @@ class _Body extends StatelessWidget {
                 ),
               ),
             _IdentificationSection(viewModel: viewModel, payee: payee),
+            const SizedBox(height: AppSpacing.md),
+            _AmountPolicySection(viewModel: viewModel, payee: payee),
             const SizedBox(height: AppSpacing.md),
             _ChipsSection(
               title: 'Apelidos',
@@ -228,13 +234,190 @@ class _IdentificationSectionState extends State<_IdentificationSection> {
                   label: payee.taxIdKind,
                   value: payee.taxId,
                 ),
-                InfoRow(
-                  icon: Symbols.payments,
-                  label: 'Política de valor',
-                  value: payee.amountPolicy.summary,
-                ),
+
               ],
             ),
+    );
+  }
+}
+
+/// A política de valor: leitura completa e edição no lugar.
+///
+/// Card próprio, e não uma linha dentro de "Identificação", porque são
+/// perguntas diferentes — quem é o beneficiário × quanto ele cobra — e esta
+/// tem quatro campos e um seletor de tipo.
+class _AmountPolicySection extends StatefulWidget {
+  const _AmountPolicySection({required this.viewModel, required this.payee});
+
+  final PayeeDetailViewModel viewModel;
+  final Payee payee;
+
+  @override
+  State<_AmountPolicySection> createState() => _AmountPolicySectionState();
+}
+
+class _AmountPolicySectionState extends State<_AmountPolicySection> {
+  final _formKey = GlobalKey<FormState>();
+  final _expectedController = TextEditingController();
+  final _toleranceController = TextEditingController();
+  final _minController = TextEditingController();
+  final _maxController = TextEditingController();
+
+  bool _editing = false;
+  late String _kind = widget.payee.amountPolicy.kind;
+
+  @override
+  void dispose() {
+    _expectedController.dispose();
+    _toleranceController.dispose();
+    _minController.dispose();
+    _maxController.dispose();
+    super.dispose();
+  }
+
+  /// Recarrega os campos a partir da política vigente — abre a edição com o
+  /// que está valendo, e é também o que o Cancelar desfaz.
+  void _resetFields() {
+    final policy = widget.payee.amountPolicy;
+    _kind = policy.kind;
+    _expectedController.text = _text(policy.expectedAmount);
+    _toleranceController.text = _text(policy.tolerancePercent);
+    _minController.text = _text(policy.minAmount);
+    _maxController.text = _text(policy.maxAmount);
+  }
+
+  static String _text(double? value) =>
+      value == null ? '' : value.toString().replaceAll('.', ',');
+
+  /// Só os campos do tipo escolhido viajam. O domínio ignora os demais, mas
+  /// mandar min/max junto de um valor fixo descreveria uma política que não
+  /// existe.
+  AmountPolicyInput _input() => switch (_kind) {
+        AmountPolicyKinds.fixed => AmountPolicyInput(
+            kind: _kind,
+            expectedAmount: NumberField.read(_expectedController),
+            tolerancePercent: NumberField.read(_toleranceController),
+          ),
+        AmountPolicyKinds.range => AmountPolicyInput(
+            kind: _kind,
+            minAmount: NumberField.read(_minController),
+            maxAmount: NumberField.read(_maxController),
+          ),
+        _ => AmountPolicyInput(kind: _kind),
+      };
+
+  Future<void> _save() async {
+    if (!_formKey.currentState!.validate()) return;
+
+    final saved = await widget.viewModel.savePolicy(_input());
+    if (saved && mounted) setState(() => _editing = false);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SectionCard(
+      title: 'Política de valor',
+      trailing: _editing
+          ? null
+          : BillPaymentPermissionGuard(
+              resource: BillPaymentResources.payee,
+              scope: BillPaymentScopes.manage,
+              child: IconButton(
+                icon: const Icon(Symbols.edit),
+                tooltip: 'Editar política de valor',
+                onPressed: () => setState(() {
+                  _resetFields();
+                  _editing = true;
+                }),
+              ),
+            ),
+      child: _editing
+          ? _buildEditor(context)
+          : AmountPolicyDetails(policy: widget.payee.amountPolicy),
+    );
+  }
+
+  Widget _buildEditor(BuildContext context) {
+    return Form(
+      key: _formKey,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          SegmentedButton<String>(
+            segments: const [
+              ButtonSegment(
+                value: AmountPolicyKinds.fixed,
+                label: Text('Fixo'),
+              ),
+              ButtonSegment(
+                value: AmountPolicyKinds.range,
+                label: Text('Faixa'),
+              ),
+              ButtonSegment(
+                value: AmountPolicyKinds.unbounded,
+                label: Text('Sem limite'),
+              ),
+            ],
+            selected: {_kind},
+            onSelectionChanged: (selection) =>
+                setState(() => _kind = selection.first),
+          ),
+          const SizedBox(height: AppSpacing.md),
+          if (_kind == AmountPolicyKinds.fixed) ...[
+            NumberField(
+              controller: _expectedController,
+              label: 'Valor esperado (R\$)',
+              requiredField: true,
+            ),
+            const SizedBox(height: AppSpacing.md),
+            NumberField(
+              controller: _toleranceController,
+              label: 'Tolerância (%)',
+              requiredField: true,
+              helperText: 'Use 0 para exigir o valor exato.',
+            ),
+          ],
+          if (_kind == AmountPolicyKinds.range) ...[
+            NumberField(
+              controller: _minController,
+              label: 'Valor mínimo (R\$)',
+              requiredField: true,
+            ),
+            const SizedBox(height: AppSpacing.md),
+            NumberField(
+              controller: _maxController,
+              label: 'Valor máximo (R\$)',
+              requiredField: true,
+            ),
+          ],
+          if (_kind == AmountPolicyKinds.unbounded)
+            Text(
+              'Sem limite, a verificação de valor do boleto fica inconclusiva '
+              '— qualquer valor passa sem alerta.',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: Theme.of(context).colorScheme.tertiary,
+                  ),
+            ),
+          const SizedBox(height: AppSpacing.md),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              TextButton(
+                onPressed: () => setState(() {
+                  _resetFields();
+                  _editing = false;
+                }),
+                child: const Text('Cancelar'),
+              ),
+              const SizedBox(width: AppSpacing.sm),
+              FilledButton.tonal(
+                onPressed: widget.viewModel.isMutating ? null : _save,
+                child: const Text('Salvar'),
+              ),
+            ],
+          ),
+        ],
+      ),
     );
   }
 }

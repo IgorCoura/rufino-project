@@ -103,6 +103,36 @@ class ExpectationRepositoryImpl implements ExpectationRepository {
   }
 
   @override
+  Future<Result<void>> editExpectation(
+    String id, {
+    required String label,
+    required String recurrence,
+    required int expectedDueDay,
+    required int observedLeadDays,
+    String? accountReference,
+    int? alertLeadDays,
+  }) {
+    return _guard(
+      () => apiService.editExpectation(
+        id,
+        label: label,
+        recurrence: recurrence,
+        expectedDueDay: expectedDueDay,
+        observedLeadDays: observedLeadDays,
+        accountReference: accountReference,
+        alertLeadDays: alertLeadDays,
+      ),
+      context: {'op': 'editExpectation', 'expectationId': id},
+    );
+  }
+
+  @override
+  Future<Result<void>> deleteExpectation(String id) => _guard(
+        () => apiService.deleteExpectation(id),
+        context: {'op': 'deleteExpectation', 'expectationId': id},
+      );
+
+  @override
   Future<Result<void>> alterWatch(
     String id, {
     required bool isActive,

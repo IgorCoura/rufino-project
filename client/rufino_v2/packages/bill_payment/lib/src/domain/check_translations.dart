@@ -44,6 +44,10 @@ abstract final class CheckTypes {
   /// direct fraud vector in circulation.
   static const String pixBarcodeConsistency = 'PixBarcodeConsistency';
 
+  /// Whether what is printed on the document (as the AI read it) matches
+  /// the official lookup.
+  static const String documentConsistency = 'DocumentConsistency';
+
   /// The label to show for [type].
   static String label(String type) => switch (type) {
         barcodeIntegrity => 'Integridade do código',
@@ -58,6 +62,7 @@ abstract final class CheckTypes {
         dueDateSanity => 'Vencimento',
         tenantRouting => 'Roteamento',
         pixBarcodeConsistency => 'Pix × código de barras',
+        documentConsistency => 'Documento × consulta oficial',
         _ => type,
       };
 }
@@ -115,6 +120,24 @@ String? checkReasonMessage(String? reasonCode) => switch (reasonCode) {
         'A instituição Pix não tem código COMPE correspondente.',
       'bank_not_available' => 'O banco recebedor não pôde ser determinado.',
 
+      // Documento × consulta oficial (check 13).
+      'reading_not_available' =>
+        'Sem leitura por IA para comparar com a consulta oficial.',
+      'document_payee_mismatch' =>
+        'O beneficiário impresso no documento NÃO é o que a consulta oficial '
+            'devolveu. Forte indício de boleto adulterado — confira antes de '
+            'qualquer coisa.',
+      'document_amount_divergence' =>
+        'O valor impresso no documento diverge do valor registrado.',
+      'document_due_date_divergence' =>
+        'O vencimento impresso diverge do registrado.',
+      'official_identity_not_available' =>
+        'A consulta oficial não trouxe identidade para confrontar com o '
+            'documento.',
+      'nothing_comparable' =>
+        'A leitura existe, mas não há campo oficial correspondente para '
+            'confrontar.',
+
       // Valor.
       'amount_outside_policy' =>
         'O valor está fora da política definida para este beneficiário.',
@@ -131,6 +154,14 @@ String? checkReasonMessage(String? reasonCode) => switch (reasonCode) {
         'O pagador não pôde ser lido do documento.',
       'payer_profile_missing' =>
         'Perfil do pagador não cadastrado — verificação impossível.',
+      // Os dois bloqueiam o pagamento. O texto diz o que houve E o que fazer, porque
+      // "verificação falhou" sem motivo deixa quem aprova sem saída.
+      'payee_is_the_payer' =>
+        'BLOQUEADO: o beneficiário da cobrança é este próprio cliente — '
+            'ninguém emite boleto contra si mesmo. Confira o documento antes de pagar.',
+      'payer_only_inside_barcode' =>
+        'BLOQUEADO: o documento do pagador só aparece dentro do código de barras, '
+            'não impresso no boleto — isso é coincidência de dígitos, não identificação.',
 
       // Origem.
       'origin_unknown' => 'Remetente desconhecido.',

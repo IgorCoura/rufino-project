@@ -1,15 +1,20 @@
-namespace BillPayment.Application.Queries.CaptureItems;
+﻿namespace BillPayment.Application.Queries.CaptureItems;
 
 using BillPayment.Domain.CaptureItems;
+using BillPayment.Domain.Ports;
 using BillPayment.Domain.SeedWork;
 using BillPayment.Domain.SharedKernel;
 using BillPayment.Infra.Persistence;
 using Microsoft.EntityFrameworkCore;
 
-internal sealed class CaptureItemQueries(BillPaymentDbContext context) : ICaptureItemQueries
+internal sealed class CaptureItemQueries(BillPaymentDbContext context, IAttachmentStorage storage)
+    : ICaptureItemQueries
 {
     public const int DEFAULT_LIMIT = 50;
     public const int MAX_LIMIT = 200;
+
+    /// <summary>Nome usado quando o provedor não informou o do anexo.</summary>
+    private const string DEFAULT_FILE_NAME = "documento";
 
     public async Task<CaptureItemPage> ListAsync(
         Guid tenantId,
@@ -67,6 +72,33 @@ internal sealed class CaptureItemQueries(BillPaymentDbContext context) : ICaptur
             .FirstOrDefaultAsync(i => i.TenantId == tenant && i.Id == id, cancellationToken);
 
         return item is null ? null : CaptureItemDto.From(item);
+    }
+
+    public async Task<ArtifactDownload?> GetArtifactAsync(
+        Guid tenantId,
+        Guid captureItemId,
+        CancellationToken cancellationToken = default)
+    {
+        var tenant = TenantId.From(tenantId);
+        var id = CaptureItemId.From(captureItemId);
+
+        var item = await context.CaptureItems
+            .AsNoTracking()
+            .FirstOrDefaultAsync(i => i.TenantId == tenant && i.Id == id, cancellationToken);
+
+        // As três negativas saem iguais de propósito — ver o contrato da interface.
+        //
+        // O portão é o MESMO da URL, e não o dos campos financeiros: a pessoa que anexa um boleto
+        // à mão num item de quarentena precisa poder reabri-lo para conferir o que subiu. Com o
+        // gate antigo, ela subia o arquivo e recebia 404 ao tentar vê-lo.
+        if (item is null || !item.Status.ExposesSourceUrl || !item.HasStoredArtifact)
+            return null;
+
+        var artifact = await storage.OpenAsync(tenant, item.StorageKey!, cancellationToken);
+        if (artifact is null)
+            return null;
+
+        return ArtifactDownload.From(artifact, item.ContentType, item.FileName ?? DEFAULT_FILE_NAME);
     }
 
     /// <summary>

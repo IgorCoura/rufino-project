@@ -1,11 +1,16 @@
 import 'dart:convert';
 
 import 'package:http/http.dart' as http;
+import 'package:http_parser/http_parser.dart';
 import 'package:rufino_core/rufino_core.dart';
 import 'package:uuid/uuid.dart';
 
 import '../domain/capture_item.dart';
 import '../domain/capture_item_repository.dart';
+import '../domain/captured_artifact.dart';
+import '../domain/email_message.dart';
+import 'artifact_response.dart';
+import 'bill_api_service.dart';
 
 const _uuid = Uuid();
 
@@ -27,7 +32,7 @@ abstract final class CaptureItemMapper {
       routingConfidence: json['routingConfidence'] as String?,
       extractionMethod: json['extractionMethod'] as String?,
       unlockedBy: json['unlockedBy'] as String?,
-      storageKey: json['storageKey'] as String?,
+      hasArtifact: json['hasArtifact'] as bool? ?? false,
       sourceUrl: json['sourceUrl'] as String?,
       contentHash: json['contentHash'] as String?,
       billId: json['billId'] as String?,
@@ -35,6 +40,9 @@ abstract final class CaptureItemMapper {
       claimedAt: json['claimedAt'] == null
           ? null
           : DateTime.parse(json['claimedAt'] as String),
+      processingAttempts: json['processingAttempts'] as int? ?? 0,
+      lastError: json['lastError'] as String?,
+      linkHost: json['linkHost'] as String?,
     );
   }
 
@@ -121,6 +129,33 @@ class CaptureItemApiService {
     );
   }
 
+  /// Downloads the item's original document.
+  ///
+  /// Goes through `send` instead of `get` because the body is bytes, not
+  /// JSON — the decoding path of every other call here would corrupt it.
+  Future<CapturedArtifact> getArtifact(String id) async {
+    final request = http.Request('GET', _uri('/capture-items/$id/artifact'))
+      ..headers.addAll(await _headers());
+
+    final response =
+        await http.Response.fromStream(await client.send(request));
+    checkApiStatus(response);
+
+    return artifactFromResponse(response);
+  }
+
+  /// Fetches the e-mail that brought the item.
+  Future<EmailMessage> getCaptureItemEmail(String id) async {
+    final response = await client.get(
+      _uri('/capture-items/$id/email'),
+      headers: await _headers(),
+    );
+    checkApiStatus(response);
+    return BillMapper.emailFromJson(
+      jsonDecode(response.body) as Map<String, dynamic>,
+    );
+  }
+
   /// Sends the item back to `Received` for the worker to re-evaluate.
   Future<void> reprocessItem(String id) async {
     final response = await client.post(
@@ -128,6 +163,46 @@ class CaptureItemApiService {
       headers: await _headers(write: true),
     );
     checkApiStatus(response);
+  }
+
+  /// Dismisses a quarantined item the user does not recognise.
+  ///
+  /// Reversible by [reprocessItem]: dismissing removes work from sight without
+  /// anyone having verified the document, so it must be undoable.
+  Future<void> dismissItem(String id, {String? note}) async {
+    final response = await client.post(
+      _uri('/capture-items/$id/dismiss'),
+      headers: await _headers(write: true),
+      body: jsonEncode({'note': note}),
+    );
+    checkApiStatus(response);
+  }
+
+  /// Uploads the bill the user fetched by hand, and returns the item to the queue.
+  ///
+  /// Closes the path the link ladder cannot reach — an issuer whose page needs a
+  /// login, or that has no recipe registered.
+  Future<void> attachArtifact(
+    String id,
+    List<int> bytes, {
+    required String fileName,
+    required String contentType,
+  }) async {
+    final request = http.MultipartRequest('POST', _uri('/capture-items/$id/artifact'))
+      ..headers.addAll(await _headers(write: true))
+      ..files.add(http.MultipartFile.fromBytes(
+        'file',
+        bytes,
+        filename: fileName,
+        contentType: MediaType.parse(contentType),
+      ));
+
+    // O multipart monta o próprio Content-Type, com o boundary — deixar o do JSON
+    // aqui faria o servidor recusar antes de olhar o arquivo.
+    request.headers.remove('Content-Type');
+
+    final streamed = await client.send(request);
+    checkApiStatus(await http.Response.fromStream(streamed));
   }
 
   /// Claims an unrouted item — it becomes this tenant's bill.

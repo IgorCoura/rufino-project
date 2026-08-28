@@ -1,4 +1,4 @@
-namespace BillPayment.Domain.Services;
+﻿namespace BillPayment.Domain.Services;
 
 using BillPayment.Domain.Extraction;
 
@@ -46,18 +46,44 @@ public static class BodyCaptureGateService
     /// <strong>não</strong> é sinal: o sistema não teria como buscar o documento, e o item nasceria
     /// só para morrer na quarentena.
     /// </param>
+    /// <param name="subject">
+    /// Assunto da mensagem. Sinal fraco — decide esforço, nunca descarte. O <em>endereço</em> do
+    /// remetente de propósito não entra: "conta" casa dentro de "contato" e "contabilidade".
+    /// </param>
     public static bool ShouldCapture(
         string? plainText,
         IEnumerable<DocumentLink>? links,
-        IReadOnlyCollection<string>? resolvableHosts)
+        IReadOnlyCollection<string>? resolvableHosts,
+        string? subject = null)
     {
         if (CarriesInstrumentInText(plainText))
             return true;
 
-        if (links is null || resolvableHosts is null || resolvableHosts.Count == 0)
+        if (links is null)
             return false;
 
-        return links.Any(link => resolvableHosts.Contains(link.Host, StringComparer.OrdinalIgnoreCase));
+        var candidates = links as IReadOnlyCollection<DocumentLink> ?? [.. links];
+
+        if (candidates.Count == 0)
+            return false;
+
+        if (resolvableHosts is { Count: > 0 }
+            && candidates.Any(link => resolvableHosts.Contains(link.Host, StringComparer.OrdinalIgnoreCase)))
+        {
+            return true;
+        }
+
+        // QUARTO SINAL: link para host DESCONHECIDO, quando a mensagem se parece com cobrança.
+        //
+        // A regra antiga — só host com receita conta — tinha um buraco medido em 2026-08-26: o
+        // sistema só descobria boleto de emissor que alguém já havia sondado e cadastrado à mão.
+        // Emissor novo era invisível, e invisível em silêncio: sem item, sem quarentena, sem
+        // aviso. O caso real foi uma cobrança da Asaas — assunto "uma cobrança foi gerada para
+        // você", sem anexo, com o boleto atrás de `www.asaas.com/i/{token}` — que sumiu inteira.
+        //
+        // Aqui o item nasce sabendo que pode não resolver, e é esse o ponto: o que a escada não
+        // buscar vai para a quarentena, onde uma pessoa decide. É melhor que sumir.
+        return BillingSignal.IsStrong(origin: null, subject);
     }
 
     /// <summary>

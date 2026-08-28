@@ -3,6 +3,8 @@ namespace BillPayment.IntegrationTests.Bills;
 using System.Net;
 using System.Net.Http.Json;
 using BillPayment.Domain.Bills;
+using BillPayment.Domain.Bills.Checks;
+using BillPayment.Domain.SeedWork;
 using BillPayment.Domain.Instruments;
 using BillPayment.Domain.Lookups;
 using BillPayment.Domain.SharedKernel;
@@ -79,9 +81,9 @@ public sealed class ApproveBillTests : BaseIntegrationTest, IDisposable
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }
 
-    // Boleto reprovado não é aprovável pela API — 409, e nada é gravado.
+    // ADR-015: boleto em Perigo sem o aceite explícito devolve 409, e nada é gravado.
     [Fact]
-    public async Task Approve_OnARejectedBill_ShouldReturnConflict()
+    public async Task Approve_OnADangerBillWithoutAcknowledgingTheRisk_ShouldReturnConflict()
     {
         _lookups.BankSlipResult = BillLookupResult.Unavailable("timeout", null, ConsultedAt());
 
@@ -92,6 +94,26 @@ public sealed class ApproveBillTests : BaseIntegrationTest, IDisposable
 
         Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
         Assert.Null((await LoadAsync(billId)).Approval);
+    }
+
+    // ADR-015 pela porta da frente: com acknowledgeRisk o Perigo é aprovável, e a trilha grava
+    // o nível de risco que o aprovador viu no instante da decisão.
+    [Fact]
+    public async Task Approve_OnADangerBillAcknowledgingTheRisk_ShouldApproveAndRecordIt()
+    {
+        _lookups.BankSlipResult = BillLookupResult.Unavailable("timeout", null, ConsultedAt());
+
+        var billId = await ImportAsync();
+        await DrainOutboxAsync();
+
+        var response = await PostAsync(
+            $"{billId}/approve", new ApproveBillRequest(ScheduleDate(), "risco assumido", AcknowledgeRisk: true));
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        var bill = await LoadAsync(billId);
+        Assert.Equal(BillStatus.Approved, bill.Status);
+        Assert.Same(RiskLevel.Danger, bill.Approval!.RiskAtDecision);
     }
 
     // Retrato velho não sustenta aprovação — e revalidar é o caminho de volta.
@@ -158,7 +180,7 @@ public sealed class ApproveBillTests : BaseIntegrationTest, IDisposable
         Assert.DoesNotContain(BankSlipLine, raw, StringComparison.Ordinal);
 
         var detail = await response.Content.ReadFromJsonAsync<BillDetailContract>(CancellationToken.None);
-        Assert.Equal(12, detail!.Checks.Count);
+        Assert.Equal(Enumeration.GetAll<CheckType>().Count(), detail!.Checks.Count);
         Assert.Equal(BeneficiaryCnpj, detail.Beneficiary!.TaxId!.Replace(".", "", StringComparison.Ordinal)
             .Replace("/", "", StringComparison.Ordinal).Replace("-", "", StringComparison.Ordinal));
         Assert.All(detail.Checks, c => Assert.False(string.IsNullOrWhiteSpace(c.Type)));

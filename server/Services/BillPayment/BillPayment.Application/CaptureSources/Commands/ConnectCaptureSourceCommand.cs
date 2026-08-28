@@ -1,4 +1,4 @@
-namespace BillPayment.Application.CaptureSources.Commands;
+﻿namespace BillPayment.Application.CaptureSources.Commands;
 
 using BillPayment.Application.Mediator;
 using BillPayment.Domain.CaptureSources;
@@ -22,7 +22,8 @@ public sealed record ConnectCaptureSourceCommand(
     string DisplayName,
     string Address,
     string Credential,
-    string? FolderPath) : IRequest<ConnectCaptureSourceResponse>, ISensitiveCommand;
+    string? FolderPath,
+    DateOnly? CaptureSince) : IRequest<ConnectCaptureSourceResponse>, ISensitiveCommand;
 
 /// <summary>
 /// <paramref name="AlreadyMonitoredByAnotherAccount"/> é o aviso do ADR-008 — e é
@@ -65,7 +66,14 @@ public sealed class ConnectCaptureSourceCommandHandler(
         await EnsureMailboxIsReachableAsync(kind, normalized, credential, request.FolderPath, cancellationToken);
 
         var source = CaptureSource.Connect(
-            tenantId, kind, request.DisplayName, request.Address, credential, now.UtcDateTime, request.FolderPath);
+            tenantId,
+            kind,
+            request.DisplayName,
+            request.Address,
+            credential,
+            now.UtcDateTime,
+            request.FolderPath,
+            request.CaptureSince);
 
         await repository.AddAsync(source, cancellationToken);
 

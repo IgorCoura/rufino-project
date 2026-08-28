@@ -106,6 +106,32 @@ internal sealed class BillMap : IEntityTypeConfiguration<Bill>
             .HasColumnName("routing_confidence")
             .HasConversion(r => r!.Id, id => Enumeration.FromValue<RoutingConfidence>(id));
 
+        builder.Property(e => e.Risk)
+            .HasColumnName("risk_level")
+            .HasConversion(r => r!.Id, id => Enumeration.FromValue<RiskLevel>(id));
+
+        builder.Property(e => e.ReadingState)
+            .HasColumnName("reading_state")
+            .HasConversion(r => r.Id, id => Enumeration.FromValue<ReadingStatus>(id))
+            .IsRequired();
+
+        builder.Property(e => e.ReadingAttempts).HasColumnName("reading_attempts").IsRequired();
+        builder.Property(e => e.ReadingLeaseExpiresAt).HasColumnName("reading_lease_expires_at");
+
+        builder.Property(e => e.ReadingArrivedAfterDecision)
+            .HasColumnName("reading_arrived_after_decision")
+            .IsRequired();
+
+        // Derivado — não é coluna. Ligá-lo ao banco criaria um segundo lugar para a regra
+        // "ainda dá para revalidar sem desfazer decisão de ninguém" envelhecer.
+        builder.Ignore(e => e.AcceptsSilentRevalidation);
+
+        // A fila da análise por IA: pendentes, do mais antigo para o mais novo. Parcial porque só
+        // um estado interessa, e a coluna é altamente seletiva.
+        builder.HasIndex(e => new { e.ReadingState, e.ReadingLeaseExpiresAt })
+            .HasDatabaseName("ix_bills_reading_queue")
+            .HasFilter("reading_state = 2");
+
         // Pagador extraído: owned de 1º nível, e o TaxId dentro dele é coluna de texto via
         // conversor (não outro owned), então não recai na armadilha de 2º nível.
         builder.OwnsOne(e => e.ExtractedPayer, payer =>
@@ -130,6 +156,11 @@ internal sealed class BillMap : IEntityTypeConfiguration<Bill>
             .HasColumnName("pix_lookup")
             .HasColumnType("jsonb")
             .HasConversion(LookupConversions.Pix, LookupConversions.PixComparer);
+
+        builder.Property(e => e.Reading)
+            .HasColumnName("reading")
+            .HasColumnType("jsonb")
+            .HasConversion(ReadingConversions.Reading, ReadingConversions.ReadingComparer);
 
         builder.Property(e => e.LookupHistory)
             .HasColumnName("lookup_history")
@@ -177,6 +208,10 @@ internal sealed class BillMap : IEntityTypeConfiguration<Bill>
 
         builder.Property(e => e.ScheduledFor).HasColumnName("scheduled_for");
 
+        // Materializada pelo agregado (RecomputeDueDate) a partir dos retratos jsonb — a coluna
+        // existe para a listagem ordenar e filtrar por vencimento em SQL.
+        builder.Property(e => e.DueDate).HasColumnName("due_date");
+
         // A decisão é owned de 1º nível e só tem escalares — pode ser achatada com segurança.
         // Ter as colunas em SQL é o que permite o relatório responder "quem aprovou o quê".
         builder.OwnsOne(e => e.Approval, approval =>
@@ -194,12 +229,17 @@ internal sealed class BillMap : IEntityTypeConfiguration<Bill>
             approval.Property(a => a.Note)
                 .HasColumnName("approval_note")
                 .HasMaxLength(ApprovalRecord.NOTE_MAX_LENGTH);
+
+            approval.Property(a => a.RiskAtDecision)
+                .HasColumnName("approval_risk_at_decision")
+                .HasConversion(r => r!.Id, id => Enumeration.FromValue<RiskLevel>(id));
         });
 
         builder.Property(e => e.CreatedAt).HasColumnName("created_at").IsRequired();
         builder.Property(e => e.UpdatedAt).HasColumnName("updated_at").IsRequired();
 
         builder.HasIndex(e => new { e.TenantId, e.CreatedAt }).HasDatabaseName("ix_bills_tenant_created");
+        builder.HasIndex(e => new { e.TenantId, e.DueDate }).HasDatabaseName("ix_bills_tenant_due_date");
 
         // Invariante BLP.BIL02 — unicidade GLOBAL da chave de instrumento.
         //

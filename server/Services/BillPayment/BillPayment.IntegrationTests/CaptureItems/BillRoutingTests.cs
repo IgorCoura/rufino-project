@@ -301,7 +301,13 @@ public sealed class BillRoutingTests : BaseIntegrationTest
         using var scope = _services.CreateScope();
         var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
 
-        return await mediator.Send(new ProcessCaptureItemCommand(Tenant.Value, itemId.Value));
+        // As DUAS passagens, como em produção: desde 2026-08-27 todo candidato a boleto passa
+        // pela faixa de visão — o resolvido pelo determinístico vai lá buscar o retrato da IA.
+        var first = await mediator.Send(new ProcessCaptureItemCommand(Tenant.Value, itemId.Value));
+
+        return first.Decision != "VisionPending"
+            ? first
+            : await mediator.Send(new ProcessCaptureItemCommand(Tenant.Value, itemId.Value, VisionLane: true));
     }
 
     private Task<CaptureItem?> LoadAsync(CaptureItemId itemId)

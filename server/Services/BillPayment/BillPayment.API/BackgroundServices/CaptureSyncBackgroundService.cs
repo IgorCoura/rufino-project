@@ -1,4 +1,4 @@
-namespace BillPayment.API.BackgroundServices;
+﻿namespace BillPayment.API.BackgroundServices;
 
 using BillPayment.Application.CaptureSources.Commands;
 using BillPayment.Application.Mediator;
@@ -31,13 +31,16 @@ internal sealed class CaptureSyncBackgroundService(
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        using var timer = new PeriodicTimer(_options.PollingInterval);
-
         while (!stoppingToken.IsCancellationRequested)
         {
+            // Quando alguma fonte parou no teto de páginas, o ciclo seguinte vem logo: a caixa
+            // ainda tem mensagem por ler, e a mais nova é justamente a que está no fim da fila
+            // do provedor. Sem isso, uma caixa grande leva horas para alcançar o e-mail de hoje.
+            var pending = false;
+
             try
             {
-                await RunCycleAsync(stoppingToken);
+                pending = await RunCycleAsync(stoppingToken);
             }
             catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
             {
@@ -50,7 +53,8 @@ internal sealed class CaptureSyncBackgroundService(
 
             try
             {
-                await timer.WaitForNextTickAsync(stoppingToken);
+                await Task.Delay(
+                    pending ? _options.CatchUpInterval : _options.PollingInterval, stoppingToken);
             }
             catch (OperationCanceledException)
             {
@@ -59,17 +63,21 @@ internal sealed class CaptureSyncBackgroundService(
         }
     }
 
-    private async Task RunCycleAsync(CancellationToken stoppingToken)
+    /// <summary>Roda um ciclo e devolve se alguma fonte ficou com páginas por ler.</summary>
+    private async Task<bool> RunCycleAsync(CancellationToken stoppingToken)
     {
         var due = await ListDueAsync(stoppingToken);
+        var pending = false;
 
         foreach (var (tenantId, sourceId) in due)
         {
             if (stoppingToken.IsCancellationRequested)
-                return;
+                return pending;
 
-            await SyncOneAsync(tenantId, sourceId, stoppingToken);
+            pending |= await SyncOneAsync(tenantId, sourceId, stoppingToken);
         }
+
+        return pending;
     }
 
     /// <summary>
@@ -92,7 +100,8 @@ internal sealed class CaptureSyncBackgroundService(
             .ToList();
     }
 
-    private async Task SyncOneAsync(Guid tenantId, Guid sourceId, CancellationToken stoppingToken)
+    /// <summary>Sincroniza uma fonte e devolve se ela ficou com páginas por ler.</summary>
+    private async Task<bool> SyncOneAsync(Guid tenantId, Guid sourceId, CancellationToken stoppingToken)
     {
         using var scope = scopeFactory.CreateScope();
         var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
@@ -111,6 +120,8 @@ internal sealed class CaptureSyncBackgroundService(
                     result.IngestedItems,
                     result.SkippedAsAlreadyIngested);
             }
+
+            return result.HasMorePages;
         }
         catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
         {
@@ -121,6 +132,10 @@ internal sealed class CaptureSyncBackgroundService(
             // Uma fonte que estoura não pode levar as outras junto — a falha de leitura já é
             // modelada e gravada no agregado; o que chega aqui é defeito, e é isolado por fonte.
             logger.LogError(ex, "Capture source {SourceId} failed to sync.", sourceId);
+
+            // Falha não é "tem mais página": insistir de 5 em 5 segundos contra uma fonte
+            // quebrada transformaria um problema de configuração em laço apertado.
+            return false;
         }
     }
 }

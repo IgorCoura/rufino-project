@@ -1,5 +1,7 @@
 namespace BillPayment.Domain.Bills;
 
+using BillPayment.Domain.Bills.Checks;
+
 using BillPayment.Domain.SeedWork;
 using BillPayment.Domain.SharedKernel;
 
@@ -27,10 +29,22 @@ public sealed class ApprovalRecord : ValueObject
     public DateTime DecidedAt { get; private set; }
     public string? Note { get; private set; }
 
+    /// <summary>
+    /// O nível de risco que o boleto exibia no instante da aprovação (ADR-015) — é a prova, na
+    /// trilha de auditoria, de que o aprovador viu o alerta e decidiu mesmo assim. Nulo em
+    /// recusa/cancelamento e em decisão anterior à classificação de risco.
+    /// </summary>
+    public RiskLevel? RiskAtDecision { get; private set; }
+
     private ApprovalRecord() { }
 
-    public static ApprovalRecord Approve(UserId decidedBy, DateTime decidedAt, string? note)
-        => Create(decidedBy, ApprovalDecision.Approved, decidedAt, note, noteRequired: false);
+    public static ApprovalRecord Approve(
+        UserId decidedBy, DateTime decidedAt, string? note, RiskLevel? riskAtDecision = null)
+    {
+        var record = Create(decidedBy, ApprovalDecision.Approved, decidedAt, note, noteRequired: false);
+        record.RiskAtDecision = riskAtDecision;
+        return record;
+    }
 
     public static ApprovalRecord Deny(UserId decidedBy, DateTime decidedAt, string reason)
         => Create(decidedBy, ApprovalDecision.Denied, decidedAt, reason, noteRequired: true);
@@ -70,5 +84,6 @@ public sealed class ApprovalRecord : ValueObject
         yield return Decision;
         yield return DecidedAt;
         yield return Note;
+        yield return RiskAtDecision;
     }
 }

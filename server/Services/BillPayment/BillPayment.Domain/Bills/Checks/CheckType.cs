@@ -57,6 +57,14 @@ public sealed class CheckType : Enumeration
     /// <summary>O QR Pix e o código de barras contam a mesma história?</summary>
     public static readonly CheckType PixBarcodeConsistency = new(12, nameof(PixBarcodeConsistency), CheckSeverity.Blocking);
 
+    /// <summary>
+    /// O que está impresso no documento (lido pela IA) bate com a consulta oficial? Advisory por
+    /// padrão — valor e vencimento divergentes viram aviso —, mas identidade do beneficiário
+    /// divergente escala para Blocking: é o vetor da fraude de instrumento trocado sobre
+    /// documento legítimo (Fase E, 2026-08-27).
+    /// </summary>
+    public static readonly CheckType DocumentConsistency = new(13, nameof(DocumentConsistency), CheckSeverity.Advisory);
+
     /// <summary>Peso usual da falha deste check. O resultado pode carregar outro.</summary>
     public CheckSeverity DefaultSeverity { get; }
 

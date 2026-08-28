@@ -1,6 +1,6 @@
 # 05 — Casos de uso e contratos de API
 
-Convenções: rota `api/v1/{tenantId}/[controller]`, comandos de escrita embrulhados em `IdentifiedCommand` com header `x-requestid`, leitura por `IXxxQueries` injetada direto no controller (sem mediator). Autorização granular via `[ProtectedResource(recurso, ação)]` — **plugada em 2026-08-15**, nos 55 endpoints existentes.
+Convenções: rota `api/v1/{tenantId}/[controller]`, comandos de escrita embrulhados em `IdentifiedCommand` com header `x-requestid`, leitura por `IXxxQueries` injetada direto no controller (sem mediator). Autorização granular via `[ProtectedResource(recurso, ação)]` — **plugada em 2026-08-15**, nos endpoints existentes — **57** depois dos dois de documento original (2026-08-19).
 
 ## Recursos e ações de autorização
 
@@ -13,9 +13,13 @@ Convenções: rota `api/v1/{tenantId}/[controller]`, comandos de escrita embrulh
 | `capture-source` | `view`, `manage`, `sync` | ✅ aplicado |
 | `capture-item` | `view`, `claim`, **`reprocess`** | ✅ aplicado |
 | `expectation` | `view`, `manage`, **`waive`** | ✅ aplicado |
+| `captured-message` | `view`, **`recapture`** | ✅ aplicado (2026-08-19) |
+| `capture-retention` | `view`, `manage` | ✅ aplicado (2026-08-19) |
 | ~~`routing-rule`~~ | — | **abandonado na 2.6** — a chave que a regra usaria não distingue pagadores |
 | `payment` | `view`, `cancel` | previsto (fase 3) |
 | `report` | `view`, `export` | previsto (fase 4) |
+
+**Os dois recursos de 2026-08-19 são próprios de propósito.** `captured-message` é o livro-caixa da captura — um registro por e-mail lido, **inclusive o descartado**, que não deixa `CaptureItem`. Pendurá-lo em `capture-item` misturaria fila de trabalho com histórico, que são coisas diferentes: a fila mostra o que falta resolver, o histórico responde "o que houve com o e-mail que eu mandei". `recapture` tem escopo próprio pelo mesmo motivo de `capture-item:reprocess` — reingerir consome cota do extrator de visão. E `capture-retention:manage` fica com o administrador porque decidir por quanto tempo o histórico existe é decisão de instalação, não de operação.
 
 **Três escopos não estavam neste catálogo e a implementação os acrescentou**, cada um porque a ação que ele cobre custa algo que a leitura não custa:
 
@@ -63,7 +67,9 @@ Cursor pagination. Ordenação padrão: os que exigem atenção primeiro (`Rejec
 
 `GET /api/v1/{tenantId}/bills/{id}`
 
-Devolve linha digitável, origem com evidência, snapshot da consulta, **todos os checks com motivo e evidência**, decisão humana e link do PDF original. É a tela onde a aprovação acontece — a evidência precisa estar completa aqui, senão o aprovador aprova no escuro.
+Devolve origem com evidência, snapshot da consulta, **todos os checks com motivo e evidência** e a decisão humana. É a tela onde a aprovação acontece — a evidência precisa estar completa aqui, senão o aprovador aprova no escuro.
+
+> **Estado (2026-08-19):** o detalhe **não devolve a linha digitável** — quem tem os dígitos, paga, e essa decisão é anterior a este documento. O "link do PDF original" que esta seção prometia virou endpoint próprio: **`GET /bills/{id}/artifact`** serve o arquivo como ele chegou (`bill:view`), e responde 404 para boleto de outro tenant e para boleto importado à mão, que nasce só com os dígitos. O irmão dele é **`GET /capture-items/{id}/artifact`** (`capture-item:view`), que serve a quarentena sob o gate do ADR-008 — sem ele, reivindicar era decidir no escuro.
 
 ### UC-05 — Aprovar boleto
 

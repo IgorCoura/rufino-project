@@ -1,9 +1,12 @@
-namespace BillPayment.API.Controllers;
+﻿namespace BillPayment.API.Controllers;
 
 using BillPayment.API.Authorization;
 using BillPayment.Application.CaptureItems.Commands;
 using BillPayment.Application.Mediator;
+using BillPayment.Application.Models.CaptureItems;
 using BillPayment.Application.Queries.CaptureItems;
+using BillPayment.Application.Queries.CapturedMessages;
+using BillPayment.Domain.Extraction;
 using Microsoft.AspNetCore.Mvc;
 
 /// <summary>
@@ -24,6 +27,7 @@ using Microsoft.AspNetCore.Mvc;
 public sealed class CaptureItemsController(
     IMediator mediator,
     ICaptureItemQueries queries,
+    ICapturedMessageQueries capturedMessages,
     ILogger<CaptureItemsController> logger) : BaseController(logger)
 {
     /// <summary>
@@ -49,6 +53,60 @@ public sealed class CaptureItemsController(
     {
         var item = await queries.GetAsync(tenantId, id, cancellationToken);
         return item is null ? NotFound() : OkResponse(item);
+    }
+
+    /// <summary>
+    /// Serve o documento original do item, para uma pessoa conferir antes de reivindicar.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <strong>Reivindicar sem ver o documento é decidir no escuro</strong>, e é o oposto do que
+    /// a tela de aprovação faz do outro lado do fluxo. Quem responde se o item pode ser aberto é
+    /// a query, pelo mesmo gate do DTO (<c>ExposesFinancialDetail</c>).
+    /// </para>
+    /// <para>
+    /// <c>404</c> cobre todas as negativas — item de outro tenant, item de outro pagador, item
+    /// sem arquivo guardado e chave órfã. Distinguir confirmaria a existência do item a quem não
+    /// pode vê-lo.
+    /// </para>
+    /// </remarks>
+    [HttpGet("{id:guid}/artifact")]
+    [ProtectedResource("capture-item", "view")]
+    public async Task<IActionResult> GetArtifact(
+        [FromRoute] Guid tenantId,
+        [FromRoute] Guid id,
+        CancellationToken cancellationToken)
+    {
+        var artifact = await queries.GetArtifactAsync(tenantId, id, cancellationToken);
+        if (artifact is null)
+            return NotFound();
+
+        ArtifactAccessLog(tenantId, "capture-item", id);
+
+        // O Stream é entregue ao pipeline, que o fecha ao terminar de escrever a resposta — por
+        // isso não há `using` aqui: liberá-lo agora mandaria um corpo vazio.
+        return File(artifact.Content, artifact.ContentType, artifact.FileName, enableRangeProcessing: true);
+    }
+
+    /// <summary>
+    /// O e-mail que trouxe este item — título, remetente e corpo renderizável. 404 para anexo
+    /// manual (não há e-mail por trás) e para mensagem já fora de alcance; mesmo portão do
+    /// documento original (ADR-008), com o acesso registrado.
+    /// </summary>
+    [HttpGet("{id:guid}/email")]
+    [ProtectedResource("capture-item", "view")]
+    public async Task<ActionResult<CapturedMessageBodyDto>> GetEmail(
+        [FromRoute] Guid tenantId,
+        [FromRoute] Guid id,
+        CancellationToken cancellationToken)
+    {
+        var body = await capturedMessages.GetBodyForCaptureItemAsync(tenantId, id, cancellationToken);
+        if (body is null)
+            return NotFound();
+
+        ArtifactAccessLog(tenantId, "capture-item-email", id);
+
+        return OkResponse(body);
     }
 
     /// <summary>
@@ -112,6 +170,80 @@ public sealed class CaptureItemsController(
     {
         var command = new ClaimCaptureItemCommand(tenantId, id, ResolveDecidingUserId());
         var identified = new IdentifiedCommand<ClaimCaptureItemCommand, ClaimCaptureItemResponse>(
+            command, EnsureRequestId(requestId));
+
+        SendingCommandLog(id, command, identified.Id);
+        var result = await mediator.Send(identified, cancellationToken);
+        CommandResultLog(result, id, command, identified.Id);
+
+        return OkResponse(result);
+    }
+
+    /// <summary>
+    /// Reprova o item: uma pessoa olhou e não reconhece a cobrança.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <strong>É o que torna a fila de quarentena esvaziável.</strong> Sem isto, todo item que a
+    /// cascata não resolve fica pendente para sempre e a lista deixa de ser olhada.
+    /// </para>
+    /// <para>
+    /// Reversível por <c>reopen</c>, e com autor registrado: reprovar tira trabalho da vista sem
+    /// que ninguém tenha conferido o documento, e é a única operação da quarentena com essa
+    /// propriedade. Usa o escopo de <c>claim</c> porque reivindicar e reprovar são as duas faces
+    /// da mesma decisão — resolver este item.
+    /// </para>
+    /// </remarks>
+    [HttpPost("{id:guid}/dismiss")]
+    [ProtectedResource("capture-item", "claim")]
+    public async Task<ActionResult<DismissCaptureItemResponse>> Dismiss(
+        [FromRoute] Guid tenantId,
+        [FromRoute] Guid id,
+        [FromBody] DismissCaptureItemModel? model,
+        [FromHeader(Name = "x-requestid")] Guid requestId,
+        CancellationToken cancellationToken)
+    {
+        var command = new DismissCaptureItemCommand(tenantId, id, ResolveDecidingUserId(), model?.Note);
+        var identified = new IdentifiedCommand<DismissCaptureItemCommand, DismissCaptureItemResponse>(
+            command, EnsureRequestId(requestId));
+
+        SendingCommandLog(id, command, identified.Id);
+        var result = await mediator.Send(identified, cancellationToken);
+        CommandResultLog(result, id, command, identified.Id);
+
+        return OkResponse(result);
+    }
+
+    /// <summary>
+    /// Anexa à mão o boleto que o sistema não conseguiu buscar, e devolve o item à fila.
+    /// </summary>
+    /// <remarks>
+    /// Fecha o caminho que a escada de link não alcança — emissor com página atrás de login, ou
+    /// sem receita cadastrada. A pessoa abre a URL que a quarentena agora mostra, baixa o PDF e o
+    /// devolve aqui; daí em diante o fluxo é o de sempre: cascata, roteamento e aprovação.
+    /// </remarks>
+    [HttpPost("{id:guid}/artifact")]
+    [ProtectedResource("capture-item", "reprocess")]
+    [RequestSizeLimit(DocumentPayload.MAX_BYTES)]
+    public async Task<ActionResult<AttachCaptureItemArtifactResponse>> AttachArtifact(
+        [FromRoute] Guid tenantId,
+        [FromRoute] Guid id,
+        IFormFile file,
+        [FromHeader(Name = "x-requestid")] Guid requestId,
+        CancellationToken cancellationToken)
+    {
+        if (file is null || file.Length == 0)
+            return BadRequest(new { errors = new[] { new { code = "BLP.CPI09", message = "Envie o arquivo do boleto." } } });
+
+        // Lido para memória porque o teto já é de 20 MB e o comando precisa dos bytes duas vezes
+        // — para o hash e para a gravação. Acima disso o Kestrel recusa antes de chegar aqui.
+        using var buffer = new MemoryStream();
+        await file.CopyToAsync(buffer, cancellationToken);
+
+        var command = new AttachCaptureItemArtifactCommand(
+            tenantId, id, buffer.ToArray(), file.ContentType, file.FileName);
+
+        var identified = new IdentifiedCommand<AttachCaptureItemArtifactCommand, AttachCaptureItemArtifactResponse>(
             command, EnsureRequestId(requestId));
 
         SendingCommandLog(id, command, identified.Id);

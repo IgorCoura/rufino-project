@@ -1,5 +1,7 @@
 namespace BillPayment.UnitTests.Expectations.Mothers;
 
+using BillPayment.Domain.Bills;
+using BillPayment.Domain.CaptureSources;
 using BillPayment.Domain.Expectations;
 using BillPayment.Domain.Payees;
 using BillPayment.Domain.SharedKernel;
@@ -20,7 +22,9 @@ internal static class BillExpectationMother
         int expectedDueDay = 10,
         int observedLeadDays = 8,
         int? alertLeadDays = null,
-        DateTime? occurredAt = null)
+        DateTime? occurredAt = null,
+        DateOnly? anchorDueDate = null,
+        CaptureSourceId? hintSourceId = null)
         => BillExpectation.Register(
             DefaultTenant,
             DefaultPayee,
@@ -30,19 +34,46 @@ internal static class BillExpectationMother
             expectedDueDay,
             observedLeadDays,
             alertLeadDays,
+            anchorDueDate,
+            hintSourceId,
             occurredAt ?? DefaultOccurredAt);
 
-    public static BillExpectation Learned(int observationCount = 3, int expectedDueDay = 10)
+    public static BillExpectation Learned(
+        int observationCount = 3,
+        int expectedDueDay = 10,
+        Recurrence? recurrence = null,
+        CompetencePeriod? anchorCompetence = null,
+        CaptureSourceId? hintSourceId = null)
         => BillExpectation.Learn(
             DefaultTenant,
             DefaultPayee,
             DefaultLabel,
-            Recurrence.Monthly,
+            recurrence ?? Recurrence.Monthly,
             expectedDueDay,
             observedLeadDays: 8,
             observationCount,
-            hintSourceId: null,
+            anchorCompetence,
+            hintSourceId,
             DefaultOccurredAt);
+
+    /// <summary>
+    /// Cumprimento com a data de chegada explícita — é ela, e não o instante da chamada, que
+    /// alimenta a média móvel do prazo observado.
+    /// </summary>
+    public static void Fulfill(
+        BillExpectation expectation,
+        ExpectationCycleId cycleId,
+        BillId billId,
+        DateOnly actualDueDate,
+        DateOnly? arrivedOn = null,
+        DateTime? occurredAt = null)
+        => expectation.Fulfill(
+            cycleId,
+            billId,
+            actualDueDate,
+            arrivedOn ?? DateOnly.FromDateTime(occurredAt ?? DefaultOccurredAt),
+            arrivedThrough: null,
+            occurredAt ?? DefaultOccurredAt);
 
     /// <summary>Com o ciclo da competência informada já aberto.</summary>
     public static (BillExpectation Expectation, ExpectationCycle Cycle) WithOpenCycle(

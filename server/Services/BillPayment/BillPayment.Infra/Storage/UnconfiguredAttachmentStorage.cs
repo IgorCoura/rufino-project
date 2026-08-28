@@ -38,6 +38,20 @@ internal sealed class UnconfiguredAttachmentStorage : IAttachmentStorage
         => throw new InvalidOperationException(MESSAGE);
 
     /// <summary>
+    /// Estoura, e <strong>não</strong> devolve <c>null</c>.
+    /// </summary>
+    /// <remarks>
+    /// <c>null</c> significa "este documento não existe", e diria ao usuário que o comprovante do
+    /// boleto se perdeu. Aqui o que falta é configuração do ambiente — a diferença entre um 404
+    /// que encerra o assunto e um erro que leva alguém a configurar o `Storage`.
+    /// </remarks>
+    public Task<StoredArtifact?> OpenAsync(
+        TenantId tenantId,
+        string storageKey,
+        CancellationToken cancellationToken)
+        => throw new InvalidOperationException(MESSAGE);
+
+    /// <summary>
     /// A única operação tolerante: apagar o que nunca foi guardado já satisfaz o objetivo da
     /// purga, e fazê-la falhar travaria a limpeza de itens que não têm arquivo nenhum.
     /// </summary>

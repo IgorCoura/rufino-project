@@ -147,6 +147,7 @@ class PendingExpectation {
     this.arrived,
     this.blockedByCaptureItemId,
     this.lastAlertLevel,
+    this.isOverdue = false,
   });
 
   /// The expectation's id.
@@ -178,16 +179,27 @@ class PendingExpectation {
 
   /// One of [AlertLevels].
   final String? lastAlertLevel;
+
+  /// Whether the expected due date has already passed.
+  ///
+  /// Projected by the server on purpose: recomputing "today" on the client
+  /// would make the screen disagree with the backend at the day turn.
+  final bool isOverdue;
 }
 
-/// The pending panel: three lists with three different calls to action.
+/// The pending panel: four lists with four different calls to action.
 ///
-/// They are semantically distinct — "go fetch it", "fix the item", and
-/// plain anticipation — and must never be collapsed into one.
+/// They are semantically distinct — "charges are running", "go fetch it",
+/// "fix the item", and plain anticipation — and must never be collapsed into
+/// one. [overdue] was split out of [missing] on 2026-08-27: before the due
+/// date the action is "there is still time to fetch it"; after it there are
+/// late fees, and mixing the two buries the urgent case among the rest —
+/// which is how a safety net stops being read.
 class PendingExpectationsView {
-  /// Creates the panel with its three lists.
+  /// Creates the panel with its four lists.
   const PendingExpectationsView({
     required this.missing,
+    required this.overdue,
     required this.captureFailed,
     required this.dueSoon,
   });
@@ -195,11 +207,15 @@ class PendingExpectationsView {
   /// An empty panel.
   const PendingExpectationsView.empty()
       : missing = const [],
+        overdue = const [],
         captureFailed = const [],
         dueSoon = const [];
 
-  /// Bills that never arrived — go fetch them.
+  /// Bills that have not arrived and are not late yet — go fetch them.
   final List<PendingExpectation> missing;
+
+  /// Bills that never arrived and are already past due — charges are running.
+  final List<PendingExpectation> overdue;
 
   /// Bills that arrived and could not be read — fix the item.
   final List<PendingExpectation> captureFailed;
@@ -209,8 +225,12 @@ class PendingExpectationsView {
 
   /// Whether there is nothing pending at all.
   bool get isEmpty =>
-      missing.isEmpty && captureFailed.isEmpty && dueSoon.isEmpty;
+      missing.isEmpty &&
+      overdue.isEmpty &&
+      captureFailed.isEmpty &&
+      dueSoon.isEmpty;
 
   /// How many lines demand action (due-soon is anticipation, not action).
-  int get actionableCount => missing.length + captureFailed.length;
+  int get actionableCount =>
+      missing.length + overdue.length + captureFailed.length;
 }

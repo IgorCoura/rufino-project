@@ -180,5 +180,57 @@ void main() {
       expect(viewModel.errorMessage, 'regra disse não');
       viewModel.dispose();
     });
+
+    test('sends the attached file along with the import', () async {
+      final repository = FakeBillRepository();
+      final viewModel = BillImportViewModel(repository: repository)
+        ..setDocument((
+          bytes: const [1, 2, 3],
+          fileName: 'boleto.pdf',
+          contentType: 'application/pdf',
+        ));
+
+      await viewModel.import();
+
+      expect(repository.lastImport!.documentBytes, const [1, 2, 3]);
+      expect(repository.lastImport!.documentFileName, 'boleto.pdf');
+      expect(repository.lastImport!.documentContentType, 'application/pdf');
+      viewModel.dispose();
+    });
+
+    test('imports with no file when the attachment was removed', () async {
+      final repository = FakeBillRepository();
+      final viewModel = BillImportViewModel(repository: repository)
+        ..setDocument((
+          bytes: const [1, 2, 3],
+          fileName: 'boleto.pdf',
+          contentType: 'application/pdf',
+        ))
+        ..setDocument(null);
+
+      await viewModel.import(digitableLine: '3419...');
+
+      expect(viewModel.document, isNull);
+      expect(repository.lastImport!.documentBytes, isNull);
+      viewModel.dispose();
+    });
+
+    test('attaching a file clears the error left by the previous attempt',
+        () async {
+      final repository = FakeBillRepository()..setShouldFail(true);
+      final viewModel = BillImportViewModel(repository: repository);
+
+      await viewModel.import(digitableLine: '3419...');
+      expect(viewModel.errorMessage, isNotNull);
+
+      viewModel.setDocument((
+        bytes: const [1],
+        fileName: 'boleto.pdf',
+        contentType: 'application/pdf',
+      ));
+
+      expect(viewModel.errorMessage, isNull);
+      viewModel.dispose();
+    });
   });
 }

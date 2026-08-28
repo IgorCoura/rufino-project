@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:bill_payment/bill_payment.dart';
 import 'package:flutter/widgets.dart';
 import 'package:http/http.dart' as http;
@@ -118,6 +120,12 @@ class FakePayeeRepository implements PayeeRepository {
   /// The writes performed, in order (e.g. `addAlias:EDP`).
   final List<String> calls = [];
 
+  /// The document of the last register — what actually crossed the form.
+  String? lastRegisteredTaxId;
+
+  /// The last policy written — the fields, not just the kind.
+  AmountPolicyInput? lastPolicy;
+
   /// Makes every call fail with a rule exception.
   // ignore: avoid_positional_boolean_parameters
   void setShouldFail(bool value) => _shouldFail = value;
@@ -172,6 +180,7 @@ class FakePayeeRepository implements PayeeRepository {
   }) async {
     if (_shouldFail) return _fail();
     calls.add('registerPayee:$legalName');
+    lastRegisteredTaxId = taxId;
     return const Result.success('payee-new');
   }
 
@@ -183,8 +192,10 @@ class FakePayeeRepository implements PayeeRepository {
   Future<Result<void>> changeAmountPolicy(
     String id,
     AmountPolicyInput policy,
-  ) =>
-      _write('changeAmountPolicy:${policy.kind}');
+  ) {
+    lastPolicy = policy;
+    return _write('changeAmountPolicy:${policy.kind}');
+  }
 
   @override
   Future<Result<void>> addAlias(String id, String alias) =>
@@ -415,6 +426,7 @@ CaptureSource captureSource({
   List<MonitoredFolder>? folders,
   bool hasCredential = true,
   bool isEnabled = true,
+  DateTime? captureSince,
   DateTime? lastSyncAt,
   String? lastSyncError,
 }) {
@@ -427,6 +439,7 @@ CaptureSource captureSource({
         const [MonitoredFolder(id: 'folder-1', hasSyncCursor: true)],
     hasCredential: hasCredential,
     isEnabled: isEnabled,
+    captureSince: captureSince,
     lastSyncAt: lastSyncAt,
     lastSyncError: lastSyncError,
     createdAt: DateTime(2026, 1, 1),
@@ -491,8 +504,10 @@ class FakeCaptureSourceRepository implements CaptureSourceRepository {
     required String address,
     required GraphCredentialInput credential,
     String? folderPath,
+    DateTime? captureSince,
   }) async {
     if (_shouldFail) return _fail();
+    lastCaptureSince = captureSince;
     calls.add('connectSource:$address');
     return Result.success(
       ConnectOutcome(
@@ -500,6 +515,18 @@ class FakeCaptureSourceRepository implements CaptureSourceRepository {
         alreadyMonitoredByAnotherAccount: alreadyMonitored,
       ),
     );
+  }
+
+  /// The floor handed to the last `connectSource`/`changeCaptureSince` call.
+  DateTime? lastCaptureSince;
+
+  @override
+  Future<Result<void>> changeCaptureSince(
+    String id,
+    DateTime? captureSince,
+  ) async {
+    lastCaptureSince = captureSince;
+    return _write('changeCaptureSince:$captureSince');
   }
 
   @override
@@ -552,6 +579,9 @@ CaptureItem captureItem({
   String? subject = 'Boleto sindicato',
   String? reason,
   String? billId,
+  bool hasArtifact = false,
+  String? sourceUrl,
+  String? linkHost,
 }) {
   return CaptureItem(
     id: id,
@@ -562,6 +592,9 @@ CaptureItem captureItem({
     status: status,
     reason: reason,
     billId: billId,
+    hasArtifact: hasArtifact,
+    sourceUrl: sourceUrl,
+    linkHost: linkHost,
   );
 }
 
@@ -623,6 +656,188 @@ class FakeCaptureItemRepository implements CaptureItemRepository {
       ClaimOutcome(id: 'item-1', billId: 'bill-7', status: 'Promoted'),
     );
   }
+
+  @override
+  Future<Result<void>> dismissItem(String id, {String? note}) async {
+    if (_shouldFail) return _fail();
+    calls.add('dismissItem:$id:${note ?? ''}');
+    return const Result.success(null);
+  }
+
+  @override
+  Future<Result<void>> attachArtifact(
+    String id,
+    List<int> bytes, {
+    required String fileName,
+    required String contentType,
+  }) async {
+    if (_shouldFail) return _fail();
+    calls.add('attachArtifact:$id:$fileName:${bytes.length}');
+    return const Result.success(null);
+  }
+
+  @override
+  Future<Result<CapturedArtifact>> getArtifact(String id) async {
+    if (_shouldFail) return _fail();
+    calls.add('getArtifact:$id');
+    return Result.success(artifact());
+  }
+
+  @override
+  Future<Result<EmailMessage>> getEmail(String id) async {
+    if (_shouldFail) return _fail();
+    calls.add('getEmail:$id');
+    return Result.success(
+      EmailMessage(
+        id: 'message-1',
+        sender: 'faturas@fornecedor.com.br',
+        subject: 'Sua fatura chegou',
+        receivedAt: DateTime.utc(2026, 8, 27, 8),
+        contentType: 'text/html',
+        content: '<p>Sua fatura chegou.</p>',
+      ),
+    );
+  }
+}
+
+/// A tiny document, enough for the viewer to have something to render.
+///
+/// The bytes are not a real PDF on purpose — no test renders them, and a
+/// valid file would only make the fixture heavier.
+CapturedArtifact artifact({
+  String contentType = 'application/pdf',
+  String? fileName = 'boleto.pdf',
+}) {
+  return CapturedArtifact(
+    bytes: Uint8List.fromList('%PDF-1.4 documento'.codeUnits),
+    contentType: contentType,
+    fileName: fileName,
+  );
+}
+
+/// Um e-mail do livro-caixa, com padrões coerentes.
+CapturedMessage capturedMessage({
+  String id = 'msg-1',
+  String sender = 'faturas@enel.com.br',
+  String? subject = 'Sua fatura chegou',
+  String outcome = ArtifactOutcomes.discarded,
+  int artifactCount = 1,
+  bool canRecapture = true,
+  bool processed = true,
+  String? billId,
+  String? captureItemId,
+  DateTime? receivedAt,
+}) {
+  return CapturedMessage(
+    id: id,
+    sourceId: 'src-1',
+    sender: sender,
+    subject: subject,
+    receivedAt: receivedAt ?? DateTime(2026, 8, 19, 15, 36),
+    firstSeenAt: DateTime(2026, 8, 19, 15, 49),
+    processedAt: processed ? DateTime(2026, 8, 19, 16, 1) : null,
+    outcome: outcome,
+    artifactCount: artifactCount,
+    canRecapture: canRecapture,
+    artifacts: [
+      CapturedArtifactOutcome(
+        fileName: 'boleto.pdf',
+        contentType: 'application/pdf',
+        outcome: outcome,
+        billId: billId,
+        captureItemId: captureItemId,
+      ),
+    ],
+  );
+}
+
+/// In-memory [CapturedMessageRepository] com falha configurável.
+class FakeCapturedMessageRepository implements CapturedMessageRepository {
+  /// Os e-mails servidos.
+  List<CapturedMessage> messages = [];
+
+  /// O cabeçalho servido.
+  CaptureSyncStatus syncStatus = CaptureSyncStatus(
+    lastSyncAt: DateTime(2026, 8, 19, 16, 56),
+    sourceCount: 1,
+  );
+
+  /// A política servida.
+  CaptureRetentionPolicy retention = const CaptureRetentionPolicy(
+    isEnabled: false,
+    windowDays: 90,
+    availableWindowDays: [7, 30, 90, 180],
+  );
+
+  bool _shouldFail = false;
+
+  /// As escritas realizadas, em ordem.
+  final List<String> calls = [];
+
+  /// O último filtro pedido.
+  CapturedMessageFilter? lastFilter;
+
+  /// Faz toda chamada falhar com uma exceção de regra.
+  // ignore: avoid_positional_boolean_parameters
+  void setShouldFail(bool value) => _shouldFail = value;
+
+  Result<T> _fail<T>() => Result.error(
+        const BillPaymentRuleException('regra disse não', code: 'BLP.TST'),
+      );
+
+  @override
+  Future<Result<CapturedMessagePage>> listMessages({
+    CapturedMessageFilter filter = const CapturedMessageFilter(),
+    String? cursor,
+    int limit = 50,
+  }) async {
+    if (_shouldFail) return _fail();
+    lastFilter = filter;
+
+    final filtered = filter.outcome == null
+        ? messages
+        : messages.where((m) => m.outcome == filter.outcome).toList();
+
+    return Result.success(
+      CapturedMessagePage(items: filtered, nextCursor: null),
+    );
+  }
+
+  @override
+  Future<Result<CaptureSyncStatus>> getSyncStatus() async {
+    if (_shouldFail) return _fail();
+    return Result.success(syncStatus);
+  }
+
+  @override
+  Future<Result<RecaptureOutcome>> recapture(String id) async {
+    if (_shouldFail) return _fail();
+    calls.add('recapture:$id');
+    return const Result.success(
+      RecaptureOutcome(id: 'msg-1', itemsRemoved: 1, artifactsIngested: 1),
+    );
+  }
+
+  @override
+  Future<Result<CaptureRetentionPolicy>> getRetentionPolicy() async {
+    if (_shouldFail) return _fail();
+    return Result.success(retention);
+  }
+
+  @override
+  Future<Result<CaptureRetentionPolicy>> configureRetention({
+    required bool isEnabled,
+    required int windowDays,
+  }) async {
+    if (_shouldFail) return _fail();
+    calls.add('configureRetention:$isEnabled:$windowDays');
+    retention = CaptureRetentionPolicy(
+      isEnabled: isEnabled,
+      windowDays: windowDays,
+      availableWindowDays: retention.availableWindowDays,
+    );
+    return Result.success(retention);
+  }
 }
 
 /// A bill list projection with coherent defaults, overridable per test.
@@ -656,6 +871,8 @@ BillDetail billDetail({
   DateTime? lastConsultedAt,
   DateTime? minimumScheduleDate,
   List<BillCheck> checks = const [],
+  bool hasArtifact = false,
+  String readingStatus = ReadingStatuses.notApplicable,
 }) {
   return BillDetail(
     id: id,
@@ -663,9 +880,11 @@ BillDetail billDetail({
     kind: BillKinds.bankSlip,
     rail: PaymentRails.boleto,
     checks: checks,
+    readingStatus: readingStatus,
     origin: BillOrigin(
       sourceKind: BillSourceKinds.manualUpload,
       receivedAt: DateTime(2026, 8, 1),
+      hasArtifact: hasArtifact,
     ),
     createdAt: DateTime(2026, 8, 1),
     lastConsultedAt: lastConsultedAt,
@@ -727,13 +946,35 @@ class FakeBillRepository implements BillRepository {
   Future<Result<ImportOutcome>> importBill({
     String? digitableLine,
     String? pixPayload,
+    List<int>? documentBytes,
+    String? documentFileName,
+    String? documentContentType,
   }) async {
     if (_shouldFail) return _fail();
+
+    // Registra o que o ViewModel repassou: os testes afirmam sobre o arquivo
+    // ter chegado (ou não), que é o que a tela decide.
+    lastImport = (
+      digitableLine: digitableLine,
+      pixPayload: pixPayload,
+      documentBytes: documentBytes,
+      documentFileName: documentFileName,
+      documentContentType: documentContentType,
+    );
     calls.add('importBill');
     return const Result.success(
       ImportOutcome(id: 'bill-new', kind: 'BankSlip', rail: 'Boleto'),
     );
   }
+
+  /// O que a última chamada de [importBill] recebeu.
+  ({
+    String? digitableLine,
+    String? pixPayload,
+    List<int>? documentBytes,
+    String? documentFileName,
+    String? documentContentType,
+  })? lastImport;
 
   @override
   Future<Result<ValidationRunOutcome>> revalidateBill(String id) async {
@@ -754,6 +995,7 @@ class FakeBillRepository implements BillRepository {
     String id, {
     required DateTime scheduleFor,
     String? note,
+    bool acknowledgeRisk = false,
   }) async {
     if (_shouldFail) return _fail();
     calls.add('approveBill:$id');
@@ -773,7 +1015,29 @@ class FakeBillRepository implements BillRepository {
     calls.add('cancelBill:$reason');
     return const Result.success(null);
   }
-}
+
+  @override
+  Future<Result<CapturedArtifact>> getArtifact(String id) async {
+    if (_shouldFail) return _fail();
+    calls.add('getArtifact:$id');
+    return Result.success(artifact());
+  }
+
+  @override
+  Future<Result<EmailMessage>> getEmail(String id) async {
+    if (_shouldFail) return _fail();
+    calls.add('getEmail:$id');
+    return Result.success(
+      EmailMessage(
+        id: 'message-1',
+        sender: 'faturas@fornecedor.com.br',
+        subject: 'Sua fatura chegou',
+        receivedAt: DateTime.utc(2026, 8, 27, 8),
+        contentType: 'text/html',
+        content: '<p>Sua fatura chegou.</p>',
+      ),
+    );
+  }}
 
 /// An expectation with coherent defaults, overridable per test.
 Expectation expectation({
@@ -873,6 +1137,28 @@ class FakeExpectationRepository implements ExpectationRepository {
     if (_shouldFail) return _fail();
     calls.add('registerExpectation:$label');
     return const Result.success('exp-new');
+  }
+
+  @override
+  Future<Result<void>> editExpectation(
+    String id, {
+    required String label,
+    required String recurrence,
+    required int expectedDueDay,
+    required int observedLeadDays,
+    String? accountReference,
+    int? alertLeadDays,
+  }) async {
+    if (_shouldFail) return _fail();
+    calls.add('editExpectation:$id:$label:$recurrence:$expectedDueDay');
+    return const Result.success(null);
+  }
+
+  @override
+  Future<Result<void>> deleteExpectation(String id) async {
+    if (_shouldFail) return _fail();
+    calls.add('deleteExpectation:$id');
+    return const Result.success(null);
   }
 
   @override

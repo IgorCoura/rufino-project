@@ -5,6 +5,8 @@ using BillPayment.Application.Bills.Commands;
 using BillPayment.Application.Mediator;
 using BillPayment.Application.Models.Bills;
 using BillPayment.Application.Queries.Bills;
+using BillPayment.Domain.Extraction;
+using BillPayment.Application.Queries.CapturedMessages;
 using Microsoft.AspNetCore.Mvc;
 
 /// <summary>
@@ -19,6 +21,7 @@ using Microsoft.AspNetCore.Mvc;
 public sealed class BillsController(
     IMediator mediator,
     IBillQueries queries,
+    ICapturedMessageQueries capturedMessages,
     ILogger<BillsController> logger) : BaseController(logger)
 {
     [HttpGet]
@@ -43,15 +46,68 @@ public sealed class BillsController(
     }
 
     /// <summary>Importa um documento a partir da linha digitável, do QR Pix, ou dos dois.</summary>
+    /// <remarks>
+    /// Esta é a forma JSON, para quem já tem os dígitos. A mesma rota aceita
+    /// <c>multipart/form-data</c> quando o arquivo do boleto acompanha — ver
+    /// <see cref="ImportWithDocument"/>.
+    /// </remarks>
     [HttpPost("import")]
+    [Consumes("application/json")]
     [ProtectedResource("bill", "import")]
     public async Task<ActionResult<ImportBillResponse>> Import(
         [FromRoute] Guid tenantId,
         [FromBody] ImportBillModel model,
         [FromHeader(Name = "x-requestid")] Guid requestId,
         CancellationToken cancellationToken)
+        => await DispatchImportAsync(tenantId, model.ToCommand(tenantId), requestId, cancellationToken);
+
+    /// <summary>
+    /// Importa um documento a partir do arquivo do boleto, acompanhado ou não dos dígitos.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Divide a rota com <see cref="Import"/>: quem escolhe a action é o <c>Content-Type</c> da
+    /// requisição, via <c>[Consumes]</c>. Uma action só não resolve — <c>IFormFile</c> e
+    /// <c>[FromBody]</c> não convivem no mesmo binder —, e uma rota nova obrigaria o cliente a
+    /// saber de antemão qual chamar para o que é a mesma operação.
+    /// </para>
+    /// <para>
+    /// O arquivo é opcional aqui, para o formulário da tela poder mandar sempre pelo mesmo
+    /// caminho: sem ele, a importação é a mesma da forma JSON.
+    /// </para>
+    /// </remarks>
+    [HttpPost("import")]
+    [Consumes("multipart/form-data")]
+    [RequestSizeLimit(DocumentPayload.MAX_BYTES)]
+    [ProtectedResource("bill", "import")]
+    public async Task<ActionResult<ImportBillResponse>> ImportWithDocument(
+        [FromRoute] Guid tenantId,
+        [FromForm] ImportBillFormModel model,
+        IFormFile? file,
+        [FromHeader(Name = "x-requestid")] Guid requestId,
+        CancellationToken cancellationToken)
     {
-        var command = model.ToCommand(tenantId);
+        // Lido para memória porque o teto já é de 20 MB e o handler precisa dos bytes duas vezes
+        // — para o hash e para a gravação. Acima disso o Kestrel recusa antes de chegar aqui.
+        ReadOnlyMemory<byte> content = default;
+        if (file is not null && file.Length > 0)
+        {
+            using var buffer = new MemoryStream();
+            await file.CopyToAsync(buffer, cancellationToken);
+            content = buffer.ToArray();
+        }
+
+        var command = model.ToCommand(tenantId, content, file?.ContentType, file?.FileName);
+
+        return await DispatchImportAsync(tenantId, command, requestId, cancellationToken);
+    }
+
+    private async Task<ActionResult<ImportBillResponse>> DispatchImportAsync(
+        Guid tenantId,
+        ImportBillCommand command,
+        Guid requestId,
+        CancellationToken cancellationToken)
+    {
         var identified = new IdentifiedCommand<ImportBillCommand, ImportBillResponse>(
             command, EnsureRequestId(requestId));
 
@@ -60,6 +116,56 @@ public sealed class BillsController(
         CommandResultLog(result, tenantId, command, identified.Id);
 
         return OkResponse(result);
+    }
+
+    /// <summary>
+    /// Serve o documento original que deu origem ao boleto.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// É o papel contra o qual o aprovador confere as doze verificações. <strong>Não é a linha
+    /// digitável</strong>: o arquivo é o comprovante do que o sistema viu, e continua valendo que
+    /// os dígitos nunca saem por esta API — quem os tem, paga.
+    /// </para>
+    /// <para>
+    /// <c>404</c> quando o boleto não é deste tenant e quando não há arquivo — importação manual
+    /// nasce só com os dígitos, e isso é estado normal, não falha.
+    /// </para>
+    /// </remarks>
+    [HttpGet("{id:guid}/artifact")]
+    [ProtectedResource("bill", "view")]
+    public async Task<IActionResult> GetArtifact(
+        [FromRoute] Guid tenantId,
+        [FromRoute] Guid id,
+        CancellationToken cancellationToken)
+    {
+        var artifact = await queries.GetArtifactAsync(tenantId, id, cancellationToken);
+        if (artifact is null)
+            return NotFound();
+
+        ArtifactAccessLog(tenantId, "bill", id);
+
+        return File(artifact.Content, artifact.ContentType, artifact.FileName, enableRangeProcessing: true);
+    }
+
+    /// <summary>
+    /// O e-mail que trouxe este boleto — título, remetente e corpo renderizável. 404 para boleto
+    /// que não veio de caixa de e-mail; mesmo portão do documento original (ADR-008).
+    /// </summary>
+    [HttpGet("{id:guid}/email")]
+    [ProtectedResource("bill", "view")]
+    public async Task<ActionResult<CapturedMessageBodyDto>> GetEmail(
+        [FromRoute] Guid tenantId,
+        [FromRoute] Guid id,
+        CancellationToken cancellationToken)
+    {
+        var body = await capturedMessages.GetBodyForBillAsync(tenantId, id, cancellationToken);
+        if (body is null)
+            return NotFound();
+
+        ArtifactAccessLog(tenantId, "bill-email", id);
+
+        return OkResponse(body);
     }
 
     /// <summary>Detalhe com as doze verificações e a evidência de cada uma.</summary>
@@ -88,6 +194,29 @@ public sealed class BillsController(
     {
         var command = new ValidateBillCommand(tenantId, id);
         var identified = new IdentifiedCommand<ValidateBillCommand, ValidateBillResponse>(
+            command, EnsureRequestId(requestId));
+
+        SendingCommandLog(id, command, identified.Id);
+        var result = await mediator.Send(identified, cancellationToken);
+        CommandResultLog(result, id, command, identified.Id);
+
+        return OkResponse(result);
+    }
+
+    /// <summary>
+    /// Relê o documento original (e o corpo do e-mail) pelo extrator de IA e anexa o retrato da
+    /// leitura — o backfill dos boletos nascidos antes da leitura, um por chamada.
+    /// </summary>
+    [HttpPost("{id:guid}/enrich")]
+    [ProtectedResource("bill", "validate")]
+    public async Task<ActionResult<EnrichBillReadingResponse>> Enrich(
+        [FromRoute] Guid tenantId,
+        [FromRoute] Guid id,
+        [FromHeader(Name = "x-requestid")] Guid requestId,
+        CancellationToken cancellationToken)
+    {
+        var command = new EnrichBillReadingCommand(tenantId, id);
+        var identified = new IdentifiedCommand<EnrichBillReadingCommand, EnrichBillReadingResponse>(
             command, EnsureRequestId(requestId));
 
         SendingCommandLog(id, command, identified.Id);

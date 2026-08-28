@@ -47,6 +47,8 @@ internal static class GeminiPrompt
             "accountReference": { "type": "string" },
             "amount":           { "type": "string" },
             "dueDate":          { "type": "string" },
+            "billingPeriod":    { "type": "string" },
+            "description":      { "type": "string" },
             "notes":            { "type": "string" }
           },
           "required": ["digitableLines", "pixPayloads", "documentKind"]
@@ -67,6 +69,10 @@ internal static class GeminiPrompt
         prompt.AppendLine("  escrito como texto; NÃO tente decodificar a imagem do QR.");
         prompt.AppendLine("- documentKind: BankSlip, Utility, TaxGuide ou NotABill.");
         prompt.AppendLine("- accountReference: instalação, matrícula, unidade ou contrato, quando houver.");
+        prompt.AppendLine("- billingPeriod: a competência/período a que a conta se refere, como impresso (\"07/2026\",");
+        prompt.AppendLine("  \"julho/2026\"). Pode estar no corpo do e-mail em vez do documento.");
+        prompt.AppendLine("- description: uma frase curta dizendo do que a conta trata (ex.: \"Conta de energia -");
+        prompt.AppendLine("  instalação 12345\"). Componha só com o que está escrito no documento ou no e-mail.");
         prompt.AppendLine();
         prompt.AppendLine("REGRAS:");
         prompt.AppendLine("1. Nunca invente dígito. Ilegível ou parcial: omita o candidato inteiro.");

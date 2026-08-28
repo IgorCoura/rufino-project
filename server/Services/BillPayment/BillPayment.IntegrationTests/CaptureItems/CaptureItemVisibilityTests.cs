@@ -1,4 +1,4 @@
-namespace BillPayment.IntegrationTests.CaptureItems;
+﻿namespace BillPayment.IntegrationTests.CaptureItems;
 
 using System.Net;
 using System.Net.Http.Json;
@@ -45,7 +45,7 @@ public sealed class CaptureItemVisibilityTests : BaseIntegrationTest
         var dto = await GetItemAsync(TenantAGuid, id);
 
         Assert.Equal("ForeignPayer", dto.Status);
-        Assert.Null(dto.StorageKey);
+        Assert.False(dto.HasArtifact);
         Assert.Null(dto.SourceUrl);
         Assert.Null(dto.ContentHash);
         Assert.Null(dto.UnlockedBy);
@@ -71,7 +71,7 @@ public sealed class CaptureItemVisibilityTests : BaseIntegrationTest
         var dto = await GetItemAsync(TenantAGuid, id);
 
         Assert.Equal("Unrouted", dto.Status);
-        Assert.Equal(StorageKey, dto.StorageKey);
+        Assert.True(dto.HasArtifact);
         Assert.Equal(SourceUrl, dto.SourceUrl);
         Assert.Equal(ContentHash, dto.ContentHash);
     }
@@ -94,7 +94,7 @@ public sealed class CaptureItemVisibilityTests : BaseIntegrationTest
         Assert.Equal("Strong", dto.RoutingConfidence);
         Assert.Equal("QrCode", dto.ExtractionMethod);
         Assert.Equal("cnpj_first_5", dto.UnlockedBy);
-        Assert.Equal(StorageKey, dto.StorageKey);
+        Assert.True(dto.HasArtifact);
     }
 
     // Item ainda no funil não expõe, mesmo com artefato e URL já gravados: antes do roteamento
@@ -108,7 +108,7 @@ public sealed class CaptureItemVisibilityTests : BaseIntegrationTest
         var dto = await GetItemAsync(TenantAGuid, id);
 
         Assert.Equal("LinkPending", dto.Status);
-        Assert.Null(dto.StorageKey);
+        Assert.False(dto.HasArtifact);
         Assert.Null(dto.SourceUrl);
         Assert.Null(dto.ContentHash);
     }
@@ -128,7 +128,7 @@ public sealed class CaptureItemVisibilityTests : BaseIntegrationTest
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var item = Assert.Single(page!.Items);
-        Assert.Null(item.StorageKey);
+        Assert.False(item.HasArtifact);
         Assert.Null(item.SourceUrl);
     }
 

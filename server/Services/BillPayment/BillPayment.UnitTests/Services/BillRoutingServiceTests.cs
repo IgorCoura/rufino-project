@@ -1,4 +1,4 @@
-namespace BillPayment.UnitTests.Services;
+﻿namespace BillPayment.UnitTests.Services;
 
 using BillPayment.Domain.Bills;
 using BillPayment.Domain.CaptureItems;
@@ -240,4 +240,35 @@ public class BillRoutingServiceTests
         string? unlockedBy = null)
         => ExtractionResult.Found(
             [InstrumentSamples.Barcode()], ExtractionMethod.EmbeddedText, unlockedBy, parties);
+
+    // REGRESSÃO (2026-08-26, boleto BBZ-COND): o degrau 0 respondia "é sua conta" sem informar
+    // QUAL documento — e como ele é um return antecipado, o degrau 1, que informaria, nunca
+    // rodava. O boleto nascia sem pagador e o check PayerMatch dizia "o documento não traz o
+    // documento fiscal do pagador" sobre um PDF que trazia.
+    [Fact]
+    public void Route_WhenUnlockedByPasswordAndTheTaxIdIsAlsoPrinted_ShouldCarryTheTaxId()
+    {
+        var decision = BillRoutingService.Route(
+            Extraction(parties: [Party(OwnCnpj)], unlockedBy: "cnpj_first_5_primary"),
+            PayerProfileMother.Register(),
+            NoExclusivePayees);
+
+        Assert.Same(RoutingConfidence.Strong, decision.Confidence);
+        Assert.Equal(BillRoutingService.REASON_PASSWORD_DERIVED, decision.Reason);
+        Assert.Equal(OwnCnpj, decision.PayerTaxId?.Value);
+    }
+
+    // PDF que abre por senha sem repetir o documento no corpo existe; ali não há o que informar,
+    // e o degrau 0 continua valendo como prova de propriedade.
+    [Fact]
+    public void Route_WhenUnlockedByPasswordAndNoTaxIdIsPrinted_ShouldStillPromoteWithoutTaxId()
+    {
+        var decision = BillRoutingService.Route(
+            Extraction(parties: [Party(PayeeCnpj)], unlockedBy: "cnpj_first_5_primary"),
+            PayerProfileMother.Register(),
+            NoExclusivePayees);
+
+        Assert.Same(RoutingConfidence.Strong, decision.Confidence);
+        Assert.Null(decision.PayerTaxId);
+    }
 }

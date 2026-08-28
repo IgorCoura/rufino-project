@@ -129,3 +129,45 @@ que **substitui** a pilha.
 context.go(fallback)`. E ele precisa existir em **todos** os estados da tela —
 uma tela que só desenha a `AppBar` depois de carregar tranca o usuário enquanto
 a rede não responde.
+
+## Máscara de tamanho fixo não pode decidir se cresce
+
+**What happened.** No formulário de novo beneficiário, o campo "CPF ou CNPJ"
+nascia com a máscara de CPF (`###.###.###-##`, 11 posições) e um `onChanged`
+que trocaria para a de CNPJ ao ver o 12º dígito. O `onChanged` nunca rodava:
+o `MaskTextInputFormatter` **descarta a tecla que passa do tamanho da máscara**
+antes de qualquer callback do campo. Digitando um CNPJ de 14 dígitos, o campo
+parava em `112.223.330-00` — e cadastrar empresa era impossível pela tela.
+Provado com o formatador cru: 14 teclas entram, 11 dígitos saem.
+
+**The rule.** Quando a máscara depende do que está sendo digitado, quem decide
+tem que ver a tecla **antes** de mascarar — ou seja, dentro de um
+`TextInputFormatter`, nunca no `onChanged` do campo. `TaxIdInputFormatter`
+(`bill_payment/lib/src/ui/shared/`) é o formato: escolhe a máscara pelo número
+de dígitos do valor entrando e delega o resto ao `MaskTextInputFormatter`, que
+continua sendo o motor de máscara do app.
+
+**Where it does NOT apply.** Máscara que troca por *outro* controle — o
+`PayerProfileScreen`, onde o segmento PF/PJ dispara `updateMask` — está
+correta: ali a decisão não depende da tecla, e o `updateMask` roda fora do
+caminho de digitação.
+
+**How to apply.** Teste que digita **tecla a tecla**, não `enterText` de uma
+vez: o bug só aparece na 12ª, e um `enterText` com o documento inteiro passa
+pelos dois caminhos e não distingue um do outro.
+
+## A validação de uma tela também mede o que ela deixa de mandar
+
+**O que aconteceu.** A importação manual de boleto exigia "a linha digitável ou o código Pix". O
+campo de anexo entrou depois, e o validador continuou olhando só os dois campos de texto — então
+anexar o arquivo e clicar em Importar reprovava o formulário sobre um campo que a pessoa
+deliberadamente deixou vazio.
+
+**Por que é traiçoeiro.** O validador do `TextFormField` roda no campo, e é natural escrevê-lo
+lendo só os controllers que estão ali. Mas a pergunta que ele responde — "há o suficiente para
+enviar?" — é sobre o **formulário inteiro**, e o anexo é estado do ViewModel, não do campo.
+
+**A regra.** Validador de "informe ao menos um" lê **todas** as fontes que satisfazem a exigência,
+inclusive as que não são `TextFormField`. E depois de mexer numa fonte que não é campo (anexar,
+remover), chame `_formKey.currentState?.validate()`: sem isso a mensagem de erro anterior fica na
+tela contradizendo o que a pessoa acabou de fazer.

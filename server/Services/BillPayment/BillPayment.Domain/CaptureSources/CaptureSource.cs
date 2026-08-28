@@ -86,6 +86,32 @@ public sealed class CaptureSource : AggregateRoot<CaptureSourceId>
     /// </remarks>
     public IReadOnlyCollection<MonitoredFolder> Folders => _folders.AsReadOnly();
 
+    /// <summary>
+    /// Piso temporal da captura: nada recebido <strong>antes</strong> desta data é lido.
+    /// <c>null</c> = sem limite, a caixa inteira.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <strong>É da fonte, não da pasta.</strong> O piso descreve a caixa — pasta acrescentada
+    /// depois herda o mesmo, e ter um piso por pasta só produziria fontes cujas pastas discordam
+    /// sobre desde quando aquela caixa é acompanhada.
+    /// </para>
+    /// <para>
+    /// <strong>Quem aplica o corte é o provedor, não nós.</strong> A delta query do Graph aceita
+    /// exatamente <c>$filter=receivedDateTime ge {data}</c> (e <c>gt</c>) — nada mais, e nenhum
+    /// teto. Por isso o modelo tem piso e não janela: um teto teria de ser filtro nosso sobre o
+    /// que já trafegou, e faria a fonte parar de capturar sozinha ao vencer.
+    /// </para>
+    /// <para>
+    /// <strong>Trocar o piso obriga a descartar os cursores</strong>, e é
+    /// <see cref="ChangeCaptureSince"/> que garante isso — o provedor grava o filtro
+    /// <em>dentro</em> do <c>deltaLink</c>, então um cursor velho continuaria mandando a data
+    /// velha e a troca não valeria nada. Falha silenciosa, que é o que o ADR-014 existe para
+    /// impedir.
+    /// </para>
+    /// </remarks>
+    public DateOnly? CaptureSince { get; private set; }
+
     /// <summary>Instante da última tentativa <em>concluída</em> em qualquer pasta.</summary>
     public DateTime? LastSyncAt { get; private set; }
 
@@ -119,7 +145,8 @@ public sealed class CaptureSource : AggregateRoot<CaptureSourceId>
         string address,
         CredentialRef? credential,
         DateTime occurredAt,
-        string? folderPath = null)
+        string? folderPath = null,
+        DateOnly? captureSince = null)
     {
         var source = new CaptureSource(CaptureSourceId.New()) { TenantId = tenantId };
 
@@ -127,6 +154,7 @@ public sealed class CaptureSource : AggregateRoot<CaptureSourceId>
         source.SetDisplayName(displayName);
         source.SetAddress(address);
         source.SetCredential(credential);
+        source.SetCaptureSince(captureSince, occurredAt);
         source._folders.Add(new MonitoredFolder(folderPath, occurredAt));
 
         source.IsEnabled = true;
@@ -172,6 +200,30 @@ public sealed class CaptureSource : AggregateRoot<CaptureSourceId>
         _folders.Clear();
         _folders.Add(new MonitoredFolder(folderPath, occurredAt));
         UpdatedAt = occurredAt;
+    }
+
+    /// <summary>
+    /// Move o piso temporal da captura. <c>null</c> devolve a fonte à caixa inteira.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <strong>Descarta o cursor de todas as pastas, sempre</strong> — e isso não é zelo: o Graph
+    /// grava as opções de consulta <em>dentro</em> do <c>deltaLink</c> que devolve, então um
+    /// cursor obtido com o piso velho continuaria filtrando pelo piso velho. Sem o descarte, a
+    /// data nova seria decorativa e ninguém perceberia.
+    /// </para>
+    /// <para>
+    /// Vale nas duas direções. Baixar o piso é o caso óbvio (há histórico novo a buscar), mas
+    /// subi-lo também exige, porque o que manda é o filtro gravado no cursor, não a coluna.
+    /// </para>
+    /// <para>
+    /// Reler não duplica nada: a ingestão é idempotente por <c>(tenant, fonte, mensagem, anexo)</c>.
+    /// </para>
+    /// </remarks>
+    public void ChangeCaptureSince(DateOnly? captureSince, DateTime occurredAt)
+    {
+        SetCaptureSince(captureSince, occurredAt);
+        ResetAllCursors(occurredAt);
     }
 
     /// <summary>Acrescenta uma pasta à lista acompanhada. Ela nasce sem cursor: a primeira varredura lê tudo.</summary>
@@ -346,6 +398,21 @@ public sealed class CaptureSource : AggregateRoot<CaptureSourceId>
 
     /// <summary>Como a pasta aparece numa mensagem de erro — a caixa de entrada não tem caminho.</summary>
     private static string Describe(string? normalizedPath) => normalizedPath ?? "Caixa de Entrada";
+
+    /// <remarks>
+    /// "Hoje" vem de <paramref name="occurredAt"/>, e não do relógio: o Domain não lê relógio. A
+    /// comparação é contra a data <em>em UTC</em>, o que torna a guarda um dia permissiva para
+    /// quem escolhe à noite no fuso do Brasil — e permissivo é o lado certo de errar, porque
+    /// recusar seria barrar a data de hoje.
+    /// </remarks>
+    private void SetCaptureSince(DateOnly? captureSince, DateTime occurredAt)
+    {
+        if (captureSince is { } since && since > DateOnly.FromDateTime(occurredAt))
+            throw CaptureSourceErrors.CaptureSinceInFuture(since);
+
+        CaptureSince = captureSince;
+        UpdatedAt = occurredAt;
+    }
 
     private void SetCredential(CredentialRef? credential)
     {

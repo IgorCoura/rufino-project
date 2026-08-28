@@ -1,13 +1,15 @@
-namespace BillPayment.Infra.Extraction;
+﻿namespace BillPayment.Infra.Extraction;
 
 using System.Text;
 using BillPayment.Domain.CaptureItems;
 using BillPayment.Domain.Extraction;
+using BillPayment.Domain.SharedKernel;
 using BillPayment.Domain.Instruments;
 using BillPayment.Domain.Ports;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using UglyToad.PdfPig;
+using UglyToad.PdfPig.Writer;
 
 /// <summary>
 /// A cascata de extração sobre PDF — degraus 0, 2 e 2b do doc 09.
@@ -38,6 +40,7 @@ internal sealed class PdfBoletoDocumentParser(
         ReadOnlyMemory<byte> content,
         string? contentType,
         IReadOnlyList<PasswordCandidate> passwordCandidates,
+        IReadOnlyList<TaxId> knownTaxIds,
         DateOnly today,
         CancellationToken cancellationToken)
     {
@@ -46,7 +49,7 @@ internal sealed class PdfBoletoDocumentParser(
         if (!LooksLikePdf(content.Span))
             return Task.FromResult(ExtractionResult.NotFound("not_a_pdf"));
 
-        var scan = ScanDocument(content, passwordCandidates, today, cancellationToken);
+        var scan = ScanDocument(content, passwordCandidates, knownTaxIds, today, cancellationToken);
 
         if (scan.Locked)
             return Task.FromResult(ExtractionResult.Locked());
@@ -62,6 +65,92 @@ internal sealed class PdfBoletoDocumentParser(
 
         return Task.FromResult(
             ExtractionResult.Found(scan.Instruments, scan.Method!, scan.UnlockedBy, scan.Parties));
+    }
+
+    /// <summary>
+    /// Reescreve o PDF cifrado como um PDF que abre sem senha, página por página.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <strong>A senha vazia decide se há trabalho a fazer</strong> — é o mesmo critério que faz
+    /// o <c>ScanDocument</c> devolver <c>UnlockedBy</c> nulo. Abrindo com ela, o documento já é
+    /// legível por qualquer leitor e reescrevê-lo só arriscaria degradá-lo à toa.
+    /// </para>
+    /// <para>
+    /// <strong>Falhar aqui devolve <c>null</c>, nunca lança.</strong> O chamador então decide o
+    /// que fazer com um documento que não abre — e a decisão dele é não gastar a chamada, que é a
+    /// mesma regra de sempre para PDF cifrado. Um erro subindo daqui derrubaria o processamento
+    /// de um artefato que a cascata determinística já tinha resolvido.
+    /// </para>
+    /// </remarks>
+    public Task<ReadOnlyMemory<byte>?> UnlockAsync(
+        ReadOnlyMemory<byte> content,
+        string? contentType,
+        IReadOnlyList<PasswordCandidate> passwordCandidates,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(passwordCandidates);
+
+        if (!LooksLikePdf(content.Span))
+            return Task.FromResult<ReadOnlyMemory<byte>?>(null);
+
+        var bytes = content.ToArray();
+
+        if (OpensWithoutPassword(bytes))
+            return Task.FromResult<ReadOnlyMemory<byte>?>(null);
+
+        foreach (var candidate in passwordCandidates.Take(_options.MaxPasswordCandidates))
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            try
+            {
+                using var document = PdfDocument.Open(bytes, new ParsingOptions
+                {
+                    Password = candidate.Value,
+                    UseLenientParsing = true,
+                });
+
+                var builder = new PdfDocumentBuilder();
+                for (var page = 1; page <= document.NumberOfPages; page++)
+                    builder.AddPage(document, page);
+
+                var clear = builder.Build();
+
+                if (logger.IsEnabled(LogLevel.Information))
+                {
+                    logger.LogInformation(
+                        "Cópia sem senha produzida a partir de PDF aberto por senha derivada de {Field}.",
+                        candidate.DerivedFrom);
+                }
+
+                return Task.FromResult<ReadOnlyMemory<byte>?>(clear);
+            }
+            catch (Exception ex) when (IsWrongPassword(ex))
+            {
+                // Candidata errada é o caso comum: segue para a próxima.
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                logger.LogWarning(ex, "Não foi possível reescrever o PDF cifrado sem senha.");
+                return Task.FromResult<ReadOnlyMemory<byte>?>(null);
+            }
+        }
+
+        return Task.FromResult<ReadOnlyMemory<byte>?>(null);
+    }
+
+    private static bool OpensWithoutPassword(byte[] bytes)
+    {
+        try
+        {
+            using var document = PdfDocument.Open(bytes, new ParsingOptions { UseLenientParsing = true });
+            return true;
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            return false;
+        }
     }
 
     private sealed record ScanOutcome(
@@ -90,6 +179,7 @@ internal sealed class PdfBoletoDocumentParser(
     private ScanOutcome ScanDocument(
         ReadOnlyMemory<byte> content,
         IReadOnlyList<PasswordCandidate> passwordCandidates,
+        IReadOnlyList<TaxId> knownTaxIds,
         DateOnly today,
         CancellationToken cancellationToken)
     {
@@ -118,7 +208,7 @@ internal sealed class PdfBoletoDocumentParser(
                 if (unlockedBy is not null && logger.IsEnabled(LogLevel.Information))
                     logger.LogInformation("PDF aberto por senha derivada de {Field}.", unlockedBy);
 
-                return Harvest(document, unlockedBy, today, cancellationToken);
+                return Harvest(document, unlockedBy, knownTaxIds, today, cancellationToken);
             }
             catch (Exception ex) when (IsWrongPassword(ex))
             {
@@ -139,6 +229,7 @@ internal sealed class PdfBoletoDocumentParser(
     private ScanOutcome Harvest(
         PdfDocument document,
         string? unlockedBy,
+        IReadOnlyList<TaxId> knownTaxIds,
         DateOnly today,
         CancellationToken cancellationToken)
     {
@@ -181,7 +272,7 @@ internal sealed class PdfBoletoDocumentParser(
             instruments,
             // Os documentos fiscais saem da MESMA passagem de texto que já foi feita: reabrir o
             // PDF só para procurá-los dobraria o custo do degrau mais barato da cascata.
-            TaxIdScanner.Scan(body),
+            TaxIdScanner.Scan(body, knownTaxIds),
             method,
             unlockedBy,
             Locked: false,

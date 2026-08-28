@@ -151,18 +151,26 @@ public static class BillRoutingService
     {
         ArgumentNullException.ThrowIfNull(extraction);
 
-        // Degrau 0 — a senha é prova de propriedade, não conveniência. O emissor a derivou do
-        // documento do pagador, e as candidatas saíram do PayerProfile DESTE tenant: se abriu,
-        // o emissor endereçou o documento a ele. A senha vazia não conta e por isso não chega
-        // aqui — o parser devolve UnlockedBy nulo quando o PDF só tinha owner password.
-        if (!string.IsNullOrEmpty(extraction.UnlockedBy))
-            return RoutingDecision.Promote(RoutingConfidence.Strong, REASON_PASSWORD_DERIVED);
-
-        // Degrau 1 — o documento fiscal do tenant impresso no artefato. Cobre 93,3% do corpus.
+        // O documento do tenant impresso no artefato. Serve aos degraus 0 e 1: no 0 como
+        // identificação de quem é o pagador, no 1 como a própria prova de propriedade.
         var own = profile is null
             ? null
             : extraction.Parties.FirstOrDefault(p => Owns(profile, p.TaxId));
 
+        // Degrau 0 — a senha é prova de propriedade, não conveniência. O emissor a derivou do
+        // documento do pagador, e as candidatas saíram do PayerProfile DESTE tenant: se abriu,
+        // o emissor endereçou o documento a ele. A senha vazia não conta e por isso não chega
+        // aqui — o parser devolve UnlockedBy nulo quando o PDF só tinha owner password.
+        //
+        // O documento vai junto quando ele TAMBÉM está impresso na página. Sem isso, o degrau
+        // mais forte da escada era o único que deixava o pagador em branco — e o check PayerMatch
+        // respondia "o documento não traz o pagador" sobre um artefato que trazia (medido em
+        // 2026-08-26, no boleto BBZ-COND). Nulo continua sendo desfecho válido: PDF que abre por
+        // senha sem repetir o documento no corpo existe, e ali não há o que informar.
+        if (!string.IsNullOrEmpty(extraction.UnlockedBy))
+            return RoutingDecision.Promote(RoutingConfidence.Strong, REASON_PASSWORD_DERIVED, own?.TaxId);
+
+        // Degrau 1 — o documento fiscal do tenant impresso no artefato. Cobre 93,3% do corpus.
         if (own is not null)
             return RoutingDecision.Promote(RoutingConfidence.Strong, REASON_PAYER_TAX_ID, own.TaxId);
 

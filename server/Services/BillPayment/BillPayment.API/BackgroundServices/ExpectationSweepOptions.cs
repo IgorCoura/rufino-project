@@ -23,6 +23,22 @@ public sealed class ExpectationSweepOptions
     /// </summary>
     public TimeSpan Interval { get; set; } = TimeSpan.FromHours(6);
 
-    /// <summary>Quantas expectativas por ciclo. Cada uma roda na sua própria transação.</summary>
+    /// <summary>
+    /// Quantas expectativas por <strong>lote</strong>. Cada uma roda na sua própria transação.
+    /// </summary>
+    /// <remarks>
+    /// <strong>Não é teto de cobertura.</strong> Era, até 2026-08-27, e o efeito foi expectativa
+    /// nunca varrida em silêncio assim que a instalação passou de cem. Agora o ciclo pede lotes
+    /// até a fila secar, e este número só governa o tamanho de cada ida ao banco.
+    /// </remarks>
     public int BatchSize { get; set; } = 100;
+
+    /// <summary>
+    /// Teto de segurança por ciclo. Existe para um defeito não virar laço apertado contra o banco.
+    /// </summary>
+    /// <remarks>
+    /// Alcançá-lo é anomalia, não regime normal — por isso ele é registrado em <c>Warning</c> com
+    /// quantas ficaram para trás, em vez de passar despercebido como o teto antigo passava.
+    /// </remarks>
+    public int MaxPerCycle { get; set; } = 10_000;
 }

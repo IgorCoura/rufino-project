@@ -135,4 +135,79 @@ class CaptureItemDetailViewModel extends ChangeNotifier {
     if (succeeded) await load();
     return succeeded;
   }
+
+  /// Dismisses the item: the user does not recognise the charge.
+  ///
+  /// Reversible by [reprocess] — the message says so, because a dismissal that
+  /// felt final would make people hesitate, and a queue nobody empties is the
+  /// problem this action exists to solve.
+  Future<bool> dismiss({String? note}) async {
+    _isMutating = true;
+    _errorMessage = null;
+    _infoMessage = null;
+    notifyListeners();
+
+    var succeeded = false;
+    try {
+      final result = await _repository.dismissItem(itemId, note: note);
+      result.fold(
+        onSuccess: (_) {
+          succeeded = true;
+          _infoMessage = 'Item marcado como não reconhecido. Ele saiu da lista '
+              'de pendências — dá para reabrir a qualquer momento.';
+        },
+        onError: (error, _) {
+          _errorMessage = billPaymentErrorMessage(
+            error,
+            fallback: 'Não foi possível reprovar o item.',
+          );
+        },
+      );
+    } finally {
+      _isMutating = false;
+      notifyListeners();
+    }
+    if (succeeded) await load();
+    return succeeded;
+  }
+
+  /// Uploads the bill the user fetched by hand and returns the item to the queue.
+  Future<bool> attachArtifact(
+    List<int> bytes, {
+    required String fileName,
+    required String contentType,
+  }) async {
+    _isMutating = true;
+    _errorMessage = null;
+    _infoMessage = null;
+    notifyListeners();
+
+    var succeeded = false;
+    try {
+      final result = await _repository.attachArtifact(
+        itemId,
+        bytes,
+        fileName: fileName,
+        contentType: contentType,
+      );
+      result.fold(
+        onSuccess: (_) {
+          succeeded = true;
+          _infoMessage = 'Boleto anexado. O item voltou para a fila e será lido '
+              'em segundo plano.';
+        },
+        onError: (error, _) {
+          _errorMessage = billPaymentErrorMessage(
+            error,
+            fallback: 'Não foi possível anexar o boleto.',
+          );
+        },
+      );
+    } finally {
+      _isMutating = false;
+      notifyListeners();
+    }
+    if (succeeded) await load();
+    return succeeded;
+  }
 }

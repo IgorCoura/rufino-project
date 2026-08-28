@@ -2,7 +2,7 @@ import 'bill_payment_enums.dart';
 
 /// A captured artifact, projected by the visibility rules of the server.
 ///
-/// The financial fields ([storageKey], [sourceUrl], [contentHash], [billId],
+/// The financial fields ([hasArtifact], [sourceUrl], [contentHash], [billId],
 /// [unlockedBy]) only come when the status exposes financial detail — the
 /// server decides, and this entity just renders what arrived. Never infer
 /// meaning from their absence.
@@ -19,12 +19,15 @@ class CaptureItem {
     this.routingConfidence,
     this.extractionMethod,
     this.unlockedBy,
-    this.storageKey,
+    this.hasArtifact = false,
     this.sourceUrl,
     this.contentHash,
     this.billId,
     this.claimedBy,
     this.claimedAt,
+    this.processingAttempts = 0,
+    this.lastError,
+    this.linkHost,
   });
 
   /// The item's id.
@@ -57,8 +60,13 @@ class CaptureItem {
   /// The label of the field that derived the opening password.
   final String? unlockedBy;
 
-  /// The stored artifact's key. Only exposed by the server when allowed.
-  final String? storageKey;
+  /// Whether the original document can be fetched for this item.
+  ///
+  /// The server answers with a boolean and never with the storage key: the
+  /// download endpoint takes the item's id and resolves the key itself, so
+  /// the key has nothing to do on this side. `false` covers both "no file was
+  /// kept" and "this status may not lead to the document".
+  final bool hasArtifact;
 
   /// The document's source URL — a bearer credential; handle with care.
   final String? sourceUrl;
@@ -75,6 +83,22 @@ class CaptureItem {
   /// When the claim happened.
   final DateTime? claimedAt;
 
+  /// How many times a worker has already tried to process this artifact.
+  ///
+  /// Unlike the financial fields, this and [lastError] always arrive: they
+  /// describe the system, not the document.
+  final int processingAttempts;
+
+  /// The message of the last processing failure, when there was one.
+  final String? lastError;
+
+  /// Who hosts the document the ladder tried to fetch — without the path that opens it.
+  ///
+  /// The full URL is a bearer credential and stays behind the ADR-008 gate; the host
+  /// only says WHICH issuer, and it is what decides which link recipe to register.
+  /// Present on quarantined items whose link had no recipe.
+  final String? linkHost;
+
   /// Whether the claim action applies.
   bool get acceptsClaim => CaptureItemStatuses.acceptsClaim(status);
 
@@ -83,6 +107,9 @@ class CaptureItem {
 
   /// Whether the item points at a bill this tenant can open.
   bool get hasBill => billId != null;
+
+  /// Whether processing gave up on this item.
+  bool get hasFailed => status == CaptureItemStatuses.failed;
 }
 
 /// One page of the capture item list.

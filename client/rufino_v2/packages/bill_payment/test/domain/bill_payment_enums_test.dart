@@ -126,4 +126,35 @@ void main() {
       expect(MissReasons.arrived(MissReasons.unrouted), isTrue);
     });
   });
+
+  group('ReadingStatuses', () {
+    test('speaks only for the states the user can act on', () {
+      expect(ReadingStatuses.speaks(ReadingStatuses.queued), isTrue);
+      expect(ReadingStatuses.speaks(ReadingStatuses.unavailable), isTrue);
+
+      // Silent on purpose: "não há o que ler" is an absence nobody can act on,
+      // and a finished reading speaks through the fields it filled in.
+      expect(ReadingStatuses.speaks(ReadingStatuses.notApplicable), isFalse);
+      expect(ReadingStatuses.speaks(ReadingStatuses.done), isFalse);
+    });
+
+    test('the queued label names the AI, not a generic analysis', () {
+      expect(ReadingStatuses.label(ReadingStatuses.queued), contains('IA'));
+      expect(ReadingStatuses.label(ReadingStatuses.queued), contains('fila'));
+    });
+
+    test('every state that speaks also explains itself', () {
+      for (final status in [ReadingStatuses.queued, ReadingStatuses.unavailable]) {
+        expect(ReadingStatuses.detail(status), isNotEmpty);
+      }
+
+      expect(ReadingStatuses.detail(ReadingStatuses.done), isEmpty);
+      expect(ReadingStatuses.detail(ReadingStatuses.notApplicable), isEmpty);
+    });
+
+    test('an unknown state coming from the server says nothing', () {
+      expect(ReadingStatuses.speaks('SomethingNew'), isFalse);
+      expect(ReadingStatuses.label('SomethingNew'), isEmpty);
+    });
+  });
 }

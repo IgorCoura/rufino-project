@@ -6,9 +6,12 @@
 library;
 
 export 'src/bill_payment_permissions.dart';
+export 'src/data/artifact_response.dart';
 export 'src/data/bill_api_service.dart';
 export 'src/data/bill_repository_impl.dart';
 export 'src/data/capture_item_api_service.dart';
+export 'src/data/captured_message_api_service.dart';
+export 'src/data/captured_message_repository_impl.dart';
 export 'src/data/capture_item_repository_impl.dart';
 export 'src/data/capture_source_api_service.dart';
 export 'src/data/capture_source_repository_impl.dart';
@@ -30,6 +33,10 @@ export 'src/domain/capture_item.dart';
 export 'src/domain/capture_item_repository.dart';
 export 'src/domain/capture_source.dart';
 export 'src/domain/capture_source_repository.dart';
+export 'src/domain/captured_artifact.dart';
+export 'src/domain/captured_message.dart';
+export 'src/domain/email_message.dart';
+export 'src/domain/captured_message_repository.dart';
 export 'src/domain/check_translations.dart';
 export 'src/domain/expectation.dart';
 export 'src/domain/expectation_repository.dart';
@@ -39,4 +46,8 @@ export 'src/domain/payer_profile.dart';
 export 'src/domain/payer_profile_repository.dart';
 export 'src/domain/trusted_origin.dart';
 export 'src/domain/trusted_origin_repository.dart';
+// O tipo do seletor de arquivos: a casca implementa (ela tem o `file_picker`),
+// o módulo consome. Sem isto, quem monta as rotas não tem como nomear o callback.
+export 'src/ui/shared/document_picker.dart'
+    show DocumentPicker, LinkOpener, PickedDocument;
 export 'src/ui/bill_payment_routes.dart';

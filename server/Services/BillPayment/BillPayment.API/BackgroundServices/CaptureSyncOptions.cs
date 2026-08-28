@@ -1,4 +1,4 @@
-namespace BillPayment.API.BackgroundServices;
+﻿namespace BillPayment.API.BackgroundServices;
 
 /// <summary>
 /// Configuração do agendador de sincronização de caixas.
@@ -28,6 +28,21 @@ public sealed class CaptureSyncOptions
     public int BatchSize { get; set; } = 20;
 
     /// <summary>
+    /// Espera entre varreduras quando a anterior parou no teto de páginas em vez de chegar ao
+    /// fim da caixa.
+    /// </summary>
+    /// <remarks>
+    /// <strong>Existe porque a mensagem nova está no FIM da enumeração.</strong> A delta query do
+    /// provedor vai do mais antigo para o mais novo e devolve um teto de páginas por chamada;
+    /// dormir o <see cref="PollingInterval"/> inteiro sobre uma varredura truncada deixa o e-mail
+    /// que acabou de chegar horas fora de alcance. Medido em 2026-08-26 na caixa real: 12.422
+    /// mensagens, 1.000 por varredura — treze varreduras até o topo. Curto, mas não zero: sem
+    /// pausa nenhuma o agendador viraria laço apertado contra o provedor e cairia em limitação
+    /// de taxa.
+    /// </remarks>
+    public TimeSpan CatchUpInterval { get; set; } = TimeSpan.FromSeconds(5);
+
+    /// <summary>
     /// Ritmo do processamento de artefatos, separado do da varredura.
     /// </summary>
     /// <remarks>
@@ -41,4 +56,28 @@ public sealed class CaptureSyncOptions
     /// extração — um lote grande seguraria memória sem entregar mais rápido.
     /// </summary>
     public int ProcessingBatchSize { get; set; } = 10;
+
+    /// <summary>
+    /// Quantos artefatos da faixa rápida são processados ao mesmo tempo.
+    /// </summary>
+    /// <remarks>
+    /// <strong>Paralelizar aqui compensa porque este trabalho é I/O.</strong> Baixar do provedor,
+    /// gravar no balde e ler o PDF passam a maior parte do tempo esperando rede e disco — medido
+    /// em 2026-08-26: mediana de 150 ms por artefato, quase toda em espera. O teto existe para não
+    /// virar enxurrada contra o provedor de e-mail e o balde, que são compartilhados.
+    /// <para>
+    /// <strong>Não vale para a faixa de visão</strong>, que é serial de propósito: lá o teto é a
+    /// cota da conta de IA, e concorrência só troca espera por <c>429</c>.
+    /// </para>
+    /// </remarks>
+    public int ProcessingConcurrency { get; set; } = 4;
+
+    /// <summary>Artefatos por ciclo da fila de visão. Pequeno: cada um custa cota e segundos.</summary>
+    public int VisionBatchSize { get; set; } = 5;
+
+    /// <summary>Espera entre ciclos da fila de visão quando ela ficou vazia.</summary>
+    public TimeSpan VisionInterval { get; set; } = TimeSpan.FromSeconds(30);
+
+    /// <summary>Espera quando o lote de visão saiu cheio — há mais fila, emenda o próximo.</summary>
+    public TimeSpan VisionCatchUpInterval { get; set; } = TimeSpan.FromSeconds(2);
 }

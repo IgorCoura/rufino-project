@@ -2,12 +2,14 @@ namespace BillPayment.Application.Queries.Bills;
 
 using BillPayment.Domain.Bills;
 using BillPayment.Domain.Instruments;
+using BillPayment.Domain.Lookups;
+using BillPayment.Domain.Ports;
 using BillPayment.Domain.SeedWork;
 using BillPayment.Domain.SharedKernel;
 using BillPayment.Infra.Persistence;
 using Microsoft.EntityFrameworkCore;
 
-internal sealed class BillQueries(BillPaymentDbContext context) : IBillQueries
+internal sealed class BillQueries(BillPaymentDbContext context, IAttachmentStorage storage) : IBillQueries
 {
     public const int DEFAULT_LIMIT = 50;
     public const int MAX_LIMIT = 200;
@@ -87,9 +89,7 @@ internal sealed class BillQueries(BillPaymentDbContext context) : IBillQueries
         if (bill is null)
             return null;
 
-        var beneficiary = bill.Rail == PaymentRail.Pix
-            ? bill.PixLookup?.Receiver ?? bill.Lookup?.Beneficiary
-            : bill.Lookup?.Beneficiary ?? bill.PixLookup?.Receiver;
+        var beneficiary = bill.Beneficiary;
 
         var barcode = bill.Instruments.FirstOrDefault(i => i.Kind == PaymentInstrumentKind.Barcode);
 
@@ -98,18 +98,24 @@ internal sealed class BillQueries(BillPaymentDbContext context) : IBillQueries
             bill.Status.Name,
             bill.Kind.Name,
             bill.Rail.Name,
+            bill.Risk?.Name,
             beneficiary is null
                 ? null
                 : new BillPartyDto(beneficiary.Name, beneficiary.TradingName, beneficiary.TaxId?.Formatted()),
             bill.PayableAmount?.Amount,
             bill.Lookup?.OriginalAmount?.Amount,
-            ToDateTime(bill.Lookup?.DueDate ?? bill.PixLookup?.DueDate) ?? barcode?.DigitableLine.DueDate,
+            ToDateTime(bill.DueDate),
             bill.Lookup?.BankCode?.Value
                 ?? (barcode is not null && barcode.DigitableLine.Kind.CarriesBankCode
                     ? barcode.DigitableLine.BankCode.Value
                     : null),
             ToDateTime(bill.Lookup?.MinimumScheduleDate),
             bill.LastConsultedAt?.UtcDateTime,
+
+            ToReadingDto(bill.Reading),
+            bill.ReadingState.Name,
+
+            new BillLookupsDto(ToBankSlipLookupDto(bill.Lookup), ToPixLookupDto(bill.PixLookup)),
 
             // Ordem estável pelo id do tipo: a tela lista as doze sempre na mesma sequência,
             // e a do catálogo é a ordem de leitura que o doc 03 pede.
@@ -136,14 +142,38 @@ internal sealed class BillQueries(BillPaymentDbContext context) : IBillQueries
                 bill.Origin.SourceKind.Name,
                 bill.Origin.SourceId,
                 bill.Origin.SenderAddress,
-                bill.Origin.ReceivedAt),
+                bill.Origin.ReceivedAt,
+                !string.IsNullOrEmpty(bill.Origin.StorageKey)),
             bill.CreatedAt);
     }
 
-    /// <summary>
-    /// Status desconhecido devolve a lista inteira em vez de estourar: o filtro vem da query
-    /// string e um valor inválido é erro do cliente, não motivo para 500.
-    /// </summary>
+    public async Task<ArtifactDownload?> GetArtifactAsync(
+        Guid tenantId,
+        Guid billId,
+        CancellationToken cancellationToken = default)
+    {
+        var tenant = TenantId.From(tenantId);
+        var id = BillId.From(billId);
+
+        var bill = await context.Bills
+            .AsNoTracking()
+            .FirstOrDefaultAsync(b => b.TenantId == tenant && b.Id == id, cancellationToken);
+
+        var storageKey = bill?.Origin.StorageKey;
+
+        // Boleto importado à mão nasce só com os dígitos: não há arquivo, e isso é estado normal.
+        if (string.IsNullOrEmpty(storageKey))
+            return null;
+
+        var artifact = await storage.OpenAsync(tenant, storageKey, cancellationToken);
+        if (artifact is null)
+            return null;
+
+        // A Bill não guarda tipo de mídia — o do balde é a única fonte, e o nome é montado a
+        // partir do id porque nenhum nome de anexo sobrevive à promoção.
+        return ArtifactDownload.From(artifact, declaredContentType: null, $"boleto-{bill!.Id.Value:N}");
+    }
+
     private static bool TryParseStatus(string? status, out BillStatus parsed)
     {
         parsed = default!;
@@ -159,22 +189,110 @@ internal sealed class BillQueries(BillPaymentDbContext context) : IBillQueries
     private static DateTime? ToDateTime(DateOnly? date)
         => date?.ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc);
 
+    private static BillPartyDto? ToPartyDto(LookupParty? party)
+        => party is null
+            ? null
+            : new BillPartyDto(party.Name, party.TradingName, party.TaxId?.Formatted());
+
+    // Os retratos saem POR INTEIRO (decisão de 2026-08-27): o aprovador vê exatamente o que o
+    // provedor devolveu, e decide com a mesma informação que o sistema usou para classificar.
+    private static BankSlipLookupDto? ToBankSlipLookupDto(LookupSnapshot? snapshot)
+        => snapshot is null
+            ? null
+            : new BankSlipLookupDto(
+                ToPartyDto(snapshot.Beneficiary),
+                snapshot.BankCode?.Value,
+                snapshot.Amount?.Amount,
+                snapshot.OriginalAmount?.Amount,
+                snapshot.Fee?.Amount,
+                snapshot.AllowChangeValue,
+                snapshot.IsOverdue,
+                ToDateTime(snapshot.DueDate),
+                ToDateTime(snapshot.MinimumScheduleDate),
+                snapshot.ConsultedAt.UtcDateTime);
+
+    private static PixLookupDto? ToPixLookupDto(PixLookupSnapshot? snapshot)
+        => snapshot is null
+            ? null
+            : new PixLookupDto(
+                ToPartyDto(snapshot.Receiver),
+                snapshot.ReceiverIspb,
+                snapshot.ReceiverIspbName,
+                snapshot.IsDynamic,
+                snapshot.CanBePaid,
+                snapshot.Amount?.Amount,
+                snapshot.TotalAmount?.Amount,
+                snapshot.Interest?.Amount,
+                snapshot.Fine?.Amount,
+                snapshot.Discount?.Amount,
+                ToDateTime(snapshot.DueDate),
+                snapshot.ExpirationDate?.UtcDateTime,
+                snapshot.ConsultedAt.UtcDateTime);
+
+    private static BillReadingDto? ToReadingDto(DocumentReading? reading)
+        => reading is null
+            ? null
+            : new BillReadingDto(
+                reading.PayerName,
+                reading.PayerTaxId?.Formatted(),
+                reading.PayeeName,
+                reading.PayeeTaxId?.Formatted(),
+                reading.AccountReference,
+                reading.Amount,
+                ToDateTime(reading.DueDate),
+                reading.BillingPeriodText,
+                reading.Competence?.Year,
+                reading.Competence?.Month,
+                reading.Description,
+                reading.ReadAt.UtcDateTime);
+
+    /// <summary>
+    /// O beneficiário que a tela mostra: o oficial quando a consulta resolveu; senão, o que a
+    /// leitura por IA viu.
+    /// </summary>
+    /// <remarks>
+    /// A precedência é a mesma do detalhe, e a ordem importa: o retrato oficial é constatado, a
+    /// leitura é candidata. Inverter faria a tela afirmar como verificado um nome que só foi lido.
+    /// O da leitura sai <strong>sem nome fantasia</strong>, que é o que o rotula como não-oficial.
+    /// </remarks>
+    private static BillPartyDto? BeneficiaryOf(Bill bill)
+    {
+        if (bill.Beneficiary is { } official)
+            return new BillPartyDto(official.Name, official.TradingName, official.TaxId?.Formatted());
+
+        if (bill.Reading is not { } reading)
+            return null;
+
+        return reading.PayeeName is null && reading.PayeeTaxId is null
+            ? null
+            : new BillPartyDto(reading.PayeeName, null, reading.PayeeTaxId?.Formatted());
+    }
+
     private static BillDto ToDto(Bill bill)
     {
         var barcode = bill.Instruments.FirstOrDefault(i => i.Kind == PaymentInstrumentKind.Barcode);
 
-        // Projeção read-only para montar a resposta — não decide nada de domínio.
-        var amount = bill.Instruments
+        // Projeção read-only para montar a resposta — não decide nada de domínio. Vencimento,
+        // valor e beneficiário vêm do agregado, que consolida consulta oficial e instrumento
+        // com a mesma precedência do detalhe; o valor declarado no instrumento é a reserva
+        // para boleto ainda não consultado.
+        var declared = bill.Instruments
             .Select(i => i.DeclaredAmount)
             .FirstOrDefault(a => a is not null);
+
+        // Boleto ainda sem consulta resolvida mostra o beneficiário que a leitura por IA viu —
+        // rotulado pela ausência de documento oficial, nunca confundível com o verificado.
+        var beneficiary = BeneficiaryOf(bill);
 
         return new BillDto(
             bill.Id.Value,
             bill.Status.Name,
             bill.Kind.Name,
             bill.Rail.Name,
-            amount?.Amount,
-            barcode?.DigitableLine.DueDate,
+            bill.Risk?.Name,
+            beneficiary,
+            bill.PayableAmount?.Amount ?? declared?.Amount,
+            ToDateTime(bill.DueDate),
             barcode is not null && barcode.DigitableLine.Kind.CarriesBankCode
                 ? barcode.DigitableLine.BankCode.Value
                 : null,
@@ -182,7 +300,9 @@ internal sealed class BillQueries(BillPaymentDbContext context) : IBillQueries
                 bill.Origin.SourceKind.Name,
                 bill.Origin.SourceId,
                 bill.Origin.SenderAddress,
-                bill.Origin.ReceivedAt),
-            bill.CreatedAt);
+                bill.Origin.ReceivedAt,
+                !string.IsNullOrEmpty(bill.Origin.StorageKey)),
+            bill.CreatedAt,
+            bill.ReadingState.Name);
     }
 }

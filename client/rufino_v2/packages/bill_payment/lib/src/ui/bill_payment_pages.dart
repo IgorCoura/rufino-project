@@ -14,6 +14,7 @@ import 'package:provider/provider.dart';
 
 import '../domain/bill_repository.dart';
 import '../domain/capture_item_repository.dart';
+import '../domain/captured_message_repository.dart';
 import '../domain/trusted_origin_repository.dart';
 import '../domain/capture_source_repository.dart';
 import '../domain/expectation_repository.dart';
@@ -27,8 +28,11 @@ import 'bills/bill_list_screen.dart';
 import 'bills/bill_list_viewmodel.dart';
 import 'capture_items/capture_item_detail_screen.dart';
 import 'capture_items/capture_item_detail_viewmodel.dart';
+import 'shared/document_picker.dart';
 import 'capture_items/capture_item_list_screen.dart';
 import 'capture_items/capture_item_list_viewmodel.dart';
+import 'captured_messages/captured_message_list_screen.dart';
+import 'captured_messages/captured_message_list_viewmodel.dart';
 import 'capture_sources/capture_source_connect_screen.dart';
 import 'capture_sources/capture_source_connect_viewmodel.dart';
 import 'capture_sources/capture_source_detail_screen.dart';
@@ -51,6 +55,9 @@ import 'payer_profile/payer_profile_screen.dart';
 import 'payer_profile/payer_profile_viewmodel.dart';
 import 'pending/pending_screen.dart';
 import 'pending/pending_viewmodel.dart';
+import 'shared/artifact_viewer_screen.dart';
+import 'shared/email_viewer_screen.dart';
+import 'shared/artifact_viewer_viewmodel.dart';
 import 'trusted_origins/trusted_origin_list_screen.dart';
 import 'trusted_origins/trusted_origin_list_viewmodel.dart';
 
@@ -218,6 +225,8 @@ class BillDetailPage extends StatefulWidget {
     super.key,
     required this.billId,
     required this.backFallback,
+    required this.onOpenArtifact,
+    required this.onOpenEmail,
   });
 
   /// O boleto sendo mostrado.
@@ -225,6 +234,12 @@ class BillDetailPage extends StatefulWidget {
 
   /// Para onde o voltar leva quando não há pilha.
   final String backFallback;
+
+  /// Abre o documento original do boleto.
+  final VoidCallback onOpenArtifact;
+
+  /// Abre o e-mail que trouxe o boleto.
+  final VoidCallback onOpenEmail;
 
   @override
   State<BillDetailPage> createState() => _BillDetailPageState();
@@ -253,6 +268,8 @@ class _BillDetailPageState extends State<BillDetailPage> {
     return BillDetailScreen(
       viewModel: _viewModel,
       backFallback: widget.backFallback,
+      onOpenArtifact: widget.onOpenArtifact,
+      onOpenEmail: widget.onOpenEmail,
     );
   }
 }
@@ -264,6 +281,7 @@ class BillImportPage extends StatefulWidget {
     super.key,
     required this.backFallback,
     required this.onImported,
+    required this.onPickDocument,
   });
 
   /// Para onde o voltar leva quando não há pilha.
@@ -271,6 +289,9 @@ class BillImportPage extends StatefulWidget {
 
   /// Chamada com o id do boleto recém-importado.
   final void Function(String id) onImported;
+
+  /// Abre o seletor de arquivos do sistema. Vem da casca.
+  final DocumentPicker onPickDocument;
 
   @override
   State<BillImportPage> createState() => _BillImportPageState();
@@ -298,6 +319,7 @@ class _BillImportPageState extends State<BillImportPage> {
       viewModel: _viewModel,
       backFallback: widget.backFallback,
       onImported: widget.onImported,
+      onPickDocument: widget.onPickDocument,
     );
   }
 }
@@ -356,6 +378,10 @@ class CaptureItemDetailPage extends StatefulWidget {
     required this.itemId,
     required this.backFallback,
     required this.onOpenBill,
+    required this.onOpenArtifact,
+    required this.onOpenEmail,
+    required this.onPickDocument,
+    required this.onOpenLink,
   });
 
   /// O item sendo mostrado.
@@ -366,6 +392,18 @@ class CaptureItemDetailPage extends StatefulWidget {
 
   /// Abre um boleto ligado ao item.
   final void Function(String billId) onOpenBill;
+
+  /// Abre o documento original do item.
+  final VoidCallback onOpenArtifact;
+
+  /// Abre o e-mail que trouxe o item.
+  final VoidCallback onOpenEmail;
+
+  /// Abre o seletor de arquivos para anexar o boleto obtido à mão.
+  final DocumentPicker onPickDocument;
+
+  /// Abre o endereço do documento no navegador do sistema.
+  final LinkOpener onOpenLink;
 
   @override
   State<CaptureItemDetailPage> createState() => _CaptureItemDetailPageState();
@@ -395,6 +433,250 @@ class _CaptureItemDetailPageState extends State<CaptureItemDetailPage> {
       viewModel: _viewModel,
       backFallback: widget.backFallback,
       onOpenBill: widget.onOpenBill,
+      onOpenArtifact: widget.onOpenArtifact,
+      onOpenEmail: widget.onOpenEmail,
+      onPickDocument: widget.onPickDocument,
+      onOpenLink: widget.onOpenLink,
+    );
+  }
+}
+
+/// Página do documento original de um item da quarentena.
+class CaptureItemArtifactPage extends StatefulWidget {
+  /// Cria a página para [itemId].
+  const CaptureItemArtifactPage({
+    super.key,
+    required this.itemId,
+    required this.backFallback,
+  });
+
+  /// O item cujo documento está sendo mostrado.
+  final String itemId;
+
+  /// Para onde o voltar leva quando não há pilha.
+  final String backFallback;
+
+  @override
+  State<CaptureItemArtifactPage> createState() =>
+      _CaptureItemArtifactPageState();
+}
+
+class _CaptureItemArtifactPageState extends State<CaptureItemArtifactPage> {
+  late final ArtifactViewerViewModel _viewModel;
+
+  @override
+  void initState() {
+    super.initState();
+    final repository = context.read<CaptureItemRepository>();
+    _viewModel = ArtifactViewerViewModel(
+      load: () => repository.getArtifact(widget.itemId),
+    );
+  }
+
+  @override
+  void dispose() {
+    _viewModel.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return ArtifactViewerScreen(
+      viewModel: _viewModel,
+      title: 'Documento recebido',
+      backFallback: widget.backFallback,
+    );
+  }
+}
+
+/// Página do e-mail que trouxe o item da quarentena.
+class CaptureItemEmailPage extends StatefulWidget {
+  /// Cria a página para [itemId].
+  const CaptureItemEmailPage({
+    super.key,
+    required this.itemId,
+    required this.backFallback,
+  });
+
+  /// O item cujo e-mail está sendo mostrado.
+  final String itemId;
+
+  /// Para onde o voltar leva quando não há pilha.
+  final String backFallback;
+
+  @override
+  State<CaptureItemEmailPage> createState() => _CaptureItemEmailPageState();
+}
+
+class _CaptureItemEmailPageState extends State<CaptureItemEmailPage> {
+  late final EmailViewerViewModel _viewModel;
+
+  @override
+  void initState() {
+    super.initState();
+    final repository = context.read<CaptureItemRepository>();
+    _viewModel = EmailViewerViewModel(
+      load: () => repository.getEmail(widget.itemId),
+    );
+  }
+
+  @override
+  void dispose() {
+    _viewModel.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return EmailViewerScreen(
+      viewModel: _viewModel,
+      backFallback: widget.backFallback,
+      title: 'E-mail do item',
+    );
+  }
+}
+
+/// Página do documento original de um boleto.
+class BillArtifactPage extends StatefulWidget {
+  /// Cria a página para [billId].
+  const BillArtifactPage({
+    super.key,
+    required this.billId,
+    required this.backFallback,
+  });
+
+  /// O boleto cujo documento está sendo mostrado.
+  final String billId;
+
+  /// Para onde o voltar leva quando não há pilha.
+  final String backFallback;
+
+  @override
+  State<BillArtifactPage> createState() => _BillArtifactPageState();
+}
+
+class _BillArtifactPageState extends State<BillArtifactPage> {
+  late final ArtifactViewerViewModel _viewModel;
+
+  @override
+  void initState() {
+    super.initState();
+    final repository = context.read<BillRepository>();
+    _viewModel = ArtifactViewerViewModel(
+      load: () => repository.getArtifact(widget.billId),
+    );
+  }
+
+  @override
+  void dispose() {
+    _viewModel.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return ArtifactViewerScreen(
+      viewModel: _viewModel,
+      title: 'Documento do boleto',
+      backFallback: widget.backFallback,
+    );
+  }
+}
+
+/// Página do e-mail que trouxe o boleto.
+class BillEmailPage extends StatefulWidget {
+  /// Cria a página para [billId].
+  const BillEmailPage({
+    super.key,
+    required this.billId,
+    required this.backFallback,
+  });
+
+  /// O boleto cujo e-mail está sendo mostrado.
+  final String billId;
+
+  /// Para onde o voltar leva quando não há pilha.
+  final String backFallback;
+
+  @override
+  State<BillEmailPage> createState() => _BillEmailPageState();
+}
+
+class _BillEmailPageState extends State<BillEmailPage> {
+  late final EmailViewerViewModel _viewModel;
+
+  @override
+  void initState() {
+    super.initState();
+    final repository = context.read<BillRepository>();
+    _viewModel = EmailViewerViewModel(
+      load: () => repository.getEmail(widget.billId),
+    );
+  }
+
+  @override
+  void dispose() {
+    _viewModel.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return EmailViewerScreen(
+      viewModel: _viewModel,
+      backFallback: widget.backFallback,
+    );
+  }
+}
+
+/// Página do histórico de e-mails capturados.
+class CapturedMessageListPage extends StatefulWidget {
+  /// Cria a página.
+  const CapturedMessageListPage({
+    super.key,
+    required this.backFallback,
+    required this.onOpenBill,
+    required this.onOpenCaptureItem,
+  });
+
+  /// Para onde o voltar leva quando não há pilha.
+  final String backFallback;
+
+  /// Abre o boleto que o e-mail produziu.
+  final void Function(String billId) onOpenBill;
+
+  /// Abre o item da quarentena.
+  final void Function(String itemId) onOpenCaptureItem;
+
+  @override
+  State<CapturedMessageListPage> createState() =>
+      _CapturedMessageListPageState();
+}
+
+class _CapturedMessageListPageState extends State<CapturedMessageListPage> {
+  late final CapturedMessageListViewModel _viewModel;
+
+  @override
+  void initState() {
+    super.initState();
+    _viewModel = CapturedMessageListViewModel(
+      repository: context.read<CapturedMessageRepository>(),
+    );
+  }
+
+  @override
+  void dispose() {
+    _viewModel.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return CapturedMessageListScreen(
+      viewModel: _viewModel,
+      backFallback: widget.backFallback,
+      onOpenBill: widget.onOpenBill,
+      onOpenCaptureItem: widget.onOpenCaptureItem,
     );
   }
 }
@@ -784,20 +1066,24 @@ class _ExpectationListPageState extends State<ExpectationListPage> {
   }
 }
 
-/// Página do cadastro de expectativa.
+/// Página do formulário de expectativa — cadastro e edição.
 class ExpectationFormPage extends StatefulWidget {
-  /// Cria a página.
+  /// Cria a página. Com [expectationId], o formulário abre em modo edição.
   const ExpectationFormPage({
     super.key,
     required this.backFallback,
-    required this.onRegistered,
+    required this.onSaved,
+    this.expectationId,
   });
 
   /// Para onde o voltar leva quando não há pilha.
   final String backFallback;
 
-  /// Chamada com o id da expectativa recém-cadastrada.
-  final void Function(String id) onRegistered;
+  /// Chamada com o id da expectativa recém-salva.
+  final void Function(String id) onSaved;
+
+  /// A expectativa sendo editada, ou nulo no cadastro.
+  final String? expectationId;
 
   @override
   State<ExpectationFormPage> createState() => _ExpectationFormPageState();
@@ -812,6 +1098,7 @@ class _ExpectationFormPageState extends State<ExpectationFormPage> {
     _viewModel = ExpectationFormViewModel(
       repository: context.read<ExpectationRepository>(),
       payeeRepository: context.read<PayeeRepository>(),
+      expectationId: widget.expectationId,
     );
   }
 
@@ -826,7 +1113,7 @@ class _ExpectationFormPageState extends State<ExpectationFormPage> {
     return ExpectationFormScreen(
       viewModel: _viewModel,
       backFallback: widget.backFallback,
-      onRegistered: widget.onRegistered,
+      onSaved: widget.onSaved,
     );
   }
 }
@@ -840,6 +1127,8 @@ class ExpectationDetailPage extends StatefulWidget {
     required this.backFallback,
     required this.onOpenBill,
     required this.onOpenCaptureItem,
+    required this.onEdit,
+    required this.onDeleted,
   });
 
   /// A expectativa sendo mostrada.
@@ -853,6 +1142,12 @@ class ExpectationDetailPage extends StatefulWidget {
 
   /// Abre o item da quarentena que bloqueia um ciclo.
   final void Function(String itemId) onOpenCaptureItem;
+
+  /// Abre o formulário de edição desta expectativa.
+  final VoidCallback onEdit;
+
+  /// Chamada depois de a expectativa ser excluída — não há tela para voltar.
+  final VoidCallback onDeleted;
 
   @override
   State<ExpectationDetailPage> createState() => _ExpectationDetailPageState();
@@ -883,6 +1178,8 @@ class _ExpectationDetailPageState extends State<ExpectationDetailPage> {
       backFallback: widget.backFallback,
       onOpenBill: widget.onOpenBill,
       onOpenCaptureItem: widget.onOpenCaptureItem,
+      onEdit: widget.onEdit,
+      onDeleted: widget.onDeleted,
     );
   }
 }

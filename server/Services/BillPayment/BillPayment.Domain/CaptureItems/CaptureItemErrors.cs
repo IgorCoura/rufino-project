@@ -1,4 +1,4 @@
-namespace BillPayment.Domain.CaptureItems;
+﻿namespace BillPayment.Domain.CaptureItems;
 
 using System.IO;
 using System.Runtime.CompilerServices;
@@ -191,4 +191,29 @@ public static class CaptureItemErrors
 
     private static string BuildSourcePath(string filePath, string memberName, int lineNumber)
         => $"{Path.GetFileName(filePath)}:{lineNumber} ({memberName})";
+
+    /// <summary>Reprovar é decisão de alguém: sem autor não há trilha, e a fila deixa de ser auditável.</summary>
+    public static DomainException DismissedByRequired(
+        [CallerFilePath] string filePath = "",
+        [CallerMemberName] string memberName = "",
+        [CallerLineNumber] int lineNumber = 0)
+        => new(
+            id: $"{AGGREGATE_PREFIX}16",
+            messageTemplate: "É preciso saber quem reprovou o item capturado.",
+            parameters: [],
+            sourcePath: BuildSourcePath(filePath, memberName, lineNumber),
+            category: DomainErrorCategory.Validation);
+
+    /// <summary>O anexo manual precisa ser um documento aceito pela cascata.</summary>
+    public static DomainException UnsupportedArtifact(
+        string contentType,
+        [CallerFilePath] string filePath = "",
+        [CallerMemberName] string memberName = "",
+        [CallerLineNumber] int lineNumber = 0)
+        => new(
+            id: $"{AGGREGATE_PREFIX}17",
+            messageTemplate: "O tipo de arquivo '{0}' não pode ser lido como boleto.",
+            parameters: [contentType],
+            sourcePath: BuildSourcePath(filePath, memberName, lineNumber),
+            category: DomainErrorCategory.Validation);
 }

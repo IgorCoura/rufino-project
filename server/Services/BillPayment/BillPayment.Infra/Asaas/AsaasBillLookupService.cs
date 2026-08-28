@@ -16,6 +16,7 @@ using Microsoft.Extensions.Logging;
 /// e idempotente, então repetir depois de um timeout é seguro. O adapter de pagamento da fase 3
 /// precisa de um cliente próprio, sem retry automático — sobretudo o de Pix, cujo endpoint não
 /// documenta idempotência nenhuma e pagaria duas vezes numa retentativa de rede
+/// Doc: https://docs.asaas.com/reference/simular-um-pagamento-de-conta
 /// (ver <c>04-integrations.md</c>).
 /// </para>
 /// <para>
@@ -31,6 +32,7 @@ internal sealed class AsaasBillLookupService(
 {
     private const string SIMULATE_PATH = "bill/simulate";
 
+   
     public async Task<BillLookupResult> SimulateAsync(DigitableLine digitableLine, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(digitableLine);

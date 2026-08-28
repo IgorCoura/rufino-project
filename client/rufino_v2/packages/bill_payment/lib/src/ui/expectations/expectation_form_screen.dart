@@ -5,14 +5,14 @@ import '../../domain/bill_payment_enums.dart';
 import '../bill_payment_back_button.dart';
 import 'expectation_form_viewmodel.dart';
 
-/// The expectation register form.
+/// The expectation form — registering a new one, or editing one that exists.
 class ExpectationFormScreen extends StatefulWidget {
   /// Creates the screen.
   const ExpectationFormScreen({
     super.key,
     required this.viewModel,
     required this.backFallback,
-    required this.onRegistered,
+    required this.onSaved,
   });
 
   /// Drives the screen.
@@ -21,8 +21,8 @@ class ExpectationFormScreen extends StatefulWidget {
   /// Para onde o voltar leva quando não há pilha.
   final String backFallback;
 
-  /// Called with the id of the expectation just registered.
-  final void Function(String id) onRegistered;
+  /// Called with the id of the expectation just saved.
+  final void Function(String id) onSaved;
 
   @override
   State<ExpectationFormScreen> createState() => _ExpectationFormScreenState();
@@ -36,10 +36,12 @@ class _ExpectationFormScreenState extends State<ExpectationFormScreen> {
   final _leadDaysController = TextEditingController(text: '7');
   final _alertLeadController = TextEditingController();
 
+  bool _prefilled = false;
+
   @override
   void initState() {
     super.initState();
-    widget.viewModel.loadPayees();
+    widget.viewModel.load();
   }
 
   @override
@@ -52,10 +54,24 @@ class _ExpectationFormScreenState extends State<ExpectationFormScreen> {
     super.dispose();
   }
 
+  /// Copies the loaded expectation into the fields, once. Repeating it on
+  /// every rebuild would overwrite what the person is typing.
+  void _prefillOnce() {
+    final existing = widget.viewModel.existing;
+    if (_prefilled || existing == null) return;
+
+    _labelController.text = existing.label;
+    _accountController.text = existing.accountReference ?? '';
+    _dueDayController.text = existing.expectedDueDay.toString();
+    _leadDaysController.text = existing.observedLeadDays.toString();
+    _alertLeadController.text = existing.alertLeadDays.toString();
+    _prefilled = true;
+  }
+
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
 
-    final id = await widget.viewModel.register(
+    final id = await widget.viewModel.save(
       label: _labelController.text.trim(),
       expectedDueDay: int.parse(_dueDayController.text),
       observedLeadDays: int.parse(_leadDaysController.text),
@@ -64,14 +80,15 @@ class _ExpectationFormScreenState extends State<ExpectationFormScreen> {
           : _accountController.text.trim(),
       alertLeadDays: int.tryParse(_alertLeadController.text),
     );
-    if (id != null && mounted) widget.onRegistered(id);
+    if (id != null && mounted) widget.onSaved(id);
   }
 
   @override
   Widget build(BuildContext context) {
+    final isEditing = widget.viewModel.isEditing;
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Nova expectativa'),
+        title: Text(isEditing ? 'Editar expectativa' : 'Nova expectativa'),
         leading: BillPaymentBackButton(fallback: widget.backFallback),
       ),
       body: SafeArea(
@@ -79,9 +96,10 @@ class _ExpectationFormScreenState extends State<ExpectationFormScreen> {
           listenable: widget.viewModel,
           builder: (context, _) {
             final viewModel = widget.viewModel;
-            if (viewModel.isLoadingPayees) {
+            if (viewModel.isLoading) {
               return const Center(child: CircularProgressIndicator());
             }
+            _prefillOnce();
             return Center(
               child: ConstrainedBox(
                 constraints:
@@ -95,9 +113,14 @@ class _ExpectationFormScreenState extends State<ExpectationFormScreen> {
                       children: [
                         DropdownButtonFormField<String>(
                           initialValue: viewModel.selectedPayeeId,
-                          decoration: const InputDecoration(
+                          decoration: InputDecoration(
                             labelText: 'Beneficiário',
-                            border: OutlineInputBorder(),
+                            border: const OutlineInputBorder(),
+                            helperText: isEditing
+                                ? 'O beneficiário não muda: para trocá-lo, '
+                                    'exclua esta expectativa e cadastre outra.'
+                                : null,
+                            helperMaxLines: 2,
                           ),
                           items: [
                             for (final payee in viewModel.payeeOptions)
@@ -109,7 +132,9 @@ class _ExpectationFormScreenState extends State<ExpectationFormScreen> {
                                 ),
                               ),
                           ],
-                          onChanged: viewModel.selectPayee,
+                          // Desabilitado ao editar: bloquear calado faria a
+                          // pessoa achar que é defeito, e o helperText explica.
+                          onChanged: isEditing ? null : viewModel.selectPayee,
                           validator: (value) =>
                               value == null ? 'Escolha o beneficiário.' : null,
                         ),
@@ -207,7 +232,7 @@ class _ExpectationFormScreenState extends State<ExpectationFormScreen> {
                                   child: CircularProgressIndicator(
                                       strokeWidth: 2),
                                 )
-                              : const Text('Cadastrar'),
+                              : Text(isEditing ? 'Salvar' : 'Cadastrar'),
                         ),
                       ],
                     ),

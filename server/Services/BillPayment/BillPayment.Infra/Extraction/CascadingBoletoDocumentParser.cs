@@ -1,6 +1,7 @@
-namespace BillPayment.Infra.Extraction;
+﻿namespace BillPayment.Infra.Extraction;
 
 using BillPayment.Domain.Extraction;
+using BillPayment.Domain.SharedKernel;
 using BillPayment.Domain.Ports;
 
 /// <summary>
@@ -27,12 +28,24 @@ internal sealed class CascadingBoletoDocumentParser(
         ReadOnlyMemory<byte> content,
         string? contentType,
         IReadOnlyList<PasswordCandidate> passwordCandidates,
+        IReadOnlyList<TaxId> knownTaxIds,
         DateOnly today,
         CancellationToken cancellationToken)
     {
         var parser = IsTextual(contentType, content.Span) ? (IBoletoDocumentParser)bodyParser : pdfParser;
 
-        return parser.ParseAsync(content, contentType, passwordCandidates, today, cancellationToken);
+        return parser.ParseAsync(content, contentType, passwordCandidates, knownTaxIds, today, cancellationToken);
+    }
+
+    public Task<ReadOnlyMemory<byte>?> UnlockAsync(
+        ReadOnlyMemory<byte> content,
+        string? contentType,
+        IReadOnlyList<PasswordCandidate> passwordCandidates,
+        CancellationToken cancellationToken)
+    {
+        var parser = IsTextual(contentType, content.Span) ? (IBoletoDocumentParser)bodyParser : pdfParser;
+
+        return parser.UnlockAsync(content, contentType, passwordCandidates, cancellationToken);
     }
 
     private static bool IsTextual(string? contentType, ReadOnlySpan<byte> content)

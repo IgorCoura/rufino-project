@@ -121,6 +121,34 @@ class ExpectationDetailViewModel extends ChangeNotifier {
         fallback: 'Não foi possível desativar.',
       );
 
+  /// Deletes the expectation and the cycle history that came with it.
+  ///
+  /// Does NOT reload afterwards — there is nothing left to load. Resolves to
+  /// `true` so the caller can leave the screen.
+  Future<bool> deleteExpectation() async {
+    _isMutating = true;
+    _errorMessage = null;
+    notifyListeners();
+
+    var deleted = false;
+    try {
+      final result = await _repository.deleteExpectation(expectationId);
+      result.fold(
+        onSuccess: (_) => deleted = true,
+        onError: (error, _) {
+          _errorMessage = billPaymentErrorMessage(
+            error,
+            fallback: 'Não foi possível excluir a expectativa.',
+          );
+        },
+      );
+    } finally {
+      _isMutating = false;
+      notifyListeners();
+    }
+    return deleted;
+  }
+
   /// Dismisses one cycle — that competence only.
   Future<bool> waiveCycle(String cycleId, String? reason) => _mutate(
         () => _repository.waiveCycle(expectationId, cycleId, reason: reason),

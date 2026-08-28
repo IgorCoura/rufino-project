@@ -38,6 +38,10 @@ namespace BillPayment.Infra.Migrations
                         .HasColumnType("character varying(128)")
                         .HasColumnName("dedup_key");
 
+                    b.Property<DateOnly?>("DueDate")
+                        .HasColumnType("date")
+                        .HasColumnName("due_date");
+
                     b.Property<string>("Instruments")
                         .IsRequired()
                         .HasColumnType("jsonb")
@@ -68,6 +72,30 @@ namespace BillPayment.Infra.Migrations
                         .HasColumnType("integer")
                         .HasColumnName("rail");
 
+                    b.Property<string>("Reading")
+                        .HasColumnType("jsonb")
+                        .HasColumnName("reading");
+
+                    b.Property<bool>("ReadingArrivedAfterDecision")
+                        .HasColumnType("boolean")
+                        .HasColumnName("reading_arrived_after_decision");
+
+                    b.Property<int>("ReadingAttempts")
+                        .HasColumnType("integer")
+                        .HasColumnName("reading_attempts");
+
+                    b.Property<DateTime?>("ReadingLeaseExpiresAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("reading_lease_expires_at");
+
+                    b.Property<int>("ReadingState")
+                        .HasColumnType("integer")
+                        .HasColumnName("reading_state");
+
+                    b.Property<int?>("Risk")
+                        .HasColumnType("integer")
+                        .HasColumnName("risk_level");
+
                     b.Property<int?>("Routing")
                         .HasColumnType("integer")
                         .HasColumnName("routing_confidence");
@@ -95,8 +123,15 @@ namespace BillPayment.Infra.Migrations
                         .HasDatabaseName("ix_bills_dedup_key_active")
                         .HasFilter("\"dedup_key\" IS NOT NULL AND \"status\" NOT IN (5, 9)");
 
+                    b.HasIndex("ReadingState", "ReadingLeaseExpiresAt")
+                        .HasDatabaseName("ix_bills_reading_queue")
+                        .HasFilter("reading_state = 2");
+
                     b.HasIndex("TenantId", "CreatedAt")
                         .HasDatabaseName("ix_bills_tenant_created");
+
+                    b.HasIndex("TenantId", "DueDate")
+                        .HasDatabaseName("ix_bills_tenant_due_date");
 
                     b.ToTable("bills", "bill_payment");
                 });
@@ -143,6 +178,14 @@ namespace BillPayment.Infra.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("discarded_of");
 
+                    b.Property<DateTime?>("DismissedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("dismissed_at");
+
+                    b.Property<Guid?>("DismissedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("dismissed_by");
+
                     b.Property<string>("ExternalMessageId")
                         .IsRequired()
                         .HasMaxLength(512)
@@ -157,6 +200,32 @@ namespace BillPayment.Infra.Migrations
                         .HasMaxLength(255)
                         .HasColumnType("character varying(255)")
                         .HasColumnName("file_name");
+
+                    b.Property<string>("InternetMessageId")
+                        .HasMaxLength(512)
+                        .HasColumnType("character varying(512)")
+                        .HasColumnName("internet_message_id");
+
+                    b.Property<string>("LastError")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("last_error");
+
+                    b.Property<DateTime?>("LeaseExpiresAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("lease_expires_at");
+
+                    b.Property<bool>("ManuallySupplied")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false)
+                        .HasColumnName("manually_supplied");
+
+                    b.Property<int>("ProcessingAttempts")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(0)
+                        .HasColumnName("processing_attempts");
 
                     b.Property<string>("Reason")
                         .HasMaxLength(200)
@@ -218,6 +287,9 @@ namespace BillPayment.Infra.Migrations
                     b.HasIndex("TenantId", "ContentHash")
                         .HasDatabaseName("ix_capture_items_tenant_content_hash");
 
+                    b.HasIndex("Status", "ReceivedAt", "Id")
+                        .HasDatabaseName("ix_capture_items_worker_queue");
+
                     b.HasIndex("TenantId", "Status", "ReceivedAt")
                         .HasDatabaseName("ix_capture_items_tenant_status_received");
 
@@ -239,6 +311,10 @@ namespace BillPayment.Infra.Migrations
                         .HasMaxLength(500)
                         .HasColumnType("character varying(500)")
                         .HasColumnName("address");
+
+                    b.Property<DateOnly?>("CaptureSince")
+                        .HasColumnType("date")
+                        .HasColumnName("capture_since");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone")
@@ -295,6 +371,85 @@ namespace BillPayment.Infra.Migrations
                     b.ToTable("capture_sources", "bill_payment");
                 });
 
+            modelBuilder.Entity("BillPayment.Domain.CapturedMessages.CapturedMessage", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("BodyContentType")
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)")
+                        .HasColumnName("body_content_type");
+
+                    b.Property<string>("BodyStorageKey")
+                        .HasMaxLength(512)
+                        .HasColumnType("character varying(512)")
+                        .HasColumnName("body_storage_key");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("ExternalMessageId")
+                        .IsRequired()
+                        .HasMaxLength(512)
+                        .HasColumnType("character varying(512)")
+                        .HasColumnName("external_message_id");
+
+                    b.Property<DateTime>("FirstSeenAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("first_seen_at");
+
+                    b.Property<string>("InternetMessageId")
+                        .HasMaxLength(512)
+                        .HasColumnType("character varying(512)")
+                        .HasColumnName("internet_message_id");
+
+                    b.Property<DateTime?>("ProcessedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("processed_at");
+
+                    b.Property<DateTime>("ReceivedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("received_at");
+
+                    b.Property<string>("Sender")
+                        .IsRequired()
+                        .HasMaxLength(320)
+                        .HasColumnType("character varying(320)")
+                        .HasColumnName("sender");
+
+                    b.Property<Guid>("SourceId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("source_id");
+
+                    b.Property<string>("Subject")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("subject");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TenantId", "ReceivedAt", "Id")
+                        .IsDescending(false, true, true)
+                        .HasDatabaseName("ix_captured_messages_tenant_received");
+
+                    b.HasIndex("TenantId", "SourceId", "ExternalMessageId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_captured_messages_tenant_source_message");
+
+                    b.ToTable("captured_messages", "bill_payment");
+                });
+
             modelBuilder.Entity("BillPayment.Domain.Expectations.BillExpectation", b =>
                 {
                     b.Property<Guid>("Id")
@@ -310,6 +465,10 @@ namespace BillPayment.Infra.Migrations
                     b.Property<int>("AlertLeadDays")
                         .HasColumnType("integer")
                         .HasColumnName("alert_lead_days");
+
+                    b.Property<int>("AnchorCompetence")
+                        .HasColumnType("integer")
+                        .HasColumnName("anchor_competence");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone")
@@ -337,6 +496,10 @@ namespace BillPayment.Infra.Migrations
                         .HasMaxLength(200)
                         .HasColumnType("character varying(200)")
                         .HasColumnName("label");
+
+                    b.Property<DateTime>("LastSweptAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("last_swept_at");
 
                     b.Property<int>("ObservationCount")
                         .HasColumnType("integer")
@@ -370,16 +533,60 @@ namespace BillPayment.Infra.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("updated_at");
 
+                    b.Property<DateTime>("WatchingSince")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("watching_since");
+
                     b.HasKey("Id");
 
-                    b.HasIndex("IsActive", "UpdatedAt")
-                        .HasDatabaseName("ix_bill_expectations_active_updated");
+                    b.HasIndex("IsActive", "LastSweptAt")
+                        .HasDatabaseName("ix_bill_expectations_active_swept");
+
+                    b.HasIndex("TenantId", "HintSourceId")
+                        .HasDatabaseName("ix_bill_expectations_tenant_hint_source")
+                        .HasFilter("hint_source_id IS NOT NULL");
 
                     b.HasIndex("TenantId", "PayeeId", "AccountReference")
                         .IsUnique()
                         .HasDatabaseName("ix_bill_expectations_tenant_payee_account");
 
                     b.ToTable("bill_expectations", "bill_payment");
+                });
+
+            modelBuilder.Entity("BillPayment.Domain.Notifications.TenantNotificationSettings", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<bool>("IsEnabled")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_enabled");
+
+                    b.Property<string>("Recipients")
+                        .IsRequired()
+                        .HasColumnType("jsonb")
+                        .HasColumnName("recipients");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TenantId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_tenant_notification_settings_tenant");
+
+                    b.ToTable("tenant_notification_settings", "bill_payment");
                 });
 
             modelBuilder.Entity("BillPayment.Domain.Payees.Payee", b =>
@@ -498,6 +705,41 @@ namespace BillPayment.Infra.Migrations
                         .HasDatabaseName("ix_payer_profiles_tenant");
 
                     b.ToTable("payer_profiles", "bill_payment");
+                });
+
+            modelBuilder.Entity("BillPayment.Domain.Retention.CaptureRetentionPolicy", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<bool>("IsEnabled")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_enabled");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<int>("Window")
+                        .HasColumnType("integer")
+                        .HasColumnName("window_days");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TenantId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_capture_retention_policies_tenant");
+
+                    b.ToTable("capture_retention_policies", "bill_payment");
                 });
 
             modelBuilder.Entity("BillPayment.Domain.TrustedOrigins.TrustedOrigin", b =>
@@ -792,6 +1034,10 @@ namespace BillPayment.Infra.Migrations
                                 .HasColumnType("character varying(500)")
                                 .HasColumnName("approval_note");
 
+                            b1.Property<int?>("RiskAtDecision")
+                                .HasColumnType("integer")
+                                .HasColumnName("approval_risk_at_decision");
+
                             b1.HasKey("BillId");
 
                             b1.ToTable("bills", "bill_payment");
@@ -976,6 +1222,78 @@ namespace BillPayment.Infra.Migrations
                     b.Navigation("Folders");
                 });
 
+            modelBuilder.Entity("BillPayment.Domain.CapturedMessages.CapturedMessage", b =>
+                {
+                    b.OwnsMany("BillPayment.Domain.CapturedMessages.MessageArtifact", "Artifacts", b1 =>
+                        {
+                            b1.Property<Guid>("Id")
+                                .HasColumnType("uuid")
+                                .HasColumnName("id");
+
+                            b1.Property<string>("ArtifactKey")
+                                .IsRequired()
+                                .HasMaxLength(512)
+                                .HasColumnType("character varying(512)")
+                                .HasColumnName("artifact_key");
+
+                            b1.Property<Guid?>("BillId")
+                                .HasColumnType("uuid")
+                                .HasColumnName("bill_id");
+
+                            b1.Property<Guid?>("CaptureItemId")
+                                .HasColumnType("uuid")
+                                .HasColumnName("capture_item_id");
+
+                            b1.Property<string>("ContentType")
+                                .HasMaxLength(150)
+                                .HasColumnType("character varying(150)")
+                                .HasColumnName("content_type");
+
+                            b1.Property<DateTime>("CreatedAt")
+                                .HasColumnType("timestamp with time zone")
+                                .HasColumnName("created_at");
+
+                            b1.Property<DateTime?>("DecidedAt")
+                                .HasColumnType("timestamp with time zone")
+                                .HasColumnName("decided_at");
+
+                            b1.Property<string>("FileName")
+                                .HasMaxLength(255)
+                                .HasColumnType("character varying(255)")
+                                .HasColumnName("file_name");
+
+                            b1.Property<int>("Outcome")
+                                .HasColumnType("integer")
+                                .HasColumnName("outcome");
+
+                            b1.Property<string>("Reason")
+                                .HasMaxLength(200)
+                                .HasColumnType("character varying(200)")
+                                .HasColumnName("reason");
+
+                            b1.Property<DateTime>("UpdatedAt")
+                                .HasColumnType("timestamp with time zone")
+                                .HasColumnName("updated_at");
+
+                            b1.Property<Guid>("captured_message_id")
+                                .HasColumnType("uuid")
+                                .HasColumnName("captured_message_id");
+
+                            b1.HasKey("Id");
+
+                            b1.HasIndex("captured_message_id", "ArtifactKey")
+                                .IsUnique()
+                                .HasDatabaseName("ix_captured_message_artifacts_message_key");
+
+                            b1.ToTable("captured_message_artifacts", "bill_payment");
+
+                            b1.WithOwner()
+                                .HasForeignKey("captured_message_id");
+                        });
+
+                    b.Navigation("Artifacts");
+                });
+
             modelBuilder.Entity("BillPayment.Domain.Expectations.BillExpectation", b =>
                 {
                     b.OwnsMany("BillPayment.Domain.Expectations.ExpectationCycle", "Cycles", b1 =>
@@ -1039,6 +1357,10 @@ namespace BillPayment.Infra.Migrations
                                 .HasColumnName("bill_expectation_id");
 
                             b1.HasKey("Id");
+
+                            b1.HasIndex("BlockedByCaptureItemId")
+                                .HasDatabaseName("ix_bill_expectation_cycles_blocked_item")
+                                .HasFilter("blocked_by_capture_item_id IS NOT NULL");
 
                             b1.HasIndex("bill_expectation_id", "Competence")
                                 .IsUnique()

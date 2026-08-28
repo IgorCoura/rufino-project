@@ -1,4 +1,4 @@
-namespace BillPayment.Infra.Extraction.Links;
+﻿namespace BillPayment.Infra.Extraction.Links;
 
 using System.Net;
 using System.Text;
@@ -46,6 +46,14 @@ internal sealed class HttpDocumentLinkResolver(
 
     public IReadOnlyCollection<string> ResolvableHosts =>
         [.. _options.Recipes.Select(r => r.Host).Where(h => !string.IsNullOrWhiteSpace(h))];
+
+    /// <summary>Colhe e desembrulha os links do corpo. Sem rede, e SEM filtrar por receita.</summary>
+    /// <remarks>
+    /// A ausência de filtro é o ponto: quem chama quer justamente os hosts que ainda não sabemos
+    /// buscar, para transformá-los em fila de receitas a cadastrar.
+    /// </remarks>
+    public IReadOnlyCollection<DocumentLink> HarvestLinks(ReadOnlyMemory<byte> body, string? contentType)
+        => body.IsEmpty ? [] : HtmlLinkHarvester.Harvest(Encoding.UTF8.GetString(body.Span));
 
     public async Task<ResolvedDocument?> ResolveAsync(
         ReadOnlyMemory<byte> body,
@@ -292,4 +300,8 @@ internal sealed class NullDocumentLinkResolver : IDocumentLinkResolver
         string? contentType,
         CancellationToken cancellationToken)
         => Task.FromResult<ResolvedDocument?>(null);
+
+    // Vazio, e não a colheita de verdade: com a escada desligada não há para onde ir, e registrar
+    // um endereço que ninguém buscaria descreveria uma tentativa que não aconteceu.
+    public IReadOnlyCollection<DocumentLink> HarvestLinks(ReadOnlyMemory<byte> body, string? contentType) => [];
 }

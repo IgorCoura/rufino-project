@@ -1,4 +1,4 @@
-namespace BillPayment.Domain.Services;
+﻿namespace BillPayment.Domain.Services;
 
 using System.Globalization;
 using BillPayment.Domain.Bills;
@@ -58,6 +58,7 @@ public static class BillValidationService
             EvaluateDueDateSanity(context),
             EvaluateTenantRouting(context),
             EvaluatePixBarcodeConsistency(context),
+            EvaluateDocumentConsistency(context),
         ];
     }
 
@@ -368,9 +369,39 @@ public static class BillValidationService
                 CheckReasons.PAYER_PROFILE_MISSING,
                 "O tenant ainda não tem cadastro fiscal — não há contra o que comparar o pagador.");
 
+        // O beneficiário NÃO pode ser o próprio pagador. Ninguém emite boleto contra si mesmo,
+        // então isto é ou consulta descrevendo outro título, ou documento adulterado. A comparação
+        // é por documento EXATO, nunca por raiz de CNPJ: filiais do mesmo grupo cobram umas às
+        // outras legitimamente, e comparar por raiz barraria essa cobrança.
+        if (context.Bill.Beneficiary?.TaxId is { } beneficiary
+            && AllTenantTaxIds(context).Any(own => own.Equals(beneficiary)))
+        {
+            return CheckResult.Failed(
+                CheckType.PayerMatch,
+                CheckReasons.PAYEE_IS_THE_PAYER,
+                $"O beneficiário da cobrança ({beneficiary.Formatted()}) é o próprio pagador — "
+                + "esta conta seria paga para a própria conta que a está pagando.",
+                CheckSeverity.Blocking);
+        }
+
         var extracted = context.Bill.ExtractedPayer;
         if (extracted?.TaxId is { } taxId)
         {
+            // O documento tem de estar IMPRESSO como campo, não ser um trecho do código de barras.
+            // A varredura procura os documentos do cadastro diretamente no texto, e um código de
+            // 44 posições pode, em tese, conter um deles por coincidência — 3 chances em 10
+            // trilhões, medida como zero em 915 boletos reais. A guarda existe porque a atribuição
+            // do boleto se apoia nesse documento: sem ela, uma coincidência viraria prova.
+            if (IsOnlyInsideBarcode(context.Bill, taxId))
+            {
+                return CheckResult.Failed(
+                    CheckType.PayerMatch,
+                    CheckReasons.PAYER_ONLY_INSIDE_BARCODE,
+                    $"O documento {taxId.Formatted()} aparece apenas dentro do código de barras, "
+                    + "não impresso como documento do pagador — não identifica ninguém.",
+                    CheckSeverity.Blocking);
+            }
+
             return profile.Owns(taxId) || profile.OwnsByCnpjRoot(taxId)
                 ? CheckResult.Passed(
                     CheckType.PayerMatch,
@@ -451,12 +482,17 @@ public static class BillValidationService
                 CheckReasons.OVERDUE,
                 DueDateEvidence(bill, "O documento está vencido"));
 
-        var dueDate = bill.Lookup?.DueDate ?? bill.PixLookup?.DueDate;
+        // A leitura por IA é a última reserva (decisão de 2026-08-27): QR estático sem data
+        // oficial usa a impressa no documento — e a evidência declara a procedência.
+        var official = bill.Lookup?.DueDate ?? bill.PixLookup?.DueDate;
+        var dueDate = official ?? bill.Reading?.DueDate;
+        var fromReading = official is null && dueDate is not null;
+
         if (dueDate is null)
             return CheckResult.Inconclusive(
                 CheckType.DueDateSanity,
                 CheckReasons.DUE_DATE_NOT_AVAILABLE,
-                "A consulta oficial não devolveu data de vencimento.");
+                "Nem a consulta oficial nem a leitura do documento trouxeram vencimento.");
 
         if (dueDate < context.Today)
             return CheckResult.Failed(
@@ -478,7 +514,99 @@ public static class BillValidationService
 
         return CheckResult.Passed(
             CheckType.DueDateSanity,
-            evidence: $"Vence em {dueDate:yyyy-MM-dd}; há {dueDate.Value.DayNumber - context.Today.DayNumber} dia(s).");
+            evidence: fromReading
+                ? $"Vence em {dueDate:yyyy-MM-dd} (data lida do documento pela IA; sem fonte oficial); "
+                    + $"há {dueDate.Value.DayNumber - context.Today.DayNumber} dia(s)."
+                : $"Vence em {dueDate:yyyy-MM-dd}; há {dueDate.Value.DayNumber - context.Today.DayNumber} dia(s).");
+    }
+
+    // 13. O documento impresso × a consulta oficial, com a leitura por IA como testemunha. É o
+    // par que faltava: LookupConsistency compara o parse offline, PixBarcodeConsistency compara
+    // os dois trilhos oficiais — este compara o que o EMISSOR imprimiu com o que o REGISTRO diz.
+    // A assimetria é a mesma do PayerMatch: contradição de identidade escala para Blocking (é o
+    // vetor de instrumento trocado sobre documento legítimo); valor e vencimento divergentes são
+    // aviso — boleto vencido acumula encargos legitimamente; e ausência nunca pesa.
+    private static CheckResult EvaluateDocumentConsistency(BillValidationContext context)
+    {
+        var bill = context.Bill;
+        var reading = bill.Reading;
+
+        if (reading is null || !reading.HasContent)
+            return CheckResult.Skipped(
+                CheckType.DocumentConsistency,
+                CheckReasons.READING_NOT_AVAILABLE,
+                "Sem leitura por IA para comparar — extração desligada ou sem conteúdo.");
+
+        var official = bill.Beneficiary;
+
+        // Identidade primeiro: documento fiscal lido (já provado pelo DV) contra o oficial.
+        if (reading.PayeeTaxId is { } readTaxId
+            && official?.TaxId is { } officialTaxId
+            && !readTaxId.Equals(officialTaxId))
+        {
+            return CheckResult.Failed(
+                CheckType.DocumentConsistency,
+                CheckReasons.DOCUMENT_PAYEE_MISMATCH,
+                $"O documento imprime o beneficiário {readTaxId.Formatted()}, mas a consulta "
+                    + $"oficial diz {officialTaxId.Formatted()} — cara de instrumento trocado "
+                    + "sobre documento legítimo.",
+                severity: CheckSeverity.Blocking);
+        }
+
+        var warnings = new List<string>();
+
+        var officialAmount = bill.Lookup?.OriginalAmount?.Amount ?? bill.PixLookup?.Amount?.Amount;
+        if (reading.Amount is { } readAmount && officialAmount is { } faceAmount && readAmount != faceAmount)
+        {
+            warnings.Add(
+                $"valor impresso R$ {readAmount:N2} × valor registrado R$ {faceAmount:N2}");
+        }
+
+        var officialDue = bill.Lookup?.DueDate ?? bill.PixLookup?.DueDate;
+        if (reading.DueDate is { } readDue && officialDue is { } officialDueDate
+            && Math.Abs(readDue.DayNumber - officialDueDate.DayNumber) > DUE_DATE_TOLERANCE_DAYS)
+        {
+            warnings.Add(
+                $"vencimento impresso {readDue:yyyy-MM-dd} × registrado {officialDueDate:yyyy-MM-dd}");
+        }
+
+        if (warnings.Count > 0)
+        {
+            var reason = warnings[0].StartsWith("valor", StringComparison.Ordinal)
+                ? CheckReasons.DOCUMENT_AMOUNT_DIVERGENCE
+                : CheckReasons.DOCUMENT_DUE_DATE_DIVERGENCE;
+
+            return CheckResult.Warning(
+                CheckType.DocumentConsistency,
+                reason,
+                $"Divergência entre o impresso e o oficial: {string.Join("; ", warnings)}.");
+        }
+
+        var comparedIdentity = reading.PayeeTaxId is not null && official?.TaxId is not null;
+        var comparedAmount = reading.Amount is not null && officialAmount is not null;
+        var comparedDueDate = reading.DueDate is not null && officialDue is not null;
+
+        if (comparedIdentity || comparedAmount || comparedDueDate)
+        {
+            var compared = new List<string>();
+            if (comparedIdentity)
+                compared.Add("beneficiário");
+            if (comparedAmount)
+                compared.Add("valor");
+            if (comparedDueDate)
+                compared.Add("vencimento");
+
+            return CheckResult.Passed(
+                CheckType.DocumentConsistency,
+                evidence: $"O impresso confere com o oficial ({string.Join(", ", compared)}).");
+        }
+
+        // Há leitura, mas nada em comum com o oficial para confrontar — arrecadação sem CNPJ na
+        // consulta, ou consulta indisponível. Ausência não pesa (ADR-004).
+        return CheckResult.Inconclusive(
+            CheckType.DocumentConsistency,
+            official is null ? CheckReasons.OFFICIAL_IDENTITY_NOT_AVAILABLE : CheckReasons.NOTHING_COMPARABLE,
+            "A leitura existe, mas não há campo oficial correspondente para confrontar.");
     }
 
     /// <summary>
@@ -604,6 +732,20 @@ public static class BillValidationService
         => context.Bill.PixLookup?.ReceiverIspb is { } ispb
             ? context.BankDirectory.FromIspb(ispb)
             : null;
+
+    /// <summary>
+    /// O documento aparece <strong>dentro</strong> de algum código de barras do boleto?
+    /// </summary>
+    /// <remarks>
+    /// Compara contra as 44 posições já validadas do instrumento, e não contra o texto do PDF.
+    /// A distinção é o que separa "trecho de um código" de "campo colado ao vizinho": IPTU, DARF
+    /// e DAS imprimem o CNPJ do contribuinte encostado no código de arrecadação, e olhar o texto
+    /// bruto reprovaria 90 guias legítimas medidas no acervo.
+    /// </remarks>
+    private static bool IsOnlyInsideBarcode(Bill bill, TaxId taxId)
+        => bill.Instruments
+            .Where(i => i.Kind == PaymentInstrumentKind.Barcode)
+            .Any(i => i.DigitableLine.Barcode.Contains(taxId.Value, StringComparison.Ordinal));
 
     private static IEnumerable<TaxId> AllTenantTaxIds(BillValidationContext context)
     {

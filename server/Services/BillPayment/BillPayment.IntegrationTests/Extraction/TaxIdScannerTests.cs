@@ -1,5 +1,6 @@
-namespace BillPayment.IntegrationTests.Extraction;
+﻿namespace BillPayment.IntegrationTests.Extraction;
 
+using BillPayment.Domain.SharedKernel;
 using BillPayment.Infra.Extraction;
 
 /// <summary>
@@ -112,4 +113,51 @@ public sealed class TaxIdScannerTests
     {
         Assert.Empty(TaxIdScanner.Scan(text));
     }
+
+    // Busca dirigida: o documento do cadastro é encontrado mesmo colado a outro número — o caso
+    // que a regra de tamanho exato descarta. Medido em 915 boletos reais: +54 documentos.
+    [Fact]
+    public void Scan_WithKnownTaxIds_ShouldFindTheDocumentGluedToAnotherNumber()
+    {
+        // Como o PdfPig entrega: campos emendados, sem espaço. Aqui o CNPJ tem o recibo colado.
+        var text = $"0 000124 CNPJ: 11.222.333/0001-8118942151Recibo:";
+
+        Assert.Empty(TaxIdScanner.Scan(text));
+
+        var found = TaxIdScanner.Scan(text, [TaxId.Parse(ValidCnpj)]);
+
+        Assert.Equal(ValidCnpj, Assert.Single(found).TaxId.Value);
+    }
+
+    // Sem documentos cadastrados a varredura genérica continua exatamente como era.
+    [Fact]
+    public void Scan_WithoutKnownTaxIds_ShouldBehaveAsBefore()
+    {
+        var text = $"Pagador CNPJ: 11.222.333/0001-81 Vencimento";
+
+        Assert.Equal(ValidCnpj, Assert.Single(TaxIdScanner.Scan(text)).TaxId.Value);
+    }
+
+    // A busca dirigida não duplica o que a varredura genérica já achou.
+    [Fact]
+    public void Scan_WhenBothPathsFindTheSameDocument_ShouldNotDuplicate()
+    {
+        var text = "Pagador CNPJ: 11.222.333/0001-81 fim";
+
+        var found = TaxIdScanner.Scan(text, [TaxId.Parse(ValidCnpj)]);
+
+        Assert.Single(found);
+    }
+
+    // O campo "Sacador / Avalista" (rótulo do OUTRO lado, presente em quase todo boleto) NÃO
+    // vale como rótulo de pagador — e o rótulo de pagador de verdade continua valendo.
+    [Fact]
+    public void Scan_WithSacadorField_ShouldNotCountAsAPayerLabel()
+    {
+        Assert.True(Assert.Single(TaxIdScanner.Scan("Pagador 11.222.333/0001-81 fim")).UnderPayerLabel);
+
+        Assert.False(Assert.Single(
+            TaxIdScanner.Scan("Sacador / Avalista 11.222.333/0001-81 fim")).UnderPayerLabel);
+    }
+
 }

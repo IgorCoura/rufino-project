@@ -2,6 +2,8 @@ import 'package:rufino_core/rufino_core.dart';
 
 import 'bill.dart';
 import 'bill_detail.dart';
+import 'captured_artifact.dart';
+import 'email_message.dart';
 
 /// What importing a bill returned.
 class ImportOutcome {
@@ -62,20 +64,35 @@ abstract class BillRepository {
   /// Returns the detail the approval screen consumes.
   Future<Result<BillDetail>> getBillDetail(String id);
 
-  /// Imports a bill from a digitable line, a Pix payload, or both.
+  /// Imports a bill from a digitable line, a Pix payload, a file, or any
+  /// combination of the three.
+  ///
+  /// [documentBytes] carry the bill's own file — a PDF or a picture of it. The
+  /// server reads the instruments out of it and keeps it as the paper the
+  /// approver checks against; when it carries nothing readable and no digits
+  /// came along, the import is refused. The three document parameters travel
+  /// as primitives, like [CaptureItemRepository.attachArtifact] — the picker's
+  /// record is a UI type, and the domain does not depend on the UI.
   Future<Result<ImportOutcome>> importBill({
     String? digitableLine,
     String? pixPayload,
+    List<int>? documentBytes,
+    String? documentFileName,
+    String? documentContentType,
   });
 
   /// Re-runs the official lookup and the twelve checks.
   Future<Result<ValidationRunOutcome>> revalidateBill(String id);
 
   /// Authorizes the payment for [scheduleFor], with an optional [note].
+  ///
+  /// [acknowledgeRisk] must be `true` for a bill classified as Danger — the
+  /// explicit acceptance the audit trail records (ADR-015).
   Future<Result<void>> approveBill(
     String id, {
     required DateTime scheduleFor,
     String? note,
+    bool acknowledgeRisk = false,
   });
 
   /// Refuses the bill. The [reason] is mandatory — a refusal without one is
@@ -84,4 +101,17 @@ abstract class BillRepository {
 
   /// Removes the bill from the flow.
   Future<Result<void>> cancelBill(String id, String reason);
+
+  /// Downloads the original document the bill came from.
+  ///
+  /// The screen offers this beside the checks so the approver can read the
+  /// paper the verifications talk about. It is not the digitable line: those
+  /// digits never leave the server, and whoever has them, pays.
+  Future<Result<CapturedArtifact>> getArtifact(String id);
+
+  /// Fetches the e-mail that brought this bill — title, sender and body.
+  ///
+  /// Only applies to bills born from a mailbox; a manual import has no
+  /// e-mail behind it and the server answers 404.
+  Future<Result<EmailMessage>> getEmail(String id);
 }

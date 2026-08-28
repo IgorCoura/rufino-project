@@ -2,10 +2,13 @@ namespace BillPayment.Infra;
 
 using BillPayment.Domain.Bills;
 using BillPayment.Domain.CaptureItems;
+using BillPayment.Domain.CapturedMessages;
+using BillPayment.Domain.Retention;
 using BillPayment.Domain.CaptureSources;
 using BillPayment.Domain.Payees;
 using BillPayment.Infra.Notifications;
 using BillPayment.Domain.Expectations;
+using BillPayment.Domain.Notifications;
 using BillPayment.Domain.Ports;
 using BillPayment.Domain.PayerProfiles;
 using BillPayment.Domain.SeedWork;
@@ -55,13 +58,12 @@ public static class InfraDependencies
         services.AddScoped<IPayerProfileRepository, PayerProfileRepository>();
         services.AddScoped<ICaptureSourceRepository, CaptureSourceRepository>();
         services.AddScoped<ICaptureItemRepository, CaptureItemRepository>();
+        services.AddScoped<ICapturedMessageRepository, CapturedMessageRepository>();
+        services.AddScoped<ICaptureRetentionPolicyRepository, CaptureRetentionPolicyRepository>();
         services.AddScoped<IBillExpectationRepository, BillExpectationRepository>();
+        services.AddScoped<ITenantNotificationSettingsRepository, TenantNotificationSettingsRepository>();
 
-        // O aviso vai para o log enquanto não há canal externo. NÃO é substituto que falha alto,
-        // ao contrário do cofre e do armazenamento: derrubar a varredura porque o e-mail não está
-        // configurado apagaria o REGISTRO do alerta, e é ele que sustenta o painel de pendências
-        // e a regra de não repetir nível. Adapter de e-mail é item do checklist pré-produção.
-        services.AddScoped<INotificationSender, LoggingNotificationSender>();
+        services.AddNotifications(configuration);
 
         services.AddMailboxReader(configuration);
 
@@ -129,6 +131,55 @@ public static class InfraDependencies
         // varredura faria o Entra ID limitar a taxa da própria autenticação.
         services.AddSingleton<GraphTokenProvider>();
         services.AddScoped<IMailboxReader, GraphMailboxReader>();
+    }
+
+    /// <summary>
+    /// Canal de aviso da expectativa (ADR-014).
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <strong>O log recebe o aviso SEMPRE, e o canal externo entra por cima.</strong> Não é
+    /// substituto que falha alto, ao contrário do cofre e do armazenamento: derrubar a varredura
+    /// porque o e-mail não está configurado apagaria o <em>registro</em> do alerta, e é ele que
+    /// sustenta o painel de pendências e a regra de não repetir nível.
+    /// </para>
+    /// <para>
+    /// Sem <c>Notifications:Enabled</c> e sem remetente, entra só o log — o comportamento que
+    /// valeu até 2026-08-27, e que mantém a rede de segurança utilizável pelo painel.
+    /// </para>
+    /// </remarks>
+    private static void AddNotifications(this IServiceCollection services, IConfiguration configuration)
+    {
+        var section = configuration.GetSection(NotificationOptions.SectionName);
+        services.Configure<NotificationOptions>(section);
+
+        services.AddScoped<LoggingNotificationSender>();
+
+        var options = section.Get<NotificationOptions>() ?? new NotificationOptions();
+
+        if (!options.IsConfigured)
+        {
+            services.AddScoped<INotificationSender>(sp => sp.GetRequiredService<LoggingNotificationSender>());
+            return;
+        }
+
+        // Retenta, e pode: `sendMail` não é idempotente, mas o pior caso de uma retentativa é o
+        // mesmo aviso duas vezes — barato ao lado de o alerta não sair. O que jamais reaproveita
+        // cliente com retry é pagamento.
+        services.AddHttpClient(GraphNotificationSender.CLIENT_NAME,
+                http => http.Timeout = TimeSpan.FromSeconds(options.TimeoutSeconds))
+            .AddStandardResilienceHandler();
+
+        // O provedor de token é o mesmo da leitura de caixa, e é singleton pelo cache — pedir um
+        // token por aviso faria o Entra ID limitar a taxa da própria autenticação.
+        services.TryAddSingleton<GraphTokenProvider>();
+
+        services.AddHttpClient(GraphHttp.TOKEN_CLIENT_NAME,
+                http => http.Timeout = TimeSpan.FromSeconds(options.TimeoutSeconds))
+            .AddStandardResilienceHandler();
+
+        services.AddScoped<GraphNotificationSender>();
+        services.AddScoped<INotificationSender, ResilientNotificationSender>();
     }
 
     /// <summary>
@@ -260,6 +311,20 @@ public static class InfraDependencies
             DirectDocument = true,
         },
 
+        // Asaas: a página da cobrança traz o PDF num `href` próprio. Sondado em 2026-08-26:
+        // `www.asaas.com/i/{token}` responde 200 text/html 32 KB sem autenticação, movida por JS —
+        // não há linha nem BR Code no HTML —, mas com `href="/b/pdf/{token}"`, que responde 200
+        // application/pdf 41 KB e rende DUAS linhas de 47 dígitos e um BR Code. Ou seja: resolve
+        // nos dois trilhos, o que mantém ligado o check antifraude PixBarcodeConsistency.
+        // O prefixo `/i/` é o que separa a cobrança dos links de rodapé e do rastreador.
+        new LinkRecipe
+        {
+            Host = "www.asaas.com",
+            Port = 443,
+            PathPrefix = "/i/",
+            DirectDocument = false,
+        },
+
         // Condomínio (BRCondos): o endereço do boleto responde uma página. Sondado: 200,
         // text/html, 82 KB, sem autenticação. O prefixo /bill/ é o que separa o botão do boleto
         // do link de propaganda que vem logo abaixo dele no mesmo e-mail.
@@ -342,6 +407,10 @@ public static class InfraDependencies
             client.BaseAddress = new Uri(baseUrl);
             client.Timeout = TimeSpan.FromSeconds(options.TimeoutSeconds);
             client.DefaultRequestHeaders.Add("access_token", options.ApiKey);
+
+            // O provedor recusa a requisição sem User-Agent, e o HttpClient do .NET não manda
+            // nenhum por padrão — ver AsaasOptions.USER_AGENT.
+            client.DefaultRequestHeaders.UserAgent.ParseAdd(AsaasOptions.USER_AGENT);
         };
 
     private static void AddSecretVault(this IServiceCollection services, IConfiguration configuration)

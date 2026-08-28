@@ -45,6 +45,20 @@ public sealed class UnconfiguredStorageTests : BaseIntegrationTest
             () => storage.RetrieveAsync(Tenant, $"tenants/{Tenant.Value:N}/captures/2026/08/x-boleto.pdf", default));
     }
 
+    // Abrir para servir ao usuário também estoura, e NÃO devolve null: null significa "este
+    // documento não existe", e diria ao usuário que o comprovante do boleto se perdeu. Aqui o que
+    // falta é configuração — a diferença entre um 404 que encerra o assunto e um erro que leva
+    // alguém a configurar o balde.
+    [Fact]
+    public async Task OpenAsync_WhenStorageIsNotConfigured_ShouldThrow()
+    {
+        using var scope = Factory.Services.CreateScope();
+        var storage = scope.ServiceProvider.GetRequiredService<IAttachmentStorage>();
+
+        await Assert.ThrowsAsync<InvalidOperationException>(
+            () => storage.OpenAsync(Tenant, $"tenants/{Tenant.Value:N}/captures/2026/08/x-boleto.pdf", default));
+    }
+
     // Apagar é a única operação tolerante: o objetivo da purga — o arquivo não existir — já está
     // satisfeito, e falhar aqui travaria a limpeza de item que nunca teve arquivo.
     [Fact]

@@ -34,6 +34,7 @@ class CaptureSourceConnectViewModel extends ChangeNotifier {
     required String clientId,
     required String clientSecret,
     String? folderPath,
+    DateTime? captureSince,
   }) async {
     _isSaving = true;
     _errorMessage = null;
@@ -51,6 +52,7 @@ class CaptureSourceConnectViewModel extends ChangeNotifier {
           clientSecret: clientSecret,
         ),
         folderPath: (folderPath?.trim().isEmpty ?? true) ? null : folderPath,
+        captureSince: captureSince,
       );
       result.fold(
         onSuccess: (outcome) {

@@ -253,6 +253,21 @@ public static class CaptureSourceErrors
             parameters: new object[] { maxFolders },
             sourcePath: BuildSourcePath(filePath, memberName, lineNumber));
 
+    /// <summary>
+    /// Um piso adiante de hoje descreve uma fonte que não captura nada — e que não avisa,
+    /// porque zero mensagem no filtro é indistinguível de uma caixa sem novidade.
+    /// </summary>
+    public static DomainException CaptureSinceInFuture(
+        DateOnly captureSince,
+        [CallerFilePath] string filePath = "",
+        [CallerMemberName] string memberName = "",
+        [CallerLineNumber] int lineNumber = 0)
+        => new(
+            id: $"{AGGREGATE_PREFIX}20",
+            messageTemplate: "A data inicial de captura ({0}) não pode estar no futuro.",
+            parameters: new object[] { captureSince },
+            sourcePath: BuildSourcePath(filePath, memberName, lineNumber));
+
     private static string BuildSourcePath(string filePath, string memberName, int lineNumber)
         => $"{Path.GetFileName(filePath)}:{lineNumber} ({memberName})";
 }

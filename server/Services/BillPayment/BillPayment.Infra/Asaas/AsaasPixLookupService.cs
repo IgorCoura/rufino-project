@@ -15,6 +15,7 @@ using Microsoft.Extensions.Logging;
 /// <remarks>
 /// É a única fonte do CPF/CNPJ do recebedor — o BR Code carrega chave e nome, nunca documento.
 /// Sem esta chamada o trilho Pix não tem check de beneficiário.
+/// Doc: https://docs.asaas.com/reference/decodificar-um-qrcode-para-pagamento
 /// </remarks>
 internal sealed class AsaasPixLookupService(
     HttpClient http,

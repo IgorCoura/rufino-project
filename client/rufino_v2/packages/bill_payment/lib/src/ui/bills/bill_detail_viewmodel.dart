@@ -130,11 +130,20 @@ class BillDetailViewModel extends ChangeNotifier {
       );
 
   /// Authorizes the payment for [scheduleFor].
-  Future<bool> approve({required DateTime scheduleFor, String? note}) => _act(
+  ///
+  /// [acknowledgeRisk] carries the explicit acceptance a Danger bill
+  /// requires (ADR-015).
+  Future<bool> approve({
+    required DateTime scheduleFor,
+    String? note,
+    bool acknowledgeRisk = false,
+  }) =>
+      _act(
         () => _repository.approveBill(
           billId,
           scheduleFor: scheduleFor,
           note: note,
+          acknowledgeRisk: acknowledgeRisk,
         ),
         fallback: 'Não foi possível aprovar.',
         info: 'Pagamento autorizado.',

@@ -309,6 +309,12 @@ const _billPaymentEntries = <_Entry>[
     resource: BillPaymentResources.expectation,
   ),
   _Entry(
+    icon: Icons.forward_to_inbox_outlined,
+    label: 'E-mails Capturados',
+    route: BillPaymentRoutes.capturedMessages,
+    resource: BillPaymentResources.capturedMessage,
+  ),
+  _Entry(
     icon: Icons.mark_email_read_outlined,
     label: 'Fontes de Captura',
     route: BillPaymentRoutes.captureSources,

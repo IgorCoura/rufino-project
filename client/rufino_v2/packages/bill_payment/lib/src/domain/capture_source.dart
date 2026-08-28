@@ -41,6 +41,7 @@ class CaptureSource {
     required this.hasCredential,
     required this.isEnabled,
     required this.createdAt,
+    this.captureSince,
     this.lastSyncAt,
     this.lastSyncError,
   });
@@ -71,6 +72,13 @@ class CaptureSource {
   /// Whether the sync worker picks this source up.
   final bool isEnabled;
 
+  /// The time floor of the capture: nothing received before this date is read.
+  ///
+  /// `null` means no limit — the whole mailbox. Changing it makes the server
+  /// drop every folder cursor, because the provider stores the filter inside
+  /// the delta link it hands back.
+  final DateTime? captureSince;
+
   /// When the source last synced.
   final DateTime? lastSyncAt;
 
@@ -87,6 +95,9 @@ class CaptureSource {
   /// one (`BLP.CPS18`): a source without folders would scan nothing and
   /// never warn.
   bool get canRemoveFolder => folders.length > 1;
+
+  /// Whether the source reads the whole mailbox, with no time floor.
+  bool get readsEntireMailbox => captureSince == null;
 }
 
 /// One page of the capture source list.

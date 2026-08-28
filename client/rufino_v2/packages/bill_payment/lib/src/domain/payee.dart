@@ -1,5 +1,3 @@
-import 'bill_payment_enums.dart';
-
 /// How much a payee is expected to charge.
 class AmountPolicy {
   /// Creates the policy record.
@@ -30,16 +28,6 @@ class AmountPolicy {
   /// Whether this policy can conclude the amount check — an unbounded
   /// policy cannot.
   final bool isConclusive;
-
-  /// A one-line summary of the policy, for list rows.
-  String get summary => switch (kind) {
-        AmountPolicyKinds.fixed => expectedAmount == null
-            ? 'Valor fixo'
-            : 'Valor fixo de R\$ ${expectedAmount!.toStringAsFixed(2)}',
-        AmountPolicyKinds.range => 'Faixa de valores',
-        AmountPolicyKinds.unbounded => 'Sem limite de valor',
-        _ => kind,
-      };
 }
 
 /// A registered beneficiary.

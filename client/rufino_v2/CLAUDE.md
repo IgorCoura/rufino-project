@@ -968,21 +968,118 @@ refresh de token e limpa no logout — junto com as outras duas.
 |---|---|---|
 | `/bill-payment/pending` | Painel diário: fila de aprovação + 3 listas de pendências + nudge de onboarding | `expectation`/`view` |
 | `/bill-payment/bills` | Fila de boletos, filtro `?status=` **no servidor**, abre em Aguardando aprovação | `bill`/`view` |
-| `/bill-payment/bills/import` | Importação manual (linha digitável e/ou Pix) | `bill`/`import` |
-| `/bill-payment/bills/:id` | Aprovação: 12 verificações + revalidar/negar/cancelar/aprovar | `bill`/`view` |
-| `/bill-payment/capture-items` (+`/:id`) | Quarentena: filtro server-side, claim/reprocess | `capture-item`/`view` |
-| `/bill-payment/capture-sources` (+`/connect`, `/:id`) | Caixas monitoradas: stepper Entra ID, pastas, sync/rescan | `capture-source`/`view`·`manage` |
-| `/bill-payment/payees` (+`/create`, `/:id`) | Beneficiários: política de valor, apelidos, bancos aceitos | `payee`/`view`·`manage` |
+| `/bill-payment/bills/import` | Importação manual: linha digitável, código Pix e/ou **anexo do boleto** (PDF/imagem) — um dos três basta | `bill`/`import` |
+| `/bill-payment/bills/:id` | Aprovação: banner de risco (Seguro/Atenção/Perigo), 13 verificações, consulta oficial por inteiro, resumo com competência/descrição da IA + revalidar/negar/cancelar/aprovar (Perigo exige a caixa "assumo o risco") | `bill`/`view` |
+| `/bill-payment/bills/:id/artifact` | O documento original do boleto, em tela cheia | `bill`/`view` |
+| `/bill-payment/bills/:id/email` | O e-mail que trouxe o boleto — título, remetente e corpo renderizado | `bill`/`view` |
+| `/bill-payment/capture-items` (+`/:id`, `/:id/artifact`, `/:id/email`) | Quarentena: filtro server-side, claim/reprocess, documento original e o e-mail que trouxe o item | `capture-item`/`view` |
+| `/bill-payment/captured-messages` | Livro-caixa: todo e-mail lido, com busca, filtros, rolagem infinita, controle de retenção e recaptura | `captured-message`/`view`·`recapture` |
+| `/bill-payment/capture-sources` (+`/connect`, `/:id`) | Caixas monitoradas: stepper Entra ID, pastas, **piso temporal**, sync/rescan | `capture-source`/`view`·`manage` |
+| `/bill-payment/payees` (+`/create`, `/:id`) | Beneficiários: política de valor (leitura completa + **edição no detalhe**), apelidos, bancos aceitos | `payee`/`view`·`manage` |
 | `/bill-payment/payer-profile` | Perfil do pagador (1:1) — 404 = modo onboarding | `payer-profile`/`view` |
 | `/bill-payment/trusted-origins` | Origens confiáveis: resolve tester + cadastro em sheet + ações na linha | `origin`/`view` |
-| `/bill-payment/expectations` (+`/create`, `/:id`) | Expectativas: watch, ciclos, waive por ciclo | `expectation`/`view` |
+| `/bill-payment/expectations` (+`/create`, `/:id`, `/:id/edit`) | Expectativas: cadastro, **edição** (tudo menos o beneficiário), **exclusão**, watch, ciclos, waive por ciclo | `expectation`/`view` (escrever exige `manage`) |
 
 Coisas que não podem erodir:
 
+- **A importação manual aceita TRÊS entradas, e uma delas basta**: linha digitável, código Pix ou o
+  arquivo do boleto. O anexo sobe por `multipart/form-data` na mesma rota do JSON — quem escolhe o
+  handler no servidor é o `Content-Type` —, e mandar o arquivo dentro do JSON seria base64,
+  inflando um PDF de 20 MB em um terço à toa. O servidor lê os instrumentos do arquivo e o guarda
+  como evidência; **arquivo ilegível sem dígitos é recusado** com a mensagem falando do arquivo,
+  não pedindo a linha digitável — quem anexou um papel precisa saber que ele não foi lido.
+- **`PickedDocument`/`DocumentPicker`/`LinkOpener` moram em `ui/shared/document_picker.dart`.**
+  Nasceram dentro de `capture_items/capture_item_detail_screen.dart` e saíram de lá quando a
+  importação de boleto também passou a anexar documento: dois consumidores é o momento de o tipo
+  deixar a tela que o usou primeiro — quem importa boleto não deveria depender do arquivo da
+  quarentena para nomear um callback. O barril (`bill_payment.dart`) exporta do lugar novo, então a
+  API pública do módulo **não mudou** e a casca segue passando `onPickDocument` uma vez só para
+  todas as telas que anexam.
+- **O repositório recebe o arquivo em PRIMITIVOS** (`documentBytes`/`documentFileName`/
+  `documentContentType`), não o `PickedDocument`. O record do seletor é tipo de UI, e `domain/` não
+  depende de `ui/` — é a mesma fronteira que `CaptureItemRepository.attachArtifact` já respeitava.
+  E o nome do arquivo **não entra no `context` do reporter**: ele costuma carregar beneficiário e
+  conta, e o contexto viaja para o monitoramento de erros.
 - **`checkApiStatus`, nunca `checkHttpStatus`** — o `DomainExceptionFilter` do BC emite
   `{id, message}`. Telas reagem por `domainErrorId` (`BLP.BIL02`, `BLP.CPI04`…), nunca por texto.
 - **A API nunca devolve linha digitável nem payload Pix** — a tela de aprovação não os mostra
   nem sugere que existam. Contexto de report carrega só IDs.
+- **O documento original é rota, não diálogo**, e as duas telas de decisão o oferecem:
+  `ArtifactViewerScreen` recebe um *loader* (`Future<Result<CapturedArtifact>> Function()`) em vez
+  de um repositório, porque a mesma tela serve item de quarentena e boleto — ensiná-la sobre os
+  dois a tornaria o único ponto do módulo que conhece o módulo inteiro. Boleto em diálogo é
+  ilegível no celular, e a rota dá o `canPop ? pop : go` de graça. O botão **some** quando
+  `hasArtifact` é falso (importação manual nasce só com os dígitos); desabilitar prometeria um
+  documento que nunca vai chegar. Os bytes ficam em memória e **nunca vão para disco** — o
+  artefato é a prova do que o sistema viu quando decidiu.
+- **A tela de e-mails capturados existe porque a quarentena não responde por quem sumiu.**
+  O que a triagem descarta não deixa item — é decisão medida, não descuido —, e sem esse
+  histórico a pessoa que mandou um e-mail fica sem resposta. `captured-message` e
+  `capture-retention` são **recursos próprios** no Keycloak, não escopos pendurados em
+  `capture-item`: fila de trabalho e histórico são coisas diferentes.
+- **O controle de retenção vive no topo dessa tela**, e não numa tela de configuração: quem lê a
+  lista é quem decide por quanto tempo ela existe. Sem `capture-retention:manage` o prazo
+  continua à vista, só não editável — esconder é para falta de permissão, mostrar sem editar é
+  para quem precisa do número para interpretar a lista.
+- **`hasArtifact` é booleano porque a chave de armazenamento saiu do contrato.** O download manda
+  o id do recurso e o servidor resolve a chave; 404 cobre "não há arquivo" e "você não pode ver
+  este item" com a mesma resposta, então a tela diz a única coisa verdadeira nos dois casos.
+- **O e-mail renderiza com imagens remotas BLOQUEADAS por padrão** (`EmailViewerScreen`,
+  `flutter_widget_from_html_core`): pixel de rastreamento confirma leitura ao remetente, e o
+  visualizador não pode reintroduzir o vazamento que o desembrulho de links fechou no servidor.
+  Carregar imagens é escolha explícita do usuário, por botão na barra. O botão "Ver e-mail" só
+  existe para boleto vindo de caixa (`sourceKind == Mailbox`) — importação manual não tem e-mail.
+- **`readingStatus` é o que impede a tela de mentir sobre a leitura por IA — e ele estava chegando
+  e não sendo desenhado.** O campo existia no `Bill` da lista e era parseado desde sempre, mas
+  `ReadingStatuses.label` e `isReadingQueued` não eram chamados em **nenhum** widget, e o
+  `BillDetailDto` do servidor nem o carregava. O resultado é o defeito relatado em 2026-08-28: um
+  boleto **na fila** da IA e um boleto cujo documento **não tem o que ler** ficavam idênticos na
+  tela — sem "Referente a", sem "Descrição", e com o check 13 dizendo "Não se aplica / Sem leitura
+  por IA" nos dois casos. Quem aprovava lia a pendência como veredito. Agora o detalhe recebe o
+  campo, o Resumo traz o aviso (`_ReadingNotice`) e a lista traz o selo.
+- **`ReadingStatuses.speaks` decide quem fala, e `done`/`notApplicable` calam de propósito.** Uma
+  leitura concluída fala pelos campos que preencheu; "não há o que ler" é uma ausência sobre a qual
+  ninguém pode agir. Só `queued` e `unavailable` viram texto na tela — e estado desconhecido vindo
+  de um servidor mais novo cai no mesmo silêncio, em vez de imprimir o valor cru.
+- **O check 13 lê "Aguardando" enquanto a leitura está na fila, e o servidor continua mandando
+  `Skipped`.** A tradução é da UI, não do domínio: o servidor está certo em pular o check (não há o
+  que comparar ainda), mas "Não se aplica" descreve um veredito. `_CheckTile` cruza
+  `reasonCode == 'reading_not_available'` com `readingStatus == queued` — é o único ponto do módulo
+  em que um check é reinterpretado, e existe porque pendente e inaplicável são fatos diferentes que
+  não podem dividir o mesmo rótulo.
+- **As linhas "Referente a"/"Descrição" do Resumo só existem quando o boleto TEM leitura por
+  IA.** Ausência de linha não é defeito: é retrato que ainda não foi tirado — boleto do acervo
+  antigo nasceu antes da leitura. O backfill é servidor-somente (`POST /bills/{id}/enrich`, um
+  por chamada); a UI **não** expõe botão para dispará-lo — havia um ("Ler com IA") e foi
+  removido a pedido do usuário em 2026-08-27.
+- **O banner de risco decide a leitura da tela (ADR-015 do BC)**: verde Seguro, âmbar Atenção,
+  vermelho Perigo, sempre ACIMA das verificações. Aprovar um Perigo exige marcar "assumo o
+  risco" — o botão de autorizar nem habilita sem a caixa, porque o servidor recusaria com
+  `BLP.BIL27` de qualquer jeito; a UI só antecipa a recusa. `riskLevel` nulo (boleto ainda não
+  validado) não mostra banner nenhum — ausência honesta, não "Seguro" por omissão.
+- **A política de valor é lida por inteiro, e a redação dela vive na UI — não no domínio.**
+  `AmountPolicy` (domínio) guarda os cinco fatos; `ui/shared/amount_policy_view.dart` é o único
+  lugar que decide como eles viram texto, e serve tanto o chip da lista quanto o card do detalhe.
+  O getter `summary` **saiu** do domínio: ele formatava dinheiro com `toStringAsFixed(2)`
+  (`R$ 1500.00`, enquanto o resto do app usa `formatMoney` e escreve `R$ 1.500,00`) e, para
+  importar o formatador compartilhado, o domínio teria de depender da UI. Antes disso ele era a
+  ÚNICA renderização da política no app inteiro, e **descartava a tolerância do valor fixo e os
+  dois extremos da faixa** — a tela dizia "Faixa de valores" sem número nenhum.
+- **O valor fixo mostra a janela que a tolerância produz, e ela espelha `AmountPolicy.Matches`
+  do servidor.** "±5%" sozinho deixa a pessoa fazendo conta para saber se o boleto do mês passa;
+  `amountPolicyWindow` calcula `expected ± |expected| × tolerância/100`, que é literalmente o que
+  o domínio compara. Se aquela fórmula mudar, esta muda junto — mostrar uma janela que o servidor
+  recusaria é pior que não mostrar janela. Tolerância `0` é válida e sai por extenso ("o valor tem
+  que bater exato"), porque "±0%" não diz o que significa.
+- **`isConclusive` é exibido**, e não era. Política sem limite enfraquece a verificação de valor
+  do boleto em silêncio; quem escolhe "sem limite" vê isso no cadastro em vez de descobrir quando
+  um boleto errado passar.
+- **`NumberField` (`ui/shared/`) é a única implementação do campo decimal.** Nasceu privado no
+  formulário de cadastro e saiu de lá quando o editor do detalhe passou a coletar os mesmos
+  números — dois validadores da mesma coisa divergem, e a divergência apareceria como "o cadastro
+  aceitou e o detalhe recusou". **A tolerância é obrigatória no tipo Fixo** nos dois: o domínio a
+  exige (`AmountPolicy.From` → `BLP.PYE07`) e o formulário a tratava como opcional, então cadastrar
+  valor fixo com ela em branco voltava do servidor com "valor obrigatório" sem dizer qual campo.
 - **A regra das 12 horas é do cliente também**: `BillDetail.isSnapshotStaleAt` espelha
   `Approval:MaxSnapshotAgeHours`; retrato velho desabilita Aprovar com o motivo à vista e
   oferece Revalidar. Motivo de negar/cancelar é obrigatório no form.
@@ -992,6 +1089,18 @@ Coisas que não podem erodir:
   `Promoted`/`Unrouted` porque o servidor decide a visibilidade, nunca a tela.
 - **O painel não colapsa as três listas** (`missing` / `captureFailed` / `dueSoon`): cada uma
   tem uma ação diferente. `captureFailed` navega para o item da quarentena.
+- **O piso temporal (`captureSince`) nasce preenchido com 90 dias, e o campo vazio é escolha
+  legítima.** A dor que ele resolve — a primeira varredura arrastando anos de caixa — atinge
+  justamente quem não sabe que o campo existe, então o padrão do formulário resolve por omissão
+  (`defaultCaptureSince`); quem quer o acervo inteiro limpa o campo. **O domínio continua
+  aceitando nulo**: quem escolhe o padrão é a tela, não o servidor.
+- **Alterar a data faz o servidor reler a caixa desde o piso novo, e a tela diz isso.** O provedor
+  grava o filtro dentro do cursor, então trocar a data obriga a descartar os cursores — não é
+  detalhe de implementação que dê para esconder, porque a releitura consome cota do extrator de
+  visão como o `rescan`. O `helperText` do campo no detalhe é onde isso aparece.
+- **O `showDatePicker` tem `lastDate: hoje`** — piso no futuro descreve uma fonte que não captura
+  nada, e o servidor recusa com `BLP.CPS20`. Impedir na tela evita levar o usuário a um erro que
+  já se sabe que vai acontecer.
 - **Mesmas disciplinas do tenant_management**: Pages donas do ViewModel (`bill_payment_pages.dart`),
   rotas literais antes de `:id` (coberto por `bill_payment_routes_test.dart`), voltar =
   `canPop ? pop : go`, guard de rota libera enquanto permissões não carregaram (F5 na web),

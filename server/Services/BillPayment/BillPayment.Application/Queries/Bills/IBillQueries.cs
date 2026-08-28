@@ -26,4 +26,25 @@ public interface IBillQueries
         Guid tenantId,
         Guid billId,
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// O documento original que deu origem ao boleto, para o aprovador conferir o papel contra as
+    /// verificações.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Devolve <c>null</c> quando o boleto não é deste tenant, quando não veio de um artefato
+    /// guardado (importação manual nasce só com os dígitos) ou quando a chave ficou órfã. A tela
+    /// trata os três como "não há documento".
+    /// </para>
+    /// <para>
+    /// <strong>Não expõe a linha digitável nem o payload Pix</strong> — quem tem os dígitos,
+    /// paga. O que sai aqui é o arquivo como ele chegou, que é o comprovante do que o sistema viu
+    /// quando decidiu.
+    /// </para>
+    /// </remarks>
+    Task<ArtifactDownload?> GetArtifactAsync(
+        Guid tenantId,
+        Guid billId,
+        CancellationToken cancellationToken = default);
 }

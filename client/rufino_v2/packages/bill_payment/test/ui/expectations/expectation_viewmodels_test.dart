@@ -49,7 +49,7 @@ void main() {
     test('registering without a payee refuses locally', () async {
       await viewModel.loadPayees();
 
-      final id = await viewModel.register(
+      final id = await viewModel.save(
         label: 'EDP',
         expectedDueDay: 10,
         observedLeadDays: 7,
@@ -63,7 +63,7 @@ void main() {
       await viewModel.loadPayees();
       viewModel.selectPayee('payee-1');
 
-      final id = await viewModel.register(
+      final id = await viewModel.save(
         label: 'EDP — Casa',
         expectedDueDay: 10,
         observedLeadDays: 7,
@@ -72,6 +72,83 @@ void main() {
 
       expect(id, 'exp-new');
       expect(repository.calls, contains('registerExpectation:EDP — Casa'));
+    });
+  });
+
+  group('ExpectationFormViewModel (edição)', () {
+    late FakeExpectationRepository repository;
+    late FakePayeeRepository payeeRepository;
+    late ExpectationFormViewModel viewModel;
+
+    setUp(() {
+      repository = FakeExpectationRepository()
+        ..expectations = [expectation()];
+      payeeRepository = FakePayeeRepository()..payees = [payee()];
+      viewModel = ExpectationFormViewModel(
+        repository: repository,
+        payeeRepository: payeeRepository,
+        expectationId: 'exp-1',
+      );
+    });
+
+    tearDown(() => viewModel.dispose());
+
+    // Editar carrega a expectativa e já chega com o beneficiário e a
+    // recorrência dela — é o que preenche os campos iniciais do formulário.
+    test('loading in edit mode prefills from the existing expectation',
+        () async {
+      await viewModel.load();
+
+      expect(viewModel.isEditing, isTrue);
+      expect(viewModel.existing, isNotNull);
+      expect(viewModel.selectedPayeeId, viewModel.existing!.payeeId);
+      expect(viewModel.recurrence, viewModel.existing!.recurrence);
+    });
+
+    // TESTE-ÂNCORA da regra de produto: o beneficiário não muda na edição.
+    // Sem esta recusa, um dropdown habilitado por engano trocaria a conta
+    // esperada e deixaria os ciclos abertos órfãos.
+    test('selecting another payee while editing is refused', () async {
+      await viewModel.load();
+
+      viewModel.selectPayee('outro-beneficiario');
+
+      expect(viewModel.selectedPayeeId, viewModel.existing!.payeeId);
+    });
+
+    // Salvar em modo edição chama o editar, não o cadastrar, e devolve o id
+    // que já existia.
+    test('saving in edit mode edits and keeps the same id', () async {
+      await viewModel.load();
+
+      final id = await viewModel.save(
+        label: 'EDP — rótulo novo',
+        expectedDueDay: 25,
+        observedLeadDays: 12,
+        alertLeadDays: 5,
+      );
+
+      expect(id, 'exp-1');
+      expect(
+        repository.calls.single,
+        startsWith('editExpectation:exp-1:EDP — rótulo novo:'),
+      );
+      expect(repository.calls.single, endsWith(':25'));
+    });
+
+    // Falha do servidor não devolve id, e a mensagem chega para a tela.
+    test('a failed edit reports and resolves to null', () async {
+      await viewModel.load();
+      repository.setShouldFail(true);
+
+      final id = await viewModel.save(
+        label: 'EDP',
+        expectedDueDay: 10,
+        observedLeadDays: 7,
+      );
+
+      expect(id, isNull);
+      expect(viewModel.errorMessage, isNotNull);
     });
   });
 
@@ -102,6 +179,28 @@ void main() {
       );
     });
 
+    // Excluir some com a expectativa e resolve para true — a tela usa isso
+    // para sair, porque não há detalhe para recarregar.
+    test('deleting removes the expectation and does not reload', () async {
+      await viewModel.load();
+
+      final deleted = await viewModel.deleteExpectation();
+
+      expect(deleted, isTrue);
+      expect(repository.calls.single, 'deleteExpectation:exp-1');
+    });
+
+    // Falha na exclusão não sai da tela e deixa a mensagem visível.
+    test('a failed delete resolves to false and reports', () async {
+      await viewModel.load();
+      repository.setShouldFail(true);
+
+      final deleted = await viewModel.deleteExpectation();
+
+      expect(deleted, isFalse);
+      expect(viewModel.errorMessage, isNotNull);
+    });
+
     test('waiving a cycle records the cycle id', () async {
       await viewModel.load();
 
@@ -129,6 +228,7 @@ void main() {
       final expectations = FakeExpectationRepository()
         ..pending = PendingExpectationsView(
           missing: [pendingExpectation()],
+          overdue: const [],
           captureFailed: [
             pendingExpectation(blockedByCaptureItemId: 'item-9'),
           ],

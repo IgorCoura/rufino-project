@@ -1,4 +1,4 @@
-namespace BillPayment.IntegrationTests.Infrastructure;
+﻿namespace BillPayment.IntegrationTests.Infrastructure;
 
 using BillPayment.Domain.Extraction;
 using BillPayment.Domain.Ports;
@@ -40,6 +40,12 @@ internal sealed class FakeDocumentLinkResolver : IDocumentLinkResolver
     public string? LastBody { get; private set; }
 
     public IReadOnlyCollection<string> ResolvableHosts => Hosts;
+
+    /// <summary>Os links que a colheita devolve. Vazio por padrão, como um corpo sem link.</summary>
+    public List<DocumentLink> Harvested { get; } = [];
+
+    public IReadOnlyCollection<DocumentLink> HarvestLinks(ReadOnlyMemory<byte> body, string? contentType)
+        => Harvested;
 
     public Task<ResolvedDocument?> ResolveAsync(
         ReadOnlyMemory<byte> body,

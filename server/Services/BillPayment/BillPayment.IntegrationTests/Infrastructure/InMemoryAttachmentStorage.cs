@@ -22,6 +22,7 @@ using BillPayment.Domain.SharedKernel;
 internal sealed class InMemoryAttachmentStorage : IAttachmentStorage
 {
     private readonly ConcurrentDictionary<string, byte[]> _objects = new(StringComparer.Ordinal);
+    private readonly ConcurrentDictionary<string, string> _contentTypes = new(StringComparer.Ordinal);
 
     public int Count => _objects.Count;
 
@@ -37,6 +38,11 @@ internal sealed class InMemoryAttachmentStorage : IAttachmentStorage
         var key = $"tenants/{tenantId.Value:N}/captures/{Guid.CreateVersion7():N}-{fileName}";
         _objects[key] = content.ToArray();
 
+        // O tipo é guardado junto, como o balde real guarda: é dele que a leitura do documento
+        // tira o Content-Type, porque a Bill não persiste tipo nenhum.
+        if (!string.IsNullOrWhiteSpace(contentType))
+            _contentTypes[key] = contentType;
+
         return Task.FromResult(key);
     }
 
@@ -47,6 +53,24 @@ internal sealed class InMemoryAttachmentStorage : IAttachmentStorage
         => _objects.TryGetValue(storageKey, out var bytes)
             ? Task.FromResult<ReadOnlyMemory<byte>>(bytes)
             : throw new FileNotFoundException("Artefato não encontrado no armazenamento de teste.", storageKey);
+
+    /// <summary>
+    /// Devolve <c>null</c> para chave ausente, como o contrato exige — quem serve o documento
+    /// para uma pessoa precisa de 404, não de exceção.
+    /// </summary>
+    public Task<StoredArtifact?> OpenAsync(
+        TenantId tenantId,
+        string storageKey,
+        CancellationToken cancellationToken)
+    {
+        if (!_objects.TryGetValue(storageKey, out var bytes))
+            return Task.FromResult<StoredArtifact?>(null);
+
+        var contentType = _contentTypes.GetValueOrDefault(storageKey);
+
+        return Task.FromResult<StoredArtifact?>(
+            new StoredArtifact(new MemoryStream(bytes, writable: false), contentType, bytes.Length));
+    }
 
     /// <summary>Idempotente, como o contrato exige — a purga por desfecho pode passar duas vezes.</summary>
     public Task RemoveAsync(TenantId tenantId, string storageKey, CancellationToken cancellationToken)

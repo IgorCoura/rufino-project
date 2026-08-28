@@ -4,6 +4,7 @@ import 'package:rufino_core/rufino_core.dart';
 
 import '../../bill_payment_permissions.dart';
 import '../bill_payment_back_button.dart';
+import '../shared/amount_policy_view.dart';
 import '../shared/message_panel.dart';
 import '../shared/status_badge.dart';
 import 'payee_list_viewmodel.dart';
@@ -232,7 +233,9 @@ class _Results extends StatelessWidget {
                                 runSpacing: AppSpacing.xs,
                                 children: [
                                   StatusBadge(
-                                    label: payee.amountPolicy.summary,
+                                    label: amountPolicySummary(
+                                      payee.amountPolicy,
+                                    ),
                                   ),
                                   if (!payee.isActive)
                                     const StatusBadge(

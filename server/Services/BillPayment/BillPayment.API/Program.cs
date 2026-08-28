@@ -39,6 +39,10 @@ if (builder.Configuration.GetValue<bool>($"{CaptureSyncOptions.SectionName}:Enab
     // Varrer caixa e processar artefato tem ritmos e modos de falha diferentes — um anexo lento
     // nao pode atrasar a varredura, que e o que garante que nada fica para tras.
     builder.Services.AddHostedService<CaptureProcessingBackgroundService>();
+
+    // Terceiro worker: a faixa lenta. Só ele gasta cota de IA, e é isso que impede um artefato
+    // de 5 segundos de segurar um lote cujo item mediano leva 150 ms.
+    builder.Services.AddHostedService<CaptureVisionBackgroundService>();
 }
 
 // A varredura de expectativas é LIGADA por padrão, ao contrário da captura. A captura desligada
@@ -50,6 +54,22 @@ builder.Services.Configure<ExpectationSweepOptions>(
 
 if (builder.Configuration.GetValue<bool?>($"{ExpectationSweepOptions.SectionName}:Enabled") ?? true)
     builder.Services.AddHostedService<ExpectationSweepBackgroundService>();
+
+// O worker vem ligado; quem decide se algum registro é apagado é a política de cada tenant, que
+// nasce desligada. Desligar o worker por padrão faria a política ligada não valer nada.
+// A fila da leitura por IA dos boletos. Ligada por padrão: um boleto que nasce "Na fila para
+// análise" e nunca sai é pior que não ter análise nenhuma.
+builder.Services.Configure<BillReadingOptions>(
+    builder.Configuration.GetSection(BillReadingOptions.SectionName));
+
+if (builder.Configuration.GetValue<bool?>($"{BillReadingOptions.SectionName}:Enabled") ?? true)
+    builder.Services.AddHostedService<BillReadingBackgroundService>();
+
+builder.Services.Configure<CaptureRetentionOptions>(
+    builder.Configuration.GetSection(CaptureRetentionOptions.SectionName));
+
+if (builder.Configuration.GetValue<bool?>($"{CaptureRetentionOptions.SectionName}:Enabled") ?? true)
+    builder.Services.AddHostedService<CaptureRetentionBackgroundService>();
 
 var app = builder.Build();
 

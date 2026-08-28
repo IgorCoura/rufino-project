@@ -2,6 +2,7 @@ namespace BillPayment.Application.Expectations.Commands;
 
 using BillPayment.Application.Mediator;
 using BillPayment.Domain.Bills;
+using BillPayment.Domain.CaptureSources;
 using BillPayment.Domain.Expectations;
 using BillPayment.Domain.Instruments;
 using BillPayment.Domain.Payees;
@@ -59,7 +60,7 @@ public sealed class LearnBillExpectationsCommandHandler(
         var payeeId = PayeeId.From(request.PayeeId);
 
         // Já monitorado sem referência de conta: não há o que aprender de novo.
-        if (await expectations.ExistsAsync(tenantId, payeeId, string.Empty, cancellationToken))
+        if (await expectations.ExistsAsync(tenantId, payeeId, string.Empty, cancellationToken: cancellationToken))
             return new LearnBillExpectationsResponse(null, OUTCOME_ALREADY_EXISTS);
 
         var payee = await payees.GetAsync(tenantId, payeeId, cancellationToken)
@@ -97,7 +98,8 @@ public sealed class LearnBillExpectationsCommandHandler(
             proposal.ExpectedDueDay,
             proposal.ObservedLeadDays,
             proposal.ObservationCount,
-            hintSourceId: null,
+            proposal.AnchorCompetence,
+            proposal.HintSourceId,
             clock.GetUtcNow().UtcDateTime);
 
         await expectations.AddAsync(expectation, cancellationToken);
@@ -132,15 +134,17 @@ public sealed class LearnBillExpectationsCommandHandler(
 
         foreach (var bill in history)
         {
-            var due = bill.Instruments
-                .Where(i => i.Kind == PaymentInstrumentKind.Barcode)
-                .Select(i => i.DigitableLine.DueDate)
-                .FirstOrDefault(d => d is not null);
-
-            if (due is not null)
+            // Vencimento consolidado do agregado — consulta oficial primeiro, linha digitável
+            // como reserva. É o que faz boleto só-Pix contar para a cadência.
+            if (bill.DueDate is { } due)
             {
                 occurrences.Add(new BillOccurrence(
-                    DateOnly.FromDateTime(bill.Origin.ReceivedAt), DateOnly.FromDateTime(due.Value)));
+                    DateOnly.FromDateTime(bill.Origin.ReceivedAt),
+                    due,
+
+                    // Por onde a conta chega vira o link acionável do alerta de captura. Boleto
+                    // importado à mão não tem fonte, e o serviço tira a moda de quem tem.
+                    bill.Origin.SourceId is { } sourceId ? CaptureSourceId.From(sourceId) : null));
             }
         }
 

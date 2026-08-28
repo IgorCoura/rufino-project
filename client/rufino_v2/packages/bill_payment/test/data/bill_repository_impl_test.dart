@@ -175,6 +175,52 @@ void main() {
       expect(detail.origin.senderAddress, 'cobranca@edp.com.br');
     });
 
+    test('carries the reading status so the detail can say it is queued', () {
+      final detail = BillMapper.detailFromJson({
+        'id': 'bill-3',
+        'status': 'AwaitingApproval',
+        'kind': 'BankSlip',
+        'rail': 'Boleto',
+        'readingStatus': 'Queued',
+        'reading': null,
+        'checks': const [],
+        'origin': {
+          'sourceKind': 'Mailbox',
+          'sourceId': 'src-1',
+          'senderAddress': 'noreply@omie.com.br',
+          'receivedAt': '2026-08-27T14:54:56Z',
+        },
+        'createdAt': '2026-08-28T13:49:37Z',
+      });
+
+      expect(detail.readingStatus, ReadingStatuses.queued);
+      expect(detail.isReadingQueued, isTrue);
+      expect(detail.reading, isNull);
+    });
+
+    // The field only reached the detail contract on 2026-08-28. A response from
+    // before that must not read as "queued forever" — absent means the server
+    // has nothing to say, which is what notApplicable expresses.
+    test('an absent reading status falls back to not applicable', () {
+      final detail = BillMapper.detailFromJson({
+        'id': 'bill-4',
+        'status': 'AwaitingApproval',
+        'kind': 'BankSlip',
+        'rail': 'Boleto',
+        'checks': const [],
+        'origin': {
+          'sourceKind': 'ManualUpload',
+          'sourceId': null,
+          'senderAddress': null,
+          'receivedAt': '2026-08-15T10:00:00Z',
+        },
+        'createdAt': '2026-08-15T10:05:00Z',
+      });
+
+      expect(detail.readingStatus, ReadingStatuses.notApplicable);
+      expect(detail.isReadingQueued, isFalse);
+    });
+
     test('maps a bill whose optional fields are all absent', () {
       final bill = BillMapper.fromJson({
         'id': 'bill-2',

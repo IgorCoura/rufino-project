@@ -1,4 +1,4 @@
-namespace BillPayment.UnitTests.CaptureSources;
+﻿namespace BillPayment.UnitTests.CaptureSources;
 
 using BillPayment.Domain.CaptureSources;
 using BillPayment.Domain.SeedWork;
@@ -476,5 +476,121 @@ public class CaptureSourceTests
         Assert.Equal(
             CaptureSourceMother.DefaultPortalUrl,
             CaptureSource.Normalize(CaptureSourceKind.Portal, $"  {CaptureSourceMother.DefaultPortalUrl}  "));
+    }
+
+    // Conectar sem informar data lê a caixa inteira — é o comportamento de sempre, preservado.
+    [Fact]
+    public void Connect_WithoutCaptureSince_ShouldHaveNoTimeFloor()
+    {
+        var source = CaptureSourceMother.Connect();
+
+        Assert.Null(source.CaptureSince);
+    }
+
+    // Conectar com data guarda o piso: nada recebido antes dela será lido.
+    [Fact]
+    public void Connect_WithCaptureSince_ShouldStoreTheFloor()
+    {
+        var since = new DateOnly(2026, 5, 27);
+
+        var source = CaptureSourceMother.Connect(captureSince: since);
+
+        Assert.Equal(since, source.CaptureSince);
+    }
+
+    // Piso no futuro é recusado (BLP.CPS20): descreve uma fonte que não captura nada e não avisa.
+    [Theory]
+    [InlineData(1)]
+    [InlineData(30)]
+    public void Connect_WithCaptureSinceInTheFuture_ShouldThrow_BLP_CPS20(int daysAhead)
+    {
+        var future = DateOnly.FromDateTime(CaptureSourceMother.DefaultOccurredAt).AddDays(daysAhead);
+
+        var exception = Assert.Throws<DomainException>(
+            () => CaptureSourceMother.Connect(captureSince: future));
+
+        Assert.Equal("BLP.CPS20", exception.Id);
+    }
+
+    // A data de hoje é aceita: o piso vale a partir dela, e recusá-la barraria o caso mais comum.
+    [Fact]
+    public void Connect_WithTodayAsCaptureSince_ShouldBeAccepted()
+    {
+        var today = DateOnly.FromDateTime(CaptureSourceMother.DefaultOccurredAt);
+
+        var source = CaptureSourceMother.Connect(captureSince: today);
+
+        Assert.Equal(today, source.CaptureSince);
+    }
+
+    // TESTE-ÂNCORA: trocar o piso descarta o cursor de TODAS as pastas — o provedor grava o
+    // filtro dentro do deltaLink, e sem o descarte a data nova não valeria nada.
+    [Fact]
+    public void ChangeCaptureSince_ShouldDropEveryFolderCursor()
+    {
+        var source = CaptureSourceMother.Connect();
+        source.AddFolder("Contas", CaptureSourceMother.DefaultOccurredAt);
+
+        foreach (var folder in source.Folders)
+            source.RecordSyncSuccess(folder.Id, "https://graph.microsoft.com/delta?$deltatoken=abc", Later);
+
+        Assert.All(source.Folders, f => Assert.NotNull(f.SyncCursor));
+
+        source.ChangeCaptureSince(new DateOnly(2026, 5, 27), Later);
+
+        Assert.All(source.Folders, f => Assert.Null(f.SyncCursor));
+        Assert.Equal(new DateOnly(2026, 5, 27), source.CaptureSince);
+    }
+
+    // Subir o piso também descarta o cursor: quem manda é o filtro gravado nele, não a coluna.
+    [Fact]
+    public void ChangeCaptureSince_WhenRaisingTheFloor_ShouldAlsoDropTheCursor()
+    {
+        var source = CaptureSourceMother.Connect(captureSince: new DateOnly(2026, 1, 1));
+        source.RecordSyncSuccess(CaptureSourceMother.OnlyFolder(source).Id, "deltaLink-antigo", Later);
+
+        source.ChangeCaptureSince(new DateOnly(2026, 8, 1), Later);
+
+        Assert.Null(CaptureSourceMother.OnlyFolder(source).SyncCursor);
+    }
+
+    // Limpar o piso devolve a fonte à caixa inteira, e igualmente descarta o cursor.
+    [Fact]
+    public void ChangeCaptureSince_WithNull_ShouldClearTheFloorAndDropTheCursor()
+    {
+        var source = CaptureSourceMother.Connect(captureSince: new DateOnly(2026, 5, 27));
+        source.RecordSyncSuccess(CaptureSourceMother.OnlyFolder(source).Id, "deltaLink-antigo", Later);
+
+        source.ChangeCaptureSince(null, Later);
+
+        Assert.Null(source.CaptureSince);
+        Assert.Null(CaptureSourceMother.OnlyFolder(source).SyncCursor);
+    }
+
+    // Trocar para uma data futura é recusado, e a fonte permanece com o piso que tinha.
+    [Fact]
+    public void ChangeCaptureSince_WithFutureDate_ShouldThrowAndKeepThePreviousFloor()
+    {
+        var original = new DateOnly(2026, 5, 27);
+        var source = CaptureSourceMother.Connect(captureSince: original);
+        var future = DateOnly.FromDateTime(Later).AddDays(1);
+
+        var exception = Assert.Throws<DomainException>(() => source.ChangeCaptureSince(future, Later));
+
+        Assert.Equal("BLP.CPS20", exception.Id);
+        Assert.Equal(original, source.CaptureSince);
+    }
+
+    // O piso é da fonte, não da pasta: pasta acrescentada depois é varrida pelo mesmo piso.
+    [Fact]
+    public void AddFolder_ShouldInheritTheSourceCaptureSince()
+    {
+        var since = new DateOnly(2026, 5, 27);
+        var source = CaptureSourceMother.Connect(captureSince: since);
+
+        source.AddFolder("Contas", Later);
+
+        Assert.Equal(2, source.Folders.Count);
+        Assert.Equal(since, source.CaptureSince);
     }
 }

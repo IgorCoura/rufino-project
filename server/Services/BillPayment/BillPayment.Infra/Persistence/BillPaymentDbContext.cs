@@ -3,9 +3,12 @@ namespace BillPayment.Infra.Persistence;
 using BillPayment.Domain.Bills;
 using BillPayment.Domain.CaptureItems;
 using BillPayment.Domain.Expectations;
+using BillPayment.Domain.Notifications;
+using BillPayment.Domain.CapturedMessages;
 using BillPayment.Domain.CaptureSources;
 using BillPayment.Domain.Payees;
 using BillPayment.Domain.PayerProfiles;
+using BillPayment.Domain.Retention;
 using BillPayment.Domain.SeedWork;
 using BillPayment.Domain.TrustedOrigins;
 using Microsoft.EntityFrameworkCore;
@@ -20,7 +23,17 @@ public sealed class BillPaymentDbContext : DbContext, IUnitOfWork
     public DbSet<PayerProfile> PayerProfiles => Set<PayerProfile>();
     public DbSet<CaptureSource> CaptureSources => Set<CaptureSource>();
     public DbSet<CaptureItem> CaptureItems => Set<CaptureItem>();
+
+    /// <summary>O livro-caixa da captura: um por e-mail lido, inclusive os que não eram boleto.</summary>
+    public DbSet<CapturedMessage> CapturedMessages => Set<CapturedMessage>();
+
+    /// <summary>A janela de retenção do livro-caixa — uma por tenant.</summary>
+    public DbSet<CaptureRetentionPolicy> CaptureRetentionPolicies => Set<CaptureRetentionPolicy>();
     public DbSet<BillExpectation> BillExpectations => Set<BillExpectation>();
+
+    /// <summary>Para quem os avisos de expectativa vão, por tenant.</summary>
+    public DbSet<TenantNotificationSettings> TenantNotificationSettings
+        => Set<TenantNotificationSettings>();
 
     public DbSet<OutboxMessage> OutboxMessages => Set<OutboxMessage>();
     public DbSet<OutboxDeadLetter> OutboxDeadLetters => Set<OutboxDeadLetter>();
@@ -94,6 +107,12 @@ public sealed class BillPaymentDbContext : DbContext, IUnitOfWork
             {
                 AggregateRoot<BillId> aggregate => aggregate.PullDomainEvents(),
                 AggregateRoot<BillExpectationId> aggregate => aggregate.PullDomainEvents(),
+
+                // O CaptureItem passou a emitir em 2026-08-27 (travou / destravou), e é ele que
+                // liga a captura à expectativa. Sem este case os dois eventos seriam acumulados
+                // no agregado e descartados no fim do escopo — exatamente a falha silenciosa que
+                // o comentário acima adverte.
+                AggregateRoot<CaptureItemId> aggregate => aggregate.PullDomainEvents(),
                 _ => null,
             };
 

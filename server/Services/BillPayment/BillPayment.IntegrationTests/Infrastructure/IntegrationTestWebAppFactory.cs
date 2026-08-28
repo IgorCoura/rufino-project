@@ -83,6 +83,15 @@ public sealed class IntegrationTestWebAppFactory : WebApplicationFactory<Program
         // deixariam de ser determinísticos. Quem exercita o job chama o comando.
         builder.UseSetting("Expectations:Enabled", "false");
 
+        // A fila da leitura por IA também vem LIGADA por padrão, e pelo mesmo motivo precisa
+        // ser desligada aqui. Ela escapou desta lista até 2026-08-28 e ninguém notou por uma
+        // razão constrangedora: a reivindicação estourava em TODO ciclo, então o worker nunca
+        // chegava a tocar em linha nenhuma. Com a consulta consertada ele passou a reivindicar
+        // de trinta em trinta segundos — e a primeira coisa que fez foi contar uma tentativa a
+        // mais num boleto que um teste tinha acabado de semear. Quem exercita a fila chama a
+        // query direto.
+        builder.UseSetting("BillReading:Enabled", "false");
+
         builder.UseEnvironment("Development");
 
         builder.ConfigureTestServices(ConfigureAuthDoubles);

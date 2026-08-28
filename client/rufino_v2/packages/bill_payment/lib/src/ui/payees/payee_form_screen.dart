@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:mask_text_input_formatter/mask_text_input_formatter.dart';
 import 'package:rufino_core/rufino_core.dart';
 
 import '../../domain/bill_payment_enums.dart';
 import '../bill_payment_back_button.dart';
+import '../shared/number_field.dart';
+import '../shared/tax_id_input_formatter.dart';
 import 'payee_form_viewmodel.dart';
 
 /// The payee register form: name, document and the expected amount policy.
@@ -38,11 +39,9 @@ class _PayeeFormScreenState extends State<PayeeFormScreen> {
   final _minController = TextEditingController();
   final _maxController = TextEditingController();
 
-  // CPF grows into CNPJ as the person types the 12th digit.
-  late final _taxIdMask = MaskTextInputFormatter(
-    mask: '###.###.###-##',
-    filter: {'#': RegExp(r'[0-9]')},
-  );
+  // Cresce de CPF para CNPJ sozinho — quem decide a máscara é o formatador,
+  // porque só ele vê a 12ª tecla antes de uma máscara de 11 posições engoli-la.
+  final _taxIdFormatter = TaxIdInputFormatter();
 
   @override
   void dispose() {
@@ -55,19 +54,16 @@ class _PayeeFormScreenState extends State<PayeeFormScreen> {
     super.dispose();
   }
 
-  double? _number(TextEditingController controller) =>
-      double.tryParse(controller.text.replaceAll(',', '.'));
-
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
 
     final id = await widget.viewModel.register(
       legalName: _nameController.text,
       taxId: _taxIdController.text,
-      expectedAmount: _number(_expectedController),
-      tolerancePercent: _number(_toleranceController),
-      minAmount: _number(_minController),
-      maxAmount: _number(_maxController),
+      expectedAmount: NumberField.read(_expectedController),
+      tolerancePercent: NumberField.read(_toleranceController),
+      minAmount: NumberField.read(_minController),
+      maxAmount: NumberField.read(_maxController),
     );
     if (id != null && mounted) widget.onRegistered(id);
   }
@@ -113,18 +109,7 @@ class _PayeeFormScreenState extends State<PayeeFormScreen> {
                           border: OutlineInputBorder(),
                         ),
                         keyboardType: TextInputType.number,
-                        inputFormatters: [_taxIdMask],
-                        onChanged: (value) {
-                          final digits =
-                              value.replaceAll(RegExp(r'\D'), '');
-                          final mask = digits.length > 11
-                              ? '##.###.###/####-##'
-                              : '###.###.###-##';
-                          if (_taxIdMask.getMask() != mask) {
-                            _taxIdController.value =
-                                _taxIdMask.updateMask(mask: mask);
-                          }
-                        },
+                        inputFormatters: [_taxIdFormatter],
                         validator: (value) {
                           final digits =
                               value?.replaceAll(RegExp(r'\D'), '') ?? '';
@@ -161,26 +146,31 @@ class _PayeeFormScreenState extends State<PayeeFormScreen> {
                       const SizedBox(height: AppSpacing.md),
                       if (widget.viewModel.policyKind ==
                           AmountPolicyKinds.fixed) ...[
-                        _NumberField(
+                        NumberField(
                           controller: _expectedController,
                           label: 'Valor esperado (R\$)',
                           requiredField: true,
                         ),
                         const SizedBox(height: AppSpacing.md),
-                        _NumberField(
+                        // Obrigatória: AmountPolicy.From recusa valor fixo sem
+                        // tolerância (BLP.PYE07). Em branco, o cadastro
+                        // voltava do servidor sem dizer qual campo faltava.
+                        NumberField(
                           controller: _toleranceController,
                           label: 'Tolerância (%)',
+                          requiredField: true,
+                          helperText: 'Use 0 para exigir o valor exato.',
                         ),
                       ],
                       if (widget.viewModel.policyKind ==
                           AmountPolicyKinds.range) ...[
-                        _NumberField(
+                        NumberField(
                           controller: _minController,
                           label: 'Valor mínimo (R\$)',
                           requiredField: true,
                         ),
                         const SizedBox(height: AppSpacing.md),
-                        _NumberField(
+                        NumberField(
                           controller: _maxController,
                           label: 'Valor máximo (R\$)',
                           requiredField: true,
@@ -231,39 +221,6 @@ class _PayeeFormScreenState extends State<PayeeFormScreen> {
           ),
         ),
       ),
-    );
-  }
-}
-
-class _NumberField extends StatelessWidget {
-  const _NumberField({
-    required this.controller,
-    required this.label,
-    this.requiredField = false,
-  });
-
-  final TextEditingController controller;
-  final String label;
-  final bool requiredField;
-
-  @override
-  Widget build(BuildContext context) {
-    return TextFormField(
-      controller: controller,
-      decoration: InputDecoration(
-        labelText: label,
-        border: const OutlineInputBorder(),
-      ),
-      keyboardType: const TextInputType.numberWithOptions(decimal: true),
-      validator: (value) {
-        final text = value?.trim() ?? '';
-        if (text.isEmpty) {
-          return requiredField ? 'Informe o valor.' : null;
-        }
-        return double.tryParse(text.replaceAll(',', '.')) == null
-            ? 'Valor inválido.'
-            : null;
-      },
     );
   }
 }

@@ -95,6 +95,28 @@ public static class ExtractionErrors
             parameters: Array.Empty<object>(),
             sourcePath: BuildSourcePath(filePath, memberName, lineNumber));
 
+    /// <summary>
+    /// O extrator de IA não respondeu — timeout, 5xx ou transporte caído.
+    /// </summary>
+    /// <remarks>
+    /// <strong>É lançada de propósito, ao contrário das outras falhas de extração.</strong> As
+    /// demais são fato sobre o documento e viram desfecho; esta é fato sobre a rede, e o que ela
+    /// precisa é que o item VOLTE PARA A FILA. A fila já sabe retentar com espera dobrando — o
+    /// que faltava era um sinal que a acionasse. Sem ela, indisponibilidade do provedor virava
+    /// "não achei boleto" e mandava documento bom para a quarentena (medido em 2026-08-27).
+    /// </remarks>
+    public static DomainException ProviderUnavailable(
+        string reasonCode,
+        [CallerFilePath] string filePath = "",
+        [CallerMemberName] string memberName = "",
+        [CallerLineNumber] int lineNumber = 0)
+        => new(
+            id: $"{PREFIX}08",
+            messageTemplate: "O extrator de documentos não respondeu ({0}). O artefato volta para a fila.",
+            parameters: new object[] { reasonCode },
+            sourcePath: BuildSourcePath(filePath, memberName, lineNumber),
+            category: DomainErrorCategory.Conflict);
+
     private static string BuildSourcePath(string filePath, string memberName, int lineNumber)
         => $"{Path.GetFileName(filePath)}:{lineNumber} ({memberName})";
 }

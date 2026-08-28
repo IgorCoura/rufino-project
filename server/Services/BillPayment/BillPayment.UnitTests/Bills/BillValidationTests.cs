@@ -36,7 +36,7 @@ public class BillValidationTests
 
     // Linha 1 da matriz: qualquer falha bloqueante reprova o boleto.
     [Fact]
-    public void RecordChecks_WithABlockingFailure_ShouldRejectAndEmitRejectedWithTheReasons()
+    public void RecordChecks_WithABlockingFailure_ShouldClassifyAsDangerAndAwaitTheHuman()
     {
         var bill = CapturedAndDrained();
 
@@ -44,12 +44,11 @@ public class BillValidationTests
             AllPassing(CheckResult.Failed(CheckType.PayeeMatch, CheckReasons.PAYEE_LOOKALIKE)),
             EvaluatedAt);
 
-        Assert.Equal(BillStatus.Rejected, bill.Status);
+        Assert.Equal(BillStatus.AwaitingApproval, bill.Status);
+        Assert.Same(RiskLevel.Danger, bill.Risk);
         Assert.Equal(1, outcome.BlockingFailures);
-        Assert.True(outcome.IsRejected);
 
-        var rejected = Assert.IsType<BillRejectedDomainEvent>(Assert.Single(bill.PullDomainEvents()));
-        Assert.Contains(CheckReasons.PAYEE_LOOKALIKE, rejected.ReasonCodes);
+        Assert.IsType<BillValidatedDomainEvent>(Assert.Single(bill.PullDomainEvents()));
     }
 
     // Linha 2 da matriz: falha apenas Advisory não reprova, mas conta como ponto de atenção.
@@ -117,7 +116,7 @@ public class BillValidationTests
         bill.RecordChecks(AllPassing(CheckResult.Failed(CheckType.PayeeMatch, CheckReasons.PAYEE_LOOKALIKE)), EvaluatedAt);
         bill.RecordChecks(AllPassing(), EvaluatedAt.AddHours(1));
 
-        Assert.Equal(12, bill.Checks.Count);
+        Assert.Equal(Enumeration.GetAll<CheckType>().Count(), bill.Checks.Count);
         Assert.DoesNotContain(bill.Checks, c => c.Outcome == CheckOutcome.Failed);
     }
 
@@ -142,10 +141,12 @@ public class BillValidationTests
         var bill = BillMother.Capture();
         bill.RecordChecks(AllPassing(), EvaluatedAt);
         bill.PullDomainEvents();
+        Assert.Same(RiskLevel.Safe, bill.Risk);
 
         bill.RecordChecks(AllPassing(CheckResult.Failed(CheckType.Duplicate, CheckReasons.DUPLICATE_SAME_TENANT)), EvaluatedAt.AddHours(1));
 
-        Assert.Equal(BillStatus.Rejected, bill.Status);
+        Assert.Equal(BillStatus.AwaitingApproval, bill.Status);
+        Assert.Same(RiskLevel.Danger, bill.Risk);
     }
 
     // Consulta que não resolveu NÃO apaga o retrato anterior: apagar deixaria o boleto sem

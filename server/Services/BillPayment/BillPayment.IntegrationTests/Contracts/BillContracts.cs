@@ -26,6 +26,7 @@ internal sealed record BillContract(
     string Status,
     string Kind,
     string Rail,
+    BillPartyContract? Beneficiary,
     decimal? Amount,
     DateTime? DueDate,
     string? BankCode,
@@ -34,7 +35,7 @@ internal sealed record BillContract(
 
 internal sealed record BillPageContract(IReadOnlyList<BillContract> Items, string? NextCursor);
 
-internal sealed record ApproveBillRequest(DateOnly ScheduleFor, string? Note);
+internal sealed record ApproveBillRequest(DateOnly ScheduleFor, string? Note, bool AcknowledgeRisk = false);
 
 internal sealed record ApproveBillResponseContract(Guid Id, string Status, DateOnly ScheduledFor);
 

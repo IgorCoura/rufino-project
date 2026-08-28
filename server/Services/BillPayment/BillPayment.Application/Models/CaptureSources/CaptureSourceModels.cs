@@ -1,4 +1,4 @@
-namespace BillPayment.Application.Models.CaptureSources;
+﻿namespace BillPayment.Application.Models.CaptureSources;
 
 using System.Text.Json.Serialization;
 using BillPayment.Application.CaptureSources.Commands;
@@ -24,10 +24,20 @@ public sealed record ConnectCaptureSourceModel(
     /// alimentada por regra do cliente de e-mail e o que impede o sistema de armazenar
     /// documento pessoal junto com boleto numa caixa de uso misto.
     /// </summary>
-    string? FolderPath)
+    string? FolderPath,
+
+    /// <summary>
+    /// Piso temporal: nada recebido antes desta data é lido. Ausente = a caixa inteira.
+    /// </summary>
+    /// <remarks>
+    /// Quem aplica o corte é o provedor — a delta query do Graph aceita exatamente
+    /// <c>receivedDateTime ge {data}</c>. Sem ele, conectar uma caixa antiga varre anos de
+    /// histórico na primeira sincronização.
+    /// </remarks>
+    DateOnly? CaptureSince)
 {
     public ConnectCaptureSourceCommand ToCommand(Guid tenantId)
-        => new(tenantId, Kind, DisplayName, Address, Credential, FolderPath);
+        => new(tenantId, Kind, DisplayName, Address, Credential, FolderPath, CaptureSince);
 }
 
 public sealed record RenameCaptureSourceModel([property: JsonRequired] string DisplayName)
@@ -49,6 +59,20 @@ public sealed record ChangeCaptureSourceFolderModel(string? FolderPath)
 {
     public ChangeCaptureSourceFolderCommand ToCommand(Guid tenantId, Guid captureSourceId)
         => new(tenantId, captureSourceId, FolderPath);
+}
+
+/// <summary>
+/// Move o piso temporal da captura. Nulo ou ausente devolve a fonte à caixa inteira.
+/// </summary>
+/// <remarks>
+/// Trocar a data <strong>descarta os cursores</strong> de todas as pastas — o provedor grava o
+/// filtro dentro do cursor, e sem o descarte a data nova não valeria nada. A releitura não
+/// duplica: a ingestão é idempotente por <c>(tenant, fonte, mensagem, anexo)</c>.
+/// </remarks>
+public sealed record ChangeCaptureSourceSinceModel(DateOnly? CaptureSince)
+{
+    public ChangeCaptureSourceSinceCommand ToCommand(Guid tenantId, Guid captureSourceId)
+        => new(tenantId, captureSourceId, CaptureSince);
 }
 
 public sealed record ReplaceCaptureSourceCredentialModel([property: JsonRequired] string Credential)

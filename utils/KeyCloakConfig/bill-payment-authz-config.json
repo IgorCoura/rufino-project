@@ -8,12 +8,24 @@
       "ownerManagedAccess": false,
       "displayName": "Boletos: entrada, verificacao e decisao",
       "scopes": [
-        { "name": "view" },
-        { "name": "import" },
-        { "name": "validate" },
-        { "name": "approve" },
-        { "name": "deny" },
-        { "name": "cancel" }
+        {
+          "name": "view"
+        },
+        {
+          "name": "import"
+        },
+        {
+          "name": "validate"
+        },
+        {
+          "name": "approve"
+        },
+        {
+          "name": "deny"
+        },
+        {
+          "name": "cancel"
+        }
       ]
     },
     {
@@ -21,42 +33,121 @@
       "type": "None",
       "ownerManagedAccess": false,
       "displayName": "Cadastro fiscal do tenant (deriva senha de PDF e roteamento)",
-      "scopes": [{ "name": "view" }, { "name": "manage" }]
+      "scopes": [
+        {
+          "name": "view"
+        },
+        {
+          "name": "manage"
+        }
+      ]
     },
     {
       "name": "payee",
       "type": "None",
       "ownerManagedAccess": false,
       "displayName": "Beneficiarios cadastrados",
-      "scopes": [{ "name": "view" }, { "name": "manage" }]
+      "scopes": [
+        {
+          "name": "view"
+        },
+        {
+          "name": "manage"
+        }
+      ]
     },
     {
       "name": "origin",
       "type": "None",
       "ownerManagedAccess": false,
       "displayName": "Origens confiaveis (remetentes)",
-      "scopes": [{ "name": "view" }, { "name": "manage" }]
+      "scopes": [
+        {
+          "name": "view"
+        },
+        {
+          "name": "manage"
+        }
+      ]
     },
     {
       "name": "capture-source",
       "type": "None",
       "ownerManagedAccess": false,
       "displayName": "Caixas de e-mail monitoradas",
-      "scopes": [{ "name": "view" }, { "name": "manage" }, { "name": "sync" }]
+      "scopes": [
+        {
+          "name": "view"
+        },
+        {
+          "name": "manage"
+        },
+        {
+          "name": "sync"
+        }
+      ]
     },
     {
       "name": "capture-item",
       "type": "None",
       "ownerManagedAccess": false,
       "displayName": "Artefatos capturados e quarentena",
-      "scopes": [{ "name": "view" }, { "name": "claim" }, { "name": "reprocess" }]
+      "scopes": [
+        {
+          "name": "view"
+        },
+        {
+          "name": "claim"
+        },
+        {
+          "name": "reprocess"
+        }
+      ]
     },
     {
       "name": "expectation",
       "type": "None",
       "ownerManagedAccess": false,
       "displayName": "Expectativas de boleto e alertas do que nao chegou",
-      "scopes": [{ "name": "view" }, { "name": "manage" }, { "name": "waive" }]
+      "scopes": [
+        {
+          "name": "view"
+        },
+        {
+          "name": "manage"
+        },
+        {
+          "name": "waive"
+        }
+      ]
+    },
+    {
+      "name": "captured-message",
+      "displayName": "Livro-caixa da captura",
+      "type": "urn:bill-payment-api:resources:captured-message",
+      "ownerManagedAccess": false,
+      "scopes": [
+        {
+          "name": "view"
+        },
+        {
+          "name": "recapture"
+        }
+      ]
+    },
+    {
+      "name": "capture-retention",
+      "displayName": "Retencao do livro-caixa",
+      "type": "urn:bill-payment-api:resources:capture-retention",
+      "ownerManagedAccess": false,
+      "scopes": [
+        {
+          "name": "view"
+        },
+        {
+          "name": "manage"
+        }
+      ]
     }
   ],
   "policies": [
@@ -147,20 +238,93 @@
         "scopes": "[\"waive\"]",
         "applyPolicies": "[\"Bill Approver Policy\"]"
       }
+    },
+    {
+      "name": "Captured Message Read Permission",
+      "description": "Consultar o historico de e-mails lidos pela captura. Recurso proprio: a quarentena e fila de trabalho, isto e historico e inclui o e-mail descartado.",
+      "type": "scope",
+      "logic": "POSITIVE",
+      "decisionStrategy": "UNANIMOUS",
+      "config": {
+        "resources": "[\"captured-message\"]",
+        "scopes": "[\"view\"]",
+        "applyPolicies": "[\"Bill Viewer Policy\"]"
+      }
+    },
+    {
+      "name": "Captured Message Recapture Permission",
+      "description": "Reprocessar um e-mail do zero. Escopo proprio porque reingerir consome cota do extrator de visao, pela mesma razao que separou capture-item:reprocess.",
+      "type": "scope",
+      "logic": "POSITIVE",
+      "decisionStrategy": "UNANIMOUS",
+      "config": {
+        "resources": "[\"captured-message\"]",
+        "scopes": "[\"recapture\"]",
+        "applyPolicies": "[\"Bill Operator Policy\"]"
+      }
+    },
+    {
+      "name": "Capture Retention Read Permission",
+      "description": "Ver o prazo de retencao em vigor. Quem opera precisa dele para interpretar a tela.",
+      "type": "scope",
+      "logic": "POSITIVE",
+      "decisionStrategy": "UNANIMOUS",
+      "config": {
+        "resources": "[\"capture-retention\"]",
+        "scopes": "[\"view\"]",
+        "applyPolicies": "[\"Bill Viewer Policy\"]"
+      }
+    },
+    {
+      "name": "Capture Retention Manage Permission",
+      "description": "Ligar, desligar e escolher o prazo de retencao do historico. Decisao de instalacao, nao de operacao — por isso fica com o administrador.",
+      "type": "scope",
+      "logic": "POSITIVE",
+      "decisionStrategy": "UNANIMOUS",
+      "config": {
+        "resources": "[\"capture-retention\"]",
+        "scopes": "[\"manage\"]",
+        "applyPolicies": "[\"Bill Admin Policy\"]"
+      }
     }
   ],
   "scopes": [
-    { "name": "view" },
-    { "name": "import" },
-    { "name": "validate" },
-    { "name": "approve" },
-    { "name": "deny" },
-    { "name": "cancel" },
-    { "name": "manage" },
-    { "name": "sync" },
-    { "name": "claim" },
-    { "name": "reprocess" },
-    { "name": "waive" }
+    {
+      "name": "view"
+    },
+    {
+      "name": "import"
+    },
+    {
+      "name": "validate"
+    },
+    {
+      "name": "approve"
+    },
+    {
+      "name": "deny"
+    },
+    {
+      "name": "cancel"
+    },
+    {
+      "name": "manage"
+    },
+    {
+      "name": "sync"
+    },
+    {
+      "name": "claim"
+    },
+    {
+      "name": "reprocess"
+    },
+    {
+      "name": "waive"
+    },
+    {
+      "name": "recapture"
+    }
   ],
   "decisionStrategy": "UNANIMOUS"
 }

@@ -25,4 +25,24 @@ public interface ICaptureItemQueries
         CancellationToken cancellationToken = default);
 
     Task<CaptureItemDto?> GetAsync(Guid tenantId, Guid captureItemId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// O documento original do item, para uma pessoa conferir antes de decidir se reivindica.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <strong>Devolve <c>null</c> em toda negativa, e nunca diz qual delas foi.</strong> Item de
+    /// outro tenant, item de outro pagador, item sem arquivo guardado e chave órfã saem iguais —
+    /// distinguir confirmaria a existência do item, que é a informação que o ADR-008 protege.
+    /// </para>
+    /// <para>
+    /// O gate de visibilidade é o mesmo do <see cref="CaptureItemDto"/>:
+    /// <c>CaptureItemStatus.ExposesFinancialDetail</c>. A chave de armazenamento não entra por
+    /// parâmetro em hipótese nenhuma — só o id do item.
+    /// </para>
+    /// </remarks>
+    Task<ArtifactDownload?> GetArtifactAsync(
+        Guid tenantId,
+        Guid captureItemId,
+        CancellationToken cancellationToken = default);
 }

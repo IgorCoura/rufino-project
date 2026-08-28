@@ -3,6 +3,7 @@ namespace BillPayment.IntegrationTests.Bills;
 using System.Net.Http.Json;
 using BillPayment.Domain.Bills;
 using BillPayment.Domain.Bills.Checks;
+using BillPayment.Domain.SeedWork;
 using BillPayment.Domain.Lookups;
 using BillPayment.Domain.SharedKernel;
 using BillPayment.Infra.Outbox;
@@ -53,7 +54,7 @@ public sealed class ValidateBillTests : BaseIntegrationTest, IDisposable
     // Caminho completo: o boleto entra, o outbox dispara a verificação, as doze checagens são
     // gravadas e o boleto fica aguardando aprovação.
     [Fact]
-    public async Task ImportThenDrainOutbox_WithAConsistentBill_ShouldPersistTwelveChecksAndAwaitApproval()
+    public async Task ImportThenDrainOutbox_WithAConsistentBill_ShouldPersistTheWholeCatalogAndAwaitApproval()
     {
         _lookups.BankSlipResult = ResolvedBankSlip();
 
@@ -63,15 +64,16 @@ public sealed class ValidateBillTests : BaseIntegrationTest, IDisposable
         var bill = await LoadAsync(billId);
 
         Assert.Equal(BillStatus.AwaitingApproval, bill.Status);
-        Assert.Equal(12, bill.Checks.Count);
+        Assert.Equal(Enumeration.GetAll<CheckType>().Count(), bill.Checks.Count);
         Assert.DoesNotContain(bill.Checks, c => c.IsBlockingFailure);
         Assert.NotNull(bill.Lookup);
         Assert.Equal(BeneficiaryCnpj, bill.Lookup!.Beneficiary.TaxId!.Value);
     }
 
-    // A consulta indisponível reprova o boleto com motivo — e nunca cai para "aprova sem consulta".
+    // ADR-015: consulta indisponível classifica como Perigo com o motivo — a aprovação exige o
+    // aceite explícito, e nunca cai para "aprova sem consulta" em silêncio.
     [Fact]
-    public async Task ImportThenDrainOutbox_WhenTheLookupIsUnavailable_ShouldRejectWithTheReason()
+    public async Task ImportThenDrainOutbox_WhenTheLookupIsUnavailable_ShouldClassifyAsDangerWithTheReason()
     {
         _lookups.BankSlipResult = BillLookupResult.Unavailable("timeout", null, ConsultedAt);
 
@@ -80,17 +82,19 @@ public sealed class ValidateBillTests : BaseIntegrationTest, IDisposable
 
         var bill = await LoadAsync(billId);
 
-        Assert.Equal(BillStatus.Rejected, bill.Status);
+        Assert.Equal(BillStatus.AwaitingApproval, bill.Status);
+        Assert.Same(RiskLevel.Danger, bill.Risk);
         Assert.Contains(
             bill.Checks,
             c => c.Type == CheckType.LookupAvailability && c.ReasonCode == CheckReasons.LOOKUP_UNAVAILABLE);
     }
 
     // ANTIFRAUDE DE TRILHO (obrigatório, doc 03): documento híbrido cujo QR Pix aponta para um
-    // CNPJ diferente do código de barras é bloqueado antes de chegar à aprovação. É o teste que
-    // prova a defesa contra QR adulterado colado sobre boleto verdadeiro.
+    // CNPJ diferente do código de barras vira PERIGO antes de chegar à aprovação (ADR-015) — o
+    // aprovador só autoriza assumindo o risco explicitamente. É a defesa contra QR adulterado
+    // colado sobre boleto verdadeiro.
     [Fact]
-    public async Task ImportThenDrainOutbox_WhenThePixQrPointsToAnotherPayee_ShouldRejectByPixBarcodeConsistency()
+    public async Task ImportThenDrainOutbox_WhenThePixQrPointsToAnotherPayee_ShouldFlagDangerByPixBarcodeConsistency()
     {
         _lookups.BankSlipResult = ResolvedBankSlip();
         _lookups.PixResult = ResolvedPix(OtherCnpj);
@@ -100,7 +104,8 @@ public sealed class ValidateBillTests : BaseIntegrationTest, IDisposable
 
         var bill = await LoadAsync(billId);
 
-        Assert.Equal(BillStatus.Rejected, bill.Status);
+        Assert.Equal(BillStatus.AwaitingApproval, bill.Status);
+        Assert.Same(RiskLevel.Danger, bill.Risk);
 
         var check = bill.Checks.Single(c => c.Type == CheckType.PixBarcodeConsistency);
         Assert.Equal(CheckOutcome.Failed, check.Outcome);
@@ -164,6 +169,46 @@ public sealed class ValidateBillTests : BaseIntegrationTest, IDisposable
         Assert.DoesNotContain(OtherTenantId.ToString(), body, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain(firstId.ToString(), body, StringComparison.OrdinalIgnoreCase);
     }
+
+    // FASE E (2026-08-27), ponta a ponta: o CNPJ impresso no documento (lido pela IA) diverge
+    // do que a consulta oficial devolveu — o boleto vira PERIGO pelo check DocumentConsistency,
+    // e só é aprovável assumindo o risco explicitamente.
+    [Fact]
+    public async Task Revalidate_WhenThePrintedPayeeContradictsTheOfficialOne_ShouldFlagDanger()
+    {
+        _lookups.BankSlipResult = ResolvedBankSlip();
+
+        var billId = await ImportAsync(BankSlipLine);
+        await DrainOutboxAsync();
+
+        await AttachReadingAsync(billId, printedPayeeTaxId: OtherCnpj);
+        var revalidate = await _client.PostAsync(
+            new Uri($"/api/v1/{TenantId}/bills/{billId}/revalidate", UriKind.Relative),
+            content: null,
+            CancellationToken.None);
+        revalidate.EnsureSuccessStatusCode();
+
+        var bill = await LoadAsync(billId);
+
+        Assert.Same(RiskLevel.Danger, bill.Risk);
+        var check = bill.Checks.Single(c => c.Type == CheckType.DocumentConsistency);
+        Assert.Equal(CheckOutcome.Failed, check.Outcome);
+        Assert.Equal(CheckReasons.DOCUMENT_PAYEE_MISMATCH, check.ReasonCode);
+        Assert.True(check.IsBlockingFailure);
+    }
+
+    /// <summary>Anexa uma leitura de IA pelo método rico do agregado — o mesmo caminho do worker.</summary>
+    private async Task AttachReadingAsync(Guid billId, string printedPayeeTaxId)
+        => await ExecuteDbContextAsync(async db =>
+        {
+            var bill = await db.Bills.SingleAsync(b => b.Id == BillId.From(billId));
+            bill.AttachReading(
+                DocumentReading.FromExtraction(
+                    BillPayment.Domain.Extraction.ExtractedDocument.From(payeeTaxId: printedPayeeTaxId),
+                    ConsultedAt),
+                ConsultedAt.UtcDateTime);
+            await db.SaveEntitiesAsync();
+        });
 
     private static BillLookupResult ResolvedBankSlip(decimal amount = 615.07m, DateTimeOffset? consultedAt = null)
         => BillLookupResult.Resolved(

@@ -1,6 +1,7 @@
 namespace BillPayment.Application.Expectations.Commands;
 
 using BillPayment.Application.Mediator;
+using BillPayment.Domain.CaptureSources;
 using BillPayment.Domain.Expectations;
 using BillPayment.Domain.Payees;
 using BillPayment.Domain.SeedWork;
@@ -24,7 +25,9 @@ public sealed record RegisterBillExpectationCommand(
     string Recurrence,
     int ExpectedDueDay,
     int ObservedLeadDays,
-    int? AlertLeadDays) : IRequest<RegisterBillExpectationResponse>;
+    int? AlertLeadDays,
+    DateOnly? FirstDueDate,
+    Guid? HintSourceId) : IRequest<RegisterBillExpectationResponse>;
 
 public sealed record RegisterBillExpectationResponse(Guid Id, string Label, int AlertLeadDays);
 
@@ -47,7 +50,7 @@ public sealed class RegisterBillExpectationCommandHandler(
 
         var reference = request.AccountReference?.Trim() ?? string.Empty;
 
-        if (await expectations.ExistsAsync(tenantId, payeeId, reference, cancellationToken))
+        if (await expectations.ExistsAsync(tenantId, payeeId, reference, cancellationToken: cancellationToken))
             throw BillExpectationErrors.AlreadyExists();
 
         var expectation = BillExpectation.Register(
@@ -59,6 +62,8 @@ public sealed class RegisterBillExpectationCommandHandler(
             request.ExpectedDueDay,
             request.ObservedLeadDays,
             request.AlertLeadDays,
+            request.FirstDueDate,
+            request.HintSourceId is { } sourceId ? CaptureSourceId.From(sourceId) : null,
             clock.GetUtcNow().UtcDateTime);
 
         await expectations.AddAsync(expectation, cancellationToken);

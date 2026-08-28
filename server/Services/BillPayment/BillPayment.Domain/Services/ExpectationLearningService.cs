@@ -1,13 +1,20 @@
 namespace BillPayment.Domain.Services;
 
+using BillPayment.Domain.CaptureSources;
 using BillPayment.Domain.Expectations;
 using BillPayment.Domain.Payees;
 using BillPayment.Domain.SeedWork;
+using BillPayment.Domain.SharedKernel;
 
 /// <summary>Uma ocorrência histórica de conta paga, reduzida ao que o aprendizado precisa.</summary>
 /// <param name="ArrivedOn">Quando o documento entrou no sistema.</param>
 /// <param name="DueDate">Quando ele vencia.</param>
-public sealed record BillOccurrence(DateOnly ArrivedOn, DateOnly DueDate);
+/// <param name="SourceId">
+/// Por onde ele chegou. Vira o <c>HintSourceId</c> da expectativa — a única coisa capaz de ligar
+/// um artefato travado (que não tem beneficiário nem vencimento) à conta que ele seria. Nulo em
+/// boleto importado à mão.
+/// </param>
+public sealed record BillOccurrence(DateOnly ArrivedOn, DateOnly DueDate, CaptureSourceId? SourceId = null);
 
 /// <summary>Por que o histórico de um beneficiário não virou expectativa.</summary>
 public sealed class LearningRefusal : Enumeration
@@ -39,6 +46,19 @@ public sealed class LearningProposal : ValueObject
     public int ObservedLeadDays { get; }
     public int ObservationCount { get; }
 
+    /// <summary>
+    /// A competência da ocorrência mais recente — a fase da recorrência. Preenchida só quando há
+    /// proposta.
+    /// </summary>
+    /// <remarks>
+    /// Sem ela, uma expectativa bimestral, trimestral ou anual não teria como saber em quais
+    /// <em>meses</em> a conta vence, e a varredura abriria um ciclo por mês para todas elas.
+    /// </remarks>
+    public CompetencePeriod? AnchorCompetence { get; }
+
+    /// <summary>A fonte pela qual a conta mais chega. Preenchida só quando há proposta.</summary>
+    public CaptureSourceId? HintSourceId { get; }
+
     /// <summary>Preenchido só quando NÃO há proposta.</summary>
     public LearningRefusal? Refusal { get; }
 
@@ -50,6 +70,8 @@ public sealed class LearningProposal : ValueObject
         int expectedDueDay,
         int observedLeadDays,
         int observationCount,
+        CompetencePeriod? anchorCompetence,
+        CaptureSourceId? hintSourceId,
         LearningRefusal? refusal)
     {
         PayeeId = payeeId;
@@ -57,15 +79,23 @@ public sealed class LearningProposal : ValueObject
         ExpectedDueDay = expectedDueDay;
         ObservedLeadDays = observedLeadDays;
         ObservationCount = observationCount;
+        AnchorCompetence = anchorCompetence;
+        HintSourceId = hintSourceId;
         Refusal = refusal;
     }
 
     internal static LearningProposal Propose(
-        PayeeId payeeId, Recurrence recurrence, int dueDay, int leadDays, int count)
-        => new(payeeId, recurrence, dueDay, leadDays, count, refusal: null);
+        PayeeId payeeId,
+        Recurrence recurrence,
+        int dueDay,
+        int leadDays,
+        int count,
+        CompetencePeriod anchorCompetence,
+        CaptureSourceId? hintSourceId)
+        => new(payeeId, recurrence, dueDay, leadDays, count, anchorCompetence, hintSourceId, refusal: null);
 
     internal static LearningProposal Refuse(PayeeId payeeId, LearningRefusal refusal, int count)
-        => new(payeeId, recurrence: null, 0, 0, count, refusal);
+        => new(payeeId, recurrence: null, 0, 0, count, anchorCompetence: null, hintSourceId: null, refusal);
 
     protected override IEnumerable<object?> GetEqualityComponents()
     {
@@ -74,6 +104,8 @@ public sealed class LearningProposal : ValueObject
         yield return ExpectedDueDay;
         yield return ObservedLeadDays;
         yield return ObservationCount;
+        yield return AnchorCompetence;
+        yield return HintSourceId;
         yield return Refusal;
     }
 }
@@ -152,7 +184,13 @@ public static class ExpectationLearningService
         var dueDay = Median(ordered.ConvertAll(o => o.DueDate.Day));
         var lead = Median(ordered.ConvertAll(o => Math.Max(0, o.DueDate.DayNumber - o.ArrivedOn.DayNumber)));
 
-        return LearningProposal.Propose(payeeId, recurrence, dueDay, lead, history.Count);
+        // A ocorrência mais recente ancora a fase: é o vencimento observado mais próximo de hoje,
+        // e portanto o que melhor descreve em que meses a conta cai daqui para a frente.
+        var mostRecent = ordered[^1];
+        var anchor = new CompetencePeriod(mostRecent.DueDate.Year, mostRecent.DueDate.Month);
+
+        return LearningProposal.Propose(
+            payeeId, recurrence, dueDay, lead, history.Count, anchor, MostFrequentSource(ordered));
     }
 
     /// <summary>
@@ -168,6 +206,22 @@ public static class ExpectationLearningService
         => history
             .GroupBy(o => (o.DueDate.Year, o.DueDate.Month))
             .Max(g => g.Count());
+
+    /// <summary>
+    /// A fonte por onde a conta mais chega, entre as ocorrências que têm fonte.
+    /// </summary>
+    /// <remarks>
+    /// A moda, e não a mais recente: um mês em que a conta chegou por caminho atípico não pode
+    /// redefinir para onde o alerta de captura vai olhar. Histórico só de importação manual não
+    /// tem fonte, e aí não há hint a propor.
+    /// </remarks>
+    private static CaptureSourceId? MostFrequentSource(IReadOnlyCollection<BillOccurrence> history)
+        => history
+            .Where(o => o.SourceId is not null)
+            .GroupBy(o => o.SourceId!.Value)
+            .OrderByDescending(g => g.Count())
+            .Select(g => (CaptureSourceId?)g.Key)
+            .FirstOrDefault();
 
     private static int Median(List<int> values)
     {

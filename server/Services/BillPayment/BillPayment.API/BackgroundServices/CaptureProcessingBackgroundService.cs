@@ -1,4 +1,4 @@
-namespace BillPayment.API.BackgroundServices;
+﻿namespace BillPayment.API.BackgroundServices;
 
 using BillPayment.Application.CaptureItems.Commands;
 using BillPayment.Application.Mediator;
@@ -23,9 +23,12 @@ using Microsoft.Extensions.Options;
 internal sealed class CaptureProcessingBackgroundService(
     IServiceScopeFactory scopeFactory,
     IOptions<CaptureSyncOptions> options,
+    IOptions<CaptureRetryOptions> retryOptions,
+    TimeProvider clock,
     ILogger<CaptureProcessingBackgroundService> logger) : BackgroundService
 {
     private readonly CaptureSyncOptions _options = options.Value;
+    private readonly CaptureRetryOptions _retry = retryOptions.Value;
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
@@ -65,18 +68,24 @@ internal sealed class CaptureProcessingBackgroundService(
     private async Task<int> RunCycleAsync(CancellationToken stoppingToken)
     {
         var pending = await ListPendingAsync(stoppingToken);
-        var handled = 0;
 
-        foreach (var item in pending)
-        {
-            if (stoppingToken.IsCancellationRequested)
-                break;
+        if (pending.Count == 0)
+            return 0;
 
-            await ProcessOneAsync(item, stoppingToken);
-            handled++;
-        }
+        // Concorrente, com teto. Cada artefato já roda no próprio escopo e na própria transação,
+        // então paralelizar não compartilha DbContext nem agregado — o que muda é só quantos
+        // esperam rede ao mesmo tempo. A extração por IA NÃO passa por aqui: ela tem worker
+        // próprio, justamente para não haver item lento no meio deste lote.
+        await Parallel.ForEachAsync(
+            pending,
+            new ParallelOptions
+            {
+                MaxDegreeOfParallelism = Math.Max(1, _options.ProcessingConcurrency),
+                CancellationToken = stoppingToken,
+            },
+            async (item, token) => await ProcessOneAsync(item, token));
 
-        return handled;
+        return pending.Count;
     }
 
     private async Task<IReadOnlyList<PendingCaptureItem>> ListPendingAsync(CancellationToken stoppingToken)
@@ -84,7 +93,12 @@ internal sealed class CaptureProcessingBackgroundService(
         using var scope = scopeFactory.CreateScope();
         var queries = scope.ServiceProvider.GetRequiredService<ICaptureItemWorkQueries>();
 
-        return await queries.ListPendingAsync(_options.ProcessingBatchSize, stoppingToken);
+        // Reivindicar, e não apenas listar: o aluguel é o que impede dois workers de pegarem o
+        // mesmo artefato, e é o que faz um item voltar sozinho se este processo morrer no meio.
+        return await queries.ClaimPendingAsync(
+            _options.ProcessingBatchSize,
+            clock.GetUtcNow().Add(_retry.LeaseDuration),
+            stoppingToken);
     }
 
     private async Task ProcessOneAsync(PendingCaptureItem item, CancellationToken stoppingToken)
@@ -112,10 +126,12 @@ internal sealed class CaptureProcessingBackgroundService(
         }
         catch (Exception ex)
         {
-            // Um artefato que estoura não pode levar os outros junto. O item permanece em
-            // Received e volta no ciclo seguinte — o que é seguro porque o processamento é
-            // idempotente: baixar e extrair de novo produz o mesmo desfecho.
+            // Um artefato que estoura não pode levar os outros junto — mas também não pode
+            // voltar à fila para sempre. Quem decide entre insistir e desistir é o agregado,
+            // com o contador de tentativas; aqui só se classifica a falha e se registra.
             logger.LogError(ex, "Capture item {ItemId} failed to process.", item.CaptureItemId);
+
+            await CaptureFailureHandling.RecordAsync(scopeFactory, item, ex, logger, stoppingToken);
         }
     }
 }

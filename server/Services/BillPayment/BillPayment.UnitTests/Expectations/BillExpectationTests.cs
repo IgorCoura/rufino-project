@@ -112,7 +112,7 @@ public class BillExpectationTests
         var expectation = BillExpectationMother.Learned(observationCount: 3, expectedDueDay: 10);
         var cycle = expectation.OpenCycle(new CompetencePeriod(2026, 8), OccurredAt);
 
-        expectation.Fulfill(cycle.Id, AnyBill, new DateOnly(2026, 8, 14), OccurredAt);
+        expectation.Fulfill(cycle.Id, AnyBill, new DateOnly(2026, 8, 14), DateOnly.FromDateTime(OccurredAt), arrivedThrough: null, OccurredAt);
 
         Assert.Same(CycleStatus.Fulfilled, cycle.Status);
         Assert.Equal(AnyBill, cycle.FulfilledByBillId);
@@ -129,7 +129,7 @@ public class BillExpectationTests
         var (expectation, cycle) = BillExpectationMother.WithOpenCycle();
         expectation.PullDomainEvents();
 
-        expectation.Fulfill(cycle.Id, AnyBill, new DateOnly(2026, 8, 10), OccurredAt);
+        expectation.Fulfill(cycle.Id, AnyBill, new DateOnly(2026, 8, 10), DateOnly.FromDateTime(OccurredAt), arrivedThrough: null, OccurredAt);
 
         var raised = Assert.Single(expectation.PullDomainEvents());
         var fulfilled = Assert.IsType<BillExpectationFulfilledDomainEvent>(raised);
@@ -203,7 +203,7 @@ public class BillExpectationTests
         expectation.Waive(cycle.Id, BillExpectationMother.DefaultUser, reason: null, OccurredAt);
 
         var ex = Assert.Throws<DomainException>(
-            () => expectation.Fulfill(cycle.Id, AnyBill, new DateOnly(2026, 8, 10), OccurredAt));
+            () => expectation.Fulfill(cycle.Id, AnyBill, new DateOnly(2026, 8, 10), DateOnly.FromDateTime(OccurredAt), arrivedThrough: null, OccurredAt));
 
         Assert.Equal("BLP.EXP03", ex.Id);
     }
@@ -255,7 +255,7 @@ public class BillExpectationTests
         MissCycle(expectation, 5);
 
         var fulfilled = expectation.OpenCycle(new CompetencePeriod(2026, 6), OccurredAt);
-        expectation.Fulfill(fulfilled.Id, AnyBill, new DateOnly(2026, 6, 10), OccurredAt);
+        expectation.Fulfill(fulfilled.Id, AnyBill, new DateOnly(2026, 6, 10), DateOnly.FromDateTime(OccurredAt), arrivedThrough: null, OccurredAt);
 
         MissCycle(expectation, 7);
 
@@ -302,6 +302,273 @@ public class BillExpectationTests
 
         Assert.Equal(BillExpectationMother.DefaultLabel, learned.Label);
         Assert.Same(ExpectationOrigin.Learned, expectation.Origin);
+    }
+
+    // Editar guarda os campos novos - rotulo, referencia de conta, recorrencia, dia de vencimento,
+    // prazo observado e antecedencia.
+    [Fact]
+    public void Reconfigure_ShouldReplaceEveryEditableField()
+    {
+        var expectation = BillExpectationMother.Register(accountReference: "0000748299879");
+
+        expectation.Reconfigure(
+            accountReference: "10018502",
+            label: "DAE - Matricula 10018502",
+            recurrence: Recurrence.Bimonthly,
+            expectedDueDay: 25,
+            observedLeadDays: 12,
+            alertLeadDays: 15,
+            anchorDueDate: null,
+            occurredAt: OccurredAt);
+
+        Assert.Equal("10018502", expectation.AccountReference);
+        Assert.Equal("DAE - Matricula 10018502", expectation.Label);
+        Assert.Same(Recurrence.Bimonthly, expectation.Recurrence);
+        Assert.Equal(25, expectation.ExpectedDueDay);
+        Assert.Equal(12, expectation.ObservedLeadDays);
+        Assert.Equal(15, expectation.AlertLeadDays);
+    }
+
+    // TESTE-ANCORA da ordem interna: a recorrencia e atribuida ANTES de a antecedencia ser
+    // conferida, entao o teto que reprova e o da recorrencia NOVA. Conferir contra a antiga
+    // aceitaria uma antecedencia que o intervalo novo nao comporta - BLP.EXP05.
+    [Fact]
+    public void Reconfigure_ToAShorterRecurrence_ShouldValidateTheLeadAgainstTheNewCeiling()
+    {
+        var expectation = BillExpectationMother.Register(
+            recurrence: Recurrence.Annual, alertLeadDays: 40);
+
+        var ex = Assert.Throws<DomainException>(() => expectation.Reconfigure(
+            accountReference: null,
+            label: BillExpectationMother.DefaultLabel,
+            recurrence: Recurrence.Monthly,
+            expectedDueDay: 10,
+            observedLeadDays: 8,
+            alertLeadDays: 40,
+            anchorDueDate: null,
+            occurredAt: OccurredAt));
+
+        Assert.Equal("BLP.EXP05", ex.Id);
+        Assert.Contains(Recurrence.Monthly.IntervalDays - 1, ex.Parameters);
+    }
+
+    // A recorrencia mais longa aceita a antecedencia que a curta recusava - a mesma ordem, do
+    // outro lado.
+    [Fact]
+    public void Reconfigure_ToALongerRecurrence_ShouldAcceptALeadTheOldOneRefused()
+    {
+        var expectation = BillExpectationMother.Register(recurrence: Recurrence.Monthly);
+
+        expectation.Reconfigure(
+            accountReference: null,
+            label: BillExpectationMother.DefaultLabel,
+            recurrence: Recurrence.Annual,
+            expectedDueDay: 10,
+            observedLeadDays: 8,
+            alertLeadDays: 40,
+            anchorDueDate: null,
+            occurredAt: OccurredAt);
+
+        Assert.Equal(40, expectation.AlertLeadDays);
+    }
+
+    // TESTE-ANCORA da divisao configuracao x historia: o ciclo que ainda espera e reposicionado
+    // pelo calendario novo - nao faze-lo entregaria a edicao sem entregar o efeito, e e para
+    // consertar o alerta errado que se edita.
+    [Fact]
+    public void Reconfigure_ShouldRescheduleTheCyclesThatAreStillWaiting()
+    {
+        var (expectation, cycle) = BillExpectationMother.WithOpenCycle();
+
+        expectation.Reconfigure(
+            accountReference: null,
+            label: BillExpectationMother.DefaultLabel,
+            recurrence: Recurrence.Monthly,
+            expectedDueDay: 25,
+            observedLeadDays: 8,
+            alertLeadDays: 5,
+            anchorDueDate: null,
+            occurredAt: OccurredAt);
+
+        Assert.Equal(new DateOnly(2026, 8, 25), cycle.ExpectedDueDate);
+        Assert.Equal(new DateOnly(2026, 8, 20), cycle.AlertAt);
+    }
+
+    // TESTE-ANCORA do lado oposto: ciclo que ja se pronunciou e historia e NAO se move. Redatar um
+    // Missing para o futuro ressuscitaria um aviso que o usuario ja resolveu.
+    [Fact]
+    public void Reconfigure_ShouldNotTouchTheCyclesThatAlreadySpoke()
+    {
+        var expectation = BillExpectationMother.Register();
+        var missed = expectation.OpenCycle(new CompetencePeriod(2026, 7), OccurredAt);
+        expectation.MarkMissing(
+            missed.Id, MissReason.NeverArrived, missed.ExpectedDueDate.AddDays(1), OccurredAt);
+
+        var waived = expectation.OpenCycle(new CompetencePeriod(2026, 6), OccurredAt);
+        expectation.Waive(waived.Id, BillExpectationMother.DefaultUser, reason: null, OccurredAt);
+
+        var missedDue = missed.ExpectedDueDate;
+        var missedAlert = missed.AlertAt;
+        var waivedDue = waived.ExpectedDueDate;
+
+        expectation.Reconfigure(
+            accountReference: null,
+            label: BillExpectationMother.DefaultLabel,
+            recurrence: Recurrence.Monthly,
+            expectedDueDay: 25,
+            observedLeadDays: 8,
+            alertLeadDays: 5,
+            anchorDueDate: null,
+            occurredAt: OccurredAt);
+
+        Assert.Equal(missedDue, missed.ExpectedDueDate);
+        Assert.Equal(missedAlert, missed.AlertAt);
+        Assert.Equal(waivedDue, waived.ExpectedDueDate);
+    }
+
+    // TESTE-ANCORA da origem: editar e ato humano, e Fulfill so reajusta a antecedencia sozinho
+    // enquanto a origem for Learned. Sem a virada, a edicao seria desfeita no proximo cumprimento
+    // - em silencio, que e a falha que este agregado existe para impedir.
+    [Fact]
+    public void Reconfigure_OnALearnedExpectation_ShouldMakeItManualSoFulfillKeepsTheChosenLead()
+    {
+        var expectation = BillExpectationMother.Learned();
+
+        expectation.Reconfigure(
+            accountReference: null,
+            label: BillExpectationMother.DefaultLabel,
+            recurrence: Recurrence.Monthly,
+            expectedDueDay: 10,
+            observedLeadDays: 8,
+            alertLeadDays: 4,
+            anchorDueDate: null,
+            occurredAt: OccurredAt);
+
+        Assert.Same(ExpectationOrigin.Manual, expectation.Origin);
+
+        var cycle = expectation.OpenCycle(new CompetencePeriod(2026, 8), OccurredAt);
+        expectation.Fulfill(cycle.Id, AnyBill, cycle.ExpectedDueDate, DateOnly.FromDateTime(OccurredAt), arrivedThrough: null, OccurredAt);
+
+        Assert.Equal(4, expectation.AlertLeadDays);
+    }
+
+    // CONTRAPROVA da anterior: sem edicao, a expectativa aprendida continua tendo a antecedencia
+    // reajustada pelo cumprimento. Sem este caso, a virada de origem passaria por inocua.
+    [Fact]
+    public void Fulfill_OnALearnedExpectationThatWasNotEdited_ShouldStillRelearnTheLead()
+    {
+        var expectation = BillExpectationMother.Learned();
+        var cycle = expectation.OpenCycle(new CompetencePeriod(2026, 8), OccurredAt);
+
+        expectation.Fulfill(cycle.Id, AnyBill, cycle.ExpectedDueDate.AddDays(-1), DateOnly.FromDateTime(OccurredAt), arrivedThrough: null, OccurredAt);
+
+        Assert.Same(ExpectationOrigin.Learned, expectation.Origin);
+        Assert.Equal(
+            Math.Max(
+                BillExpectation.DEFAULT_MIN_ALERT_LEAD_DAYS,
+                expectation.ObservedLeadDays + BillExpectation.ALERT_LEAD_SLACK_DAYS),
+            expectation.AlertLeadDays);
+    }
+
+    // Editar nao mexe na vigilancia - quem pausa e desativa e o AlterWatch. Editar uma expectativa
+    // desativada e permitido de proposito: corrigir antes de reativar e o fluxo natural.
+    [Fact]
+    public void Reconfigure_OnADeactivatedExpectation_ShouldEditWithoutReactivatingIt()
+    {
+        var expectation = BillExpectationMother.Register();
+        expectation.Deactivate("imovel vendido", OccurredAt);
+
+        expectation.Reconfigure(
+            accountReference: null,
+            label: "EDP - Casa Carim",
+            recurrence: Recurrence.Monthly,
+            expectedDueDay: 10,
+            observedLeadDays: 8,
+            alertLeadDays: null,
+            anchorDueDate: null,
+            occurredAt: OccurredAt);
+
+        Assert.Equal("EDP - Casa Carim", expectation.Label);
+        Assert.False(expectation.IsActive);
+        Assert.Equal("imovel vendido", expectation.DeactivationReason);
+    }
+
+    // Rotulo vazio na edicao recusa pelo mesmo caminho do cadastro - BLP.EXP07.
+    [Fact]
+    public void Reconfigure_WithoutALabel_ShouldThrow_BLP_EXP07()
+    {
+        var expectation = BillExpectationMother.Register();
+
+        var ex = Assert.Throws<DomainException>(() => expectation.Reconfigure(
+            accountReference: null,
+            label: "   ",
+            recurrence: Recurrence.Monthly,
+            expectedDueDay: 10,
+            observedLeadDays: 8,
+            alertLeadDays: null,
+            anchorDueDate: null,
+            occurredAt: OccurredAt));
+
+        Assert.Equal("BLP.EXP07", ex.Id);
+    }
+
+    // Dia de vencimento fora de 1..31 recusa na edicao - BLP.EXP09.
+    [Theory]
+    [InlineData(0)]
+    [InlineData(32)]
+    public void Reconfigure_WithAnInvalidDueDay_ShouldThrow_BLP_EXP09(int dueDay)
+    {
+        var expectation = BillExpectationMother.Register();
+
+        var ex = Assert.Throws<DomainException>(() => expectation.Reconfigure(
+            accountReference: null,
+            label: BillExpectationMother.DefaultLabel,
+            recurrence: Recurrence.Monthly,
+            expectedDueDay: dueDay,
+            observedLeadDays: 8,
+            alertLeadDays: null,
+            anchorDueDate: null,
+            occurredAt: OccurredAt));
+
+        Assert.Equal("BLP.EXP09", ex.Id);
+    }
+
+    // Referencia acima do limite recusa na edicao - BLP.EXP08.
+    [Fact]
+    public void Reconfigure_WithAnOversizedAccountReference_ShouldThrow_BLP_EXP08()
+    {
+        var expectation = BillExpectationMother.Register();
+
+        var ex = Assert.Throws<DomainException>(() => expectation.Reconfigure(
+            accountReference: new string('9', BillExpectation.ACCOUNT_REFERENCE_MAX_LENGTH + 1),
+            label: BillExpectationMother.DefaultLabel,
+            recurrence: Recurrence.Monthly,
+            expectedDueDay: 10,
+            observedLeadDays: 8,
+            alertLeadDays: null,
+            anchorDueDate: null,
+            occurredAt: OccurredAt));
+
+        Assert.Equal("BLP.EXP08", ex.Id);
+    }
+
+    // Antecedencia omitida volta a sair do prazo observado, como no cadastro.
+    [Fact]
+    public void Reconfigure_WithoutAnExplicitLead_ShouldDeriveItFromTheObservedLead()
+    {
+        var expectation = BillExpectationMother.Register(alertLeadDays: 20);
+
+        expectation.Reconfigure(
+            accountReference: null,
+            label: BillExpectationMother.DefaultLabel,
+            recurrence: Recurrence.Monthly,
+            expectedDueDay: 10,
+            observedLeadDays: 5,
+            alertLeadDays: null,
+            anchorDueDate: null,
+            occurredAt: OccurredAt);
+
+        Assert.Equal(7, expectation.AlertLeadDays);
     }
 
     private static void MissCycle(BillExpectation expectation, int month)

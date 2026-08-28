@@ -73,6 +73,7 @@ abstract final class ExpectationMapper {
       arrived: json['arrived'] as bool?,
       blockedByCaptureItemId: json['blockedByCaptureItemId'] as String?,
       lastAlertLevel: json['lastAlertLevel'] as String?,
+      isOverdue: json['isOverdue'] as bool? ?? false,
     );
   }
 
@@ -87,6 +88,7 @@ abstract final class ExpectationMapper {
 
     return PendingExpectationsView(
       missing: parse('missing'),
+      overdue: parse('overdue'),
       captureFailed: parse('captureFailed'),
       dueSoon: parse('dueSoon'),
     );
@@ -202,6 +204,40 @@ class ExpectationApiService {
     );
     checkApiStatus(response);
     return (jsonDecode(response.body) as Map<String, dynamic>)['id'] as String;
+  }
+
+  /// Edits an expectation. The payee is not part of the body.
+  Future<void> editExpectation(
+    String id, {
+    required String label,
+    required String recurrence,
+    required int expectedDueDay,
+    required int observedLeadDays,
+    String? accountReference,
+    int? alertLeadDays,
+  }) async {
+    final response = await client.put(
+      _uri('/expectations/$id'),
+      headers: await _headers(write: true),
+      body: jsonEncode({
+        'accountReference': accountReference?.trim(),
+        'label': label.trim(),
+        'recurrence': recurrence,
+        'expectedDueDay': expectedDueDay,
+        'observedLeadDays': observedLeadDays,
+        'alertLeadDays': alertLeadDays,
+      }),
+    );
+    checkApiStatus(response);
+  }
+
+  /// Deletes the expectation and its cycles.
+  Future<void> deleteExpectation(String id) async {
+    final response = await client.delete(
+      _uri('/expectations/$id'),
+      headers: await _headers(write: true),
+    );
+    checkApiStatus(response);
   }
 
   /// Pauses, resumes or deactivates the watch.

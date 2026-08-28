@@ -145,6 +145,118 @@ void main() {
       expect(expectation.cycles.single.isOpen, isTrue);
     });
 
+    // Editar levando a colisão de referência devolve a regra do domínio, sem
+    // virar incidente — é o mesmo tratamento do cadastro, do lado da edição.
+    test('a colliding account reference on edit surfaces BLP.EXP01 without '
+        'reporting', () async {
+      when(
+        () => apiService.editExpectation(
+          any(),
+          label: any(named: 'label'),
+          recurrence: any(named: 'recurrence'),
+          expectedDueDay: any(named: 'expectedDueDay'),
+          observedLeadDays: any(named: 'observedLeadDays'),
+          accountReference: any(named: 'accountReference'),
+          alertLeadDays: any(named: 'alertLeadDays'),
+        ),
+      ).thenThrow(
+        const HttpException(
+          statusCode: 409,
+          message: 'HTTP 409',
+          serverMessages: ['Já existe expectativa para esta conta.'],
+          domainErrorId: 'BLP.EXP01',
+        ),
+      );
+
+      final result = await repository.editExpectation(
+        'exp-1',
+        label: 'EDP — Casa Florentino',
+        recurrence: Recurrences.monthly,
+        expectedDueDay: 10,
+        observedLeadDays: 7,
+        accountReference: 'instalacao-1',
+      );
+
+      result.fold(
+        onSuccess: (_) => fail('should have failed'),
+        onError: (error, _) =>
+            expect((error as BillPaymentRuleException).code, 'BLP.EXP01'),
+      );
+      expect(reporter.capturedErrors, isEmpty);
+    });
+
+    // A edição repassa cada campo ao serviço HTTP — sem o beneficiário, que
+    // não faz parte do corpo.
+    test('editing forwards every field to the api service', () async {
+      when(
+        () => apiService.editExpectation(
+          any(),
+          label: any(named: 'label'),
+          recurrence: any(named: 'recurrence'),
+          expectedDueDay: any(named: 'expectedDueDay'),
+          observedLeadDays: any(named: 'observedLeadDays'),
+          accountReference: any(named: 'accountReference'),
+          alertLeadDays: any(named: 'alertLeadDays'),
+        ),
+      ).thenAnswer((_) async {});
+
+      final result = await repository.editExpectation(
+        'exp-1',
+        label: 'DAE — L18502',
+        recurrence: Recurrences.bimonthly,
+        expectedDueDay: 25,
+        observedLeadDays: 12,
+        accountReference: '18502',
+        alertLeadDays: 5,
+      );
+
+      expect(result.isSuccess, isTrue);
+      verify(
+        () => apiService.editExpectation(
+          'exp-1',
+          label: 'DAE — L18502',
+          recurrence: Recurrences.bimonthly,
+          expectedDueDay: 25,
+          observedLeadDays: 12,
+          accountReference: '18502',
+          alertLeadDays: 5,
+        ),
+      ).called(1);
+    });
+
+    // Expectativa que não existe (ou é de outro tenant) devolve a regra, e o
+    // 404 não vira incidente.
+    test('deleting an expectation that is not there surfaces BLP.EXP00 '
+        'without reporting', () async {
+      when(() => apiService.deleteExpectation(any())).thenThrow(
+        const HttpException(
+          statusCode: 404,
+          message: 'HTTP 404',
+          serverMessages: ['Expectativa de boleto não encontrada.'],
+          domainErrorId: 'BLP.EXP00',
+        ),
+      );
+
+      final result = await repository.deleteExpectation('exp-1');
+
+      result.fold(
+        onSuccess: (_) => fail('should have failed'),
+        onError: (error, _) =>
+            expect((error as BillPaymentRuleException).code, 'BLP.EXP00'),
+      );
+      expect(reporter.capturedErrors, isEmpty);
+    });
+
+    // Exclusão bem-sucedida chega ao serviço com o id da rota.
+    test('deleting forwards the id to the api service', () async {
+      when(() => apiService.deleteExpectation(any())).thenAnswer((_) async {});
+
+      final result = await repository.deleteExpectation('exp-1');
+
+      expect(result.isSuccess, isTrue);
+      verify(() => apiService.deleteExpectation('exp-1')).called(1);
+    });
+
     test('an outage on the panel is wrapped and reported', () async {
       when(
         () => apiService.getPending(

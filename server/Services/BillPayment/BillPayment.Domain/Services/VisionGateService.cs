@@ -1,4 +1,4 @@
-namespace BillPayment.Domain.Services;
+﻿namespace BillPayment.Domain.Services;
 
 using BillPayment.Domain.TrustedOrigins;
 
@@ -34,39 +34,9 @@ public static class VisionGateService
     /// e um falso negativo custa um boleto não pago. Comparação sem acento e sem caixa — o
     /// assunto real vem em MAIÚSCULAS, com e sem acento, dos dois jeitos.
     /// </remarks>
-    private static readonly string[] BillingSignals =
-    [
-        "boleto", "fatura", "conta", "cobranca", "cobrança", "pagamento", "vencimento", "vence",
-        "2a via", "2ª via", "segunda via", "duplicata", "mensalidade", "parcela",
-        "fgts", "darf", "gps", "dae", "das", "guia", "tributo", "imposto", "contribuicao", "contribuição",
-        "condominio", "condomínio", "aluguel", "sindicato", "seguro", "energia", "agua", "água",
-    ];
-
-    /// <summary>
-    /// Vale gastar quando o remetente é conhecido <strong>ou</strong> há sinal de cobrança.
-    /// </summary>
-    /// <remarks>
-    /// O remetente conhecido sozinho basta, sem depender de palavra nenhuma: é gente de quem o
-    /// próprio tenant declarou esperar conta, e é exatamente o caso em que o parser falhando
-    /// significa provavelmente "falha do parser", não "não era boleto".
-    /// </remarks>
     public static bool ShouldAttempt(TrustedOrigin? origin, string? subject, string? artifactKey)
-    {
-        if (origin is not null && origin.Decision != TrustDecision.Blocked)
-            return true;
-
-        return HasBillingSignal(subject) || HasBillingSignal(artifactKey);
-    }
-
-    private static bool HasBillingSignal(string? text)
-    {
-        if (string.IsNullOrWhiteSpace(text))
-            return false;
-
-        var normalized = text.ToLowerInvariant();
-
-        return Array.Exists(
-            BillingSignals,
-            signal => normalized.Contains(signal, StringComparison.Ordinal));
-    }
+        // A lista de palavras saiu daqui para `BillingSignal` quando o portão do corpo e a
+        // triagem passaram a precisar do mesmo juízo. Três cópias divergiriam, e a divergência
+        // apareceria como "esse e-mail some e aquele não" sem que ninguém achasse a causa.
+        => BillingSignal.IsStrong(origin, subject, artifactKey);
 }

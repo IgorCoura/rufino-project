@@ -130,6 +130,16 @@ class CaptureSourceDetailViewModel extends ChangeNotifier {
         fallback: 'Não foi possível substituir a credencial.',
       );
 
+  /// Moves the capture's time floor. `null` returns it to the whole mailbox.
+  ///
+  /// Every folder cursor is dropped server-side, so the next sweep rereads
+  /// from the new floor. That does not duplicate anything — ingestion is
+  /// idempotent per `(tenant, source, message, attachment)`.
+  Future<bool> changeCaptureSince(DateTime? captureSince) => _mutate(
+        () => _repository.changeCaptureSince(sourceId, captureSince),
+        fallback: 'Não foi possível alterar a data inicial de captura.',
+      );
+
   /// Adds a watched folder.
   Future<bool> addFolder(String? folderPath) => _mutate(
         () => _repository.addFolder(

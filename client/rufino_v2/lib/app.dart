@@ -1,3 +1,6 @@
+import 'package:file_picker/file_picker.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:go_router/go_router.dart';
@@ -463,6 +466,16 @@ class App extends StatelessWidget {
       ),
       reporter: errorReporter,
     );
+    final CapturedMessageRepository capturedMessageRepository =
+        CapturedMessageRepositoryImpl(
+      apiService: CapturedMessageApiService(
+        client: httpClient,
+        baseUrl: AppConfig.billPaymentUrl,
+        getAuthHeader: getAuthHeader,
+        getTenantId: getBillPaymentTenantId,
+      ),
+      reporter: errorReporter,
+    );
     final CaptureSourceRepository captureSourceRepository =
         CaptureSourceRepositoryImpl(
       apiService: CaptureSourceApiService(
@@ -555,6 +568,9 @@ class App extends StatelessWidget {
       Provider<FileSaveService>.value(value: fileSaveService),
       Provider<BillRepository>.value(value: billRepository),
       Provider<CaptureItemRepository>.value(value: captureItemRepository),
+      Provider<CapturedMessageRepository>.value(
+        value: capturedMessageRepository,
+      ),
       Provider<CaptureSourceRepository>.value(
           value: captureSourceRepository),
       Provider<PayeeRepository>.value(value: payeeRepository),
@@ -651,8 +667,14 @@ class _AppRouterState extends State<_AppRouter> {
             router.go('/login');
           },
         ),
-        // Contas a Pagar: o módulo fornece as telas, a casca fornece o home.
-        ...billPaymentRoutes(homeRoute: '/home'),
+        // Contas a Pagar: o módulo fornece as telas, a casca fornece o home e o
+        // seletor de arquivos — escolher arquivo depende de plugin de plataforma,
+        // e o módulo não carrega dependência de plataforma.
+        ...billPaymentRoutes(
+          homeRoute: '/home',
+          onPickDocument: _pickBillDocument,
+          onOpenLink: _openBillLink,
+        ),
         GoRoute(
           path: '/company/edit/:id',
           builder: (context, state) => CompanyFormScreen(
@@ -1009,5 +1031,63 @@ class _AppRouterState extends State<_AppRouter> {
         child: child ?? const SizedBox.shrink(),
       ),
     );
+  }
+}
+
+/// Abre o seletor de arquivos para anexar um boleto obtido à mão.
+///
+/// Mora na casca porque `file_picker` é plugin de plataforma: mantê-lo aqui
+/// deixa o módulo de Contas a Pagar livre de dependência de plataforma, e é a
+/// mesma divisão que já vale para "onde fica o home".
+Future<PickedDocument?> _pickBillDocument() async {
+  final result = await FilePicker.platform.pickFiles(
+    type: FileType.custom,
+    allowedExtensions: ['pdf', 'png', 'jpg', 'jpeg', 'webp'],
+    withData: true,
+  );
+
+  final file = result?.files.singleOrNull;
+  if (file?.bytes == null) return null;
+
+  return (
+    bytes: file!.bytes!,
+    fileName: file.name,
+    contentType: _contentTypeOf(file.extension),
+  );
+}
+
+/// O tipo de mídia a partir da extensão escolhida.
+///
+/// O servidor recusa o que a cascata não sabe abrir, então mandar
+/// `application/octet-stream` faria um PNG ser tratado como PDF — e o extrator
+/// receberia imagem rotulada errado, que é o defeito já medido em 2026-08-11.
+String _contentTypeOf(String? extension) => switch (extension?.toLowerCase()) {
+      'png' => 'image/png',
+      'jpg' || 'jpeg' => 'image/jpeg',
+      'webp' => 'image/webp',
+      _ => 'application/pdf',
+    };
+
+/// Abre no navegador o endereço onde o emissor publicou o boleto.
+///
+/// Mora na casca pelo mesmo motivo do seletor de arquivos: `url_launcher` é
+/// plugin de plataforma, e o módulo de Contas a Pagar não carrega plugin.
+///
+/// `externalApplication` de propósito — a URL do boleto é credencial ao
+/// portador, e abrir numa webview embutida deixaria a sessão do emissor dentro
+/// do app, fora do navegador onde a pessoa consegue vê-la e encerrá-la.
+Future<bool> _openBillLink(String url) async {
+  final uri = Uri.tryParse(url);
+
+  // Só http(s): um endereço com outro esquema entregaria ao sistema operacional
+  // um alvo que não é página — e ele veio de um e-mail, não do nosso código.
+  if (uri == null || (uri.scheme != 'http' && uri.scheme != 'https')) {
+    return false;
+  }
+
+  try {
+    return await launchUrl(uri, mode: LaunchMode.externalApplication);
+  } on PlatformException {
+    return false;
   }
 }

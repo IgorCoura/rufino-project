@@ -1,11 +1,13 @@
-namespace BillPayment.IntegrationTests.CaptureItems;
+﻿namespace BillPayment.IntegrationTests.CaptureItems;
 
 using System.Text;
 using BillPayment.Application.CaptureItems.Commands;
 using BillPayment.Application.Mediator;
 using BillPayment.Domain.CaptureItems;
+using BillPayment.Domain.CapturedMessages;
 using BillPayment.Domain.CaptureSources;
 using BillPayment.Domain.Extraction;
+using BillPayment.Domain.PayerProfiles;
 using BillPayment.Domain.Secrets;
 using BillPayment.Domain.SharedKernel;
 using BillPayment.Domain.TrustedOrigins;
@@ -46,6 +48,12 @@ public sealed class EmailBodyExtractionTests : BaseIntegrationTest
     private const string PixPayload =
         "00020101021226770014BR.GOV.BCB.PIX2555api.itau/pix/qr/v2/fe80130d-c5ef-407b-94a5-f6b2005020095"
         + "204000053039865802BR5906SABESP6009SAO PAULO62070503***6304A76E";
+
+    /// <summary>Emissor real sem receita cadastrada, do caso medido em 2026-08-26.</summary>
+    private const string UnknownIssuerUrl = "https://www.asaas.com/i/55p08vsad5vci3g7";
+
+    /// <summary>O CNPJ do tenant, para a escada promover o boleto anexado à mão.</summary>
+    private const string TenantCnpjForAttach = "11222333000181";
 
     private const string BillUrl = "https://ssl.exemplo.com.br/Bill/8a467507-e583-44e6-b2ee-62207d1c0438";
 
@@ -196,6 +204,210 @@ public sealed class EmailBodyExtractionTests : BaseIntegrationTest
         return new string(digits);
     }
 
+    // TESTE ÂNCORA (2026-08-26): a cobrança de um emissor SEM receita não desaparece mais.
+    // O caso real foi a Asaas — assunto "uma cobrança foi gerada para você", sem anexo, com o
+    // boleto atrás de www.asaas.com/i/{token}. Antes: nenhum sinal (host desconhecido), nenhum
+    // artefato, e a mensagem sumia como "sem documento". Agora vira item, a escada tenta, e o
+    // que ela não busca fica na quarentena para uma pessoa reivindicar.
+    [Fact]
+    public async Task Process_WhenAnUnknownIssuerSendsABillByLink_ShouldQuarantineInsteadOfVanishing()
+    {
+        _links.Result = null;
+        _links.Harvested.Add(DocumentLink.TryCreate(UnknownIssuerUrl)!);
+
+        var itemId = await SeedAsync(
+            "cobrancas+6292297@asaas.com",
+            "Olá, uma cobrança foi gerada para você",
+            Encoding.UTF8.GetBytes($"<a href=\"{UnknownIssuerUrl}\">Ver cobrança</a>"),
+            "text/html");
+
+        var result = await ProcessAsync(itemId);
+
+        Assert.Equal("Quarantine", result.Decision);
+
+        var item = await LoadAsync(itemId);
+        Assert.Equal(CaptureItemStatus.Unrecognized, item!.Status);
+    }
+
+    // E o item guarda de ONDE veio: é isso que transforma a quarentena na fila de receitas a
+    // cadastrar. Sem o host, o item cai lá sem dizer qual emissor o sistema não sabe buscar.
+    [Fact]
+    public async Task Process_WhenTheLinkHasNoRecipe_ShouldRecordTheHostItWouldHaveFetched()
+    {
+        _links.Result = null;
+        _links.Harvested.Add(DocumentLink.TryCreate(UnknownIssuerUrl)!);
+
+        var itemId = await SeedAsync(
+            "cobrancas+6292297@asaas.com",
+            "Olá, uma cobrança foi gerada para você",
+            Encoding.UTF8.GetBytes($"<a href=\"{UnknownIssuerUrl}\">Ver cobrança</a>"),
+            "text/html");
+
+        await ProcessAsync(itemId);
+
+        var item = await LoadAsync(itemId);
+        Assert.Equal("www.asaas.com", item!.LinkHost);
+    }
+
+    // A contraprova que mantém a fila utilizável: propaganda com link e sem sinal de cobrança
+    // continua sendo descartada. Sem ela, a mudança viraria "guarde tudo".
+    [Fact]
+    public async Task Process_WhenAnUnknownLinkCarriesNoBillingSignal_ShouldStillDrop()
+    {
+        _links.Result = null;
+        _links.Harvested.Add(DocumentLink.TryCreate("https://www.loja.com.br/oferta")!);
+
+        var itemId = await SeedAsync(
+            "marketing@loja.com.br",
+            "72x num seminovo que vale a pena",
+            Encoding.UTF8.GetBytes("<a href=\"https://www.loja.com.br/oferta\">Ver</a>"),
+            "text/html");
+
+        var result = await ProcessAsync(itemId);
+
+        Assert.Equal("Drop", result.Decision);
+        Assert.Null(await LoadAsync(itemId));
+    }
+
+    // TESTE ÂNCORA (2026-08-27): o boleto que o sistema não conseguiu buscar entra pela mão da
+    // pessoa e vira `Bill`. É o que fecha o caminho de emissor sem receita — ela abre a URL que
+    // a quarentena agora mostra, baixa o PDF e o devolve; daí em diante o fluxo é o de sempre.
+    [Fact]
+    public async Task AttachArtifact_OnAQuarantinedItem_ShouldTurnItIntoABill()
+    {
+        _links.Result = null;
+        _links.Harvested.Add(DocumentLink.TryCreate(UnknownIssuerUrl)!);
+
+        await SeedPayerProfileAsync();
+
+        var itemId = await SeedUnreachableBillAsync();
+        await ProcessAsync(itemId);
+
+        await AttachAsync(itemId, PdfWith("Pagador", TenantCnpjForAttach, ValidBankSlip));
+        var result = await ProcessAsync(itemId);
+
+        Assert.Equal("Parse", result.Decision);
+
+        var item = await LoadAsync(itemId);
+        Assert.Equal(CaptureItemStatus.Promoted, item!.Status);
+        Assert.NotNull(item.BillId);
+
+        // Quem trouxe o arquivo foi uma pessoa; QUEM leu o instrumento foi a cascata. São dois
+        // fatos, e o item registra os dois separadamente.
+        Assert.True(item.ManuallySupplied);
+        Assert.Equal(ExtractionMethod.EmbeddedText, item.Extraction);
+    }
+
+    // E a procedência sobrevive: a URL de onde a pessoa tirou o documento continua registrada.
+    // O reprocessamento comum a apaga — aqui ela é prova, não hipótese.
+    [Fact]
+    public async Task AttachArtifact_ShouldPreserveTheSourceUrl()
+    {
+        _links.Result = null;
+        _links.Harvested.Add(DocumentLink.TryCreate(UnknownIssuerUrl)!);
+
+        var itemId = await SeedUnreachableBillAsync();
+        await ProcessAsync(itemId);
+
+        await AttachAsync(itemId, PdfWith("Pagador", TenantCnpjForAttach, ValidBankSlip));
+        await ProcessAsync(itemId);
+
+        var item = await LoadAsync(itemId);
+        Assert.Equal(UnknownIssuerUrl, item!.SourceUrl);
+    }
+
+    // CONTRAPROVA: com anexo manual o leitor de caixa NÃO é chamado. Rebaixar do e-mail traria de
+    // volta o corpo que não tinha o boleto, desfazendo o trabalho da pessoa.
+    [Fact]
+    public async Task AttachArtifact_ShouldNotGoBackToTheMailbox()
+    {
+        _links.Result = null;
+        _links.Harvested.Add(DocumentLink.TryCreate(UnknownIssuerUrl)!);
+
+        var itemId = await SeedUnreachableBillAsync();
+        await ProcessAsync(itemId);
+
+        var reader = _services.GetRequiredService<FakeMailboxReader>();
+        await AttachAsync(itemId, PdfWith("Pagador", TenantCnpjForAttach, ValidBankSlip));
+
+        var before = reader.DownloadCount;
+        await ProcessAsync(itemId);
+
+        Assert.Equal(before, reader.DownloadCount);
+    }
+
+    // Anexo que não é boleto volta à quarentena — MAS o arquivo fica. Alguém escolheu subi-lo, e
+    // apagá-lo jogaria fora o trabalho dela; a retenção por desfecho não alcança anexo manual.
+    [Fact]
+    public async Task AttachArtifact_WhenTheDocumentIsNotABill_ShouldKeepTheFile()
+    {
+        _links.Result = null;
+        _links.Harvested.Add(DocumentLink.TryCreate(UnknownIssuerUrl)!);
+
+        var itemId = await SeedUnreachableBillAsync();
+        await ProcessAsync(itemId);
+
+        await AttachAsync(itemId, PdfWith("Contrato de locacao", "Clausula primeira"));
+        await ProcessAsync(itemId);
+
+        var item = await LoadAsync(itemId);
+        Assert.Equal(CaptureItemStatus.Unrecognized, item!.Status);
+        Assert.True(item.ManuallySupplied);
+    }
+
+    // Reprovar tira o item da fila e registra quem decidiu.
+    [Fact]
+    public async Task Dismiss_ShouldRemoveTheItemFromTheQueueWithAnAuthor()
+    {
+        _links.Result = null;
+        _links.Harvested.Add(DocumentLink.TryCreate(UnknownIssuerUrl)!);
+
+        var itemId = await SeedUnreachableBillAsync();
+        await ProcessAsync(itemId);
+
+        await DismissAsync(itemId, "nao reconheco esta cobranca");
+
+        var item = await LoadAsync(itemId);
+        Assert.Equal(CaptureItemStatus.Dismissed, item!.Status);
+        Assert.Equal(Decider, item.DismissedBy);
+        Assert.Equal("nao reconheco esta cobranca", item.Reason);
+    }
+
+    private Task SeedPayerProfileAsync()
+        => ExecuteDbContextAsync(async db =>
+        {
+            var profile = PayerProfile.Register(
+                Tenant, PayerKind.Company, "EMPRESA DE TESTE LTDA", TenantCnpjForAttach, OccurredAt);
+
+            await db.PayerProfiles.AddAsync(profile);
+            await db.SaveEntitiesAsync();
+        });
+
+    private Task<CaptureItemId> SeedUnreachableBillAsync()
+        => SeedAsync(
+            "cobrancas+6292297@asaas.com",
+            "Olá, uma cobrança foi gerada para você",
+            Encoding.UTF8.GetBytes($"<a href=\"{UnknownIssuerUrl}\">Ver cobrança</a>"),
+            "text/html");
+
+    private async Task AttachAsync(CaptureItemId itemId, byte[] content)
+    {
+        using var scope = _services.CreateScope();
+        var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
+
+        await mediator.Send(new AttachCaptureItemArtifactCommand(
+            Tenant.Value, itemId.Value, content, "application/pdf", "boleto.pdf"));
+    }
+
+    private async Task DismissAsync(CaptureItemId itemId, string? note)
+    {
+        using var scope = _services.CreateScope();
+        var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
+
+        await mediator.Send(new DismissCaptureItemCommand(
+            Tenant.Value, itemId.Value, Decider.Value, note));
+    }
+
     private static byte[] PdfWith(params string[] lines)
     {
         var builder = new PdfDocumentBuilder();
@@ -217,7 +429,16 @@ public sealed class EmailBodyExtractionTests : BaseIntegrationTest
         using var scope = _services.CreateScope();
         var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
 
-        return await mediator.Send(new ProcessCaptureItemCommand(Tenant.Value, itemId.Value));
+        // As DUAS passagens, como os dois workers fazem em produção: a faixa rápida cede a vez
+        // quando precisa da IA, e a faixa lenta retoma. Rodar só a primeira descreveria metade
+        // do fluxo — e foi o que estes testes faziam antes de as filas serem separadas.
+        var first = await mediator.Send(
+            new ProcessCaptureItemCommand(Tenant.Value, itemId.Value, VisionLane: false));
+
+        return first.Decision != "VisionPending"
+            ? first
+            : await mediator.Send(
+                new ProcessCaptureItemCommand(Tenant.Value, itemId.Value, VisionLane: true));
     }
 
     private Task<CaptureItem?> LoadAsync(CaptureItemId itemId)

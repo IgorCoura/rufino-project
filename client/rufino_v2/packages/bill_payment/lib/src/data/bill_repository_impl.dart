@@ -4,6 +4,8 @@ import '../domain/bill.dart';
 import '../domain/bill_detail.dart';
 import '../domain/bill_payment_exception.dart';
 import '../domain/bill_repository.dart';
+import '../domain/captured_artifact.dart';
+import '../domain/email_message.dart';
 import 'bill_api_service.dart';
 
 /// Implements [BillRepository] over [apiService], reporting at the catch
@@ -78,14 +80,22 @@ class BillRepositoryImpl implements BillRepository {
   Future<Result<ImportOutcome>> importBill({
     String? digitableLine,
     String? pixPayload,
+    List<int>? documentBytes,
+    String? documentFileName,
+    String? documentContentType,
   }) =>
       _guard(
         () => apiService.importBill(
           digitableLine: digitableLine,
           pixPayload: pixPayload,
+          documentBytes: documentBytes,
+          documentFileName: documentFileName,
+          documentContentType: documentContentType,
         ),
         // Never put the instruments in the context: whoever has them, pays.
-        context: {'op': 'importBill'},
+        // The file name stays out too — it routinely carries the payee and the
+        // account, and the context travels to the error reporter.
+        context: {'op': 'importBill', 'hasDocument': documentBytes != null},
       );
 
   @override
@@ -99,9 +109,15 @@ class BillRepositoryImpl implements BillRepository {
     String id, {
     required DateTime scheduleFor,
     String? note,
+    bool acknowledgeRisk = false,
   }) =>
       _guard(
-        () => apiService.approveBill(id, scheduleFor: scheduleFor, note: note),
+        () => apiService.approveBill(
+          id,
+          scheduleFor: scheduleFor,
+          note: note,
+          acknowledgeRisk: acknowledgeRisk,
+        ),
         context: {'op': 'approveBill', 'billId': id},
       );
 
@@ -115,5 +131,17 @@ class BillRepositoryImpl implements BillRepository {
   Future<Result<void>> cancelBill(String id, String reason) => _guard(
         () => apiService.cancelBill(id, reason),
         context: {'op': 'cancelBill', 'billId': id},
+      );
+
+  @override
+  Future<Result<EmailMessage>> getEmail(String id) => _guard(
+        () => apiService.getBillEmail(id),
+        context: {'billId': id},
+      );
+
+  @override
+  Future<Result<CapturedArtifact>> getArtifact(String id) => _guard(
+        () => apiService.getArtifact(id),
+        context: {'op': 'getBillArtifact', 'billId': id},
       );
 }

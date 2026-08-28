@@ -252,3 +252,405 @@ Como o `Id` é value-converted, comparar `>` exige que o record struct declare o
 **Regra:** rota de tenant chama o parâmetro de `tenantId`, sempre. Quem garante é `Authorization/EndpointProtectionTests`, que varre o `EndpointDataSource`.
 
 **Como pegar de novo:** teste que enumera endpoints em vez de testar um endpoint. É o único formato que cobre o controller que ainda não foi escrito.
+
+## A ferramenta de medição preenche sozinha um cabeçalho que a implementação não preenche
+
+**Quando:** 2026-08-25, ao chamar `AsaasPixLookupService.DecodeAsync` contra o provedor de verdade.
+
+**O que aconteceu:** toda chamada ao Asaas voltava `400` com *"É obrigatório preencher User-Agent no cabeçalho da requisição"*. O provedor exige `User-Agent` e **o `HttpClient` do .NET não manda nenhum por padrão** — `ConfigureAsaasClient` configurava `BaseAddress`, `Timeout` e `access_token`, e mais nada. Valia para os dois adapters: consulta de boleto e decode de Pix falhavam igual, antes de o provedor olhar o corpo.
+
+**Por que é traiçoeiro:** as duas sondas de fumaça de produção saíram **verdes** em 2026-08-06 contra exatamente esses endpoints, e o `12-official-lookup-coverage.md` registrou os campos que voltaram. As sondas são Node, e o `fetch` do Node manda `User-Agent: node` por conta própria — medido: `node fetch → "node"`, `dotnet HttpClient → null`. A medição preencheu um requisito que a implementação nunca preencheu, e ninguém tinha como notar a diferença lendo qualquer um dos dois lados.
+
+É a terceira vez que o mesmo padrão morde este BC — as outras duas já estão registradas aqui ("Medir com uma ferramenta e executar com outra", `pdftotext` × PdfPig) e no CLAUDE.md (o `$top` da delta query). A diferença é que aqui o desvio não estava no que a ferramenta *lê*, e sim no que ela **acrescenta sem ser pedida**.
+
+**Por que os 394 testes não pegaram:** `AsaasPixLookupServiceTests` e `AsaasBillLookupServiceTests` constroem o `HttpClient` à mão (`new HttpClient(handler)`) para exercitar a tradução da resposta sem rede — postura correta, e que por construção **não enxerga nada do que o `AddHttpClient` configura**. E a suíte roda sem `Asaas:ApiKey` de propósito, então o caminho de DI que registra os adapters de verdade nunca era percorrido.
+
+**Regra:** cabeçalho exigido pelo provedor é **configuração do cliente**, e configuração do cliente precisa de um teste que passe pelo composition root. `Asaas/AsaasClientConfigurationTests` monta o contêiner a partir do `AddInfraDependencies` (sem Postgres — o `AddDbContext` não abre conexão), resolve o cliente tipado pelo `IHttpClientFactory` e **afirma o `BaseAddress` junto com o cabeçalho**: sem essa segunda asserção, uma mudança na derivação do nome do cliente tipado devolveria um homônimo vazio e o teste afirmaria sobre outra coisa.
+
+E o valor é **constante**, não opção de configuração: ele identifica a aplicação, não o ambiente, e um campo configurável poderia chegar vazio — que é precisamente o estado quebrado.
+
+**Como pegar de novo:** ao escrever adapter HTTP para provedor novo, faça a primeira chamada **pelo .NET**, não pela sonda em Node. Se a sonda for o único caminho exercitado, compare os cabeçalhos que os dois clientes emitem antes de declarar o contrato medido.
+
+## O número medido pode ter vindo de uma ferramenta que o código não usa
+
+**Quando:** 2026-08-26, ao avaliar a troca da varredura de documento fiscal por busca dirigida.
+
+**O que aconteceu:** o CLAUDE.md registrava que a regra de sequência exata (11 ou 14 dígitos) achava o documento do tenant em **93,3%** dos boletos "sem custo de cobertura". Medindo 915 boletos reais do acervo **pela biblioteca que o sistema de fato usa** (PdfPig), a mesma regra acha em **469** — e a busca dirigida pelos documentos do cadastro acha em **523**. O custo de cobertura existia; ele é de 54 documentos, e estava invisível.
+
+**Por que é traiçoeiro:** os 93,3% foram medidos com `pdftotext -layout`, que separa os campos em colunas. O PdfPig entrega `page.Text` **emendado, sem espaço** — `CNPJ: 22.359.919/0001-0918942151Recibo:` —, e aí um documento fiscal colado ao número vizinho deixa de ter 11 ou 14 dígitos e é descartado. A regra estava correta *para o texto medido* e errada *para o texto real*. Este BC já tinha registrado o mesmo padrão em "Medir com uma ferramenta e executar com outra" e no `User-Agent` do Asaas; a diferença é que aqui o número medido virou **documentação afirmativa**, foi citado em três lugares, e sobreviveu quatro meses.
+
+**Regra:** número medido entra na documentação **com a ferramenta ao lado**. "93,3% (medido com `pdftotext -layout`)" teria feito o próximo leitor perguntar se o código lê assim — e a resposta era não. Sem a procedência, a medição vira fato.
+
+**Como pegar de novo:** ao encontrar uma porcentagem no CLAUDE.md que sustenta uma decisão de código, procure a ferramenta que a produziu antes de confiar nela. Se a medição usa biblioteca diferente da implementação, ela mede outra coisa.
+
+## Borda de palavra quebra em texto que o extrator entrega emendado
+
+**Quando:** 2026-08-26, ao "corrigir" o detector de rótulo de pagador.
+
+**O que aconteceu:** `sacado` (rótulo do devedor) casa dentro de `Sacador` (campo "Sacador / Avalista", presente em quase todo boleto). Diagnostiquei como defeito e acrescentei `\b` nos dois lados das duas expressões. **Quebrou o caso real**: o PdfPig entrega `PagadorRUFINO EMPREITEIRA LTDA`, sem espaço entre o rótulo e o nome, então a borda de palavra depois de `pagador` nunca fecha e o rótulo legítimo deixou de ser reconhecido.
+
+**Por que é traiçoeiro:** duas vezes. Primeiro, o "defeito" não era defeito — os dois detectores casam no **mesmo índice** e o desempate é `>` estrito, então o empate já resolvia para "não é rótulo de pagador", que é a resposta certa. Segundo, a correção parecia inofensiva: `\b` é o reflexo de quem escreve regex, e em texto normal não muda nada. Só quebra em texto emendado — que é exatamente o que este BC lê.
+
+**Regra:** antes de "corrigir" uma sobreposição de padrões, **trace o desempate** e confira se o resultado já não é o certo. E toda regex que roda sobre saída de extrator de PDF precisa ser pensada para texto **sem espaços**: `\b`, `^`, `$` e `\s` têm comportamento diferente ali.
+
+**Como pegar de novo:** rodar a expressão contra um trecho real de `page.Text` — não contra um exemplo escrito à mão, que sempre sai com espaços.
+
+## O filtro que protege a fila pode estar antes do registro que a fila não cobre
+
+**Quando:** 2026-08-26, ao investigar três e-mails que não eram capturados.
+
+**O que aconteceu:** o `GraphMailboxReader` descartava, dentro do adaptador, toda mensagem sem anexo utilizável e sem sinal de cobrança no corpo — `if (artifacts.Count == 0) continue`. O filtro existe por um motivo bom e medido: sem ele, toda conversa da caixa viraria `CaptureItem` e a fila de quarentena ficaria inútil. Só que o **livro-caixa** é escrito depois, na Application, a partir do que o adaptador devolve. Resultado: a mensagem filtrada não virava item **nem registro** — sumia de todas as telas.
+
+**Por que é traiçoeiro:** o filtro está certo para o propósito que ele foi escrito (proteger a fila) e errado para um propósito que nasceu depois (o histórico). Nada no código liga os dois: o `if` fica no adaptador, o registro fica na Application, e a distância esconde que um governa o outro. E o sintoma é silêncio — nenhum erro, nenhum log, a mensagem simplesmente não existe.
+
+**Regra:** quando um agregado novo passa a consumir a mesma leitura de um agregado antigo, **releia os filtros que estão ANTES da bifurcação**. Um filtro escrito para proteger o consumidor A restringe o consumidor B sem que ninguém tenha decidido isso.
+
+**Como pegar de novo:** ao acrescentar um consumidor a um pipeline existente, liste os pontos onde dado é descartado antes de ele chegar. Se algum deles fica *acima* da bifurcação, ou ele muda de lugar, ou vira decisão explícita para os dois.
+
+## Enumeração do provedor vai do mais antigo para o mais novo — e o teto fica no fim
+
+**Quando:** 2026-08-26, mesma investigação.
+
+**O que aconteceu:** a varredura lê no máximo `MaxPagesPerSync × PageSize` = 1.000 mensagens e guarda o `nextLink` para retomar. Numa caixa de **12.422 mensagens** isso são treze varreduras; com `PollingInterval` de uma hora, treze horas. E como a delta query enumera do mais antigo para o mais novo, **a mensagem de hoje é a última a ser alcançada** — e forçar releitura completa piora, porque descarta o progresso e recomeça do mais antigo.
+
+**Por que é traiçoeiro:** o teto foi escrito para proteger contra varredura infinita, e faz isso bem. O que ninguém percebeu é que ele interage com a **ordem** da enumeração: um teto no fim de uma lista ordenada do mais novo para o mais antigo cortaria o histórico, que é aceitável; no sentido inverso ele corta exatamente o que mais importa. O sintoma parece "a captura parou de funcionar", quando na verdade ela está funcionando devagar demais para importar.
+
+**Regra:** teto de paginação precisa vir com uma pergunta sobre **ordem**. Se a fonte enumera do mais antigo para o mais novo, o agendador tem de saber quando parou no teto e emendar a próxima passada, em vez de dormir o intervalo cheio.
+
+**Como pegar de novo:** ao ver cursor de sincronização parado num `skipToken` por mais de um ciclo, conte quantos ciclos faltam para o fim e multiplique pelo intervalo. Se der horas, o teto está no lugar errado.
+
+## A espera que protege a cota estava dentro do caminho de todo mundo
+
+**Quando:** 2026-08-26, ao investigar por que a fila de processamento demorava.
+
+**O que aconteceu:** o `ExtractionBudget` respeitava o limite do provedor com `await Task.Delay(...)` **dentro** do processamento do artefato, e sob um semáforo global. Com o intervalo de 6 s da conta gratuita, um item que precisava de IA parava o worker por até 6 s antes mesmo de a chamada sair — e o worker é serial, então **todos** os outros itens do lote esperavam junto. Medido: 27% dos itens consumindo 86% do tempo, num lote cujo item mediano leva 150 ms.
+
+**Por que é traiçoeiro:** a trava está certa — sem ela o provedor devolve `429` e o artefato vai para a quarentena até o dia seguinte. O erro não é proteger a cota, é **onde** a proteção espera. Um `Task.Delay` parece barato porque não queima CPU; o custo real é o lugar na fila que ele ocupa. E o sintoma chega como "o sistema está lento", não como "a trava de cota está no lugar errado".
+
+**Regra:** trava de recurso escasso não pode morar no caminho de quem não usa aquele recurso. Ou ela vira não-bloqueante e o item cede a vez, ou o trabalho que depende dela sai para uma fila própria.
+
+**Como pegar de novo:** ao ver fila lenta, meça a **distribuição**, não a média. Média de 4 s com mediana de 150 ms não é "tudo lento" — é "alguns bloqueiam todos", e o conserto é separar, não acelerar.
+
+## Concorrência ajuda I/O e não ajuda cota
+
+**Quando:** 2026-08-26, ao decidir onde paralelizar o processamento.
+
+**O que aconteceu:** a reação natural a "a fila está lenta" foi paralelizar o lote inteiro. Só que as duas metades do trabalho têm gargalos de natureza diferente: baixar anexo e gravar no balde é **I/O** e escala com concorrência; chamar a IA é **cota**, e o teto é da conta no provedor. Paralelizar a segunda metade não a acelera — troca espera por `429`, e o cliente de visão não retenta, então cada `429` vira artefato na quarentena até o dia seguinte.
+
+**Regra:** antes de paralelizar, classifique o gargalo. **I/O** aceita concorrência; **cota de terceiro** não — ali o ganho vem de tirar o trabalho da frente dos outros, não de fazê-lo mais rápido.
+
+**Como pegar de novo:** se acelerar uma coisa exige pedir mais ao provedor por minuto, concorrência é a ferramenta errada. Procure a fila separada.
+
+## Retentar para sempre é o mesmo que não ter fila
+
+**Quando:** 2026-08-26, investigando e-mails parados em "ainda não processado" por tempo indefinido.
+
+**O que aconteceu:** o worker de captura tratava **toda** falha como passageira. O comentário no código explicava o raciocínio, e ele estava metade certo: *"o item permanece em `Received` e volta no ciclo seguinte — o que é seguro porque o processamento é idempotente"*. Idempotência garante que repetir não estraga; não garante que repetir vai funcionar. Medido no log da API: **1.815 falhas, das quais 1.709 eram o mesmo erro em quatro artefatos** — `BLP.BIL15`, um PDF com dois boletos de naturezas diferentes, que o domínio recusa por invariante legítima. Um item sozinho tentou **485 vezes em 62 minutos**, baixando o anexo do provedor com HTTP 200 em todas.
+
+**Por que é traiçoeiro, em três camadas:**
+
+1. **O desperdício não é o pior.** A fila é `ORDER BY received_at LIMIT 10`, então cada item envenenado ocupava **em caráter permanente** uma das dez vagas. Dez deles parariam a captura inteira — sem erro, sem alerta, sem nada em tela.
+2. **A tela mentia.** `RecordCapturedOutcomeAsync` só roda no fim do handler, então o desfecho do anexo ficava `Pending` para sempre: o usuário via "ainda não processado" indefinidamente, que é o sintoma pelo qual o defeito foi relatado.
+3. **A durabilidade escondia a ausência de política.** Como a fila vive no Postgres e o item continua `Received`, queda de processo não perde nada — o que é ótimo e mascara o problema. A mesma propriedade que salva de uma queda é a que transforma uma recusa determinística em laço eterno.
+
+**A assimetria que denunciava:** o `OutboxProcessor`, no mesmo BC, já tinha `FOR UPDATE SKIP LOCKED`, `attempts`, `MaxAttempts` e dead-letter. A fila de captura era a única sem nada disso — e era justamente a que processa documento vindo de fora, a fonte de entrada mais imprevisível do sistema.
+
+**Regra:** retentar existe para falha **transitória**; quarentena existe para falha **permanente**. Sem a segunda, a primeira vira fonte permanente de carga. Toda fila precisa de três coisas: teto de tentativas, estado terminal de falha com o erro guardado, e reivindicação atômica. Se uma fila do projeto tem e outra não, a que não tem é um defeito ainda não relatado.
+
+**Como pegar de novo:** `docker logs <api> | grep -c "failed to process"` e agrupe por id. Contagem alta concentrada em poucos ids **é** o laço — não é "vários itens com problema". E se o mesmo id aparece mais vezes do que o número de ciclos plausível na janela, não há teto de tentativas em lugar nenhum.
+
+## Aluguel em coluna vale mais que trava de transação, quando o trabalho é longo
+
+**Quando:** 2026-08-26, ao acrescentar reivindicação atômica à fila de captura.
+
+**O que aconteceu:** a tentação era copiar o outbox literalmente — `SELECT ... FOR UPDATE SKIP LOCKED` dentro de uma transação que dura o processamento inteiro. Funciona lá porque despachar um evento é rápido. Aqui o processamento baixa megabytes, lê PDF e pode chamar a IA por segundos: segurar uma transação de banco todo esse tempo prenderia conexão do pool à toa, e um worker morto travaria a linha até o `idle_in_transaction_session_timeout`.
+
+**A saída:** `UPDATE ... WHERE id IN (SELECT ... FOR UPDATE SKIP LOCKED) RETURNING *`. Um comando só, atômico, que **grava um prazo em coluna** (`lease_expires_at`) em vez de manter uma trava. A exclusão passa a ser um dado, não um lock — e vence sozinha quando o worker morre, dispensando o faxineiro que filas assim costumam precisar.
+
+**O bônus que quase se perde:** o mesmo campo serve de **backoff**. Depois de uma falha transitória o agregado empurra o prazo para o futuro, e o `WHERE` da reivindicação já pula o item até lá. Duas noções separadas de "quando este item pode ser mexido" divergiriam; uma só não tem como.
+
+**Regra:** trava de banco para trabalho curto; prazo em coluna para trabalho longo. E se você for escrever "quando tentar de novo" num campo e "até quando é meu" noutro, pergunte se não é a mesma pergunta.
+
+**Como pegar de novo:** ao ver `BLP.CPI03` de transição inválida partindo de estado terminal (`Promoted -> Parsed`), suspeite de duas execuções do mesmo item — não de bug na máquina de estados.
+
+## Registrar a falha exige escopo novo, porque o agregado em memória está sujo
+
+**Quando:** 2026-08-26, ao implementar o registro de falha do worker de captura.
+
+**O que aconteceu:** a primeira ideia foi capturar a exceção **dentro** do handler e marcar o item por ali. Não funciona: quando o `BLP.BIL15` estoura, o item já passou por `StoreArtifact` e `MarkParsed` — ele está em `Parsed` na memória, e `Parsed -> Unrecognized` nem existe na matriz. Pior, o `DbContext` carrega alterações que **não podem** ser gravadas.
+
+**Regra:** tratamento de falha de um passo transacional roda em escopo novo, recarregando o agregado do banco. O estado que vale é o **persistido**, não o que a execução abortada deixou em memória.
+
+**Como pegar de novo:** se o `catch` precisa saber em que ponto do `try` a exceção aconteceu para escolher a transição, o `catch` está no lugar errado.
+
+
+## O fallback de um cálculo virou o estado da maioria
+
+**Quando:** 2026-08-26, com vários e-mails presos em "Na fila" na tela — e **nada** preso no backend.
+
+**O que aconteceu:** o desfecho que a linha da tela mostra é calculado (`Dominant`): percorre os anexos da mensagem por gravidade decrescente e devolve o primeiro que casar. Não achando nenhum, devolvia `ArtifactOutcome.Pending`, que a UI traduz como "Na fila". Isso foi escrito quando toda mensagem do livro-caixa tinha pelo menos um anexo. Depois, mensagem **sem** anexo passou a entrar no registro — decisão certa, para quem mandou o e-mail ter resposta — e o fallback virou o estado da maioria: **23 de 39 mensagens** da caixa real, todas propaganda e notificação, eternamente "na fila" sem fila nenhuma.
+
+**Por que é traiçoeiro:** o banco estava impecável — **zero** anexos em `Pending`, todos os itens em estado terminal. Quem olhasse a tela concluiria "o processamento travou" e iria depurar o worker, que é exatamente onde o problema **não** estava. O sintoma apontava para o lado oposto da causa.
+
+**O irmão, no mesmo arquivo:** `ProcessingFailed` foi acrescentado ao catálogo e esquecido na lista de prioridade **no mesmo dia**. Efeito idêntico: escorre pelo laço, cai no fallback, aparece como "Na fila". Uma lista escrita à mão que precisa espelhar um catálogo é dívida — ela não quebra quando desatualiza, só mente.
+
+**Regra:** o ramo "não achei nada" de um cálculo de estado não pode reusar um estado que significa "ainda vai acontecer". Ausência e espera são coisas diferentes, e confundi-las é o modo de falha do ADR-014 aparecendo na tela. E toda lista que espelha um catálogo precisa de um teste que compare os dois tamanhos.
+
+**Como pegar de novo:** ao ver "preso em X" na tela, **conte X no banco antes de abrir o worker**. Se o banco não tem nenhum, o defeito é na projeção — não no processamento.
+
+
+## Uma allowlist que só cresce à mão é um ponto cego que só cresce
+
+**Quando:** 2026-08-26, com uma cobrança real desaparecendo sem deixar rastro.
+
+**O que aconteceu:** o portão que decide se o corpo de um e-mail vira artefato aceitava link como sinal **apenas** quando o host tinha receita configurada. O raciocínio estava escrito no código e parecia impecável: *"link para host desconhecido não é sinal — o sistema não teria como buscar o documento, e o item nasceria só para morrer na quarentena."* A consequência não estava escrita: **o sistema só conseguia descobrir boleto de emissor que alguém já tinha sondado e cadastrado à mão.** Emissor novo era invisível, e invisível em silêncio.
+
+**O caso:** uma cobrança da Asaas, sem anexo, com o boleto atrás de `www.asaas.com/i/{token}`. Sondando a mão: a página responde 200 sem autenticação e traz um `href` para o PDF, que responde 200 e rende duas linhas de 47 dígitos e um BR Code. Ou seja — **era alcançável o tempo todo**, só faltava alguém saber que precisava olhar. E ninguém saberia, porque o desaparecimento não gerava nem quarentena nem log.
+
+**Por que é traiçoeiro:** a regra não estava errada em nenhum caso individual. Ela estava errada no agregado: transformava "ainda não sei buscar isto" em "isto não existe". Um sistema que descarta o desconhecido em silêncio nunca acumula a informação que o faria conhecer.
+
+**Regra:** allowlist decide **como tratar**, nunca **se registrar**. O que cai fora dela vira fila de trabalho — com o host guardado —, não vira nada. Se acrescentar uma entrada nessa lista exige que um humano descubra sozinho que ela falta, a lista é um ponto cego que cresce com o tempo.
+
+**Como pegar de novo:** para toda allowlist, pergunte "o que acontece com o que não está aqui, e como eu ficaria sabendo?". Se a resposta da segunda metade for "não ficaria", falta o registro.
+
+## Substring casa dentro de palavra, e endereço de e-mail é onde isso dói
+
+**Quando:** 2026-08-26, ao ligar o sinal de cobrança na triagem — um teste pré-existente ficou vermelho na hora.
+
+**O que aconteceu:** a lista de sinais de cobrança tem "conta", e eu passei a comparar também contra o **endereço do remetente**. `faturas@fornecedor.com.br` casou por "fatura" — e o teste que exigia descarte de um contrato de locação quebrou. Investigando o efeito real na caixa: **"conta" casa dentro de "contato@" e "contabilidade@"**, e o segundo é o endereço do contador, que o corpus mediu como origem de 72 dos 95 itens de quarentena. Teria inundado a fila com holerite, rescisão e nota fiscal.
+
+**Por que é traiçoeiro:** a medição que justificou a mudança tinha sido feita contra o **assunto**, e eu ampliei o alcance para o remetente na implementação sem remedir. O número que autorizava a decisão (3 de 23) deixou de descrever o que o código fazia, e nada avisaria — exceto o teste, por acaso.
+
+**Regra:** o alcance implementado tem que ser o alcance medido. Ampliou o campo que a heurística lê? Refaça a medição antes, não depois. E casamento por substring nunca deve ver identificador estruturado (e-mail, domínio, caminho) — ali as palavras aparecem por dentro de outras.
+
+**Como pegar de novo:** teste vermelho logo depois de ampliar uma heurística quase nunca é "o teste está velho". Antes de ajustá-lo, verifique se o dado que autorizou a mudança ainda descreve o que foi escrito.
+
+
+## Dois fatos parecidos num campo só fazem o registro mentir
+
+**Quando:** 2026-08-27, implementando a anexação manual do boleto.
+
+**O que aconteceu:** ao receber o arquivo que a pessoa subiu, marquei `ExtractionMethod.Manual` no item — parecia óbvio, o valor existia desde a 2.1 e nunca tinha sido usado. Só que `ExtractionMethod` responde **como o instrumento foi lido** (texto embutido, QR, visão), e quem o preenche é a cascata, na passagem seguinte. O `Manual` era sobrescrito por `EmbeddedText` alguns milissegundos depois. O teste pegou, e a lição é maior que o bug: eu estava usando um campo para responder uma pergunta que não é a dele.
+
+**A correção:** dois campos para dois fatos. `ManuallySupplied` diz que **uma pessoa trouxe o arquivo**; `Extraction` continua dizendo **como ele foi lido**. Um anexo manual resolvido por texto embutido é as duas coisas ao mesmo tempo, e nenhuma delas é redundante.
+
+**Regra:** antes de reusar um campo existente para um conceito novo, pergunte que pergunta ele responde hoje. Se a resposta nova não substitui a antiga — se as duas podem ser verdadeiras ao mesmo tempo —, são dois campos.
+
+**Como pegar de novo:** valor de enum declarado e nunca usado é convite a esse erro. Ele parece "o lugar certo" justamente por estar vago.
+
+## Interpolação com aspas iguais às da string quebra o literal — e o erro aponta longe
+
+**Quando:** 2026-08-27, escrevendo o diálogo de confirmação em Dart por script.
+
+**O que aconteceu:** gerei `'De: ${item.sender ?? 'desconhecido'}'` — aspas simples dentro de uma interpolação dentro de uma string de aspas simples. O literal termina na segunda aspa, e o analisador reporta "unterminated string literal" **na linha seguinte**, junto com um punhado de erros derivados que não têm relação com a causa. Somado a isso, escapes de `\n` passando por heredoc de shell viraram quebras de linha reais dentro do literal — o mesmo modo de falha já registrado neste arquivo, agora em Dart.
+
+**Regra:** interpolação usa a aspa **oposta** à da string que a contém. E edição precisa de código em arquivo com escapes é trabalho para ferramenta de edição, não para script de texto — a regra já estava aqui e eu a repeti mesmo assim.
+
+**Como pegar de novo:** cascata de erros de sintaxe começando em "unterminated string" quase sempre tem a causa **uma linha acima** do primeiro erro relatado.
+
+## O campo que abre o ciclo NAO e o campo que dispara o alerta (2026-08-27)
+
+**O que aconteceu:** a varredura da expectativa decidia abrir o ciclo com `AlertLeadDays` — a
+antecedencia do *aviso*. Cenario relatado pelo usuario: conta que vence dia 10 e **chega 20 dias
+antes**, com aviso pedido para 2 dias antes. O ciclo de setembro so nascia em 08/09; o boleto
+chegava em 21/08, nao encontrava ciclo, nao cumpria nada — e em 08/09 o sistema alertava "a conta
+nao chegou" sobre um boleto capturado, validado e aprovado.
+
+**Por que e traicoeiro:** os dois prazos tem nomes parecidos e o codigo funcionava para o caso
+comum, em que a conta chega poucos dias antes do vencimento e os dois numeros quase coincidem. O
+defeito so aparece quando a conta chega com folga — e ai ele produz exatamente a falha silenciosa
+que o ADR-014 existe para impedir, com o agravante de ser um alerta FALSO, que e o que treina a
+pessoa a ignorar alerta.
+
+**A regra:** `ObservedLeadDays` responde "quando comeco a esperar" e governa `OpensAtFor`;
+`AlertLeadDays` responde "quando reclamo" e governa `AlertAtFor`. Ao mexer em qualquer um dos
+dois, pergunte qual das duas perguntas esta em jogo.
+
+## Recorrencia sem ancora abre um ciclo por mes — e a anual se autodesativa (2026-08-27)
+
+**O que aconteceu:** `OpenDueCycle` derivava a competencia do mes corrente e **nunca consultava
+`Recurrence`**. Uma expectativa trimestral ou anual ganhava um ciclo todo mes; onze deles viravam
+`Missing`, e a regra dos tres misses consecutivos **desativava a expectativa sozinha** em tres
+meses.
+
+**Por que e traicoeiro:** `ExpectedDueDay` da a impressao de descrever o calendario inteiro, mas
+diz so o DIA. Em que MESES a conta vence e informacao que nao existia no agregado — e a falha nao
+aparece em teste mensal nenhum, porque no mensal toda competencia esta na cadencia.
+
+**A regra:** `AnchorCompetence` fixa a fase, e `Fulfill` a reancora na competencia que de fato
+chegou. Teste de recorrencia nao-mensal e obrigatorio ao mexer na varredura.
+
+## Ordenar fila de worker por `UpdatedAt` inverte a prioridade (2026-08-27)
+
+**O que aconteceu:** `ListActiveForSweepAsync` fazia `OrderBy(UpdatedAt).Take(100)` sobre a
+instalacao inteira. Como `UpdatedAt` so muda quando ha mudanca de negocio, a expectativa que **nada
+faz** mantinha o carimbo antigo e ocupava as vagas do lote permanentemente, enquanto a que estava
+sendo cumprida e alertada ganhava carimbo novo e ia para o fim. Passando de cem expectativas ativas,
+as demais **nunca eram varridas** — sem erro, sem log, sem sintoma.
+
+**Por que e traicoeiro:** o codigo parece a paginacao circular correta, e ate tinha comentario
+dizendo que era ("sem isso, uma expectativa no fim da lista nunca seria varrida"). A intencao estava
+certa; o campo escolhido produzia o oposto dela.
+
+**A regra:** fila de worker ordena por carimbo **de varredura** (`LastSweptAt`), gravado em TODA
+passagem — inclusive na que nao faz nada. E o lote deixa de ser teto de cobertura: o worker pede
+lotes ate a fila secar. Cuidado com o laco: item que FALHA nao recebe o carimbo (de proposito, para
+voltar no ciclo seguinte), entao o laco precisa lembrar quem ja teve a vez, senao gira nele ate o
+teto.
+
+## Metodo de dominio sem nenhum chamador de producao (2026-08-27)
+
+**O que aconteceu:** `BillExpectation.RecordCaptureFailure` existia, tinha teste unitario, tinha
+teste de integracao — e **nenhum codigo de producao o chamava**. O status `PartiallyCaptured` era
+inalcancavel e a lista `captureFailed` do painel voltava sempre vazia. O mesmo valia para
+`HintSourceId`, que o aprendizado preenchia com `null` literal e o cadastro nem aceitava.
+
+**Por que e traicoeiro:** a suite inteira ficava verde. Teste que exercita o metodo direto prova
+que o dominio funciona, nao que alguem o usa — e `grep` do nome do metodo devolve os testes, o que
+da a impressao de cobertura.
+
+**A regra:** ao fechar uma sprint, `grep` do metodo publico **excluindo os projetos de teste**. Se
+o unico chamador e teste, a capacidade nao existe. Vale tambem para campo que so e escrito com
+literal nulo.
+
+## `Transition` e o unico lugar de onde eventos de estado saem (2026-08-27)
+
+**O que aconteceu:** o `CaptureItem` passou a emitir "travou"/"destravou", e a tentacao foi emitir
+dentro de cada `MarkXxx`.
+
+**Por que e traicoeiro:** e exatamente assim que `VisionPending -> LinkFailed` ficou de fora da
+matriz de transicoes e prendeu item na fila da IA para sempre. Declarar comportamento degrau a
+degrau deixa buraco no degrau que ninguem lembrou.
+
+**A regra:** um gancho so, na unica porta por onde todo estado passa. E o evento carrega o `Status`
+alvo, **nao** o `Reason`: os `MarkXxx` escrevem o motivo DEPOIS de transicionar, e ler o campo
+dentro do `Transition` devolveria o motivo anterior. **Agregado que passa a emitir evento precisa
+entrar no `DrainDomainEvents`** no mesmo commit — senao os eventos sao acumulados e descartados no
+fim do escopo.
+
+## Porta de notificacao sem destinatario nao e "falta configurar SMTP" (2026-08-27)
+
+**O que aconteceu:** o checklist listava "adapter de e-mail" como pendencia de configuracao. Mas
+`INotificationSender.SendAsync` recebe o `TenantId`, e o BC **nao guardava nenhum dado de contato**
+— o unico e-mail existente era o `MailboxAddress` da `CaptureSource`, que e a caixa DE CAPTURA e
+nao a caixa de uma pessoa. Um adapter de e-mail escrito naquele estado nao teria para quem enviar.
+
+**Por que e traicoeiro:** a pendencia estava escrita e parecia pequena. O trabalho real era um
+Aggregate novo, uma tabela, um endpoint e uma decisao de produto (quem recebe alerta de conta a
+pagar e o financeiro, nao quem administra o tenant).
+
+**A regra:** antes de estimar "falta o adapter", confira se a porta tem todos os dados de que o
+adapter precisa. Porta que recebe so o tenant precisa de uma fonte de contato.
+
+## Escalonamento registrado nao e escalonamento enviado (2026-08-27)
+
+**O que aconteceu:** `TryRecordAlert` gravava o nivel no agregado e **nao emitia evento nenhum**.
+Quem notificava era a transicao para `Missing` — que acontece uma vez por ciclo. Dos quatro niveis
+do escalonamento (`HeadsUp`, `Warning`, `Urgent`, `Overdue`), so o primeiro chegava ao usuario; os
+outros tres apareciam em `LastAlertLevel` no painel e nunca saiam.
+
+**Por que e traicoeiro:** a tabela de escalonamento estava no doc, o registro por nivel estava
+implementado e testado, e o painel mostrava o nivel correto. Tudo o que faltava era o unico elo que
+nenhum teste cobria — e a diferenca entre "registrado" e "enviado" nao aparece numa suite sem canal
+externo.
+
+**A regra:** ao ler uma tabela de escalonamento no doc, procure o evento que carrega o NIVEL. Se o
+aviso sai de um evento de mudanca de status, ele sai uma vez so.
+
+## Porta de integracao que nao distingue "nao achei" de "nao respondi" (2026-08-27)
+
+**O que aconteceu:** `IDocumentIntelligence.ExtractAsync` devolvia `ExtractedDocument.Empty` em
+quatro situacoes diferentes — o modelo leu e nao achou boleto, o provedor respondeu 503, respondeu
+400, e o transporte estourou no timeout. Para quem chama, as quatro eram a mesma coisa: "nao e
+boleto". Resultado medido em 614 chamadas de um dia: **24 documentos bons foram para a quarentena
+por 503**, sem nenhuma retentativa.
+
+**Por que e traicoeiro:** a fila de captura JA tinha a maquina de retentativa completa — aluguel,
+backoff dobrando, teto de tentativas, tudo testado. Olhando o codigo da fila, a conclusao natural e
+"isso ja esta resolvido". E estava: o que faltava era o **sinal** que a acionasse. Maquina de
+retentativa nao serve de nada quando a falha chega disfarcada de desfecho normal.
+
+**A regra:** toda porta de integracao devolve um status que responde "vale a pena tentar de novo?".
+O BC ja fazia isso em `MailboxStatus` e `LookupStatus` — a de IA era a unica fora do padrao. Ao
+criar porta nova, copie a forma do `LookupResult`, nao a do `ExtractedDocument`.
+
+## `DomainException` classificada como permanente engole a retentativa nova (2026-08-27)
+
+**O que aconteceu:** ao introduzir `ExtractionErrors.ProviderUnavailable` para devolver o item a
+fila, a correcao quase nasceu morta: `CaptureFailureHandling.IsPermanent` classifica **todo**
+`DomainException` como recusa deterministica, entao o item desistiria na primeira tentativa —
+exatamente o comportamento que a mudanca existia para corrigir.
+
+**Por que e traicoeiro:** a regra "DomainException e permanente" esta certa e bem documentada; o
+caso novo e uma excecao legitima a ela, porque a exceção descreve a REDE e nao os bytes. Sem
+perceber isso, a suite passaria (o item vai para a quarentena, como antes) e o defeito continuaria.
+
+**A regra:** ao usar exceção de domínio como *sinal de fluxo* (e nao como recusa), confira quem
+classifica exceção no caminho — e isente pelo `Id`, nunca pelo tipo.
+
+## "Reprocessar" nao pode significar "reconsultar tudo" (2026-08-27)
+
+**O que aconteceu:** quando o retrato da leitura por IA chega atrasado, e preciso refazer os checks.
+O caminho obvio era chamar o `ValidateBillCommand` — que **reconsulta o provedor**.
+
+**Por que e traicoeiro:** funciona, e por isso passa em revisao. Mas gasta cota do Asaas para
+reobter um retrato que ja esta guardado, e ainda pode acionar a regra de retrato velho num boleto
+que estava pronto para aprovacao. Pior: `AcceptsValidation` inclui `Approved`, e revalidar ali
+**derruba a aprovacao incondicionalmente** — um enriquecimento de fundo desfazendo em silencio a
+decisao de uma pessoa.
+
+**A regra:** reprocessamento parcial reapresenta os retratos **ja armazenados** como resultado
+resolvido e roda so a apuracao. E quando o dado chega depois de alguem ja ter decidido, ele e
+anexado como metadado e a verificacao NAO e refeita (`Bill.AcceptsSilentRevalidation`).
+
+## A guarda escrita para um caminho recusou o outro caminho inteiro (2026-08-28)
+
+**O que aconteceu:** `BillOrigin.Create` exigia ao menos um identificador — fonte, remetente,
+mensagem, arquivo ou hash. A regra nasceu junto com a captura por e-mail, onde sempre existe pelo
+menos um. A importação manual, porém, nasce **só com os dígitos**: quem cola a linha digitável não
+tem arquivo, nem remetente, nem mensagem. Resultado: **toda** importação feita pela tela de boletos
+respondia `BLP.BIL12`, desde o primeiro commit do BC.
+
+**Por que sobreviveu com a suíte verde:** os três testes de integração de `ManualUpload` mandavam
+`StorageKey` — inclusive o que se chama `PostImport_FromManualUpload_ShouldBeAcceptedWithoutASource`,
+que afirma sobre a ausência da **fonte de captura**, não sobre a ausência de identificador. A suíte
+testava exatamente o corpo que o aplicativo **não** monta.
+
+**A regra:** invariante que vale para um subconjunto das origens é **capacidade do Smart Enum**, não
+`if` no VO — `BillSourceKind.RequiresOriginIdentifier`, irmão do `RequiresCaptureSource` que já
+estava lá. E ao acrescentar guarda em VO compartilhado por mais de um caminho de entrada, escreva o
+teste com **o corpo que o cliente real manda**, não com o corpo mais completo que a API aceita.
+
+**Consequência honesta:** com o catálogo de hoje a `BLP.BIL12` ficou **inalcançável** — `Mailbox` e
+`Portal` exigem `SourceId`, e tê-lo já satisfaz a guarda. Ela fica como defesa em profundidade, no
+mesmo espírito de `BLP.BIL03`/`BLP.BIL04`, e volta a valer no dia em que existir um tipo de origem
+que dispense a fonte e ainda assim precise de rastro.
+
+## `[Required]` em record posicional vai no PARÂMETRO, nunca em `[property:]` (2026-08-28)
+
+**O que aconteceu:** o modelo do `multipart/form-data` da importação foi escrito com
+`[property: Required] DateTime? ReceivedAt`. Toda requisição com arquivo voltava **400**, com
+`InvalidOperationException` do MVC: *"Record type ... has validation metadata defined on property
+'ReceivedAt' that will be ignored. 'ReceivedAt' is a parameter in the record primary constructor
+and validation metadata must be associated with the constructor parameter."*
+
+**Por que é traiçoeiro:** não é aviso — o MVC **recusa o modelo inteiro**, e o 400 genérico lê como
+"o cliente mandou coisa errada". A forma `[property: JsonRequired]`, que o modelo JSON irmão usa
+duas linhas acima, está certa: o binder de JSON lê a propriedade, o de formulário usa o construtor.
+
+**A regra:** validação em record posicional é `[Required] Tipo Nome`, sem prefixo de alvo. E o
+defeito só apareceu porque o teste atravessa a **borda HTTP**: um teste que chamasse o handler pelo
+mediator nunca teria visto o binding — a mesma lição que `AttachArtifactEndpointTests` já registra.
+
+## O que o balde gravou não volta atrás com a transação do EF (2026-08-28)
+
+**O que aconteceu:** a importação com arquivo grava no `IAttachmentStorage` **antes** de compor a
+origem e capturar o boleto — a chave é dado da origem, então não há como inverter a ordem. Só que o
+balde está fora da transação implícita do EF: quando a captura recusa (reenviar o mesmo boleto é o
+engano mais comum e responde `BLP.BIL02`), o arquivo já estava gravado e ficaria órfão a cada
+tentativa.
+
+**A regra:** falha fechada em recurso externo à transação é **compensação explícita** — um
+`RemoveAsync` no `catch`, com `CancellationToken.None`, porque desistir da limpeza porque o request
+foi cancelado é justamente o que produz o órfão. Compare com `ConnectCaptureSourceCommandHandler`,
+que não precisa disso: lá o cofre grava pelo mesmo `DbContext`, e a unidade de trabalho desfaz tudo.

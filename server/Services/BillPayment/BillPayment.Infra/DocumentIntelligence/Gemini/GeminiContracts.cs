@@ -87,4 +87,6 @@ internal sealed record GeminiExtraction(
     [property: JsonPropertyName("accountReference")] string? AccountReference,
     [property: JsonPropertyName("amount")] string? Amount,
     [property: JsonPropertyName("dueDate")] string? DueDate,
+    [property: JsonPropertyName("billingPeriod")] string? BillingPeriod,
+    [property: JsonPropertyName("description")] string? Description,
     [property: JsonPropertyName("notes")] string? Notes);

@@ -43,6 +43,11 @@ public sealed record BillExpectationPage(IReadOnlyCollection<BillExpectationDto>
 /// Enquanto o adapter de e-mail não existir, é aqui que o alerta aparece — e ele existe porque o
 /// registro do alerta vive no agregado, não no canal.
 /// </remarks>
+/// <param name="IsOverdue">
+/// O vencimento previsto já passou. Vem projetado porque a tela precisa dele nas três listas —
+/// um artefato travado também pode estar vencido —, e recalcular "hoje" no cliente faria a tela
+/// discordar do servidor na virada do dia.
+/// </param>
 public sealed record PendingExpectationDto(
     Guid ExpectationId,
     Guid CycleId,
@@ -53,9 +58,20 @@ public sealed record PendingExpectationDto(
     string? MissReason,
     bool? Arrived,
     Guid? BlockedByCaptureItemId,
-    string? LastAlertLevel);
+    string? LastAlertLevel,
+    bool IsOverdue);
 
+/// <summary>
+/// O painel de pendências, separado pela ação que cada caso pede.
+/// </summary>
+/// <remarks>
+/// <strong><c>Missing</c> e <c>Overdue</c> são a mesma falha em dois momentos, e separá-las é
+/// regra de produto.</strong> Antes do vencimento a ação é "busque no portal, ainda dá tempo";
+/// depois dele há encargos correndo, e misturar as duas na mesma lista faz a segunda se perder
+/// no meio da primeira — que é como uma rede de segurança deixa de ser lida.
+/// </remarks>
 public sealed record PendingExpectationsView(
     IReadOnlyCollection<PendingExpectationDto> Missing,
+    IReadOnlyCollection<PendingExpectationDto> Overdue,
     IReadOnlyCollection<PendingExpectationDto> CaptureFailed,
     IReadOnlyCollection<PendingExpectationDto> DueSoon);

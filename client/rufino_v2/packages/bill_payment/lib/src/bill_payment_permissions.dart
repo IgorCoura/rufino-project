@@ -27,6 +27,16 @@ abstract final class BillPaymentResources {
   /// The tenant's payer profile (one per tenant). Scopes: view, manage.
   static const String payerProfile = 'payer-profile';
 
+  /// The capture log — one record per e-mail read. Scopes: view, recapture.
+  ///
+  /// **Recurso próprio, não um escopo de `capture-item`.** A quarentena é fila
+  /// de trabalho e só mostra o que ficou pendente; isto é histórico, e inclui o
+  /// e-mail que o sistema descartou — cujo item não existe mais.
+  static const String capturedMessage = 'captured-message';
+
+  /// The retention window of the capture log. Scopes: view, manage.
+  static const String captureRetention = 'capture-retention';
+
   /// A trusted or blocked sender. Scopes: view, manage.
   ///
   /// The authorization resource is named `origin` — singular, without the
@@ -71,6 +81,12 @@ abstract final class BillPaymentScopes {
   /// Dismiss an expectation cycle — silences the safety net, so it has its
   /// own scope.
   static const String waive = 'waive';
+
+  /// Wipe what the capture produced for one e-mail and pull it in again.
+  ///
+  /// Has its own scope because re-ingesting spends the vision extractor's daily
+  /// quota — the same reason that separated `capture-item:reprocess`.
+  static const String recapture = 'recapture';
 }
 
 /// Holds the permissions granted on the `bill-payment-api` audience.

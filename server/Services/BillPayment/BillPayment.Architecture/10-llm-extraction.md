@@ -9,12 +9,15 @@ Duas regras governam este documento:
 
 ## Onde ele entra
 
-**Passo 3 da cascata** de [`09-capture-channels.md`](09-capture-channels.md) — depois que o texto embutido falhou, antes da quarentena manual. Mais um uso barato de triagem antes disso.
+Dois papéis desde 2026-08-27 (decisão do usuário: **todo candidato a boleto passa pela IA**):
 
 | Uso | Quando roda |
 |---|---|
-| **Extração de documento** (PDF, imagem, screenshot de portal) | só quando o parser determinístico não resolveu |
-| **Triagem de mensagem** — é boleto? qual anexo? há link de fatura? | uma vez por mensagem ingerida; desligável por configuração |
+| **Degrau 3 da cascata** ([`09-capture-channels.md`](09-capture-channels.md)) | quando o parser determinístico não resolveu e há sinal de cobrança |
+| **Retrato de enriquecimento** (`Bill.Reading` — competência, descrição, pagador, referência de conta) | **sempre** que o artefato é candidato a boleto — inclusive quando o determinístico já resolveu. Uma chamada só cobre os dois papéis |
+| **Triagem de mensagem** — prevista no desenho original | **não implementada de propósito**: o filtro determinístico gratuito decide se vale gastar |
+
+O **corpo do e-mail** viaja junto do documento como parte de texto (`DocumentPayload.SupplementalText`, HTML convertido no adapter) — é dele que saem a competência e a descrição quando o boleto não as traz. O que volta vira `DocumentReading`: campos tipados e aparados, documentos fiscais só com DV provado, competência normalizada (`CompetencePeriod`). O retrato alimenta a tela (Resumo), o roteamento (o CNPJ do pagador lido sobe o degrau 1 para documento escaneado), o check 13 (`DocumentConsistency`, doc 03) e — única exceção deliberada ao "só conferência" — o **vencimento consolidado**, como última reserva atrás da consulta oficial e da linha digitável. `POST /bills/{id}/enrich` relê um boleto do acervo (backfill), um por chamada.
 
 ## O contrato — o que o BC conhece
 

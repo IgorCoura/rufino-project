@@ -52,7 +52,7 @@ public sealed class BillExpectationTests : BaseIntegrationTest
 
         var response = await SendAsync(new RegisterBillExpectationCommand(
             Tenant.Value, payeeId.Value, "18502", "DAE — Água Americana L18502",
-            nameof(Recurrence.Monthly), ExpectedDueDay: 10, ObservedLeadDays: 8, AlertLeadDays: null));
+            nameof(Recurrence.Monthly), ExpectedDueDay: 10, ObservedLeadDays: 8, AlertLeadDays: null, FirstDueDate: null, HintSourceId: null));
 
         Assert.Equal(10, response.AlertLeadDays);
 
@@ -90,13 +90,15 @@ public sealed class BillExpectationTests : BaseIntegrationTest
         Assert.Equal("BLP.EXP01", ex.Id);
     }
 
-    // A varredura abre o ciclo quando entra na janela de alerta, e não antes: abrir cedo demais
-    // encheria o painel de ciclos que ninguém pode resolver ainda.
+    // A varredura abre o ciclo quando entra na janela de CHEGADA — o prazo observado, não a
+    // antecedência do alerta. A vigilância é retroagida porque o piso de boas-vindas (o teste
+    // seguinte) impediria uma expectativa recém-cadastrada de abrir ciclo cujo alerta já passou.
     [Fact]
-    public async Task Sweep_WhenTheAlertWindowOpens_ShouldOpenTheCycle()
+    public async Task Sweep_WhenTheArrivalWindowOpens_ShouldOpenTheCycle()
     {
         var payeeId = await SeedPayeeAsync();
         var expectationId = await RegisterAsync(payeeId, "18502", dueDay: DateTime.UtcNow.Day);
+        await BackdateWatchingSinceAsync(expectationId, days: 60);
 
         var response = await SendAsync(new SweepBillExpectationCommand(Tenant.Value, expectationId.Value));
 
@@ -104,6 +106,22 @@ public sealed class BillExpectationTests : BaseIntegrationTest
 
         var stored = await LoadAsync(expectationId);
         Assert.Single(stored!.Cycles);
+    }
+
+    // TESTE-ANCORA do piso de boas-vindas: expectativa cadastrada HOJE, cuja data de alerta deste
+    // mês já passou, NÃO abre ciclo. Sem esta guarda a varredura o abriria só para marcá-lo como
+    // não cumprido no mesmo instante — um alerta falso sobre uma conta que ninguém pediu para
+    // vigiar, que é a classe de erro que treina a pessoa a ignorar alerta.
+    [Fact]
+    public async Task Sweep_WhenTheAlertDateAlreadyPassedAtRegistration_ShouldNotOpenACycle()
+    {
+        var payeeId = await SeedPayeeAsync();
+        var expectationId = await RegisterAsync(payeeId, "18502", dueDay: DateTime.UtcNow.Day);
+
+        var response = await SendAsync(new SweepBillExpectationCommand(Tenant.Value, expectationId.Value));
+
+        Assert.Equal("Idle", response.Outcome);
+        Assert.Empty((await LoadAsync(expectationId))!.Cycles);
     }
 
     // Passou do vencimento sem cumprimento: o ciclo vira Missing e o alerta é REGISTRADO no
@@ -194,10 +212,14 @@ public sealed class BillExpectationTests : BaseIntegrationTest
         Assert.Single((await LoadAsync(expectationId))!.Cycles);
     }
 
-    // O painel separa as três filas porque a ação do usuário muda: buscar, resolver o item, ou
-    // apenas se preparar. É o canal que funciona mesmo sem e-mail configurado.
+    // O painel separa as filas porque a ação do usuário muda: buscar, resolver o item, ou apenas
+    // se preparar. É o canal que funciona mesmo sem e-mail configurado.
+    //
+    // A conta não cumprida cujo vencimento JÁ PASSOU vai para `Overdue`, não para `Missing`: ali
+    // há encargos correndo e a ação deixa de ser "ainda dá tempo de buscar". Misturar as duas faz
+    // a vencida se perder no meio das outras, que é como uma rede de segurança deixa de ser lida.
     [Fact]
-    public async Task ListPending_ShouldSeparateMissingFromDueSoon()
+    public async Task ListPending_ShouldSeparateOverdueFromMissingAndDueSoon()
     {
         var payeeId = await SeedPayeeAsync();
         var expectationId = await SeedWithOverdueCycleAsync(payeeId);
@@ -209,10 +231,15 @@ public sealed class BillExpectationTests : BaseIntegrationTest
 
         var view = await queries.ListPendingAsync(Tenant.Value, dueSoonWindowDays: 7);
 
-        var pending = Assert.Single(view.Missing);
+        var pending = Assert.Single(view.Overdue);
         Assert.Equal(expectationId.Value, pending.ExpectationId);
         Assert.Equal(nameof(MissReason.NeverArrived), pending.MissReason);
         Assert.False(pending.Arrived);
+        Assert.True(pending.IsOverdue);
+
+        // A fila de "não chegou, mas ainda não venceu" fica vazia: o único ciclo não cumprido já
+        // passou do vencimento.
+        Assert.Empty(view.Missing);
         Assert.Empty(view.CaptureFailed);
     }
 
@@ -265,6 +292,163 @@ public sealed class BillExpectationTests : BaseIntegrationTest
         Assert.Same(AlertLevel.Overdue, cycle.Alerts.First().Level);
     }
 
+    // A edicao grava os campos novos e sobrevive ao round-trip pelo banco.
+    [Fact]
+    public async Task Edit_ShouldReplaceEveryEditableFieldAndPersist()
+    {
+        var payeeId = await SeedPayeeAsync();
+        var expectationId = await RegisterAsync(payeeId, "18502", dueDay: 10);
+
+        await SendAsync(new EditBillExpectationCommand(
+            Tenant.Value, expectationId.Value, "2748", "DAE - Agua Americana L2748",
+            nameof(Recurrence.Bimonthly), ExpectedDueDay: 25, ObservedLeadDays: 12, AlertLeadDays: 15, FirstDueDate: null));
+
+        var stored = await LoadAsync(expectationId);
+
+        Assert.Equal("2748", stored!.AccountReference);
+        Assert.Equal("DAE - Agua Americana L2748", stored.Label);
+        Assert.Same(Recurrence.Bimonthly, stored.Recurrence);
+        Assert.Equal(25, stored.ExpectedDueDay);
+        Assert.Equal(12, stored.ObservedLeadDays);
+        Assert.Equal(15, stored.AlertLeadDays);
+    }
+
+    // O beneficiario NAO e editavel: nao entra no comando, entao ele permanece o que era. Quem
+    // precisa trocar exclui e cadastra de novo.
+    [Fact]
+    public async Task Edit_ShouldNeverChangeThePayee()
+    {
+        var payeeId = await SeedPayeeAsync();
+        var expectationId = await RegisterAsync(payeeId, "18502", dueDay: 10);
+
+        await EditAsync(expectationId, "2748", dueDay: 25);
+
+        Assert.Equal(payeeId, (await LoadAsync(expectationId))!.PayeeId);
+    }
+
+    // TESTE-ANCORA do parametro `excluding`: editar sem mexer na referencia nao pode colidir com a
+    // propria linha. Sem ele o indice unico do banco devolveria erro cru no lugar do BLP.EXP01 -
+    // ou seja, editar so o rotulo ficaria impossivel.
+    [Fact]
+    public async Task Edit_KeepingTheSameAccountReference_ShouldNotCollideWithItself()
+    {
+        var payeeId = await SeedPayeeAsync();
+        var expectationId = await RegisterAsync(payeeId, "18502", dueDay: 10);
+
+        await EditAsync(expectationId, "18502", dueDay: 10, label: "DAE - rotulo corrigido");
+
+        Assert.Equal("DAE - rotulo corrigido", (await LoadAsync(expectationId))!.Label);
+    }
+
+    // Mas mudar a referencia para a de uma conta IRMA do mesmo beneficiario colide - BLP.EXP01. E
+    // a mesma invariante do cadastro, conferida do lado da edicao.
+    [Fact]
+    public async Task Edit_ToAnAccountReferenceOfASibling_ShouldThrow_BLP_EXP01()
+    {
+        var payeeId = await SeedPayeeAsync();
+        await RegisterAsync(payeeId, "18502", dueDay: 10);
+        var second = await RegisterAsync(payeeId, "2748", dueDay: 20);
+
+        var ex = await Assert.ThrowsAsync<DomainException>(
+            () => EditAsync(second, "18502", dueDay: 20));
+
+        Assert.Equal("BLP.EXP01", ex.Id);
+    }
+
+    // A edicao reposiciona o ciclo que ainda espera, e a coleção owned volta do banco com as datas
+    // novas - e onde um owned mal rastreado apareceria.
+    [Fact]
+    public async Task Edit_ShouldRescheduleTheWaitingCycleInTheDatabase()
+    {
+        var payeeId = await SeedPayeeAsync();
+        var expectationId = await SeedWithOverdueCycleAsync(payeeId);
+
+        await EditAsync(expectationId, "18502", dueDay: 25, alertLeadDays: 5);
+
+        var cycle = OverdueCycleOf(await LoadAsync(expectationId));
+
+        Assert.Equal(new DateOnly(2026, 7, 25), cycle.ExpectedDueDate);
+        Assert.Equal(new DateOnly(2026, 7, 20), cycle.AlertAt);
+    }
+
+    // Expectativa de outro tenant nao existe para quem edita - BLP.EXP00, nunca uma mensagem que
+    // confirme a existencia dela.
+    [Fact]
+    public async Task Edit_OfAnotherTenant_ShouldThrow_BLP_EXP00()
+    {
+        var payeeId = await SeedPayeeAsync();
+        var expectationId = await RegisterAsync(payeeId, "18502", dueDay: 10);
+
+        var ex = await Assert.ThrowsAsync<DomainException>(() => SendAsync(
+            new EditBillExpectationCommand(
+                Guid.NewGuid(), expectationId.Value, "18502", "Conta alheia",
+                nameof(Recurrence.Monthly), ExpectedDueDay: 10, ObservedLeadDays: 8, AlertLeadDays: null, FirstDueDate: null)));
+
+        Assert.Equal("BLP.EXP00", ex.Id);
+    }
+
+    // TESTE-ANCORA da exclusao: a expectativa some E os ciclos vao junto, porque sao colecao owned
+    // da raiz. Linha orfa em bill_expectation_cycles seria historico de uma conta que nao existe.
+    [Fact]
+    public async Task Delete_ShouldRemoveTheExpectationAndItsCycles()
+    {
+        var payeeId = await SeedPayeeAsync();
+        var expectationId = await SeedWithOverdueCycleAsync(payeeId);
+
+        Assert.NotEqual(0, await CountCyclesAsync(expectationId));
+
+        await SendAsync(new DeleteBillExpectationCommand(Tenant.Value, expectationId.Value));
+
+        Assert.Null(await LoadAsync(expectationId));
+        Assert.Equal(0, await CountCyclesAsync(expectationId));
+    }
+
+    // Excluir e recadastrar com o mesmo beneficiario e a mesma referencia funciona - e o caminho
+    // que substitui a edicao de beneficiario.
+    [Fact]
+    public async Task Delete_ThenRegisterTheSameAccountAgain_ShouldBeAccepted()
+    {
+        var payeeId = await SeedPayeeAsync();
+        var first = await RegisterAsync(payeeId, "18502", dueDay: 10);
+
+        await SendAsync(new DeleteBillExpectationCommand(Tenant.Value, first.Value));
+        var second = await RegisterAsync(payeeId, "18502", dueDay: 10);
+
+        Assert.NotEqual(first, second);
+        Assert.NotNull(await LoadAsync(second));
+    }
+
+    // Excluir expectativa de outro tenant nao alcanca nada - BLP.EXP00, e a linha continua no banco.
+    [Fact]
+    public async Task Delete_OfAnotherTenant_ShouldThrow_BLP_EXP00AndKeepTheRow()
+    {
+        var payeeId = await SeedPayeeAsync();
+        var expectationId = await RegisterAsync(payeeId, "18502", dueDay: 10);
+
+        var ex = await Assert.ThrowsAsync<DomainException>(() => SendAsync(
+            new DeleteBillExpectationCommand(Guid.NewGuid(), expectationId.Value)));
+
+        Assert.Equal("BLP.EXP00", ex.Id);
+        Assert.NotNull(await LoadAsync(expectationId));
+    }
+
+    private Task<int> CountCyclesAsync(BillExpectationId expectationId)
+        => ExecuteDbContextAsync(db => db.BillExpectations
+            .AsNoTracking()
+            .Where(e => e.Id == expectationId)
+            .SelectMany(e => e.Cycles)
+            .CountAsync());
+
+    private Task<EditBillExpectationResponse> EditAsync(
+        BillExpectationId expectationId,
+        string reference,
+        int dueDay,
+        string? label = null,
+        int? alertLeadDays = null)
+        => SendAsync(new EditBillExpectationCommand(
+            Tenant.Value, expectationId.Value, reference, label ?? $"Conta {reference}",
+            nameof(Recurrence.Monthly), dueDay, ObservedLeadDays: 8, AlertLeadDays: alertLeadDays, FirstDueDate: null));
+
     /// <summary>
     /// O ciclo semeado como atrasado (julho/2026). A varredura abre também o do mês corrente, e
     /// é sobre o mais antigo em aberto que ela age.
@@ -290,7 +474,7 @@ public sealed class BillExpectationTests : BaseIntegrationTest
     {
         var response = await SendAsync(new RegisterBillExpectationCommand(
             Tenant.Value, payeeId.Value, reference, $"Conta {reference}",
-            nameof(Recurrence.Monthly), dueDay, ObservedLeadDays: 8, AlertLeadDays: null));
+            nameof(Recurrence.Monthly), dueDay, ObservedLeadDays: 8, AlertLeadDays: null, FirstDueDate: null, HintSourceId: null));
 
         return BillExpectationId.From(response.Id);
     }
@@ -299,6 +483,20 @@ public sealed class BillExpectationTests : BaseIntegrationTest
     /// Uma expectativa com um ciclo cujo vencimento já passou, semeado direto pelo agregado — a
     /// varredura não tem como fabricar passado, e o domínio não lê relógio.
     /// </summary>
+    /// <summary>
+    /// Retroage o início da vigilância, para exercitar a varredura de uma expectativa que já
+    /// existia — em vez de uma recém-cadastrada, que o piso de boas-vindas protege.
+    /// </summary>
+    /// <remarks>
+    /// Por SQL porque <c>WatchingSince</c> não tem setter público, e não deve ter: quem o move é
+    /// o próprio agregado, ao nascer e ao retomar de uma pausa.
+    /// </remarks>
+    private async Task BackdateWatchingSinceAsync(BillExpectationId expectationId, int days)
+        => await ExecuteDbContextAsync(db => db.Database.ExecuteSqlRawAsync(
+            "UPDATE bill_payment.bill_expectations SET watching_since = watching_since - INTERVAL '{0} days' WHERE id = '{1}'"
+                .Replace("{0}", days.ToString(System.Globalization.CultureInfo.InvariantCulture), StringComparison.Ordinal)
+                .Replace("{1}", expectationId.Value.ToString(), StringComparison.Ordinal)));
+
     private async Task<BillExpectationId> SeedWithOverdueCycleAsync(PayeeId payeeId)
     {
         var expectationId = await RegisterAsync(payeeId, "18502", dueDay: 10);

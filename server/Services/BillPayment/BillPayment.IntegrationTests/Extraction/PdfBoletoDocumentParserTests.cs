@@ -1,4 +1,4 @@
-namespace BillPayment.IntegrationTests.Extraction;
+﻿namespace BillPayment.IntegrationTests.Extraction;
 
 using System.Text;
 using BillPayment.Domain.CaptureItems;
@@ -45,7 +45,7 @@ public sealed class PdfBoletoDocumentParserTests
     {
         var pdf = PdfWith("Banco Itau S.A.", BankSlip, "Valor: 615,07");
 
-        var result = await Build().ParseAsync(pdf, "application/pdf", [], Today, CancellationToken.None);
+        var result = await Build().ParseAsync(pdf, "application/pdf", [], knownTaxIds: [], Today, CancellationToken.None);
 
         Assert.True(result.Resolved);
         Assert.Same(ExtractionMethod.EmbeddedText, result.Method);
@@ -60,7 +60,7 @@ public sealed class PdfBoletoDocumentParserTests
     {
         var pdf = PdfWith("Contrato de locacao", "Clausula primeira", "CNPJ 12.345.678/0001-90");
 
-        var result = await Build().ParseAsync(pdf, "application/pdf", [], Today, CancellationToken.None);
+        var result = await Build().ParseAsync(pdf, "application/pdf", [], knownTaxIds: [], Today, CancellationToken.None);
 
         Assert.False(result.Resolved);
         Assert.Equal("no_instrument_in_document", result.ReasonCode);
@@ -74,7 +74,7 @@ public sealed class PdfBoletoDocumentParserTests
     {
         var naoPdf = Encoding.UTF8.GetBytes("PK isto e um zip");
 
-        var result = await Build().ParseAsync(naoPdf, "application/pdf", [], Today, CancellationToken.None);
+        var result = await Build().ParseAsync(naoPdf, "application/pdf", [], knownTaxIds: [], Today, CancellationToken.None);
 
         Assert.False(result.Resolved);
         Assert.Equal("not_a_pdf", result.ReasonCode);
@@ -85,7 +85,7 @@ public sealed class PdfBoletoDocumentParserTests
     public async Task Parse_WithEmptyContent_ShouldReportNotAPdf()
     {
         var result = await Build().ParseAsync(
-            ReadOnlyMemory<byte>.Empty, "application/pdf", [], Today, CancellationToken.None);
+            ReadOnlyMemory<byte>.Empty, "application/pdf", [], knownTaxIds: [], Today, CancellationToken.None);
 
         Assert.False(result.Resolved);
         Assert.Equal("not_a_pdf", result.ReasonCode);
@@ -100,7 +100,7 @@ public sealed class PdfBoletoDocumentParserTests
 
         var pdf = PdfWith(BankSlip, brCode);
 
-        var result = await Build().ParseAsync(pdf, "application/pdf", [], Today, CancellationToken.None);
+        var result = await Build().ParseAsync(pdf, "application/pdf", [], knownTaxIds: [], Today, CancellationToken.None);
 
         Assert.True(result.Resolved);
         Assert.Equal(2, result.Instruments.Count);
@@ -113,9 +113,34 @@ public sealed class PdfBoletoDocumentParserTests
         var pdf = PdfWith(BankSlip);
         var candidatas = new[] { PasswordCandidate.From("12345678", "cnpj_first_8") };
 
-        var result = await Build().ParseAsync(pdf, "application/pdf", candidatas, Today, CancellationToken.None);
+        var result = await Build().ParseAsync(pdf, "application/pdf", candidatas, knownTaxIds: [], Today, CancellationToken.None);
 
         Assert.True(result.Resolved);
         Assert.Null(result.UnlockedBy);
+    }
+
+    // Documento que já abre sem senha não tem cópia a produzir — e devolver uma reescreveria um
+    // arquivo bom sem motivo. Nulo é "siga com o original", que é o contrato da porta.
+    [Fact]
+    public async Task Unlock_WithUnencryptedPdf_ShouldReturnNothingToDo()
+    {
+        var pdf = PdfWith(BankSlip);
+        var candidatas = new[] { PasswordCandidate.From("12345678", "cnpj_first_8") };
+
+        var clear = await Build().UnlockAsync(pdf, "application/pdf", candidatas, CancellationToken.None);
+
+        Assert.Null(clear);
+    }
+
+    // O que não é PDF não passa por aqui: a porta serve à cifra do PDF, e tentar abrir outra
+    // coisa só gastaria trabalho para chegar ao mesmo "siga com o original".
+    [Fact]
+    public async Task Unlock_WithSomethingThatIsNotAPdf_ShouldReturnNothingToDo()
+    {
+        var texto = Encoding.UTF8.GetBytes("<html><body>não é PDF</body></html>");
+
+        var clear = await Build().UnlockAsync(texto, "text/html", [], CancellationToken.None);
+
+        Assert.Null(clear);
     }
 }

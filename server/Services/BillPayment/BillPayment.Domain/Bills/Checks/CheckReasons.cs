@@ -1,4 +1,4 @@
-namespace BillPayment.Domain.Bills.Checks;
+﻿namespace BillPayment.Domain.Bills.Checks;
 
 /// <summary>
 /// Códigos de motivo dos checks.
@@ -65,6 +65,19 @@ public static class CheckReasons
     public const string PAYER_NOT_EXTRACTABLE = "payer_not_extractable";
     public const string PAYER_PROFILE_MISSING = "payer_profile_missing";
 
+    /// <summary>
+    /// O documento fiscal atribuído ao pagador está <strong>dentro</strong> do código de barras,
+    /// e não impresso como campo. Coincidência de dígitos, não identificação — a atribuição do
+    /// boleto se apoiou em nada.
+    /// </summary>
+    public const string PAYER_ONLY_INSIDE_BARCODE = "payer_only_inside_barcode";
+
+    /// <summary>
+    /// O beneficiário da cobrança é o próprio pagador. Ninguém emite boleto contra si mesmo:
+    /// ou a consulta oficial descreve outro título, ou o documento foi adulterado.
+    /// </summary>
+    public const string PAYEE_IS_THE_PAYER = "payee_is_the_payer";
+
     // Origem.
     public const string ORIGIN_UNKNOWN = "origin_unknown";
     public const string ORIGIN_BLOCKED = "origin_blocked";
@@ -89,4 +102,11 @@ public static class CheckReasons
     public const string SINGLE_RAIL_DOCUMENT = "single_rail_document";
     public const string PIX_QR_NOT_PAYABLE = "pix_qr_not_payable";
     public const string STATIC_QR_WITHOUT_AMOUNT = "static_qr_without_amount";
+    // 13. DocumentConsistency
+    public const string READING_NOT_AVAILABLE = "reading_not_available";
+    public const string DOCUMENT_PAYEE_MISMATCH = "document_payee_mismatch";
+    public const string DOCUMENT_AMOUNT_DIVERGENCE = "document_amount_divergence";
+    public const string DOCUMENT_DUE_DATE_DIVERGENCE = "document_due_date_divergence";
+    public const string OFFICIAL_IDENTITY_NOT_AVAILABLE = "official_identity_not_available";
+    public const string NOTHING_COMPARABLE = "nothing_comparable";
 }

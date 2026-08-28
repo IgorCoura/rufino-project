@@ -1,4 +1,4 @@
-namespace BillPayment.Domain.Mailboxes;
+﻿namespace BillPayment.Domain.Mailboxes;
 
 using BillPayment.Domain.SeedWork;
 
@@ -106,10 +106,30 @@ public sealed class MailboxReadResult : MailboxResult
     /// </summary>
     public string? NextCursor { get; }
 
+    /// <summary>
+    /// A caixa tem mais páginas esperando: esta varredura parou no teto, não no fim.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <strong>Existe para o agendador não dormir sobre trabalho pendente.</strong> A varredura
+    /// incremental do provedor enumera <em>do mais antigo para o mais novo</em> e devolve um teto
+    /// de páginas por chamada. Numa caixa grande — 12.422 mensagens, medido em 2026-08-26 — parar
+    /// no teto e esperar o intervalo normal faz a mensagem NOVA levar horas para ser alcançada,
+    /// porque ela está no fim da enumeração. Com este sinal o agendador emenda a próxima
+    /// varredura e a caixa é alcançada em minutos.
+    /// </para>
+    /// <para>
+    /// Falso não quer dizer "caixa vazia": quer dizer que esta rodada chegou ao fim do que havia
+    /// para ler.
+    /// </para>
+    /// </remarks>
+    public bool HasMorePages { get; }
+
     private MailboxReadResult(
         MailboxStatus status,
         List<MailboxMessage> messages,
         string? nextCursor,
+        bool hasMorePages,
         string? reasonCode,
         string? providerMessage,
         DateTimeOffset attemptedAt)
@@ -117,28 +137,31 @@ public sealed class MailboxReadResult : MailboxResult
     {
         _messages = messages;
         NextCursor = nextCursor;
+        HasMorePages = hasMorePages;
     }
 
     public static MailboxReadResult Ok(
         IEnumerable<MailboxMessage> messages,
         string? nextCursor,
-        DateTimeOffset attemptedAt)
+        DateTimeOffset attemptedAt,
+        bool hasMorePages = false)
     {
         ArgumentNullException.ThrowIfNull(messages);
 
         return new MailboxReadResult(
-            MailboxStatus.Ok, messages.ToList(), nextCursor, reasonCode: null, providerMessage: null, attemptedAt);
+            MailboxStatus.Ok, messages.ToList(), nextCursor, hasMorePages,
+            reasonCode: null, providerMessage: null, attemptedAt);
     }
 
     public static MailboxReadResult Denied(string reasonCode, string? providerMessage, DateTimeOffset attemptedAt)
-        => new(MailboxStatus.Denied, [], nextCursor: null, reasonCode, providerMessage, attemptedAt);
+        => new(MailboxStatus.Denied, [], nextCursor: null, hasMorePages: false, reasonCode, providerMessage, attemptedAt);
 
     /// <summary>O provedor invalidou o cursor. A resposta é descartá-lo, não retentar igual.</summary>
     public static MailboxReadResult CursorExpired(string reasonCode, string? providerMessage, DateTimeOffset attemptedAt)
-        => new(MailboxStatus.CursorExpired, [], nextCursor: null, reasonCode, providerMessage, attemptedAt);
+        => new(MailboxStatus.CursorExpired, [], nextCursor: null, hasMorePages: false, reasonCode, providerMessage, attemptedAt);
 
     public static MailboxReadResult Unavailable(string reasonCode, string? providerMessage, DateTimeOffset attemptedAt)
-        => new(MailboxStatus.Unavailable, [], nextCursor: null, reasonCode, providerMessage, attemptedAt);
+        => new(MailboxStatus.Unavailable, [], nextCursor: null, hasMorePages: false, reasonCode, providerMessage, attemptedAt);
 
     protected override IEnumerable<object?> GetEqualityComponents()
     {
@@ -146,6 +169,7 @@ public sealed class MailboxReadResult : MailboxResult
             yield return component;
 
         yield return NextCursor;
+        yield return HasMorePages;
 
         foreach (var message in _messages)
             yield return message;

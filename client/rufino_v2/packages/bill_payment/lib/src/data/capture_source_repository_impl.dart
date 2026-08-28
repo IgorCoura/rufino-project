@@ -78,6 +78,7 @@ class CaptureSourceRepositoryImpl implements CaptureSourceRepository {
     required String address,
     required GraphCredentialInput credential,
     String? folderPath,
+    DateTime? captureSince,
   }) {
     return _guard(
       () => apiService.connectSource(
@@ -85,6 +86,7 @@ class CaptureSourceRepositoryImpl implements CaptureSourceRepository {
         address: address,
         credential: credential,
         folderPath: folderPath,
+        captureSince: captureSince,
       ),
       context: {'op': 'connectSource'},
     );
@@ -117,6 +119,13 @@ class CaptureSourceRepositoryImpl implements CaptureSourceRepository {
   Future<Result<SyncOutcome>> syncSource(String id) => _guard(
         () => apiService.syncSource(id),
         context: {'op': 'syncSource', 'sourceId': id},
+      );
+
+  @override
+  Future<Result<void>> changeCaptureSince(String id, DateTime? captureSince) =>
+      _guard(
+        () => apiService.changeCaptureSince(id, captureSince),
+        context: {'op': 'changeCaptureSince', 'sourceId': id},
       );
 
   @override

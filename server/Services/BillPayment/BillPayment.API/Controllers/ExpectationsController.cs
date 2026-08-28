@@ -1,4 +1,4 @@
-namespace BillPayment.API.Controllers;
+﻿namespace BillPayment.API.Controllers;
 
 using BillPayment.API.Authorization;
 using BillPayment.Application.Expectations.Commands;
@@ -93,6 +93,69 @@ public sealed class ExpectationsController(
         SendingCommandLog(tenantId, command, identified.Id);
         var result = await mediator.Send(identified, cancellationToken);
         CommandResultLog(result, tenantId, command, identified.Id);
+
+        return OkResponse(result);
+    }
+
+    /// <summary>
+    /// Corrige o cadastro — tudo menos o beneficiário.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <strong>O beneficiário não é editável, e isso é regra de produto.</strong> Trocá-lo
+    /// descreveria outra expectativa, não esta corrigida, e os ciclos já abertos passariam a
+    /// esperar uma conta que nunca teve relação com eles. Para trocar, exclua e cadastre de novo.
+    /// </para>
+    /// <para>
+    /// Editar torna a expectativa <c>Manual</c> mesmo que ela tenha nascido do histórico, e
+    /// reposiciona os ciclos que <em>ainda esperam</em> — nunca os que já se pronunciaram. Ver
+    /// <c>BillExpectation.Reconfigure</c>.
+    /// </para>
+    /// </remarks>
+    [HttpPut("{id:guid}")]
+    [ProtectedResource("expectation", "manage")]
+    public async Task<ActionResult<EditBillExpectationResponse>> Edit(
+        [FromRoute] Guid tenantId,
+        [FromRoute] Guid id,
+        [FromBody] EditBillExpectationModel model,
+        [FromHeader(Name = "x-requestid")] Guid requestId,
+        CancellationToken cancellationToken)
+    {
+        var command = model.ToCommand(tenantId, id);
+        var identified = new IdentifiedCommand<EditBillExpectationCommand, EditBillExpectationResponse>(
+            command, EnsureRequestId(requestId));
+
+        SendingCommandLog(id, command, identified.Id);
+        var result = await mediator.Send(identified, cancellationToken);
+        CommandResultLog(result, id, command, identified.Id);
+
+        return OkResponse(result);
+    }
+
+    /// <summary>
+    /// Apaga a expectativa e o histórico de ciclos dela.
+    /// </summary>
+    /// <remarks>
+    /// <strong>Excluir não é "nunca mais".</strong> Uma expectativa aprendida pode voltar a ser
+    /// aprendida no próximo boleto aprovado daquele beneficiário — é a auto-cura do ADR-014.
+    /// Quem quer parar de monitorar de vez desativa por <c>PUT /{id}/watch</c>, que deixa a
+    /// decisão registrada.
+    /// </remarks>
+    [HttpDelete("{id:guid}")]
+    [ProtectedResource("expectation", "manage")]
+    public async Task<ActionResult<DeleteBillExpectationResponse>> Delete(
+        [FromRoute] Guid tenantId,
+        [FromRoute] Guid id,
+        [FromHeader(Name = "x-requestid")] Guid requestId,
+        CancellationToken cancellationToken)
+    {
+        var command = new DeleteBillExpectationCommand(tenantId, id);
+        var identified = new IdentifiedCommand<DeleteBillExpectationCommand, DeleteBillExpectationResponse>(
+            command, EnsureRequestId(requestId));
+
+        SendingCommandLog(id, command, identified.Id);
+        var result = await mediator.Send(identified, cancellationToken);
+        CommandResultLog(result, id, command, identified.Id);
 
         return OkResponse(result);
     }

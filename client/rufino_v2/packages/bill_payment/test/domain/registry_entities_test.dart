@@ -83,33 +83,24 @@ void main() {
   });
 
   group('PendingExpectationsView', () {
-    test('counts action only on the missing and capture-failed lists', () {
+    // Vencida tambem conta como acao: ha encargos correndo. So "vence em
+    // breve" e antecedencia, e por isso fica de fora da contagem.
+    test('counts action on missing, overdue and capture-failed lists', () {
       final view = PendingExpectationsView(
         missing: [_pending()],
+        overdue: [_pending()],
         captureFailed: [_pending(), _pending()],
         dueSoon: [_pending()],
       );
 
-      expect(view.actionableCount, 3);
+      expect(view.actionableCount, 4);
       expect(view.isEmpty, isFalse);
       expect(const PendingExpectationsView.empty().isEmpty, isTrue);
     });
   });
 
-  group('AmountPolicy', () {
-    test('summarizes each policy kind for the list row', () {
-      const fixed = AmountPolicy(
-        kind: AmountPolicyKinds.fixed,
-        isConclusive: true,
-        expectedAmount: 150,
-      );
-      const unbounded =
-          AmountPolicy(kind: AmountPolicyKinds.unbounded, isConclusive: false);
-
-      expect(fixed.summary, contains('150.00'));
-      expect(unbounded.summary, 'Sem limite de valor');
-    });
-  });
+  // A redação da política é da UI, e vive em ui/shared/amount_policy_view.dart
+  // — o domínio guarda os fatos. Coberta por payee_amount_policy_test.dart.
 }
 
 CaptureSource _source({required int folderCount}) {

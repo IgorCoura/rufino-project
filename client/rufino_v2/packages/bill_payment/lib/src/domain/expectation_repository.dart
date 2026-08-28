@@ -35,6 +35,28 @@ abstract class ExpectationRepository {
     int? alertLeadDays,
   });
 
+  /// Edits an expectation — everything but the payee.
+  ///
+  /// The payee is deliberately absent: changing it would describe a
+  /// different expectation, not this one corrected, and the cycles already
+  /// open would start waiting for an account they never related to. To
+  /// change it, delete and register again.
+  Future<Result<void>> editExpectation(
+    String id, {
+    required String label,
+    required String recurrence,
+    required int expectedDueDay,
+    required int observedLeadDays,
+    String? accountReference,
+    int? alertLeadDays,
+  });
+
+  /// Deletes the expectation and the cycle history that came with it.
+  ///
+  /// A learned expectation may be learned again from the next approved bill
+  /// of that payee — to stop watching for good, deactivate via [alterWatch].
+  Future<Result<void>> deleteExpectation(String id);
+
   /// Pauses, resumes or deactivates the watch.
   Future<Result<void>> alterWatch(
     String id, {

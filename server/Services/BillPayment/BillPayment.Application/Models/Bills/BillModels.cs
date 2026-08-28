@@ -1,5 +1,6 @@
 namespace BillPayment.Application.Models.Bills;
 
+using System.ComponentModel.DataAnnotations;
 using System.Text.Json.Serialization;
 using BillPayment.Application.Bills.Commands;
 
@@ -38,14 +39,77 @@ public sealed record ImportBillModel(
 }
 
 /// <summary>
+/// A mesma importação, quando ela carrega o arquivo do boleto e chega como
+/// <c>multipart/form-data</c>.
+/// </summary>
+/// <remarks>
+/// <para>
+/// É um modelo separado porque o binder de formulário não é o de JSON: <c>[JsonRequired]</c>
+/// não vale aqui, e um <c>DateTime</c> não-anulável ausente viraria <c>default</c> — o ano 1
+/// gravado como data de recebimento, em silêncio. <c>DateOnly?</c> mais <c>[Required]</c> é o
+/// que faz o binder recusar a omissão em vez de inventar um valor.
+/// </para>
+/// <para>
+/// <strong>O arquivo não vem por aqui.</strong> <c>IFormFile</c> é tipo do ASP.NET Core, e a
+/// Application não conhece a borda HTTP: o controller lê os bytes e os entrega ao
+/// <c>ToCommand</c>.
+/// </para>
+/// <para>
+/// <strong><c>[Required]</c> fica no PARÂMETRO, não na propriedade.</strong> Num record posicional
+/// o MVC recusa o modelo inteiro — com <c>InvalidOperationException</c>, não com 400 — quando a
+/// validação é declarada em <c>[property: …]</c>, porque é o construtor primário que ele usa para
+/// vincular. Escrito do jeito errado, toda importação com arquivo respondia 400 genérico.
+/// </para>
+/// </remarks>
+public sealed record ImportBillFormModel(
+    string? DigitableLine,
+    string? PixPayload,
+    [Required] string? SourceKind,
+    [Required] DateTime? ReceivedAt,
+    Guid? SourceId,
+    string? SenderAddress,
+    string? ExternalMessageId)
+{
+    public ImportBillCommand ToCommand(
+        Guid tenantId,
+        ReadOnlyMemory<byte> document,
+        string? documentContentType,
+        string? documentFileName)
+        => new(
+            tenantId,
+            DigitableLine,
+            PixPayload,
+            SourceKind!,
+            ReceivedAt!.Value,
+            SourceId,
+            SenderAddress,
+            ExternalMessageId,
+
+            // Hash e chave de armazenamento do arquivo são produzidos pelo handler, que é quem
+            // grava — aceitá-los do cliente deixaria a evidência de origem descrever um arquivo
+            // que ninguém guardou.
+            ContentHash: null,
+            StorageKey: null,
+            document,
+            documentContentType,
+            documentFileName);
+}
+
+/// <summary>
 /// A data de pagamento é escolha do aprovador, e por isso vem no corpo. Quem decide é resolvido
 /// do token (ou, nesta fase, do header) — nunca do body, para não ser possível aprovar em nome
 /// de outra pessoa.
 /// </summary>
-public sealed record ApproveBillModel([property: JsonRequired] DateOnly ScheduleFor, string? Note)
+/// <param name="AcknowledgeRisk">
+/// ADR-015: <c>true</c> declara que o aprovador viu a classificação Perigo e decide mesmo assim.
+/// </param>
+public sealed record ApproveBillModel(
+    [property: JsonRequired] DateOnly ScheduleFor,
+    string? Note,
+    bool AcknowledgeRisk = false)
 {
     public ApproveBillCommand ToCommand(Guid tenantId, Guid billId, Guid decidedBy)
-        => new(tenantId, billId, decidedBy, ScheduleFor, Note);
+        => new(tenantId, billId, decidedBy, ScheduleFor, Note, AcknowledgeRisk);
 }
 
 public sealed record BillDecisionModel([property: JsonRequired] string Reason)

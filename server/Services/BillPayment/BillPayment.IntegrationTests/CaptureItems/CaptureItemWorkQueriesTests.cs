@@ -1,4 +1,4 @@
-namespace BillPayment.IntegrationTests.CaptureItems;
+﻿namespace BillPayment.IntegrationTests.CaptureItems;
 
 using BillPayment.Application.Queries.CaptureItems;
 using BillPayment.Domain.CaptureItems;
@@ -85,16 +85,59 @@ public sealed class CaptureItemWorkQueriesTests : BaseIntegrationTest
         Assert.Empty(await ListAsync(10));
     }
 
+    // TESTE DE REGRESSÃO (2026-08-26): reivindicar tira o item da fila para os outros workers.
+    // Sem isto, dois ciclos concorrentes pegavam o mesmo artefato e o processavam em duplicidade
+    // — origem dos BLP.CPI03 de 'Promoted -> Parsed' observados em produção.
+    [Fact]
+    public async Task ClaimPending_ShouldNotHandTheSameItemTwice()
+    {
+        await SeedAsync("disputado.pdf", OccurredAt);
+
+        var primeiro = await ListAsync(10);
+        var segundo = await ListAsync(10);
+
+        Assert.Single(primeiro);
+        Assert.Empty(segundo);
+    }
+
+    // O aluguel vence sozinho: um worker que morre no meio não segura o artefato para sempre.
+    // É o que substitui o faxineiro que outras filas precisam ter.
+    [Fact]
+    public async Task ClaimPending_WhenTheLeaseHasExpired_ShouldHandTheItemAgain()
+    {
+        await SeedAsync("abandonado.pdf", OccurredAt);
+
+        await ClaimAsync(10, DateTimeOffset.UtcNow.AddSeconds(-30));
+
+        Assert.Single(await ListAsync(10));
+    }
+
+    // A reivindicação conta a tentativa na saída da fila, e é esse contador que limita o laço.
+    [Fact]
+    public async Task ClaimPending_ShouldCountTheAttempt()
+    {
+        var id = await SeedAsync("contado.pdf", OccurredAt);
+
+        await ClaimAsync(10, DateTimeOffset.UtcNow.AddSeconds(-30));
+        await ClaimAsync(10, DateTimeOffset.UtcNow.AddSeconds(-30));
+
+        var item = await ExecuteDbContextAsync(db => db.CaptureItems.FindAsync(id).AsTask());
+        Assert.Equal(2, item!.ProcessingAttempts);
+    }
+
     /// <remarks>
     /// <c>await</c> aqui não é estilo: devolver a <c>Task</c> sem esperar faria o <c>using</c>
     /// descartar o escopo — e a conexão — antes de a consulta terminar.
     /// </remarks>
-    private async Task<IReadOnlyList<PendingCaptureItem>> ListAsync(int limit)
+    private Task<IReadOnlyList<PendingCaptureItem>> ListAsync(int limit)
+        => ClaimAsync(limit, DateTimeOffset.UtcNow.AddMinutes(5));
+
+    private async Task<IReadOnlyList<PendingCaptureItem>> ClaimAsync(int limit, DateTimeOffset leaseUntil)
     {
         using var scope = Factory.Services.CreateScope();
         var queries = scope.ServiceProvider.GetRequiredService<ICaptureItemWorkQueries>();
 
-        return await queries.ListPendingAsync(limit);
+        return await queries.ClaimPendingAsync(limit, leaseUntil);
     }
 
     private Task<CaptureItemId> SeedAsync(

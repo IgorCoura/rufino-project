@@ -1,4 +1,4 @@
-namespace BillPayment.Infra.Mailboxes.Graph;
+﻿namespace BillPayment.Infra.Mailboxes.Graph;
 
 using System.Text.Json.Serialization;
 
@@ -35,6 +35,13 @@ internal sealed record GraphMessage(
     [property: JsonPropertyName("receivedDateTime")] DateTimeOffset? ReceivedDateTime,
     [property: JsonPropertyName("hasAttachments")] bool? HasAttachments,
     [property: JsonPropertyName("from")] GraphRecipient? From,
+
+    /// <summary>
+    /// O <c>Message-ID</c> do cabeçalho RFC-822 — do e-mail, não da cópia. É a única chave que
+    /// sobrevive a mudança de pasta, e por isso a que reencontra a mensagem quando o
+    /// <see cref="Id"/> morre.
+    /// </summary>
+    [property: JsonPropertyName("internetMessageId")] string? InternetMessageId,
 
     /// <summary>
     /// O corpo da mensagem. Vem na própria delta query desde a 2.5 — a alternativa seria uma

@@ -7,7 +7,7 @@ using BillPayment.Domain.SharedKernel;
 using Microsoft.Extensions.Logging;
 
 /// <summary>
-/// Passa uma expectativa pelo dia de hoje: abre o ciclo devido, alerta o que precisa ser
+/// Passa uma expectativa pelo dia de hoje: abre os ciclos devidos, alerta o que precisa ser
 /// alertado, dá por não cumprido o que passou do prazo e desativa o que morreu de silêncio.
 /// </summary>
 /// <remarks>
@@ -15,6 +15,12 @@ using Microsoft.Extensions.Logging;
 /// <strong>Uma expectativa por comando, uma transação por expectativa</strong> — mesma disciplina
 /// da varredura de caixas e do outbox. Uma expectativa em estado estranho registra o próprio
 /// problema e não impede as outras de serem varridas.
+/// </para>
+/// <para>
+/// <strong>Toda passagem carimba <c>LastSweptAt</c>, inclusive a que não faz nada.</strong> É o
+/// carimbo que faz a fila girar: sem ele, a expectativa parada mantinha o <c>UpdatedAt</c> antigo
+/// e ocupava as vagas do lote para sempre, enquanto a que estava sendo cumprida ia para o fim.
+/// Por isso o comando persiste mesmo quando o desfecho é <c>Idle</c>.
 /// </para>
 /// <para>
 /// <strong>O alerta é gravado no agregado antes de ser enviado, e nunca no sentido inverso.</strong>
@@ -59,13 +65,22 @@ public sealed class SweepBillExpectationCommandHandler(
         var now = clock.GetUtcNow().UtcDateTime;
         var today = DateOnly.FromDateTime(now);
 
+        // Antes de qualquer desvio: mesmo a passagem que nada faz precisa sair da frente da fila.
+        expectation.MarkSwept(now);
+
         if (!expectation.IsWatchingOn(today))
+        {
+            await unitOfWork.SaveEntitiesAsync(cancellationToken);
             return new SweepBillExpectationResponse(expectation.Id.Value, OUTCOME_IDLE);
+        }
 
         var outcome = OUTCOME_IDLE;
         string? level = null;
 
-        if (OpenDueCycle(expectation, today, now))
+        // Quem decide quais competências abrir é o agregado: a cadência, o prazo de chegada e o
+        // piso de vigilância são dele, e replicar essa escolha aqui seria um segundo lugar para
+        // ela envelhecer.
+        if (expectation.OpenDueCycles(today, now).Count > 0)
             outcome = OUTCOME_CYCLE_OPENED;
 
         var cycle = CurrentCycle(expectation, today);
@@ -114,36 +129,13 @@ public sealed class SweepBillExpectationCommandHandler(
     }
 
     /// <summary>
-    /// Abre o ciclo da competência corrente quando ele ainda não existe e já está na hora.
-    /// </summary>
-    /// <remarks>
-    /// A hora é <c>AlertLeadDays</c> antes do vencimento esperado: abrir muito antes encheria o
-    /// painel de ciclos que ninguém pode resolver ainda, e abrir depois perderia a janela do
-    /// primeiro alerta.
-    /// </remarks>
-    private static bool OpenDueCycle(BillExpectation expectation, DateOnly today, DateTime now)
-    {
-        var competence = new CompetencePeriod(today.Year, today.Month);
-
-        if (expectation.CycleFor(competence) is not null)
-            return false;
-
-        var dueDate = expectation.DueDateIn(competence);
-
-        if (today < dueDate.AddDays(-expectation.AlertLeadDays))
-            return false;
-
-        expectation.OpenCycle(competence, now);
-        return true;
-    }
-
-    /// <summary>
     /// O ciclo mais relevante para hoje: o aberto mais antigo que já pede atenção.
     /// </summary>
     /// <remarks>
     /// O mais antigo, e não o da competência corrente, porque um ciclo vencido e não resolvido
     /// continua sendo o que importa — deixar de escalá-lo porque o mês virou seria abandonar
-    /// justamente a conta que já está atrasada.
+    /// justamente a conta que já está atrasada. Ciclos abertos à frente (a conta ainda vai chegar)
+    /// ficam de fora pela data de alerta, que ainda não chegou.
     /// </remarks>
     private static ExpectationCycle? CurrentCycle(BillExpectation expectation, DateOnly today)
         => expectation.Cycles

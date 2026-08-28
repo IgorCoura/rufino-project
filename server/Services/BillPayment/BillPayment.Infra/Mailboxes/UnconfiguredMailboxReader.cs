@@ -1,4 +1,4 @@
-namespace BillPayment.Infra.Mailboxes;
+﻿namespace BillPayment.Infra.Mailboxes;
 
 using BillPayment.Domain.Mailboxes;
 using BillPayment.Domain.Ports;
@@ -40,6 +40,7 @@ internal sealed class UnconfiguredMailboxReader(TimeProvider clock) : IMailboxRe
         CredentialRef credential,
         string? folderPath,
         string? cursor,
+        DateOnly? capturedSince,
         CancellationToken cancellationToken)
         => Task.FromResult(MailboxReadResult.Unavailable(REASON_CODE, MESSAGE, clock.GetUtcNow()));
 
@@ -51,4 +52,19 @@ internal sealed class UnconfiguredMailboxReader(TimeProvider clock) : IMailboxRe
         string artifactKey,
         CancellationToken cancellationToken)
         => Task.FromResult<ReadOnlyMemory<byte>?>(null);
+
+    public Task<MailboxMessage?> ReadSingleMessageAsync(
+        string mailboxAddress,
+        CredentialRef credential,
+        string externalMessageId,
+        CancellationToken cancellationToken)
+        => Task.FromResult<MailboxMessage?>(null);
+
+    public Task<RelocatedArtifact?> RelocateArtifactAsync(
+        string mailboxAddress,
+        CredentialRef credential,
+        string internetMessageId,
+        string? fileName,
+        CancellationToken cancellationToken)
+        => Task.FromResult<RelocatedArtifact?>(null);
 }

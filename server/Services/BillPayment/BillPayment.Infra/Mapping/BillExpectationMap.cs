@@ -61,6 +61,18 @@ internal sealed class BillExpectationMap : IEntityTypeConfiguration<BillExpectat
         builder.Property(e => e.AlertLeadDays).HasColumnName("alert_lead_days").IsRequired();
         builder.Property(e => e.ObservationCount).HasColumnName("observation_count").IsRequired();
 
+        // Achatada em UM inteiro (ano*100+mês), como a competência do ciclo — pelo mesmo motivo:
+        // owned de 2º nível sob agregado já persistido não é rastreado e grava NULL.
+        builder.Property(e => e.AnchorCompetence)
+            .HasColumnName("anchor_competence")
+            .HasConversion(
+                p => (p.Year * 100) + p.Month,
+                v => new CompetencePeriod(v / 100, v % 100))
+            .IsRequired();
+
+        builder.Property(e => e.WatchingSince).HasColumnName("watching_since").IsRequired();
+        builder.Property(e => e.LastSweptAt).HasColumnName("last_swept_at").IsRequired();
+
         builder.Property(e => e.HintSourceId)
             .HasColumnName("hint_source_id")
             .HasConversion(
@@ -85,9 +97,19 @@ internal sealed class BillExpectationMap : IEntityTypeConfiguration<BillExpectat
             .IsUnique()
             .HasDatabaseName("ix_bill_expectations_tenant_payee_account");
 
-        // Cobre a varredura do job, que busca as expectativas ativas.
-        builder.HasIndex(e => new { e.IsActive, e.UpdatedAt })
-            .HasDatabaseName("ix_bill_expectations_active_updated");
+        // Cobre a fila do job. O carimbo é o de VARREDURA, não o de atualização de negócio:
+        // ordenar por `updated_at` invertia a prioridade da fila — expectativa parada mantinha o
+        // carimbo antigo e ocupava as vagas do lote para sempre, enquanto a que estava sendo
+        // cumprida ia para o fim e, passando do tamanho do lote, nunca mais era varrida.
+        builder.HasIndex(e => new { e.IsActive, e.LastSweptAt })
+            .HasDatabaseName("ix_bill_expectations_active_swept");
+
+        // Serve ao alerta de "chegou e não consegui ler": o artefato travado não tem beneficiário
+        // nem vencimento, e a fonte é a única coisa que o liga a uma conta esperada. Parcial
+        // porque a coluna é nula na maioria das linhas — e é justamente a minoria que se busca.
+        builder.HasIndex(e => new { e.TenantId, e.HintSourceId })
+            .HasDatabaseName("ix_bill_expectations_tenant_hint_source")
+            .HasFilter("hint_source_id IS NOT NULL");
     }
 
     private static void ConfigureCycles(OwnedNavigationBuilder<BillExpectation, ExpectationCycle> cycles)
@@ -168,6 +190,12 @@ internal sealed class BillExpectationMap : IEntityTypeConfiguration<BillExpectat
         cycles.HasIndex("bill_expectation_id", nameof(ExpectationCycle.Competence))
             .IsUnique()
             .HasDatabaseName("ix_bill_expectation_cycles_expectation_competence");
+
+        // O caminho de volta: o item travado foi resolvido e o ciclo precisa deixar de apontar
+        // para ele. Parcial pelo mesmo motivo do índice de fonte — a coluna é nula quase sempre.
+        cycles.HasIndex(c => c.BlockedByCaptureItemId)
+            .HasDatabaseName("ix_bill_expectation_cycles_blocked_item")
+            .HasFilter("blocked_by_capture_item_id IS NOT NULL");
     }
 
     /// <summary>

@@ -1,4 +1,4 @@
-namespace BillPayment.Domain.Services;
+﻿namespace BillPayment.Domain.Services;
 
 using BillPayment.Domain.Extraction;
 using BillPayment.Domain.SeedWork;
@@ -59,7 +59,15 @@ public static class CaptureTriageService
     /// A origem que casou com o remetente, ou <c>null</c> quando desconhecida — que é estado
     /// válido e comum, não erro.
     /// </param>
-    public static CaptureTriageDecision Decide(ExtractionResult extraction, TrustedOrigin? origin)
+    /// <param name="subject">
+    /// Assunto da mensagem — evidência fraca, usada só para NÃO descartar. O endereço do
+    /// remetente não entra: a comparação é por substring e "conta" casa em "contabilidade@",
+    /// que é o endereço do contador e a maior fonte de ruído medida na caixa real.
+    /// </param>
+    public static CaptureTriageDecision Decide(
+        ExtractionResult extraction,
+        TrustedOrigin? origin,
+        string? subject = null)
     {
         ArgumentNullException.ThrowIfNull(extraction);
 
@@ -67,10 +75,16 @@ public static class CaptureTriageService
             return CaptureTriageDecision.Parse;
 
         // Origem banida não ganha a exceção: o tenant já disse que não quer nada dali, e manter
-        // o item contrariaria a decisão dele em vez de protegê-lo.
-        var senderIsKnown = origin is not null && origin.Decision != TrustDecision.Blocked;
+        // o item contrariaria a decisão dele em vez de protegê-lo. `IsStrong` já trata isso —
+        // origem banida não conta como forte, e as palavras sozinhas também não a ressuscitam.
+        var banned = origin is not null && origin.Decision == TrustDecision.Blocked;
 
-        if (!senderIsKnown)
+        // A SEGUNDA exceção ao descarte, acrescentada em 2026-08-26: evidência forte de cobrança.
+        // A primeira (remetente cadastrado) só alcança quem o tenant já conhece, e por isso o
+        // sistema nunca descobria emissor novo — a conta chegava, não tinha anexo, e sumia sem
+        // deixar rastro. Medido na caixa real: das 23 mensagens sem anexo, só 3 têm sinal de
+        // cobrança, então a fila continua utilizável. O sinal decide GUARDAR, nunca descartar.
+        if (banned || !BillingSignal.IsStrong(origin, subject))
             return CaptureTriageDecision.Drop;
 
         // Cifrado é diferente de "não é boleto": aqui não se sabe o que há dentro, e o próprio

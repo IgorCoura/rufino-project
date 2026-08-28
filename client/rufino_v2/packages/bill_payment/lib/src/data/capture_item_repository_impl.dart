@@ -3,6 +3,8 @@ import 'package:rufino_core/rufino_core.dart';
 import '../domain/bill_payment_exception.dart';
 import '../domain/capture_item.dart';
 import '../domain/capture_item_repository.dart';
+import '../domain/captured_artifact.dart';
+import '../domain/email_message.dart';
 import 'capture_item_api_service.dart';
 
 /// Implements [CaptureItemRepository] over [apiService], reporting at the
@@ -77,8 +79,47 @@ class CaptureItemRepositoryImpl implements CaptureItemRepository {
       );
 
   @override
+  Future<Result<void>> dismissItem(String id, {String? note}) => _guard(
+        () => apiService.dismissItem(id, note: note),
+        context: {'op': 'dismissCaptureItem', 'itemId': id},
+      );
+
+  @override
+  Future<Result<void>> attachArtifact(
+    String id,
+    List<int> bytes, {
+    required String fileName,
+    required String contentType,
+  }) =>
+      _guard(
+        () => apiService.attachArtifact(
+          id,
+          bytes,
+          fileName: fileName,
+          contentType: contentType,
+        ),
+        // Nem o nome do arquivo entra no contexto: ele costuma trazer o emissor e a
+        // competência, e o relatório de erro não é lugar para isso.
+        context: {'op': 'attachCaptureItemArtifact', 'itemId': id},
+      );
+
+  @override
   Future<Result<ClaimOutcome>> claimItem(String id) => _guard(
         () => apiService.claimItem(id),
         context: {'op': 'claimCaptureItem', 'itemId': id},
+      );
+
+  // O contexto leva só IDs: o documento é o dado mais sensível do módulo, e o
+  // relatório de erro não é lugar para nada que venha dentro dele.
+  @override
+  Future<Result<CapturedArtifact>> getArtifact(String id) => _guard(
+        () => apiService.getArtifact(id),
+        context: {'op': 'getCaptureItemArtifact', 'itemId': id},
+      );
+
+  @override
+  Future<Result<EmailMessage>> getEmail(String id) => _guard(
+        () => apiService.getCaptureItemEmail(id),
+        context: {'captureItemId': id},
       );
 }

@@ -5,6 +5,7 @@ import 'package:rufino_core/rufino_core.dart';
 
 import '../bill_payment_permissions.dart';
 import 'bill_payment_pages.dart';
+import 'shared/document_picker.dart' show DocumentPicker, LinkOpener;
 
 /// Route paths this module owns.
 ///
@@ -23,12 +24,29 @@ abstract final class BillPaymentRoutes {
   /// One bill's approval screen.
   static String billDetail(String id) => '/bill-payment/bills/$id';
 
+  /// The original document the bill came from.
+  static String billArtifact(String id) => '/bill-payment/bills/$id/artifact';
+
+  /// O e-mail que trouxe o boleto [id].
+  static String billEmail(String id) => '/bill-payment/bills/$id/email';
+
   /// The quarantine listing.
   static const String captureItems = '/bill-payment/capture-items';
 
   /// One quarantine item.
   static String captureItemDetail(String id) =>
       '/bill-payment/capture-items/$id';
+
+  /// The original document of one quarantine item.
+  static String captureItemArtifact(String id) =>
+      '/bill-payment/capture-items/$id/artifact';
+
+  /// O e-mail que trouxe o item [id].
+  static String captureItemEmail(String id) =>
+      '/bill-payment/capture-items/$id/email';
+
+  /// The capture log — every e-mail read, including the discarded ones.
+  static const String capturedMessages = '/bill-payment/captured-messages';
 
   /// The capture source listing.
   static const String captureSources = '/bill-payment/capture-sources';
@@ -65,13 +83,24 @@ abstract final class BillPaymentRoutes {
   /// One expectation.
   static String expectationDetail(String id) =>
       '/bill-payment/expectations/$id';
+
+  /// The edit form of one expectation.
+  static String expectationEdit(String id) =>
+      '/bill-payment/expectations/$id/edit';
 }
 
 /// Builds the routes of this module.
 ///
-/// The shell supplies what belongs to it — where "home" is. The module
-/// supplies the screens. Neither knows the other's internals.
-List<RouteBase> billPaymentRoutes({required String homeRoute}) {
+/// The shell supplies what belongs to it — where "home" is, and how to open the
+/// system file picker. The module supplies the screens. Neither knows the
+/// other's internals: escolher arquivo depende de plugin de plataforma
+/// (`file_picker`), e declará-lo aqui obrigaria todo consumidor do módulo a
+/// carregá-lo mesmo sem usar a anexação.
+List<RouteBase> billPaymentRoutes({
+  required String homeRoute,
+  required DocumentPicker onPickDocument,
+  required LinkOpener onOpenLink,
+}) {
   return [
     GoRoute(
       path: BillPaymentRoutes.pending,
@@ -107,6 +136,7 @@ List<RouteBase> billPaymentRoutes({required String homeRoute}) {
         backFallback: BillPaymentRoutes.bills,
         onImported: (id) =>
             context.pushReplacement(BillPaymentRoutes.billDetail(id)),
+        onPickDocument: onPickDocument,
       ),
     ),
     GoRoute(
@@ -125,6 +155,35 @@ List<RouteBase> billPaymentRoutes({required String homeRoute}) {
         onImportBill: () => context.push(BillPaymentRoutes.billImport),
       ),
     ),
+    // O segmento literal `artifact` vem ANTES da rota `:id` do detalhe: o
+    // go_router casa na ordem, e `/bills/:id` engoliria `/bills/x/artifact`
+    // como se `artifact` fosse parte do id.
+    GoRoute(
+      path: '/bill-payment/bills/:id/artifact',
+      redirect: (context, state) => _requireBillScope(
+        context,
+        resource: BillPaymentResources.bill,
+        scope: BillPaymentScopes.view,
+        fallback: homeRoute,
+      ),
+      builder: (context, state) => BillArtifactPage(
+        billId: state.pathParameters['id']!,
+        backFallback: BillPaymentRoutes.billDetail(state.pathParameters['id']!),
+      ),
+    ),
+    GoRoute(
+      path: '/bill-payment/bills/:id/email',
+      redirect: (context, state) => _requireBillScope(
+        context,
+        resource: BillPaymentResources.bill,
+        scope: BillPaymentScopes.view,
+        fallback: homeRoute,
+      ),
+      builder: (context, state) => BillEmailPage(
+        billId: state.pathParameters['id']!,
+        backFallback: BillPaymentRoutes.billDetail(state.pathParameters['id']!),
+      ),
+    ),
     GoRoute(
       path: '/bill-payment/bills/:id',
       redirect: (context, state) => _requireBillScope(
@@ -136,6 +195,12 @@ List<RouteBase> billPaymentRoutes({required String homeRoute}) {
       builder: (context, state) => BillDetailPage(
         billId: state.pathParameters['id']!,
         backFallback: BillPaymentRoutes.bills,
+        onOpenArtifact: () => context.push(
+          BillPaymentRoutes.billArtifact(state.pathParameters['id']!),
+        ),
+        onOpenEmail: () => context.push(
+          BillPaymentRoutes.billEmail(state.pathParameters['id']!),
+        ),
       ),
     ),
     GoRoute(
@@ -153,6 +218,34 @@ List<RouteBase> billPaymentRoutes({required String homeRoute}) {
       ),
     ),
     GoRoute(
+      path: '/bill-payment/capture-items/:id/artifact',
+      redirect: (context, state) => _requireBillScope(
+        context,
+        resource: BillPaymentResources.captureItem,
+        scope: BillPaymentScopes.view,
+        fallback: homeRoute,
+      ),
+      builder: (context, state) => CaptureItemArtifactPage(
+        itemId: state.pathParameters['id']!,
+        backFallback:
+            BillPaymentRoutes.captureItemDetail(state.pathParameters['id']!),
+      ),
+    ),
+    GoRoute(
+      path: '/bill-payment/capture-items/:id/email',
+      redirect: (context, state) => _requireBillScope(
+        context,
+        resource: BillPaymentResources.captureItem,
+        scope: BillPaymentScopes.view,
+        fallback: homeRoute,
+      ),
+      builder: (context, state) => CaptureItemEmailPage(
+        itemId: state.pathParameters['id']!,
+        backFallback:
+            BillPaymentRoutes.captureItemDetail(state.pathParameters['id']!),
+      ),
+    ),
+    GoRoute(
       path: '/bill-payment/capture-items/:id',
       redirect: (context, state) => _requireBillScope(
         context,
@@ -165,6 +258,30 @@ List<RouteBase> billPaymentRoutes({required String homeRoute}) {
         backFallback: BillPaymentRoutes.captureItems,
         onOpenBill: (billId) =>
             context.push(BillPaymentRoutes.billDetail(billId)),
+        onOpenArtifact: () => context.push(
+          BillPaymentRoutes.captureItemArtifact(state.pathParameters['id']!),
+        ),
+        onOpenEmail: () => context.push(
+          BillPaymentRoutes.captureItemEmail(state.pathParameters['id']!),
+        ),
+        onPickDocument: onPickDocument,
+        onOpenLink: onOpenLink,
+      ),
+    ),
+    GoRoute(
+      path: BillPaymentRoutes.capturedMessages,
+      redirect: (context, state) => _requireBillScope(
+        context,
+        resource: BillPaymentResources.capturedMessage,
+        scope: BillPaymentScopes.view,
+        fallback: homeRoute,
+      ),
+      builder: (context, state) => CapturedMessageListPage(
+        backFallback: homeRoute,
+        onOpenBill: (billId) =>
+            context.push(BillPaymentRoutes.billDetail(billId)),
+        onOpenCaptureItem: (itemId) =>
+            context.push(BillPaymentRoutes.captureItemDetail(itemId)),
       ),
     ),
     GoRoute(
@@ -289,7 +406,24 @@ List<RouteBase> billPaymentRoutes({required String homeRoute}) {
       ),
       builder: (context, state) => ExpectationFormPage(
         backFallback: BillPaymentRoutes.expectations,
-        onRegistered: (id) =>
+        onSaved: (id) =>
+            context.pushReplacement(BillPaymentRoutes.expectationDetail(id)),
+      ),
+    ),
+    GoRoute(
+      path: '/bill-payment/expectations/:id/edit',
+      redirect: (context, state) => _requireBillScope(
+        context,
+        resource: BillPaymentResources.expectation,
+        scope: BillPaymentScopes.manage,
+        fallback: BillPaymentRoutes.expectations,
+      ),
+      builder: (context, state) => ExpectationFormPage(
+        expectationId: state.pathParameters['id']!,
+        backFallback: BillPaymentRoutes.expectationDetail(
+          state.pathParameters['id']!,
+        ),
+        onSaved: (id) =>
             context.pushReplacement(BillPaymentRoutes.expectationDetail(id)),
       ),
     ),
@@ -324,6 +458,13 @@ List<RouteBase> billPaymentRoutes({required String homeRoute}) {
             context.push(BillPaymentRoutes.billDetail(billId)),
         onOpenCaptureItem: (itemId) =>
             context.push(BillPaymentRoutes.captureItemDetail(itemId)),
+        onEdit: () => context.push(
+          BillPaymentRoutes.expectationEdit(state.pathParameters['id']!),
+        ),
+        // Substitui a rota: a expectativa não existe mais, e voltar para o
+        // detalhe dela mostraria "não foi possível carregar".
+        onDeleted: () =>
+            context.pushReplacement(BillPaymentRoutes.expectations),
       ),
     ),
   ];

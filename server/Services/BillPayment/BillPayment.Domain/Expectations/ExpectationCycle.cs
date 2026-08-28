@@ -74,17 +74,63 @@ public sealed class ExpectationCycle : Entity<ExpectationCycleId>
         Status = CycleStatus.Fulfilled;
         FulfilledByBillId = billId;
         MissReason = null;
+
+        // O ponteiro para o artefato travado morre com o cumprimento: ele era o link de "resolva
+        // este item", e o item deixou de ser o que falta.
+        BlockedByCaptureItemId = null;
         UpdatedAt = occurredAt;
     }
 
-    internal void RecordCaptureFailure(CaptureItemId itemId, MissReason reason, DateTime occurredAt)
+    /// <summary>
+    /// Registra o artefato que chegou e não deu para ler, e diz se algo mudou.
+    /// </summary>
+    /// <remarks>
+    /// <strong>Devolver <c>bool</c> é o que sustenta a idempotência do outbox.</strong> A mesma
+    /// falha do mesmo item reentregue não pode emitir o aviso de novo — e conferir isso aqui, em
+    /// vez de no handler, mantém a regra num lugar só.
+    /// </remarks>
+    internal bool RecordCaptureFailure(CaptureItemId itemId, MissReason reason, DateTime occurredAt)
     {
         EnsureOpen();
+
+        if (Status == CycleStatus.PartiallyCaptured
+            && BlockedByCaptureItemId == itemId
+            && MissReason == reason)
+        {
+            return false;
+        }
 
         Status = CycleStatus.PartiallyCaptured;
         BlockedByCaptureItemId = itemId;
         MissReason = reason;
         UpdatedAt = occurredAt;
+        return true;
+    }
+
+    /// <summary>
+    /// O artefato que travava este ciclo foi resolvido sem virar boleto — volta a esperar.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Volta para <c>Waiting</c>, e não para <c>Missing</c>: a conta ainda pode chegar por outro
+    /// caminho, e quem decide que ela não chegou é a varredura, ao passar da data de alerta.
+    /// </para>
+    /// <para>
+    /// <strong>Os alertas já enviados ficam.</strong> Eles são história do que a pessoa recebeu;
+    /// apagá-los faria o mesmo nível sair de novo no dia seguinte, que é exatamente a repetição
+    /// que o registro por nível existe para impedir.
+    /// </para>
+    /// </remarks>
+    internal bool ClearCaptureFailure(CaptureItemId itemId, DateTime occurredAt)
+    {
+        if (Status != CycleStatus.PartiallyCaptured || BlockedByCaptureItemId != itemId)
+            return false;
+
+        Status = CycleStatus.Waiting;
+        BlockedByCaptureItemId = null;
+        MissReason = null;
+        UpdatedAt = occurredAt;
+        return true;
     }
 
     internal void MarkMissing(MissReason reason, DateOnly today, DateTime occurredAt)
@@ -96,6 +142,29 @@ public sealed class ExpectationCycle : Entity<ExpectationCycleId>
 
         Status = CycleStatus.Missing;
         MissReason = reason;
+        UpdatedAt = occurredAt;
+    }
+
+    /// <summary>
+    /// Reposiciona o ciclo depois de a expectativa ter o calendário corrigido.
+    /// </summary>
+    /// <remarks>
+    /// <strong>Só vale para quem ainda espera.</strong> Ciclo que já se pronunciou — cumprido,
+    /// dispensado, não cumprido, parcialmente capturado — é história, e mexer na data dele
+    /// reescreveria o passado: um <c>Missing</c> redatado para o futuro voltaria a alertar por
+    /// uma conta que o usuário já resolveu. Sair calado, e não lançar, porque quem chama é a raiz
+    /// varrendo a coleção inteira: a seleção é dela, esta guarda é a segunda tranca.
+    /// </remarks>
+    internal void Reschedule(DateOnly expectedDueDate, DateOnly alertAt, DateTime occurredAt)
+    {
+        if (Status != CycleStatus.Waiting)
+            return;
+
+        if (ExpectedDueDate == expectedDueDate && AlertAt == alertAt)
+            return;
+
+        ExpectedDueDate = expectedDueDate;
+        AlertAt = alertAt;
         UpdatedAt = occurredAt;
     }
 

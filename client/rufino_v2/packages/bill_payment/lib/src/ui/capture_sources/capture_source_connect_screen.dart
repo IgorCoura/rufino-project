@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:rufino_core/rufino_core.dart';
 
 import '../bill_payment_back_button.dart';
+import 'capture_since_field.dart';
 import 'capture_source_connect_viewmodel.dart';
 
 /// The connect-mailbox flow: the Entra ID walkthrough, then the credential
@@ -45,6 +46,11 @@ class _CaptureSourceConnectScreenState
   final _folderController = TextEditingController();
   int _step = 0;
 
+  // Pré-preenchido: a dor que este campo resolve — arrastar anos de
+  // histórico na primeira varredura — atinge quem nem sabe que ele existe.
+  // Quem quer a caixa inteira limpa o campo.
+  DateTime? _captureSince = defaultCaptureSince(DateTime.now());
+
   @override
   void dispose() {
     _nameController.dispose();
@@ -66,6 +72,7 @@ class _CaptureSourceConnectScreenState
       clientId: _clientIdController.text,
       clientSecret: _secretController.text,
       folderPath: _folderController.text,
+      captureSince: _captureSince,
     );
     if (id == null || !mounted) return;
 
@@ -177,6 +184,13 @@ class _CaptureSourceConnectScreenState
                                   'entrada)',
                               border: OutlineInputBorder(),
                             ),
+                          ),
+                          const SizedBox(height: AppSpacing.md),
+                          CaptureSinceField(
+                            value: _captureSince,
+                            enabled: !widget.viewModel.isSaving,
+                            onChanged: (date) =>
+                                setState(() => _captureSince = date),
                           ),
                           if (widget.viewModel.errorMessage != null) ...[
                             const SizedBox(height: AppSpacing.md),

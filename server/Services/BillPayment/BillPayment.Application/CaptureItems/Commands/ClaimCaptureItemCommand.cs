@@ -1,4 +1,4 @@
-namespace BillPayment.Application.CaptureItems.Commands;
+﻿namespace BillPayment.Application.CaptureItems.Commands;
 
 using BillPayment.Application.Mediator;
 using BillPayment.Domain.Bills;
@@ -64,10 +64,13 @@ public sealed class ClaimCaptureItemCommandHandler(
         var content = await storage.RetrieveAsync(tenantId, item.StorageKey, cancellationToken);
         var profile = await payerProfiles.GetByTenantAsync(tenantId, cancellationToken);
 
+        // A reivindicação relê pelo MESMO parser do caminho automático — os dígitos verificadores
+        // são provados de novo. Os documentos do cadastro entram pela mesma razão de lá.
         var extraction = await parser.ParseAsync(
             content,
             item.ContentType,
             PasswordDerivationService.Derive(profile),
+            profile is null ? [] : [profile.PrimaryTaxId, .. profile.AdditionalTaxIds],
             DateOnly.FromDateTime(now.UtcDateTime),
             cancellationToken);
 

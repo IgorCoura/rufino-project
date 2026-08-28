@@ -90,6 +90,33 @@ public class BaseController(ILogger<BaseController> logger) : ControllerBase
         => command is ISensitiveCommand ? SENSITIVE_PAYLOAD : command;
 
     /// <summary>
+    /// Registra que alguém abriu o documento original de um recurso.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <strong>Leitura que merece log porque o documento é prova.</strong> Ele é o comprovante do
+    /// que o sistema viu quando decidiu pagar, e a trilha já grava quem reivindicou e quem
+    /// aprovou — não gravar quem consultou deixaria um buraco no meio dessa mesma trilha.
+    /// </para>
+    /// <para>
+    /// Saem IDs e o usuário, nunca conteúdo, nome de arquivo ou tipo de mídia: o log serve para
+    /// dizer <em>quem viu o quê</em>, não para reconstituir o documento fora do cofre.
+    /// </para>
+    /// </remarks>
+    protected void ArtifactAccessLog(Guid tenantId, string resource, Guid resourceId)
+    {
+        if (!_logger.IsEnabled(LogLevel.Information))
+            return;
+
+        _logger.LogInformation(
+            "----- Artifact served: {Resource} - Id: {ResourceId} - Tenant: {TenantId} - User: {UserId} -----",
+            resource,
+            resourceId,
+            tenantId,
+            ResolveDecidingUserId());
+    }
+
+    /// <summary>
     /// Quem está decidindo. Vem do <c>sub</c> do token, e de nenhum outro lugar.
     /// </summary>
     /// <remarks>

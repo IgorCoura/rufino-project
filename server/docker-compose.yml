@@ -141,6 +141,15 @@ services:
       # vem de `dotnet user-secrets set "Secrets:MasterKey"` — sem ela o cofre falha em toda
       # operação e conectar uma caixa é recusado. Gere com o comando PowerShell do
       # Services/BillPayment/CLAUDE.md.
+    # O user-secrets do desenvolvedor precisa estar montado, como no peoplemanagement.api.
+    # SEM ISTO, `docker compose --profile api up` sobe um container que nao enxerga segredo
+    # nenhum - chave do Asaas, master key do cofre, secret do Keycloak e chave do extrator -,
+    # e o BC degrada em silencio: a consulta oficial vira Unavailable e TODO boleto e
+    # rejeitado. O Visual Studio injeta esses mounts sozinho no F5, entao a falta aqui so
+    # aparece para quem sobe pela linha de comando, que e o caminho documentado no CLAUDE.md.
+    volumes:
+      - ${APPDATA}\microsoft\UserSecrets\:/root/.microsoft/usersecrets
+      - ${APPDATA}\microsoft\UserSecrets\:/home/app/.microsoft/usersecrets
     ports:
       - 8100:8080
     depends_on:

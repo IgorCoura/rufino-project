@@ -156,6 +156,46 @@ public sealed class CaptureSourcesController(
     }
 
     /// <summary>
+    /// Move o piso temporal da captura: nada recebido antes desta data é lido.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <strong>Descarta o cursor de todas as pastas</strong>, e não por precaução: a delta query
+    /// do provedor grava as opções de consulta <em>dentro</em> do <c>deltaLink</c> que devolve,
+    /// então um cursor obtido com a data velha continuaria filtrando por ela. Sem o descarte a
+    /// troca seria decorativa, e ninguém perceberia.
+    /// </para>
+    /// <para>
+    /// A releitura que vem disso <strong>não duplica nada</strong> — a ingestão é idempotente por
+    /// <c>(tenant, fonte, mensagem, anexo)</c>. O que muda é que o que havia sido descartado volta
+    /// a ser avaliado, o que consome cota do extrator de visão, como já acontece no
+    /// <c>rescan</c>.
+    /// </para>
+    /// <para>
+    /// Corpo com <c>captureSince</c> nulo ou ausente devolve a fonte à caixa inteira.
+    /// </para>
+    /// </remarks>
+    [HttpPut("{id:guid}/capture-since")]
+    [ProtectedResource("capture-source", "manage")]
+    public async Task<ActionResult<ChangeCaptureSourceSinceResponse>> ChangeCaptureSince(
+        [FromRoute] Guid tenantId,
+        [FromRoute] Guid id,
+        [FromBody] ChangeCaptureSourceSinceModel model,
+        [FromHeader(Name = "x-requestid")] Guid requestId,
+        CancellationToken cancellationToken)
+    {
+        var command = model.ToCommand(tenantId, id);
+        var identified = new IdentifiedCommand<ChangeCaptureSourceSinceCommand, ChangeCaptureSourceSinceResponse>(
+            command, EnsureRequestId(requestId));
+
+        SendingCommandLog(id, command, identified.Id);
+        var result = await mediator.Send(identified, cancellationToken);
+        CommandResultLog(result, id, command, identified.Id);
+
+        return OkResponse(result);
+    }
+
+    /// <summary>
     /// Dispara a varredura desta fonte agora, sem esperar o agendador.
     /// </summary>
     /// <remarks>

@@ -1,4 +1,4 @@
-namespace BillPayment.Infra.Mailboxes.Graph;
+﻿namespace BillPayment.Infra.Mailboxes.Graph;
 
 using System.Globalization;
 using System.Text.Json;
@@ -32,6 +32,25 @@ internal static class GraphHttp
     public const string CLIENT_NAME = "graph-mailbox";
     public const string TOKEN_CLIENT_NAME = "graph-token";
 
+    /// <summary>
+    /// Pede ao Graph os identificadores <strong>imutáveis</strong> dos itens do Outlook.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Sem isto, o id de uma mensagem é o endereço de onde ela está guardada, e a pasta faz parte
+    /// dele: arquivar, mover por regra ou mandar para a lixeira invalida o id, e o download do
+    /// anexo passa a devolver 404 para sempre. Medido em produção em 2026-08-19 — 2.381 downloads
+    /// com êxito e 6 falhas, todas com esse formato.
+    /// </para>
+    /// <para>
+    /// O cabeçalho vale <strong>por requisição</strong> e cobre mensagem e anexo. A delta query o
+    /// honra, e os <c>@odata.nextLink</c>/<c>@odata.deltaLink</c> são compatíveis com os dois
+    /// formatos — ligar não obriga a reler caixa nenhuma. A limitação conhecida é com
+    /// <c>$search</c>, que este adapter não usa.
+    /// </para>
+    /// </remarks>
+    public const string IMMUTABLE_ID_PREFER = "IdType=\"ImmutableId\"";
+
     public static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web)
     {
         PropertyNameCaseInsensitive = true,
@@ -55,6 +74,7 @@ internal static class GraphHttp
         {
             using var request = new HttpRequestMessage(HttpMethod.Get, url);
             request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", accessToken);
+            request.Headers.TryAddWithoutValidation("Prefer", IMMUTABLE_ID_PREFER);
 
             if (maxPageSize is > 0)
             {
@@ -113,6 +133,7 @@ internal static class GraphHttp
         {
             using var request = new HttpRequestMessage(HttpMethod.Get, url);
             request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", accessToken);
+            request.Headers.TryAddWithoutValidation("Prefer", IMMUTABLE_ID_PREFER);
 
             using var response = await http.SendAsync(
                 request, HttpCompletionOption.ResponseHeadersRead, cancellationToken);

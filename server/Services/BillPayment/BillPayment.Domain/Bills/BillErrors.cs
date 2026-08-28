@@ -346,6 +346,62 @@ public static class BillErrors
             sourcePath: BuildSourcePath(filePath, memberName, lineNumber),
             category: DomainErrorCategory.Conflict);
 
+    /// <summary>
+    /// ADR-015: boleto em Perigo só é aprovável com o risco explicitamente assumido pelo
+    /// aprovador — sem o aceite, a recusa lista os motivos.
+    /// </summary>
+    public static DomainException DangerRequiresAcknowledgment(
+        string reasons,
+        [CallerFilePath] string filePath = "",
+        [CallerMemberName] string memberName = "",
+        [CallerLineNumber] int lineNumber = 0)
+        => new(
+            id: $"{AGGREGATE_PREFIX}27",
+            messageTemplate: "Este boleto está classificado como Perigo ({0}). Para aprová-lo é preciso "
+                + "assumir o risco explicitamente.",
+            parameters: new object[] { reasons },
+            sourcePath: BuildSourcePath(filePath, memberName, lineNumber),
+            category: DomainErrorCategory.Conflict);
+
+    /// <summary>
+    /// O extrator de IA não respondeu ao reler o documento do boleto.
+    /// </summary>
+    /// <remarks>
+    /// <strong>É lançada para o boleto VOLTAR À FILA</strong>, e não porque algo esteja errado
+    /// com ele. A análise por IA nunca bloqueia o boleto — o que ela bloqueia é a si mesma, até o
+    /// provedor responder. Tratar indisponibilidade como "nada a ler" deixaria o boleto sem
+    /// retrato por causa de um 503, que é o defeito medido em 2026-08-27.
+    /// </remarks>
+    public static DomainException ReadingUnavailable(
+        string? reasonCode,
+        [CallerFilePath] string filePath = "",
+        [CallerMemberName] string memberName = "",
+        [CallerLineNumber] int lineNumber = 0)
+        => new(
+            id: $"{AGGREGATE_PREFIX}28",
+            messageTemplate: "A leitura por IA não pôde ser feita agora ({0}). O boleto volta para a fila.",
+            parameters: new object[] { reasonCode ?? "provider_unavailable" },
+            sourcePath: BuildSourcePath(filePath, memberName, lineNumber),
+            category: DomainErrorCategory.Conflict);
+
+    /// <summary>
+    /// O arquivo anexado na importação manual é de um tipo que a leitura não sabe abrir.
+    /// </summary>
+    /// <remarks>
+    /// Recusar <strong>antes</strong> de gravar é o que impede o balde de acumular arquivo que
+    /// nunca poderá ser lido — mesma regra do anexo manual da quarentena.
+    /// </remarks>
+    public static DomainException UnsupportedDocument(
+        string contentType,
+        [CallerFilePath] string filePath = "",
+        [CallerMemberName] string memberName = "",
+        [CallerLineNumber] int lineNumber = 0)
+        => new(
+            id: $"{AGGREGATE_PREFIX}29",
+            messageTemplate: "Arquivo do tipo {0} não é aceito. Envie PDF, PNG, JPEG ou WebP.",
+            parameters: new object[] { contentType },
+            sourcePath: BuildSourcePath(filePath, memberName, lineNumber));
+
     private static string BuildSourcePath(string filePath, string memberName, int lineNumber)
         => $"{Path.GetFileName(filePath)}:{lineNumber} ({memberName})";
 }

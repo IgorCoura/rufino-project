@@ -1,4 +1,4 @@
-namespace BillPayment.UnitTests.CaptureItems;
+﻿namespace BillPayment.UnitTests.CaptureItems;
 
 using BillPayment.Domain.CaptureItems;
 using BillPayment.Domain.SeedWork;
@@ -33,6 +33,7 @@ public class CaptureItemStatusTests
     [InlineData(3)]
     [InlineData(4)]
     [InlineData(5)]
+    [InlineData(11)]
     public void ExposesFinancialDetail_ForPipelineStatuses_ShouldBeFalse(int statusId)
         => Assert.False(Enumeration.FromValue<CaptureItemStatus>(statusId).ExposesFinancialDetail);
 
@@ -68,6 +69,10 @@ public class CaptureItemStatusTests
     [InlineData(8, 6)]   // Unrouted     → Promoted (reivindicação)
     [InlineData(8, 7)]   // Unrouted     → ForeignPayer
     [InlineData(9, 2)]   // Unrecognized → Parsed (linha digitável informada à mão)
+    [InlineData(1, 11)]  // Received      → VisionPending (cede a vez para a fila de IA)
+    [InlineData(11, 2)]  // VisionPending → Parsed (a IA resolveu)
+    [InlineData(11, 9)]  // VisionPending → Unrecognized (a IA não resolveu)
+    [InlineData(11, 10)] // VisionPending → Discarded (remetente desconhecido)
     public void CanTransitionTo_WithValidPair_ShouldBeTrue(int fromId, int toId)
         => Assert.True(Transition(fromId, toId));
 
@@ -77,6 +82,8 @@ public class CaptureItemStatusTests
     [InlineData(1, 7)]   // Received     → ForeignPayer (sem extração)
     [InlineData(1, 8)]   // Received     → Unrouted (sem extração)
     [InlineData(2, 1)]   // Parsed       → Received (não se volta)
+    [InlineData(11, 6)]  // VisionPending → Promoted (sem passar pelo roteamento)
+    [InlineData(11, 7)]  // VisionPending → ForeignPayer (idem)
     [InlineData(2, 3)]   // Parsed       → Locked
     [InlineData(8, 2)]   // Unrouted     → Parsed
     [InlineData(9, 6)]   // Unrecognized → Promoted (sem instrumento válido)

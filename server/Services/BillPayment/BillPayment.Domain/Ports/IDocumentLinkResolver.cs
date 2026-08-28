@@ -47,4 +47,22 @@ public interface IDocumentLinkResolver
         ReadOnlyMemory<byte> body,
         string? contentType,
         CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Os links do corpo já desembrulhados de rastreador — <strong>sem tocar a rede</strong>.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Serve ao caso em que a escada não resolveu: saber <em>para onde</em> ela teria ido é o que
+    /// transforma "não consegui" numa fila de emissores a cadastrar. Sem isto, o item cai na
+    /// quarentena sem dizer de onde veio, e a informação que faltava para escrever a receita se
+    /// perde justamente no caso em que ela é necessária.
+    /// </para>
+    /// <para>
+    /// Devolve <strong>todos</strong> os links, inclusive os de host sem receita — é para eles
+    /// que existe. O desembrulho não faz requisição: seguir o redirecionamento entregaria ao
+    /// remetente a confirmação de leitura, e decodificar é mais barato e mais seguro.
+    /// </para>
+    /// </remarks>
+    IReadOnlyCollection<DocumentLink> HarvestLinks(ReadOnlyMemory<byte> body, string? contentType);
 }

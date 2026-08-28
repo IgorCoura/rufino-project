@@ -1,4 +1,4 @@
-namespace BillPayment.UnitTests.Services;
+﻿namespace BillPayment.UnitTests.Services;
 
 using BillPayment.Domain.Bills;
 using BillPayment.Domain.Bills.Checks;
@@ -17,12 +17,14 @@ public class BillValidationServiceTests
     // O catálogo inteiro sai em toda validação: o que não se aplica vira Skipped, nunca some.
     // É o que sustenta a exigência de cobertura completa em RecordChecks.
     [Fact]
-    public void Evaluate_ShouldAlwaysProduceTheTwelveChecksExactlyOnce()
+    public void Evaluate_ShouldAlwaysProduceTheWholeCatalogExactlyOnce()
     {
+        var catalog = Enumeration.GetAll<CheckType>().Count();
+
         var results = Evaluate(ValidationMother.Context(ValidationMother.BankSlipWithLookup()));
 
-        Assert.Equal(12, results.Count);
-        Assert.Equal(12, results.Select(r => r.Type).Distinct().Count());
+        Assert.Equal(catalog, results.Count);
+        Assert.Equal(catalog, results.Select(r => r.Type).Distinct().Count());
         Assert.All(Enumeration.GetAll<CheckType>(), type => Assert.Contains(results, r => r.Type == type));
     }
 
@@ -372,6 +374,72 @@ public class BillValidationServiceTests
 
         var result = Check(
             ValidationMother.Context(ValidationMother.BankSlipWithLookup(bill: bill), payerProfile: ValidationMother.TenantProfile()),
+            CheckType.PayerMatch);
+
+        Assert.Equal(CheckOutcome.Passed, result.Outcome);
+    }
+
+    // BLOQUEIO NOVO: ninguém emite boleto contra si mesmo. Beneficiário igual ao pagador é
+    // consulta descrevendo outro título ou documento adulterado — nos dois casos, não se paga.
+    [Fact]
+    public void Evaluate_PayerMatch_WhenTheBeneficiaryIsTheTenantItself_ShouldBlock()
+    {
+        // O perfil do tenant passa a ser o MESMO documento que a consulta devolveu como beneficiário.
+        var context = ValidationMother.Context(
+            ValidationMother.BankSlipWithLookup(),
+            payerProfile: ValidationMother.TenantProfile(LookupMother.BENEFICIARY_CNPJ));
+
+        var result = Check(context, CheckType.PayerMatch);
+
+        Assert.Equal(CheckOutcome.Failed, result.Outcome);
+        Assert.Equal(CheckReasons.PAYEE_IS_THE_PAYER, result.ReasonCode);
+        Assert.Equal(CheckSeverity.Blocking, result.Severity);
+    }
+
+    // BLOQUEIO NOVO: a busca dirigida procura o documento do cadastro dentro do texto, e um
+    // código de barras é uma sequência longa que pode, em tese, conter um deles por coincidência.
+    // Se o documento só existe LÁ DENTRO, ele não identifica ninguém — e a atribuição do boleto
+    // se apoiou em nada.
+    [Fact]
+    public void Evaluate_PayerMatch_WhenTheTaxIdOnlyExistsInsideTheBarcode_ShouldBlock()
+    {
+        var barcode = InstrumentSamples.Barcode();
+
+        // Este CPF existe DE VERDADE dentro do código de barras do fixture — dígitos verificadores
+        // fechando, por coincidência aritmética. É exatamente o cenário que a regra defende.
+        const string DentroDoCodigo = "01234567890";
+        Assert.Contains(DentroDoCodigo, barcode.DigitableLine.Barcode, StringComparison.Ordinal);
+
+        var bill = BillMother.CaptureVerbatim(
+            [barcode],
+            BillMother.MailboxOrigin(),
+            extractedPayer: PartyInfo.FromExtraction(null, DentroDoCodigo));
+
+        var result = Check(
+            ValidationMother.Context(
+                ValidationMother.BankSlipWithLookup(bill: bill),
+                payerProfile: ValidationMother.IndividualProfile(DentroDoCodigo)),
+            CheckType.PayerMatch);
+
+        Assert.Equal(CheckOutcome.Failed, result.Outcome);
+        Assert.Equal(CheckReasons.PAYER_ONLY_INSIDE_BARCODE, result.ReasonCode);
+        Assert.Equal(CheckSeverity.Blocking, result.Severity);
+    }
+
+    // CONTRAPROVA: documento impresso como campo continua passando, mesmo o boleto tendo código
+    // de barras. Sem esta, o bloqueio acima poderia estar reprovando todo mundo.
+    [Fact]
+    public void Evaluate_PayerMatch_WhenTheTaxIdIsPrintedAsAField_ShouldStillPass()
+    {
+        var bill = BillMother.CaptureVerbatim(
+            [InstrumentSamples.Barcode()],
+            BillMother.MailboxOrigin(),
+            extractedPayer: PartyInfo.FromExtraction("RUFINO EMPREITEIRA LTDA", "11222333000181"));
+
+        var result = Check(
+            ValidationMother.Context(
+                ValidationMother.BankSlipWithLookup(bill: bill),
+                payerProfile: ValidationMother.TenantProfile()),
             CheckType.PayerMatch);
 
         Assert.Equal(CheckOutcome.Passed, result.Outcome);

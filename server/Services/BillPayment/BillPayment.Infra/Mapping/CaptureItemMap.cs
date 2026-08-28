@@ -1,4 +1,4 @@
-namespace BillPayment.Infra.Mapping;
+﻿namespace BillPayment.Infra.Mapping;
 
 using BillPayment.Domain.Bills;
 using BillPayment.Domain.CaptureItems;
@@ -36,6 +36,10 @@ internal sealed class CaptureItemMap : IEntityTypeConfiguration<CaptureItem>
             .HasColumnName("external_message_id")
             .HasMaxLength(CaptureItem.EXTERNAL_MESSAGE_ID_MAX_LENGTH)
             .IsRequired();
+
+        builder.Property(e => e.InternetMessageId)
+            .HasColumnName("internet_message_id")
+            .HasMaxLength(CaptureItem.INTERNET_MESSAGE_ID_MAX_LENGTH);
 
         builder.Property(e => e.ArtifactKey)
             .HasColumnName("artifact_key")
@@ -84,6 +88,11 @@ internal sealed class CaptureItemMap : IEntityTypeConfiguration<CaptureItem>
             .HasColumnName("source_url")
             .HasMaxLength(CaptureItem.SOURCE_URL_MAX_LENGTH);
 
+        // Derivado do SourceUrl, como HasStoredArtifact é do StorageKey: sem isto o EF cria uma
+        // coluna `link_host` que ninguém escreve e que passaria a divergir da URL na primeira
+        // atualização.
+        builder.Ignore(e => e.LinkHost);
+
         // QUAL campo do PayerProfile derivou a senha do PDF — jamais a senha (ADR-009).
         builder.Property(e => e.UnlockedBy)
             .HasColumnName("unlocked_by")
@@ -110,6 +119,36 @@ internal sealed class CaptureItemMap : IEntityTypeConfiguration<CaptureItem>
             .HasConversion(id => id!.Value.Value, value => UserId.From(value));
 
         builder.Property(e => e.ClaimedAt).HasColumnName("claimed_at");
+
+        // Reprovação: decisão humana, com autor, no mesmo molde da reivindicação. Sem o autor a
+        // fila de quarentena deixaria de ser auditável — e reprovar é a única operação dela que
+        // tira trabalho da vista sem ninguém ter conferido o documento.
+        builder.Property(e => e.DismissedBy)
+            .HasColumnName("dismissed_by")
+            .HasConversion(id => id!.Value.Value, value => UserId.From(value));
+
+        builder.Property(e => e.DismissedAt).HasColumnName("dismissed_at");
+
+        // Anexo manual: muda o caminho do processamento (lê do balde, não do provedor) e a
+        // retenção (arquivo escolhido por uma pessoa nunca é purgado por desfecho).
+        builder.Property(e => e.ManuallySupplied)
+            .HasColumnName("manually_supplied")
+            .HasDefaultValue(false)
+            .IsRequired();
+
+        // Tentativas e aluguel: o que impede o laço eterno medido em 2026-08-26 (1.709 tentativas
+        // do mesmo erro em 4 itens). O contador cresce no claim, não no fim, para que a falha que
+        // derruba o worker antes de escrever também consuma orçamento.
+        builder.Property(e => e.ProcessingAttempts)
+            .HasColumnName("processing_attempts")
+            .HasDefaultValue(0)
+            .IsRequired();
+
+        builder.Property(e => e.LastError)
+            .HasColumnName("last_error")
+            .HasMaxLength(CaptureItem.LAST_ERROR_MAX_LENGTH);
+
+        builder.Property(e => e.LeaseExpiresAt).HasColumnName("lease_expires_at");
         builder.Property(e => e.CreatedAt).HasColumnName("created_at").IsRequired();
         builder.Property(e => e.UpdatedAt).HasColumnName("updated_at").IsRequired();
 
@@ -128,5 +167,12 @@ internal sealed class CaptureItemMap : IEntityTypeConfiguration<CaptureItem>
         // Fila de quarentena — filtrada por status dentro do tenant.
         builder.HasIndex(e => new { e.TenantId, e.Status, e.ReceivedAt })
             .HasDatabaseName("ix_capture_items_tenant_status_received");
+
+        // Fila dos workers, e por isso SEM tenant_id na chave — ao contrário do índice acima,
+        // que serve à tela. O worker roda fora de requisição e varre a instalação inteira; com
+        // tenant_id na frente, o `ORDER BY received_at` do claim não seria servido por índice
+        // nenhum. A ordem das colunas segue a do claim: status filtra, received_at ordena.
+        builder.HasIndex(e => new { e.Status, e.ReceivedAt, e.Id })
+            .HasDatabaseName("ix_capture_items_worker_queue");
     }
 }

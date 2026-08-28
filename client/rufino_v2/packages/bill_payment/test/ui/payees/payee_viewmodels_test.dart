@@ -163,6 +163,44 @@ void main() {
       expect(viewModel.payee!.legalName, 'EDP SAO PAULO SA');
     });
 
+    // savePolicy era código morto: existia no view model e nenhuma tela o
+    // chamava. Agora o card de política de valor o usa.
+    test('savePolicy manda os campos do tipo escolhido e recarrega', () async {
+      await viewModel.load();
+
+      final saved = await viewModel.savePolicy(
+        const AmountPolicyInput(
+          kind: AmountPolicyKinds.fixed,
+          expectedAmount: 1500,
+          tolerancePercent: 5,
+        ),
+      );
+
+      expect(saved, isTrue);
+      expect(repository.calls, contains('changeAmountPolicy:Fixed'));
+      expect(repository.lastPolicy!.expectedAmount, 1500);
+      expect(repository.lastPolicy!.tolerancePercent, 5);
+      expect(viewModel.status, PayeeDetailStatus.loaded);
+    });
+
+    // Recusa do domínio (faixa invertida, tolerância fora de 0..100) não sai da
+    // edição e deixa a mensagem na tela.
+    test('savePolicy recusada reporta e devolve false', () async {
+      await viewModel.load();
+      repository.setShouldFail(true);
+
+      final saved = await viewModel.savePolicy(
+        const AmountPolicyInput(
+          kind: AmountPolicyKinds.range,
+          minAmount: 400,
+          maxAmount: 80,
+        ),
+      );
+
+      expect(saved, isFalse);
+      expect(viewModel.errorMessage, isNotNull);
+    });
+
     test('a successful mutation records the write and reloads', () async {
       await viewModel.load();
 

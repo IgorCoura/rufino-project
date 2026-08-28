@@ -105,12 +105,58 @@ abstract final class CaptureItemStatuses {
   /// Duplicate of an already processed artifact. Terminal.
   static const String discarded = 'Discarded';
 
+  /// Waiting its turn in the AI extractor's queue — the slow lane.
+  static const String visionPending = 'VisionPending';
+
+  /// Processing blew up and gave up retrying. Reopenable.
+  ///
+  /// Describes the system, not the document: [unrecognized] means "no bill in
+  /// here", this one means the reading never finished. The distinction decides
+  /// what the person does next — type the line by hand, or report a defect.
+  static const String failed = 'Failed';
+
+  /// A person looked at it and said they do not recognise the charge.
+  ///
+  /// Not [discarded]: that one is the system spotting a duplicate. This is a
+  /// human decision, with an author recorded, and it is reversible — which is
+  /// why the confirmation dialog says so.
+  static const String dismissed = 'Dismissed';
+
   /// Whether the claim action applies to [status].
   static bool acceptsClaim(String status) => status == unrouted;
 
   /// Whether the reprocess action applies to [status].
+  ///
+  /// [failed] is included because a processing failure is exactly what a code
+  /// fix tends to resolve — leaving it stuck would freeze the item on a verdict
+  /// the current system would no longer give.
   static bool acceptsReprocess(String status) =>
-      status == unrecognized || status == locked || status == linkFailed;
+      status == unrecognized ||
+      status == locked ||
+      status == linkFailed ||
+      status == failed ||
+      // Reabrir é como se desfaz uma reprovação — não há endpoint separado, porque
+      // desfazer e reavaliar são a mesma operação: devolver o item à fila.
+      status == dismissed;
+
+  /// Whether the dismiss action applies to [status].
+  ///
+  /// Only the states still waiting on a person. A bill already promoted has money
+  /// at stake, and one already routed to another payer is not this tenant's call.
+  static bool acceptsDismiss(String status) =>
+      status == unrecognized ||
+      status == locked ||
+      status == linkFailed ||
+      status == failed ||
+      status == unrouted;
+
+  /// Whether [status] still counts as work waiting to be reviewed.
+  static bool isPending(String status) =>
+      status == received ||
+      status == visionPending ||
+      status == linkPending ||
+      status == parsed ||
+      acceptsDismiss(status);
 
   /// The label to show for [status].
   static String label(String status) => switch (status) {
@@ -124,6 +170,9 @@ abstract final class CaptureItemStatuses {
         unrouted => 'Aguardando reivindicação',
         unrecognized => 'Não reconhecido',
         discarded => 'Descartado',
+        visionPending => 'Na fila da leitura por IA',
+        failed => 'Falha no processamento',
+        dismissed => 'Reprovado',
         _ => status,
       };
 }
@@ -463,6 +512,85 @@ abstract final class SyncStatuses {
       };
 }
 
+/// Wire values of the backend's `ArtifactOutcome` smart enum — o que a captura
+/// decidiu sobre um anexo.
+///
+/// Tem um valor que o `CaptureItemStatus` não tem e não poderia ter:
+/// [discarded]. Artefato descartado não deixa item — a linha é apagada —, e é
+/// justamente esse o caso em que uma pessoa fica sem saber o que houve com o
+/// e-mail que mandou.
+abstract final class ArtifactOutcomes {
+  /// Ainda não processado, ou em trânsito pelo funil.
+  static const String pending = 'Pending';
+
+  /// Virou boleto deste cliente.
+  static const String promoted = 'Promoted';
+
+  /// Boleto sem dono determinado — fila de reivindicação.
+  static const String unrouted = 'Unrouted';
+
+  /// O documento diz, sob rótulo, que o pagador é outro.
+  static const String foreignPayer = 'ForeignPayer';
+
+  /// Nenhum boleto reconhecido, remetente cadastrado — ficou para revisão.
+  static const String quarantined = 'Quarantined';
+
+  /// PDF que nenhuma senha derivada abriu.
+  static const String locked = 'Locked';
+
+  /// O provedor não entregou o arquivo.
+  static const String downloadFailed = 'DownloadFailed';
+
+  /// Não era boleto e o remetente não é cadastrado: sumiu sem deixar item.
+  static const String discarded = 'Discarded';
+
+  /// O processamento estourou e desistiu — não se chegou a saber o que era.
+  ///
+  /// Não se confunde com [downloadFailed], onde o arquivo não veio: aqui ele
+  /// veio e a leitura é que não fechou. Nem com [quarantined], que é resposta
+  /// sobre o documento; esta é resposta sobre o sistema. Antes de existir, o
+  /// anexo nessa situação ficava em [pending] para sempre.
+  static const String processingFailed = 'ProcessingFailed';
+
+  /// A mensagem não trouxe nada para processar — nem anexo, nem sinal no corpo.
+  ///
+  /// É o único valor que nunca aparece num anexo: ele descreve a mensagem, e é
+  /// calculado justamente porque não há anexo de onde derivar desfecho. Existe
+  /// porque a ausência estava sendo mostrada como [pending] — "Na fila" — para
+  /// e-mails que não estavam em fila nenhuma.
+  static const String nothingToProcess = 'NothingToProcess';
+
+  /// The filters the screen offers, in reading order.
+  static const List<String> filters = [
+    promoted,
+    unrouted,
+    quarantined,
+    downloadFailed,
+    processingFailed,
+    discarded,
+    nothingToProcess,
+  ];
+
+  /// Whether the outcome asks someone to do something.
+  static bool needsAttention(String outcome) =>
+      outcome == unrouted || outcome == downloadFailed || outcome == locked;
+
+  /// The label to show for [outcome].
+  static String label(String outcome) => switch (outcome) {
+        pending => 'Na fila',
+        promoted => 'Virou boleto',
+        unrouted => 'Aguardando reivindicação',
+        foreignPayer => 'De outro pagador',
+        quarantined => 'Não reconhecido',
+        locked => 'Protegido por senha',
+        downloadFailed => 'Download falhou',
+        discarded => 'Descartado',
+        processingFailed => 'Falha no processamento',
+        nothingToProcess => 'Sem documento',
+        _ => outcome,
+      };
+}
+
 /// Wire values of the backend's `ExpectationOrigin` smart enum.
 abstract final class ExpectationOrigins {
   /// Learned from the bill history.
@@ -474,4 +602,49 @@ abstract final class ExpectationOrigins {
   /// The label to show for [origin].
   static String label(String origin) =>
       origin == learned ? 'Aprendida' : 'Manual';
+}
+
+/// Where the AI reading of a bill stands.
+///
+/// Mirrors the server's `ReadingStatus`. The bill is never blocked by it — the
+/// queue is only about the analysis.
+abstract final class ReadingStatuses {
+  /// Nothing to read: hand-imported bill, unsupported media, extractor off.
+  static const String notApplicable = 'NotApplicable';
+
+  /// Waiting its turn in the queue.
+  static const String queued = 'Queued';
+
+  /// The reading was attached.
+  static const String done = 'Done';
+
+  /// Gave up after the retries, or the provider refused the artifact.
+  static const String unavailable = 'Unavailable';
+
+  /// What the user reads for each state — empty when there is nothing to say.
+  ///
+  /// [notApplicable] and [done] say nothing on purpose: the first is an
+  /// absence the user cannot act on, and the second speaks through the fields
+  /// it filled in.
+  static String label(String status) => switch (status) {
+        queued => 'Na fila para consulta com IA',
+        unavailable => 'Consulta com IA indisponível',
+        _ => '',
+      };
+
+  /// The one-line explanation that goes under [label].
+  static String detail(String status) => switch (status) {
+        queued =>
+          'A competência, a descrição e a conferência do documento contra a '
+              'consulta oficial chegam quando a leitura terminar. O boleto não '
+              'espera por ela — pode ser aprovado assim mesmo.',
+        unavailable =>
+          'O extrator não conseguiu ler este documento depois das tentativas. '
+              'A verificação "Documento × consulta oficial" fica sem base de '
+              'comparação.',
+        _ => '',
+      };
+
+  /// Whether this state is worth a line on the screen at all.
+  static bool speaks(String status) => label(status).isNotEmpty;
 }

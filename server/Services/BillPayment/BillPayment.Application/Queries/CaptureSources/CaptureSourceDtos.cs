@@ -1,4 +1,4 @@
-namespace BillPayment.Application.Queries.CaptureSources;
+﻿namespace BillPayment.Application.Queries.CaptureSources;
 
 /// <summary>
 /// A fonte como o dono dela a vê.
@@ -22,6 +22,12 @@ public sealed record CaptureSourceDto(
 
     bool HasCredential,
     bool IsEnabled,
+
+    /// <summary>
+    /// Piso temporal da captura; nulo = a caixa inteira. Sai por API porque é escolha do
+    /// usuário e a tela precisa mostrar desde quando aquela caixa é lida.
+    /// </summary>
+    DateOnly? CaptureSince,
 
     /// <summary>Última tentativa concluída em qualquer pasta.</summary>
     DateTime? LastSyncAt,

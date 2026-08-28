@@ -1,8 +1,9 @@
-namespace BillPayment.Infra.Extraction;
+﻿namespace BillPayment.Infra.Extraction;
 
 using System.Text;
 using BillPayment.Domain.CaptureItems;
 using BillPayment.Domain.Extraction;
+using BillPayment.Domain.SharedKernel;
 using BillPayment.Domain.Ports;
 
 /// <summary>
@@ -28,10 +29,21 @@ using BillPayment.Domain.Ports;
 /// </remarks>
 internal sealed class EmailBodyDocumentParser : IBoletoDocumentParser
 {
+    /// <summary>
+    /// Corpo de e-mail não é cifrado: não há cópia a produzir.
+    /// </summary>
+    public Task<ReadOnlyMemory<byte>?> UnlockAsync(
+        ReadOnlyMemory<byte> content,
+        string? contentType,
+        IReadOnlyList<PasswordCandidate> passwordCandidates,
+        CancellationToken cancellationToken)
+        => Task.FromResult<ReadOnlyMemory<byte>?>(null);
+
     public Task<ExtractionResult> ParseAsync(
         ReadOnlyMemory<byte> content,
         string? contentType,
         IReadOnlyList<PasswordCandidate> passwordCandidates,
+        IReadOnlyList<TaxId> knownTaxIds,
         DateOnly today,
         CancellationToken cancellationToken)
     {
@@ -49,7 +61,7 @@ internal sealed class EmailBodyDocumentParser : IBoletoDocumentParser
         return Task.FromResult(instruments.Count == 0
             ? ExtractionResult.NotFound("no_instrument_in_body")
             : ExtractionResult.Found(
-                instruments, ExtractionMethod.EmailBody, unlockedBy: null, TaxIdScanner.Scan(text)));
+                instruments, ExtractionMethod.EmailBody, unlockedBy: null, TaxIdScanner.Scan(text, knownTaxIds)));
     }
 
     /// <summary>

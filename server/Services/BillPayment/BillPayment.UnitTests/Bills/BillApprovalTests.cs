@@ -54,11 +54,10 @@ public class BillApprovalTests
     }
 
     // Falha bloqueante não é aprovável. Na prática a defesa que dispara é a de situação: um
-    // boleto com bloqueio já está em Rejected, porque RecordChecks o levou para lá. A guarda
-    // BLP.BIL04 fica atrás dela, como defesa em profundidade sobre a operação mais perigosa
-    // do sistema — o que importa aqui é que a aprovação não acontece.
+    // ADR-015: Perigo sem o aceite explícito recusa a aprovação com BLP.BIL27 — e a recusa
+    // lista os motivos para a tela mostrar o que o aprovador estaria assumindo.
     [Fact]
-    public void Approve_WithABlockingFailure_ShouldNotBeAllowed()
+    public void Approve_OnADangerBillWithoutAcknowledgingTheRisk_ShouldThrow_BLP_BIL27()
     {
         var bill = ReadyForApproval();
         bill.RecordChecks(AllPassing(CheckResult.Failed(CheckType.PayeeMatch, CheckReasons.PAYEE_LOOKALIKE)), DecidedAt);
@@ -67,9 +66,24 @@ public class BillApprovalTests
         var ex = Assert.Throws<DomainException>(
             () => bill.Approve(Approver, ScheduleFor, null, Policy(), Today, DecidedAt));
 
-        Assert.Equal("BLP.BIL25", ex.Id);
-        Assert.Equal(BillStatus.Rejected, bill.Status);
+        Assert.Equal("BLP.BIL27", ex.Id);
+        Assert.Equal(BillStatus.AwaitingApproval, bill.Status);
         Assert.Null(bill.Approval);
+    }
+
+    // ADR-015: com o risco explicitamente assumido, o Perigo é aprovável — e a trilha grava o
+    // nível que o aprovador viu no instante da decisão.
+    [Fact]
+    public void Approve_OnADangerBillAcknowledgingTheRisk_ShouldApproveAndRecordTheRisk()
+    {
+        var bill = ReadyForApproval();
+        bill.RecordChecks(AllPassing(CheckResult.Failed(CheckType.PayeeMatch, CheckReasons.PAYEE_LOOKALIKE)), DecidedAt);
+        bill.PullDomainEvents();
+
+        bill.Approve(Approver, ScheduleFor, "risco assumido", Policy(), Today, DecidedAt, acknowledgeRisk: true);
+
+        Assert.Equal(BillStatus.Approved, bill.Status);
+        Assert.Same(RiskLevel.Danger, bill.Approval!.RiskAtDecision);
     }
 
     // Falha apenas advisory NÃO impede a aprovação — o aprovador assume o risco e a decisão
@@ -224,9 +238,10 @@ public class BillApprovalTests
         Assert.Equal("BLP.BIL25", ex.Id);
     }
 
-    // Boleto reprovado não é aprovável direto: precisa de revalidação limpa antes — BLP.BIL25.
+    // ADR-015: duplicata é Perigo — o mesmo aceite explícito vale para ela, porque pagamento
+    // duplicado é irreversível na prática.
     [Fact]
-    public void Approve_OnARejectedBill_ShouldThrow_BLP_BIL25()
+    public void Approve_OnADuplicateDangerBill_ShouldRequireTheAcknowledgment()
     {
         var bill = ReadyForApproval();
         bill.RecordChecks(AllPassing(CheckResult.Failed(CheckType.Duplicate, CheckReasons.DUPLICATE_SAME_TENANT)), DecidedAt);
@@ -235,7 +250,7 @@ public class BillApprovalTests
         var ex = Assert.Throws<DomainException>(
             () => bill.Approve(Approver, ScheduleFor, null, Policy(), Today, DecidedAt));
 
-        Assert.Equal("BLP.BIL25", ex.Id);
+        Assert.Equal("BLP.BIL27", ex.Id);
     }
 
     // A validade do retrato é medida a partir da consulta mais recente.

@@ -2,6 +2,7 @@ namespace BillPayment.Application.Expectations.Commands;
 
 using BillPayment.Application.Mediator;
 using BillPayment.Domain.Bills;
+using BillPayment.Domain.CaptureSources;
 using BillPayment.Domain.Expectations;
 using BillPayment.Domain.Instruments;
 using BillPayment.Domain.SeedWork;
@@ -16,6 +17,13 @@ using Microsoft.Extensions.Logging;
 /// <para>
 /// <strong>Roda depois da verificação, não da captura</strong>, porque é a verificação que
 /// resolve o beneficiário (<c>Bill.PayeeId</c>) — e sem beneficiário não há contra o quê casar.
+/// </para>
+/// <para>
+/// <strong>Boleto que chega antes de o ciclo existir abre o próprio ciclo.</strong> É a rede de
+/// segurança contra prazo de chegada subestimado: o ciclo nasce <c>ObservedLeadDays</c> antes do
+/// vencimento, e uma conta que chegue antes disso não teria o que cumprir — viraria alerta de
+/// "não chegou" sobre um boleto capturado e aprovado. Quem escolhe a expectativa é o Domain
+/// Service, e ele recusa quando há mais de uma candidata.
 /// </para>
 /// <para>
 /// <strong>Não achar ciclo é desfecho normal</strong>, não erro: a maior parte dos boletos não
@@ -47,19 +55,43 @@ public sealed class FulfillExpectationForBillCommandHandler(
             ?? throw BillErrors.NotFound(request.BillId);
 
         if (bill.PayeeId is not { } payeeId)
-            return new FulfillExpectationForBillResponse(request.BillId, null, null);
+            return NoMatch(request.BillId);
 
         var candidates = await expectations.ListByPayeeAsync(tenantId, payeeId, cancellationToken);
         if (candidates.Count == 0)
-            return new FulfillExpectationForBillResponse(request.BillId, null, null);
+            return NoMatch(request.BillId);
 
         var now = clock.GetUtcNow().UtcDateTime;
         var today = DateOnly.FromDateTime(now);
-        var dueDate = DueDateOf(bill);
+
+        if (bill.DueDate is not { } dueDate)
+            return NoMatch(request.BillId);
+
+        var competence = new CompetencePeriod(dueDate.Year, dueDate.Month);
+        var arrivedOn = DateOnly.FromDateTime(bill.Origin.ReceivedAt);
+        var arrivedThrough = SourceOf(bill);
 
         var match = ExpectationMatchingService.Match(candidates, dueDate, today);
 
-        if (match is null)
+        if (match is not null)
+        {
+            var matched = candidates.First(e => e.Id == match.ExpectationId);
+
+            // Reentrega do outbox: um ciclo já cumprido recusa novo cumprimento pela própria
+            // máquina de estados, então basta não insistir.
+            if (matched.CycleFor(competence)?.Status == CycleStatus.Fulfilled)
+                return new FulfillExpectationForBillResponse(request.BillId, match.ExpectationId.Value, match.CycleId.Value);
+
+            matched.Fulfill(match.CycleId, bill.Id, dueDate, arrivedOn, arrivedThrough, now);
+            await unitOfWork.SaveEntitiesAsync(cancellationToken);
+
+            return new FulfillExpectationForBillResponse(
+                request.BillId, match.ExpectationId.Value, match.CycleId.Value);
+        }
+
+        var soleId = ExpectationMatchingService.SoleWatchingWithoutCycleFor(candidates, competence, today);
+
+        if (soleId is null)
         {
             if (logger.IsEnabled(LogLevel.Information))
             {
@@ -68,39 +100,38 @@ public sealed class FulfillExpectationForBillCommandHandler(
                     candidates.Count);
             }
 
-            return new FulfillExpectationForBillResponse(request.BillId, null, null);
+            return NoMatch(request.BillId);
         }
 
-        var expectation = candidates.First(e => e.Id == match.ExpectationId);
+        var expectation = candidates.First(e => e.Id == soleId.Value);
+        var opened = expectation.OpenCycle(competence, now);
 
-        // Reentrega do outbox: um ciclo já cumprido recusa novo cumprimento pela própria máquina
-        // de estados, então basta não insistir.
-        if (expectation.CycleFor(CompetenceOf(dueDate!.Value))?.Status == CycleStatus.Fulfilled)
-            return new FulfillExpectationForBillResponse(request.BillId, match.ExpectationId.Value, match.CycleId.Value);
-
-        expectation.Fulfill(match.CycleId, bill.Id, dueDate.Value, now);
-
+        expectation.Fulfill(opened.Id, bill.Id, dueDate, arrivedOn, arrivedThrough, now);
         await unitOfWork.SaveEntitiesAsync(cancellationToken);
 
         return new FulfillExpectationForBillResponse(
-            request.BillId, match.ExpectationId.Value, match.CycleId.Value);
+            request.BillId, expectation.Id.Value, opened.Id.Value);
     }
+
+    private static FulfillExpectationForBillResponse NoMatch(Guid billId)
+        => new(billId, null, null);
 
     /// <summary>
-    /// O vencimento como o documento o declara. Nulo em arrecadação sem data legível — e aí não
-    /// há casamento, porque dar por cumprida a conta errada é pior que alertar por uma que chegou.
+    /// Por onde o boleto chegou. Alimenta o <c>HintSourceId</c> da expectativa, que é o que liga
+    /// um artefato travado à conta que ele seria — importação manual não tem fonte, e aí o hint
+    /// anterior é preservado.
     /// </summary>
-    private static DateOnly? DueDateOf(Bill bill)
-    {
-        // Consultar o Kind antes é obrigatório: acessar a linha digitável de um instrumento Pix
-        // lança BLP.INS03, por desenho.
-        var due = bill.Instruments
-            .Where(i => i.Kind == PaymentInstrumentKind.Barcode)
-            .Select(i => i.DigitableLine.DueDate)
-            .FirstOrDefault(d => d is not null);
+    private static CaptureSourceId? SourceOf(Bill bill)
+        => bill.Origin.SourceId is { } sourceId ? CaptureSourceId.From(sourceId) : null;
+}
 
-        return due is null ? null : DateOnly.FromDateTime(due.Value);
-    }
-
-    private static CompetencePeriod CompetenceOf(DateOnly dueDate) => new(dueDate.Year, dueDate.Month);
+public sealed class FulfillExpectationForBillIdentifiedCommandHandler(
+    IMediator mediator,
+    IRequestManager requestManager,
+    ILogger<FulfillExpectationForBillIdentifiedCommandHandler> logger)
+    : IdentifiedCommandHandler<FulfillExpectationForBillCommand, FulfillExpectationForBillResponse>(
+        mediator, requestManager, logger)
+{
+    protected override FulfillExpectationForBillResponse CreateResultForDuplicateRequest()
+        => new(Guid.Empty, null, null);
 }

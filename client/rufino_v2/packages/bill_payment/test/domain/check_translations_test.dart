@@ -34,6 +34,8 @@ const _serverReasonCodes = [
   'payer_mismatch',
   'payer_not_extractable',
   'payer_profile_missing',
+  'payee_is_the_payer',
+  'payer_only_inside_barcode',
   'origin_unknown',
   'origin_blocked',
   'origin_manual_upload',
@@ -125,6 +127,24 @@ void main() {
 
       expect(check.reasonMessage, isNull);
       expect(check.requiresAttention, isFalse);
+    });
+  });
+
+  group('blocking payer reasons', () {
+    // Os dois motivos novos bloqueiam o pagamento; a tela precisa dizer POR QUE, senão quem
+    // aprova vê "verificação falhou" e não tem o que fazer com isso.
+    test('the beneficiary being the payer explains itself and says it is blocked', () {
+      final text = checkReasonMessage('payee_is_the_payer')!;
+
+      expect(text, contains('BLOQUEADO'));
+      expect(text, contains('beneficiário'));
+    });
+
+    test('a tax id found only inside the barcode explains why it means nothing', () {
+      final text = checkReasonMessage('payer_only_inside_barcode')!;
+
+      expect(text, contains('BLOQUEADO'));
+      expect(text, contains('código de barras'));
     });
   });
 }

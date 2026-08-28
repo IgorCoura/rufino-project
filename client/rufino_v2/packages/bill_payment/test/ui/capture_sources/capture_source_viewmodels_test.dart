@@ -142,4 +142,99 @@ void main() {
       expect(viewModel.source, isNotNull);
     });
   });
+
+  group('CaptureSource capture floor', () {
+    test('connecting hands the chosen floor to the repository', () async {
+      final repository = FakeCaptureSourceRepository();
+      final viewModel = CaptureSourceConnectViewModel(repository: repository);
+
+      await viewModel.connect(
+        displayName: 'Contas',
+        address: 'contas@empresa.com.br',
+        directoryId: 'dir',
+        clientId: 'app',
+        clientSecret: 'segredo',
+        captureSince: DateTime(2026, 5, 27),
+      );
+
+      expect(repository.lastCaptureSince, DateTime(2026, 5, 27));
+      viewModel.dispose();
+    });
+
+    test('connecting without a floor reads the whole mailbox', () async {
+      final repository = FakeCaptureSourceRepository();
+      final viewModel = CaptureSourceConnectViewModel(repository: repository);
+
+      await viewModel.connect(
+        displayName: 'Contas',
+        address: 'contas@empresa.com.br',
+        directoryId: 'dir',
+        clientId: 'app',
+        clientSecret: 'segredo',
+      );
+
+      expect(repository.lastCaptureSince, isNull);
+      viewModel.dispose();
+    });
+
+    test('changing the floor reaches the repository', () async {
+      final repository = FakeCaptureSourceRepository()
+        ..sources = [captureSource()];
+      final viewModel = CaptureSourceDetailViewModel(
+        repository: repository,
+        sourceId: 'src-1',
+      );
+      await viewModel.load();
+
+      final changed = await viewModel.changeCaptureSince(DateTime(2026, 5, 27));
+
+      expect(changed, isTrue);
+      expect(repository.lastCaptureSince, DateTime(2026, 5, 27));
+      viewModel.dispose();
+    });
+
+    test('clearing the floor returns the source to the whole mailbox',
+        () async {
+      final repository = FakeCaptureSourceRepository()
+        ..sources = [captureSource(captureSince: DateTime(2026, 5, 27))];
+      final viewModel = CaptureSourceDetailViewModel(
+        repository: repository,
+        sourceId: 'src-1',
+      );
+      await viewModel.load();
+
+      final changed = await viewModel.changeCaptureSince(null);
+
+      expect(changed, isTrue);
+      expect(repository.calls, contains('changeCaptureSince:null'));
+      viewModel.dispose();
+    });
+
+    test('a refused change keeps the source on screen with the message',
+        () async {
+      final repository = FakeCaptureSourceRepository()
+        ..sources = [captureSource()];
+      final viewModel = CaptureSourceDetailViewModel(
+        repository: repository,
+        sourceId: 'src-1',
+      );
+      await viewModel.load();
+      repository.setShouldFail(true);
+
+      final changed = await viewModel.changeCaptureSince(DateTime(2027, 1, 1));
+
+      expect(changed, isFalse);
+      expect(viewModel.errorMessage, 'regra disse não');
+      expect(viewModel.source, isNotNull);
+      viewModel.dispose();
+    });
+
+    test('a source with no floor reads the entire mailbox', () {
+      expect(captureSource().readsEntireMailbox, isTrue);
+      expect(
+        captureSource(captureSince: DateTime(2026, 5, 27)).readsEntireMailbox,
+        isFalse,
+      );
+    });
+  });
 }

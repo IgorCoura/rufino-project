@@ -22,9 +22,12 @@ internal sealed class NullDocumentIntelligence : IDocumentIntelligence
 {
     public bool IsEnabled => false;
 
-    public Task<ExtractedDocument> ExtractAsync(
+    public Task<ExtractionAttempt> ExtractAsync(
         DocumentPayload payload,
         ExtractionHints hints,
         CancellationToken cancellationToken)
-        => Task.FromResult(ExtractedDocument.Empty);
+        // `Empty`, e NÃO `Unavailable`: ausência de provedor é decisão de configuração, não
+        // instabilidade. Marcá-la como retentável faria a fila insistir para sempre num degrau
+        // que ninguém ligou.
+        => Task.FromResult(ExtractionAttempt.Answered(ExtractedDocument.Empty));
 }

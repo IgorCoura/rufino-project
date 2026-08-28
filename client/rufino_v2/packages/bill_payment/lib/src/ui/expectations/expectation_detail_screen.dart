@@ -21,6 +21,8 @@ class ExpectationDetailScreen extends StatefulWidget {
     required this.backFallback,
     required this.onOpenBill,
     required this.onOpenCaptureItem,
+    required this.onEdit,
+    required this.onDeleted,
   });
 
   /// Drives the screen.
@@ -34,6 +36,12 @@ class ExpectationDetailScreen extends StatefulWidget {
 
   /// Opens the quarantine item blocking a cycle.
   final void Function(String itemId) onOpenCaptureItem;
+
+  /// Opens the edit form for this expectation.
+  final VoidCallback onEdit;
+
+  /// Called after the expectation is deleted — there is no screen left.
+  final VoidCallback onDeleted;
 
   @override
   State<ExpectationDetailScreen> createState() =>
@@ -144,6 +152,32 @@ class _Body extends StatelessWidget {
                                 'observações)'
                             : ''),
                   ),
+                  if (canManage) ...[
+                    const SizedBox(height: AppSpacing.sm),
+                    Wrap(
+                      spacing: AppSpacing.sm,
+                      runSpacing: AppSpacing.xs,
+                      children: [
+                        FilledButton.tonalIcon(
+                          onPressed:
+                              viewModel.isMutating ? null : widget.onEdit,
+                          icon: const Icon(Symbols.edit, size: 18),
+                          label: const Text('Editar'),
+                        ),
+                        TextButton.icon(
+                          onPressed: viewModel.isMutating
+                              ? null
+                              : () => _confirmDelete(context),
+                          icon: const Icon(Symbols.delete, size: 18),
+                          label: const Text('Excluir'),
+                          style: TextButton.styleFrom(
+                            foregroundColor:
+                                Theme.of(context).colorScheme.error,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
                 ],
               ),
             ),
@@ -218,6 +252,35 @@ class _Body extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  /// O beneficiário não é editável, então excluir é o caminho de trocá-lo — e
+  /// o diálogo precisa dizer o que vai junto e o que Desativar faria no lugar.
+  Future<void> _confirmDelete(BuildContext context) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Excluir expectativa?'),
+        content: const Text(
+          'Os ciclos e o histórico de alertas vão junto. Para apenas parar '
+          'de monitorar, use Desativar.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Excluir'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+
+    final deleted = await viewModel.deleteExpectation();
+    if (deleted) widget.onDeleted();
   }
 
   Future<void> _pickPauseDate(BuildContext context) async {

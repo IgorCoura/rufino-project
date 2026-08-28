@@ -19,7 +19,7 @@ Este é o coração do BC: provar que o boleto é legítimo **antes** de qualque
 
 ## Catálogo de checks
 
-Severidade: **`Blocking`** = falha impede a aprovação (o aprovador não consegue autorizar até o motivo ser resolvido). **`Advisory`** = falha é destacada na tela mas o aprovador pode autorizar assumindo o risco, com o motivo gravado na trilha.
+Severidade: **`Blocking`** = a falha classifica o boleto como **Perigo** — aprovável somente com o risco explicitamente assumido (`acknowledgeRisk`), gravado na trilha ([`adr/ADR-015`](adr/ADR-015-risco-classificado-humano-decide.md)). **`Advisory`** = falha destacada como **Atenção**; o aprovador autoriza normalmente, com o motivo gravado. Desde 2026-08-27 **a validação não rejeita boleto nenhum**: ela classifica (Seguro/Atenção/Perigo) e quem decide é sempre o humano.
 
 | # | `CheckType` | Pergunta | Fonte × expectativa | Severidade |
 |---|---|---|---|---|
@@ -35,6 +35,7 @@ Severidade: **`Blocking`** = falha impede a aprovação (o aprovador não conseg
 | 10 | `DueDateSanity` | Dá tempo de pagar? | `Lookup.DueDate`, `IsOverdue`, `MinimumScheduleDate` × hoje | Advisory |
 | 11 | `TenantRouting` | Por qual caminho este boleto foi atribuído a este tenant? | degrau da escada de roteamento | Advisory |
 | 12 | `PixBarcodeConsistency` | O QR Pix e o código de barras contam a mesma história? | `PixLookupSnapshot` × `LookupSnapshot` | **Blocking** |
+| 13 | `DocumentConsistency` | **O que está impresso no documento bate com a consulta oficial?** | `DocumentReading` (leitura por IA) × `LookupSnapshot`/`PixLookupSnapshot` | Advisory (identidade do beneficiário divergente → **Blocking**) |
 
 ### Os checks valem nos dois trilhos
 
@@ -55,12 +56,12 @@ O catálogo foi escrito para boleto, mas **transfere quase inteiro para Pix** �
 
 Valida os dígitos verificadores. Cobrança bancária (47 dígitos): mod 10 nos três primeiros campos + mod 11 no DV geral do código de barras (posição 5). Arrecadação/concessionária (48 dígitos, inicia em `8`): quatro blocos de 12, com mod 10 **ou** mod 11 conforme o 3º dígito (identificador de valor efetivo/referência).
 
-- Falha → `Outcome=Failed`, Bill vai direto a `Rejected`. Linha digitada errada é o caso comum; boleto adulterado sem recalcular DV é o caso raro e grave.
+- Falha → `Outcome=Failed`, boleto classificado como **Perigo** (ADR-015). Na prática o caso não nasce: linha com DV inválido não constrói o VO e o documento nem vira `Bill`.
 - Este check roda em `Bill.Capture` (invariante `BLP.BIL01`) e é registrado como `Passed` no conjunto de checks para a auditoria ficar completa.
 
 ### 2. `Duplicate`
 
-Já existe Bill com a mesma `DigitableLine` em status ≠ `Cancelled`/`Denied`? Falha → `Rejected` com a evidência.
+Já existe Bill com a mesma `DigitableLine` em status ≠ `Cancelled`/`Denied`? Falha → **Perigo** com a evidência (ADR-015) — aprovável só com o risco assumido, porque pagamento duplicado é irreversível na prática.
 
 **A busca é global, não por tenant.** Um boleto é pago uma vez, e uma caixa de e-mail compartilhada entre tenants torna a colisão provável. Quando a Bill existente é de outro tenant, a evidência é o aviso genérico *"este boleto já está sob gestão de outra conta do sistema"* — sem id, sem nome, sem valor. Quando é do mesmo tenant, a evidência traz o id da Bill original. É uma das três travessias de tenant autorizadas ([`adr/ADR-008`](adr/ADR-008-fontes-compartilhadas-e-isolamento.md)).
 
@@ -68,7 +69,7 @@ Motivo de ser bloqueante: pagamento duplicado é irreversível na prática. O ca
 
 ### 3. `LookupAvailability`
 
-A consulta é obrigatória. Se o provedor está fora do ar ou a linha não é consultável, o check fica `Failed` (bloqueante) com retentativa automática — o Bill fica visível em `Rejected` com motivo `lookup_unavailable` e um botão de revalidar. **Nunca** cai para "aprova sem consulta".
+A consulta é obrigatória. Se o provedor está fora do ar ou a linha não é consultável, o check fica `Failed` (bloqueante) — o boleto fica visível como **Perigo** com motivo `lookup_unavailable` e um botão de revalidar (ADR-015). **Nunca** cai para "aprova sem consulta" *em silêncio*: aprovar sem consulta passou a ser possível, mas só com o aceite explícito gravado na trilha.
 
 ### 4. `LookupConsistency`
 
@@ -198,11 +199,25 @@ Só roda quando o documento traz **os dois** instrumentos. Compara as duas consu
 | Valor | `PixLookup.Value` × `Lookup.OriginalAmount` | valor adulterado em um dos trilhos |
 | Vencimento | `PixLookup.DueDate` × `Lookup.DueDate` | ±1 dia de tolerância |
 
-Divergência de beneficiário ou de valor → `Failed` bloqueante, Bill vai a `Rejected`. **Nunca "escolhe um e segue"** — divergência entre trilhos é exatamente o que a fraude produz, e o documento inteiro passa a ser suspeito.
+Divergência de beneficiário ou de valor → `Failed` bloqueante, boleto em **Perigo** (ADR-015). **Nunca "escolhe um e segue"** — divergência entre trilhos é exatamente o que a fraude produz, e o documento inteiro passa a ser suspeito.
 
 É a defesa mais barata do catálogo: duas consultas que o sistema já faz, comparadas entre si. E é a única que pega o vetor mais direto em circulação hoje — QR Pix adulterado sobre boleto verdadeiro. Racional em [`adr/ADR-010`](adr/ADR-010-pix-preferido-sobre-boleto.md).
 
 QR estático (sem valor) → compara só o beneficiário; o resto sai `Skipped` com motivo.
+
+### 13. `DocumentConsistency` — o documento impresso × a consulta oficial
+
+O par que faltava no catálogo: `LookupConsistency` compara o **parse offline** com a consulta; `PixBarcodeConsistency` compara **os dois trilhos oficiais** entre si; este compara **o que o emissor imprimiu** (lido pela IA — `Bill.Reading`) com **o que o registro diz**. É o check que pega o instrumento trocado sobre um documento visualmente legítimo — o vetor clássico do malware de boleto.
+
+| Campo | Comparação | Divergência |
+|---|---|---|
+| Beneficiário | `Reading.PayeeTaxId` (DV provado) × `Bill.Beneficiary.TaxId` | `Failed` **escalado para Blocking** (`document_payee_mismatch`) — Perigo |
+| Valor | `Reading.Amount` × `Lookup.OriginalAmount` (valor de face) | `Warning` (`document_amount_divergence`) — encargos de vencido são legítimos e **não** disparam, porque a base é o original |
+| Vencimento | `Reading.DueDate` × vencimento oficial (±1 dia) | `Warning` (`document_due_date_divergence`) |
+
+A assimetria é a mesma do `PayerMatch`: **contradição pesa, ausência nunca** — sem leitura (`Skipped`, `reading_not_available`), sem campo oficial comparável (`Inconclusive`). Erro de OCR não pode rejeitar boleto legítimo; por isso só a identidade, que o DV já provou, escala para Blocking.
+
+`DueDateSanity` ganhou, na mesma fase, a leitura como **última reserva** de vencimento: QR estático sem data oficial usa a impressa no documento, com a procedência declarada na evidência — e essa data alimenta o agendamento (decisão do usuário, 2026-08-27).
 
 ## Como a validação roda
 
@@ -240,11 +255,15 @@ O `LookupSnapshot` envelhece: valor de boleto vencido muda todo dia. Regras:
 
 ## Matriz de decisão
 
-| Situação | Status resultante |
-|---|---|
-| Algum `Blocking` = `Failed` | `Rejected` |
-| Nenhum `Blocking` falhou, algum `Advisory` falhou ou está `Inconclusive` | `AwaitingApproval` — destacado como "requer atenção" |
-| Todos `Passed` ou `Skipped` | `AwaitingApproval` — caminho limpo |
+Reescrita em 2026-08-27 ([`adr/ADR-015`](adr/ADR-015-risco-classificado-humano-decide.md)) — **não existe mais rejeição automática**:
+
+| Situação | Status | `RiskLevel` | Aprovação |
+|---|---|---|---|
+| Algum `Blocking` = `Failed` | `AwaitingApproval` | **Perigo** (banner vermelho) | exige `acknowledgeRisk: true`; sem ele, `BLP.BIL27` (409) |
+| Algum `Advisory` falhou, `Warning` ou `Inconclusive` | `AwaitingApproval` | **Atenção** (banner âmbar) | normal |
+| Todos `Passed` ou `Skipped` | `AwaitingApproval` | **Seguro** (banner verde) | normal |
+
+O `ApprovalRecord` grava `RiskAtDecision` — o nível que o aprovador viu no instante da decisão. `Rejected` permanece no Smart Enum **sem produtor automático** (ids persistidos não se renumeram). O que continua fora do alcance da classificação: DV inválido não vira `Bill`, e a deduplicação da captura não cria segundo boleto.
 
 Não existe transição automática para `Approved` nesta fase. Auto-aprovação por política é decisão adiada, com condições já escritas em [`adr/ADR-007-aprovacao-humana-obrigatoria.md`](adr/ADR-007-aprovacao-humana-obrigatoria.md).
 

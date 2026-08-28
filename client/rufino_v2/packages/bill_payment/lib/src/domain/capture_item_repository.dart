@@ -1,6 +1,8 @@
 import 'package:rufino_core/rufino_core.dart';
 
 import 'capture_item.dart';
+import 'captured_artifact.dart';
+import 'email_message.dart';
 
 /// What claiming an item returned.
 class ClaimOutcome {
@@ -41,4 +43,29 @@ abstract class CaptureItemRepository {
 
   /// Claims an unrouted item as this tenant's bill.
   Future<Result<ClaimOutcome>> claimItem(String id);
+
+  /// Dismisses a quarantined item the user does not recognise.
+  ///
+  /// Reversible by [reprocessItem] — see the API service for why.
+  Future<Result<void>> dismissItem(String id, {String? note});
+
+  /// Uploads the bill the user fetched by hand from [CaptureItem.sourceUrl].
+  Future<Result<void>> attachArtifact(
+    String id,
+    List<int> bytes, {
+    required String fileName,
+    required String contentType,
+  });
+
+  /// Downloads the item's original document.
+  ///
+  /// Only worth calling when `CaptureItem.hasArtifact` is true — the server
+  /// answers 404 otherwise, and it answers the same 404 for an item this
+  /// tenant may not see, on purpose.
+  Future<Result<CapturedArtifact>> getArtifact(String id);
+
+  /// Fetches the e-mail that brought this quarantine item.
+  ///
+  /// 404 for a manually attached document — there is no e-mail behind it.
+  Future<Result<EmailMessage>> getEmail(String id);
 }

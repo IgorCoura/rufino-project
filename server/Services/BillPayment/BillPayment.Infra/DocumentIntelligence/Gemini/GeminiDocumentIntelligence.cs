@@ -1,9 +1,11 @@
 namespace BillPayment.Infra.DocumentIntelligence.Gemini;
 
 using System.Globalization;
+using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
 using BillPayment.Domain.Extraction;
+using BillPayment.Infra.Extraction;
 using BillPayment.Domain.Ports;
 using BillPayment.Domain.SeedWork;
 using Microsoft.Extensions.Logging;
@@ -46,7 +48,7 @@ internal sealed class GeminiDocumentIntelligence(
 
     public bool IsEnabled => _options.IsConfigured;
 
-    public async Task<ExtractedDocument> ExtractAsync(
+    public async Task<ExtractionAttempt> ExtractAsync(
         DocumentPayload payload,
         ExtractionHints hints,
         CancellationToken cancellationToken)
@@ -58,7 +60,7 @@ internal sealed class GeminiDocumentIntelligence(
             payload.TenantId, _options.MaxCallsPerTenantPerDay, _options.MinIntervalMs, cancellationToken);
 
         if (!reserved)
-            return ExtractedDocument.Empty;
+            return ExtractionAttempt.BudgetExhausted();
 
         // Só as primeiras páginas: boleto está na primeira ou na segunda, e mandar um relatório
         // de trinta páginas custa proporcional sem aumentar a chance de achar o código de barras.
@@ -67,19 +69,39 @@ internal sealed class GeminiDocumentIntelligence(
             ? PdfPageTrimmer.TakeFirstPages(payload.Content, _options.MaxPages, logger)
             : payload.Content;
 
+        // O corpo do e-mail entra como parte de texto, já convertido de HTML aqui no adapter —
+        // é dele que saem competência e descrição quando o documento não as traz.
+        var parts = new List<GeminiPart>
+        {
+            GeminiPart.FromDocument(payload.MediaType, content),
+        };
+
+        if (payload.SupplementalText is { } supplemental)
+        {
+            var text = payload.SupplementalTextIsHtml ? HtmlText.ToPlainText(supplemental) : supplemental;
+            if (!string.IsNullOrWhiteSpace(text))
+                parts.Add(GeminiPart.FromText("CORPO DO E-MAIL QUE TROUXE O DOCUMENTO:\n" + text));
+        }
+
+        parts.Add(GeminiPart.FromText(GeminiPrompt.Build(hints)));
+
         var request = new GeminiRequest(
-            [new GeminiContent([
-                GeminiPart.FromDocument(payload.MediaType, content),
-                GeminiPart.FromText(GeminiPrompt.Build(hints)),
-            ])],
+            [new GeminiContent(parts)],
             new GeminiGenerationConfig("application/json", GeminiPrompt.ResponseSchema, Temperature: 0));
 
-        var body = await SendAsync(request, cancellationToken);
-
-        return body is null ? ExtractedDocument.Empty : Map(body);
+        return await SendAsync(request, payload.MediaType, content.Length, cancellationToken);
     }
 
-    private async Task<GeminiExtraction?> SendAsync(GeminiRequest request, CancellationToken cancellationToken)
+    /// <param name="mediaType">Tipo do artefato enviado — entra no diagnóstico do não-200.</param>
+    /// <param name="contentBytes">
+    /// Tamanho do artefato JÁ APARADO, em bytes. É o outro lado do diagnóstico: o provedor recusa
+    /// requisição acima do teto de dados embutidos, e o corpo em base64 cresce um terço sobre isto.
+    /// </param>
+    private async Task<ExtractionAttempt> SendAsync(
+        GeminiRequest request,
+        string mediaType,
+        int contentBytes,
+        CancellationToken cancellationToken)
     {
         var http = httpClientFactory.CreateClient(CLIENT_NAME);
         var url = $"{Base}models/{_options.Model}:generateContent";
@@ -91,12 +113,25 @@ internal sealed class GeminiDocumentIntelligence(
             if (!response.IsSuccessStatusCode)
             {
                 // O corpo do erro NÃO entra no log: ele ecoa parte da requisição, e a requisição
-                // carrega o documento do cliente.
+                // carrega o documento do cliente. O que entra é a FORMA do artefato — tipo e
+                // tamanho —, que é o suficiente para separar "recusa do provedor" de "artefato
+                // grande demais" sem revelar nada do documento. Sem isto o 400 é indistinguível
+                // do 503 no diagnóstico, e foi assim que 48 recusas ficaram sem causa conhecida
+                // na medição de 2026-08-27.
                 logger.LogWarning(
-                    "O extrator de documentos respondeu {Status}. O artefato vai para a quarentena.",
-                    (int)response.StatusCode);
+                    "O extrator de documentos respondeu {Status} para um artefato {MediaType} de "
+                    + "{Bytes} bytes. O artefato vai para a quarentena.",
+                    (int)response.StatusCode,
+                    mediaType,
+                    contentBytes);
 
-                return null;
+                // 400 é fato sobre o ARTEFATO — repetir produz a mesma recusa. 5xx e 429 são
+                // fato sobre o provedor, e nada foi aprendido sobre o documento: aí retentar é a
+                // resposta certa, e foi a ausência desta separação que mandou 24 documentos bons
+                // para a quarentena por 503 em 2026-08-27.
+                return IsTransient(response.StatusCode)
+                    ? ExtractionAttempt.Unavailable($"provider_{(int)response.StatusCode}")
+                    : ExtractionAttempt.Rejected($"provider_{(int)response.StatusCode}");
             }
 
             var payload = await response.Content.ReadFromJsonAsync<GeminiResponse>(Json, cancellationToken);
@@ -112,18 +147,45 @@ internal sealed class GeminiDocumentIntelligence(
 
             if (string.IsNullOrWhiteSpace(text))
             {
+                // O provedor RESPONDEU — só não veio texto. É desfecho sobre o documento, não
+                // sobre a rede, e insistir gastaria cota para receber o mesmo vazio.
                 logger.LogWarning("O extrator devolveu resposta vazia.");
-                return null;
+                return ExtractionAttempt.Answered(ExtractedDocument.Empty);
             }
 
-            return JsonSerializer.Deserialize<GeminiExtraction>(text, Json);
+            var extraction = JsonSerializer.Deserialize<GeminiExtraction>(text, Json);
+
+            return extraction is null
+                ? ExtractionAttempt.Answered(ExtractedDocument.Empty)
+                : ExtractionAttempt.Answered(Map(extraction));
         }
-        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or JsonException)
+        catch (JsonException ex)
         {
-            logger.LogWarning(ex, "Não foi possível falar com o extrator de documentos.");
-            return null;
+            // Corpo fora do schema é resposta do provedor, não falha de transporte: o modelo
+            // devolveu algo, e devolveria o mesmo na próxima. Não é retentável.
+            logger.LogWarning(ex, "O extrator devolveu um corpo fora do formato esperado.");
+            return ExtractionAttempt.Answered(ExtractedDocument.Empty);
+        }
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
+        {
+            logger.LogWarning(
+                ex,
+                "Não foi possível falar com o extrator de documentos: artefato {MediaType} de "
+                + "{Bytes} bytes. A cota da chamada já foi reservada e se perde com ela.",
+                mediaType,
+                contentBytes);
+
+            // Timeout e transporte caído são a definição de "nada foi aprendido": retentável.
+            return ExtractionAttempt.Unavailable(
+                ex is TaskCanceledException ? "provider_timeout" : "transport_failure");
         }
     }
+
+    /// <summary>
+    /// Falha do PROVEDOR, e não do artefato: 5xx e 429 melhoram com o tempo, 400 não.
+    /// </summary>
+    private static bool IsTransient(HttpStatusCode status)
+        => status == HttpStatusCode.TooManyRequests || (int)status >= 500;
 
     /// <summary>
     /// O texto da primeira parte da primeira alternativa — que é onde o JSON imposto pelo
@@ -158,7 +220,9 @@ internal sealed class GeminiDocumentIntelligence(
             body.AccountReference,
             ParseAmount(body.Amount),
             ParseDate(body.DueDate),
-            body.Notes);
+            body.Notes,
+            body.BillingPeriod,
+            body.Description);
 
     private static DocumentKind? ParseKind(string? value)
     {

@@ -1,4 +1,4 @@
-namespace BillPayment.IntegrationTests.Mailboxes;
+﻿namespace BillPayment.IntegrationTests.Mailboxes;
 
 using System.Net;
 using BillPayment.Domain.Extraction;
@@ -107,7 +107,7 @@ public sealed class GraphMailboxReaderTests
                 {"value":[{"id":"att-1","name":"boleto.pdf","contentType":"application/pdf","size":51200,"isInline":false}]}
                 """));
 
-        var result = await reader.ReadAsync(Mailbox, Credential, folderPath: null, cursor: null, CancellationToken.None);
+        var result = await reader.ReadAsync(Mailbox, Credential, folderPath: null, cursor: null, capturedSince: null, CancellationToken.None);
 
         Assert.True(result.IsOk);
         Assert.Equal("https://graph.microsoft.com/v1.0/delta?token=abc", result.NextCursor);
@@ -138,16 +138,17 @@ public sealed class GraphMailboxReaderTests
                 ]}
                 """));
 
-        var result = await reader.ReadAsync(Mailbox, Credential, folderPath: null, cursor: null, CancellationToken.None);
+        var result = await reader.ReadAsync(Mailbox, Credential, folderPath: null, cursor: null, capturedSince: null, CancellationToken.None);
 
         var artifact = Assert.Single(Assert.Single(result.Messages).Artifacts);
         Assert.Equal("boleto", artifact.Key);
     }
 
-    // Mensagem sem anexo utilizável não vira item — inclusive a removida da pasta desde o
-    // último cursor, que não desfaz o que já foi ingerido.
+    // Mensagem removida da pasta desde o último cursor é ignorada — o @removed não desfaz o que
+    // já foi ingerido, e reprocessá-la não faria sentido. A mensagem SEM anexo, ao contrário,
+    // continua subindo desde 2026-08-26: ela não vira item, mas precisa chegar ao livro-caixa.
     [Fact]
-    public async Task Read_ShouldSkipRemovedAndAttachmentlessMessages()
+    public async Task Read_ShouldSkipRemovedButKeepAttachmentlessMessages()
     {
         var reader = Build(new RoutingStubHttpMessageHandler()
             .Route("oauth2/v2.0/token", HttpStatusCode.OK, TokenBody)
@@ -159,10 +160,14 @@ public sealed class GraphMailboxReaderTests
                 ],"@odata.deltaLink":"https://graph.microsoft.com/v1.0/delta?token=abc"}
                 """));
 
-        var result = await reader.ReadAsync(Mailbox, Credential, folderPath: null, cursor: null, CancellationToken.None);
+        var result = await reader.ReadAsync(
+            Mailbox, Credential, folderPath: null, cursor: null, capturedSince: null, CancellationToken.None);
 
         Assert.True(result.IsOk);
-        Assert.Empty(result.Messages);
+
+        var message = Assert.Single(result.Messages);
+        Assert.Equal("sem-anexo", message.MessageId);
+        Assert.Empty(message.Artifacts);
     }
 
     // A varredura segue o nextLink até a última página, e só ali existe cursor a guardar.
@@ -176,7 +181,7 @@ public sealed class GraphMailboxReaderTests
                 """{"value":[],"@odata.nextLink":"https://graph.microsoft.com/v1.0/me/messages/delta?$skiptoken=p2"}""",
                 """{"value":[],"@odata.deltaLink":"https://graph.microsoft.com/v1.0/delta?token=final"}"""));
 
-        var result = await reader.ReadAsync(Mailbox, Credential, folderPath: null, cursor: null, CancellationToken.None);
+        var result = await reader.ReadAsync(Mailbox, Credential, folderPath: null, cursor: null, capturedSince: null, CancellationToken.None);
 
         Assert.True(result.IsOk);
         Assert.Equal("https://graph.microsoft.com/v1.0/delta?token=final", result.NextCursor);
@@ -195,7 +200,7 @@ public sealed class GraphMailboxReaderTests
                 .Route("/messages/delta", HttpStatusCode.OK, semFim),
             maxPages: 3);
 
-        var result = await reader.ReadAsync(Mailbox, Credential, folderPath: null, cursor: null, CancellationToken.None);
+        var result = await reader.ReadAsync(Mailbox, Credential, folderPath: null, cursor: null, capturedSince: null, CancellationToken.None);
 
         Assert.True(result.IsOk);
         Assert.Equal("https://graph.microsoft.com/v1.0/me/messages/delta?$skiptoken=p9", result.NextCursor);
@@ -211,7 +216,7 @@ public sealed class GraphMailboxReaderTests
             .Route("/messages/delta", HttpStatusCode.Gone,
                 """{"error":{"code":"resyncRequired","message":"Resync required."}}"""));
 
-        var result = await reader.ReadAsync(Mailbox, Credential, folderPath: null, ExpiredDeltaLink, CancellationToken.None);
+        var result = await reader.ReadAsync(Mailbox, Credential, folderPath: null, ExpiredDeltaLink, capturedSince: null, CancellationToken.None);
 
         Assert.Same(MailboxStatus.CursorExpired, result.Status);
         Assert.True(result.RequiresCursorReset);
@@ -231,7 +236,7 @@ public sealed class GraphMailboxReaderTests
         var reader = Build(new RoutingStubHttpMessageHandler()
             .Route("oauth2/v2.0/token", HttpStatusCode.OK, TokenBody));
 
-        var result = await reader.ReadAsync(Mailbox, Credential, folderPath: null, cursor, CancellationToken.None);
+        var result = await reader.ReadAsync(Mailbox, Credential, folderPath: null, cursor, capturedSince: null, CancellationToken.None);
 
         Assert.Same(MailboxStatus.CursorExpired, result.Status);
         Assert.Equal("cursor_malformed", result.ReasonCode);
@@ -248,7 +253,7 @@ public sealed class GraphMailboxReaderTests
 
         var reader = Build(handler);
 
-        await reader.ReadAsync(Mailbox, Credential, folderPath: null, "https://graph.microsoft.com/v1.0/delta?token=abc", CancellationToken.None);
+        await reader.ReadAsync(Mailbox, Credential, folderPath: null, "https://graph.microsoft.com/v1.0/delta?token=abc", capturedSince: null, CancellationToken.None);
 
         Assert.Contains(handler.Requests, uri => uri.Query.Contains("token=abc", StringComparison.Ordinal));
     }
@@ -264,8 +269,8 @@ public sealed class GraphMailboxReaderTests
 
         var reader = Build(handler);
 
-        await reader.ReadAsync(Mailbox, Credential, folderPath: null, cursor: null, CancellationToken.None);
-        await reader.ReadAsync(Mailbox, Credential, folderPath: null, cursor: null, CancellationToken.None);
+        await reader.ReadAsync(Mailbox, Credential, folderPath: null, cursor: null, capturedSince: null, CancellationToken.None);
+        await reader.ReadAsync(Mailbox, Credential, folderPath: null, cursor: null, capturedSince: null, CancellationToken.None);
 
         var pedidosDeToken = handler.Requests.Count(uri => uri.ToString().Contains("oauth2", StringComparison.Ordinal));
         Assert.Equal(1, pedidosDeToken);
@@ -278,7 +283,7 @@ public sealed class GraphMailboxReaderTests
         var reader = Build(new RoutingStubHttpMessageHandler()
             .Route("oauth2/v2.0/token", HttpStatusCode.Unauthorized, """{"error":"invalid_client"}"""));
 
-        var result = await reader.ReadAsync(Mailbox, Credential, folderPath: null, cursor: null, CancellationToken.None);
+        var result = await reader.ReadAsync(Mailbox, Credential, folderPath: null, cursor: null, capturedSince: null, CancellationToken.None);
 
         Assert.Same(MailboxStatus.Denied, result.Status);
         Assert.Equal("token_request_failed", result.ReasonCode);
@@ -329,6 +334,8 @@ public sealed class GraphMailboxReaderTests
             string? contentType,
             CancellationToken cancellationToken)
             => Task.FromResult<ResolvedDocument?>(null);
+
+        public IReadOnlyCollection<DocumentLink> HarvestLinks(ReadOnlyMemory<byte> body, string? contentType) => [];
     }
 
     /// <summary>Cofre de teste: devolve o que foi programado. O cofre real tem suíte própria.</summary>
@@ -346,5 +353,121 @@ public sealed class GraphMailboxReaderTests
 
         public Task RemoveAsync(CredentialRef credentialRef, CancellationToken cancellationToken)
             => throw new NotSupportedException();
+    }
+
+    // O piso temporal vira o único $filter que a delta query aceita — receivedDateTime ge {data}.
+    [Fact]
+    public async Task Read_WithCaptureSince_ShouldSendTheReceivedDateTimeFloorFilter()
+    {
+        var handler = new RoutingStubHttpMessageHandler()
+            .Route("oauth2/v2.0/token", HttpStatusCode.OK, TokenBody)
+            .Route("/messages/delta", HttpStatusCode.OK, """{"value":[],"@odata.deltaLink":"d"}""");
+
+        var reader = Build(handler);
+
+        await reader.ReadAsync(
+            Mailbox, Credential, folderPath: null, cursor: null,
+            capturedSince: new DateOnly(2026, 5, 27), CancellationToken.None);
+
+        var delta = Assert.Single(handler.Requests, uri => uri.AbsolutePath.Contains("/messages/delta", StringComparison.Ordinal));
+        Assert.Contains("receivedDateTime ge 2026-05-27T00:00:00Z", Uri.UnescapeDataString(delta.Query), StringComparison.Ordinal);
+    }
+
+    // Sem piso a URL não carrega filtro nenhum — é o comportamento de sempre, preservado.
+    [Fact]
+    public async Task Read_WithoutCaptureSince_ShouldNotSendAnyFilter()
+    {
+        var handler = new RoutingStubHttpMessageHandler()
+            .Route("oauth2/v2.0/token", HttpStatusCode.OK, TokenBody)
+            .Route("/messages/delta", HttpStatusCode.OK, """{"value":[],"@odata.deltaLink":"d"}""");
+
+        var reader = Build(handler);
+
+        await reader.ReadAsync(Mailbox, Credential, folderPath: null, cursor: null, capturedSince: null, CancellationToken.None);
+
+        var delta = Assert.Single(handler.Requests, uri => uri.AbsolutePath.Contains("/messages/delta", StringComparison.Ordinal));
+        Assert.DoesNotContain("$filter", delta.Query, StringComparison.Ordinal);
+    }
+
+    // CONTRAPROVA: havendo cursor, o piso NÃO é reacrescentado — o provedor já gravou o filtro
+    // dentro do deltaLink, e repeti-lo produziria uma URL com o parâmetro duas vezes.
+    [Fact]
+    public async Task Read_WithCursor_ShouldNotReapplyTheFloorFilter()
+    {
+        var handler = new RoutingStubHttpMessageHandler()
+            .Route("oauth2/v2.0/token", HttpStatusCode.OK, TokenBody)
+            .Route("/v1.0/delta", HttpStatusCode.OK, """{"value":[],"@odata.deltaLink":"d"}""");
+
+        var reader = Build(handler);
+
+        await reader.ReadAsync(
+            Mailbox, Credential, folderPath: null,
+            cursor: "https://graph.microsoft.com/v1.0/delta?token=abc",
+            capturedSince: new DateOnly(2026, 5, 27), CancellationToken.None);
+
+        var delta = Assert.Single(handler.Requests, uri => uri.AbsolutePath.Contains("/v1.0/delta", StringComparison.Ordinal));
+        Assert.Equal("?token=abc", delta.Query);
+    }
+
+    // REGRESSÃO (2026-08-26): mensagem SEM anexo e sem sinal de cobrança no corpo era descartada
+    // dentro do adaptador — sumia do livro-caixa, que existe justamente para responder "o que
+    // houve com o e-mail que eu mandei". Três e-mails reais na caixa de entrada ficaram
+    // invisíveis, um deles com assunto "uma cobrança foi gerada para você".
+    [Fact]
+    public async Task Read_WhenAMessageHasNoAttachmentAndNoPayableBody_ShouldStillReturnIt()
+    {
+        var handler = new RoutingStubHttpMessageHandler()
+            .Route("oauth2/v2.0/token", HttpStatusCode.OK, TokenBody)
+            .Route("/messages/delta", HttpStatusCode.OK, """
+                {"value":[{"id":"msg-sem-anexo","subject":"SECONCI - PENDENCIA",
+                           "receivedDateTime":"2026-08-26T18:00:41Z","hasAttachments":false,
+                           "from":{"emailAddress":{"address":"aviso@seconci-sp.org.br"}},
+                           "body":{"contentType":"text","content":"Prezado, regularize sua pendencia."}}],
+                 "@odata.deltaLink":"https://graph.microsoft.com/v1.0/delta?$deltatoken=fim"}
+                """);
+
+        var result = await Build(handler).ReadAsync(
+            Mailbox, Credential, folderPath: null, cursor: null, capturedSince: null, CancellationToken.None);
+
+        Assert.True(result.IsOk);
+
+        var message = Assert.Single(result.Messages);
+        Assert.Equal("msg-sem-anexo", message.MessageId);
+        Assert.Empty(message.Artifacts);
+    }
+
+    // REGRESSÃO: parar no teto de páginas tem de ser distinguível de chegar ao fim da caixa. A
+    // enumeração do provedor vai do mais antigo para o mais novo, então uma varredura truncada
+    // deixa a mensagem recém-chegada fora de alcance até o ciclo seguinte.
+    [Fact]
+    public async Task Read_WhenTheSweepStopsAtThePageCap_ShouldReportMorePages()
+    {
+        // Só nextLink, nunca deltaLink: o teto de páginas é alcançado antes do fim.
+        var handler = new RoutingStubHttpMessageHandler()
+            .Route("oauth2/v2.0/token", HttpStatusCode.OK, TokenBody)
+            .Route("delta", HttpStatusCode.OK, """
+                {"value":[],"@odata.nextLink":"https://graph.microsoft.com/v1.0/delta?$skiptoken=mais"}
+                """);
+
+        var result = await Build(handler).ReadAsync(
+            Mailbox, Credential, folderPath: null, cursor: null, capturedSince: null, CancellationToken.None);
+
+        Assert.True(result.IsOk);
+        Assert.True(result.HasMorePages);
+    }
+
+    // CONTRAPROVA: chegando o deltaLink, a varredura acabou e o agendador pode dormir o intervalo
+    // normal. Sem esta, o sinal poderia estar sempre ligado e o worker viraria laço apertado.
+    [Fact]
+    public async Task Read_WhenTheSweepReachesTheDeltaLink_ShouldNotReportMorePages()
+    {
+        var handler = new RoutingStubHttpMessageHandler()
+            .Route("oauth2/v2.0/token", HttpStatusCode.OK, TokenBody)
+            .Route("/messages/delta", HttpStatusCode.OK, """{"value":[],"@odata.deltaLink":"d"}""");
+
+        var result = await Build(handler).ReadAsync(
+            Mailbox, Credential, folderPath: null, cursor: null, capturedSince: null, CancellationToken.None);
+
+        Assert.False(result.HasMorePages);
     }
 }

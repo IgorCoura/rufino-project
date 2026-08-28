@@ -34,12 +34,29 @@ abstract final class CaptureSourceMapper {
           .toList(),
       hasCredential: json['hasCredential'] as bool? ?? false,
       isEnabled: json['isEnabled'] as bool? ?? false,
+      captureSince: parseCaptureSince(json['captureSince'] as String?),
       lastSyncAt: json['lastSyncAt'] == null
           ? null
           : DateTime.parse(json['lastSyncAt'] as String),
       lastSyncError: json['lastSyncError'] as String?,
       createdAt: DateTime.parse(json['createdAt'] as String),
     );
+  }
+
+  /// Reads the API's `date` (`yyyy-MM-dd`) into a local [DateTime].
+  ///
+  /// The wire format carries no time and no offset on purpose — the floor is
+  /// a day the user picked on a calendar, and the conversion to an instant
+  /// belongs to the server's provider adapter.
+  static DateTime? parseCaptureSince(String? raw) =>
+      raw == null || raw.isEmpty ? null : DateTime.parse(raw);
+
+  /// Formats a [DateTime] as the API's `date`, dropping any time part.
+  static String formatCaptureSince(DateTime date) {
+    final year = date.year.toString().padLeft(4, '0');
+    final month = date.month.toString().padLeft(2, '0');
+    final day = date.day.toString().padLeft(2, '0');
+    return '$year-$month-$day';
   }
 
   /// Builds a [CaptureSourcePage] from the API's JSON.
@@ -133,6 +150,7 @@ class CaptureSourceApiService {
     required String address,
     required GraphCredentialInput credential,
     String? folderPath,
+    DateTime? captureSince,
   }) async {
     final response = await client.post(
       _uri('/capture-sources'),
@@ -143,6 +161,9 @@ class CaptureSourceApiService {
         'address': address.trim(),
         'credential': encodeCredential(credential),
         'folderPath': folderPath?.trim(),
+        'captureSince': captureSince == null
+            ? null
+            : CaptureSourceMapper.formatCaptureSince(captureSince),
       }),
     );
     checkApiStatus(response);
@@ -202,6 +223,24 @@ class CaptureSourceApiService {
       skippedAsAlreadyIngested:
           body['skippedAsAlreadyIngested'] as int? ?? 0,
     );
+  }
+
+  /// Moves the capture's time floor. `null` returns it to the whole mailbox.
+  ///
+  /// The server drops every folder cursor as part of this — the provider
+  /// stores the filter inside the delta link, so the new date would mean
+  /// nothing over an old cursor.
+  Future<void> changeCaptureSince(String id, DateTime? captureSince) async {
+    final response = await client.put(
+      _uri('/capture-sources/$id/capture-since'),
+      headers: await _headers(write: true),
+      body: jsonEncode({
+        'captureSince': captureSince == null
+            ? null
+            : CaptureSourceMapper.formatCaptureSince(captureSince),
+      }),
+    );
+    checkApiStatus(response);
   }
 
   /// Adds a watched folder. The path goes in the body — a folder name may

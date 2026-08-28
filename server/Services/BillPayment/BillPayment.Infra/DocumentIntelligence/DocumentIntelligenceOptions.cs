@@ -1,4 +1,4 @@
-namespace BillPayment.Infra.DocumentIntelligence;
+﻿namespace BillPayment.Infra.DocumentIntelligence;
 
 /// <summary>
 /// Configuração do extrator de documentos por IA.
@@ -50,17 +50,39 @@ public sealed class DocumentIntelligenceOptions
     /// e captura parada no seguinte. O default é conservador de propósito: quem precisa de mais
     /// sobe o número conscientemente.
     /// </remarks>
-    public int MaxCallsPerTenantPerDay { get; set; } = 100;
+    public int MaxCallsPerTenantPerDay { get; set; } = 400;
+
+    /// <summary>
+    /// <strong>ATENÇÃO: este teto é por TENANT, e o do provedor é por PROJETO.</strong> No Tier 1
+    /// pago o limite diário é de 1.000 requisições no projeto inteiro; com três tenants a 400,
+    /// a soma estoura. Ao acrescentar cliente, refaça a conta — o provedor não avisa antes,
+    /// devolve <c>429</c>, e o artefato vai para a quarentena até o dia seguinte.
+    /// </summary>
+    public const int PROVIDER_DAILY_CAP_TIER1 = 1_000;
 
     /// <summary>
     /// Intervalo mínimo entre chamadas, em milissegundos — o limite de taxa do provedor.
     /// </summary>
     /// <remarks>
-    /// 6 segundos = 10 por minuto, que é o teto típico da conta gratuita. Estourar não devolve
-    /// erro útil: devolve <c>429</c>, e retentar em cima piora. Segurar aqui é mais barato do que
-    /// descobrir do outro lado.
+    /// <para>
+    /// <strong>600 ms = 100 por minuto, dimensionado para a conta PAGA (Tier 1).</strong> Era
+    /// 6.000 ms (10/min, o teto da conta gratuita) até 2026-08-26, e essa espera acontecia
+    /// <em>dentro</em> do processamento do artefato — foi medida como a maior parcela dos 20 a 30
+    /// segundos que um item de visão levava.
+    /// </para>
+    /// <para>
+    /// O Tier 1 dá 150–300 RPM conforme o modelo. 100/min deixa margem de propósito: o cliente de
+    /// visão <strong>não retenta</strong> (cada tentativa consome cota), então um <c>429</c> não
+    /// vira nova tentativa — vira artefato na quarentena até o dia seguinte. Chegar perto do teto
+    /// troca velocidade por perda.
+    /// </para>
+    /// <para>
+    /// <strong>O número autoritativo é o do painel, não o daqui.</strong> O Google deixou de
+    /// publicar os limites por tier na documentação e remete a
+    /// <c>aistudio.google.com/rate-limit</c>. Confirme antes de baixar mais.
+    /// </para>
     /// </remarks>
-    public int MinIntervalMs { get; set; } = 6000;
+    public int MinIntervalMs { get; set; } = 600;
 
     /// <summary>
     /// Páginas enviadas por documento. Boleto tem uma ou duas; mandar um PDF de 200 páginas

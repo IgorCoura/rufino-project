@@ -19,9 +19,20 @@ dependencies:
   provider: ^6.1.2
   go_router: ^14.6.2
   http: ^1.2.2
+  # MediaType do multipart do anexo manual. Já vinha transitivo pelo `http`;
+  # declarado porque o código o usa direto — depender de transitiva quebra em silêncio.
+  http_parser: ^4.0.2
   intl: ^0.19.0
   mask_text_input_formatter: ^2.9.0
   material_symbols_icons: ^4.2719.1
+  # O visualizador de PDF fica NESTE pacote, não em rufino_core: pelo critério
+  # D3, fundação é o que os dois produtos compartilham, e hoje só este abre
+  # documento. A casca já usa a mesma versão — se um terceiro consumidor
+  # aparecer, aí sobe.
+  syncfusion_flutter_pdfviewer: ^27.1.58
+  # Renderização do corpo HTML do e-mail no "ver e-mail". Core basta: sem
+  # vídeo/iframe — e-mail de cobrança é tabela, texto e imagem.
+  flutter_widget_from_html_core: ^0.15.2
   # x-requestid das escritas — o backend deduplica pela mesma intenção.
   uuid: ^4.5.3
 

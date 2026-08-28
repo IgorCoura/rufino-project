@@ -68,6 +68,15 @@ public sealed class ExtractedDocument : ValueObject
     /// <summary>Vencimento lido no documento, <strong>só para conferir</strong>.</summary>
     public DateOnly? DueDate { get; private init; }
 
+    /// <summary>
+    /// A competência a que a conta se refere, como o documento (ou o corpo do e-mail) a declara —
+    /// "07/2026", "julho/2026". Texto cru: quem normaliza é o <c>DocumentReading</c>.
+    /// </summary>
+    public string? BillingPeriod { get; private init; }
+
+    /// <summary>Descrição breve do que a conta trata, para o resumo da tela.</summary>
+    public string? Description { get; private init; }
+
     /// <summary>Observação curta do extrator, para a evidência do check.</summary>
     public string? Notes { get; private init; }
 
@@ -102,7 +111,9 @@ public sealed class ExtractedDocument : ValueObject
         string? accountReference = null,
         decimal? amount = null,
         DateOnly? dueDate = null,
-        string? notes = null)
+        string? notes = null,
+        string? billingPeriod = null,
+        string? description = null)
         => new(Sanitize(digitableLineCandidates), Sanitize(pixPayloadCandidates))
         {
             Kind = kind,
@@ -116,6 +127,8 @@ public sealed class ExtractedDocument : ValueObject
             // vez de virar exceção — e de todo modo quem paga é a consulta oficial.
             Amount = amount is > 0 ? amount : null,
             DueDate = dueDate,
+            BillingPeriod = Clamp(billingPeriod),
+            Description = Clamp(description),
             Notes = Clamp(notes),
         };
 
@@ -147,6 +160,8 @@ public sealed class ExtractedDocument : ValueObject
         yield return AccountReference;
         yield return Amount;
         yield return DueDate;
+        yield return BillingPeriod;
+        yield return Description;
         yield return Notes;
 
         foreach (var candidate in _digitableLineCandidates)

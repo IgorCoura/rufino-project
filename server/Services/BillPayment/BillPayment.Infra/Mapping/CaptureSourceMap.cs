@@ -53,6 +53,13 @@ internal sealed class CaptureSourceMap : IEntityTypeConfiguration<CaptureSource>
         // exatamente a fronteira do Aggregate. Não há repositório de pasta, por desenho.
         builder.OwnsMany(e => e.Folders, ConfigureFolders);
 
+        // Anulável porque nulo é "sem limite" — o comportamento de sempre, e o que toda fonte
+        // conectada antes deste campo continua tendo. `date` e não `timestamp`: quem escolhe é
+        // uma pessoa num calendário, e a conversão para instante é do adapter.
+        builder.Property(e => e.CaptureSince)
+            .HasColumnName("capture_since")
+            .HasColumnType("date");
+
         builder.Property(e => e.LastSyncAt).HasColumnName("last_sync_at");
 
         builder.Property(e => e.LastSyncError)

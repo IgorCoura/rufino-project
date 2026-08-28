@@ -1,4 +1,4 @@
-namespace BillPayment.UnitTests.Services.Mothers;
+﻿namespace BillPayment.UnitTests.Services.Mothers;
 
 using BillPayment.Domain.Bills;
 using BillPayment.Domain.Lookups;
@@ -83,6 +83,15 @@ internal static class ValidationMother
             PayerKind.Company,
             "RUFINO EMPREITEIRA LTDA",
             taxId ?? "11222333000181",
+            BillMother.DefaultOccurredAt);
+
+    /// <summary>Perfil de pessoa física — o CPF exige <c>PayerKind.Individual</c>.</summary>
+    public static PayerProfile IndividualProfile(string taxId)
+        => PayerProfile.Register(
+            BillMother.DefaultTenant,
+            PayerKind.Individual,
+            "IGOR DE BRITO COURA",
+            taxId,
             BillMother.DefaultOccurredAt);
 
     public static TrustedOrigin TrustedSender(TrustDecision? decision = null)

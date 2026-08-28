@@ -72,6 +72,34 @@ internal sealed class S3AttachmentStorage(
         return buffer.ToArray();
     }
 
+    public async Task<StoredArtifact?> OpenAsync(
+        TenantId tenantId,
+        string storageKey,
+        CancellationToken cancellationToken)
+    {
+        EnsureBelongsToTenant(tenantId, storageKey);
+
+        try
+        {
+            var response = await client.GetObjectAsync(
+                new GetObjectRequest { BucketName = _options.Bucket, Key = storageKey }, cancellationToken);
+
+            // O response NÃO é liberado aqui de propósito: quem fecha o fluxo é o StoredArtifact,
+            // nas mãos de quem o consome. Um `using` neste escopo entregaria um Stream já morto.
+            return new StoredArtifact(
+                response.ResponseStream,
+                response.Headers.ContentType,
+                response.ContentLength >= 0 ? response.ContentLength : null);
+        }
+        catch (AmazonS3Exception ex) when (ex.StatusCode == System.Net.HttpStatusCode.NotFound)
+        {
+            // Chave órfã: o banco aponta para objeto que não está mais no balde. Vira "não há
+            // documento" para quem pediu, e uma linha de log para quem cuida da integridade.
+            logger.LogWarning(ex, "Artefato ausente no armazenamento para uma chave ainda registrada.");
+            return null;
+        }
+    }
+
     public async Task RemoveAsync(TenantId tenantId, string storageKey, CancellationToken cancellationToken)
     {
         EnsureBelongsToTenant(tenantId, storageKey);

@@ -212,6 +212,13 @@ class _Results extends StatelessWidget {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
+                              if (bill.beneficiary?.displayName != null)
+                                Text(
+                                  bill.beneficiary!.displayName!,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: theme.textTheme.titleSmall,
+                                ),
                               Text(
                                 formatMoney(bill.amount),
                                 style: theme.textTheme.titleMedium,
@@ -233,6 +240,17 @@ class _Results extends StatelessWidget {
                                   StatusBadge(
                                     label: BillKinds.label(bill.kind),
                                   ),
+                                  // A análise não bloqueia o boleto, mas quem
+                                  // vê a fila precisa saber que a competência
+                                  // e a descrição ainda estão por vir.
+                                  if (ReadingStatuses.speaks(
+                                    bill.readingStatus,
+                                  ))
+                                    StatusBadge(
+                                      label: ReadingStatuses.label(
+                                        bill.readingStatus,
+                                      ),
+                                    ),
                                 ],
                               ),
                             ],

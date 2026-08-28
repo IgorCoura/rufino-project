@@ -51,6 +51,6 @@ public sealed class UnconfiguredDocumentIntelligenceTests : BaseIntegrationTest
         var payload = DocumentPayload.From(Tenant, new byte[] { 1, 2, 3 }, DocumentPayload.PDF);
         var result = await vision.ExtractAsync(payload, ExtractionHints.None, default);
 
-        Assert.False(result.HasCandidates);
+        Assert.False(result.Document.HasCandidates);
     }
 }

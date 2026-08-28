@@ -93,3 +93,45 @@ public sealed record BillExpectationCaptureFailedDomainEvent(
     public Guid EventId { get; init; } = Guid.CreateVersion7();
 }
 
+
+
+/// <summary>
+/// Um nível do escalonamento saiu — e saiu uma vez só.
+/// </summary>
+/// <remarks>
+/// <para>
+/// <strong>É este o evento que notifica, e não o de "não cumprido".</strong> A transição para
+/// <c>Missing</c> acontece uma vez por ciclo; o escalonamento acontece quatro. Enquanto o aviso
+/// pendurou no primeiro, os níveis <c>Warning</c>, <c>Urgent</c> e <c>Overdue</c> ficavam
+/// gravados no agregado e nunca chegavam a ninguém — a tabela de escalonamento do doc 11 existia
+/// só no papel.
+/// </para>
+/// <para>
+/// <paramref name="Arrived"/> é o que separa os dois avisos: "não chegou, vá buscar" de "chegou e
+/// não consegui ler, resolva o item". Vem projetado no evento porque é o consumidor que escolhe o
+/// texto, e ele não tem o agregado em mãos.
+/// </para>
+/// <para>
+/// <paramref name="CaptureItemId"/> vai como <c>Guid?</c>, e não como o id tipado, porque o
+/// payload atravessa o outbox em JSON e é lido por quem só precisa montar um caminho de tela.
+/// </para>
+/// </remarks>
+public sealed record BillExpectationAlertRaisedDomainEvent(
+    BillExpectationId ExpectationId,
+    TenantId TenantId,
+    ExpectationCycleId CycleId,
+    string Label,
+    string Level,
+    string Competence,
+    DateOnly ExpectedDueDate,
+    string? MissReason,
+    bool Arrived,
+    Guid? CaptureItemId,
+    DateTime OccurredAt) : IDomainEvent
+{
+    /// <summary>
+    /// Identidade da mensagem, não do fato — é o que permite ao consumidor detectar reentrega.
+    /// O outbox garante ao-menos-uma-vez, então o handler precisa ser idempotente.
+    /// </summary>
+    public Guid EventId { get; init; } = Guid.CreateVersion7();
+}

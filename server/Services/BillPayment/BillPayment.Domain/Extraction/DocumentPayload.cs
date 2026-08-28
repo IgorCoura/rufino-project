@@ -30,6 +30,12 @@ public sealed class DocumentPayload : ValueObject
 
     public const string PDF = "application/pdf";
 
+    /// <summary>
+    /// Teto do texto suplementar. O corpo de e-mail de cobrança é pequeno; um corpo gigante é
+    /// campanha de marketing, e mandá-lo inteiro pagaria tokens para ler rodapé.
+    /// </summary>
+    public const int SUPPLEMENTAL_TEXT_MAX_LENGTH = 20_000;
+
     private static readonly string[] SupportedMediaTypes = [PDF, "image/png", "image/jpeg", "image/webp"];
 
     public ReadOnlyMemory<byte> Content { get; }
@@ -39,6 +45,15 @@ public sealed class DocumentPayload : ValueObject
 
     public TenantId TenantId { get; }
 
+    /// <summary>
+    /// O corpo do e-mail que trouxe o documento, para o extrator ler junto — é de onde saem a
+    /// competência e a descrição quando o boleto não as traz. Nulo quando não há e-mail.
+    /// </summary>
+    public string? SupplementalText { get; private init; }
+
+    /// <summary>Se o texto suplementar é HTML — o adapter decide como convertê-lo.</summary>
+    public bool SupplementalTextIsHtml { get; private init; }
+
     private DocumentPayload(ReadOnlyMemory<byte> content, string mediaType, TenantId tenantId)
     {
         Content = content;
@@ -46,7 +61,12 @@ public sealed class DocumentPayload : ValueObject
         TenantId = tenantId;
     }
 
-    public static DocumentPayload From(TenantId tenantId, ReadOnlyMemory<byte> content, string? contentType)
+    public static DocumentPayload From(
+        TenantId tenantId,
+        ReadOnlyMemory<byte> content,
+        string? contentType,
+        string? supplementalText = null,
+        bool supplementalTextIsHtml = false)
     {
         if (content.IsEmpty)
             throw ExtractionErrors.PayloadRequired();
@@ -58,7 +78,17 @@ public sealed class DocumentPayload : ValueObject
         if (normalized is null)
             throw ExtractionErrors.UnsupportedMediaType(contentType ?? "(vazio)");
 
-        return new DocumentPayload(content, normalized, tenantId);
+        var supplemental = supplementalText?.Trim();
+        if (string.IsNullOrEmpty(supplemental))
+            supplemental = null;
+        else if (supplemental.Length > SUPPLEMENTAL_TEXT_MAX_LENGTH)
+            supplemental = supplemental[..SUPPLEMENTAL_TEXT_MAX_LENGTH];
+
+        return new DocumentPayload(content, normalized, tenantId)
+        {
+            SupplementalText = supplemental,
+            SupplementalTextIsHtml = supplemental is not null && supplementalTextIsHtml,
+        };
     }
 
     /// <summary>Se este tipo de mídia pode ser lido — usado para decidir antes de gastar.</summary>
@@ -95,6 +125,8 @@ public sealed class DocumentPayload : ValueObject
         yield return MediaType;
         yield return TenantId;
         yield return Content.Length;
+        yield return SupplementalText;
+        yield return SupplementalTextIsHtml;
     }
 }
 

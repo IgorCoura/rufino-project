@@ -1,4 +1,4 @@
-namespace BillPayment.UnitTests.CaptureSources.Mothers;
+﻿namespace BillPayment.UnitTests.CaptureSources.Mothers;
 
 using BillPayment.Domain.CaptureSources;
 using BillPayment.Domain.Secrets;
@@ -21,7 +21,8 @@ internal static class CaptureSourceMother
         CredentialRef? credential = null,
         DateTime? occurredAt = null,
         TenantId? tenantId = null,
-        string? folderPath = null)
+        string? folderPath = null,
+        DateOnly? captureSince = null)
         => ConnectVerbatim(
             kind ?? CaptureSourceKind.MicrosoftGraphMailbox,
             displayName ?? "Caixa de contas a pagar",
@@ -29,7 +30,8 @@ internal static class CaptureSourceMother
             credential ?? DefaultCredential,
             occurredAt,
             tenantId,
-            folderPath);
+            folderPath,
+            captureSince);
 
     /// <summary>
     /// A pasta de uma fonte recém-conectada — a caixa de entrada, a menos que outra tenha sido
@@ -50,7 +52,8 @@ internal static class CaptureSourceMother
         CredentialRef? credential,
         DateTime? occurredAt = null,
         TenantId? tenantId = null,
-        string? folderPath = null)
+        string? folderPath = null,
+        DateOnly? captureSince = null)
         => CaptureSource.Connect(
             tenantId ?? DefaultTenant,
             kind,
@@ -58,7 +61,8 @@ internal static class CaptureSourceMother
             address,
             credential,
             occurredAt ?? DefaultOccurredAt,
-            folderPath);
+            folderPath,
+            captureSince);
 
     /// <summary>Fonte já sincronizada uma vez, com cursor no lugar na única pasta dela.</summary>
     public static CaptureSource Synced(string cursor = "deltaLink-abc123")

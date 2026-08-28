@@ -23,6 +23,8 @@ class BillDetailScreen extends StatefulWidget {
     super.key,
     required this.viewModel,
     required this.backFallback,
+    required this.onOpenArtifact,
+    required this.onOpenEmail,
   });
 
   /// Drives the screen.
@@ -30,6 +32,12 @@ class BillDetailScreen extends StatefulWidget {
 
   /// Para onde o voltar leva quando não há pilha.
   final String backFallback;
+
+  /// Opens the original document the bill came from.
+  final VoidCallback onOpenArtifact;
+
+  /// Abre o e-mail que trouxe o boleto.
+  final VoidCallback onOpenEmail;
 
   @override
   State<BillDetailScreen> createState() => _BillDetailScreenState();
@@ -86,7 +94,11 @@ class _BillDetailScreenState extends State<BillDetailScreen> {
                   ),
                 );
               case BillDetailStatus.loaded:
-                return _Body(viewModel: viewModel);
+                return _Body(
+                  viewModel: viewModel,
+                  onOpenArtifact: widget.onOpenArtifact,
+                  onOpenEmail: widget.onOpenEmail,
+                );
             }
           },
         ),
@@ -96,9 +108,17 @@ class _BillDetailScreenState extends State<BillDetailScreen> {
 }
 
 class _Body extends StatelessWidget {
-  const _Body({required this.viewModel});
+  const _Body({
+    required this.viewModel,
+    required this.onOpenArtifact,
+    required this.onOpenEmail,
+  });
 
   final BillDetailViewModel viewModel;
+  final VoidCallback onOpenArtifact;
+
+  /// Abre o e-mail que trouxe o boleto.
+  final VoidCallback onOpenEmail;
 
   @override
   Widget build(BuildContext context) {
@@ -130,9 +150,23 @@ class _Body extends StatelessWidget {
               ),
             _SummarySection(bill: bill),
             const SizedBox(height: AppSpacing.md),
+            // O veredito colorido abre as verificações (ADR-015): o sistema
+            // classifica e destaca; quem decide é sempre o usuário.
+            if (bill.riskLevel != null) ...[
+              _RiskBanner(bill: bill),
+              const SizedBox(height: AppSpacing.md),
+            ],
             _ChecksSection(bill: bill),
             const SizedBox(height: AppSpacing.md),
-            _OriginSection(bill: bill),
+            if (bill.bankSlipLookup != null || bill.pixLookup != null) ...[
+              _LookupSection(bill: bill),
+              const SizedBox(height: AppSpacing.md),
+            ],
+            _OriginSection(
+              bill: bill,
+              onOpenArtifact: onOpenArtifact,
+              onOpenEmail: onOpenEmail,
+            ),
             if (bill.approval != null) ...[
               const SizedBox(height: AppSpacing.md),
               _DecisionSection(bill: bill),
@@ -169,6 +203,31 @@ class _SummarySection extends StatelessWidget {
               label: 'Documento',
               value: beneficiary!.taxId!,
             ),
+          // O que a IA leu do documento e do e-mail: a competência e a
+          // descrição só ocupam espaço quando existem.
+          if (bill.reading?.competenceLabel != null)
+            InfoRow(
+              icon: Symbols.calendar_month,
+              label: 'Referente a',
+              value: bill.reading!.competenceLabel!,
+            ),
+          if (bill.reading?.description != null)
+            InfoRow(
+              icon: Symbols.notes,
+              label: 'Descrição',
+              value: bill.reading!.description!,
+            ),
+          if (bill.reading?.accountReference != null)
+            InfoRow(
+              icon: Symbols.tag,
+              label: 'Referência',
+              value: bill.reading!.accountReference!,
+            ),
+          // Sem isto, os três campos acima simplesmente não aparecem — e some
+          // com eles a explicação de por quê. "Ainda não leu" e "não há o que
+          // ler" ficavam idênticos na tela, que é o que este aviso desfaz.
+          if (ReadingStatuses.speaks(bill.readingStatus))
+            _ReadingNotice(status: bill.readingStatus),
           InfoRow(
             icon: Symbols.payments,
             label: 'Valor',
@@ -206,6 +265,248 @@ class _SummarySection extends StatelessWidget {
   }
 }
 
+class _RiskBanner extends StatelessWidget {
+  const _RiskBanner({required this.bill});
+
+  final BillDetail bill;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final (color, onColor, icon, title, message) = switch (bill.riskLevel) {
+      'Danger' => (
+          theme.colorScheme.errorContainer,
+          theme.colorScheme.onErrorContainer,
+          Symbols.gpp_bad,
+          'Perigo',
+          'As verificações encontraram sinal com cara de fraude ou de '
+              'pagamento duplicado. Confira as evidências abaixo — aprovar '
+              'exige assumir o risco explicitamente.',
+        ),
+      'Attention' => (
+          const Color(0xFFFFE9B8),
+          const Color(0xFF5C4400),
+          Symbols.warning,
+          'Atenção',
+          'Algo não pôde ser confirmado. Confira os pontos destacados antes '
+              'de autorizar.',
+        ),
+      _ => (
+          const Color(0xFFCDE8CF),
+          const Color(0xFF10401A),
+          Symbols.verified_user,
+          'Seguro',
+          'Todas as verificações passaram. Nenhuma divergência encontrada.',
+        ),
+    };
+
+    return Container(
+      decoration: BoxDecoration(
+        color: color,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      padding: const EdgeInsets.all(AppSpacing.md),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, color: onColor, size: 32),
+          const SizedBox(width: AppSpacing.md),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    color: onColor,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.xs),
+                Text(
+                  message,
+                  style: theme.textTheme.bodyMedium?.copyWith(color: onColor),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Says where the AI reading stands, so an empty summary stops looking final.
+///
+/// Deliberately quieter than [_RiskBanner]: this is not a signal about the
+/// bill, it is a signal about the system. The bill never waits for the queue —
+/// it can be approved with what the deterministic funnel proved.
+class _ReadingNotice extends StatelessWidget {
+  const _ReadingNotice({required this.status});
+
+  final String status;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final queued = status == ReadingStatuses.queued;
+
+    final onColor = queued
+        ? theme.colorScheme.onSurfaceVariant
+        : theme.colorScheme.onErrorContainer;
+
+    return Container(
+      margin: const EdgeInsets.only(top: AppSpacing.sm),
+      padding: const EdgeInsets.all(AppSpacing.sm),
+      decoration: BoxDecoration(
+        color: queued
+            ? theme.colorScheme.surfaceContainerHighest
+            : theme.colorScheme.errorContainer,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(
+            queued ? Symbols.hourglass_top : Symbols.cloud_off,
+            color: onColor,
+            size: 20,
+          ),
+          const SizedBox(width: AppSpacing.sm),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  ReadingStatuses.label(status),
+                  style: theme.textTheme.labelLarge?.copyWith(
+                    color: onColor,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.xs),
+                Text(
+                  ReadingStatuses.detail(status),
+                  style: theme.textTheme.bodySmall?.copyWith(color: onColor),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _LookupSection extends StatelessWidget {
+  const _LookupSection({required this.bill});
+
+  final BillDetail bill;
+
+  @override
+  Widget build(BuildContext context) {
+    final bankSlip = bill.bankSlipLookup;
+    final pix = bill.pixLookup;
+    return SectionCard(
+      title: 'Consulta oficial',
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (pix != null) ...[
+            Text(
+              'Decode do QR Pix',
+              style: Theme.of(context).textTheme.titleSmall,
+            ),
+            InfoRow(
+              icon: Symbols.storefront,
+              label: 'Recebedor',
+              value: pix.receiver?.displayName ?? 'Não informado',
+            ),
+            if (pix.receiver?.taxId != null)
+              InfoRow(
+                icon: Symbols.badge,
+                label: 'Documento',
+                value: pix.receiver!.taxId!,
+              ),
+            if (pix.receiverIspbName != null)
+              InfoRow(
+                icon: Symbols.account_balance,
+                label: 'Instituição',
+                value: pix.receiverIspbName!,
+              ),
+            if (pix.totalAmount != null)
+              InfoRow(
+                icon: Symbols.payments,
+                label: 'Valor total',
+                value: formatMoney(pix.totalAmount) +
+                    (pix.interest != null || pix.fine != null
+                        ? ' (com encargos)'
+                        : ''),
+              ),
+            if (pix.dueDate != null)
+              InfoRow(
+                icon: Symbols.event,
+                label: 'Vencimento',
+                value: formatDate(pix.dueDate),
+              ),
+            InfoRow(
+              icon: Symbols.schedule,
+              label: 'Consultado em',
+              value: formatDateTime(pix.consultedAt),
+            ),
+          ],
+          if (bankSlip != null && pix != null)
+            const SizedBox(height: AppSpacing.sm),
+          if (bankSlip != null) ...[
+            Text(
+              'Registro do boleto',
+              style: Theme.of(context).textTheme.titleSmall,
+            ),
+            InfoRow(
+              icon: Symbols.storefront,
+              label: 'Beneficiário',
+              value: bankSlip.beneficiary?.displayName ?? 'Não informado',
+            ),
+            if (bankSlip.beneficiary?.taxId != null)
+              InfoRow(
+                icon: Symbols.badge,
+                label: 'Documento',
+                value: bankSlip.beneficiary!.taxId!,
+              ),
+            if (bankSlip.bankCode != null)
+              InfoRow(
+                icon: Symbols.account_balance,
+                label: 'Banco',
+                value: bankSlip.bankCode!,
+              ),
+            if (bankSlip.amount != null)
+              InfoRow(
+                icon: Symbols.payments,
+                label: 'Valor hoje',
+                value: formatMoney(bankSlip.amount) +
+                    (bankSlip.originalAmount != null &&
+                            bankSlip.originalAmount != bankSlip.amount
+                        ? ' (original ${formatMoney(bankSlip.originalAmount)})'
+                        : ''),
+              ),
+            if (bankSlip.dueDate != null)
+              InfoRow(
+                icon: Symbols.event,
+                label: 'Vencimento',
+                value: formatDate(bankSlip.dueDate),
+              ),
+            InfoRow(
+              icon: Symbols.schedule,
+              label: 'Consultado em',
+              value: formatDateTime(bankSlip.consultedAt),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
 class _ChecksSection extends StatelessWidget {
   const _ChecksSection({required this.bill});
 
@@ -217,7 +518,8 @@ class _ChecksSection extends StatelessWidget {
       title: 'Verificações (${bill.checks.length})',
       child: Column(
         children: [
-          for (final check in bill.checks) _CheckTile(check: check),
+          for (final check in bill.checks)
+            _CheckTile(check: check, readingStatus: bill.readingStatus),
         ],
       ),
     );
@@ -225,24 +527,45 @@ class _ChecksSection extends StatelessWidget {
 }
 
 class _CheckTile extends StatelessWidget {
-  const _CheckTile({required this.check});
+  const _CheckTile({required this.check, required this.readingStatus});
 
   final BillCheck check;
+
+  /// One of [ReadingStatuses]. Only the check that depends on the AI reading
+  /// looks at it.
+  final String readingStatus;
+
+  /// The check the server skips for lack of an AI reading.
+  static const String _readingNotAvailable = 'reading_not_available';
+
+  /// Whether this row is a check still WAITING on the AI queue.
+  ///
+  /// The server is right to skip the check — there is nothing to compare yet —
+  /// but "Não se aplica" reads as a verdict, and the user acted on it as one.
+  /// Pending and inapplicable are different facts and must not share a label.
+  bool get _awaitsReading =>
+      check.reasonCode == _readingNotAvailable &&
+      readingStatus == ReadingStatuses.queued;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
 
-    final (icon, color) = switch (check.outcome) {
-      CheckOutcomes.passed => (Symbols.check_circle, cs.primary),
-      CheckOutcomes.failed => (Symbols.cancel, cs.error),
-      CheckOutcomes.inconclusive => (Symbols.help, cs.tertiary),
-      CheckOutcomes.warning => (Symbols.warning, cs.tertiary),
-      _ => (Symbols.remove_circle_outline, cs.outline),
-    };
+    final (icon, color) = _awaitsReading
+        ? (Symbols.hourglass_top, cs.tertiary)
+        : switch (check.outcome) {
+            CheckOutcomes.passed => (Symbols.check_circle, cs.primary),
+            CheckOutcomes.failed => (Symbols.cancel, cs.error),
+            CheckOutcomes.inconclusive => (Symbols.help, cs.tertiary),
+            CheckOutcomes.warning => (Symbols.warning, cs.tertiary),
+            _ => (Symbols.remove_circle_outline, cs.outline),
+          };
 
-    final message = check.reasonMessage;
+    final message = _awaitsReading
+        ? 'A leitura por IA ainda está na fila; a comparação é feita quando '
+            'ela chegar.'
+        : check.reasonMessage;
 
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
@@ -264,7 +587,9 @@ class _CheckTile extends StatelessWidget {
                       ),
                     ),
                     Text(
-                      CheckOutcomes.label(check.outcome),
+                      _awaitsReading
+                          ? 'Aguardando'
+                          : CheckOutcomes.label(check.outcome),
                       style:
                           theme.textTheme.labelMedium?.copyWith(color: color),
                     ),
@@ -288,7 +613,9 @@ class _CheckTile extends StatelessWidget {
                       color: cs.onSurfaceVariant,
                     ),
                   ),
-                if (check.evidence != null && message != check.evidence)
+                if (!_awaitsReading &&
+                    check.evidence != null &&
+                    message != check.evidence)
                   Text(
                     check.evidence!,
                     style: theme.textTheme.bodySmall?.copyWith(
@@ -305,9 +632,15 @@ class _CheckTile extends StatelessWidget {
 }
 
 class _OriginSection extends StatelessWidget {
-  const _OriginSection({required this.bill});
+  const _OriginSection({
+    required this.bill,
+    required this.onOpenArtifact,
+    required this.onOpenEmail,
+  });
 
   final BillDetail bill;
+  final VoidCallback onOpenArtifact;
+  final VoidCallback onOpenEmail;
 
   @override
   Widget build(BuildContext context) {
@@ -331,6 +664,37 @@ class _OriginSection extends StatelessWidget {
             label: 'Recebido em',
             value: formatDateTime(bill.origin.receivedAt),
           ),
+
+          // Importação manual nasce só com os dígitos: não há papel para
+          // mostrar, e o botão simplesmente não existe — desabilitar seria
+          // prometer um documento que nunca vai chegar.
+          if (bill.origin.hasArtifact ||
+              bill.origin.sourceKind == BillSourceKinds.mailbox) ...[
+            const SizedBox(height: AppSpacing.sm),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: Wrap(
+                spacing: AppSpacing.sm,
+                runSpacing: AppSpacing.xs,
+                children: [
+                  if (bill.origin.hasArtifact)
+                    OutlinedButton.icon(
+                      onPressed: onOpenArtifact,
+                      icon: const Icon(Symbols.description),
+                      label: const Text('Ver documento'),
+                    ),
+                  // Só boleto vindo de caixa tem e-mail por trás — para os
+                  // demais o botão não existe, como o de documento.
+                  if (bill.origin.sourceKind == BillSourceKinds.mailbox)
+                    OutlinedButton.icon(
+                      onPressed: onOpenEmail,
+                      icon: const Icon(Symbols.mail),
+                      label: const Text('Ver e-mail'),
+                    ),
+                ],
+              ),
+            ),
+          ],
         ],
       ),
     );
@@ -508,7 +872,9 @@ class _Actions extends StatelessWidget {
   Future<void> _approveSheet(BuildContext context) async {
     final noteController = TextEditingController();
     final earliest = viewModel.earliestScheduleDate;
+    final isDanger = viewModel.bill?.isDanger ?? false;
     DateTime scheduleFor = earliest;
+    var riskAcknowledged = false;
 
     final confirmed = await showModalBottomSheet<bool>(
       context: context,
@@ -554,9 +920,28 @@ class _Actions extends StatelessWidget {
                   border: OutlineInputBorder(),
                 ),
               ),
+              // ADR-015: boleto em Perigo só autoriza com o aceite marcado —
+              // e o servidor recusa sem ele, então o botão nem habilita.
+              if (isDanger) ...[
+                const SizedBox(height: AppSpacing.md),
+                CheckboxListTile(
+                  value: riskAcknowledged,
+                  onChanged: (value) =>
+                      setSheetState(() => riskAcknowledged = value ?? false),
+                  controlAffinity: ListTileControlAffinity.leading,
+                  contentPadding: EdgeInsets.zero,
+                  title: Text(
+                    'Vi o alerta de Perigo e assumo o risco de autorizar '
+                    'este pagamento.',
+                    style: Theme.of(sheetContext).textTheme.bodyMedium,
+                  ),
+                ),
+              ],
               const SizedBox(height: AppSpacing.lg),
               FilledButton(
-                onPressed: () => Navigator.of(sheetContext).pop(true),
+                onPressed: isDanger && !riskAcknowledged
+                    ? null
+                    : () => Navigator.of(sheetContext).pop(true),
                 child: const Text('Autorizar'),
               ),
               const SizedBox(height: AppSpacing.sm),
@@ -572,6 +957,7 @@ class _Actions extends StatelessWidget {
         note: noteController.text.trim().isEmpty
             ? null
             : noteController.text.trim(),
+        acknowledgeRisk: riskAcknowledged,
       );
     }
     noteController.dispose();

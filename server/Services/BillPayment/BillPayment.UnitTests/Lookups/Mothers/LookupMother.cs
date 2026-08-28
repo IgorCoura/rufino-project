@@ -1,4 +1,4 @@
-namespace BillPayment.UnitTests.Lookups.Mothers;
+﻿namespace BillPayment.UnitTests.Lookups.Mothers;
 
 using BillPayment.Domain.Lookups;
 using BillPayment.Domain.SharedKernel;
@@ -9,7 +9,13 @@ using BillPayment.Domain.SharedKernel;
 /// </summary>
 internal static class LookupMother
 {
-    public const string BENEFICIARY_CNPJ = "11222333000181";
+    /// <summary>
+    /// O CNPJ do beneficiário. <strong>Tem de ser diferente do documento do tenant</strong>
+    /// (<c>ValidationMother.TenantProfile</c>): eram o mesmo número até 2026-08-26, o que modelava
+    /// um boleto em que o credor e o devedor são a mesma pessoa — impossível na vida real, e agora
+    /// bloqueado pelo check <c>PayerMatch</c> com o motivo <c>payee_is_the_payer</c>.
+    /// </summary>
+    public const string BENEFICIARY_CNPJ = "45678901000175";
     public const string BENEFICIARY_NAME = "PADARIA SAO JOSE LTDA";
     public const string UTILITY_COMPANY_NAME = "SABESP";
 

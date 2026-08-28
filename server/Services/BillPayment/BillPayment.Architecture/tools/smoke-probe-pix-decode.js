@@ -37,6 +37,11 @@
 const PRODUCTION_BASE = 'https://api.asaas.com/v3';
 const ENV_KEY = 'ASAAS_PRODUCTION_API_KEY';
 const CONFIRM_FLAG = '--producao';
+// O mesmo valor que a API manda em produção (AsaasOptions.USER_AGENT). O provedor exige o
+// cabeçalho, e o fetch do Node preencheria `node` sozinho — o que fez esta sonda passar em
+// 2026-08-06 contra um endpoint que o adapter .NET não conseguia chamar.
+const USER_AGENT = 'RufinoBillPayment/1.0';
+
 
 function fail(message) {
   console.error(`\n  ERRO: ${message}\n`);
@@ -100,7 +105,7 @@ async function main() {
   const started = Date.now();
   const res = await fetch(`${PRODUCTION_BASE}/pix/qrCodes/decode`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', access_token: apiKey },
+    headers: { 'Content-Type': 'application/json', access_token: apiKey, 'User-Agent': USER_AGENT },
     body: JSON.stringify({ payload }),
   });
 

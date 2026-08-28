@@ -20,6 +20,11 @@ const path = require('path');
 
 const USER_SECRETS_ID = '0e91935b-cdef-4708-9f02-813694df3493';
 const SANDBOX_BASE = 'https://api-sandbox.asaas.com/v3';
+// O mesmo valor que a API manda em produção (AsaasOptions.USER_AGENT). O provedor exige o
+// cabeçalho, e o fetch do Node preencheria `node` sozinho — o que fez esta sonda passar em
+// 2026-08-06 contra um endpoint que o adapter .NET não conseguia chamar.
+const USER_AGENT = 'RufinoBillPayment/1.0';
+
 const SECRET_KEY = 'Asaas:SandboxApiKey';
 
 function loadApiKey() {
@@ -45,7 +50,7 @@ async function simulate(apiKey, identificationField) {
   const started = Date.now();
   const res = await fetch(`${SANDBOX_BASE}/bill/simulate`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', access_token: apiKey },
+    headers: { 'Content-Type': 'application/json', access_token: apiKey, 'User-Agent': USER_AGENT },
     body: JSON.stringify({ identificationField }),
   });
 

@@ -20,7 +20,7 @@ using BillPayment.Domain.Extraction;
 /// </para>
 /// <para>
 /// <strong>Falha do provedor não trava a ingestão.</strong> Timeout, limite de taxa ou erro
-/// devolvem <see cref="ExtractedDocument.Empty"/>; quem chama trata como "não resolvi" e o
+/// devolvem uma <see cref="ExtractionAttempt"/> cujo status diz SE vale tentar de novo; quem chama trata como "não resolvi" e o
 /// artefato vai para a quarentena com motivo próprio. Nunca "aprova sem extrair" — e por isso
 /// esta porta <strong>não lança</strong> por indisponibilidade, do mesmo modo que a consulta
 /// oficial modela a falha em vez de lançá-la.
@@ -36,7 +36,7 @@ public interface IDocumentIntelligence
     /// <summary>Se há extrator configurado. <c>false</c> quando a cascata termina no determinístico.</summary>
     bool IsEnabled { get; }
 
-    Task<ExtractedDocument> ExtractAsync(
+    Task<ExtractionAttempt> ExtractAsync(
         DocumentPayload payload,
         ExtractionHints hints,
         CancellationToken cancellationToken);

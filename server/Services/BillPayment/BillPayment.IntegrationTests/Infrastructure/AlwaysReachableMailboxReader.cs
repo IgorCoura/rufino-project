@@ -1,4 +1,4 @@
-namespace BillPayment.IntegrationTests.Infrastructure;
+﻿namespace BillPayment.IntegrationTests.Infrastructure;
 
 using BillPayment.Domain.Mailboxes;
 using BillPayment.Domain.Ports;
@@ -64,15 +64,20 @@ internal sealed class FakeMailboxReader : IMailboxReader
         CancellationToken cancellationToken)
         => Task.FromResult(ProbeResult);
 
+    /// <summary>O piso temporal com que a última varredura foi pedida.</summary>
+    public DateOnly? LastCapturedSince { get; private set; }
+
     public Task<MailboxReadResult> ReadAsync(
         string mailboxAddress,
         CredentialRef credential,
         string? folderPath,
         string? cursor,
+        DateOnly? capturedSince,
         CancellationToken cancellationToken)
     {
         LastFolderPath = folderPath;
         LastCursor = cursor;
+        LastCapturedSince = capturedSince;
         ReadCount++;
         Reads.Add((folderPath, cursor));
 
@@ -83,6 +88,12 @@ internal sealed class FakeMailboxReader : IMailboxReader
     /// <summary>Conteúdo devolvido no download, por chave de artefato.</summary>
     public Dictionary<string, byte[]> Artifacts { get; } = new(StringComparer.Ordinal);
 
+    /// <summary>
+    /// Quantas vezes o download foi pedido — a contraprova de que o anexo manual NÃO volta ao
+    /// provedor. Sem contador, "não foi buscar de novo" não é verificável.
+    /// </summary>
+    public int DownloadCount { get; private set; }
+
     public Task<ReadOnlyMemory<byte>?> DownloadArtifactAsync(
         string mailboxAddress,
         CredentialRef credential,
@@ -90,6 +101,8 @@ internal sealed class FakeMailboxReader : IMailboxReader
         string artifactKey,
         CancellationToken cancellationToken)
     {
+        DownloadCount++;
+
         // Nulo explicito: `cond ? bytes : null` converteria um byte[] nulo em ReadOnlyMemory
         // VAZIO — nao nulo —, e o teste de falha de download passaria a exercitar outro caminho.
         if (!Artifacts.TryGetValue(artifactKey, out var bytes))
@@ -97,6 +110,27 @@ internal sealed class FakeMailboxReader : IMailboxReader
 
         return Task.FromResult<ReadOnlyMemory<byte>?>(bytes);
     }
+
+    /// <summary>Para onde a mensagem se mudou, por identificador permanente do cabeçalho.</summary>
+    public Dictionary<string, RelocatedArtifact> Relocations { get; } = new(StringComparer.Ordinal);
+
+    /// <summary>Mensagens servidas por id, para a recaptura.</summary>
+    public Dictionary<string, MailboxMessage> MessagesById { get; } = new(StringComparer.Ordinal);
+
+    public Task<MailboxMessage?> ReadSingleMessageAsync(
+        string mailboxAddress,
+        CredentialRef credential,
+        string externalMessageId,
+        CancellationToken cancellationToken)
+        => Task.FromResult(MessagesById.GetValueOrDefault(externalMessageId));
+
+    public Task<RelocatedArtifact?> RelocateArtifactAsync(
+        string mailboxAddress,
+        CredentialRef credential,
+        string internetMessageId,
+        string? fileName,
+        CancellationToken cancellationToken)
+        => Task.FromResult(Relocations.GetValueOrDefault(internetMessageId));
 
     /// <summary>Monta uma mensagem com N artefatos, para o caso do e-mail com vários boletos.</summary>
     public static MailboxMessage Message(string messageId, params string[] artifactKeys)

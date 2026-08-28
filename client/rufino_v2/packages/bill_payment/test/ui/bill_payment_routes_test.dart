@@ -4,7 +4,7 @@ import 'package:go_router/go_router.dart';
 
 void main() {
   group('billPaymentRoutes', () {
-    final routes = billPaymentRoutes(homeRoute: '/home')
+    final routes = billPaymentRoutes(homeRoute: '/home', onPickDocument: () async => null, onOpenLink: (_) async => true)
         .whereType<GoRoute>()
         .map((r) => r.path)
         .toList();

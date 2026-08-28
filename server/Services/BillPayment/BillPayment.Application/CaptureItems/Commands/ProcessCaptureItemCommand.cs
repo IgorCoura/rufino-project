@@ -3,6 +3,7 @@ namespace BillPayment.Application.CaptureItems.Commands;
 using BillPayment.Application.Mediator;
 using BillPayment.Domain.Bills;
 using BillPayment.Domain.CaptureItems;
+using BillPayment.Domain.CapturedMessages;
 using BillPayment.Domain.CaptureSources;
 using BillPayment.Domain.Extraction;
 using BillPayment.Domain.Payees;
@@ -38,7 +39,21 @@ using Microsoft.Extensions.Logging;
 /// Como há um único <c>SaveEntitiesAsync</c>, a transação implícita do EF cobre os dois.
 /// </para>
 /// </remarks>
-public sealed record ProcessCaptureItemCommand(Guid TenantId, Guid CaptureItemId)
+/// <param name="VisionLane">
+/// Quem chama é o worker de visão, e portanto o degrau 3 pode rodar.
+/// <para>
+/// <strong>A extração por IA NÃO acontece na faixa rápida</strong>, e é essa regra que sustenta a
+/// vazão do processamento. A cota é escassa e a chamada leva de 3 a 5 segundos; um item de visão
+/// no meio do lote segurava todos os outros, cuja mediana é de 150 ms — medido em 2026-08-26: 27%
+/// dos itens consumindo 86% do tempo. A faixa rápida faz os degraus 0 a 2 e, quando precisa da IA,
+/// põe o item em <c>VisionPending</c> e segue. O worker de visão retoma dali.
+/// </para>
+/// <para>
+/// O custo de ceder a vez é rebaixar o artefato uma vez — os mesmos 150 a 360 ms —, contra os
+/// segundos que ele deixa de bloquear.
+/// </para>
+/// </param>
+public sealed record ProcessCaptureItemCommand(Guid TenantId, Guid CaptureItemId, bool VisionLane = false)
     : IRequest<ProcessCaptureItemResponse>, IMultiAggregateCommand;
 
 /// <param name="Decision">
@@ -58,6 +73,7 @@ public sealed record ProcessCaptureItemResponse(
 
 public sealed class ProcessCaptureItemCommandHandler(
     ICaptureItemRepository items,
+    ICapturedMessageRepository capturedMessages,
     ICaptureSourceRepository sources,
     ITrustedOriginRepository origins,
     IPayerProfileRepository payerProfiles,
@@ -79,6 +95,9 @@ public sealed class ProcessCaptureItemCommandHandler(
     /// </summary>
     private const string BILL_UNDER_ANOTHER_ACCOUNT = "bill_under_another_account";
 
+    /// <summary>Motivo enquanto o artefato espera a vez na fila do extrator de IA.</summary>
+    private const string AWAITING_VISION = "awaiting_vision";
+
     public async Task<ProcessCaptureItemResponse> Handle(
         ProcessCaptureItemCommand request,
         CancellationToken cancellationToken)
@@ -94,8 +113,18 @@ public sealed class ProcessCaptureItemCommandHandler(
 
         var now = clock.GetUtcNow();
 
-        var content = await mailboxReader.DownloadArtifactAsync(
-            source.Address, source.Credential!, item.ExternalMessageId, item.ArtifactKey, cancellationToken);
+        // Anexo manual não se rebaixa do provedor: uma pessoa já buscou o documento e o entregou,
+        // e ir ao e-mail de novo traria de volta o corpo que NÃO tinha o boleto — desfazendo o
+        // trabalho dela. É o único caminho em que o artefato não vem da caixa.
+        ReadOnlyMemory<byte>? content = item.ManuallySupplied && item.HasStoredArtifact
+            ? await storage.RetrieveAsync(tenantId, item.StorageKey!, cancellationToken)
+            : await mailboxReader.DownloadArtifactAsync(
+                source.Address, source.Credential!, item.ExternalMessageId, item.ArtifactKey, cancellationToken);
+
+        // O endereço guardado pode ter morrido — mover a mensagem de pasta o invalida. Antes de
+        // desistir, reencontra a mensagem pelo identificador do cabeçalho, que não muda nunca.
+        if (content is null && !item.ManuallySupplied)
+            content = await RetryAfterRelocationAsync(item, source, now.UtcDateTime, cancellationToken);
 
         // Vazio conta como ausente: um adapter que devolve zero byte nao entregou o artefato,
         // e seguir com ele faria a cascata concluir "nao e boleto" sobre um nada.
@@ -104,6 +133,11 @@ public sealed class ProcessCaptureItemCommandHandler(
             // Anexo que não veio não é "não é boleto": nada se aprendeu sobre ele, e descartar
             // perderia um documento que a próxima tentativa traria.
             item.MarkLinkFailed("artifact_download_failed", now.UtcDateTime);
+
+            await RecordCapturedOutcomeAsync(
+                item, ArtifactOutcome.DownloadFailed, "artifact_download_failed",
+                tenantId, now.UtcDateTime, cancellationToken);
+
             await unitOfWork.SaveEntitiesAsync(cancellationToken);
 
             return new ProcessCaptureItemResponse(item.Id.Value, "DownloadFailed", 0);
@@ -112,10 +146,16 @@ public sealed class ProcessCaptureItemCommandHandler(
         var profile = await payerProfiles.GetByTenantAsync(tenantId, cancellationToken);
         var passwords = PasswordDerivationService.Derive(profile);
 
+        // Os documentos do cadastro vão junto para a varredura procurá-los DIRETAMENTE no texto,
+        // em vez de descobrir números parecidos com documento e conferir depois. Medido em 915
+        // boletos reais: +54 documentos encontrados, nenhuma perda, zero falso positivo.
+        var knownTaxIds = KnownTaxIdsOf(profile);
+
         var extraction = await parser.ParseAsync(
             content.Value,
             item.ContentType,
             passwords,
+            knownTaxIds,
             DateOnly.FromDateTime(now.UtcDateTime),
             cancellationToken);
 
@@ -130,11 +170,20 @@ public sealed class ProcessCaptureItemCommandHandler(
         // Degrau 2: só quando o corpo não trazia o instrumento escrito nele. Buscar o PDF de uma
         // fatura cujo Pix já está no texto seria gastar rede — e abrir superfície de ataque — para
         // descobrir o que já estava ali.
-        if (!extraction.Resolved && !extraction.IsLocked)
+        // A escada de link não roda sobre anexo manual: o documento já está em mãos, e buscar de
+        // novo gastaria rede — e abriria superfície de ataque — para descobrir o que já se tem.
+        if (!extraction.Resolved && !extraction.IsLocked && !item.ManuallySupplied)
         {
             var resolved = await linkResolver.ResolveAsync(payload, payloadType, cancellationToken);
 
-            if (resolved is not null)
+            if (resolved is null)
+            {
+                // A escada não alcançou este emissor. Guardar PARA ONDE ela teria ido é o que
+                // transforma a quarentena em fila de receitas a cadastrar — sem isto o item cai
+                // lá sem dizer de onde veio, que é justamente a informação que faltava.
+                RecordAttemptedLinkAsync(item, payload, payloadType, now.UtcDateTime);
+            }
+            else
             {
                 // A procedência é registrada mesmo que o documento buscado não resolva: saber
                 // ONDE o sistema foi procurar é o que permite corrigir a receita depois.
@@ -144,21 +193,58 @@ public sealed class ProcessCaptureItemCommandHandler(
                 payloadType = resolved.MediaType;
 
                 extraction = await parser.ParseAsync(
-                    payload, payloadType, passwords, DateOnly.FromDateTime(now.UtcDateTime), cancellationToken);
+                    payload, payloadType, passwords, knownTaxIds,
+                    DateOnly.FromDateTime(now.UtcDateTime), cancellationToken);
             }
         }
 
-        // Degrau 3: só o que o determinístico não resolveu, e só quando vale gastar. PDF cifrado
-        // não entra — mandar um arquivo que não abre gastaria a chamada para o modelo ver a tela
-        // de senha.
-        if (!extraction.Resolved && !extraction.IsLocked)
+        // A IA roda para TODO candidato a boleto (decisão de 2026-08-27): o que o determinístico
+        // resolveu ganha o retrato de enriquecimento (competência, descrição, pagador), e o que
+        // não resolveu ganha o degrau 3 como sempre. PDF cifrado continua fora — mandar um
+        // arquivo que não abre gastaria a chamada para o modelo ver a tela de senha.
+        DocumentReading? reading = null;
+
+        if (!extraction.IsLocked && ShouldUseVision(item, origin, payloadType, extraction))
         {
-            extraction = await TryVisionAsync(
-                item, tenantId, profile, origin, payload, payloadType, now.UtcDateTime, cancellationToken)
-                ?? extraction;
+            // Na faixa rápida a IA não roda: o item cede o lugar e o worker de visão o retoma.
+            if (!request.VisionLane)
+            {
+                item.MarkVisionPending(AWAITING_VISION, now.UtcDateTime);
+                await unitOfWork.SaveEntitiesAsync(cancellationToken);
+
+                return new ProcessCaptureItemResponse(item.Id.Value, "VisionPending", 0);
+            }
+
+            // O PDF que abriu por senha derivada abriu SÓ AQUI DENTRO: os bytes continuam
+            // cifrados, e mandá-los assim faz o extrator recusar o artefato. Medido em
+            // 2026-08-28 — os três únicos boletos do acervo sem retrato eram exatamente os três
+            // com senha derivada, e o log trazia um 400 do provedor para cada um.
+            var visionPayload = payload;
+            var readable = true;
+
+            if (extraction.UnlockedBy is not null)
+            {
+                var clear = await parser.UnlockAsync(payload, payloadType, passwords, cancellationToken);
+
+                if (clear is { } unlocked)
+                    visionPayload = unlocked;
+                else
+                    readable = false;
+            }
+
+            // Sem cópia legível, a regra de sempre volta a valer e o item apenas segue sem
+            // retrato: PDF que não abre não vai para o extrator. O que a cascata determinística
+            // já provou continua valendo — a captura nunca é refém da IA.
+            if (readable)
+            {
+                (extraction, reading) = await ExtractWithVisionAsync(
+                    item, tenantId, profile, extraction, visionPayload, payloadType, now.UtcDateTime, cancellationToken);
+            }
         }
 
-        var decision = CaptureTriageService.Decide(extraction, origin);
+        // Assunto e remetente entram como evidência fraca: sem eles, "não achei boleto" de um
+        // remetente não cadastrado é sempre descarte, e emissor novo desaparece em silêncio.
+        var decision = CaptureTriageService.Decide(extraction, origin, item.Subject);
 
         await ApplyAsync(
             item, decision, extraction, payload, payloadType, tenantId, now.UtcDateTime, cancellationToken);
@@ -166,8 +252,11 @@ public sealed class ProcessCaptureItemCommandHandler(
         // A escada só roda sobre o que a cascata reconheceu como boleto: sem instrumento não há
         // o que rotear, e os demais desfechos já param no próprio estado que a triagem escolheu.
         var routing = decision == CaptureTriageDecision.Parse
-            ? await RouteAsync(item, extraction, profile, tenantId, now.UtcDateTime, cancellationToken)
+            ? await RouteAsync(item, extraction, reading, profile, tenantId, now.UtcDateTime, cancellationToken)
             : null;
+
+        await RecordCapturedOutcomeAsync(
+            item, OutcomeOf(decision, item), item.Reason, tenantId, now.UtcDateTime, cancellationToken);
 
         await unitOfWork.SaveEntitiesAsync(cancellationToken);
 
@@ -177,6 +266,92 @@ public sealed class ProcessCaptureItemCommandHandler(
             extraction.Instruments.Count,
             routing?.Outcome.Name,
             item.BillId?.Value);
+    }
+
+
+    /// <summary>
+    /// Tenta de novo depois de reencontrar a mensagem pelo identificador permanente do cabeçalho.
+    /// </summary>
+    /// <remarks>
+    /// <strong>Um 404 no anexo raramente significa "o arquivo sumiu".</strong> O id guardado é o
+    /// endereço de onde a mensagem estava, e mover de pasta o invalida — medido em produção em
+    /// 2026-08-19, com 2.381 downloads bem-sucedidos e 6 falhas, todas assim. Sem esta segunda
+    /// tentativa, reprocessar refaz a mesma requisição morta e falha igual, para sempre.
+    /// </remarks>
+    private async Task<ReadOnlyMemory<byte>?> RetryAfterRelocationAsync(
+        CaptureItem item,
+        CaptureSource source,
+        DateTime occurredAt,
+        CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrEmpty(item.InternetMessageId))
+            return null;
+
+        var relocated = await mailboxReader.RelocateArtifactAsync(
+            source.Address, source.Credential!, item.InternetMessageId, item.FileName, cancellationToken);
+
+        if (relocated is null)
+            return null;
+
+        // Regravar os ids é o que impede a próxima chamada de repetir a busca — e o que faz o
+        // botão de reprocessar voltar a significar alguma coisa.
+        item.Relocate(relocated.ExternalMessageId, relocated.ArtifactKey, occurredAt);
+
+        logger.LogInformation("Mensagem reencontrada pelo identificador do cabeçalho; ids atualizados.");
+
+        return await mailboxReader.DownloadArtifactAsync(
+            source.Address, source.Credential!, item.ExternalMessageId, item.ArtifactKey, cancellationToken);
+    }
+
+    /// <summary>
+    /// Escreve no livro-caixa da captura o que aconteceu com este artefato.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <strong>É o único lugar onde o descarte deixa rastro.</strong> O <c>CaptureItem</c> some
+    /// quando a triagem descarta — é a retenção por desfecho —, e sem este registro a pessoa que
+    /// mandou o e-mail fica sem resposta sobre o que houve com ele.
+    /// </para>
+    /// <para>
+    /// Ausência do registro não derruba o processamento: item ingerido antes de o livro-caixa
+    /// existir continua sendo processado normalmente, só não aparece na tela de e-mails.
+    /// </para>
+    /// </remarks>
+    private async Task RecordCapturedOutcomeAsync(
+        CaptureItem item,
+        ArtifactOutcome outcome,
+        string? reason,
+        TenantId tenantId,
+        DateTime occurredAt,
+        CancellationToken cancellationToken)
+    {
+        var message = await capturedMessages.FindByExternalMessageIdAsync(
+            tenantId, item.SourceId, item.ExternalMessageId, cancellationToken);
+
+        if (message is null)
+            return;
+
+        // Descartado não tem para onde navegar: o item foi apagado, e apontar para um id morto
+        // faria a tela oferecer um link que devolve 404.
+        var captureItemId = outcome == ArtifactOutcome.Discarded ? (CaptureItemId?)null : item.Id;
+
+        message.RecordOutcome(item.ArtifactKey, outcome, reason, captureItemId, item.BillId, occurredAt);
+    }
+
+    /// <summary>Traduz o desfecho técnico para a linguagem de quem lê a tela.</summary>
+    private static ArtifactOutcome OutcomeOf(CaptureTriageDecision decision, CaptureItem item)
+    {
+        if (decision == CaptureTriageDecision.Drop)
+            return ArtifactOutcome.Discarded;
+
+        if (item.Status == CaptureItemStatus.Promoted) return ArtifactOutcome.Promoted;
+        if (item.Status == CaptureItemStatus.ForeignPayer) return ArtifactOutcome.ForeignPayer;
+        if (item.Status == CaptureItemStatus.Unrouted) return ArtifactOutcome.Unrouted;
+        if (item.Status == CaptureItemStatus.Locked) return ArtifactOutcome.Locked;
+        if (item.Status == CaptureItemStatus.Unrecognized) return ArtifactOutcome.Quarantined;
+        if (item.Status == CaptureItemStatus.LinkFailed) return ArtifactOutcome.DownloadFailed;
+
+        return ArtifactOutcome.Pending;
     }
 
     /// <summary>
@@ -196,6 +371,7 @@ public sealed class ProcessCaptureItemCommandHandler(
     private async Task<RoutingDecision> RouteAsync(
         CaptureItem item,
         ExtractionResult extraction,
+        DocumentReading? reading,
         PayerProfile? profile,
         TenantId tenantId,
         DateTime occurredAt,
@@ -216,7 +392,7 @@ public sealed class ProcessCaptureItemCommandHandler(
             return routing;
         }
 
-        await PromoteAsync(item, extraction, routing, tenantId, occurredAt, cancellationToken);
+        await PromoteAsync(item, extraction, reading, routing, tenantId, occurredAt, cancellationToken);
         return routing;
     }
 
@@ -273,11 +449,18 @@ public sealed class ProcessCaptureItemCommandHandler(
     private async Task PromoteAsync(
         CaptureItem item,
         ExtractionResult extraction,
+        DocumentReading? reading,
         RoutingDecision routing,
         TenantId tenantId,
         DateTime occurredAt,
         CancellationToken cancellationToken)
     {
+        // O nome do pagador vem da leitura quando ela leu o MESMO documento que roteou — nome de
+        // um e documento de outro descreveria uma pessoa que não existe.
+        var payerName = reading?.PayerTaxId is { } readTaxId && readTaxId.Equals(routing.PayerTaxId)
+            ? reading.PayerName
+            : null;
+
         var bill = Bill.Capture(
             tenantId,
             extraction.Instruments,
@@ -290,8 +473,9 @@ public sealed class ProcessCaptureItemCommandHandler(
                 item.ContentHash,
                 item.StorageKey),
             occurredAt,
-            routing.PayerTaxId is null ? null : PartyInfo.Of(name: null, routing.PayerTaxId),
-            routing.Confidence);
+            routing.PayerTaxId is null ? null : PartyInfo.Of(payerName, routing.PayerTaxId),
+            routing.Confidence,
+            reading);
 
         if (bill.DedupKey is not null)
         {
@@ -376,48 +560,55 @@ public sealed class ProcessCaptureItemCommandHandler(
     }
 
     /// <summary>
-    /// Degrau 3 da cascata: o extrator de visão propõe, o domínio dispõe.
+    /// A leitura por IA do artefato — degrau 3 quando o determinístico não resolveu, e retrato de
+    /// enriquecimento sempre.
     /// </summary>
     /// <remarks>
-    /// <para>
-    /// <strong>Devolve <c>null</c> quando não vale a pena ou nada resolveu</strong>, para quem
-    /// chamou preservar o motivo original da cascata determinística — <c>no_text_layer</c> diz
-    /// mais para quem opera do que um motivo genérico de visão.
-    /// </para>
     /// <para>
     /// <strong>O que volta do modelo não é boleto: é string.</strong> Quem converte é o
     /// <c>CandidateValidationService</c>, e ele só aceita o que sobrevive ao DV da linha
     /// digitável ou ao CRC do BR Code (ADR-011). Lista vazia depois de o modelo ter respondido é
     /// desfecho normal — inclusive quando ele alucinou, e é essa a defesa.
     /// </para>
+    /// <para>
+    /// <strong>O corpo do e-mail vai junto</strong> — é dele que saem a competência e a descrição
+    /// quando o boleto não as traz. E <strong>a captura nunca é refém da IA</strong>: modelo
+    /// indisponível ou teto estourado devolvem a extração determinística intacta, sem retrato.
+    /// </para>
     /// </remarks>
-    private async Task<ExtractionResult?> TryVisionAsync(
+    private async Task<(ExtractionResult Extraction, DocumentReading? Reading)> ExtractWithVisionAsync(
         CaptureItem item,
         TenantId tenantId,
         PayerProfile? profile,
-        TrustedOrigin? origin,
+        ExtractionResult extraction,
         ReadOnlyMemory<byte> content,
         string? contentType,
         DateTime occurredAt,
         CancellationToken cancellationToken)
     {
-        if (!documentIntelligence.IsEnabled)
-            return null;
-
-        // O tipo é o DECLARADO na ingestão, nunca deduzido do nome: a chave do artefato é opaca
-        // no provedor, e adivinhar dali rotulava toda imagem como PDF — o extrator recusava, e os
-        // anexos que não eram PDF seguiam inalcançáveis mesmo com a visão existindo.
-        if (!DocumentPayload.IsSupported(contentType))
-            return null;
-
-        // FileName, não ArtifactKey: a chave é opaca no provedor, então procurar sinal de cobrança
-        // nela nunca casaria com nada — o portão ficaria decidindo só pelo assunto.
-        if (!VisionGateService.ShouldAttempt(origin, item.Subject, item.FileName))
-            return null;
-
         var hints = await BuildHintsAsync(tenantId, profile, item.Sender, cancellationToken);
-        var extracted = await documentIntelligence.ExtractAsync(
-            DocumentPayload.From(tenantId, content, contentType), hints, cancellationToken);
+        var body = await LoadBodyTextAsync(item, tenantId, cancellationToken);
+
+        var attempt = await documentIntelligence.ExtractAsync(
+            DocumentPayload.From(tenantId, content, contentType, body?.Text, body?.IsHtml ?? false),
+            hints,
+            cancellationToken);
+
+        // O provedor não respondeu: NADA foi aprendido sobre o documento, e concluir "não é
+        // boleto" a partir disso é o defeito medido em 2026-08-27 — 24 documentos bons foram
+        // para a quarentena por 503. Lançar devolve o item à fila, onde a máquina de
+        // retentativa com espera dobrando já existe e agora finalmente é acionada.
+        if (attempt.IsRetryable)
+            throw ExtractionErrors.ProviderUnavailable(attempt.ReasonCode ?? attempt.Status.Name);
+
+        var extracted = attempt.Document;
+
+        var candidate = DocumentReading.FromExtraction(
+            extracted, new DateTimeOffset(occurredAt, TimeSpan.Zero));
+        var reading = candidate.HasContent ? candidate : null;
+
+        if (extraction.Resolved)
+            return (extraction, reading);
 
         var instruments = CandidateValidationService.Validate(extracted, occurredAt);
 
@@ -432,11 +623,76 @@ public sealed class ProcessCaptureItemCommandHandler(
                     "Extração por IA propôs candidatos e NENHUM sobreviveu à validação determinística.");
             }
 
-            return null;
+            return (extraction, reading);
         }
 
-        return ExtractionResult.Found(instruments, ExtractionMethod.Vision);
+        // O documento do pagador lido pela visão entra na escada de roteamento — é o que faz um
+        // documento ESCANEADO subir ao degrau 1 em vez de cair na reivindicação. Rotulado como
+        // pagador porque foi isso que se pediu ao modelo, e o DV já o provou.
+        var parties = PartyCandidate.TryCreate(extracted.PayerTaxId, underPayerLabel: true) is { } party
+            ? new[] { party }
+            : [];
+
+        return (ExtractionResult.Found(instruments, ExtractionMethod.Vision, parties: parties), reading);
     }
+
+    /// <summary>
+    /// O corpo do e-mail que trouxe este artefato, como texto — do balde onde a sincronização o
+    /// guardou. Ausência é estado normal (mensagem anterior à retenção do corpo, ou upload manual).
+    /// </summary>
+    private async Task<(string Text, bool IsHtml)?> LoadBodyTextAsync(
+        CaptureItem item,
+        TenantId tenantId,
+        CancellationToken cancellationToken)
+    {
+        if (item.ManuallySupplied)
+            return null;
+
+        var message = await capturedMessages.FindByExternalMessageIdAsync(
+            tenantId, item.SourceId, item.ExternalMessageId, cancellationToken);
+
+        if (message is null || !message.HasStoredBody)
+            return null;
+
+        var stored = await storage.RetrieveAsync(tenantId, message.BodyStorageKey!, cancellationToken);
+        if (stored.IsEmpty)
+            return null;
+
+        var isHtml = message.BodyContentType?.Contains("html", StringComparison.OrdinalIgnoreCase) ?? true;
+        return (System.Text.Encoding.UTF8.GetString(stored.Span), isHtml);
+    }
+
+    /// <summary>
+    /// A extração por IA se aplica a este artefato?
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Existe separada da chamada porque a <strong>faixa rápida precisa da resposta sem gastar
+    /// nada</strong>: é ela que decide entre seguir o processamento e ceder a vez ao worker de
+    /// visão. Colar as duas coisas obrigaria a faixa rápida a chamar a IA para descobrir se
+    /// deveria chamá-la.
+    /// </para>
+    /// <para>
+    /// <strong>Resolvido pelo determinístico é candidato por definição</strong> — tem boleto, e
+    /// todo boleto ganha o retrato da IA (decisão de 2026-08-27). O portão de sinal de cobrança
+    /// segue valendo só para o que NÃO resolveu: é ele que impede holerite e nota fiscal de
+    /// queimarem chamada.
+    /// </para>
+    /// <para>
+    /// O tipo é o <strong>declarado na ingestão</strong>, nunca deduzido do nome: a chave do
+    /// artefato é opaca no provedor, e adivinhar dali rotulava toda imagem como PDF. E o portão
+    /// examina <c>FileName</c>, não a chave, pelo mesmo motivo — sinal de cobrança nunca casaria
+    /// com um identificador opaco.
+    /// </para>
+    /// </remarks>
+    private bool ShouldUseVision(
+        CaptureItem item,
+        TrustedOrigin? origin,
+        string? contentType,
+        ExtractionResult extraction)
+        => documentIntelligence.IsEnabled
+            && DocumentPayload.IsSupported(contentType)
+            && (extraction.Resolved || VisionGateService.ShouldAttempt(origin, item.Subject, item.FileName));
 
     /// <summary>
     /// O que o sistema já sabe, para reduzir alucinação em campo cortado.
@@ -463,6 +719,48 @@ public sealed class ProcessCaptureItemCommandHandler(
             taxIds,
             knownPayees.Select(p => p.LegalName),
             sender);
+    }
+
+    /// <summary>
+    /// Os documentos fiscais que o tenant declarou ter — principal e adicionais.
+    /// </summary>
+    /// <remarks>
+    /// Sem perfil a lista é vazia, e a varredura cai só no degrau genérico. É o mesmo estado em
+    /// que <c>PasswordDerivationService</c> não produz candidata nenhuma: sem cadastro o sistema
+    /// não tem contra o que comparar.
+    /// </remarks>
+    private static IReadOnlyList<TaxId> KnownTaxIdsOf(PayerProfile? profile)
+        => profile is null
+            ? []
+            : [profile.PrimaryTaxId, .. profile.AdditionalTaxIds];
+
+    /// <summary>Guarda o endereço que a escada tentaria, quando não há receita para ele.</summary>
+    /// <remarks>
+    /// Só o primeiro link entra: um e-mail traz dezenas, quase todos rastreador e rodapé, e o
+    /// campo existe para identificar o emissor — não para inventariar a mensagem.
+    /// </remarks>
+    private void RecordAttemptedLinkAsync(
+        CaptureItem item,
+        ReadOnlyMemory<byte> payload,
+        string? payloadType,
+        DateTime occurredAt)
+    {
+        if (item.SourceUrl is not null)
+            return;
+
+        var candidate = linkResolver.HarvestLinks(payload, payloadType).FirstOrDefault();
+
+        if (candidate is null || candidate.Url.Length > CaptureItem.SOURCE_URL_MAX_LENGTH)
+            return;
+
+        item.RecordAttemptedLink(candidate.Url, occurredAt);
+
+        if (logger.IsEnabled(LogLevel.Information))
+        {
+            logger.LogInformation(
+                "Nenhuma receita de link para {LinkHost}; o artefato segue para triagem sem o documento.",
+                candidate.Host);
+        }
     }
 
     private Task<TrustedOrigin?> ResolveOriginAsync(

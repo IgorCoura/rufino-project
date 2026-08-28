@@ -76,6 +76,7 @@ internal sealed class BillExpectationQueries(BillPaymentDbContext context, TimeP
             .ToListAsync(cancellationToken);
 
         var missing = new List<PendingExpectationDto>();
+        var overdue = new List<PendingExpectationDto>();
         var captureFailed = new List<PendingExpectationDto>();
         var dueSoon = new List<PendingExpectationDto>();
 
@@ -83,23 +84,34 @@ internal sealed class BillExpectationQueries(BillPaymentDbContext context, TimeP
         {
             foreach (var cycle in expectation.Cycles.Where(c => c.Status.IsOpen))
             {
-                var dto = ToPendingDto(expectation, cycle);
+                var dto = ToPendingDto(expectation, cycle, today);
 
                 if (cycle.Status == CycleStatus.Missing)
-                    missing.Add(dto);
+                {
+                    // Vencida vai para a lista própria: a ação muda de "ainda dá tempo de buscar"
+                    // para "há encargos correndo", e no meio das outras ela se perderia.
+                    (dto.IsOverdue ? overdue : missing).Add(dto);
+                }
                 else if (cycle.Status == CycleStatus.PartiallyCaptured)
+                {
                     captureFailed.Add(dto);
+                }
                 else if (cycle.ExpectedDueDate <= today.AddDays(window))
+                {
+                    // Ciclo aberto cedo — a conta ainda vai chegar — só entra quando o vencimento
+                    // entra na janela; senão o painel encheria de linha que ninguém pode resolver.
                     dueSoon.Add(dto);
+                }
             }
         }
 
         // O mais antigo primeiro em todas: é o que está há mais tempo sem solução.
         missing.Sort(ByDueDate);
+        overdue.Sort(ByDueDate);
         captureFailed.Sort(ByDueDate);
         dueSoon.Sort(ByDueDate);
 
-        return new PendingExpectationsView(missing, captureFailed, dueSoon);
+        return new PendingExpectationsView(missing, overdue, captureFailed, dueSoon);
     }
 
     private static int ByDueDate(PendingExpectationDto a, PendingExpectationDto b)
@@ -137,7 +149,8 @@ internal sealed class BillExpectationQueries(BillPaymentDbContext context, TimeP
             c.BlockedByCaptureItemId?.Value,
             LastAlert(c));
 
-    private static PendingExpectationDto ToPendingDto(BillExpectation e, ExpectationCycle c)
+    private static PendingExpectationDto ToPendingDto(
+        BillExpectation e, ExpectationCycle c, DateOnly today)
         => new(
             e.Id.Value,
             c.Id.Value,
@@ -148,7 +161,8 @@ internal sealed class BillExpectationQueries(BillPaymentDbContext context, TimeP
             c.MissReason?.Name,
             c.MissReason?.Arrived,
             c.BlockedByCaptureItemId?.Value,
-            LastAlert(c));
+            LastAlert(c),
+            today > c.ExpectedDueDate);
 
     private static string? LastAlert(ExpectationCycle c)
         => c.Alerts.Count == 0 ? null : c.Alerts.OrderBy(a => a.SentAt).Last().Level.Name;

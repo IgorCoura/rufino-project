@@ -170,7 +170,7 @@ void main() {
         'reason': 'no_instrument_in_document',
       });
 
-      expect(item.storageKey, isNull);
+      expect(item.hasArtifact, isFalse);
       expect(item.sourceUrl, isNull);
       expect(item.billId, isNull);
       expect(item.acceptsReprocess, isTrue);
