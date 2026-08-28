@@ -269,6 +269,29 @@ public sealed class ImportBillManualTests : BaseIntegrationTest
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }
 
+    // SONDA: o package:http do Flutter escreve os CAMPOS antes do ARQUIVO; o teste acima monta na
+    // ordem inversa. Se a ordem importar, e so ela difere entre o teste e o cliente real.
+    [Fact]
+    public async Task PostImport_WithFieldsBeforeTheFile_ShouldStillBindTheDocument()
+    {
+        var file = new ByteArrayContent(PdfWith("Banco Itau", BankSlipLine));
+        file.Headers.ContentType = new MediaTypeHeaderValue("application/pdf");
+
+        var form = new MultipartFormDataContent();
+        form.Add(new StringContent("ManualUpload"), "sourceKind");
+        form.Add(new StringContent(ReceivedAt.ToString("O")), "receivedAt");
+        form.Add(file, "file", "boleto.pdf");
+
+        var response = await ClientFor().PostAsync(ImportRoute(), form);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        var body = await response.Content.ReadFromJsonAsync<ImportBillResponseContract>();
+        var bill = await LoadAsync(body!.Id);
+
+        Assert.NotNull(bill!.Origin.StorageKey);
+    }
+
     private static ImportBillRequest ManualRequest(
         string? digitableLine = null,
         string? pixPayload = null)
