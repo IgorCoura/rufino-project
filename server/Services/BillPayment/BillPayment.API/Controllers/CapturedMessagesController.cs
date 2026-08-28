@@ -115,7 +115,9 @@ public sealed class CapturedMessagesController(
         [FromHeader(Name = "x-requestid")] Guid requestId,
         CancellationToken cancellationToken)
     {
-        var command = new RecaptureMessageCommand(tenantId, id);
+        // Quem pede a recaptura é quem cancela o boleto ainda não decidido — a trilha do
+        // cancelamento precisa de um UserId, e ele vem só do token (ADR-007).
+        var command = new RecaptureMessageCommand(tenantId, id, ResolveDecidingUserId());
         var identified = new IdentifiedCommand<RecaptureMessageCommand, RecaptureMessageResponse>(
             command, EnsureRequestId(requestId));
 

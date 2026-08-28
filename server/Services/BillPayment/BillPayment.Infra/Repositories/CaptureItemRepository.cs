@@ -22,6 +22,19 @@ internal sealed class CaptureItemRepository : ICaptureItemRepository
         => _context.CaptureItems
             .FirstOrDefaultAsync(i => i.TenantId == tenantId && i.Id == id, cancellationToken);
 
+    public async Task<IReadOnlyList<CaptureItem>> ListByMessageAsync(
+        TenantId tenantId,
+        CaptureSourceId sourceId,
+        string externalMessageId,
+        CancellationToken cancellationToken = default)
+        => await _context.CaptureItems
+            .Where(i => i.TenantId == tenantId
+                && i.SourceId == sourceId
+                && i.ExternalMessageId == externalMessageId)
+            .OrderBy(i => i.CreatedAt)
+            .ThenBy(i => i.Id)
+            .ToListAsync(cancellationToken);
+
     public Task<bool> ExistsAsync(
         TenantId tenantId,
         CaptureSourceId sourceId,

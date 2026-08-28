@@ -63,4 +63,17 @@ public sealed class BillStatus : Enumeration
     /// </remarks>
     public bool AcceptsValidation
         => this == Captured || this == Rejected || this == AwaitingApproval || this == Approved;
+
+    /// <summary>
+    /// Uma pessoa já autorizou o pagamento deste boleto — aprovado, agendado, tentado ou pago.
+    /// </summary>
+    /// <remarks>
+    /// É o que trava a recaptura do e-mail de origem: refazer a triagem apagaria e recriaria o
+    /// boleto, e um boleto com dinheiro comprometido não se refaz por trás de quem decidiu.
+    /// <c>Failed</c> entra porque o pagamento foi tentado — o que fazer com ele (retentar, avisar
+    /// para pagar à mão) é decisão da fase de pagamento, não da captura. <c>Denied</c> e
+    /// <c>Cancelled</c> ficam de fora: liberaram a chave e o humano pode decidir de novo.
+    /// </remarks>
+    public bool IsCommittedToPayment
+        => this == Approved || this == Scheduled || this == Failed || this == Paid;
 }

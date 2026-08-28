@@ -26,6 +26,70 @@ public class CapturedMessageTests
         Assert.Null(message.ProcessedAt);
     }
 
+    // Recapturar reescreve o registro em cima do que existe: o id é o mesmo, todo anexo volta a
+    // Pending, o desfecho anterior some, e a chave do corpo guardado é devolvida para quem chamou
+    // apagar o blob depois do commit.
+    [Fact]
+    public void Recapture_ShouldResetEveryArtifactAndReturnThePreviousBodyKey()
+    {
+        var message = CapturedMessageMother.Register();
+        message.RecordOutcome(CapturedMessageMother.BoletoKey, ArtifactOutcome.Promoted, null, SomeItem, SomeBill, CapturedMessageMother.DefaultOccurredAt);
+        message.RecordBody("tenants/x/body", "text/html", CapturedMessageMother.DefaultOccurredAt);
+        var id = message.Id;
+        var later = CapturedMessageMother.DefaultOccurredAt.AddHours(1);
+
+        var previousBody = message.Recapture(
+            CapturedMessageMother.DefaultMessageId, "Faturas@ENEL.com.br", "Segunda via", CapturedMessageMother.DefaultReceivedAt.AddMinutes(5),
+            [(CapturedMessageMother.BoletoKey, "boleto-v2.pdf", "application/pdf")], later);
+
+        Assert.Equal(id, message.Id);
+        Assert.Equal("tenants/x/body", previousBody);
+        Assert.False(message.HasStoredBody);
+        Assert.Null(message.ProcessedAt);
+        Assert.Equal("faturas@enel.com.br", message.Sender);
+        Assert.Equal("Segunda via", message.Subject);
+        Assert.Equal(later, message.UpdatedAt);
+
+        var artifact = Assert.Single(message.Artifacts);
+        Assert.Equal(ArtifactOutcome.Pending, artifact.Outcome);
+        Assert.Equal("boleto-v2.pdf", artifact.FileName);
+        Assert.Null(artifact.CaptureItemId);
+        Assert.Null(artifact.BillId);
+        Assert.Null(artifact.DecidedAt);
+    }
+
+    // Os anexos são sincronizados com o que o provedor devolve AGORA: o que continua existindo é
+    // mantido (mesma entidade), o que sumiu sai, o que é novo entra.
+    [Fact]
+    public void Recapture_ShouldSyncTheArtifactsWithWhatTheProviderReturnsNow()
+    {
+        var message = CapturedMessageMother.WithTwoArtifacts();
+        var boletoId = message.Artifacts.Single(a => a.ArtifactKey == CapturedMessageMother.BoletoKey).Id;
+
+        message.Recapture(
+            CapturedMessageMother.DefaultMessageId, CapturedMessageMother.DefaultSender, null, CapturedMessageMother.DefaultReceivedAt,
+            [(CapturedMessageMother.BoletoKey, "boleto.pdf", "application/pdf"), ("anexo-novo", "novo.pdf", "application/pdf")],
+            CapturedMessageMother.DefaultOccurredAt);
+
+        Assert.Equal(2, message.ArtifactCount);
+        Assert.Contains(message.Artifacts, a => a.ArtifactKey == CapturedMessageMother.BoletoKey && a.Id == boletoId);
+        Assert.Contains(message.Artifacts, a => a.ArtifactKey == "anexo-novo");
+        Assert.DoesNotContain(message.Artifacts, a => a.ArtifactKey == CapturedMessageMother.ReciboKey);
+    }
+
+    // Sem o identificador do cabeçalho não há como reencontrar o e-mail no provedor — BLP.CMS08.
+    [Fact]
+    public void Recapture_WithoutAnInternetMessageId_Throws_BLP_CMS08()
+    {
+        var message = CapturedMessageMother.Register(internetMessageId: null);
+
+        var exception = Assert.Throws<DomainException>(() => message.Recapture(
+            CapturedMessageMother.DefaultMessageId, CapturedMessageMother.DefaultSender, null, CapturedMessageMother.DefaultReceivedAt,
+            [(CapturedMessageMother.BoletoKey, "boleto.pdf", "application/pdf")], CapturedMessageMother.DefaultOccurredAt));
+
+        Assert.Equal("BLP.CMS08", exception.Id);
+    }
+
     // Chave repetida faria o desfecho de um anexo sobrescrever o do irmão, e o histórico passaria
     // a mentir sobre um dos dois.
     [Fact]

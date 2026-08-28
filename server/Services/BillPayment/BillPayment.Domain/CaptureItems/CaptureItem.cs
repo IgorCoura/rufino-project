@@ -710,6 +710,81 @@ public sealed class CaptureItem : AggregateRoot<CaptureItemId>
     /// Quem traduz estado em causa é o consumidor, contra o Smart Enum.
     /// </para>
     /// </remarks>
+    /// <summary>
+    /// O e-mail de origem foi recapturado: este anexo volta ao início da fila como se tivesse
+    /// acabado de ser ingerido, com os metadados que o provedor devolve agora.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <strong>Volta a <c>Received</c> a partir de QUALQUER estado</strong>, inclusive dos
+    /// terminais — é a única operação com essa licença, e ela existe porque a recaptura é a
+    /// pessoa dizendo "refaça tudo". A única proibição real (o boleto já foi aprovado, agendado
+    /// ou pago) cruza agregados, e quem a aplica antes de chegar aqui é o
+    /// <c>MessageRecaptureService</c>.
+    /// </para>
+    /// <para>
+    /// Apaga tudo que a triagem anterior produziu: arquivo, hash, procedência, rota, boleto,
+    /// reivindicação, reprovação, tentativas e aluguel. O <see cref="InternetMessageId"/> fica —
+    /// é a identidade do e-mail, e não muda.
+    /// </para>
+    /// </remarks>
+    /// <returns>
+    /// A chave do arquivo que estava guardado (nunca uma sentinela), para quem chamou decidir se
+    /// o apaga do balde — depois do commit, e só se nenhum boleto continuar apontando para ela.
+    /// </returns>
+    public string? Recapture(
+        string externalMessageId,
+        string? contentType,
+        string? fileName,
+        string sender,
+        string? subject,
+        DateTime receivedAt,
+        DateTime occurredAt)
+    {
+        var previousStorageKey = HasStoredArtifact ? StorageKey : null;
+
+        SetExternalMessageId(externalMessageId);
+        SetContentType(contentType);
+        SetFileName(fileName);
+        SetSender(sender);
+        SetSubject(subject);
+        ReceivedAt = receivedAt;
+
+        ContentHash = null;
+        StorageKey = null;
+        Routing = null;
+        SourceUrl = null;
+        UnlockedBy = null;
+        Extraction = null;
+        Reason = null;
+        BillId = null;
+        DiscardedOf = null;
+        ClaimedBy = null;
+        ClaimedAt = null;
+        DismissedBy = null;
+        DismissedAt = null;
+        ManuallySupplied = false;
+        ProcessingAttempts = 0;
+        LastError = null;
+
+        ResetToReceived(occurredAt);
+        return previousStorageKey;
+    }
+
+    // O mesmo efeito do Transition — aluguel limpo, carimbo, e o evento de "desprendeu" quando
+    // o item saía de um estado que esperava resgate — sem a matriz de transições, que a
+    // recaptura tem licença para atravessar. Não emite Stuck: Received não espera resgate.
+    private void ResetToReceived(DateTime occurredAt)
+    {
+        var previous = Status;
+        Status = CaptureItemStatus.Received;
+        LeaseExpiresAt = null;
+        UpdatedAt = occurredAt;
+
+        if (previous.AwaitsRescue)
+            AddDomainEvent(new CaptureItemUnstuckDomainEvent(Id, TenantId, Status.Name, occurredAt));
+    }
+
     private void Transition(CaptureItemStatus target, DateTime occurredAt)
     {
         if (!Status.CanTransitionTo(target))

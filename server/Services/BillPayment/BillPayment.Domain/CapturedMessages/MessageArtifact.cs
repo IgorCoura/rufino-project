@@ -80,6 +80,21 @@ public sealed class MessageArtifact : Entity<MessageArtifactId>
         DecidedAt = occurredAt;
     }
 
+    /// <summary>
+    /// O anexo vai passar pela triagem de novo: o desfecho anterior deixa de valer, e o nome e o
+    /// tipo passam a ser os que o provedor devolve agora.
+    /// </summary>
+    internal void Reset(string? fileName, string? contentType)
+    {
+        FileName = Normalize(fileName, FILE_NAME_MAX_LENGTH, nameof(FileName));
+        ContentType = Normalize(contentType, CONTENT_TYPE_MAX_LENGTH, nameof(ContentType));
+        Outcome = ArtifactOutcome.Pending;
+        Reason = null;
+        CaptureItemId = null;
+        BillId = null;
+        DecidedAt = null;
+    }
+
     private static string? Normalize(string? value, int maxLength, string field)
     {
         var trimmed = value?.Trim();

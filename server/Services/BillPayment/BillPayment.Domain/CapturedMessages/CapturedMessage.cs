@@ -195,6 +195,70 @@ public sealed class CapturedMessage : AggregateRoot<CapturedMessageId>
     /// Sem o <c>Message-ID</c> do cabeçalho, a única chave é o id de armazenamento — que é
     /// exatamente o que morre quando alguém move a mensagem, e o motivo de a recaptura existir.
     /// </remarks>
+    /// <summary>
+    /// O e-mail foi puxado de novo do provedor e vai passar pela triagem inteira outra vez.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <strong>O registro é o mesmo — mesmo id, mesma URL na tela.</strong> Até 2026-08-28 a
+    /// recaptura apagava o registro e criava outro, e devolvia o id antigo na resposta: a tela
+    /// recebia um id que não existia mais. Agora o registro é reescrito em cima do que existe.
+    /// </para>
+    /// <para>
+    /// Os anexos são sincronizados com o que o provedor devolve <em>agora</em>: os que continuam
+    /// existindo voltam a <c>Pending</c>, os que sumiram saem, os novos entram. O corpo guardado
+    /// é esquecido (a chave antiga é devolvida para quem chamou apagar o blob DEPOIS do commit —
+    /// apagar antes deixaria o registro apontando para nada se a transação não fechasse).
+    /// </para>
+    /// <para>
+    /// Quem decide se a recaptura PODE acontecer é o <c>MessageRecaptureService</c>: a regra
+    /// cruza este agregado com os itens e com os boletos, e por isso não mora aqui.
+    /// </para>
+    /// </remarks>
+    /// <returns>A chave do corpo que estava guardado, ou <c>null</c> se não havia corpo.</returns>
+    public string? Recapture(
+        string externalMessageId,
+        string sender,
+        string? subject,
+        DateTime receivedAt,
+        IEnumerable<(string Key, string? FileName, string? ContentType)> artifacts,
+        DateTime occurredAt)
+    {
+        ArgumentNullException.ThrowIfNull(artifacts);
+        EnsureCanBeRecaptured();
+
+        SetExternalMessageId(externalMessageId);
+        SetSender(sender);
+        SetSubject(subject);
+        ReceivedAt = receivedAt;
+        ProcessedAt = null;
+
+        var incoming = artifacts.ToList();
+        var incomingKeys = new HashSet<string>(StringComparer.Ordinal);
+
+        foreach (var (key, fileName, contentType) in incoming)
+        {
+            var trimmed = key?.Trim() ?? string.Empty;
+            if (!incomingKeys.Add(trimmed))
+                throw CapturedMessageErrors.DuplicateArtifactKey(key!);
+
+            var existing = _artifacts.Find(a => string.Equals(a.ArtifactKey, trimmed, StringComparison.Ordinal));
+            if (existing is null)
+                _artifacts.Add(new MessageArtifact(trimmed, fileName, contentType));
+            else
+                existing.Reset(fileName, contentType);
+        }
+
+        _artifacts.RemoveAll(a => !incomingKeys.Contains(a.ArtifactKey));
+
+        var previousBodyKey = BodyStorageKey;
+        BodyStorageKey = null;
+        BodyContentType = null;
+
+        UpdatedAt = occurredAt;
+        return previousBodyKey;
+    }
+
     public bool CanBeRecaptured => !string.IsNullOrEmpty(InternetMessageId);
 
     /// <summary>Recusa a recaptura quando não há chave permanente para reencontrar a mensagem.</summary>

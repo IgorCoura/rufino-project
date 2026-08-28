@@ -11,6 +11,62 @@ public class CaptureItemTests
 {
     private static readonly DateTime Later = CaptureItemMother.DefaultOccurredAt.AddMinutes(10);
 
+    // Recapturar volta o item ao início da fila a partir de QUALQUER estado — inclusive de
+    // Promoted, que é terminal — e apaga tudo que a triagem anterior produziu. A chave do arquivo
+    // guardado é devolvida para quem chamou decidir se apaga do balde depois do commit.
+    [Fact]
+    public void Recapture_FromAPromotedItem_ShouldReturnToReceivedAndForgetTheWholeTriage()
+    {
+        var item = CaptureItemMother.Unrouted();
+        item.Claim(CaptureItemMother.DefaultUser, CaptureItemMother.DefaultBill, CaptureItemMother.DefaultOccurredAt);
+        var storedKey = item.StorageKey;
+        var internetMessageId = item.InternetMessageId;
+        item.PullDomainEvents();
+
+        var previous = item.Recapture(
+            CaptureItemMother.DefaultMessageId, "application/pdf", "boleto-v2.pdf",
+            "Faturas@ENEL.com.br", "Segunda via", CaptureItemMother.DefaultReceivedAt.AddMinutes(5), Later);
+
+        Assert.Equal(storedKey, previous);
+        Assert.Same(CaptureItemStatus.Received, item.Status);
+        Assert.Null(item.StorageKey);
+        Assert.Null(item.ContentHash);
+        Assert.Null(item.BillId);
+        Assert.Null(item.Routing);
+        Assert.Null(item.ClaimedBy);
+        Assert.Null(item.ClaimedAt);
+        Assert.Null(item.Extraction);
+        Assert.Null(item.Reason);
+        Assert.Equal(0, item.ProcessingAttempts);
+        Assert.Null(item.LeaseExpiresAt);
+        Assert.Equal("faturas@enel.com.br", item.Sender);
+        Assert.Equal("boleto-v2.pdf", item.FileName);
+        Assert.Equal(internetMessageId, item.InternetMessageId);
+        Assert.Equal(Later, item.UpdatedAt);
+        Assert.Empty(item.PullDomainEvents());
+    }
+
+    // Sentinela não é arquivo: item Locked devolve null, e não "pending-unlock" para alguém
+    // tentar apagar do balde.
+    [Fact]
+    public void Recapture_FromALockedItem_ShouldNotReturnTheSentinelAsAStorageKey()
+    {
+        var item = CaptureItemMother.Ingest();
+        item.StoreArtifact("sha256:abc", CaptureItem.PENDING_UNLOCK, CaptureItemMother.DefaultOccurredAt);
+        item.MarkLocked(CaptureItemMother.DefaultOccurredAt);
+        item.PullDomainEvents();
+
+        var previous = item.Recapture(
+            CaptureItemMother.DefaultMessageId, "application/pdf", "boleto.pdf",
+            CaptureItemMother.DefaultSender, null, CaptureItemMother.DefaultReceivedAt, Later);
+
+        Assert.Null(previous);
+        Assert.Same(CaptureItemStatus.Received, item.Status);
+
+        // Locked esperava resgate; sair dele pela recaptura desprende o item como qualquer saída.
+        Assert.IsType<CaptureItemUnstuckDomainEvent>(Assert.Single(item.PullDomainEvents()));
+    }
+
     // Ingerir um artefato guarda a procedência e o deixa em Received, antes de qualquer leitura.
     [Fact]
     public void Ingest_ShouldStoreProvenanceAndStartInReceived()

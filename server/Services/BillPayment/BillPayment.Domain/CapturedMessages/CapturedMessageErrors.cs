@@ -125,6 +125,39 @@ public static class CapturedMessageErrors
             sourcePath: BuildSourcePath(filePath, memberName, lineNumber),
             category: DomainErrorCategory.Validation);
 
+    /// <summary>
+    /// Um anexo deste e-mail virou boleto e alguém já autorizou o pagamento: refazer a triagem
+    /// apagaria e recriaria o boleto por trás de quem decidiu. Mensagem sem o status — quem lê é
+    /// o próprio tenant, e o id basta para a tela apontar o boleto.
+    /// </summary>
+    public static DomainException RecaptureBlockedByDecidedBill(
+        Guid billId,
+        [CallerFilePath] string filePath = "",
+        [CallerMemberName] string memberName = "",
+        [CallerLineNumber] int lineNumber = 0)
+        => new(
+            id: $"{AGGREGATE_PREFIX}11",
+            messageTemplate: "Este e-mail não pode ser recapturado: o boleto {0} já foi aprovado, agendado ou pago.",
+            parameters: new object[] { billId },
+            sourcePath: BuildSourcePath(filePath, memberName, lineNumber),
+            category: DomainErrorCategory.Conflict);
+
+    /// <summary>
+    /// O provedor não devolveu mais a mensagem pelo identificador do cabeçalho — apagada, movida
+    /// para fora do alcance do aplicativo, ou caixa inacessível. Nada foi alterado.
+    /// </summary>
+    public static DomainException RecaptureSourceMessageNotFound(
+        Guid capturedMessageId,
+        [CallerFilePath] string filePath = "",
+        [CallerMemberName] string memberName = "",
+        [CallerLineNumber] int lineNumber = 0)
+        => new(
+            id: $"{AGGREGATE_PREFIX}12",
+            messageTemplate: "O e-mail {0} não foi encontrado na caixa para ser recapturado. Nada foi alterado.",
+            parameters: new object[] { capturedMessageId },
+            sourcePath: BuildSourcePath(filePath, memberName, lineNumber),
+            category: DomainErrorCategory.NotFound);
+
     public static DomainException BodyContentTypeRequired(
         [CallerFilePath] string filePath = "",
         [CallerMemberName] string memberName = "",

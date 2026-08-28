@@ -83,6 +83,21 @@ public class BillStatusTests
 
     // Denied e Cancelled liberam a chave natural: o compromisso não vai ser pago por eles,
     // e o documento pode legitimamente ser reimportado depois.
+    // Aprovado, agendado, tentado ou pago: alguém já autorizou o dinheiro, e a recaptura do
+    // e-mail de origem não pode refazer esse boleto por trás de quem decidiu.
+    [Theory]
+    [InlineData("Approved", true)]
+    [InlineData("Scheduled", true)]
+    [InlineData("Failed", true)]
+    [InlineData("Paid", true)]
+    [InlineData("Captured", false)]
+    [InlineData("AwaitingApproval", false)]
+    [InlineData("Rejected", false)]
+    [InlineData("Denied", false)]
+    [InlineData("Cancelled", false)]
+    public void IsCommittedToPayment_ShouldBeTrueOnlyAfterAHumanAuthorizedTheMoney(string name, bool expected)
+        => Assert.Equal(expected, Enumeration.FromDisplayName<BillStatus>(name).IsCommittedToPayment);
+
     [Theory]
     [InlineData("Denied")]
     [InlineData("Cancelled")]

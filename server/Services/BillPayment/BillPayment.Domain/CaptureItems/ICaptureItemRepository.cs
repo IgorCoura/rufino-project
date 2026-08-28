@@ -34,6 +34,16 @@ public interface ICaptureItemRepository
         CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Todos os itens de um e-mail — um por anexo —, <em>tracked</em>, para a recaptura reescrever
+    /// cada um em cima do que existe em vez de apagar e recriar.
+    /// </summary>
+    Task<IReadOnlyList<CaptureItem>> ListByMessageAsync(
+        TenantId tenantId,
+        CaptureSourceId sourceId,
+        string externalMessageId,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Procura um item já ingerido com o mesmo conteúdo, para o desfecho <c>Discarded</c>.
     /// </summary>
     /// <remarks>
