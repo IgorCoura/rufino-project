@@ -1,4 +1,4 @@
-namespace BillPayment.API.Controllers;
+﻿namespace BillPayment.API.Controllers;
 
 using System.Security.Claims;
 using BillPayment.Application.Mediator;
@@ -103,17 +103,22 @@ public class BaseController(ILogger<BaseController> logger) : ControllerBase
     /// dizer <em>quem viu o quê</em>, não para reconstituir o documento fora do cofre.
     /// </para>
     /// </remarks>
-    protected void ArtifactAccessLog(Guid tenantId, string resource, Guid resourceId)
+    /// <param name="unlocked">
+    /// Se o que saiu foi uma cópia sem senha de um original cifrado. É o rótulo booleano do fato,
+    /// e não a senha nem o campo que a derivou — esses continuam sem sair daqui (ADR-009).
+    /// </param>
+    protected void ArtifactAccessLog(Guid tenantId, string resource, Guid resourceId, bool unlocked = false)
     {
         if (!_logger.IsEnabled(LogLevel.Information))
             return;
 
         _logger.LogInformation(
-            "----- Artifact served: {Resource} - Id: {ResourceId} - Tenant: {TenantId} - User: {UserId} -----",
+            "----- Artifact served: {Resource} - Id: {ResourceId} - Tenant: {TenantId} - User: {UserId} - Unlocked: {Unlocked} -----",
             resource,
             resourceId,
             tenantId,
-            ResolveDecidingUserId());
+            ResolveDecidingUserId(),
+            unlocked);
     }
 
     /// <summary>

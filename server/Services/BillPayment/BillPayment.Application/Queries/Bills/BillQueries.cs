@@ -1,15 +1,14 @@
-namespace BillPayment.Application.Queries.Bills;
+﻿namespace BillPayment.Application.Queries.Bills;
 
 using BillPayment.Domain.Bills;
 using BillPayment.Domain.Instruments;
 using BillPayment.Domain.Lookups;
-using BillPayment.Domain.Ports;
 using BillPayment.Domain.SeedWork;
 using BillPayment.Domain.SharedKernel;
 using BillPayment.Infra.Persistence;
 using Microsoft.EntityFrameworkCore;
 
-internal sealed class BillQueries(BillPaymentDbContext context, IAttachmentStorage storage) : IBillQueries
+internal sealed class BillQueries(BillPaymentDbContext context, UnlockedArtifactReader artifacts) : IBillQueries
 {
     public const int DEFAULT_LIMIT = 50;
     public const int MAX_LIMIT = 200;
@@ -165,13 +164,11 @@ internal sealed class BillQueries(BillPaymentDbContext context, IAttachmentStora
         if (string.IsNullOrEmpty(storageKey))
             return null;
 
-        var artifact = await storage.OpenAsync(tenant, storageKey, cancellationToken);
-        if (artifact is null)
-            return null;
-
         // A Bill não guarda tipo de mídia — o do balde é a única fonte, e o nome é montado a
-        // partir do id porque nenhum nome de anexo sobrevive à promoção.
-        return ArtifactDownload.From(artifact, declaredContentType: null, $"boleto-{bill!.Id.Value:N}");
+        // partir do id porque nenhum nome de anexo sobrevive à promoção. O documento sai
+        // destravado quando veio cifrado: o aprovador confere o papel, não a senha do emissor.
+        return await artifacts.OpenAsync(
+            tenant, storageKey, declaredContentType: null, $"boleto-{bill!.Id.Value:N}", cancellationToken);
     }
 
     private static bool TryParseStatus(string? status, out BillStatus parsed)

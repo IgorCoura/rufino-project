@@ -1,4 +1,4 @@
-namespace BillPayment.Application.Queries;
+﻿namespace BillPayment.Application.Queries;
 
 using BillPayment.Domain.Ports;
 
@@ -22,6 +22,16 @@ public sealed record ArtifactDownload(Stream Content, string ContentType, string
 {
     /// <summary>Usado quando nenhuma fonte soube dizer o tipo. Faz o navegador baixar em vez de adivinhar.</summary>
     public const string FALLBACK_CONTENT_TYPE = "application/octet-stream";
+
+    /// <summary>
+    /// Se o que vai ser servido é uma cópia sem senha de um original cifrado.
+    /// </summary>
+    /// <remarks>
+    /// Existe para a trilha, não para o corpo da resposta: entregar um documento reescrito é
+    /// fato diferente de entregar o arquivo como ele chegou, e quem audita precisa distinguir os
+    /// dois. Continua valendo que <strong>nem a senha nem o campo que a derivou saem por aqui</strong>.
+    /// </remarks>
+    public bool Unlocked { get; init; }
 
     /// <summary>
     /// Monta o download a partir do que o armazenamento devolveu.

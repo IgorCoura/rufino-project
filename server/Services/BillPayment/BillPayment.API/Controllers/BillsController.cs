@@ -1,4 +1,4 @@
-namespace BillPayment.API.Controllers;
+﻿namespace BillPayment.API.Controllers;
 
 using BillPayment.API.Authorization;
 using BillPayment.Application.Bills.Commands;
@@ -128,6 +128,10 @@ public sealed class BillsController(
     /// os dígitos nunca saem por esta API — quem os tem, paga.
     /// </para>
     /// <para>
+    /// Documento que o emissor trancou sai <strong>sem senha</strong>: a que abre foi derivada do
+    /// cadastro do tenant, e pedi-la a quem aprova seria pedir o que o sistema já sabe.
+    /// </para>
+    /// <para>
     /// <c>404</c> quando o boleto não é deste tenant e quando não há arquivo — importação manual
     /// nasce só com os dígitos, e isso é estado normal, não falha.
     /// </para>
@@ -143,7 +147,7 @@ public sealed class BillsController(
         if (artifact is null)
             return NotFound();
 
-        ArtifactAccessLog(tenantId, "bill", id);
+        ArtifactAccessLog(tenantId, "bill", id, artifact.Unlocked);
 
         return File(artifact.Content, artifact.ContentType, artifact.FileName, enableRangeProcessing: true);
     }

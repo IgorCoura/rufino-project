@@ -81,7 +81,7 @@ public sealed class CaptureItemsController(
         if (artifact is null)
             return NotFound();
 
-        ArtifactAccessLog(tenantId, "capture-item", id);
+        ArtifactAccessLog(tenantId, "capture-item", id, artifact.Unlocked);
 
         // O Stream é entregue ao pipeline, que o fecha ao terminar de escrever a resposta — por
         // isso não há `using` aqui: liberá-lo agora mandaria um corpo vazio.

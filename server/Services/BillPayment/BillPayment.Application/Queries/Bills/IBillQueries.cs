@@ -1,4 +1,4 @@
-namespace BillPayment.Application.Queries.Bills;
+﻿namespace BillPayment.Application.Queries.Bills;
 
 /// <summary>
 /// Query side (CQRS). Injetada direto no controller, fora do mediator — é a única
@@ -39,8 +39,13 @@ public interface IBillQueries
     /// </para>
     /// <para>
     /// <strong>Não expõe a linha digitável nem o payload Pix</strong> — quem tem os dígitos,
-    /// paga. O que sai aqui é o arquivo como ele chegou, que é o comprovante do que o sistema viu
-    /// quando decidiu.
+    /// paga. O que sai aqui é o documento, que é o comprovante do que o sistema viu quando
+    /// decidiu.
+    /// </para>
+    /// <para>
+    /// <strong>PDF cifrado sai destravado.</strong> O que fica guardado é o original, e o
+    /// emissor que protege por senha a derivou do documento do pagador — que o cadastro do tenant
+    /// já tem. A cópia legível nasce aqui, a cada leitura; a senha continua sem sair (ADR-009).
     /// </para>
     /// </remarks>
     Task<ArtifactDownload?> GetArtifactAsync(

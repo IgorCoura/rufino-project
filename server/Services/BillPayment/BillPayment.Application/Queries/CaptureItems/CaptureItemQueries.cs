@@ -1,13 +1,12 @@
 ﻿namespace BillPayment.Application.Queries.CaptureItems;
 
 using BillPayment.Domain.CaptureItems;
-using BillPayment.Domain.Ports;
 using BillPayment.Domain.SeedWork;
 using BillPayment.Domain.SharedKernel;
 using BillPayment.Infra.Persistence;
 using Microsoft.EntityFrameworkCore;
 
-internal sealed class CaptureItemQueries(BillPaymentDbContext context, IAttachmentStorage storage)
+internal sealed class CaptureItemQueries(BillPaymentDbContext context, UnlockedArtifactReader artifacts)
     : ICaptureItemQueries
 {
     public const int DEFAULT_LIMIT = 50;
@@ -94,11 +93,10 @@ internal sealed class CaptureItemQueries(BillPaymentDbContext context, IAttachme
         if (item is null || !item.Status.ExposesSourceUrl || !item.HasStoredArtifact)
             return null;
 
-        var artifact = await storage.OpenAsync(tenant, item.StorageKey!, cancellationToken);
-        if (artifact is null)
-            return null;
-
-        return ArtifactDownload.From(artifact, item.ContentType, item.FileName ?? DEFAULT_FILE_NAME);
+        // O documento sai destravado quando veio cifrado: a senha derivada do cadastro é do
+        // sistema, e quem confere o boleto não tem como saber o que o emissor usou.
+        return await artifacts.OpenAsync(
+            tenant, item.StorageKey!, item.ContentType, item.FileName ?? DEFAULT_FILE_NAME, cancellationToken);
     }
 
     /// <summary>

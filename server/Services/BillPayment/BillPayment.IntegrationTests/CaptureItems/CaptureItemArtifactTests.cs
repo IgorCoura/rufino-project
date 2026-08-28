@@ -1,14 +1,17 @@
-namespace BillPayment.IntegrationTests.CaptureItems;
+﻿namespace BillPayment.IntegrationTests.CaptureItems;
 
 using System.Net;
 using System.Text;
 using BillPayment.Domain.Bills;
 using BillPayment.Domain.CaptureItems;
 using BillPayment.Domain.CaptureSources;
+using BillPayment.Domain.PayerProfiles;
 using BillPayment.Domain.SharedKernel;
+using BillPayment.IntegrationTests.Extraction;
 using BillPayment.IntegrationTests.Infrastructure;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;
+using UglyToad.PdfPig;
 
 /// <summary>
 /// Quem pode abrir o documento original de um item da quarentena.
@@ -160,6 +163,57 @@ public sealed class CaptureItemArtifactTests : BaseIntegrationTest
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
 
+    // O CASO QUE ESTE ENDPOINT PASSOU A RESOLVER: o emissor trancou o PDF com o documento do
+    // pagador, o sistema derivou a senha na captura, e quem confere o boleto recebia mesmo assim
+    // o arquivo trancado — sendo obrigado a digitar uma senha que o cadastro já tinha.
+    [Fact]
+    public async Task GetArtifact_WhenTheDocumentIsEncrypted_ShouldServeACopyThatOpensWithoutAPassword()
+    {
+        await SeedPayerProfileAsync();
+        var id = await SeedWithArtifactAsync(
+            item => item.MarkUnrouted("payer_not_identified", OccurredAt),
+            content: EncryptedPdfFixture.Bytes());
+
+        var response = await GetAsync(TestTenants.Primary, id);
+        var served = await response.Content.ReadAsByteArrayAsync();
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        // Abrir sem passar senha nenhuma é a prova. Os bytes também não são os guardados: o
+        // original continua cifrado no balde, que é o comprovante do que o sistema viu.
+        using var document = PdfDocument.Open(served);
+        Assert.Equal(1, document.NumberOfPages);
+        Assert.NotEqual(EncryptedPdfFixture.Bytes(), served);
+    }
+
+    // A contraprova: sem cadastro fiscal não há candidata, e o documento sai como está. O leitor
+    // do app volta a pedir a senha — que é o certo, porque ali quem sabe algo é a pessoa.
+    [Fact]
+    public async Task GetArtifact_WhenTheTenantHasNoTaxRegistration_ShouldServeTheOriginalUntouched()
+    {
+        var id = await SeedWithArtifactAsync(
+            item => item.MarkUnrouted("payer_not_identified", OccurredAt),
+            content: EncryptedPdfFixture.Bytes());
+
+        var response = await GetAsync(TestTenants.Primary, id);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal(EncryptedPdfFixture.Bytes(), await response.Content.ReadAsByteArrayAsync());
+    }
+
+    private Task SeedPayerProfileAsync()
+        => ExecuteDbContextAsync(async db =>
+        {
+            await db.PayerProfiles.AddAsync(PayerProfile.Register(
+                TenantA,
+                PayerKind.Company,
+                "RUFINO EMPREITEIRA LTDA",
+                TaxId.Parse(EncryptedPdfFixture.TenantCnpj),
+                OccurredAt));
+
+            await db.SaveEntitiesAsync();
+        });
+
     private static CaptureItem Ingest(TenantId tenantId) => CaptureItem.Ingest(
         tenantId,
         Source,
@@ -170,10 +224,14 @@ public sealed class CaptureItemArtifactTests : BaseIntegrationTest
         OccurredAt.AddHours(-1),
         OccurredAt);
 
-    private async Task<CaptureItemId> SeedWithArtifactAsync(Action<CaptureItem> arrange, TenantId? tenantId = null)
+    private async Task<CaptureItemId> SeedWithArtifactAsync(
+        Action<CaptureItem> arrange,
+        TenantId? tenantId = null,
+        byte[]? content = null)
     {
         var tenant = tenantId ?? TenantA;
-        var key = await _storage.StoreAsync(tenant, "boleto-enel.pdf", "application/pdf", Bytes, default);
+        var key = await _storage.StoreAsync(
+            tenant, "boleto-enel.pdf", "application/pdf", content ?? Bytes, default);
 
         return await ExecuteDbContextAsync(async db =>
         {

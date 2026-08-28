@@ -6,6 +6,7 @@ using BillPayment.Domain.Extraction;
 using BillPayment.Infra.Extraction;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
+using UglyToad.PdfPig;
 using UglyToad.PdfPig.Fonts.Standard14Fonts;
 using UglyToad.PdfPig.Writer;
 
@@ -140,6 +141,36 @@ public sealed class PdfBoletoDocumentParserTests
         var texto = Encoding.UTF8.GetBytes("<html><body>não é PDF</body></html>");
 
         var clear = await Build().UnlockAsync(texto, "text/html", [], CancellationToken.None);
+
+        Assert.Null(clear);
+    }
+
+    // O caso que o fixture cifrado existe para provar: a candidata derivada do CNPJ abre o
+    // documento, e a cópia devolvida abre SEM senha nenhuma.
+    [Fact]
+    public async Task Unlock_WithEncryptedPdf_ShouldReturnACopyThatOpensWithoutAPassword()
+    {
+        var candidatas = new[] { PasswordCandidate.From(EncryptedPdfFixture.Password, "cnpj_first_5_primary") };
+
+        var clear = await Build().UnlockAsync(
+            EncryptedPdfFixture.Bytes(), "application/pdf", candidatas, CancellationToken.None);
+
+        Assert.NotNull(clear);
+
+        // Abrir sem passar senha é a prova; o original, tentado do mesmo jeito, lança.
+        using var document = PdfDocument.Open(clear!.Value.ToArray());
+        Assert.Equal(1, document.NumberOfPages);
+    }
+
+    // A contraprova do fixture: sem a candidata certa o documento continua trancado, e "não
+    // consegui" sai igual a "não precisava" — quem distingue os dois é o UnlockedBy.
+    [Fact]
+    public async Task Unlock_WhenNoCandidateOpensTheDocument_ShouldReturnNothingToDo()
+    {
+        var candidatas = new[] { PasswordCandidate.From("99999", "cnpj_first_5_primary") };
+
+        var clear = await Build().UnlockAsync(
+            EncryptedPdfFixture.Bytes(), "application/pdf", candidatas, CancellationToken.None);
 
         Assert.Null(clear);
     }

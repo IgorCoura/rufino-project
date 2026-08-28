@@ -1,4 +1,4 @@
-namespace BillPayment.Application.Queries.CaptureItems;
+﻿namespace BillPayment.Application.Queries.CaptureItems;
 
 /// <summary>
 /// Leitura da fila de itens capturados do tenant, incluindo a quarentena.
@@ -39,6 +39,11 @@ public interface ICaptureItemQueries
     /// O gate de visibilidade é o mesmo do <see cref="CaptureItemDto"/>:
     /// <c>CaptureItemStatus.ExposesFinancialDetail</c>. A chave de armazenamento não entra por
     /// parâmetro em hipótese nenhuma — só o id do item.
+    /// </para>
+    /// <para>
+    /// <strong>PDF cifrado sai destravado.</strong> A senha derivada do cadastro é do sistema, e
+    /// quem confere o documento não tem como saber o que o emissor usou. A cópia legível nasce a
+    /// cada leitura; o original guardado continua cifrado e a senha continua sem sair (ADR-009).
     /// </para>
     /// </remarks>
     Task<ArtifactDownload?> GetArtifactAsync(

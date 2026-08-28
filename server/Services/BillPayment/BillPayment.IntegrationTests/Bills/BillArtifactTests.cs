@@ -1,13 +1,16 @@
-namespace BillPayment.IntegrationTests.Bills;
+﻿namespace BillPayment.IntegrationTests.Bills;
 
 using System.Net;
 using System.Text;
 using BillPayment.Domain.Bills;
 using BillPayment.Domain.Instruments;
+using BillPayment.Domain.PayerProfiles;
 using BillPayment.Domain.SharedKernel;
+using BillPayment.IntegrationTests.Extraction;
 using BillPayment.IntegrationTests.Infrastructure;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;
+using UglyToad.PdfPig;
 
 /// <summary>
 /// O documento original que sustenta a decisão de aprovar.
@@ -16,7 +19,8 @@ using Microsoft.Extensions.DependencyInjection;
 /// <para>
 /// A tela de aprovação mostra as doze verificações; o que faltava era o papel contra o qual
 /// conferi-las. <strong>Continua valendo que a linha digitável não sai por esta API</strong> —
-/// o que este endpoint serve é o arquivo como ele chegou, não os dígitos.
+/// o que este endpoint serve é o documento, não os dígitos. E documento cifrado sai destravado:
+/// o original guardado continua com a senha, a cópia legível nasce a cada leitura.
 /// </para>
 /// <para>
 /// Boleto importado à mão não tem arquivo, e isso é estado normal: a resposta é 404, e a tela
@@ -89,10 +93,42 @@ public sealed class BillArtifactTests : BaseIntegrationTest
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
 
-    private async Task<BillId> SeedBillAsync(TenantId tenantId, bool withArtifact)
+    // O mesmo destravamento do lado do boleto: o aprovador confere o papel, e a senha do emissor
+    // é problema do sistema, não dele. Aqui o arquivo guardado é o ORIGINAL cifrado — a cópia
+    // legível nasce a cada leitura e nunca volta para o balde.
+    [Fact]
+    public async Task GetArtifact_WhenTheDocumentIsEncrypted_ShouldServeACopyThatOpensWithoutAPassword()
+    {
+        await SeedPayerProfileAsync();
+        var billId = await SeedBillAsync(TenantA, withArtifact: true, content: EncryptedPdfFixture.Bytes());
+
+        var response = await GetAsync(TestTenants.Primary, billId);
+        var served = await response.Content.ReadAsByteArrayAsync();
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        using var document = PdfDocument.Open(served);
+        Assert.Equal(1, document.NumberOfPages);
+        Assert.NotEqual(EncryptedPdfFixture.Bytes(), served);
+    }
+
+    private Task SeedPayerProfileAsync()
+        => ExecuteDbContextAsync(async db =>
+        {
+            await db.PayerProfiles.AddAsync(PayerProfile.Register(
+                TenantA,
+                PayerKind.Company,
+                "RUFINO EMPREITEIRA LTDA",
+                TaxId.Parse(EncryptedPdfFixture.TenantCnpj),
+                OccurredAt));
+
+            await db.SaveEntitiesAsync();
+        });
+
+    private async Task<BillId> SeedBillAsync(TenantId tenantId, bool withArtifact, byte[]? content = null)
     {
         var key = withArtifact
-            ? await _storage.StoreAsync(tenantId, "boleto.pdf", "application/pdf", Bytes, default)
+            ? await _storage.StoreAsync(tenantId, "boleto.pdf", "application/pdf", content ?? Bytes, default)
             : null;
 
         return await ExecuteDbContextAsync(async db =>

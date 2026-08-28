@@ -1,4 +1,4 @@
-namespace BillPayment.Application;
+﻿namespace BillPayment.Application;
 
 using BillPayment.Application.Behaviors;
 using BillPayment.Application.Bills.Commands;
@@ -8,6 +8,7 @@ using BillPayment.Application.Mediator;
 using BillPayment.Domain.Bills;
 using BillPayment.Domain.SeedWork;
 using BillPayment.Application.Bills;
+using BillPayment.Application.Queries;
 using BillPayment.Application.Queries.Bills;
 using BillPayment.Application.Queries.CaptureItems;
 using BillPayment.Application.Expectations.EventHandlers;
@@ -69,6 +70,11 @@ public static class ApplicationDependencies
         // cumprir, e o que destrava solta o ciclo para o painel parar de apontar para ele.
         services.AddScoped<IDomainEventHandler<CaptureItemStuckDomainEvent>, RecordCaptureFailureOnItemStuckHandler>();
         services.AddScoped<IDomainEventHandler<CaptureItemUnstuckDomainEvent>, ClearCaptureFailureOnItemUnstuckHandler>();
+
+        // Quem serve o documento original para uma pessoa. Compartilhado pelas duas leituras
+        // que o entregam — item de quarentena e boleto — porque a regra de destravar o PDF
+        // cifrado é a mesma nas duas, e duas cópias divergiriam por uma tela só.
+        services.AddScoped<UnlockedArtifactReader>();
 
         services.AddScoped<ITrustedOriginQueries, TrustedOriginQueries>();
         services.AddScoped<IBillQueries, BillQueries>();

@@ -54,12 +54,15 @@ Gerados a partir do `PayerProfile` do tenant da fonte **e** dos demais tenants q
 
 - **A senha nunca é logada, nunca aparece em evidência de check, e nunca sai em resposta de API.** A evidência registra *qual campo* a originou ("primeiros 5 dígitos do CNPJ do perfil"), nunca o valor.
 - **Senha informada à mão** (`POST /capture-items/{id}/unlock`) é aceita, guardada cifrada na camada 2 do [`ADR-009`](adr/ADR-009-cofre-de-segredos.md) associada ao `Payee`, e reutilizada nas próximas faturas do mesmo beneficiário. É o mesmo padrão de aprendizado da reivindicação: manual uma vez, automático depois.
-- **O PDF é armazenado como recebido**, cifrado. A versão decifrada só existe em memória durante o processamento.
+- **O PDF é armazenado como recebido**, cifrado. A versão decifrada só existe em memória — durante o processamento, e durante a leitura que serve o documento para uma pessoa.
+- **O documento é servido DESTRAVADO, e a senha continua sem sair daqui** (2026-08-28). Guardar cifrado e entregar cifrado obrigava quem confere o boleto a digitar uma senha que o cadastro do tenant já tinha — o sistema sabia e pedia assim mesmo. `GET /capture-items/{id}/artifact` e `GET /bills/{id}/artifact` passam pelo `UnlockedArtifactReader`, que produz a cópia legível a cada leitura pelo mesmo `IBoletoDocumentParser.UnlockAsync` da captura. **A alternativa curta — mandar a senha junto para o app abrir — é exatamente o que o [`ADR-009`](adr/ADR-009-cofre-de-segredos.md) proíbe.** Não abrindo nenhuma candidata, o original vai como está e o leitor do app volta a pedir a senha: ali quem sabe algo que o sistema não sabe é a pessoa.
 - Biblioteca: **PdfPig** (Apache-2.0) aceita lista de senhas candidatas na abertura, o que evita reabrir o arquivo por tentativa.
 
 ### Testes obrigatórios
 
 PDF com owner password apenas (abre vazio); PDF com senha = 5 dígitos do CNPJ do tenant certo; PDF com senha derivada do **outro** tenant da mesma caixa (deve classificar `ForeignPayer`, não falhar); PDF que não abre com nenhum candidato (deve virar `Unrouted` com `pdf_locked`, sem estourar o teto em tempo).
+
+O **fixture cifrado versionado** (`IntegrationTests/Extraction/EncryptedPdfFixture.cs`, RC4 de 40 bits como os emissores usam) existe desde 2026-08-28 e sustenta os quatro casos: nenhuma biblioteca do BC escreve PDF cifrado, então antes dele o caminho da senha só era conferido à mão contra o acervo real.
 
 ---
 
