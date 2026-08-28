@@ -323,7 +323,7 @@ Vivem em `BillPayment.Domain/Ports/` — pasta nova, irmã de `SeedWork/`. Motiv
 
 `IBillRepository`, `IPayerProfileRepository`, `IPayeeRepository`, `ITrustedOriginRepository`, `IRoutingRuleRepository`, `IBillExpectationRepository`, `ICaptureSourceRepository`, `ICaptureItemRepository`, `IPaymentOrderRepository` — todos com busca *tracked* filtrando por `TenantId` e `ExistsAsync` para validação de ids externos. Sem `Update()`: change tracking + `SaveEntitiesAsync`.
 
-**Três métodos são as únicas travessias autorizadas de tenant** e devolvem `bool` ou aviso genérico, nunca conteúdo (ver [`adr/ADR-008`](adr/ADR-008-fontes-compartilhadas-e-isolamento.md)): `ICaptureSourceRepository.IsAddressMonitoredByAnyTenantAsync(address)`, `IBillRepository.ExistsActiveByDigitableLineAsync(line)` (global), `IPayeeRepository.IsRegisteredByAnotherTenantAsync(excluindo, taxId)` (substituiu `IRoutingRuleRepository.ExistsForPairInAnyTenantAsync`, abandonado na 2.6). Qualquer outro método sem `TenantId` é violação.
+**Dois métodos são as únicas travessias autorizadas de tenant** e devolvem `bool` ou aviso genérico, nunca conteúdo (ver [`adr/ADR-008`](adr/ADR-008-fontes-compartilhadas-e-isolamento.md)): `IBillRepository.ExistsActiveByDedupKeyAsync(key)` (global; `ProbeActiveDuplicateAsync` devolve o id só quando é do próprio tenant) e `IPayeeRepository.IsRegisteredByAnotherTenantAsync(excluindo, taxId)` (substituiu `IRoutingRuleRepository.ExistsForPairInAnyTenantAsync`, abandonado na 2.6). `ICaptureSourceRepository.IsAddressMonitoredByAnyTenantAsync` — o aviso de caixa compartilhada — foi **removido em 2026-08-28**: um tenant não fica sabendo que outro monitora a mesma caixa. Qualquer outro método sem `TenantId` é violação.
 
 ## Read side (CQRS)
 

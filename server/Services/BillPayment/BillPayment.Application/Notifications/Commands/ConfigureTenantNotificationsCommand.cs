@@ -24,7 +24,7 @@ using Microsoft.Extensions.Logging;
 public sealed record ConfigureTenantNotificationsCommand(
     Guid TenantId,
     IReadOnlyCollection<string> Recipients,
-    bool IsEnabled) : IRequest<ConfigureTenantNotificationsResponse>;
+    bool IsEnabled) : IRequest<ConfigureTenantNotificationsResponse>, ISensitiveCommand;
 
 public sealed record ConfigureTenantNotificationsResponse(Guid Id, int RecipientCount, bool IsEnabled);
 

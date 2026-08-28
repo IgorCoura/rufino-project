@@ -1,6 +1,19 @@
 # ADR-008 — Fontes compartilhadas: uma conexão por tenant, isolamento por construção
 
-**Status:** Aceito · **Data:** 2026-07-31
+**Status:** Aceito · **Data:** 2026-07-31 · **Revisado:** 2026-08-28
+
+> **Revisão de 2026-08-28.** A auditoria de segurança apontou que o "aviso de fonte já
+> monitorada" (furo nº 1 abaixo) revela a um tenant que outro tenant monitora a mesma caixa, e o
+> usuário fechou a regra de forma mais estrita do que este ADR previa: **cada tenant conecta a
+> caixa como fonte própria, relê os e-mails sozinho, descarta o que não é dele, e nunca — nem por
+> booleano — fica sabendo do e-mail, do boleto ou da caixa configurada em outro tenant.** Três
+> consequências no código: (1) o aviso, a travessia `IsAddressMonitoredByAnyTenantAsync` e o
+> índice `ix_capture_sources_address_global` foram removidos — sobram **duas** travessias, a
+> unicidade global do instrumento e o beneficiário exclusivo; (2) o item roteado como de outro
+> pagador (`ForeignPayer`) deixa de ser guardado como estado terminal e passa a ser **descartado**,
+> ficando só a linha do livro-caixa com desfecho "descartado" e motivo genérico; (3) documento
+> fiscal lido pela IA nunca decide `Foreign` — sem rótulo determinístico o item vai para
+> `Unrouted`, reivindicável. O texto original segue abaixo, para o histórico.
 
 ## Contexto
 

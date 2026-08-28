@@ -37,7 +37,7 @@ public sealed record MonitoredFolderResponseDto(
     DateTime? LastSyncAt,
     string? LastSyncError);
 
-public sealed record ConnectCaptureSourceResponseDto(Guid Id, bool AlreadyMonitoredByAnotherAccount);
+public sealed record ConnectCaptureSourceResponseDto(Guid Id);
 
 public sealed record SyncCaptureSourceResponseDto(
     Guid Id,

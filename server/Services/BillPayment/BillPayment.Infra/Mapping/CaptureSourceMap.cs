@@ -75,14 +75,10 @@ internal sealed class CaptureSourceMap : IEntityTypeConfiguration<CaptureSource>
             .IsUnique()
             .HasDatabaseName("ix_capture_sources_tenant_address");
 
-        // ATENÇÃO: índice sobre o endereço SEM tenant_id, e deliberadamente NÃO único.
-        // Duas contas monitorando a mesma caixa é o caso previsto pelo ADR-008, não um erro —
-        // tornar isto único quebraria a funcionalidade central de fonte compartilhada.
-        // Ele serve a UM caminho de código, ICaptureSourceRepository.IsAddressMonitoredByAnyTenantAsync,
-        // que devolve bool e nada mais. Qualquer outra consulta sem tenant_id sobre esta tabela
-        // é violação do isolamento.
-        builder.HasIndex(e => e.Address)
-            .HasDatabaseName("ix_capture_sources_address_global");
+        // Não existe índice sobre o endereço SEM tenant_id — existiu (ix_capture_sources_address_global)
+        // até 2026-08-28, servindo ao aviso de caixa compartilhada, e saiu junto com ele: nenhuma
+        // consulta sobre esta tabela cruza tenant para responder a um usuário. Duas contas
+        // monitorando a mesma caixa continua sendo permitido (ADR-008) — só ninguém fica sabendo.
 
         // Cobre a varredura do worker de sincronização, que busca as fontes habilitadas.
         builder.HasIndex(e => new { e.IsEnabled, e.LastSyncAt })

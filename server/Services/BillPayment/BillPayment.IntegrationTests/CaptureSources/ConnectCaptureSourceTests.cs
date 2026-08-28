@@ -64,20 +64,11 @@ public sealed class ConnectCaptureSourceTests : BaseIntegrationTest
         Assert.DoesNotContain("segredo-do-registro-de-app", stored.Credential.ToString(), StringComparison.Ordinal);
     }
 
-    // A primeira conta a conectar a caixa não recebe aviso de compartilhamento.
+    // A segunda conta a conectar a MESMA caixa conecta normalmente e a resposta é IDÊNTICA à da
+    // primeira: nem booleano de "já monitorada", nem id, nem nome do outro. Cada tenant relê a
+    // caixa sozinho, sem saber que não está sozinho (decisão de 2026-08-28 sobre o ADR-008).
     [Fact]
-    public async Task PostCaptureSource_WhenFirstToMonitor_ShouldNotWarnAboutSharing()
-    {
-        var response = await _reachable.PostAsJsonAsync(RouteFor(TenantA), Payload());
-        var body = await response.Content.ReadFromJsonAsync<ConnectCaptureSourceResponseDto>();
-
-        Assert.False(body!.AlreadyMonitoredByAnotherAccount);
-    }
-
-    // A segunda conta a conectar a MESMA caixa conecta normalmente e recebe o aviso genérico —
-    // booleano, sem dizer quem é o outro (ADR-008).
-    [Fact]
-    public async Task PostCaptureSource_WhenAnotherAccountAlreadyMonitors_ShouldConnectAndWarn()
+    public async Task PostCaptureSource_WhenAnotherAccountAlreadyMonitors_ShouldConnectWithoutRevealingIt()
     {
         await _reachable.PostAsJsonAsync(RouteFor(TenantB), Payload());
 
@@ -85,13 +76,12 @@ public sealed class ConnectCaptureSourceTests : BaseIntegrationTest
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var body = await response.Content.ReadFromJsonAsync<ConnectCaptureSourceResponseDto>();
+        Assert.NotEqual(Guid.Empty, body!.Id);
 
-        Assert.True(body!.AlreadyMonitoredByAnotherAccount);
-        Assert.NotEqual(Guid.Empty, body.Id);
-
-        // O aviso é tudo que atravessa: a resposta não tem campo que identifique a outra conta.
         var raw = await response.Content.ReadAsStringAsync();
         Assert.DoesNotContain(TenantB.ToString(), raw, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("monitored", raw, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("shared", raw, StringComparison.OrdinalIgnoreCase);
     }
 
     // A mesma conta não conecta a mesma caixa duas vezes — BLP.CPS10, 409.

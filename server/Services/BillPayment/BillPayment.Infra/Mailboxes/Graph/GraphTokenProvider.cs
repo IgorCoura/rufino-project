@@ -18,9 +18,10 @@ using Polly.Timeout;
 /// falhar por throttling da autenticação, não por problema na caixa.
 /// </para>
 /// <para>
-/// A chave do cache <strong>não inclui o segredo</strong> (ver <c>GraphMailboxCredential.CacheKey</c>).
-/// Guardar segredo em chave de dicionário o espalharia por dumps de memória e por qualquer log
-/// de diagnóstico que imprimisse o cache.
+/// A chave do cache é o <strong>hash do trio inteiro, segredo incluído</strong> (ver
+/// <c>GraphMailboxCredential.CacheKey</c>). Sem o segredo na chave, o par público
+/// <c>directoryId</c>/<c>clientId</c> bastava para receber o token quente de outra conta — o
+/// que este provedor, singleton e compartilhado por todos os tenants, jamais pode entregar.
 /// </para>
 /// </remarks>
 internal sealed class GraphTokenProvider(

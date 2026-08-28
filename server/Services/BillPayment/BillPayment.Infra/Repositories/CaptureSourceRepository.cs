@@ -48,24 +48,5 @@ internal sealed class CaptureSourceRepository : ICaptureSourceRepository
             .Take(limit)
             .ToListAsync(cancellationToken);
 
-    /// <summary>
-    /// <strong>Travessia de tenant autorizada nº 1 (ADR-008).</strong> Único caminho de código
-    /// que consulta <c>capture_sources</c> sem filtrar por tenant.
-    /// </summary>
-    /// <remarks>
-    /// Devolve <c>bool</c> e nada mais — o <c>AnyAsync</c> não é otimização, é o contrato: não
-    /// existe projeção aqui de onde alguém possa extrair id, nome ou contagem do outro tenant.
-    /// Acrescentar um <c>Select</c> ou trocar por <c>CountAsync</c> quebra o ADR-008.
-    /// </remarks>
-    public Task<bool> IsAddressMonitoredByAnyTenantAsync(
-        string normalizedAddress,
-        TenantId excludingTenantId,
-        CancellationToken cancellationToken = default)
-        => _context.CaptureSources
-            .AsNoTracking()
-            .AnyAsync(
-                s => s.Address == normalizedAddress && s.TenantId != excludingTenantId,
-                cancellationToken);
-
     public void Remove(CaptureSource source) => _context.CaptureSources.Remove(source);
 }

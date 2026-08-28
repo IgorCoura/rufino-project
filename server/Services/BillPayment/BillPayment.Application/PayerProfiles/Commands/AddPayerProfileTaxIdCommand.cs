@@ -8,7 +8,7 @@ using Microsoft.Extensions.Logging;
 
 public sealed record AddPayerProfileTaxIdCommand(
     Guid TenantId,
-    string TaxId) : IRequest<AddPayerProfileTaxIdResponse>;
+    string TaxId) : IRequest<AddPayerProfileTaxIdResponse>, ISensitiveCommand;
 
 public sealed record AddPayerProfileTaxIdResponse(Guid Id);
 

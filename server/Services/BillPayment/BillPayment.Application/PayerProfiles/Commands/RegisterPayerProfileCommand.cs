@@ -10,7 +10,7 @@ public sealed record RegisterPayerProfileCommand(
     Guid TenantId,
     string Kind,
     string LegalName,
-    string PrimaryTaxId) : IRequest<RegisterPayerProfileResponse>;
+    string PrimaryTaxId) : IRequest<RegisterPayerProfileResponse>, ISensitiveCommand;
 
 public sealed record RegisterPayerProfileResponse(Guid Id);
 

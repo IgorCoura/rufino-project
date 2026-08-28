@@ -95,31 +95,6 @@ public sealed class CaptureSourcePersistenceTests : BaseIntegrationTest
         Assert.NotEqual(idA, idB);
     }
 
-    // A travessia autorizada nº 1 avisa que outra conta já monitora a caixa — devolvendo bool,
-    // sem identificar quem.
-    [Fact]
-    public async Task IsAddressMonitoredByAnyTenant_WhenAnotherTenantMonitors_ShouldReturnTrue()
-    {
-        await AddSourceAsync(TenantB, SharedMailbox);
-
-        var monitored = await ExecuteRepositoryAsync(repo =>
-            repo.IsAddressMonitoredByAnyTenantAsync(SharedMailbox, TenantA));
-
-        Assert.True(monitored);
-    }
-
-    // A própria fonte do tenant não faz o aviso disparar — senão toda conexão avisaria a si mesma.
-    [Fact]
-    public async Task IsAddressMonitoredByAnyTenant_WhenOnlyOwnSourceExists_ShouldReturnFalse()
-    {
-        await AddSourceAsync(TenantA, SharedMailbox);
-
-        var monitored = await ExecuteRepositoryAsync(repo =>
-            repo.IsAddressMonitoredByAnyTenantAsync(SharedMailbox, TenantA));
-
-        Assert.False(monitored);
-    }
-
     // A varredura do worker traz as fontes habilitadas de toda a instalação, com a nunca
     // sincronizada na frente — senão uma caixa recém-conectada ficaria atrás da fila para sempre.
     [Fact]

@@ -1,5 +1,7 @@
 namespace BillPayment.Infra.Mailboxes.Graph;
 
+using System.Security.Cryptography;
+using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
@@ -61,10 +63,24 @@ internal sealed record GraphMailboxCredential(
     }
 
     /// <summary>
-    /// Identidade estável da credencial para cache de token — <strong>sem o segredo</strong>.
-    /// Trocar o segredo mantendo o mesmo app é raro e a expiração do cache cobre.
+    /// Identidade da credencial para o cache de token — o trio inteiro, reduzido a um hash.
     /// </summary>
-    public string CacheKey => $"{DirectoryId}/{ClientId}";
+    /// <remarks>
+    /// <para>
+    /// <strong>O segredo PRECISA participar da chave.</strong> <c>directoryId</c> e
+    /// <c>clientId</c> são públicos — o primeiro sai do <c>.well-known/openid-configuration</c>,
+    /// o segundo qualquer membro do diretório enxerga no portal. Uma chave só com os dois
+    /// entregava o token quente de uma conta a quem apresentasse o par certo com QUALQUER
+    /// segredo: outro tenant conectando a mesma caixa com credencial inválida passava na prova de
+    /// acesso e lia a caixa do primeiro. Foi o achado mais grave da auditoria de 2026-08-28.
+    /// </para>
+    /// <para>
+    /// Entra como SHA-256, não em claro: a chave vive num dicionário em memória, e o segredo em
+    /// texto ali se espalharia por dump e por qualquer diagnóstico que imprimisse o cache.
+    /// </para>
+    /// </remarks>
+    public string CacheKey => Convert.ToHexString(
+        SHA256.HashData(Encoding.UTF8.GetBytes($"{DirectoryId}\n{ClientId}\n{ClientSecret}")));
 
     public override string ToString() => $"GraphMailboxCredential {{ DirectoryId = {DirectoryId}, ClientId = {ClientId} }}";
 }

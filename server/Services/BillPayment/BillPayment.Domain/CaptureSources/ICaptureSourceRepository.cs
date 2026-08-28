@@ -3,10 +3,16 @@ namespace BillPayment.Domain.CaptureSources;
 using BillPayment.Domain.SharedKernel;
 
 /// <summary>
-/// Porta de acesso ao Aggregate. Toda busca filtra por <see cref="TenantId"/> — com
-/// <strong>uma</strong> exceção, <see cref="IsAddressMonitoredByAnyTenantAsync"/>, que é a
-/// primeira das três travessias autorizadas do BC.
+/// Porta de acesso ao Aggregate. Toda busca filtra por <see cref="TenantId"/>. A única consulta
+/// sem tenant é <see cref="ListEnabledForWorkerAsync"/>, que é varredura de instalação para o
+/// worker — cada linha carrega o próprio <see cref="TenantId"/> e nada atravessa para um usuário.
 /// </summary>
+/// <remarks>
+/// Até 2026-08-28 existia aqui <c>IsAddressMonitoredByAnyTenantAsync</c>, o "aviso de caixa
+/// compartilhada" do ADR-008. Saiu por decisão de produto: um tenant não pode saber que outro
+/// tenant monitora a mesma caixa — nem por booleano. Cada conta conecta a caixa por conta
+/// própria e relê tudo sozinha.
+/// </remarks>
 public interface ICaptureSourceRepository
 {
     Task AddAsync(CaptureSource source, CancellationToken cancellationToken = default);
@@ -50,10 +56,5 @@ public interface ICaptureSourceRepository
     /// conta: a própria fonte do tenant que está conectando não deve fazer o aviso disparar.
     /// </para>
     /// </remarks>
-    Task<bool> IsAddressMonitoredByAnyTenantAsync(
-        string normalizedAddress,
-        TenantId excludingTenantId,
-        CancellationToken cancellationToken = default);
-
     void Remove(CaptureSource source);
 }

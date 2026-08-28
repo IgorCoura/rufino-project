@@ -229,10 +229,6 @@ async function ensureSource(config) {
   console.log(
     `  prova de acesso: passou (o segredo foi para o cofre e nunca sai por resposta nenhuma)`,
   );
-  if (created.alreadyMonitoredByAnotherAccount) {
-    console.log('  aviso ADR-008: esta caixa já é monitorada por outra conta');
-  }
-
   return created.id;
 }
 

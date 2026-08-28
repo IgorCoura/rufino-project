@@ -53,6 +53,22 @@ public sealed class CommandLoggingRedactionTests : BaseIntegrationTest
         Assert.True(_logs.AnyContains("[omitido: ISensitiveCommand]"), "O marcador de omissão não foi logado.");
     }
 
+    // O CPF/CNPJ do cadastro do pagador não aparece no log: é dele que a senha de PDF é derivada
+    // (ADR-009), então o comando que o carrega é sensível — mesmo sem ser segredo forte.
+    [Fact]
+    public async Task RegisterPayerProfile_ShouldNeverWriteTheTaxIdToTheLog()
+    {
+        const string cnpj = "11.222.333/0001-81";
+
+        var payload = new RegisterPayerProfileRequest("Company", "Empresa Pagadora Ltda", cnpj);
+
+        await _client.PostAsJsonAsync(new Uri($"/api/v1/{Tenant}/payer-profile", UriKind.Relative), payload);
+
+        Assert.True(_logs.AnyContains("RegisterPayerProfileCommand"), "O nome do Command não foi logado.");
+        Assert.False(_logs.AnyContains(cnpj), "O CNPJ formatado apareceu no log.");
+        Assert.False(_logs.AnyContains("11222333000181"), "O CNPJ apareceu no log.");
+    }
+
     // Contraprova: Command SEM o marcador tem o payload logado — sem ela, um logger quebrado
     // faria os dois testes acima passarem à toa.
     [Fact]

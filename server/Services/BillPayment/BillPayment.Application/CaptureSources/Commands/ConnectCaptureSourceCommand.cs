@@ -26,12 +26,11 @@ public sealed record ConnectCaptureSourceCommand(
     DateOnly? CaptureSince) : IRequest<ConnectCaptureSourceResponse>, ISensitiveCommand;
 
 /// <summary>
-/// <paramref name="AlreadyMonitoredByAnotherAccount"/> é o aviso do ADR-008 — e é
-/// <strong>booleano</strong> por decisão, não por simplicidade: sem id, sem nome, sem contagem.
-/// Ele só existe depois de a prova de acesso passar, porque devolvê-lo antes transformaria o
-/// endpoint num oráculo para descobrir que endereços estão cadastrados na plataforma.
+/// Só o id. Até 2026-08-28 a resposta trazia <c>AlreadyMonitoredByAnotherAccount</c>, o aviso de
+/// caixa compartilhada do ADR-008; saiu por decisão de produto — um tenant não pode saber que
+/// outro monitora a mesma caixa, nem por booleano.
 /// </summary>
-public sealed record ConnectCaptureSourceResponse(Guid Id, bool AlreadyMonitoredByAnotherAccount);
+public sealed record ConnectCaptureSourceResponse(Guid Id);
 
 public sealed class ConnectCaptureSourceCommandHandler(
     ICaptureSourceRepository repository,
@@ -77,13 +76,9 @@ public sealed class ConnectCaptureSourceCommandHandler(
 
         await repository.AddAsync(source, cancellationToken);
 
-        // Só agora, com o acesso provado, o aviso do ADR-008 pode ser consultado.
-        var sharedWithAnotherAccount = await repository.IsAddressMonitoredByAnyTenantAsync(
-            normalized, tenantId, cancellationToken);
-
         await unitOfWork.SaveEntitiesAsync(cancellationToken);
 
-        return new ConnectCaptureSourceResponse(source.Id.Value, sharedWithAnotherAccount);
+        return new ConnectCaptureSourceResponse(source.Id.Value);
     }
 
     /// <summary>
@@ -121,5 +116,5 @@ public sealed class ConnectCaptureSourceIdentifiedCommandHandler(
     : IdentifiedCommandHandler<ConnectCaptureSourceCommand, ConnectCaptureSourceResponse>(mediator, requestManager, logger)
 {
     protected override ConnectCaptureSourceResponse CreateResultForDuplicateRequest()
-        => new(Guid.Empty, AlreadyMonitoredByAnotherAccount: false);
+        => new(Guid.Empty);
 }

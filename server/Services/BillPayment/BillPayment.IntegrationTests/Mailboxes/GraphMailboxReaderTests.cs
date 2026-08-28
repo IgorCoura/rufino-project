@@ -289,6 +289,38 @@ public sealed class GraphMailboxReaderTests
         Assert.Equal("token_request_failed", result.ReasonCode);
     }
 
+    // Regressão (auditoria 2026-08-28): o token em cache de uma credencial NÃO serve a outra que
+    // traga o mesmo par directoryId/clientId com segredo diferente. O par é público; reaproveitar
+    // o token por ele entregava a caixa de um tenant a quem conectasse com credencial inválida.
+    // A credencial legítima acerta o cache (1 ida ao provedor para 2 pedidos); a impostora vai ao
+    // provedor de novo — e é lá que o segredo errado é recusado.
+    [Fact]
+    public async Task AcquireToken_WithSamePairAndDifferentSecret_ShouldNotReuseTheCachedToken()
+    {
+        var handler = new RoutingStubHttpMessageHandler()
+            .Route("oauth2/v2.0/token", HttpStatusCode.OK, TokenBody);
+
+        var provider = new GraphTokenProvider(
+            new StubHttpClientFactory(handler),
+            Options.Create(new GraphOptions { Enabled = true }),
+            new FixedTimeProvider(Now),
+            NullLogger<GraphTokenProvider>.Instance);
+
+        var legitimate = new GraphMailboxCredential(
+            "11111111-1111-1111-1111-111111111111", "22222222-2222-2222-2222-222222222222", "segredo-legitimo");
+        var impostor = legitimate with { ClientSecret = "qualquer-coisa" };
+
+        await provider.AcquireAsync(legitimate, CancellationToken.None);
+        await provider.AcquireAsync(legitimate, CancellationToken.None);
+        Assert.Equal(1, TokenRequests(handler));
+
+        await provider.AcquireAsync(impostor, CancellationToken.None);
+        Assert.Equal(2, TokenRequests(handler));
+
+        static int TokenRequests(RoutingStubHttpMessageHandler handler)
+            => handler.Requests.Count(u => u.AbsolutePath.EndsWith("/oauth2/v2.0/token", StringComparison.Ordinal));
+    }
+
     private static GraphMailboxReader Build(
         RoutingStubHttpMessageHandler handler,
         string? storedCredential = null,
