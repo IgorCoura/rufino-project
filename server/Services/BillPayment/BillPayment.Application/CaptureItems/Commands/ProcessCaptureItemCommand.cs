@@ -54,7 +54,7 @@ using Microsoft.Extensions.Logging;
 /// </para>
 /// </param>
 public sealed record ProcessCaptureItemCommand(Guid TenantId, Guid CaptureItemId, bool VisionLane = false)
-    : IRequest<ProcessCaptureItemResponse>, IMultiAggregateCommand;
+    : ITenantScopedCommand, IRequest<ProcessCaptureItemResponse>, IMultiAggregateCommand;
 
 /// <param name="Decision">
 /// <c>Parse</c>, <c>Lock</c>, <c>Quarantine</c> ou <c>Drop</c> — e <c>Drop</c> significa que o

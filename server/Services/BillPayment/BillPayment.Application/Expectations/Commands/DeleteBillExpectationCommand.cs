@@ -24,7 +24,7 @@ using Microsoft.Extensions.Logging;
 /// </remarks>
 public sealed record DeleteBillExpectationCommand(
     Guid TenantId,
-    Guid ExpectationId) : IRequest<DeleteBillExpectationResponse>;
+    Guid ExpectationId) : ITenantScopedCommand, IRequest<DeleteBillExpectationResponse>;
 
 public sealed record DeleteBillExpectationResponse(Guid Id);
 

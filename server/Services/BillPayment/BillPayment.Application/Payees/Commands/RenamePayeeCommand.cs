@@ -9,7 +9,7 @@ using Microsoft.Extensions.Logging;
 public sealed record RenamePayeeCommand(
     Guid TenantId,
     Guid PayeeId,
-    string LegalName) : IRequest<RenamePayeeResponse>;
+    string LegalName) : ITenantScopedCommand, IRequest<RenamePayeeResponse>;
 
 public sealed record RenamePayeeResponse(Guid Id);
 

@@ -12,7 +12,7 @@ public sealed record RegisterTrustedOriginCommand(
     string Value,
     string Decision,
     Guid DecidedBy,
-    string? Note) : IRequest<RegisterTrustedOriginResponse>;
+    string? Note) : ITenantScopedCommand, IRequest<RegisterTrustedOriginResponse>;
 
 public sealed record RegisterTrustedOriginResponse(Guid Id);
 

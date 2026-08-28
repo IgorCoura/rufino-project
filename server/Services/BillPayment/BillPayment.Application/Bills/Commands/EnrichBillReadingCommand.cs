@@ -22,7 +22,7 @@ using BillPayment.Domain.SharedKernel;
 /// </para>
 /// </remarks>
 public sealed record EnrichBillReadingCommand(Guid TenantId, Guid BillId)
-    : IRequest<EnrichBillReadingResponse>;
+    : ITenantScopedCommand, IRequest<EnrichBillReadingResponse>;
 
 /// <param name="Enriched">Se a leitura trouxe conteúdo e foi anexada.</param>
 /// <param name="Reason">Por que não enriqueceu, quando não enriqueceu — código estável.</param>

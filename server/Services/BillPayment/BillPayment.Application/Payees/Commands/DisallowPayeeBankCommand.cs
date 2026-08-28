@@ -9,7 +9,7 @@ using Microsoft.Extensions.Logging;
 public sealed record DisallowPayeeBankCommand(
     Guid TenantId,
     Guid PayeeId,
-    string BankCode) : IRequest<DisallowPayeeBankResponse>;
+    string BankCode) : ITenantScopedCommand, IRequest<DisallowPayeeBankResponse>;
 
 public sealed record DisallowPayeeBankResponse(Guid Id);
 

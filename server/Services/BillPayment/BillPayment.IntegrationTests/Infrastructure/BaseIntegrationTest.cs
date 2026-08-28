@@ -60,7 +60,7 @@ public abstract class BaseIntegrationTest : IAsyncLifetime
         Client = factory.CreateClient().Authenticated(tenants);
     }
 
-    public Task InitializeAsync() => Task.CompletedTask;
+    public virtual Task InitializeAsync() => Task.CompletedTask;
 
     public async Task DisposeAsync()
     {

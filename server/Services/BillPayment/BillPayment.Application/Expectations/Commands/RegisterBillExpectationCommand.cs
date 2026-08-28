@@ -27,7 +27,7 @@ public sealed record RegisterBillExpectationCommand(
     int ObservedLeadDays,
     int? AlertLeadDays,
     DateOnly? FirstDueDate,
-    Guid? HintSourceId) : IRequest<RegisterBillExpectationResponse>;
+    Guid? HintSourceId) : ITenantScopedCommand, IRequest<RegisterBillExpectationResponse>;
 
 public sealed record RegisterBillExpectationResponse(Guid Id, string Label, int AlertLeadDays);
 

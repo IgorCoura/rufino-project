@@ -28,7 +28,7 @@ using Microsoft.Extensions.Logging;
 /// </para>
 /// </remarks>
 public sealed record LearnBillExpectationsCommand(Guid TenantId, Guid PayeeId)
-    : IRequest<LearnBillExpectationsResponse>;
+    : ITenantScopedCommand, IRequest<LearnBillExpectationsResponse>;
 
 /// <param name="Outcome">
 /// <c>Learned</c>, <c>AlreadyExists</c> ou o motivo da recusa — <c>TooFewOccurrences</c>,

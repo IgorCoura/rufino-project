@@ -11,7 +11,7 @@ public sealed record ChangeTrustedOriginDecisionCommand(
     Guid TrustedOriginId,
     string Decision,
     Guid DecidedBy,
-    string? Note) : IRequest<ChangeTrustedOriginDecisionResponse>;
+    string? Note) : ITenantScopedCommand, IRequest<ChangeTrustedOriginDecisionResponse>;
 
 public sealed record ChangeTrustedOriginDecisionResponse(Guid Id);
 

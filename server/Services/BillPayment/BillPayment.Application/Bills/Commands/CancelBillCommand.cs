@@ -14,7 +14,7 @@ public sealed record CancelBillCommand(
     Guid TenantId,
     Guid BillId,
     Guid UserId,
-    string Reason) : IRequest<CancelBillResponse>;
+    string Reason) : ITenantScopedCommand, IRequest<CancelBillResponse>;
 
 public sealed record CancelBillResponse(Guid Id, string Status);
 

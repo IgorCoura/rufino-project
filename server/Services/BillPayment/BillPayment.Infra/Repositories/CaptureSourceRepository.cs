@@ -23,6 +23,14 @@ internal sealed class CaptureSourceRepository : ICaptureSourceRepository
 
     public Task<bool> ExistsAsync(
         TenantId tenantId,
+        CaptureSourceId id,
+        CancellationToken cancellationToken = default)
+        => _context.CaptureSources
+            .AsNoTracking()
+            .AnyAsync(s => s.TenantId == tenantId && s.Id == id, cancellationToken);
+
+    public Task<bool> ExistsAsync(
+        TenantId tenantId,
         string normalizedAddress,
         CancellationToken cancellationToken = default)
         => _context.CaptureSources

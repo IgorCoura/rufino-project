@@ -23,7 +23,7 @@ using Microsoft.Extensions.Logging;
 /// </para>
 /// </remarks>
 public sealed record ClearExpectationCaptureFailureCommand(Guid TenantId, Guid CaptureItemId)
-    : IRequest<ClearExpectationCaptureFailureResponse>;
+    : ITenantScopedCommand, IRequest<ClearExpectationCaptureFailureResponse>;
 
 public sealed record ClearExpectationCaptureFailureResponse(int ClearedCycles);
 

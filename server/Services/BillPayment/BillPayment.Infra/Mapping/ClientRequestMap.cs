@@ -10,7 +10,11 @@ internal sealed class ClientRequestMap : IEntityTypeConfiguration<ClientRequest>
     {
         builder.ToTable("client_requests");
 
-        builder.HasKey(e => e.Id);
+        // Chave composta: a marca é por tenant E por comando (2026-08-28). Só pelo id, um
+        // x-requestid de um tenant valia para todos, e o mesmo id em outro comando era engolido.
+        // As linhas anteriores à migração ficam com tenant_id zerado e nunca colidem com ninguém.
+        builder.HasKey(e => new { e.TenantId, e.Id, e.Name });
+        builder.Property(e => e.TenantId).HasColumnName("tenant_id");
         builder.Property(e => e.Id).HasColumnName("id").ValueGeneratedNever();
         builder.Property(e => e.Name).HasColumnName("name").HasMaxLength(200).IsRequired();
         builder.Property(e => e.Time).HasColumnName("time").IsRequired();

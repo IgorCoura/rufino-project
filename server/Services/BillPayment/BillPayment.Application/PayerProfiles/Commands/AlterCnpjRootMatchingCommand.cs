@@ -8,7 +8,7 @@ using Microsoft.Extensions.Logging;
 
 public sealed record AlterCnpjRootMatchingCommand(
     Guid TenantId,
-    bool Enabled) : IRequest<AlterCnpjRootMatchingResponse>;
+    bool Enabled) : ITenantScopedCommand, IRequest<AlterCnpjRootMatchingResponse>;
 
 public sealed record AlterCnpjRootMatchingResponse(Guid Id);
 

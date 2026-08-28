@@ -23,7 +23,7 @@ using Microsoft.Extensions.Logging;
 public sealed record AddCaptureSourceFolderCommand(
     Guid TenantId,
     Guid CaptureSourceId,
-    string? FolderPath) : IRequest<AddCaptureSourceFolderResponse>;
+    string? FolderPath) : ITenantScopedCommand, IRequest<AddCaptureSourceFolderResponse>;
 
 /// <param name="FolderId">A pasta criada. Nasce sem cursor: a primeira varredura dela lê tudo.</param>
 public sealed record AddCaptureSourceFolderResponse(Guid Id, Guid FolderId);
@@ -74,7 +74,7 @@ public sealed class AddCaptureSourceFolderIdentifiedCommandHandler(
 public sealed record RemoveCaptureSourceFolderCommand(
     Guid TenantId,
     Guid CaptureSourceId,
-    string? FolderPath) : IRequest<RemoveCaptureSourceFolderResponse>;
+    string? FolderPath) : ITenantScopedCommand, IRequest<RemoveCaptureSourceFolderResponse>;
 
 public sealed record RemoveCaptureSourceFolderResponse(Guid Id);
 
@@ -130,7 +130,7 @@ public sealed class RemoveCaptureSourceFolderIdentifiedCommandHandler(
 /// </para>
 /// </remarks>
 public sealed record RescanCaptureSourceCommand(Guid TenantId, Guid CaptureSourceId)
-    : IRequest<RescanCaptureSourceResponse>;
+    : ITenantScopedCommand, IRequest<RescanCaptureSourceResponse>;
 
 /// <param name="FoldersReset">Quantas pastas voltarão a ser lidas por inteiro.</param>
 public sealed record RescanCaptureSourceResponse(Guid Id, int FoldersReset);

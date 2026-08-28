@@ -14,7 +14,7 @@ public sealed record DenyBillCommand(
     Guid TenantId,
     Guid BillId,
     Guid UserId,
-    string Reason) : IRequest<DenyBillResponse>;
+    string Reason) : ITenantScopedCommand, IRequest<DenyBillResponse>;
 
 public sealed record DenyBillResponse(Guid Id, string Status);
 

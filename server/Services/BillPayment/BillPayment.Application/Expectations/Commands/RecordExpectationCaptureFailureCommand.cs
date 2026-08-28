@@ -32,7 +32,7 @@ public sealed record RecordExpectationCaptureFailureCommand(
     Guid CaptureItemId,
     Guid SourceId,
     string Status,
-    DateTime ArrivedAt) : IRequest<RecordExpectationCaptureFailureResponse>;
+    DateTime ArrivedAt) : ITenantScopedCommand, IRequest<RecordExpectationCaptureFailureResponse>;
 
 public sealed record RecordExpectationCaptureFailureResponse(Guid? ExpectationId, Guid? CycleId);
 

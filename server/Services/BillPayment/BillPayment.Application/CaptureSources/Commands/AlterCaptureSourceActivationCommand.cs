@@ -13,7 +13,7 @@ using Microsoft.Extensions.Logging;
 public sealed record AlterCaptureSourceActivationCommand(
     Guid TenantId,
     Guid CaptureSourceId,
-    bool IsEnabled) : IRequest<AlterCaptureSourceActivationResponse>;
+    bool IsEnabled) : ITenantScopedCommand, IRequest<AlterCaptureSourceActivationResponse>;
 
 public sealed record AlterCaptureSourceActivationResponse(Guid Id);
 

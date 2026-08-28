@@ -14,7 +14,7 @@ using Microsoft.Extensions.Logging;
 /// lado de fora, e obrigar um POST antes do PUT só transferiria essa costura para a tela.
 /// </remarks>
 public sealed record ConfigureCaptureRetentionCommand(Guid TenantId, bool IsEnabled, int WindowDays)
-    : IRequest<ConfigureCaptureRetentionResponse>;
+    : ITenantScopedCommand, IRequest<ConfigureCaptureRetentionResponse>;
 
 public sealed record ConfigureCaptureRetentionResponse(Guid Id, bool IsEnabled, int WindowDays);
 

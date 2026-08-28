@@ -33,7 +33,7 @@ using Microsoft.Extensions.Logging;
 /// </para>
 /// </remarks>
 public sealed record ClaimCaptureItemCommand(Guid TenantId, Guid CaptureItemId, Guid UserId)
-    : IRequest<ClaimCaptureItemResponse>, IMultiAggregateCommand;
+    : ITenantScopedCommand, IRequest<ClaimCaptureItemResponse>, IMultiAggregateCommand;
 
 public sealed record ClaimCaptureItemResponse(Guid Id, Guid BillId, string Status);
 

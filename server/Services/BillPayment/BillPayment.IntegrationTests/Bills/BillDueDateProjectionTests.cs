@@ -102,7 +102,7 @@ public sealed class BillDueDateProjectionTests : BaseIntegrationTest, IDisposabl
         var response = await _client.PostAsJsonAsync(
             new Uri($"/api/v1/{TenantId}/bills/import", UriKind.Relative),
             new ImportBillRequest(
-                null, StaticPix, "ManualUpload", ReceivedAt, StorageKey: "tenant/2026-06/boleto.pdf"),
+                null, StaticPix, "ManualUpload", ReceivedAt),
             CancellationToken.None);
 
         response.EnsureSuccessStatusCode();

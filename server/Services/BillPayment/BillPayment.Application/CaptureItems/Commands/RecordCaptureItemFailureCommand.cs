@@ -34,7 +34,7 @@ public sealed record RecordCaptureItemFailureCommand(
     Guid TenantId,
     Guid CaptureItemId,
     string Error,
-    bool Permanent) : IRequest<RecordCaptureItemFailureResponse>, IMultiAggregateCommand;
+    bool Permanent) : ITenantScopedCommand, IRequest<RecordCaptureItemFailureResponse>, IMultiAggregateCommand;
 
 /// <param name="GaveUp"><c>true</c> quando o item foi para <c>Failed</c> e saiu da fila.</param>
 public sealed record RecordCaptureItemFailureResponse(Guid Id, bool GaveUp, int Attempts);

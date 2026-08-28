@@ -31,7 +31,7 @@ using Microsoft.Extensions.Logging;
 /// </para>
 /// </remarks>
 public sealed record SweepBillExpectationCommand(Guid TenantId, Guid ExpectationId)
-    : IRequest<SweepBillExpectationResponse>;
+    : ITenantScopedCommand, IRequest<SweepBillExpectationResponse>;
 
 /// <param name="Outcome">
 /// <c>Idle</c>, <c>CycleOpened</c>, <c>Alerted</c>, <c>Missed</c> ou <c>Deactivated</c> — o

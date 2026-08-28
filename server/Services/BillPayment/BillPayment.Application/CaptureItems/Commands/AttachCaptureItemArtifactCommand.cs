@@ -32,7 +32,7 @@ public sealed record AttachCaptureItemArtifactCommand(
     Guid CaptureItemId,
     ReadOnlyMemory<byte> Content,
     string? ContentType,
-    string? FileName) : IRequest<AttachCaptureItemArtifactResponse>, ISensitiveCommand;
+    string? FileName) : ITenantScopedCommand, IRequest<AttachCaptureItemArtifactResponse>, ISensitiveCommand;
 
 public sealed record AttachCaptureItemArtifactResponse(Guid Id, string PreviousStatus, int Bytes);
 

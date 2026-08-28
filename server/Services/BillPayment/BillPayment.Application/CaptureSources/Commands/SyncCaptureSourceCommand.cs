@@ -33,7 +33,7 @@ using Microsoft.Extensions.Logging;
 /// </para>
 /// </remarks>
 public sealed record SyncCaptureSourceCommand(Guid TenantId, Guid CaptureSourceId)
-    : IRequest<SyncCaptureSourceResponse>, IMultiAggregateCommand;
+    : ITenantScopedCommand, IRequest<SyncCaptureSourceResponse>, IMultiAggregateCommand;
 
 /// <param name="Status">O desfecho da conversa com o provedor — <c>Ok</c>, <c>Denied</c>, <c>CursorExpired</c> ou <c>Unavailable</c>.</param>
 /// <param name="IngestedItems">Quantos artefatos novos entraram. Zero é desfecho normal.</param>

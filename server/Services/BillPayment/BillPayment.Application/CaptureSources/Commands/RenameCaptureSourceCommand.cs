@@ -9,7 +9,7 @@ using Microsoft.Extensions.Logging;
 public sealed record RenameCaptureSourceCommand(
     Guid TenantId,
     Guid CaptureSourceId,
-    string DisplayName) : IRequest<RenameCaptureSourceResponse>;
+    string DisplayName) : ITenantScopedCommand, IRequest<RenameCaptureSourceResponse>;
 
 public sealed record RenameCaptureSourceResponse(Guid Id);
 

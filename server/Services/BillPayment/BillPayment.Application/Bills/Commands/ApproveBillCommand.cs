@@ -18,7 +18,7 @@ public sealed record ApproveBillCommand(
     Guid UserId,
     DateOnly ScheduleFor,
     string? Note,
-    bool AcknowledgeRisk = false) : IRequest<ApproveBillResponse>;
+    bool AcknowledgeRisk = false) : ITenantScopedCommand, IRequest<ApproveBillResponse>;
 
 public sealed record ApproveBillResponse(Guid Id, string Status, DateOnly ScheduledFor);
 

@@ -19,7 +19,7 @@ public sealed record WaiveExpectationCycleCommand(
     Guid ExpectationId,
     Guid CycleId,
     Guid UserId,
-    string? Reason) : IRequest<WaiveExpectationCycleResponse>;
+    string? Reason) : ITenantScopedCommand, IRequest<WaiveExpectationCycleResponse>;
 
 public sealed record WaiveExpectationCycleResponse(Guid Id, Guid CycleId, string Status);
 

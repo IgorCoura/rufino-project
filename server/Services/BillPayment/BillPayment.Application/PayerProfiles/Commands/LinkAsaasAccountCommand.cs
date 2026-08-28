@@ -12,7 +12,7 @@ using Microsoft.Extensions.Logging;
 /// </summary>
 public sealed record LinkAsaasAccountCommand(
     Guid TenantId,
-    string? AccountRef) : IRequest<LinkAsaasAccountResponse>, ISensitiveCommand;
+    string? AccountRef) : ITenantScopedCommand, IRequest<LinkAsaasAccountResponse>, ISensitiveCommand;
 
 public sealed record LinkAsaasAccountResponse(Guid Id, bool CanSchedulePayments);
 

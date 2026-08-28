@@ -33,7 +33,7 @@ using Microsoft.Extensions.Logging;
 /// </para>
 /// </remarks>
 public sealed record FulfillExpectationForBillCommand(Guid TenantId, Guid BillId)
-    : IRequest<FulfillExpectationForBillResponse>;
+    : ITenantScopedCommand, IRequest<FulfillExpectationForBillResponse>;
 
 public sealed record FulfillExpectationForBillResponse(Guid BillId, Guid? ExpectationId, Guid? CycleId);
 

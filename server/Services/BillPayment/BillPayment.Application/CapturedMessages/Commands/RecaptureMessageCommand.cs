@@ -37,7 +37,7 @@ using Microsoft.Extensions.Logging;
 /// </para>
 /// </remarks>
 public sealed record RecaptureMessageCommand(Guid TenantId, Guid CapturedMessageId, Guid RequestedBy)
-    : IRequest<RecaptureMessageResponse>, IMultiAggregateCommand;
+    : ITenantScopedCommand, IRequest<RecaptureMessageResponse>, IMultiAggregateCommand;
 
 /// <summary>
 /// <paramref name="PreviouslyDeniedBillIds"/> é o aviso: esses boletos já tinham sido negados

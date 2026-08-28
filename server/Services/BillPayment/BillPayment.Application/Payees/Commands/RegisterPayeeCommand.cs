@@ -14,7 +14,7 @@ public sealed record RegisterPayeeCommand(
     decimal? ExpectedAmount,
     decimal? TolerancePercent,
     decimal? MinAmount,
-    decimal? MaxAmount) : IRequest<RegisterPayeeResponse>;
+    decimal? MaxAmount) : ITenantScopedCommand, IRequest<RegisterPayeeResponse>;
 
 public sealed record RegisterPayeeResponse(Guid Id);
 

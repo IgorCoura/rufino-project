@@ -31,7 +31,7 @@ public sealed record EditBillExpectationCommand(
     int ExpectedDueDay,
     int ObservedLeadDays,
     int? AlertLeadDays,
-    DateOnly? FirstDueDate) : IRequest<EditBillExpectationResponse>;
+    DateOnly? FirstDueDate) : ITenantScopedCommand, IRequest<EditBillExpectationResponse>;
 
 public sealed record EditBillExpectationResponse(Guid Id, string Label, int AlertLeadDays);
 

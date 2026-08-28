@@ -8,7 +8,7 @@ using Microsoft.Extensions.Logging;
 
 public sealed record RenamePayerProfileCommand(
     Guid TenantId,
-    string LegalName) : IRequest<RenamePayerProfileResponse>;
+    string LegalName) : ITenantScopedCommand, IRequest<RenamePayerProfileResponse>;
 
 public sealed record RenamePayerProfileResponse(Guid Id);
 

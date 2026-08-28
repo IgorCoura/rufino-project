@@ -27,7 +27,7 @@ public sealed record AlterBillExpectationWatchCommand(
     Guid ExpectationId,
     bool IsActive,
     DateOnly? PausedUntil,
-    string? Reason) : IRequest<AlterBillExpectationWatchResponse>;
+    string? Reason) : ITenantScopedCommand, IRequest<AlterBillExpectationWatchResponse>;
 
 public sealed record AlterBillExpectationWatchResponse(Guid Id, bool IsActive, DateOnly? PausedUntil);
 

@@ -17,7 +17,7 @@ using Microsoft.Extensions.Logging;
 /// </remarks>
 public sealed record DisconnectCaptureSourceCommand(
     Guid TenantId,
-    Guid CaptureSourceId) : IRequest<DisconnectCaptureSourceResponse>;
+    Guid CaptureSourceId) : ITenantScopedCommand, IRequest<DisconnectCaptureSourceResponse>;
 
 public sealed record DisconnectCaptureSourceResponse(Guid Id);
 

@@ -39,7 +39,7 @@ using Microsoft.Extensions.Logging;
 /// </para>
 /// </remarks>
 public sealed record ApplyBillReadingCommand(Guid TenantId, Guid BillId)
-    : IRequest<ApplyBillReadingResponse>;
+    : ITenantScopedCommand, IRequest<ApplyBillReadingResponse>;
 
 /// <param name="Outcome">
 /// <c>Applied</c>, <c>AppliedWithoutRevalidation</c>, <c>NothingExtracted</c> ou o motivo de não

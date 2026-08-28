@@ -23,6 +23,9 @@ public interface ICaptureSourceRepository
     /// <summary>Pré-condição de unicidade dentro do tenant. O endereço precisa vir normalizado.</summary>
     Task<bool> ExistsAsync(TenantId tenantId, string normalizedAddress, CancellationToken cancellationToken = default);
 
+    /// <summary>A fonte existe e é deste tenant — validação de referência recebida de fora.</summary>
+    Task<bool> ExistsAsync(TenantId tenantId, CaptureSourceId id, CancellationToken cancellationToken = default);
+
     /// <summary>
     /// Fontes habilitadas do tenant que o job de sincronização deve varrer, <em>tracked</em> —
     /// o job avança o cursor de cada uma.

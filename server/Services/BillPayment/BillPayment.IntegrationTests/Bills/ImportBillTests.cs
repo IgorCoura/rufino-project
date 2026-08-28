@@ -3,7 +3,9 @@ namespace BillPayment.IntegrationTests.Bills;
 using System.Net;
 using System.Net.Http.Json;
 using BillPayment.Domain.Bills;
+using BillPayment.Domain.CaptureSources;
 using BillPayment.Domain.Instruments;
+using BillPayment.Domain.Secrets;
 using BillPayment.IntegrationTests.Contracts;
 using BillPayment.IntegrationTests.Infrastructure;
 using Microsoft.EntityFrameworkCore;
@@ -13,8 +15,12 @@ public sealed class ImportBillTests : BaseIntegrationTest
 {
     private static readonly Guid TenantId = new("0195a1f0-0000-7000-8000-000000000001");
     private static readonly Guid OtherTenantId = new("0195a1f0-0000-7000-8000-000000000002");
-    private static readonly Guid SourceId = new("0195a1f0-0000-7000-8000-0000000000d1");
     private static readonly DateTime ReceivedAt = new(2026, 7, 30, 9, 0, 0, DateTimeKind.Utc);
+
+    // Fontes REAIS, uma por tenant: desde 2026-08-28 o import valida o SourceId contra as fontes
+    // do próprio tenant, e um Guid inventado responde 404.
+    private Guid SourceId;
+    private Guid OtherSourceId;
 
     // Instrumentos sintéticos com DVs e CRC corretos — instrumento real não entra no repositório.
     private const string BankSlipLine = "34191234546789012345767890123457314880000061507";
@@ -32,6 +38,62 @@ public sealed class ImportBillTests : BaseIntegrationTest
     private static Uri ImportRouteFor(Guid tenantId) => new($"{RouteFor(tenantId)}/import", UriKind.Relative);
 
     public ImportBillTests(IntegrationTestWebAppFactory factory) : base(factory) { }
+
+    public override async Task InitializeAsync()
+    {
+        SourceId = await SeedSourceAsync(TenantId);
+        OtherSourceId = await SeedSourceAsync(OtherTenantId);
+    }
+
+    // Regressão (auditoria 2026-08-28): a proveniência era forjável — qualquer Guid entrava como
+    // "fonte de captura". Fonte que não existe é 404, como qualquer referência a outro agregado.
+    [Fact]
+    public async Task PostImport_WithAnUnknownSource_ShouldReturnNotFound()
+    {
+        var response = await Client.PostAsJsonAsync(
+            ImportRouteFor(TenantId),
+            new ImportBillRequest(BankSlipLine, null, "Mailbox", ReceivedAt, new Guid("0195a1f0-0000-7000-8000-0000000000d1"), "a@b.com"));
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+        var error = await response.Content.ReadFromJsonAsync<ApiErrorResponse>();
+        Assert.Equal("BLP.CPS02", error!.Id);
+    }
+
+    // A fonte de OUTRO tenant não existe para este — 404, sem distinguir de "nunca existiu".
+    [Fact]
+    public async Task PostImport_WithAnotherTenantsSource_ShouldReturnNotFound()
+    {
+        var response = await Client.PostAsJsonAsync(
+            ImportRouteFor(TenantId),
+            new ImportBillRequest(BankSlipLine, null, "Mailbox", ReceivedAt, OtherSourceId, "a@b.com"));
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+    }
+
+    // Regressão (auditoria 2026-08-28): o corpo JSON aceitava storageKey e contentHash — quem tem
+    // bill:import apontava a "evidência" do boleto para qualquer objeto do balde. Os campos não
+    // existem mais no contrato; mandá-los é ignorado pelo binder e a origem nasce sem arquivo.
+    [Fact]
+    public async Task PostImport_WithStorageKeyAndContentHashInTheBody_ShouldIgnoreThem()
+    {
+        var response = await Client.PostAsJsonAsync(
+            ImportRouteFor(TenantId),
+            new
+            {
+                digitableLine = BankSlipLine,
+                sourceKind = "ManualUpload",
+                receivedAt = ReceivedAt,
+                storageKey = $"tenants/{TenantId:N}/captures/qualquer-objeto.pdf",
+                contentHash = "sha256:forjado",
+            });
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var body = await response.Content.ReadFromJsonAsync<ImportBillResponseContract>();
+
+        var bill = await ExecuteDbContextAsync(db => db.Bills.AsNoTracking().SingleAsync(b => b.Id == BillId.From(body!.Id)));
+        Assert.Null(bill.Origin.StorageKey);
+        Assert.Null(bill.Origin.ContentHash);
+    }
 
     // Importar por código de barras persiste o boleto no trilho Boleto, como cobrança.
     [Fact]
@@ -155,7 +217,7 @@ public sealed class ImportBillTests : BaseIntegrationTest
 
         var response = await Client.PostAsJsonAsync(
             ImportRouteFor(OtherTenantId),
-            new ImportBillRequest(BankSlipLine, null, "Mailbox", ReceivedAt, SourceId, "a@b.com"));
+            new ImportBillRequest(BankSlipLine, null, "Mailbox", ReceivedAt, OtherSourceId, "a@b.com"));
 
         Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
     }
@@ -168,7 +230,7 @@ public sealed class ImportBillTests : BaseIntegrationTest
 
         var response = await Client.PostAsJsonAsync(
             ImportRouteFor(OtherTenantId),
-            new ImportBillRequest(BankSlipLine, null, "Mailbox", ReceivedAt, SourceId, "a@b.com"));
+            new ImportBillRequest(BankSlipLine, null, "Mailbox", ReceivedAt, OtherSourceId, "a@b.com"));
 
         var raw = await response.Content.ReadAsStringAsync();
 
@@ -256,7 +318,7 @@ public sealed class ImportBillTests : BaseIntegrationTest
     public async Task PostImport_FromManualUpload_ShouldBeAcceptedWithoutASource()
     {
         var body = await ImportAsync(new ImportBillRequest(
-            BankSlipLine, null, "ManualUpload", ReceivedAt, StorageKey: "tenant-1/2026-07/boleto.pdf"));
+            BankSlipLine, null, "ManualUpload", ReceivedAt));
 
         var bill = await Client.GetFromJsonAsync<BillContract>(
             new Uri($"{RouteFor(TenantId)}/{body.Id}", UriKind.Relative));
@@ -298,7 +360,7 @@ public sealed class ImportBillTests : BaseIntegrationTest
         await ImportAsync(new ImportBillRequest(BankSlipLine, null, "Mailbox", ReceivedAt, SourceId, "a@b.com"));
         await ImportAsync(new ImportBillRequest(OtherBankSlipLine, null, "Mailbox", ReceivedAt, SourceId, "a@b.com"));
         await ImportAsync(
-            new ImportBillRequest(UtilityLine, null, "Mailbox", ReceivedAt, SourceId, "a@b.com"),
+            new ImportBillRequest(UtilityLine, null, "Mailbox", ReceivedAt, OtherSourceId, "a@b.com"),
             OtherTenantId);
 
         var page = await Client.GetFromJsonAsync<BillPageContract>(RouteFor(TenantId));
@@ -335,6 +397,22 @@ public sealed class ImportBillTests : BaseIntegrationTest
 
         return await Client.SendAsync(request);
     }
+
+    private Task<Guid> SeedSourceAsync(Guid tenantId)
+        => ExecuteDbContextAsync(async db =>
+        {
+            var source = CaptureSource.Connect(
+                Domain.SharedKernel.TenantId.From(tenantId),
+                CaptureSourceKind.MicrosoftGraphMailbox,
+                "Caixa",
+                "contas@empresa.com.br",
+                CredentialRef.ForLocalVault(new Guid("0195a1f0-0000-7000-8000-0000000000c9")),
+                ReceivedAt);
+
+            await db.CaptureSources.AddAsync(source);
+            await db.SaveEntitiesAsync();
+            return source.Id.Value;
+        });
 
     private async Task<ImportBillResponseContract> ImportAsync(ImportBillRequest request, Guid? tenantId = null)
     {

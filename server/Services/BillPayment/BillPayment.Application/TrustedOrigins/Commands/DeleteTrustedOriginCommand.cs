@@ -12,7 +12,7 @@ using Microsoft.Extensions.Logging;
 /// </summary>
 public sealed record DeleteTrustedOriginCommand(
     Guid TenantId,
-    Guid TrustedOriginId) : IRequest<DeleteTrustedOriginResponse>;
+    Guid TrustedOriginId) : ITenantScopedCommand, IRequest<DeleteTrustedOriginResponse>;
 
 public sealed record DeleteTrustedOriginResponse(Guid Id);
 

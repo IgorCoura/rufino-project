@@ -9,9 +9,19 @@ using BillPayment.Application.Bills.Commands;
 /// tenant no body abriria caminho para divergir do path e virar IDOR.
 /// </summary>
 /// <remarks>
+/// <para>
 /// <c>ReceivedAt</c> é <c>[JsonRequired]</c> porque a omissão viraria <c>default</c>
 /// silenciosamente e gravaria o ano 1 como data de recebimento — a evidência de origem
 /// existe justamente para ser confiável na auditoria.
+/// </para>
+/// <para>
+/// <strong>Não há <c>ContentHash</c> nem <c>StorageKey</c> aqui</strong> (saíram em 2026-08-28).
+/// Os dois descrevem um arquivo que o sistema guardou; aceitá-los do corpo deixava quem tem
+/// <c>bill:import</c> apontar a "evidência" do boleto para qualquer objeto do balde do tenant —
+/// servido depois por <c>GET /bills/{id}/artifact</c> e enfileirado para a IA. Quem quer o
+/// arquivo junto usa a forma <c>multipart/form-data</c>, onde o handler grava e carimba.
+/// <c>SourceId</c> continua, mas é validado contra as fontes do próprio tenant.
+/// </para>
 /// </remarks>
 public sealed record ImportBillModel(
     string? DigitableLine,
@@ -20,9 +30,7 @@ public sealed record ImportBillModel(
     [property: JsonRequired] DateTime ReceivedAt,
     Guid? SourceId,
     string? SenderAddress,
-    string? ExternalMessageId,
-    string? ContentHash,
-    string? StorageKey)
+    string? ExternalMessageId)
 {
     public ImportBillCommand ToCommand(Guid tenantId)
         => new(
@@ -33,9 +41,7 @@ public sealed record ImportBillModel(
             ReceivedAt,
             SourceId,
             SenderAddress,
-            ExternalMessageId,
-            ContentHash,
-            StorageKey);
+            ExternalMessageId);
 }
 
 /// <summary>
@@ -86,10 +92,7 @@ public sealed record ImportBillFormModel(
             ExternalMessageId,
 
             // Hash e chave de armazenamento do arquivo são produzidos pelo handler, que é quem
-            // grava — aceitá-los do cliente deixaria a evidência de origem descrever um arquivo
-            // que ninguém guardou.
-            ContentHash: null,
-            StorageKey: null,
+            // grava — o Command nem tem campo para eles vindos de fora.
             document,
             documentContentType,
             documentFileName);

@@ -30,7 +30,7 @@ using Microsoft.Extensions.Logging;
 /// </para>
 /// </remarks>
 public sealed record ReprocessCaptureItemCommand(Guid TenantId, Guid CaptureItemId)
-    : IRequest<ReprocessCaptureItemResponse>;
+    : ITenantScopedCommand, IRequest<ReprocessCaptureItemResponse>;
 
 /// <param name="PreviousStatus">De onde ele voltou — para a tela dizer o que mudou.</param>
 public sealed record ReprocessCaptureItemResponse(Guid Id, string PreviousStatus);

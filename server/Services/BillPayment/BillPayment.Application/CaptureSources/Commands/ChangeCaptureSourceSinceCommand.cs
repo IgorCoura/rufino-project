@@ -26,7 +26,7 @@ using Microsoft.Extensions.Logging;
 public sealed record ChangeCaptureSourceSinceCommand(
     Guid TenantId,
     Guid CaptureSourceId,
-    DateOnly? CaptureSince) : IRequest<ChangeCaptureSourceSinceResponse>;
+    DateOnly? CaptureSince) : ITenantScopedCommand, IRequest<ChangeCaptureSourceSinceResponse>;
 
 public sealed record ChangeCaptureSourceSinceResponse(Guid Id);
 

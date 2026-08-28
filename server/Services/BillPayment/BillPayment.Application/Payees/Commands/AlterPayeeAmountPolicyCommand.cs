@@ -13,7 +13,7 @@ public sealed record AlterPayeeAmountPolicyCommand(
     decimal? ExpectedAmount,
     decimal? TolerancePercent,
     decimal? MinAmount,
-    decimal? MaxAmount) : IRequest<AlterPayeeAmountPolicyResponse>;
+    decimal? MaxAmount) : ITenantScopedCommand, IRequest<AlterPayeeAmountPolicyResponse>;
 
 public sealed record AlterPayeeAmountPolicyResponse(Guid Id);
 

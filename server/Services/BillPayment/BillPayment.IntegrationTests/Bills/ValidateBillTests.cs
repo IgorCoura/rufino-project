@@ -235,7 +235,7 @@ public sealed class ValidateBillTests : BaseIntegrationTest, IDisposable
     private static Uri ImportRoute(Guid tenantId) => new($"/api/v1/{tenantId}/bills/import", UriKind.Relative);
 
     private static ImportBillRequest Request(string? line, string? pix = null)
-        => new(line, pix, "ManualUpload", ReceivedAt, StorageKey: "tenant/2026-06/boleto.pdf");
+        => new(line, pix, "ManualUpload", ReceivedAt);
 
     private async Task<Guid> ImportAsync(string? line, string? pix = null, Guid? tenantId = null)
     {

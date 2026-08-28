@@ -23,7 +23,7 @@ public sealed record ConnectCaptureSourceCommand(
     string Address,
     string Credential,
     string? FolderPath,
-    DateOnly? CaptureSince) : IRequest<ConnectCaptureSourceResponse>, ISensitiveCommand;
+    DateOnly? CaptureSince) : ITenantScopedCommand, IRequest<ConnectCaptureSourceResponse>, ISensitiveCommand;
 
 /// <summary>
 /// Só o id. Até 2026-08-28 a resposta trazia <c>AlreadyMonitoredByAnotherAccount</c>, o aviso de

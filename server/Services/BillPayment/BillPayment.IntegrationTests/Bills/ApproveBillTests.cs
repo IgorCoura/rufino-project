@@ -265,7 +265,7 @@ public sealed class ApproveBillTests : BaseIntegrationTest, IDisposable
     private static Uri ImportRoute() => new($"{Route()}/import", UriKind.Relative);
 
     private static ImportBillRequest Request()
-        => new(BankSlipLine, null, "ManualUpload", ReceivedAt, StorageKey: "tenant/2026-06/boleto.pdf");
+        => new(BankSlipLine, null, "ManualUpload", ReceivedAt);
 
     /// <summary>
     /// Retrato coerente com o código de barras sintético.

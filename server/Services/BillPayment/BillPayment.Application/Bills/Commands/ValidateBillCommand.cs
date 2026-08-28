@@ -21,7 +21,7 @@ using Microsoft.Extensions.Logging;
 /// Disparado pelo outbox a partir de <c>BillCapturedDomainEvent</c>, e também pela revalidação
 /// manual — o mesmo comando serve aos dois, porque revalidar é literalmente rodar de novo.
 /// </remarks>
-public sealed record ValidateBillCommand(Guid TenantId, Guid BillId) : IRequest<ValidateBillResponse>;
+public sealed record ValidateBillCommand(Guid TenantId, Guid BillId) : ITenantScopedCommand, IRequest<ValidateBillResponse>;
 
 public sealed record ValidateBillResponse(Guid Id, string Status, int BlockingFailures, int AttentionItems);
 

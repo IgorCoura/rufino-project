@@ -9,7 +9,7 @@ using Microsoft.Extensions.Logging;
 public sealed record AddPayeeAliasCommand(
     Guid TenantId,
     Guid PayeeId,
-    string Alias) : IRequest<AddPayeeAliasResponse>;
+    string Alias) : ITenantScopedCommand, IRequest<AddPayeeAliasResponse>;
 
 public sealed record AddPayeeAliasResponse(Guid Id);
 

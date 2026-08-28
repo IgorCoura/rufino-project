@@ -17,7 +17,7 @@ using Microsoft.Extensions.Logging;
 public sealed record ChangeCaptureSourceFolderCommand(
     Guid TenantId,
     Guid CaptureSourceId,
-    string? FolderPath) : IRequest<ChangeCaptureSourceFolderResponse>;
+    string? FolderPath) : ITenantScopedCommand, IRequest<ChangeCaptureSourceFolderResponse>;
 
 public sealed record ChangeCaptureSourceFolderResponse(Guid Id);
 

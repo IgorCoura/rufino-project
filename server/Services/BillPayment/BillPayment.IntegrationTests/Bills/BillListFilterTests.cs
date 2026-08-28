@@ -111,7 +111,7 @@ public sealed class BillListFilterTests : BaseIntegrationTest
         var response = await Client.PostAsJsonAsync(
             new Uri($"/api/v1/{TenantId}/bills/import", UriKind.Relative),
             new ImportBillRequest(
-                digitableLine, pixPayload, "ManualUpload", ReceivedAt, StorageKey: "tenant/2026-07/boleto.pdf"));
+                digitableLine, pixPayload, "ManualUpload", ReceivedAt));
 
         response.EnsureSuccessStatusCode();
         var body = await response.Content.ReadFromJsonAsync<ImportBillResponseContract>();

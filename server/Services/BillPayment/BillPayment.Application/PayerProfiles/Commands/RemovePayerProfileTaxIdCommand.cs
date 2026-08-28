@@ -8,7 +8,7 @@ using Microsoft.Extensions.Logging;
 
 public sealed record RemovePayerProfileTaxIdCommand(
     Guid TenantId,
-    string TaxId) : IRequest<RemovePayerProfileTaxIdResponse>, ISensitiveCommand;
+    string TaxId) : ITenantScopedCommand, IRequest<RemovePayerProfileTaxIdResponse>, ISensitiveCommand;
 
 public sealed record RemovePayerProfileTaxIdResponse(Guid Id);
 

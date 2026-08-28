@@ -1,18 +1,18 @@
 namespace BillPayment.Domain.SeedWork;
 
+using BillPayment.Domain.SharedKernel;
+
 /// <summary>
-/// Porta de idempotência: registra IDs de requests já vistas (header
-/// <c>x-requestid</c>) para impedir reprocessamento. Vive no SeedWork — como os
-/// demais ports — porque a Infra não referencia a Application. Implementação na Infra.
+/// O livro de requisições já processadas — a porta da idempotência por <c>x-requestid</c>.
 /// </summary>
+/// <remarks>
+/// A marca é por <strong>tenant + id + comando</strong> (2026-08-28). Só pelo id, um
+/// <c>x-requestid</c> de um tenant "consumia" o id para todos os outros, e o mesmo id reusado
+/// num comando diferente do mesmo tenant era engolido como duplicata — sem erro, sem efeito.
+/// </remarks>
 public interface IRequestManager
 {
-    Task<bool> ExistAsync(Guid id, CancellationToken cancellationToken = default);
+    Task<bool> ExistAsync<TCommand>(TenantId tenantId, Guid id, CancellationToken cancellationToken = default);
 
-    /// <summary>
-    /// Agenda a inserção do request na tabela de idempotência <b>sem</b> commitar.
-    /// O <c>SaveEntitiesAsync</c> do handler real persiste a marca junto com o
-    /// efeito do comando — tudo na mesma transação do <c>DbContext</c> Scoped.
-    /// </summary>
-    Task CreateRequestForCommandAsync<TCommand>(Guid id, CancellationToken cancellationToken = default);
+    Task CreateRequestForCommandAsync<TCommand>(TenantId tenantId, Guid id, CancellationToken cancellationToken = default);
 }

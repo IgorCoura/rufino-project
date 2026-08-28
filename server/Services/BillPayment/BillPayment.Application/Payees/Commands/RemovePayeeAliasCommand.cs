@@ -9,7 +9,7 @@ using Microsoft.Extensions.Logging;
 public sealed record RemovePayeeAliasCommand(
     Guid TenantId,
     Guid PayeeId,
-    string Alias) : IRequest<RemovePayeeAliasResponse>;
+    string Alias) : ITenantScopedCommand, IRequest<RemovePayeeAliasResponse>;
 
 public sealed record RemovePayeeAliasResponse(Guid Id);
 

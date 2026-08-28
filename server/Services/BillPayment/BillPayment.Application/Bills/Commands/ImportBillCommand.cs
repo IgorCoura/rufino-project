@@ -3,6 +3,7 @@ namespace BillPayment.Application.Bills.Commands;
 using System.Security.Cryptography;
 using BillPayment.Application.Mediator;
 using BillPayment.Domain.Bills;
+using BillPayment.Domain.CaptureSources;
 using BillPayment.Domain.Extraction;
 using BillPayment.Domain.Instruments;
 using BillPayment.Domain.PayerProfiles;
@@ -41,29 +42,38 @@ public sealed record ImportBillCommand(
     Guid? SourceId,
     string? SenderAddress,
     string? ExternalMessageId,
-    string? ContentHash,
-    string? StorageKey,
     ReadOnlyMemory<byte> Document = default,
     string? DocumentContentType = null,
-    string? DocumentFileName = null) : IRequest<ImportBillResponse>, ISensitiveCommand;
+    string? DocumentFileName = null) : ITenantScopedCommand, IRequest<ImportBillResponse>, ISensitiveCommand;
 
 public sealed record ImportBillResponse(Guid Id, string Kind, string Rail);
 
 public sealed class ImportBillCommandHandler(
     IBillRepository repository,
     IPayerProfileRepository payerProfiles,
+    ICaptureSourceRepository sources,
     IBoletoDocumentParser parser,
     IAttachmentStorage storage,
+    TimeProvider clock,
     IUnitOfWork unitOfWork)
     : IRequestHandler<ImportBillCommand, ImportBillResponse>
 {
     public async Task<ImportBillResponse> Handle(ImportBillCommand request, CancellationToken cancellationToken)
     {
         var tenantId = TenantId.From(request.TenantId);
-        var now = DateTime.UtcNow;
+        var now = clock.GetUtcNow().UtcDateTime;
 
         // Tradução de input: string para Smart Enum é responsabilidade do handler.
         var sourceKind = Enumeration.FromDisplayName<BillSourceKind>(request.SourceKind);
+
+        // Fonte de captura é referência a outro agregado, e vem do corpo: existe, e é deste
+        // tenant. Sem isto a proveniência do boleto era forjável — "veio da caixa X" apontando
+        // para uma fonte de outra conta, ou para nenhuma.
+        if (request.SourceId is { } sourceId
+            && !await sources.ExistsAsync(tenantId, CaptureSourceId.From(sourceId), cancellationToken))
+        {
+            throw CaptureSourceErrors.NotFound(sourceId);
+        }
 
         var instruments = ReadInstruments(request, now);
 
@@ -82,7 +92,7 @@ public sealed class ImportBillCommandHandler(
         // Só grava depois de saber que há boleto: guardar o que não deu em nada transformaria o
         // balde num depósito de documento pessoal, que é a mesma regra da captura automática.
         var storageKey = document is null
-            ? request.StorageKey
+            ? null
             : await storage.StoreAsync(
                 tenantId, document.FileName, document.ContentType, request.Document, cancellationToken);
 
@@ -94,7 +104,7 @@ public sealed class ImportBillCommandHandler(
                 request.SourceId,
                 request.SenderAddress,
                 request.ExternalMessageId,
-                document?.ContentHash ?? request.ContentHash,
+                document?.ContentHash,
                 storageKey);
 
             var bill = Bill.Capture(tenantId, instruments, origin, now);

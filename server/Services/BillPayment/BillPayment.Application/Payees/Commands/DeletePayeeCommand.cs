@@ -13,7 +13,7 @@ using Microsoft.Extensions.Logging;
 /// </summary>
 public sealed record DeletePayeeCommand(
     Guid TenantId,
-    Guid PayeeId) : IRequest<DeletePayeeResponse>;
+    Guid PayeeId) : ITenantScopedCommand, IRequest<DeletePayeeResponse>;
 
 public sealed record DeletePayeeResponse(Guid Id);
 

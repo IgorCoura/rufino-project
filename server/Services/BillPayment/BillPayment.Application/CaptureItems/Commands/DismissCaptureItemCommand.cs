@@ -31,7 +31,7 @@ public sealed record DismissCaptureItemCommand(
     Guid TenantId,
     Guid CaptureItemId,
     Guid DismissedBy,
-    string? Note) : IRequest<DismissCaptureItemResponse>, IMultiAggregateCommand;
+    string? Note) : ITenantScopedCommand, IRequest<DismissCaptureItemResponse>, IMultiAggregateCommand;
 
 public sealed record DismissCaptureItemResponse(Guid Id, string PreviousStatus);
 

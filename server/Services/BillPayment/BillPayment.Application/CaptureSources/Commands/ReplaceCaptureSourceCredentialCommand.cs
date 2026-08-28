@@ -14,7 +14,7 @@ using Microsoft.Extensions.Logging;
 public sealed record ReplaceCaptureSourceCredentialCommand(
     Guid TenantId,
     Guid CaptureSourceId,
-    string Credential) : IRequest<ReplaceCaptureSourceCredentialResponse>, ISensitiveCommand;
+    string Credential) : ITenantScopedCommand, IRequest<ReplaceCaptureSourceCredentialResponse>, ISensitiveCommand;
 
 public sealed record ReplaceCaptureSourceCredentialResponse(Guid Id);
 

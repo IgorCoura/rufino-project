@@ -9,9 +9,7 @@ internal sealed record ImportBillRequest(
     DateTime ReceivedAt,
     Guid? SourceId = null,
     string? SenderAddress = null,
-    string? ExternalMessageId = null,
-    string? ContentHash = null,
-    string? StorageKey = null);
+    string? ExternalMessageId = null);
 
 internal sealed record ImportBillResponseContract(Guid Id, string Kind, string Rail);
 

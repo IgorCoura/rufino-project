@@ -350,9 +350,49 @@ public sealed class PayeeLifecycleTests : BaseIntegrationTest
         Assert.Equal(1, await ExecuteDbContextAsync(db => db.Payees.CountAsync()));
     }
 
-    private async Task<HttpResponseMessage> SendWithRequestIdAsync(RegisterPayeeRequest body, Guid requestId)
+    // Regressão (auditoria 2026-08-28): a marca de idempotência era só pelo id — o mesmo
+    // x-requestid vindo de OUTRO tenant era engolido como duplicata e o cadastro dele não
+    // acontecia, em silêncio. A marca é por (tenant, id, comando): cada tenant cadastra o seu.
+    [Fact]
+    public async Task PostPayee_WithTheSameRequestIdFromAnotherTenant_ShouldRegisterForBoth()
     {
-        using var request = new HttpRequestMessage(HttpMethod.Post, RouteFor(TenantId))
+        var requestId = new Guid("0195a1f0-0000-7000-8000-0000000000c2");
+        var body = new RegisterPayeeRequest("SECONCI", Cnpj, "Unbounded", null, null, null, null);
+
+        var first = await SendWithRequestIdAsync(body, requestId, TenantId);
+        var second = await SendWithRequestIdAsync(body, requestId, OtherTenantId);
+
+        Assert.Equal(HttpStatusCode.OK, first.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, second.StatusCode);
+        Assert.NotEqual(Guid.Empty, (await second.Content.ReadFromJsonAsync<PayeeIdResponse>())!.Id);
+        Assert.Equal(2, await ExecuteDbContextAsync(db => db.Payees.CountAsync()));
+    }
+
+    // Mesmo id em COMANDO diferente não é duplicata: o cadastro e a renomeação com o mesmo
+    // x-requestid acontecem os dois.
+    [Fact]
+    public async Task PutLegalName_WithTheRequestIdOfTheRegistration_ShouldStillRename()
+    {
+        var requestId = new Guid("0195a1f0-0000-7000-8000-0000000000c3");
+        var registered = await SendWithRequestIdAsync(
+            new RegisterPayeeRequest("SECONCI", Cnpj, "Unbounded", null, null, null, null), requestId, TenantId);
+        var id = (await registered.Content.ReadFromJsonAsync<PayeeIdResponse>())!.Id;
+
+        using var rename = new HttpRequestMessage(HttpMethod.Put, new Uri($"{RouteFor(TenantId)}/{id}/legal-name", UriKind.Relative))
+        {
+            Content = JsonContent.Create(new RenamePayeeRequest("NOVO NOME")),
+        };
+        rename.Headers.Add("x-requestid", requestId.ToString());
+        var response = await Client.SendAsync(rename);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var payee = await ExecuteDbContextAsync(db => db.Payees.AsNoTracking().SingleAsync(p => p.Id == PayeeId.From(id)));
+        Assert.Equal("NOVO NOME", payee.LegalName);
+    }
+
+    private async Task<HttpResponseMessage> SendWithRequestIdAsync(RegisterPayeeRequest body, Guid requestId, Guid? tenantId = null)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Post, RouteFor(tenantId ?? TenantId))
         {
             Content = JsonContent.Create(body),
         };

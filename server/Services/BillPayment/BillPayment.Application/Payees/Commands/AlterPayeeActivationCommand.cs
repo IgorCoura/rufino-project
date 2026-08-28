@@ -9,7 +9,7 @@ using Microsoft.Extensions.Logging;
 public sealed record AlterPayeeActivationCommand(
     Guid TenantId,
     Guid PayeeId,
-    bool IsActive) : IRequest<AlterPayeeActivationResponse>;
+    bool IsActive) : ITenantScopedCommand, IRequest<AlterPayeeActivationResponse>;
 
 public sealed record AlterPayeeActivationResponse(Guid Id);
 

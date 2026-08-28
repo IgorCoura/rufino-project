@@ -25,7 +25,7 @@ using Microsoft.Extensions.Logging;
 /// </para>
 /// </remarks>
 public sealed record PurgeCapturedMessagesCommand(Guid TenantId, int BatchSize)
-    : IRequest<PurgeCapturedMessagesResponse>;
+    : ITenantScopedCommand, IRequest<PurgeCapturedMessagesResponse>;
 
 /// <param name="Purged">Quantos registros saíram. Zero é o desfecho normal.</param>
 public sealed record PurgeCapturedMessagesResponse(int Purged);
