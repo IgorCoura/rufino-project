@@ -68,6 +68,33 @@ public sealed class ApproveBillTests : BaseIntegrationTest, IDisposable
         Assert.Equal(ScheduleDate(), bill.ScheduledFor);
     }
 
+    // Regressão (auditoria 2026-08-28): a aprovação dispara o aprendizado de expectativa pelo
+    // outbox, e o repositório fazia Include sobre a coluna jsonb dos instrumentos — estourava em
+    // toda execução, a mensagem ia para dead-letter e o aprendizado nunca rodou em produção. Com
+    // beneficiário resolvido, o evento de aprovação tem que ser processado sem erro nenhum.
+    [Fact]
+    public async Task Approve_WithAResolvedPayee_ShouldLetTheExpectationLearningRunWithoutFailing()
+    {
+        await RegisterBeneficiaryAsPayeeAsync();
+        var billId = await ImportAndValidateAsync();
+        Assert.NotNull((await LoadAsync(billId)).PayeeId);
+
+        var response = await PostAsync($"{billId}/approve", new ApproveBillRequest(ScheduleDate(), null));
+        response.EnsureSuccessStatusCode();
+        await DrainOutboxAsync();
+
+        var deadLetters = await ExecuteDbContextAsync(db => db.OutboxDeadLetters.AsNoTracking().CountAsync());
+        var approvedEvents = await ExecuteDbContextAsync(db => db.OutboxMessages
+            .AsNoTracking()
+            .Where(m => m.EventType.EndsWith(nameof(BillApprovedDomainEvent)))
+            .ToListAsync());
+
+        Assert.Equal(0, deadLetters);
+        var approved = Assert.Single(approvedEvents);
+        Assert.True(approved.Processed);
+        Assert.Null(approved.Error);
+    }
+
     // ADR-007: sem identificar quem autoriza, não há aprovação. O domínio recusa (BLP.BIL22) e
     // o filtro traduz para 400.
     [Fact]
@@ -276,6 +303,16 @@ public sealed class ApproveBillTests : BaseIntegrationTest, IDisposable
 
         var body = await response.Content.ReadFromJsonAsync<ImportBillResponseContract>(CancellationToken.None);
         return body!.Id;
+    }
+
+    private async Task RegisterBeneficiaryAsPayeeAsync()
+    {
+        var response = await _client.PostAsJsonAsync(
+            new Uri($"/api/v1/{TenantId}/payees", UriKind.Relative),
+            new RegisterPayeeRequest(BeneficiaryName, BeneficiaryCnpj, "Unbounded", null, null, null, null),
+            CancellationToken.None);
+
+        response.EnsureSuccessStatusCode();
     }
 
     private async Task<Guid> ImportAndValidateAsync()

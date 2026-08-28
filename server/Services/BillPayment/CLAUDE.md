@@ -728,9 +728,39 @@ destravando, e a contraprova do tenant sem cadastro fiscal servindo o original i
 `Bills/BillArtifactTests`. **1.082 unitários + 524 de integração verdes**, análise estática limpa
 com `TreatWarningsAsErrors`.
 
+## 2026-08-28 (4) — Auditoria de arquitetura, segurança e testes: as correções
+
+Uma auditoria completa do BC (Clean Architecture, DDD, vulnerabilidades e qualidade das suítes)
+produziu um plano de correção em fases, cada uma com as duas suítes verdes e commit próprio.
+O que cada fase mudou e **por quê**, na ordem em que aterrissou:
+
+- **Fase 1 — o token do Graph e o aviso de caixa compartilhada.** A chave do cache de token era
+  o par público `directoryId/clientId`: outro tenant conectando a mesma caixa com segredo inválido
+  recebia o token quente do primeiro e lia a caixa dele. A chave virou o SHA-256 do trio. No mesmo
+  passo o usuário fechou a regra de isolamento: **um tenant nunca fica sabendo de outro** — saiu o
+  aviso `alreadyMonitoredByAnotherAccount`, a travessia `IsAddressMonitoredByAnyTenantAsync` e o
+  índice global de endereço (migração `DropCaptureSourceAddressGlobalIndex`); sobram **duas**
+  travessias (ver "Isolamento multi-tenant"). Cinco comandos que carregam CPF/CNPJ do pagador
+  (material da senha de PDF), o ponteiro da subconta Asaas e os e-mails de aviso viraram
+  `ISensitiveCommand`.
+- **Fase 2 — três bugs funcionais que a suíte não via.** (a) `BillRepository.ListByPayeeAsync`
+  fazia `Include` sobre `Instruments`, que é coluna `jsonb` e não navegação: estourava em toda
+  execução, e como o único chamador é o aprendizado de expectativa disparado pelo outbox, **a
+  auto-cura do ADR-014 nunca rodou em produção** — a mensagem ia para dead-letter em silêncio.
+  Regressão pela borda em `ApproveBillTests` (beneficiário cadastrado → aprova → drena → zero
+  dead-letters). (b) `BillExpectation` derivava a antecedência do prazo observado sem o teto da
+  recorrência: mensal com 28 dias observados derivava 30, e `Fulfill` lançava `BLP.EXP05` **depois**
+  de cumprir o ciclo em memória — a transação não salvava e a expectativa alertava "não chegou"
+  sobre um boleto aprovado. `DefaultAlertLead` virou instância e corta em `IntervalDays - 1`.
+  (c) A alçada de aprovação só era conferida quando havia consulta oficial: com o provedor fora,
+  bastava assumir o risco de Perigo para aprovar qualquer valor. `EnsureWithinApprovalLimit` usa
+  o valor oficial e, na falta dele, o **valor impresso no instrumento** (protegido por DV); com
+  teto e sem valor nenhum (QR estático sem campo 54), recusa com **`BLP.BIL30`** em vez de
+  presumir.
+
 ## Architecture — what is non-obvious
 
-Prefixos de erro: `SWK##` (SeedWork), `SHK.<VO>##` (SharedKernel), `BLP##` (BC transversal — hoje só `BLP01` TenantMismatch em `BillPaymentErrors.cs`), `BLP.<AGG>##` (Aggregate-specific — reserve a sigla do Aggregate ao criá-lo e registre aqui). **Siglas em uso**: `PRF` (PayerProfile, BLP.PRF01–10), `PYE` (Payee, BLP.PYE01–16), `ORG` (TrustedOrigin, BLP.ORG01–10), `BNK` (BankCode, SHK.BNK01–02), `DGL` (DigitableLine, BLP.DGL01–06), `PIX` (PixPayload, BLP.PIX01–04), `INS` (PaymentInstrument, BLP.INS01–03), `BIL` (Bill, BLP.BIL01–29), `LKP` (Lookups, BLP.LKP01–07), `SEC` (Secrets, BLP.SEC01–07), `CPS` (CaptureSource, BLP.CPS01–20), `CPI` (CaptureItem, BLP.CPI01–17), `MBX` (Mailboxes — VOs de leitura de caixa, BLP.MBX01–04), `EXT` (Extraction — VOs da cascata, BLP.EXT01–08), `EXP` (BillExpectation, BLP.EXP00–13), `NTF` (TenantNotificationSettings, BLP.NTF00–03), `CMS` (CapturedMessage, BLP.CMS01–08), `CRP` (CaptureRetentionPolicy, BLP.CRP01–02). **Reservada pelo design, ainda não codificada**: `PMO` (PaymentOrder). **`RTR` (RoutingRule) foi ABANDONADA na 2.6** — a medição mostrou que a chave que ela usaria não distingue pagadores; não recrie a sigla sem reabrir aquele achado. **`BLP.CPI04` é fixado pelo doc 07** (reivindicação que contradiz o pagador extraído) — não renumere a factory. Convenções:
+Prefixos de erro: `SWK##` (SeedWork), `SHK.<VO>##` (SharedKernel), `BLP##` (BC transversal — hoje só `BLP01` TenantMismatch em `BillPaymentErrors.cs`), `BLP.<AGG>##` (Aggregate-specific — reserve a sigla do Aggregate ao criá-lo e registre aqui). **Siglas em uso**: `PRF` (PayerProfile, BLP.PRF01–10), `PYE` (Payee, BLP.PYE01–16), `ORG` (TrustedOrigin, BLP.ORG01–10), `BNK` (BankCode, SHK.BNK01–02), `DGL` (DigitableLine, BLP.DGL01–06), `PIX` (PixPayload, BLP.PIX01–04), `INS` (PaymentInstrument, BLP.INS01–03), `BIL` (Bill, BLP.BIL01–30), `LKP` (Lookups, BLP.LKP01–07), `SEC` (Secrets, BLP.SEC01–07), `CPS` (CaptureSource, BLP.CPS01–20), `CPI` (CaptureItem, BLP.CPI01–17), `MBX` (Mailboxes — VOs de leitura de caixa, BLP.MBX01–04), `EXT` (Extraction — VOs da cascata, BLP.EXT01–08), `EXP` (BillExpectation, BLP.EXP00–13), `NTF` (TenantNotificationSettings, BLP.NTF00–03), `CMS` (CapturedMessage, BLP.CMS01–08), `CRP` (CaptureRetentionPolicy, BLP.CRP01–02). **Reservada pelo design, ainda não codificada**: `PMO` (PaymentOrder). **`RTR` (RoutingRule) foi ABANDONADA na 2.6** — a medição mostrou que a chave que ela usaria não distingue pagadores; não recrie a sigla sem reabrir aquele achado. **`BLP.CPI04` é fixado pelo doc 07** (reivindicação que contradiz o pagador extraído) — não renumere a factory. Convenções:
 
 - Aggregate Roots emitem Domain Events; Entities internas nunca.
 - **Portas de integração vão em `Domain/Ports/`** (pasta a criar na Fase 1, irmã de `SeedWork/`), não em `Domain/SeedWork/` — mesma razão (`Infra → Application` seria ciclo), mas separadas por serem contratos de mundo externo e não do modelo. Trafegam só tipos do Domain; nenhum DTO de provedor cruza a fronteira. Catálogo em [`02-domain-model.md`](BillPayment.Architecture/02-domain-model.md).

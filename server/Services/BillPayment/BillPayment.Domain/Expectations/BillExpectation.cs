@@ -314,7 +314,7 @@ public sealed class BillExpectation : AggregateRoot<BillExpectationId>
         expectation.SetLabel(label);
         expectation.SetExpectedDueDay(expectedDueDay);
         expectation.SetObservedLeadDays(observedLeadDays);
-        expectation.SetAlertLeadDays(alertLeadDays ?? DefaultAlertLead(expectation.ObservedLeadDays));
+        expectation.SetAlertLeadDays(alertLeadDays ?? expectation.DefaultAlertLead());
 
         expectation.CreatedAt = occurredAt;
         expectation.UpdatedAt = occurredAt;
@@ -365,7 +365,7 @@ public sealed class BillExpectation : AggregateRoot<BillExpectationId>
         // antecedência seria conferida contra o intervalo antigo — recusando valor válido, ou
         // aceitando valor que o novo intervalo não comporta.
         Recurrence = recurrence;
-        SetAlertLeadDays(alertLeadDays ?? DefaultAlertLead(ObservedLeadDays));
+        SetAlertLeadDays(alertLeadDays ?? DefaultAlertLead());
 
         if (CompetenceOf(anchorDueDate) is { } anchor)
             AnchorCompetence = anchor;
@@ -502,7 +502,7 @@ public sealed class BillExpectation : AggregateRoot<BillExpectationId>
 
         // O default acompanha o que foi aprendido; antecedência escolhida à mão não é sobrescrita.
         if (Origin == ExpectationOrigin.Learned)
-            SetAlertLeadDays(DefaultAlertLead(ObservedLeadDays));
+            SetAlertLeadDays(DefaultAlertLead());
 
         UpdatedAt = occurredAt;
 
@@ -749,8 +749,22 @@ public sealed class BillExpectation : AggregateRoot<BillExpectationId>
             throw BillExpectationErrors.Inactive();
     }
 
-    private static int DefaultAlertLead(int observedLeadDays)
-        => Math.Max(DEFAULT_MIN_ALERT_LEAD_DAYS, observedLeadDays + ALERT_LEAD_SLACK_DAYS);
+    /// <summary>
+    /// A antecedência derivada do prazo observado, já dentro do teto da recorrência.
+    /// </summary>
+    /// <remarks>
+    /// O teto do prazo observado é 180 dias (conta mensal que chega dois meses antes existe), mas
+    /// o alerta não pode passar de <c>IntervalDays - 1</c>. Sem o corte aqui, uma mensal com
+    /// prazo observado de 28 dias derivava 30, e <see cref="SetAlertLeadDays"/> lançava
+    /// <c>BLP.EXP05</c> de dentro de <see cref="Fulfill"/> — depois de o ciclo já ter sido
+    /// cumprido em memória. A transação não salvava, o boleto que chegou nunca cumpria o ciclo,
+    /// e a expectativa alertava "não chegou" sobre um boleto aprovado (auditoria 2026-08-28).
+    /// Lê <see cref="Recurrence"/>, então só vale depois de ela estar atribuída.
+    /// </remarks>
+    private int DefaultAlertLead()
+        => Math.Min(
+            Math.Max(DEFAULT_MIN_ALERT_LEAD_DAYS, ObservedLeadDays + ALERT_LEAD_SLACK_DAYS),
+            Recurrence.IntervalDays - 1);
 
     /// <summary>
     /// Média móvel simples sobre as observações já feitas. Com uma observação só, o valor novo

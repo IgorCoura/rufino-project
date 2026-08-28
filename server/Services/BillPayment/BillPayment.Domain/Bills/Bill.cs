@@ -490,9 +490,7 @@ public sealed class Bill : AggregateRoot<BillId>
         EnsureRiskIsAcknowledged(acknowledgeRisk);
         EnsureSnapshotIsFresh(policy, occurredAt);
         EnsureScheduleDateIsAllowed(scheduleFor, today);
-
-        if (PayableAmount is { } amount && !policy.Allows(amount))
-            throw BillErrors.AboveApprovalLimit(amount.Amount);
+        EnsureWithinApprovalLimit(policy);
 
         Approval = ApprovalRecord.Approve(approvedBy, occurredAt, note, Risk);
         ScheduledFor = scheduleFor;
@@ -570,6 +568,35 @@ public sealed class Bill : AggregateRoot<BillId>
         var age = new DateTimeOffset(occurredAt, TimeSpan.Zero) - consultedAt;
         if (age > policy.MaxSnapshotAge)
             throw BillErrors.StaleLookupSnapshot((int)age.TotalHours);
+    }
+
+    // O valor impresso no próprio instrumento — o da linha digitável é protegido por DV, o do
+    // BR Code pelo CRC. Reserva da alçada para quando a consulta oficial não resolveu.
+    private Money? DeclaredAmount
+        => _instruments
+            .Where(i => i.DeclaredAmount is not null)
+            .Select(i => i.DeclaredAmount!)
+            .MaxBy(m => m.Amount);
+
+    // A alçada vale com o valor oficial e, na falta dele, com o valor do instrumento. Até
+    // 2026-08-28 o teto só era conferido quando havia consulta oficial: com o provedor fora,
+    // o boleto ia a Perigo e bastava assumir o risco para aprovar qualquer valor — a alçada
+    // sumia exatamente no caso menos verificado. Sem valor nenhum e com teto, não há como
+    // aplicar a alçada, e a resposta certa é recusar, não presumir.
+    private void EnsureWithinApprovalLimit(ApprovalPolicy policy)
+    {
+        var amount = PayableAmount ?? DeclaredAmount;
+
+        if (amount is null)
+        {
+            if (policy.Limit is not null)
+                throw BillErrors.ApprovalLimitRequiresAmount();
+
+            return;
+        }
+
+        if (!policy.Allows(amount))
+            throw BillErrors.AboveApprovalLimit(amount.Amount);
     }
 
     private void EnsureScheduleDateIsAllowed(DateOnly scheduleFor, DateOnly today)

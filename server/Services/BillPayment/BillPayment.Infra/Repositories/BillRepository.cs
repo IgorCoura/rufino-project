@@ -58,9 +58,13 @@ internal sealed class BillRepository : IBillRepository
         PayeeId payeeId,
         int limit,
         CancellationToken cancellationToken = default)
+        // Sem Include: Instruments é coluna jsonb com HasConversion, não navegação, e um Include
+        // sobre ela estoura em runtime ("not a navigation property"). Ficou assim até 2026-08-28
+        // e o único chamador — o aprendizado de expectativa disparado pelo outbox — nunca rodou:
+        // a mensagem ia para dead-letter em silêncio. Checks é a única coleção owned, e é
+        // auto-incluída.
         => await _context.Bills
             .AsNoTracking()
-            .Include(b => b.Instruments)
             .Where(b => b.TenantId == tenantId && b.PayeeId == payeeId)
             .OrderByDescending(b => b.CreatedAt)
             .Take(limit)

@@ -2,6 +2,7 @@ namespace BillPayment.UnitTests.Bills;
 
 using BillPayment.Domain.Bills;
 using BillPayment.Domain.Bills.Checks;
+using BillPayment.Domain.Instruments;
 using BillPayment.Domain.SeedWork;
 using BillPayment.Domain.SharedKernel;
 using BillPayment.UnitTests.Bills.Mothers;
@@ -150,6 +151,58 @@ public class BillApprovalTests
         Assert.Equal("BLP.BIL24", ex.Id);
     }
 
+    // Regressão (auditoria 2026-08-28): sem consulta oficial a alçada era pulada — bastava
+    // assumir o risco de Perigo para aprovar qualquer valor. A reserva é o valor impresso no
+    // instrumento, protegido por DV: acima do teto, BLP.BIL24 mesmo sem retrato oficial.
+    [Fact]
+    public void Approve_WithALimitAndNoOfficialAmount_ShouldApplyTheLimitToTheInstrumentAmount()
+    {
+        var bill = DangerWithoutLookup();
+        var declared = bill.Instruments.Single().DeclaredAmount!.Amount;
+
+        var ex = Assert.Throws<DomainException>(() => bill.Approve(
+            Approver, ScheduleFor, null, Policy(limit: declared - 1), Today, DecidedAt, acknowledgeRisk: true));
+
+        Assert.Equal("BLP.BIL24", ex.Id);
+    }
+
+    // Contraprova: o mesmo boleto sem retrato oficial, com teto acima do valor impresso, aprova.
+    [Fact]
+    public void Approve_WithALimitAboveTheInstrumentAmountAndNoOfficialAmount_ShouldBeAllowed()
+    {
+        var bill = DangerWithoutLookup();
+        var declared = bill.Instruments.Single().DeclaredAmount!.Amount;
+
+        bill.Approve(Approver, ScheduleFor, null, Policy(limit: declared + 1), Today, DecidedAt, acknowledgeRisk: true);
+
+        Assert.Equal(BillStatus.Approved, bill.Status);
+    }
+
+    // Há teto e não há valor em lugar nenhum (QR estático sem campo 54, consulta oficial fora):
+    // aprovar seria aprovar sem alçada — BLP.BIL30. Quem tem teto precisa reconsultar antes.
+    [Fact]
+    public void Approve_WithALimitAndNoAmountAnywhere_ShouldThrow_BLP_BIL30()
+    {
+        var bill = DangerWithoutLookup(BillMother.Capture([StaticPixWithoutAmount()]));
+
+        var ex = Assert.Throws<DomainException>(() => bill.Approve(
+            Approver, ScheduleFor, null, Policy(limit: 100m), Today, DecidedAt, acknowledgeRisk: true));
+
+        Assert.Equal("BLP.BIL30", ex.Id);
+    }
+
+    // Contraprova do BIL30: sem teto, o mesmo boleto sem valor conhecido aprova — a alçada é do
+    // aprovador, e quem não tem teto não depende do valor.
+    [Fact]
+    public void Approve_WithoutALimitAndNoAmountAnywhere_ShouldBeAllowed()
+    {
+        var bill = DangerWithoutLookup(BillMother.Capture([StaticPixWithoutAmount()]));
+
+        bill.Approve(Approver, ScheduleFor, null, Policy(), Today, DecidedAt, acknowledgeRisk: true);
+
+        Assert.Equal(BillStatus.Approved, bill.Status);
+    }
+
     // Teto nulo significa sem teto, não zero.
     [Fact]
     public void Approve_WithoutAnyLimit_ShouldBeAllowedForAnyAmount()
@@ -265,6 +318,25 @@ public class BillApprovalTests
 
     private static ApprovalPolicy Policy(decimal? limit = null)
         => ApprovalPolicy.Default(limit is null ? null : new Money(limit.Value, Currency.BRL));
+
+    /// <summary>QR estático sem o campo 54 — o único instrumento que não carrega valor.</summary>
+    private static PaymentInstrument StaticPixWithoutAmount()
+        => PaymentInstrument.FromPixQr(PixPayload.Parse(
+            "00020126560014br.gov.bcb.pix0114112223330001810216conta de energia5204000053039865802BR5912SABESP TESTE6009SAO PAULO62070503***6304AF33"));
+
+    /// <summary>
+    /// Boleto verificado SEM consulta oficial: o provedor não respondeu, o check de
+    /// disponibilidade falhou e o risco é Perigo — o caso em que a alçada sumia.
+    /// </summary>
+    private static Bill DangerWithoutLookup(Bill? bill = null)
+    {
+        var target = bill ?? BillMother.Capture();
+        target.RecordChecks(
+            AllPassing(CheckResult.Failed(CheckType.LookupAvailability, CheckReasons.LOOKUP_UNAVAILABLE)),
+            DecidedAt);
+        target.PullDomainEvents();
+        return target;
+    }
 
     /// <summary>Boleto consultado, verificado e sem nenhuma pendência — pronto para decisão.</summary>
     private static Bill ReadyForApproval(Domain.Lookups.LookupSnapshot? snapshot = null)

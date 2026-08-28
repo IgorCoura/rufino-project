@@ -402,6 +402,21 @@ public static class BillErrors
             parameters: new object[] { contentType },
             sourcePath: BuildSourcePath(filePath, memberName, lineNumber));
 
+    /// <summary>
+    /// Há teto de alçada e nenhum valor para compará-lo — nem oficial, nem impresso no
+    /// instrumento (QR estático sem valor). Aprovar aqui seria aprovar sem alçada.
+    /// </summary>
+    public static DomainException ApprovalLimitRequiresAmount(
+        [CallerFilePath] string filePath = "",
+        [CallerMemberName] string memberName = "",
+        [CallerLineNumber] int lineNumber = 0)
+        => new(
+            id: $"{AGGREGATE_PREFIX}30",
+            messageTemplate: "Não dá para aplicar a alçada de aprovação: o boleto não tem valor conhecido. Refaça a consulta oficial antes de aprovar.",
+            parameters: [],
+            sourcePath: BuildSourcePath(filePath, memberName, lineNumber),
+            category: DomainErrorCategory.Conflict);
+
     private static string BuildSourcePath(string filePath, string memberName, int lineNumber)
         => $"{Path.GetFileName(filePath)}:{lineNumber} ({memberName})";
 }

@@ -49,6 +49,46 @@ public class BillExpectationTests
         Assert.Equal("BLP.EXP05", ex.Id);
     }
 
+    // Regressão (auditoria 2026-08-28): o prazo observado pode chegar a 180 dias, mas a
+    // antecedência derivada dele NÃO pode passar do teto da recorrência. Uma mensal aprendida com
+    // 28 dias observados derivava 30 e explodia em BLP.EXP05 dentro do próprio aprendizado.
+    [Fact]
+    public void Learn_WithAnObservedLeadNearTheRecurrence_ShouldCapTheAlertLeadInsteadOfThrowing()
+    {
+        var expectation = BillExpectation.Learn(
+            BillExpectationMother.DefaultTenant,
+            BillExpectationMother.DefaultPayee,
+            "EDP",
+            Recurrence.Monthly,
+            expectedDueDay: 10,
+            observedLeadDays: 28,
+            observationCount: 3,
+            anchorCompetence: null,
+            hintSourceId: null,
+            OccurredAt);
+
+        Assert.Equal(28, expectation.ObservedLeadDays);
+        Assert.Equal(Recurrence.Monthly.IntervalDays - 1, expectation.AlertLeadDays);
+    }
+
+    // Regressão (auditoria 2026-08-28): a média móvel do prazo pode empurrar a antecedência
+    // derivada acima do teto — e a exceção saía DEPOIS de o ciclo ter sido cumprido em memória,
+    // então a transação não salvava e o boleto que chegou nunca cumpria o ciclo. Agora o
+    // cumprimento fecha o ciclo e a antecedência para no teto.
+    [Fact]
+    public void Fulfill_WhenTheRelearnedLeadWouldExceedTheRecurrence_ShouldCapItAndStillFulfill()
+    {
+        var expectation = BillExpectationMother.Learned();
+        var cycle = expectation.OpenCycle(new CompetencePeriod(2026, 8), OccurredAt);
+        var arrivedOn = cycle.ExpectedDueDate.AddDays(-94);
+
+        expectation.Fulfill(cycle.Id, AnyBill, cycle.ExpectedDueDate, arrivedOn, arrivedThrough: null, OccurredAt);
+
+        Assert.Same(CycleStatus.Fulfilled, cycle.Status);
+        Assert.True(expectation.ObservedLeadDays + BillExpectation.ALERT_LEAD_SLACK_DAYS > Recurrence.Monthly.IntervalDays - 1);
+        Assert.Equal(Recurrence.Monthly.IntervalDays - 1, expectation.AlertLeadDays);
+    }
+
     // Referência de conta ausente vira string vazia, nunca nulo: ela entra num índice único, e no
     // Postgres NULL não colide com NULL — duas expectativas sem referência passariam pelo banco.
     [Fact]
