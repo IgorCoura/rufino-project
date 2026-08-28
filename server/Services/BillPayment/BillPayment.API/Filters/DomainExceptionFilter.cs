@@ -43,6 +43,25 @@ public sealed class DomainExceptionFilter(ILogger<DomainExceptionFilter> logger)
             return;
         }
 
+        if (context.Exception is ConcurrencyConflictException conflict)
+        {
+            // Duas pessoas decidiram sobre o mesmo registro ao mesmo tempo: a segunda perde e
+            // precisa recarregar. Information, como a recusa de domínio — é o sistema protegendo
+            // a decisão da primeira, não um defeito.
+            if (logger.IsEnabled(LogLevel.Information))
+                logger.LogInformation(
+                    "----- Concurrency conflict: {Message} - Path: {Path} -----",
+                    conflict.Message,
+                    context.HttpContext.Request.Path);
+
+            context.Result = new ObjectResult(new { id = "APP.CONCURRENCY", message = conflict.Message })
+            {
+                StatusCode = StatusCodes.Status409Conflict,
+            };
+            context.ExceptionHandled = true;
+            return;
+        }
+
         if (context.Exception is InvalidOperationException invalidOp)
         {
             // Warning: vira 400 para quem chamou, mas a origem é a orquestração da Application —

@@ -775,6 +775,17 @@ O que cada fase mudou e **por quê**, na ordem em que aterrissou:
   reescreve em cima do que existe" em "what is non-obvious". Erros novos `BLP.CMS11`/`CMS12`;
   `BillStatus.IsCommittedToPayment`; `ICaptureItemRepository.ListByMessageAsync`; o comando leva
   `RequestedBy` (do `sub`) porque cancelar boleto exige autor (ADR-007).
+- **Fase 6 — concorrência otimista.** Nenhum agregado tinha token de concorrência: dois
+  aprovadores simultâneos liam `AwaitingApproval`, ambos gravavam `Approved` e **dois**
+  `BillApprovedDomainEvent` entravam no outbox — na fase de pagamento, dois pagamentos. O `xmin`
+  do Postgres virou token em `bills`, `capture_items`, `capture_sources` e `bill_expectations`
+  (migração `OptimisticConcurrencyTokens`, sem DDL real — coluna de sistema); a Infra traduz
+  `DbUpdateConcurrencyException` para **`ConcurrencyConflictException`** (SeedWork) no
+  `SaveEntitiesAsync`, e o `DomainExceptionFilter` a devolve como **409 `APP.CONCURRENCY`**.
+  Regressão: `ApproveBillTests.Approve_Concurrently_…` dispara quatro aprovações em paralelo e
+  exige um 200, três 409 e **um** evento no outbox. Armadilha registrada em `gotchas.md`:
+  `UPDATE … RETURNING *` não devolve `xmin`, e a reivindicação da fila de captura precisou de
+  `RETURNING *, xmin`.
 
 ## Architecture — what is non-obvious
 
@@ -1022,7 +1033,7 @@ Prefixos de erro: `SWK##` (SeedWork), `SHK.<VO>##` (SharedKernel), `BLP##` (BC t
 - **Outbox consumer (in-process, Domain puro)**: `OutboxBackgroundService` (registrado só quando `Outbox:Enabled=true` — ver `OutboxOptions`) faz polling e delega ao `OutboxProcessor`. Claim de uma mensagem por vez via `SELECT … FOR UPDATE SKIP LOCKED`, uma transação por mensagem (envolta em `ExecutionStrategy`), desserialização via `IOutboxEventTypeResolver` (singleton indexando `IDomainEvent` do assembly do Domain por `FullName`), dispatch por `IDomainEventDispatcher` (porta no Domain, impl na Infra, sem MediatR), marca `processed=true` e commita. Handlers que só tocam o próprio banco são effectively-once; efeito externo é at-least-once e deve ser idempotente.
 - **Dead-letter + retry**: falha incrementa `attempts`/`error`; em `OutboxOptions.MaxAttempts` a mensagem é movida para `outbox_dead_letters`. `CleanupAsync` purga `processed=true` além de `RetentionDays`. Ordem não garantida sob paralelismo; ao escalar horizontalmente, rode o worker em **um** deployment (`Outbox:Enabled`).
 - **`IDomainEventHandler<T>` / `IDomainEventDispatcher`** são portas puras em `Domain/SeedWork` (`Infra → Application` não existe — seria ciclo). Impl e handlers vivem na Infra (`Outbox/`); registre cada handler como `IDomainEventHandler<TEvent>` em `InfraDependencies.AddOutbox`.
-- **DomainExceptionFilter** handles `DomainException` (from Domain) and `InvalidOperationException` (from Application). HTTP status is driven by `DomainException.Category` (`DomainErrorCategory`): `Validation` → 400, `Conflict` → 409, `NotFound` → 404. Error factories pass the category; the filter has no hardcoded error codes.
+- **DomainExceptionFilter** handles `DomainException` (from Domain), `ConcurrencyConflictException` (SeedWork, lançada pela Infra quando o `xmin` mudou — **409 `APP.CONCURRENCY`**) and `InvalidOperationException` (from Application). HTTP status is driven by `DomainException.Category` (`DomainErrorCategory`): `Validation` → 400, `Conflict` → 409, `NotFound` → 404. Error factories pass the category; the filter has no hardcoded error codes.
 - **Query side (CQRS) — exceção autorizada de dependência**: `BillPayment.Application.csproj` referencia **BillPayment.Infra** exclusivamente para o query side (padrão eShop `IOrderQueries`): interface `IXxxQueries` + impl com `AsNoTracking` em `Application/Queries/`, **injetadas direto no controller, sem mediator**. Commands continuam 100% via mediator + `IdentifiedCommand`. **Não "corrigir" essa referência Application → Infra** — é decisão deliberada do BC; consequência: `Infra → Application` não pode existir (ciclo), por isso as portas que a Infra implementa vivem em `Domain/SeedWork`. (Sem queries no esqueleto ainda.)
 - **TenantId via rota**: controllers multi-tenant usam `[Route("api/v1/{tenantId}/[controller]")]` e recebem `[FromRoute] Guid tenantId`. Será validado contra JWT em fase futura (Keycloak).
 - **Nada além de endpoint mora em `API/Controllers/`.** Model HTTP vive em `Application/Models/<Aggregate>/<Aggregate>Models.cs`; DTO de leitura vive em `Application/Queries/<Aggregate>/<Aggregate>Dtos.cs`, **fora** do arquivo da interface `IXxxQueries`. O Model existe porque o `tenantId` vem da rota e não pode vir do corpo (vetor de IDOR), e **todo** Model expõe `ToCommand(tenantId, ...)` — o controller nunca monta um Command com `new`, senão a composição vaza de volta para a borda HTTP e o arquivo volta a crescer.

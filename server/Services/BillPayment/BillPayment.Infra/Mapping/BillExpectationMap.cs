@@ -18,6 +18,10 @@ internal sealed class BillExpectationMap : IEntityTypeConfiguration<BillExpectat
     {
         builder.ToTable("bill_expectations");
 
+        // xmin como token de concorrência (ver BillMap): a varredura e o cumprimento pelo boleto
+        // não gravam um em cima do outro.
+        builder.Property<uint>("xmin").IsRowVersion();
+
         builder.HasKey(e => e.Id);
         builder.Property(e => e.Id)
             .HasColumnName("id")

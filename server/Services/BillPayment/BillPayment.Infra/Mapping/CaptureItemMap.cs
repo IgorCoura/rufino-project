@@ -14,6 +14,11 @@ internal sealed class CaptureItemMap : IEntityTypeConfiguration<CaptureItem>
     {
         builder.ToTable("capture_items");
 
+        // xmin como token de concorrência: reivindicação e processamento não gravam um em cima do
+        // outro (ver o comentário em BillMap). A reivindicação da fila é SQL cru e não passa por
+        // aqui — o token protege as mutações pelo change tracker.
+        builder.Property<uint>("xmin").IsRowVersion();
+
         builder.HasKey(e => e.Id);
         builder.Property(e => e.Id)
             .HasColumnName("id")

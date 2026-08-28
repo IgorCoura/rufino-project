@@ -654,3 +654,16 @@ tentativa.
 `RemoveAsync` no `catch`, com `CancellationToken.None`, porque desistir da limpeza porque o request
 foi cancelado é justamente o que produz o órfão. Compare com `ConnectCaptureSourceCommandHandler`,
 que não precisa disso: lá o cofre grava pelo mesmo `DbContext`, e a unidade de trabalho desfaz tudo.
+
+## `UPDATE … RETURNING *` não devolve o `xmin` que o token de concorrência exige (2026-08-28)
+
+**O que aconteceu:** ao ligar `builder.Property<uint>("xmin").IsRowVersion()` em `capture_items`, os
+oito testes da fila de captura caíram com `The underlying reader doesn't have as many fields as
+expected. Expected: 32, actual: 31`. A reivindicação da fila é `FromSqlRaw` com
+`UPDATE … RETURNING *`, e `*` devolve as colunas da tabela — **coluna de sistema não entra**. O EF
+materializa o agregado esperando o campo a mais e não encontra.
+
+**A regra:** todo SQL cru que materializa um agregado com token `xmin` devolve `RETURNING *, xmin`
+(ou lista as colunas). Projeção sem tipo de entidade (o ADO direto de `BillReadingWorkQueries`)
+não sofre disso — não há o que materializar. Ao acrescentar token a um agregado novo, procure por
+`FromSql` sobre ele antes de rodar a suíte.

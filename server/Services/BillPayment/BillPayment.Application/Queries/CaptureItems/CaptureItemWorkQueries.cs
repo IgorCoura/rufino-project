@@ -67,7 +67,9 @@ internal sealed class CaptureItemWorkQueries(BillPaymentDbContext context, TimeP
             + $"SELECT id FROM {schema}.capture_items "
             + "WHERE status = {2} AND (lease_expires_at IS NULL OR lease_expires_at <= {1}) "
             + "ORDER BY received_at, id LIMIT {3} FOR UPDATE SKIP LOCKED) "
-            + "RETURNING *";
+            // xmin é o token de concorrência do agregado (coluna de sistema): RETURNING * não a
+            // devolve, e o EF materializa o item esperando esse campo a mais.
+            + "RETURNING *, xmin";
 
         var now = clock.GetUtcNow().UtcDateTime;
 

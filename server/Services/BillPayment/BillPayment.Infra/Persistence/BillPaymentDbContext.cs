@@ -82,7 +82,18 @@ public sealed class BillPaymentDbContext : DbContext, IUnitOfWork
 
         // Mensagens de outbox e efeito entram na MESMA transação implícita do SaveChanges.
         // É isso que torna a publicação atômica com a mutação: ou os dois existem, ou nenhum.
-        return await base.SaveChangesAsync(cancellationToken);
+        try
+        {
+            return await base.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateConcurrencyException ex)
+        {
+            // O xmin mudou entre a leitura e a gravação: outra operação venceu. Sobe como tipo do
+            // SeedWork para a Application e a API não conhecerem exceção de EF — a API traduz
+            // para 409, e o worker trata como qualquer falha reprocessável.
+            throw new ConcurrencyConflictException(
+                "Este registro foi alterado por outra operação. Recarregue e tente de novo.", ex);
+        }
     }
 
     /// <summary>

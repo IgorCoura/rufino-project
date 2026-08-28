@@ -20,6 +20,12 @@ internal sealed class BillMap : IEntityTypeConfiguration<Bill>
     {
         builder.ToTable("bills");
 
+        // Token de concorrência otimista sobre o xmin do Postgres — coluna de sistema, sem
+        // migração de schema. Sem ele, dois aprovadores simultâneos gravavam Approved e dois
+        // eventos de aprovação entravam no outbox (auditoria 2026-08-28). A Infra traduz a
+        // colisão para ConcurrencyConflictException, e a API para 409.
+        builder.Property<uint>("xmin").IsRowVersion();
+
         builder.HasKey(e => e.Id);
         builder.Property(e => e.Id)
             .HasColumnName("id")

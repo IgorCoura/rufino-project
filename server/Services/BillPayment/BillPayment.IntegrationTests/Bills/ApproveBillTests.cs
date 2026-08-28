@@ -95,6 +95,32 @@ public sealed class ApproveBillTests : BaseIntegrationTest, IDisposable
         Assert.Null(approved.Error);
     }
 
+    // Regressão (auditoria 2026-08-28): sem token de concorrência, aprovadores simultâneos liam
+    // AwaitingApproval, todos gravavam Approved e VÁRIOS eventos de aprovação entravam no outbox
+    // — na fase de pagamento, vários pagamentos. Agora exatamente um vence; os outros recebem
+    // 409 (pelo xmin, ou pela guarda de situação se leram depois do commit), e o outbox tem UM
+    // evento de aprovação.
+    [Fact]
+    public async Task Approve_Concurrently_ShouldLetExactlyOneWinAndEmitASingleApprovedEvent()
+    {
+        var billId = await ImportAndValidateAsync();
+        var payload = new ApproveBillRequest(ScheduleDate(), null);
+
+        var attempts = await Task.WhenAll(
+            Enumerable.Range(0, 4).Select(_ => PostAsync($"{billId}/approve", payload)));
+
+        var statuses = attempts.Select(r => r.StatusCode).ToList();
+        Assert.Equal(1, statuses.Count(s => s == HttpStatusCode.OK));
+        Assert.All(statuses.Where(s => s != HttpStatusCode.OK), s => Assert.Equal(HttpStatusCode.Conflict, s));
+
+        var approvedEvents = await ExecuteDbContextAsync(db => db.OutboxMessages
+            .AsNoTracking()
+            .CountAsync(m => m.EventType.EndsWith(nameof(BillApprovedDomainEvent))));
+
+        Assert.Equal(1, approvedEvents);
+        Assert.Same(BillStatus.Approved, (await LoadAsync(billId)).Status);
+    }
+
     // ADR-007: sem identificar quem autoriza, não há aprovação. O domínio recusa (BLP.BIL22) e
     // o filtro traduz para 400.
     [Fact]

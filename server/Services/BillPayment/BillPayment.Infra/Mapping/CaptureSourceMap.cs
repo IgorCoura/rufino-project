@@ -12,6 +12,10 @@ internal sealed class CaptureSourceMap : IEntityTypeConfiguration<CaptureSource>
     {
         builder.ToTable("capture_sources");
 
+        // xmin como token de concorrência (ver BillMap): a varredura e uma edição de cadastro não
+        // sobrescrevem o cursor uma da outra em silêncio.
+        builder.Property<uint>("xmin").IsRowVersion();
+
         builder.HasKey(e => e.Id);
         builder.Property(e => e.Id)
             .HasColumnName("id")
