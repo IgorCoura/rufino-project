@@ -128,7 +128,7 @@ public class BillApprovalTests
 
     // Invariante 5, o outro lado: o piso do provedor também vale.
     [Fact]
-    public void Approve_BeforeTheProviderMinimumDate_ShouldThrow_BLP_BIL05()
+    public void Approve_BeforeTheProviderMinimumDate_ShouldThrow_BLP_BIL31()
     {
         var minimum = Today.AddDays(3);
         var bill = ReadyForApproval(ValidationMother.ConsistentWithBarcode(minimumScheduleDate: minimum));
@@ -136,7 +136,7 @@ public class BillApprovalTests
         var ex = Assert.Throws<DomainException>(() => bill.Approve(
             Approver, Today.AddDays(1), null, Policy(), Today, DecidedAt));
 
-        Assert.Equal("BLP.BIL05", ex.Id);
+        Assert.Equal("BLP.BIL31", ex.Id);
     }
 
     // Alçada: o mesmo boleto pode ser aprovável por uma pessoa e não por outra — BLP.BIL24.

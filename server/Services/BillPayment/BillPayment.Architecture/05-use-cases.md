@@ -1,5 +1,7 @@
 # 05 — Casos de uso e contratos de API
 
+> **Revisão 2026-08-28 (auditoria).** O que este documento descreve e o código NÃO implementa assim: `POST /bills/{id}/validate` existe como **`/revalidate`**; a conexão da caixa **não tem fluxo OAuth por redirect** (`GET /capture-sources/{id}/authorize` + callback) — a credencial é o trio `client credentials` no corpo do `POST /capture-sources`, com prova de acesso (ADR-006); `POST /capture-items/{id}/promote` não existe (o caminho é `/claim`, e o anexo manual é `POST /capture-items/{id}/artifact`); `/routing-rules` não existe (o Aggregate foi abandonado na 2.6). O `POST /bills/import` responde **200**, não 201, e a forma JSON não aceita `storageKey`/`contentHash`. O estado real vive no CLAUDE.md.
+
 Convenções: rota `api/v1/{tenantId}/[controller]`, comandos de escrita embrulhados em `IdentifiedCommand` com header `x-requestid`, leitura por `IXxxQueries` injetada direto no controller (sem mediator). Autorização granular via `[ProtectedResource(recurso, ação)]` — **plugada em 2026-08-15**, nos endpoints existentes — **57** depois dos dois de documento original (2026-08-19).
 
 ## Recursos e ações de autorização

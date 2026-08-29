@@ -264,8 +264,10 @@ public static class BillErrors
         [CallerFilePath] string filePath = "",
         [CallerMemberName] string memberName = "",
         [CallerLineNumber] int lineNumber = 0)
+        // BIL31, e não BIL05: partilhava o id com ScheduleDateInThePast até 2026-08-28, e a UI
+        // que traduz por id não distinguia "ontem" de "antes do que o provedor aceita".
         => new(
-            id: $"{AGGREGATE_PREFIX}05",
+            id: $"{AGGREGATE_PREFIX}31",
             messageTemplate: "A data de pagamento {0} é anterior à primeira data que o provedor aceita ({1}).",
             parameters: new object[] { scheduleFor, minimum },
             sourcePath: BuildSourcePath(filePath, memberName, lineNumber));

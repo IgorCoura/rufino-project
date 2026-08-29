@@ -42,9 +42,9 @@ public static class ApplicationDependencies
         // Mediator próprio (sem MediatR) — escaneia handlers e behaviors do assembly da Application.
         services.AddCustomMediator(typeof(ApplicationDependencies).Assembly);
 
-        // LoggingBehavior é o behavior mais externo e o único ativo nesta fase. RegisterLatePaymentEvent
-        // é o único command multi-aggregate (marker IMultiAggregateCommand) e segue sem TransactionBehavior
-        // porque há exatamente um SaveEntitiesAsync por handler — a transação implícita do EF cobre tudo.
+        // LoggingBehavior é o behavior mais externo e o único ativo. Os commands marcados com
+        // IMultiAggregateCommand (seis, listados no CLAUDE.md) seguem sem TransactionBehavior porque há
+        // exatamente um SaveEntitiesAsync por handler — a transação implícita do EF cobre tudo.
         // IRequestManager (idempotência) é registrado na Infra, onde vive sua implementação sobre o DbContext.
         services.AddScoped(typeof(IPipelineBehavior<,>), typeof(LoggingBehavior<,>));
 
