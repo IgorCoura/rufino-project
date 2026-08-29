@@ -1,6 +1,7 @@
 ﻿namespace BillPayment.API.Controllers;
 
 using BillPayment.API.Authorization;
+using BillPayment.API.Extension;
 using BillPayment.Application.CaptureItems.Commands;
 using BillPayment.Application.Mediator;
 using BillPayment.Application.Models.CaptureItems;
@@ -8,6 +9,7 @@ using BillPayment.Application.Queries.CaptureItems;
 using BillPayment.Application.Queries.CapturedMessages;
 using BillPayment.Domain.Extraction;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 
 /// <summary>
 /// Itens capturados do tenant, incluindo a quarentena.
@@ -126,6 +128,7 @@ public sealed class CaptureItemsController(
     /// </para>
     /// </remarks>
     [HttpPost("{id:guid}/reprocess")]
+    [EnableRateLimiting(RateLimitingExtensions.EXPENSIVE_POLICY)]
     [ProtectedResource("capture-item", "reprocess")]
     public async Task<ActionResult<ReprocessCaptureItemResponse>> Reprocess(
         [FromRoute] Guid tenantId,
@@ -223,6 +226,7 @@ public sealed class CaptureItemsController(
     /// devolve aqui; daí em diante o fluxo é o de sempre: cascata, roteamento e aprovação.
     /// </remarks>
     [HttpPost("{id:guid}/artifact")]
+    [EnableRateLimiting(RateLimitingExtensions.EXPENSIVE_POLICY)]
     [ProtectedResource("capture-item", "reprocess")]
     [RequestSizeLimit(DocumentPayload.MAX_BYTES)]
     public async Task<ActionResult<AttachCaptureItemArtifactResponse>> AttachArtifact(

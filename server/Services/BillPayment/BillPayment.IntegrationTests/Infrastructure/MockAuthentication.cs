@@ -98,7 +98,11 @@ public sealed class MockPolicyProvider(BillPayment.API.Authorization.Authorizati
             .RequireAuthenticatedUser()
             .Build());
 
-    public Task<AuthorizationPolicy?> GetFallbackPolicyAsync() => Task.FromResult<AuthorizationPolicy?>(null);
+    // Espelha a produção: endpoint sem atributo exige autenticação (fallback fechado).
+    public Task<AuthorizationPolicy?> GetFallbackPolicyAsync()
+        => Task.FromResult<AuthorizationPolicy?>(new AuthorizationPolicyBuilder(MockAuthenticationHandler.AuthScheme)
+            .RequireAuthenticatedUser()
+            .Build());
 
     public Task<AuthorizationPolicy?> GetPolicyAsync(string policyName)
     {

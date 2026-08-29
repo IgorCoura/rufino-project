@@ -1,11 +1,13 @@
 namespace BillPayment.API.Controllers;
 
 using BillPayment.API.Authorization;
+using BillPayment.API.Extension;
 using BillPayment.Application.CaptureSources.Commands;
 using BillPayment.Application.Mediator;
 using BillPayment.Application.Models.CaptureSources;
 using BillPayment.Application.Queries.CaptureSources;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 
 /// <summary>
 /// Fontes de captura do tenant — as caixas de e-mail monitoradas.
@@ -204,6 +206,7 @@ public sealed class CaptureSourcesController(
     /// nos testes, como o worker do outbox.
     /// </remarks>
     [HttpPost("{id:guid}/sync")]
+    [EnableRateLimiting(RateLimitingExtensions.EXPENSIVE_POLICY)]
     [ProtectedResource("capture-source", "sync")]
     public async Task<ActionResult<SyncCaptureSourceResponse>> Sync(
         [FromRoute] Guid tenantId,
@@ -286,6 +289,7 @@ public sealed class CaptureSourcesController(
     /// a ingestão é idempotente por <c>(tenant, fonte, mensagem, anexo)</c>.
     /// </remarks>
     [HttpPost("{id:guid}/rescan")]
+    [EnableRateLimiting(RateLimitingExtensions.EXPENSIVE_POLICY)]
     [ProtectedResource("capture-source", "sync")]
     public async Task<ActionResult<RescanCaptureSourceResponse>> Rescan(
         [FromRoute] Guid tenantId,

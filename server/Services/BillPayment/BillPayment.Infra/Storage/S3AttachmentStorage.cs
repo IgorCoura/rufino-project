@@ -144,8 +144,12 @@ internal sealed class S3AttachmentStorage(
     /// </remarks>
     private static void EnsureBelongsToTenant(TenantId tenantId, string storageKey)
     {
+        // FileNotFound, e não UnauthorizedAccess: para quem pergunta por um tenant, chave de
+        // outro tenant e chave inexistente são a mesma coisa (404 uniforme, ADR-008). A
+        // UnauthorizedAccessException subia como 500 pela API e ainda confirmava que a chave
+        // existia em algum lugar.
         if (!storageKey.StartsWith(Prefix(tenantId), StringComparison.Ordinal))
-            throw new UnauthorizedAccessException("A chave de armazenamento não pertence a este tenant.");
+            throw new FileNotFoundException("Artefato não encontrado para este tenant.");
     }
 
     /// <summary>

@@ -37,6 +37,9 @@ public sealed class IntegrationTestWebAppFactory : WebApplicationFactory<Program
         // Disable the polling worker in tests so the outbox is driven deterministically via IOutboxProcessor.
         builder.UseSetting("Outbox:Enabled", "false");
 
+        // A suíte bate no mesmo usuário centenas de vezes por minuto; o limitador tem host próprio.
+        builder.UseSetting("RateLimiting:Enabled", "false");
+
         // Master key descartável, gerada por execução. O cofre precisa de uma para existir, e
         // a suíte não pode depender de segredo de máquina nem carregar um valor versionado.
         // Nenhuma chave do Asaas é configurada de propósito: os testes não devem ter

@@ -1,10 +1,12 @@
 namespace BillPayment.API.Controllers;
 
 using BillPayment.API.Authorization;
+using BillPayment.API.Extension;
 using BillPayment.Application.CapturedMessages.Commands;
 using BillPayment.Application.Mediator;
 using BillPayment.Application.Queries.CapturedMessages;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 
 /// <summary>
 /// O livro-caixa da captura: todo e-mail lido, e o que o sistema decidiu sobre cada anexo.
@@ -108,6 +110,7 @@ public sealed class CapturedMessagesController(
     /// </para>
     /// </remarks>
     [HttpPost("{id:guid}/recapture")]
+    [EnableRateLimiting(RateLimitingExtensions.EXPENSIVE_POLICY)]
     [ProtectedResource("captured-message", "recapture")]
     public async Task<ActionResult<RecaptureMessageResponse>> Recapture(
         [FromRoute] Guid tenantId,

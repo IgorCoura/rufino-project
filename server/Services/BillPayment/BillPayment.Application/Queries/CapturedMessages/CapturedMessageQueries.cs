@@ -8,6 +8,7 @@ using BillPayment.Domain.CaptureSources;
 using BillPayment.Domain.Ports;
 using BillPayment.Domain.SeedWork;
 using BillPayment.Domain.SharedKernel;
+using BillPayment.Infra.Extraction;
 using BillPayment.Infra.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -393,15 +394,24 @@ internal sealed class CapturedMessageQueries(
             : null;
     }
 
+    // HTML sai sanitizado — o remetente é a internet, e a API não pode entregar conteúdo ativo
+    // para a tela do tenant (auditoria 2026-08-28). O que está GUARDADO continua sendo o original.
     private static CapturedMessageBodyDto ToBodyDto(
         CapturedMessage message,
         string contentType,
         ReadOnlyMemory<byte> content)
-        => new(
+    {
+        var text = Encoding.UTF8.GetString(content.Span);
+
+        if (contentType.StartsWith("text/html", StringComparison.OrdinalIgnoreCase))
+            text = EmailBodySanitizer.Sanitize(text);
+
+        return new(
             message.Id.Value,
             message.Sender,
             message.Subject,
             message.ReceivedAt,
             contentType,
-            Encoding.UTF8.GetString(content.Span));
+            text);
+    }
 }

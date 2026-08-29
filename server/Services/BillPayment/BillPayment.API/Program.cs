@@ -23,6 +23,7 @@ builder.Services.AddCorsForFront(builder.Configuration, builder.Environment);
 // tempo de execução a partir de [ProtectedResource]. Os papéis vivem no realm, não aqui.
 builder.Services.AddKeycloakAuthentication(builder.Configuration);
 builder.Services.AddKeycloakAuthorization(builder.Configuration);
+builder.Services.AddApiRateLimiting(builder.Configuration);
 
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddOpenApiWithBearer();
@@ -85,14 +86,31 @@ using (var scope = app.Services.CreateScope())
 
 if (app.Environment.IsDevelopment())
 {
-    app.MapOpenApi();
+    // AllowAnonymous explícito: desde 2026-08-28 o fallback de autorização exige autenticação em
+    // todo endpoint sem atributo, e o documento OpenAPI precisa continuar acessível ao Swagger UI.
+    app.MapOpenApi().AllowAnonymous();
     app.UseSwaggerUI(options =>
     {
         options.SwaggerEndpoint("/openapi/v1.json", "BillPayment API");
     });
 
-    app.MapGet("/", () => Results.LocalRedirect("~/swagger")).ExcludeFromDescription();
+    app.MapGet("/", () => Results.LocalRedirect("~/swagger")).ExcludeFromDescription().AllowAnonymous();
 }
+else
+{
+    app.UseHsts();
+}
+
+// Cabeçalhos de segurança em toda resposta. nosniff é o que importa: os endpoints de documento
+// servem o tipo de mídia que o REMETENTE declarou, e sem ele o navegador poderia "adivinhar"
+// HTML num anexo e executá-lo. Os outros dois fecham o que uma API não precisa deixar aberto.
+app.Use(async (context, next) =>
+{
+    context.Response.Headers["X-Content-Type-Options"] = "nosniff";
+    context.Response.Headers["X-Frame-Options"] = "DENY";
+    context.Response.Headers["Referrer-Policy"] = "no-referrer";
+    await next();
+});
 
 app.UseCors();
 
@@ -100,6 +118,9 @@ app.UseCors();
 // reprova — ou pior, o guard de rota acha claim nenhum e o 403 lê como falta de permissão.
 app.UseAuthentication();
 app.UseAuthorization();
+
+// Depois da autenticação, porque a partição do limitador é o sub do token.
+app.UseApiRateLimiting();
 app.MapControllers();
 
 await app.RunAsync();

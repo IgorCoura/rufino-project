@@ -50,7 +50,7 @@ public abstract class Enumeration : IComparable
 
     private static T Parse<T, K>(K value, string description, Func<T, bool> predicate) where T : Enumeration
         => GetAll<T>().FirstOrDefault(predicate)
-           ?? throw new InvalidOperationException($"'{value}' is not a valid {description} in {typeof(T)}");
+           ?? throw new EnumerationNotFoundException($"'{value}' is not a valid {description} in {typeof(T)}");
 
     private static T? TryParse<T, K>(Func<T, bool> predicate) where T : Enumeration
         => GetAll<T>().FirstOrDefault(predicate);

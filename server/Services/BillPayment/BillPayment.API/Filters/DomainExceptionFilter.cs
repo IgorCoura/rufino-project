@@ -62,20 +62,52 @@ public sealed class DomainExceptionFilter(ILogger<DomainExceptionFilter> logger)
             return;
         }
 
-        if (context.Exception is InvalidOperationException invalidOp)
+        if (context.Exception is EnumerationNotFoundException invalidInput)
         {
-            // Warning: vira 400 para quem chamou, mas a origem é a orquestração da Application —
-            // vale olhar, ao contrário da recusa de domínio.
+            // SÓ o Smart Enum que não casou vira 400 — é a tradução de input do handler
+            // ("SourceKind", "Kind"). Até 2026-08-28 qualquer InvalidOperationException entrava
+            // aqui, inclusive as internas do EF Core, com a mensagem crua no corpo da resposta.
+            // As demais seguem para o middleware, que as registra em Error e devolve 500 opaco.
             if (logger.IsEnabled(LogLevel.Warning))
                 logger.LogWarning(
-                    invalidOp,
+                    invalidInput,
                     "----- Application refused: {Message} - Path: {Path} -----",
-                    invalidOp.Message,
+                    invalidInput.Message,
                     context.HttpContext.Request.Path);
 
-            context.Result = new ObjectResult(new { id = "APP.ERR", message = invalidOp.Message })
+            context.Result = new ObjectResult(new { id = "APP.INPUT", message = invalidInput.Message })
             {
-                StatusCode = 400,
+                StatusCode = StatusCodes.Status400BadRequest,
+            };
+            context.ExceptionHandled = true;
+            return;
+        }
+
+        if (context.Exception is FileNotFoundException)
+        {
+            // Artefato que não existe — ou que não pertence a este tenant, que para quem pergunta
+            // é a mesma coisa (doutrina do 404 uniforme do ADR-008). Sem o nome do arquivo.
+            context.Result = new ObjectResult(new { id = "APP.NOT_FOUND", message = "Documento não encontrado." })
+            {
+                StatusCode = StatusCodes.Status404NotFound,
+            };
+            context.ExceptionHandled = true;
+            return;
+        }
+
+        if (context.Exception is UnauthorizedAccessException unauthenticated)
+        {
+            // O token passou na assinatura mas não traz um `sub` utilizável: é problema de
+            // autenticação, não de autorização — 401, e nunca 500.
+            if (logger.IsEnabled(LogLevel.Warning))
+                logger.LogWarning(
+                    "----- Unusable identity: {Message} - Path: {Path} -----",
+                    unauthenticated.Message,
+                    context.HttpContext.Request.Path);
+
+            context.Result = new ObjectResult(new { id = "APP.UNAUTHENTICATED", message = unauthenticated.Message })
+            {
+                StatusCode = StatusCodes.Status401Unauthorized,
             };
             context.ExceptionHandled = true;
         }

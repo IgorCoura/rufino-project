@@ -1,6 +1,7 @@
 ﻿namespace BillPayment.API.Controllers;
 
 using BillPayment.API.Authorization;
+using BillPayment.API.Extension;
 using BillPayment.Application.Bills.Commands;
 using BillPayment.Application.Mediator;
 using BillPayment.Application.Models.Bills;
@@ -8,6 +9,7 @@ using BillPayment.Application.Queries.Bills;
 using BillPayment.Domain.Extraction;
 using BillPayment.Application.Queries.CapturedMessages;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 
 /// <summary>
 /// Entrada e leitura de documentos de cobrança.
@@ -52,6 +54,7 @@ public sealed class BillsController(
     /// <see cref="ImportWithDocument"/>.
     /// </remarks>
     [HttpPost("import")]
+    [EnableRateLimiting(RateLimitingExtensions.EXPENSIVE_POLICY)]
     [Consumes("application/json")]
     [ProtectedResource("bill", "import")]
     public async Task<ActionResult<ImportBillResponse>> Import(
@@ -77,6 +80,7 @@ public sealed class BillsController(
     /// </para>
     /// </remarks>
     [HttpPost("import")]
+    [EnableRateLimiting(RateLimitingExtensions.EXPENSIVE_POLICY)]
     [Consumes("multipart/form-data")]
     [RequestSizeLimit(DocumentPayload.MAX_BYTES)]
     [ProtectedResource("bill", "import")]
@@ -189,6 +193,7 @@ public sealed class BillsController(
     /// caminho para o retrato voltar a estar dentro do prazo antes de aprovar.
     /// </summary>
     [HttpPost("{id:guid}/revalidate")]
+    [EnableRateLimiting(RateLimitingExtensions.EXPENSIVE_POLICY)]
     [ProtectedResource("bill", "validate")]
     public async Task<ActionResult<ValidateBillResponse>> Revalidate(
         [FromRoute] Guid tenantId,
@@ -212,6 +217,7 @@ public sealed class BillsController(
     /// leitura — o backfill dos boletos nascidos antes da leitura, um por chamada.
     /// </summary>
     [HttpPost("{id:guid}/enrich")]
+    [EnableRateLimiting(RateLimitingExtensions.EXPENSIVE_POLICY)]
     [ProtectedResource("bill", "validate")]
     public async Task<ActionResult<EnrichBillReadingResponse>> Enrich(
         [FromRoute] Guid tenantId,

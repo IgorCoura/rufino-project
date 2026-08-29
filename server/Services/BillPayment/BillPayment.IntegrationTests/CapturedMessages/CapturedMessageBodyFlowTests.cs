@@ -77,9 +77,41 @@ public sealed class CapturedMessageBodyFlowTests : BaseIntegrationTest, IDisposa
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var body = await response.Content.ReadFromJsonAsync<BodyContract>();
-        Assert.Equal(BodyHtml, body!.Content);
+        Assert.Contains("Sua fatura chegou.", body!.Content, StringComparison.Ordinal);
         Assert.Equal(Sender, body.Sender);
         Assert.Equal("text/html", body.ContentType);
+    }
+
+    // Regressão (auditoria 2026-08-28): o HTML do e-mail saía cru — remetente da internet
+    // injetando script na tela do tenant. Sai sanitizado: script, iframe, handler inline e
+    // javascript: somem; o texto fica. O que está GUARDADO continua sendo o original.
+    [Fact]
+    public async Task GetBody_WithActiveContent_ShouldServeItSanitizedAndKeepTheOriginalStored()
+    {
+        const string hostile =
+            "<html><body><p onclick=\"alert(1)\">Sua fatura chegou.</p><script>alert(1)</script>"
+            + "<iframe src=\"https://evil.example\"></iframe><a href=\"javascript:alert(1)\">clique</a></body></html>";
+
+        var sourceId = await SeedSourceAsync();
+        ProgramMailboxWithOneMessage();
+        _mailbox.Artifacts[IMailboxReader.BODY_ARTIFACT_KEY] = Encoding.UTF8.GetBytes(hostile);
+
+        await SyncAsync(sourceId);
+        var message = await LoadMessageAsync();
+
+        var response = await _client.GetAsync(
+            new Uri($"/api/v1/{Tenant.Value}/captured-messages/{message!.Id.Value}/body", UriKind.Relative));
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var body = await response.Content.ReadFromJsonAsync<BodyContract>();
+        Assert.Contains("Sua fatura chegou.", body!.Content, StringComparison.Ordinal);
+        Assert.DoesNotContain("<script", body.Content, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("<iframe", body.Content, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("onclick", body.Content, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("javascript:", body.Content, StringComparison.OrdinalIgnoreCase);
+
+        var stored = await _storage.RetrieveAsync(Tenant, message.BodyStorageKey!, CancellationToken.None);
+        Assert.Contains("<script", Encoding.UTF8.GetString(stored.Span), StringComparison.Ordinal);
     }
 
     // Corpo indisponível no provedor não derruba a varredura: a mensagem entra sem corpo, e o
@@ -113,7 +145,7 @@ public sealed class CapturedMessageBodyFlowTests : BaseIntegrationTest, IDisposa
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var body = await response.Content.ReadFromJsonAsync<BodyContract>();
-        Assert.Equal(BodyHtml, body!.Content);
+        Assert.Contains("Sua fatura chegou.", body!.Content, StringComparison.Ordinal);
         Assert.Equal(message!.Id.Value, body.Id);
     }
 
@@ -137,7 +169,7 @@ public sealed class CapturedMessageBodyFlowTests : BaseIntegrationTest, IDisposa
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var body = await response.Content.ReadFromJsonAsync<BodyContract>();
-        Assert.Equal(BodyHtml, body!.Content);
+        Assert.Contains("Sua fatura chegou.", body!.Content, StringComparison.Ordinal);
         Assert.Equal(Sender, body.Sender);
     }
 

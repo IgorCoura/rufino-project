@@ -56,12 +56,15 @@ public sealed class ClaimCaptureItemCommandHandler(
         var item = await items.GetAsync(tenantId, CaptureItemId.From(request.CaptureItemId), cancellationToken)
             ?? throw CaptureItemErrors.NotFound(request.CaptureItemId);
 
-        if (string.IsNullOrEmpty(item.StorageKey))
+        // HasStoredArtifact, e não "tem chave": Locked e Unrecognized carimbam sentinelas no lugar
+        // da chave, e tratá-las como chave mandava "pending-unlock" para o balde — 500 onde cabia a
+        // recusa do domínio (auditoria 2026-08-28).
+        if (!item.HasStoredArtifact)
             throw CaptureItemErrors.ArtifactRequired();
 
         var now = clock.GetUtcNow();
 
-        var content = await storage.RetrieveAsync(tenantId, item.StorageKey, cancellationToken);
+        var content = await storage.RetrieveAsync(tenantId, item.StorageKey!, cancellationToken);
         var profile = await payerProfiles.GetByTenantAsync(tenantId, cancellationToken);
 
         // A reivindicação relê pelo MESMO parser do caminho automático — os dígitos verificadores
