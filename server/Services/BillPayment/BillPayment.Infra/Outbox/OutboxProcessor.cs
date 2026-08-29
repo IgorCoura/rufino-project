@@ -78,7 +78,8 @@ internal sealed class OutboxProcessor : IOutboxProcessor
                 claimed = false;
                 await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
 
-                var message = await ClaimNextAsync(db, _options.MaxAttempts, cancellationToken);
+                var message = await ClaimNextAsync(
+                    db, _options.MaxAttempts, _timeProvider.GetUtcNow().UtcDateTime, cancellationToken);
                 if (message is null)
                 {
                     await transaction.RollbackAsync(cancellationToken);
@@ -112,15 +113,28 @@ internal sealed class OutboxProcessor : IOutboxProcessor
         }
     }
 
-    private static async Task<OutboxMessage?> ClaimNextAsync(BillPaymentDbContext db, int maxAttempts, CancellationToken cancellationToken)
+    private static async Task<OutboxMessage?> ClaimNextAsync(
+        BillPaymentDbContext db, int maxAttempts, DateTime now, CancellationToken cancellationToken)
     {
         // FOR UPDATE SKIP LOCKED lets multiple relay instances claim disjoint rows without blocking.
-        // DEFAULT_SCHEMA is a compile-time constant; maxAttempts is parameterized ({0}) to avoid injection.
+        // DEFAULT_SCHEMA is a compile-time constant; maxAttempts and now are parameterized to avoid injection.
+        // next_attempt_at is the backoff: a message that just failed waits its turn instead of being
+        // re-claimed on the very next cycle.
         var sql = $"SELECT * FROM {BillPaymentDbContext.DEFAULT_SCHEMA}.outbox_messages "
-                + "WHERE processed = false AND attempts < {0} ORDER BY created_at LIMIT 1 FOR UPDATE SKIP LOCKED";
+                + "WHERE processed = false AND attempts < {0} "
+                + "AND (next_attempt_at IS NULL OR next_attempt_at <= {1}) "
+                + "ORDER BY created_at LIMIT 1 FOR UPDATE SKIP LOCKED";
 
-        var rows = await db.OutboxMessages.FromSqlRaw(sql, maxAttempts).ToListAsync(cancellationToken);
+        var rows = await db.OutboxMessages.FromSqlRaw(sql, maxAttempts, now).ToListAsync(cancellationToken);
         return rows.FirstOrDefault();
+    }
+
+    private DateTime NextAttemptAfter(int attempts, DateTime now)
+    {
+        // attempts already counts the failure being registered: 1 → base, 2 → 2×base, …
+        var factor = Math.Pow(2, Math.Max(0, attempts - 1));
+        var delay = TimeSpan.FromTicks((long)Math.Min(_options.RetryBaseDelay.Ticks * factor, _options.RetryMaxDelay.Ticks));
+        return now + delay;
     }
 
     private async Task RegisterFailureAsync(Guid messageId, Exception failure, CancellationToken cancellationToken)
@@ -143,7 +157,7 @@ internal sealed class OutboxProcessor : IOutboxProcessor
                 return;
             }
 
-            message.RegisterFailure(error);
+            message.RegisterFailure(error, NextAttemptAfter(message.Attempts + 1, now));
 
             if (message.Attempts >= _options.MaxAttempts)
             {

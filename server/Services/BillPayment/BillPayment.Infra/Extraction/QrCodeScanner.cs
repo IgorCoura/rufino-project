@@ -40,7 +40,16 @@ internal static class QrCodeScanner
     /// <summary>O código de barras FEBRABAN tem 44 posições, em cobrança e em arrecadação.</summary>
     private const int BARCODE_DIGITS = 44;
 
-    private static readonly BarcodeReader Reader = new()
+    /// <summary>
+    /// Teto de pixels decodificados por imagem. Um PDF de 200 KB pode declarar uma imagem de
+    /// 30.000×30.000 (3,6 GB decodificados) — bomba de descompressão por anexo hostil. 25 MP
+    /// cobre qualquer boleto digitalizado com folga.
+    /// </summary>
+    private const long MAX_PIXELS = 25_000_000;
+
+    // Um leitor por decodificação: o BarcodeReader do ZXing.Net não é thread-safe, e as faixas
+    // rápida e de visão decodificam em paralelo.
+    private static BarcodeReader CreateReader() => new()
     {
         AutoRotate = true,
         Options = new ZXing.Common.DecodingOptions
@@ -75,6 +84,14 @@ internal static class QrCodeScanner
 
             if (image.WidthInSamples < MIN_DIMENSION || image.HeightInSamples < MIN_DIMENSION)
                 continue;
+
+            if ((long)image.WidthInSamples * image.HeightInSamples > MAX_PIXELS)
+            {
+                logger.LogWarning(
+                    "Imagem de {Width}x{Height} ignorada pelo leitor de QR: acima do teto de pixels.",
+                    image.WidthInSamples, image.HeightInSamples);
+                continue;
+            }
 
             foreach (var (format, text) in DecodeAll(image, logger))
             {
@@ -171,7 +188,8 @@ internal static class QrCodeScanner
             if (bitmap is null)
                 return [];
 
-            var results = Reader.DecodeMultiple(bitmap);
+            var reader = CreateReader();
+            var results = reader.DecodeMultiple(bitmap);
             if (results is not null && results.Length > 0)
             {
                 return results
@@ -182,7 +200,7 @@ internal static class QrCodeScanner
 
             // DecodeMultiple é mais exigente que Decode em imagem ruidosa: quando ele não acha
             // nada, ainda vale a tentativa simples antes de mandar o documento para a visão.
-            var single = Reader.Decode(bitmap);
+            var single = reader.Decode(bitmap);
             return single is null || string.IsNullOrWhiteSpace(single.Text)
                 ? []
                 : [(single.BarcodeFormat, single.Text)];

@@ -39,18 +39,26 @@ internal static partial class HtmlLinkHarvester
         var found = new List<DocumentLink>();
         var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-        foreach (var groups in Anchor().Matches(html).Select(m => m.Groups))
+        try
         {
-            if (found.Count >= MAX_LINKS)
-                break;
+            foreach (var groups in Anchor().Matches(html).Select(m => m.Groups))
+            {
+                if (found.Count >= MAX_LINKS)
+                    break;
 
-            var href = WebUtility.HtmlDecode(groups["href"].Value);
-            var (target, wasWrapped) = LinkUnwrapService.Unwrap(href);
+                var href = WebUtility.HtmlDecode(groups["href"].Value);
+                var (target, wasWrapped) = LinkUnwrapService.Unwrap(href);
 
-            var link = DocumentLink.TryCreate(target, LabelOf(groups["text"].Value), wasWrapped);
+                var link = DocumentLink.TryCreate(target, LabelOf(groups["text"].Value), wasWrapped);
 
-            if (link is not null && seen.Add(link.Url))
-                found.Add(link);
+                if (link is not null && seen.Add(link.Url))
+                    found.Add(link);
+            }
+        }
+        catch (RegexMatchTimeoutException)
+        {
+            // HTML patológico: o timeout do regex existe justamente para isto. "Sem link" é o
+            // desfecho certo — antes a exceção subia e contava tentativa contra o item.
         }
 
         return found;

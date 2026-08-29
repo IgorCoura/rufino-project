@@ -14,6 +14,12 @@ public sealed class OutboxOptions
 
     public int MaxAttempts { get; set; } = 5;
 
+    // Backoff exponencial entre tentativas: base × 2^(tentativa-1), até o teto. Com os defaults,
+    // 30s, 1m, 2m, 4m — cinco tentativas cobrem ~7,5 minutos de provedor fora, e não 25 segundos.
+    public TimeSpan RetryBaseDelay { get; set; } = TimeSpan.FromSeconds(30);
+
+    public TimeSpan RetryMaxDelay { get; set; } = TimeSpan.FromMinutes(30);
+
     public int RetentionDays { get; set; } = 7;
 
     // Number of polling cycles between retention cleanups (~10min at the 5s default).

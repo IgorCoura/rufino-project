@@ -41,6 +41,9 @@ internal static class CandidateScanner
     /// </summary>
     private const int MAX_WINDOWS = 5_000;
 
+    /// <summary>BR Code real fica bem abaixo disto; acima é texto arrastado, não payload.</summary>
+    private const int MAX_PIX_PAYLOAD_LENGTH = 1024;
+
     /// <summary>Todo BR Code começa com o payload format indicator do EMV.</summary>
     private const string EMV_PREFIX = "000201";
 
@@ -73,14 +76,22 @@ internal static class CandidateScanner
     private static IEnumerable<PaymentInstrument> ScanPixPayloads(string text, HashSet<string> seen)
     {
         var start = text.IndexOf(EMV_PREFIX, StringComparison.Ordinal);
+        var windows = 0;
 
         while (start >= 0)
         {
+            // O mesmo teto de janelas da linha digitável: sem ele, um texto hostil com o prefixo
+            // repetido milhares de vezes fazia o worker copiar o corpo inteiro a cada ocorrência
+            // (auditoria 2026-08-28 — explosão quadrática por e-mail construído de propósito).
+            if (++windows > MAX_WINDOWS)
+                yield break;
+
             // O payload termina no CRC: "6304" + 4 hexadecimais. Procurar o fim assim evita
-            // arrastar o resto da página para dentro do candidato.
+            // arrastar o resto da página para dentro do candidato — e o teto de tamanho impede
+            // que um "6304" distante arraste um trecho gigante: BR Code real cabe em 512.
             var crc = text.IndexOf("6304", start + EMV_PREFIX.Length, StringComparison.Ordinal);
 
-            if (crc >= 0 && crc + 8 <= text.Length)
+            if (crc >= 0 && crc + 8 <= text.Length && crc + 8 - start <= MAX_PIX_PAYLOAD_LENGTH)
             {
                 var candidate = text[start..(crc + 8)];
 

@@ -20,6 +20,7 @@ internal sealed class OutboxMessageMap : IEntityTypeConfiguration<OutboxMessage>
         builder.Property(e => e.ProcessedAt).HasColumnName("processed_at");
         builder.Property(e => e.Attempts).HasColumnName("attempts").HasDefaultValue(0).IsRequired();
         builder.Property(e => e.Error).HasColumnName("error");
+        builder.Property(e => e.NextAttemptAt).HasColumnName("next_attempt_at");
 
         // Partial index over the claim predicate (unprocessed, oldest-first) — keeps the polling query cheap as the table grows.
         builder.HasIndex(e => e.CreatedAt).HasDatabaseName("ix_outbox_messages_unprocessed")

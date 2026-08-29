@@ -815,6 +815,21 @@ O que cada fase mudou e **por quê**, na ordem em que aterrissou:
   DENY`, `Referrer-Policy: no-referrer`) e `UseHsts()` fora de Development. (f)
   `ClaimCaptureItem` passou a usar `HasStoredArtifact` — sentinela não vai mais ao balde (500 →
   `BLP.CPI03`).
+- **Fase 9 — o worker contra anexo hostil.** (a) `CandidateScanner.ScanPixPayloads` ganhou o
+  mesmo teto de janelas da linha digitável e um teto de 1 KB por candidato: um `text/plain` com
+  `000201` repetido milhares de vezes e um `6304` no fim fazia o worker copiar o corpo inteiro a
+  cada ocorrência (regressão em `CandidateScannerTests`, com cronômetro). O corte de 2 MB passou
+  a valer também para texto puro. (b) `QrCodeScanner` recusa imagem acima de 25 MP antes de
+  decodificar (bomba de descompressão) e cria um `BarcodeReader` por decodificação — o do ZXing
+  não é thread-safe, e as duas faixas rodam em paralelo. (c) `RegexMatchTimeoutException` é
+  capturada nos três varredores (`HtmlLinkHarvester`, `HtmlText`, `TaxIdScanner`) e degrada para
+  "sem link / sem texto / sem rótulo" em vez de contar tentativa contra o item. (d) **O outbox
+  tem backoff**: `next_attempt_at` na linha (migração `OutboxRetryBackoff`), base 30 s dobrando
+  até 30 min (`Outbox:RetryBaseDelay`/`RetryMaxDelay`); a reivindicação pula o que ainda espera.
+  Cinco tentativas passaram a cobrir ~7,5 min de provedor fora, não 25 s
+  (`Outbox/OutboxBackoffTests`). **Replay de dead-letter continua pendente** — exige endpoint
+  administrativo e escopo novo no realm. (e) As sentinelas `pending-unlock`/`pending-review` no
+  handler passaram a vir das constantes do agregado.
 
 ## Architecture — what is non-obvious
 

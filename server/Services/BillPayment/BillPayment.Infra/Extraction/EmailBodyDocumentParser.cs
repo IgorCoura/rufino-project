@@ -76,6 +76,10 @@ internal sealed class EmailBodyDocumentParser : IBoletoDocumentParser
     {
         var raw = Encoding.UTF8.GetString(content);
 
-        return HtmlText.LooksLikeHtml(content) ? HtmlText.ToPlainText(raw) : raw;
+        // O mesmo teto do HTML vale para o texto puro: sem ele, o corte de 2 MB só protegia o
+        // caminho com marcação, e um text/plain gigante chegava inteiro ao varredor.
+        return HtmlText.LooksLikeHtml(content)
+            ? HtmlText.ToPlainText(raw)
+            : raw.Length > HtmlText.MAX_INPUT_LENGTH ? raw[..HtmlText.MAX_INPUT_LENGTH] : raw;
     }
 }

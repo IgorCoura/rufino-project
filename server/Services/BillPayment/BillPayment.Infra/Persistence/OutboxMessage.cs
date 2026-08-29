@@ -15,6 +15,14 @@ public sealed class OutboxMessage
     public int Attempts { get; private set; }
     public string? Error { get; private set; }
 
+    /// <summary>
+    /// Antes deste instante a mensagem não é reivindicada de novo. Backoff exponencial gravado
+    /// na linha (2026-08-28): sem ele o relay reivindicava a mesma mensagem no ciclo seguinte, e
+    /// trinta segundos de provedor fora bastavam para esgotar as tentativas e mandar para
+    /// dead-letter o que uma espera resolveria.
+    /// </summary>
+    public DateTime? NextAttemptAt { get; private set; }
+
     private OutboxMessage() { }
 
     public static OutboxMessage From(IDomainEvent domainEvent)
@@ -42,9 +50,10 @@ public sealed class OutboxMessage
         Error = null;
     }
 
-    public void RegisterFailure(string error)
+    public void RegisterFailure(string error, DateTime nextAttemptAt)
     {
         Attempts++;
         Error = error;
+        NextAttemptAt = nextAttemptAt;
     }
 }

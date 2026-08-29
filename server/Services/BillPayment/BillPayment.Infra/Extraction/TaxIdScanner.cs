@@ -255,8 +255,17 @@ internal static partial class TaxIdScanner
     {
         var index = -1;
 
-        foreach (var match in pattern.Matches(window).Cast<Match>())
-            index = match.Index;
+        try
+        {
+            foreach (var match in pattern.Matches(window).Cast<Match>())
+                index = match.Index;
+        }
+        catch (RegexMatchTimeoutException)
+        {
+            // Janela patológica: sem rótulo é o lado seguro de errar — nunca vira ForeignPayer
+            // por um regex que não terminou.
+            return -1;
+        }
 
         return index;
     }

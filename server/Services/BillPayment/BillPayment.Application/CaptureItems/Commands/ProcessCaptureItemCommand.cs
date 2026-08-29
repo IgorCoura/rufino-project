@@ -565,7 +565,7 @@ public sealed class ProcessCaptureItemCommandHandler(
         // de o original estar guardado.
         if (decision == CaptureTriageDecision.Lock)
         {
-            item.StoreArtifact(Sha256Of(content.Span), "pending-unlock", occurredAt);
+            item.StoreArtifact(Sha256Of(content.Span), CaptureItem.PENDING_UNLOCK, occurredAt);
             item.MarkLocked(occurredAt);
             return;
         }
@@ -573,7 +573,7 @@ public sealed class ProcessCaptureItemCommandHandler(
         // Unrecognized, e nao Unrouted: o parser nao reconheceu boleto, que e coisa diferente
         // de nao saber de quem e o boleto. E e de Unrecognized que sai o caminho previsto pelo
         // doc 09 — a pessoa informa a linha digitavel a mao e o item volta para Parsed.
-        item.StoreArtifact(Sha256Of(content.Span), "pending-review", occurredAt);
+        item.StoreArtifact(Sha256Of(content.Span), CaptureItem.PENDING_REVIEW, occurredAt);
         item.MarkUnrecognized(extraction.ReasonCode ?? "no_instrument", occurredAt);
 
         logger.LogInformation(

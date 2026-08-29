@@ -19,6 +19,23 @@ public sealed class CandidateScannerTests
     private const string BrCode =
         "00020126560014br.gov.bcb.pix0114112223330001810216conta de energia5204000053039865802BR5912SABESP TESTE6009SAO PAULO62070503***6304AF33";
 
+    // Regressão (auditoria 2026-08-28): texto hostil com o prefixo EMV repetido milhares de
+    // vezes e um único "6304" no fim fazia o varredor copiar o corpo inteiro a cada ocorrência —
+    // minutos de CPU e gigabytes por e-mail. Com teto de janelas e de tamanho, termina em
+    // instantes e não inventa instrumento nenhum.
+    [Fact]
+    public void Scan_WithAHostileTextFullOfEmvPrefixes_ShouldFinishQuicklyAndFindNothing()
+    {
+        var hostile = string.Concat(Enumerable.Repeat("000201", 200_000)) + "6304ABCD";
+        var stopwatch = System.Diagnostics.Stopwatch.StartNew();
+
+        var found = CandidateScanner.Scan(hostile, Today);
+
+        stopwatch.Stop();
+        Assert.Empty(found);
+        Assert.True(stopwatch.Elapsed < TimeSpan.FromSeconds(5), $"Levou {stopwatch.Elapsed}.");
+    }
+
     // Linha digitável solta no texto é encontrada.
     [Fact]
     public void Scan_WithPlainBankSlipLine_ShouldFindOneInstrument()

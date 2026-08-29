@@ -27,7 +27,7 @@ internal static partial class HtmlText
     /// Teto do que se converte. Corpo maior que isto não é e-mail de cobrança, e varrê-lo inteiro
     /// só gastaria memória do worker.
     /// </summary>
-    private const int MAX_INPUT_LENGTH = 2 * 1024 * 1024;
+    public const int MAX_INPUT_LENGTH = 2 * 1024 * 1024;
 
     /// <summary>
     /// Converte HTML em texto. Entrada que já é texto puro volta como está.
@@ -39,10 +39,19 @@ internal static partial class HtmlText
 
         var source = html.Length > MAX_INPUT_LENGTH ? html[..MAX_INPUT_LENGTH] : html;
 
-        // Script e estilo carregam chaves, colchetes e números que virariam candidatos à toa.
-        source = ScriptOrStyleBlock().Replace(source, " ");
-        source = BlockLevelTag().Replace(source, "\n");
-        source = AnyTag().Replace(source, string.Empty);
+        try
+        {
+            // Script e estilo carregam chaves, colchetes e números que virariam candidatos à toa.
+            source = ScriptOrStyleBlock().Replace(source, " ");
+            source = BlockLevelTag().Replace(source, "\n");
+            source = AnyTag().Replace(source, string.Empty);
+        }
+        catch (RegexMatchTimeoutException)
+        {
+            // HTML patológico: texto nenhum é melhor que a exceção subindo e contando tentativa
+            // contra o item — e melhor que entregar marcação crua ao varredor de candidatos.
+            return string.Empty;
+        }
 
         return WebUtility.HtmlDecode(source);
     }
