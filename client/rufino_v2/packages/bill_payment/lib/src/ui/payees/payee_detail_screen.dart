@@ -133,6 +133,8 @@ class _Body extends StatelessWidget {
               digitsOnly: true,
             ),
             const SizedBox(height: AppSpacing.md),
+            _StandingSection(viewModel: viewModel, payee: payee),
+            const SizedBox(height: AppSpacing.md),
             _ActivationSection(
               viewModel: viewModel,
               payee: payee,
@@ -532,6 +534,120 @@ class _ChipsSectionState extends State<_ChipsSection> {
         ],
       ),
     );
+  }
+}
+
+/// The trust mark, read-and-act like the activation block: badge + actions,
+/// no edit mode. Blacklist reads in red so whoever opens the cadastro sees
+/// the block before anything else.
+class _StandingSection extends StatelessWidget {
+  const _StandingSection({required this.viewModel, required this.payee});
+
+  final PayeeDetailViewModel viewModel;
+  final Payee payee;
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    return SectionCard(
+      title: 'Marca de confiança',
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              if (payee.isBlacklisted) ...[
+                Icon(Symbols.block, color: colorScheme.error),
+                const SizedBox(width: AppSpacing.sm),
+              ],
+              StatusBadge(
+                label: payee.isBlacklisted
+                    ? 'Blacklist'
+                    : payee.isWhitelisted
+                        ? 'Whitelist'
+                        : 'Sem marca',
+                tone: payee.isBlacklisted
+                    ? BadgeTone.problem
+                    : payee.isWhitelisted
+                        ? BadgeTone.positive
+                        : BadgeTone.neutral,
+              ),
+            ],
+          ),
+          if (payee.isBlacklisted) ...[
+            const SizedBox(height: AppSpacing.sm),
+            Text(
+              'Todo boleto deste beneficiário é sinalizado como Perigo nas '
+              'verificações, e aprová-lo exige assumir o risco.',
+              style: Theme.of(context)
+                  .textTheme
+                  .bodySmall
+                  ?.copyWith(color: colorScheme.error),
+            ),
+          ],
+          const SizedBox(height: AppSpacing.sm),
+          BillPaymentPermissionGuard(
+            resource: BillPaymentResources.payee,
+            scope: BillPaymentScopes.manage,
+            child: Wrap(
+              spacing: AppSpacing.sm,
+              children: [
+                if (!payee.isBlacklisted)
+                  FilledButton.tonal(
+                    onPressed: viewModel.isMutating
+                        ? null
+                        : () => _confirmBlacklist(context),
+                    child: const Text('Marcar como blacklist'),
+                  ),
+                if (!payee.isWhitelisted)
+                  OutlinedButton(
+                    onPressed: viewModel.isMutating
+                        ? null
+                        : () =>
+                            viewModel.setStanding(PayeeStandings.whitelisted),
+                    child: const Text('Marcar como whitelist'),
+                  ),
+                if (payee.isBlacklisted || payee.isWhitelisted)
+                  TextButton(
+                    onPressed: viewModel.isMutating
+                        ? null
+                        : () => viewModel.setStanding(PayeeStandings.normal),
+                    child: const Text('Remover marca'),
+                  ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _confirmBlacklist(BuildContext context) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Marcar na blacklist?'),
+        content: Text(
+          'Todo boleto de ${payee.legalName} passará a ser sinalizado como '
+          'Perigo nas verificações, e aprovar exigirá assumir o risco '
+          'explicitamente. A marca vale a partir da próxima verificação de '
+          'cada boleto.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton.tonal(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('Marcar'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed == true) {
+      await viewModel.setStanding(PayeeStandings.blacklisted);
+    }
   }
 }
 

@@ -191,6 +191,16 @@ class PayeeApiService {
     checkApiStatus(response);
   }
 
+  /// Marks the payee's trust standing (one of `PayeeStandings`).
+  Future<void> setStanding(String id, String standing) async {
+    final response = await client.put(
+      _uri('/payees/$id/standing'),
+      headers: await _headers(write: true),
+      body: jsonEncode({'standing': standing}),
+    );
+    checkApiStatus(response);
+  }
+
   /// Removes the payee.
   Future<void> deletePayee(String id) async {
     final response = await client.delete(

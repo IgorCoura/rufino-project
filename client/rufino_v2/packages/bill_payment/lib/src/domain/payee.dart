@@ -30,6 +30,18 @@ class AmountPolicy {
   final bool isConclusive;
 }
 
+/// The wire names of the payee trust marks, and their PT labels.
+abstract final class PayeeStandings {
+  /// No mark — the default.
+  static const String normal = 'Normal';
+
+  /// Trusted by the tenant. A visual seal only — validation does not change.
+  static const String whitelisted = 'Whitelisted';
+
+  /// Blocked by the tenant. Every bill from this payee verifies as danger.
+  static const String blacklisted = 'Blacklisted';
+}
+
 /// A registered beneficiary.
 class Payee {
   /// Creates the payee record.
@@ -42,6 +54,7 @@ class Payee {
     required this.acceptedBanks,
     required this.amountPolicy,
     required this.isActive,
+    this.standing = PayeeStandings.normal,
   });
 
   /// The payee's id.
@@ -67,6 +80,15 @@ class Payee {
 
   /// Whether the payee takes part in validation.
   final bool isActive;
+
+  /// One of [PayeeStandings] — the tenant's trust mark on this payee.
+  final String standing;
+
+  /// Whether the tenant blocked this payee.
+  bool get isBlacklisted => standing == PayeeStandings.blacklisted;
+
+  /// Whether the tenant marked this payee as trusted.
+  bool get isWhitelisted => standing == PayeeStandings.whitelisted;
 }
 
 /// One page of the payee list.

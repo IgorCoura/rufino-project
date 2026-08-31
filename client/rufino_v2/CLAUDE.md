@@ -1072,6 +1072,20 @@ Coisas que não podem erodir:
   risco" — o botão de autorizar nem habilita sem a caixa, porque o servidor recusaria com
   `BLP.BIL27` de qualquer jeito; a UI só antecipa a recusa. `riskLevel` nulo (boleto ainda não
   validado) não mostra banner nenhum — ausência honesta, não "Seguro" por omissão.
+- **A marca de confiança do beneficiário (blacklist/whitelist) é lida em vermelho/verde e mudada
+  no detalhe.** `Payee.standing` (`PayeeStandings`: Normal/Whitelisted/Blacklisted, wire names do
+  Smart Enum do servidor); a lista troca o ícone para `Symbols.block` em `colorScheme.error` e
+  põe o chip `Blacklist` (`BadgeTone.problem`) / `Whitelist` (positive); o detalhe ganhou a seção
+  "Marca de confiança" no molde da "Situação" (badge + ações, sem modo edição), com **confirmação
+  obrigatória antes de marcar blacklist** — o diálogo diz o efeito: todo boleto vira Perigo e
+  aprovar exige assumir o risco. `PUT /payees/{id}/standing`. Whitelist é só selo, por decisão de
+  produto — não abranda verificação nenhuma. Reason code novo `payee_blacklisted` traduzido
+  começando por "BLOQUEADO" (regra dos motivos de bloqueio).
+- **A varredura de `check_translations_test.dart` cobre o catálogo INTEIRO do servidor (55) e os
+  13 tipos.** Estava com 48 códigos e 12 tipos — os 6 motivos do check 13 e o próprio
+  `documentConsistency` nunca entraram, então um código novo podia ficar sem tradução com a suíte
+  verde. Ao criar reason code no servidor, acrescente-o à lista `_serverReasonCodes` no mesmo
+  commit.
 - **A política de valor é lida por inteiro, e a redação dela vive na UI — não no domínio.**
   `AmountPolicy` (domínio) guarda os cinco fatos; `ui/shared/amount_policy_view.dart` é o único
   lugar que decide como eles viram texto, e serve tanto o chip da lista quanto o card do detalhe.

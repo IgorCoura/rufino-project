@@ -81,6 +81,9 @@ abstract class PayeeRepository {
   /// Activates or deactivates the payee.
   Future<Result<void>> setActivation(String id, {required bool isActive});
 
+  /// Marks the payee's trust standing (one of [PayeeStandings]).
+  Future<Result<void>> setStanding(String id, String standing);
+
   /// Removes the payee.
   Future<Result<void>> deletePayee(String id);
 }

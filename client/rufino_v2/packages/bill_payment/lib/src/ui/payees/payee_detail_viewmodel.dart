@@ -141,6 +141,12 @@ class PayeeDetailViewModel extends ChangeNotifier {
         fallback: 'Não foi possível alterar a ativação.',
       );
 
+  /// Marks the payee's trust standing (one of [PayeeStandings]).
+  Future<bool> setStanding(String standing) => _mutate(
+        () => _repository.setStanding(payeeId, standing),
+        fallback: 'Não foi possível alterar a marca de confiança.',
+      );
+
   /// Removes the payee. Does not reload — the cadastro is gone.
   Future<bool> deletePayee() async {
     _isMutating = true;

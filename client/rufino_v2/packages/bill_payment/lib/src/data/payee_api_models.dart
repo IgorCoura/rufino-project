@@ -25,6 +25,7 @@ abstract final class PayeeMapper {
         isConclusive: policy['isConclusive'] as bool? ?? false,
       ),
       isActive: json['isActive'] as bool? ?? true,
+      standing: json['standing'] as String? ?? PayeeStandings.normal,
     );
   }
 }

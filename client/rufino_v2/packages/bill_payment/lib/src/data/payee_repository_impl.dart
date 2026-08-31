@@ -142,6 +142,12 @@ class PayeeRepositoryImpl implements PayeeRepository {
       );
 
   @override
+  Future<Result<void>> setStanding(String id, String standing) => _guard(
+        () => apiService.setStanding(id, standing),
+        context: {'op': 'setStanding', 'payeeId': id},
+      );
+
+  @override
   Future<Result<void>> deletePayee(String id) => _guard(
         () => apiService.deletePayee(id),
         context: {'op': 'deletePayee', 'payeeId': id},

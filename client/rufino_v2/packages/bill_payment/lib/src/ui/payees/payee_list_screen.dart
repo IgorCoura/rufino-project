@@ -202,9 +202,15 @@ class _Results extends StatelessWidget {
                     padding: const EdgeInsets.all(AppSpacing.md),
                     child: Row(
                       children: [
+                        // Vermelho no ícone quando blacklist: quem varre a lista
+                        // identifica o bloqueado sem ler os chips.
                         Icon(
-                          Symbols.storefront,
-                          color: Theme.of(context).colorScheme.primary,
+                          payee.isBlacklisted
+                              ? Symbols.block
+                              : Symbols.storefront,
+                          color: payee.isBlacklisted
+                              ? Theme.of(context).colorScheme.error
+                              : Theme.of(context).colorScheme.primary,
                         ),
                         const SizedBox(width: AppSpacing.md),
                         Expanded(
@@ -237,6 +243,16 @@ class _Results extends StatelessWidget {
                                       payee.amountPolicy,
                                     ),
                                   ),
+                                  if (payee.isBlacklisted)
+                                    const StatusBadge(
+                                      label: 'Blacklist',
+                                      tone: BadgeTone.problem,
+                                    ),
+                                  if (payee.isWhitelisted)
+                                    const StatusBadge(
+                                      label: 'Whitelist',
+                                      tone: BadgeTone.positive,
+                                    ),
                                   if (!payee.isActive)
                                     const StatusBadge(
                                       label: 'Desativado',

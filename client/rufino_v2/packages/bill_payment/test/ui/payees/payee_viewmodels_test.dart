@@ -163,6 +163,18 @@ void main() {
       expect(viewModel.payee!.legalName, 'EDP SAO PAULO SA');
     });
 
+    // A marca de confiança escreve pelo endpoint próprio e o que a tela
+    // mostra é o que o servidor aceitou — nunca palpite otimista.
+    test('setStanding writes the mark and reloads the cadastro', () async {
+      await viewModel.load();
+
+      final saved = await viewModel.setStanding(PayeeStandings.blacklisted);
+
+      expect(saved, isTrue);
+      expect(repository.calls, contains('setStanding:Blacklisted'));
+      expect(viewModel.payee!.isBlacklisted, isTrue);
+    });
+
     // savePolicy era código morto: existia no view model e nenhuma tela o
     // chamava. Agora o card de política de valor o usa.
     test('savePolicy manda os campos do tipo escolhido e recarrega', () async {

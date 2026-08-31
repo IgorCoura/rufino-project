@@ -95,6 +95,8 @@ String? checkReasonMessage(String? reasonCode) => switch (reasonCode) {
       // Beneficiário.
       'payee_not_registered' => 'Beneficiário não cadastrado.',
       'payee_inactive' => 'Beneficiário desativado no cadastro.',
+      'payee_blacklisted' =>
+        'BLOQUEADO: o beneficiário está na sua lista de bloqueio.',
       'payee_lookalike' =>
         'O nome parece o de um beneficiário conhecido, mas o documento é de '
             'outro. Possível golpe.',

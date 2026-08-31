@@ -15,6 +15,7 @@ const _serverReasonCodes = [
   'lookup_due_date_mismatch',
   'payee_not_registered',
   'payee_inactive',
+  'payee_blacklisted',
   'payee_lookalike',
   'payee_name_divergence',
   'payee_not_identified',
@@ -53,6 +54,14 @@ const _serverReasonCodes = [
   'single_rail_document',
   'pix_qr_not_payable',
   'static_qr_without_amount',
+  // Documento × consulta (check 13) — ficaram fora da varredura quando o
+  // check nasceu; a lista abaixo paga essa dívida.
+  'reading_not_available',
+  'document_payee_mismatch',
+  'document_amount_divergence',
+  'document_due_date_divergence',
+  'official_identity_not_available',
+  'nothing_comparable',
 ];
 
 void main() {
@@ -79,8 +88,8 @@ void main() {
   });
 
   group('CheckTypes', () {
-    test('translates the twelve types and echoes unknown ones', () {
-      const twelve = [
+    test('translates the thirteen types and echoes unknown ones', () {
+      const thirteen = [
         CheckTypes.barcodeIntegrity,
         CheckTypes.duplicate,
         CheckTypes.lookupAvailability,
@@ -93,9 +102,10 @@ void main() {
         CheckTypes.dueDateSanity,
         CheckTypes.tenantRouting,
         CheckTypes.pixBarcodeConsistency,
+        CheckTypes.documentConsistency,
       ];
 
-      for (final type in twelve) {
+      for (final type in thirteen) {
         expect(CheckTypes.label(type), isNot(type),
             reason: 'missing label for $type');
       }

@@ -90,6 +90,7 @@ Payee payee({
   List<String> acceptedBanks = const [],
   AmountPolicy? amountPolicy,
   bool isActive = true,
+  String standing = PayeeStandings.normal,
 }) {
   return Payee(
     id: id,
@@ -104,6 +105,7 @@ Payee payee({
           isConclusive: false,
         ),
     isActive: isActive,
+    standing: standing,
   );
 }
 
@@ -216,6 +218,31 @@ class FakePayeeRepository implements PayeeRepository {
   @override
   Future<Result<void>> setActivation(String id, {required bool isActive}) =>
       _write('setActivation:$isActive');
+
+  @override
+  Future<Result<void>> setStanding(String id, String standing) async {
+    final result = await _write('setStanding:$standing');
+    if (!_shouldFail) {
+      payees = [
+        for (final p in payees)
+          if (p.id == id)
+            payee(
+              id: p.id,
+              legalName: p.legalName,
+              taxId: p.taxId,
+              taxIdKind: p.taxIdKind,
+              aliases: p.aliases,
+              acceptedBanks: p.acceptedBanks,
+              amountPolicy: p.amountPolicy,
+              isActive: p.isActive,
+              standing: standing,
+            )
+          else
+            p,
+      ];
+    }
+    return result;
+  }
 
   @override
   Future<Result<void>> deletePayee(String id) => _write('deletePayee:$id');

@@ -63,6 +63,31 @@ void main() {
       permissions.dispose();
     });
 
+    testWidgets('flags a blacklisted payee in red and a whitelisted one in '
+        'green, right on the row', (tester) async {
+      repository.payees = [
+        payee(standing: PayeeStandings.blacklisted),
+        payee(
+          id: 'payee-2',
+          legalName: 'DAE JUNDIAI',
+          standing: PayeeStandings.whitelisted,
+        ),
+      ];
+      final permissions = await billPaymentPermissions(const [
+        Permission(
+          resource: BillPaymentResources.payee,
+          scopes: [BillPaymentScopes.view],
+        ),
+      ]);
+
+      await pumpScreen(tester, permissions: permissions);
+
+      expect(find.text('Blacklist'), findsOneWidget);
+      expect(find.text('Whitelist'), findsOneWidget);
+
+      permissions.dispose();
+    });
+
     testWidgets('hides the register FAB from a viewer — the element goes '
         'away, it is never disabled', (tester) async {
       repository.payees = [payee()];
