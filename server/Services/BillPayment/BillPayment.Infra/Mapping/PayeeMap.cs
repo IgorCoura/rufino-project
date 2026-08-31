@@ -82,6 +82,14 @@ internal sealed class PayeeMap : IEntityTypeConfiguration<Payee>
             .IsRequired();
 
         builder.Property(e => e.IsActive).HasColumnName("is_active").IsRequired();
+
+        // O default do banco precisa ser um id que exista no Smart Enum: as linhas anteriores à
+        // coluna rehidratam por FromValue, e 0 (o default de int) estouraria na primeira leitura.
+        builder.Property(e => e.Standing)
+            .HasColumnName("standing")
+            .HasConversion(standing => standing.Id, value => Enumeration.FromValue<PayeeStanding>(value))
+            .HasDefaultValue(PayeeStanding.Normal)
+            .IsRequired();
         builder.Property(e => e.CreatedAt).HasColumnName("created_at").IsRequired();
         builder.Property(e => e.UpdatedAt).HasColumnName("updated_at").IsRequired();
 

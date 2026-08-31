@@ -95,6 +95,34 @@ public sealed class ApproveBillTests : BaseIntegrationTest, IDisposable
         Assert.Null(approved.Error);
     }
 
+    // Beneficiário na blacklist de ponta a ponta: o boleto verifica como Perigo pelo check de
+    // beneficiário, aprovar sem assumir o risco é 409 BLP.BIL27, e com o aceite explícito a
+    // aprovação passa (ADR-015 — a marca sinaliza, quem decide é o humano).
+    [Fact]
+    public async Task Approve_WhenThePayeeIsBlacklisted_ShouldTurnDangerAndRequireTheAcknowledgment()
+    {
+        var payeeId = await RegisterBeneficiaryAsPayeeAsync();
+        var mark = await _client.PutAsJsonAsync(
+            new Uri($"/api/v1/{TenantId}/payees/{payeeId}/standing", UriKind.Relative),
+            new AlterPayeeStandingRequest("Blacklisted"),
+            CancellationToken.None);
+        mark.EnsureSuccessStatusCode();
+
+        var billId = await ImportAndValidateAsync();
+
+        var bill = await LoadAsync(billId);
+        Assert.Equal(BillStatus.AwaitingApproval, bill.Status);
+        Assert.Same(RiskLevel.Danger, bill.Risk);
+        Assert.Contains(bill.Checks, c => c.ReasonCode == CheckReasons.PAYEE_BLACKLISTED && c.IsBlockingFailure);
+
+        var refused = await PostAsync($"{billId}/approve", new ApproveBillRequest(ScheduleDate(), null));
+        Assert.Equal(HttpStatusCode.Conflict, refused.StatusCode);
+
+        var approved = await PostAsync(
+            $"{billId}/approve", new ApproveBillRequest(ScheduleDate(), "risco assumido", AcknowledgeRisk: true));
+        Assert.Equal(HttpStatusCode.OK, approved.StatusCode);
+    }
+
     // Regressão (auditoria 2026-08-28): sem token de concorrência, aprovadores simultâneos liam
     // AwaitingApproval, todos gravavam Approved e VÁRIOS eventos de aprovação entravam no outbox
     // — na fase de pagamento, vários pagamentos. Agora exatamente um vence; os outros recebem
@@ -331,7 +359,7 @@ public sealed class ApproveBillTests : BaseIntegrationTest, IDisposable
         return body!.Id;
     }
 
-    private async Task RegisterBeneficiaryAsPayeeAsync()
+    private async Task<Guid> RegisterBeneficiaryAsPayeeAsync()
     {
         var response = await _client.PostAsJsonAsync(
             new Uri($"/api/v1/{TenantId}/payees", UriKind.Relative),
@@ -339,6 +367,8 @@ public sealed class ApproveBillTests : BaseIntegrationTest, IDisposable
             CancellationToken.None);
 
         response.EnsureSuccessStatusCode();
+        var body = await response.Content.ReadFromJsonAsync<PayeeIdResponse>(CancellationToken.None);
+        return body!.Id;
     }
 
     private async Task<Guid> ImportAndValidateAsync()

@@ -5,6 +5,7 @@ using BillPayment.Domain.Bills;
 using BillPayment.Domain.Bills.Checks;
 using BillPayment.Domain.Instruments;
 using BillPayment.Domain.Lookups;
+using BillPayment.Domain.Payees;
 using BillPayment.Domain.SharedKernel;
 
 /// <summary>
@@ -224,6 +225,16 @@ public static class BillValidationService
                 $"\"{beneficiary.DisplayName}\" ainda não está cadastrado como beneficiário.");
 
         var payee = resolution.Payee!;
+
+        // A blacklist vence qualquer outro desfecho, inclusive o casamento exato por documento:
+        // é o tenant dizendo "não pague este beneficiário", e um documento que confere só
+        // confirma que o boleto é mesmo de quem ele mandou não pagar.
+        if (payee.Standing == PayeeStanding.Blacklisted)
+            return CheckResult.Failed(
+                CheckType.PayeeMatch,
+                CheckReasons.PAYEE_BLACKLISTED,
+                $"O beneficiário \"{payee.LegalName}\" está marcado na lista de bloqueio deste tenant.");
+
         if (!payee.IsActive)
             return CheckResult.Failed(
                 CheckType.PayeeMatch,

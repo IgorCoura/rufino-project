@@ -3,6 +3,7 @@
 using BillPayment.Domain.Bills;
 using BillPayment.Domain.Bills.Checks;
 using BillPayment.Domain.Lookups;
+using BillPayment.Domain.Payees;
 using BillPayment.Domain.SeedWork;
 using BillPayment.Domain.Services;
 using BillPayment.Domain.SharedKernel;
@@ -193,6 +194,49 @@ public class BillValidationServiceTests
 
         Assert.Equal(CheckOutcome.Failed, result.Outcome);
         Assert.Equal(CheckReasons.PAYEE_INACTIVE, result.ReasonCode);
+    }
+
+    // Beneficiário na blacklist reprova como falha BLOQUEANTE mesmo com o documento conferindo:
+    // a marca vence o casamento exato, e o boleto nasce Perigo.
+    [Fact]
+    public void Evaluate_PayeeMatch_WithABlacklistedPayee_ShouldFailBlocking()
+    {
+        var result = Check(
+            ValidationMother.Context(
+                ValidationMother.BankSlipWithLookup(),
+                payee: ValidationMother.RegisteredPayee(standing: PayeeStanding.Blacklisted)),
+            CheckType.PayeeMatch);
+
+        Assert.Equal(CheckOutcome.Failed, result.Outcome);
+        Assert.Equal(CheckReasons.PAYEE_BLACKLISTED, result.ReasonCode);
+        Assert.True(result.IsBlockingFailure);
+    }
+
+    // A blacklist vence até a inatividade: o motivo mostrado é o bloqueio, que é o fato mais grave.
+    [Fact]
+    public void Evaluate_PayeeMatch_WhenBlacklistedAndInactive_ShouldReportTheBlacklist()
+    {
+        var result = Check(
+            ValidationMother.Context(
+                ValidationMother.BankSlipWithLookup(),
+                payee: ValidationMother.RegisteredPayee(active: false, standing: PayeeStanding.Blacklisted)),
+            CheckType.PayeeMatch);
+
+        Assert.Equal(CheckReasons.PAYEE_BLACKLISTED, result.ReasonCode);
+    }
+
+    // Whitelist é selo visual, não régua: o desfecho da verificação é idêntico ao do beneficiário
+    // Normal — afrouxar por marca criaria um alvo (comprometer um beneficiário marcado).
+    [Fact]
+    public void Evaluate_PayeeMatch_WithAWhitelistedPayee_ShouldBehaveExactlyLikeNormal()
+    {
+        var result = Check(
+            ValidationMother.Context(
+                ValidationMother.BankSlipWithLookup(),
+                payee: ValidationMother.RegisteredPayee(standing: PayeeStanding.Whitelisted)),
+            CheckType.PayeeMatch);
+
+        Assert.Equal(CheckOutcome.Passed, result.Outcome);
     }
 
     // Documento confere e o nome não: razão social muda, CNPJ não. Vira aviso, nunca bloqueio.

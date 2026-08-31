@@ -44,7 +44,8 @@ internal static class ValidationMother
         string? taxId = null,
         string? legalName = null,
         bool active = true,
-        string? acceptedBank = BarcodeBankCode)
+        string? acceptedBank = BarcodeBankCode,
+        PayeeStanding? standing = null)
     {
         var payee = Payee.Register(
             BillMother.DefaultTenant,
@@ -59,6 +60,9 @@ internal static class ValidationMother
 
         if (!active)
             payee.SetActivation(false, BillMother.DefaultOccurredAt);
+
+        if (standing is not null)
+            payee.SetStanding(standing, BillMother.DefaultOccurredAt);
 
         return payee;
     }

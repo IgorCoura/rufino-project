@@ -8,7 +8,8 @@ public sealed record PayeeDto(
     IReadOnlyList<string> Aliases,
     IReadOnlyList<string> AcceptedBanks,
     PayeeAmountPolicyDto AmountPolicy,
-    bool IsActive);
+    bool IsActive,
+    string Standing);
 
 public sealed record PayeeAmountPolicyDto(
     string Kind,

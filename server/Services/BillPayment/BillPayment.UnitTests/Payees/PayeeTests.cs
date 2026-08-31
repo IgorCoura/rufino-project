@@ -70,6 +70,55 @@ public class PayeeTests
         Assert.Equal("Nome Novo", payee.LegalName);
     }
 
+    // A marca de confiança nasce Normal e muda pela porta única do agregado.
+    [Fact]
+    public void SetStanding_ShouldChangeTheTrustMark()
+    {
+        var payee = PayeeMother.Register();
+        Assert.Same(PayeeStanding.Normal, payee.Standing);
+
+        payee.SetStanding(PayeeStanding.Blacklisted, Later);
+
+        Assert.Same(PayeeStanding.Blacklisted, payee.Standing);
+        Assert.Equal(Later, payee.UpdatedAt);
+    }
+
+    // Marcar um mau ator precisa funcionar mesmo com o cadastro desativado — a marca fica
+    // fora do guard de ativação, como o próprio liga-desliga.
+    [Fact]
+    public void SetStanding_OnAnInactivePayee_ShouldStillWork()
+    {
+        var payee = PayeeMother.Register();
+        payee.SetActivation(false, Later);
+
+        payee.SetStanding(PayeeStanding.Blacklisted, Later.AddDays(1));
+
+        Assert.Same(PayeeStanding.Blacklisted, payee.Standing);
+    }
+
+    // Reaplicar a mesma marca é idempotente e não mexe no carimbo de atualização.
+    [Fact]
+    public void SetStanding_WithTheSameValue_ShouldBeIdempotent()
+    {
+        var payee = PayeeMother.Register();
+        payee.SetStanding(PayeeStanding.Whitelisted, Later);
+
+        payee.SetStanding(PayeeStanding.Whitelisted, Later.AddDays(5));
+
+        Assert.Equal(Later, payee.UpdatedAt);
+    }
+
+    // Marca de confiança nula é recusada com BLP.PYE17.
+    [Fact]
+    public void SetStanding_WithNull_Throws_BLP_PYE17()
+    {
+        var payee = PayeeMother.Register();
+
+        var ex = Assert.Throws<DomainException>(() => payee.SetStanding(null!, Later));
+
+        Assert.Equal("BLP.PYE17", ex.Id);
+    }
+
     // Cadastrar um beneficiário guarda nome, documento, política e nasce ativo.
     [Fact]
     public void Register_WithValidData_ShouldStoreDataAndBeActive()

@@ -105,5 +105,6 @@ internal sealed class PayeeQueries(BillPaymentDbContext context) : IPayeeQueries
                 p.AmountPolicy.MinAmount?.Amount,
                 p.AmountPolicy.MaxAmount?.Amount,
                 p.AmountPolicy.IsConclusive),
-            p.IsActive);
+            p.IsActive,
+            p.Standing.Name);
 }

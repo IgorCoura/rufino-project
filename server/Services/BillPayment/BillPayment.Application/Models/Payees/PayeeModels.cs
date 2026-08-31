@@ -59,3 +59,12 @@ public sealed record AlterPayeeActivationModel([property: JsonRequired] bool IsA
 {
     public AlterPayeeActivationCommand ToCommand(Guid tenantId, Guid payeeId) => new(tenantId, payeeId, IsActive);
 }
+
+/// <summary>
+/// A marca de confiança viaja pelo nome do Smart Enum (Normal, Whitelisted, Blacklisted);
+/// valor desconhecido é recusado com 400 na tradução do handler.
+/// </summary>
+public sealed record AlterPayeeStandingModel([property: JsonRequired] string Standing)
+{
+    public AlterPayeeStandingCommand ToCommand(Guid tenantId, Guid payeeId) => new(tenantId, payeeId, Standing);
+}

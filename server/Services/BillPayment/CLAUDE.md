@@ -844,9 +844,32 @@ O que cada fase mudou e **por quê**, na ordem em que aterrissou:
   que o compose não injeta, a nota de revisão no doc 05 (endpoints que ele descreve e não
   existem), e duas dívidas nomeadas no checklist: chave Asaas por tenant e rotação da master key.
 
+## 2026-08-31 — Blacklist/Whitelist de beneficiário
+
+O `Payee` ganhou a marca de confiança **`PayeeStanding`** (Smart Enum: `Normal`/`Whitelisted`/
+`Blacklisted`, coluna `standing` com default 1 — migração `PayeeStanding`), mudada por
+`Payee.SetStanding`, que fica **fora** do guard `EnsureActive` de propósito, como `SetActivation`:
+marcar um mau ator não pode esperar reativação. Efeitos:
+
+- **Blacklist reprova o check 5 (`PayeeMatch`) como falha bloqueante** com o motivo novo
+  `payee_blacklisted` (`CheckReasons.PAYEE_BLACKLISTED`) — vence qualquer outro desfecho,
+  inclusive o casamento exato por documento. O boleto nasce **Perigo** e aprovar exige o aceite
+  explícito do ADR-015 (`BLP.BIL27`, cuja mensagem nomeia o motivo). Não é `CheckType` novo:
+  standing responde a mesma pergunta do check 5, e o catálogo continua com 13.
+- **Whitelist é selo visual, sem efeito de régua** (decisão do usuário): afrouxar verificação
+  por marca criaria um alvo — comprometer um beneficiário marcado.
+- Borda: `PUT /payees/{id}/standing` (`payee`/`manage`, `AlterPayeeStandingCommand`, tradução
+  por `Enumeration.FromDisplayName` → valor desconhecido é 400); `PayeeDto` ganhou `Standing`.
+  Erro novo `BLP.PYE17` (standing nulo). A marca só vale a partir da **próxima** validação de
+  cada boleto — retrato gravado não muda sozinho (revalidar aplica).
+- Testes: `PayeeTests` (4), `BillValidationServiceTests` (3 — bloqueio, blacklist vence
+  inatividade, whitelist idêntica a Normal), `BillApprovalTests` (BIL27 nomeando o motivo),
+  `PayeeLifecycleTests` (4 pela borda: round-trip, inativo, valor desconhecido 400, tenant
+  alheio 404) e o ponta a ponta em `ApproveBillTests` (Perigo → 409 sem aceite → aprovado com).
+
 ## Architecture — what is non-obvious
 
-Prefixos de erro: `SWK##` (SeedWork), `SHK.<VO>##` (SharedKernel), `BLP##` (BC transversal — hoje só `BLP01` TenantMismatch em `BillPaymentErrors.cs`), `BLP.<AGG>##` (Aggregate-specific — reserve a sigla do Aggregate ao criá-lo e registre aqui). **Siglas em uso**: `PRF` (PayerProfile, BLP.PRF01–10), `PYE` (Payee, BLP.PYE01–16), `ORG` (TrustedOrigin, BLP.ORG01–10), `BNK` (BankCode, SHK.BNK01–02), `DGL` (DigitableLine, BLP.DGL01–06), `PIX` (PixPayload, BLP.PIX01–04), `INS` (PaymentInstrument, BLP.INS01–03), `BIL` (Bill, BLP.BIL01–31), `LKP` (Lookups, BLP.LKP01–07), `SEC` (Secrets, BLP.SEC01–07), `CPS` (CaptureSource, BLP.CPS01–20), `CPI` (CaptureItem, BLP.CPI01–17), `MBX` (Mailboxes — VOs de leitura de caixa, BLP.MBX01–04), `EXT` (Extraction — VOs da cascata, BLP.EXT01–08), `EXP` (BillExpectation, BLP.EXP00–13), `NTF` (TenantNotificationSettings, BLP.NTF00–03), `CMS` (CapturedMessage, BLP.CMS01–12), `CRP` (CaptureRetentionPolicy, BLP.CRP01–02). **Reservada pelo design, ainda não codificada**: `PMO` (PaymentOrder). **`RTR` (RoutingRule) foi ABANDONADA na 2.6** — a medição mostrou que a chave que ela usaria não distingue pagadores; não recrie a sigla sem reabrir aquele achado. **`BLP.CPI04` é fixado pelo doc 07** (reivindicação que contradiz o pagador extraído) — não renumere a factory. Convenções:
+Prefixos de erro: `SWK##` (SeedWork), `SHK.<VO>##` (SharedKernel), `BLP##` (BC transversal — hoje só `BLP01` TenantMismatch em `BillPaymentErrors.cs`), `BLP.<AGG>##` (Aggregate-specific — reserve a sigla do Aggregate ao criá-lo e registre aqui). **Siglas em uso**: `PRF` (PayerProfile, BLP.PRF01–10), `PYE` (Payee, BLP.PYE01–17), `ORG` (TrustedOrigin, BLP.ORG01–10), `BNK` (BankCode, SHK.BNK01–02), `DGL` (DigitableLine, BLP.DGL01–06), `PIX` (PixPayload, BLP.PIX01–04), `INS` (PaymentInstrument, BLP.INS01–03), `BIL` (Bill, BLP.BIL01–31), `LKP` (Lookups, BLP.LKP01–07), `SEC` (Secrets, BLP.SEC01–07), `CPS` (CaptureSource, BLP.CPS01–20), `CPI` (CaptureItem, BLP.CPI01–17), `MBX` (Mailboxes — VOs de leitura de caixa, BLP.MBX01–04), `EXT` (Extraction — VOs da cascata, BLP.EXT01–08), `EXP` (BillExpectation, BLP.EXP00–13), `NTF` (TenantNotificationSettings, BLP.NTF00–03), `CMS` (CapturedMessage, BLP.CMS01–12), `CRP` (CaptureRetentionPolicy, BLP.CRP01–02). **Reservada pelo design, ainda não codificada**: `PMO` (PaymentOrder). **`RTR` (RoutingRule) foi ABANDONADA na 2.6** — a medição mostrou que a chave que ela usaria não distingue pagadores; não recrie a sigla sem reabrir aquele achado. **`BLP.CPI04` é fixado pelo doc 07** (reivindicação que contradiz o pagador extraído) — não renumere a factory. Convenções:
 
 - Aggregate Roots emitem Domain Events; Entities internas nunca.
 - **Portas de integração vão em `Domain/Ports/`** (pasta a criar na Fase 1, irmã de `SeedWork/`), não em `Domain/SeedWork/` — mesma razão (`Infra → Application` seria ciclo), mas separadas por serem contratos de mundo externo e não do modelo. Trafegam só tipos do Domain; nenhum DTO de provedor cruza a fronteira. Catálogo em [`02-domain-model.md`](BillPayment.Architecture/02-domain-model.md).

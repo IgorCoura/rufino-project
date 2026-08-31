@@ -219,6 +219,26 @@ public sealed class PayeesController(
         return OkResponse(result);
     }
 
+    [HttpPut("{id:guid}/standing")]
+    [ProtectedResource("payee", "manage")]
+    public async Task<ActionResult<AlterPayeeStandingResponse>> AlterStanding(
+        [FromRoute] Guid tenantId,
+        [FromRoute] Guid id,
+        [FromBody] AlterPayeeStandingModel model,
+        [FromHeader(Name = "x-requestid")] Guid requestId,
+        CancellationToken cancellationToken)
+    {
+        var command = model.ToCommand(tenantId, id);
+        var identified = new IdentifiedCommand<AlterPayeeStandingCommand, AlterPayeeStandingResponse>(
+            command, EnsureRequestId(requestId));
+
+        SendingCommandLog(id, command, identified.Id);
+        var result = await mediator.Send(identified, cancellationToken);
+        CommandResultLog(result, id, command, identified.Id);
+
+        return OkResponse(result);
+    }
+
     [HttpDelete("{id:guid}")]
     [ProtectedResource("payee", "manage")]
     public async Task<ActionResult<DeletePayeeResponse>> Delete(

@@ -28,6 +28,8 @@ internal sealed record PayeeBankRequest(string BankCode);
 
 internal sealed record AlterPayeeActivationRequest(bool IsActive);
 
+internal sealed record AlterPayeeStandingRequest(string Standing);
+
 internal sealed record PayeeIdResponse(Guid Id);
 
 internal sealed record PayeeAmountPolicyResponse(
@@ -46,7 +48,8 @@ internal sealed record PayeeResponse(
     IReadOnlyList<string> Aliases,
     IReadOnlyList<string> AcceptedBanks,
     PayeeAmountPolicyResponse AmountPolicy,
-    bool IsActive);
+    bool IsActive,
+    string Standing);
 
 internal sealed record PayeePageResponse(
     IReadOnlyList<PayeeResponse> Items,

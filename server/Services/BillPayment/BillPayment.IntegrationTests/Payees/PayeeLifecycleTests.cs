@@ -219,6 +219,78 @@ public sealed class PayeeLifecycleTests : BaseIntegrationTest
         Assert.Equal(HttpStatusCode.OK, allowed.StatusCode);
     }
 
+    // A marca de confiança nasce Normal, muda pela borda HTTP e volta na leitura.
+    [Fact]
+    public async Task PutStanding_ShouldRoundTripTheTrustMark()
+    {
+        var id = await RegisterAsync(new RegisterPayeeRequest(
+            "SECONCI", Cnpj, "Unbounded", null, null, null, null));
+
+        var before = await Client.GetFromJsonAsync<PayeeResponse>(
+            new Uri($"{RouteFor(TenantId)}/{id}", UriKind.Relative));
+        Assert.Equal("Normal", before!.Standing);
+
+        var response = await Client.PutAsJsonAsync(
+            new Uri($"{RouteFor(TenantId)}/{id}/standing", UriKind.Relative),
+            new AlterPayeeStandingRequest("Blacklisted"));
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var after = await Client.GetFromJsonAsync<PayeeResponse>(
+            new Uri($"{RouteFor(TenantId)}/{id}", UriKind.Relative));
+        Assert.Equal("Blacklisted", after!.Standing);
+    }
+
+    // A marca alcança até beneficiário desativado — bloquear um mau ator não espera reativação.
+    [Fact]
+    public async Task PutStanding_OnAnInactivePayee_ShouldStillApply()
+    {
+        var id = await RegisterAsync(new RegisterPayeeRequest(
+            "SECONCI", Cnpj, "Unbounded", null, null, null, null));
+        await Client.PutAsJsonAsync(
+            new Uri($"{RouteFor(TenantId)}/{id}/activation", UriKind.Relative),
+            new AlterPayeeActivationRequest(false));
+
+        var response = await Client.PutAsJsonAsync(
+            new Uri($"{RouteFor(TenantId)}/{id}/standing", UriKind.Relative),
+            new AlterPayeeStandingRequest("Blacklisted"));
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var payee = await Client.GetFromJsonAsync<PayeeResponse>(
+            new Uri($"{RouteFor(TenantId)}/{id}", UriKind.Relative));
+        Assert.Equal("Blacklisted", payee!.Standing);
+    }
+
+    // Valor fora do catálogo é engano de input — 400, não 500 nem marca gravada.
+    [Fact]
+    public async Task PutStanding_WithAnUnknownValue_ShouldReturnBadRequest()
+    {
+        var id = await RegisterAsync(new RegisterPayeeRequest(
+            "SECONCI", Cnpj, "Unbounded", null, null, null, null));
+
+        var response = await Client.PutAsJsonAsync(
+            new Uri($"{RouteFor(TenantId)}/{id}/standing", UriKind.Relative),
+            new AlterPayeeStandingRequest("Banido"));
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        var payee = await Client.GetFromJsonAsync<PayeeResponse>(
+            new Uri($"{RouteFor(TenantId)}/{id}", UriKind.Relative));
+        Assert.Equal("Normal", payee!.Standing);
+    }
+
+    // Beneficiário de outro tenant não é alcançável — 404 pelo filtro do repositório.
+    [Fact]
+    public async Task PutStanding_OnAnotherTenantsPayee_ShouldReturnNotFound()
+    {
+        var id = await RegisterAsync(new RegisterPayeeRequest(
+            "SECONCI", Cnpj, "Unbounded", null, null, null, null));
+
+        var response = await Client.PutAsJsonAsync(
+            new Uri($"{RouteFor(OtherTenantId)}/{id}/standing", UriKind.Relative),
+            new AlterPayeeStandingRequest("Blacklisted"));
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+    }
+
     // Buscar pelo documento encontra o beneficiário mesmo com o texto formatado.
     [Fact]
     public async Task GetByTaxId_WithFormattedDocument_ShouldFindThePayee()

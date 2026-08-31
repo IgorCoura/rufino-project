@@ -22,6 +22,9 @@ public sealed class Payee : AggregateRoot<PayeeId>
     public AmountPolicy AmountPolicy { get; private set; } = default!;
     public bool IsActive { get; private set; }
 
+    /// <summary>Marca de confiança do tenant. Blacklist reprova o check de beneficiário.</summary>
+    public PayeeStanding Standing { get; private set; } = PayeeStanding.Normal;
+
     /// <summary>Variações de nome já observadas em consultas. Razão social muda; o documento não.</summary>
     public IReadOnlyCollection<string> Aliases => _aliases.AsReadOnly();
 
@@ -182,6 +185,22 @@ public sealed class Payee : AggregateRoot<PayeeId>
             Activate(occurredAt);
         else
             Deactivate(occurredAt);
+    }
+
+    /// <summary>
+    /// Muda a marca de confiança. Fora do guard de ativação de propósito, como
+    /// <see cref="SetActivation"/>: marcar um mau ator na blacklist precisa funcionar
+    /// mesmo com o cadastro desativado. Idempotente.
+    /// </summary>
+    public void SetStanding(PayeeStanding standing, DateTime occurredAt)
+    {
+        if (standing is null)
+            throw PayeeErrors.StandingRequired();
+        if (Standing == standing)
+            return;
+
+        Standing = standing;
+        UpdatedAt = occurredAt;
     }
 
     /// <summary>

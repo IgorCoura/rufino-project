@@ -37,6 +37,9 @@ public static class CheckReasons
     // Beneficiário.
     public const string PAYEE_NOT_REGISTERED = "payee_not_registered";
     public const string PAYEE_INACTIVE = "payee_inactive";
+
+    /// <summary>O tenant marcou o beneficiário na blacklist. Falha bloqueante — o boleto nasce Perigo.</summary>
+    public const string PAYEE_BLACKLISTED = "payee_blacklisted";
     public const string PAYEE_LOOKALIKE = "payee_lookalike";
     public const string PAYEE_NAME_DIVERGENCE = "payee_name_divergence";
     public const string PAYEE_NOT_IDENTIFIED = "payee_not_identified";

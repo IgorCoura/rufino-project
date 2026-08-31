@@ -72,6 +72,24 @@ public class BillApprovalTests
         Assert.Null(bill.Approval);
     }
 
+    // Beneficiário na blacklist produz Perigo, e a recusa de aprovar sem o aceite explícito
+    // nomeia o motivo — quem aprova precisa ver que está assumindo um beneficiário bloqueado.
+    [Fact]
+    public void Approve_WhenThePayeeIsBlacklisted_ShouldRequireAcknowledgmentNamingTheReason()
+    {
+        var bill = ReadyForApproval();
+        bill.RecordChecks(
+            AllPassing(CheckResult.Failed(CheckType.PayeeMatch, CheckReasons.PAYEE_BLACKLISTED)), DecidedAt);
+        bill.PullDomainEvents();
+
+        var ex = Assert.Throws<DomainException>(
+            () => bill.Approve(Approver, ScheduleFor, null, Policy(), Today, DecidedAt));
+
+        Assert.Equal("BLP.BIL27", ex.Id);
+        Assert.Contains(CheckReasons.PAYEE_BLACKLISTED, ex.Message, StringComparison.Ordinal);
+        Assert.Same(RiskLevel.Danger, bill.Risk);
+    }
+
     // ADR-015: com o risco explicitamente assumido, o Perigo é aprovável — e a trilha grava o
     // nível que o aprovador viu no instante da decisão.
     [Fact]
