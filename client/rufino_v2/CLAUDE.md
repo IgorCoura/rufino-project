@@ -1072,6 +1072,15 @@ Coisas que não podem erodir:
   risco" — o botão de autorizar nem habilita sem a caixa, porque o servidor recusaria com
   `BLP.BIL27` de qualquer jeito; a UI só antecipa a recusa. `riskLevel` nulo (boleto ainda não
   validado) não mostra banner nenhum — ausência honesta, não "Seguro" por omissão.
+- **A chave Asaas é DO TENANT e entra pela seção "Conta Asaas" do Perfil do Pagador
+  (2026-08-31).** O campo é `obscureText` e a chave é gravação única: vai em
+  `PUT /payer-profile/asaas-account` (body `{apiKey}`), o servidor a prova no provedor e a guarda
+  cifrada — ela **nunca volta** pela API, então o campo é limpo após vincular e não há "editar".
+  `DELETE /payer-profile/asaas-account` remove (com confirmação — o diálogo diz que a consulta
+  oficial fica indisponível). Sem chave, o badge fica "Não configurada" em tom de atenção com o
+  aviso em vermelho: boleto novo nasce Perigo por `LookupAvailability` até a chave ser colada.
+  A recusa do provedor chega como `BLP.PRF12`/`PRF13` com a mensagem do domínio pelo caminho
+  genérico. O campo antigo `accountRef` morreu no contrato — não o reintroduza.
 - **A marca de confiança do beneficiário (blacklist/whitelist) é lida em vermelho/verde e mudada
   no detalhe.** `Payee.standing` (`PayeeStandings`: Normal/Whitelisted/Blacklisted, wire names do
   Smart Enum do servidor); a lista troca o ícone para `Symbols.block` em `colorScheme.error` e

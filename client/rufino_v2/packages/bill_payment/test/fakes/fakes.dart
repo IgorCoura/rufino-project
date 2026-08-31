@@ -329,10 +329,17 @@ class FakePayerProfileRepository implements PayerProfileRepository {
       _write('setCnpjRootMatching:$enabled');
 
   @override
-  Future<Result<bool>> linkAsaasAccount(String? accountRef) async {
+  Future<Result<bool>> linkAsaasAccount(String apiKey) async {
     if (_shouldFail) return _fail();
-    calls.add('linkAsaasAccount:${accountRef ?? '-'}');
+    calls.add('linkAsaasAccount:$apiKey');
     return const Result.success(true);
+  }
+
+  @override
+  Future<Result<bool>> unlinkAsaasAccount() async {
+    if (_shouldFail) return _fail();
+    calls.add('unlinkAsaasAccount');
+    return const Result.success(false);
   }
 }
 

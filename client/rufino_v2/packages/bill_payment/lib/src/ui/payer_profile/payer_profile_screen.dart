@@ -254,6 +254,39 @@ class _ProfileBodyState extends State<_ProfileBody> {
     super.dispose();
   }
 
+  Future<void> _linkAccount(BuildContext context) async {
+    final apiKey = _accountController.text.trim();
+    if (apiKey.isEmpty) return;
+
+    final linked = await widget.viewModel.linkAsaasAccount(apiKey);
+    // A chave nunca é reexibida: vinculou, o campo esvazia.
+    if (linked) _accountController.clear();
+  }
+
+  Future<void> _confirmUnlink(BuildContext context) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Remover a chave Asaas?'),
+        content: const Text(
+          'A chave é apagada do cofre e a consulta oficial dos boletos '
+          'deste cliente fica indisponível até uma nova chave ser vinculada.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton.tonal(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('Remover'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed == true) await widget.viewModel.unlinkAsaasAccount();
+  }
+
   @override
   Widget build(BuildContext context) {
     final viewModel = widget.viewModel;
@@ -385,7 +418,7 @@ class _ProfileBodyState extends State<_ProfileBody> {
             ],
             const SizedBox(height: AppSpacing.md),
             SectionCard(
-              title: 'Conta de pagamento',
+              title: 'Conta Asaas',
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -393,23 +426,38 @@ class _ProfileBodyState extends State<_ProfileBody> {
                     children: [
                       StatusBadge(
                         label: profile.canSchedulePayments
-                            ? 'Pronta para agendar'
-                            : 'Não vinculada',
+                            ? 'Conectada'
+                            : 'Não configurada',
                         tone: profile.canSchedulePayments
                             ? BadgeTone.positive
-                            : BadgeTone.neutral,
+                            : BadgeTone.attention,
                       ),
                     ],
                   ),
+                  if (!profile.canSchedulePayments) ...[
+                    const SizedBox(height: AppSpacing.sm),
+                    Text(
+                      'Sem a chave da sua subconta Asaas, a consulta oficial '
+                      'dos boletos fica indisponível e nada pode ser '
+                      'verificado nem agendado.',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: Theme.of(context).colorScheme.error,
+                          ),
+                    ),
+                  ],
                   if (canManage) ...[
                     const SizedBox(height: AppSpacing.sm),
                     Row(
                       children: [
                         Expanded(
+                          // A chave é gravação única: vai para o cofre do
+                          // servidor e nunca é reexibida — por isso o campo
+                          // esconde o texto e é limpo após vincular.
                           child: TextField(
                             controller: _accountController,
+                            obscureText: true,
                             decoration: const InputDecoration(
-                              hintText: 'Referência da subconta Asaas',
+                              hintText: 'Chave de API da subconta Asaas',
                               border: OutlineInputBorder(),
                               isDense: true,
                             ),
@@ -419,12 +467,20 @@ class _ProfileBodyState extends State<_ProfileBody> {
                         FilledButton.tonal(
                           onPressed: viewModel.isMutating
                               ? null
-                              : () => viewModel.linkAsaasAccount(
-                                  _accountController.text),
+                              : () => _linkAccount(context),
                           child: const Text('Vincular'),
                         ),
                       ],
                     ),
+                    if (profile.canSchedulePayments) ...[
+                      const SizedBox(height: AppSpacing.sm),
+                      TextButton(
+                        onPressed: viewModel.isMutating
+                            ? null
+                            : () => _confirmUnlink(context),
+                        child: const Text('Remover chave'),
+                      ),
+                    ],
                   ],
                 ],
               ),

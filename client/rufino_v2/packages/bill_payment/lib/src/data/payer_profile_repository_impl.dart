@@ -98,8 +98,14 @@ class PayerProfileRepositoryImpl implements PayerProfileRepository {
       );
 
   @override
-  Future<Result<bool>> linkAsaasAccount(String? accountRef) => _guard(
-        () => apiService.linkAsaasAccount(accountRef),
+  Future<Result<bool>> linkAsaasAccount(String apiKey) => _guard(
+        () => apiService.linkAsaasAccount(apiKey),
         context: {'op': 'linkAsaasAccount'},
+      );
+
+  @override
+  Future<Result<bool>> unlinkAsaasAccount() => _guard(
+        () => apiService.unlinkAsaasAccount(),
+        context: {'op': 'unlinkAsaasAccount'},
       );
 }

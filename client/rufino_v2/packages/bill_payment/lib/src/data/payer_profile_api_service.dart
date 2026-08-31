@@ -124,13 +124,25 @@ class PayerProfileApiService {
     checkApiStatus(response);
   }
 
-  /// Links (or clears) the payment provider account. Returns whether
-  /// payments can now be scheduled — the reference itself never comes back.
-  Future<bool> linkAsaasAccount(String? accountRef) async {
+  /// Sends the tenant's Asaas API key to be proven and stored in the server
+  /// vault. Returns whether payments can now be scheduled — the key never
+  /// comes back, and neither does the vault pointer.
+  Future<bool> linkAsaasAccount(String apiKey) async {
     final response = await client.put(
       _uri('/payer-profile/asaas-account'),
       headers: await _headers(write: true),
-      body: jsonEncode({'accountRef': accountRef?.trim()}),
+      body: jsonEncode({'apiKey': apiKey.trim()}),
+    );
+    checkApiStatus(response);
+    final body = jsonDecode(response.body) as Map<String, dynamic>;
+    return body['canSchedulePayments'] as bool? ?? false;
+  }
+
+  /// Unlinks the account and removes the key from the server vault.
+  Future<bool> unlinkAsaasAccount() async {
+    final response = await client.delete(
+      _uri('/payer-profile/asaas-account'),
+      headers: await _headers(write: true),
     );
     checkApiStatus(response);
     final body = jsonDecode(response.body) as Map<String, dynamic>;

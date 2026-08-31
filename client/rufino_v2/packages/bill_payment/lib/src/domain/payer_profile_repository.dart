@@ -27,8 +27,12 @@ abstract class PayerProfileRepository {
   /// Turns CNPJ-root matching on or off — companies only.
   Future<Result<void>> setCnpjRootMatching({required bool enabled});
 
-  /// Links (or clears, with `null`) the payment provider account.
+  /// Sends the tenant's Asaas API key to be proven and stored server-side.
   ///
-  /// Resolves to whether payments can now be scheduled.
-  Future<Result<bool>> linkAsaasAccount(String? accountRef);
+  /// Resolves to whether payments can now be scheduled. The key is never
+  /// echoed back.
+  Future<Result<bool>> linkAsaasAccount(String apiKey);
+
+  /// Unlinks the account, removing the key from the server vault.
+  Future<Result<bool>> unlinkAsaasAccount();
 }

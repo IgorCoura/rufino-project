@@ -134,11 +134,15 @@ class PayerProfileViewModel extends ChangeNotifier {
         fallback: 'Não foi possível alterar o casamento por raiz.',
       );
 
-  /// Links (or clears) the payment provider account.
-  Future<bool> linkAsaasAccount(String? accountRef) => _mutate(
-        () => _repository.linkAsaasAccount(
-          (accountRef?.trim().isEmpty ?? true) ? null : accountRef,
-        ),
+  /// Sends the tenant's Asaas API key to be proven and stored server-side.
+  Future<bool> linkAsaasAccount(String apiKey) => _mutate(
+        () => _repository.linkAsaasAccount(apiKey),
         fallback: 'Não foi possível vincular a conta.',
+      );
+
+  /// Unlinks the account, removing the key from the server vault.
+  Future<bool> unlinkAsaasAccount() => _mutate(
+        () => _repository.unlinkAsaasAccount(),
+        fallback: 'Não foi possível remover a chave.',
       );
 }

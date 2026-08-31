@@ -57,14 +57,18 @@ void main() {
       expect(viewModel.errorMessage, 'regra disse não');
     });
 
-    test('a blank account reference is sent as null to clear the link',
+    // A chave crua vai inteira ao repositório — quem a prova e a guarda é o
+    // servidor; desvincular tem porta própria (DELETE), não é "vincular vazio".
+    test('linking sends the API key and unlinking uses its own call',
         () async {
       repository.profile = payerProfile();
       await viewModel.load();
 
-      await viewModel.linkAsaasAccount('   ');
+      await viewModel.linkAsaasAccount(r'$aact_prod_chave');
+      await viewModel.unlinkAsaasAccount();
 
-      expect(repository.calls, contains('linkAsaasAccount:-'));
+      expect(repository.calls, contains(r'linkAsaasAccount:$aact_prod_chave'));
+      expect(repository.calls, contains('unlinkAsaasAccount'));
     });
 
     test('a failed load lands on error with a message', () async {
