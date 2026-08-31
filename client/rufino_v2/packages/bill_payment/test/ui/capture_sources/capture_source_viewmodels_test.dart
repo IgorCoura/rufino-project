@@ -33,10 +33,8 @@ void main() {
   });
 
   group('CaptureSourceConnectViewModel', () {
-    test('connecting resolves to the new id and carries the shared-mailbox '
-        'warning', () async {
-      final repository = FakeCaptureSourceRepository()
-        ..alreadyMonitored = true;
+    test('connecting resolves to the new id', () async {
+      final repository = FakeCaptureSourceRepository();
       final viewModel =
           CaptureSourceConnectViewModel(repository: repository);
 
@@ -49,7 +47,6 @@ void main() {
       );
 
       expect(id, 'src-new');
-      expect(viewModel.sharedMailboxWarning, isTrue);
       viewModel.dispose();
     });
 

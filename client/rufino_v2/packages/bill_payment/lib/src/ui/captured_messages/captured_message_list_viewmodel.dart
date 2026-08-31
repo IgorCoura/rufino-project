@@ -253,8 +253,17 @@ class CapturedMessageListViewModel extends ChangeNotifier {
       result.fold(
         onSuccess: (outcome) {
           succeeded = true;
-          _infoMessage = 'E-mail devolvido à fila — ${outcome.artifactsIngested}'
-              ' anexo(s) serão lidos de novo em segundo plano.';
+          _infoMessage = [
+            'E-mail devolvido à fila — ${outcome.artifactsReingested}'
+                ' anexo(s) serão lidos de novo em segundo plano.',
+            if (outcome.billsCancelled > 0)
+              '${outcome.billsCancelled} boleto(s) pendente(s) foram'
+                  ' cancelados e serão recriados pela nova leitura.',
+            if (outcome.previouslyDeniedBillIds.isNotEmpty)
+              'Atenção: ${outcome.previouslyDeniedBillIds.length} boleto(s)'
+                  ' deste e-mail já haviam sido negados e voltarão para'
+                  ' decisão.',
+          ].join(' ');
         },
         onError: (error, _) {
           _errorMessage = billPaymentErrorMessage(

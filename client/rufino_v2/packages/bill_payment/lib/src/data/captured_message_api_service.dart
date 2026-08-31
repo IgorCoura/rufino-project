@@ -162,8 +162,11 @@ class CapturedMessageApiService {
     final body = jsonDecode(response.body) as Map<String, dynamic>;
     return RecaptureOutcome(
       id: body['id'] as String,
-      itemsRemoved: body['itemsRemoved'] as int? ?? 0,
-      artifactsIngested: body['artifactsIngested'] as int? ?? 0,
+      artifactsReingested: body['artifactsReingested'] as int? ?? 0,
+      billsCancelled: body['billsCancelled'] as int? ?? 0,
+      previouslyDeniedBillIds:
+          (body['previouslyDeniedBillIds'] as List<dynamic>? ?? const [])
+              .cast<String>(),
     );
   }
 

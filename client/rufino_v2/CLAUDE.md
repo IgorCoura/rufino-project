@@ -1017,6 +1017,21 @@ Coisas que não podem erodir:
   histórico a pessoa que mandou um e-mail fica sem resposta. `captured-message` e
   `capture-retention` são **recursos próprios** no Keycloak, não escopos pendurados em
   `capture-item`: fila de trabalho e histórico são coisas diferentes.
+- **A recaptura segue o contrato de 2026-08-28 do servidor, e o diálogo diz a regra nova.**
+  `RecaptureOutcome` carrega `artifactsReingested`, `billsCancelled` e
+  `previouslyDeniedBillIds` (os nomes antigos `itemsRemoved`/`artifactsIngested` não existem
+  mais no servidor — parseá-los mostraria "0 anexo(s)" para sempre). A snackbar de sucesso
+  informa os boletos pendentes cancelados e **avisa** quando boletos já negados renascem para
+  decisão; o diálogo de confirmação diz que boleto aguardando aprovação é **cancelado e
+  recriado**, e que aprovado/agendado/pago **bloqueia** (o 409 `BLP.CMS11` chega com a mensagem
+  do domínio pelo caminho genérico).
+- **`ConnectOutcome` é só o id — o aviso de caixa compartilhada morreu no servidor.** O campo
+  `alreadyMonitoredByAnotherAccount` saiu do contrato em 2026-08-28 (um tenant nunca fica
+  sabendo do que outro configurou); a snackbar "Esta caixa já é monitorada por outra conta" foi
+  removida junto. Não reintroduza o aviso: ele era o vazamento, não a funcionalidade.
+- **429 tem mensagem própria no `checkApiStatus`** (`rufino_core`): os endpoints caros do BC
+  têm rate limiting por pessoa e respondem 429 sem corpo de domínio; sem o fallback "Muitas
+  tentativas em sequência…" o usuário veria só o texto genérico de cada tela.
 - **O controle de retenção vive no topo dessa tela**, e não numa tela de configuração: quem lê a
   lista é quem decide por quanto tempo ela existe. Sem `capture-retention:manage` o prazo
   continua à vista, só não editável — esconder é para falta de permissão, mostrar sem editar é

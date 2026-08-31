@@ -28,10 +28,16 @@ void checkApiStatus(http.Response response) {
 
   final (id, message) = _parseDomainError(response.body);
 
+  // The rate limiter answers 429 with no domain body; without this message
+  // the user would only see each screen's generic fallback.
+  final fallback = response.statusCode == 429
+      ? const ['Muitas tentativas em sequência. Aguarde um minuto e tente de novo.']
+      : const <String>[];
+
   throw HttpException(
     statusCode: response.statusCode,
     message: 'HTTP ${response.statusCode}: ${response.reasonPhrase}',
-    serverMessages: message == null ? const [] : [message],
+    serverMessages: message == null ? fallback : [message],
     domainErrorId: id,
     responseBody: response.body,
     requestMethod: response.request?.method,

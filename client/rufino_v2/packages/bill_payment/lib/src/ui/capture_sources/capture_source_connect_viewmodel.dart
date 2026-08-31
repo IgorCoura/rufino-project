@@ -14,17 +14,12 @@ class CaptureSourceConnectViewModel extends ChangeNotifier {
 
   bool _isSaving = false;
   String? _errorMessage;
-  bool _sharedMailboxWarning = false;
 
   /// Whether the connect is in flight.
   bool get isSaving => _isSaving;
 
   /// The message to show when the connect failed.
   String? get errorMessage => _errorMessage;
-
-  /// Whether the server warned that another account already monitors this
-  /// mailbox — a boolean and nothing more, by design (ADR-008).
-  bool get sharedMailboxWarning => _sharedMailboxWarning;
 
   /// Connects the mailbox. Resolves to the new source id, or `null`.
   Future<String?> connect({
@@ -38,7 +33,6 @@ class CaptureSourceConnectViewModel extends ChangeNotifier {
   }) async {
     _isSaving = true;
     _errorMessage = null;
-    _sharedMailboxWarning = false;
     notifyListeners();
 
     String? id;
@@ -55,10 +49,7 @@ class CaptureSourceConnectViewModel extends ChangeNotifier {
         captureSince: captureSince,
       );
       result.fold(
-        onSuccess: (outcome) {
-          id = outcome.id;
-          _sharedMailboxWarning = outcome.alreadyMonitoredByAnotherAccount;
-        },
+        onSuccess: (outcome) => id = outcome.id,
         onError: (error, _) {
           _errorMessage = billPaymentErrorMessage(
             error,

@@ -25,19 +25,16 @@ class GraphCredentialInput {
 }
 
 /// What connecting a source returned.
+///
+/// Carries only the new source's id: the server stopped disclosing whether
+/// another account monitors the same mailbox — a tenant must never learn
+/// anything about another tenant's setup (ADR-008, revised 2026-08-28).
 class ConnectOutcome {
   /// Creates the outcome record.
-  const ConnectOutcome({
-    required this.id,
-    required this.alreadyMonitoredByAnotherAccount,
-  });
+  const ConnectOutcome({required this.id});
 
   /// The new source's id.
   final String id;
-
-  /// Whether another account already monitors this mailbox — a boolean and
-  /// nothing more, by design (ADR-008).
-  final bool alreadyMonitoredByAnotherAccount;
 }
 
 /// What a full rescan returned.

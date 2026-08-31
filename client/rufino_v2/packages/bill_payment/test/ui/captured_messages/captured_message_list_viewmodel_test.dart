@@ -126,7 +126,30 @@ void main() {
 
       expect(ok, isTrue);
       expect(repository.calls, contains('recapture:msg-1'));
-      expect(viewModel.infoMessage, isNotNull);
+      expect(viewModel.infoMessage, contains('1 anexo(s)'));
+      expect(viewModel.infoMessage, isNot(contains('cancelados')));
+      expect(viewModel.infoMessage, isNot(contains('negados')));
+    });
+
+    test('recapturing reports cancelled bills and warns about the ones '
+        'already denied', () async {
+      repository.messages = [capturedMessage()];
+      repository.recaptureOutcome = const RecaptureOutcome(
+        id: 'msg-1',
+        artifactsReingested: 2,
+        billsCancelled: 1,
+        previouslyDeniedBillIds: ['bill-9'],
+      );
+      await viewModel.load();
+
+      final ok = await viewModel.recapture('msg-1');
+
+      expect(ok, isTrue);
+      expect(viewModel.infoMessage, contains('1 boleto(s) pendente(s)'));
+      expect(
+        viewModel.infoMessage,
+        contains('1 boleto(s) deste e-mail já haviam sido negados'),
+      );
     });
 
     test('a failed listing surfaces the domain message', () async {

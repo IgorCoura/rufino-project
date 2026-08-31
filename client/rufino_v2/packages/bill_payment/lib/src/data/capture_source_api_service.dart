@@ -168,11 +168,7 @@ class CaptureSourceApiService {
     );
     checkApiStatus(response);
     final body = jsonDecode(response.body) as Map<String, dynamic>;
-    return ConnectOutcome(
-      id: body['id'] as String,
-      alreadyMonitoredByAnotherAccount:
-          body['alreadyMonitoredByAnotherAccount'] as bool? ?? false,
-    );
+    return ConnectOutcome(id: body['id'] as String);
   }
 
   /// Renames the source.

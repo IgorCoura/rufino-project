@@ -76,13 +76,6 @@ class _CaptureSourceConnectScreenState
     );
     if (id == null || !mounted) return;
 
-    if (widget.viewModel.sharedMailboxWarning) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Esta caixa já é monitorada por outra conta.'),
-        ),
-      );
-    }
     widget.onConnected(id);
   }
 

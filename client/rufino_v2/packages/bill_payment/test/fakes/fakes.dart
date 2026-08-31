@@ -459,9 +459,6 @@ class FakeCaptureSourceRepository implements CaptureSourceRepository {
     skippedAsAlreadyIngested: 1,
   );
 
-  /// Whether the connect warns about a shared mailbox.
-  bool alreadyMonitored = false;
-
   bool _shouldFail = false;
 
   /// The writes performed, in order.
@@ -509,12 +506,7 @@ class FakeCaptureSourceRepository implements CaptureSourceRepository {
     if (_shouldFail) return _fail();
     lastCaptureSince = captureSince;
     calls.add('connectSource:$address');
-    return Result.success(
-      ConnectOutcome(
-        id: 'src-new',
-        alreadyMonitoredByAnotherAccount: alreadyMonitored,
-      ),
-    );
+    return const Result.success(ConnectOutcome(id: 'src-new'));
   }
 
   /// The floor handed to the last `connectSource`/`changeCaptureSince` call.
@@ -809,13 +801,19 @@ class FakeCapturedMessageRepository implements CapturedMessageRepository {
     return Result.success(syncStatus);
   }
 
+  /// What the next [recapture] resolves to.
+  RecaptureOutcome recaptureOutcome = const RecaptureOutcome(
+    id: 'msg-1',
+    artifactsReingested: 1,
+    billsCancelled: 0,
+    previouslyDeniedBillIds: [],
+  );
+
   @override
   Future<Result<RecaptureOutcome>> recapture(String id) async {
     if (_shouldFail) return _fail();
     calls.add('recapture:$id');
-    return const Result.success(
-      RecaptureOutcome(id: 'msg-1', itemsRemoved: 1, artifactsIngested: 1),
-    );
+    return Result.success(recaptureOutcome);
   }
 
   @override

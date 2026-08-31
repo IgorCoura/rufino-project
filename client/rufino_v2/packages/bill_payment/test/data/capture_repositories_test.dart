@@ -67,8 +67,8 @@ void main() {
       expect(reporter.capturedErrors, isEmpty);
     });
 
-    test('the shared-mailbox warning arrives as a boolean and nothing more',
-        () async {
+    test('a successful connect resolves to the new source id and nothing '
+        'else — the server no longer discloses other accounts', () async {
       when(
         () => apiService.connectSource(
           displayName: any(named: 'displayName'),
@@ -76,12 +76,7 @@ void main() {
           credential: any(named: 'credential'),
           folderPath: any(named: 'folderPath'),
         ),
-      ).thenAnswer(
-        (_) async => const ConnectOutcome(
-          id: 'src-1',
-          alreadyMonitoredByAnotherAccount: true,
-        ),
-      );
+      ).thenAnswer((_) async => const ConnectOutcome(id: 'src-1'));
 
       final result = await repository.connectSource(
         displayName: 'Contas',
@@ -90,10 +85,7 @@ void main() {
       );
 
       result.fold(
-        onSuccess: (outcome) {
-          expect(outcome.id, 'src-1');
-          expect(outcome.alreadyMonitoredByAnotherAccount, isTrue);
-        },
+        onSuccess: (outcome) => expect(outcome.id, 'src-1'),
         onError: (error, _) => fail('should have succeeded: $error'),
       );
     });

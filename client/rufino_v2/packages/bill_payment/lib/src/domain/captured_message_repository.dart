@@ -7,18 +7,23 @@ class RecaptureOutcome {
   /// Creates the outcome record.
   const RecaptureOutcome({
     required this.id,
-    required this.itemsRemoved,
-    required this.artifactsIngested,
+    required this.artifactsReingested,
+    required this.billsCancelled,
+    required this.previouslyDeniedBillIds,
   });
 
   /// The record's id.
   final String id;
 
-  /// How many quarantine items were wiped to make room for the new ones.
-  final int itemsRemoved;
+  /// How many attachments came back in for a fresh pass.
+  final int artifactsReingested;
 
-  /// How many attachments came back in.
-  final int artifactsIngested;
+  /// How many pending bills were cancelled so the new pass can recreate them.
+  final int billsCancelled;
+
+  /// Bills born from this e-mail that had already been denied once — the new
+  /// pass brings them back for decision, and the user must be warned.
+  final List<String> previouslyDeniedBillIds;
 }
 
 /// The filters the capture log screen sends to the server.

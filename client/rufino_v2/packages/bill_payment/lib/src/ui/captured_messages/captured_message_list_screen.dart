@@ -320,7 +320,7 @@ class _MessageRow extends StatelessWidget {
         content: Text(
           'Tudo que a captura produziu para ele é apagado e o e-mail é lido de '
           'novo, do zero, como se tivesse acabado de chegar.'
-          '${producedBill ? '\n\nEste e-mail já virou boleto. O boleto NÃO é apagado — se o mesmo documento reentrar, ele aponta para o boleto que já existe.' : ''}',
+          '${producedBill ? '\n\nEste e-mail já virou boleto. Se ele ainda aguarda aprovação, o boleto é cancelado e recriado pela nova leitura; se já foi aprovado, agendado ou pago, o reprocessamento é bloqueado.' : ''}',
         ),
         actions: [
           TextButton(

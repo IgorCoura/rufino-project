@@ -114,8 +114,9 @@ void main() {
       expect(find.text('Reprocessar'), findsOneWidget);
     });
 
-    // O aviso de que o boleto não é apagado só aparece quando há boleto — dizer
-    // isso sempre treinaria a pessoa a ignorar o diálogo.
+    // O aviso sobre o destino do boleto só aparece quando há boleto — dizer
+    // isso sempre treinaria a pessoa a ignorar o diálogo. O texto espelha a
+    // regra do servidor: pendente é cancelado e recriado, decidido bloqueia.
     testWidgets('warns about the existing bill before recapturing',
         (tester) async {
       repository.messages = [
@@ -126,7 +127,14 @@ void main() {
       await tester.tap(find.text('Reprocessar'));
       await tester.pumpAndSettle();
 
-      expect(find.textContaining('boleto NÃO é apagado'), findsOneWidget);
+      expect(
+        find.textContaining('cancelado e recriado pela nova leitura'),
+        findsOneWidget,
+      );
+      expect(
+        find.textContaining('aprovado, agendado ou pago'),
+        findsOneWidget,
+      );
     });
 
     // Sem permissão de gestão o prazo continua à vista, só não editável.
