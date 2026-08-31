@@ -2,6 +2,7 @@ namespace BillPayment.Domain.Ports;
 
 using BillPayment.Domain.Instruments;
 using BillPayment.Domain.Lookups;
+using BillPayment.Domain.Secrets;
 
 /// <summary>
 /// Consulta oficial de um documento de código de barras na fonte que o emitiu, através do
@@ -20,8 +21,17 @@ using BillPayment.Domain.Lookups;
 /// desta porta roda com uma credencial capaz de pagar contas — daí a whitelist de IP ser
 /// obrigatória, e não recomendada (<c>ADR-001</c>, <c>ADR-009</c>).
 /// </para>
+/// <para>
+/// <strong>A credencial é DO TENANT</strong> (doc 07 — subconta por tenant, desde 2026-08-31):
+/// o ponteiro do cofre viaja na chamada, como no <c>IMailboxReader</c>, e é a Infra que o
+/// resolve. Nulo — tenant sem chave configurada — degrada para <c>Unavailable</c>, nunca usa
+/// chave de outro tenant nem da instalação.
+/// </para>
 /// </remarks>
 public interface IBillLookupService
 {
-    Task<BillLookupResult> SimulateAsync(DigitableLine digitableLine, CancellationToken cancellationToken);
+    Task<BillLookupResult> SimulateAsync(
+        CredentialRef? credential,
+        DigitableLine digitableLine,
+        CancellationToken cancellationToken);
 }

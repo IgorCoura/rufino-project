@@ -113,16 +113,42 @@ public static class PayerProfileErrors
             sourcePath: BuildSourcePath(filePath, memberName, lineNumber),
             category: DomainErrorCategory.Conflict);
 
-    public static DomainException AsaasAccountRefTooLong(
-        int maxLength,
+    // BLP.PRF10 (AsaasAccountRefTooLong) foi APOSENTADO em 2026-08-31, quando o ponteiro virou
+    // CredentialRef e o tamanho passou a ser invariante do VO. Não reutilize o número.
+
+    public static DomainException AsaasKeyRequired(
         [CallerFilePath] string filePath = "",
         [CallerMemberName] string memberName = "",
         [CallerLineNumber] int lineNumber = 0)
         => new(
-            id: $"{AGGREGATE_PREFIX}10",
-            messageTemplate: "A referência da subconta excede o limite de {0} caracteres.",
-            parameters: new object[] { maxLength },
+            id: $"{AGGREGATE_PREFIX}11",
+            messageTemplate: "A chave de API da conta Asaas é obrigatória.",
+            parameters: Array.Empty<object>(),
             sourcePath: BuildSourcePath(filePath, memberName, lineNumber));
+
+    public static DomainException AsaasKeyRejected(
+        string reasonCode,
+        [CallerFilePath] string filePath = "",
+        [CallerMemberName] string memberName = "",
+        [CallerLineNumber] int lineNumber = 0)
+        => new(
+            id: $"{AGGREGATE_PREFIX}12",
+            messageTemplate: "O provedor recusou a chave informada ({0}). Confira a chave da subconta e tente de novo.",
+            parameters: new object[] { reasonCode },
+            sourcePath: BuildSourcePath(filePath, memberName, lineNumber),
+            category: DomainErrorCategory.Conflict);
+
+    public static DomainException AsaasProviderUnreachable(
+        string reasonCode,
+        [CallerFilePath] string filePath = "",
+        [CallerMemberName] string memberName = "",
+        [CallerLineNumber] int lineNumber = 0)
+        => new(
+            id: $"{AGGREGATE_PREFIX}13",
+            messageTemplate: "Não foi possível provar a chave junto ao provedor ({0}). Tente novamente em instantes.",
+            parameters: new object[] { reasonCode },
+            sourcePath: BuildSourcePath(filePath, memberName, lineNumber),
+            category: DomainErrorCategory.Conflict);
 
     private static string BuildSourcePath(string filePath, string memberName, int lineNumber)
         => $"{Path.GetFileName(filePath)}:{lineNumber} ({memberName})";

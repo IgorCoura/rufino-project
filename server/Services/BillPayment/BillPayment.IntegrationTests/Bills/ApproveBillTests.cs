@@ -381,6 +381,29 @@ public sealed class ApproveBillTests : BaseIntegrationTest, IDisposable
         return billId;
     }
 
+    // A consulta oficial sai com a credencial DO TENANT (2026-08-31): com a subconta vinculada,
+    // o ponteiro do cofre chega à porta de lookup; a chave em si nunca sai do cofre.
+    [Fact]
+    public async Task Validate_ShouldCarryTheTenantsCredentialIntoTheLookup()
+    {
+        var register = await _client.PostAsJsonAsync(
+            new Uri($"/api/v1/{TenantId}/payer-profile", UriKind.Relative),
+            new RegisterPayerProfileRequest("Company", "RUFINO", "11444777000161"),
+            CancellationToken.None);
+        register.EnsureSuccessStatusCode();
+
+        var link = await _client.PutAsJsonAsync(
+            new Uri($"/api/v1/{TenantId}/payer-profile/asaas-account", UriKind.Relative),
+            new LinkAsaasAccountRequest("$aact_prod_chave_do_tenant"),
+            CancellationToken.None);
+        link.EnsureSuccessStatusCode();
+
+        await ImportAndValidateAsync();
+
+        Assert.NotNull(_lookups.LastCredential);
+        Assert.True(_lookups.LastCredential!.IsLocalVault);
+    }
+
     private async Task DrainOutboxAsync()
     {
         using var scope = _host.Services.CreateScope();

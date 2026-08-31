@@ -867,9 +867,46 @@ marcar um mau ator não pode esperar reativação. Efeitos:
   `PayeeLifecycleTests` (4 pela borda: round-trip, inativo, valor desconhecido 400, tenant
   alheio 404) e o ponta a ponta em `ApproveBillTests` (Perigo → 409 sem aceite → aprovado com).
 
+## 2026-08-31 (2) — A chave do Asaas virou POR TENANT, com prova no cadastro
+
+A dívida "chave Asaas por tenant (subconta)" do checklist foi paga, sem fallback global (decisão
+do usuário: tenant sem chave fica com a consulta indisponível — a chave da instalação saiu de
+cena, porque é a chave que paga). O desenho:
+
+- **Domain.** `PayerProfile.AsaasAccountRef` virou **`CredentialRef?`** (era `string?` que nada
+  produzia); `LinkAsaasAccount(CredentialRef)` + `UnlinkAsaasAccount()`. Porta nova
+  **`IPaymentAccountVerifier`** (`ProbeAsync(chave)` → `PaymentAccountProbe`, falha modelada) —
+  mesma doutrina da prova de acesso à caixa. Erros: `BLP.PRF11` (chave obrigatória), `PRF12`
+  (provedor recusou — Conflict), `PRF13` (provedor fora do ar — Conflict); **`PRF10` foi
+  aposentado** (o tamanho virou invariante do VO).
+- **Application.** `LinkAsaasAccountCommand` recebe a **chave em claro** (`ISensitiveCommand`),
+  no molde `ReplaceCaptureSourceCredential`: prova → `vault.StoreAsync(SecretKind.AsaasAccountApiKey)`
+  → `LinkAsaasAccount` → remove o segredo anterior → um `SaveEntitiesAsync`. Prova reprovada
+  descarta a UoW — nada órfão (coberto por teste que conta `tenant_secrets`).
+  `UnlinkAsaasAccountCommand` limpa ponteiro + cofre. `ValidateBillCommandHandler` carrega o
+  perfil ANTES da consulta e passa `profile?.AsaasAccountRef` às portas de lookup.
+- **API.** `PUT /payer-profile/asaas-account` (body `{apiKey}` — era `{accountRef}`, que nada
+  produzia) e `DELETE /payer-profile/asaas-account`, ambos `payer-profile`/`manage`. A chave e o
+  ponteiro nunca voltam pela API (`GET` segue expondo só `canSchedulePayments`).
+- **Infra.** Cliente **nomeado** `AsaasHttp.LOOKUP_CLIENT_NAME` sem header fixo;
+  `AsaasClientProvider` (scoped) resolve o ponteiro e preenche `access_token` por chamada;
+  `AsaasAccountVerifier` prova com `GET /v3/myAccount/` — e ali **401/403 é RECUSA**, ao
+  contrário da classificação da consulta, onde 403 é retentável. Migração
+  `PayerProfileAsaasCredentialRef` (aperto de 200→100 na coluna; linhas anteriores eram nulas).
+- **Consequência de deploy:** até cada tenant colar a própria chave, boleto novo verifica com
+  `LookupAvailability` falhando (⇒ Perigo, aprovável com "assumo o risco"). `Asaas__ApiKey`
+  saiu do `appsettings`/env — configurá-la não faz mais nada.
+- **Testes.** `AsaasAccountLinkTests` (7, pela borda: prova → cofre → perfil, recusa sem órfão,
+  troca sem acumular, DELETE idempotente, chave/ponteiro fora da resposta),
+  `UnconfiguredLookupTests` reescrito como "tenant sem chave", `AsaasClientConfigurationTests`
+  (User-Agent, SEM access_token default, adapters reais sempre), header do tenant provado em
+  `AsaasBillLookupServiceTests` (o `StubHttpMessageHandler` passou a capturar cabeçalhos), e o
+  fluxo com credencial em `ApproveBillTests.Validate_ShouldCarryTheTenantsCredentialIntoTheLookup`.
+  `WithFakeLookups()` também troca o verificador; `WithFakePaymentVerifier()` é o host do vínculo.
+
 ## Architecture — what is non-obvious
 
-Prefixos de erro: `SWK##` (SeedWork), `SHK.<VO>##` (SharedKernel), `BLP##` (BC transversal — hoje só `BLP01` TenantMismatch em `BillPaymentErrors.cs`), `BLP.<AGG>##` (Aggregate-specific — reserve a sigla do Aggregate ao criá-lo e registre aqui). **Siglas em uso**: `PRF` (PayerProfile, BLP.PRF01–10), `PYE` (Payee, BLP.PYE01–17), `ORG` (TrustedOrigin, BLP.ORG01–10), `BNK` (BankCode, SHK.BNK01–02), `DGL` (DigitableLine, BLP.DGL01–06), `PIX` (PixPayload, BLP.PIX01–04), `INS` (PaymentInstrument, BLP.INS01–03), `BIL` (Bill, BLP.BIL01–31), `LKP` (Lookups, BLP.LKP01–07), `SEC` (Secrets, BLP.SEC01–07), `CPS` (CaptureSource, BLP.CPS01–20), `CPI` (CaptureItem, BLP.CPI01–17), `MBX` (Mailboxes — VOs de leitura de caixa, BLP.MBX01–04), `EXT` (Extraction — VOs da cascata, BLP.EXT01–08), `EXP` (BillExpectation, BLP.EXP00–13), `NTF` (TenantNotificationSettings, BLP.NTF00–03), `CMS` (CapturedMessage, BLP.CMS01–12), `CRP` (CaptureRetentionPolicy, BLP.CRP01–02). **Reservada pelo design, ainda não codificada**: `PMO` (PaymentOrder). **`RTR` (RoutingRule) foi ABANDONADA na 2.6** — a medição mostrou que a chave que ela usaria não distingue pagadores; não recrie a sigla sem reabrir aquele achado. **`BLP.CPI04` é fixado pelo doc 07** (reivindicação que contradiz o pagador extraído) — não renumere a factory. Convenções:
+Prefixos de erro: `SWK##` (SeedWork), `SHK.<VO>##` (SharedKernel), `BLP##` (BC transversal — hoje só `BLP01` TenantMismatch em `BillPaymentErrors.cs`), `BLP.<AGG>##` (Aggregate-specific — reserve a sigla do Aggregate ao criá-lo e registre aqui). **Siglas em uso**: `PRF` (PayerProfile, BLP.PRF01–13 — o 10 foi aposentado em 2026-08-31, não o reutilize), `PYE` (Payee, BLP.PYE01–17), `ORG` (TrustedOrigin, BLP.ORG01–10), `BNK` (BankCode, SHK.BNK01–02), `DGL` (DigitableLine, BLP.DGL01–06), `PIX` (PixPayload, BLP.PIX01–04), `INS` (PaymentInstrument, BLP.INS01–03), `BIL` (Bill, BLP.BIL01–31), `LKP` (Lookups, BLP.LKP01–07), `SEC` (Secrets, BLP.SEC01–07), `CPS` (CaptureSource, BLP.CPS01–20), `CPI` (CaptureItem, BLP.CPI01–17), `MBX` (Mailboxes — VOs de leitura de caixa, BLP.MBX01–04), `EXT` (Extraction — VOs da cascata, BLP.EXT01–08), `EXP` (BillExpectation, BLP.EXP00–13), `NTF` (TenantNotificationSettings, BLP.NTF00–03), `CMS` (CapturedMessage, BLP.CMS01–12), `CRP` (CaptureRetentionPolicy, BLP.CRP01–02). **Reservada pelo design, ainda não codificada**: `PMO` (PaymentOrder). **`RTR` (RoutingRule) foi ABANDONADA na 2.6** — a medição mostrou que a chave que ela usaria não distingue pagadores; não recrie a sigla sem reabrir aquele achado. **`BLP.CPI04` é fixado pelo doc 07** (reivindicação que contradiz o pagador extraído) — não renumere a factory. Convenções:
 
 - Aggregate Roots emitem Domain Events; Entities internas nunca.
 - **Portas de integração vão em `Domain/Ports/`** (pasta a criar na Fase 1, irmã de `SeedWork/`), não em `Domain/SeedWork/` — mesma razão (`Infra → Application` seria ciclo), mas separadas por serem contratos de mundo externo e não do modelo. Trafegam só tipos do Domain; nenhum DTO de provedor cruza a fronteira. Catálogo em [`02-domain-model.md`](BillPayment.Architecture/02-domain-model.md).
@@ -1307,7 +1344,7 @@ apagar o registro do alerta.
 - [ ] **`Keycloak__Credentials__secret` por variável de ambiente** — nunca no `appsettings.json`. O `docker-compose.yml` **não** o injeta de propósito (ver o comentário lá: `${VAR:-}` define string vazia e sobrescreve o user-secrets); em desenvolvimento vem do `dotnet user-secrets`, em produção do orquestrador.
 - [x] **Decorar endpoints com `[ProtectedResource]`** — feito nos **76** endpoints, com os recursos de [`05-use-cases.md`](BillPayment.Architecture/05-use-cases.md). `HealthController` é `[AllowAnonymous]` explícito.
 - [ ] **CORS — origens de produção** — `AddCorsForFront` já está plugado em `Program.cs`. Antes do deploy: popular `Cors:AllowedOrigins` no `appsettings` do ambiente real (sem `AllowAnyOrigin`/wildcard).
-- [ ] **Chave do Asaas por tenant (subconta)** — hoje a Infra usa UMA chave da instalação, com permissão de saque, para consultar em nome de todos os tenants (`InfraDependencies`, header fixo). O doc 07 prevê uma subconta por tenant; antes da fase 3 isso vira pré-requisito, porque é a chave que paga.
+- [x] **Chave do Asaas por tenant (subconta)** — **feito em 2026-08-31.** A chave entra por tenant (`PUT /payer-profile/asaas-account`, com prova no provedor), vive cifrada em `tenant_secrets` e é resolvida por chamada; a chave global da instalação deixou de existir. O que resta é operacional: cada tenant precisa colar a própria chave (e a whitelist de IP do provedor vale por subconta).
 - [ ] **Rotação da master key do cofre** — `EnvelopeSecretVault` decifra sempre com a chave única de `Secrets:MasterKey`; `KekVersion` é gravado, mas não há como manter a chave anterior nem re-envelopar. Trocar a chave hoje torna TODAS as linhas de `tenant_secrets` ilegíveis. Escrever a rotina de re-envelope (ler com a antiga, gravar com a nova) antes do primeiro cliente externo.
 - [ ] **Whitelist de IP no Asaas** — a chave da Fase 1 exige permissão de saque via API (achado da sprint 1.0), então ela pode pagar contas se vazar. A whitelist é o mecanismo do provedor para limitar o estrago e dispensar aprovação manual de operações críticas. **Não é opcional.**
 - [x] **Sonda de fumaça do decode Pix em produção** — **feita em 2026-08-06: VERDE.** `receiver.cpfCnpj`, nome, nome fantasia, ISPB, valor, vencimento e `expirationDate` voltaram. Três achados registrados no [doc 12](BillPayment.Architecture/12-official-lookup-coverage.md): o **pagador NÃO vem mascarado** (abre decisão sobre o ADR-004), seis campos fora da documentação (`description` foi mapeado), e o Pix **cobre o buraco da arrecadação** — devolve o documento do beneficiário que o código de barras não devolve.
@@ -1319,7 +1356,7 @@ apagar o registro do alerta.
 - [ ] **`Storage:ServiceUrl`, `AccessKey`, `SecretKey` e `AuthenticationRegion`** — balde compatível com S3 (Garage) para os artefatos capturados. **Sem isso o processamento de anexo falha alto**, de propósito: é preferível a guardar em lugar nenhum e descobrir na auditoria. O segredo vai por variável de ambiente, nunca no `appsettings.json`. **`AuthenticationRegion` não tem default e entra em `IsConfigured`**: o Garage assina SigV4 com a região `garage` (é o que o `PeopleManagement` configura contra o mesmo servidor) e o MinIO com `us-east-1` — um default estaria errado para metade dos alvos e a falha apareceria só na primeira gravação, como `SignatureDoesNotMatch` dentro do worker, lendo como credencial errada. Ver `gotchas.md`.
 - [ ] **Egresso da escada de link (`LinkResolution`)** — a única saída de rede do BC para servidor de **terceiro**. O código já traz allowlist por host+porta, bloqueio de faixa interna, recusa de redirecionamento e teto de requisições por mensagem; falta a trava de **infraestrutura**: restringir o egresso do contêiner aos hosts das receitas (ou passar por proxy de saída). Sem isso, a defesa depende inteiramente do código — e a defesa em profundidade é justamente o que sobra quando o código tem um defeito. Acrescentar host novo em `LinkResolution:Recipes` só depois de **sondar** que ele responde: configurar um host que não se sabe responder faz a escada gastar requisição em silêncio e o desfecho parecer falha do emissor.
 - [ ] **Master key do cofre (`Secrets__MasterKey`)** — 32 bytes em base64, gerada por `SecretsOptions.GenerateMasterKey()` (ou pelo comando PowerShell em "Build, Run & Test"). Sem ela o BC sobe com um cofre que falha em toda operação; a Fase 1 tolera isso porque não guarda credencial de tenant, mas **a partir da fase 2 é pré-requisito de deploy**. Guarde uma **cópia cifrada fora do host** (`age`/`gpg`) — perdê-la é reconectar todas as caixas e reemitir todas as chaves de subconta (ADR-009).
-- [ ] **Chave do Asaas (`Asaas__ApiKey`) e `Asaas__BaseUrl` de produção** — o padrão do `appsettings.json` aponta para o **sandbox** de propósito; apontar para produção é decisão explícita de quem configura. Sem chave, a consulta oficial degrada para `Unavailable` e nenhum boleto é dado como verificado.
+- [ ] **`Asaas__BaseUrl` de produção** — o padrão do `appsettings.json` do projeto aponta para o **sandbox** de propósito; apontar para produção é decisão explícita de quem configura. (`Asaas__ApiKey` NÃO existe mais desde 2026-08-31 — a chave é por tenant, pela API; sem a chave do tenant a consulta degrada para `Unavailable` e nenhum boleto é dado como verificado.)
 
 - [x] **Assets nativos do SkiaSharp no contêiner** — **confirmado como defeito real em 2026-08-11 e corrigido.** O `SkiaSharp 3.119.1` que vem pelo `ZXing.Net.Bindings.SkiaSharp` traz nativo **só para Windows e macOS** (`dotnet list package --include-transitive` mostrava apenas `NativeAssets.macOS` e `NativeAssets.Win32`); em Linux `libSkiaSharp` não existiria. E a falha seria **muda**: `QrCodeScanner.DecodeAll` engole qualquer exceção em `LogDebug`, então em nível `Information` não sairia uma linha sequer — todo QR ficaria ilegível, levando junto o trilho Pix (ADR-010) e o check `PixBarcodeConsistency`. Corrigido com `SkiaSharp.NativeAssets.Linux.NoDependencies` (a variante completa exigiria `libfontconfig1` na imagem, que só serve para renderizar texto — aqui a Skia só decodifica imagem). Verificado dentro do contêiner: `libSkiaSharp.so` presente em `runtimes/linux-x64/native/` e `ldd` sem dependência não resolvida.
 

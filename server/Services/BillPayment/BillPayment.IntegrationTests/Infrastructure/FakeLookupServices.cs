@@ -3,6 +3,7 @@ namespace BillPayment.IntegrationTests.Infrastructure;
 using BillPayment.Domain.Instruments;
 using BillPayment.Domain.Lookups;
 using BillPayment.Domain.Ports;
+using BillPayment.Domain.Secrets;
 
 /// <summary>
 /// Consulta oficial determinística para os testes de fluxo.
@@ -33,20 +34,32 @@ internal sealed class FakeLookupServices : IBillLookupService, IPixLookupService
         BankSlipResult = null;
         PixResult = null;
         BankSlipCallCount = 0;
+        LastCredential = null;
     }
 
-    public Task<BillLookupResult> SimulateAsync(DigitableLine digitableLine, CancellationToken cancellationToken)
+    /// <summary>O último ponteiro de credencial recebido — prova que a chamada é do tenant certo.</summary>
+    public CredentialRef? LastCredential { get; private set; }
+
+    public Task<BillLookupResult> SimulateAsync(
+        CredentialRef? credential,
+        DigitableLine digitableLine,
+        CancellationToken cancellationToken)
     {
         BankSlipCallCount++;
+        LastCredential = credential;
 
         return Task.FromResult(BankSlipResult
             ?? BillLookupResult.Unavailable("not_configured_in_test", null, DateTimeOffset.UnixEpoch));
     }
 
     public Task<PixLookupResult> DecodeAsync(
+        CredentialRef? credential,
         PixPayload payload,
         DateOnly? expectedPaymentDate,
         CancellationToken cancellationToken)
-        => Task.FromResult(PixResult
+    {
+        LastCredential = credential;
+        return Task.FromResult(PixResult
             ?? PixLookupResult.Unavailable("not_configured_in_test", null, DateTimeOffset.UnixEpoch));
+    }
 }

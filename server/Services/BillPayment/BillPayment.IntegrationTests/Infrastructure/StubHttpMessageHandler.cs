@@ -24,6 +24,15 @@ internal sealed class StubHttpMessageHandler(HttpStatusCode status, string body)
     public string? LastRequestBody { get; private set; }
     public Uri? LastRequestUri { get; private set; }
 
+    /// <summary>
+    /// Os cabeçalhos da última requisição — é como se prova que a chave DO TENANT viajou no
+    /// <c>access_token</c> (a chave por tenant é o ponto da mudança de 2026-08-31).
+    /// </summary>
+    public Dictionary<string, string> LastRequestHeaders { get; } = [];
+
+    /// <summary>Quantas requisições saíram — zero prova que a degradação não tocou a rede.</summary>
+    public int RequestCount { get; private set; }
+
     /// <summary>Falha de transporte, para exercitar o caminho de indisponibilidade.</summary>
     public Exception? ThrowInstead { get; init; }
 
@@ -41,6 +50,11 @@ internal sealed class StubHttpMessageHandler(HttpStatusCode status, string body)
     {
         LastRequestUri = request.RequestUri;
         LastRequestBody = request.Content is null ? null : await request.Content.ReadAsStringAsync(cancellationToken);
+        RequestCount++;
+
+        LastRequestHeaders.Clear();
+        foreach (var header in request.Headers)
+            LastRequestHeaders[header.Key] = string.Join(",", header.Value);
 
         if (ThrowInstead is not null)
             throw ThrowInstead;

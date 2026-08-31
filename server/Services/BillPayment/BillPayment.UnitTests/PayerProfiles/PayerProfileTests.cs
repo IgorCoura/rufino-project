@@ -1,6 +1,7 @@
 namespace BillPayment.UnitTests.PayerProfiles;
 
 using BillPayment.Domain.PayerProfiles;
+using BillPayment.Domain.Secrets;
 using BillPayment.Domain.SeedWork;
 using BillPayment.Domain.SharedKernel;
 using BillPayment.UnitTests.PayerProfiles.Mothers;
@@ -347,45 +348,47 @@ public class PayerProfileTests
         Assert.False(profile.CanSchedulePayments);
     }
 
-    // Vincular a subconta libera o agendamento de pagamento.
+    // Vincular a subconta guarda o PONTEIRO do cofre e libera o agendamento de pagamento.
     [Fact]
-    public void LinkAsaasAccount_WithRef_ShouldEnableScheduling()
+    public void LinkAsaasAccount_WithACredentialRef_ShouldEnableScheduling()
     {
         var profile = PayerProfileMother.Register();
+        var credential = CredentialRef.ForLocalVault(new Guid("0195a1f0-0000-7000-8000-00000000c0fe"));
 
-        profile.LinkAsaasAccount("  acc_123  ", Later);
+        profile.LinkAsaasAccount(credential, Later);
 
-        Assert.Equal("acc_123", profile.AsaasAccountRef);
+        Assert.Equal(credential, profile.AsaasAccountRef);
         Assert.True(profile.CanSchedulePayments);
         Assert.Equal(Later, profile.UpdatedAt);
     }
 
-    // Vincular com referência vazia desvincula a subconta.
-    [Theory]
-    [InlineData(null)]
-    [InlineData("")]
-    [InlineData("   ")]
-    public void LinkAsaasAccount_WithBlankRef_ShouldUnlink(string? accountRef)
+    // Ponteiro nulo é recusado — BLP.PRF11: desvincular tem porta própria, não é "vincular nada".
+    [Fact]
+    public void LinkAsaasAccount_WithNull_ShouldThrow_BLP_PRF11()
     {
         var profile = PayerProfileMother.Register();
-        profile.LinkAsaasAccount("acc_123", Later);
 
-        profile.LinkAsaasAccount(accountRef!, Later.AddDays(1));
+        var ex = Assert.Throws<DomainException>(() => profile.LinkAsaasAccount(null!, Later));
+
+        Assert.Equal("BLP.PRF11", ex.Id);
+    }
+
+    // Desvincular limpa o ponteiro e trava o agendamento; repetir é inócuo.
+    [Fact]
+    public void UnlinkAsaasAccount_ShouldClearThePointerAndBeIdempotent()
+    {
+        var profile = PayerProfileMother.Register();
+        profile.LinkAsaasAccount(
+            CredentialRef.ForLocalVault(new Guid("0195a1f0-0000-7000-8000-00000000c0fe")), Later);
+
+        profile.UnlinkAsaasAccount(Later.AddDays(1));
 
         Assert.Null(profile.AsaasAccountRef);
         Assert.False(profile.CanSchedulePayments);
-    }
 
-    // Referência de subconta acima do limite é recusada — BLP.PRF10.
-    [Fact]
-    public void LinkAsaasAccount_WithOversizedRef_ShouldThrow_BLP_PRF10()
-    {
-        var profile = PayerProfileMother.Register();
-        var oversized = new string('a', PayerProfile.ASAAS_ACCOUNT_REF_MAX_LENGTH + 1);
-
-        var ex = Assert.Throws<DomainException>(() => profile.LinkAsaasAccount(oversized, Later));
-
-        Assert.Equal("BLP.PRF10", ex.Id);
+        var updatedAt = profile.UpdatedAt;
+        profile.UnlinkAsaasAccount(Later.AddDays(2));
+        Assert.Equal(updatedAt, profile.UpdatedAt);
     }
 
     // Renomear troca o nome e atualiza UpdatedAt.

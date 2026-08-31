@@ -51,9 +51,13 @@ internal sealed class PayerProfileMap : IEntityTypeConfiguration<PayerProfile>
 
         builder.Property(e => e.MatchByCnpjRoot).HasColumnName("match_by_cnpj_root").IsRequired();
 
+        // O ponteiro da subconta é um CredentialRef desde 2026-08-31 — mesma coluna de texto
+        // esquema:chave do CaptureSource.Credential. Linha anterior à troca é nula (nada
+        // produzia o valor), então o aperto de 200 para o tamanho do VO não corta dado.
         builder.Property(e => e.AsaasAccountRef)
             .HasColumnName("asaas_account_ref")
-            .HasMaxLength(PayerProfile.ASAAS_ACCOUNT_REF_MAX_LENGTH);
+            .HasMaxLength(CredentialRefConversions.MAX_LENGTH)
+            .HasConversion(CredentialRefConversions.Single, CredentialRefConversions.SingleComparer);
 
         builder.Property(e => e.CreatedAt).HasColumnName("created_at").IsRequired();
         builder.Property(e => e.UpdatedAt).HasColumnName("updated_at").IsRequired();

@@ -1,5 +1,6 @@
 namespace BillPayment.Domain.PayerProfiles;
 
+using BillPayment.Domain.Secrets;
 using BillPayment.Domain.SeedWork;
 using BillPayment.Domain.SharedKernel;
 
@@ -11,7 +12,6 @@ using BillPayment.Domain.SharedKernel;
 public sealed class PayerProfile : AggregateRoot<PayerProfileId>
 {
     public const int LEGAL_NAME_MAX_LENGTH = 200;
-    public const int ASAAS_ACCOUNT_REF_MAX_LENGTH = 200;
 
     /// <summary>Raiz do CNPJ: os 8 primeiros dígitos, comuns a matriz e filiais.</summary>
     public const int CNPJ_ROOT_LENGTH = 8;
@@ -29,8 +29,12 @@ public sealed class PayerProfile : AggregateRoot<PayerProfileId>
     /// <summary>Quando ligado, qualquer CNPJ de mesma raiz é considerado próprio.</summary>
     public bool MatchByCnpjRoot { get; private set; }
 
-    /// <summary>Ponteiro para a chave da subconta no cofre. Nulo até o onboarding terminar.</summary>
-    public string? AsaasAccountRef { get; private set; }
+    /// <summary>
+    /// Ponteiro para a chave da subconta no cofre (<see cref="CredentialRef"/>) — nunca a chave.
+    /// Nulo enquanto o tenant não configurar a própria conta; sem ele a consulta oficial
+    /// degrada para indisponível e nenhum pagamento pode ser agendado.
+    /// </summary>
+    public CredentialRef? AsaasAccountRef { get; private set; }
 
     private PayerProfile() { }
 
@@ -134,25 +138,24 @@ public sealed class PayerProfile : AggregateRoot<PayerProfileId>
     }
 
     /// <summary>Vincula a subconta do provedor, concluindo o onboarding de pagamento.</summary>
-    public void LinkAsaasAccount(string accountRef, DateTime occurredAt)
+    public void LinkAsaasAccount(CredentialRef accountRef, DateTime occurredAt)
     {
-        var trimmed = accountRef?.Trim();
-        if (string.IsNullOrEmpty(trimmed))
-        {
-            AsaasAccountRef = null;
-        }
-        else
-        {
-            if (trimmed.Length > ASAAS_ACCOUNT_REF_MAX_LENGTH)
-                throw PayerProfileErrors.AsaasAccountRefTooLong(ASAAS_ACCOUNT_REF_MAX_LENGTH);
-            AsaasAccountRef = trimmed;
-        }
+        AsaasAccountRef = accountRef ?? throw PayerProfileErrors.AsaasKeyRequired();
+        UpdatedAt = occurredAt;
+    }
 
+    /// <summary>Desvincula a subconta. Idempotente — o cofre é responsabilidade de quem chama.</summary>
+    public void UnlinkAsaasAccount(DateTime occurredAt)
+    {
+        if (AsaasAccountRef is null)
+            return;
+
+        AsaasAccountRef = null;
         UpdatedAt = occurredAt;
     }
 
     /// <summary>Enquanto não houver subconta vinculada, o tenant usa o sistema mas não agenda pagamento.</summary>
-    public bool CanSchedulePayments => !string.IsNullOrEmpty(AsaasAccountRef);
+    public bool CanSchedulePayments => AsaasAccountRef is not null;
 
     /// <summary>
     /// Responde a pergunta do check de pagador: este documento é do tenant?

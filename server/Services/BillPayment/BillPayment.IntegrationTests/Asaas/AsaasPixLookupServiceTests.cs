@@ -3,6 +3,7 @@ namespace BillPayment.IntegrationTests.Asaas;
 using System.Net;
 using BillPayment.Domain.Instruments;
 using BillPayment.Domain.Lookups;
+using BillPayment.Domain.Secrets;
 using BillPayment.Domain.SharedKernel;
 using BillPayment.Infra.Asaas;
 using BillPayment.IntegrationTests.Infrastructure;
@@ -181,15 +182,41 @@ public sealed class AsaasPixLookupServiceTests
         Assert.True(result.IsRetryable);
     }
 
-    private static async Task<PixLookupResult> DecodeAsync(
+    // Tenant sem chave configurada degrada sem tocar a rede, com o motivo próprio.
+    [Fact]
+    public async Task DecodeAsync_WithoutATenantCredential_ShouldDegradeWithoutTouchingTheNetwork()
+    {
+        var handler = StubHttpMessageHandler.Ok("{}");
+
+        var result = await DecodeAsync(handler, credential: null);
+
+        Assert.Equal(LookupStatus.Unavailable, result.Status);
+        Assert.Equal("tenant_key_not_configured", result.ReasonCode);
+        Assert.Equal(0, handler.RequestCount);
+    }
+
+    private static readonly CredentialRef TenantCredential =
+        CredentialRef.ForLocalVault(new Guid("0195a1f0-0000-7000-8000-00000000c0fe"));
+
+    private static Task<PixLookupResult> DecodeAsync(
         StubHttpMessageHandler handler,
         DateOnly? expectedPaymentDate = null)
+        => DecodeAsync(handler, TenantCredential, expectedPaymentDate);
+
+    private static async Task<PixLookupResult> DecodeAsync(
+        StubHttpMessageHandler handler,
+        CredentialRef? credential,
+        DateOnly? expectedPaymentDate = null)
     {
-        using var http = new HttpClient(handler) { BaseAddress = new Uri("https://api-sandbox.asaas.com/v3/") };
+        var clientProvider = new AsaasClientProvider(
+            new StubHttpClientFactory(handler, new Uri("https://api-sandbox.asaas.com/v3/")),
+            new FakeSecretVault("chave-do-tenant"),
+            NullLogger<AsaasClientProvider>.Instance);
 
         var service = new AsaasPixLookupService(
-            http, new FixedTimeProvider(Now), NullLogger<AsaasPixLookupService>.Instance);
+            clientProvider, new FixedTimeProvider(Now), NullLogger<AsaasPixLookupService>.Instance);
 
-        return await service.DecodeAsync(PixPayload.Parse(DynamicPix), expectedPaymentDate, CancellationToken.None);
+        return await service.DecodeAsync(
+            credential, PixPayload.Parse(DynamicPix), expectedPaymentDate, CancellationToken.None);
     }
 }

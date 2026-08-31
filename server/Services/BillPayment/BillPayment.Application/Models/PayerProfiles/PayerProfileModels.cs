@@ -36,10 +36,11 @@ public sealed record AlterCnpjRootMatchingModel([property: JsonRequired] bool En
 }
 
 /// <summary>
-/// <c>AccountRef</c> é o ponteiro para a chave da subconta no cofre, nunca a chave em si.
-/// Nulo ou vazio desvincula, e o tenant volta a não poder agendar pagamento.
+/// <c>ApiKey</c> é a chave da subconta EM CLARO — ela é provada contra o provedor e guardada
+/// cifrada no cofre; o que fica no cadastro é só o ponteiro, e a chave nunca volta pela API
+/// nem aparece em log (o Command é <c>ISensitiveCommand</c>). Desvincular é o DELETE.
 /// </summary>
-public sealed record LinkAsaasAccountModel(string? AccountRef)
+public sealed record LinkAsaasAccountModel(string? ApiKey)
 {
-    public LinkAsaasAccountCommand ToCommand(Guid tenantId) => new(tenantId, AccountRef);
+    public LinkAsaasAccountCommand ToCommand(Guid tenantId) => new(tenantId, ApiKey);
 }

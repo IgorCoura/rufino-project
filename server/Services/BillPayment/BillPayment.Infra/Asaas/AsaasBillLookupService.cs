@@ -3,6 +3,7 @@ namespace BillPayment.Infra.Asaas;
 using BillPayment.Domain.Instruments;
 using BillPayment.Domain.Lookups;
 using BillPayment.Domain.Ports;
+using BillPayment.Domain.Secrets;
 using BillPayment.Domain.SeedWork;
 using Microsoft.Extensions.Logging;
 
@@ -26,19 +27,26 @@ using Microsoft.Extensions.Logging;
 /// </para>
 /// </remarks>
 internal sealed class AsaasBillLookupService(
-    HttpClient http,
+    AsaasClientProvider clientProvider,
     TimeProvider clock,
     ILogger<AsaasBillLookupService> logger) : IBillLookupService
 {
     private const string SIMULATE_PATH = "bill/simulate";
 
-   
-    public async Task<BillLookupResult> SimulateAsync(DigitableLine digitableLine, CancellationToken cancellationToken)
+    public async Task<BillLookupResult> SimulateAsync(
+        CredentialRef? credential,
+        DigitableLine digitableLine,
+        CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(digitableLine);
 
         var attemptedAt = clock.GetUtcNow();
 
+        var (http, reasonCode, message) = await clientProvider.CreateForAsync(credential, cancellationToken);
+        if (http is null)
+            return BillLookupResult.Unavailable(reasonCode!, message, attemptedAt);
+
+        using var _ = http;
         var (body, failure) = await http.PostAsync<AsaasSimulateResponse>(
             SIMULATE_PATH,
             new { identificationField = digitableLine.Value },

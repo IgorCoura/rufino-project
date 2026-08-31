@@ -3,6 +3,7 @@ namespace BillPayment.IntegrationTests.Asaas;
 using System.Net;
 using BillPayment.Domain.Instruments;
 using BillPayment.Domain.Lookups;
+using BillPayment.Domain.Secrets;
 using BillPayment.Infra.Asaas;
 using BillPayment.IntegrationTests.Infrastructure;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -221,13 +222,47 @@ public sealed class AsaasBillLookupServiceTests
         Assert.Equal("237", result.Snapshot!.BankCode!.Value);
     }
 
-    private static async Task<BillLookupResult> SimulateAsync(StubHttpMessageHandler handler)
+    // A chave resolvida do cofre viaja no access_token daquela chamada — é a prova de que a
+    // consulta sai com a credencial DO TENANT, não com uma chave global.
+    [Fact]
+    public async Task SimulateAsync_ShouldSendTheTenantsKeyInTheAccessTokenHeader()
     {
-        using var http = new HttpClient(handler) { BaseAddress = new Uri("https://api-sandbox.asaas.com/v3/") };
+        var handler = StubHttpMessageHandler.Ok("""{"bankSlipInfo":{"companyName":"X","value":10.0}}""");
+
+        await SimulateAsync(handler);
+
+        Assert.Equal("chave-do-tenant", handler.LastRequestHeaders["access_token"]);
+    }
+
+    // Tenant sem chave configurada: Unavailable com o motivo próprio, e NENHUMA requisição sai.
+    [Fact]
+    public async Task SimulateAsync_WithoutATenantCredential_ShouldDegradeWithoutTouchingTheNetwork()
+    {
+        var handler = StubHttpMessageHandler.Ok("{}");
+
+        var result = await SimulateAsync(handler, credential: null);
+
+        Assert.Equal(LookupStatus.Unavailable, result.Status);
+        Assert.Equal("tenant_key_not_configured", result.ReasonCode);
+        Assert.Equal(0, handler.RequestCount);
+    }
+
+    private static readonly CredentialRef TenantCredential =
+        CredentialRef.ForLocalVault(new Guid("0195a1f0-0000-7000-8000-00000000c0fe"));
+
+    private static Task<BillLookupResult> SimulateAsync(StubHttpMessageHandler handler)
+        => SimulateAsync(handler, TenantCredential);
+
+    private static async Task<BillLookupResult> SimulateAsync(StubHttpMessageHandler handler, CredentialRef? credential)
+    {
+        var clientProvider = new AsaasClientProvider(
+            new StubHttpClientFactory(handler, new Uri("https://api-sandbox.asaas.com/v3/")),
+            new FakeSecretVault("chave-do-tenant"),
+            NullLogger<AsaasClientProvider>.Instance);
 
         var service = new AsaasBillLookupService(
-            http, new FixedTimeProvider(Now), NullLogger<AsaasBillLookupService>.Instance);
+            clientProvider, new FixedTimeProvider(Now), NullLogger<AsaasBillLookupService>.Instance);
 
-        return await service.SimulateAsync(DigitableLine.Parse(BankSlipLine, Today), CancellationToken.None);
+        return await service.SimulateAsync(credential, DigitableLine.Parse(BankSlipLine, Today), CancellationToken.None);
     }
 }

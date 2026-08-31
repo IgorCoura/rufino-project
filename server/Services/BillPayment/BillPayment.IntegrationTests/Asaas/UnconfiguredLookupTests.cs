@@ -7,9 +7,10 @@ using BillPayment.IntegrationTests.Infrastructure;
 using Microsoft.Extensions.DependencyInjection;
 
 /// <summary>
-/// A suíte roda sem chave do provedor de propósito — testes não devem ter credencial capaz de
-/// pagar contas. O que esta classe garante é que a ausência dela seja registrada como
-/// <strong>"não foi possível verificar"</strong>, e nunca confundida com verificação concluída.
+/// A consulta oficial é POR TENANT (2026-08-31), e a suíte roda sem nenhuma chave configurada —
+/// testes não devem ter credencial capaz de pagar contas. O que esta classe garante é que o
+/// tenant SEM chave própria tenha a ausência registrada como <strong>"não foi possível
+/// verificar"</strong>, com motivo acionável, e nunca confundida com verificação concluída.
 /// </summary>
 [Collection(nameof(IntegrationTestCollection))]
 public sealed class UnconfiguredLookupTests(IntegrationTestWebAppFactory factory) : BaseIntegrationTest(factory)
@@ -21,41 +22,44 @@ public sealed class UnconfiguredLookupTests(IntegrationTestWebAppFactory factory
 
     private static readonly DateTime Today = new(2026, 8, 5, 0, 0, 0, DateTimeKind.Utc);
 
-    // Sem credencial, a consulta de boleto é indisponível — com motivo explícito, não silêncio.
+    // Tenant sem chave: a consulta de boleto é indisponível, com o motivo que aponta a solução.
     [Fact]
-    public async Task SimulateAsync_WithoutAConfiguredApiKey_ShouldReturnUnavailable()
+    public async Task SimulateAsync_WithoutATenantKey_ShouldReturnUnavailable()
     {
         using var scope = Factory.Services.CreateScope();
         var service = scope.ServiceProvider.GetRequiredService<IBillLookupService>();
 
-        var result = await service.SimulateAsync(DigitableLine.Parse(BankSlipLine, Today), CancellationToken.None);
+        var result = await service.SimulateAsync(
+            credential: null, DigitableLine.Parse(BankSlipLine, Today), CancellationToken.None);
 
         Assert.Equal(LookupStatus.Unavailable, result.Status);
-        Assert.Equal("provider_not_configured", result.ReasonCode);
+        Assert.Equal("tenant_key_not_configured", result.ReasonCode);
         Assert.Null(result.Snapshot);
     }
 
     // O trilho Pix degrada do mesmo jeito — nunca resolve vazio "com sucesso".
     [Fact]
-    public async Task DecodeAsync_WithoutAConfiguredApiKey_ShouldReturnUnavailable()
+    public async Task DecodeAsync_WithoutATenantKey_ShouldReturnUnavailable()
     {
         using var scope = Factory.Services.CreateScope();
         var service = scope.ServiceProvider.GetRequiredService<IPixLookupService>();
 
-        var result = await service.DecodeAsync(PixPayload.Parse(DynamicPix), null, CancellationToken.None);
+        var result = await service.DecodeAsync(
+            credential: null, PixPayload.Parse(DynamicPix), null, CancellationToken.None);
 
         Assert.Equal(LookupStatus.Unavailable, result.Status);
         Assert.False(result.IsResolved);
     }
 
-    // Indisponível é retentável: quando a credencial for configurada, a consulta volta a valer.
+    // Indisponível é retentável: quando o tenant configurar a chave, a consulta volta a valer.
     [Fact]
-    public async Task SimulateAsync_WithoutAConfiguredApiKey_ShouldBeRetryable()
+    public async Task SimulateAsync_WithoutATenantKey_ShouldBeRetryable()
     {
         using var scope = Factory.Services.CreateScope();
         var service = scope.ServiceProvider.GetRequiredService<IBillLookupService>();
 
-        var result = await service.SimulateAsync(DigitableLine.Parse(BankSlipLine, Today), CancellationToken.None);
+        var result = await service.SimulateAsync(
+            credential: null, DigitableLine.Parse(BankSlipLine, Today), CancellationToken.None);
 
         Assert.True(result.IsRetryable);
     }

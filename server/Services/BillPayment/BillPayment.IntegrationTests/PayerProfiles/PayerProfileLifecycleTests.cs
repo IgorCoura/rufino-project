@@ -158,42 +158,6 @@ public sealed class PayerProfileLifecycleTests : BaseIntegrationTest
         Assert.Equal("BLP.PRF07", error!.Id);
     }
 
-    // Vincular a subconta conclui o onboarding e libera o agendamento; desvincular o revoga.
-    [Fact]
-    public async Task PutAsaasAccount_ShouldToggleTheAbilityToSchedulePayments()
-    {
-        await RegisterAsync(new RegisterPayerProfileRequest("Company", "RUFINO", HeadquartersCnpj));
-
-        var linked = await Client.PutAsJsonAsync(
-            new Uri($"{RouteFor(TenantId)}/asaas-account", UriKind.Relative),
-            new LinkAsaasAccountRequest("asaas-subaccount-ref-01"));
-
-        var linkedBody = await linked.Content.ReadFromJsonAsync<LinkAsaasAccountResponseContract>();
-        Assert.True(linkedBody!.CanSchedulePayments);
-
-        var unlinked = await Client.PutAsJsonAsync(
-            new Uri($"{RouteFor(TenantId)}/asaas-account", UriKind.Relative),
-            new LinkAsaasAccountRequest(null));
-
-        var unlinkedBody = await unlinked.Content.ReadFromJsonAsync<LinkAsaasAccountResponseContract>();
-        Assert.False(unlinkedBody!.CanSchedulePayments);
-    }
-
-    // A referência da subconta não é devolvida na leitura — é ponteiro para segredo.
-    [Fact]
-    public async Task GetPayerProfile_ShouldNotExposeTheAsaasAccountReference()
-    {
-        await RegisterAsync(new RegisterPayerProfileRequest("Company", "RUFINO", HeadquartersCnpj));
-        await Client.PutAsJsonAsync(
-            new Uri($"{RouteFor(TenantId)}/asaas-account", UriKind.Relative),
-            new LinkAsaasAccountRequest("asaas-subaccount-ref-01"));
-
-        var response = await Client.GetAsync(RouteFor(TenantId));
-        var raw = await response.Content.ReadAsStringAsync();
-
-        Assert.DoesNotContain("asaas-subaccount-ref-01", raw, StringComparison.Ordinal);
-    }
-
     // Renomear troca a razão social do cadastro persistido.
     [Fact]
     public async Task PutLegalName_ShouldReplaceTheStoredName()

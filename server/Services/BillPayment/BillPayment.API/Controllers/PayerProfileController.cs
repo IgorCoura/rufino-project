@@ -150,4 +150,22 @@ public sealed class PayerProfileController(
 
         return OkResponse(result);
     }
+
+    [HttpDelete("asaas-account")]
+    [ProtectedResource("payer-profile", "manage")]
+    public async Task<ActionResult<UnlinkAsaasAccountResponse>> UnlinkAsaasAccount(
+        [FromRoute] Guid tenantId,
+        [FromHeader(Name = "x-requestid")] Guid requestId,
+        CancellationToken cancellationToken)
+    {
+        var command = new UnlinkAsaasAccountCommand(tenantId);
+        var identified = new IdentifiedCommand<UnlinkAsaasAccountCommand, UnlinkAsaasAccountResponse>(
+            command, EnsureRequestId(requestId));
+
+        SendingCommandLog(tenantId, command, identified.Id);
+        var result = await mediator.Send(identified, cancellationToken);
+        CommandResultLog(result, tenantId, command, identified.Id);
+
+        return OkResponse(result);
+    }
 }

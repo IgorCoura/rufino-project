@@ -383,18 +383,17 @@ public static class InfraDependencies
 
         var options = section.Get<AsaasOptions>() ?? new AsaasOptions();
 
-        if (!options.IsConfigured)
-        {
-            services.AddSingleton<IBillLookupService, UnconfiguredBillLookupService>();
-            services.AddSingleton<IPixLookupService, UnconfiguredPixLookupService>();
-            return;
-        }
-
-        services.AddHttpClient<IBillLookupService, AsaasBillLookupService>(ConfigureAsaasClient(options))
+        // Um cliente NOMEADO e SEM chave (2026-08-31): a credencial é por tenant e entra por
+        // chamada, resolvida do cofre pelo AsaasClientProvider. O registro deixou de ser
+        // condicional — "tenant sem chave" virou caso de dado (Unavailable), não de composição.
+        services.AddHttpClient(AsaasHttp.LOOKUP_CLIENT_NAME, ConfigureAsaasClient(options))
             .AddStandardResilienceHandler();
 
-        services.AddHttpClient<IPixLookupService, AsaasPixLookupService>(ConfigureAsaasClient(options))
-            .AddStandardResilienceHandler();
+        // Scoped porque o cofre (ISecretVault) é scoped — vive sobre o DbContext da requisição.
+        services.AddScoped<AsaasClientProvider>();
+        services.AddScoped<IBillLookupService, AsaasBillLookupService>();
+        services.AddScoped<IPixLookupService, AsaasPixLookupService>();
+        services.AddScoped<IPaymentAccountVerifier, AsaasAccountVerifier>();
     }
 
     private static Action<HttpClient> ConfigureAsaasClient(AsaasOptions options)
@@ -406,7 +405,6 @@ public static class InfraDependencies
 
             client.BaseAddress = new Uri(baseUrl);
             client.Timeout = TimeSpan.FromSeconds(options.TimeoutSeconds);
-            client.DefaultRequestHeaders.Add("access_token", options.ApiKey);
 
             // O provedor recusa a requisição sem User-Agent, e o HttpClient do .NET não manda
             // nenhum por padrão — ver AsaasOptions.USER_AGENT.

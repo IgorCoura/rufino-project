@@ -13,7 +13,7 @@ internal sealed record PayerProfileTaxIdRequest(string TaxId);
 
 internal sealed record AlterCnpjRootMatchingRequest(bool Enabled);
 
-internal sealed record LinkAsaasAccountRequest(string? AccountRef);
+internal sealed record LinkAsaasAccountRequest(string? ApiKey);
 
 internal sealed record PayerProfileIdResponse(Guid Id);
 

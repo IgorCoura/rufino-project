@@ -58,13 +58,10 @@ public sealed class IntegrationTestWebAppFactory : WebApplicationFactory<Program
         builder.UseSetting("Graph:Enabled", "false");
         builder.UseSetting("Storage:ServiceUrl", string.Empty);
 
-        // A chave do Asaas idem, e esta já era regra escrita — só não estava executável. Quem a
-        // sustentava era a ausência do segredo na máquina, e no dia em que alguém rodou
-        // `dotnet user-secrets set "Asaas:ApiKey"` a suíte passou a fazer chamada de rede ao
-        // provedor: os UnconfiguredLookupTests, que existem para provar que SEM chave a consulta
-        // degrada para Unavailable, voltaram Unresolved — resposta real do Asaas. Além de não
-        // provarem mais nada, tornam a suíte refém do provedor estar no ar.
-        builder.UseSetting("Asaas:ApiKey", string.Empty);
+        // A chave global do Asaas deixou de existir em 2026-08-31 (a credencial é por tenant,
+        // no cofre): não há mais configuração a blindar aqui. A garantia equivalente virou
+        // caso de dado — tenant sem chave degrada para Unavailable (UnconfiguredLookupTests) —
+        // e nenhum teste da suíte semeia chave em tenant_secrets apontando para o provedor real.
 
         // O extrator de visão idem, e aqui o risco é maior que o do Asaas: a chave do Gemini está
         // no user-secrets e o perfil de dev liga o provedor, então sem isto a suíte gastaria cota
@@ -209,6 +206,24 @@ public sealed class IntegrationTestWebAppFactory : WebApplicationFactory<Program
             services.RemoveAll<IPixLookupService>();
             services.AddSingleton<IBillLookupService>(sp => sp.GetRequiredService<FakeLookupServices>());
             services.AddSingleton<IPixLookupService>(sp => sp.GetRequiredService<FakeLookupServices>());
+
+            // A prova da chave vai junto: os fluxos de boleto que vinculam a subconta do tenant
+            // não podem bater no provedor real pelo mesmo motivo que a consulta não pode.
+            services.AddSingleton<FakePaymentAccountVerifier>();
+            services.RemoveAll<IPaymentAccountVerifier>();
+            services.AddSingleton<IPaymentAccountVerifier>(sp => sp.GetRequiredService<FakePaymentAccountVerifier>());
+        }));
+
+    /// <summary>
+    /// Host irmão com a prova da chave Asaas determinística — para os testes do vínculo da
+    /// subconta, que na fábrica compartilhada bateriam no provedor real.
+    /// </summary>
+    public WebApplicationFactory<Program> WithFakePaymentVerifier()
+        => WithWebHostBuilder(builder => builder.ConfigureTestServices(services =>
+        {
+            services.AddSingleton<FakePaymentAccountVerifier>();
+            services.RemoveAll<IPaymentAccountVerifier>();
+            services.AddSingleton<IPaymentAccountVerifier>(sp => sp.GetRequiredService<FakePaymentAccountVerifier>());
         }));
 
     /// <summary>

@@ -7,6 +7,7 @@ using BillPayment.Domain.Lookups;
 using BillPayment.Domain.Payees;
 using BillPayment.Domain.PayerProfiles;
 using BillPayment.Domain.Ports;
+using BillPayment.Domain.Secrets;
 using BillPayment.Domain.SeedWork;
 using BillPayment.Domain.Services;
 using BillPayment.Domain.SharedKernel;
@@ -62,7 +63,13 @@ public sealed class ValidateBillCommandHandler(
 
         var now = clock.GetUtcNow();
 
-        var (bankSlipResult, pixResult) = await ConsultAsync(bill, now, cancellationToken);
+        // O perfil sobe ANTES da consulta: é dele que sai o ponteiro da subconta do tenant —
+        // a consulta oficial é por tenant (doc 07), e sem chave própria ela degrada para
+        // indisponível em vez de usar credencial de outra conta.
+        var payerProfile = await payerProfiles.GetByTenantAsync(tenantId, cancellationToken);
+
+        var (bankSlipResult, pixResult) = await ConsultAsync(
+            bill, payerProfile?.AsaasAccountRef, now, cancellationToken);
         bill.AttachLookups(bankSlipResult, pixResult, now.UtcDateTime);
 
         var tenantPayees = await payees.ListByTenantAsync(tenantId, cancellationToken);
@@ -78,7 +85,7 @@ public sealed class ValidateBillCommandHandler(
             PixLookup = pixResult,
             PayeeResolution = resolution,
             Origin = await ResolveOriginAsync(bill, tenantId, cancellationToken),
-            PayerProfile = await payerProfiles.GetByTenantAsync(tenantId, cancellationToken),
+            PayerProfile = payerProfile,
             BankDirectory = bankDirectory,
             Duplicate = DuplicateFinding.From(probe),
             DuplicateOf = probe.OriginalBillId,
@@ -100,6 +107,7 @@ public sealed class ValidateBillCommandHandler(
     /// </summary>
     private async Task<(BillLookupResult? BankSlip, PixLookupResult? Pix)> ConsultAsync(
         Bill bill,
+        CredentialRef? credential,
         DateTimeOffset now,
         CancellationToken cancellationToken)
     {
@@ -110,13 +118,15 @@ public sealed class ValidateBillCommandHandler(
         {
             if (instrument.Kind == PaymentInstrumentKind.Barcode)
             {
-                bankSlip = await billLookup.SimulateAsync(instrument.DigitableLine, cancellationToken);
+                bankSlip = await billLookup.SimulateAsync(
+                    credential, instrument.DigitableLine, cancellationToken);
                 continue;
             }
 
             // A data prevista é hoje: nesta fase não há agendamento ainda, e informar a data
             // de hoje é o que faz a instituição devolver o valor que seria debitado agora.
             pix = await pixLookup.DecodeAsync(
+                credential,
                 instrument.PixPayload,
                 DateOnly.FromDateTime(now.UtcDateTime),
                 cancellationToken);

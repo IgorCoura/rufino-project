@@ -13,7 +13,7 @@ using Microsoft.Extensions.DependencyInjection;
 /// <para>
 /// <strong>Monta o contêiner de DI de propósito, em vez de instanciar o adapter.</strong> Os
 /// testes de tradução (<c>AsaasPixLookupServiceTests</c>, <c>AsaasBillLookupServiceTests</c>)
-/// constroem o <c>HttpClient</c> à mão para exercitar o mapeamento da resposta — e por isso não
+/// constroem o transporte à mão para exercitar o mapeamento da resposta — e por isso não
 /// enxergam nada do que o <c>AddHttpClient</c> configura. O defeito de 2026-08-25 morava
 /// exatamente nessa cegueira: faltava o <c>User-Agent</c> na configuração do cliente, as duas
 /// suítes passavam, e toda chamada real voltava 400.
@@ -26,46 +26,58 @@ using Microsoft.Extensions.DependencyInjection;
 /// </remarks>
 public sealed class AsaasClientConfigurationTests
 {
-    private const string ApiKey = "$aact_chave_de_teste";
     private const string BaseUrl = "https://api-sandbox.asaas.com/v3";
 
     // Regressão: o Asaas recusa a requisição sem User-Agent ("É obrigatório preencher User-Agent
     // no cabeçalho da requisição") e o HttpClient do .NET não manda nenhum por padrão — o que
     // derrubava consulta de boleto e decode de Pix antes de o provedor olhar o corpo.
-    [Theory]
-    [InlineData(nameof(IBillLookupService))]
-    [InlineData(nameof(IPixLookupService))]
-    public void AsaasClient_ShouldSendAUserAgent(string clientName)
+    [Fact]
+    public void AsaasClient_ShouldSendAUserAgent()
     {
         using var provider = BuildProvider();
-        using var client = provider.GetRequiredService<IHttpClientFactory>().CreateClient(clientName);
+        using var client = provider.GetRequiredService<IHttpClientFactory>()
+            .CreateClient(AsaasHttp.LOOKUP_CLIENT_NAME);
 
         // Prova que este é o cliente configurado, e não um homônimo vazio: sem isto, uma mudança
-        // na derivação do nome do cliente tipado faria o teste afirmar sobre outra coisa.
+        // no nome do cliente nomeado faria o teste afirmar sobre outra coisa.
         Assert.Equal(BaseUrl + "/", client.BaseAddress?.ToString());
 
         Assert.Equal(AsaasOptions.USER_AGENT, client.DefaultRequestHeaders.UserAgent.ToString());
     }
 
-    // Sem chave não há adapter do provedor — entram os substitutos, e nenhum cliente HTTP é
-    // configurado. É o estado em que a suíte inteira roda, e é o que torna o caso acima invisível.
+    // A chave é POR TENANT (2026-08-31) e entra por chamada, resolvida do cofre: o cliente
+    // compartilhado NÃO pode nascer com access_token — um header default aqui vazaria a chave
+    // de um tenant para as chamadas de todos os outros.
     [Fact]
-    public void WithoutAnApiKey_ShouldRegisterTheUnconfiguredSubstitutes()
+    public void AsaasClient_ShouldNotCarryADefaultAccessToken()
     {
-        using var provider = BuildProvider(apiKey: null);
+        using var provider = BuildProvider();
+        using var client = provider.GetRequiredService<IHttpClientFactory>()
+            .CreateClient(AsaasHttp.LOOKUP_CLIENT_NAME);
 
-        Assert.IsNotType<AsaasBillLookupService>(provider.GetRequiredService<IBillLookupService>());
-        Assert.IsNotType<AsaasPixLookupService>(provider.GetRequiredService<IPixLookupService>());
+        Assert.False(client.DefaultRequestHeaders.Contains("access_token"));
     }
 
-    private static ServiceProvider BuildProvider(string? apiKey = ApiKey)
+    // O registro deixou de ser condicional: os adapters reais entram sempre, e "tenant sem
+    // chave" é caso de dado (Unavailable na chamada), não de composição do contêiner.
+    [Fact]
+    public void LookupServices_ShouldAlwaysBeTheRealAdapters()
+    {
+        using var provider = BuildProvider();
+        using var scope = provider.CreateScope();
+
+        Assert.IsType<AsaasBillLookupService>(scope.ServiceProvider.GetRequiredService<IBillLookupService>());
+        Assert.IsType<AsaasPixLookupService>(scope.ServiceProvider.GetRequiredService<IPixLookupService>());
+        Assert.IsType<AsaasAccountVerifier>(scope.ServiceProvider.GetRequiredService<IPaymentAccountVerifier>());
+    }
+
+    private static ServiceProvider BuildProvider()
     {
         var configuration = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>
             {
                 ["ConnectionStrings:BillPayment"] = "Host=localhost;Database=none",
                 ["Asaas:BaseUrl"] = BaseUrl,
-                ["Asaas:ApiKey"] = apiKey,
             })
             .Build();
 

@@ -4,6 +4,7 @@ using System.Globalization;
 using BillPayment.Domain.Instruments;
 using BillPayment.Domain.Lookups;
 using BillPayment.Domain.Ports;
+using BillPayment.Domain.Secrets;
 using BillPayment.Domain.SeedWork;
 using BillPayment.Domain.SharedKernel;
 using Microsoft.Extensions.Logging;
@@ -18,7 +19,7 @@ using Microsoft.Extensions.Logging;
 /// Doc: https://docs.asaas.com/reference/decodificar-um-qrcode-para-pagamento
 /// </remarks>
 internal sealed class AsaasPixLookupService(
-    HttpClient http,
+    AsaasClientProvider clientProvider,
     TimeProvider clock,
     ILogger<AsaasPixLookupService> logger) : IPixLookupService
 {
@@ -28,6 +29,7 @@ internal sealed class AsaasPixLookupService(
     private const string LEGAL_PERSON = "JURIDICA";
 
     public async Task<PixLookupResult> DecodeAsync(
+        CredentialRef? credential,
         PixPayload payload,
         DateOnly? expectedPaymentDate,
         CancellationToken cancellationToken)
@@ -36,6 +38,11 @@ internal sealed class AsaasPixLookupService(
 
         var attemptedAt = clock.GetUtcNow();
 
+        var (http, reasonCode, message) = await clientProvider.CreateForAsync(credential, cancellationToken);
+        if (http is null)
+            return PixLookupResult.Unavailable(reasonCode!, message, attemptedAt);
+
+        using var _ = http;
         var (body, failure) = await http.PostAsync<AsaasPixDecodeResponse>(
             DECODE_PATH,
             new AsaasPixDecodeRequest

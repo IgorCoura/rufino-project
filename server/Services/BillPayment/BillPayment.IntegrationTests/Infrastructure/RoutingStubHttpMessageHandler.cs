@@ -73,7 +73,8 @@ internal sealed class RoutingStubHttpMessageHandler : HttpMessageHandler
 }
 
 /// <summary>Fábrica que entrega o mesmo transporte de teste para qualquer cliente nomeado.</summary>
-internal sealed class StubHttpClientFactory(HttpMessageHandler handler) : IHttpClientFactory
+internal sealed class StubHttpClientFactory(HttpMessageHandler handler, Uri? baseAddress = null) : IHttpClientFactory
 {
-    public HttpClient CreateClient(string name) => new(handler, disposeHandler: false);
+    public HttpClient CreateClient(string name)
+        => new(handler, disposeHandler: false) { BaseAddress = baseAddress };
 }
