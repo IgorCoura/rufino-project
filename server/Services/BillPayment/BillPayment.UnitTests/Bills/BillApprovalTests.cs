@@ -25,7 +25,7 @@ public class BillApprovalTests
     {
         var bill = ReadyForApproval();
 
-        bill.Approve(Approver, ScheduleFor, "confere com o contrato", Policy(), Today, DecidedAt);
+        bill.Approve(Approver, ScheduleFor, "confere com o contrato", Policy(), RiskLevel.ExtremeDanger, Today, DecidedAt);
 
         Assert.Equal(BillStatus.Approved, bill.Status);
         Assert.Equal(ScheduleFor, bill.ScheduledFor);
@@ -48,7 +48,7 @@ public class BillApprovalTests
         var bill = BillMother.Capture();
 
         var ex = Assert.Throws<DomainException>(
-            () => bill.Approve(Approver, ScheduleFor, null, Policy(), Today, DecidedAt));
+            () => bill.Approve(Approver, ScheduleFor, null, Policy(), RiskLevel.ExtremeDanger, Today, DecidedAt));
 
         Assert.Equal("BLP.BIL25", ex.Id);
         Assert.Empty(bill.Checks);
@@ -65,29 +65,98 @@ public class BillApprovalTests
         bill.PullDomainEvents();
 
         var ex = Assert.Throws<DomainException>(
-            () => bill.Approve(Approver, ScheduleFor, null, Policy(), Today, DecidedAt));
+            () => bill.Approve(Approver, ScheduleFor, null, Policy(), RiskLevel.ExtremeDanger, Today, DecidedAt));
 
         Assert.Equal("BLP.BIL27", ex.Id);
         Assert.Equal(BillStatus.AwaitingApproval, bill.Status);
         Assert.Null(bill.Approval);
     }
 
-    // Beneficiário na blacklist produz Perigo, e a recusa de aprovar sem o aceite explícito
-    // nomeia o motivo — quem aprova precisa ver que está assumindo um beneficiário bloqueado.
+    // Beneficiário na blacklist produz EXTREMO Perigo, e mesmo com a alçada máxima a aprovação
+    // exige o aceite explícito — a recusa nomeia o nível e o motivo.
     [Fact]
     public void Approve_WhenThePayeeIsBlacklisted_ShouldRequireAcknowledgmentNamingTheReason()
     {
         var bill = ReadyForApproval();
         bill.RecordChecks(
-            AllPassing(CheckResult.Failed(CheckType.PayeeMatch, CheckReasons.PAYEE_BLACKLISTED)), DecidedAt);
+            AllPassing(CheckResult.Failed(
+                CheckType.PayeeMatch, CheckReasons.PAYEE_BLACKLISTED, severity: CheckSeverity.Critical)),
+            DecidedAt);
         bill.PullDomainEvents();
 
         var ex = Assert.Throws<DomainException>(
-            () => bill.Approve(Approver, ScheduleFor, null, Policy(), Today, DecidedAt));
+            () => bill.Approve(Approver, ScheduleFor, null, Policy(), RiskLevel.ExtremeDanger, Today, DecidedAt));
 
         Assert.Equal("BLP.BIL27", ex.Id);
+        Assert.Contains(RiskLevel.ExtremeDanger.Name, ex.Message, StringComparison.Ordinal);
         Assert.Contains(CheckReasons.PAYEE_BLACKLISTED, ex.Message, StringComparison.Ordinal);
-        Assert.Same(RiskLevel.Danger, bill.Risk);
+        Assert.Same(RiskLevel.ExtremeDanger, bill.Risk);
+    }
+
+    // Alçada de risco: quem só aprova até Atenção não aprova Perigo — 403 BLP.BIL32, e a
+    // recusa vem ANTES do aceite (dizer "assuma o risco" a quem nem pode seria mensagem errada).
+    [Fact]
+    public void Approve_WithClearanceBelowTheRisk_ShouldThrow_BLP_BIL32()
+    {
+        var bill = ReadyForApproval();
+        bill.RecordChecks(AllPassing(CheckResult.Failed(CheckType.PayeeMatch, CheckReasons.PAYEE_LOOKALIKE)), DecidedAt);
+        bill.PullDomainEvents();
+
+        var ex = Assert.Throws<DomainException>(
+            () => bill.Approve(Approver, ScheduleFor, null, Policy(), RiskLevel.Attention, Today, DecidedAt));
+
+        Assert.Equal("BLP.BIL32", ex.Id);
+        Assert.Same(DomainErrorCategory.Forbidden, ex.Category);
+        Assert.Null(bill.Approval);
+    }
+
+    // A alçada é hierárquica mas Extremo fica ACIMA de Perigo: clearance Danger não cobre
+    // Extremo Perigo, nem com o risco assumido.
+    [Fact]
+    public void Approve_OnExtremeDangerWithOnlyDangerClearance_ShouldThrow_BLP_BIL32()
+    {
+        var bill = ReadyForApproval();
+        bill.RecordChecks(
+            AllPassing(CheckResult.Failed(
+                CheckType.OriginTrust, CheckReasons.ORIGIN_BLOCKED, severity: CheckSeverity.Critical)),
+            DecidedAt);
+        bill.PullDomainEvents();
+
+        var ex = Assert.Throws<DomainException>(() => bill.Approve(
+            Approver, ScheduleFor, null, Policy(), RiskLevel.Danger, Today, DecidedAt, acknowledgeRisk: true));
+
+        Assert.Equal("BLP.BIL32", ex.Id);
+    }
+
+    // Extremo Perigo É aprovável — pela alçada máxima, com o aceite, e a trilha grava o nível.
+    [Fact]
+    public void Approve_OnExtremeDangerWithMaxClearanceAndAcknowledge_ShouldApproveAndRecordIt()
+    {
+        var bill = ReadyForApproval();
+        bill.RecordChecks(
+            AllPassing(CheckResult.Failed(
+                CheckType.PayeeMatch, CheckReasons.PAYEE_BLACKLISTED, severity: CheckSeverity.Critical)),
+            DecidedAt);
+        bill.PullDomainEvents();
+
+        bill.Approve(
+            Approver, ScheduleFor, "urgência real, risco assumido", Policy(),
+            RiskLevel.ExtremeDanger, Today, DecidedAt, acknowledgeRisk: true);
+
+        Assert.Equal(BillStatus.Approved, bill.Status);
+        Assert.Same(RiskLevel.ExtremeDanger, bill.Approval!.RiskAtDecision);
+    }
+
+    // Alçada nula é defeito da borda, não escolha do usuário — BLP.BIL33.
+    [Fact]
+    public void Approve_WithoutAClearance_ShouldThrow_BLP_BIL33()
+    {
+        var bill = ReadyForApproval();
+
+        var ex = Assert.Throws<DomainException>(
+            () => bill.Approve(Approver, ScheduleFor, null, Policy(), null!, Today, DecidedAt));
+
+        Assert.Equal("BLP.BIL33", ex.Id);
     }
 
     // ADR-015: com o risco explicitamente assumido, o Perigo é aprovável — e a trilha grava o
@@ -99,7 +168,7 @@ public class BillApprovalTests
         bill.RecordChecks(AllPassing(CheckResult.Failed(CheckType.PayeeMatch, CheckReasons.PAYEE_LOOKALIKE)), DecidedAt);
         bill.PullDomainEvents();
 
-        bill.Approve(Approver, ScheduleFor, "risco assumido", Policy(), Today, DecidedAt, acknowledgeRisk: true);
+        bill.Approve(Approver, ScheduleFor, "risco assumido", Policy(), RiskLevel.ExtremeDanger, Today, DecidedAt, acknowledgeRisk: true);
 
         Assert.Equal(BillStatus.Approved, bill.Status);
         Assert.Same(RiskLevel.Danger, bill.Approval!.RiskAtDecision);
@@ -114,7 +183,7 @@ public class BillApprovalTests
         bill.RecordChecks(AllPassing(CheckResult.Failed(CheckType.AmountMatch, CheckReasons.AMOUNT_OUTSIDE_POLICY)), DecidedAt);
         bill.PullDomainEvents();
 
-        bill.Approve(Approver, ScheduleFor, "valor conferido com o fornecedor", Policy(), Today, DecidedAt);
+        bill.Approve(Approver, ScheduleFor, "valor conferido com o fornecedor", Policy(), RiskLevel.ExtremeDanger, Today, DecidedAt);
 
         Assert.Equal(BillStatus.Approved, bill.Status);
     }
@@ -127,7 +196,7 @@ public class BillApprovalTests
         var bill = ReadyForApproval();
 
         var ex = Assert.Throws<DomainException>(() => bill.Approve(
-            Approver, ScheduleFor, null, Policy(), Today, DecidedAt.AddHours(30)));
+            Approver, ScheduleFor, null, Policy(), RiskLevel.ExtremeDanger, Today, DecidedAt.AddHours(30)));
 
         Assert.Equal("BLP.BIL06", ex.Id);
     }
@@ -139,7 +208,7 @@ public class BillApprovalTests
         var bill = ReadyForApproval();
 
         var ex = Assert.Throws<DomainException>(() => bill.Approve(
-            Approver, Today.AddDays(-1), null, Policy(), Today, DecidedAt));
+            Approver, Today.AddDays(-1), null, Policy(), RiskLevel.ExtremeDanger, Today, DecidedAt));
 
         Assert.Equal("BLP.BIL05", ex.Id);
     }
@@ -152,7 +221,7 @@ public class BillApprovalTests
         var bill = ReadyForApproval(ValidationMother.ConsistentWithBarcode(minimumScheduleDate: minimum));
 
         var ex = Assert.Throws<DomainException>(() => bill.Approve(
-            Approver, Today.AddDays(1), null, Policy(), Today, DecidedAt));
+            Approver, Today.AddDays(1), null, Policy(), RiskLevel.ExtremeDanger, Today, DecidedAt));
 
         Assert.Equal("BLP.BIL31", ex.Id);
     }
@@ -164,7 +233,7 @@ public class BillApprovalTests
         var bill = ReadyForApproval();
 
         var ex = Assert.Throws<DomainException>(() => bill.Approve(
-            Approver, ScheduleFor, null, Policy(limit: 100m), Today, DecidedAt));
+            Approver, ScheduleFor, null, Policy(limit: 100m), RiskLevel.ExtremeDanger, Today, DecidedAt));
 
         Assert.Equal("BLP.BIL24", ex.Id);
     }
@@ -179,7 +248,7 @@ public class BillApprovalTests
         var declared = bill.Instruments.Single().DeclaredAmount!.Amount;
 
         var ex = Assert.Throws<DomainException>(() => bill.Approve(
-            Approver, ScheduleFor, null, Policy(limit: declared - 1), Today, DecidedAt, acknowledgeRisk: true));
+            Approver, ScheduleFor, null, Policy(limit: declared - 1), RiskLevel.ExtremeDanger, Today, DecidedAt, acknowledgeRisk: true));
 
         Assert.Equal("BLP.BIL24", ex.Id);
     }
@@ -191,7 +260,7 @@ public class BillApprovalTests
         var bill = DangerWithoutLookup();
         var declared = bill.Instruments.Single().DeclaredAmount!.Amount;
 
-        bill.Approve(Approver, ScheduleFor, null, Policy(limit: declared + 1), Today, DecidedAt, acknowledgeRisk: true);
+        bill.Approve(Approver, ScheduleFor, null, Policy(limit: declared + 1), RiskLevel.ExtremeDanger, Today, DecidedAt, acknowledgeRisk: true);
 
         Assert.Equal(BillStatus.Approved, bill.Status);
     }
@@ -204,7 +273,7 @@ public class BillApprovalTests
         var bill = DangerWithoutLookup(BillMother.Capture([StaticPixWithoutAmount()]));
 
         var ex = Assert.Throws<DomainException>(() => bill.Approve(
-            Approver, ScheduleFor, null, Policy(limit: 100m), Today, DecidedAt, acknowledgeRisk: true));
+            Approver, ScheduleFor, null, Policy(limit: 100m), RiskLevel.ExtremeDanger, Today, DecidedAt, acknowledgeRisk: true));
 
         Assert.Equal("BLP.BIL30", ex.Id);
     }
@@ -216,7 +285,7 @@ public class BillApprovalTests
     {
         var bill = DangerWithoutLookup(BillMother.Capture([StaticPixWithoutAmount()]));
 
-        bill.Approve(Approver, ScheduleFor, null, Policy(), Today, DecidedAt, acknowledgeRisk: true);
+        bill.Approve(Approver, ScheduleFor, null, Policy(), RiskLevel.ExtremeDanger, Today, DecidedAt, acknowledgeRisk: true);
 
         Assert.Equal(BillStatus.Approved, bill.Status);
     }
@@ -227,7 +296,7 @@ public class BillApprovalTests
     {
         var bill = ReadyForApproval();
 
-        bill.Approve(Approver, ScheduleFor, null, Policy(), Today, DecidedAt);
+        bill.Approve(Approver, ScheduleFor, null, Policy(), RiskLevel.ExtremeDanger, Today, DecidedAt);
 
         Assert.Equal(BillStatus.Approved, bill.Status);
     }
@@ -239,7 +308,7 @@ public class BillApprovalTests
         var bill = ReadyForApproval();
 
         var ex = Assert.Throws<DomainException>(() => bill.Approve(
-            UserId.Empty, ScheduleFor, null, Policy(), Today, DecidedAt));
+            UserId.Empty, ScheduleFor, null, Policy(), RiskLevel.ExtremeDanger, Today, DecidedAt));
 
         Assert.Equal("BLP.BIL22", ex.Id);
     }
@@ -304,7 +373,7 @@ public class BillApprovalTests
         bill.Deny(Approver, "não reconheço este boleto", DecidedAt);
 
         var ex = Assert.Throws<DomainException>(
-            () => bill.Approve(Approver, ScheduleFor, null, Policy(), Today, DecidedAt));
+            () => bill.Approve(Approver, ScheduleFor, null, Policy(), RiskLevel.ExtremeDanger, Today, DecidedAt));
 
         Assert.Equal("BLP.BIL25", ex.Id);
     }
@@ -319,7 +388,7 @@ public class BillApprovalTests
         bill.PullDomainEvents();
 
         var ex = Assert.Throws<DomainException>(
-            () => bill.Approve(Approver, ScheduleFor, null, Policy(), Today, DecidedAt));
+            () => bill.Approve(Approver, ScheduleFor, null, Policy(), RiskLevel.ExtremeDanger, Today, DecidedAt));
 
         Assert.Equal("BLP.BIL27", ex.Id);
     }

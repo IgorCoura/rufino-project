@@ -18,5 +18,11 @@ public sealed class CheckSeverity : Enumeration
     /// <summary>Falha é destacada na tela; o aprovador pode autorizar assumindo o risco, com o motivo gravado.</summary>
     public static readonly CheckSeverity Advisory = new(2, nameof(Advisory));
 
+    /// <summary>
+    /// Falha por declaração explícita do tenant (blacklist, origem bloqueada) — leva o boleto a
+    /// Extremo Perigo, um degrau acima do <see cref="Blocking"/>.
+    /// </summary>
+    public static readonly CheckSeverity Critical = new(3, nameof(Critical));
+
     private CheckSeverity(int id, string name) : base(id, name) { }
 }

@@ -210,7 +210,9 @@ public class BillValidationServiceTests
         Assert.Equal(CheckOutcome.Failed, result.Outcome);
         Assert.Equal(CheckReasons.PAYEE_BLACKLISTED, result.ReasonCode);
         Assert.True(result.IsBlockingFailure);
+        Assert.True(result.IsCriticalFailure);
     }
+
 
     // A blacklist vence até a inatividade: o motivo mostrado é o bloqueio, que é o fato mais grave.
     [Fact]
@@ -254,10 +256,11 @@ public class BillValidationServiceTests
         Assert.False(result.IsBlockingFailure);
     }
 
-    // Arrecadação não devolve documento: casar por nome é verificação PARCIAL, e a ressalva
-    // fica registrada para a tela não mostrar o mesmo "verificado" da cobrança bancária.
+    // Casar só por nome NÃO é Verde (decisão do usuário, 2026-08-31): sem documento fiscal não
+    // há como garantir o beneficiário, então a verificação parcial vira Atenção — a conta de
+    // concessionária híbrida escapa pelo trilho Pix, que devolve o CNPJ.
     [Fact]
-    public void Evaluate_PayeeMatch_WhenMatchedByNameOnly_ShouldPassWithAPartialVerificationReason()
+    public void Evaluate_PayeeMatch_WhenMatchedByNameOnly_ShouldBeInconclusiveNotGreen()
     {
         var bill = ValidationMother.BankSlipWithLookup(LookupMother.Utility(), BillMother.Capture([InstrumentSamples.UtilityBarcode()]));
         var payee = ValidationMother.RegisteredPayee(legalName: LookupMother.UTILITY_COMPANY_NAME, acceptedBank: null);
@@ -266,8 +269,9 @@ public class BillValidationServiceTests
             ValidationMother.Context(bill, payee: payee, matchKind: PayeeMatchKind.ByName),
             CheckType.PayeeMatch);
 
-        Assert.Equal(CheckOutcome.Passed, result.Outcome);
+        Assert.Equal(CheckOutcome.Inconclusive, result.Outcome);
         Assert.Equal(CheckReasons.MATCHED_BY_NAME_ONLY, result.ReasonCode);
+        Assert.True(result.Outcome.RequiresAttention);
     }
 
     // Arrecadação não tem campo de banco em posição nenhuma — ausência estrutural, não omissão.
@@ -511,7 +515,9 @@ public class BillValidationServiceTests
 
         Assert.Equal(CheckOutcome.Failed, result.Outcome);
         Assert.Equal(CheckReasons.ORIGIN_BLOCKED, result.ReasonCode);
-        Assert.Equal(CheckSeverity.Blocking, result.Severity);
+        // Critical, não Blocking: bloqueio é declaração do tenant → Extremo Perigo.
+        Assert.Equal(CheckSeverity.Critical, result.Severity);
+        Assert.True(result.IsCriticalFailure);
     }
 
     // Remetente nunca visto é inconclusivo, com a ação de "confiar nesta origem" na aprovação.

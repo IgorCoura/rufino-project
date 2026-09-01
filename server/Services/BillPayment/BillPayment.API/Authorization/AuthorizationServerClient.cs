@@ -48,6 +48,47 @@ public class AuthorizationServerClient(HttpClient httpClient, AuthorizationOptio
         }
     }
 
+    public async Task<IReadOnlyCollection<string>> GetGrantedScopesAsync(
+        string resource,
+        IReadOnlyCollection<string> scopes,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(resource);
+        ArgumentNullException.ThrowIfNull(scopes);
+
+        // response_mode fixo em "permissions" mesmo com um escopo só: aqui a pergunta é "quais",
+        // não "sim ou não" — o modo decision devolveria um RPT sem a lista.
+        using var content = new FormUrlEncodedContent(new Dictionary<string, string>
+        {
+            { "grant_type", _authorizationOptions.GrantType },
+            { "response_mode", "permissions" },
+            { "audience", _authorizationOptions.Resource },
+            { "permission", $"{resource}#{string.Join(',', scopes)}" },
+        });
+
+        HttpResponseMessage response;
+        try
+        {
+            response = await _httpClient.PostAsync(_authorizationOptions.TokenEndpointPath, content, cancellationToken);
+        }
+        catch (HttpRequestException)
+        {
+            return [];
+        }
+
+        using (response)
+        {
+            // 403 aqui é o Keycloak dizendo "nenhum dos pedidos" — conjunto vazio, não erro.
+            if (!response.IsSuccessStatusCode)
+                return [];
+
+            var granted = await response.Content.ReadFromJsonAsync<ScopeResponse[]?>(cancellationToken: cancellationToken);
+            var entry = Array.Find(granted ?? [], r => string.Equals(r.Rsname, resource, StringComparison.Ordinal));
+
+            return entry is null ? [] : scopes.Where(s => entry.Scopes.Contains(s)).ToList();
+        }
+    }
+
     private Dictionary<string, string> GetContentRequest(string permission)
     {
         ArgumentNullException.ThrowIfNull(permission);

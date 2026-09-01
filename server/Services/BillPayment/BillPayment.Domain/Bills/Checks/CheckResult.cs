@@ -54,8 +54,14 @@ public sealed class CheckResult : ValueObject
     public static CheckResult Skipped(CheckType type, string reasonCode, string? evidence = null)
         => Create(type, CheckOutcome.Skipped, type.DefaultSeverity, reasonCode, evidence);
 
-    /// <summary>Esta falha, sozinha, reprova o boleto?</summary>
-    public bool IsBlockingFailure => Outcome.IsFailure && Severity == CheckSeverity.Blocking;
+    /// <summary>
+    /// Esta falha, sozinha, leva o boleto a Perigo (ou pior)? Critical conta como bloqueante —
+    /// é um degrau ACIMA de Blocking, não ao lado.
+    /// </summary>
+    public bool IsBlockingFailure => Outcome.IsFailure && Severity != CheckSeverity.Advisory;
+
+    /// <summary>Falha por declaração explícita do tenant — leva o boleto a Extremo Perigo.</summary>
+    public bool IsCriticalFailure => Outcome.IsFailure && Severity == CheckSeverity.Critical;
 
     private static CheckResult Create(
         CheckType type,

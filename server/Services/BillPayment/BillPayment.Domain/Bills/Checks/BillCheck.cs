@@ -40,7 +40,10 @@ public sealed class BillCheck : ValueObject
             EvaluatedAt = evaluatedAt,
         };
 
-    public bool IsBlockingFailure => Outcome.IsFailure && Severity == CheckSeverity.Blocking;
+    public bool IsBlockingFailure => Outcome.IsFailure && Severity != CheckSeverity.Advisory;
+
+    /// <summary>Falha por declaração explícita do tenant — leva o boleto a Extremo Perigo.</summary>
+    public bool IsCriticalFailure => Outcome.IsFailure && Severity == CheckSeverity.Critical;
 
     public bool RequiresAttention => Outcome.RequiresAttention;
 

@@ -6,6 +6,7 @@ using BillPayment.Application.Bills.Commands;
 using BillPayment.Application.Mediator;
 using BillPayment.Application.Models.Bills;
 using BillPayment.Application.Queries.Bills;
+using BillPayment.Domain.Bills.Checks;
 using BillPayment.Domain.Extraction;
 using BillPayment.Application.Queries.CapturedMessages;
 using Microsoft.AspNetCore.Mvc;
@@ -24,8 +25,13 @@ public sealed class BillsController(
     IMediator mediator,
     IBillQueries queries,
     ICapturedMessageQueries capturedMessages,
+    IAuthorizationServerClient authorizationServer,
     ILogger<BillsController> logger) : BaseController(logger)
 {
+    // Alçada de aprovação por nível de risco, do maior para o menor. Quem só tem bill:approve
+    // (a porta de entrada do endpoint) aprova Verde; cada escopo destes cobre os níveis abaixo.
+    private static readonly string[] RiskClearanceScopes = ["approve-extreme", "approve-danger", "approve-attention"];
+
     [HttpGet]
     [ProtectedResource("bill", "view")]
     public async Task<ActionResult<BillPage>> List(
@@ -246,7 +252,8 @@ public sealed class BillsController(
         [FromHeader(Name = "x-requestid")] Guid requestId,
         CancellationToken cancellationToken)
     {
-        var command = model.ToCommand(tenantId, id, ResolveDecidingUserId());
+        var command = model.ToCommand(
+            tenantId, id, ResolveDecidingUserId(), await ResolveRiskClearanceAsync(cancellationToken));
         var identified = new IdentifiedCommand<ApproveBillCommand, ApproveBillResponse>(
             command, EnsureRequestId(requestId));
 
@@ -297,5 +304,26 @@ public sealed class BillsController(
         CommandResultLog(result, id, command, identified.Id);
 
         return OkResponse(result);
+    }
+
+    /// <summary>
+    /// Resolve a alçada de risco de quem aprova: uma pergunta UMA pelos três escopos, e o maior
+    /// concedido vira a alçada (hierárquica — cobre os níveis abaixo). Sem nenhum, a alçada é
+    /// Verde, que o <c>bill:approve</c> da porta de entrada já garante. Quem COMPARA alçada com
+    /// o risco atual do boleto é o domínio (BLP.BIL32) — aqui só se descobre quem a pessoa é.
+    /// </summary>
+    private async Task<string> ResolveRiskClearanceAsync(CancellationToken cancellationToken)
+    {
+        var granted = await authorizationServer.GetGrantedScopesAsync(
+            "bill", RiskClearanceScopes, cancellationToken);
+
+        if (granted.Contains("approve-extreme"))
+            return RiskLevel.ExtremeDanger.Name;
+        if (granted.Contains("approve-danger"))
+            return RiskLevel.Danger.Name;
+        if (granted.Contains("approve-attention"))
+            return RiskLevel.Attention.Name;
+
+        return RiskLevel.Safe.Name;
     }
 }

@@ -349,21 +349,51 @@ public static class BillErrors
             category: DomainErrorCategory.Conflict);
 
     /// <summary>
-    /// ADR-015: boleto em Perigo só é aprovável com o risco explicitamente assumido pelo
-    /// aprovador — sem o aceite, a recusa lista os motivos.
+    /// ADR-015: boleto em Perigo ou Extremo Perigo só é aprovável com o risco explicitamente
+    /// assumido pelo aprovador — sem o aceite, a recusa lista o nível e os motivos.
     /// </summary>
     public static DomainException DangerRequiresAcknowledgment(
+        string riskLevel,
         string reasons,
         [CallerFilePath] string filePath = "",
         [CallerMemberName] string memberName = "",
         [CallerLineNumber] int lineNumber = 0)
         => new(
             id: $"{AGGREGATE_PREFIX}27",
-            messageTemplate: "Este boleto está classificado como Perigo ({0}). Para aprová-lo é preciso "
+            messageTemplate: "Este boleto está classificado como {0} ({1}). Para aprová-lo é preciso "
                 + "assumir o risco explicitamente.",
-            parameters: new object[] { reasons },
+            parameters: new object[] { riskLevel, reasons },
             sourcePath: BuildSourcePath(filePath, memberName, lineNumber),
             category: DomainErrorCategory.Conflict);
+
+    /// <summary>
+    /// A alçada de risco de quem aprova não cobre o nível do boleto — 403, decidido pelo
+    /// DOMÍNIO contra o risco atual (a borda só resolve quais escopos a pessoa tem).
+    /// </summary>
+    public static DomainException ApprovalAboveRiskClearance(
+        string riskLevel,
+        string clearance,
+        [CallerFilePath] string filePath = "",
+        [CallerMemberName] string memberName = "",
+        [CallerLineNumber] int lineNumber = 0)
+        => new(
+            id: $"{AGGREGATE_PREFIX}32",
+            messageTemplate: "Este boleto está classificado como {0}, acima da sua alçada de aprovação "
+                + "({1}). Peça a alguém com a alçada adequada.",
+            parameters: new object[] { riskLevel, clearance },
+            sourcePath: BuildSourcePath(filePath, memberName, lineNumber),
+            category: DomainErrorCategory.Forbidden);
+
+    /// <summary>Aprovação sem alçada resolvida é defeito da borda, não escolha do usuário.</summary>
+    public static DomainException ApprovalClearanceRequired(
+        [CallerFilePath] string filePath = "",
+        [CallerMemberName] string memberName = "",
+        [CallerLineNumber] int lineNumber = 0)
+        => new(
+            id: $"{AGGREGATE_PREFIX}33",
+            messageTemplate: "A alçada de aprovação de quem decide é obrigatória.",
+            parameters: Array.Empty<object>(),
+            sourcePath: BuildSourcePath(filePath, memberName, lineNumber));
 
     /// <summary>
     /// O extrator de IA não respondeu ao reler o documento do boleto.

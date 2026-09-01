@@ -326,7 +326,7 @@ public sealed class RecaptureMessageTests : BaseIntegrationTest, IDisposable
             bill.RecordChecks([.. Enumeration.GetAll<CheckType>().Select(t => CheckResult.Passed(t))], OccurredAt);
 
             if (approve)
-                bill.Approve(Requester, Today.AddDays(3), null, ApprovalPolicy.Default(null), Today, OccurredAt);
+                bill.Approve(Requester, Today.AddDays(3), null, ApprovalPolicy.Default(null), RiskLevel.ExtremeDanger, Today, OccurredAt);
             else if (deny)
                 bill.Deny(Requester, "duplicado", OccurredAt);
 

@@ -443,13 +443,16 @@ public sealed class Bill : AggregateRoot<BillId>
         _checks.Clear();
         _checks.AddRange(accepted.Select(r => BillCheck.From(r, occurredAt)));
 
-        // ADR-015: a validação CLASSIFICA, nunca rejeita. Falha que era bloqueante vira Perigo
-        // — aprovável só com o risco explicitamente assumido —, inconclusivo ou aviso vira
-        // Atenção, e todo boleto validado fica aguardando a decisão humana.
+        // ADR-015: a validação CLASSIFICA, nunca rejeita. A flag mede a PIOR evidência
+        // encontrada: declaração explícita do tenant (blacklist, origem bloqueada) é Extremo
+        // Perigo; contradição entre fontes ou conferência central falhando é Perigo;
+        // inconclusivo ou aviso é Atenção; e todo boleto validado aguarda a decisão humana.
         var blocking = accepted.Where(r => r.IsBlockingFailure).ToList();
         var attention = accepted.Count(r => r.Outcome.RequiresAttention);
 
-        if (blocking.Count > 0)
+        if (blocking.Exists(r => r.IsCriticalFailure))
+            Risk = RiskLevel.ExtremeDanger;
+        else if (blocking.Count > 0)
             Risk = RiskLevel.Danger;
         else if (attention > 0)
             Risk = RiskLevel.Attention;
@@ -479,6 +482,7 @@ public sealed class Bill : AggregateRoot<BillId>
         DateOnly scheduleFor,
         string? note,
         ApprovalPolicy policy,
+        RiskLevel clearance,
         DateOnly today,
         DateTime occurredAt,
         bool acknowledgeRisk = false)
@@ -487,6 +491,9 @@ public sealed class Bill : AggregateRoot<BillId>
         EnsureDecidable(ApprovalDecision.Approved, BillStatus.Approved);
 
         EnsureChecksAreComplete();
+        // A alçada vem ANTES do aceite: dizer "marque o assumo o risco" a quem nem pode aprovar
+        // este nível seria a mensagem errada.
+        EnsureRiskWithinClearance(clearance);
         EnsureRiskIsAcknowledged(acknowledgeRisk);
         EnsureSnapshotIsFresh(policy, occurredAt);
         EnsureScheduleDateIsAllowed(scheduleFor, today);
@@ -548,15 +555,29 @@ public sealed class Bill : AggregateRoot<BillId>
             throw BillErrors.ChecksNotEvaluated();
     }
 
-    // ADR-015: Perigo não bloqueia — exige que o aprovador assuma o risco explicitamente, e a
-    // trilha grava o nível assumido. Sem o aceite, a recusa lista os motivos para a tela.
+    // A alçada de risco é hierárquica e comparada contra o risco ATUAL do boleto — é o que
+    // fecha a corrida "uma revalidação concorrente subiu o risco depois de a borda resolver a
+    // alçada". Quem resolve QUAL alçada a pessoa tem é a borda (escopos UMA); a regra vive aqui.
+    private void EnsureRiskWithinClearance(RiskLevel clearance)
+    {
+        if (clearance is null)
+            throw BillErrors.ApprovalClearanceRequired();
+        if (Risk is null || Risk.IsCoveredBy(clearance))
+            return;
+
+        throw BillErrors.ApprovalAboveRiskClearance(Risk.Name, clearance.Name);
+    }
+
+    // ADR-015: Perigo e Extremo Perigo não bloqueiam — exigem que o aprovador assuma o risco
+    // explicitamente, e a trilha grava o nível assumido. Sem o aceite, a recusa lista os motivos.
     private void EnsureRiskIsAcknowledged(bool acknowledgeRisk)
     {
-        if (Risk != RiskLevel.Danger || acknowledgeRisk)
+        if ((Risk != RiskLevel.Danger && Risk != RiskLevel.ExtremeDanger) || acknowledgeRisk)
             return;
 
         var reasons = _checks.FindAll(c => c.IsBlockingFailure);
         throw BillErrors.DangerRequiresAcknowledgment(
+            Risk!.Name,
             string.Join(", ", reasons.Select(c => c.ReasonCode ?? c.Type.Name)));
     }
 

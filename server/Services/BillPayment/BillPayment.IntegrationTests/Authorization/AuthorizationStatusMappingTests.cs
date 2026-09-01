@@ -31,6 +31,10 @@ public sealed class AuthorizationStatusMappingTests
     {
         public Task<ResourceAccessResult> VerifyAccessToResouce(string permission, CancellationToken cancellationToken = default)
             => Task.FromResult(result);
+
+        public Task<IReadOnlyCollection<string>> GetGrantedScopesAsync(
+            string resource, IReadOnlyCollection<string> scopes, CancellationToken cancellationToken = default)
+            => Task.FromResult<IReadOnlyCollection<string>>([]);
     }
 
     /// <summary>Registra qual verbo de autenticação o tradutor chamou, sem precisar do pipeline.</summary>

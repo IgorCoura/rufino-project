@@ -51,6 +51,23 @@ public class BillValidationTests
         Assert.IsType<BillValidatedDomainEvent>(Assert.Single(bill.PullDomainEvents()));
     }
 
+    // Linha nova da matriz (2026-08-31): falha CRÍTICA — declaração explícita do tenant, como
+    // blacklist — vence a bloqueante comum e classifica como Extremo Perigo.
+    [Fact]
+    public void RecordChecks_WithACriticalFailure_ShouldClassifyAsExtremeDanger()
+    {
+        var bill = CapturedAndDrained();
+
+        bill.RecordChecks(
+            AllPassing(
+                CheckResult.Failed(
+                    CheckType.PayeeMatch, CheckReasons.PAYEE_BLACKLISTED, severity: CheckSeverity.Critical),
+                CheckResult.Failed(CheckType.Duplicate, CheckReasons.DUPLICATE_SAME_TENANT)),
+            EvaluatedAt);
+
+        Assert.Same(RiskLevel.ExtremeDanger, bill.Risk);
+    }
+
     // Linha 2 da matriz: falha apenas Advisory não reprova, mas conta como ponto de atenção.
     [Fact]
     public void RecordChecks_WithOnlyAnAdvisoryFailure_ShouldStillAwaitApproval()

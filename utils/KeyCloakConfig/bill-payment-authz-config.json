@@ -25,6 +25,15 @@
         },
         {
           "name": "cancel"
+        },
+        {
+          "name": "approve-attention"
+        },
+        {
+          "name": "approve-danger"
+        },
+        {
+          "name": "approve-extreme"
         }
       ]
     },
@@ -286,6 +295,18 @@
         "scopes": "[\"manage\"]",
         "applyPolicies": "[\"Bill Admin Policy\"]"
       }
+    },
+    {
+      "name": "Bill Approve Any Risk Permission",
+      "description": "Alcada de aprovacao por nivel de risco (Atencao/Perigo/Extremo Perigo). Default: so bill-admin. Monte as demais combinacoes papel->escopo no console do Keycloak; a alcada e hierarquica no codigo (approve-danger cobre attention).",
+      "type": "scope",
+      "logic": "POSITIVE",
+      "decisionStrategy": "UNANIMOUS",
+      "config": {
+        "resources": "[\"bill\"]",
+        "scopes": "[\"approve-attention\",\"approve-danger\",\"approve-extreme\"]",
+        "applyPolicies": "[\"Bill Admin Policy\"]"
+      }
     }
   ],
   "scopes": [
@@ -324,6 +345,15 @@
     },
     {
       "name": "recapture"
+    },
+    {
+      "name": "approve-attention"
+    },
+    {
+      "name": "approve-danger"
+    },
+    {
+      "name": "approve-extreme"
     }
   ],
   "decisionStrategy": "UNANIMOUS"

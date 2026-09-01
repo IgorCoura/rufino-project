@@ -142,6 +142,12 @@ public sealed class IntegrationTestWebAppFactory : WebApplicationFactory<Program
         services.RemoveAll<IAuthorizationPolicyProvider>();
         services.AddSingleton<IAuthorizationPolicyProvider>(sp =>
             new MockPolicyProvider(sp.GetRequiredService<BillPayment.API.Authorization.AuthorizationOptions>()));
+
+        // O cliente UMA também é substituído: o real chamaria o Keycloak na resolução da alçada
+        // de risco do approve. O dublê concede tudo por padrão e obedece ao header bp_scopes,
+        // que é como um teste simula "tem bill:approve mas não approve-danger".
+        services.RemoveAll<BillPayment.API.Authorization.IAuthorizationServerClient>();
+        services.AddSingleton<BillPayment.API.Authorization.IAuthorizationServerClient, FakeAuthorizationServerClient>();
     }
 
     public async Task InitializeAsync()

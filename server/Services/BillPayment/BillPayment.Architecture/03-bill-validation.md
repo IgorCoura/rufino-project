@@ -1,5 +1,24 @@
 # 03 — Verificação do boleto
 
+> **Revisado em 2026-08-31 — quatro níveis de risco e alçada de aprovação.** A classificação do
+> ADR-015 ganhou um 4º nível e uma régua única: **a flag mede a pior evidência encontrada**.
+>
+> - 🟢 **Seguro** — tudo conferido e batendo: consulta oficial responde e confere; beneficiário
+>   cadastrado, ativo e casado **por documento fiscal** (por qualquer trilho — a conta híbrida
+>   casa pelo CNPJ do decode Pix); origem confiável ou importação manual.
+> - 🟡 **Atenção** — nada contradiz, mas falta conferência: beneficiário não cadastrado,
+>   remetente desconhecido, casamento **só por nome**, política de valor inconclusiva ou valor
+>   fora dela, vencimento estranho, divergências leves do documento impresso.
+> - 🔴 **Perigo** — contradição entre fontes ou conferência central falhando: consulta diverge
+>   do boleto, QR × código de barras, pagador contradiz o cadastro, sósia, duplicata,
+>   beneficiário inativo, **consulta indisponível ou boleto não registrado**.
+> - ⛔ **Extremo Perigo** — declaração explícita do tenant: beneficiário na **blacklist** ou
+>   origem **bloqueada** (`CheckSeverity.Critical`).
+>
+> Aprovação por alçada: `bill:approve` (Verde) < `approve-attention` < `approve-danger` <
+> `approve-extreme`, hierárquica, conferida pelo domínio contra o risco atual (`BLP.BIL32`,
+> 403). Perigo e Extremo continuam exigindo o aceite explícito (`BLP.BIL27`).
+
 Este é o coração do BC: provar que o boleto é legítimo **antes** de qualquer autorização. Cada verificação é um `BillCheck` materializado no Aggregate — com resultado, severidade, código de motivo e evidência — e não um booleano volátil. Racional em [`adr/ADR-003-checks-materializados.md`](adr/ADR-003-checks-materializados.md).
 
 ## Fontes de dado e o que cada uma prova

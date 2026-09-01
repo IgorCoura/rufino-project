@@ -95,11 +95,11 @@ public sealed class ApproveBillTests : BaseIntegrationTest, IDisposable
         Assert.Null(approved.Error);
     }
 
-    // Beneficiário na blacklist de ponta a ponta: o boleto verifica como Perigo pelo check de
-    // beneficiário, aprovar sem assumir o risco é 409 BLP.BIL27, e com o aceite explícito a
-    // aprovação passa (ADR-015 — a marca sinaliza, quem decide é o humano).
+    // Beneficiário na blacklist de ponta a ponta: o boleto verifica como EXTREMO Perigo (a
+    // marca é declaração do tenant, 2026-08-31), aprovar sem assumir o risco é 409 BLP.BIL27,
+    // e com o aceite explícito — e a alçada (aqui, todas por padrão) — a aprovação passa.
     [Fact]
-    public async Task Approve_WhenThePayeeIsBlacklisted_ShouldTurnDangerAndRequireTheAcknowledgment()
+    public async Task Approve_WhenThePayeeIsBlacklisted_ShouldTurnExtremeDangerAndRequireTheAcknowledgment()
     {
         var payeeId = await RegisterBeneficiaryAsPayeeAsync();
         var mark = await _client.PutAsJsonAsync(
@@ -112,8 +112,8 @@ public sealed class ApproveBillTests : BaseIntegrationTest, IDisposable
 
         var bill = await LoadAsync(billId);
         Assert.Equal(BillStatus.AwaitingApproval, bill.Status);
-        Assert.Same(RiskLevel.Danger, bill.Risk);
-        Assert.Contains(bill.Checks, c => c.ReasonCode == CheckReasons.PAYEE_BLACKLISTED && c.IsBlockingFailure);
+        Assert.Same(RiskLevel.ExtremeDanger, bill.Risk);
+        Assert.Contains(bill.Checks, c => c.ReasonCode == CheckReasons.PAYEE_BLACKLISTED && c.IsCriticalFailure);
 
         var refused = await PostAsync($"{billId}/approve", new ApproveBillRequest(ScheduleDate(), null));
         Assert.Equal(HttpStatusCode.Conflict, refused.StatusCode);
@@ -195,6 +195,71 @@ public sealed class ApproveBillTests : BaseIntegrationTest, IDisposable
         var bill = await LoadAsync(billId);
         Assert.Equal(BillStatus.Approved, bill.Status);
         Assert.Same(RiskLevel.Danger, bill.Approval!.RiskAtDecision);
+    }
+
+    // Alçada por risco (2026-08-31): quem só tem bill:approve não aprova Perigo — 403 com
+    // BLP.BIL32, decidido pelo DOMÍNIO contra o risco atual, e nada é gravado.
+    [Fact]
+    public async Task Approve_ADangerBillWithoutTheDangerClearance_ShouldReturn403()
+    {
+        _lookups.BankSlipResult = BillLookupResult.Unavailable("timeout", null, ConsultedAt());
+        var billId = await ImportAsync();
+        await DrainOutboxAsync();
+
+        var response = await PostAsync(
+            $"{billId}/approve",
+            new ApproveBillRequest(ScheduleDate(), null, AcknowledgeRisk: true),
+            scopes: "approve");
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+        Assert.Contains("BLP.BIL32", await response.Content.ReadAsStringAsync(), StringComparison.Ordinal);
+        Assert.Null((await LoadAsync(billId)).Approval);
+    }
+
+    // Com o escopo da alçada, o mesmo boleto aprova — a hierarquia cobre os níveis abaixo.
+    [Fact]
+    public async Task Approve_ADangerBillWithTheDangerClearance_ShouldApprove()
+    {
+        _lookups.BankSlipResult = BillLookupResult.Unavailable("timeout", null, ConsultedAt());
+        var billId = await ImportAsync();
+        await DrainOutboxAsync();
+
+        var response = await PostAsync(
+            $"{billId}/approve",
+            new ApproveBillRequest(ScheduleDate(), "risco assumido", AcknowledgeRisk: true),
+            scopes: "approve,approve-danger");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+    }
+
+    // Beneficiário na blacklist de ponta a ponta: o boleto verifica como EXTREMO Perigo;
+    // alçada de Perigo não basta (403), a máxima com o aceite aprova, e a trilha grava o nível.
+    [Fact]
+    public async Task Approve_AnExtremeDangerBill_ShouldRequireTheMaxClearance()
+    {
+        var payeeId = await RegisterBeneficiaryAsPayeeAsync();
+        var mark = await _client.PutAsJsonAsync(
+            new Uri($"/api/v1/{TenantId}/payees/{payeeId}/standing", UriKind.Relative),
+            new AlterPayeeStandingRequest("Blacklisted"),
+            CancellationToken.None);
+        mark.EnsureSuccessStatusCode();
+
+        var billId = await ImportAndValidateAsync();
+        Assert.Same(RiskLevel.ExtremeDanger, (await LoadAsync(billId)).Risk);
+
+        var refused = await PostAsync(
+            $"{billId}/approve",
+            new ApproveBillRequest(ScheduleDate(), null, AcknowledgeRisk: true),
+            scopes: "approve,approve-danger");
+        Assert.Equal(HttpStatusCode.Forbidden, refused.StatusCode);
+
+        var approved = await PostAsync(
+            $"{billId}/approve",
+            new ApproveBillRequest(ScheduleDate(), "urgência real", AcknowledgeRisk: true),
+            scopes: "approve,approve-danger,approve-extreme");
+        Assert.Equal(HttpStatusCode.OK, approved.StatusCode);
+
+        Assert.Same(RiskLevel.ExtremeDanger, (await LoadAsync(billId)).Approval!.RiskAtDecision);
     }
 
     // Retrato velho não sustenta aprovação — e revalidar é o caminho de volta.
@@ -336,13 +401,19 @@ public sealed class ApproveBillTests : BaseIntegrationTest, IDisposable
         string path,
         T? payload,
         Guid? userId = null,
-        Guid? requestId = null)
+        Guid? requestId = null,
+        string? scopes = null)
         where T : class
     {
         using var request = new HttpRequestMessage(HttpMethod.Post, new Uri($"{Route()}/{path}", UriKind.Relative))
         {
             Content = payload is null ? null : JsonContent.Create(payload),
         };
+
+        // Sem o header o dublê UMA concede tudo; com ele, só os escopos listados — é como um
+        // teste vira "uma pessoa que só tem bill:approve".
+        if (scopes is not null)
+            request.Headers.Add(FakeAuthorizationServerClient.ScopesHeader, scopes);
 
         request.Headers.Add("x-user-id", (userId ?? ApproverId).ToString());
         request.Headers.Add("x-requestid", (requestId ?? Guid.NewGuid()).ToString());

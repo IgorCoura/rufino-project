@@ -228,12 +228,13 @@ public static class BillValidationService
 
         // A blacklist vence qualquer outro desfecho, inclusive o casamento exato por documento:
         // é o tenant dizendo "não pague este beneficiário", e um documento que confere só
-        // confirma que o boleto é mesmo de quem ele mandou não pagar.
+        // confirma que o boleto é mesmo de quem ele mandou não pagar. Critical → Extremo Perigo.
         if (payee.Standing == PayeeStanding.Blacklisted)
             return CheckResult.Failed(
                 CheckType.PayeeMatch,
                 CheckReasons.PAYEE_BLACKLISTED,
-                $"O beneficiário \"{payee.LegalName}\" está marcado na lista de bloqueio deste tenant.");
+                $"O beneficiário \"{payee.LegalName}\" está marcado na lista de bloqueio deste tenant.",
+                CheckSeverity.Critical);
 
         if (!payee.IsActive)
             return CheckResult.Failed(
@@ -241,8 +242,12 @@ public static class BillValidationService
                 CheckReasons.PAYEE_INACTIVE,
                 $"O beneficiário \"{payee.LegalName}\" está inativo no cadastro.");
 
+        // Casou só por nome: sem documento fiscal não há como GARANTIR o beneficiário, então
+        // não é Verde — é Atenção (decisão do usuário, 2026-08-31). A conta de concessionária
+        // híbrida escapa disto pelo trilho Pix, cujo decode devolve o CNPJ que o código de
+        // barras de arrecadação não carrega.
         if (resolution.Kind == PayeeMatchKind.ByName)
-            return CheckResult.Passed(
+            return CheckResult.Inconclusive(
                 CheckType.PayeeMatch,
                 CheckReasons.MATCHED_BY_NAME_ONLY,
                 $"Casou por nome com \"{payee.LegalName}\"; a consulta não devolveu documento fiscal. "
@@ -461,12 +466,14 @@ public static class BillValidationService
                     ? "A origem não registrou remetente."
                     : $"O remetente {origin.SenderAddress} nunca foi visto antes.");
 
+        // Critical, não Blocking: bloqueio é declaração explícita do tenant, e leva o boleto a
+        // Extremo Perigo — um degrau acima da suspeita derivada.
         return context.Origin.Decision == TrustedOrigins.TrustDecision.Blocked
             ? CheckResult.Failed(
                 CheckType.OriginTrust,
                 CheckReasons.ORIGIN_BLOCKED,
                 $"A origem {context.Origin.Value} está explicitamente bloqueada.",
-                CheckSeverity.Blocking)
+                CheckSeverity.Critical)
             : CheckResult.Passed(
                 CheckType.OriginTrust,
                 evidence: $"Origem {context.Origin.Value} marcada como confiável.");

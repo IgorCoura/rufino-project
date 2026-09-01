@@ -28,7 +28,7 @@ public class MessageRecaptureServiceTests
     public void Plan_WhenALinkedBillIsApproved_Throws_BLP_CMS11()
     {
         var bill = AwaitingApproval();
-        bill.Approve(Decider, Today.AddDays(3), null, ApprovalPolicy.Default(null), Today, DecidedAt);
+        bill.Approve(Decider, Today.AddDays(3), null, ApprovalPolicy.Default(null), RiskLevel.ExtremeDanger, Today, DecidedAt);
 
         var exception = Assert.Throws<DomainException>(() =>
             MessageRecaptureService.Plan(CapturedMessageMother.Register(), [(PromotedTo(bill), bill)]));
