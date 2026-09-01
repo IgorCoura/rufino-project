@@ -236,6 +236,15 @@ class _Results extends StatelessWidget {
                                 runSpacing: AppSpacing.xs,
                                 children: [
                                   StatusBadge.billStatus(bill.status),
+                                  // Perigo e Extremo Perigo pedem o olho já
+                                  // na fila — os níveis leves não poluem.
+                                  if (RiskLevels.tier(bill.riskLevel) >=
+                                      RiskLevels.tier(RiskLevels.danger))
+                                    StatusBadge(
+                                      label:
+                                          RiskLevels.label(bill.riskLevel),
+                                      tone: BadgeTone.problem,
+                                    ),
                                   StatusBadge(label: bill.rail),
                                   StatusBadge(
                                     label: BillKinds.label(bill.kind),

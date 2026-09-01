@@ -900,6 +900,7 @@ Bill bill({
 BillDetail billDetail({
   String id = 'bill-1',
   String status = BillStatuses.awaitingApproval,
+  String? riskLevel,
   DateTime? lastConsultedAt,
   DateTime? minimumScheduleDate,
   List<BillCheck> checks = const [],
@@ -909,6 +910,7 @@ BillDetail billDetail({
   return BillDetail(
     id: id,
     status: status,
+    riskLevel: riskLevel,
     kind: BillKinds.bankSlip,
     rail: PaymentRails.boleto,
     checks: checks,

@@ -157,4 +157,27 @@ void main() {
       expect(ReadingStatuses.label('SomethingNew'), isEmpty);
     });
   });
+
+  group('RiskLevels', () {
+    // A escala é ordenada e nível desconhecido vale 0 — nunca "seguro por padrão".
+    test('the tier scale orders the four levels and zeroes the unknown', () {
+      expect(RiskLevels.tier(RiskLevels.safe), 1);
+      expect(RiskLevels.tier(RiskLevels.attention), 2);
+      expect(RiskLevels.tier(RiskLevels.danger), 3);
+      expect(RiskLevels.tier(RiskLevels.extremeDanger), 4);
+      expect(RiskLevels.tier('SomethingNew'), 0);
+      expect(RiskLevels.tier(null), 0);
+    });
+
+    // O aceite explícito vale para Perigo E Extremo Perigo (ADR-015).
+    test('danger and extreme danger require the acknowledgement', () {
+      expect(RiskLevels.requiresAcknowledgement(RiskLevels.danger), isTrue);
+      expect(
+        RiskLevels.requiresAcknowledgement(RiskLevels.extremeDanger),
+        isTrue,
+      );
+      expect(RiskLevels.requiresAcknowledgement(RiskLevels.safe), isFalse);
+      expect(RiskLevels.requiresAcknowledgement(RiskLevels.attention), isFalse);
+    });
+  });
 }

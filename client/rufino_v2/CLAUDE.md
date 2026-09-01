@@ -1067,11 +1067,19 @@ Coisas que não podem erodir:
   antigo nasceu antes da leitura. O backfill é servidor-somente (`POST /bills/{id}/enrich`, um
   por chamada); a UI **não** expõe botão para dispará-lo — havia um ("Ler com IA") e foi
   removido a pedido do usuário em 2026-08-27.
-- **O banner de risco decide a leitura da tela (ADR-015 do BC)**: verde Seguro, âmbar Atenção,
-  vermelho Perigo, sempre ACIMA das verificações. Aprovar um Perigo exige marcar "assumo o
-  risco" — o botão de autorizar nem habilita sem a caixa, porque o servidor recusaria com
-  `BLP.BIL27` de qualquer jeito; a UI só antecipa a recusa. `riskLevel` nulo (boleto ainda não
-  validado) não mostra banner nenhum — ausência honesta, não "Seguro" por omissão.
+- **O banner de risco decide a leitura da tela (ADR-015 do BC), e desde 2026-08-31 são QUATRO
+  níveis + um fallback honesto**: verde Seguro, âmbar Atenção, vermelho Perigo, e **Extremo
+  Perigo** (fundo cheio na cor de erro — beneficiário/origem na lista de bloqueio), sempre ACIMA
+  das verificações. `RiskLevels` (`bill_payment_enums.dart`) é a única tradução — fim das
+  comparações com string crua. **Nível desconhecido NUNCA desenha "Seguro"** (era o default do
+  switch — um servidor mais novo mentiria verde): cai num banner neutro pedindo atualização, e
+  `RiskLevels.tier` devolve 0. Aprovar Perigo OU Extremo exige a caixa "assumo o risco"
+  (`BLP.BIL27`), e a **alçada por risco** (`BLP.BIL32`, 403) é espelhada na UI:
+  `BillPaymentPermissionNotifier.canApproveAtRisk` lê os escopos novos
+  (`approve-attention` < `approve-danger` < `approve-extreme`, hierárquicos) e o botão Aprovar
+  desabilita com o motivo no Tooltip quando o boleto está acima da alçada. A lista de boletos
+  ganha o chip vermelho para Perigo/Extremo. `riskLevel` nulo (boleto ainda não validado) não
+  mostra banner nenhum — ausência honesta.
 - **A chave Asaas é DO TENANT e entra pela seção "Conta Asaas" do Perfil do Pagador
   (2026-08-31).** O campo é `obscureText` e a chave é gravação única: vai em
   `PUT /payer-profile/asaas-account` (body `{apiKey}`), o servidor a prova no provedor e a guarda

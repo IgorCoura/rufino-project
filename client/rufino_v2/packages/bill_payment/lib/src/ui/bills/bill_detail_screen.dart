@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:material_symbols_icons/symbols.dart';
+import 'package:provider/provider.dart';
 import 'package:rufino_core/rufino_core.dart';
 
 import '../../bill_payment_permissions.dart';
@@ -274,29 +275,50 @@ class _RiskBanner extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final (color, onColor, icon, title, message) = switch (bill.riskLevel) {
-      'Danger' => (
+      // O visual mais duro da escala: fundo cheio na cor de erro, não o container.
+      RiskLevels.extremeDanger => (
+          theme.colorScheme.error,
+          theme.colorScheme.onError,
+          Symbols.gpp_bad,
+          'Extremo Perigo',
+          'O beneficiário ou a origem deste boleto está na sua lista de '
+              'bloqueio. Aprovar exige a alçada máxima e assumir o risco '
+              'explicitamente.',
+        ),
+      RiskLevels.danger => (
           theme.colorScheme.errorContainer,
           theme.colorScheme.onErrorContainer,
           Symbols.gpp_bad,
           'Perigo',
-          'As verificações encontraram sinal com cara de fraude ou de '
-              'pagamento duplicado. Confira as evidências abaixo — aprovar '
-              'exige assumir o risco explicitamente.',
+          'As verificações encontraram contradição entre as fontes, ou a '
+              'consulta oficial não pôde conferir o documento. Confira as '
+              'evidências abaixo — aprovar exige assumir o risco '
+              'explicitamente.',
         ),
-      'Attention' => (
+      RiskLevels.attention => (
           const Color(0xFFFFE9B8),
           const Color(0xFF5C4400),
           Symbols.warning,
           'Atenção',
-          'Algo não pôde ser confirmado. Confira os pontos destacados antes '
-              'de autorizar.',
+          'Nada contradiz, mas algo não pôde ser confirmado. Confira os '
+              'pontos destacados antes de autorizar.',
         ),
-      _ => (
+      RiskLevels.safe => (
           const Color(0xFFCDE8CF),
           const Color(0xFF10401A),
           Symbols.verified_user,
           'Seguro',
           'Todas as verificações passaram. Nenhuma divergência encontrada.',
+        ),
+      // Nível que este app não conhece NUNCA pode ler como "Seguro" — um
+      // servidor mais novo estaria classificando pior, não melhor.
+      _ => (
+          theme.colorScheme.surfaceContainerHighest,
+          theme.colorScheme.onSurface,
+          Symbols.help,
+          'Nível de risco desconhecido',
+          'O servidor classificou este boleto num nível que esta versão do '
+              'aplicativo não conhece. Atualize o aplicativo antes de decidir.',
         ),
     };
 
@@ -808,12 +830,28 @@ class _Actions extends StatelessWidget {
               BillPaymentPermissionGuard(
                 resource: BillPaymentResources.bill,
                 scope: BillPaymentScopes.approve,
-                child: FilledButton(
-                  onPressed: viewModel.isMutating || !viewModel.canApprove
-                      ? null
-                      : () => _approveSheet(context),
-                  child: const Text('Aprovar…'),
-                ),
+                child: Builder(builder: (context) {
+                  // Alçada por risco (espelho do BLP.BIL32): sem o escopo do
+                  // nível, o botão desabilita com o motivo à vista — o
+                  // servidor recusaria com 403 de qualquer jeito.
+                  final hasClearance = context
+                      .watch<BillPaymentPermissionNotifier>()
+                      .canApproveAtRisk(viewModel.bill?.riskLevel);
+                  return Tooltip(
+                    message: hasClearance
+                        ? ''
+                        : 'Boleto em ${RiskLevels.label(viewModel.bill?.riskLevel)} '
+                            '— acima da sua alçada de aprovação.',
+                    child: FilledButton(
+                      onPressed: viewModel.isMutating ||
+                              !viewModel.canApprove ||
+                              !hasClearance
+                          ? null
+                          : () => _approveSheet(context),
+                      child: const Text('Aprovar…'),
+                    ),
+                  );
+                }),
               ),
           ],
         ),
@@ -872,7 +910,9 @@ class _Actions extends StatelessWidget {
   Future<void> _approveSheet(BuildContext context) async {
     final noteController = TextEditingController();
     final earliest = viewModel.earliestScheduleDate;
-    final isDanger = viewModel.bill?.isDanger ?? false;
+    final needsAcknowledgement =
+        viewModel.bill?.requiresRiskAcknowledgement ?? false;
+    final riskLabel = RiskLevels.label(viewModel.bill?.riskLevel);
     DateTime scheduleFor = earliest;
     var riskAcknowledged = false;
 
@@ -920,9 +960,10 @@ class _Actions extends StatelessWidget {
                   border: OutlineInputBorder(),
                 ),
               ),
-              // ADR-015: boleto em Perigo só autoriza com o aceite marcado —
-              // e o servidor recusa sem ele, então o botão nem habilita.
-              if (isDanger) ...[
+              // ADR-015: boleto em Perigo ou Extremo Perigo só autoriza com o
+              // aceite marcado — e o servidor recusa sem ele, então o botão
+              // nem habilita.
+              if (needsAcknowledgement) ...[
                 const SizedBox(height: AppSpacing.md),
                 CheckboxListTile(
                   value: riskAcknowledged,
@@ -931,7 +972,7 @@ class _Actions extends StatelessWidget {
                   controlAffinity: ListTileControlAffinity.leading,
                   contentPadding: EdgeInsets.zero,
                   title: Text(
-                    'Vi o alerta de Perigo e assumo o risco de autorizar '
+                    'Vi o alerta de $riskLabel e assumo o risco de autorizar '
                     'este pagamento.',
                     style: Theme.of(sheetContext).textTheme.bodyMedium,
                   ),
@@ -939,7 +980,7 @@ class _Actions extends StatelessWidget {
               ],
               const SizedBox(height: AppSpacing.lg),
               FilledButton(
-                onPressed: isDanger && !riskAcknowledged
+                onPressed: needsAcknowledgement && !riskAcknowledged
                     ? null
                     : () => Navigator.of(sheetContext).pop(true),
                 child: const Text('Autorizar'),

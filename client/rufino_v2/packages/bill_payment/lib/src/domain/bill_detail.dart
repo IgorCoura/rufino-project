@@ -295,8 +295,10 @@ class BillDetail {
   /// The official Pix decode, once it resolved.
   final PixLookup? pixLookup;
 
-  /// Whether approving needs the explicit risk acknowledgment (ADR-015).
-  bool get isDanger => riskLevel == 'Danger';
+  /// Whether approving needs the explicit risk acknowledgment (ADR-015) —
+  /// true for Perigo and Extremo Perigo.
+  bool get requiresRiskAcknowledgement =>
+      RiskLevels.requiresAcknowledgement(riskLevel);
 
   /// The human decision, once one exists.
   final BillApproval? approval;

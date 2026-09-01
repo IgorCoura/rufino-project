@@ -1,5 +1,7 @@
 import 'package:rufino_core/rufino_core.dart';
 
+import 'domain/bill_payment_enums.dart';
+
 /// The permissions of this module, as declared in Keycloak.
 ///
 /// They belong to the **`bill-payment-api`** resource server, which is not
@@ -56,7 +58,17 @@ abstract final class BillPaymentScopes {
   static const String validate = 'validate';
 
   /// Authorize the payment — the sensitive action of this module.
+  /// Alone, it only clears bills flagged green (Safe).
   static const String approve = 'approve';
+
+  /// Clears approving bills flagged Atenção.
+  static const String approveAttention = 'approve-attention';
+
+  /// Clears approving bills flagged Perigo (covers Atenção too).
+  static const String approveDanger = 'approve-danger';
+
+  /// Clears approving bills flagged Extremo Perigo — the maximum clearance.
+  static const String approveExtreme = 'approve-extreme';
 
   /// Refuse a bill.
   static const String deny = 'deny';
@@ -101,6 +113,30 @@ class BillPaymentPermissionNotifier extends PermissionNotifier {
   /// Whether the person can decide the destiny of a bill.
   bool get canDecide =>
       hasPermission(BillPaymentResources.bill, BillPaymentScopes.approve);
+
+  /// The highest risk tier this person's clearance covers (see
+  /// [RiskLevels.tier]). Hierarchical, mirroring the server's rule.
+  int get approvalClearanceTier {
+    if (hasPermission(BillPaymentResources.bill, BillPaymentScopes.approveExtreme)) {
+      return RiskLevels.tier(RiskLevels.extremeDanger);
+    }
+    if (hasPermission(BillPaymentResources.bill, BillPaymentScopes.approveDanger)) {
+      return RiskLevels.tier(RiskLevels.danger);
+    }
+    if (hasPermission(BillPaymentResources.bill, BillPaymentScopes.approveAttention)) {
+      return RiskLevels.tier(RiskLevels.attention);
+    }
+    return RiskLevels.tier(RiskLevels.safe);
+  }
+
+  /// Whether the clearance covers approving a bill flagged [riskLevel].
+  /// Unknown levels (a newer server) are never approvable from this app —
+  /// the server would refuse anyway, with the reason.
+  bool canApproveAtRisk(String? riskLevel) {
+    if (riskLevel == null) return true;
+    final tier = RiskLevels.tier(riskLevel);
+    return tier != 0 && tier <= approvalClearanceTier;
+  }
 }
 
 /// Renders `child` only when the bill payment audience grants `scope` on

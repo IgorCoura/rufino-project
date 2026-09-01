@@ -219,6 +219,54 @@ abstract final class CheckSeverities {
 
   /// A failure here informs, never blocks.
   static const String advisory = 'Advisory';
+
+  /// A failure by the tenant's own declaration (blacklist, blocked origin)
+  /// — one step above [blocking]: it turns the bill extreme danger.
+  static const String critical = 'Critical';
+}
+
+/// Wire values of the backend's `RiskLevel` smart enum — the bill's flag.
+///
+/// The flag measures the worst evidence found: green when everything was
+/// verified and matches, attention when nothing contradicts but verification
+/// is incomplete, danger when sources contradict each other (or the official
+/// lookup could not run), extreme danger when the tenant itself declared the
+/// actor hostile (blacklisted payee, blocked origin).
+abstract final class RiskLevels {
+  /// Everything verified and matching.
+  static const String safe = 'Safe';
+
+  /// Nothing contradicts, but verification is incomplete.
+  static const String attention = 'Attention';
+
+  /// Sources contradict each other, or the central check could not run.
+  static const String danger = 'Danger';
+
+  /// The tenant declared the actor hostile — blacklist or blocked origin.
+  static const String extremeDanger = 'ExtremeDanger';
+
+  /// The ordered scale. Unknown values map to 0 — a newer server must never
+  /// read as "safe by default".
+  static int tier(String? level) => switch (level) {
+        safe => 1,
+        attention => 2,
+        danger => 3,
+        extremeDanger => 4,
+        _ => 0,
+      };
+
+  /// Whether approving at this level requires the explicit "assumo o risco".
+  static bool requiresAcknowledgement(String? level) =>
+      level == danger || level == extremeDanger;
+
+  /// PT label for the flag; unknown values echo raw so the screen never lies.
+  static String label(String? level) => switch (level) {
+        safe => 'Seguro',
+        attention => 'Atenção',
+        danger => 'Perigo',
+        extremeDanger => 'Extremo Perigo',
+        _ => level ?? '',
+      };
 }
 
 /// Wire values of the backend's `BillKind` smart enum.
