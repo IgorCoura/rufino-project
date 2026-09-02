@@ -1,0 +1,1059 @@
+{
+  "projeto": "Rufino Project",
+  "subtitulo": "Plataforma de gestão de pessoas, documentos e pagamento de boletos — monorepo (3 APIs .NET, 2 apps Flutter, infraestrutura Azure/Docker)",
+  "data": "28 de agosto de 2026",
+  "revisao": "branch feature/bill-payment, commit 2ed33448 (worktree rufino-bill-payment)",
+  "metodo_resumo": "Revisão manual de código-fonte (white-box), sem execução contra ambiente; 5 categorias adaptadas à stack; só achados verificados em arquivo:linha",
+  "escopo": [
+    "server/Services/BillPayment — API .NET 10 (76 actions, 10 repositórios, 27 queries, 6 workers)",
+    "server/Services/PeopleManagement — API .NET 8 (17 controllers, MediatR, Hangfire, Puppeteer, ZapSign, Evolution API)",
+    "server/Services/TenantManagement — API .NET (emissor do TenantId, provisionamento no Keycloak)",
+    "client/rufino_v2 e client/rufino — apps Flutter (web/mobile/desktop) e nginx do build web",
+    "Deploy e configuração: docker-compose (raiz e por BC), Dockerfiles, .github/workflows, codemagic.yaml, azure/container-apps (Bicep + deploy.ps1), appsettings*.json, utils/KeyCloakConfig (realm), keycloak-themes",
+    "Histórico git completo (1.344 commits) para segredos já removidos da árvore"
+  ],
+  "metodologia_intro": "O projeto não usa Supabase nem RLS: cada API isola tenants em código. O mecanismo é a policy montada por [ProtectedResource(recurso, escopo)], que soma dois requisitos — RouteAccessRequirement (o parâmetro de rota {tenantId} / {company} precisa constar no claim `tenants`/`bp_tenants`/`companies` do JWT do Keycloak) e ProtectedResourceRequirement (consulta UMA ao Keycloak pelo escopo). Como a rota sem o parâmetro passa em silêncio e o guard só confere a rota (não o objeto), a segunda camada obrigatória é o filtro explícito por TenantId/CompanyId em cada handler, repositório e query — não existe HasQueryFilter global em nenhum DbContext. As cinco categorias pedidas foram mapeadas assim:",
+  "categorias": [
+    {
+      "id": 1,
+      "nome": "Banco sem tranca — isolamento de tenant/dono",
+      "curto": "Isolamento de tenant",
+      "mapeamento": "Sem RLS. Verificamos (a) toda rota protegida declara o parâmetro exato ({tenantId}/{company}); (b) toda listagem, agregação, dashboard, exportação, batch e download filtra por TenantId/CompanyId da rota; (c) subqueries e joins que seguem IDs relacionados; (d) mecanismos transversais sem tenant (ledger de idempotência, provisionamento de claims no Keycloak).",
+      "nota": "Mecanismo: RouteAccessRequirement + filtro manual por tenant. BillPayment está íntegro (76/76 actions, todos os repositórios e queries filtram TenantId). PeopleManagement filtra todas as listagens principais, mas segue IDs relacionados sem filtro e compartilha o ledger de idempotência entre tenants.",
+      "abrev": "Isolamento"
+    },
+    {
+      "id": 2,
+      "nome": "Permissão definida no navegador",
+      "curto": "Permissão no navegador",
+      "mapeamento": "O Flutter não lê papéis do JWT: pede um RPT UMA ao Keycloak e esconde botões por hasPermission(recurso, escopo). Cruzamos os 30 gates de UI (bill_payment, tenant_management, people-management) com o atributo [ProtectedResource] do endpoint chamado, e listamos superfícies do servidor fora do Keycloak (Hangfire, Swagger, TestController, CORS, FallbackPolicy).",
+      "nota": "Todos os 30 gates de UI têm o escopo equivalente no servidor. Os achados desta categoria são superfícies do servidor que não passam pelo Keycloak ou que ficam expostas sem gating por ambiente.",
+      "abrev": "Navegador"
+    },
+    {
+      "id": 3,
+      "nome": "IDOR — referência direta a objeto sem checagem de posse",
+      "curto": "IDOR",
+      "mapeamento": "Percorridos TODOS os handlers de rota das 3 APIs (76 no BillPayment, ~110 no PeopleManagement, 17 no TenantManagement). Para cada ID recebido em path/query/body, seguimos handler → repositório/query e confirmamos se o lookup é `TenantId && Id`. IDs de objetos relacionados vindos do corpo foram checados quanto à validação de pertencimento.",
+      "nota": "",
+      "abrev": "IDOR"
+    },
+    {
+      "id": 4,
+      "nome": "Chaves expostas (hardcode)",
+      "curto": "Chaves expostas",
+      "mapeamento": "Grep por credenciais na árvore (appsettings, compose, Bicep, template.env, CI, scripts, realm export, Flutter/secrets, bundle web), defaults `${VAR:-x}`, validação de startup (ValidateOnStart/IValidateOptions) e histórico git (git log -S / git show em 1.344 commits). Valores reais aparecem mascarados neste relatório.",
+      "nota": "",
+      "abrev": "Chaves"
+    },
+    {
+      "id": 5,
+      "nome": "Inputs sem tratamento (XSS / HTML ativo)",
+      "curto": "XSS / inputs",
+      "mapeamento": "Flutter não tem innerHTML: checamos flutter_html/HtmlWidget, WebView, dart:html, url_launcher com URL de API, index.html. No backend, o equivalente é a geração de PDF por Chromium headless (PuppeteerSharp) a partir de templates HTML enviados pelo tenant e de valores de funcionário interpolados sem encoding, além de e-mails/WhatsApp e temas Keycloak (.ftl).",
+      "nota": "No frontend a categoria não se aplica na forma clássica (nenhum innerHTML/eval; o único renderizador de HTML é o HtmlWidget do corpo de e-mail, que não executa script). O risco real está no servidor: HTML controlado pelo tenant executado em Chromium com JavaScript, origem file:// e sem sandbox.",
+      "abrev": "XSS / inputs"
+    }
+  ],
+  "stack": [
+    [
+      "Linguagem / runtime",
+      "C# 12–13 em .NET 8 (PeopleManagement) e .NET 10 (BillPayment, TenantManagement); Dart/Flutter 3 (clientes)"
+    ],
+    [
+      "Framework web",
+      "ASP.NET Core MVC (controllers + [ApiController]); MediatR no PeopleManagement, mediator próprio nos outros dois"
+    ],
+    [
+      "ORM / acesso a dados",
+      "EF Core + Npgsql (PostgreSQL 16), um schema por BC; sem SQL cru na aplicação (exceto filas de worker parametrizadas)"
+    ],
+    [
+      "Autenticação / autorização",
+      "Keycloak (JWT Bearer com issuer/audience/lifetime) + UMA ticket (RPT) por [ProtectedResource]; guard de rota por claim tenants/bp_tenants/companies"
+    ],
+    [
+      "Frontend",
+      "Flutter (rufino_v2: pacotes rufino_core, bill_payment, tenant_management; web servido por nginx) e app legado rufino"
+    ],
+    [
+      "Integrações",
+      "ZapSign (assinatura + webhook), Evolution API (WhatsApp), Microsoft Graph (caixa de e-mail), Asaas, Gemini, S3/MinIO/Garage, Azure Blob, Hangfire (jobs)"
+    ],
+    [
+      "Deploy",
+      "Docker Compose (dev), Azure Container Apps via GitHub Actions (PeopleManagement, Evolution API por Bicep/deploy.ps1), Dokploy (BillPayment/TenantManagement, por ADR-009), Codemagic (iOS)"
+    ]
+  ],
+  "regras": [
+    "Só entrou no relatório o que foi lido no código desta revisão; o comportamento de bibliotecas de terceiros não lidas (ex.: Hangfire.Dashboard.BasicAuthorization com senha vazia) é marcado como não verificado.",
+    "Severidade combina impacto e condição de exploração: crítica = execução/leitura de infraestrutura ou segredo real exposto; alta = leitura/escrita cross-tenant com privilégio comum; média = exige privilégio elevado, configuração adicional ou tem impacto contido; baixa = hardening/defesa em profundidade; informativa = sem exploração hoje, mas vale registrar.",
+    "Pontos fortes só entram com evidência arquivo:linha — eles provam a cobertura da auditoria tanto quanto os achados.",
+    "Linhas referem-se ao commit 2ed33448; trechos são cópias literais (segredos mascarados)."
+  ],
+  "resumo": "A auditoria cobriu as três APIs, os dois apps Flutter, os arquivos de deploy e o histórico git. O desenho de autorização é sólido e consistente — policy dupla (guard de rota + UMA), TenantId sempre da rota, filtro explícito por tenant em todos os repositórios do BillPayment e nas listagens do PeopleManagement, segredos fora do appsettings atual. Os riscos centrais estão em duas frentes do PeopleManagement: (1) a geração de PDF executa HTML/JavaScript enviado pelo tenant — e valores de funcionário sem encoding — dentro de um Chromium sem sandbox com origem file://, o que permite ler arquivos do container e alcançar a rede interna; (2) duas rotas fogem do guard de tenant (CompanyController e o webhook da ZapSign), permitindo ler/editar qualquer empresa e forjar assinaturas com download de URL arbitrária. Na frente de segredos, quatro credenciais reais (dois client secrets do Keycloak, um token ZapSign e o secret do app) estão recuperáveis no histórico do repositório hospedado no GitHub. O restante são defaults de credencial em compose/appsettings, ausência de validação de startup, Hangfire fora do Keycloak e itens de hardening.",
+  "leitura_rapida": [
+    "2 achados críticos: HTML do tenant executado em Chromium no servidor (XSS-01) e segredos reais no histórico git (SEC-01).",
+    "3 achados altos: CompanyController sem guard de tenant (IDR-01), webhook ZapSign sem escopo/assinatura com SSRF (IDR-02), valores de funcionário injetados no HTML sem encoding (XSS-02).",
+    "BillPayment: nenhum IDOR ou vazamento cross-tenant; único ponto é a importação JSON aceitar StorageKey/SourceId do corpo (IDR-03, média).",
+    "TenantManagement: convite pode ser sequestrado por quem troca o próprio e-mail no Keycloak (ISO-06, média).",
+    "Os 30 gates de permissão do Flutter têm equivalente exato no servidor — a categoria 2 não produziu falha de privilégio, só superfícies fora do Keycloak.",
+    "Frontend Flutter sem innerHTML/eval; temas Keycloak sem .ftl; notificações em texto puro — XSS clássico não se aplica."
+  ],
+  "pontos_fortes": [
+    {
+      "titulo": "Policy dupla em todo endpoint protegido (guard de rota + UMA)",
+      "descricao": "Cada [ProtectedResource] gera policy com RequireAuthenticatedUser + RouteAccessRequirement + ProtectedResourceRequirement nos três BCs; token rejeitado vira 401 e Keycloak fora vira 503, nunca 403 ambíguo.",
+      "evidencia": "BillPayment.API/Authorization/AuthorizationExtesion.cs:33-41; PeopleManagement.API/Authorization/AuthorizationExtesion.cs:21-30; TenantManagement.API/Authorization/AuthorizationExtesion.cs:32-36; */AuthorizationResultHandler.cs:36-61"
+    },
+    {
+      "titulo": "BillPayment: 76/76 actions sob api/v1/{tenantId:guid} com [ProtectedResource]; zero [Authorize] cru",
+      "descricao": "Único anônimo é o health ([AllowAnonymous] explícito). Teste de erosão varre o EndpointDataSource e falha se uma rota api/v1 nascer sem {tenantId} ou sem [ProtectedResource].",
+      "evidencia": "BillPayment.API/Controllers/*.cs; HealthController.cs:12; BillPayment.IntegrationTests/Authorization/EndpointProtectionTests.cs:34-62; RouteGuardTests.cs"
+    },
+    {
+      "titulo": "BillPayment: toda busca por Id é `TenantId && Id`, em 10 repositórios e 27 queries",
+      "descricao": "Listagens filtram TenantId antes do cursor; as três travessias cross-tenant documentadas devolvem só bool; workers obtêm TenantId da própria linha reivindicada; download de artefato tem dupla barreira (banco + prefixo tenants/{tenantId}/ no S3).",
+      "evidencia": "BillPayment.Infra/Repositories/*.cs (ex.: BillRepository.cs:25-27, PayeeRepository.cs:17-19); BillPayment.Application/Queries/Bills/BillQueries.cs:26,70,159; Infra/Storage/S3AttachmentStorage.cs:135,145-149"
+    },
+    {
+      "titulo": "TenantId/CompanyId nunca vem do corpo da requisição",
+      "descricao": "Todos os Models expõem ToCommand(Guid tenantId/company) recebendo o valor da rota; nenhum Model declara TenantId. No TenantManagement o claim gravado no Keycloak deriva do {id} da rota.",
+      "evidencia": "BillPayment.Application/Models/*/*.cs; PeopleManagement (ex.: CreateEmployeeCommand.cs:17, AddListenEventCommand.cs:9); TenantManagement.Application/Models/Tenants/TenantModels.cs:46-49; KeycloakTenantAccessProvisioner.cs:64,144"
+    },
+    {
+      "titulo": "PeopleManagement: handlers de edição e fluxos de documento exigem Id && CompanyId (ou a tripla DocumentId/EmployeeId/CompanyId)",
+      "descricao": "Todos os Alter*Employee, Edit*, MarkAs*DocumentUnit e serviços de documento/assinatura filtram pela company da rota; blobs têm nome gerado no servidor e container = CompanyId.",
+      "evidencia": "AlterAddressEmployeeCommandHandler.cs:22 … MarkEmployeeAsInactive:21; DocumentService.cs:54,277,343,376,430,498; SignDocumentService.cs:44,83; DocumentQueries.cs:120,154; BatchDownloadQueries.cs:218"
+    },
+    {
+      "titulo": "Os 30 gates de permissão do Flutter têm o escopo equivalente no servidor",
+      "descricao": "O app não decodifica papéis: consulta o RPT UMA por audiência e trata o gate como conveniência ('The server decides anyway'). O seletor de tenant usa /me/tenants, resolvido pelo e-mail do token, sem parâmetro.",
+      "evidencia": "client/rufino_v2/packages/rufino_core/lib/src/auth/permission_api_service.dart:55-66; packages/bill_payment/lib/src/ui/bill_payment_routes.dart:479-493; TenantManagement.API/Controllers/MeController.cs:27-32"
+    },
+    {
+      "titulo": "JWT validado com issuer, audience e lifetime; identidade do aprovador só do `sub`",
+      "descricao": "O fallback por header x-user-id do BillPayment foi removido; a chamada UMA propaga o token do próprio chamador.",
+      "evidencia": "*/Authentication/KeyclockExtesion.cs:18-28; BillPayment.API/Controllers/BaseController.cs:141-142; AccessTokenPropagationHandler.cs:26-33"
+    },
+    {
+      "titulo": "Segredos fora da árvore atual e fora do container",
+      "descricao": ".env ignorado e nunca versionado; .dockerignore exclui **/.env e secrets/; CI usa só ${{ secrets.* }} e secretref:; BillPayment exige a master key com ${VAR:?} e falha alto quando cofre/storage não estão configurados; TenantManagement marca provisionamento como Failed sem ClientSecret.",
+      "evidencia": ".gitignore:28-32; server/.dockerignore:3; deploy-people-management-api.yml:48; server/Services/BillPayment/docker-compose.yml:25; BillPayment.Infra/InfraDependencies.cs:200,423; TenantManagement.Infra/InfraDependencies.cs:65"
+    },
+    {
+      "titulo": "Frontend sem vetores de XSS clássico",
+      "descricao": "Nenhum dart:html/innerHtml/eval/WebView; HtmlWidget do e-mail não executa script e bloqueia imagens remotas até o usuário optar; url_launcher só abre http/https; temas Keycloak são só CSS/propriedades (sem .ftl); notificações WhatsApp/Graph em texto puro.",
+      "evidencia": "packages/bill_payment/lib/src/ui/shared/email_viewer_screen.dart:203-224; client/rufino_v2/lib/app.dart:1078-1089; keycloak-themes/rufino/**; GraphNotificationSender.cs:101; WhatsAppService.cs:33-37"
+    },
+    {
+      "titulo": "Sem SQL cru na aplicação; extração de zip resistente a zip-slip",
+      "descricao": "Filtros de busca parametrizados pelo EF; ZipArchive.ExtractToDirectory do .NET rejeita entradas fora do destino.",
+      "evidencia": "PeopleManagement.Application/Queries/Employee/EmployeeQueries.cs:40,45; TenantQueries.cs:151-157; PeopleManagement.Infra/Services/LocalStorageService.cs:19-20"
+    }
+  ],
+  "pontos_fracos": [
+    {
+      "titulo": "Geração de PDF executa HTML/JS controlado pelo tenant em Chromium sem isolamento",
+      "descricao": "Template enviado por upload e valores de funcionário sem encoding vão para page.SetContentAsync num Chromium --no-sandbox com origem file:// e JavaScript ligado. Leitura de appsettings.json (que traz connection string), /proc/self/environ e SSRF para a rede interna a partir de um privilégio de tenant.",
+      "achados": [
+        "XSS-01",
+        "XSS-02",
+        "XSS-05"
+      ]
+    },
+    {
+      "titulo": "Duas rotas do PeopleManagement fogem do guard de tenant",
+      "descricao": "CompanyController (api/v1/company) e o webhook ZapSign (api/v1/Document/webhook) não têm {company} na rota; o guard passa em silêncio e os handlers buscam por Id global. Resultado: ler/editar qualquer empresa e forjar 'documento assinado' com download de URL arbitrária.",
+      "achados": [
+        "IDR-01",
+        "IDR-02"
+      ]
+    },
+    {
+      "titulo": "Segredos reais recuperáveis no histórico git",
+      "descricao": "Client secrets do Keycloak (people-management-api, zapsign, rufino-app) e token da API ZapSign foram commitados entre 2024-08 e 2025-07 e continuam acessíveis por git show num repositório hospedado no GitHub.",
+      "achados": [
+        "SEC-01"
+      ]
+    },
+    {
+      "titulo": "Isolamento do PeopleManagement depende de cada query — e algumas seguem IDs sem filtro",
+      "descricao": "IDs relacionados (RoleId, WorkPlaceId, DepartmentId, PositionId, DocumentGroupId) são aceitos do corpo sem validar pertencimento, e joins/subqueries os seguem sem CompanyId, levando salário/CBO de outra empresa para dentro de documentos. O ledger de idempotência é global e o header ausente vira Guid.Empty, anulando comandos entre tenants.",
+      "achados": [
+        "ISO-01",
+        "ISO-02",
+        "ISO-03",
+        "ISO-04",
+        "ISO-05"
+      ]
+    },
+    {
+      "titulo": "Defaults de credencial e ausência de validação de startup",
+      "descricao": "Senha do Postgres no appsettings base das 3 APIs e em todos os composes, admin/Admin no Keycloak local, MinIO fraco, template.env da Evolution API com senha-aqui e CORS *, Hangfire com senha vazia por padrão — nenhuma API rejeita segredo vazio ao subir.",
+      "achados": [
+        "SEC-02",
+        "SEC-03",
+        "SEC-04",
+        "SEC-06",
+        "PRM-01"
+      ]
+    }
+  ],
+  "achados": [
+    {
+      "id": "ISO-01",
+      "categoria": 1,
+      "severidade": "media",
+      "titulo": "PeopleManagement: IDs relacionados aceitos do corpo sem validar tenant, e joins que os seguem sem CompanyId",
+      "arquivo": "server/Services/PeopleManagement/PeopleManagement.Infra/Repository/RoleRepository.cs",
+      "linha": "13-16 (+ AlterRoleEmployeeCommandHandler.cs:24-27, DepartmentQueries.cs:25-34, DocumentGroupQueries.cs:85-88, RequireDocumentsQueries.cs:106-108, DocumentTemplateQueries.cs:95-96, EmployeeQueries.cs:26, BatchDownloadQueries.cs:20-26)",
+      "lang": "csharp",
+      "trecho": "// RoleRepository.cs:13-16 — filtra o EMPREGADO pela company, não a ROLE\nvar query = from e in _context.Employees\n            join r in _context.Roles on e.RoleId equals r.Id\n            where e.Id == employeeId && e.CompanyId == companyId\n            select r;\n\n// AlterRoleEmployeeCommandHandler.cs:24-27 — RoleId do corpo vai direto para o agregado\nvar employee = await _employeeRepository.FirstOrDefaultAsync(x => x.Id == request.EmployeeId && x.CompanyId == request.CompanyId, ...)\n    ?? throw new DomainException(...);\nemployee.RoleId = request.RoleId;",
+      "explicacao": "Um usuário com employee:edit na empresa A informa o RoleId (GUID) de uma Role da empresa B em PUT /api/v1/{A}/employee/Role. Nada valida que a Role pertence a A. Em seguida, GET employee/list, batch-download/employees e principalmente a geração de documentos (RecoverRoleInfoToDocumentTemplateService.cs:17-29) seguem o join sem filtrar r.CompanyId e trazem nome, CBO e remuneração (salário base) da Role alheia para o JSON/PDF do documento. O mesmo padrão vale para WorkPlaceId, Position.DepartmentId, Role.PositionId, DocumentTemplate.DocumentGroupId e RequireDocuments.DocumentsTemplatesIds (subqueries em DepartmentQueries.cs:25-34, DocumentGroupQueries.cs:87, RequireDocumentsQueries.cs:106-108 sem CompanyId).",
+      "condicoes": "Exige conhecer GUIDs de objetos de outra empresa (ex.: usuário que perdeu acesso a uma empresa e guardou IDs; GUIDs circulam em URLs e logs). Privilégio: employee:edit / role:create / position:create / document-template:create."
+    },
+    {
+      "id": "ISO-02",
+      "categoria": 1,
+      "severidade": "baixa",
+      "titulo": "PeopleManagement: GetAllWithDocumentList busca o funcionário sem CompanyId",
+      "arquivo": "server/Services/PeopleManagement/PeopleManagement.Application/Queries/RequireDocuments/RequireDocumentsQueries.cs",
+      "linha": "27-30",
+      "lang": "csharp",
+      "trecho": "var employeeQuery =\n    from em in context.Employees.AsNoTracking()\n    where em.Id == employeeId\n    select em.GetAllPossibleAssociationIds();",
+      "explicacao": "GET /api/v1/{company}/requiredocuments/withdocuments/{employeeId} resolve as associações (cargo, função, local) de um funcionário de QUALQUER empresa. As linhas 35 e 44 limitam o retorno aos RequireDocuments/Documents da company da rota, então o que vaza é apenas 'quais dos meus requisitos batem com as associações de um funcionário estrangeiro' — inferência, não dado direto.",
+      "condicoes": "Conhecer o EmployeeId de outra empresa; privilégio require-documents:view."
+    },
+    {
+      "id": "ISO-03",
+      "categoria": 1,
+      "severidade": "media",
+      "titulo": "PeopleManagement: ledger de idempotência global sem tenant, e x-requestid ausente vira Guid.Empty",
+      "arquivo": "server/Services/PeopleManagement/PeopleManagement.Application/Commands/Identified/IdentifiedCommandHandler.cs",
+      "linha": "19-26 (+ EmployeeController.cs:42, RequestManager.cs:11-17, ClientRequestMap.cs:12-14)",
+      "lang": "csharp",
+      "trecho": "// EmployeeController.cs:42 — header opcional; Guid é value type → ausente = Guid.Empty\npublic async Task<ActionResult<CreateEmployeeResponse>> Create([FromRoute] Guid company, [FromBody] CreateEmployeeModel request, [FromHeader(Name = \"x-requestid\")] Guid requestId)\n\n// IdentifiedCommandHandler.cs:19-26\nvar alreadyExists = await _requestManager.ExistAsync(request.Id);\nif (alreadyExists)\n{\n    _logger.LogInformation(\"Request {Id} already exists\", request.Id);\n    return CreateResultForDuplicateRequest();   // default! — não executa e não erra\n}\nawait _requestManager.CreateRequestForCommandAsync<T>(request.Id);",
+      "explicacao": "A tabela client_requests tem só Id/Name/Time, sem CompanyId nem usuário. (1) A primeira requisição sem header, de qualquer tenant, grava Guid.Empty; a partir daí TODA requisição sem header de TODOS os tenants (inclusive o webhook ZapSign, que só envia Authorization) retorna default sem executar — negação de serviço silenciosa entre tenants. (2) Quem conhecer/adivinhar o x-requestid de outro tenant pode registrá-lo antes e anular o comando dele. BaseController.ValidityRequestId (BaseController.cs:51-55) existe, nunca é chamado e está com a condição invertida; só CompanyController valida o header.",
+      "condicoes": "Qualquer usuário autenticado de qualquer tenant; para o item (2) é preciso conhecer o GUID alheio."
+    },
+    {
+      "id": "ISO-04",
+      "categoria": 1,
+      "severidade": "informativa",
+      "titulo": "BillPayment e TenantManagement: ledger de idempotência também é global (chave escolhida pelo cliente)",
+      "arquivo": "server/Services/BillPayment/BillPayment.Infra/Idempotency/RequestManager.cs",
+      "linha": "15-16 (+ TenantManagement.Infra/Persistence/ClientRequest.cs:92, RequestManager.cs:77-84)",
+      "lang": "csharp",
+      "trecho": "public Task<bool> ExistAsync(Guid id, CancellationToken ct)\n    => db.ClientRequests.AnyAsync(r => r.Id == id, ct);   // PK só em Id, sem TenantId",
+      "explicacao": "Mesmo desenho de ISO-03, mas aqui o controller gera um Guid novo quando o header vem vazio (EnsureRequestId), então não há o efeito Guid.Empty. Resta a colisão deliberada: um Guid já gasto por qualquer tenant faz o comando de outro tenant devolver resposta neutra sem executar. Exige adivinhar um Guid escolhido pelo cliente — não explorável na prática, mas cross-tenant por construção.",
+      "condicoes": "Conhecer o x-requestid de outro tenant/usuário."
+    },
+    {
+      "id": "ISO-05",
+      "categoria": 1,
+      "severidade": "informativa",
+      "titulo": "Nenhum DbContext tem HasQueryFilter global: o isolamento depende de cada query",
+      "arquivo": "server/Services/BillPayment/BillPayment.Infra/Persistence/BillPaymentDbContext.cs",
+      "linha": "51-76 (grep HasQueryFilter vazio nos 3 BCs)",
+      "lang": "csharp",
+      "trecho": "// BillPaymentDbContext.cs OnModelCreating: só remove FKs cross-aggregate; nenhum HasQueryFilter(x => x.TenantId == ...)\n// grep -rn HasQueryFilter server/Services → 0 ocorrências",
+      "explicacao": "Não é falha por si — o BillPayment provou ponto a ponto que todas as queries filtram — mas significa que não há rede de segurança: uma query nova sem Where(TenantId) vaza dados silenciosamente. Os achados ISO-01/ISO-02 do PeopleManagement são exatamente esse tipo de deslize.",
+      "condicoes": "Risco de regressão, não de exploração imediata."
+    },
+    {
+      "id": "ISO-06",
+      "categoria": 1,
+      "severidade": "media",
+      "titulo": "TenantManagement: claim `tenants` é gravado em qualquer conta que tenha o e-mail — convite sequestrável por troca de e-mail self-service",
+      "arquivo": "server/Services/TenantManagement/TenantManagement.Infra/Identity/KeycloakTenantAccessProvisioner.cs",
+      "linha": "66-82 (+ 184-195, 135-153; utils/KeyCloakConfig/RufinoRealm/realm-export-2026-08-18.json:35,3109)",
+      "lang": "csharp",
+      "trecho": "var user = await FindUserByEmailAsync(email, cancellationToken);   // users?email=...&exact=true → users[0]\nvar created = false;\nif (user is null)\n{\n    await CreateUserAsync(email, tenant, products, cancellationToken);\n    ...\n}\nelse\n{\n    await WriteAccessAsync(user, tenant, products, cancellationToken);   // grava tenants/bp_tenants/pm_tenants sem olhar EmailVerified\n}",
+      "explicacao": "O realm exportado tem verifyEmail=false (L35), duplicateEmailsAllowed=false e o User Profile permite ao próprio usuário editar `email` (L3109: permissions.edit = [admin, user]) com account-console habilitado. Qualquer conta existente no realm troca o próprio e-mail para fulano@empresa-b.com ANTES do convite. Quando o operador chama POST /tenants/{B}/members {email}, o adapter encontra a conta do atacante e grava tenants=[B] nela; nenhum convite é enviado (só quando created) e a vítima nunca poderá ser criada com aquele e-mail. GET /me/tenants (MeController.cs:27-32) também é chaveado pelo claim email do token.",
+      "condicoes": "Conta prévia no realm rufino; conhecer o e-mail alvo antes do convite; Keycloak com a configuração exportada. O código não exige emailVerified nem compara IdentityUserId."
+    },
+    {
+      "id": "PRM-01",
+      "categoria": 2,
+      "severidade": "media",
+      "titulo": "Hangfire Dashboard fora do Keycloak, com Basic Auth de senha vazia por padrão e RequireSsl=false",
+      "arquivo": "server/Services/PeopleManagement/PeopleManagement.API/Program.cs",
+      "linha": "165-182 (+ appsettings.json:51-54; Filters/HangFireAuthorizationFilter.cs:8-12)",
+      "lang": "csharp",
+      "trecho": "app.UseHangfireDashboard(\"/hangfire\", new DashboardOptions\n{\n    Authorization = new[] { new BasicAuthAuthorizationFilter(new BasicAuthAuthorizationFilterOptions\n    {\n        RequireSsl = false,\n        SslRedirect = false,\n        LoginCaseSensitive = true,\n        Users = new [] { new BasicAuthAuthorizationUser {\n            Login = builder.Configuration[\"HangfireDashboard:Login\"],          // \"admin\" no appsettings\n            PasswordClear = builder.Configuration[\"HangfireDashboard:Password\"] // \"\" no appsettings\n        } }\n    }) }\n});\n// appsettings.json:51-54\n\"HangfireDashboard\": { \"Login\": \"admin\", \"Password\": \"\" }",
+      "explicacao": "O dashboard permite disparar/apagar jobs (geração recorrente de documentos, refresh de webhook, lembretes WhatsApp) de todos os tenants e é montado antes de UseHttpsRedirection e fora do pipeline Keycloak. Login fixo `admin`; a senha depende exclusivamente da env var HangfireDashboard__Password — sem validação de startup. O HangFireAuthorizationFilter que retorna true incondicional existe no projeto (código morto) e é uma armadilha para quem trocar o filtro.",
+      "condicoes": "Ambiente que não injete HangfireDashboard__Password (o workflow Azure injeta secretref:hangfire-password; nenhum docker-compose injeta). O comportamento da lib com PasswordClear vazio não foi verificado no fonte da biblioteca."
+    },
+    {
+      "id": "PRM-02",
+      "categoria": 2,
+      "severidade": "baixa",
+      "titulo": "Sem FallbackPolicy nas 3 APIs: action sem atributo é anônima — e o TestController do PeopleManagement está nessa condição em produção",
+      "arquivo": "server/Services/PeopleManagement/PeopleManagement.API/Controllers/TestController.cs",
+      "linha": "7-14 (+ ProtectedResourcePolicyProvider.cs:13-16 nos 3 BCs)",
+      "lang": "csharp",
+      "trecho": "[Route(\"[controller]\")]\npublic class TestController(ILogger<TestController> logger) : ControllerBase\n{\n    [HttpGet]\n    public IActionResult GetTest()\n    {\n        return Ok(\"It's ok. v5\");\n    }\n// ProtectedResourcePolicyProvider.cs:13-16\npublic Task<AuthorizationPolicy?> GetFallbackPolicyAsync()\n    => Task.FromResult<AuthorizationPolicy?>(null);",
+      "explicacao": "GET /Test responde sem token; /Test/auth e /Test/auth/role usam o recurso fictício `teste` e não têm {company} (guard desligado). Nenhum Program.cs define FallbackPolicy = RequireAuthenticatedUser, então qualquer controller futuro sem atributo nasce público. No BillPayment o teste de erosão só cobre rotas que começam com api/v1 (EndpointProtectionTests.cs:40).",
+      "condicoes": "Hoje só expõe string de versão; o risco é de regressão."
+    },
+    {
+      "id": "PRM-03",
+      "categoria": 2,
+      "severidade": "baixa",
+      "titulo": "PeopleManagement expõe Swagger/OpenAPI incondicionalmente em produção",
+      "arquivo": "server/Services/PeopleManagement/PeopleManagement.API/Program.cs",
+      "linha": "189-190",
+      "lang": "csharp",
+      "trecho": "app.UseSwagger();\napp.UseSwaggerUI();",
+      "explicacao": "Sem checagem de ambiente (BillPayment e TenantManagement só expõem em IsDevelopment()). Publica a superfície completa da API, incluindo o webhook e o TestController, para reconhecimento anônimo.",
+      "condicoes": "Sempre ativo."
+    },
+    {
+      "id": "PRM-04",
+      "categoria": 2,
+      "severidade": "baixa",
+      "titulo": "CORS AllowAnyOrigin no PeopleManagement; BillPayment/TenantManagement liberam qualquer origem com credenciais em Development",
+      "arquivo": "server/Services/PeopleManagement/PeopleManagement.API/Program.cs",
+      "linha": "103-108 (+ BillPayment.API/Extension/CorsExtensions.cs:16-23; TenantManagement idem)",
+      "lang": "csharp",
+      "trecho": "builder.Services.AddCors(options =>\n{ options.AddPolicy(\"CorsPolicy\", builder => builder\n    .AllowAnyOrigin()\n    .AllowAnyMethod()\n    .AllowAnyHeader());\n});\n// CorsExtensions.cs:16-22 (BP/TM)\nif (environment.IsDevelopment() && origins.Length == 0)\n    policy.SetIsOriginAllowed(_ => true).AllowAnyHeader().AllowAnyMethod().AllowCredentials();",
+      "explicacao": "Com Bearer (sem cookies) o impacto é limitado: uma origem maliciosa só consegue chamar a API com um token que já possua. Ainda assim, AllowAnyOrigin retira a última barreira do navegador para exfiltração via XSS num cliente. Nos outros BCs o ramo de Development combina origem dinâmica com AllowCredentials — inofensivo apenas enquanto o compose ficar na máquina do desenvolvedor (docker-compose.yml:89 define Development).",
+      "condicoes": "PeopleManagement: sempre. BP/TM: só ASPNETCORE_ENVIRONMENT=Development com Cors:AllowedOrigins vazio."
+    },
+    {
+      "id": "PRM-05",
+      "categoria": 2,
+      "severidade": "informativa",
+      "titulo": "Nomes de recurso divergentes entre UI e servidor (e dentro do servidor)",
+      "arquivo": "server/Services/PeopleManagement/PeopleManagement.API/Controllers/ArchiveController.cs",
+      "linha": "30 vs 12 (+ client/rufino_v2/.../document_group_with_templates_screen.dart:229; document_template_list_screen.dart:117)",
+      "lang": "csharp",
+      "trecho": "[ProtectedResource(\"archive\", \"edit\")]   // linha 12\n[ProtectedResource(\"Archive\", \"edit\")]   // linha 30 — Keycloak distingue maiúsculas\n// Flutter: resource: 'document_group' (servidor usa document-group); hasPermission('company','edit') para editar template (servidor exige document-template:edit)",
+      "explicacao": "O servidor está correto em todos os casos (o gate real é o [ProtectedResource]); o efeito é funcional: botão sempre oculto ou 403 inesperado. Registrado porque divergência de nome é o que faz alguém 'consertar' afrouxando o servidor.",
+      "condicoes": "Sem exploração."
+    },
+    {
+      "id": "PRM-06",
+      "categoria": 2,
+      "severidade": "informativa",
+      "titulo": "Código morto perigoso: fallback de identidade por header no TenantManagement e filtro allow-all do Hangfire",
+      "arquivo": "server/Services/TenantManagement/TenantManagement.API/Controllers/BaseController.cs",
+      "linha": "101-102 (+ PeopleManagement.API/Filters/HangFireAuthorizationFilter.cs:8-12)",
+      "lang": "csharp",
+      "trecho": "protected Guid ResolveDecidingUserId(Guid headerUserId)\n    => TryGetUserId(out var fromToken) ? fromToken : headerUserId;   // nenhum controller chama\n// HangFireAuthorizationFilter.cs:8-12\npublic bool Authorize(DashboardContext context) { return true; }     // não referenciado",
+      "explicacao": "Nenhum dos dois está ligado ao pipeline hoje (grep confirma). O BillPayment removeu o mesmo fallback com justificativa explícita (ADR-007); manter a cópia no TenantManagement convida a reaproveitá-la.",
+      "condicoes": "Sem exploração."
+    },
+    {
+      "id": "PRM-07",
+      "categoria": 2,
+      "severidade": "baixa",
+      "titulo": "RequireHttpsMetadata desligado por configuração (SslRequired: none) nas 3 APIs",
+      "arquivo": "server/Services/PeopleManagement/PeopleManagement.API/Authentication/KeyclockExtesion.cs",
+      "linha": "13-14 (+ BillPayment KeyclockExtesion.cs:15; TenantManagement KeyclockExtesion.cs:13; appsettings.json \"SslRequired\": \"none\")",
+      "lang": "csharp",
+      "trecho": "options.RequireHttpsMetadata = string.IsNullOrWhiteSpace(keycloakAuthenticationOptions.SslRequired) == false\n    && keycloakAuthenticationOptions.SslRequired.Equals(\"external\", StringComparison.OrdinalIgnoreCase);\n// appsettings.json: \"SslRequired\": \"none\"  →  RequireHttpsMetadata = false",
+      "explicacao": "Hoje inócuo porque AuthServerUrl é https://, mas um override Keycloak__AuthServerUrl=http://... (previsto no compose via KEYCLOAK_URL) passa a ser aceito sem aviso, permitindo obter o JWKS por canal não cifrado.",
+      "condicoes": "Exige override de configuração para http."
+    },
+    {
+      "id": "IDR-01",
+      "categoria": 3,
+      "severidade": "alta",
+      "titulo": "PeopleManagement: CompanyController sem {company} na rota — lê e edita qualquer empresa por Id livre",
+      "arquivo": "server/Services/PeopleManagement/PeopleManagement.API/Controllers/CompanyController.cs",
+      "linha": "10, 40-42, 65-87 (+ CompanyQueries.cs:15,31,48; EditCompanyCommandHandler.cs:17-18)",
+      "lang": "csharp",
+      "trecho": "[Route(\"api/v1/[controller]\")]                    // sem {company}: RouteAccessRequirement concede em silêncio\npublic class CompanyController(...) : BaseController(logger)\n{\n    [HttpPut]\n    [ProtectedResource(\"company\", \"edit\")]\n    public async Task<ActionResult<EditCompanyResponse>> EditCompany([FromBody] EditCompanyCommand request, ...)\n    ...\n    [HttpGet(\"complete\")]\n    [ProtectedResource(\"company\", \"view\")]\n    public async Task<ActionResult<CompanyDto>> GetCompaniesComplete([FromQuery] Guid id)\n// CompanyQueries.cs:48\nvar query = _context.Companies.AsNoTracking().Where(x => x.Id == id);\n// EditCompanyCommandHandler.cs:17\nvar company = await _companyRepository.FirstOrDefaultAsync(request.Id, ...)",
+      "explicacao": "O guard anti-IDOR só atua quando a rota tem o parâmetro `company`; aqui não há. Quem tiver company:view (todo usuário precisa dele para ver a própria empresa) chama GET /api/v1/company/complete?id=<GUID de outra empresa> e recebe CNPJ, e-mail, telefone e endereço completo; GET /list?id=a&id=b enumera em lote. Com company:edit, PUT /api/v1/company com Id alheio no corpo altera razão social, CNPJ e contato de qualquer empresa. GUIDs de empresa circulam no claim `companies` e em toda URL do produto. O próprio cliente Flutter depende deste comportamento (company_api_service.dart:28 passa os IDs do claim e o servidor devolve qualquer id pedido).",
+      "condicoes": "Privilégio comum de tenant (company:view / company:edit) + GUID de outra empresa."
+    },
+    {
+      "id": "IDR-02",
+      "categoria": 3,
+      "severidade": "alta",
+      "titulo": "PeopleManagement: webhook ZapSign sem assinatura, sem escopo de tenant, com download de URL arbitrária (SSRF) e reenvio ao funcionário",
+      "arquivo": "server/Services/PeopleManagement/PeopleManagement.Services/Services/SignDocumentService.cs",
+      "linha": "117-118, 139-142, 155, 180-186 (+ DocumentController.cs:164-166; FileDownloadService.cs:22; ZapSignWebHookManagementService.cs:43-55,192-231)",
+      "lang": "csharp",
+      "trecho": "// DocumentController.cs:164-166 — rota absoluta, sem {company}\n[HttpPost(\"/api/v1/[controller]/webhook\")]\n[ProtectedResource(\"document\", \"webhook\")]\npublic async Task<...> ReceiveWebhook([FromBody] JsonNode request, [FromHeader(Name = \"x-requestid\")] Guid requestId)\n\n// SignDocumentService.cs:117 — lookup global por DocumentUnitId, sem CompanyId\nvar document = await _documentRepository.FirstOrDefaultAsync(x => x.DocumentsUnits.Any(x => x.Id == webhookEvent.DocumentUnitId), ...)\n// :139-141 — baixa a URL do corpo e grava como 'documento assinado'\nvar primaryFile = await _fileDownloadService.DownloadFileFromUrlAsync(webhookEvent.Url, cancellationToken);\nvar primaryFileName = document.InsertUnitWithoutRequireValidation(webhookEvent.DocumentUnitId, Guid.NewGuid().ToString(), primaryFile.FileExtension);\n// :180-186 — a mesma URL vai por WhatsApp ao funcionário\n_whatsAppQueueService.EnqueueMediaMessage(phoneNumber: ..., media: url, fileName: fileName);\n// FileDownloadService.cs:22\nvar response = await _httpClient.GetAsync(url, cancellationToken);",
+      "explicacao": "Não há verificação de HMAC/assinatura do provedor; a única barreira é o Keycloak conceder document#webhook ao token apresentado — e esse token é o client_credentials do client `zapsign` que o próprio sistema grava no cabeçalho do webhook cadastrado na ZapSign (ZapSignWebHookManagementService.cs:43-55), visível a quem acessa o painel ZapSign (ou a quem tiver o secret do client — ver SEC-01). Com ele: POST /api/v1/Document/webhook {event_type: doc_signed, external_id: <DocumentUnitId de qualquer tenant>, signed_file: http://169.254.169.254/... ou http://servico-interno/} faz o servidor baixar a URL (SSRF), gravar a resposta como documento assinado no blob da empresa alvo e enviar a URL ao celular do funcionário. doc_refused/doc_deleted/doc_expired invalida a unidade e toda a sessão de assinatura.",
+      "condicoes": "Token com document#webhook (secret do client zapsign ou acesso ao painel ZapSign) + DocumentUnitId (GUID) da vítima. ISO-03 agrava: sem x-requestid, a partir do 2º evento os webhooks legítimos viram no-op."
+    },
+    {
+      "id": "IDR-03",
+      "categoria": 3,
+      "severidade": "media",
+      "titulo": "BillPayment: POST /bills/import (JSON) aceita StorageKey, ContentHash, SourceId e ExternalMessageId do corpo sem validar pertencimento",
+      "arquivo": "server/Services/BillPayment/BillPayment.Application/Models/Bills/BillModels.cs",
+      "linha": "16-38 (+ ImportBillCommand.cs:84-98; BillQueries.cs:170-171; S3AttachmentStorage.cs:145-149)",
+      "lang": "csharp",
+      "trecho": "public sealed record ImportBillModel(\n    string? DigitableLine, string? PixPayload, string SourceKind,\n    [property: JsonRequired] DateTime ReceivedAt,\n    Guid? SourceId, string? SenderAddress, string? ExternalMessageId,\n    string? ContentHash, string? StorageKey)          // ← vêm do cliente\n// ImportBillCommand.cs:84-85\nvar storageKey = document is null ? request.StorageKey : await storage.StoreAsync(...);\n// S3AttachmentStorage.cs:145-149 — única barreira cross-tenant, e vira 500\nif (!storageKey.StartsWith(Prefix(tenantId), StringComparison.Ordinal))\n    throw new UnauthorizedAccessException(\"A chave de armazenamento não pertence a este tenant.\");",
+      "explicacao": "A variante multipart (ImportBillFormModel, BillModels.cs:88-92) já zera ContentHash/StorageKey por reconhecer o risco; a JSON não. Um usuário com bill:import cria uma Bill cuja origem aponta para um SourceId alheio (gravado como 'prova de origem') e para qualquer StorageKey. Cross-tenant é barrado apenas pela checagem de prefixo (que sai como 500, confirmando a existência do objeto); intra-tenant nada barra: quem conhecer a StorageKey de um item ForeignPayer (documento de outro pagador lido pela caixa compartilhada, que o endpoint de quarentena recusa servir) o baixa por GET /bills/{id}/artifact. HintSourceId em POST /expectations tem a mesma ausência de validação, sem vazamento (IDR-04).",
+      "condicoes": "bill:import + bill:view; a StorageKey não sai em nenhum DTO (exige log/banco)."
+    },
+    {
+      "id": "IDR-04",
+      "categoria": 3,
+      "severidade": "baixa",
+      "titulo": "BillPayment: HintSourceId do corpo não é validado contra o tenant em POST /expectations",
+      "arquivo": "server/Services/BillPayment/BillPayment.Application/Expectations/Commands/RegisterBillExpectationCommand.cs",
+      "linha": "66",
+      "lang": "csharp",
+      "trecho": "request.HintSourceId is { } sourceId ? CaptureSourceId.From(sourceId) : null,   // sem captureSources.GetAsync(tenantId, sourceId)",
+      "explicacao": "PayeeId no mesmo handler É validado (L48); HintSourceId não. O único consumidor é ListByHintSourceAsync(tenantId, sourceId) com filtro de tenant, logo um GUID alheio nunca casa — efeito é dado inconsistente no próprio tenant, não IDOR.",
+      "condicoes": "expectation:manage."
+    },
+    {
+      "id": "IDR-05",
+      "categoria": 3,
+      "severidade": "informativa",
+      "titulo": "TenantManagement: operador pode escolher o TenantId no registro (backfill por desenho)",
+      "arquivo": "server/Services/TenantManagement/TenantManagement.Application/Models/Tenants/TenantModels.cs",
+      "linha": "10-20",
+      "lang": "csharp",
+      "trecho": "public sealed record RegisterTenantModel(\n    string Kind, string LegalName, string? TradeName, string PrimaryTaxId, string ContactEmail,\n    string? ContactPhone, AddressInput Address, string OwnerEmail, IReadOnlyList<string>? Products,\n    Guid? Id)     // ← vira o TenantId gravado no claim",
+      "explicacao": "Com tenant#create + tenant-access#edit (papel de plataforma tenant-admin) é possível emitir o claim tenants para um GUID arbitrário — inclusive um CompanyId de outro produto ainda não backfillado. A única defesa é ExistsAsync. É o caminho de backfill previsto; registrado para que o campo seja removido quando o backfill terminar.",
+      "condicoes": "Restrito ao papel tenant-admin (back-office)."
+    },
+    {
+      "id": "SEC-01",
+      "categoria": 4,
+      "severidade": "critica",
+      "titulo": "Segredos reais recuperáveis no histórico git (client secrets Keycloak, token ZapSign, secret do app)",
+      "arquivo": "server/Services/PeopleManagement/PeopleManagement.API/appsettings.json (histórico) e client/rufino/secrets/config.json (histórico)",
+      "linha": "commits 5b98cff3 (2024-08-29), 6838d2be (2025-07-29), f109691d (2024-08-16), 3353f902 (2024-09-19)",
+      "lang": "text",
+      "trecho": "git show 5b98cff3:server/Services/PeopleManagement/PeopleManagement.API/appsettings.json\n  27:  \"secret\": \"uhuC…yUO1\"              (Keycloak client people-management-api, 32 chars)\ngit show 6838d2be:…/appsettings.json\n  33:  \"ClientSecret\": \"gjgE…qo0d\"        (Keycloak client zapsign — o que autentica o webhook IDR-02)\ngit show f109691d:…/appsettings.json\n  14:  \"Token\": \"Bearer 17ea…388e\"        (API token ZapSign, 72 chars)\ngit show 3353f902:client/rufino/secrets/config.json\n   5:  \"secret\" : \"ILnW…FBt9\"            (client rufino-app, então confidencial)\nremote: https://github.com/IgorCoura/rufino-project.git",
+      "explicacao": "Os quatro valores foram removidos da árvore entre 2024-08 e 2025-07, mas continuam a um `git show` de distância para qualquer pessoa com acesso ao repositório (e para qualquer clone/fork antigo). Se não foram rotacionados: o secret de people-management-api permite obter RPTs em nome do resource server; o secret de zapsign gera o token que o webhook aceita (IDR-02); o token ZapSign permite ler/assinar documentos na conta; o secret de rufino-app está mitigado porque o client virou público (realm-import-2026-08-18.json:2019). Não há evidência no repositório de rotação.",
+      "condicoes": "Acesso de leitura ao repositório GitHub (visibilidade não verificada) ou a qualquer clone antigo. Crítica enquanto não houver confirmação de rotação."
+    },
+    {
+      "id": "SEC-02",
+      "categoria": 4,
+      "severidade": "media",
+      "titulo": "Senha do Postgres embutida no appsettings.json base das 3 APIs e em todos os docker-compose",
+      "arquivo": "server/Services/PeopleManagement/PeopleManagement.API/appsettings.json",
+      "linha": "9-10 (+ BillPayment.API/appsettings.json:10; TenantManagement.API/appsettings.json:10; server/docker-compose.yml:68,91,111,132,168,239,259; BillPayment/docker-compose.yml:12,52; TenantManagement/docker-compose.yml:12,26)",
+      "lang": "json",
+      "trecho": "\"ConnectionStrings\": {\n  \"Postgresql\": \"Server=peoplemanagement.db;Port=5432;Database=PeopleManagementDb;SearchPath=people_management;UserId=admin;Password=5up3rS3nh@\",\n  \"HangfireConnection\": \"Server=peoplemanagement.db;Port=5432;Database=hangfiredb;UserId=admin;Password=5up3rS3nh@\"\n}\n// docker-compose.yml:68  POSTGRES_PASSWORD: \"5up3rS3nh@\"   (mesma senha desde 2022, em 9 lugares)",
+      "explicacao": "É default de desenvolvimento, mas está no appsettings BASE (não no Development): qualquer ambiente que não sobrescreva ConnectionStrings__X sobe com esta senha, e nenhuma API valida a configuração ao iniciar. Os composes publicam os bancos em 0.0.0.0 (8042/8102/8112/8081) — na LAN, qualquer máquina entra como admin. A senha também é lida no PDF gerado a partir de appsettings.json via XSS-01.",
+      "condicoes": "Compose exposto além da máquina do desenvolvedor, ou ambiente sem override de env var. Produção (Azure/Dokploy) injeta secretref/env."
+    },
+    {
+      "id": "SEC-03",
+      "categoria": 4,
+      "severidade": "media",
+      "titulo": "Keycloak local com admin Admin/Admin e MinIO com credenciais fracas, publicados no host",
+      "arquivo": "server/docker-compose.yml",
+      "linha": "230-231, 239, 189-190, 135 (+ BillPayment/docker-compose.yml:15,73-74; portas 8082 e 8104 em :193,244; server/.env:13 aponta 192.168.15.41)",
+      "lang": "yaml",
+      "trecho": "KC_BOOTSTRAP_ADMIN_USERNAME: Admin\nKC_BOOTSTRAP_ADMIN_PASSWORD: Admin\nKC_DB_PASSWORD: 5up3rS3nh@\n...\nMINIO_ROOT_USER: \"billpayment\"\nMINIO_ROOT_PASSWORD: \"billpayment-dev\"\nStorage__SecretKey: \"billpayment-dev\"",
+      "explicacao": "O Keycloak local importa o realm `rufino` completo (clients, usuários, SMTP mascarado) e fica em 0.0.0.0:8082 — com Admin/Admin qualquer máquina da LAN vira administrador do realm e pode emitir tokens aceitos pelas APIs locais. O .env do servidor referencia o IP de LAN 192.168.15.41, indicando que o compose é acessado por outras máquinas.",
+      "condicoes": "Apenas ambiente de desenvolvimento via compose; agrava se a mesma máquina hospedar dados reais (seed com CNPJ/CPF reais existe em seed-tenant.local.json, ignorado)."
+    },
+    {
+      "id": "SEC-04",
+      "categoria": 4,
+      "severidade": "media",
+      "titulo": "Evolution API (Azure): template.env com API key placeholder e CORS *, e deploy.ps1 injeta segredos como env vars em texto claro",
+      "arquivo": "azure/container-apps/evolution-api/template.env",
+      "linha": "8, 24, 38 (+ deploy.ps1:92; main.bicep:29-31; container-app.yaml:8)",
+      "lang": "bash",
+      "trecho": "AUTHENTICATION_API_KEY=senha-aqui\nCORS_ORIGIN=*\nDATABASE_CONNECTION_URI=postgresql://user:password@evolution.db:5432/evolution_api\n# deploy.ps1:92\n$azCommand += '--env-vars'      # lê o .env inteiro e passa como variáveis comuns, não --secrets/secretref",
+      "explicacao": "A Evolution API é o gateway de WhatsApp da plataforma e tem ingress externo (main.bicep:29-31). Se alguém copiar template.env → .env sem trocar a chave, a API sobe aceitando `senha-aqui` como chave global com CORS aberto. Mesmo com chave forte, o deploy.ps1 a grava como variável de ambiente comum do Container App (visível no portal/az CLI) em vez de secretref — o main.bicep até marca environmentVariables como @secure(), mas o script não usa o bicep.",
+      "condicoes": "Operador que não substitua o placeholder; exposição da chave a quem lê a configuração do Container App."
+    },
+    {
+      "id": "SEC-05",
+      "categoria": 4,
+      "severidade": "media",
+      "titulo": "API key da Evolution API (WhatsApp) gravada em log Information a cada mensagem",
+      "arquivo": "server/Services/PeopleManagement/PeopleManagement.Infra/Services/WhatsAppService.cs",
+      "linha": "40-47",
+      "lang": "csharp",
+      "trecho": "var apiKeyMasked = _options.ApiKey;      // nome diz 'masked', valor é a chave inteira\n_logger.LogInformation(\n    \"Sending WhatsApp message - URL: {FullUrl}, Instance: {Instance}, ApiKey: {ApiKey}, Body: {Body}\",\n    fullUrl, _options.Instance, apiKeyMasked, bodyJson);",
+      "explicacao": "A chave global da Evolution API (que permite enviar mensagens em nome da instância e ler conversas) vai para o sink de log em texto claro junto com número de telefone e corpo da mensagem (PII). Quem lê logs (Azure Log Analytics, contêiner) obtém a credencial.",
+      "condicoes": "Nível de log Information ligado (padrão em appsettings e no workflow de deploy)."
+    },
+    {
+      "id": "SEC-06",
+      "categoria": 4,
+      "severidade": "baixa",
+      "titulo": "Nenhuma API rejeita segredo vazio ao iniciar (sem ValidateOnStart/IValidateOptions)",
+      "arquivo": "server/Services/PeopleManagement/PeopleManagement.API/Authentication/AuthenticationExtesion.cs",
+      "linha": "22 (+ BillPayment/TenantManagement AuthenticationExtesion.cs:23; KeycloakAuthenticationOptions.cs Secret = string.Empty; Program.cs PM:176-177)",
+      "lang": "csharp",
+      "trecho": "configuration.GetSection(KeycloakAuthenticationOptions.Section).Bind(keycloakAuthenticationOptions);   // só Bind; Secret vazio passa\n// grep ValidateOnStart|ValidateDataAnnotations|IValidateOptions → 0 ocorrências nas 3 APIs",
+      "explicacao": "Keycloak:Credentials:secret, HangfireDashboard:Password, ConnectionStrings, S3, ZapSign e WhatsApp são aceitos vazios; a falha só aparece na primeira permissão avaliada ou no primeiro envio. O BillPayment mitiga com o padrão 'desligado falha alto' (UnconfiguredSecretVault/Storage), mas isso não cobre o secret do Keycloak. Um deploy com env var faltando sobe 'saudável' com os defaults de SEC-02/PRM-01.",
+      "condicoes": "Erro operacional de configuração."
+    },
+    {
+      "id": "SEC-07",
+      "categoria": 4,
+      "severidade": "baixa",
+      "titulo": "Access Key ID do S3 (Garage) de produção e número de telefone reais versionados",
+      "arquivo": "server/Services/PeopleManagement/PeopleManagement.API/appsettings.json",
+      "linha": "13-14, 62",
+      "lang": "json",
+      "trecho": "\"S3\": {\n  \"ServiceURL\": \"https://garage.couratechsafety.cloud\",\n  \"AccessKey\": \"GKcf…e931\",\n  \"SecretKey\": \"\",\n...\n\"WhatsApp\": { ..., \"HealthCheckNumber\": \"5511968608425\" }",
+      "explicacao": "O Access Key ID sozinho não autentica (SecretKey vazia), mas é metade da credencial de produção e revela o endpoint do storage; o telefone é PII de pessoa real. Ambos deveriam viver em configuração de ambiente.",
+      "condicoes": "Precisa da SecretKey para explorar."
+    },
+    {
+      "id": "SEC-08",
+      "categoria": 4,
+      "severidade": "baixa",
+      "titulo": "Payload completo dos Commands (CPF, filiação, endereço, dependentes, e-mails) em log Information",
+      "arquivo": "server/Services/PeopleManagement/PeopleManagement.API/Controllers/BaseController.cs",
+      "linha": "24-49 (+ TenantManagement.API/Controllers/BaseController.cs:59-64; nenhum Command do TM implementa ISensitiveCommand)",
+      "lang": "csharp",
+      "trecho": "_logger.LogInformation(\n    \"----- Sending command: {CommandName} - {IdProperty}: {CommandId} ({@Command}) - RequestId : {RequestId} -----\",\n    CommandName, IdProperty, CommandId, Command, RequestId);   // {@Command} desestrutura o objeto inteiro",
+      "explicacao": "AlterIdCard, AlterPersonalInfo, CreateDependent, RegisterTenant etc. vão inteiros para o log, duas vezes (envio e resultado). O BillPayment resolveu isso com ISensitiveCommand + omissão do payload no resultado; o PeopleManagement e o TenantManagement não. É exposição de dado pessoal (LGPD) a quem lê logs, não credencial.",
+      "condicoes": "Log Information ligado."
+    },
+    {
+      "id": "SEC-09",
+      "categoria": 4,
+      "severidade": "informativa",
+      "titulo": "Segredos reais presentes só em disco local (corretamente ignorados) e conta de serviço com manage-users amplo",
+      "arquivo": "server/Services/BillPayment/.env",
+      "linha": "4 (ignorado por .gitignore:29) — client/rufino_v2/secrets/GOOGLE_PLAY_SERVICE_ACCOUNT_JSON.json (ignorado por client/rufino_v2/.gitignore:72)",
+      "lang": "text",
+      "trecho": "BILLPAYMENT_MASTER_KEY=3goR…PkM=          # master key AES-256-GCM do cofre de tenant_secrets (não rastreado)\nGOOGLE_PLAY_SERVICE_ACCOUNT_JSON.json     # private_key RSA da conta de publicação (não rastreado)\n# realm export: service-account-tenant-management-provisioner → realm-management: view-users, manage-users",
+      "explicacao": "Confirmado por git ls-files/check-ignore que nenhum deles foi versionado. Registrado porque (a) a máquina de desenvolvimento guarda a chave que cifra todas as credenciais de tenant e a chave que publica o app na Play Store, e (b) a conta de serviço do provisionador tem manage-users sobre o realm inteiro, então um vazamento de TenantProvisioning__ClientSecret dá reset de senha de qualquer usuário.",
+      "condicoes": "Sem exposição no repositório."
+    },
+    {
+      "id": "XSS-01",
+      "categoria": 5,
+      "severidade": "critica",
+      "titulo": "Template HTML enviado pelo tenant é renderizado em Chromium com JavaScript, origem file:// e sem sandbox — leitura de arquivos do container e SSRF",
+      "arquivo": "server/Services/PeopleManagement/PeopleManagement.Infra/Services/PdfService.cs",
+      "linha": "94-96, 149-162 (+ BrowserProvider.cs:17-29; DocumentTemplateController.cs:50-53; LocalStorageService.cs:19-20; FileName.cs:20-31)",
+      "lang": "csharp",
+      "trecho": "// PdfService.cs:94-96\nawait using var page = await browser.NewPageAsync();\nawait page.GoToAsync(\"file://\" + indexHtmlPath);      // origem file:// para resolver CSS relativo\nawait page.SetContentAsync(processedBody);            // HTML do zip enviado pelo tenant\n// BrowserProvider.cs:17-29\nprivate static readonly string[] ChromeArgs = [ \"--no-sandbox\", \"--disable-setuid-sandbox\", \"--disable-gpu\", ... ];\n// grep SetJavaScriptEnabled|SetRequestInterception → 0 ocorrências\n// PdfService.cs:154-158 — href de <link rel=stylesheet> lido do disco sem canonicalizar\nvar cssPath = Path.Combine(templateDirectory, href.Replace('/', Path.DirectorySeparatorChar));\nif (File.Exists(cssPath)) { var css = File.ReadAllText(cssPath); return $\"<style>{css}</style>\"; }",
+      "explicacao": "POST /api/v1/{company}/documenttemplate/Upload (document-template:upload) extrai um zip para app_files/templates e o index.html vira o conteúdo da página. Com JavaScript ligado e origem file://, `<iframe src=\"file:///app/appsettings.json\">` é impresso no PDF devolvido por GET document/generate/... (lê a connection string de SEC-02, /proc/self/environ com Keycloak__Credentials__secret, etc.); `<img src=\"http://169.254.169.254/...\">`/`fetch()` alcançam metadados de nuvem e serviços internos (SSRF). Sem <script>, o InlineExternalStyles já lê qualquer arquivo por `<link rel=\"stylesheet\" href=\"../../../appsettings.json\">` (o VO FileName aceita `../x.html`). --no-sandbox amplia o impacto de qualquer bug de renderização para o processo do container. Header/footer do zip seguem o mesmo caminho.",
+      "condicoes": "Admin de tenant com document-template:upload + document:generate. Sem sanitização (nenhum HtmlSanitizer/AngleSharp nos .csproj)."
+    },
+    {
+      "id": "XSS-02",
+      "categoria": 5,
+      "severidade": "alta",
+      "titulo": "Valores de funcionário/empresa interpolados no HTML do documento sem encoding — mesmo efeito de XSS-01 com privilégio menor",
+      "arquivo": "server/Services/PeopleManagement/PeopleManagement.Infra/Services/HtmlService.cs",
+      "linha": "93-105 (+ DocumentService.cs:362,409,444-469)",
+      "lang": "csharp",
+      "trecho": "private static string ReplaceDoubleBraces(string content, JsonNode? values, bool keepIfMissing = false)\n{\n    Regex regex = HtmlParamRegex();\n    return regex.Replace(content, m =>\n    {\n        string[] keys = m.Groups[1].Value.Split('.');\n        var result = GetValueFromJson(keys, values)?.ToString();\n        if (result != null)\n            return result;            // sem HtmlEncoder / WebUtility.HtmlEncode\n        return keepIfMissing ? m.Value : string.Empty;\n    });\n}",
+      "explicacao": "Os `values` são o JSON montado por RecoverInfoToDocument a partir de nome, endereço, dependentes, cargo, empresa etc. Quem tem employee:edit (RH comum, privilégio menor que upload de template) grava `<iframe src=file:///app/appsettings.json>` ou `<script>` num campo de nome/complemento; no próximo documento gerado para esse funcionário o HTML é executado exatamente como em XSS-01. Também vale para dados de empresa (CompanyController, ver IDR-01) e de Role de outra empresa (ISO-01).",
+      "condicoes": "employee:edit (ou company:edit) + geração de documento (automática por jobs recorrentes ou por qualquer usuário com document:generate)."
+    },
+    {
+      "id": "XSS-03",
+      "categoria": 5,
+      "severidade": "baixa",
+      "titulo": "Sem cabeçalhos de segurança/CSP no nginx do Flutter web nem nas APIs; pdf.js carregado de CDN sem integrity",
+      "arquivo": "client/rufino_v2/nginx/default.conf",
+      "linha": "9-17 (+ client/rufino_v2/web/index.html:41-43; grep X-Frame-Options|Content-Security-Policy|UseHsts nas 3 APIs → 0)",
+      "lang": "nginx",
+      "trecho": "add_header Cache-Control \"no-cache, no-store, must-revalidate\" always;   # únicos add_header do arquivo\n# index.html:41\n<script src=\"https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.11.338/pdf.min.js\"></script>   # sem integrity/crossorigin",
+      "explicacao": "Defesa em profundidade: sem CSP/X-Frame-Options/nosniff/HSTS o app web fica sem a segunda barreira caso surja um vetor de injeção, e o pdf.js de CDN sem SRI executa qualquer código que o CDN sirva. Não há vetor de XSS no Flutter hoje (ver pontos fortes).",
+      "condicoes": "Comprometimento do CDN ou vetor futuro de injeção."
+    },
+    {
+      "id": "XSS-04",
+      "categoria": 5,
+      "severidade": "baixa",
+      "titulo": "PeopleManagement devolve a mensagem interna do Postgres ao cliente em erros de banco",
+      "arquivo": "server/Services/PeopleManagement/PeopleManagement.API/Filters/ApplicationExceptionFilter.cs",
+      "linha": "44 (+ 16-37)",
+      "lang": "csharp",
+      "trecho": "var message = exception.InnerException?.Message;   // Npgsql: nomes de tabela/coluna/constraint → JSON 400 \"Errors\"",
+      "explicacao": "Vazamento de informação (esquema do banco) em JSON — não é XSS porque nada é renderizado como HTML, mas facilita reconhecimento. BillPayment/TenantManagement devolvem só erros de domínio.",
+      "condicoes": "Qualquer requisição que viole constraint."
+    },
+    {
+      "id": "XSS-05",
+      "categoria": 5,
+      "severidade": "baixa",
+      "titulo": "Zip de template extraído sem limite de tamanho descompactado (zip bomb) e diretório antigo nunca apagado",
+      "arquivo": "server/Services/PeopleManagement/PeopleManagement.Infra/Services/LocalStorageService.cs",
+      "linha": "19-20 (+ 51-57; DocumentTemplateController.cs:52 limita só o request a 12 MB)",
+      "lang": "csharp",
+      "trecho": "using var zipArchive = new ZipArchive(stream);\nzipArchive.ExtractToDirectory(destinationDirectoryPath, overwriteFiles: true);   // sem checar tamanho total das entradas",
+      "explicacao": "12 MB de zip podem virar gigabytes em disco. ExtractToDirectory do .NET 8 bloqueia zip-slip (verificado), então não há traversal na extração — o traversal fica no href de CSS (XSS-01). DeleteAsync combina os argumentos invertidos e não remove o diretório anterior, acumulando templates antigos.",
+      "condicoes": "document-template:upload."
+    }
+  ],
+  "recomendacoes": [
+    {
+      "prioridade": "P1",
+      "titulo": "Isolar a geração de PDF e encodar tudo que entra no HTML",
+      "descricao": "Desligar JavaScript (page.SetJavaScriptEnabledAsync(false)), interceptar requests e bloquear tudo que não seja data:/o próprio template, não navegar para file:// (inlinar CSS lendo só arquivos canonicalizados dentro do diretório do template), rodar o Chromium com sandbox num container separado sem acesso à rede interna e sem appsettings/segredos, e aplicar HtmlEncoder.Default.Encode em ReplaceDoubleBraces. Rejeitar FileName com separadores de caminho.",
+      "achados": [
+        "XSS-01",
+        "XSS-02",
+        "XSS-05"
+      ]
+    },
+    {
+      "prioridade": "P1",
+      "titulo": "Rotacionar os segredos expostos no histórico e decidir sobre reescrita",
+      "descricao": "Regenerar os client secrets people-management-api e zapsign no Keycloak, o token da API ZapSign e (por precaução) confirmar que rufino-app continua público. Verificar visibilidade do repositório; se público ou com forks, rodar git filter-repo após a rotação. Ativar secret scanning/push protection no GitHub.",
+      "achados": [
+        "SEC-01"
+      ]
+    },
+    {
+      "prioridade": "P1",
+      "titulo": "Trazer CompanyController e o webhook ZapSign para dentro do guard de tenant",
+      "descricao": "Mover Company para api/v1/{company}/company (ou filtrar pelos IDs do claim `companies` no servidor) e validar Id do corpo contra a rota. No webhook: validar assinatura/segredo da ZapSign, restringir signed_file a hosts da ZapSign (allowlist) e ao Content-Type application/pdf, resolver a DocumentUnit junto com a CompanyId gravada na sessão de assinatura, não reenviar a URL externa ao funcionário (enviar o blob), e exigir x-requestid próprio (ver P2 idempotência).",
+      "achados": [
+        "IDR-01",
+        "IDR-02"
+      ]
+    },
+    {
+      "prioridade": "P2",
+      "titulo": "Fechar o isolamento residual do PeopleManagement",
+      "descricao": "Validar todo ID relacionado do corpo com ExistsAsync(id, companyId) antes de atribuir (RoleId, WorkPlaceId, DepartmentId, PositionId, DocumentGroupId, DocumentsTemplatesIds); adicionar CompanyId aos joins/subqueries listados; escopar o ledger de idempotência por (CompanyId, RequestId) e recusar Guid.Empty ([BindRequired] ou EnsureRequestId como no BillPayment). Avaliar HasQueryFilter por tenant como rede de segurança nos 3 DbContexts.",
+      "achados": [
+        "ISO-01",
+        "ISO-02",
+        "ISO-03",
+        "ISO-04",
+        "ISO-05"
+      ]
+    },
+    {
+      "prioridade": "P2",
+      "titulo": "Blindar o convite de tenant contra troca de e-mail",
+      "descricao": "No provisionador, só gravar claims em usuário com emailVerified=true (ou criar convite pendente resolvido pelo sub após verificação); no realm, remover `user` de permissions.edit do atributo email ou ligar verifyEmail; em /me/tenants, chavear por IdentityUserId (sub) em vez de e-mail.",
+      "achados": [
+        "ISO-06"
+      ]
+    },
+    {
+      "prioridade": "P2",
+      "titulo": "Validar segredos no startup e remover defaults de credencial da árvore",
+      "descricao": "Adicionar OptionsBuilder.Validate(...).ValidateOnStart() para Keycloak:Credentials:secret, HangfireDashboard:Password (quando !IsDevelopment), connection strings e chaves de integração; mover a senha do Postgres e o AccessKey do Garage para appsettings.Development.json/user-secrets; trocar 5up3rS3nh@/Admin nos composes por ${VAR:?} lido do .env ignorado e não publicar portas em 0.0.0.0; no deploy.ps1 da Evolution API usar --secrets + secretref e trocar CORS_ORIGIN=*.",
+      "achados": [
+        "SEC-02",
+        "SEC-03",
+        "SEC-04",
+        "SEC-06",
+        "SEC-07",
+        "PRM-01"
+      ]
+    },
+    {
+      "prioridade": "P2",
+      "titulo": "Tirar segredos e PII dos logs",
+      "descricao": "Remover ApiKey do LogInformation do WhatsAppService; adotar o padrão ISensitiveCommand/omissão de payload do BillPayment no PeopleManagement e no TenantManagement; não repetir {@Command} no log de resultado.",
+      "achados": [
+        "SEC-05",
+        "SEC-08"
+      ]
+    },
+    {
+      "prioridade": "P2",
+      "titulo": "Endurecer a importação manual do BillPayment",
+      "descricao": "Fazer ImportBillModel (JSON) zerar StorageKey/ContentHash como o multipart já faz; validar SourceId (e HintSourceId) com ICaptureSourceRepository.GetAsync(tenantId, …) quando informado, ou recusá-los fora de ManualUpload; mapear UnauthorizedAccessException do storage para 404.",
+      "achados": [
+        "IDR-03",
+        "IDR-04"
+      ]
+    },
+    {
+      "prioridade": "P3",
+      "titulo": "Hardening do PeopleManagement e do Hangfire",
+      "descricao": "Proteger /hangfire com a policy do Keycloak (ou IP allowlist + RequireSsl=true), apagar HangFireAuthorizationFilter; remover TestController; condicionar Swagger a IsDevelopment; CORS com WithOrigins; FallbackPolicy = RequireAuthenticatedUser nos 3 Program.cs; RequireHttpsMetadata=true fora de dev; não devolver InnerException.Message; adicionar cabeçalhos de segurança no nginx e SRI no pdf.js.",
+      "achados": [
+        "PRM-02",
+        "PRM-03",
+        "PRM-04",
+        "PRM-07",
+        "XSS-03",
+        "XSS-04"
+      ]
+    },
+    {
+      "prioridade": "P3",
+      "titulo": "Limpeza de código morto e nomes divergentes",
+      "descricao": "Remover ResolveDecidingUserId(Guid headerUserId) do TenantManagement; unificar 'Archive'/'archive'; corrigir os gates do Flutter (document_group → document-group, company:edit → document-template:edit); remover RegisterTenantModel.Id ao fim do backfill; ampliar o teste de erosão do BillPayment para toda rota (não só api/v1).",
+      "achados": [
+        "PRM-05",
+        "PRM-06",
+        "IDR-05"
+      ]
+    }
+  ],
+  "issues": [
+    {
+      "titulo": "[Segurança] Geração de PDF executa HTML/JS do tenant em Chromium sem isolamento (LFI/SSRF)",
+      "labels": [
+        "security",
+        "severity:critical",
+        "people-management"
+      ],
+      "achados": [
+        "XSS-01",
+        "XSS-02",
+        "XSS-05"
+      ],
+      "problema": "O PeopleManagement gera documentos renderizando, em um Chromium headless (PuppeteerSharp) lançado com `--no-sandbox`, o `index.html` do zip enviado pelo tenant em `POST /api/v1/{company}/documenttemplate/Upload`, depois de interpolar nele — sem nenhum encoding — os dados do funcionário/empresa. A página é aberta com origem `file://` (`GoToAsync(\"file://\" + indexHtmlPath)`) e JavaScript fica ligado; não há interceptação de requests. Além disso, `InlineExternalStyles` lê do disco qualquer `href` de `<link rel=\"stylesheet\">` sem canonicalizar o caminho. Resultado: quem consegue colocar HTML no template (upload) ou num campo de funcionário (`employee:edit`) lê arquivos do container (`appsettings.json`, `/proc/self/environ`) para dentro do PDF e alcança a rede interna/metadados de nuvem a partir do servidor.",
+      "impacto": "Leitura de segredos do container (connection string, secret do Keycloak, tokens de integração) e SSRF para serviços internos a partir de um privilégio comum de tenant (`employee:edit`) ou de admin de tenant (upload de template). Com `--no-sandbox`, qualquer bug de renderização do Chromium vira execução no processo do container. Cruza a fronteira do tenant para a infraestrutura da plataforma.",
+      "correcao": [
+        "Aplicar `HtmlEncoder.Default.Encode(result)` em `HtmlService.ReplaceDoubleBraces` (e nos demais pontos que devolvem valor do JSON) — dados nunca viram HTML ativo.",
+        "Em `PdfService`: `await page.SetJavaScriptEnabledAsync(false)`; `SetRequestInterceptionAsync(true)` abortando tudo que não seja `data:`/`about:blank`; não usar `GoToAsync(\"file://…\")` — montar o HTML já com o CSS inlinado e chamar `SetContentAsync` numa página `about:blank`.",
+        "Em `InlineExternalStyles`: resolver `Path.GetFullPath(Path.Combine(templateDirectory, href))` e recusar se não começar com o `templateDirectory` canonicalizado; recusar `href` absoluto ou com `..`. No VO `FileName`, recusar qualquer separador de caminho.",
+        "Lançar o Chromium com sandbox (usuário não-root no Dockerfile, sem `--no-sandbox`) — idealmente num container/serviço dedicado de renderização, sem `appsettings`/segredos montados e com egress de rede bloqueado.",
+        "Limitar o tamanho total descompactado do zip de template (somar `entry.Length` antes de extrair; rejeitar acima de N MB) e corrigir `LocalStorageService.DeleteAsync` para apagar o diretório anterior."
+      ],
+      "criterios": [
+        "Template com `<script>document.body.innerHTML='pwned'</script>` gera PDF sem executar o script (conteúdo original preservado).",
+        "Template com `<iframe src=\"file:///app/appsettings.json\">` e com `<link rel=\"stylesheet\" href=\"../../../appsettings.json\">` gera PDF sem o conteúdo do arquivo (teste de integração cobrindo os dois vetores).",
+        "Template com `<img src=\"http://127.0.0.1:1/x\">` não abre conexão (request interceptado/abortado; verificável por log do interceptor ou listener local).",
+        "Funcionário com nome `<b>x</b><iframe src=file:///etc/passwd>` aparece no PDF literalmente como texto, sem tag interpretada.",
+        "`BrowserProvider.ChromeArgs` não contém `--no-sandbox`/`--disable-setuid-sandbox` e o container roda como usuário não-root.",
+        "Upload de zip cujo conteúdo descompactado excede o limite configurado retorna 400 sem escrever em disco.",
+        "CLAUDE.md do PeopleManagement documenta o modelo de renderização segura (JS desligado, sem file://, limite de zip)."
+      ]
+    },
+    {
+      "titulo": "[Segurança] Rotacionar segredos expostos no histórico do repositório (Keycloak, ZapSign)",
+      "labels": [
+        "security",
+        "severity:critical",
+        "secrets",
+        "ops"
+      ],
+      "achados": [
+        "SEC-01"
+      ],
+      "problema": "Quatro credenciais reais foram commitadas entre 2024-08 e 2025-07 e, embora já removidas da árvore, continuam recuperáveis com `git show` em qualquer clone do repositório `github.com/IgorCoura/rufino-project`: o client secret do resource server `people-management-api` (commit 5b98cff3), o client secret do client `zapsign` (6838d2be) — que é justamente o que autentica o webhook de assinatura —, o token da API ZapSign (f109691d) e o secret do client `rufino-app` (3353f902, hoje mitigado porque o client virou público). Não há evidência no repositório de que tenham sido rotacionados.",
+      "impacto": "Com o secret de `zapsign` obtém-se um token com `document#webhook` e explora-se a issue do webhook (forjar assinaturas, SSRF). Com o token ZapSign lê-se/assina-se documentos na conta da empresa. Com o secret de `people-management-api` obtêm-se RPTs em nome do resource server. Qualquer pessoa com acesso de leitura ao repositório (ou a um fork/clone antigo) possui esses valores.",
+      "correcao": [
+        "No Keycloak (realm rufino): regenerar o secret dos clients `people-management-api` e `zapsign`; atualizar `secretref:keycloak-secret` e `secretref:authorization-clientsecret` no Container App / Dokploy.",
+        "Na ZapSign: revogar o token de API antigo e emitir um novo; atualizar `secretref:zapsign-token`.",
+        "Confirmar que `rufino-app` está `publicClient: true` no realm de produção (o export de 2026-08-18 mostra isso) — se ainda for confidencial, regenerar.",
+        "Verificar a visibilidade do repositório e forks; se público ou com forks externos, após a rotação rodar `git filter-repo` removendo os caminhos afetados e forçar push (coordenar com todos os clones).",
+        "Ativar GitHub secret scanning + push protection e adicionar um hook de pre-commit (gitleaks) ao repositório.",
+        "Registrar a rotação (data, quem) num ADR ou no CHANGELOG de segurança."
+      ],
+      "criterios": [
+        "Os quatro valores antigos não autenticam mais (teste manual: token endpoint do Keycloak com o secret antigo retorna `invalid_client`; API ZapSign retorna 401 com o token antigo).",
+        "Serviços em produção operam com os novos valores (webhook ZapSign recebido com sucesso após a rotação; permissões UMA avaliadas sem erro).",
+        "Secret scanning/push protection habilitados no repositório GitHub.",
+        "Decisão sobre reescrita do histórico registrada (feita ou explicitamente descartada com justificativa)."
+      ]
+    },
+    {
+      "titulo": "[Segurança] Webhook ZapSign aceita qualquer DocumentUnitId e baixa URL arbitrária (SSRF / forja de assinatura)",
+      "labels": [
+        "security",
+        "severity:high",
+        "people-management",
+        "idor"
+      ],
+      "achados": [
+        "IDR-02"
+      ],
+      "problema": "`POST /api/v1/Document/webhook` usa rota absoluta sem `{company}`, então o guard de tenant concede em silêncio; a única barreira é o Keycloak conceder `document#webhook` ao token — o mesmo token `client_credentials` do client `zapsign` que o sistema grava no cabeçalho do webhook cadastrado na ZapSign (visível no painel do provedor) e cujo secret está no histórico git. Não há verificação de assinatura/HMAC. O handler localiza a `DocumentUnit` globalmente por `external_id`, baixa `signed_file` de qualquer URL com um `HttpClient` sem allowlist, grava a resposta como documento assinado no blob da empresa alvo e envia a própria URL externa ao WhatsApp do funcionário. `doc_refused/doc_deleted/doc_expired` invalidam a unidade e toda a sessão.",
+      "impacto": "Forja de documento assinado em qualquer tenant, invalidação de sessões de assinatura de qualquer tenant, SSRF a partir do servidor (metadados de nuvem, serviços internos) e phishing do funcionário com URL controlada pelo atacante. Precisa de um token com `document#webhook` e do GUID da DocumentUnit.",
+      "correcao": [
+        "Validar a autenticidade do evento: usar o segredo/assinatura de webhook da ZapSign (ou, no mínimo, um header secreto exclusivo por ambiente, comparado em tempo constante) além do Bearer.",
+        "Restringir `signed_file`/`extra_docs[].signed_file` a `https://` e a hosts da ZapSign (allowlist configurável), exigir `Content-Type: application/pdf` e limitar tamanho; recusar IPs privados/link-local após resolução de DNS.",
+        "Resolver a DocumentUnit junto com a CompanyId/EmployeeId persistidos na sessão de assinatura (o `external_id` deve carregar ou ser cruzado com a company) e recusar se não bater.",
+        "Enviar ao funcionário o arquivo já armazenado no blob (ou um link assinado da própria plataforma), nunca a URL externa recebida.",
+        "Gerar `x-requestid` a partir do id do evento ZapSign (ou usar o par evento/unidade) para que a idempotência funcione sem o efeito `Guid.Empty`.",
+        "Cobrir com teste de integração: evento sem assinatura válida → 401/403; `signed_file` fora da allowlist → 400; DocumentUnit de outra company → 404."
+      ],
+      "criterios": [
+        "Evento sem a assinatura/segredo da ZapSign é recusado antes de qualquer acesso ao banco.",
+        "`signed_file` apontando para `http://127.0.0.1`, `http://169.254.169.254` ou domínio fora da allowlist é recusado sem abrir conexão.",
+        "DocumentUnit pertencente a outra company que não a da sessão retorna 404 e não altera estado.",
+        "A mensagem WhatsApp enviada após assinatura referencia só o blob/URL da plataforma.",
+        "Dois eventos legítimos consecutivos sem `x-requestid` são ambos processados (idempotência por id do evento)."
+      ]
+    },
+    {
+      "titulo": "[Segurança] CompanyController permite ler e editar qualquer empresa por Id (fora do guard de tenant)",
+      "labels": [
+        "security",
+        "severity:high",
+        "people-management",
+        "idor"
+      ],
+      "achados": [
+        "IDR-01"
+      ],
+      "problema": "`CompanyController` está em `api/v1/company` (sem `{company}` na rota), então `RouteAccessRequirement` não tem o que comparar e concede. As queries (`GetCompanySimplefiedAsync`, `GetCompaniesSimplefiedsAsync`, `GetCompanyAsync`) filtram só por `Id`, e `EditCompanyCommandHandler` carrega `request.Id` vindo do corpo. Como todo usuário precisa de `company:view` para ver a própria empresa, qualquer usuário lê CNPJ, e-mail, telefone e endereço de qualquer empresa (`GET /api/v1/company/complete?id=…`, em lote por `/list?id=a&id=b`) e, com `company:edit`, altera razão social/CNPJ/contato de qualquer empresa.",
+      "impacto": "Leitura e escrita cross-tenant de dados cadastrais de empresa com privilégio comum. Os GUIDs de empresa circulam no claim `companies` e em todas as URLs do produto.",
+      "correcao": [
+        "Mover as rotas para `api/v1/{company}/company` (o cliente já conhece o `companyId`) e filtrar `x.Id == company` nas queries e no handler de edição, ignorando o Id do corpo.",
+        "Para a listagem usada pelo seletor de empresas, filtrar no servidor pelos IDs do claim `companies` do token (`User.FindAll(\"companies\")`) em vez de aceitar `id[]` livre — ou criar `GET /api/v1/me/companies` no molde do `/me/tenants` do TenantManagement.",
+        "Adicionar teste de integração: usuário com claim `companies=[A]` recebe 403/404 ao consultar/editar a empresa B.",
+        "Ampliar o teste de erosão (como o `EndpointProtectionTests` do BillPayment) para o PeopleManagement: toda rota `api/v1` de tenant declara `{company}`."
+      ],
+      "criterios": [
+        "`GET /api/v1/company/complete?id=<B>` com token de A retorna 403 ou 404.",
+        "`PUT` de edição de empresa com Id de B no corpo e token de A não altera B.",
+        "Seletor de empresas do Flutter continua funcionando via endpoint filtrado no servidor.",
+        "Teste automatizado que falha se uma rota `api/v1` de tenant nascer sem `{company}`."
+      ]
+    },
+    {
+      "titulo": "[Segurança] PeopleManagement: IDs relacionados sem validação de tenant e joins sem CompanyId",
+      "labels": [
+        "security",
+        "severity:medium",
+        "people-management",
+        "tenant-isolation"
+      ],
+      "achados": [
+        "ISO-01",
+        "ISO-02"
+      ],
+      "problema": "Handlers aceitam do corpo `RoleId`, `WorkPlaceId`, `DepartmentId`, `PositionId`, `DocumentGroupId` e `DocumentsTemplatesIds` sem verificar que pertencem à `CompanyId` da rota (ex.: `AlterRoleEmployeeCommandHandler` faz `employee.RoleId = request.RoleId`). Repositórios e queries seguem esses IDs sem filtrar a entidade destino pela company (`RoleRepository.GetRoleFromEmployeeId` filtra o empregado, não a role; subqueries em `DepartmentQueries`, `DocumentGroupQueries`, `RequireDocumentsQueries`, `DocumentTemplateQueries`, `EmployeeQueries`, `BatchDownloadQueries`). `RequireDocumentsQueries.GetAllWithDocumentList` ainda busca o funcionário sem company.",
+      "impacto": "Um usuário com `employee:edit` que conheça o GUID de uma Role de outra empresa passa a ver nome, CBO e remuneração dela em listagens e — via `RecoverRoleInfoToDocumentTemplateService` — dentro dos documentos gerados. O mesmo vale para Position/Department/Workplace/DocumentGroup/DocumentTemplate. Exige conhecer GUIDs alheios.",
+      "correcao": [
+        "Em todo handler que atribui um ID relacionado, validar com `ExistsAsync(id, companyId)` no repositório correspondente antes de atribuir; lançar `DomainErrors.ObjectNotFound` caso contrário.",
+        "Nos repositórios/queries listados, acrescentar `&& r.CompanyId == companyId` (ou equivalente) na entidade destino do join/subquery.",
+        "Corrigir `RequireDocumentsQueries.GetAllWithDocumentList` para `em.Id == employeeId && em.CompanyId == companyId`.",
+        "Avaliar `HasQueryFilter` por tenant nos DbContexts (com `IgnoreQueryFilters` só nos workers) como rede de segurança para regressões.",
+        "Testes de integração: atribuir RoleId de outra company retorna 404; listagens não retornam nomes de entidades de outra company."
+      ],
+      "criterios": [
+        "`PUT employee/Role` com RoleId de outra company retorna 404 e não altera o funcionário.",
+        "Documento gerado para funcionário cuja Role foi (indevidamente) apontada para outra company não contém dados dessa Role.",
+        "Todas as subqueries/joins citados filtram CompanyId (revisão de código + teste).",
+        "Teste de integração cross-company para pelo menos Role, Workplace e DocumentTemplate."
+      ]
+    },
+    {
+      "titulo": "[Segurança] Idempotência por x-requestid é global entre tenants e o header ausente vira Guid.Empty",
+      "labels": [
+        "security",
+        "severity:medium",
+        "people-management",
+        "bill-payment",
+        "tenant-management"
+      ],
+      "achados": [
+        "ISO-03",
+        "ISO-04"
+      ],
+      "problema": "No PeopleManagement o header `x-requestid` é bindado como `Guid` (value type) sem `[BindRequired]`; ausente vira `Guid.Empty`. `IdentifiedCommandHandler` consulta a tabela `client_requests` (PK só `Id`, sem CompanyId/usuário) e, se o Id já existe, devolve `default` sem executar e sem erro. Assim, após a primeira requisição sem header de qualquer tenant, toda requisição sem header de todos os tenants (inclusive o webhook ZapSign, que só envia Authorization) vira no-op silencioso. Quem conhecer um requestId de outro tenant pode registrá-lo antes e anular o comando. No BillPayment e TenantManagement o ledger também é global (sem TenantId), embora o header vazio gere Guid novo.",
+      "impacto": "Negação de serviço silenciosa entre tenants (comandos aparentam sucesso com resposta vazia) e anulação direcionada de comandos alheios. Afeta também o processamento de webhooks de assinatura.",
+      "correcao": [
+        "PeopleManagement: recusar `Guid.Empty` (400) ou gerar um Guid novo quando ausente, como `EnsureRequestId` do BillPayment; remover/corrigir `BaseController.ValidityRequestId` (condição invertida e nunca chamada).",
+        "Escopar o ledger por tenant: chave composta (`CompanyId`/`TenantId`, `RequestId`) nos três BCs, ou incluir o `sub` do usuário.",
+        "Devolver 409/`Conflict` (ou o resultado original) em duplicata, em vez de `default` silencioso, para o cliente perceber.",
+        "Para o webhook ZapSign, derivar o requestId do id do evento do provedor."
+      ],
+      "criterios": [
+        "Duas requisições sem `x-requestid` para o mesmo endpoint são ambas executadas (ou a segunda recebe 400 explícito).",
+        "Mesmo `x-requestid` enviado por tenants diferentes executa nos dois.",
+        "Duplicata real dentro do mesmo tenant retorna resposta idempotente não-vazia ou 409.",
+        "Migração cria a chave composta sem quebrar registros existentes."
+      ]
+    },
+    {
+      "titulo": "[Segurança] Convite de tenant pode ser sequestrado por troca de e-mail no Keycloak",
+      "labels": [
+        "security",
+        "severity:medium",
+        "tenant-management",
+        "keycloak"
+      ],
+      "achados": [
+        "ISO-06"
+      ],
+      "problema": "`KeycloakTenantAccessProvisioner` procura o usuário por e-mail (`users?email=…&exact=true`) e, se existir, grava os atributos `tenants`/`bp_tenants`/`pm_tenants` nele sem checar `emailVerified`. O realm exportado tem `verifyEmail=false`, `duplicateEmailsAllowed=false` e permite ao próprio usuário editar `email` no Account Console. Uma conta qualquer do realm troca o e-mail para o do futuro convidado; quando o operador concede acesso ao tenant, o claim é gravado na conta do atacante, nenhum convite é enviado (só há e-mail quando o usuário é criado) e a vítima nunca pode ser cadastrada com aquele e-mail. `GET /me/tenants` também é chaveado pelo claim `email`.",
+      "impacto": "Acesso a um tenant por quem não foi convidado; bloqueio permanente do e-mail legítimo. Exige conta prévia no realm e conhecer o e-mail alvo antes do convite.",
+      "correcao": [
+        "No provisionador, só gravar claims se `EmailVerified == true`; caso contrário, criar um registro de convite pendente e disparar `VERIFY_EMAIL`, gravando o claim apenas após a verificação (ou resolver por `sub` informado pelo próprio usuário ao aceitar o convite).",
+        "No realm: remover `user` de `permissions.edit` do atributo `email` no User Profile (ou ligar `verifyEmail=true` para que a troca exija verificação).",
+        "Em `/me/tenants` e em `TenantQueries.ListForMemberAsync`, chavear por `IdentityUserId` (sub) além do e-mail.",
+        "Atualizar `tenant-management-authz-config.json`/realm import versionado com a mudança de permissão."
+      ],
+      "criterios": [
+        "Conceder acesso a e-mail que pertence a uma conta com `emailVerified=false` não grava o claim (fica pendente) e registra o motivo.",
+        "Usuário comum não consegue alterar o próprio e-mail no Account Console (ou a alteração exige verificação).",
+        "`/me/tenants` não lista tenants para uma conta cujo e-mail coincide mas cujo `sub` não é membro.",
+        "Teste de integração cobrindo o cenário de conta pré-existente não verificada."
+      ]
+    },
+    {
+      "titulo": "[Segurança] Hangfire Dashboard fora do Keycloak com senha vazia por padrão, e APIs sem validação de segredos no startup",
+      "labels": [
+        "security",
+        "severity:medium",
+        "people-management",
+        "ops"
+      ],
+      "achados": [
+        "PRM-01",
+        "SEC-06"
+      ],
+      "problema": "`/hangfire` é protegido apenas por Basic Auth com `Login=admin` fixo, `PasswordClear` lido de `HangfireDashboard:Password` (vazio no `appsettings.json`), `RequireSsl=false`, montado antes de `UseHttpsRedirection` e fora do pipeline do Keycloak. Nenhuma das três APIs valida configuração ao iniciar (sem `ValidateOnStart`/`IValidateOptions`): `Keycloak:Credentials:secret`, connection strings, chaves de S3/ZapSign/WhatsApp e a senha do Hangfire são aceitos vazios. Existe ainda um `HangFireAuthorizationFilter` que retorna `true` incondicionalmente (não referenciado).",
+      "impacto": "O dashboard dispara/apaga jobs de todos os tenants (geração de documentos, webhooks, WhatsApp). Um deploy sem `HangfireDashboard__Password` sobe 'saudável' com credencial vazia (comportamento exato da lib com senha vazia não verificado). Credenciais Basic trafegam em HTTP se o TLS terminar antes.",
+      "correcao": [
+        "Proteger `/hangfire` com a mesma autorização do Keycloak (`IDashboardAuthorizationFilter` que valida o JWT e um escopo `hangfire:view`) ou, no mínimo, `RequireSsl=true` + IP allowlist; mapear o dashboard depois de `UseAuthentication/UseAuthorization`.",
+        "Apagar `Filters/HangFireAuthorizationFilter.cs`.",
+        "Adicionar `builder.Services.AddOptions<KeycloakAuthenticationOptions>().Bind(...).Validate(o => !string.IsNullOrWhiteSpace(o.Credentials.Secret)).ValidateOnStart()` nas três APIs, e o equivalente para `HangfireDashboard:Password` (quando `!IsDevelopment()`), connection strings e chaves de integração.",
+        "Falhar o startup com mensagem clara indicando a variável ausente."
+      ],
+      "criterios": [
+        "API não sobe em Production sem `Keycloak__Credentials__secret` e sem `HangfireDashboard__Password` (erro explícito no log).",
+        "`GET /hangfire` sem credencial válida retorna 401; com JWT sem o escopo retorna 403.",
+        "`HangFireAuthorizationFilter` removido do projeto.",
+        "Teste de integração da fábrica de testes continua passando com as opções válidas."
+      ]
+    },
+    {
+      "titulo": "[Segurança] BillPayment: importação JSON aceita StorageKey/SourceId/ContentHash do cliente",
+      "labels": [
+        "security",
+        "severity:medium",
+        "bill-payment"
+      ],
+      "achados": [
+        "IDR-03",
+        "IDR-04"
+      ],
+      "problema": "`ImportBillModel` (JSON) repassa `SourceId`, `ExternalMessageId`, `ContentHash` e `StorageKey` do corpo ao `ImportBillCommand`; o handler não valida que `SourceId` pertence ao tenant e usa `StorageKey` como chave do artefato quando não há upload. A variante multipart já zera `ContentHash/StorageKey` por reconhecer o risco. A única barreira cross-tenant é a checagem de prefixo em `S3AttachmentStorage.EnsureBelongsToTenant`, que sai como 500 (confirma a existência do objeto). Intra-tenant, uma `StorageKey` de item `ForeignPayer` — que o endpoint de quarentena recusa servir — pode ser baixada por `GET /bills/{id}/artifact`. `HintSourceId` em `POST /expectations` também não é validado (sem vazamento).",
+      "impacto": "Evidência de origem forjada (SourceId alheio gravado como prova), contorno do gate `ForeignPayer` do ADR-008 para quem conhecer uma StorageKey, e oráculo de existência de objetos de outro tenant via 500.",
+      "correcao": [
+        "Fazer `ImportBillModel.ToCommand` passar `ContentHash: null, StorageKey: null`, igual ao multipart.",
+        "Quando `SourceId` (ou `HintSourceId`) vier informado, validar com `ICaptureSourceRepository.GetAsync(tenantId, sourceId)` e lançar erro de domínio se não existir; ou recusar esses campos fora de `SourceKind = ManualUpload` na API pública.",
+        "Mapear `UnauthorizedAccessException` do storage para 404 no `DomainExceptionFilter` (ou lançar erro de domínio próprio).",
+        "Teste de integração: importação JSON com StorageKey de outro tenant → Bill sem artefato; SourceId inexistente → 400."
+      ],
+      "criterios": [
+        "Bill importada via JSON nunca nasce com `Origin.StorageKey` vindo do cliente.",
+        "`SourceId`/`HintSourceId` de outro tenant retornam erro de domínio (400/404), nunca gravam.",
+        "`GET /bills/{id}/artifact` nunca responde 500 por chave de outro tenant.",
+        "Documentação (CLAUDE.md do BillPayment, seção de importação) atualizada."
+      ]
+    },
+    {
+      "titulo": "[Segurança] Defaults de credencial em appsettings/compose/template.env e AccessKey de produção versionado",
+      "labels": [
+        "security",
+        "severity:medium",
+        "secrets",
+        "ops"
+      ],
+      "achados": [
+        "SEC-02",
+        "SEC-03",
+        "SEC-04",
+        "SEC-07"
+      ],
+      "problema": "A senha do Postgres `5up3rS3nh@` está no `appsettings.json` BASE das três APIs e em 9 pontos dos docker-compose (que publicam os bancos em 0.0.0.0); o Keycloak local sobe com `Admin/Admin` em `0.0.0.0:8082` importando o realm completo; MinIO usa `billpayment/billpayment-dev`; o `template.env` da Evolution API traz `AUTHENTICATION_API_KEY=senha-aqui` e `CORS_ORIGIN=*`, e o `deploy.ps1` injeta o `.env` inteiro como `--env-vars` (texto claro no Container App) em vez de `--secrets`. O `appsettings.json` do PeopleManagement ainda versiona o Access Key ID do Garage de produção e um telefone real.",
+      "impacto": "Qualquer ambiente sem override sobe com credenciais conhecidas; na LAN de desenvolvimento qualquer máquina vira admin do Postgres/Keycloak/MinIO; a chave da Evolution API pode ir para produção como `senha-aqui` e, mesmo forte, fica legível na configuração do Container App.",
+      "correcao": [
+        "Mover senhas de connection string para `appsettings.Development.json`/user-secrets e deixar o `appsettings.json` base sem credencial (combinar com a validação de startup da issue do Hangfire).",
+        "Nos composes, usar `${POSTGRES_PASSWORD:?}`, `${KC_ADMIN_PASSWORD:?}`, `${MINIO_ROOT_PASSWORD:?}` lidos do `.env` ignorado; publicar portas em `127.0.0.1:` por padrão.",
+        "Remover `S3.AccessKey` e `WhatsApp.HealthCheckNumber` do `appsettings.json` (env var/secretref).",
+        "No `deploy.ps1` da Evolution API, separar segredos (`--secrets` + `secretref:`) das variáveis comuns e trocar `CORS_ORIGIN=*` por origens explícitas; no `template.env`, deixar `AUTHENTICATION_API_KEY=` vazio com comentário obrigatório.",
+        "Documentar no CLAUDE.md do server a política 'nenhuma credencial no appsettings base'."
+      ],
+      "criterios": [
+        "`grep -rn \"5up3rS3nh@\\|Admin\\b\\|billpayment-dev\\|senha-aqui\" server azure` retorna só ocorrências em comentários/exemplos, nunca em valor efetivo.",
+        "`docker compose up` falha com mensagem clara se as variáveis de senha não estiverem definidas.",
+        "Container App da Evolution API mostra `AUTHENTICATION_API_KEY` como secretref.",
+        "`appsettings.json` do PeopleManagement sem AccessKey e sem telefone."
+      ]
+    },
+    {
+      "titulo": "[Segurança] Segredos e dados pessoais em logs (API key do WhatsApp, payload completo dos Commands)",
+      "labels": [
+        "security",
+        "severity:medium",
+        "people-management",
+        "tenant-management",
+        "lgpd"
+      ],
+      "achados": [
+        "SEC-05",
+        "SEC-08"
+      ],
+      "problema": "`WhatsAppService` grava a API key da Evolution API em `LogInformation` a cada envio (a variável chama-se `apiKeyMasked` mas não mascara), junto com telefone e corpo da mensagem. `BaseController` do PeopleManagement e do TenantManagement logam `{@Command}` inteiro no envio e no resultado — CPF, filiação, endereço, dependentes, e-mails — sem o mecanismo `ISensitiveCommand` que o BillPayment já usa.",
+      "impacto": "Quem lê logs (Log Analytics, contêiner, ferramentas de observabilidade) obtém a credencial global do WhatsApp e dados pessoais de funcionários (exposição LGPD).",
+      "correcao": [
+        "Remover `ApiKey` do log do `WhatsAppService` (ou logar só os 4 últimos caracteres).",
+        "Portar `ISensitiveCommand` + `Loggable()` do BillPayment para PeopleManagement e TenantManagement e marcar os Commands com PII; não repetir `{@Command}` no log de resultado.",
+        "Configurar um destructuring policy do Serilog/ILogger que ignore propriedades marcadas como sensíveis, como segunda barreira."
+      ],
+      "criterios": [
+        "Nenhuma linha de log contém a API key do WhatsApp (teste com sink em memória).",
+        "Envio de `AlterIdCardEmployeeCommand` gera log sem CPF/RG (payload omitido).",
+        "Documentação do padrão no CLAUDE.md dos dois BCs."
+      ]
+    },
+    {
+      "titulo": "[Segurança] Hardening do PeopleManagement: TestController, Swagger em produção, CORS, FallbackPolicy, headers e erros do banco",
+      "labels": [
+        "security",
+        "severity:low",
+        "people-management",
+        "hardening"
+      ],
+      "achados": [
+        "PRM-02",
+        "PRM-03",
+        "PRM-04",
+        "PRM-07",
+        "XSS-03",
+        "XSS-04"
+      ],
+      "problema": "Itens de defesa em profundidade: (1) `TestController` responde anonimamente em produção e nenhum `Program.cs` define `FallbackPolicy`, então qualquer action sem atributo nasce pública; (2) `UseSwagger/UseSwaggerUI` incondicionais no PeopleManagement; (3) CORS `AllowAnyOrigin` no PeopleManagement e origem dinâmica + credenciais em Development nos outros BCs; (4) `RequireHttpsMetadata=false` por `SslRequired: none`; (5) nginx do Flutter web sem CSP/X-Frame-Options/nosniff/HSTS e pdf.js de CDN sem `integrity`; (6) `ApplicationExceptionFilter` devolve `InnerException.Message` do Postgres ao cliente.",
+      "impacto": "Reconhecimento facilitado (Swagger, mensagens de banco), ausência de segunda barreira do navegador e risco de regressão (endpoint futuro sem atributo público).",
+      "correcao": [
+        "Remover `TestController`; nos três `Program.cs`, `options.FallbackPolicy = new AuthorizationPolicyBuilder().RequireAuthenticatedUser().Build()` (mantendo `[AllowAnonymous]` no health).",
+        "Condicionar Swagger a `IsDevelopment()` no PeopleManagement.",
+        "CORS: `WithOrigins(config)` no PeopleManagement; em BP/TM manter o ramo permissivo só quando `IsDevelopment()` E exigir `Cors:AllowedOrigins` fora dele (já é assim, apenas documentar).",
+        "`RequireHttpsMetadata = !IsDevelopment()` independentemente de `SslRequired`.",
+        "nginx: `add_header Content-Security-Policy`, `X-Frame-Options DENY`, `X-Content-Type-Options nosniff`, `Strict-Transport-Security`; `integrity`+`crossorigin` no pdf.js (ou servir localmente).",
+        "`ApplicationExceptionFilter`: devolver erro de domínio genérico e logar o `InnerException` no servidor."
+      ],
+      "criterios": [
+        "`GET /Test` retorna 404; action sem atributo em qualquer BC retorna 401 (teste).",
+        "`/swagger` retorna 404 em Production no PeopleManagement.",
+        "Resposta 400 de violação de constraint não contém nomes de tabela/coluna.",
+        "Cabeçalhos de segurança presentes na resposta do nginx (teste com curl)."
+      ]
+    },
+    {
+      "titulo": "[Segurança] Limpeza: código morto perigoso, nomes de recurso divergentes e campos de backfill",
+      "labels": [
+        "security",
+        "severity:low",
+        "tech-debt"
+      ],
+      "achados": [
+        "PRM-05",
+        "PRM-06",
+        "IDR-05",
+        "ISO-05"
+      ],
+      "problema": "Itens sem exploração hoje, mas que convidam a regressões: `ResolveDecidingUserId(Guid headerUserId)` no TenantManagement (fallback de identidade por header, já removido do BillPayment por ADR-007); `HangFireAuthorizationFilter` allow-all não referenciado; `[ProtectedResource(\"Archive\")]` vs `\"archive\"`; gates do Flutter com recurso divergente (`document_group`, `company:edit` para editar template); `RegisterTenantModel.Id` permite escolher o TenantId (backfill); nenhum DbContext tem `HasQueryFilter` por tenant; o teste de erosão do BillPayment só cobre rotas `api/v1`.",
+      "impacto": "Baixo. Risco de alguém 'religar' o fallback por header ou o filtro allow-all, e de divergência de nomes levar a afrouxar o servidor.",
+      "correcao": [
+        "Remover `ResolveDecidingUserId(Guid)` do TenantManagement e `HangFireAuthorizationFilter` do PeopleManagement.",
+        "Unificar o nome do recurso `archive` no `ArchiveController`; corrigir os gates do Flutter para os nomes do servidor.",
+        "Remover `RegisterTenantModel.Id` quando o backfill terminar (registrar prazo).",
+        "Avaliar `HasQueryFilter` por tenant nos DbContexts; ampliar o teste de erosão para todas as rotas mapeadas."
+      ],
+      "criterios": [
+        "Grep por `headerUserId` e `HangFireAuthorizationFilter` retorna vazio.",
+        "Botões de editar grupo de documento e de editar template aparecem para quem tem o escopo correto.",
+        "Teste de erosão falha para rota fora de `api/v1` sem `[ProtectedResource]`/`[AllowAnonymous]`."
+      ]
+    }
+  ]
+}
