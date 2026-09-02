@@ -79,19 +79,20 @@ Por isso: **Fase 1 = verificação e aprovação; Fase 2 = captura por e-mail; F
 
 ## Fase 3 — Agendamento e pagamento
 
-**Entrega:** o boleto aprovado é pago na data.
+**Entrega:** o boleto aprovado é pago na data. **Plano revisado em 2026-09-02** — a 3.0 original (subcontas criadas pela plataforma) foi substituída pelo modelo "conta trazida pelo tenant", já entregue em 2026-08-31 ([`adr/ADR-016`](adr/ADR-016-conta-asaas-trazida-pelo-tenant.md)); a política inicial de agendamento está no [`adr/ADR-017`](adr/ADR-017-politica-inicial-de-agendamento.md).
 
 | Sprint | Escopo |
 |---|---|
-| **3.0** | **Subcontas Asaas por tenant**: `POST /v3/accounts` para PF e PJ, chave de cada subconta no cofre, `PayerProfile.AsaasAccountRef`, estado de onboarding/KYC bloqueando agendamento |
-| **3.1** | `PaymentOrder`; portas `IBillPaymentGateway` + `IPixPaymentGateway`; adapters Asaas `POST /v3/bill` e `POST /v3/pix/qrCodes/pay` (ambos com agendamento) e `externalReference`; handler de `BillApprovedDomainEvent`; `Bill.LinkPaymentOrder` |
-| **3.2** | `IWorkingDayCalendar` (feriados bancários) + `PaymentSchedulingService` (dia útil, corte das 14h, `minimumScheduleDate`, boleto vencido); verificação de saldo e alerta de saldo insuficiente |
-| **3.3** | Webhook `BILL_*`: autenticação, idempotência por id de evento, `ApplyProviderStatus` monotônica, eventos que refletem no `Bill`; job de conciliação por polling |
-| **3.4** | Cancelamento de ordem; tratamento de `FAILED`/`REFUNDED`; reabertura para nova tentativa; fila operacional de falhas e alertas |
+| **3.0** 🚧 | **Medição e decisões**: sonda de pagamento em sandbox ([`tools/smoke-probe-payment.js`](tools/smoke-probe-payment.js) — travada em sandbox por construção); ADR-016/017 e atualização dos docs 04/05/07; decisão do provisionamento de webhook por conta e da mitigação de suspensão (ambas no ADR-016). **Sonda bloqueada em 2026-09-02**: a única chave no user-secrets não pertence ao sandbox (`invalid_environment`) — falta uma chave de sandbox para rodá-la |
+| **3.1** | `PaymentOrder` (PMO); portas `IBillPaymentGateway` + `IPixPaymentGateway` com **falha modelada** (molde `LookupResult`); handler de `BillApprovedDomainEvent` cria a ordem **sem chamada externa na transação**; **worker de submissão** serial (fila por coluna: reivindicação atômica, aluguel = backoff, teto, desistência visível; só submete na janela 9h–17h); idempotência por consulta ao `externalReference` antes de retentar; cliente HTTP próprio **sem retry**; `Bill.LinkPaymentOrder` por evento; `BillCancelled` cancela ordem cancelável |
+| **3.2** | `IWorkingDayCalendar` (feriados bancários como snapshot embutido, doutrina `IBankDirectory`) + `PaymentSchedulingService` (dia útil, corte das 14h, `minimumScheduleDate`, vencido = imediato, **mais a política do ADR-017**: 24h de antecedência, janela 9h–17h, deslize para o dia útil seguinte); **confirmação explícita para execução imediata/vencido** (na aprovação e na fila); verificação de saldo com a chave do tenant e alerta pelo canal da 2.7 |
+| **3.3** | Webhook `BILL_*` **fora de `api/v1`**: token por tenant em constant-time, idempotência por id de evento, `ApplyProviderStatus` monotônica, reflexo no `Bill`; provisionamento do webhook por conta no vínculo da chave; job de conciliação por polling **ligado por padrão**; **captura do comprovante** (`transactionReceiptUrl` → S3, `ReceiptStorageKey`, `GET /payments/{id}/receipt`) |
+| **3.4** | Cancelamento de ordem (`payment:cancel`); tratamento de `FAILED`/`REFUNDED`; reabertura para nova tentativa; fila operacional (`GET /payments?status=Failed` + `lastError`) e alertas; recurso `payment` no realm; endpoints de custo na policy `expensive`; roteiro de replay da dead-letter do outbox |
+| **3.5** | Cliente Flutter: filtros `Scheduled`/`Paid`/`Failed`, `scheduledFor` na lista, seção "Pagamento" no detalhe (datas pedida × efetiva, taxa, falha, **comprovante com visualização e download**), confirmação de pagamento imediato, ações sobre `Scheduled`/`Failed`, buckets de pagamento no painel, recurso `payment` nas permissões |
 
-**Critério de pronto:** em sandbox, um pagamento agendado percorre `Pending → BankProcessing → Paid` com o `Bill` refletindo cada estado, e um webhook reentregue em duplicidade não produz efeito nenhum.
+**Critério de pronto (condicionado à sonda 3.0):** se o sandbox processar pagamento, o original vale — `Pending → BankProcessing → Paid` com o `Bill` refletindo, webhook duplicado sem efeito — mais: timeout na criação não gera duas ordens, e duas aprovações concorrentes geram **uma** ordem. Se o sandbox não processar cobrança real (o que a medição da 1.0 sugere), a prova é por teste de integração com transporte falso + contrato de webhook medido, e a validação final — pagamento de valor ínfimo em produção, com whitelist de IP — é decisão explícita do usuário.
 
-**Riscos:** o irreversível mora aqui. Toda a fase roda em sandbox até haver teste de integração cobrindo idempotência de submissão (timeout na criação **não** pode gerar dois pagamentos) e ordenação de webhooks. O KYC das subcontas depende do cliente e pode atrasar o piloto — começar a 3.0 cedo.
+**Riscos:** o irreversível mora aqui; toda a fase roda em sandbox/stub até os testes de idempotência e ordenação. Novos: o sandbox pode não exercitar cobrança (medido na 1.0); o Pix não documenta idempotência (mitigação obrigatória no adapter); webhook por conta multiplica configuração (mitigado por provisionamento programático + conciliação por padrão); a política das 24h + janela empurra boleto aprovado em cima da hora para execução imediata mediante confirmação — fricção deliberada, reavaliar após o piloto. O risco de KYC saiu (a conta é do tenant).
 
 ---
 

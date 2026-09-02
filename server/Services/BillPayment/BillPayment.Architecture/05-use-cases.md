@@ -105,7 +105,7 @@ Na fase 1 o Bill fica em `Approved` sem execução. Na fase 3 o evento passa a c
 
 É pré-requisito do check `PayerMatch` e do degrau 1 do roteamento: sem cadastro fiscal não há contra o que comparar, e o check sai `Skipped`. `matchByCnpjRoot` só é aceito para `Company`.
 
-`POST /payer-profile/asaas-account` cria a subconta Asaas do tenant (fase 3) e grava o `AsaasAccountRef`.
+`PUT /payer-profile/asaas-account` (body `{apiKey}`) vincula a **conta Asaas do próprio tenant** — prova a chave no provedor, guarda no cofre e grava o `AsaasAccountRef`; `DELETE` desfaz. A chave e o ponteiro nunca voltam pela API; o `GET` expõe só `canSchedulePayments`. (O desenho anterior — a plataforma criar subconta — foi substituído, [`adr/ADR-016`](adr/ADR-016-conta-asaas-trazida-pelo-tenant.md).)
 
 ---
 
@@ -167,7 +167,7 @@ Sem endpoint próprio: consequência de UC-05. `BillApprovedDomainEvent` → han
 
 ### UC-14 — Receber notificação do provedor
 
-`POST /api/v1/webhooks/asaas/bills` — sem `tenantId` na rota (o provedor não o conhece); resolve pela `externalReference`. Autenticado por token, idempotente por id de evento. Ver [`04-integrations.md`](04-integrations.md).
+`POST /webhooks/asaas` — **fora de `api/v1`**, porque o provedor não conhece nosso `tenantId` e toda rota sob `api/v1` exige `{tenantId}` + `[ProtectedResource]` por teste de erosão; resolve pela `externalReference`. Autenticado por token por tenant, idempotente por id de evento. Ver [`04-integrations.md`](04-integrations.md).
 
 ### UC-15 — Conciliar ordens pendentes
 

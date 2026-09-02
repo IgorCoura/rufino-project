@@ -190,15 +190,19 @@ Projetado, medido e abandonado na sprint 2.6 — ver o degrau 2 acima. A chave `
 
 **A sigla `BLP.RTR` fica queimada de propósito**: não a reutilize para outro Aggregate, para que o achado continue greppável.
 
-## Subcontas Asaas
+## Conta Asaas por tenant
 
-Decidido: **uma subconta Asaas por tenant** (`POST /v3/accounts`), com a chave de API guardada no cofre e referenciada por `PayerProfile.AsaasAccountRef`.
+> **Revisado em 2026-09-02 ([`ADR-016`](adr/ADR-016-conta-asaas-trazida-pelo-tenant.md)).** O
+> desenho original desta seção — subconta criada pela plataforma via `POST /v3/accounts`, com
+> chave-plataforma e KYC acompanhado por nós — foi substituído em 2026-08-31 pela forma
+> implementada: **a conta é do tenant e é trazida por ele.**
 
-- Segregação de dinheiro entre clientes não depende do nosso código — é o provedor que garante.
-- Saldo, extrato, taxas e comprovantes já saem por tenant, sem rateio nosso.
-- PF abre subconta com CPF; PJ com CNPJ e `companyType`.
-- Custo: um passo de onboarding a mais (criar a subconta e o cliente completar o cadastro/KYC no Asaas antes de conseguir pagar). Entra como estado do tenant: `AsaasAccountRef` nulo ⇒ o tenant usa o sistema até `Approved`, mas não consegue agendar.
-- A chave da conta-plataforma (usada só para criar subcontas) é segredo de infraestrutura, separado das chaves de subconta.
+Decidido: **uma conta Asaas por tenant, colada pelo próprio tenant** (`PUT /payer-profile/asaas-account`), provada no provedor (`GET /v3/myAccount`), cifrada no cofre e referenciada por `PayerProfile.AsaasAccountRef` (`CredentialRef?`).
+
+- Segregação de dinheiro entre clientes não depende do nosso código — é o provedor que garante, e a conta nem passa por nós.
+- Saldo, extrato, taxas, comprovantes **e webhook** são por conta do tenant (consequências completas no ADR-016).
+- Sem chave vinculada ⇒ `CanSchedulePayments = false`: o tenant usa o sistema até `Approved`, mas não agenda. Estado do tenant, não erro.
+- Não existe chave-plataforma nem fallback global — a chave que consulta é a chave que paga, e um fallback pagaria a conta de um tenant com o dinheiro de outro.
 
 ## Regras invioláveis
 

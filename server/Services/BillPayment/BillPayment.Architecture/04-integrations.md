@@ -15,10 +15,9 @@ Toda integração entra por uma **porta no Domain** (`BillPayment.Domain/Ports/`
 Provedor escolhido para **as duas coisas**: consultar o título e pagar. Racional e alternativas descartadas em [`adr/ADR-001-asaas-como-provedor.md`](adr/ADR-001-asaas-como-provedor.md).
 
 - Base: `https://api.asaas.com/v3` (produção) / `https://api-sandbox.asaas.com/v3` (sandbox).
-- Autenticação: header `access_token` com a chave da conta.
-- **Uma subconta Asaas por tenant** (`POST /v3/accounts`), decidido em [`07-multitenancy-and-routing.md`](07-multitenancy-and-routing.md): a segregação de dinheiro entre clientes é garantida pelo provedor, não pelo nosso código, e saldo/extrato/taxas/comprovantes já saem separados. PF abre com CPF; PJ com CNPJ e `companyType`.
-- A chave de cada subconta fica cifrada e é referenciada por `PayerProfile.AsaasAccountRef`. A chave da **conta-plataforma** (usada só para criar subcontas) é segredo de infraestrutura, separado. Nenhuma das duas em `appsettings.json` — ver [`adr/ADR-009`](adr/ADR-009-cofre-de-segredos.md).
-- Onboarding: enquanto o cliente não conclui o cadastro/KYC no Asaas, `AsaasAccountRef` fica nulo e o tenant usa o sistema até `Approved`, mas não consegue agendar. Isso é estado do tenant, não erro.
+- Autenticação: header `access_token` com a chave da conta **do tenant**, resolvida por chamada (`AsaasClientProvider`).
+- **Uma conta Asaas por tenant, trazida pelo próprio tenant** ([`adr/ADR-016`](adr/ADR-016-conta-asaas-trazida-pelo-tenant.md), implementado em 2026-08-31): a chave entra por `PUT /payer-profile/asaas-account`, é provada no provedor (`GET /v3/myAccount`) e fica cifrada no cofre, referenciada por `PayerProfile.AsaasAccountRef` (`CredentialRef?`). **Não existe chave-plataforma nem fallback global.** Nada em `appsettings.json` — ver [`adr/ADR-009`](adr/ADR-009-cofre-de-segredos.md).
+- Sem chave vinculada, `CanSchedulePayments = false`: o tenant usa o sistema até `Approved`, mas não consegue agendar. Isso é estado do tenant, não erro — e a consulta oficial degrada para `Unavailable`.
 
 ### Consulta oficial — `POST /v3/bill/simulate` (fase 1)
 
@@ -113,19 +112,25 @@ Contrato no domínio: `IBankDirectory` (`Domain/Ports/`) — `IsKnown`, `Partici
 
 Eventos: `BILL_CREATED`, `BILL_PENDING`, `BILL_BANK_PROCESSING`, `BILL_PAID`, `BILL_CANCELLED`, `BILL_FAILED`, `BILL_REFUNDED`.
 
-Endpoint próprio, fora do padrão multi-tenant por rota (o Asaas não conhece nosso `tenantId`): resolve o tenant pela `externalReference`. Requisitos:
+**Um webhook por conta de tenant** ([`adr/ADR-016`](adr/ADR-016-conta-asaas-trazida-pelo-tenant.md)): não há mais conta-plataforma, então cada conta precisa do seu, provisionado **programaticamente com a chave do tenant** (`POST /v3/webhooks`) no vínculo da chave e conferido pela conciliação. O token de autenticação é gerado por nós, por tenant, e guardado no cofre.
+
+Endpoint próprio, **fora de `api/v1`** — o Asaas não conhece nosso `tenantId`, e toda rota sob `api/v1` exige `{tenantId}` + `[ProtectedResource]` por teste de erosão (`EndpointProtectionTests`): resolve o tenant pela `externalReference`. Requisitos:
 
 1. **Autenticação** do webhook por token de acesso configurado no Asaas, validado em constant-time.
 2. **Idempotência**: o `id` do evento entra em `processed_event_log` antes do processamento.
 3. **Fora de ordem**: `PaymentOrder.ApplyProviderStatus` é monotônica — não regride de `Paid`.
 4. **Fallback por polling**: job periódico reconcilia ordens em `Pending`/`BankProcessing` há mais de N horas via `GET /v3/bill/{id}`. Webhook perdido não pode deixar ordem órfã.
 
+### Comprovante (fase 3)
+
+`GET /v3/bill/{id}` devolve **`transactionReceiptUrl`** ("Comprovante do pagamento de conta" — confirmado na documentação em 2026-09-02). Quando a ordem chega a `Paid`, um passo assíncrono baixa o comprovante com a chave do tenant e o grava no `IAttachmentStorage` (chave prefixada por tenant), carimbando `ReceiptStorageKey` na ordem. **O arquivo é a evidência, não a URL**: a URL do provedor é credencial ao portador e pode expirar — nunca entra em log (só o host) e não é o que a nossa API devolve. O que a sonda de sandbox ainda precisa medir: se a URL exige autenticação, se serve PDF ou página, e o equivalente no trilho Pix.
+
 ### Saldo
 
-O pague-contas do Asaas debita do **saldo da conta**. Consequências operacionais para a fase 3, a confirmar em sandbox antes da sprint 3.2:
+O pague-contas do Asaas debita do **saldo da conta do tenant** (a decisão "conta por tenant" está fechada no [`ADR-016`](adr/ADR-016-conta-asaas-trazida-pelo-tenant.md)). Consequências operacionais para a fase 3, a confirmar em sandbox antes da sprint 3.2:
 
-- Verificar saldo antes de agendar e alertar quando insuficiente (falha de pagamento por saldo é falha operacional, não de domínio).
-- Definir se cada tenant tem conta Asaas própria (subconta white-label) ou se há conta única com segregação lógica. **Recomendação: conta por tenant** — segregação de dinheiro entre clientes não deve depender de código nosso.
+- Verificar saldo (`GET /v3/finance/balance`, com a chave do tenant) antes de submeter e alertar quando insuficiente pelo canal de notificação da 2.7 (falha de pagamento por saldo é falha operacional, não de domínio).
+- Aporte de saldo é operação do cliente na conta dele, fora do escopo.
 
 ---
 

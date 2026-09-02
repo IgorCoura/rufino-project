@@ -41,6 +41,8 @@ Design rationale do Bounded Context **BillPayment**: captura de boletos (e-mail 
 | [`ADR-013`](adr/ADR-013-gemini-atras-de-porta-agnostica.md) | Gemini como provedor, atrás de porta agnóstica; nenhum termo de IA cruza a fronteira do BC |
 | [`ADR-014`](adr/ADR-014-expectativa-e-lembretes.md) | O sistema sabe o que espera receber e avisa quando não recebeu — rede de segurança obrigatória sem DDA |
 | [`ADR-015`](adr/ADR-015-risco-classificado-humano-decide.md) | Fim da rejeição automática: a validação classifica Seguro/Atenção/Perigo, e quem decide é sempre o humano — Perigo exige aceite explícito gravado na trilha |
+| [`ADR-016`](adr/ADR-016-conta-asaas-trazida-pelo-tenant.md) | A conta Asaas é do tenant, trazida e provada por ele; sem chave-plataforma, sem fallback — webhook, saldo e whitelist passam a ser por conta |
+| [`ADR-017`](adr/ADR-017-politica-inicial-de-agendamento.md) | Política inicial de agendamento: 24h de antecedência, submissão só das 9h às 17h, e boleto vencido exige confirmação explícita gravada na trilha |
 
 ## Como ler
 
