@@ -7,7 +7,9 @@ using BillPayment.Domain.SharedKernel;
 using BillPayment.Infra.Persistence;
 using Microsoft.EntityFrameworkCore;
 
-internal sealed class PaymentQueries(BillPaymentDbContext context) : IPaymentQueries
+internal sealed class PaymentQueries(
+    BillPaymentDbContext context,
+    Domain.Ports.IAttachmentStorage storage) : IPaymentQueries
 {
     public const int DEFAULT_LIMIT = 50;
     public const int MAX_LIMIT = 200;
@@ -88,6 +90,31 @@ internal sealed class PaymentQueries(BillPaymentDbContext context) : IPaymentQue
             .FirstOrDefaultAsync(cancellationToken);
 
         return order is null ? null : ToDto(order);
+    }
+
+    public async Task<ArtifactDownload?> GetReceiptAsync(
+        Guid tenantId,
+        Guid paymentOrderId,
+        CancellationToken cancellationToken = default)
+    {
+        var tenant = TenantId.From(tenantId);
+        var id = PaymentOrderId.From(paymentOrderId);
+
+        var receipt = await context.PaymentOrders
+            .AsNoTracking()
+            .Where(o => o.TenantId == tenant && o.Id == id)
+            .Select(o => new { o.ReceiptStorageKey })
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (receipt is null || string.IsNullOrEmpty(receipt.ReceiptStorageKey))
+            return null;
+
+        // Comprovante não é cifrado — vem do provedor, não da caixa — então serve direto do
+        // fluxo do balde, sem passar pelo UnlockedArtifactReader.
+        var artifact = await storage.OpenAsync(tenant, receipt.ReceiptStorageKey, cancellationToken);
+        return artifact is null
+            ? null
+            : ArtifactDownload.From(artifact, null, $"comprovante-{paymentOrderId}");
     }
 
     private static PaymentOrderDto ToDto(PaymentOrder order)

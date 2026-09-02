@@ -164,6 +164,24 @@ public sealed class ReflectPaymentFailedOnBillHandler(
     }
 }
 
+/// <summary>
+/// Pago → busca e guarda o comprovante. O arquivo é a evidência; falha transiente sobe para a
+/// reentrega do outbox retentar com backoff, e "sem comprovante" fica registrado, não escondido.
+/// </summary>
+public sealed class CaptureReceiptOnPaymentPaidHandler(IMediator mediator)
+    : IDomainEventHandler<PaymentOrderPaidDomainEvent>
+{
+    public async Task HandleAsync(
+        PaymentOrderPaidDomainEvent domainEvent, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(domainEvent);
+
+        await mediator.Send(
+            new CapturePaymentReceiptCommand(domainEvent.TenantId.Value, domainEvent.PaymentOrderId.Value),
+            cancellationToken);
+    }
+}
+
 /// <summary>Ordem cancelada depois de agendada → boleto <c>Cancelled</c>.</summary>
 public sealed class ReflectPaymentCancelledOnBillHandler(IMediator mediator)
     : IDomainEventHandler<PaymentOrderCancelledDomainEvent>

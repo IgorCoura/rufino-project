@@ -96,6 +96,7 @@ public sealed class IntegrationTestWebAppFactory : WebApplicationFactory<Program
         // menos pode rodar solta numa suíte: reivindicaria ordens que os testes acabaram de
         // semear e contaria tentativas. Quem exercita a fila chama a query/command direto.
         builder.UseSetting("PaymentSubmission:Enabled", "false");
+        builder.UseSetting("PaymentReconciliation:Enabled", "false");
 
         builder.UseEnvironment("Development");
 
@@ -247,6 +248,16 @@ public sealed class IntegrationTestWebAppFactory : WebApplicationFactory<Program
             services.RemoveAll<IPixPaymentGateway>();
             services.AddSingleton<IBillPaymentGateway>(sp => sp.GetRequiredService<FakePaymentGateways>());
             services.AddSingleton<IPixPaymentGateway>(sp => sp.GetRequiredService<FakePaymentGateways>());
+
+            // O comprovante e o balde: o fluxo Paid → comprovante guardado precisa de um
+            // armazenamento que funcione — o não-configurado da fábrica compartilhada falha alto.
+            services.AddSingleton<FakeReceiptFetcher>();
+            services.RemoveAll<IPaymentReceiptFetcher>();
+            services.AddSingleton<IPaymentReceiptFetcher>(sp => sp.GetRequiredService<FakeReceiptFetcher>());
+
+            services.AddSingleton<InMemoryAttachmentStorage>();
+            services.RemoveAll<IAttachmentStorage>();
+            services.AddSingleton<IAttachmentStorage>(sp => sp.GetRequiredService<InMemoryAttachmentStorage>());
         }));
 
     /// <summary>

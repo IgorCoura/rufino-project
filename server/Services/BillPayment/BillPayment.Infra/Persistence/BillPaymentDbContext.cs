@@ -44,6 +44,9 @@ public sealed class BillPaymentDbContext : DbContext, IUnitOfWork
     public DbSet<ProcessedEventLog> ProcessedEventLogs => Set<ProcessedEventLog>();
     public DbSet<ClientRequest> ClientRequests => Set<ClientRequest>();
 
+    /// <summary>Idempotência do webhook de pagamento — um evento do provedor processa uma vez.</summary>
+    public DbSet<PaymentWebhookEvent> PaymentWebhookEvents => Set<PaymentWebhookEvent>();
+
     /// <summary>
     /// Credenciais de tenant cifradas. Infraestrutura, sem Aggregate — escrita e leitura só
     /// pelo <c>ISecretVault</c>, nunca por repositório nem por query.

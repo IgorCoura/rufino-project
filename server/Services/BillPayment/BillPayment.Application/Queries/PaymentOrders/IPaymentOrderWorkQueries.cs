@@ -32,4 +32,13 @@ public interface IPaymentOrderWorkQueries
     Task<IReadOnlyList<AccountHeldPaymentOrder>> ListAccountHeldAsync(
         int limit,
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// As ordens que esperam desfecho do provedor sem notícia há tempo demais — o alvo da
+    /// conciliação por polling. Sem lock, pela mesma razão: a mutação é do comando, sob <c>xmin</c>.
+    /// </summary>
+    Task<IReadOnlyList<PendingPaymentSubmission>> ListStaleAwaitingProviderAsync(
+        DateTimeOffset syncedBefore,
+        int limit,
+        CancellationToken cancellationToken = default);
 }

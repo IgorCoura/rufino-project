@@ -65,6 +65,26 @@ public sealed class PaymentsController(
     }
 
     /// <summary>
+    /// O comprovante do pagamento — o arquivo guardado no balde, nunca a URL do provedor.
+    /// Negativas colapsadas em 404, como todo endpoint de artefato.
+    /// </summary>
+    [HttpGet("{id:guid}/receipt")]
+    [ProtectedResource("bill", "view")]
+    public async Task<IActionResult> GetReceipt(
+        [FromRoute] Guid tenantId,
+        [FromRoute] Guid id,
+        CancellationToken cancellationToken)
+    {
+        var receipt = await queries.GetReceiptAsync(tenantId, id, cancellationToken);
+        if (receipt is null)
+            return NotFound();
+
+        ArtifactAccessLog(tenantId, "payment-receipt", id, receipt.Unlocked);
+
+        return File(receipt.Content, receipt.ContentType, receipt.FileName, enableRangeProcessing: true);
+    }
+
+    /// <summary>
     /// Cancela a ordem — a janela de reação da política das 24h (ADR-017). Depois da submissão
     /// o provedor decide se ainda dá; recusa dele sai como 409 com o motivo.
     /// </summary>

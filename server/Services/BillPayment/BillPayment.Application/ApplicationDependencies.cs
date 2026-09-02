@@ -86,6 +86,7 @@ public static class ApplicationDependencies
         services.AddScoped<IDomainEventHandler<BillCancelledDomainEvent>, CancelPaymentOrderOnBillCancelledHandler>();
         services.AddScoped<IDomainEventHandler<PaymentOrderScheduledDomainEvent>, LinkBillOnPaymentOrderScheduledHandler>();
         services.AddScoped<IDomainEventHandler<PaymentOrderPaidDomainEvent>, ReflectPaymentPaidOnBillHandler>();
+        services.AddScoped<IDomainEventHandler<PaymentOrderPaidDomainEvent>, CaptureReceiptOnPaymentPaidHandler>();
         services.AddScoped<IDomainEventHandler<PaymentOrderFailedDomainEvent>, ReflectPaymentFailedOnBillHandler>();
         services.AddScoped<IDomainEventHandler<PaymentOrderCancelledDomainEvent>, ReflectPaymentCancelledOnBillHandler>();
         services.AddScoped<IDomainEventHandler<PaymentOrderHeldForConfirmationDomainEvent>, NotifyPaymentAwaitingConfirmationHandler>();

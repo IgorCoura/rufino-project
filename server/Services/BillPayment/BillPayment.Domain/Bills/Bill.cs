@@ -617,7 +617,11 @@ public sealed class Bill : AggregateRoot<BillId>
     /// </summary>
     public void ReopenForApproval(DateTime occurredAt)
     {
-        EnsurePaymentTransition(BillStatus.AwaitingApproval);
+        // Só Failed reabre. A matriz também admite Approved → AwaitingApproval (é a aresta da
+        // revalidação), mas reabrir um Approved por aqui descartaria uma aprovação vigente sem
+        // motivo de pagamento — quem quer desfazer uma aprovação revalida ou cancela.
+        if (Status != BillStatus.Failed)
+            throw BillErrors.PaymentTransitionNotAllowed(Status.Name, BillStatus.AwaitingApproval.Name);
 
         PaymentOrderId = null;
         ScheduledFor = null;

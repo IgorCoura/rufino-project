@@ -20,4 +20,13 @@ public interface IPaymentQueries
         Guid tenantId,
         Guid billId,
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// O comprovante guardado, pronto para servir. <c>null</c> — colapsado em 404 na borda —
+    /// para ordem inexistente, de outro tenant, ou ainda sem comprovante.
+    /// </summary>
+    Task<Queries.ArtifactDownload?> GetReceiptAsync(
+        Guid tenantId,
+        Guid paymentOrderId,
+        CancellationToken cancellationToken = default);
 }

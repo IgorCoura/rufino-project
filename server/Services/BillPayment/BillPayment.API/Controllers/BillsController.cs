@@ -307,6 +307,29 @@ public sealed class BillsController(
     }
 
     /// <summary>
+    /// Devolve um boleto de pagamento FALHADO à fila de decisão (fase 3). A nova tentativa é
+    /// uma nova aprovação e uma nova ordem (ADR-002) — por isso o escopo é o de quem aprova.
+    /// </summary>
+    [HttpPost("{id:guid}/reopen")]
+    [ProtectedResource("bill", "approve")]
+    public async Task<ActionResult<ReopenBillResponse>> Reopen(
+        [FromRoute] Guid tenantId,
+        [FromRoute] Guid id,
+        [FromHeader(Name = "x-requestid")] Guid requestId,
+        CancellationToken cancellationToken)
+    {
+        var command = new ReopenBillCommand(tenantId, id);
+        var identified = new IdentifiedCommand<ReopenBillCommand, ReopenBillResponse>(
+            command, EnsureRequestId(requestId));
+
+        SendingCommandLog(id, command, identified.Id);
+        var result = await mediator.Send(identified, cancellationToken);
+        CommandResultLog(result, id, command, identified.Id);
+
+        return OkResponse(result);
+    }
+
+    /// <summary>
     /// Resolve a alçada de risco de quem aprova: uma pergunta UMA pelos três escopos, e o maior
     /// concedido vira a alçada (hierárquica — cobre os níveis abaixo). Sem nenhum, a alçada é
     /// Verde, que o <c>bill:approve</c> da porta de entrada já garante. Quem COMPARA alçada com

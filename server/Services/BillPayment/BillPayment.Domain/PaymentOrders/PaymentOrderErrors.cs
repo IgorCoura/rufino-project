@@ -236,6 +236,22 @@ public static class PaymentOrderErrors
             sourcePath: BuildSourcePath(filePath, memberName, lineNumber),
             category: DomainErrorCategory.Conflict);
 
+    /// <summary>
+    /// O comprovante não pôde ser baixado agora. <strong>Lançada para o outbox retentar</strong>
+    /// — mesma família do PMO18: o sinal descreve a rede, não o pagamento.
+    /// </summary>
+    public static DomainException ReceiptUnavailable(
+        string? reasonCode,
+        [CallerFilePath] string filePath = "",
+        [CallerMemberName] string memberName = "",
+        [CallerLineNumber] int lineNumber = 0)
+        => new(
+            id: $"{AGGREGATE_PREFIX}21",
+            messageTemplate: "O comprovante não pôde ser baixado agora ({0}). Nova tentativa em seguida.",
+            parameters: new object[] { reasonCode ?? "provider_unavailable" },
+            sourcePath: BuildSourcePath(filePath, memberName, lineNumber),
+            category: DomainErrorCategory.Conflict);
+
     internal static DomainException SnapshotRequired(
         [CallerFilePath] string filePath = "",
         [CallerMemberName] string memberName = "",

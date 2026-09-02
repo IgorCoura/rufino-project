@@ -81,6 +81,18 @@ builder.Services.Configure<PaymentSubmissionOptions>(
 if (builder.Configuration.GetValue<bool?>($"{PaymentSubmissionOptions.SectionName}:Enabled") ?? true)
     builder.Services.AddHostedService<PaymentSubmissionBackgroundService>();
 
+// A conciliação por polling — a rede de segurança do webhook. Ligada por padrão: o modo de
+// falha do webhook perdido é dinheiro parado em silêncio.
+builder.Services.Configure<PaymentReconciliationOptions>(
+    builder.Configuration.GetSection(PaymentReconciliationOptions.SectionName));
+
+if (builder.Configuration.GetValue<bool?>($"{PaymentReconciliationOptions.SectionName}:Enabled") ?? true)
+    builder.Services.AddHostedService<PaymentReconciliationBackgroundService>();
+
+// O token do webhook do provedor — sem ele o endpoint responde 404, de propósito.
+builder.Services.Configure<BillPayment.API.Controllers.PaymentWebhookOptions>(
+    builder.Configuration.GetSection(BillPayment.API.Controllers.PaymentWebhookOptions.SectionName));
+
 var app = builder.Build();
 
 // Migrações, não EnsureCreatedAsync. A diferença não é estilística: EnsureCreated decide por

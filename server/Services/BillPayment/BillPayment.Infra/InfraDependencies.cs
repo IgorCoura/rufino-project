@@ -27,6 +27,7 @@ using BillPayment.Infra.Outbox;
 using BillPayment.Infra.Persistence;
 using BillPayment.Infra.Repositories;
 using BillPayment.Domain.PaymentOrders;
+using BillPayment.Infra.Payments;
 using BillPayment.Infra.Secrets;
 using BillPayment.Infra.Storage;
 using BillPayment.Infra.WorkingDays;
@@ -52,6 +53,7 @@ public static class InfraDependencies
 
         services.AddScoped<IUnitOfWork>(sp => sp.GetRequiredService<BillPaymentDbContext>());
         services.AddScoped<IRequestManager, RequestManager>();
+        services.AddScoped<IPaymentWebhookLedger, PaymentWebhookLedger>();
 
         // Um repositório por Aggregate Root. Entidades internas são acessadas pela raiz.
         services.AddScoped<ITrustedOriginRepository, TrustedOriginRepository>();
@@ -400,6 +402,15 @@ public static class InfraDependencies
         // é candidata a pagamento duplicado — a retentativa é da fila, que confere por
         // externalReference antes de reenviar (fase 3).
         services.AddHttpClient(AsaasHttp.PAYMENT_CLIENT_NAME, ConfigureAsaasClient(options));
+
+        // O comprovante sai por URL absoluta (capability URL do provedor), então o cliente não
+        // tem BaseAddress. Sem retry: a retentativa é da reentrega do outbox, com backoff.
+        services.AddHttpClient(HttpPaymentReceiptFetcher.CLIENT_NAME, http =>
+        {
+            http.Timeout = TimeSpan.FromSeconds(options.TimeoutSeconds);
+            http.DefaultRequestHeaders.UserAgent.ParseAdd(AsaasOptions.USER_AGENT);
+        });
+        services.AddScoped<IPaymentReceiptFetcher, HttpPaymentReceiptFetcher>();
 
         // Scoped porque o cofre (ISecretVault) é scoped — vive sobre o DbContext da requisição.
         services.AddScoped<AsaasClientProvider>();

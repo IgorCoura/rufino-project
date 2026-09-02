@@ -96,6 +96,33 @@ internal sealed class PaymentOrderWorkQueries(BillPaymentDbContext context, Time
         return [.. rows.Select(o => new AccountHeldPaymentOrder(o.TenantId.Value, o.Id.Value))];
     }
 
+    public async Task<IReadOnlyList<PendingPaymentSubmission>> ListStaleAwaitingProviderAsync(
+        DateTimeOffset syncedBefore,
+        int limit,
+        CancellationToken cancellationToken = default)
+    {
+        if (limit <= 0)
+            return [];
+
+        var cutoff = syncedBefore.UtcDateTime;
+
+        // Ordem sem sincronização nenhuma usa o UpdatedAt como referência: acabou de ser
+        // submetida e ainda não teve webhook — só entra quando também envelheceu.
+        var rows = await context.PaymentOrders
+            .AsNoTracking()
+            .Where(o => (o.Status == PaymentOrderStatus.Pending || o.Status == PaymentOrderStatus.BankProcessing)
+                && (o.LastProviderSyncAt == null
+                    ? o.UpdatedAt < cutoff
+                    : o.LastProviderSyncAt < syncedBefore))
+            .OrderBy(o => o.LastProviderSyncAt)
+            .ThenBy(o => o.Id)
+            .Take(limit)
+            .Select(o => new { o.TenantId, o.Id })
+            .ToListAsync(cancellationToken);
+
+        return [.. rows.Select(o => new PendingPaymentSubmission(o.TenantId.Value, o.Id.Value))];
+    }
+
     private static void Bind(DbCommand command, string name, object value)
     {
         var parameter = command.CreateParameter();
