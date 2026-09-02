@@ -64,6 +64,10 @@ namespace BillPayment.Infra.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("payee_id");
 
+                    b.Property<Guid?>("PaymentOrderId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("payment_order_id");
+
                     b.Property<string>("PixLookup")
                         .HasColumnType("jsonb")
                         .HasColumnName("pix_lookup");
@@ -732,6 +736,115 @@ namespace BillPayment.Infra.Migrations
                         .HasDatabaseName("ix_payer_profiles_tenant");
 
                     b.ToTable("payer_profiles", "bill_payment");
+                });
+
+            modelBuilder.Entity("BillPayment.Domain.PaymentOrders.PaymentOrder", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("BillId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("bill_id");
+
+                    b.Property<DateTime?>("ConfirmedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("confirmed_at");
+
+                    b.Property<Guid?>("ConfirmedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("confirmed_by");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<DateOnly?>("EffectiveScheduleDate")
+                        .HasColumnType("date")
+                        .HasColumnName("effective_schedule_date");
+
+                    b.Property<string>("FailReasons")
+                        .IsRequired()
+                        .HasColumnType("jsonb")
+                        .HasColumnName("fail_reasons");
+
+                    b.Property<int>("Hold")
+                        .HasColumnType("integer")
+                        .HasColumnName("hold");
+
+                    b.Property<string>("LastError")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("last_error");
+
+                    b.Property<DateTimeOffset?>("LastProviderSyncAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("last_provider_sync_at");
+
+                    b.Property<DateOnly?>("PaidAt")
+                        .HasColumnType("date")
+                        .HasColumnName("paid_at");
+
+                    b.Property<string>("ProviderOrderId")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("provider_order_id");
+
+                    b.Property<int>("Rail")
+                        .HasColumnType("integer")
+                        .HasColumnName("rail");
+
+                    b.Property<string>("ReceiptStorageKey")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("receipt_storage_key");
+
+                    b.Property<DateOnly>("RequestedScheduleDate")
+                        .HasColumnType("date")
+                        .HasColumnName("requested_schedule_date");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("integer")
+                        .HasColumnName("status");
+
+                    b.Property<int>("SubmissionAttempts")
+                        .HasColumnType("integer")
+                        .HasColumnName("submission_attempts");
+
+                    b.Property<DateTime?>("SubmissionLeaseExpiresAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("submission_lease_expires_at");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<uint>("xmin")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BillId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_payment_orders_bill_active")
+                        .HasFilter("\"status\" NOT IN (5, 6, 7)");
+
+                    b.HasIndex("TenantId", "CreatedAt")
+                        .HasDatabaseName("ix_payment_orders_tenant_created");
+
+                    b.HasIndex("Status", "Hold", "SubmissionLeaseExpiresAt")
+                        .HasDatabaseName("ix_payment_orders_submission_queue")
+                        .HasFilter("status = 1");
+
+                    b.ToTable("payment_orders", "bill_payment");
                 });
 
             modelBuilder.Entity("BillPayment.Domain.Retention.CaptureRetentionPolicy", b =>
@@ -1407,6 +1520,57 @@ namespace BillPayment.Infra.Migrations
                         });
 
                     b.Navigation("Cycles");
+                });
+
+            modelBuilder.Entity("BillPayment.Domain.PaymentOrders.PaymentOrder", b =>
+                {
+                    b.OwnsOne("BillPayment.Domain.SharedKernel.Money", "Amount", b1 =>
+                        {
+                            b1.Property<Guid>("PaymentOrderId")
+                                .HasColumnType("uuid");
+
+                            b1.Property<decimal>("Amount")
+                                .HasPrecision(18, 2)
+                                .HasColumnType("numeric(18,2)")
+                                .HasColumnName("amount");
+
+                            b1.Property<int>("Currency")
+                                .HasColumnType("integer")
+                                .HasColumnName("amount_currency");
+
+                            b1.HasKey("PaymentOrderId");
+
+                            b1.ToTable("payment_orders", "bill_payment");
+
+                            b1.WithOwner()
+                                .HasForeignKey("PaymentOrderId");
+                        });
+
+                    b.OwnsOne("BillPayment.Domain.SharedKernel.Money", "Fee", b1 =>
+                        {
+                            b1.Property<Guid>("PaymentOrderId")
+                                .HasColumnType("uuid");
+
+                            b1.Property<decimal>("Amount")
+                                .HasPrecision(18, 2)
+                                .HasColumnType("numeric(18,2)")
+                                .HasColumnName("fee");
+
+                            b1.Property<int>("Currency")
+                                .HasColumnType("integer")
+                                .HasColumnName("fee_currency");
+
+                            b1.HasKey("PaymentOrderId");
+
+                            b1.ToTable("payment_orders", "bill_payment");
+
+                            b1.WithOwner()
+                                .HasForeignKey("PaymentOrderId");
+                        });
+
+                    b.Navigation("Amount");
+
+                    b.Navigation("Fee");
                 });
 #pragma warning restore 612, 618
         }

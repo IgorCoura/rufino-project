@@ -40,8 +40,19 @@ internal sealed class AsaasClientProvider(
     /// para o <c>Unavailable</c> do seu tipo de resultado — ambos os motivos são retentáveis
     /// do ponto de vista do documento: nada foi aprendido sobre ele.
     /// </summary>
+    public Task<(HttpClient? Client, string? ReasonCode, string? Message)> CreateForAsync(
+        CredentialRef? credential,
+        CancellationToken cancellationToken)
+        => CreateForAsync(credential, AsaasHttp.LOOKUP_CLIENT_NAME, cancellationToken);
+
+    /// <summary>
+    /// A variante que escolhe o cliente nomeado — é por aqui que o gateway de pagamento pega o
+    /// cliente SEM retry (<see cref="AsaasHttp.PAYMENT_CLIENT_NAME"/>), com a mesma resolução
+    /// de credencial do tenant.
+    /// </summary>
     public async Task<(HttpClient? Client, string? ReasonCode, string? Message)> CreateForAsync(
         CredentialRef? credential,
+        string clientName,
         CancellationToken cancellationToken)
     {
         if (credential is null)
@@ -59,7 +70,7 @@ internal sealed class AsaasClientProvider(
             return (null, CREDENTIAL_UNRESOLVABLE, CREDENTIAL_UNRESOLVABLE_MESSAGE);
         }
 
-        var client = httpClientFactory.CreateClient(AsaasHttp.LOOKUP_CLIENT_NAME);
+        var client = httpClientFactory.CreateClient(clientName);
         client.DefaultRequestHeaders.Add("access_token", apiKey);
         return (client, null, null);
     }

@@ -46,7 +46,10 @@ public sealed class BillStatus : Enumeration
             _ when this == Captured && (target == AwaitingApproval || target == Rejected || target == Cancelled) => true,
             _ when this == Rejected && (target == AwaitingApproval || target == Cancelled) => true,
             _ when this == AwaitingApproval && (target == Approved || target == Denied || target == Rejected || target == Cancelled) => true,
-            _ when this == Approved && (target == Scheduled || target == AwaitingApproval || target == Rejected || target == Cancelled) => true,
+            // Approved → Failed: a SUBMISSÃO foi recusada pelo provedor antes de agendar. Sem
+            // esta aresta o boleto ficaria "aprovado, agendamento em processamento" para sempre
+            // — a falha visível na ordem e invisível no espelho (fase 3, 2026-09-02).
+            _ when this == Approved && (target == Scheduled || target == Failed || target == AwaitingApproval || target == Rejected || target == Cancelled) => true,
             _ when this == Scheduled && (target == Paid || target == Failed || target == Cancelled) => true,
             _ when this == Failed && (target == AwaitingApproval || target == Cancelled) => true,
             _ => false,

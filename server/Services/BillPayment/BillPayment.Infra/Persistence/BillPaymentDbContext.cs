@@ -8,6 +8,7 @@ using BillPayment.Domain.CapturedMessages;
 using BillPayment.Domain.CaptureSources;
 using BillPayment.Domain.Payees;
 using BillPayment.Domain.PayerProfiles;
+using BillPayment.Domain.PaymentOrders;
 using BillPayment.Domain.Retention;
 using BillPayment.Domain.SeedWork;
 using BillPayment.Domain.TrustedOrigins;
@@ -34,6 +35,9 @@ public sealed class BillPaymentDbContext : DbContext, IUnitOfWork
     /// <summary>Para quem os avisos de expectativa vão, por tenant.</summary>
     public DbSet<TenantNotificationSettings> TenantNotificationSettings
         => Set<TenantNotificationSettings>();
+
+    /// <summary>A execução financeira — fonte de verdade do pagamento (ADR-002).</summary>
+    public DbSet<PaymentOrder> PaymentOrders => Set<PaymentOrder>();
 
     public DbSet<OutboxMessage> OutboxMessages => Set<OutboxMessage>();
     public DbSet<OutboxDeadLetter> OutboxDeadLetters => Set<OutboxDeadLetter>();
@@ -124,6 +128,10 @@ public sealed class BillPaymentDbContext : DbContext, IUnitOfWork
                 // no agregado e descartados no fim do escopo — exatamente a falha silenciosa que
                 // o comentário acima adverte.
                 AggregateRoot<CaptureItemId> aggregate => aggregate.PullDomainEvents(),
+
+                // A PaymentOrder emite os eventos que o Bill espelha (ADR-002) — sem este case,
+                // um pagamento aceito nunca viraria Scheduled no boleto, em silêncio.
+                AggregateRoot<PaymentOrderId> aggregate => aggregate.PullDomainEvents(),
                 _ => null,
             };
 

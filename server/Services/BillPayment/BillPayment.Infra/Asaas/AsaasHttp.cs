@@ -29,6 +29,13 @@ internal static class AsaasHttp
 {
     public const string LOOKUP_CLIENT_NAME = "asaas-lookup";
 
+    /// <summary>
+    /// O cliente de pagamento é OUTRO, e a diferença é a resiliência: este <strong>não
+    /// retenta</strong>. Uma retentativa automática numa submissão é candidata a pagamento
+    /// duplicado — a retentativa é da fila, e começa conferindo por <c>externalReference</c>.
+    /// </summary>
+    public const string PAYMENT_CLIENT_NAME = "asaas-payment";
+
     public static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web)
     {
         PropertyNameCaseInsensitive = true,
@@ -66,6 +73,44 @@ internal static class AsaasHttp
         {
             // Corpo que não é o contrato esperado é fato sobre a resposta, não sobre a rede:
             // retentar devolveria o mesmo lixo.
+            return (null, new AsaasFailure("malformed_response", null, IsRetryable: false));
+        }
+        catch (Exception ex) when (IsTransport(ex, cancellationToken))
+        {
+            logger.LogWarning(ex, "Consulta ao Asaas em {Path} não obteve resposta", path);
+            return (null, new AsaasFailure(TransportReason(ex), ex.Message, IsRetryable: true));
+        }
+    }
+
+    public static async Task<(TResponse? Body, AsaasFailure? Failure)> GetAsync<TResponse>(
+        this HttpClient http,
+        string path,
+        ILogger logger,
+        CancellationToken cancellationToken)
+        where TResponse : class
+    {
+        try
+        {
+            using var response = await http.GetAsync(new Uri(path, UriKind.Relative), cancellationToken);
+            var content = await response.Content.ReadAsStringAsync(cancellationToken);
+
+            if (response.IsSuccessStatusCode)
+            {
+                var parsed = JsonSerializer.Deserialize<TResponse>(content, Json);
+                return parsed is null
+                    ? (null, new AsaasFailure("empty_response", null, IsRetryable: false))
+                    : (parsed, null);
+            }
+
+            var failure = Classify((int)response.StatusCode, content);
+            logger.LogWarning(
+                "Consulta ao Asaas em {Path} respondeu {Status}: {ReasonCode}",
+                path, (int)response.StatusCode, failure.ReasonCode);
+
+            return (null, failure);
+        }
+        catch (JsonException)
+        {
             return (null, new AsaasFailure("malformed_response", null, IsRetryable: false));
         }
         catch (Exception ex) when (IsTransport(ex, cancellationToken))

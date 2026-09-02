@@ -55,7 +55,7 @@ public sealed class ApproveBillTests : BaseIntegrationTest, IDisposable
     {
         var billId = await ImportAndValidateAsync();
 
-        var response = await PostAsync($"{billId}/approve", new ApproveBillRequest(ScheduleDate(), "ok"));
+        var response = await PostAsync($"{billId}/approve", new ApproveBillRequest(ScheduleDate(), "ok", AcknowledgeImmediateExecution: true));
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
 
@@ -79,7 +79,7 @@ public sealed class ApproveBillTests : BaseIntegrationTest, IDisposable
         var billId = await ImportAndValidateAsync();
         Assert.NotNull((await LoadAsync(billId)).PayeeId);
 
-        var response = await PostAsync($"{billId}/approve", new ApproveBillRequest(ScheduleDate(), null));
+        var response = await PostAsync($"{billId}/approve", new ApproveBillRequest(ScheduleDate(), null, AcknowledgeImmediateExecution: true));
         response.EnsureSuccessStatusCode();
         await DrainOutboxAsync();
 
@@ -115,11 +115,11 @@ public sealed class ApproveBillTests : BaseIntegrationTest, IDisposable
         Assert.Same(RiskLevel.ExtremeDanger, bill.Risk);
         Assert.Contains(bill.Checks, c => c.ReasonCode == CheckReasons.PAYEE_BLACKLISTED && c.IsCriticalFailure);
 
-        var refused = await PostAsync($"{billId}/approve", new ApproveBillRequest(ScheduleDate(), null));
+        var refused = await PostAsync($"{billId}/approve", new ApproveBillRequest(ScheduleDate(), null, AcknowledgeImmediateExecution: true));
         Assert.Equal(HttpStatusCode.Conflict, refused.StatusCode);
 
         var approved = await PostAsync(
-            $"{billId}/approve", new ApproveBillRequest(ScheduleDate(), "risco assumido", AcknowledgeRisk: true));
+            $"{billId}/approve", new ApproveBillRequest(ScheduleDate(), "risco assumido", AcknowledgeRisk: true, AcknowledgeImmediateExecution: true));
         Assert.Equal(HttpStatusCode.OK, approved.StatusCode);
     }
 
@@ -132,7 +132,7 @@ public sealed class ApproveBillTests : BaseIntegrationTest, IDisposable
     public async Task Approve_Concurrently_ShouldLetExactlyOneWinAndEmitASingleApprovedEvent()
     {
         var billId = await ImportAndValidateAsync();
-        var payload = new ApproveBillRequest(ScheduleDate(), null);
+        var payload = new ApproveBillRequest(ScheduleDate(), null, AcknowledgeImmediateExecution: true);
 
         var attempts = await Task.WhenAll(
             Enumerable.Range(0, 4).Select(_ => PostAsync($"{billId}/approve", payload)));
@@ -157,7 +157,7 @@ public sealed class ApproveBillTests : BaseIntegrationTest, IDisposable
         var billId = await ImportAndValidateAsync();
 
         var response = await PostAsync(
-            $"{billId}/approve", new ApproveBillRequest(ScheduleDate(), null), userId: Guid.Empty);
+            $"{billId}/approve", new ApproveBillRequest(ScheduleDate(), null, AcknowledgeImmediateExecution: true), userId: Guid.Empty);
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }
@@ -171,7 +171,7 @@ public sealed class ApproveBillTests : BaseIntegrationTest, IDisposable
         var billId = await ImportAsync();
         await DrainOutboxAsync();
 
-        var response = await PostAsync($"{billId}/approve", new ApproveBillRequest(ScheduleDate(), null));
+        var response = await PostAsync($"{billId}/approve", new ApproveBillRequest(ScheduleDate(), null, AcknowledgeImmediateExecution: true));
 
         Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
         Assert.Null((await LoadAsync(billId)).Approval);
@@ -188,7 +188,7 @@ public sealed class ApproveBillTests : BaseIntegrationTest, IDisposable
         await DrainOutboxAsync();
 
         var response = await PostAsync(
-            $"{billId}/approve", new ApproveBillRequest(ScheduleDate(), "risco assumido", AcknowledgeRisk: true));
+            $"{billId}/approve", new ApproveBillRequest(ScheduleDate(), "risco assumido", AcknowledgeRisk: true, AcknowledgeImmediateExecution: true));
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
 
@@ -208,7 +208,7 @@ public sealed class ApproveBillTests : BaseIntegrationTest, IDisposable
 
         var response = await PostAsync(
             $"{billId}/approve",
-            new ApproveBillRequest(ScheduleDate(), null, AcknowledgeRisk: true),
+            new ApproveBillRequest(ScheduleDate(), null, AcknowledgeRisk: true, AcknowledgeImmediateExecution: true),
             scopes: "approve");
 
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
@@ -226,7 +226,7 @@ public sealed class ApproveBillTests : BaseIntegrationTest, IDisposable
 
         var response = await PostAsync(
             $"{billId}/approve",
-            new ApproveBillRequest(ScheduleDate(), "risco assumido", AcknowledgeRisk: true),
+            new ApproveBillRequest(ScheduleDate(), "risco assumido", AcknowledgeRisk: true, AcknowledgeImmediateExecution: true),
             scopes: "approve,approve-danger");
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
@@ -249,13 +249,13 @@ public sealed class ApproveBillTests : BaseIntegrationTest, IDisposable
 
         var refused = await PostAsync(
             $"{billId}/approve",
-            new ApproveBillRequest(ScheduleDate(), null, AcknowledgeRisk: true),
+            new ApproveBillRequest(ScheduleDate(), null, AcknowledgeRisk: true, AcknowledgeImmediateExecution: true),
             scopes: "approve,approve-danger");
         Assert.Equal(HttpStatusCode.Forbidden, refused.StatusCode);
 
         var approved = await PostAsync(
             $"{billId}/approve",
-            new ApproveBillRequest(ScheduleDate(), "urgência real", AcknowledgeRisk: true),
+            new ApproveBillRequest(ScheduleDate(), "urgência real", AcknowledgeRisk: true, AcknowledgeImmediateExecution: true),
             scopes: "approve,approve-danger,approve-extreme");
         Assert.Equal(HttpStatusCode.OK, approved.StatusCode);
 
@@ -271,14 +271,14 @@ public sealed class ApproveBillTests : BaseIntegrationTest, IDisposable
         var billId = await ImportAsync();
         await DrainOutboxAsync();
 
-        var stale = await PostAsync($"{billId}/approve", new ApproveBillRequest(ScheduleDate(), null));
+        var stale = await PostAsync($"{billId}/approve", new ApproveBillRequest(ScheduleDate(), null, AcknowledgeImmediateExecution: true));
         Assert.Equal(HttpStatusCode.Conflict, stale.StatusCode);
 
         _lookups.BankSlipResult = ResolvedBankSlip();
         var revalidate = await PostAsync<object>($"{billId}/revalidate", payload: null);
         Assert.Equal(HttpStatusCode.OK, revalidate.StatusCode);
 
-        var approved = await PostAsync($"{billId}/approve", new ApproveBillRequest(ScheduleDate(), null));
+        var approved = await PostAsync($"{billId}/approve", new ApproveBillRequest(ScheduleDate(), null, AcknowledgeImmediateExecution: true));
         Assert.Equal(HttpStatusCode.OK, approved.StatusCode);
     }
 
@@ -339,8 +339,8 @@ public sealed class ApproveBillTests : BaseIntegrationTest, IDisposable
         var billId = await ImportAndValidateAsync();
         var requestId = new Guid("0195a1f0-0000-7000-8000-0000000000aa");
 
-        var first = await PostAsync($"{billId}/approve", new ApproveBillRequest(ScheduleDate(), null), requestId: requestId);
-        var second = await PostAsync($"{billId}/approve", new ApproveBillRequest(ScheduleDate(), null), requestId: requestId);
+        var first = await PostAsync($"{billId}/approve", new ApproveBillRequest(ScheduleDate(), null, AcknowledgeImmediateExecution: true), requestId: requestId);
+        var second = await PostAsync($"{billId}/approve", new ApproveBillRequest(ScheduleDate(), null, AcknowledgeImmediateExecution: true), requestId: requestId);
 
         Assert.Equal(HttpStatusCode.OK, first.StatusCode);
         Assert.Equal(HttpStatusCode.OK, second.StatusCode);

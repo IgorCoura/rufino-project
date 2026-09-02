@@ -92,6 +92,11 @@ public sealed class IntegrationTestWebAppFactory : WebApplicationFactory<Program
         // query direto.
         builder.UseSetting("BillReading:Enabled", "false");
 
+        // A fila de submissão de pagamentos (fase 3) também vem LIGADA por padrão — e é a que
+        // menos pode rodar solta numa suíte: reivindicaria ordens que os testes acabaram de
+        // semear e contaria tentativas. Quem exercita a fila chama a query/command direto.
+        builder.UseSetting("PaymentSubmission:Enabled", "false");
+
         builder.UseEnvironment("Development");
 
         builder.ConfigureTestServices(ConfigureAuthDoubles);
@@ -218,6 +223,30 @@ public sealed class IntegrationTestWebAppFactory : WebApplicationFactory<Program
             services.AddSingleton<FakePaymentAccountVerifier>();
             services.RemoveAll<IPaymentAccountVerifier>();
             services.AddSingleton<IPaymentAccountVerifier>(sp => sp.GetRequiredService<FakePaymentAccountVerifier>());
+        }));
+
+    /// <summary>
+    /// Host irmão com a cadeia de PAGAMENTO completa: consulta, prova de chave e gateways
+    /// determinísticos — para os testes da fase 3, que jamais podem bater no provedor real.
+    /// </summary>
+    public WebApplicationFactory<Program> WithPaymentChain()
+        => WithWebHostBuilder(builder => builder.ConfigureTestServices(services =>
+        {
+            services.AddSingleton<FakeLookupServices>();
+            services.RemoveAll<IBillLookupService>();
+            services.RemoveAll<IPixLookupService>();
+            services.AddSingleton<IBillLookupService>(sp => sp.GetRequiredService<FakeLookupServices>());
+            services.AddSingleton<IPixLookupService>(sp => sp.GetRequiredService<FakeLookupServices>());
+
+            services.AddSingleton<FakePaymentAccountVerifier>();
+            services.RemoveAll<IPaymentAccountVerifier>();
+            services.AddSingleton<IPaymentAccountVerifier>(sp => sp.GetRequiredService<FakePaymentAccountVerifier>());
+
+            services.AddSingleton<FakePaymentGateways>();
+            services.RemoveAll<IBillPaymentGateway>();
+            services.RemoveAll<IPixPaymentGateway>();
+            services.AddSingleton<IBillPaymentGateway>(sp => sp.GetRequiredService<FakePaymentGateways>());
+            services.AddSingleton<IPixPaymentGateway>(sp => sp.GetRequiredService<FakePaymentGateways>());
         }));
 
     /// <summary>

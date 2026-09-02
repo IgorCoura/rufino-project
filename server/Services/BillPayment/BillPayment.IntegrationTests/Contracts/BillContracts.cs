@@ -33,7 +33,13 @@ internal sealed record BillContract(
 
 internal sealed record BillPageContract(IReadOnlyList<BillContract> Items, string? NextCursor);
 
-internal sealed record ApproveBillRequest(DateOnly ScheduleFor, string? Note, bool AcknowledgeRisk = false);
+// AcknowledgeImmediateExecution: o boleto sintetico da suite ja esta VENCIDO em relogio real,
+// e o ADR-017 exige o aceite de pagamento imediato para aprovar vencido (BLP.BIL35).
+internal sealed record ApproveBillRequest(
+    DateOnly ScheduleFor,
+    string? Note,
+    bool AcknowledgeRisk = false,
+    bool AcknowledgeImmediateExecution = false);
 
 internal sealed record ApproveBillResponseContract(Guid Id, string Status, DateOnly ScheduledFor);
 

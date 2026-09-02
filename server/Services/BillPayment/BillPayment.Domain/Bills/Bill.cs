@@ -137,6 +137,12 @@ public sealed class Bill : AggregateRoot<BillId>
     public DateOnly? ScheduledFor { get; private set; }
 
     /// <summary>
+    /// A ordem de pagamento desta aprovação. Referência por id, nunca navegação (ADR-002) —
+    /// e nula até o provedor aceitar a submissão.
+    /// </summary>
+    public PaymentOrders.PaymentOrderId? PaymentOrderId { get; private set; }
+
+    /// <summary>
     /// O valor que será debitado, pelo trilho que vai pagar — com o outro trilho como reserva.
     /// Nulo enquanto a consulta oficial não resolveu.
     /// </summary>
@@ -156,6 +162,13 @@ public sealed class Bill : AggregateRoot<BillId>
     public LookupParty? Beneficiary => Rail == PaymentRail.Pix
         ? PixLookup?.Receiver ?? Lookup?.Beneficiary
         : Lookup?.Beneficiary ?? PixLookup?.Receiver;
+
+    /// <summary>
+    /// O valor com que a ordem de pagamento é submetida: o oficial do trilho que paga, e na
+    /// falta dele o impresso no instrumento (protegido por DV/CRC) — a mesma reserva que a
+    /// alçada de aprovação usa. Nulo só quando nenhuma fonte tem valor (QR estático sem campo 54).
+    /// </summary>
+    public Money? AmountForPayment => PayableAmount ?? DeclaredAmount;
 
     /// <summary>Instante do retrato mais recente entre os dois trilhos.</summary>
     public DateTimeOffset? LastConsultedAt
@@ -485,7 +498,8 @@ public sealed class Bill : AggregateRoot<BillId>
         RiskLevel clearance,
         DateOnly today,
         DateTime occurredAt,
-        bool acknowledgeRisk = false)
+        bool acknowledgeRisk = false,
+        bool acknowledgeImmediateExecution = false)
     {
         ArgumentNullException.ThrowIfNull(policy);
         EnsureDecidable(ApprovalDecision.Approved, BillStatus.Approved);
@@ -497,6 +511,7 @@ public sealed class Bill : AggregateRoot<BillId>
         EnsureRiskIsAcknowledged(acknowledgeRisk);
         EnsureSnapshotIsFresh(policy, occurredAt);
         EnsureScheduleDateIsAllowed(scheduleFor, today);
+        EnsureImmediateExecutionIsAcknowledged(today, acknowledgeImmediateExecution);
         EnsureWithinApprovalLimit(policy);
 
         Approval = ApprovalRecord.Approve(approvedBy, occurredAt, note, Risk);
@@ -540,6 +555,81 @@ public sealed class Bill : AggregateRoot<BillId>
     /// <summary>O retrato da consulta já passou do prazo de validade neste instante?</summary>
     public bool IsLookupStaleAt(DateTimeOffset instant, TimeSpan maxAge)
         => LastConsultedAt is { } consultedAt && instant - consultedAt > maxAge;
+
+    /// <summary>
+    /// O provedor aceitou a ordem: <c>Approved → Scheduled</c>. Daqui em diante o boleto é
+    /// <strong>espelho</strong> da <c>PaymentOrder</c> (ADR-002) — estes métodos de reflexo só
+    /// são chamados por handler de evento dela, nunca por escrita direta de um caso de uso.
+    /// </summary>
+    /// <remarks>
+    /// <c>ScheduledFor</c> passa a dizer a data <em>efetiva</em>: a pedida vive na trilha de
+    /// aprovação e na ordem, e a tela mostra as duas quando diferem (ADR-017 desliza datas).
+    /// </remarks>
+    public void LinkPaymentOrder(
+        PaymentOrders.PaymentOrderId paymentOrderId,
+        DateOnly effectiveScheduleDate,
+        DateTime occurredAt)
+    {
+        EnsurePaymentTransition(BillStatus.Scheduled);
+
+        PaymentOrderId = paymentOrderId;
+        ScheduledFor = effectiveScheduleDate;
+        Status = BillStatus.Scheduled;
+        UpdatedAt = occurredAt;
+    }
+
+    /// <summary>Reflexo de <c>PaymentOrderPaid</c>: <c>Scheduled → Paid</c>. Terminal.</summary>
+    public void MarkPaid(DateTime occurredAt)
+    {
+        EnsurePaymentTransition(BillStatus.Paid);
+
+        Status = BillStatus.Paid;
+        UpdatedAt = occurredAt;
+    }
+
+    /// <summary>
+    /// Reflexo de <c>PaymentOrderFailed</c>: <c>Scheduled → Failed</c>. O que fazer com a falha
+    /// — reabrir, pagar à mão — é decisão de gente, e os motivos vivem na ordem.
+    /// </summary>
+    public void MarkFailed(DateTime occurredAt)
+    {
+        EnsurePaymentTransition(BillStatus.Failed);
+
+        Status = BillStatus.Failed;
+        UpdatedAt = occurredAt;
+    }
+
+    /// <summary>
+    /// Reflexo de <c>PaymentOrderCancelled</c> depois de agendado: <c>Scheduled → Cancelled</c>.
+    /// Não toca a trilha de aprovação — quem cancelou e por quê vive na ordem.
+    /// </summary>
+    public void MarkScheduleCancelled(DateTime occurredAt)
+    {
+        EnsurePaymentTransition(BillStatus.Cancelled);
+
+        Status = BillStatus.Cancelled;
+        UpdatedAt = occurredAt;
+    }
+
+    /// <summary>
+    /// Devolve um boleto de pagamento falhado à fila de decisão. A nova tentativa é uma nova
+    /// aprovação e uma nova ordem (ADR-002) — por isso o vínculo com a ordem anterior é limpo.
+    /// </summary>
+    public void ReopenForApproval(DateTime occurredAt)
+    {
+        EnsurePaymentTransition(BillStatus.AwaitingApproval);
+
+        PaymentOrderId = null;
+        ScheduledFor = null;
+        Status = BillStatus.AwaitingApproval;
+        UpdatedAt = occurredAt;
+    }
+
+    private void EnsurePaymentTransition(BillStatus target)
+    {
+        if (Status.IsTerminal || !Status.CanTransitionTo(target))
+            throw BillErrors.PaymentTransitionNotAllowed(Status.Name, target.Name);
+    }
 
     private void EnsureDecidable(ApprovalDecision decision, BillStatus target)
     {
@@ -618,6 +708,19 @@ public sealed class Bill : AggregateRoot<BillId>
 
         if (!policy.Allows(amount))
             throw BillErrors.AboveApprovalLimit(amount.Amount);
+    }
+
+    // ADR-017: boleto vencido não é pago em silêncio. O provedor processa conta vencida
+    // IMEDIATAMENTE, sem agendamento — ou seja, sem a janela de reação que a política das 24h
+    // existe para garantir. Aprovar um vencido exige o aceite explícito, gravado na trilha
+    // como o aceite de risco. A fila reconfere: se o vencimento passar DEPOIS da aprovação,
+    // a ordem para em "aguardando confirmação" em vez de executar.
+    private void EnsureImmediateExecutionIsAcknowledged(DateOnly today, bool acknowledged)
+    {
+        if (DueDate is not { } due || due >= today || acknowledged)
+            return;
+
+        throw BillErrors.OverdueRequiresImmediateAcknowledgment(due);
     }
 
     private void EnsureScheduleDateIsAllowed(DateOnly scheduleFor, DateOnly today)

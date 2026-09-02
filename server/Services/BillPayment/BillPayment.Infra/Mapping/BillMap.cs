@@ -214,6 +214,15 @@ internal sealed class BillMap : IEntityTypeConfiguration<Bill>
 
         builder.Property(e => e.ScheduledFor).HasColumnName("scheduled_for");
 
+        // Referência por id à ordem de pagamento (ADR-002) — sem navegação, sem FK física
+        // (o strip de FKs do OnModelCreating não alcança conversões, e não deve: agregados
+        // referenciam-se por id).
+        builder.Property(e => e.PaymentOrderId)
+            .HasColumnName("payment_order_id")
+            .HasConversion(
+                id => id!.Value.Value,
+                value => Domain.PaymentOrders.PaymentOrderId.From(value));
+
         // Materializada pelo agregado (RecomputeDueDate) a partir dos retratos jsonb — a coluna
         // existe para a listagem ordenar e filtrar por vencimento em SQL.
         builder.Property(e => e.DueDate).HasColumnName("due_date");

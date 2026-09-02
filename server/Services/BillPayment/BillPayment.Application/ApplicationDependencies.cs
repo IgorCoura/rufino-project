@@ -21,7 +21,11 @@ using BillPayment.Application.Queries.CaptureSources;
 using BillPayment.Application.Queries.Payees;
 using BillPayment.Application.Queries.Retention;
 using BillPayment.Application.Queries.PayerProfiles;
+using BillPayment.Application.Queries.PaymentOrders;
 using BillPayment.Application.Queries.TrustedOrigins;
+using BillPayment.Application.PaymentOrders.Commands;
+using BillPayment.Application.PaymentOrders.EventHandlers;
+using BillPayment.Domain.PaymentOrders;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -38,6 +42,11 @@ public static class ApplicationDependencies
         // Quantas vezes insistir num artefato antes de ele virar caso para uma pessoa. Também é
         // regra de negócio: o worker escolhe o ritmo, o negócio escolhe quanto vale insistir.
         services.Configure<CaptureRetryOptions>(configuration.GetSection(CaptureRetryOptions.SectionName));
+
+        // A política inicial de agendamento (ADR-017) e o orçamento da fila de submissão. Regra
+        // de negócio configurável, como a de aprovação — a regra em si vive no Domain Service.
+        services.Configure<PaymentSchedulingOptions>(
+            configuration.GetSection(PaymentSchedulingOptions.SectionName));
 
         // Mediator próprio (sem MediatR) — escaneia handlers e behaviors do assembly da Application.
         services.AddCustomMediator(typeof(ApplicationDependencies).Assembly);
@@ -71,6 +80,17 @@ public static class ApplicationDependencies
         services.AddScoped<IDomainEventHandler<CaptureItemStuckDomainEvent>, RecordCaptureFailureOnItemStuckHandler>();
         services.AddScoped<IDomainEventHandler<CaptureItemUnstuckDomainEvent>, ClearCaptureFailureOnItemUnstuckHandler>();
 
+        // Fase 3 — o lado do pagamento (ADR-002): a aprovação cria a ordem, a ordem reflete no
+        // boleto, e a retenção por vencido avisa. Todos pelo outbox, todos idempotentes.
+        services.AddScoped<IDomainEventHandler<BillApprovedDomainEvent>, CreatePaymentOrderOnBillApprovedHandler>();
+        services.AddScoped<IDomainEventHandler<BillCancelledDomainEvent>, CancelPaymentOrderOnBillCancelledHandler>();
+        services.AddScoped<IDomainEventHandler<PaymentOrderScheduledDomainEvent>, LinkBillOnPaymentOrderScheduledHandler>();
+        services.AddScoped<IDomainEventHandler<PaymentOrderPaidDomainEvent>, ReflectPaymentPaidOnBillHandler>();
+        services.AddScoped<IDomainEventHandler<PaymentOrderFailedDomainEvent>, ReflectPaymentFailedOnBillHandler>();
+        services.AddScoped<IDomainEventHandler<PaymentOrderCancelledDomainEvent>, ReflectPaymentCancelledOnBillHandler>();
+        services.AddScoped<IDomainEventHandler<PaymentOrderHeldForConfirmationDomainEvent>, NotifyPaymentAwaitingConfirmationHandler>();
+        services.AddScoped<IDomainEventHandler<PaymentOrderRefundedDomainEvent>, NotifyPaymentRefundedHandler>();
+
         // Quem serve o documento original para uma pessoa. Compartilhado pelas duas leituras
         // que o entregam — item de quarentena e boleto — porque a regra de destravar o PDF
         // cifrado é a mesma nas duas, e duas cópias divergiriam por uma tela só.
@@ -92,6 +112,8 @@ public static class ApplicationDependencies
         services.AddScoped<ITenantNotificationQueries, TenantNotificationQueries>();
         services.AddScoped<ICapturedMessageQueries, CapturedMessageQueries>();
         services.AddScoped<ICaptureRetentionQueries, CaptureRetentionQueries>();
+        services.AddScoped<IPaymentQueries, PaymentQueries>();
+        services.AddScoped<IPaymentOrderWorkQueries, PaymentOrderWorkQueries>();
 
         return services;
     }

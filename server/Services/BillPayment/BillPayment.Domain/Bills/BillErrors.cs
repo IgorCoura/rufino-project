@@ -449,6 +449,39 @@ public static class BillErrors
             sourcePath: BuildSourcePath(filePath, memberName, lineNumber),
             category: DomainErrorCategory.Conflict);
 
+    /// <summary>
+    /// Reflexo de pagamento fora da máquina de estados — um evento da <c>PaymentOrder</c>
+    /// chegando a um boleto que não está no estado esperado (ADR-002).
+    /// </summary>
+    public static DomainException PaymentTransitionNotAllowed(
+        string current,
+        string target,
+        [CallerFilePath] string filePath = "",
+        [CallerMemberName] string memberName = "",
+        [CallerLineNumber] int lineNumber = 0)
+        => new(
+            id: $"{AGGREGATE_PREFIX}34",
+            messageTemplate: "Boleto em situação {0} não aceita refletir o pagamento como {1}.",
+            parameters: new object[] { current, target },
+            sourcePath: BuildSourcePath(filePath, memberName, lineNumber),
+            category: DomainErrorCategory.Conflict);
+
+    /// <summary>
+    /// ADR-017: o boleto está vencido, o provedor o processaria imediatamente — sem janela de
+    /// reação — e ninguém confirmou que quer isso.
+    /// </summary>
+    public static DomainException OverdueRequiresImmediateAcknowledgment(
+        DateOnly dueDate,
+        [CallerFilePath] string filePath = "",
+        [CallerMemberName] string memberName = "",
+        [CallerLineNumber] int lineNumber = 0)
+        => new(
+            id: $"{AGGREGATE_PREFIX}35",
+            messageTemplate: "Este boleto venceu em {0:dd/MM/yyyy} e será pago imediatamente, sem agendamento. Confirme que deseja pagar agora.",
+            parameters: new object[] { dueDate },
+            sourcePath: BuildSourcePath(filePath, memberName, lineNumber),
+            category: DomainErrorCategory.Conflict);
+
     private static string BuildSourcePath(string filePath, string memberName, int lineNumber)
         => $"{Path.GetFileName(filePath)}:{lineNumber} ({memberName})";
 }

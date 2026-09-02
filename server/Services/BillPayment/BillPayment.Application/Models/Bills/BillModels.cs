@@ -109,12 +109,13 @@ public sealed record ImportBillFormModel(
 public sealed record ApproveBillModel(
     [property: JsonRequired] DateOnly ScheduleFor,
     string? Note,
-    bool AcknowledgeRisk = false)
+    bool AcknowledgeRisk = false,
+    bool AcknowledgeImmediateExecution = false)
 {
     // A alçada NÃO vem do body — é resolvida pelo controller a partir dos escopos UMA, pelo
     // mesmo motivo que o UserId vem do token: quem chega à API não escolhe a própria alçada.
     public ApproveBillCommand ToCommand(Guid tenantId, Guid billId, Guid decidedBy, string riskClearance)
-        => new(tenantId, billId, decidedBy, ScheduleFor, Note, riskClearance, AcknowledgeRisk);
+        => new(tenantId, billId, decidedBy, ScheduleFor, Note, riskClearance, AcknowledgeRisk, AcknowledgeImmediateExecution);
 }
 
 public sealed record BillDecisionModel([property: JsonRequired] string Reason)

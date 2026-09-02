@@ -72,6 +72,15 @@ builder.Services.Configure<CaptureRetentionOptions>(
 if (builder.Configuration.GetValue<bool?>($"{CaptureRetentionOptions.SectionName}:Enabled") ?? true)
     builder.Services.AddHostedService<CaptureRetentionBackgroundService>();
 
+// A fila de submissão de pagamentos (fase 3). Ligada por padrão pelo mesmo motivo da fila de
+// leitura: um boleto aprovado que nunca agenda é a tela dizendo "agendamento em processamento"
+// para sempre. Só submete dentro da janela do ADR-017, e a suíte de integração a desliga.
+builder.Services.Configure<PaymentSubmissionOptions>(
+    builder.Configuration.GetSection(PaymentSubmissionOptions.SectionName));
+
+if (builder.Configuration.GetValue<bool?>($"{PaymentSubmissionOptions.SectionName}:Enabled") ?? true)
+    builder.Services.AddHostedService<PaymentSubmissionBackgroundService>();
+
 var app = builder.Build();
 
 // Migrações, não EnsureCreatedAsync. A diferença não é estilística: EnsureCreated decide por

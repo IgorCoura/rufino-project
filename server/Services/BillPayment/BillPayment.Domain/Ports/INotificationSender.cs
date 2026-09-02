@@ -13,6 +13,12 @@ public enum NotificationKind
 
     /// <summary>A conta chegou e não consegui ler — resolva o item.</summary>
     ExpectationCaptureFailed = 3,
+
+    /// <summary>O boleto venceu antes da submissão — confirme se quer pagar agora (ADR-017).</summary>
+    PaymentAwaitingConfirmation = 4,
+
+    /// <summary>O pagamento não fechou — decida a próxima tentativa.</summary>
+    PaymentFailed = 5,
 }
 
 /// <param name="Title">Linha única, já legível — quem monta é a Application.</param>

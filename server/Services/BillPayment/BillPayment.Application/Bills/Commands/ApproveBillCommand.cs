@@ -17,6 +17,10 @@ using Microsoft.Extensions.Options;
 /// A alçada de risco de quem aprova (nome de <c>RiskLevel</c>), resolvida pela BORDA a partir
 /// dos escopos UMA — nunca vem do corpo da requisição, pelo mesmo motivo do UserId.
 /// </param>
+/// <param name="AcknowledgeImmediateExecution">
+/// ADR-017: obrigatório <c>true</c> para aprovar boleto já vencido — o provedor o processa
+/// imediatamente, sem agendamento, e pagar na hora exige aceite explícito gravado na trilha.
+/// </param>
 public sealed record ApproveBillCommand(
     Guid TenantId,
     Guid BillId,
@@ -24,7 +28,8 @@ public sealed record ApproveBillCommand(
     DateOnly ScheduleFor,
     string? Note,
     string RiskClearance,
-    bool AcknowledgeRisk = false) : ITenantScopedCommand, IRequest<ApproveBillResponse>;
+    bool AcknowledgeRisk = false,
+    bool AcknowledgeImmediateExecution = false) : ITenantScopedCommand, IRequest<ApproveBillResponse>;
 
 public sealed record ApproveBillResponse(Guid Id, string Status, DateOnly ScheduledFor);
 
@@ -57,7 +62,8 @@ public sealed class ApproveBillCommandHandler(
             clearance,
             DateOnly.FromDateTime(now.UtcDateTime),
             now.UtcDateTime,
-            request.AcknowledgeRisk);
+            request.AcknowledgeRisk,
+            request.AcknowledgeImmediateExecution);
 
         await unitOfWork.SaveEntitiesAsync(cancellationToken);
 

@@ -26,8 +26,10 @@ using BillPayment.Infra.Mailboxes.Graph;
 using BillPayment.Infra.Outbox;
 using BillPayment.Infra.Persistence;
 using BillPayment.Infra.Repositories;
+using BillPayment.Domain.PaymentOrders;
 using BillPayment.Infra.Secrets;
 using BillPayment.Infra.Storage;
+using BillPayment.Infra.WorkingDays;
 using EntityFramework.Exceptions.PostgreSQL;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -62,6 +64,7 @@ public static class InfraDependencies
         services.AddScoped<ICaptureRetentionPolicyRepository, CaptureRetentionPolicyRepository>();
         services.AddScoped<IBillExpectationRepository, BillExpectationRepository>();
         services.AddScoped<ITenantNotificationSettingsRepository, TenantNotificationSettingsRepository>();
+        services.AddScoped<IPaymentOrderRepository, PaymentOrderRepository>();
 
         services.AddNotifications(configuration);
 
@@ -80,6 +83,9 @@ public static class InfraDependencies
 
         // Singleton: o snapshot do Bacen é lido do assembly uma vez e é imutável depois.
         services.AddSingleton<IBankDirectory, BacenBankDirectory>();
+
+        // Singleton pela mesma doutrina: o calendário é calculado, imutável e sem I/O.
+        services.AddSingleton<IWorkingDayCalendar, BrazilianWorkingDayCalendar>();
 
         // Relógio injetável: adapters e cofre carimbam instante de consulta e de gravação, e
         // testar isso com DateTimeOffset.UtcNow inline é impossível.
@@ -389,11 +395,19 @@ public static class InfraDependencies
         services.AddHttpClient(AsaasHttp.LOOKUP_CLIENT_NAME, ConfigureAsaasClient(options))
             .AddStandardResilienceHandler();
 
+        // O cliente de PAGAMENTO é outro, e a diferença é o que falta: SEM
+        // AddStandardResilienceHandler, de propósito. Uma retentativa automática numa submissão
+        // é candidata a pagamento duplicado — a retentativa é da fila, que confere por
+        // externalReference antes de reenviar (fase 3).
+        services.AddHttpClient(AsaasHttp.PAYMENT_CLIENT_NAME, ConfigureAsaasClient(options));
+
         // Scoped porque o cofre (ISecretVault) é scoped — vive sobre o DbContext da requisição.
         services.AddScoped<AsaasClientProvider>();
         services.AddScoped<IBillLookupService, AsaasBillLookupService>();
         services.AddScoped<IPixLookupService, AsaasPixLookupService>();
         services.AddScoped<IPaymentAccountVerifier, AsaasAccountVerifier>();
+        services.AddScoped<IBillPaymentGateway, AsaasBillPaymentGateway>();
+        services.AddScoped<IPixPaymentGateway, AsaasPixPaymentGateway>();
     }
 
     private static Action<HttpClient> ConfigureAsaasClient(AsaasOptions options)

@@ -326,7 +326,14 @@ public sealed class RecaptureMessageTests : BaseIntegrationTest, IDisposable
             bill.RecordChecks([.. Enumeration.GetAll<CheckType>().Select(t => CheckResult.Passed(t))], OccurredAt);
 
             if (approve)
-                bill.Approve(Requester, Today.AddDays(3), null, ApprovalPolicy.Default(null), RiskLevel.ExtremeDanger, Today, OccurredAt);
+            {
+                // O boleto sintético está vencido: o ADR-017 exige o aceite de execução
+                // imediata para aprovar vencido (BLP.BIL35).
+                bill.Approve(
+                    Requester, Today.AddDays(3), null, ApprovalPolicy.Default(null),
+                    RiskLevel.ExtremeDanger, Today, OccurredAt,
+                    acknowledgeRisk: false, acknowledgeImmediateExecution: true);
+            }
             else if (deny)
                 bill.Deny(Requester, "duplicado", OccurredAt);
 

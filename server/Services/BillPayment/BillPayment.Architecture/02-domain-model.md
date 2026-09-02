@@ -76,6 +76,7 @@ stateDiagram-v2
   AwaitingApproval --> Denied: Deny
   AwaitingApproval --> Cancelled
   Approved --> Scheduled: LinkPaymentOrder
+  Approved --> Failed: submissão recusada
   Denied --> [*]
   Scheduled --> Paid: MarkPaid
   Scheduled --> Failed: MarkFailed
@@ -87,6 +88,7 @@ stateDiagram-v2
 
 - **Transições de revalidação acrescentadas na 1.4**: `AwaitingApproval → Rejected` (revalidação encontrou bloqueio) e `Approved → AwaitingApproval`/`Rejected`. **Revalidar um boleto já aprovado derruba a aprovação incondicionalmente** — o doc 03 condiciona isso a "quando o valor muda", e a implementação é mais rígida de propósito: o consentimento foi dado contra um retrato que acabou de ser substituído, e reconfirmar é barato perto de pagar o valor errado por causa de uma comparação de snapshot que silenciosamente não pegou a diferença. `BillStatus.AcceptsValidation` fecha a porta a partir de `Scheduled`, quando a verdade da execução já é da `PaymentOrder`.
 - `Approved` → `Scheduled` é comandado pelo handler do evento `BillApprovedDomainEvent`, que cria a `PaymentOrder` e devolve o id.
+- **`Approved` → `Failed` entrou na implementação (2026-09-02)**: quando o provedor RECUSA a submissão, a ordem falha antes de o boleto ter sido agendado — sem esta aresta o boleto ficaria "aprovado, agendamento em processamento" para sempre, com a falha visível só na ordem. `ReopenForApproval` cobre as duas origens.
 - `Scheduled` → `Paid`/`Failed` **só** acontece por reflexo de evento da `PaymentOrder`. `Bill.Status` é espelho; a verdade da execução é a `PaymentOrder` (ver [`adr/ADR-002-bill-e-paymentorder-separados.md`](adr/ADR-002-bill-e-paymentorder-separados.md)).
 - Um Bill `Paid` é imutável. Qualquer método rico que tente mutá-lo lança `BLP.BIL07`.
 
