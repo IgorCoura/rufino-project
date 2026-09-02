@@ -903,6 +903,7 @@ BillDetail billDetail({
   String? riskLevel,
   DateTime? lastConsultedAt,
   DateTime? minimumScheduleDate,
+  DateTime? dueDate,
   List<BillCheck> checks = const [],
   bool hasArtifact = false,
   String readingStatus = ReadingStatuses.notApplicable,
@@ -911,6 +912,7 @@ BillDetail billDetail({
     id: id,
     status: status,
     riskLevel: riskLevel,
+    dueDate: dueDate,
     kind: BillKinds.bankSlip,
     rail: PaymentRails.boleto,
     checks: checks,
@@ -941,6 +943,9 @@ class FakeBillRepository implements BillRepository {
 
   /// The last status filter the list was asked with.
   String? lastStatusFilter;
+
+  /// The acknowledgement flag the last approval carried (phase 3).
+  bool? lastApproveImmediateAck;
 
   /// Makes every call fail with a rule exception.
   // ignore: avoid_positional_boolean_parameters
@@ -1030,9 +1035,18 @@ class FakeBillRepository implements BillRepository {
     required DateTime scheduleFor,
     String? note,
     bool acknowledgeRisk = false,
+    bool acknowledgeImmediateExecution = false,
   }) async {
     if (_shouldFail) return _fail();
     calls.add('approveBill:$id');
+    lastApproveImmediateAck = acknowledgeImmediateExecution;
+    return const Result.success(null);
+  }
+
+  @override
+  Future<Result<void>> reopenBill(String id) async {
+    if (_shouldFail) return _fail();
+    calls.add('reopenBill:$id');
     return const Result.success(null);
   }
 
@@ -1072,6 +1086,76 @@ class FakeBillRepository implements BillRepository {
       ),
     );
   }}
+
+/// A payment order with coherent defaults, overridable per test (phase 3).
+PaymentOrder paymentOrder({
+  String id = 'order-1',
+  String billId = 'bill-1',
+  String status = PaymentOrderStatuses.pending,
+  String hold = PaymentOrderHolds.none,
+  bool requiresConfirmation = false,
+  bool hasReceipt = false,
+}) {
+  return PaymentOrder(
+    id: id,
+    billId: billId,
+    rail: PaymentRails.boleto,
+    status: status,
+    hold: hold,
+    requestedScheduleDate: DateTime(2026, 9, 10),
+    effectiveScheduleDate: DateTime(2026, 9, 11),
+    amount: 615.07,
+    requiresConfirmation: requiresConfirmation,
+    hasReceipt: hasReceipt,
+    createdAt: DateTime(2026, 9, 2),
+  );
+}
+
+/// In-memory [PaymentRepository] with configurable failure (phase 3).
+class FakePaymentRepository implements PaymentRepository {
+  /// The order served by [getForBill] — null mirrors the outbox window.
+  PaymentOrder? order;
+
+  bool _shouldFail = false;
+
+  /// The writes performed, in order.
+  final List<String> calls = [];
+
+  /// Makes every call fail with a rule exception.
+  void setShouldFail(bool value) => _shouldFail = value;
+
+  Result<T> _fail<T>() => const Result.error(
+        BillPaymentRuleException('Regra recusou.', code: 'BLP.PMO04'),
+      );
+
+  @override
+  Future<Result<PaymentOrder?>> getForBill(String billId) async {
+    if (_shouldFail) return _fail();
+    calls.add('getForBill:$billId');
+    return Result.success(order);
+  }
+
+  @override
+  Future<Result<void>> cancel(String orderId) async {
+    if (_shouldFail) return _fail();
+    calls.add('cancel:$orderId');
+    return const Result.success(null);
+  }
+
+  @override
+  Future<Result<void>> confirmImmediate(String orderId) async {
+    if (_shouldFail) return _fail();
+    calls.add('confirmImmediate:$orderId');
+    return const Result.success(null);
+  }
+
+  @override
+  Future<Result<CapturedArtifact>> getReceiptForBill(String billId) async {
+    if (_shouldFail) return _fail();
+    calls.add('getReceiptForBill:$billId');
+    return Result.success(artifact());
+  }
+}
 
 /// An expectation with coherent defaults, overridable per test.
 Expectation expectation({

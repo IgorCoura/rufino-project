@@ -30,6 +30,9 @@ abstract final class BillPaymentRoutes {
   /// O e-mail que trouxe o boleto [id].
   static String billEmail(String id) => '/bill-payment/bills/$id/email';
 
+  /// O comprovante do pagamento do boleto [id] (fase 3).
+  static String billReceipt(String id) => '/bill-payment/bills/$id/receipt';
+
   /// The quarantine listing.
   static const String captureItems = '/bill-payment/capture-items';
 
@@ -185,6 +188,19 @@ List<RouteBase> billPaymentRoutes({
       ),
     ),
     GoRoute(
+      path: '/bill-payment/bills/:id/receipt',
+      redirect: (context, state) => _requireBillScope(
+        context,
+        resource: BillPaymentResources.bill,
+        scope: BillPaymentScopes.view,
+        fallback: homeRoute,
+      ),
+      builder: (context, state) => BillReceiptPage(
+        billId: state.pathParameters['id']!,
+        backFallback: BillPaymentRoutes.billDetail(state.pathParameters['id']!),
+      ),
+    ),
+    GoRoute(
       path: '/bill-payment/bills/:id',
       redirect: (context, state) => _requireBillScope(
         context,
@@ -200,6 +216,9 @@ List<RouteBase> billPaymentRoutes({
         ),
         onOpenEmail: () => context.push(
           BillPaymentRoutes.billEmail(state.pathParameters['id']!),
+        ),
+        onOpenReceipt: () => context.push(
+          BillPaymentRoutes.billReceipt(state.pathParameters['id']!),
         ),
       ),
     ),

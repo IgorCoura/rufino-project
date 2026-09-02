@@ -127,9 +127,12 @@ protegido nem verificação de pagador.
   Esperado: persiste após recarregar a tela. **A seção só existe para
   Pessoa jurídica** — em PF ela não deve aparecer.
 
-- [ ] **PP-07 — Conta de pagamento**
-  Passos: informe uma referência de subconta Asaas → Vincular.
-  Esperado: o badge sai de "Não vinculada" para "Pronta para agendar".
+- [ ] **PP-07 — Conta Asaas do tenant**
+  Passos: cole a chave de API do Asaas (campo oculto) → Vincular.
+  Esperado: o servidor prova a chave no provedor; o badge sai de "Não
+  configurada" para configurada e o campo é **limpo** (a chave nunca volta
+  pela API — não existe "editar", só remover com confirmação). Chave
+  recusada → mensagem do domínio (`BLP.PRF12`/`PRF13`).
 
 - [ ] **PP-08 — Erro do domínio é exibido**
   Passos: tente cadastrar um documento adicional inválido.
@@ -394,6 +397,56 @@ protegido nem verificação de pagador.
   Esperado: Revalidar some a partir de Agendado; Aprovar/Negar só em
   "Aguardando aprovação"; Cancelar some em Negado/Pago/Cancelado.
 
+- [ ] **BOL-24 — Boleto vencido exige o aceite de execução imediata**
+  Passos: aprove um boleto cuja data de vencimento já passou.
+  Esperado: a folha de aprovação mostra a caixa avisando que o pagamento
+  sai **imediatamente** (sem as 24h de antecedência); **Autorizar** fica
+  desabilitado até marcá-la. Sem a caixa o servidor recusa (`BLP.BIL35`).
+
+---
+
+## 7b. Execução do pagamento — a seção da ordem (fase 3)
+
+Depois da aprovação, o detalhe ganha a seção **Execução do pagamento**.
+A ordem nasce pelo outbox do servidor, então logo após aprovar pode haver
+uma janela curta sem ordem.
+
+- [ ] **EXE-01 — Janela do outbox**
+  Passos: aprove e abra o detalhe imediatamente.
+  Esperado: a seção diz "Agendamento em processamento…" (nunca erro);
+  recarregando em seguida, a ordem aparece.
+
+- [ ] **EXE-02 — Conteúdo da ordem**
+  Esperado: status traduzido, retenção quando houver, data pedida × data
+  efetiva (com "(deslizou)" quando a política de 24h/janela 9h–17h moveu o
+  dia), valor, taxa e "Pago em" quando pago; falhas listadas com o último
+  erro.
+
+- [ ] **EXE-03 — Cancelar agendamento**
+  Passos: em ordem Pendente/Em processamento → **Cancelar agendamento** →
+  confirmar no diálogo.
+  Esperado: snackbar "Agendamento cancelado."; o boleto volta a
+  aprovável. O botão só existe na janela de reação (some em
+  Pago/Falhou/Cancelado) e exige `bill:cancel`.
+
+- [ ] **EXE-04 — Confirmar pagamento imediato**
+  Passos: com ordem retida em "Aguardando confirmação" (boleto vencido na
+  hora de agendar) → **Confirmar pagamento imediato** → confirmar.
+  Esperado: snackbar dizendo que a fila retoma; a retenção some. Exige
+  `bill:approve`.
+
+- [ ] **EXE-05 — Reabrir boleto falhado**
+  Passos: em boleto **Falhou** → **Reabrir para nova tentativa** →
+  confirmar.
+  Esperado: o boleto volta para "Aguardando aprovação" (nova aprovação,
+  nova ordem). O botão só existe em Falhou.
+
+- [ ] **EXE-06 — Comprovante**
+  Passos: em boleto **Pago** → **Ver comprovante**.
+  Esperado: abre a rota `/bills/{id}/receipt` em tela cheia com o arquivo
+  vindo do storage. Antes de o comprovante existir, a mensagem é de regra
+  ("ainda não tem comprovante"), não de erro de rede.
+
 ---
 
 ## 8. Lista de boletos — `/bill-payment/bills`
@@ -402,15 +455,16 @@ protegido nem verificação de pagador.
   Esperado: entra já em **Aguardando aprovação** — é a fila de trabalho.
 
 - [ ] **BOL-31 — Filtros**
-  Passos: percorra Aguardando aprovação, Rejeitados, Aprovados, Negados,
-  Cancelados, Todos.
+  Passos: percorra Aguardando aprovação, Rejeitados, Aprovados,
+  **Agendados, Pagos, Falhou**, Negados, Cancelados, Todos.
   Esperado: a lista recarrega a cada troca; filtro sem resultado mostra
   "Nenhum boleto neste estado."
 
 - [ ] **BOL-32 — Conteúdo da linha**
   Esperado: valor formatado, "Vence em <data>", banco quando houver, e três
   badges: status, trilho e tipo. Ícone de QR para Pix, de recibo para
-  boleto.
+  boleto. Boleto com data efetiva de pagamento acrescenta
+  "· pagar em <data>".
 
 - [ ] **BOL-33 — Rolagem infinita**
   Esperado: com mais de uma página, carrega ao chegar perto do fim.

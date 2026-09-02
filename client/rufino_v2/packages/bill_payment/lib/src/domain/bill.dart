@@ -67,6 +67,7 @@ class Bill {
     this.bankCode,
     this.riskLevel,
     this.readingStatus = ReadingStatuses.notApplicable,
+    this.scheduledFor,
   });
 
   /// The bill's id.
@@ -111,6 +112,10 @@ class Bill {
   /// what stops the screen from lying — a bill with no reading used to be
   /// indistinguishable from one whose document has nothing to read.
   final String readingStatus;
+
+  /// The payment date — the one asked at approval, the effective one after
+  /// scheduling (phase 3). Null before an approval.
+  final DateTime? scheduledFor;
 
   /// Whether the AI analysis is still queued.
   bool get isReadingQueued => readingStatus == ReadingStatuses.queued;

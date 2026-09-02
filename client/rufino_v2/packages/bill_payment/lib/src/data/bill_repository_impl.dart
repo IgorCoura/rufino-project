@@ -110,6 +110,7 @@ class BillRepositoryImpl implements BillRepository {
     required DateTime scheduleFor,
     String? note,
     bool acknowledgeRisk = false,
+    bool acknowledgeImmediateExecution = false,
   }) =>
       _guard(
         () => apiService.approveBill(
@@ -117,8 +118,15 @@ class BillRepositoryImpl implements BillRepository {
           scheduleFor: scheduleFor,
           note: note,
           acknowledgeRisk: acknowledgeRisk,
+          acknowledgeImmediateExecution: acknowledgeImmediateExecution,
         ),
         context: {'op': 'approveBill', 'billId': id},
+      );
+
+  @override
+  Future<Result<void>> reopenBill(String id) => _guard(
+        () => apiService.reopenBill(id),
+        context: {'op': 'reopenBill', 'billId': id},
       );
 
   @override

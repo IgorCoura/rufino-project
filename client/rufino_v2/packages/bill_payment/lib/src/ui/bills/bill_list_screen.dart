@@ -45,6 +45,11 @@ class _BillListScreenState extends State<BillListScreen> {
     ('Aguardando aprovação', BillStatuses.awaitingApproval),
     ('Rejeitados', BillStatuses.rejected),
     ('Aprovados', BillStatuses.approved),
+    // Fase 3: sem estes três, um boleto que virasse Agendado SUMIA da vista
+    // — só aparecia em "Todos". "Falhou" é a fila operacional do pagamento.
+    ('Agendados', BillStatuses.scheduled),
+    ('Pagos', BillStatuses.paid),
+    ('Falhou', BillStatuses.failed),
     ('Negados', BillStatuses.denied),
     ('Cancelados', BillStatuses.cancelled),
     ('Todos', null),
@@ -225,7 +230,10 @@ class _Results extends StatelessWidget {
                               ),
                               Text(
                                 'Vence em ${formatDate(bill.dueDate)}'
-                                '${bill.bankCode == null ? '' : ' · banco ${bill.bankCode}'}',
+                                '${bill.bankCode == null ? '' : ' · banco ${bill.bankCode}'}'
+                                // A data de pagamento na linha: um Agendado
+                                // sem ela obrigaria a abrir o detalhe.
+                                '${bill.scheduledFor == null ? '' : ' · pagar em ${formatDate(bill.scheduledFor)}'}',
                                 style: theme.textTheme.bodySmall?.copyWith(
                                   color: theme.colorScheme.onSurfaceVariant,
                                 ),

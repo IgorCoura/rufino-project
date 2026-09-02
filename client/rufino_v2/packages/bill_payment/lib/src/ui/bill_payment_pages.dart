@@ -20,6 +20,7 @@ import '../domain/capture_source_repository.dart';
 import '../domain/expectation_repository.dart';
 import '../domain/payee_repository.dart';
 import '../domain/payer_profile_repository.dart';
+import '../domain/payment_repository.dart';
 import 'bills/bill_detail_screen.dart';
 import 'bills/bill_detail_viewmodel.dart';
 import 'bills/bill_import_screen.dart';
@@ -227,6 +228,7 @@ class BillDetailPage extends StatefulWidget {
     required this.backFallback,
     required this.onOpenArtifact,
     required this.onOpenEmail,
+    this.onOpenReceipt,
   });
 
   /// O boleto sendo mostrado.
@@ -241,6 +243,9 @@ class BillDetailPage extends StatefulWidget {
   /// Abre o e-mail que trouxe o boleto.
   final VoidCallback onOpenEmail;
 
+  /// Abre o comprovante do pagamento (fase 3). Nulo esconde o botão.
+  final VoidCallback? onOpenReceipt;
+
   @override
   State<BillDetailPage> createState() => _BillDetailPageState();
 }
@@ -253,8 +258,19 @@ class _BillDetailPageState extends State<BillDetailPage> {
     super.initState();
     _viewModel = BillDetailViewModel(
       repository: context.read<BillRepository>(),
+      // Nulo quando a casca ainda não registrou o repositório de pagamento:
+      // a seção da execução simplesmente não carrega, e o resto da tela vive.
+      paymentRepository: _maybeRead<PaymentRepository>(context),
       billId: widget.billId,
     );
+  }
+
+  static T? _maybeRead<T>(BuildContext context) {
+    try {
+      return context.read<T>();
+    } on ProviderNotFoundException {
+      return null;
+    }
   }
 
   @override
@@ -270,6 +286,54 @@ class _BillDetailPageState extends State<BillDetailPage> {
       backFallback: widget.backFallback,
       onOpenArtifact: widget.onOpenArtifact,
       onOpenEmail: widget.onOpenEmail,
+      onOpenReceipt: widget.onOpenReceipt,
+    );
+  }
+}
+
+/// Página do comprovante de pagamento de um boleto (fase 3).
+class BillReceiptPage extends StatefulWidget {
+  /// Cria a página para [billId].
+  const BillReceiptPage({
+    super.key,
+    required this.billId,
+    required this.backFallback,
+  });
+
+  /// O boleto cujo comprovante está sendo mostrado.
+  final String billId;
+
+  /// Para onde o voltar leva quando não há pilha.
+  final String backFallback;
+
+  @override
+  State<BillReceiptPage> createState() => _BillReceiptPageState();
+}
+
+class _BillReceiptPageState extends State<BillReceiptPage> {
+  late final ArtifactViewerViewModel _viewModel;
+
+  @override
+  void initState() {
+    super.initState();
+    final repository = context.read<PaymentRepository>();
+    _viewModel = ArtifactViewerViewModel(
+      load: () => repository.getReceiptForBill(widget.billId),
+    );
+  }
+
+  @override
+  void dispose() {
+    _viewModel.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return ArtifactViewerScreen(
+      viewModel: _viewModel,
+      title: 'Comprovante de pagamento',
+      backFallback: widget.backFallback,
     );
   }
 }

@@ -300,6 +300,7 @@ internal sealed class BillQueries(BillPaymentDbContext context, UnlockedArtifact
                 bill.Origin.ReceivedAt,
                 !string.IsNullOrEmpty(bill.Origin.StorageKey)),
             bill.CreatedAt,
-            bill.ReadingState.Name);
+            bill.ReadingState.Name,
+            ScheduledFor: bill.ScheduledFor);
     }
 }

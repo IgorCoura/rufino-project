@@ -21,6 +21,8 @@ export 'src/data/payee_api_service.dart';
 export 'src/data/payee_repository_impl.dart';
 export 'src/data/payer_profile_api_service.dart';
 export 'src/data/payer_profile_repository_impl.dart';
+export 'src/data/payment_api_service.dart';
+export 'src/data/payment_repository_impl.dart';
 export 'src/data/trusted_origin_api_service.dart';
 export 'src/data/trusted_origin_repository_impl.dart';
 export 'src/domain/bill.dart';
@@ -44,6 +46,8 @@ export 'src/domain/payee.dart';
 export 'src/domain/payee_repository.dart';
 export 'src/domain/payer_profile.dart';
 export 'src/domain/payer_profile_repository.dart';
+export 'src/domain/payment_order.dart';
+export 'src/domain/payment_repository.dart';
 export 'src/domain/trusted_origin.dart';
 export 'src/domain/trusted_origin_repository.dart';
 // O tipo do seletor de arquivos: a casca implementa (ela tem o `file_picker`),

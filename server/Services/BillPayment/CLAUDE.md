@@ -598,7 +598,12 @@ A Fase 1 inteira (verificação + aprovação) não movimenta dinheiro: a consul
 - **3.4**: `POST /bills/{id}/reopen` (`bill:approve`, `ReopenBillCommand`) — **só `Failed` reabre** (a guarda restringe a matriz de propósito: reabrir `Approved` descartaria aprovação vigente sem motivo de pagamento); a nova aprovação cria **ordem nova** (ADR-002). `REFUNDED` alerta pelo canal 2.7 (`NotifyPaymentRefundedHandler`). **Replay de dead-letter segue pendente** (checklist).
 - **Testes**: `Payments/PaymentWebhookAndReceiptTests` (7 — 404 sem token, 401 token errado em tempo constante, o caminho `BILL_PAID` → espelho + comprovante servido, **a reentrega do mesmo evento sem segundo efeito** com uma linha só no ledger, referência desconhecida em 200, o falhado reabrindo com ordem NOVA, e reabrir `Approved` em 409 BIL34). `FakeReceiptFetcher` + `InMemoryAttachmentStorage` entraram no `WithPaymentChain`.
 
-**Falta da fase 3**: apenas a **3.5 (cliente Flutter)**.
+**Sprint 3.5 (cliente Flutter) — ✅ Concluída (2026-09-02).** A execução chega à tela, em `client/rufino_v2/packages/bill_payment/`:
+
+- **Complemento no servidor**: `BillDto` ganhou **`ScheduledFor`** (a data efetiva da ordem viva, via subconsulta em `BillQueries` sobre a ordem ativa do boleto) — é o que a lista usa para "pagar em <data>". Nada além disso mudou no BC.
+- **Cliente**: entidade `PaymentOrder` + `PaymentRepository` (`GET /payments/by-bill` com **404 → null** — a janela do outbox é estado normal), seção "Execução do pagamento" no detalhe (status/retenção/data pedida × efetiva/valor/taxa/falhas + cancelar/confirmar imediato), rota `/bill-payment/bills/:id/receipt` reusando `ArtifactViewerScreen`, botão "Reabrir para nova tentativa" (só `Failed`), caixa de aceite do vencido no sheet de aprovar (`acknowledgeImmediateExecution` — BIL35), filtros Agendados/Pagos/Falhou na lista. O `PaymentRepository` é provider **opcional** na página; falha ao ler pagamento nunca derruba o detalhe. Detalhes e regras de erosão no `client/rufino_v2/CLAUDE.md` (seção Bill Payment) e casos manuais no `doc/roteiro-teste-manual.md` (seção 7b).
+
+**Pendências honestas da fase 3** (registradas também no roadmap): sonda sandbox bloqueada (falta `Asaas:SandboxApiKey`), token de webhook por tenant (interim = env da instalação), replay operacional de dead-letter.
 
 ## 2026-08-27 — Vencimento consolidado, e-mail visível, leitura por IA em todo boleto, ADR-015 e o check 13
 

@@ -26,7 +26,7 @@ abstract final class BillStatuses {
   /// A human refused it. Terminal.
   static const String denied = 'Denied';
 
-  /// Handed to the payment provider (phase 3 — not produced yet).
+  /// Handed to the payment provider — the order was accepted (phase 3).
   static const String scheduled = 'Scheduled';
 
   /// Paid. Terminal.
@@ -58,6 +58,9 @@ abstract final class BillStatuses {
   /// Whether cancel applies to [status].
   static bool acceptsCancellation(String status) => !isTerminal(status);
 
+  /// Whether the reopen action applies — only a failed payment reopens.
+  static bool acceptsReopen(String status) => status == failed;
+
   /// The label to show for [status].
   static String label(String status) => switch (status) {
         captured => 'Capturado',
@@ -70,6 +73,78 @@ abstract final class BillStatuses {
         failed => 'Falhou',
         cancelled => 'Cancelado',
         _ => status,
+      };
+}
+
+/// Wire values of the backend's `PaymentOrderStatus` smart enum (phase 3).
+///
+/// `Draft` is ours (the submission queue's state); from `Pending` onwards the
+/// provider dictates, and the bill mirrors the outcome.
+abstract final class PaymentOrderStatuses {
+  /// Created here, not yet submitted to the provider.
+  static const String draft = 'Draft';
+
+  /// The provider accepted and will process on the date.
+  static const String pending = 'Pending';
+
+  /// In bank processing.
+  static const String bankProcessing = 'BankProcessing';
+
+  /// Paid. Only a refund comes after.
+  static const String paid = 'Paid';
+
+  /// The provider could not pay, or the submission gave up. Terminal — a new
+  /// try is a new order, born from reopening the bill.
+  static const String failed = 'Failed';
+
+  /// Cancelled before execution.
+  static const String cancelled = 'Cancelled';
+
+  /// The money came back after being paid.
+  static const String refunded = 'Refunded';
+
+  /// Whether the cancel action still applies — the reaction window the 24h
+  /// policy exists for. Mirrors the server: draft cancels locally, pending and
+  /// bank-processing ask the provider, and the rest is already settled.
+  static bool canCancel(String status) =>
+      status == draft || status == pending || status == bankProcessing;
+
+  /// The label to show for [status]. Unknown values echo the wire name — a
+  /// newer server must never be painted as a known outcome.
+  static String label(String status) => switch (status) {
+        draft => 'Na fila de envio',
+        pending => 'Aceito pelo provedor',
+        bankProcessing => 'Em processamento bancário',
+        paid => 'Pago',
+        failed => 'Falhou',
+        cancelled => 'Cancelado',
+        refunded => 'Estornado',
+        _ => status,
+      };
+}
+
+/// Wire values of the backend's `PaymentOrderHold` smart enum (phase 3).
+///
+/// A held order is a VISIBLE state, never a silently stuck queue: without a
+/// payment account it waits for the key; an overdue bill waits for a person
+/// to confirm paying right now.
+abstract final class PaymentOrderHolds {
+  /// No hold — the order is eligible for the submission queue.
+  static const String none = 'None';
+
+  /// The tenant has no payment account linked; linking the key releases it.
+  static const String awaitingAccount = 'AwaitingAccount';
+
+  /// The bill went overdue before submission — a person must confirm the
+  /// immediate payment (ADR-017 on the server).
+  static const String awaitingConfirmation = 'AwaitingConfirmation';
+
+  /// The label to show for [hold]; `null` for [none] — no hold, no line.
+  static String? label(String hold) => switch (hold) {
+        none => null,
+        awaitingAccount => 'Aguardando a conta de pagamento',
+        awaitingConfirmation => 'Aguardando confirmação de pagamento imediato',
+        _ => hold,
       };
 }
 

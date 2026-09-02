@@ -110,7 +110,7 @@ Flutter cross-platform app hosting **two distinct products** that share one shel
 | Produto | Escopo | Backend | Estado |
 |---|---|---|---|
 | **People Management** | funcionários, documentos, departamentos, locais de trabalho | `people-management-service` (.NET) + Keycloak | maduro — é todo o `lib/` de hoje |
-| **Bill Payment** | captura de boletos, verificação, aprovação, expectativas | `BillPayment` (.NET), fases 1–2 concluídas | ✅ UI completa até `Approved` — `packages/bill_payment/` (fase 3 do backend, pagamento, não existe) |
+| **Bill Payment** | captura de boletos, verificação, aprovação, agendamento e pagamento | `BillPayment` (.NET), fases 1–3 concluídas | ✅ UI completa até o pagamento — `packages/bill_payment/` (fase 3: seção de execução no detalhe, comprovante, reabrir falhado) |
 
 Mais um módulo, que não é produto: **Tenant Management** (`packages/tenant_management/`) — a identidade do cliente da plataforma. É **a porta de entrada do app**: o usuário escolhe um tenant e só então chega ao Home, que mostra as funcionalidades dos produtos daquele cliente. Backend: `TenantManagement` (.NET).
 
@@ -967,10 +967,11 @@ refresh de token e limpa no logout — junto com as outras duas.
 | Rota | Tela | Guard (recurso/escopo) |
 |---|---|---|
 | `/bill-payment/pending` | Painel diário: fila de aprovação + 3 listas de pendências + nudge de onboarding | `expectation`/`view` |
-| `/bill-payment/bills` | Fila de boletos, filtro `?status=` **no servidor**, abre em Aguardando aprovação | `bill`/`view` |
+| `/bill-payment/bills` | Fila de boletos, filtro `?status=` **no servidor**, abre em Aguardando aprovação; filtros Agendados/Pagos/Falhou e a linha "pagar em" quando há data efetiva | `bill`/`view` |
 | `/bill-payment/bills/import` | Importação manual: linha digitável, código Pix e/ou **anexo do boleto** (PDF/imagem) — um dos três basta | `bill`/`import` |
-| `/bill-payment/bills/:id` | Aprovação: banner de risco (Seguro/Atenção/Perigo), 13 verificações, consulta oficial por inteiro, resumo com competência/descrição da IA + revalidar/negar/cancelar/aprovar (Perigo exige a caixa "assumo o risco") | `bill`/`view` |
+| `/bill-payment/bills/:id` | Aprovação: banner de risco (Seguro/Atenção/Perigo), 13 verificações, consulta oficial por inteiro, resumo com competência/descrição da IA + revalidar/negar/cancelar/aprovar (Perigo exige a caixa "assumo o risco"); pós-aprovação, a seção **Execução do pagamento** (fase 3) com status/retenção/datas da ordem, cancelar agendamento, confirmar pagamento imediato e reabrir boleto falhado | `bill`/`view` (cancelar ordem: `bill`/`cancel`; confirmar/reabrir: `bill`/`approve`) |
 | `/bill-payment/bills/:id/artifact` | O documento original do boleto, em tela cheia | `bill`/`view` |
+| `/bill-payment/bills/:id/receipt` | O comprovante de pagamento vindo do provedor, em tela cheia (só existe após Pago) | `bill`/`view` |
 | `/bill-payment/bills/:id/email` | O e-mail que trouxe o boleto — título, remetente e corpo renderizado | `bill`/`view` |
 | `/bill-payment/capture-items` (+`/:id`, `/:id/artifact`, `/:id/email`) | Quarentena: filtro server-side, claim/reprocess, documento original e o e-mail que trouxe o item | `capture-item`/`view` |
 | `/bill-payment/captured-messages` | Livro-caixa: todo e-mail lido, com busca, filtros, rolagem infinita, controle de retenção e recaptura | `captured-message`/`view`·`recapture` |
@@ -1147,6 +1148,29 @@ Coisas que não podem erodir:
 - **O `showDatePicker` tem `lastDate: hoje`** — piso no futuro descreve uma fonte que não captura
   nada, e o servidor recusa com `BLP.CPS20`. Impedir na tela evita levar o usuário a um erro que
   já se sabe que vai acontecer.
+- **A seção "Execução do pagamento" fala pela ordem, e ordem ausente é estado normal (fase 3).**
+  A aprovação cria a `PaymentOrder` pelo outbox do servidor, então há uma janela observável em que
+  o boleto está `Approved` e `GET /payments/by-bill/{id}` responde 404 — o
+  `PaymentApiService.getByBill` traduz 404 em `null` e a tela mostra "Agendamento em
+  processamento…" em vez de erro. Falha ao ler o pagamento **nunca** derruba o detalhe
+  (`_loadPayment` engole o erro); o boleto está na tela de qualquer jeito. O
+  `PaymentRepository` é provider **opcional** na página (`_maybeRead`), para os testes de widget
+  antigos e uma casca sem o provider continuarem funcionando.
+- **O aceite do boleto vencido viaja na aprovação, e a UI o coleta com caixa explícita
+  (ADR-017 do BC).** `BillDetail.isOverdueAt` compara por dia; quando vencido, o sheet de
+  aprovação exige marcar "sei que o pagamento sai imediatamente" e manda
+  `acknowledgeImmediateExecution: true` (`BLP.BIL35` sem ele). Ordem retida em
+  `AwaitingConfirmation` mostra o botão "Confirmar pagamento imediato" na seção de execução.
+- **Cancelar agendamento respeita a janela de reação** (`PaymentOrderStatuses.canCancel`:
+  Draft/Pending/BankProcessing) e **reabrir é só para `Failed`**
+  (`BillStatuses.acceptsReopen`) — reabrir não é atalho para desfazer aprovação. Os dois pedem
+  confirmação por diálogo. Status de ordem desconhecido ecoa o nome de arame, nunca é pintado
+  como desfecho conhecido.
+- **O comprovante é rota (`/bills/:id/receipt`), não diálogo — mesma doutrina do artefato.**
+  `BillReceiptPage` reusa `ArtifactViewerScreen` com um loader que resolve a ordem e busca o
+  comprovante; sem comprovante ainda, a mensagem é de regra ("ainda não tem comprovante"), não de
+  rede. Os bytes ficam em memória; a URL do provedor **nunca** chega ao cliente — o servidor a
+  consumiu e guardou o arquivo no storage.
 - **Mesmas disciplinas do tenant_management**: Pages donas do ViewModel (`bill_payment_pages.dart`),
   rotas literais antes de `:id` (coberto por `bill_payment_routes_test.dart`), voltar =
   `canPop ? pop : go`, guard de rota libera enquanto permissões não carregaram (F5 na web),

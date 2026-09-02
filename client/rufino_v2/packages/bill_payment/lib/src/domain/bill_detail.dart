@@ -324,6 +324,22 @@ class BillDetail {
   /// Whether cancel applies to the current status.
   bool get acceptsCancellation => BillStatuses.acceptsCancellation(status);
 
+  /// Whether the reopen action applies — only a failed payment reopens.
+  bool get acceptsReopen => BillStatuses.acceptsReopen(status);
+
+  /// Whether the bill is already overdue at [now].
+  ///
+  /// An overdue bill is processed IMMEDIATELY by the provider — no reaction
+  /// window — so approving one demands the explicit consent the server
+  /// records (ADR-017). Unknown due date counts as not overdue: the guard is
+  /// the server's, and pretending here would block a legitimate approval.
+  bool isOverdueAt(DateTime now) {
+    final due = dueDate;
+    if (due == null) return false;
+    final today = DateTime(now.year, now.month, now.day);
+    return DateTime(due.year, due.month, due.day).isBefore(today);
+  }
+
   /// Whether the lookup snapshot is too old to sustain an approval at [now].
   ///
   /// A bill never consulted counts as stale: there is no snapshot to trust.

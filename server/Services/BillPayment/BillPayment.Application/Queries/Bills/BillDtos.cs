@@ -143,7 +143,13 @@ public sealed record BillDto(
     /// indistinguível de um boleto cujo documento não tem o que ler — e metade deles estava sem
     /// retrato por falha do provedor, não por ausência de conteúdo.
     /// </remarks>
-    string ReadingStatus);
+    string ReadingStatus,
+
+    /// <summary>
+    /// A data de pagamento — pedida na aprovação, efetiva depois do agendamento (fase 3).
+    /// Na lista, porque um boleto Agendado sem data visível obriga a abrir o detalhe.
+    /// </summary>
+    DateOnly? ScheduledFor = null);
 
 /// <param name="HasArtifact">
 /// Se existe documento original para servir. <strong>Booleano, e não a chave</strong>: o download

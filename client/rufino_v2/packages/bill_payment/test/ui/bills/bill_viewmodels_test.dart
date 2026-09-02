@@ -233,4 +233,151 @@ void main() {
       viewModel.dispose();
     });
   });
+
+  group('BillDetailViewModel payment section (phase 3)', () {
+    late FakeBillRepository repository;
+    late FakePaymentRepository paymentRepository;
+    late BillDetailViewModel viewModel;
+
+    BillDetailViewModel build() => BillDetailViewModel(
+          repository: repository,
+          billId: 'bill-1',
+          paymentRepository: paymentRepository,
+          clock: () => now,
+        );
+
+    setUp(() {
+      repository = FakeBillRepository();
+      paymentRepository = FakePaymentRepository();
+    });
+
+    tearDown(() => viewModel.dispose());
+
+    test('loads the payment order once the bill status is committed',
+        () async {
+      repository.detail = billDetail(status: BillStatuses.scheduled);
+      paymentRepository.order = paymentOrder();
+      viewModel = build();
+
+      await viewModel.load();
+
+      expect(viewModel.payment?.id, 'order-1');
+      expect(paymentRepository.calls, contains('getForBill:bill-1'));
+    });
+
+    test('skips the payment lookup while the bill is still under decision',
+        () async {
+      repository.detail = billDetail();
+      paymentRepository.order = paymentOrder();
+      viewModel = build();
+
+      await viewModel.load();
+
+      expect(viewModel.payment, isNull);
+      expect(paymentRepository.calls, isEmpty);
+    });
+
+    // Falha na leitura do pagamento nunca derruba o detalhe: o boleto está
+    // na tela de qualquer jeito, e a seção apenas silencia.
+    test('a payment read failure never breaks the loaded detail', () async {
+      repository.detail = billDetail(status: BillStatuses.paid);
+      paymentRepository.setShouldFail(true);
+      viewModel = build();
+
+      await viewModel.load();
+
+      expect(viewModel.status, BillDetailStatus.loaded);
+      expect(viewModel.payment, isNull);
+      expect(viewModel.errorMessage, isNull);
+    });
+
+    test('cancelPayment delegates to the order and reloads the detail',
+        () async {
+      repository.detail = billDetail(status: BillStatuses.scheduled);
+      paymentRepository.order = paymentOrder();
+      viewModel = build();
+      await viewModel.load();
+
+      final succeeded = await viewModel.cancelPayment();
+
+      expect(succeeded, isTrue);
+      expect(paymentRepository.calls, contains('cancel:order-1'));
+      expect(
+        paymentRepository.calls.where((c) => c == 'getForBill:bill-1'),
+        hasLength(2),
+      );
+    });
+
+    test('cancelPayment without a loaded order resolves false silently',
+        () async {
+      repository.detail = billDetail();
+      viewModel = build();
+      await viewModel.load();
+
+      expect(await viewModel.cancelPayment(), isFalse);
+      expect(paymentRepository.calls, isEmpty);
+    });
+
+    test('confirmImmediatePayment delegates to the order awaiting consent',
+        () async {
+      repository.detail = billDetail(status: BillStatuses.approved);
+      paymentRepository.order = paymentOrder(
+        hold: PaymentOrderHolds.awaitingConfirmation,
+        requiresConfirmation: true,
+      );
+      viewModel = build();
+      await viewModel.load();
+
+      final succeeded = await viewModel.confirmImmediatePayment();
+
+      expect(succeeded, isTrue);
+      expect(paymentRepository.calls, contains('confirmImmediate:order-1'));
+    });
+
+    test('reopen sends the failed bill back to the decision queue', () async {
+      repository.detail = billDetail(status: BillStatuses.failed);
+      viewModel = build();
+      await viewModel.load();
+
+      final succeeded = await viewModel.reopen();
+
+      expect(succeeded, isTrue);
+      expect(repository.calls, contains('reopenBill:bill-1'));
+    });
+
+    // O aceite do vencido (ADR-017) precisa atravessar o ViewModel intacto.
+    test('approve carries the immediate-execution acknowledgement', () async {
+      repository.detail = billDetail(
+        lastConsultedAt: now.subtract(const Duration(hours: 1)),
+        dueDate: now.subtract(const Duration(days: 3)),
+      );
+      viewModel = build();
+      await viewModel.load();
+
+      await viewModel.approve(
+        scheduleFor: now.add(const Duration(days: 2)),
+        acknowledgeImmediateExecution: true,
+      );
+
+      expect(repository.lastApproveImmediateAck, isTrue);
+    });
+
+    test('isOverdue follows the due date against the clock', () async {
+      repository.detail = billDetail(
+        dueDate: now.subtract(const Duration(days: 1)),
+      );
+      viewModel = build();
+      await viewModel.load();
+      expect(viewModel.isOverdue, isTrue);
+
+      final current = BillDetailViewModel(
+        repository: repository..detail = billDetail(),
+        billId: 'bill-1',
+        clock: () => now,
+      );
+      await current.load();
+      expect(current.isOverdue, isFalse);
+      current.dispose();
+    });
+  });
 }

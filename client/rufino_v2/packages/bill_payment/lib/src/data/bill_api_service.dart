@@ -57,6 +57,9 @@ abstract final class BillMapper {
       createdAt: DateTime.parse(json['createdAt'] as String),
       readingStatus:
           json['readingStatus'] as String? ?? ReadingStatuses.notApplicable,
+      scheduledFor: json['scheduledFor'] == null
+          ? null
+          : DateTime.parse(json['scheduledFor'] as String),
     );
   }
 
@@ -429,6 +432,7 @@ class BillApiService {
     required DateTime scheduleFor,
     String? note,
     bool acknowledgeRisk = false,
+    bool acknowledgeImmediateExecution = false,
   }) async {
     final response = await client.post(
       _uri('/bills/$id/approve'),
@@ -437,7 +441,17 @@ class BillApiService {
         'scheduleFor': dateOnly(scheduleFor),
         'note': note?.trim(),
         'acknowledgeRisk': acknowledgeRisk,
+        'acknowledgeImmediateExecution': acknowledgeImmediateExecution,
       }),
+    );
+    checkApiStatus(response);
+  }
+
+  /// Returns a failed bill to the decision queue.
+  Future<void> reopenBill(String id) async {
+    final response = await client.post(
+      _uri('/bills/$id/reopen'),
+      headers: await _headers(write: true),
     );
     checkApiStatus(response);
   }

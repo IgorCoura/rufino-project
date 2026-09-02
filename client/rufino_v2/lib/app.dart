@@ -456,6 +456,15 @@ class App extends StatelessWidget {
       ),
       reporter: errorReporter,
     );
+    final PaymentRepository paymentRepository = PaymentRepositoryImpl(
+      apiService: PaymentApiService(
+        client: httpClient,
+        baseUrl: AppConfig.billPaymentUrl,
+        getAuthHeader: getAuthHeader,
+        getTenantId: getBillPaymentTenantId,
+      ),
+      reporter: errorReporter,
+    );
     final CaptureItemRepository captureItemRepository =
         CaptureItemRepositoryImpl(
       apiService: CaptureItemApiService(
@@ -567,6 +576,7 @@ class App extends StatelessWidget {
       Provider<SpreadsheetService>.value(value: spreadsheetService),
       Provider<FileSaveService>.value(value: fileSaveService),
       Provider<BillRepository>.value(value: billRepository),
+      Provider<PaymentRepository>.value(value: paymentRepository),
       Provider<CaptureItemRepository>.value(value: captureItemRepository),
       Provider<CapturedMessageRepository>.value(
         value: capturedMessageRepository,

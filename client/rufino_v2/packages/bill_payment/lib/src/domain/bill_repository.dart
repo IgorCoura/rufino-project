@@ -88,12 +88,20 @@ abstract class BillRepository {
   ///
   /// [acknowledgeRisk] must be `true` for a bill classified as Danger — the
   /// explicit acceptance the audit trail records (ADR-015).
+  /// [acknowledgeImmediateExecution] must be `true` for an OVERDUE bill: the
+  /// provider processes it at once, with no reaction window, and the server
+  /// refuses the approval without the explicit consent (ADR-017).
   Future<Result<void>> approveBill(
     String id, {
     required DateTime scheduleFor,
     String? note,
     bool acknowledgeRisk = false,
+    bool acknowledgeImmediateExecution = false,
   });
+
+  /// Returns a FAILED bill to the decision queue — the new try is a new
+  /// approval and a new payment order.
+  Future<Result<void>> reopenBill(String id);
 
   /// Refuses the bill. The [reason] is mandatory — a refusal without one is
   /// an audit hole.

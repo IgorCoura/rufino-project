@@ -180,4 +180,62 @@ void main() {
       expect(RiskLevels.requiresAcknowledgement(RiskLevels.attention), isFalse);
     });
   });
+
+  group('BillStatuses reopen (phase 3)', () {
+    // Só o pagamento falhado reabre — reabrir não é atalho para desfazer aprovação.
+    test('only a failed payment accepts the reopen action', () {
+      expect(BillStatuses.acceptsReopen(BillStatuses.failed), isTrue);
+      expect(BillStatuses.acceptsReopen(BillStatuses.approved), isFalse);
+      expect(BillStatuses.acceptsReopen(BillStatuses.scheduled), isFalse);
+      expect(BillStatuses.acceptsReopen(BillStatuses.paid), isFalse);
+    });
+  });
+
+  group('PaymentOrderStatuses', () {
+    // A janela de reação: rascunho, aceito e em processamento ainda cancelam;
+    // o que já se resolveu, não.
+    test('the reaction window covers draft, pending and bank processing', () {
+      expect(PaymentOrderStatuses.canCancel(PaymentOrderStatuses.draft), isTrue);
+      expect(
+        PaymentOrderStatuses.canCancel(PaymentOrderStatuses.pending),
+        isTrue,
+      );
+      expect(
+        PaymentOrderStatuses.canCancel(PaymentOrderStatuses.bankProcessing),
+        isTrue,
+      );
+      expect(PaymentOrderStatuses.canCancel(PaymentOrderStatuses.paid), isFalse);
+      expect(
+        PaymentOrderStatuses.canCancel(PaymentOrderStatuses.failed),
+        isFalse,
+      );
+      expect(
+        PaymentOrderStatuses.canCancel(PaymentOrderStatuses.cancelled),
+        isFalse,
+      );
+    });
+
+    // Status desconhecido ecoa o nome de arame — servidor mais novo nunca é
+    // pintado como um desfecho conhecido.
+    test('an unknown status echoes the wire name instead of guessing', () {
+      expect(PaymentOrderStatuses.label('SomethingNew'), 'SomethingNew');
+      expect(PaymentOrderStatuses.label(PaymentOrderStatuses.paid), 'Pago');
+    });
+  });
+
+  group('PaymentOrderHolds', () {
+    // Retenção é estado visível: só a ausência dela cala.
+    test('only the absent hold produces no line', () {
+      expect(PaymentOrderHolds.label(PaymentOrderHolds.none), isNull);
+      expect(
+        PaymentOrderHolds.label(PaymentOrderHolds.awaitingAccount),
+        isNotNull,
+      );
+      expect(
+        PaymentOrderHolds.label(PaymentOrderHolds.awaitingConfirmation),
+        isNotNull,
+      );
+      expect(PaymentOrderHolds.label('SomethingNew'), 'SomethingNew');
+    });
+  });
 }

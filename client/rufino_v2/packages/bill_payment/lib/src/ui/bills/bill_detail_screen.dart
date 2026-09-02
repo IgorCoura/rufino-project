@@ -26,6 +26,7 @@ class BillDetailScreen extends StatefulWidget {
     required this.backFallback,
     required this.onOpenArtifact,
     required this.onOpenEmail,
+    this.onOpenReceipt,
   });
 
   /// Drives the screen.
@@ -39,6 +40,9 @@ class BillDetailScreen extends StatefulWidget {
 
   /// Abre o e-mail que trouxe o boleto.
   final VoidCallback onOpenEmail;
+
+  /// Abre o comprovante do pagamento (fase 3). Nulo esconde o botão.
+  final VoidCallback? onOpenReceipt;
 
   @override
   State<BillDetailScreen> createState() => _BillDetailScreenState();
@@ -99,6 +103,7 @@ class _BillDetailScreenState extends State<BillDetailScreen> {
                   viewModel: viewModel,
                   onOpenArtifact: widget.onOpenArtifact,
                   onOpenEmail: widget.onOpenEmail,
+                  onOpenReceipt: widget.onOpenReceipt,
                 );
             }
           },
@@ -113,10 +118,14 @@ class _Body extends StatelessWidget {
     required this.viewModel,
     required this.onOpenArtifact,
     required this.onOpenEmail,
+    this.onOpenReceipt,
   });
 
   final BillDetailViewModel viewModel;
   final VoidCallback onOpenArtifact;
+
+  /// Abre o comprovante do pagamento, quando a rota existe.
+  final VoidCallback? onOpenReceipt;
 
   /// Abre o e-mail que trouxe o boleto.
   final VoidCallback onOpenEmail;
@@ -171,6 +180,17 @@ class _Body extends StatelessWidget {
             if (bill.approval != null) ...[
               const SizedBox(height: AppSpacing.md),
               _DecisionSection(bill: bill),
+            ],
+            // A execução (fase 3): a ordem atrás do boleto aprovado. Sem
+            // ordem ainda, o card diz "em processamento" — é a janela
+            // observável entre a aprovação e o outbox (ADR-002 do BC).
+            if (viewModel.payment != null ||
+                bill.status == BillStatuses.approved ||
+                bill.status == BillStatuses.scheduled ||
+                bill.status == BillStatuses.paid ||
+                bill.status == BillStatuses.failed) ...[
+              const SizedBox(height: AppSpacing.md),
+              _PaymentSection(viewModel: viewModel, onOpenReceipt: onOpenReceipt),
             ],
             const SizedBox(height: AppSpacing.md),
             _Actions(viewModel: viewModel),
@@ -757,6 +777,199 @@ class _DecisionSection extends StatelessWidget {
   }
 }
 
+/// A execução financeira do boleto aprovado (fase 3).
+///
+/// A ordem é a fonte de verdade da execução; o boleto só a espelha. Sem
+/// ordem ainda, o card diz "em processamento" — a janela observável entre a
+/// aprovação e o outbox, que não é erro.
+class _PaymentSection extends StatelessWidget {
+  const _PaymentSection({required this.viewModel, this.onOpenReceipt});
+
+  final BillDetailViewModel viewModel;
+  final VoidCallback? onOpenReceipt;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final order = viewModel.payment;
+
+    if (order == null) {
+      return const SectionCard(
+        title: 'Pagamento',
+        child: InfoRow(
+          icon: Symbols.hourglass_top,
+          label: 'Situação',
+          value: 'Agendamento em processamento…',
+        ),
+      );
+    }
+
+    final holdLabel = PaymentOrderHolds.label(order.hold);
+    final effectiveDiffers = order.effectiveScheduleDate != null &&
+        !_sameDay(order.effectiveScheduleDate!, order.requestedScheduleDate);
+
+    return SectionCard(
+      title: 'Pagamento',
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          InfoRow(
+            icon: Symbols.account_balance,
+            label: 'Situação',
+            value: PaymentOrderStatuses.label(order.status),
+          ),
+          if (holdLabel != null)
+            InfoRow(
+              icon: Symbols.pause_circle,
+              label: 'Retenção',
+              value: holdLabel,
+            ),
+          InfoRow(
+            icon: Symbols.event,
+            label: 'Data pedida',
+            value: formatDate(order.requestedScheduleDate),
+          ),
+          if (order.effectiveScheduleDate != null)
+            InfoRow(
+              icon: Symbols.event_available,
+              // A data efetiva pode diferir da pedida: antecedência de 24h,
+              // janela de submissão e dia útil deslizam para frente.
+              label: effectiveDiffers ? 'Data efetiva (deslizou)' : 'Data efetiva',
+              value: formatDate(order.effectiveScheduleDate),
+            ),
+          if (order.amount != null)
+            InfoRow(
+              icon: Symbols.payments,
+              label: 'Valor',
+              value: formatMoney(order.amount),
+            ),
+          if (order.fee != null)
+            InfoRow(
+              icon: Symbols.toll,
+              label: 'Taxa do provedor',
+              value: formatMoney(order.fee),
+            ),
+          if (order.paidAt != null)
+            InfoRow(
+              icon: Symbols.task_alt,
+              label: 'Pago em',
+              value: formatDate(order.paidAt),
+            ),
+          for (final reason in order.failReasons)
+            Padding(
+              padding: const EdgeInsets.only(top: AppSpacing.xs),
+              child: Text(
+                reason,
+                style: theme.textTheme.bodyMedium
+                    ?.copyWith(color: theme.colorScheme.error),
+              ),
+            ),
+          if (order.hasFailed && order.lastError != null)
+            Padding(
+              padding: const EdgeInsets.only(top: AppSpacing.xs),
+              child: Text(
+                order.lastError!,
+                style: theme.textTheme.bodySmall
+                    ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+              ),
+            ),
+          const SizedBox(height: AppSpacing.sm),
+          Wrap(
+            spacing: AppSpacing.sm,
+            runSpacing: AppSpacing.sm,
+            children: [
+              // O vencido só é pago com gente confirmando (ADR-017): o botão
+              // é a outra metade do aviso de retenção logo acima.
+              if (order.requiresConfirmation)
+                BillPaymentPermissionGuard(
+                  resource: BillPaymentResources.bill,
+                  scope: BillPaymentScopes.approve,
+                  child: FilledButton.tonal(
+                    onPressed: viewModel.isMutating
+                        ? null
+                        : () => _confirmImmediate(context),
+                    child: const Text('Confirmar pagamento imediato'),
+                  ),
+                ),
+              if (order.canCancel)
+                BillPaymentPermissionGuard(
+                  resource: BillPaymentResources.bill,
+                  scope: BillPaymentScopes.cancel,
+                  child: OutlinedButton(
+                    onPressed: viewModel.isMutating
+                        ? null
+                        : () => _confirmCancel(context),
+                    child: const Text('Cancelar agendamento'),
+                  ),
+                ),
+              if (order.hasReceipt && onOpenReceipt != null)
+                OutlinedButton.icon(
+                  icon: const Icon(Symbols.receipt),
+                  onPressed: onOpenReceipt,
+                  label: const Text('Ver comprovante'),
+                ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  static bool _sameDay(DateTime a, DateTime b) =>
+      a.year == b.year && a.month == b.month && a.day == b.day;
+
+  Future<void> _confirmImmediate(BuildContext context) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Pagar imediatamente?'),
+        content: const Text(
+          'O boleto venceu antes do agendamento, e conta vencida é '
+          'processada na hora — sem janela para cancelar depois. Confirma o '
+          'pagamento imediato?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('Voltar'),
+          ),
+          FilledButton.tonal(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('Pagar agora'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) await viewModel.confirmImmediatePayment();
+  }
+
+  Future<void> _confirmCancel(BuildContext context) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Cancelar o agendamento?'),
+        content: const Text(
+          'O pagamento não será feito. Depois que o provedor começa a '
+          'processar, cancelar pode não ser mais possível.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('Voltar'),
+          ),
+          FilledButton.tonal(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('Cancelar agendamento'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) await viewModel.cancelPayment();
+  }
+}
+
 class _Actions extends StatelessWidget {
   const _Actions({required this.viewModel});
 
@@ -826,6 +1039,19 @@ class _Actions extends StatelessWidget {
                   child: const Text('Cancelar boleto'),
                 ),
               ),
+            // O falhado volta à fila de decisão (fase 3): a nova tentativa é
+            // uma nova aprovação e uma nova ordem — poder de quem aprova.
+            if (bill.acceptsReopen)
+              BillPaymentPermissionGuard(
+                resource: BillPaymentResources.bill,
+                scope: BillPaymentScopes.approve,
+                child: FilledButton.tonal(
+                  onPressed: viewModel.isMutating
+                      ? null
+                      : () => _confirmReopen(context),
+                  child: const Text('Reabrir para nova tentativa'),
+                ),
+              ),
             if (bill.acceptsDecision)
               BillPaymentPermissionGuard(
                 resource: BillPaymentResources.bill,
@@ -857,6 +1083,32 @@ class _Actions extends StatelessWidget {
         ),
       ],
     );
+  }
+
+  Future<void> _confirmReopen(BuildContext context) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Reabrir o boleto?'),
+        content: const Text(
+          'O boleto volta para a fila de aprovação. A nova tentativa exige '
+          'aprovar de novo, e cria uma nova ordem de pagamento — a falhada '
+          'fica registrada como histórico.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('Voltar'),
+          ),
+          FilledButton.tonal(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('Reabrir'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) await viewModel.reopen();
   }
 
   /// Motivo obrigatório: recusa sem motivo é buraco de auditoria.
@@ -912,9 +1164,13 @@ class _Actions extends StatelessWidget {
     final earliest = viewModel.earliestScheduleDate;
     final needsAcknowledgement =
         viewModel.bill?.requiresRiskAcknowledgement ?? false;
+    // ADR-017 do BC: boleto vencido é processado NA HORA pelo provedor, sem
+    // janela de reação — aprovar exige o aceite explícito, gravado na trilha.
+    final needsImmediateAck = viewModel.isOverdue;
     final riskLabel = RiskLevels.label(viewModel.bill?.riskLevel);
     DateTime scheduleFor = earliest;
     var riskAcknowledged = false;
+    var immediateAcknowledged = false;
 
     final confirmed = await showModalBottomSheet<bool>(
       context: context,
@@ -978,9 +1234,25 @@ class _Actions extends StatelessWidget {
                   ),
                 ),
               ],
+              if (needsImmediateAck) ...[
+                const SizedBox(height: AppSpacing.md),
+                CheckboxListTile(
+                  value: immediateAcknowledged,
+                  onChanged: (value) => setSheetState(
+                      () => immediateAcknowledged = value ?? false),
+                  controlAffinity: ListTileControlAffinity.leading,
+                  contentPadding: EdgeInsets.zero,
+                  title: Text(
+                    'Este boleto está vencido e será pago imediatamente, sem '
+                    'agendamento. Confirmo o pagamento na hora.',
+                    style: Theme.of(sheetContext).textTheme.bodyMedium,
+                  ),
+                ),
+              ],
               const SizedBox(height: AppSpacing.lg),
               FilledButton(
-                onPressed: needsAcknowledgement && !riskAcknowledged
+                onPressed: (needsAcknowledgement && !riskAcknowledged) ||
+                        (needsImmediateAck && !immediateAcknowledged)
                     ? null
                     : () => Navigator.of(sheetContext).pop(true),
                 child: const Text('Autorizar'),
@@ -999,6 +1271,7 @@ class _Actions extends StatelessWidget {
             ? null
             : noteController.text.trim(),
         acknowledgeRisk: riskAcknowledged,
+        acknowledgeImmediateExecution: immediateAcknowledged,
       );
     }
     noteController.dispose();
