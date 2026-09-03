@@ -16,7 +16,11 @@ using Polly.Timeout;
 /// distinção que decide entre <c>Unresolved</c> e <c>Unavailable</c> — e ela existe porque
 /// tratar indisponibilidade de rede como suspeita do boleto seria bloquear pagamento legítimo.
 /// </param>
-internal sealed record AsaasFailure(string ReasonCode, string? Message, bool IsRetryable);
+/// <param name="IsNotFound">
+/// Só o 404 do provedor. A consulta por id precisa distinguir "ele não conhece esta ordem"
+/// (NotFound legítimo) de qualquer outra recusa — que degrada para indisponível, o lado seguro.
+/// </param>
+internal sealed record AsaasFailure(string ReasonCode, string? Message, bool IsRetryable, bool IsNotFound = false);
 
 /// <summary>
 /// A chamada HTTP crua ao provedor, com a tradução de status e exceção em motivo estável.
@@ -133,7 +137,7 @@ internal static class AsaasHttp
         return status switch
         {
             401 or 403 => new AsaasFailure(code ?? "insufficient_permission", message, IsRetryable: true),
-            404 => new AsaasFailure(code ?? "not_found", message, IsRetryable: false),
+            404 => new AsaasFailure(code ?? "not_found", message, IsRetryable: false, IsNotFound: true),
             408 or 429 => new AsaasFailure(code ?? "rate_limited", message, IsRetryable: true),
             >= 500 => new AsaasFailure(code ?? "provider_error", message, IsRetryable: true),
             _ => new AsaasFailure(

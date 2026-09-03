@@ -86,10 +86,10 @@ internal sealed class AsaasPixPaymentGateway(
         var path = $"{TRANSACTIONS_PATH}?externalReference={Uri.EscapeDataString(externalReference)}";
         var (body, failure) = await http.GetAsync<AsaasPixPaymentListResponse>(path, logger, cancellationToken);
 
+        // Como no trilho de boleto: só lista vazia definitiva é NotFound — qualquer falha trava
+        // o reenvio (Unavailable), porque NotFound indevido aqui é pagamento duplicado.
         if (failure is not null)
-            return failure.IsRetryable
-                ? PaymentFetchResult.Unavailable(failure.ReasonCode)
-                : PaymentFetchResult.NotFound();
+            return PaymentFetchResult.Unavailable(failure.ReasonCode);
 
         var first = body!.Data?.FirstOrDefault(t => !string.IsNullOrWhiteSpace(t.Id));
         return first is null
@@ -111,10 +111,11 @@ internal sealed class AsaasPixPaymentGateway(
         var path = $"{TRANSACTIONS_PATH}/{Uri.EscapeDataString(providerOrderId)}";
         var (body, failure) = await http.GetAsync<AsaasPixPaymentResponse>(path, logger, cancellationToken);
 
+        // Só o 404 afirma ausência; o resto degrada para Unavailable e a conciliação segue.
         if (failure is not null)
-            return failure.IsRetryable
-                ? PaymentFetchResult.Unavailable(failure.ReasonCode)
-                : PaymentFetchResult.NotFound();
+            return failure.IsNotFound
+                ? PaymentFetchResult.NotFound()
+                : PaymentFetchResult.Unavailable(failure.ReasonCode);
 
         return string.IsNullOrWhiteSpace(body!.Id)
             ? PaymentFetchResult.NotFound()

@@ -108,42 +108,17 @@ internal sealed class AsaasPixPaymentListResponse
 }
 
 /// <summary>
-/// Traduz o catálogo de status do provedor para o nosso — o dele é maior, e a evidência guarda
-/// o nome cru ao lado do mapeado.
+/// Monta o retrato (<c>ProviderPaymentSnapshot</c>) a partir dos DTOs do provedor. A tradução de
+/// status vive no <see cref="ProviderStatusCatalog"/> do Domain — mapa único, consultado também
+/// pelo webhook; os dois delegam para nunca mais discordarem em silêncio.
 /// </summary>
-/// <remarks>
-/// <strong>Status desconhecido cai em <c>Pending</c> de propósito</strong>: é o mapeamento que
-/// mantém a conciliação vigiando em vez de declarar um desfecho que o provedor não afirmou.
-/// Um status novo do provedor aparece no <c>RawStatus</c> da evidência e no log da conciliação,
-/// nunca como <c>Paid</c>/<c>Failed</c> por chute.
-/// </remarks>
 internal static class AsaasPaymentStatusMap
 {
     public static PaymentOrderStatus FromBillPayment(string? raw)
-        => raw?.ToUpperInvariant() switch
-        {
-            "PENDING" or "AWAITING_CHECKOUT_RISK_ANALYSIS_REQUEST" or "SCHEDULED" => PaymentOrderStatus.Pending,
-            "BANK_PROCESSING" => PaymentOrderStatus.BankProcessing,
-            "PAID" => PaymentOrderStatus.Paid,
-            "FAILED" => PaymentOrderStatus.Failed,
-            "CANCELLED" => PaymentOrderStatus.Cancelled,
-            "REFUNDED" => PaymentOrderStatus.Refunded,
-            _ => PaymentOrderStatus.Pending,
-        };
+        => ProviderStatusCatalog.FromBillPayment(raw);
 
     public static PaymentOrderStatus FromPixPayment(string? raw)
-        => raw?.ToUpperInvariant() switch
-        {
-            "AWAITING_BALANCE_VALIDATION" or "SCHEDULED" or "AWAITING_INSTANT_PAYMENT_ACCOUNT_BALANCE"
-                or "AWAITING_CRITICAL_ACTION_AUTHORIZATION" or "AWAITING_CHECKOUT_RISK_ANALYSIS_REQUEST"
-                    => PaymentOrderStatus.Pending,
-            "REQUESTED" or "BANK_PROCESSING" => PaymentOrderStatus.BankProcessing,
-            "DONE" => PaymentOrderStatus.Paid,
-            "REFUSED" or "FAILED" or "ERROR" => PaymentOrderStatus.Failed,
-            "CANCELLED" => PaymentOrderStatus.Cancelled,
-            "REFUNDED" => PaymentOrderStatus.Refunded,
-            _ => PaymentOrderStatus.Pending,
-        };
+        => ProviderStatusCatalog.FromPixPayment(raw);
 
     public static IReadOnlyCollection<string> ReadFailReasons(JsonElement? element)
     {
@@ -177,7 +152,8 @@ internal static class AsaasPaymentStatusMap
             AsaasHttp.ReadDate(body.PaymentDate),
             AsaasHttp.ReadMoney(body.Fee),
             ReadFailReasons(body.FailReasons),
-            body.TransactionReceiptUrl);
+            body.TransactionReceiptUrl,
+            AsaasHttp.ReadMoney(body.Value));
 
     public static ProviderPaymentSnapshot ToSnapshot(AsaasPixPaymentResponse body)
         => new(
@@ -188,5 +164,6 @@ internal static class AsaasPaymentStatusMap
             AsaasHttp.ReadDate(body.EffectiveDate),
             AsaasHttp.ReadMoney(body.ChargedFeeValue),
             string.IsNullOrWhiteSpace(body.RefusalReason) ? [] : [body.RefusalReason],
-            body.TransactionReceiptUrl);
+            body.TransactionReceiptUrl,
+            AsaasHttp.ReadMoney(body.Value));
 }

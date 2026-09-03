@@ -1,6 +1,7 @@
 namespace BillPayment.Infra.Payments;
 
 using BillPayment.Domain.Ports;
+using BillPayment.Infra.Extraction.Links;
 using Microsoft.Extensions.Logging;
 
 /// <summary>
@@ -31,6 +32,15 @@ internal sealed class HttpPaymentReceiptFetcher(
             || (uri.Scheme != Uri.UriSchemeHttps && uri.Scheme != Uri.UriSchemeHttp))
         {
             return ReceiptFetchResult.NotFound("malformed_receipt_url");
+        }
+
+        // A URL vem do provedor, mas é dado de fora mesmo assim — a mesma SafeUrlPolicy da
+        // escada de links fecha o SSRF (host interno, metadados de nuvem, rebinding). Recusar é
+        // desfecho definitivo, não indisponibilidade: a URL não vai melhorar.
+        if (!await SafeUrlPolicy.IsPubliclyRoutableAsync(uri.Host, cancellationToken))
+        {
+            logger.LogWarning("Comprovante em {Host} recusado pela política de URL segura.", uri.Host);
+            return ReceiptFetchResult.NotFound("unsafe_receipt_url");
         }
 
         var http = httpClientFactory.CreateClient(CLIENT_NAME);

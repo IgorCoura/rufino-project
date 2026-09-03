@@ -315,11 +315,36 @@ public sealed class PaymentWebhookAndReceiptTests : BaseIntegrationTest, IDispos
         var outcome = await CaptureReceiptAsync(orderId);
 
         Assert.Equal("NoReceipt", outcome);
-        Assert.Equal(PaymentOrderStatus.Paid, (await LoadOrderAsync(orderId)).Status);
+        var order = await LoadOrderAsync(orderId);
+        Assert.Equal(PaymentOrderStatus.Paid, order.Status);
+        // O caminho do outbox NÃO grava a marca definitiva: o comprovante pode só não existir
+        // AINDA — quem encerra a busca é a rede de segurança, na segunda olhada.
+        Assert.False(order.ReceiptUnavailable);
 
         var receipt = await _client.GetAsync(
             new Uri($"/api/v1/{TenantId}/payments/{orderId}/receipt", UriKind.Relative), CancellationToken.None);
         Assert.Equal(HttpStatusCode.NotFound, receipt.StatusCode);
+    }
+
+    // A rede de segurança (Definitive): sem URL no provedor, a marca persiste e tira a ordem da
+    // varredura — sem ela, a conciliação perguntaria a mesma coisa para sempre.
+    [Fact]
+    public async Task CaptureReceipt_Definitive_WithoutAUrl_ShouldMarkTheOrderOutOfTheSweep()
+    {
+        var (_, orderId) = await SubmitOrderAsync();
+        await MarkPaidAsync(orderId);
+
+        var outcome = await CaptureReceiptAsync(orderId, definitive: true);
+
+        Assert.Equal("NoReceipt", outcome);
+        Assert.True((await LoadOrderAsync(orderId)).ReceiptUnavailable);
+
+        using var scope = _host.Services.CreateScope();
+        var workQueries = scope.ServiceProvider.GetRequiredService<IPaymentOrderWorkQueries>();
+        var swept = await workQueries.ClaimPaidMissingReceiptAsync(
+            DateTimeOffset.UtcNow.AddMinutes(1), 10, CancellationToken.None);
+
+        Assert.DoesNotContain(swept, pending => pending.PaymentOrderId == orderId);
     }
 
     // A reentrega do outbox depois do comprovante guardado é AlreadyStored — um blob só no
@@ -532,18 +557,18 @@ public sealed class PaymentWebhookAndReceiptTests : BaseIntegrationTest, IDispos
             Domain.SharedKernel.TenantId.From(TenantId), PaymentOrderId.From(orderId), CancellationToken.None);
 
         order!.ApplyProviderStatus(
-            PaymentOrderStatus.Paid, DateOnly.FromDateTime(DateTime.UtcNow), null, null,
+            PaymentOrderStatus.Paid, DateOnly.FromDateTime(DateTime.UtcNow), fee: null, null,
             DateTimeOffset.UtcNow, DateTime.UtcNow);
         await unitOfWork.SaveEntitiesAsync(CancellationToken.None);
     }
 
-    private async Task<string> CaptureReceiptAsync(Guid orderId)
+    private async Task<string> CaptureReceiptAsync(Guid orderId, bool definitive = false)
     {
         using var scope = _host.Services.CreateScope();
         var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
 
         var response = await mediator.Send(
-            new CapturePaymentReceiptCommand(TenantId, orderId), CancellationToken.None);
+            new CapturePaymentReceiptCommand(TenantId, orderId, definitive), CancellationToken.None);
         return response.Outcome;
     }
 

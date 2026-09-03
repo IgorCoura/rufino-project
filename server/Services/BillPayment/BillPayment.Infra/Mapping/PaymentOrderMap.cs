@@ -109,6 +109,15 @@ internal sealed class PaymentOrderMap : IEntityTypeConfiguration<PaymentOrder>
             .HasColumnName("receipt_storage_key")
             .HasMaxLength(PaymentOrder.RECEIPT_STORAGE_KEY_MAX_LENGTH);
 
+        builder.Property(e => e.ReceiptUnavailable)
+            .HasColumnName("receipt_unavailable")
+            .HasDefaultValue(false)
+            .IsRequired();
+
+        // Carimbada pelo claim ADO das varreduras (conciliação e rede de segurança do
+        // comprovante) — o agregado só a lê; é o anti-inanição do lote.
+        builder.Property(e => e.SweepAttemptedAt).HasColumnName("sweep_attempted_at");
+
         builder.Property(e => e.SubmissionAttempts).HasColumnName("submission_attempts").IsRequired();
         builder.Property(e => e.SubmissionLeaseExpiresAt).HasColumnName("submission_lease_expires_at");
 

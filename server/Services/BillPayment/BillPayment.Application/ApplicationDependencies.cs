@@ -115,6 +115,7 @@ public static class ApplicationDependencies
         services.AddScoped<ICaptureRetentionQueries, CaptureRetentionQueries>();
         services.AddScoped<IPaymentQueries, PaymentQueries>();
         services.AddScoped<IPaymentOrderWorkQueries, PaymentOrderWorkQueries>();
+        services.AddScoped<IPaymentSchedulePreviewQueries, PaymentSchedulePreviewQueries>();
 
         return services;
     }

@@ -25,6 +25,7 @@ public sealed class BillsController(
     IMediator mediator,
     IBillQueries queries,
     ICapturedMessageQueries capturedMessages,
+    IPaymentSchedulePreviewQueries schedulePreviews,
     IAuthorizationServerClient authorizationServer,
     ILogger<BillsController> logger) : BaseController(logger)
 {
@@ -192,6 +193,26 @@ public sealed class BillsController(
     {
         var detail = await queries.GetDetailAsync(tenantId, id, cancellationToken);
         return detail is null ? NotFound() : OkResponse(detail);
+    }
+
+    /// <summary>
+    /// A prévia do agendamento para o sheet de aprovar: a data em que a submissão realmente
+    /// ocorreria (mesma política/calendário/fuso da fila), com o deslize e o caso imediato
+    /// explícitos ANTES de o aprovador autorizar. Leitura pura — nada muda.
+    /// </summary>
+    [HttpGet("{id:guid}/schedule-preview")]
+    [ProtectedResource("bill", "view")]
+    public async Task<ActionResult<SchedulePreviewDto>> GetSchedulePreview(
+        [FromRoute] Guid tenantId,
+        [FromRoute] Guid id,
+        [FromQuery] DateOnly? date,
+        CancellationToken cancellationToken)
+    {
+        if (date is null)
+            return BadRequest();
+
+        var preview = await schedulePreviews.PreviewAsync(tenantId, id, date.Value, cancellationToken);
+        return preview is null ? NotFound() : OkResponse(preview);
     }
 
     /// <summary>

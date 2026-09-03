@@ -26,4 +26,7 @@ public sealed record ProviderPaymentSnapshot(
     DateOnly? PaidAt,
     Money? Fee,
     IReadOnlyCollection<string> FailReasons,
-    string? ReceiptUrl);
+    string? ReceiptUrl,
+    // No fim e opcional de propósito: a adoção por referência precisa do valor que o provedor
+    // registrou (a ordem local pode não ter nenhum), e o parâmetro tardio não quebra chamador.
+    Money? Amount = null);

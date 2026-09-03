@@ -301,17 +301,19 @@ public class PaymentOrderTests
         Assert.IsType<PaymentOrderFailedDomainEvent>(Assert.Single(order.PullDomainEvents()));
     }
 
-    // Comportamento ATUAL documentado: id do provedor acima de 100 caracteres é truncado em
-    // silêncio — se o corte um dia virar recusa, este teste é o que deve mudar junto.
+    // Id do provedor é referência, não diagnóstico: acima de 100 caracteres a submissão é
+    // RECUSADA (PMO23) — truncar produziria uma chave que consulta o vazio para sempre.
     [Fact]
-    public void MarkSubmitted_WithAnOversizedProviderOrderId_ShouldClampToTheMaxLength()
+    public void MarkSubmitted_WithAnOversizedProviderOrderId_ShouldThrow_BLP_PMO23()
     {
         var order = PaymentOrderMother.Draft();
         var oversized = new string('p', PaymentOrder.PROVIDER_ORDER_ID_MAX_LENGTH + 50);
 
-        order.MarkSubmitted(oversized, PaymentOrderMother.DefaultScheduleFor, null, null, Now);
+        var ex = Assert.Throws<DomainException>(
+            () => order.MarkSubmitted(oversized, PaymentOrderMother.DefaultScheduleFor, null, null, Now));
 
-        Assert.Equal(oversized[..PaymentOrder.PROVIDER_ORDER_ID_MAX_LENGTH], order.ProviderOrderId);
+        Assert.Equal("BLP.PMO23", ex.Id);
+        Assert.Equal(PaymentOrderStatus.Draft, order.Status);
     }
 
     // Comportamento ATUAL documentado: erro da fila acima de 500 caracteres é truncado em
@@ -338,7 +340,7 @@ public class PaymentOrderTests
         var order = PaymentOrderMother.Submitted();
         var oversized = new string('r', PaymentOrder.FAIL_REASON_MAX_LENGTH + 100);
 
-        order.ApplyProviderStatus(PaymentOrderStatus.Failed, null, null, [oversized], SyncedAt, Now);
+        order.ApplyProviderStatus(PaymentOrderStatus.Failed, null, fee: null, [oversized], SyncedAt, Now);
         order.PullDomainEvents();
 
         Assert.Equal(oversized[..PaymentOrder.FAIL_REASON_MAX_LENGTH], Assert.Single(order.FailReasons));
@@ -350,13 +352,84 @@ public class PaymentOrderTests
     public void AttachReceipt_WithAnOversizedStorageKey_ShouldClampTheKey()
     {
         var order = PaymentOrderMother.Submitted();
-        order.ApplyProviderStatus(PaymentOrderStatus.Paid, new DateOnly(2026, 9, 11), null, null, SyncedAt, Now);
+        order.ApplyProviderStatus(PaymentOrderStatus.Paid, new DateOnly(2026, 9, 11), fee: null, null, SyncedAt, Now);
         order.PullDomainEvents();
         var oversized = new string('k', PaymentOrder.RECEIPT_STORAGE_KEY_MAX_LENGTH + 40);
 
         order.AttachReceipt(oversized, Now);
 
         Assert.Equal(oversized[..PaymentOrder.RECEIPT_STORAGE_KEY_MAX_LENGTH], order.ReceiptStorageKey);
+    }
+
+    // A defesa em profundidade da submissão: sem valor resolvido, nada vai ao gateway.
+    [Fact]
+    public void EnsureSubmittable_WithoutAnyResolvedAmount_ShouldThrow_BLP_PMO10()
+    {
+        var order = PaymentOrderMother.DraftWithoutAmount();
+
+        var ex = Assert.Throws<DomainException>(() => order.EnsureSubmittable(null));
+
+        Assert.Equal("BLP.PMO10", ex.Id);
+    }
+
+    [Fact]
+    public void EnsureSubmittable_WithAResolvedAmount_ShouldPass()
+    {
+        var order = PaymentOrderMother.DraftWithoutAmount();
+
+        order.EnsureSubmittable(PaymentOrderMother.Brl(615.07m));
+    }
+
+    // A marca definitiva de "sem comprovante" tira a ordem paga da varredura da rede de segurança.
+    [Fact]
+    public void MarkReceiptMissing_OnAPaidOrder_ShouldRecordTheDefinitiveOutcome()
+    {
+        var order = PaymentOrderMother.Submitted();
+        order.ApplyProviderStatus(PaymentOrderStatus.Paid, new DateOnly(2026, 9, 11), fee: null, null, SyncedAt, Now);
+        order.PullDomainEvents();
+
+        order.MarkReceiptMissing(Now);
+
+        Assert.True(order.ReceiptUnavailable);
+    }
+
+    [Fact]
+    public void MarkReceiptMissing_BeforePayment_ShouldThrow_BLP_PMO15()
+    {
+        var order = PaymentOrderMother.Submitted();
+
+        var ex = Assert.Throws<DomainException>(() => order.MarkReceiptMissing(Now));
+
+        Assert.Equal("BLP.PMO15", ex.Id);
+    }
+
+    // Com arquivo no balde a marca seria mentira — o método ignora em vez de sobrescrever.
+    [Fact]
+    public void MarkReceiptMissing_WhenAReceiptIsAlreadyStored_ShouldBeIgnored()
+    {
+        var order = PaymentOrderMother.Submitted();
+        order.ApplyProviderStatus(PaymentOrderStatus.Paid, new DateOnly(2026, 9, 11), fee: null, null, SyncedAt, Now);
+        order.PullDomainEvents();
+        order.AttachReceipt("tenants/x/comprovante.pdf", Now);
+
+        order.MarkReceiptMissing(Now);
+
+        Assert.False(order.ReceiptUnavailable);
+    }
+
+    // O arquivo chegando depois da marca vence a marca — o desfecho melhorou.
+    [Fact]
+    public void AttachReceipt_AfterTheMissingMark_ShouldClearIt()
+    {
+        var order = PaymentOrderMother.Submitted();
+        order.ApplyProviderStatus(PaymentOrderStatus.Paid, new DateOnly(2026, 9, 11), fee: null, null, SyncedAt, Now);
+        order.PullDomainEvents();
+        order.MarkReceiptMissing(Now);
+
+        order.AttachReceipt("tenants/x/comprovante.pdf", Now);
+
+        Assert.False(order.ReceiptUnavailable);
+        Assert.Equal("tenants/x/comprovante.pdf", order.ReceiptStorageKey);
     }
 
     // Registrar falha sem o erro que a causou é diagnóstico perdido — recusado.
@@ -377,11 +450,11 @@ public class PaymentOrderTests
     public void ApplyProviderStatus_OutOfOrder_ShouldBeIgnoredAndStillStampTheSync()
     {
         var order = PaymentOrderMother.Submitted();
-        order.ApplyProviderStatus(PaymentOrderStatus.Paid, new DateOnly(2026, 9, 11), null, null, SyncedAt, Now);
+        order.ApplyProviderStatus(PaymentOrderStatus.Paid, new DateOnly(2026, 9, 11), fee: null, null, SyncedAt, Now);
         order.PullDomainEvents();
 
         var applied = order.ApplyProviderStatus(
-            PaymentOrderStatus.BankProcessing, null, null, null, SyncedAt.AddMinutes(5), Now);
+            PaymentOrderStatus.BankProcessing, null, fee: null, null, SyncedAt.AddMinutes(5), Now);
 
         Assert.False(applied);
         Assert.Equal(PaymentOrderStatus.Paid, order.Status);
@@ -396,7 +469,7 @@ public class PaymentOrderTests
         var order = PaymentOrderMother.Submitted();
 
         var ex = Assert.Throws<DomainException>(() => order.ApplyProviderStatus(
-            PaymentOrderStatus.Paid, paidAt: null, null, null, SyncedAt, Now));
+            PaymentOrderStatus.Paid, paidAt: null, fee: null, null, SyncedAt, Now));
 
         Assert.Equal("BLP.PMO03", ex.Id);
     }
@@ -427,7 +500,7 @@ public class PaymentOrderTests
         var order = PaymentOrderMother.Draft();
 
         var applied = order.ApplyProviderStatus(
-            PaymentOrderStatus.Pending, null, null, null, SyncedAt, Now);
+            PaymentOrderStatus.Pending, null, fee: null, null, SyncedAt, Now);
 
         Assert.False(applied);
         Assert.Equal(PaymentOrderStatus.Draft, order.Status);
@@ -438,11 +511,11 @@ public class PaymentOrderTests
     public void ApplyProviderStatus_RefundedAfterPaid_ShouldEmitRefunded()
     {
         var order = PaymentOrderMother.Submitted();
-        order.ApplyProviderStatus(PaymentOrderStatus.Paid, new DateOnly(2026, 9, 11), null, null, SyncedAt, Now);
+        order.ApplyProviderStatus(PaymentOrderStatus.Paid, new DateOnly(2026, 9, 11), fee: null, null, SyncedAt, Now);
         order.PullDomainEvents();
 
         var applied = order.ApplyProviderStatus(
-            PaymentOrderStatus.Refunded, null, null, null, SyncedAt.AddDays(1), Now);
+            PaymentOrderStatus.Refunded, null, fee: null, null, SyncedAt.AddDays(1), Now);
 
         Assert.True(applied);
         Assert.Equal(PaymentOrderStatus.Refunded, order.Status);
@@ -456,7 +529,7 @@ public class PaymentOrderTests
         var order = PaymentOrderMother.Submitted();
 
         order.ApplyProviderStatus(
-            PaymentOrderStatus.Failed, null, null, ["saldo insuficiente"], SyncedAt, Now);
+            PaymentOrderStatus.Failed, null, fee: null, ["saldo insuficiente"], SyncedAt, Now);
 
         Assert.Contains("saldo insuficiente", order.FailReasons);
         Assert.IsType<PaymentOrderFailedDomainEvent>(Assert.Single(order.PullDomainEvents()));
@@ -503,7 +576,7 @@ public class PaymentOrderTests
     public void AttachReceipt_OnAPaidOrder_ShouldStoreTheStorageKey()
     {
         var order = PaymentOrderMother.Submitted();
-        order.ApplyProviderStatus(PaymentOrderStatus.Paid, new DateOnly(2026, 9, 11), null, null, SyncedAt, Now);
+        order.ApplyProviderStatus(PaymentOrderStatus.Paid, new DateOnly(2026, 9, 11), fee: null, null, SyncedAt, Now);
         order.PullDomainEvents();
 
         order.AttachReceipt("tenant-1/receipts/r1.pdf", Now);

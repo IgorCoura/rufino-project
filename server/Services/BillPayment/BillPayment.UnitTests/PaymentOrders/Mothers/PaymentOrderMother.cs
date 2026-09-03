@@ -28,6 +28,16 @@ internal static class PaymentOrderMother
             amount ?? Brl(150.00m),
             occurredAt ?? DefaultOccurredAt);
 
+    /// <summary>Ordem sem valor de nenhuma fonte — o cenário da guarda PMO10 da submissão.</summary>
+    public static PaymentOrder DraftWithoutAmount()
+        => PaymentOrder.Draft(
+            DefaultTenant,
+            DefaultBill,
+            PaymentRail.Boleto,
+            DefaultScheduleFor,
+            amount: null,
+            DefaultOccurredAt);
+
     /// <summary>Ordem já aceita pelo provedor — o estado de quem espera webhook.</summary>
     public static PaymentOrder Submitted(
         string providerOrderId = "pay_000000000001",

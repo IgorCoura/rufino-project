@@ -61,6 +61,11 @@ public sealed class PaymentOrderStatus : Enumeration
             _ when this == Paid => target == Refunded,
             _ when IsTerminal => false,
             _ when this == Draft && (target == Pending || target == Failed || target == Cancelled) => true,
+            // Pending/BankProcessing → Refunded SEM passar por Paid é tolerância deliberada a
+            // reordenação de webhook: o REFUNDED chegando antes do PAID leva a ordem direto ao
+            // desfecho que o provedor afirma — ao custo de PaidAt ficar nulo para sempre nessa
+            // trilha (o Paid atrasado é ignorado pela monotônica). Refletir o provedor vence
+            // reconstruir a história que ele não contou.
             _ when this == Pending && (target == BankProcessing || target == Paid || target == Failed || target == Cancelled || target == Refunded) => true,
             _ when this == BankProcessing && (target == Paid || target == Failed || target == Cancelled || target == Refunded) => true,
             _ => false,

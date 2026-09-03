@@ -126,11 +126,85 @@ public sealed class PaymentOrderWorkQueriesTests : BaseIntegrationTest
         {
             order.MarkSubmitted("pay_synced", new DateOnly(2026, 8, 21), null, null, DateTime.UtcNow);
             order.ApplyProviderStatus(
-                PaymentOrderStatus.BankProcessing, null, null, null, DateTimeOffset.UtcNow, DateTime.UtcNow);
+                PaymentOrderStatus.BankProcessing, null, fee: null, null, DateTimeOffset.UtcNow, DateTime.UtcNow);
         });
 
         Assert.Empty(await ListStaleAsync(DateTimeOffset.UtcNow.AddMinutes(-5)));
         Assert.Single(await ListStaleAsync(DateTimeOffset.UtcNow.AddMinutes(1)));
+    }
+
+    // O anti-inanição da conciliação: o claim carimba sweep_attempted_at na saída e ordena
+    // nunca-tentadas PRIMEIRO — ordem que falha conciliação repetidamente roda para o fim do
+    // lote em vez de monopolizar as 50 vagas (a lição do LastSweptAt das expectativas).
+    [Fact]
+    public async Task ClaimStale_ShouldPutNeverAttemptedOrdersFirst()
+    {
+        var chronic = await SeedDraftAsync(
+            createdAt: OccurredAt.AddHours(-2),
+            arrange: order => order.MarkSubmitted("pay_chronic", new DateOnly(2026, 8, 21), null, null, OccurredAt.AddHours(-2)));
+
+        await ListStaleAsync(DateTimeOffset.UtcNow.AddMinutes(1), limit: 10);
+
+        var fresh = await SeedDraftAsync(arrange: order => order.MarkSubmitted(
+            "pay_fresh", new DateOnly(2026, 8, 21), null, null, OccurredAt.AddHours(-1)));
+
+        var claimed = await ListStaleAsync(DateTimeOffset.UtcNow.AddMinutes(1), limit: 1);
+
+        Assert.Equal(fresh.Value, Assert.Single(claimed).PaymentOrderId);
+
+        var second = await ListStaleAsync(DateTimeOffset.UtcNow.AddMinutes(1), limit: 1);
+        Assert.Equal(chronic.Value, Assert.Single(second).PaymentOrderId);
+    }
+
+    // A rede de segurança do comprovante: só ordem PAGA, sem arquivo no balde, sem a marca de
+    // "sem comprovante" e já envelhecida (o caminho do outbox teve a vez dele) é varrida.
+    [Fact]
+    public async Task ClaimMissingReceipts_ShouldReturnOnlyAgedPaidOrdersWithoutAReceipt()
+    {
+        var paidAt = new DateOnly(2026, 8, 21);
+
+        var missing = await SeedDraftAsync(arrange: order =>
+        {
+            order.MarkSubmitted("pay_missing", paidAt, null, null, OccurredAt);
+            order.ApplyProviderStatus(PaymentOrderStatus.Paid, paidAt, fee: null, null, DateTimeOffset.UtcNow, OccurredAt);
+        });
+
+        await SeedDraftAsync(arrange: order =>
+        {
+            order.MarkSubmitted("pay_stored", paidAt, null, null, OccurredAt);
+            order.ApplyProviderStatus(PaymentOrderStatus.Paid, paidAt, fee: null, null, DateTimeOffset.UtcNow, OccurredAt);
+            order.AttachReceipt("tenants/x/comprovante.pdf", OccurredAt);
+        });
+
+        await SeedDraftAsync(arrange: order =>
+        {
+            order.MarkSubmitted("pay_no_receipt", paidAt, null, null, OccurredAt);
+            order.ApplyProviderStatus(PaymentOrderStatus.Paid, paidAt, fee: null, null, DateTimeOffset.UtcNow, OccurredAt);
+            order.MarkReceiptMissing(OccurredAt);
+        });
+
+        await SeedDraftAsync(arrange: order => order.MarkSubmitted(
+            "pay_pending", paidAt, null, null, OccurredAt));
+
+        var claimed = await ClaimMissingReceiptsAsync(DateTimeOffset.UtcNow.AddMinutes(1));
+
+        Assert.Equal(missing.Value, Assert.Single(claimed).PaymentOrderId);
+    }
+
+    // O claim do comprovante também carimba na saída: a segunda passada dentro da mesma janela
+    // não devolve a mesma ordem — é o que impede o laço quente quando o provedor está fora.
+    [Fact]
+    public async Task ClaimMissingReceipts_ShouldPaceRetriesByTheStamp()
+    {
+        var paidAt = new DateOnly(2026, 8, 21);
+        await SeedDraftAsync(arrange: order =>
+        {
+            order.MarkSubmitted("pay_paced", paidAt, null, null, OccurredAt);
+            order.ApplyProviderStatus(PaymentOrderStatus.Paid, paidAt, fee: null, null, DateTimeOffset.UtcNow, OccurredAt);
+        });
+
+        Assert.Single(await ClaimMissingReceiptsAsync(DateTimeOffset.UtcNow.AddMinutes(1)));
+        Assert.Empty(await ClaimMissingReceiptsAsync(DateTimeOffset.UtcNow.AddMinutes(-5)));
     }
 
     private async Task<IReadOnlyList<PendingPaymentSubmission>> ClaimAsync(DateTimeOffset leaseUntil)
@@ -141,12 +215,23 @@ public sealed class PaymentOrderWorkQueriesTests : BaseIntegrationTest
         return await queries.ClaimPendingSubmissionsAsync(10, leaseUntil, CancellationToken.None);
     }
 
-    private async Task<IReadOnlyList<PendingPaymentSubmission>> ListStaleAsync(DateTimeOffset syncedBefore)
+    private Task<IReadOnlyList<PendingPaymentSubmission>> ListStaleAsync(DateTimeOffset syncedBefore)
+        => ListStaleAsync(syncedBefore, 10);
+
+    private async Task<IReadOnlyList<PendingPaymentSubmission>> ListStaleAsync(DateTimeOffset syncedBefore, int limit)
     {
         using var scope = Factory.Services.CreateScope();
         var queries = scope.ServiceProvider.GetRequiredService<IPaymentOrderWorkQueries>();
 
-        return await queries.ListStaleAwaitingProviderAsync(syncedBefore, 10, CancellationToken.None);
+        return await queries.ClaimStaleAwaitingProviderAsync(syncedBefore, limit, CancellationToken.None);
+    }
+
+    private async Task<IReadOnlyList<PendingPaymentSubmission>> ClaimMissingReceiptsAsync(DateTimeOffset agedBefore)
+    {
+        using var scope = Factory.Services.CreateScope();
+        var queries = scope.ServiceProvider.GetRequiredService<IPaymentOrderWorkQueries>();
+
+        return await queries.ClaimPaidMissingReceiptAsync(agedBefore, 10, CancellationToken.None);
     }
 
     private Task<PaymentOrder> LoadOrderAsync(PaymentOrderId orderId)

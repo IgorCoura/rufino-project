@@ -207,7 +207,7 @@ public sealed class PaymentOrderFlowTests : BaseIntegrationTest, IDisposable
 
         var paidAt = DateOnly.FromDateTime(DateTime.UtcNow);
         await MutateOrderAsync(orderId, order => order.ApplyProviderStatus(
-            PaymentOrderStatus.Paid, paidAt, null, null, DateTimeOffset.UtcNow, DateTime.UtcNow));
+            PaymentOrderStatus.Paid, paidAt, fee: null, null, DateTimeOffset.UtcNow, DateTime.UtcNow));
         await DrainOutboxAsync();
 
         var bill = await LoadBillAsync(billId);
@@ -468,6 +468,67 @@ public sealed class PaymentOrderFlowTests : BaseIntegrationTest, IDisposable
 
         Assert.Equal("NothingAtProvider", outcome);
         Assert.Equal(0, _gateways.CancelCalls);
+    }
+
+    // A prévia do sheet de aprovar: pedir um sábado devolve a data efetiva deslizada para o
+    // dia útil seguinte, com o deslize explícito ANTES de o aprovador autorizar.
+    [Fact]
+    public async Task SchedulePreview_OnANonWorkingDay_ShouldExposeTheSlide()
+    {
+        var billId = await ImportAndValidateAsync(FutureDueSnapshot());
+        var saturday = NextSaturdayAtLeastAWeekAhead();
+
+        var preview = await _client.GetFromJsonAsync<SchedulePreviewContract>(
+            BillsRoute($"{billId}/schedule-preview?date={saturday:yyyy-MM-dd}"), CancellationToken.None);
+
+        Assert.NotNull(preview);
+        Assert.Equal(saturday, preview!.RequestedDate);
+        Assert.True(preview.EffectiveDate > saturday);
+        Assert.True(preview.Slid);
+        Assert.False(preview.Immediate);
+    }
+
+    // Boleto vencido: a prévia diz IMEDIATO — é a mesma resposta que a fila daria, e o que faz
+    // a caixa de aceite do ADR-017 aparecer com a explicação certa.
+    [Fact]
+    public async Task SchedulePreview_OnAnOverdueBill_ShouldSayImmediate()
+    {
+        var billId = await ImportAndValidateAsync(OverdueSnapshot());
+
+        var preview = await _client.GetFromJsonAsync<SchedulePreviewContract>(
+            BillsRoute($"{billId}/schedule-preview?date={ScheduleDate():yyyy-MM-dd}"), CancellationToken.None);
+
+        Assert.True(preview!.Immediate);
+        Assert.False(preview.Slid);
+    }
+
+    // A query é obrigatória; e o boleto de um tenant não responde pela rota do outro.
+    [Fact]
+    public async Task SchedulePreview_WithoutADateOrThroughAnotherTenant_ShouldRefuse()
+    {
+        var billId = await ImportAndValidateAsync(FutureDueSnapshot());
+
+        var missingDate = await _client.GetAsync(
+            BillsRoute($"{billId}/schedule-preview"), CancellationToken.None);
+        Assert.Equal(HttpStatusCode.BadRequest, missingDate.StatusCode);
+
+        var otherTenant = await _client.GetAsync(
+            new Uri(
+                $"/api/v1/{TestTenants.Secondary}/bills/{billId}/schedule-preview?date={ScheduleDate():yyyy-MM-dd}",
+                UriKind.Relative),
+            CancellationToken.None);
+        Assert.Equal(HttpStatusCode.NotFound, otherTenant.StatusCode);
+    }
+
+    private sealed record SchedulePreviewContract(
+        DateOnly RequestedDate, DateOnly EffectiveDate, bool Slid, bool Immediate);
+
+    private static DateOnly NextSaturdayAtLeastAWeekAhead()
+    {
+        var date = DateOnly.FromDateTime(DateTime.UtcNow).AddDays(7);
+        while (date.DayOfWeek != DayOfWeek.Saturday)
+            date = date.AddDays(1);
+        return date;
     }
 
     private static DateOnly ScheduleDate() => DateOnly.FromDateTime(DateTime.UtcNow).AddDays(5);

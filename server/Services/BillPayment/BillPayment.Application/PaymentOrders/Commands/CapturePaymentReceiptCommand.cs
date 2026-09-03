@@ -13,11 +13,19 @@ using Microsoft.Extensions.Logging;
 /// Baixa o comprovante do pagamento e o guarda no balde — o arquivo é a evidência, não a URL.
 /// </summary>
 /// <remarks>
+/// <para>
 /// A URL vem de um <c>GET</c> fresco no provedor (nunca é persistida — é credencial ao
 /// portador e pode expirar). Falha transiente sobe como <c>BLP.PMO21</c> para a reentrega do
 /// outbox retentar com backoff; "sem comprovante" é desfecho registrado, não erro.
+/// </para>
+/// <para>
+/// <c>Definitive</c> separa as duas origens: o caminho do outbox (segundos após o pago —
+/// comprovante pode ainda não existir; <c>false</c>) da rede de segurança da conciliação (a
+/// segunda olhada, atrasada; <c>true</c>) — só a definitiva grava a marca que tira a ordem da
+/// varredura para sempre.
+/// </para>
 /// </remarks>
-public sealed record CapturePaymentReceiptCommand(Guid TenantId, Guid PaymentOrderId)
+public sealed record CapturePaymentReceiptCommand(Guid TenantId, Guid PaymentOrderId, bool Definitive = false)
     : ITenantScopedCommand, IRequest<CapturePaymentReceiptResponse>;
 
 public sealed record CapturePaymentReceiptResponse(Guid PaymentOrderId, string Outcome);
@@ -59,9 +67,8 @@ public sealed class CapturePaymentReceiptCommandHandler(
         var profile = await payerProfiles.GetByTenantAsync(tenantId, cancellationToken);
         var credential = profile?.AsaasAccountRef;
 
-        var fetch = order.Rail == PaymentRail.Pix
-            ? await pixGateway.GetAsync(credential, order.ProviderOrderId, cancellationToken)
-            : await billGateway.GetAsync(credential, order.ProviderOrderId, cancellationToken);
+        var fetch = await order.GetFromProviderAsync(
+            billGateway, pixGateway, credential, order.ProviderOrderId, cancellationToken);
 
         if (fetch.IsUnavailable)
             throw PaymentOrderErrors.ReceiptUnavailable(fetch.ReasonCode);
@@ -76,7 +83,7 @@ public sealed class CapturePaymentReceiptCommandHandler(
                     order.Id.Value);
             }
 
-            return new CapturePaymentReceiptResponse(request.PaymentOrderId, OUTCOME_NO_RECEIPT);
+            return await RecordNoReceiptAsync(order, request, cancellationToken);
         }
 
         var receipt = await receiptFetcher.FetchAsync(receiptUrl, cancellationToken);
@@ -89,17 +96,47 @@ public sealed class CapturePaymentReceiptCommandHandler(
             logger.LogWarning(
                 "O comprovante da ordem {PaymentOrderId} não pôde ser obtido ({Reason}).",
                 order.Id.Value, receipt.ReasonCode);
-            return new CapturePaymentReceiptResponse(request.PaymentOrderId, OUTCOME_NO_RECEIPT);
+            return await RecordNoReceiptAsync(order, request, cancellationToken);
         }
 
         var fileName = ReceiptFileName(order, receipt.ContentType);
         var storageKey = await storage.StoreAsync(
             tenantId, fileName, receipt.ContentType, receipt.Content!.Value, cancellationToken);
 
-        order.AttachReceipt(storageKey, clock.GetUtcNow().UtcDateTime);
-        await unitOfWork.SaveEntitiesAsync(cancellationToken);
+        try
+        {
+            order.AttachReceipt(storageKey, clock.GetUtcNow().UtcDateTime);
+            await unitOfWork.SaveEntitiesAsync(cancellationToken);
+        }
+        catch
+        {
+            // O balde está FORA da transação do EF (o mesmo racional do ImportBill): sem a
+            // limpeza, cada reentrega do outbox que perdesse o save deixaria um blob órfão.
+            // CancellationToken.None de propósito — desistir da limpeza produz o órfão.
+            await storage.RemoveAsync(tenantId, storageKey, CancellationToken.None);
+            throw;
+        }
 
         return new CapturePaymentReceiptResponse(request.PaymentOrderId, OUTCOME_STORED);
+    }
+
+    /// <summary>
+    /// "Sem comprovante" com a origem decidindo a persistência: a olhada DEFINITIVA (rede de
+    /// segurança, atrasada) grava a marca que tira a ordem da varredura; a do outbox (segundos
+    /// após o pago — o arquivo pode só não existir AINDA) deixa a varredura reconferir depois.
+    /// </summary>
+    private async Task<CapturePaymentReceiptResponse> RecordNoReceiptAsync(
+        PaymentOrder order,
+        CapturePaymentReceiptCommand request,
+        CancellationToken cancellationToken)
+    {
+        if (request.Definitive)
+        {
+            order.MarkReceiptMissing(clock.GetUtcNow().UtcDateTime);
+            await unitOfWork.SaveEntitiesAsync(cancellationToken);
+        }
+
+        return new CapturePaymentReceiptResponse(request.PaymentOrderId, OUTCOME_NO_RECEIPT);
     }
 
     private static string ReceiptFileName(PaymentOrder order, string? contentType)

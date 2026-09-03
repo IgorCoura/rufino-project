@@ -84,10 +84,11 @@ internal sealed class AsaasBillPaymentGateway(
         var path = $"{BILL_PATH}?externalReference={Uri.EscapeDataString(externalReference)}";
         var (body, failure) = await http.GetAsync<AsaasBillPaymentListResponse>(path, logger, cancellationToken);
 
+        // Na consulta de idempotência, NotFound autoriza reenviar — então SÓ a lista vazia
+        // definitiva (200) o afirma. Qualquer falha, retentável ou não, degrada para
+        // Unavailable: trava o reenvio, o lado seguro contra pagamento duplicado.
         if (failure is not null)
-            return failure.IsRetryable
-                ? PaymentFetchResult.Unavailable(failure.ReasonCode)
-                : PaymentFetchResult.NotFound();
+            return PaymentFetchResult.Unavailable(failure.ReasonCode);
 
         var first = body!.Data?.FirstOrDefault(b => !string.IsNullOrWhiteSpace(b.Id));
         return first is null
@@ -109,10 +110,12 @@ internal sealed class AsaasBillPaymentGateway(
         var path = $"{BILL_PATH}/{Uri.EscapeDataString(providerOrderId)}";
         var (body, failure) = await http.GetAsync<AsaasBillPaymentResponse>(path, logger, cancellationToken);
 
+        // Só o 404 afirma "não conheço esta ordem"; 400/malformado não é ausência — é falha, e
+        // falha degrada para Unavailable para a conciliação continuar vigiando.
         if (failure is not null)
-            return failure.IsRetryable
-                ? PaymentFetchResult.Unavailable(failure.ReasonCode)
-                : PaymentFetchResult.NotFound();
+            return failure.IsNotFound
+                ? PaymentFetchResult.NotFound()
+                : PaymentFetchResult.Unavailable(failure.ReasonCode);
 
         return string.IsNullOrWhiteSpace(body!.Id)
             ? PaymentFetchResult.NotFound()

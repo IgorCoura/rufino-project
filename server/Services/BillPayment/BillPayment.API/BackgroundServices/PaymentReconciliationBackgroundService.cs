@@ -50,13 +50,16 @@ internal sealed class PaymentReconciliationBackgroundService(
 
     private async Task RunCycleAsync(CancellationToken stoppingToken)
     {
+        var cutoff = clock.GetUtcNow() - _options.StaleAfter;
+
         IReadOnlyList<PendingPaymentSubmission> stale;
+        IReadOnlyList<PendingPaymentSubmission> missingReceipts;
 
         using (var scope = scopeFactory.CreateScope())
         {
             var queries = scope.ServiceProvider.GetRequiredService<IPaymentOrderWorkQueries>();
-            stale = await queries.ListStaleAwaitingProviderAsync(
-                clock.GetUtcNow() - _options.StaleAfter, _options.BatchSize, stoppingToken);
+            stale = await queries.ClaimStaleAwaitingProviderAsync(cutoff, _options.BatchSize, stoppingToken);
+            missingReceipts = await queries.ClaimPaidMissingReceiptAsync(cutoff, _options.BatchSize, stoppingToken);
         }
 
         foreach (var pending in stale)
@@ -74,9 +77,34 @@ internal sealed class PaymentReconciliationBackgroundService(
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
-                // Uma ordem que não concilia não pode impedir as outras — e ela volta no
-                // próximo ciclo, porque só a sincronização bem-sucedida move o carimbo.
+                // Uma ordem que não concilia não pode impedir as outras — e o carimbo do claim
+                // já a mandou para o fim da fila do próximo lote (anti-inanição).
                 logger.LogError(ex, "Não foi possível conciliar uma ordem de pagamento.");
+            }
+        }
+
+        // A rede de segurança do comprovante: o outbox tem backoff FINITO — esgotado ele, uma
+        // ordem paga sem comprovante nunca mais seria tentada. Esta é a segunda olhada,
+        // atrasada e DEFINITIVA: sem URL no provedor, a marca tira a ordem da varredura.
+        foreach (var pending in missingReceipts)
+        {
+            if (stoppingToken.IsCancellationRequested)
+                return;
+
+            using var scope = scopeFactory.CreateScope();
+            var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
+
+            try
+            {
+                await mediator.Send(
+                    new CapturePaymentReceiptCommand(pending.TenantId, pending.PaymentOrderId, Definitive: true),
+                    stoppingToken);
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                // BLP.PMO21 (provedor fora do ar) cai aqui: o carimbo do claim pace a próxima
+                // tentativa — sem laço quente, sem inanição das demais.
+                logger.LogError(ex, "Não foi possível capturar o comprovante de uma ordem paga.");
             }
         }
     }

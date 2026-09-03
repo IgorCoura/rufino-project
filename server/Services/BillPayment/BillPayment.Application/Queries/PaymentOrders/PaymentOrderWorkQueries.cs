@@ -96,7 +96,7 @@ internal sealed class PaymentOrderWorkQueries(BillPaymentDbContext context, Time
         return [.. rows.Select(o => new AccountHeldPaymentOrder(o.TenantId.Value, o.Id.Value))];
     }
 
-    public async Task<IReadOnlyList<PendingPaymentSubmission>> ListStaleAwaitingProviderAsync(
+    public async Task<IReadOnlyList<PendingPaymentSubmission>> ClaimStaleAwaitingProviderAsync(
         DateTimeOffset syncedBefore,
         int limit,
         CancellationToken cancellationToken = default)
@@ -104,23 +104,105 @@ internal sealed class PaymentOrderWorkQueries(BillPaymentDbContext context, Time
         if (limit <= 0)
             return [];
 
-        var cutoff = syncedBefore.UtcDateTime;
+        // Ordem sem sincronização nenhuma usa o updated_at como referência: acabou de ser
+        // submetida e ainda não teve webhook — só entra quando também envelheceu. O carimbo
+        // sweep_attempted_at na saída + NULLS FIRST é o anti-inanição: quem nunca foi tentada
+        // passa na frente, quem falha repetidamente roda para o fim do lote.
+        var schema = BillPaymentDbContext.DEFAULT_SCHEMA;
+        var sql =
+            $"UPDATE {schema}.payment_orders SET sweep_attempted_at = @now "
+            + "WHERE id IN ("
+            + $"SELECT id FROM {schema}.payment_orders "
+            + "WHERE status IN (@pending, @bank) "
+            + "AND (CASE WHEN last_provider_sync_at IS NULL THEN updated_at ELSE last_provider_sync_at END) < @cutoff "
+            + "ORDER BY sweep_attempted_at NULLS FIRST, last_provider_sync_at NULLS FIRST, id "
+            + "LIMIT @limit FOR UPDATE SKIP LOCKED) "
+            + "RETURNING id, tenant_id";
 
-        // Ordem sem sincronização nenhuma usa o UpdatedAt como referência: acabou de ser
-        // submetida e ainda não teve webhook — só entra quando também envelheceu.
-        var rows = await context.PaymentOrders
-            .AsNoTracking()
-            .Where(o => (o.Status == PaymentOrderStatus.Pending || o.Status == PaymentOrderStatus.BankProcessing)
-                && (o.LastProviderSyncAt == null
-                    ? o.UpdatedAt < cutoff
-                    : o.LastProviderSyncAt < syncedBefore))
-            .OrderBy(o => o.LastProviderSyncAt)
-            .ThenBy(o => o.Id)
-            .Take(limit)
-            .Select(o => new { o.TenantId, o.Id })
-            .ToListAsync(cancellationToken);
+        return await ClaimSweepAsync(
+            sql,
+            syncedBefore.UtcDateTime,
+            limit,
+            command =>
+            {
+                Bind(command, "@pending", PaymentOrderStatus.Pending.Id);
+                Bind(command, "@bank", PaymentOrderStatus.BankProcessing.Id);
+            },
+            cancellationToken);
+    }
 
-        return [.. rows.Select(o => new PendingPaymentSubmission(o.TenantId.Value, o.Id.Value))];
+    public async Task<IReadOnlyList<PendingPaymentSubmission>> ClaimPaidMissingReceiptAsync(
+        DateTimeOffset agedBefore,
+        int limit,
+        CancellationToken cancellationToken = default)
+    {
+        if (limit <= 0)
+            return [];
+
+        // Só ordem envelhecida (o caminho do outbox teve a vez dele) e sem a marca definitiva
+        // de "sem comprovante" — a marca é o que impede a varredura eterna. O carimbo aqui e na
+        // conciliação é a MESMA coluna, sem interferência: os status são disjuntos.
+        var schema = BillPaymentDbContext.DEFAULT_SCHEMA;
+        var sql =
+            $"UPDATE {schema}.payment_orders SET sweep_attempted_at = @now "
+            + "WHERE id IN ("
+            + $"SELECT id FROM {schema}.payment_orders "
+            + "WHERE status IN (@paid, @refunded) "
+            + "AND receipt_storage_key IS NULL AND receipt_unavailable = FALSE "
+            + "AND provider_order_id IS NOT NULL "
+            + "AND updated_at < @cutoff "
+            + "AND (sweep_attempted_at IS NULL OR sweep_attempted_at < @cutoff) "
+            + "ORDER BY sweep_attempted_at NULLS FIRST, updated_at, id "
+            + "LIMIT @limit FOR UPDATE SKIP LOCKED) "
+            + "RETURNING id, tenant_id";
+
+        return await ClaimSweepAsync(
+            sql,
+            agedBefore.UtcDateTime,
+            limit,
+            command =>
+            {
+                Bind(command, "@paid", PaymentOrderStatus.Paid.Id);
+                Bind(command, "@refunded", PaymentOrderStatus.Refunded.Id);
+            },
+            cancellationToken);
+    }
+
+    private async Task<IReadOnlyList<PendingPaymentSubmission>> ClaimSweepAsync(
+        string sql,
+        DateTime cutoff,
+        int limit,
+        Action<DbCommand> bindStatuses,
+        CancellationToken cancellationToken)
+    {
+        var claimed = new List<(Guid Id, Guid TenantId)>();
+
+        await context.Database.OpenConnectionAsync(cancellationToken);
+
+        try
+        {
+            var connection = context.Database.GetDbConnection();
+
+            await using var command = connection.CreateCommand();
+            command.CommandText = sql;
+            command.Transaction = context.Database.CurrentTransaction?.GetDbTransaction();
+
+            Bind(command, "@now", clock.GetUtcNow().UtcDateTime);
+            Bind(command, "@cutoff", cutoff);
+            bindStatuses(command);
+            Bind(command, "@limit", limit);
+
+            await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+
+            while (await reader.ReadAsync(cancellationToken))
+                claimed.Add((reader.GetGuid(0), reader.GetGuid(1)));
+        }
+        finally
+        {
+            await context.Database.CloseConnectionAsync();
+        }
+
+        return [.. claimed.Select(o => new PendingPaymentSubmission(o.TenantId, o.Id))];
     }
 
     private static void Bind(DbCommand command, string name, object value)

@@ -35,10 +35,22 @@ public interface IPaymentOrderWorkQueries
 
     /// <summary>
     /// As ordens que esperam desfecho do provedor sem notícia há tempo demais — o alvo da
-    /// conciliação por polling. Sem lock, pela mesma razão: a mutação é do comando, sob <c>xmin</c>.
+    /// conciliação por polling. <strong>Carimba <c>sweep_attempted_at</c> na saída</strong> e
+    /// ordena nunca-tentadas primeiro: é o anti-inanição — ordem que falha conciliação
+    /// repetidamente vai para o fim da fila em vez de monopolizar o lote.
     /// </summary>
-    Task<IReadOnlyList<PendingPaymentSubmission>> ListStaleAwaitingProviderAsync(
+    Task<IReadOnlyList<PendingPaymentSubmission>> ClaimStaleAwaitingProviderAsync(
         DateTimeOffset syncedBefore,
+        int limit,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// A rede de segurança do comprovante: ordens pagas sem arquivo no balde e sem a marca de
+    /// "sem comprovante", já envelhecidas (o caminho do outbox teve a vez dele). Mesmo carimbo
+    /// e mesma ordenação do claim da conciliação — os status são disjuntos, a coluna é uma só.
+    /// </summary>
+    Task<IReadOnlyList<PendingPaymentSubmission>> ClaimPaidMissingReceiptAsync(
+        DateTimeOffset agedBefore,
         int limit,
         CancellationToken cancellationToken = default);
 }

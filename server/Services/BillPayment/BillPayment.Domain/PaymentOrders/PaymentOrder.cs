@@ -80,6 +80,19 @@ public sealed class PaymentOrder : AggregateRoot<PaymentOrderId>
     /// </summary>
     public string? ReceiptStorageKey { get; private set; }
 
+    /// <summary>
+    /// O provedor confirmou que não há comprovante para esta ordem — desfecho registrado, para
+    /// a varredura da conciliação parar de perguntar. Nunca vira <c>true</c> com arquivo no balde.
+    /// </summary>
+    public bool ReceiptUnavailable { get; private set; }
+
+    /// <summary>
+    /// Quando uma varredura (conciliação ou rede de segurança do comprovante) pegou esta ordem
+    /// pela última vez. Carimbada na SAÍDA da fila, como <see cref="SubmissionAttempts"/> — é o
+    /// que impede ordem quebrada de monopolizar o lote. O agregado só a lê.
+    /// </summary>
+    public DateTime? SweepAttemptedAt { get; private set; }
+
     /// <summary>Quantas vezes a fila de submissão já pegou esta ordem.</summary>
     public int SubmissionAttempts { get; private set; }
 
@@ -210,6 +223,17 @@ public sealed class PaymentOrder : AggregateRoot<PaymentOrderId>
     public bool HasImmediateExecutionConsent => ConfirmedBy is not null;
 
     /// <summary>
+    /// Defesa em profundidade do caminho de submissão: nada vai ao gateway sem um valor
+    /// resolvido (PMO10). O handler resolve o valor (ordem primeiro, boleto como reserva) e
+    /// esta guarda é a última palavra antes do I/O que carrega dinheiro.
+    /// </summary>
+    public void EnsureSubmittable(Money? resolvedAmount)
+    {
+        if ((resolvedAmount ?? Amount) is null)
+            throw PaymentOrderErrors.AmountRequired();
+    }
+
+    /// <summary>
     /// O provedor aceitou a ordem. <c>Draft → Pending</c>, e o evento leva o <c>Bill</c> a
     /// <c>Scheduled</c>.
     /// </summary>
@@ -225,7 +249,13 @@ public sealed class PaymentOrder : AggregateRoot<PaymentOrderId>
         if (string.IsNullOrWhiteSpace(providerOrderId))
             throw PaymentOrderErrors.ProviderOrderIdRequired();
 
-        ProviderOrderId = Clamp(providerOrderId, PROVIDER_ORDER_ID_MAX_LENGTH);
+        // Id é referência, não diagnóstico: truncar produziria uma chave que consulta o vazio
+        // para sempre (conciliação, cancelamento, comprovante). Recusa em vez de Clamp (PMO23).
+        var trimmedProviderOrderId = providerOrderId.Trim();
+        if (trimmedProviderOrderId.Length > PROVIDER_ORDER_ID_MAX_LENGTH)
+            throw PaymentOrderErrors.ProviderOrderIdTooLong(PROVIDER_ORDER_ID_MAX_LENGTH);
+
+        ProviderOrderId = trimmedProviderOrderId;
         EffectiveScheduleDate = effectiveScheduleDate;
         Amount = amount ?? Amount;
         Fee = fee ?? Fee;
@@ -291,6 +321,26 @@ public sealed class PaymentOrder : AggregateRoot<PaymentOrderId>
     /// é mentira — e gravá-la contaminaria a trilha que o comprovante referencia.
     /// </para>
     /// </remarks>
+    /// <summary>
+    /// Sobrecarga para o chamador que só tem o número cru da taxa (o webhook): o <c>Money</c> é
+    /// composto AQUI — handler nunca compõe Value Object (regra nº 1 do BC). BRL porque o
+    /// provedor só opera em reais.
+    /// </summary>
+    public bool ApplyProviderStatus(
+        PaymentOrderStatus target,
+        DateOnly? paidAt,
+        decimal? feeAmount,
+        IReadOnlyCollection<string>? failReasons,
+        DateTimeOffset syncedAt,
+        DateTime occurredAt)
+        => ApplyProviderStatus(
+            target,
+            paidAt,
+            feeAmount is { } fee ? new Money(fee, Currency.BRL) : null,
+            failReasons,
+            syncedAt,
+            occurredAt);
+
     public bool ApplyProviderStatus(
         PaymentOrderStatus target,
         DateOnly? paidAt,
@@ -374,6 +424,25 @@ public sealed class PaymentOrder : AggregateRoot<PaymentOrderId>
             throw PaymentOrderErrors.ReceiptRequiresPayment(Status.Name);
 
         ReceiptStorageKey = Clamp(storageKey, RECEIPT_STORAGE_KEY_MAX_LENGTH);
+        ReceiptUnavailable = false;
+        UpdatedAt = occurredAt;
+    }
+
+    /// <summary>
+    /// O provedor afirmou, numa conferência DEFINITIVA (a segunda olhada, atrasada, da rede de
+    /// segurança), que esta ordem paga não tem comprovante. A marca tira a ordem da varredura —
+    /// sem ela, a conciliação perguntaria a mesma coisa para sempre.
+    /// </summary>
+    public void MarkReceiptMissing(DateTime occurredAt)
+    {
+        if (Status != PaymentOrderStatus.Paid && Status != PaymentOrderStatus.Refunded)
+            throw PaymentOrderErrors.ReceiptRequiresPayment(Status.Name);
+
+        // Com arquivo no balde a marca seria mentira — e o desfecho já é o melhor possível.
+        if (ReceiptStorageKey is not null)
+            return;
+
+        ReceiptUnavailable = true;
         UpdatedAt = occurredAt;
     }
 

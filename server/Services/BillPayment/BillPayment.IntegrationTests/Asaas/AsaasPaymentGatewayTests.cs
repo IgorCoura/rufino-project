@@ -195,6 +195,55 @@ public sealed class AsaasPaymentGatewayTests
         Assert.False(result.IsFound);
     }
 
+    // Qualquer FALHA na consulta de idempotência — até um 400 — degrada para Unavailable: só a
+    // lista vazia definitiva (200) autoriza o reenvio. NotFound indevido aqui é pagamento em dobro.
+    [Fact]
+    public async Task FindByExternalReference_WhenTheProviderRejectsTheQuery_ShouldReturnUnavailable()
+    {
+        var handler = new StubHttpMessageHandler(
+            HttpStatusCode.BadRequest,
+            """{"errors":[{"code":"invalid_query","description":"parâmetro inválido"}]}""");
+
+        var result = await FindAsync(handler);
+
+        Assert.True(result.IsUnavailable);
+        Assert.False(result.IsFound);
+    }
+
+    // Na consulta por id, SÓ o 404 afirma "não conheço esta ordem"; qualquer outra recusa é
+    // falha e degrada para Unavailable — a conciliação continua vigiando em vez de concluir.
+    [Fact]
+    public async Task GetAsync_WhenTheProviderDoesNotKnowTheOrder_ShouldReturnNotFound()
+    {
+        var handler = new StubHttpMessageHandler(HttpStatusCode.NotFound, """{"errors":[]}""");
+
+        var result = await GetAsync(handler);
+
+        Assert.False(result.IsFound);
+        Assert.False(result.IsUnavailable);
+    }
+
+    [Fact]
+    public async Task GetAsync_WhenTheProviderRejectsTheQuery_ShouldReturnUnavailable()
+    {
+        var handler = new StubHttpMessageHandler(HttpStatusCode.BadRequest, """{"errors":[]}""");
+
+        var result = await GetAsync(handler);
+
+        Assert.True(result.IsUnavailable);
+        Assert.False(result.IsFound);
+    }
+
+    // O valor registrado no provedor viaja no retrato — é o que a adoção por referência usa
+    // para uma ordem local que nasceu sem valor não aparecer vazia no relatório.
+    [Fact]
+    public async Task ScheduleAsync_ShouldCarryTheProvidersValueInTheSnapshot()
+    {
+        var result = await ScheduleAsync(StubHttpMessageHandler.Ok(AcceptedBody));
+
+        Assert.Equal(615.07m, result.Snapshot!.Amount!.Amount);
+    }
+
     // O retrato do pagamento concluído carrega a URL do comprovante — que fica no snapshot para
     // consumo imediato, nunca persistida (credencial ao portador).
     [Fact]

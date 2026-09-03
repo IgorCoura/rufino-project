@@ -60,9 +60,8 @@ public sealed class CancelPaymentOrderCommandHandler(
         var profile = await payerProfiles.GetByTenantAsync(tenantId, cancellationToken);
         var credential = profile?.AsaasAccountRef;
 
-        var result = order.Rail == PaymentRail.Pix
-            ? await pixGateway.CancelAsync(credential, order.ProviderOrderId, cancellationToken)
-            : await billGateway.CancelAsync(credential, order.ProviderOrderId, cancellationToken);
+        var result = await order.CancelAtProviderAsync(
+            billGateway, pixGateway, credential, order.ProviderOrderId, cancellationToken);
 
         if (!result.IsCancelled)
         {

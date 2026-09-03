@@ -56,9 +56,8 @@ public sealed class CompensatePaymentSubmissionRaceCommandHandler(
         var profile = await payerProfiles.GetByTenantAsync(tenantId, cancellationToken);
         var credential = profile?.AsaasAccountRef;
 
-        var fetch = order.Rail == PaymentRail.Pix
-            ? await pixGateway.FindByExternalReferenceAsync(credential, order.ExternalReference, cancellationToken)
-            : await billGateway.FindByExternalReferenceAsync(credential, order.ExternalReference, cancellationToken);
+        var fetch = await order.FindByExternalReferenceAsync(
+            billGateway, pixGateway, credential, cancellationToken);
 
         if (fetch.IsUnavailable)
         {
@@ -73,9 +72,8 @@ public sealed class CompensatePaymentSubmissionRaceCommandHandler(
         if (snapshot.Status == PaymentOrderStatus.Cancelled || snapshot.Status == PaymentOrderStatus.Refunded)
             return new CompensatePaymentSubmissionRaceResponse(request.PaymentOrderId, OUTCOME_NOTHING_AT_PROVIDER);
 
-        var cancel = order.Rail == PaymentRail.Pix
-            ? await pixGateway.CancelAsync(credential, snapshot.ProviderOrderId, cancellationToken)
-            : await billGateway.CancelAsync(credential, snapshot.ProviderOrderId, cancellationToken);
+        var cancel = await order.CancelAtProviderAsync(
+            billGateway, pixGateway, credential, snapshot.ProviderOrderId, cancellationToken);
 
         if (cancel.IsCancelled)
         {

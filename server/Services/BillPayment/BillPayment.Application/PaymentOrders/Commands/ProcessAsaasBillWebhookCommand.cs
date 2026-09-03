@@ -81,15 +81,19 @@ public sealed class ProcessAsaasBillWebhookCommandHandler(
             ? request.EventName[BILL_EVENT_PREFIX.Length..]
             : request.EventName;
 
-        var target = MapStatus(raw);
+        // O MESMO catálogo do adapter (Domain): desconhecido cai em Pending, que a monotônica
+        // ignora de qualquer estado à frente — um evento novo do provedor nunca vira desfecho
+        // por chute, e webhook e conciliação nunca traduzem diferente.
+        var target = ProviderStatusCatalog.FromBillPayment(raw);
 
         bool applied;
         try
         {
+            // A sobrecarga com decimal? compõe o Money DENTRO do agregado — handler não compõe VO.
             applied = order.ApplyProviderStatus(
                 target,
                 request.PaidAt,
-                request.Fee is { } fee ? new Domain.SharedKernel.Money(fee, Domain.SharedKernel.Currency.BRL) : null,
+                request.Fee,
                 request.FailReasons,
                 nowUtc,
                 nowUtc.UtcDateTime);
@@ -127,19 +131,4 @@ public sealed class ProcessAsaasBillWebhookCommandHandler(
 
         return new ProcessAsaasBillWebhookResponse(applied ? OUTCOME_APPLIED : OUTCOME_IGNORED);
     }
-
-    /// <summary>
-    /// O mesmo mapa do adapter: desconhecido cai em <c>Pending</c>, que a monotônica ignora a
-    /// partir de qualquer estado à frente — um evento novo do provedor nunca vira desfecho por chute.
-    /// </summary>
-    private static PaymentOrderStatus MapStatus(string raw)
-        => raw.ToUpperInvariant() switch
-        {
-            "PAID" => PaymentOrderStatus.Paid,
-            "BANK_PROCESSING" => PaymentOrderStatus.BankProcessing,
-            "FAILED" => PaymentOrderStatus.Failed,
-            "CANCELLED" => PaymentOrderStatus.Cancelled,
-            "REFUNDED" => PaymentOrderStatus.Refunded,
-            _ => PaymentOrderStatus.Pending,
-        };
 }

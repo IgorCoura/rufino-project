@@ -114,6 +114,7 @@ public sealed class PaymentsController(
     /// do token e fica na trilha (ADR-007).
     /// </summary>
     [HttpPost("{id:guid}/confirm-immediate")]
+    [EnableRateLimiting(RateLimitingExtensions.EXPENSIVE_POLICY)]
     [ProtectedResource("bill", "approve")]
     public async Task<ActionResult<ConfirmImmediatePaymentResponse>> ConfirmImmediate(
         [FromRoute] Guid tenantId,

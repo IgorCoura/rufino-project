@@ -23,6 +23,8 @@ public class BillStatusTests
     [InlineData("Approved", "Scheduled")]
     [InlineData("Approved", "Failed")]
     [InlineData("Approved", "Cancelled")]
+    [InlineData("Approved", "AwaitingApproval")]
+    [InlineData("Approved", "Rejected")]
     [InlineData("Scheduled", "Paid")]
     [InlineData("Scheduled", "Failed")]
     [InlineData("Scheduled", "Cancelled")]

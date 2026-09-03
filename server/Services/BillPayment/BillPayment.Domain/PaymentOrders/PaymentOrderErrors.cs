@@ -268,6 +268,22 @@ public static class PaymentOrderErrors
             sourcePath: BuildSourcePath(filePath, memberName, lineNumber),
             category: DomainErrorCategory.Conflict);
 
+    /// <summary>
+    /// Um id de ordem do provedor maior que a coluna não é truncado em silêncio — id cortado
+    /// consultaria para sempre uma ordem que não existe (conciliação, cancelamento, comprovante).
+    /// Recusar é o único desfecho que não corrompe a referência.
+    /// </summary>
+    public static DomainException ProviderOrderIdTooLong(
+        int maxLength,
+        [CallerFilePath] string filePath = "",
+        [CallerMemberName] string memberName = "",
+        [CallerLineNumber] int lineNumber = 0)
+        => new(
+            id: $"{AGGREGATE_PREFIX}23",
+            messageTemplate: "O identificador da ordem no provedor excede o tamanho máximo ({0} caracteres).",
+            parameters: new object[] { maxLength },
+            sourcePath: BuildSourcePath(filePath, memberName, lineNumber));
+
     internal static DomainException SnapshotRequired(
         [CallerFilePath] string filePath = "",
         [CallerMemberName] string memberName = "",

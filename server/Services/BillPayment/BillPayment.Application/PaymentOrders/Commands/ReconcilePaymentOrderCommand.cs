@@ -46,9 +46,8 @@ public sealed class ReconcilePaymentOrderCommandHandler(
         var profile = await payerProfiles.GetByTenantAsync(tenantId, cancellationToken);
         var credential = profile?.AsaasAccountRef;
 
-        var fetch = order.Rail == PaymentRail.Pix
-            ? await pixGateway.GetAsync(credential, order.ProviderOrderId, cancellationToken)
-            : await billGateway.GetAsync(credential, order.ProviderOrderId, cancellationToken);
+        var fetch = await order.GetFromProviderAsync(
+            billGateway, pixGateway, credential, order.ProviderOrderId, cancellationToken);
 
         var nowUtc = clock.GetUtcNow();
 

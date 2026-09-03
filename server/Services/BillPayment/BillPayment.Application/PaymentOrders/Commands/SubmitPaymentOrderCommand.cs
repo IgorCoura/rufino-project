@@ -89,9 +89,8 @@ public sealed class SubmitPaymentOrderCommandHandler(
         // que o doc 04 manda impedir.
         if (order.SubmissionAttempts > 1)
         {
-            var fetch = order.Rail == PaymentRail.Pix
-                ? await pixGateway.FindByExternalReferenceAsync(credential, order.ExternalReference, cancellationToken)
-                : await billGateway.FindByExternalReferenceAsync(credential, order.ExternalReference, cancellationToken);
+            var fetch = await order.FindByExternalReferenceAsync(
+                billGateway, pixGateway, credential, cancellationToken);
 
             if (fetch.IsUnavailable)
                 throw PaymentOrderErrors.SubmissionUnavailable(fetch.ReasonCode);
@@ -124,13 +123,14 @@ public sealed class SubmitPaymentOrderCommandHandler(
             return new SubmitPaymentOrderResponse(request.PaymentOrderId, OUTCOME_HELD);
         }
 
+        // A guarda do valor é do agregado (PMO10): DomainException sobe, o worker a classifica
+        // como permanente e a ordem desiste com falha visível — nunca vai ao gateway sem valor.
         var amount = order.Amount ?? bill.AmountForPayment;
-        if (amount is null)
-            return await RefuseAsync(order, "no_amount_to_submit", now, cancellationToken);
+        order.EnsureSubmittable(amount);
 
         var result = order.Rail == PaymentRail.Pix
-            ? await SubmitPixAsync(order, bill, credential, amount, resolution, cancellationToken)
-            : await SubmitBankSlipAsync(order, bill, credential, amount, resolution, cancellationToken);
+            ? await SubmitPixAsync(order, bill, credential, amount!, resolution, cancellationToken)
+            : await SubmitBankSlipAsync(order, bill, credential, amount!, resolution, cancellationToken);
 
         if (!result.IsAccepted)
         {
@@ -208,7 +208,9 @@ public sealed class SubmitPaymentOrderCommandHandler(
             ?? snapshot.PaidAt
             ?? DateOnly.FromDateTime(now);
 
-        order.MarkSubmitted(snapshot.ProviderOrderId, effective, amount, snapshot.Fee, now);
+        // Na adoção pura (retentativa que encontrou a ordem lá) o valor vem do retrato do
+        // provedor — sem ele, uma ordem paga apareceria sem valor no relatório.
+        order.MarkSubmitted(snapshot.ProviderOrderId, effective, amount ?? snapshot.Amount, snapshot.Fee, now);
 
         if (snapshot.Status != PaymentOrderStatus.Pending)
         {
