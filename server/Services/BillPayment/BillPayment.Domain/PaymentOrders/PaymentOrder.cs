@@ -301,15 +301,20 @@ public sealed class PaymentOrder : AggregateRoot<PaymentOrderId>
     {
         ArgumentNullException.ThrowIfNull(target);
 
-        LastProviderSyncAt = syncedAt;
-        UpdatedAt = occurredAt;
-
         if (Status == PaymentOrderStatus.Draft || target == Status || !Status.CanTransitionTo(target))
+        {
+            LastProviderSyncAt = syncedAt;
+            UpdatedAt = occurredAt;
             return false;
+        }
 
+        // A guarda vem ANTES de qualquer mutação: um payload mentiroso não deixa nem a marca de
+        // sincronização — quem capturar a exceção e salvar o contexto não persiste rastro dele.
         if (target == PaymentOrderStatus.Paid && paidAt is null)
             throw PaymentOrderErrors.IncoherentProviderPayload("pago sem data de pagamento");
 
+        LastProviderSyncAt = syncedAt;
+        UpdatedAt = occurredAt;
         Status = target;
         Fee = fee ?? Fee;
 
@@ -346,6 +351,12 @@ public sealed class PaymentOrder : AggregateRoot<PaymentOrderId>
     {
         if (Status != PaymentOrderStatus.Draft)
             throw PaymentOrderErrors.CancellationNotAllowed(Status.Name);
+
+        // Aluguel vigente = um worker pode estar falando com o provedor NESTE instante. Cancelar
+        // aqui venceria a corrida no banco e deixaria o pagamento vivo lá com o espelho dizendo
+        // "cancelado" — a janela fecha sozinha quando o aluguel vence (PMO22).
+        if (SubmissionLeaseExpiresAt is { } lease && lease > occurredAt)
+            throw PaymentOrderErrors.CancellationDuringSubmission();
 
         Status = PaymentOrderStatus.Cancelled;
         SubmissionLeaseExpiresAt = null;

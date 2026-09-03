@@ -20,16 +20,19 @@ using Microsoft.Extensions.Logging;
 /// </para>
 /// <para>
 /// Tenant sem conta de pagamento não é erro: a ordem nasce retida em <c>AwaitingAccount</c>,
-/// visível, e vincular a chave destrava pela própria fila (ADR-016). Boleto já vencido herda o
-/// consentimento dado na aprovação (a guarda <c>BLP.BIL35</c> o exigiu lá) — sem ele a fila
-/// pararia a ordem para perguntar de novo o que a pessoa acabou de responder.
+/// visível, e vincular a chave destrava pela própria fila (ADR-016). O consentimento de execução
+/// imediata (<c>BLP.BIL35</c>) vem do EVENTO — o aceite que a pessoa de fato deu na aprovação —
+/// e nunca é re-derivado da data aqui: um outbox atrasado além do vencimento gravaria um aceite
+/// que ninguém deu, e a fila pagaria na hora sem perguntar (ADR-017). Boleto que vence durante a
+/// espera cai no fluxo normal de <c>AwaitingConfirmation</c> da fila.
 /// </para>
 /// </remarks>
 public sealed record CreatePaymentOrderForBillCommand(
     Guid TenantId,
     Guid BillId,
     Guid ApprovedBy,
-    DateOnly ScheduleFor) : ITenantScopedCommand, IRequest<CreatePaymentOrderForBillResponse>;
+    DateOnly ScheduleFor,
+    bool AcknowledgedImmediateExecution) : ITenantScopedCommand, IRequest<CreatePaymentOrderForBillResponse>;
 
 public sealed record CreatePaymentOrderForBillResponse(Guid PaymentOrderId, string Outcome);
 
@@ -61,9 +64,12 @@ public sealed class CreatePaymentOrderForBillCommandHandler(
         // ninguém autoriza mais — pular é o desfecho certo, não erro.
         if (bill.Status != BillStatus.Approved)
         {
-            logger.LogInformation(
-                "Boleto {BillId} não está mais em Approved ({Status}); nenhuma ordem criada.",
-                request.BillId, bill.Status.Name);
+            if (logger.IsEnabled(LogLevel.Information))
+            {
+                logger.LogInformation(
+                    "Boleto {BillId} não está mais em Approved ({Status}); nenhuma ordem criada.",
+                    request.BillId, bill.Status.Name);
+            }
 
             return new CreatePaymentOrderForBillResponse(Guid.Empty, OUTCOME_SKIPPED);
         }
@@ -86,7 +92,7 @@ public sealed class CreatePaymentOrderForBillCommandHandler(
         if (profile is null || !profile.CanSchedulePayments)
             order.HoldForMissingAccount(now);
 
-        if (bill.DueDate is { } due && due < DateOnly.FromDateTime(now))
+        if (request.AcknowledgedImmediateExecution)
             order.RecordImmediateExecutionConsent(UserId.From(request.ApprovedBy), now);
 
         await orders.AddAsync(order, cancellationToken);

@@ -80,6 +80,36 @@ public class PaymentOrderTests
         Assert.Equal("BLP.PMO11", ex.Id);
     }
 
+    // A guarda da corrida cancelar×submeter: com o aluguel de submissão vigente, cancelar o
+    // rascunho é recusado (BLP.PMO22) — um worker pode estar falando com o provedor NESTE
+    // instante, e vencer a corrida no banco deixaria o pagamento vivo lá com o espelho
+    // dizendo "cancelado".
+    [Fact]
+    public void CancelDraft_WhileTheSubmissionLeaseIsActive_ShouldThrow_BLP_PMO22()
+    {
+        var order = PaymentOrderMother.Draft();
+        order.RecordSubmissionFailure(
+            permanent: false, "timeout", maxAttempts: 5, TimeSpan.FromSeconds(30), Now);
+
+        var ex = Assert.Throws<DomainException>(() => order.CancelDraft(Now.AddSeconds(10)));
+
+        Assert.Equal("BLP.PMO22", ex.Id);
+        Assert.Equal(PaymentOrderStatus.Draft, order.Status);
+    }
+
+    // Contraprova: o aluguel vence sozinho, a janela fecha, e o cancelamento local volta a valer.
+    [Fact]
+    public void CancelDraft_AfterTheLeaseExpires_ShouldCancelLocally()
+    {
+        var order = PaymentOrderMother.Draft();
+        order.RecordSubmissionFailure(
+            permanent: false, "timeout", maxAttempts: 5, TimeSpan.FromSeconds(30), Now);
+
+        order.CancelDraft(Now.AddSeconds(31));
+
+        Assert.Equal(PaymentOrderStatus.Cancelled, order.Status);
+    }
+
     // A retenção por vencido emite o evento que vira aviso — retenção silenciosa é o modo de
     // falha do ADR-014 — e reter de novo NÃO repete o aviso.
     [Fact]

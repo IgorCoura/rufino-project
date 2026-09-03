@@ -252,6 +252,22 @@ public static class PaymentOrderErrors
             sourcePath: BuildSourcePath(filePath, memberName, lineNumber),
             category: DomainErrorCategory.Conflict);
 
+    /// <summary>
+    /// Cancelar um rascunho enquanto o aluguel de submissão está vigente abriria a corrida em
+    /// que o worker paga no provedor uma ordem que aqui já morreu — o espelho diria "cancelado"
+    /// com dinheiro vivo lá. A janela é curta: o aluguel vence sozinho.
+    /// </summary>
+    public static DomainException CancellationDuringSubmission(
+        [CallerFilePath] string filePath = "",
+        [CallerMemberName] string memberName = "",
+        [CallerLineNumber] int lineNumber = 0)
+        => new(
+            id: $"{AGGREGATE_PREFIX}22",
+            messageTemplate: "Há uma submissão em andamento para esta ordem de pagamento. Tente novamente em instantes.",
+            parameters: Array.Empty<object>(),
+            sourcePath: BuildSourcePath(filePath, memberName, lineNumber),
+            category: DomainErrorCategory.Conflict);
+
     internal static DomainException SnapshotRequired(
         [CallerFilePath] string filePath = "",
         [CallerMemberName] string memberName = "",

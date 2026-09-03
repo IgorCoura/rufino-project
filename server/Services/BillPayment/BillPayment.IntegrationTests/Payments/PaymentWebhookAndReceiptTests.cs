@@ -150,6 +150,34 @@ public sealed class PaymentWebhookAndReceiptTests : BaseIntegrationTest, IDispos
         Assert.Equal(PaymentOrderStatus.BankProcessing, (await LoadOrderAsync(orderId)).Status);
     }
 
+    // Regressão do webhook venenoso: BILL_PAID SEM paymentDate é payload incoerente (BLP.PMO03),
+    // e a resposta é 200 com a marca do ledger persistida e a ordem intacta — devolver não-2xx
+    // sem a marca faria o provedor reentregar o mesmo evento para sempre, represando a fila
+    // sequencial de webhooks da conta inteira.
+    [Fact]
+    public async Task Webhook_PaidWithoutAPaymentDate_ShouldAcknowledgeWithoutPoisoningRedelivery()
+    {
+        var (_, orderId) = await SubmitOrderAsync();
+        var payload = new
+        {
+            id = "evt_poison_1",
+            @event = "BILL_PAID",
+            bill = new { externalReference = orderId.ToString() },
+        };
+
+        var first = await PostWebhookAsync(payload);
+        var second = await PostWebhookAsync(payload);
+
+        Assert.Equal(HttpStatusCode.OK, first.StatusCode);
+        Assert.Contains("Incoherent", await first.Content.ReadAsStringAsync(CancellationToken.None), StringComparison.Ordinal);
+        Assert.Equal(HttpStatusCode.OK, second.StatusCode);
+        Assert.Contains("Duplicate", await second.Content.ReadAsStringAsync(CancellationToken.None), StringComparison.Ordinal);
+
+        var ledgerRows = await ExecuteDbContextAsync(db => db.PaymentWebhookEvents.AsNoTracking().CountAsync());
+        Assert.Equal(1, ledgerRows);
+        Assert.Equal(PaymentOrderStatus.Pending, (await LoadOrderAsync(orderId)).Status);
+    }
+
     // Referência que não é nossa devolve 200: falhar faria o provedor reentregar para sempre um
     // evento de outra conta.
     [Fact]

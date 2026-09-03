@@ -519,7 +519,13 @@ public sealed class Bill : AggregateRoot<BillId>
         Status = BillStatus.Approved;
         UpdatedAt = occurredAt;
 
-        AddDomainEvent(new BillApprovedDomainEvent(Id, TenantId, approvedBy, scheduleFor, occurredAt));
+        // O evento carrega o aceite COMO FOI DADO: exigido (boleto vencido na tela) e marcado.
+        // Um "true" solto num boleto não vencido não é consentimento — a caixa nem apareceu.
+        var immediateExecutionAcknowledged =
+            acknowledgeImmediateExecution && DueDate is { } dueDate && dueDate < today;
+
+        AddDomainEvent(new BillApprovedDomainEvent(
+            Id, TenantId, approvedBy, scheduleFor, immediateExecutionAcknowledged, occurredAt));
     }
 
     /// <summary>
@@ -621,6 +627,23 @@ public sealed class Bill : AggregateRoot<BillId>
         // revalidação), mas reabrir um Approved por aqui descartaria uma aprovação vigente sem
         // motivo de pagamento — quem quer desfazer uma aprovação revalida ou cancela.
         if (Status != BillStatus.Failed)
+            throw BillErrors.PaymentTransitionNotAllowed(Status.Name, BillStatus.AwaitingApproval.Name);
+
+        PaymentOrderId = null;
+        ScheduledFor = null;
+        Status = BillStatus.AwaitingApproval;
+        UpdatedAt = occurredAt;
+    }
+
+    /// <summary>
+    /// A ordem morreu ANTES de agendar (rascunho cancelado): o boleto aprovado volta à fila de
+    /// decisão, porque a fila nunca mais criará ordem para esta aprovação — sem isto ele ficaria
+    /// <c>Approved</c> para sempre, sem execução e sem saída (<c>ReopenForApproval</c> só aceita
+    /// <c>Failed</c>). A trilha de aprovação fica: é história, e a próxima decisão grava a sua.
+    /// </summary>
+    public void ReturnToApprovalAfterScheduleCancellation(DateTime occurredAt)
+    {
+        if (Status != BillStatus.Approved)
             throw BillErrors.PaymentTransitionNotAllowed(Status.Name, BillStatus.AwaitingApproval.Name);
 
         PaymentOrderId = null;

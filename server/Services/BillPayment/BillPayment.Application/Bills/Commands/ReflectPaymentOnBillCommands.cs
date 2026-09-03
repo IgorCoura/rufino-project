@@ -132,6 +132,7 @@ public sealed class MarkBillPaymentFailedCommandHandler(
 
 public sealed class MarkBillScheduleCancelledCommandHandler(
     IBillRepository bills,
+    IPaymentOrderRepository orders,
     TimeProvider clock,
     IUnitOfWork unitOfWork)
     : IRequestHandler<MarkBillScheduleCancelledCommand, ReflectPaymentOnBillResponse>
@@ -140,22 +141,44 @@ public sealed class MarkBillScheduleCancelledCommandHandler(
         MarkBillScheduleCancelledCommand request,
         CancellationToken cancellationToken)
     {
-        var bill = await bills.GetAsync(
-                TenantId.From(request.TenantId), BillId.From(request.BillId), cancellationToken)
+        var tenantId = TenantId.From(request.TenantId);
+        var billId = BillId.From(request.BillId);
+
+        var bill = await bills.GetAsync(tenantId, billId, cancellationToken)
             ?? throw BillErrors.NotFound(request.BillId);
 
-        // Ordem cancelada de um boleto que NÃO está agendado por ela não reflete nada: ou o
-        // boleto já foi cancelado por gente (e a ordem morreu por consequência), ou a ordem é
-        // de uma rodada anterior. Só o agendamento vivo desta ordem vira cancelamento.
-        if (bill.Status != BillStatus.Scheduled
-            || bill.PaymentOrderId != PaymentOrderId.From(request.PaymentOrderId))
+        var orderId = PaymentOrderId.From(request.PaymentOrderId);
+        var now = clock.GetUtcNow().UtcDateTime;
+
+        // Agendamento vivo DESTA ordem: cancelamento pós-submissão espelha Scheduled → Cancelled.
+        if (bill.Status == BillStatus.Scheduled && bill.PaymentOrderId == orderId)
         {
-            return new ReflectPaymentOnBillResponse(request.BillId, bill.Status.Name, Applied: false);
+            bill.MarkScheduleCancelled(now);
+            await unitOfWork.SaveEntitiesAsync(cancellationToken);
+
+            return new ReflectPaymentOnBillResponse(request.BillId, bill.Status.Name, Applied: true);
         }
 
-        bill.MarkScheduleCancelled(clock.GetUtcNow().UtcDateTime);
-        await unitOfWork.SaveEntitiesAsync(cancellationToken);
+        // Ordem cancelada AINDA EM RASCUNHO (o boleto nunca chegou a Scheduled, então não há
+        // vínculo): o boleto aprovado volta à fila de decisão — a fila nunca mais criará ordem
+        // para esta aprovação, e sem o reflexo ele ficaria Approved para sempre, sem saída
+        // (ReopenForApproval só aceita Failed). A consulta de ordem ativa é a guarda contra a
+        // reentrega tardia: existindo uma ordem viva (rodada NOVA de aprovação), o evento é
+        // história e não desfaz nada.
+        if (bill.Status == BillStatus.Approved && bill.PaymentOrderId is null)
+        {
+            var active = await orders.GetActiveByBillAsync(tenantId, billId, cancellationToken);
+            if (active is not null && active.Id != orderId)
+                return new ReflectPaymentOnBillResponse(request.BillId, bill.Status.Name, Applied: false);
 
-        return new ReflectPaymentOnBillResponse(request.BillId, bill.Status.Name, Applied: true);
+            bill.ReturnToApprovalAfterScheduleCancellation(now);
+            await unitOfWork.SaveEntitiesAsync(cancellationToken);
+
+            return new ReflectPaymentOnBillResponse(request.BillId, bill.Status.Name, Applied: true);
+        }
+
+        // Boleto cancelado por gente (a ordem morreu por consequência), reentrega ou rodada
+        // anterior: nada a refletir.
+        return new ReflectPaymentOnBillResponse(request.BillId, bill.Status.Name, Applied: false);
     }
 }

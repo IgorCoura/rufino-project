@@ -132,11 +132,23 @@ internal sealed class PaymentSubmissionBackgroundService(
                 PaymentOrderId.From(pending.PaymentOrderId),
                 stoppingToken);
 
-            if (order is null || order.Status != PaymentOrderStatus.Draft)
+            if (order is null)
+                return;
+
+            // Conflito de concorrência com a ordem recarregada CANCELADA é a corrida
+            // cancelar×submeter: o gateway pode ter aceitado o pagamento e o cancelamento local
+            // venceu o save. A compensação consulta o provedor e cancela lá — nunca silêncio.
+            if (failure is ConcurrencyConflictException && order.Status == PaymentOrderStatus.Cancelled)
+            {
+                await CompensateRaceAsync(pending, stoppingToken);
+                return;
+            }
+
+            if (order.Status != PaymentOrderStatus.Draft)
                 return;
 
             var gaveUp = order.RecordSubmissionFailure(
-                IsPermanent(failure),
+                PaymentSubmissionFailureHandling.IsPermanent(failure),
                 failure.Message,
                 _scheduling.MaxSubmissionAttempts,
                 TimeSpan.FromSeconds(Math.Max(1, _scheduling.RetryBaseDelaySeconds)),
@@ -156,21 +168,32 @@ internal sealed class PaymentSubmissionBackgroundService(
     }
 
     /// <summary>
-    /// Só o sinal de "volte para a fila" (<c>BLP.PMO18</c>) e a colisão de concorrência são
-    /// passageiros. O resto é permanente — e permanente aqui é o lado seguro, porque toda
-    /// retentativa recomeça pela consulta de <c>externalReference</c>, nunca por reenvio cego.
+    /// A corrida cancelar×submeter perdida: compensa num escopo novo, pelo comando dedicado.
+    /// Falhar aqui não derruba o ciclo — o comando já alarma por log e pelo canal operacional.
     /// </summary>
-    private static bool IsPermanent(Exception failure)
-        => failure switch
+    private async Task CompensateRaceAsync(PendingPaymentSubmission pending, CancellationToken stoppingToken)
+    {
+        try
         {
-            ConcurrencyConflictException => false,
-            DomainException domain => !string.Equals(
-                domain.Id, SubmissionUnavailableErrorId, StringComparison.Ordinal),
-            _ => true,
-        };
+            using var scope = scopeFactory.CreateScope();
+            var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
 
-    /// <summary><c>PaymentOrderErrors.SubmissionUnavailable</c>.</summary>
-    private const string SubmissionUnavailableErrorId = "BLP.PMO18";
+            var result = await mediator.Send(
+                new CompensatePaymentSubmissionRaceCommand(pending.TenantId, pending.PaymentOrderId),
+                stoppingToken);
+
+            logger.LogError(
+                "Corrida cancelar×submeter na ordem {PaymentOrderId}: compensação = {Outcome}.",
+                pending.PaymentOrderId, result.Outcome);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            logger.LogError(ex,
+                "Não foi possível compensar a corrida cancelar×submeter da ordem {PaymentOrderId}. "
+                + "Verifique manualmente o provedor.",
+                pending.PaymentOrderId);
+        }
+    }
 
     private async Task ProbeAccountHeldAsync(CancellationToken stoppingToken)
     {

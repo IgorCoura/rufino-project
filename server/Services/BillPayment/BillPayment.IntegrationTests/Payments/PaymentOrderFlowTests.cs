@@ -257,7 +257,7 @@ public sealed class PaymentOrderFlowTests : BaseIntegrationTest, IDisposable
         await LoadOrderOfAsync(billId);
 
         var outcome = await SendAsync(new CreatePaymentOrderForBillCommand(
-            TenantId, billId, ApproverId, ScheduleDate()));
+            TenantId, billId, ApproverId, ScheduleDate(), AcknowledgedImmediateExecution: false));
 
         Assert.Equal("AlreadyExists", outcome.Outcome);
         var orders = await ExecuteDbContextAsync(db => db.PaymentOrders
@@ -357,6 +357,117 @@ public sealed class PaymentOrderFlowTests : BaseIntegrationTest, IDisposable
             new Uri($"/api/v1/{TenantId}/payments/by-bill/{billId}", UriKind.Relative), CancellationToken.None);
         Assert.Equal(orderId, byBill!.Id);
         Assert.Equal("Draft", byBill.Status);
+    }
+
+    // A guarda da corrida cancelar×submeter pela borda: com a ordem reivindicada (aluguel
+    // vigente) o worker pode estar falando com o provedor NESTE instante — cancelar responde
+    // 409 BLP.PMO22 e nada muda; a janela fecha sozinha quando o aluguel vence.
+    [Fact]
+    public async Task CancelEndpoint_WhileTheOrderIsClaimedForSubmission_ShouldRespond409()
+    {
+        await LinkPaymentAccountAsync();
+        var billId = await ApproveFutureDueBillAsync();
+        var orderId = (await LoadOrderOfAsync(billId)).Id.Value;
+        await ClaimAsync();
+
+        var response = await PostPaymentAsync($"{orderId}/cancel");
+
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+        Assert.Contains("BLP.PMO22", await response.Content.ReadAsStringAsync(CancellationToken.None), StringComparison.Ordinal);
+        Assert.Equal(PaymentOrderStatus.Draft, (await LoadOrderAsync(orderId)).Status);
+    }
+
+    // Regressão do consentimento forjado (ADR-017): aprovado ANTES de vencer (evento sem o
+    // aceite) e entregue DEPOIS do vencimento, a ordem nasce SEM consentimento e a fila para em
+    // AwaitingConfirmation — o handler nunca re-deriva o "vencido" pela data da entrega.
+    [Fact]
+    public async Task DelayedOrderCreation_ShouldNotForgeTheImmediateConsent()
+    {
+        await LinkPaymentAccountAsync();
+        var billId = await ImportAndValidateAsync(OverdueSnapshot());
+        var approve = await PostBillAsync(
+            $"{billId}/approve",
+            new ApproveBillRequest(ScheduleDate(), null, AcknowledgeImmediateExecution: true));
+        approve.EnsureSuccessStatusCode();
+
+        // Simula a entrega atrasada do outbox: o flag que viaja é o que valia na APROVAÇÃO —
+        // aqui, um boleto que ainda não estava vencido e cuja caixa de aceite nem apareceu.
+        var outcome = await SendAsync(new CreatePaymentOrderForBillCommand(
+            TenantId, billId, ApproverId, ScheduleDate(), AcknowledgedImmediateExecution: false));
+        Assert.Equal("Created", outcome.Outcome);
+
+        var orderId = (await LoadOrderOfAsync(billId)).Id.Value;
+        Assert.Null((await LoadOrderAsync(orderId)).ConfirmedBy);
+
+        await ClaimAsync();
+        var submit = await SubmitAsync(orderId);
+
+        Assert.Equal("Held", submit);
+        Assert.Equal(PaymentOrderHold.AwaitingConfirmation, (await LoadOrderAsync(orderId)).Hold);
+        Assert.Equal(0, _gateways.SubmissionCalls);
+    }
+
+    // O rascunho cancelado reflete no boleto: sem ordem para executar a aprovação, ele volta a
+    // AwaitingApproval (nunca fica Approved para sempre) e a nova decisão cria ordem NOVA.
+    [Fact]
+    public async Task CancelledDraft_ShouldReturnTheBillToApprovalAndAllowANewOrder()
+    {
+        await LinkPaymentAccountAsync();
+        var billId = await ApproveFutureDueBillAsync();
+        var firstOrderId = (await LoadOrderOfAsync(billId)).Id.Value;
+
+        (await PostPaymentAsync($"{firstOrderId}/cancel")).EnsureSuccessStatusCode();
+        await DrainOutboxAsync();
+
+        var bill = await LoadBillAsync(billId);
+        Assert.Equal(BillStatus.AwaitingApproval, bill.Status);
+        Assert.Null(bill.PaymentOrderId);
+
+        var response = await PostBillAsync(
+            $"{billId}/approve", new ApproveBillRequest(ScheduleDate(), null, AcknowledgeRisk: true));
+        response.EnsureSuccessStatusCode();
+        await DrainOutboxAsync();
+
+        var orders = await ExecuteDbContextAsync(db => db.PaymentOrders
+            .AsNoTracking()
+            .Where(o => o.BillId == BillId.From(billId))
+            .CountAsync());
+        Assert.Equal(2, orders);
+    }
+
+    // A compensação da corrida perdida: a ordem local morreu Cancelled mas o provedor ACEITOU a
+    // submissão — o comando consulta por externalReference e cancela LÁ, nunca em silêncio.
+    [Fact]
+    public async Task CompensateRace_WhenThePaymentIsLiveAtTheProvider_ShouldCancelItThere()
+    {
+        await LinkPaymentAccountAsync();
+        var billId = await ApproveFutureDueBillAsync();
+        var orderId = (await LoadOrderOfAsync(billId)).Id.Value;
+        (await PostPaymentAsync($"{orderId}/cancel")).EnsureSuccessStatusCode();
+
+        _gateways.ScriptedFind = PaymentFetchResult.Found(new ProviderPaymentSnapshot(
+            "pay_live_1", PaymentOrderStatus.Pending, "PENDING", ScheduleDate(), null, null, [], null));
+
+        var outcome = await CompensateAsync(orderId);
+
+        Assert.Equal("CancelledAtProvider", outcome);
+        Assert.Equal(1, _gateways.CancelCalls);
+    }
+
+    // Contraprova da compensação: o provedor não conhece a referência — nada chegou lá, nada a
+    // cancelar, nenhum pedido de cancelamento é feito.
+    [Fact]
+    public async Task CompensateRace_WhenNothingReachedTheProvider_ShouldDoNothing()
+    {
+        await LinkPaymentAccountAsync();
+        var billId = await ApproveFutureDueBillAsync();
+        var orderId = (await LoadOrderOfAsync(billId)).Id.Value;
+        (await PostPaymentAsync($"{orderId}/cancel")).EnsureSuccessStatusCode();
+
+        var outcome = await CompensateAsync(orderId);
+
+        Assert.Equal("NothingAtProvider", outcome);
+        Assert.Equal(0, _gateways.CancelCalls);
     }
 
     private static DateOnly ScheduleDate() => DateOnly.FromDateTime(DateTime.UtcNow).AddDays(5);
@@ -502,6 +613,17 @@ public sealed class PaymentOrderFlowTests : BaseIntegrationTest, IDisposable
         var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
 
         return await mediator.Send(command, CancellationToken.None);
+    }
+
+    private async Task<string> CompensateAsync(Guid orderId)
+    {
+        using var scope = _host.Services.CreateScope();
+        var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
+
+        var result = await mediator.Send(
+            new CompensatePaymentSubmissionRaceCommand(TenantId, orderId), CancellationToken.None);
+
+        return result.Outcome;
     }
 
     private async Task ReleaseAccountHoldAsync(Guid orderId)

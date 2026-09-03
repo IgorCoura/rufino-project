@@ -29,7 +29,8 @@ public sealed class CreatePaymentOrderOnBillApprovedHandler(IMediator mediator)
                 domainEvent.TenantId.Value,
                 domainEvent.BillId.Value,
                 domainEvent.ApprovedBy.Value,
-                domainEvent.ScheduleFor),
+                domainEvent.ScheduleFor,
+                domainEvent.AcknowledgedImmediateExecution),
             cancellationToken);
     }
 }

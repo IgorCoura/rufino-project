@@ -69,9 +69,13 @@ public sealed class CapturePaymentReceiptCommandHandler(
         var receiptUrl = fetch.Snapshot?.ReceiptUrl;
         if (string.IsNullOrWhiteSpace(receiptUrl))
         {
-            logger.LogInformation(
-                "A ordem {PaymentOrderId} está paga e o provedor não oferece comprovante.",
-                order.Id.Value);
+            if (logger.IsEnabled(LogLevel.Information))
+            {
+                logger.LogInformation(
+                    "A ordem {PaymentOrderId} está paga e o provedor não oferece comprovante.",
+                    order.Id.Value);
+            }
+
             return new CapturePaymentReceiptResponse(request.PaymentOrderId, OUTCOME_NO_RECEIPT);
         }
 

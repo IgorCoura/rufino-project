@@ -1,6 +1,7 @@
 namespace BillPayment.Application.Bills.Commands;
 
 using BillPayment.Application.Mediator;
+using BillPayment.Application.PaymentOrders.Commands;
 using BillPayment.Domain.Bills;
 using BillPayment.Domain.Bills.Checks;
 using BillPayment.Domain.SeedWork;
@@ -36,6 +37,7 @@ public sealed record ApproveBillResponse(Guid Id, string Status, DateOnly Schedu
 public sealed class ApproveBillCommandHandler(
     IBillRepository bills,
     IOptions<ApprovalOptions> options,
+    IOptions<PaymentSchedulingOptions> schedulingOptions,
     TimeProvider clock,
     IUnitOfWork unitOfWork)
     : IRequestHandler<ApproveBillCommand, ApproveBillResponse>
@@ -49,6 +51,12 @@ public sealed class ApproveBillCommandHandler(
 
         var now = clock.GetUtcNow();
 
+        // "Hoje" no fuso da POLÍTICA (America/Sao_Paulo), não em UTC: entre ~21h e meia-noite
+        // locais o dia UTC já virou, e a guarda de vencido (BIL35) diria "vencido" de um boleto
+        // que vence hoje — a tela (que vive no dia local) nem mostraria a caixa de aceite.
+        var today = DateOnly.FromDateTime(
+            TimeZoneInfo.ConvertTimeFromUtc(now.UtcDateTime, schedulingOptions.Value.ResolveTimeZone()));
+
         // Tradução de input: alçada desconhecida lança EnumerationNotFoundException → 400.
         var clearance = Enumeration.FromDisplayName<RiskLevel>(request.RiskClearance);
 
@@ -60,7 +68,7 @@ public sealed class ApproveBillCommandHandler(
             request.Note,
             options.Value.ToPolicy(),
             clearance,
-            DateOnly.FromDateTime(now.UtcDateTime),
+            today,
             now.UtcDateTime,
             request.AcknowledgeRisk,
             request.AcknowledgeImmediateExecution);

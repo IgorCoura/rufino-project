@@ -170,6 +170,70 @@ public class BillPaymentMirrorTests
         Assert.Equal(BillStatus.Approved, bill.Status);
     }
 
+    // O evento de aprovação carrega o aceite COMO FOI DADO: boleto vencido na tela E a caixa
+    // marcada — é este flag, e nunca a data re-derivada no consumo, que autoriza a ordem a
+    // nascer consentida (correção do consentimento forjado sob outbox atrasado).
+    [Fact]
+    public void Approve_AnOverdueBillWithTheAcknowledgment_ShouldStampTheConsentOnTheEvent()
+    {
+        var bill = ReadyForApproval();
+        var overdueToday = new DateOnly(2026, 7, 5);
+
+        bill.Approve(
+            Approver, new DateOnly(2026, 7, 6), null, ApprovalPolicy.Default(null),
+            RiskLevel.ExtremeDanger, overdueToday, DecidedAt,
+            acknowledgeRisk: false, acknowledgeImmediateExecution: true);
+
+        var approved = Assert.Single(bill.PullDomainEvents().OfType<BillApprovedDomainEvent>());
+        Assert.True(approved.AcknowledgedImmediateExecution);
+    }
+
+    // Um "true" solto num boleto NÃO vencido não é consentimento — a caixa nem apareceu na
+    // tela. O evento sai false, e se o boleto vencer enquanto o outbox atrasa, a fila para em
+    // AwaitingConfirmation em vez de pagar na hora.
+    [Fact]
+    public void Approve_ABillDueInTheFuture_ShouldNotStampConsentEvenIfTheFlagCame()
+    {
+        var bill = ReadyForApproval();
+
+        bill.Approve(
+            Approver, ScheduleFor, null, ApprovalPolicy.Default(null),
+            RiskLevel.ExtremeDanger, Today, DecidedAt,
+            acknowledgeRisk: false, acknowledgeImmediateExecution: true);
+
+        var approved = Assert.Single(bill.PullDomainEvents().OfType<BillApprovedDomainEvent>());
+        Assert.False(approved.AcknowledgedImmediateExecution);
+    }
+
+    // A ordem morreu em RASCUNHO (cancelada antes de agendar): o boleto aprovado volta à fila
+    // de decisão preservando a trilha — sem isto ficaria Approved para sempre, sem execução e
+    // sem saída (ReopenForApproval só aceita Failed).
+    [Fact]
+    public void ReturnToApprovalAfterScheduleCancellation_OnAnApprovedBill_ShouldReopenTheDecision()
+    {
+        var bill = Approved();
+        var approval = bill.Approval;
+
+        bill.ReturnToApprovalAfterScheduleCancellation(DecidedAt);
+
+        Assert.Equal(BillStatus.AwaitingApproval, bill.Status);
+        Assert.Null(bill.PaymentOrderId);
+        Assert.Null(bill.ScheduledFor);
+        Assert.Same(approval, bill.Approval);
+    }
+
+    // Fora de Approved, o reflexo do rascunho cancelado é reentrega ou rodada antiga — conflito.
+    [Fact]
+    public void ReturnToApprovalAfterScheduleCancellation_OnAScheduledBill_ShouldThrow_BLP_BIL34()
+    {
+        var bill = Scheduled();
+
+        var ex = Assert.Throws<DomainException>(
+            () => bill.ReturnToApprovalAfterScheduleCancellation(DecidedAt));
+
+        Assert.Equal("BLP.BIL34", ex.Id);
+    }
+
     private static Bill ReadyForApproval()
     {
         var bill = ValidationMother.BankSlipWithLookup();

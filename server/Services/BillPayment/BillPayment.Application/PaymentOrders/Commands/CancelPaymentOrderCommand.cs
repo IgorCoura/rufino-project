@@ -76,9 +76,12 @@ public sealed class CancelPaymentOrderCommandHandler(
 
         await unitOfWork.SaveEntitiesAsync(cancellationToken);
 
-        logger.LogInformation(
-            "Ordem de pagamento {PaymentOrderId} cancelada a pedido de {RequestedBy}.",
-            order.Id.Value, request.RequestedBy);
+        if (logger.IsEnabled(LogLevel.Information))
+        {
+            logger.LogInformation(
+                "Ordem de pagamento {PaymentOrderId} cancelada a pedido de {RequestedBy}.",
+                order.Id.Value, request.RequestedBy);
+        }
 
         return new CancelPaymentOrderResponse(order.Id.Value, order.Status.Name);
     }
