@@ -949,6 +949,16 @@ class FakeBillRepository implements BillRepository {
   /// The acknowledgement flag the last approval carried (phase 3).
   bool? lastApproveImmediateAck;
 
+  /// The preview served by [previewSchedule]; null echoes the asked date.
+  SchedulePreview? schedulePreview;
+
+  /// Makes only the preview fail — the sheet must keep working without it.
+  bool previewShouldFail = false;
+
+  /// Rule refusals scripted for the next [approveBill] calls, consumed in
+  /// order — lets a test refuse once (`BLP.BIL35`) and accept the retry.
+  final List<BillPaymentRuleException> scriptedApproveRefusals = [];
+
   /// Makes every call fail with a rule exception.
   // ignore: avoid_positional_boolean_parameters
   void setShouldFail(bool value) => _shouldFail = value;
@@ -1042,7 +1052,28 @@ class FakeBillRepository implements BillRepository {
     if (_shouldFail) return _fail();
     calls.add('approveBill:$id');
     lastApproveImmediateAck = acknowledgeImmediateExecution;
+    if (scriptedApproveRefusals.isNotEmpty) {
+      return Result.error(scriptedApproveRefusals.removeAt(0));
+    }
     return const Result.success(null);
+  }
+
+  @override
+  Future<Result<SchedulePreview>> previewSchedule(
+    String id,
+    DateTime date,
+  ) async {
+    calls.add('previewSchedule:$id');
+    if (previewShouldFail || _shouldFail) return _fail();
+    return Result.success(
+      schedulePreview ??
+          SchedulePreview(
+            requestedDate: date,
+            effectiveDate: date,
+            slid: false,
+            immediate: false,
+          ),
+    );
   }
 
   @override

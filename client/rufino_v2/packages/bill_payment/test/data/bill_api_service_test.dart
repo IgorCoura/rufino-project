@@ -98,4 +98,55 @@ void main() {
       );
     });
   });
+
+  group('previewSchedule', () {
+    test('asks the schedule-preview route with the date-only query and '
+        'parses the four fields', () async {
+      final service = serviceReturning(jsonEncode({
+        'requestedDate': '2026-09-10',
+        'effectiveDate': '2026-09-11',
+        'slid': true,
+        'immediate': false,
+      }));
+
+      final preview =
+          await service.previewSchedule('bill-1', DateTime(2026, 9, 10));
+
+      final request = sent.single;
+      expect(request.method, 'GET');
+      expect(request.url.path, '/api/v1/$tenant/bills/bill-1/schedule-preview');
+      expect(request.url.queryParameters['date'], '2026-09-10');
+      expect(preview.requestedDate, DateTime(2026, 9, 10));
+      expect(preview.effectiveDate, DateTime(2026, 9, 11));
+      expect(preview.slid, isTrue);
+      expect(preview.immediate, isFalse);
+    });
+
+    test('an immediate preview carries the flag', () async {
+      final service = serviceReturning(jsonEncode({
+        'requestedDate': '2026-09-01',
+        'effectiveDate': '2026-09-01',
+        'slid': false,
+        'immediate': true,
+      }));
+
+      final preview =
+          await service.previewSchedule('bill-1', DateTime(2026, 9, 1));
+
+      expect(preview.immediate, isTrue);
+      expect(preview.slid, isFalse);
+    });
+
+    test('surfaces the rule refusal the server sent', () async {
+      final service = serviceReturning(
+        jsonEncode({'id': 'BLP.BIL01', 'message': 'nao achei'}),
+        status: 404,
+      );
+
+      await expectLater(
+        service.previewSchedule('bill-1', DateTime(2026, 9, 10)),
+        throwsA(isA<HttpException>()),
+      );
+    });
+  });
 }

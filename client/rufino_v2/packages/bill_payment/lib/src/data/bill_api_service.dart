@@ -12,6 +12,7 @@ import '../domain/bill_detail.dart';
 import '../domain/bill_repository.dart';
 import '../domain/captured_artifact.dart';
 import '../domain/email_message.dart';
+import '../domain/schedule_preview.dart';
 import 'artifact_response.dart';
 
 const _uuid = Uuid();
@@ -100,6 +101,16 @@ abstract final class BillMapper {
       dueDate: _date(json['dueDate']),
       expiresAt: _date(json['expiresAt']),
       consultedAt: DateTime.parse(json['consultedAt'] as String),
+    );
+  }
+
+  /// Builds a [SchedulePreview] from the API's JSON.
+  static SchedulePreview schedulePreviewFromJson(Map<String, dynamic> json) {
+    return SchedulePreview(
+      requestedDate: DateTime.parse(json['requestedDate'] as String),
+      effectiveDate: DateTime.parse(json['effectiveDate'] as String),
+      slid: json['slid'] as bool? ?? false,
+      immediate: json['immediate'] as bool? ?? false,
     );
   }
 
@@ -445,6 +456,18 @@ class BillApiService {
       }),
     );
     checkApiStatus(response);
+  }
+
+  /// Asks the server when a payment authorized for [date] would execute.
+  Future<SchedulePreview> previewSchedule(String id, DateTime date) async {
+    final response = await client.get(
+      _uri('/bills/$id/schedule-preview', {'date': dateOnly(date)}),
+      headers: await _headers(),
+    );
+    checkApiStatus(response);
+    return BillMapper.schedulePreviewFromJson(
+      jsonDecode(response.body) as Map<String, dynamic>,
+    );
   }
 
   /// Returns a failed bill to the decision queue.

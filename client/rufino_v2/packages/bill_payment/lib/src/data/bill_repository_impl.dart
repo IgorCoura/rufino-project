@@ -6,6 +6,7 @@ import '../domain/bill_payment_exception.dart';
 import '../domain/bill_repository.dart';
 import '../domain/captured_artifact.dart';
 import '../domain/email_message.dart';
+import '../domain/schedule_preview.dart';
 import 'bill_api_service.dart';
 
 /// Implements [BillRepository] over [apiService], reporting at the catch
@@ -121,6 +122,13 @@ class BillRepositoryImpl implements BillRepository {
           acknowledgeImmediateExecution: acknowledgeImmediateExecution,
         ),
         context: {'op': 'approveBill', 'billId': id},
+      );
+
+  @override
+  Future<Result<SchedulePreview>> previewSchedule(String id, DateTime date) =>
+      _guard(
+        () => apiService.previewSchedule(id, date),
+        context: {'op': 'previewSchedule', 'billId': id},
       );
 
   @override

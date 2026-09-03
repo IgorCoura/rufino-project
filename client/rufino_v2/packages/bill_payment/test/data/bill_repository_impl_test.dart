@@ -96,6 +96,29 @@ void main() {
       );
     });
 
+    test('the schedule preview flows through as the entity', () async {
+      when(() => apiService.previewSchedule(any(), any())).thenAnswer(
+        (_) async => SchedulePreview(
+          requestedDate: DateTime(2026, 9, 10),
+          effectiveDate: DateTime(2026, 9, 11),
+          slid: true,
+          immediate: false,
+        ),
+      );
+
+      final result =
+          await repository.previewSchedule('bill-1', DateTime(2026, 9, 10));
+
+      result.fold(
+        onSuccess: (preview) {
+          expect(preview.effectiveDate, DateTime(2026, 9, 11));
+          expect(preview.slid, isTrue);
+        },
+        onError: (error, _) => fail('should have succeeded: $error'),
+      );
+      expect(reporter.capturedErrors, isEmpty);
+    });
+
     test('a 5xx on the list is wrapped and reported', () async {
       when(
         () => apiService.listBills(

@@ -7,6 +7,7 @@ import '../../bill_payment_permissions.dart';
 import '../../domain/bill_check.dart';
 import '../../domain/bill_detail.dart';
 import '../../domain/bill_payment_enums.dart';
+import '../../domain/schedule_preview.dart';
 import '../bill_payment_back_button.dart';
 import '../shared/formats.dart';
 import '../shared/message_panel.dart';
@@ -1159,20 +1160,8 @@ class _Actions extends StatelessWidget {
     controller.dispose();
   }
 
-  Future<void> _approveSheet(BuildContext context) async {
-    final noteController = TextEditingController();
-    final earliest = viewModel.earliestScheduleDate;
-    final needsAcknowledgement =
-        viewModel.bill?.requiresRiskAcknowledgement ?? false;
-    // ADR-017 do BC: boleto vencido é processado NA HORA pelo provedor, sem
-    // janela de reação — aprovar exige o aceite explícito, gravado na trilha.
-    final needsImmediateAck = viewModel.isOverdue;
-    final riskLabel = RiskLevels.label(viewModel.bill?.riskLevel);
-    DateTime scheduleFor = earliest;
-    var riskAcknowledged = false;
-    var immediateAcknowledged = false;
-
-    final confirmed = await showModalBottomSheet<bool>(
+  Future<void> _approveSheet(BuildContext context) {
+    return showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
       builder: (sheetContext) => Padding(
@@ -1183,97 +1172,209 @@ class _Actions extends StatelessWidget {
           bottom:
               MediaQuery.of(sheetContext).viewInsets.bottom + AppSpacing.md,
         ),
-        child: StatefulBuilder(
-          builder: (sheetContext, setSheetState) => Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Text(
-                'Autorizar pagamento',
-                style: Theme.of(sheetContext).textTheme.titleLarge,
-              ),
-              const SizedBox(height: AppSpacing.md),
-              OutlinedButton.icon(
-                icon: const Icon(Symbols.event),
-                label: Text('Pagar em ${formatDate(scheduleFor)}'),
-                onPressed: () async {
-                  final picked = await showDatePicker(
-                    context: sheetContext,
-                    initialDate: scheduleFor,
-                    firstDate: earliest,
-                    lastDate: earliest.add(const Duration(days: 365)),
-                  );
-                  if (picked != null) {
-                    setSheetState(() => scheduleFor = picked);
-                  }
-                },
-              ),
-              const SizedBox(height: AppSpacing.md),
-              TextField(
-                controller: noteController,
-                decoration: const InputDecoration(
-                  labelText: 'Observação (opcional)',
-                  border: OutlineInputBorder(),
-                ),
-              ),
-              // ADR-015: boleto em Perigo ou Extremo Perigo só autoriza com o
-              // aceite marcado — e o servidor recusa sem ele, então o botão
-              // nem habilita.
-              if (needsAcknowledgement) ...[
-                const SizedBox(height: AppSpacing.md),
-                CheckboxListTile(
-                  value: riskAcknowledged,
-                  onChanged: (value) =>
-                      setSheetState(() => riskAcknowledged = value ?? false),
-                  controlAffinity: ListTileControlAffinity.leading,
-                  contentPadding: EdgeInsets.zero,
-                  title: Text(
-                    'Vi o alerta de $riskLabel e assumo o risco de autorizar '
-                    'este pagamento.',
-                    style: Theme.of(sheetContext).textTheme.bodyMedium,
-                  ),
-                ),
-              ],
-              if (needsImmediateAck) ...[
-                const SizedBox(height: AppSpacing.md),
-                CheckboxListTile(
-                  value: immediateAcknowledged,
-                  onChanged: (value) => setSheetState(
-                      () => immediateAcknowledged = value ?? false),
-                  controlAffinity: ListTileControlAffinity.leading,
-                  contentPadding: EdgeInsets.zero,
-                  title: Text(
-                    'Este boleto está vencido e será pago imediatamente, sem '
-                    'agendamento. Confirmo o pagamento na hora.',
-                    style: Theme.of(sheetContext).textTheme.bodyMedium,
-                  ),
-                ),
-              ],
-              const SizedBox(height: AppSpacing.lg),
-              FilledButton(
-                onPressed: (needsAcknowledgement && !riskAcknowledged) ||
-                        (needsImmediateAck && !immediateAcknowledged)
-                    ? null
-                    : () => Navigator.of(sheetContext).pop(true),
-                child: const Text('Autorizar'),
-              ),
-              const SizedBox(height: AppSpacing.sm),
-            ],
-          ),
-        ),
+        child: _ApproveSheet(viewModel: viewModel),
       ),
     );
+  }
+}
 
-    if (confirmed == true) {
-      await viewModel.approve(
-        scheduleFor: scheduleFor,
-        note: noteController.text.trim().isEmpty
-            ? null
-            : noteController.text.trim(),
-        acknowledgeRisk: riskAcknowledged,
-        acknowledgeImmediateExecution: immediateAcknowledged,
-      );
+/// A folha "Autorizar pagamento": data, observação, os aceites do ADR-015 e
+/// do ADR-017, e a prévia informativa da data efetiva.
+///
+/// É um widget com estado próprio — e não um `StatefulBuilder` — porque o
+/// [TextEditingController] precisa viver até a animação de saída da folha
+/// terminar; descartá-lo no `await` do `showModalBottomSheet` quebra o
+/// último frame do `TextField`.
+class _ApproveSheet extends StatefulWidget {
+  const _ApproveSheet({required this.viewModel});
+
+  final BillDetailViewModel viewModel;
+
+  @override
+  State<_ApproveSheet> createState() => _ApproveSheetState();
+}
+
+class _ApproveSheetState extends State<_ApproveSheet> {
+  final _noteController = TextEditingController();
+  late final DateTime _earliest;
+  late DateTime _scheduleFor;
+  var _riskAcknowledged = false;
+  var _immediateAcknowledged = false;
+  // O relógio da tela e o do servidor podem discordar sobre "vencido" na
+  // virada do dia — quando o servidor recusar com BLP.BIL35, a caixa
+  // aparece aqui mesmo, sem fechar a folha nem perder o formulário.
+  var _serverSaysOverdue = false;
+  var _submitting = false;
+  SchedulePreview? _preview;
+
+  @override
+  void initState() {
+    super.initState();
+    _earliest = widget.viewModel.earliestScheduleDate;
+    _scheduleFor = _earliest;
+    _fetchPreview(_scheduleFor);
+  }
+
+  @override
+  void dispose() {
+    _noteController.dispose();
+    super.dispose();
+  }
+
+  /// A prévia é INFORMATIVA: falha não desenha nada e nunca trava a
+  /// autorização; resposta que chegar depois de a data mudar (ou de a folha
+  /// fechar) é descartada como obsoleta.
+  Future<void> _fetchPreview(DateTime date) async {
+    final preview = await widget.viewModel.previewSchedule(date);
+    if (!mounted || _scheduleFor != date) return;
+    setState(() => _preview = preview);
+  }
+
+  Future<void> _pickDate() async {
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _scheduleFor,
+      firstDate: _earliest,
+      lastDate: _earliest.add(const Duration(days: 365)),
+    );
+    if (picked == null) return;
+    setState(() {
+      _scheduleFor = picked;
+      _preview = null;
+    });
+    _fetchPreview(picked);
+  }
+
+  Future<void> _authorize() async {
+    setState(() => _submitting = true);
+    final note = _noteController.text.trim();
+    final approved = await widget.viewModel.approve(
+      scheduleFor: _scheduleFor,
+      note: note.isEmpty ? null : note,
+      acknowledgeRisk: _riskAcknowledged,
+      acknowledgeImmediateExecution: _immediateAcknowledged,
+    );
+    if (!mounted) return;
+    if (!approved && widget.viewModel.lastErrorCode == 'BLP.BIL35') {
+      // O cinto extra do descompasso de relógio: a recusa vira a caixa de
+      // aceite, no lugar, com o formulário intacto.
+      setState(() {
+        _submitting = false;
+        _serverSaysOverdue = true;
+        _immediateAcknowledged = false;
+      });
+      return;
     }
-    noteController.dispose();
+    // Sucesso fecha; outra recusa também — a mensagem do domínio já está no
+    // detalhe pelo caminho de sempre (errorMessage).
+    Navigator.of(context).pop();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final viewModel = widget.viewModel;
+    final needsAcknowledgement =
+        viewModel.bill?.requiresRiskAcknowledgement ?? false;
+    final riskLabel = RiskLevels.label(viewModel.bill?.riskLevel);
+    // ADR-017 do BC: boleto vencido é processado NA HORA pelo provedor, sem
+    // janela de reação — aprovar exige o aceite explícito, gravado na
+    // trilha. A caixa aparece quando a tela vê o vencimento, quando a
+    // prévia do servidor diz "imediato" ou quando o próprio servidor
+    // recusou com BLP.BIL35.
+    final needsImmediateAck = viewModel.isOverdue ||
+        _serverSaysOverdue ||
+        (_preview?.immediate ?? false);
+    final preview = _preview;
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text(
+          'Autorizar pagamento',
+          style: Theme.of(context).textTheme.titleLarge,
+        ),
+        const SizedBox(height: AppSpacing.md),
+        OutlinedButton.icon(
+          icon: const Icon(Symbols.event),
+          label: Text('Pagar em ${formatDate(_scheduleFor)}'),
+          onPressed: _pickDate,
+        ),
+        if (preview != null) ...[
+          const SizedBox(height: AppSpacing.sm),
+          Text(
+            preview.immediate
+                ? 'Pagamento será executado imediatamente, sem agendamento.'
+                : 'Pagamento será executado em '
+                    '${formatDate(preview.effectiveDate)}'
+                    '${preview.slid ? ' (deslizou do dia pedido)' : ''}.',
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
+          ),
+        ],
+        const SizedBox(height: AppSpacing.md),
+        TextField(
+          controller: _noteController,
+          decoration: const InputDecoration(
+            labelText: 'Observação (opcional)',
+            border: OutlineInputBorder(),
+          ),
+        ),
+        // ADR-015: boleto em Perigo ou Extremo Perigo só autoriza com o
+        // aceite marcado — e o servidor recusa sem ele, então o botão nem
+        // habilita.
+        if (needsAcknowledgement) ...[
+          const SizedBox(height: AppSpacing.md),
+          CheckboxListTile(
+            value: _riskAcknowledged,
+            onChanged: (value) =>
+                setState(() => _riskAcknowledged = value ?? false),
+            controlAffinity: ListTileControlAffinity.leading,
+            contentPadding: EdgeInsets.zero,
+            title: Text(
+              'Vi o alerta de $riskLabel e assumo o risco de autorizar '
+              'este pagamento.',
+              style: Theme.of(context).textTheme.bodyMedium,
+            ),
+          ),
+        ],
+        if (_serverSaysOverdue) ...[
+          const SizedBox(height: AppSpacing.md),
+          Text(
+            'O servidor considera este boleto vencido: o pagamento sai '
+            'imediatamente, sem agendamento. Marque o aceite para reenviar.',
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: Theme.of(context).colorScheme.error,
+                ),
+          ),
+        ],
+        if (needsImmediateAck) ...[
+          const SizedBox(height: AppSpacing.md),
+          CheckboxListTile(
+            value: _immediateAcknowledged,
+            onChanged: (value) =>
+                setState(() => _immediateAcknowledged = value ?? false),
+            controlAffinity: ListTileControlAffinity.leading,
+            contentPadding: EdgeInsets.zero,
+            title: Text(
+              'Este boleto está vencido e será pago imediatamente, sem '
+              'agendamento. Confirmo o pagamento na hora.',
+              style: Theme.of(context).textTheme.bodyMedium,
+            ),
+          ),
+        ],
+        const SizedBox(height: AppSpacing.lg),
+        FilledButton(
+          onPressed: _submitting ||
+                  (needsAcknowledgement && !_riskAcknowledged) ||
+                  (needsImmediateAck && !_immediateAcknowledged)
+              ? null
+              : _authorize,
+          child: const Text('Autorizar'),
+        ),
+        const SizedBox(height: AppSpacing.sm),
+      ],
+    );
   }
 }

@@ -6,6 +6,7 @@ import '../../domain/bill_payment_exception.dart';
 import '../../domain/bill_repository.dart';
 import '../../domain/payment_order.dart';
 import '../../domain/payment_repository.dart';
+import '../../domain/schedule_preview.dart';
 
 /// Stage of the bill detail.
 enum BillDetailStatus {
@@ -45,6 +46,7 @@ class BillDetailViewModel extends ChangeNotifier {
   PaymentOrder? _payment;
   BillDetailStatus _status = BillDetailStatus.loading;
   String? _errorMessage;
+  String? _lastErrorCode;
   String? _infoMessage;
   bool _isMutating = false;
 
@@ -65,6 +67,13 @@ class BillDetailViewModel extends ChangeNotifier {
 
   /// The message of the last failure.
   String? get errorMessage => _errorMessage;
+
+  /// The domain error code of the last refused action (`BLP.BIL35` and
+  /// friends), when the server sent one.
+  ///
+  /// Lets the sheet react to a SPECIFIC rule — the overdue consent gate —
+  /// instead of parsing the message text.
+  String? get lastErrorCode => _lastErrorCode;
 
   /// The outcome message of the last action, for a snackbar.
   String? get infoMessage => _infoMessage;
@@ -143,6 +152,7 @@ class BillDetailViewModel extends ChangeNotifier {
   }) async {
     _isMutating = true;
     _errorMessage = null;
+    _lastErrorCode = null;
     _infoMessage = null;
     notifyListeners();
 
@@ -156,6 +166,8 @@ class BillDetailViewModel extends ChangeNotifier {
         },
         onError: (error, _) {
           _errorMessage = billPaymentErrorMessage(error, fallback: fallback);
+          _lastErrorCode =
+              error is BillPaymentRuleException ? error.code : null;
         },
       );
     } finally {
@@ -164,6 +176,20 @@ class BillDetailViewModel extends ChangeNotifier {
     }
     if (succeeded) await load();
     return succeeded;
+  }
+
+  /// Asks the server when a payment authorized for [date] would execute.
+  ///
+  /// Purely informative — the sheet shows the effective date and the slide,
+  /// and keeps working exactly as before when this resolves null. Failure
+  /// here NEVER blocks the approval, never touches [errorMessage], and is
+  /// silent by design.
+  Future<SchedulePreview?> previewSchedule(DateTime date) async {
+    final result = await _repository.previewSchedule(billId, date);
+    return result.fold<SchedulePreview?>(
+      onSuccess: (preview) => preview,
+      onError: (_, __) => null,
+    );
   }
 
   /// Re-runs the official lookup and the twelve checks.

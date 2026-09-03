@@ -1161,6 +1161,20 @@ Coisas que não podem erodir:
   aprovação exige marcar "sei que o pagamento sai imediatamente" e manda
   `acknowledgeImmediateExecution: true` (`BLP.BIL35` sem ele). Ordem retida em
   `AwaitingConfirmation` mostra o botão "Confirmar pagamento imediato" na seção de execução.
+- **A prévia da data efetiva é INFORMATIVA e nunca bloqueia a aprovação.** O sheet de
+  aprovar consulta `GET /bills/{id}/schedule-preview?date=` (`SchedulePreview`) ao abrir e a
+  cada troca de data, e mostra "Pagamento será executado em \<data\>" com "(deslizou do dia
+  pedido)" quando a política empurrou — a conta é do servidor (ADR-017), o cliente não a
+  reimplementa. Falha/latência da prévia não desenha nada e o Autorizar segue funcionando;
+  resposta obsoleta (data mudou de novo) é descartada. Prévia com `immediate: true` revela a
+  caixa de aceite do vencido mesmo que o relógio local discorde.
+- **Recusa `BLP.BIL35` do servidor revela a caixa NO LUGAR, sem fechar o sheet.** É o cinto
+  do descompasso de relógio (UTC × local na virada do dia): a aprovação roda dentro do sheet
+  (`_ApproveSheet`, widget com estado próprio — o `TextEditingController` precisa sobreviver
+  à animação de saída), e quando o servidor recusa com esse código o aviso em vermelho + a
+  caixa aparecem com o formulário intacto; qualquer outra recusa fecha o sheet e a mensagem
+  do domínio segue pelo caminho de sempre (`errorMessage`). O ViewModel expõe
+  `lastErrorCode` para o sheet reagir por código, nunca por texto de mensagem.
 - **Cancelar agendamento respeita a janela de reação** (`PaymentOrderStatuses.canCancel`:
   Draft/Pending/BankProcessing) e **reabrir é só para `Failed`**
   (`BillStatuses.acceptsReopen`) — reabrir não é atalho para desfazer aprovação. Os dois pedem

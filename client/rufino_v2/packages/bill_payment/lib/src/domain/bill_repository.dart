@@ -4,6 +4,7 @@ import 'bill.dart';
 import 'bill_detail.dart';
 import 'captured_artifact.dart';
 import 'email_message.dart';
+import 'schedule_preview.dart';
 
 /// What importing a bill returned.
 class ImportOutcome {
@@ -98,6 +99,14 @@ abstract class BillRepository {
     bool acknowledgeRisk = false,
     bool acknowledgeImmediateExecution = false,
   });
+
+  /// Asks the server when a payment authorized for [date] would actually
+  /// execute — the ADR-017 policy (lead time, banking calendar) computed
+  /// where it lives.
+  ///
+  /// Purely informative: callers must keep working when this fails — the
+  /// approval never waits on it.
+  Future<Result<SchedulePreview>> previewSchedule(String id, DateTime date);
 
   /// Returns a FAILED bill to the decision queue — the new try is a new
   /// approval and a new payment order.

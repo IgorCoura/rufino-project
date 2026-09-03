@@ -403,6 +403,23 @@ protegido nem verificação de pagador.
   sai **imediatamente** (sem as 24h de antecedência); **Autorizar** fica
   desabilitado até marcá-la. Sem a caixa o servidor recusa (`BLP.BIL35`).
 
+- [ ] **BOL-25 — A folha mostra quando o pagamento sai de verdade**
+  Passos: abra **Aprovar…** num boleto com vencimento futuro; troque a
+  data para uma véspera de feriado bancário ou fim de semana.
+  Esperado: abaixo do seletor de data aparece "Pagamento será executado
+  em \<data\>", com o sufixo "(deslizou do dia pedido)" quando a política
+  (24h + dia útil) empurrar a execução. A linha é **informativa**: se a
+  prévia falhar (rede), nada aparece e o Autorizar continua funcionando
+  exatamente como antes.
+
+- [ ] **BOL-26 — Recusa `BLP.BIL35` revela a caixa sem perder a folha**
+  Passos: perto da virada do dia (após ~21h), aprove um boleto que vence
+  **hoje** — o relógio da tela pode ainda não o considerar vencido.
+  Esperado: se o servidor recusar com `BLP.BIL35`, a folha **não fecha**:
+  aparece o aviso em vermelho "O servidor considera este boleto vencido…"
+  e a caixa de aceite; marcando-a, o **Autorizar** reenvia com o aceite e
+  o formulário (data, observação) permanece intacto.
+
 ---
 
 ## 7b. Execução do pagamento — a seção da ordem (fase 3)

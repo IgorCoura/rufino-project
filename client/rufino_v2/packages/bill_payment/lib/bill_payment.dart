@@ -48,6 +48,7 @@ export 'src/domain/payer_profile.dart';
 export 'src/domain/payer_profile_repository.dart';
 export 'src/domain/payment_order.dart';
 export 'src/domain/payment_repository.dart';
+export 'src/domain/schedule_preview.dart';
 export 'src/domain/trusted_origin.dart';
 export 'src/domain/trusted_origin_repository.dart';
 // O tipo do seletor de arquivos: a casca implementa (ela tem o `file_picker`),

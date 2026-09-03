@@ -301,5 +301,178 @@ void main() {
       );
       expect(authorize.onPressed, isNotNull);
     });
+
+    // O cinto extra do descompasso de relógio (UTC × local na virada do
+    // dia): o relógio da tela diz "não vencido", o servidor recusa com
+    // BLP.BIL35 — a caixa aparece no lugar, o formulário sobrevive, e o
+    // reenvio com o aceite marcado é aprovado.
+    testWidgets('a BIL35 refusal from the server reveals the box in place '
+        'and the resubmit carries the acknowledgement', (tester) async {
+      repository.detail = billDetail(
+        status: BillStatuses.awaitingApproval,
+        dueDate: DateTime.now().add(const Duration(days: 30)),
+        lastConsultedAt: DateTime.now(),
+      );
+      repository.scriptedApproveRefusals.add(
+        const BillPaymentRuleException(
+          'Boleto vencido exige o aceite explícito.',
+          code: 'BLP.BIL35',
+        ),
+      );
+
+      await pumpDetail(tester);
+      await tester.ensureVisible(find.text('Aprovar…'));
+      await tester.tap(find.text('Aprovar…'));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.widgetWithText(FilledButton, 'Autorizar'));
+      await tester.pumpAndSettle();
+
+      // A folha continua aberta, com o aviso do servidor e a caixa.
+      expect(
+        find.textContaining('O servidor considera este boleto vencido'),
+        findsOneWidget,
+      );
+      expect(
+        find.textContaining('Este boleto está vencido'),
+        findsOneWidget,
+      );
+      final disarmed = tester.widget<FilledButton>(
+        find.widgetWithText(FilledButton, 'Autorizar'),
+      );
+      expect(disarmed.onPressed, isNull);
+
+      await tester.tap(find.textContaining('Este boleto está vencido'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.widgetWithText(FilledButton, 'Autorizar'));
+      await tester.pumpAndSettle();
+
+      expect(
+        repository.calls.where((c) => c == 'approveBill:bill-1').length,
+        2,
+      );
+      expect(repository.lastApproveImmediateAck, isTrue);
+      expect(find.text('Autorizar pagamento'), findsNothing);
+    });
+  });
+
+  group('approve sheet — schedule preview (informative)', () {
+    testWidgets('the sheet shows when the payment will execute, naming the '
+        'slide', (tester) async {
+      repository.detail = billDetail(
+        status: BillStatuses.awaitingApproval,
+        dueDate: DateTime.now().add(const Duration(days: 30)),
+        lastConsultedAt: DateTime.now(),
+      );
+      repository.schedulePreview = SchedulePreview(
+        requestedDate: DateTime(2026, 9, 10),
+        effectiveDate: DateTime(2026, 9, 11),
+        slid: true,
+        immediate: false,
+      );
+
+      await pumpDetail(tester);
+      await tester.ensureVisible(find.text('Aprovar…'));
+      await tester.tap(find.text('Aprovar…'));
+      await tester.pumpAndSettle();
+
+      expect(
+        find.textContaining('Pagamento será executado em 11/09/2026'),
+        findsOneWidget,
+      );
+      expect(
+        find.textContaining('(deslizou do dia pedido)'),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('an honoured date shows no slide suffix', (tester) async {
+      repository.detail = billDetail(
+        status: BillStatuses.awaitingApproval,
+        dueDate: DateTime.now().add(const Duration(days: 30)),
+        lastConsultedAt: DateTime.now(),
+      );
+      repository.schedulePreview = SchedulePreview(
+        requestedDate: DateTime(2026, 9, 10),
+        effectiveDate: DateTime(2026, 9, 10),
+        slid: false,
+        immediate: false,
+      );
+
+      await pumpDetail(tester);
+      await tester.ensureVisible(find.text('Aprovar…'));
+      await tester.tap(find.text('Aprovar…'));
+      await tester.pumpAndSettle();
+
+      expect(
+        find.textContaining('Pagamento será executado em 10/09/2026'),
+        findsOneWidget,
+      );
+      expect(find.textContaining('deslizou do dia pedido'), findsNothing);
+    });
+
+    // A prévia é informativa: sem ela a folha funciona exatamente como
+    // antes — nada de linha, e o Autorizar segue habilitado.
+    testWidgets('a preview failure draws nothing and never blocks the '
+        'authorization', (tester) async {
+      repository.detail = billDetail(
+        status: BillStatuses.awaitingApproval,
+        dueDate: DateTime.now().add(const Duration(days: 30)),
+        lastConsultedAt: DateTime.now(),
+      );
+      repository.previewShouldFail = true;
+
+      await pumpDetail(tester);
+      await tester.ensureVisible(find.text('Aprovar…'));
+      await tester.tap(find.text('Aprovar…'));
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('Pagamento será executado'), findsNothing);
+      final authorize = tester.widget<FilledButton>(
+        find.widgetWithText(FilledButton, 'Autorizar'),
+      );
+      expect(authorize.onPressed, isNotNull);
+
+      await tester.tap(find.widgetWithText(FilledButton, 'Autorizar'));
+      await tester.pumpAndSettle();
+
+      expect(repository.calls, contains('approveBill:bill-1'));
+    });
+
+    // Quando o servidor calcula execução imediata (o relógio dele manda), a
+    // prévia conecta com a caixa do ADR-017: o aceite passa a ser exigido
+    // mesmo que o relógio da tela ainda não veja o vencimento.
+    testWidgets('an immediate preview reveals the acknowledgement box even '
+        'when the local clock disagrees', (tester) async {
+      repository.detail = billDetail(
+        status: BillStatuses.awaitingApproval,
+        dueDate: DateTime.now().add(const Duration(days: 30)),
+        lastConsultedAt: DateTime.now(),
+      );
+      repository.schedulePreview = SchedulePreview(
+        requestedDate: DateTime(2026, 9, 1),
+        effectiveDate: DateTime(2026, 9, 1),
+        slid: false,
+        immediate: true,
+      );
+
+      await pumpDetail(tester);
+      await tester.ensureVisible(find.text('Aprovar…'));
+      await tester.tap(find.text('Aprovar…'));
+      await tester.pumpAndSettle();
+
+      expect(
+        find.textContaining('Pagamento será executado imediatamente'),
+        findsOneWidget,
+      );
+      expect(
+        find.textContaining('Este boleto está vencido'),
+        findsOneWidget,
+      );
+      final authorize = tester.widget<FilledButton>(
+        find.widgetWithText(FilledButton, 'Autorizar'),
+      );
+      expect(authorize.onPressed, isNull);
+    });
   });
 }

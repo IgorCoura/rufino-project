@@ -154,6 +154,67 @@ void main() {
       expect(viewModel.earliestScheduleDate, min);
       viewModel.dispose();
     });
+
+    test('the schedule preview resolves the server answer', () async {
+      repository.detail = billDetail(lastConsultedAt: now);
+      repository.schedulePreview = SchedulePreview(
+        requestedDate: DateTime(2026, 9, 10),
+        effectiveDate: DateTime(2026, 9, 11),
+        slid: true,
+        immediate: false,
+      );
+      viewModel = build();
+      await viewModel.load();
+
+      final preview = await viewModel.previewSchedule(DateTime(2026, 9, 10));
+
+      expect(preview!.effectiveDate, DateTime(2026, 9, 11));
+      expect(preview.slid, isTrue);
+      viewModel.dispose();
+    });
+
+    test('a preview failure resolves null and never touches the error '
+        'message — it is informative only', () async {
+      repository.detail = billDetail(lastConsultedAt: now);
+      repository.previewShouldFail = true;
+      viewModel = build();
+      await viewModel.load();
+
+      final preview = await viewModel.previewSchedule(DateTime(2026, 9, 10));
+
+      expect(preview, isNull);
+      expect(viewModel.errorMessage, isNull);
+      viewModel.dispose();
+    });
+
+    test('a rule refusal exposes its domain code, and the next success '
+        'clears it', () async {
+      repository.detail = billDetail(lastConsultedAt: now);
+      viewModel = build();
+      await viewModel.load();
+      repository.scriptedApproveRefusals.add(
+        const BillPaymentRuleException(
+          'Boleto vencido exige o aceite.',
+          code: 'BLP.BIL35',
+        ),
+      );
+
+      final refused = await viewModel.approve(
+        scheduleFor: DateTime(2026, 8, 20),
+      );
+
+      expect(refused, isFalse);
+      expect(viewModel.lastErrorCode, 'BLP.BIL35');
+
+      final approved = await viewModel.approve(
+        scheduleFor: DateTime(2026, 8, 20),
+        acknowledgeImmediateExecution: true,
+      );
+
+      expect(approved, isTrue);
+      expect(viewModel.lastErrorCode, isNull);
+      viewModel.dispose();
+    });
   });
 
   group('BillImportViewModel', () {
