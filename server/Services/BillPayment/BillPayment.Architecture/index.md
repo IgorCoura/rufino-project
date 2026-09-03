@@ -21,6 +21,7 @@ Design rationale do Bounded Context **BillPayment**: captura de boletos (e-mail 
 | [`11-bill-expectations.md`](11-bill-expectations.md) | Expectativa de boleto e lembretes: o que o tenant espera receber, ciclos, escalonamento e defesa contra falso positivo |
 | [`tools/`](tools/) | **Medição:** `analyze-boleto-corpus.js` (extração sobre um corpus), `analyze-account-reference.js` (estabilidade da referência de conta entre meses **e entre pagadores** — sustenta o abandono da `RoutingRule` na 2.6 e a chave da expectativa na 2.7). **Sondas read-only:** `probe-asaas-simulate.js`, `smoke-probe-production.js`, `smoke-probe-pix-decode.js` (consulta oficial), `smoke-probe-mailbox.js` (leitura de caixa no Graph). **Operação:** `run-capture-chain.js` (ensaio da cadeia de captura ponta a ponta), `seed-tenant.js` (repovoa o cadastro de um tenant pela API), `fetch-bacen-participants.js` (atualiza a tabela de bancos do Bacen) |
 | [`12-official-lookup-coverage.md`](12-official-lookup-coverage.md) | **Medição** da cobertura do `bill/simulate` por tipo de documento: o que cada check tem de dado, o que é estrutural e o que ficou por validar em produção |
+| [`13-dead-letter-replay.md`](13-dead-letter-replay.md) | **Operação:** replay da dead-letter do outbox por SQL — identificar, corrigir a causa, reemitir com segurança (idempotência handler a handler) e conferir o efeito |
 
 ## ADRs
 

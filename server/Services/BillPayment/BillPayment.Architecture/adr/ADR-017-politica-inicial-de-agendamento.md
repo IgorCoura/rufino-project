@@ -43,6 +43,21 @@ reescrita:
 - Os dois números (24h, 9h–17h) vivem em configuração (`Payments:*`) e entram no
   `PaymentSchedulingService` por parâmetro, como o relógio: o serviço continua puro e testável.
 
+## Decisões posteriores
+
+- **2026-09-03 — Corte das 14h do provedor: NÃO implementado, de propósito.** O
+  `PaymentSchedulingService` não modela o corte same-day do provedor. Sob a política das 24h,
+  submissão same-day só acontece no fluxo de execução imediata (vencido, com confirmação gravada) —
+  o corte fica quase inalcançável. O contrato real do corte será **medido** quando a sonda de
+  sandbox destravar; até lá, se o provedor recusar uma submissão por horário, a recusa vira
+  `Failed` visível e reabrível — degradação controlada, nunca silenciosa. Reavaliar com a medição.
+- **2026-09-03 — Saldo NUNCA bloqueia agendamento (decisão do usuário).** A verificação de saldo
+  pré-submissão (`GET /v3/finance/balance`, planejada na sprint 3.2) foi **removida em definitivo
+  do escopo**: saldo ausente hoje não diz nada sobre o saldo de amanhã, e agendar é justamente
+  reservar o futuro. A cobertura é do próprio provedor — `AWAITING_BALANCE_VALIDATION` mapeia para
+  `Pending` no adapter e a conciliação segue vigiando até o desfecho real. Não é pendência: é
+  decisão. O aporte de saldo continua sendo operação do cliente na conta dele, fora do escopo.
+
 ## Alternativas descartadas
 
 - **Confiar só nas regras do provedor** — o corte das 14h e o dia útil existem para a liquidação,

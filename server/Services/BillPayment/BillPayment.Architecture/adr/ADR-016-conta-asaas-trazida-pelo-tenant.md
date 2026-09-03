@@ -29,8 +29,9 @@ o sistema até `Approved` e não agenda — estado do tenant, não erro.
   pela conciliação. O token de autenticação do webhook é **gerado por nós, por tenant, e guardado
   no cofre** (`SecretKind` próprio); a validação na borda é constant-time e a resolução do tenant
   é pela `externalReference` da ordem — o Asaas não conhece o nosso `tenantId`.
-- **Saldo por conta.** `GET /v3/finance/balance` com a chave do tenant; a verificação de saldo da
-  sprint 3.2 é por tenant, e o aporte é operação do cliente na conta dele.
+- **Saldo por conta.** O saldo, o extrato e as taxas são da conta do tenant, e o aporte é operação
+  do cliente na conta dele. (A verificação de saldo pré-submissão da sprint 3.2 foi removida do
+  escopo em 2026-09-03 — saldo nunca bloqueia agendamento; ver ADR-017, "Decisões posteriores".)
 - **Whitelist de IP por conta.** O item do checklist pré-produção vale por tenant: cada conta
   precisa da whitelist configurada pelo próprio dono. Vira passo de onboarding documentado, não
   configuração nossa.

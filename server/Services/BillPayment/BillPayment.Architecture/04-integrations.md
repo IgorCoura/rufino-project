@@ -127,9 +127,9 @@ Endpoint próprio, **fora de `api/v1`** — o Asaas não conhece nosso `tenantId
 
 ### Saldo
 
-O pague-contas do Asaas debita do **saldo da conta do tenant** (a decisão "conta por tenant" está fechada no [`ADR-016`](adr/ADR-016-conta-asaas-trazida-pelo-tenant.md)). Consequências operacionais para a fase 3, a confirmar em sandbox antes da sprint 3.2:
+O pague-contas do Asaas debita do **saldo da conta do tenant** (a decisão "conta por tenant" está fechada no [`ADR-016`](adr/ADR-016-conta-asaas-trazida-pelo-tenant.md)).
 
-- Verificar saldo (`GET /v3/finance/balance`, com a chave do tenant) antes de submeter e alertar quando insuficiente pelo canal de notificação da 2.7 (falha de pagamento por saldo é falha operacional, não de domínio).
+- **A verificação de saldo pré-submissão foi REMOVIDA do escopo em 2026-09-03** (decisão do usuário — [`ADR-017`](adr/ADR-017-politica-inicial-de-agendamento.md), "Decisões posteriores"): saldo nunca bloqueia agendamento, porque saldo ausente hoje não diz nada sobre amanhã. Quem cobre a insuficiência é o próprio provedor — `AWAITING_BALANCE_VALIDATION` mapeia para `Pending` no adapter e a conciliação vigia até o desfecho real.
 - Aporte de saldo é operação do cliente na conta dele, fora do escopo.
 
 ---

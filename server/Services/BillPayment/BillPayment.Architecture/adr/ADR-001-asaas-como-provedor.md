@@ -60,7 +60,7 @@ Consequências:
 
 ## Consequências
 
-- O pague-contas debita do **saldo da conta Asaas** — o cliente precisa manter saldo, e o sistema precisa checar saldo antes de agendar e alertar quando insuficiente. Aporte de saldo é operação manual do cliente, fora do escopo.
+- O pague-contas debita do **saldo da conta Asaas** — o cliente precisa manter saldo. ~~O sistema precisa checar saldo antes de agendar~~ — **revogado em 2026-09-03**: saldo nunca bloqueia agendamento (ADR-017, "Decisões posteriores"); a insuficiência fica com o provedor (`AWAITING_BALANCE_VALIDATION` → `Pending`) sob vigília da conciliação. Aporte de saldo é operação manual do cliente, fora do escopo.
 - Decisão pendente antes da sprint 3.1: **subconta Asaas por tenant** (recomendado — segregação de dinheiro entre clientes não deve depender do nosso código) × conta única com segregação lógica.
 - Uma chave `access_token` por tenant, no cofre. Nunca em `appsettings.json`.
 - Custo por transação (`fee`) entra no relatório como linha própria.

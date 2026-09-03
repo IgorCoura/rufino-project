@@ -34,7 +34,7 @@ A escolha é registrada e visível na aprovação — o aprovador vê por qual t
 - **QR Pix estático × dinâmico**: o estático não carrega valor nem vencimento (só chave + nome + cidade); o dinâmico carrega URL que o PSP resolve. Um QR estático **não** dispensa a consulta — e como não tem valor, `AmountMatch` depende inteiramente do `Payee.AmountPolicy`. Tratar `PixQrKind` como Smart Enum e marcar os checks correspondentes como `Skipped` com motivo.
 - **`expirationDate` do Pix é real e curto** em QR dinâmico. Um Pix que expira antes da data de agendamento pretendida precisa falhar em `DueDateSanity` com motivo próprio (`pix_expires_before_schedule`) — não existe equivalente no boleto.
 - Duas portas na Infra em vez de uma: `IPixLookupService` / `IPixPaymentGateway` ao lado das de boleto. Mesmo adapter Asaas, endpoints diferentes.
-- O saldo da subconta Asaas serve os dois trilhos — a verificação de saldo antes de agendar não muda.
+- O saldo da subconta Asaas serve os dois trilhos. (A verificação de saldo pré-agendamento citada aqui foi removida do escopo em 2026-09-03 — ver ADR-017, "Decisões posteriores".)
 
 ## Alternativa descartada
 
