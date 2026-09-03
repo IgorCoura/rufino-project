@@ -30,6 +30,9 @@ internal sealed class FakePaymentGateways : IBillPaymentGateway, IPixPaymentGate
 
     public int FindCalls { get; private set; }
 
+    /// <summary>Consultas de retrato (<c>GetAsync</c>) — a conciliação é provada por ele.</summary>
+    public int GetCalls { get; private set; }
+
     public int CancelCalls { get; private set; }
 
     public string? LastExternalReference { get; private set; }
@@ -46,6 +49,7 @@ internal sealed class FakePaymentGateways : IBillPaymentGateway, IPixPaymentGate
         ScriptedCancel = PaymentCancellationResult.Cancelled();
         SubmissionCalls = 0;
         FindCalls = 0;
+        GetCalls = 0;
         CancelCalls = 0;
         LastExternalReference = null;
         LastScheduleDate = null;
@@ -87,7 +91,10 @@ internal sealed class FakePaymentGateways : IBillPaymentGateway, IPixPaymentGate
         CredentialRef? credential,
         string providerOrderId,
         CancellationToken cancellationToken)
-        => Task.FromResult(ScriptedGet);
+    {
+        GetCalls++;
+        return Task.FromResult(ScriptedGet);
+    }
 
     public Task<PaymentCancellationResult> CancelAsync(
         CredentialRef? credential,

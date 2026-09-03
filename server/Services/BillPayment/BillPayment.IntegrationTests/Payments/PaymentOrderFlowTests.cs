@@ -247,6 +247,100 @@ public sealed class PaymentOrderFlowTests : BaseIntegrationTest, IDisposable
         Assert.Equal(0, _gateways.CancelCalls);
     }
 
+    // A reentrega at-least-once do outbox: o MESMO comando de criação entregue duas vezes não
+    // cria segunda ordem — a consulta por ordem ativa (e o índice único parcial) seguram a duplicata.
+    [Fact]
+    public async Task CreateCommandRedelivered_ShouldNotCreateASecondOrder()
+    {
+        await LinkPaymentAccountAsync();
+        var billId = await ApproveFutureDueBillAsync();
+        await LoadOrderOfAsync(billId);
+
+        var outcome = await SendAsync(new CreatePaymentOrderForBillCommand(
+            TenantId, billId, ApproverId, ScheduleDate()));
+
+        Assert.Equal("AlreadyExists", outcome.Outcome);
+        var orders = await ExecuteDbContextAsync(db => db.PaymentOrders
+            .AsNoTracking()
+            .Where(o => o.BillId == BillId.From(billId))
+            .CountAsync());
+        Assert.Equal(1, orders);
+    }
+
+    // Cancelar DEPOIS da submissão pergunta ao provedor primeiro, e o desfecho reflete nos dois
+    // agregados: a ordem vira Cancelled e o boleto sai de Scheduled pelo espelho.
+    [Fact]
+    public async Task CancelEndpoint_OnAPendingOrder_ShouldAskTheProviderAndMirrorTheBill()
+    {
+        await LinkPaymentAccountAsync();
+        var billId = await ApproveFutureDueBillAsync();
+        var orderId = (await LoadOrderOfAsync(billId)).Id.Value;
+        await ClaimAsync();
+        await SubmitAsync(orderId);
+        await DrainOutboxAsync();
+        Assert.Equal(BillStatus.Scheduled, (await LoadBillAsync(billId)).Status);
+
+        var response = await PostPaymentAsync($"{orderId}/cancel");
+        await DrainOutboxAsync();
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal(1, _gateways.CancelCalls);
+        Assert.Equal(PaymentOrderStatus.Cancelled, (await LoadOrderAsync(orderId)).Status);
+        Assert.Equal(BillStatus.Cancelled, (await LoadBillAsync(billId)).Status);
+    }
+
+    // O provedor recusou o cancelamento (a ordem já anda): 409 BLP.PMO20 e NADA muda localmente —
+    // fingir o cancelamento deixaria a ordem "cancelada" pagando de verdade.
+    [Fact]
+    public async Task CancelEndpoint_WhenTheProviderRefuses_ShouldRespond409AndKeepTheOrder()
+    {
+        await LinkPaymentAccountAsync();
+        var billId = await ApproveFutureDueBillAsync();
+        var orderId = (await LoadOrderOfAsync(billId)).Id.Value;
+        await ClaimAsync();
+        await SubmitAsync(orderId);
+        _gateways.ScriptedCancel = PaymentCancellationResult.Refused("not_cancellable");
+
+        var response = await PostPaymentAsync($"{orderId}/cancel");
+
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+        Assert.Contains("BLP.PMO20", await response.Content.ReadAsStringAsync(CancellationToken.None), StringComparison.Ordinal);
+        Assert.Equal(PaymentOrderStatus.Pending, (await LoadOrderAsync(orderId)).Status);
+    }
+
+    // Provedor fora do ar no cancelamento é 409 BLP.PMO19 — retentável, distinto da recusa.
+    [Fact]
+    public async Task CancelEndpoint_WhenTheProviderIsUnavailable_ShouldRespond409()
+    {
+        await LinkPaymentAccountAsync();
+        var billId = await ApproveFutureDueBillAsync();
+        var orderId = (await LoadOrderOfAsync(billId)).Id.Value;
+        await ClaimAsync();
+        await SubmitAsync(orderId);
+        _gateways.ScriptedCancel = PaymentCancellationResult.Unavailable("timeout");
+
+        var response = await PostPaymentAsync($"{orderId}/cancel");
+
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+        Assert.Contains("BLP.PMO19", await response.Content.ReadAsStringAsync(CancellationToken.None), StringComparison.Ordinal);
+        Assert.Equal(PaymentOrderStatus.Pending, (await LoadOrderAsync(orderId)).Status);
+    }
+
+    // Confirmar execução imediata numa ordem que não está retida é conflito (BLP.PMO06) — o
+    // endpoint não é um "destravar qualquer coisa".
+    [Fact]
+    public async Task ConfirmImmediateEndpoint_WithoutAPendingHold_ShouldRespond409()
+    {
+        await LinkPaymentAccountAsync();
+        var billId = await ApproveFutureDueBillAsync();
+        var orderId = (await LoadOrderOfAsync(billId)).Id.Value;
+
+        var response = await PostPaymentAsync($"{orderId}/confirm-immediate");
+
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+        Assert.Contains("BLP.PMO06", await response.Content.ReadAsStringAsync(CancellationToken.None), StringComparison.Ordinal);
+    }
+
     // A leitura da fila operacional: a lista filtra por status e o detalhe sai pelo boleto.
     [Fact]
     public async Task PaymentEndpoints_ShouldListAndResolveByBill()
@@ -400,6 +494,14 @@ public sealed class PaymentOrderFlowTests : BaseIntegrationTest, IDisposable
         var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
 
         return await mediator.Send(new SubmitPaymentOrderCommand(TenantId, orderId), CancellationToken.None);
+    }
+
+    private async Task<CreatePaymentOrderForBillResponse> SendAsync(CreatePaymentOrderForBillCommand command)
+    {
+        using var scope = _host.Services.CreateScope();
+        var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
+
+        return await mediator.Send(command, CancellationToken.None);
     }
 
     private async Task ReleaseAccountHoldAsync(Guid orderId)

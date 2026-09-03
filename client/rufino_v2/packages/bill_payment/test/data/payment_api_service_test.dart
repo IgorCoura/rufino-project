@@ -4,6 +4,7 @@ import 'package:bill_payment/bill_payment.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
+import 'package:rufino_core/rufino_core.dart';
 
 /// The payment endpoints at the request level (phase 3): the routes hit, the
 /// idempotency header on mutations, and the two answers of `by-bill` — an
@@ -77,6 +78,55 @@ void main() {
       for (final request in sent) {
         expect(request.headers['x-requestid'], isNotEmpty);
       }
+    });
+  });
+
+  group('getReceipt', () {
+    test('downloads the stored receipt with its media type and name',
+        () async {
+      sent = [];
+      final service = PaymentApiService(
+        client: MockClient((request) async {
+          sent.add(request);
+          return http.Response(
+            '%PDF-1.4 comprovante',
+            200,
+            headers: {
+              'content-type': 'application/pdf; charset=utf-8',
+              'content-disposition': 'attachment; filename="comprovante.pdf"',
+            },
+          );
+        }),
+        baseUrl: 'http://localhost:8100',
+        getAuthHeader: () async => 'Bearer token',
+        getTenantId: () => tenant,
+      );
+
+      final receipt = await service.getReceipt('order-1');
+
+      expect(sent.single.url.path, '/api/v1/$tenant/payments/order-1/receipt');
+      expect(receipt.contentType, 'application/pdf');
+      expect(receipt.fileName, 'comprovante.pdf');
+      expect(receipt.bytes, isNotEmpty);
+    });
+
+    // Sem comprovante o servidor recusa com regra — o serviço lança a
+    // HttpException com {id, message} e a camada acima classifica.
+    test('a rule refusal surfaces as an HttpException with the domain id',
+        () async {
+      final service = serviceReturning(
+        '{"id":"BLP.PMO16","message":"Sem comprovante ainda."}',
+        status: 404,
+      );
+
+      await expectLater(
+        service.getReceipt('order-1'),
+        throwsA(
+          isA<HttpException>()
+              .having((e) => e.statusCode, 'statusCode', 404)
+              .having((e) => e.domainErrorId, 'domainErrorId', 'BLP.PMO16'),
+        ),
+      );
     });
   });
 

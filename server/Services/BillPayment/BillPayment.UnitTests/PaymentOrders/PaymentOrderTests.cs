@@ -241,6 +241,94 @@ public class PaymentOrderTests
         Assert.Equal(PaymentOrderMother.DefaultBill, failed.BillId);
     }
 
+    // A espera entre tentativas tem teto de 30 minutos: mesmo uma base desproporcional não
+    // empurra o aluguel além dele — é o mesmo teto das outras filas do BC.
+    [Fact]
+    public void RecordSubmissionFailure_WithAnOversizedBaseDelay_ShouldCapTheLeaseAtThirtyMinutes()
+    {
+        var order = PaymentOrderMother.Draft();
+
+        var gaveUp = order.RecordSubmissionFailure(
+            permanent: false, "timeout", maxAttempts: 3, TimeSpan.FromHours(2), Now);
+
+        Assert.False(gaveUp);
+        Assert.Equal(Now.AddMinutes(30), order.SubmissionLeaseExpiresAt);
+    }
+
+    // Falha passageira com o orçamento de tentativas esgotado desiste como a permanente:
+    // vira Failed visível com o evento — a fila não gira em silêncio além do teto.
+    [Fact]
+    public void RecordSubmissionFailure_WhenTransientButAttemptsAreExhausted_ShouldGiveUpVisibly()
+    {
+        var order = PaymentOrderMother.Draft();
+
+        var gaveUp = order.RecordSubmissionFailure(
+            permanent: false, "timeout", maxAttempts: 0, TimeSpan.FromSeconds(30), Now);
+
+        Assert.True(gaveUp);
+        Assert.Equal(PaymentOrderStatus.Failed, order.Status);
+        Assert.Contains("timeout", order.FailReasons);
+        Assert.IsType<PaymentOrderFailedDomainEvent>(Assert.Single(order.PullDomainEvents()));
+    }
+
+    // Comportamento ATUAL documentado: id do provedor acima de 100 caracteres é truncado em
+    // silêncio — se o corte um dia virar recusa, este teste é o que deve mudar junto.
+    [Fact]
+    public void MarkSubmitted_WithAnOversizedProviderOrderId_ShouldClampToTheMaxLength()
+    {
+        var order = PaymentOrderMother.Draft();
+        var oversized = new string('p', PaymentOrder.PROVIDER_ORDER_ID_MAX_LENGTH + 50);
+
+        order.MarkSubmitted(oversized, PaymentOrderMother.DefaultScheduleFor, null, null, Now);
+
+        Assert.Equal(oversized[..PaymentOrder.PROVIDER_ORDER_ID_MAX_LENGTH], order.ProviderOrderId);
+    }
+
+    // Comportamento ATUAL documentado: erro da fila acima de 500 caracteres é truncado em
+    // silêncio, tanto no diagnóstico (LastError) quanto no motivo acumulado da desistência.
+    [Fact]
+    public void RecordSubmissionFailure_WithAnOversizedError_ShouldClampDiagnosticsAndReason()
+    {
+        var order = PaymentOrderMother.Draft();
+        var oversized = new string('e', PaymentOrder.LAST_ERROR_MAX_LENGTH + 100);
+
+        order.RecordSubmissionFailure(
+            permanent: true, oversized, maxAttempts: 3, TimeSpan.FromSeconds(30), Now);
+        order.PullDomainEvents();
+
+        Assert.Equal(oversized[..PaymentOrder.LAST_ERROR_MAX_LENGTH], order.LastError);
+        Assert.Equal(oversized[..PaymentOrder.FAIL_REASON_MAX_LENGTH], Assert.Single(order.FailReasons));
+    }
+
+    // Comportamento ATUAL documentado: motivo de falha vindo do provedor acima de 500
+    // caracteres também é truncado em silêncio — o mesmo Clamp dos demais campos longos.
+    [Fact]
+    public void ApplyProviderStatus_WithAnOversizedFailReason_ShouldClampTheReason()
+    {
+        var order = PaymentOrderMother.Submitted();
+        var oversized = new string('r', PaymentOrder.FAIL_REASON_MAX_LENGTH + 100);
+
+        order.ApplyProviderStatus(PaymentOrderStatus.Failed, null, null, [oversized], SyncedAt, Now);
+        order.PullDomainEvents();
+
+        Assert.Equal(oversized[..PaymentOrder.FAIL_REASON_MAX_LENGTH], Assert.Single(order.FailReasons));
+    }
+
+    // Comportamento ATUAL documentado: chave de comprovante acima de 200 caracteres é truncada
+    // em silêncio — truncar chave de balde muda o objeto apontado, e este teste fixa o fato.
+    [Fact]
+    public void AttachReceipt_WithAnOversizedStorageKey_ShouldClampTheKey()
+    {
+        var order = PaymentOrderMother.Submitted();
+        order.ApplyProviderStatus(PaymentOrderStatus.Paid, new DateOnly(2026, 9, 11), null, null, SyncedAt, Now);
+        order.PullDomainEvents();
+        var oversized = new string('k', PaymentOrder.RECEIPT_STORAGE_KEY_MAX_LENGTH + 40);
+
+        order.AttachReceipt(oversized, Now);
+
+        Assert.Equal(oversized[..PaymentOrder.RECEIPT_STORAGE_KEY_MAX_LENGTH], order.ReceiptStorageKey);
+    }
+
     // Registrar falha sem o erro que a causou é diagnóstico perdido — recusado.
     [Fact]
     public void RecordSubmissionFailure_WithABlankError_ShouldThrow_BLP_PMO12()

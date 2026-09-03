@@ -879,6 +879,7 @@ Bill bill({
   String kind = BillKinds.bankSlip,
   String rail = PaymentRails.boleto,
   double? amount = 615.07,
+  DateTime? scheduledFor,
 }) {
   return Bill(
     id: id,
@@ -887,6 +888,7 @@ Bill bill({
     rail: rail,
     amount: amount,
     dueDate: DateTime(2026, 8, 20),
+    scheduledFor: scheduledFor,
     bankCode: '033',
     origin: BillOrigin(
       sourceKind: BillSourceKinds.manualUpload,
@@ -1095,6 +1097,8 @@ PaymentOrder paymentOrder({
   String hold = PaymentOrderHolds.none,
   bool requiresConfirmation = false,
   bool hasReceipt = false,
+  DateTime? requestedScheduleDate,
+  DateTime? effectiveScheduleDate,
 }) {
   return PaymentOrder(
     id: id,
@@ -1102,8 +1106,8 @@ PaymentOrder paymentOrder({
     rail: PaymentRails.boleto,
     status: status,
     hold: hold,
-    requestedScheduleDate: DateTime(2026, 9, 10),
-    effectiveScheduleDate: DateTime(2026, 9, 11),
+    requestedScheduleDate: requestedScheduleDate ?? DateTime(2026, 9, 10),
+    effectiveScheduleDate: effectiveScheduleDate ?? DateTime(2026, 9, 11),
     amount: 615.07,
     requiresConfirmation: requiresConfirmation,
     hasReceipt: hasReceipt,

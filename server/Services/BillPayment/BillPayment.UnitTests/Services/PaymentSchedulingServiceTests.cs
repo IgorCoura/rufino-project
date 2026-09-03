@@ -109,6 +109,26 @@ public class PaymentSchedulingServiceTests
         Assert.NotNull(resolution.EffectiveDate);
     }
 
+    // Deslize composto: a data pedida é apertada pelas TRÊS camadas em sequência — o piso do
+    // provedor vence a antecedência de 24h, e o dia não útil empurra o resultado ainda mais
+    // para frente. A data final difere da pedida (é o "deslizou" da tela) e segue agendada.
+    [Fact]
+    public void Resolve_WhenFloorLeadAndCalendarAllBind_ShouldSlideThroughAllThreeLayers()
+    {
+        // Pedida 07 < piso 08 < antecedência (às 10h de 07, o expediente que honra as 24h
+        // começa em 09) — e 09 não é útil, então o resultado final é 10.
+        var calendar = new EveryDayCalendar(nonWorking: new DateOnly(2026, 9, 9));
+        var requested = new DateOnly(2026, 9, 7);
+
+        var resolution = PaymentSchedulingService.Resolve(
+            requested, dueDate: new DateOnly(2026, 9, 25),
+            minimumScheduleDate: new DateOnly(2026, 9, 8), MondayMorning, Policy, calendar);
+
+        Assert.Equal(new DateOnly(2026, 9, 10), resolution.EffectiveDate);
+        Assert.NotEqual(requested, resolution.EffectiveDate);
+        Assert.False(resolution.RequiresImmediateExecution);
+    }
+
     // A janela de submissão é meio-aberta: 9h entra, 17h já não.
     [Theory]
     [InlineData(8, 59, false)]

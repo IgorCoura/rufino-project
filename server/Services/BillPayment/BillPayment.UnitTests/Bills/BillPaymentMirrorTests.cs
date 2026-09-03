@@ -71,6 +71,19 @@ public class BillPaymentMirrorTests
         Assert.Equal(BillStatus.Failed, bill.Status);
     }
 
+    // Approved → Failed: a submissão foi RECUSADA pelo provedor antes de agendar. Sem esta
+    // aresta o boleto ficaria "agendamento em processamento" para sempre — a falha visível na
+    // ordem e invisível no espelho (fase 3).
+    [Fact]
+    public void MarkFailed_OnAnApprovedBill_ShouldReflectTheRefusedSubmission()
+    {
+        var bill = Approved();
+
+        bill.MarkFailed(DecidedAt);
+
+        Assert.Equal(BillStatus.Failed, bill.Status);
+    }
+
     // Cancelamento pós-agendamento reflete sem tocar a trilha de aprovação — quem cancelou e
     // por quê vive na ordem.
     [Fact]

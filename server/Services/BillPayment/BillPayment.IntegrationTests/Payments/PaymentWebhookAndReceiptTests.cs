@@ -9,6 +9,8 @@ using BillPayment.Domain.Bills;
 using BillPayment.Domain.Instruments;
 using BillPayment.Domain.Lookups;
 using BillPayment.Domain.PaymentOrders;
+using BillPayment.Domain.Ports;
+using BillPayment.Domain.SeedWork;
 using BillPayment.Domain.SharedKernel;
 using BillPayment.Infra.Outbox;
 using BillPayment.IntegrationTests.Contracts;
@@ -197,6 +199,167 @@ public sealed class PaymentWebhookAndReceiptTests : BaseIntegrationTest, IDispos
         Assert.NotEqual(orderId, newOrder.Id.Value);
     }
 
+    // O objeto do payload pode chegar como "payment" em vez de "bill" — o contrato é medido, a
+    // sonda está bloqueada, e a leitura frouxa aceita as duas formas.
+    [Fact]
+    public async Task Webhook_WithAPaymentObjectPayload_ShouldStillResolveTheOrder()
+    {
+        var (_, orderId) = await SubmitOrderAsync();
+
+        var response = await PostWebhookAsync(new
+        {
+            id = "evt_payment_shape_1",
+            @event = "BILL_BANK_PROCESSING",
+            payment = new { externalReference = orderId.ToString() },
+        });
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal(PaymentOrderStatus.BankProcessing, (await LoadOrderAsync(orderId)).Status);
+    }
+
+    // Evento que o provedor inventar amanhã cai em Pending pela monotônica — 200 Ignored, nunca
+    // desfecho por chute nem erro que faria o provedor reentregar para sempre.
+    [Fact]
+    public async Task Webhook_WithAnUnknownEventName_ShouldAcknowledgeWithoutEffect()
+    {
+        var (_, orderId) = await SubmitOrderAsync();
+
+        var response = await PostWebhookAsync(new
+        {
+            id = "evt_new_kind_1",
+            @event = "BILL_SOMETHING_NEW",
+            bill = new { externalReference = orderId.ToString() },
+        });
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Contains("Ignored", await response.Content.ReadAsStringAsync(CancellationToken.None), StringComparison.Ordinal);
+        Assert.Equal(PaymentOrderStatus.Pending, (await LoadOrderAsync(orderId)).Status);
+    }
+
+    // Payload sem id ou sem event não tem como entrar no ledger de idempotência — 400, e o
+    // provedor que manda isso tem um defeito que precisa aparecer do lado dele.
+    [Theory]
+    [InlineData("""{"event":"BILL_PAID"}""")]
+    [InlineData("""{"id":"evt_no_event"}""")]
+    [InlineData("{}")]
+    public async Task Webhook_WithoutAnIdOrEvent_ShouldRespond400(string payload)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Post, new Uri("/webhooks/asaas", UriKind.Relative))
+        {
+            Content = new StringContent(payload, System.Text.Encoding.UTF8, "application/json"),
+        };
+        request.Headers.Add("asaas-access-token", WebhookToken);
+
+        var response = await _client.SendAsync(request, CancellationToken.None);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    // Falha PASSAGEIRA no download do comprovante sobe como BLP.PMO21 — é o sinal que devolve o
+    // trabalho à reentrega do outbox; o pagamento fica Paid e nada é gravado pela metade.
+    [Fact]
+    public async Task CaptureReceipt_WhenTheFetchIsRetryable_ShouldThrowPmo21WithoutStoringAnything()
+    {
+        var (_, orderId) = await SubmitOrderAsync();
+        await MarkPaidAsync(orderId);
+        _gateways.ScriptedGet = PaymentFetchResult.Found(new ProviderPaymentSnapshot(
+            "pay_fake_1", PaymentOrderStatus.Paid, "PAID",
+            null, DateOnly.FromDateTime(DateTime.UtcNow), null, [],
+            "https://www.asaas.com/comprovantes/000123"));
+        _receipts.Scripted = ReceiptFetchResult.Unavailable("http_503");
+
+        var thrown = await Assert.ThrowsAsync<DomainException>(() => CaptureReceiptAsync(orderId));
+
+        Assert.Equal("BLP.PMO21", thrown.Id);
+        var order = await LoadOrderAsync(orderId);
+        Assert.Equal(PaymentOrderStatus.Paid, order.Status);
+        Assert.Null(order.ReceiptStorageKey);
+    }
+
+    // Pagamento sem comprovante no provedor é DESFECHO (NoReceipt), nunca falha: o dinheiro já
+    // saiu, e falhar aqui não o traria de volta. O endpoint então responde 404, colapsado.
+    [Fact]
+    public async Task CaptureReceipt_WhenTheProviderOffersNoUrl_ShouldRecordNoReceiptAndServe404()
+    {
+        var (_, orderId) = await SubmitOrderAsync();
+        await MarkPaidAsync(orderId);
+
+        var outcome = await CaptureReceiptAsync(orderId);
+
+        Assert.Equal("NoReceipt", outcome);
+        Assert.Equal(PaymentOrderStatus.Paid, (await LoadOrderAsync(orderId)).Status);
+
+        var receipt = await _client.GetAsync(
+            new Uri($"/api/v1/{TenantId}/payments/{orderId}/receipt", UriKind.Relative), CancellationToken.None);
+        Assert.Equal(HttpStatusCode.NotFound, receipt.StatusCode);
+    }
+
+    // A reentrega do outbox depois do comprovante guardado é AlreadyStored — um blob só no
+    // balde, nunca um segundo download.
+    [Fact]
+    public async Task CaptureReceipt_Redelivered_ShouldNotStoreASecondBlob()
+    {
+        var (_, orderId) = await SubmitOrderAsync();
+        _gateways.ScriptedGet = PaymentFetchResult.Found(new ProviderPaymentSnapshot(
+            "pay_fake_1", PaymentOrderStatus.Paid, "PAID",
+            null, DateOnly.FromDateTime(DateTime.UtcNow), null, [],
+            "https://www.asaas.com/comprovantes/000123"));
+
+        await PostWebhookAsync(new
+        {
+            id = "evt_receipt_dup_1",
+            @event = "BILL_PAID",
+            bill = new
+            {
+                externalReference = orderId.ToString(),
+                paymentDate = DateTime.UtcNow.ToString("yyyy-MM-dd"),
+            },
+        });
+        await DrainOutboxAsync();
+
+        var storage = _host.Services.GetRequiredService<InMemoryAttachmentStorage>();
+        var blobsAfterFirst = storage.Count;
+        Assert.Equal(1, _receipts.Calls);
+
+        var outcome = await CaptureReceiptAsync(orderId);
+
+        Assert.Equal("AlreadyStored", outcome);
+        Assert.Equal(blobsAfterFirst, storage.Count);
+        Assert.Equal(1, _receipts.Calls);
+    }
+
+    // O comprovante é do tenant: a MESMA pessoa com acesso a duas contas não alcança a ordem de
+    // um tenant pela rota do outro — 404 colapsado, como toda negativa de artefato.
+    [Fact]
+    public async Task Receipt_ThroughAnotherTenantsRoute_ShouldRespond404()
+    {
+        var (_, orderId) = await SubmitOrderAsync();
+        _gateways.ScriptedGet = PaymentFetchResult.Found(new ProviderPaymentSnapshot(
+            "pay_fake_1", PaymentOrderStatus.Paid, "PAID",
+            null, DateOnly.FromDateTime(DateTime.UtcNow), null, [],
+            "https://www.asaas.com/comprovantes/000123"));
+        await PostWebhookAsync(new
+        {
+            id = "evt_cross_tenant_1",
+            @event = "BILL_PAID",
+            bill = new
+            {
+                externalReference = orderId.ToString(),
+                paymentDate = DateTime.UtcNow.ToString("yyyy-MM-dd"),
+            },
+        });
+        await DrainOutboxAsync();
+
+        var own = await _client.GetAsync(
+            new Uri($"/api/v1/{TenantId}/payments/{orderId}/receipt", UriKind.Relative), CancellationToken.None);
+        var foreign = await _client.GetAsync(
+            new Uri($"/api/v1/{TestTenants.Secondary}/payments/{orderId}/receipt", UriKind.Relative),
+            CancellationToken.None);
+
+        Assert.Equal(HttpStatusCode.OK, own.StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, foreign.StatusCode);
+    }
+
     // Reabrir um boleto que não falhou é conflito — reabertura não é atalho para desfazer aprovação.
     [Fact]
     public async Task Reopen_AnApprovedBill_ShouldReturn409()
@@ -325,6 +488,35 @@ public sealed class PaymentWebhookAndReceiptTests : BaseIntegrationTest, IDispos
         while (await processor.ProcessPendingAsync(CancellationToken.None) > 0)
         {
         }
+    }
+
+    /// <summary>
+    /// Marca a ordem como paga SEM drenar o outbox — o teste então dirige a captura do
+    /// comprovante pelo comando, deterministicamente, em vez de pela reentrega.
+    /// </summary>
+    private async Task MarkPaidAsync(Guid orderId)
+    {
+        using var scope = _host.Services.CreateScope();
+        var orders = scope.ServiceProvider.GetRequiredService<IPaymentOrderRepository>();
+        var unitOfWork = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+
+        var order = await orders.GetAsync(
+            Domain.SharedKernel.TenantId.From(TenantId), PaymentOrderId.From(orderId), CancellationToken.None);
+
+        order!.ApplyProviderStatus(
+            PaymentOrderStatus.Paid, DateOnly.FromDateTime(DateTime.UtcNow), null, null,
+            DateTimeOffset.UtcNow, DateTime.UtcNow);
+        await unitOfWork.SaveEntitiesAsync(CancellationToken.None);
+    }
+
+    private async Task<string> CaptureReceiptAsync(Guid orderId)
+    {
+        using var scope = _host.Services.CreateScope();
+        var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
+
+        var response = await mediator.Send(
+            new CapturePaymentReceiptCommand(TenantId, orderId), CancellationToken.None);
+        return response.Outcome;
     }
 
     private Task<PaymentOrder> LoadOrderAsync(Guid orderId)
