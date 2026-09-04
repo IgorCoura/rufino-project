@@ -1,5 +1,10 @@
 # ---- Stage 1: Build Flutter Web ----
-FROM ghcr.io/cirruslabs/flutter:stable AS build
+# A versão é pinada, e tem de acompanhar o `FLUTTER_VERSION` dos workflows e o
+# `sdks:` do pubspec.lock. Com a tag `stable` a imagem andava sozinha: em 3.44
+# o `IconData` do framework virou classe `final` e o `material_symbols_icons`
+# travado no lock deixou de compilar — um build que passa na máquina e quebra
+# aqui, sem nada ter mudado no repositório.
+FROM ghcr.io/cirruslabs/flutter:3.38.7 AS build
 
 WORKDIR /app
 

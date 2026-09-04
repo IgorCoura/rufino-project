@@ -1673,6 +1673,21 @@ falls back to debug keys locally. `prod_config.json` is recreated in CI from
 the `PLAY_STORE_CONFIG_JSON` secret. See the workflow header for the full list
 of required GitHub secrets and where to obtain each in the Google Play Console.
 
+## Deployment (Web / Docker)
+
+`Dockerfile` compila o bundle web e o serve por nginx. Três coisas que já quebraram o build:
+
+- **A versão do Flutter é pinada (`ghcr.io/cirruslabs/flutter:3.38.7`) e tem de andar junto com
+  o `FLUTTER_VERSION` dos dois workflows e o `sdks:` do `pubspec.lock`.** Com a tag `stable` a
+  imagem se atualizava sozinha e o build quebrava sem ninguém ter tocado no repositório: em 3.44
+  o `IconData` do framework virou classe `final`, e o `material_symbols_icons` travado no lock
+  passou a não compilar. Ao subir o Flutter do projeto, suba os quatro lugares no mesmo commit.
+- **Os pubspecs dos quatro membros do workspace são copiados antes do `flutter pub get`** — a
+  resolução lê o de cada membro, e só o da raiz dá "No workspace packages matching". Um `COPY`
+  por pacote: com curinga o Docker achata os caminhos e eles colidem no mesmo destino.
+- **O `prod_config.json` é gerado de build args**, e quem dispara o build precisa passar todos —
+  arg não passado vira string vazia, que para o `assertConfigured()` é o mesmo que faltar.
+
 ---
 
 ## Common Commands
