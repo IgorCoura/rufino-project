@@ -62,9 +62,11 @@ const Set<String> _sensitiveKeys = {
   'nomecompleto',
   'birthdate',
   'datanascimento',
-  'motherName',
+  // Em minúsculas porque a consulta é `key.toLowerCase()`: uma chave escrita
+  // com maiúscula aqui NUNCA casa, e o dado sai em claro.
+  'mothername',
   'nomemae',
-  'fatherName',
+  'fathername',
   'nomepai',
   // Contact
   'email',
