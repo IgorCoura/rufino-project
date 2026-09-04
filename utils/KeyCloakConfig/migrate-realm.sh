@@ -29,17 +29,30 @@ HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PM_AUTHZ="$HERE/people-management-authz-config.json"
 BP_AUTHZ="$HERE/bill-payment-authz-config.json"
 
+# O token pode vir da variavel de ambiente OU do arquivo .kc-token ao lado deste
+# script. O arquivo existe porque variavel exportada num terminal NAO atravessa para
+# outro processo: quem gera o token no PowerShell e quem roda o script no bash sao
+# shells diferentes. O arquivo esta no .gitignore.
+if [[ -z "${KC_ADMIN_TOKEN:-}" && -f "$HERE/.kc-token" ]]; then
+  KC_ADMIN_TOKEN="$(tr -d " 
+" < "$HERE/.kc-token")"
+fi
+
 if [[ -z "${KC_ADMIN_TOKEN:-}" ]]; then
   cat >&2 <<'EOF'
-Falta KC_ADMIN_TOKEN. Pegue um token de admin (vale ~60s), NUMA LINHA SÓ:
+Falta o token de admin. Gere um (vale ~60s) e grave em .kc-token.
 
-  export KC_ADMIN_TOKEN=$(curl -s -X POST "$KC_URL/realms/master/protocol/openid-connect/token" -d grant_type=password -d client_id=admin-cli -d username=SEU_USUARIO --data-urlencode "password=SUA_SENHA" | python -c 'import json,sys;print(json.load(sys.stdin)["access_token"])')
+PowerShell (o shell que voce usa):
 
-Use --data-urlencode na senha: com -d cru, um & ou # a corrompe e você recebe um
-invalid_grant que parece senha errada.
+  $c = Get-Credential -Message 'admin do Keycloak'
+  $r = Invoke-RestMethod -Method Post -Uri "https://keycloak.couratechsafety.cloud/realms/master/protocol/openid-connect/token" -Body @{
+        grant_type='password'; client_id='admin-cli'
+        username=$c.UserName; password=$c.GetNetworkCredential().Password }
+  $r.access_token | Set-Content -NoNewline utils\KeyCloakConfig\.kc-token
 
-O token expira rápido — falhando com 401 no meio, refaça e rode de novo. O script
-é idempotente: o que já foi aplicado é reconhecido e pulado.
+Get-Credential abre um prompt: a senha nao passa pela linha de comando nem pelo
+historico. O arquivo .kc-token esta no .gitignore; apague depois de migrar.
+
 EOF
   exit 1
 fi
