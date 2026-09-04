@@ -1,4 +1,3 @@
-import 'package:bill_payment/bill_payment.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
@@ -198,154 +197,12 @@ class _UserMenu extends StatelessWidget {
   }
 }
 
-/// One entry of the hub: where it goes, and what has to be true to show it.
-class _Entry {
-  const _Entry({
-    required this.icon,
-    required this.label,
-    required this.route,
-    required this.resource,
-    this.scope,
-  });
 
-  final IconData icon;
-  final String label;
-  final String route;
 
-  /// The Keycloak resource that has to grant something.
-  final String resource;
 
-  /// A specific scope, when any scope is not enough.
-  final String? scope;
 
-  bool isVisibleFor(PermissionNotifier permissions) {
-    final required = scope;
-    return required == null
-        ? permissions.hasAnyScope(resource)
-        : permissions.hasPermission(resource, required);
-  }
-}
-
-const _peopleManagementEntries = <_Entry>[
-  _Entry(
-    icon: Icons.people_outline,
-    label: 'Funcionários',
-    route: PeopleManagementRoutes.employees,
-    resource: PeopleManagementResources.employee,
-  ),
-  _Entry(
-    icon: Icons.location_on_outlined,
-    label: 'Locais de Trabalho',
-    route: PeopleManagementRoutes.workplaces,
-    resource: PeopleManagementResources.workplace,
-  ),
-  _Entry(
-    icon: Icons.apartment_outlined,
-    label: 'Setores',
-    route: PeopleManagementRoutes.departments,
-    resource: PeopleManagementResources.department,
-  ),
-  _Entry(
-    icon: Icons.folder_outlined,
-    label: 'Grupos de Template de Documentos',
-    route: PeopleManagementRoutes.documentGroups,
-    resource: PeopleManagementResources.documentGroup,
-  ),
-  _Entry(
-    icon: Icons.description_outlined,
-    label: 'Requerimentos de Documentos',
-    route: PeopleManagementRoutes.requireDocuments,
-    resource: PeopleManagementResources.requireDocuments,
-  ),
-  _Entry(
-    icon: Icons.insert_chart_outlined_rounded,
-    label: 'Dashboard de Documentos',
-    route: PeopleManagementRoutes.documentDashboard,
-    resource: PeopleManagementResources.document,
-  ),
-  _Entry(
-    icon: Icons.upload_file_outlined,
-    label: 'Gestão de Documentos em Lote',
-    route: PeopleManagementRoutes.batchDocument,
-    resource: PeopleManagementResources.document,
-  ),
-  _Entry(
-    icon: Icons.download_rounded,
-    label: 'Download em Lote',
-    route: PeopleManagementRoutes.batchDownload,
-    resource: PeopleManagementResources.document,
-    scope: PeopleManagementScopes.download,
-  ),
-];
-
-const _billPaymentEntries = <_Entry>[
-  _Entry(
-    icon: Icons.pending_actions_outlined,
-    label: 'Painel de Contas',
-    route: BillPaymentRoutes.pending,
-    resource: BillPaymentResources.expectation,
-  ),
-  _Entry(
-    icon: Icons.receipt_long_outlined,
-    label: 'Boletos',
-    route: BillPaymentRoutes.bills,
-    resource: BillPaymentResources.bill,
-  ),
-  _Entry(
-    icon: Icons.inbox_outlined,
-    label: 'Quarentena',
-    route: BillPaymentRoutes.captureItems,
-    resource: BillPaymentResources.captureItem,
-  ),
-  _Entry(
-    icon: Icons.storefront_outlined,
-    label: 'Beneficiários',
-    route: BillPaymentRoutes.payees,
-    resource: BillPaymentResources.payee,
-  ),
-  _Entry(
-    icon: Icons.notifications_active_outlined,
-    label: 'Expectativas',
-    route: BillPaymentRoutes.expectations,
-    resource: BillPaymentResources.expectation,
-  ),
-  _Entry(
-    icon: Icons.forward_to_inbox_outlined,
-    label: 'E-mails Capturados',
-    route: BillPaymentRoutes.capturedMessages,
-    resource: BillPaymentResources.capturedMessage,
-  ),
-  _Entry(
-    icon: Icons.mark_email_read_outlined,
-    label: 'Fontes de Captura',
-    route: BillPaymentRoutes.captureSources,
-    resource: BillPaymentResources.captureSource,
-  ),
-  _Entry(
-    icon: Icons.verified_user_outlined,
-    label: 'Origens Confiáveis',
-    route: BillPaymentRoutes.trustedOrigins,
-    resource: BillPaymentResources.origin,
-  ),
-  _Entry(
-    icon: Icons.account_balance_wallet_outlined,
-    label: 'Perfil do Pagador',
-    route: BillPaymentRoutes.payerProfile,
-    resource: BillPaymentResources.payerProfile,
-  ),
-];
-
-const _platformEntries = <_Entry>[
-  _Entry(
-    icon: Icons.manage_accounts_outlined,
-    label: 'Clientes',
-    route: TenantRoutes.list,
-    resource: TenantResources.tenant,
-  ),
-];
-
-const _toolEntries = <_Entry>[
-  _Entry(
+const _toolEntries = <HomeEntry>[
+  HomeEntry(
     icon: Icons.bug_report_outlined,
     label: 'Debug',
     route: '/debug',
@@ -361,33 +218,24 @@ class _HomeBody extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final permissions = context.watch<PermissionNotifier>();
-    final tenantPermissions = context.watch<TenantPermissionNotifier>();
-    final tenantContext = context.watch<TenantContextNotifier>();
 
     if (permissions.status == PermissionStatus.loading) {
       return const Center(child: CircularProgressIndicator());
     }
 
-    // Produto habilitado no tenant E permissão da pessoa. As duas porteiras,
-    // sempre: uma sozinha mostra card que devolve 403, a outra sozinha mostra
-    // produto que o cliente não contratou.
-    final peopleManagement = tenantContext
-                .hasProduct(TenantProducts.peopleManagement) &&
-            viewModel.isPeopleManagementReady
-        ? _peopleManagementEntries.where((e) => e.isVisibleFor(permissions))
-        : const <_Entry>[];
+    // Cada módulo responde pelas suas duas porteiras — produto habilitado no
+    // tenant e permissão da pessoa —, porque só ele sabe qual produto e qual
+    // notifier são os seus. A casca só pergunta (D6).
+    final modules = context.read<List<AppModule>>();
+    final groups = [
+      for (final module in modules)
+        (title: module.menuTitle, entries: module.visibleEntries(context)),
+    ];
 
-    final billPaymentPermissions =
-        context.watch<BillPaymentPermissionNotifier>();
-    final billPayment = tenantContext.hasProduct(TenantProducts.billPayment)
-        ? _billPaymentEntries
-            .where((e) => e.isVisibleFor(billPaymentPermissions))
-        : const <_Entry>[];
-
-    final platform =
-        _platformEntries.where((e) => e.isVisibleFor(tenantPermissions));
-
-    final tools = _toolEntries.where((e) => e.isVisibleFor(permissions));
+    // A entrada de diagnóstico é da casca: ela fala do app, não de um produto.
+    final tools = _toolEntries
+        .where((e) => permissions.hasAnyScope(e.resource))
+        .toList();
 
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -402,14 +250,10 @@ class _HomeBody extends StatelessWidget {
                   padding: EdgeInsets.only(bottom: AppSpacing.md),
                   child: _PendingProductNotice(),
                 ),
-              _Group(title: 'GESTÃO DE PESSOAS', entries: peopleManagement),
-              _Group(title: 'CONTAS A PAGAR', entries: billPayment),
-              _Group(title: 'ADMINISTRAÇÃO DA PLATAFORMA', entries: platform),
+              for (final group in groups)
+                _Group(title: group.title, entries: group.entries),
               _Group(title: 'FERRAMENTAS', entries: tools),
-              if (peopleManagement.isEmpty &&
-                  billPayment.isEmpty &&
-                  platform.isEmpty &&
-                  tools.isEmpty)
+              if (groups.every((g) => g.entries.isEmpty) && tools.isEmpty)
                 const _NothingAvailable(),
             ],
           ),
@@ -423,7 +267,7 @@ class _Group extends StatelessWidget {
   const _Group({required this.title, required this.entries});
 
   final String title;
-  final Iterable<_Entry> entries;
+  final Iterable<HomeEntry> entries;
 
   @override
   Widget build(BuildContext context) {

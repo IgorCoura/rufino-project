@@ -13,6 +13,9 @@ import '../../../testing/fakes/fake_company_repository.dart';
 import '../../../testing/fakes/fake_error_reporter.dart';
 import '../../../testing/fakes/fake_permission_repository.dart';
 import '../../../testing/fakes/fake_secure_storage.dart';
+import 'package:people_management/people_management.dart';
+import 'package:http/http.dart' as http;
+import 'dart:typed_data';
 
 SelectedTenant _tenant({
   List<String> products = const [TenantProducts.peopleManagement],
@@ -94,6 +97,48 @@ void main() {
             value: tenantContext,
           ),
           ChangeNotifierProvider<ThemeNotifier>(create: (_) => ThemeNotifier()),
+          ChangeNotifierProvider<TenantSessionBridge>.value(value: bridge),
+          // O menu do Home é montado a partir desta lista (D6): cada módulo
+          // responde pelas suas duas porteiras. Os módulos de verdade entram
+          // aqui — é o que faz o teste cobrir a costura, e não um dublê dela.
+          Provider<List<AppModule>>.value(
+            value: <AppModule>[
+              PeopleManagementModule(
+                client: _NeverCalledClient(),
+                baseUrl: 'example.test',
+                getAuthHeader: () async => '',
+                errorReporter: FakeErrorReporter(),
+                storage: FakeSecureStorage(),
+                homeRoute: '/home',
+                filePicker: _UnusedFilePicker(),
+                fileSaver: _UnusedFileSaver(),
+                scannerService: _UnusedScanner(),
+                dateExtractor: ({required bytes, required fileName}) async =>
+                    null,
+                isReady: (ctx) =>
+                    ctx.watch<TenantSessionBridge>().isPeopleManagementReady,
+              ),
+              BillPaymentModule(
+                client: _NeverCalledClient(),
+                baseUrl: 'https://example.test',
+                getAuthHeader: () async => '',
+                getTenantId: () => tenant.id,
+                errorReporter: FakeErrorReporter(),
+                homeRoute: '/home',
+                onPickDocument: () async => null,
+                onOpenLink: (_) async => false,
+              ),
+              TenantManagementModule(
+                client: _NeverCalledClient(),
+                baseUrl: 'https://example.test',
+                getAuthHeader: () async => '',
+                errorReporter: FakeErrorReporter(),
+                homeRoute: '/home',
+                onTenantSelected: (_) async {},
+                onLogout: (_) async {},
+              ),
+            ],
+          ),
         ],
         child: MaterialApp(
           home: HomeScreen(
@@ -213,4 +258,69 @@ void main() {
       expect(find.text('Funcionários'), findsNothing);
     });
   });
+}
+
+/// Cliente que falha se alguém tentar usá-lo.
+///
+/// Os módulos montam repositórios de verdade no construtor; este teste é sobre
+/// o MENU, e nenhuma chamada de rede deve sair dele. Um erro aqui é sinal de
+/// que a composição passou a fazer I/O.
+class _NeverCalledClient extends http.BaseClient {
+  @override
+  Future<http.StreamedResponse> send(http.BaseRequest request) =>
+      throw StateError('o menu não faz chamada de rede: ${request.url}');
+}
+
+class _UnusedFilePicker implements FilePickerService {
+  @override
+  Future<List<PickedFile>> pickFiles({
+    bool allowMultiple = false,
+    List<String>? allowedExtensions,
+  }) async =>
+      const [];
+
+  @override
+  Future<String?> chooseSavePath({
+    required String dialogTitle,
+    required String fileName,
+  }) async =>
+      null;
+
+  @override
+  Future<void> writeToPath({
+    required String path,
+    required Uint8List bytes,
+  }) async {}
+}
+
+class _UnusedFileSaver implements FileSaveService {
+  @override
+  Future<Result<FileSaveOutcome>> saveXlsx({
+    required String fileName,
+    required Uint8List bytes,
+  }) async =>
+      const Result.success(FileSaveOutcome.saved);
+
+  @override
+  Future<void> saveBytes({
+    required String fileName,
+    required Uint8List bytes,
+  }) async {}
+}
+
+class _UnusedScanner implements DocumentScannerService {
+  @override
+  bool get isPlatformSupported => false;
+
+  @override
+  Future<void> openAppSettings() async {}
+
+  @override
+  Future<Uint8List> imagesToPdf(List<Uint8List> pages) async => Uint8List(0);
+
+  @override
+  Future<String> recognizeText(Uint8List imageBytes) async => '';
+
+  @override
+  Future<List<Uint8List>?> scanPages() async => null;
 }

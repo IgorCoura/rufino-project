@@ -61,6 +61,9 @@ export 'src/domain/repositories/employee_repository.dart';
 export 'src/domain/repositories/require_document_repository.dart';
 export 'src/domain/repositories/workplace_repository.dart';
 
+// A costura com a casca: o módulo (D6).
+export 'src/people_management_module.dart';
+
 // Permissões — os nomes de recurso e escopo do realm.
 export 'src/people_management_permissions.dart';
 

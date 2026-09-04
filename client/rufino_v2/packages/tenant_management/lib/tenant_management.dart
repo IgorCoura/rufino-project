@@ -29,3 +29,6 @@ export 'src/ui/select/tenant_selection_viewmodel.dart';
 export 'src/ui/tenant_back_button.dart';
 export 'src/ui/tenant_pages.dart';
 export 'src/ui/tenant_routes.dart';
+
+// A costura com a casca: o módulo (D6).
+export 'src/tenant_management_module.dart';

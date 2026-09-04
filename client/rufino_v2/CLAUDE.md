@@ -141,6 +141,15 @@ analyzer:
 
 **Consequência que precisa ser sabida:** `flutter analyze` quebra, `flutter build` sozinho **passa**. Se houver CI, a regra tem de rodar lá — é o único lugar onde ela vira garantia.
 
+### D3′ — O critério do que entra em `rufino_core`
+
+> **Complemento de 2026-09-04.** O critério ("se o outro produto mudar isto, este deveria se
+> importar?") continua valendo, e ao aplicá-lo duas vezes de verdade ele respondeu **não** onde
+> parecia óbvio que sim: o seletor de arquivo tem um contrato em cada produto (um documento com
+> content type × vários filtrados por extensão), e uma abstração comum descreveria mal os dois.
+> **Dois consumidores não bastam — precisa ser o mesmo contrato.** O que subiu por ter mesmo
+> contrato foi `AppModule`/`HomeEntry` e o `go_router` que eles exigem.
+
 ### D3 — O critério do que entra em `rufino_core`
 
 > *"Se o outro produto mudar isto, este deveria se importar?"* Se não, **não é core** — é do módulo.
@@ -190,19 +199,38 @@ decisão perderam o `[FromHeader("x-user-id")]`. A UI manda só o `Authorization
 `x-user-id` não faz nada. Audience do resource server: **`bill-payment-api`**
 (`AppConfig.billPaymentAudience`).
 
-### D6 — A costura entre módulo e casca
+### D6 — A costura entre módulo e casca — ✅ **2026-09-04**
 
-Cada módulo exporta **exatamente três coisas**, e a casca não conhece mais nada dele:
+`AppModule` vive em `rufino_core` e cada produto implementa o seu
+(`people_management_module.dart`, `bill_payment_module.dart`,
+`tenant_management_module.dart`):
 
 ```dart
 abstract class AppModule {
+  String get menuTitle;
   List<RouteBase>         routes();
   List<SingleChildWidget> providers();
-  List<HomeEntry>         homeEntries();
+  List<HomeEntry>         visibleEntries(BuildContext context);
 }
 ```
 
-É isso que resolve o `app.dart` de 824 linhas, o menu do home com destinos fixos no código, e o ligar/desligar de um produto em uma linha. **Ainda não implementado** — entra na Fase 3.
+**Duas diferenças em relação ao esboço original, e as duas vieram do código:**
+
+- É `visibleEntries(context)`, não `homeEntries()`. As entradas precisam passar por
+  **duas porteiras** — produto habilitado no tenant e permissão da pessoa —, e só o módulo
+  sabe qual produto e qual notifier são os seus (o `provider` resolve por tipo, e os três
+  usam tipos diferentes). Com uma lista crua, essa decisão voltaria para a casca, que é de
+  onde ela saiu.
+- O que vem de fora chega pelo **construtor** do módulo (cliente HTTP, base url,
+  `getAuthHeader`, repórter, e as capacidades de plataforma), e não como parâmetro de
+  `providers()`. Quem monta essas coisas é a casca, e cada módulo precisa de um conjunto
+  diferente.
+
+**Resultado:** `app.dart` 1.103 → **550 linhas**, `home_screen.dart` 572 → **417**, e a casca
+não nomeia mais nenhuma tela, repositório ou recurso de produto. Ligar ou desligar um produto
+é uma linha na lista `modules`. A `TenantSessionBridge` continua na casca e recebe o
+`CompanyRepository` do módulo do PM, porque costurar tenant e empresa é trabalho de quem
+conhece os dois.
 
 ### Sequência de migração
 
@@ -214,7 +242,7 @@ abstract class AppModule {
 | 4 | `bill_payment` nasce isolado | ✅ 2026-08-18 |
 | 2 | extrair `rufino_auth` | ⬜ adiada |
 | 3 | mover PM para pacote | ✅ 2026-09-04 — roteiro e decisões em [`doc/plano-migracao-people-management.md`](doc/plano-migracao-people-management.md) |
-| 3b | costura `AppModule` (D6) | ⬜ adiada — separada da 3 de propósito, ver decisão D do plano |
+| 3b | costura `AppModule` (D6) | ✅ 2026-09-04 |
 
 **A ordem 0 → 1 → 5 → 4 é deliberada:** entrega o código novo isolado sem tocar nos 263 arquivos que funcionam. O PM migra quando houver motivo; o estado final é o mesmo.
 
@@ -692,9 +720,12 @@ Brazilian HR data is in scope. Whenever you add a field that may carry
 sensitive content to a DTO body or a `reporter.failure(..., context: {...})`
 call, do this **before** merging:
 
-1. Add the key (lowercase, no diacritics) to `_sensitiveKeys` in
-   `lib/core/monitoring/pii_scrubber.dart`.
-2. Add a case to `test/unit/core/monitoring/pii_scrubber_test.dart` covering
+1. Add the key (**lowercase**, no diacritics) to `_sensitiveKeys` in
+   `packages/rufino_core/lib/src/monitoring/pii_scrubber.dart`. A chave é
+   procurada com `key.toLowerCase()`: entrada com maiúscula no set é entrada
+   morta, nunca casa.
+2. Add a case to
+   `packages/rufino_core/test/monitoring/pii_scrubber_test.dart` covering
    the new key both at top level and nested.
 3. If the key is now legitimately scrubbed in repos that pass it via
    `context`, no further work — `reporter.failure` already runs the scrub.

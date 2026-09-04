@@ -56,3 +56,6 @@ export 'src/domain/trusted_origin_repository.dart';
 export 'src/ui/shared/document_picker.dart'
     show DocumentPicker, LinkOpener, PickedDocument;
 export 'src/ui/bill_payment_routes.dart';
+
+// A costura com a casca: o módulo (D6).
+export 'src/bill_payment_module.dart';

@@ -17,6 +17,8 @@ export 'src/cep/cep_api_service.dart';
 export 'src/cep/cep_exception.dart';
 export 'src/expected_failure.dart';
 export 'src/http_exception.dart';
+export 'src/module/app_module.dart';
+export 'src/module/home_entry.dart';
 export 'src/monitoring/error_reporter.dart';
 export 'src/monitoring/noop_error_reporter.dart';
 export 'src/monitoring/pii_scrubber.dart';
