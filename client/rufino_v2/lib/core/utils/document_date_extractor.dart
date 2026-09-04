@@ -12,7 +12,7 @@ import 'package:flutter/foundation.dart' show visibleForTesting;
 
 import 'document_date_extractor_io.dart'
     if (dart.library.html) 'document_date_extractor_web.dart' as ocr;
-import 'pdf_text_extractor.dart';
+import 'package:people_management/people_management.dart';
 
 /// Returns the last valid `dd/MM/yyyy` date found inside the document.
 ///

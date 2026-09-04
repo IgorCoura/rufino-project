@@ -13,7 +13,6 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 
 import 'package:rufino_core/rufino_core.dart';
-import '../../../../core/utils/document_date_extractor.dart';
 import 'package:people_management/people_management.dart';
 
 /// Raw bytes of a file attached to a document unit, paired with its name.
@@ -30,10 +29,6 @@ class AttachedDocumentBytes {
 }
 
 /// Signature for the date extraction function injected into the dialog.
-typedef DocumentDateExtractor = Future<String?> Function({
-  required Uint8List bytes,
-  required String fileName,
-});
 
 /// Shows the confirmation dialog and returns `true` when the user confirms.
 ///
@@ -50,7 +45,7 @@ Future<bool> showConfirmDocumentDatesDialog(
   required IconData icon,
   required List<BatchDocumentUnitItem> items,
   Map<String, AttachedDocumentBytes>? attachments,
-  @visibleForTesting DocumentDateExtractor? extractor,
+  required DocumentDateExtractor extractor,
 }) async {
   final result = await showDialog<bool>(
     context: context,
@@ -60,7 +55,7 @@ Future<bool> showConfirmDocumentDatesDialog(
       icon: icon,
       items: items,
       attachments: attachments,
-      extractor: extractor ?? extractLastDocumentDate,
+      extractor: extractor,
     ),
   );
   return result ?? false;

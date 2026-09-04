@@ -14,8 +14,6 @@ import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart
 import 'package:permission_handler/permission_handler.dart';
 
 import 'package:people_management/people_management.dart';
-import 'document_scanner_service.dart';
-import 'image_to_pdf_converter.dart';
 
 /// iOS/Android implementation using native scanning and ML Kit OCR.
 class DocumentScannerServiceImpl implements DocumentScannerService {

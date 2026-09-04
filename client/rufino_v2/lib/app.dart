@@ -22,10 +22,10 @@ import 'data/services/oauth_login_strategy.dart';
 import 'data/services/oauth_login_strategy_factory.dart';
 import 'data/services/pending_web_redirect_result.dart';
 import 'package:people_management/people_management.dart';
-import 'data/repositories/document_scanner_repository_impl.dart';
+import 'core/utils/document_date_extractor.dart';
 import 'core/utils/document_scanner_service.dart';
 import 'data/services/auth_api_service.dart';
-import 'data/services/file_save_service.dart';
+import 'data/services/platform_file_save_service.dart';
 import 'domain/repositories/auth_repository.dart';
 import 'ui/core/widgets/session_expired_listener.dart';
 import 'ui/features/auth/viewmodel/auth_session_notifier.dart';
@@ -504,10 +504,13 @@ class App extends StatelessWidget {
 
     // Spreadsheet export — stateless, safe to share across the app.
     final spreadsheetService = SpreadsheetService();
-    final fileSaveService = FileSaveService();
+    final fileSaveService = PlatformFileSaveService();
 
     return [
       Provider<ErrorReporter>.value(value: errorReporter),
+      // A leitura da data e' porta do produto: PDF e Dart puro, imagem
+      // exige OCR, que e' plugin. A casca e' quem sabe qual existe aqui.
+      Provider<DocumentDateExtractor>.value(value: extractLastDocumentDate),
       ChangeNotifierProvider(create: (_) => ThemeNotifier()),
       ChangeNotifierProvider.value(value: permissionNotifier),
       ChangeNotifierProvider.value(value: tenantPermissionNotifier),
@@ -877,7 +880,7 @@ class _AppRouterState extends State<_AppRouter> {
                   context.read<DocumentGroupRepository>(),
               cepRepository: context.read<CepRepository>(),
               scannerRepository: DocumentScannerRepositoryImpl(
-                scannerService: DocumentScannerService(),
+                scannerService: createDocumentScannerService(),
                 reporter: context.read<ErrorReporter>(),
               ),
             ),
@@ -937,7 +940,7 @@ class _AppRouterState extends State<_AppRouter> {
                         context.read<DocumentGroupRepository>(),
                     companyId: company.id,
                     scannerRepository: DocumentScannerRepositoryImpl(
-                      scannerService: DocumentScannerService(),
+                      scannerService: createDocumentScannerService(),
                       reporter: context.read<ErrorReporter>(),
                     ),
                   ),

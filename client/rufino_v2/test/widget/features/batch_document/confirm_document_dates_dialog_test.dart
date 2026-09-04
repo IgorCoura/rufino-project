@@ -51,6 +51,7 @@ void main() {
           body: Builder(
             builder: (context) => ElevatedButton(
               onPressed: () => showConfirmDocumentDatesDialog(
+                extractor: _noDateFound,
                 context,
                 title: 'Confirmar Envio',
                 confirmLabel: 'Enviar (3)',
@@ -115,6 +116,7 @@ void main() {
           body: Builder(
             builder: (context) => ElevatedButton(
               onPressed: () => showConfirmDocumentDatesDialog(
+                extractor: _noDateFound,
                 context,
                 title: 'Confirmar Geração',
                 confirmLabel: 'Gerar (1)',
@@ -147,6 +149,7 @@ void main() {
             builder: (context) => ElevatedButton(
               onPressed: () {
                 future = showConfirmDocumentDatesDialog(
+                extractor: _noDateFound,
                   context,
                   title: 'Confirmar',
                   confirmLabel: 'Enviar (1)',
@@ -179,6 +182,7 @@ void main() {
             builder: (context) => ElevatedButton(
               onPressed: () {
                 future = showConfirmDocumentDatesDialog(
+                extractor: _noDateFound,
                   context,
                   title: 'Confirmar',
                   confirmLabel: 'Enviar (1)',
@@ -212,6 +216,7 @@ void main() {
           body: Builder(
             builder: (context) => ElevatedButton(
               onPressed: () => showConfirmDocumentDatesDialog(
+                extractor: _noDateFound,
                 context,
                 title: 'Confirmar',
                 confirmLabel: 'Enviar (1)',
@@ -319,3 +324,10 @@ void main() {
     expect(find.byType(CircularProgressIndicator), findsNothing);
   });
 }
+
+/// Extrator que nao acha data — o dialogo tem que renderizar a coluna vazia
+/// em vez de depender de OCR, que nao existe em teste.
+Future<String?> _noDateFound({
+  required Uint8List bytes,
+  required String fileName,
+}) async => null;

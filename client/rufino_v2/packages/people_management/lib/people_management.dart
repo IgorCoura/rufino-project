@@ -61,6 +61,11 @@ export 'src/domain/repositories/employee_repository.dart';
 export 'src/domain/repositories/require_document_repository.dart';
 export 'src/domain/repositories/workplace_repository.dart';
 
+// Portas de plataforma — a implementação vive na casca.
+export 'src/domain/ports/document_date_extractor.dart';
+export 'src/domain/ports/document_scanner_service.dart';
+export 'src/domain/ports/file_save_service.dart';
+
 // Domínio — famílias seladas de exceção
 export 'src/domain/errors/batch_document_exception.dart';
 export 'src/domain/errors/batch_download_exception.dart';
@@ -81,6 +86,7 @@ export 'src/data/repositories/company_repository_impl.dart';
 export 'src/data/repositories/department_repository_impl.dart';
 export 'src/data/repositories/document_dashboard_repository_impl.dart';
 export 'src/data/repositories/document_group_repository_impl.dart';
+export 'src/data/repositories/document_scanner_repository_impl.dart';
 export 'src/data/repositories/document_template_repository_impl.dart';
 export 'src/data/repositories/employee_repository_impl.dart';
 export 'src/data/repositories/require_document_repository_impl.dart';
@@ -103,9 +109,16 @@ export 'src/data/services/require_document_api_service.dart';
 export 'src/data/services/spreadsheet_service.dart';
 export 'src/data/services/workplace_api_service.dart';
 
-// Utilitários de domínio
+// Utilitários do produto
+export 'src/utils/combine_file_namer.dart';
+export 'src/utils/concurrency.dart';
+export 'src/utils/error_messages.dart';
 export 'src/utils/fuzzy_name_matcher.dart';
-
+export 'src/utils/image_to_pdf_converter.dart';
+export 'src/utils/page_rotation_finder.dart';
+export 'src/utils/pdf_merger.dart';
+export 'src/utils/pdf_text_extractor.dart';
+export 'src/utils/zip_builder.dart';
 // Dados — DTOs.
 //
 // ANDAIME: pelo critério do `bill_payment` o mapper de DTO NÃO é API pública —

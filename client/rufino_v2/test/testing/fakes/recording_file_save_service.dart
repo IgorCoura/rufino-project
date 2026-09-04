@@ -1,7 +1,7 @@
 import 'dart:typed_data';
 
 import 'package:rufino_core/rufino_core.dart';
-import 'package:rufino_v2/data/services/file_save_service.dart';
+import 'package:people_management/people_management.dart';
 
 /// In-memory [FileSaveService] used by tests.
 ///
@@ -29,5 +29,15 @@ class RecordingFileSaveService implements FileSaveService {
       return const Result.success(FileSaveOutcome.cancelled);
     }
     return const Result.success(FileSaveOutcome.saved);
+  }
+
+  @override
+  Future<void> saveBytes({
+    required String fileName,
+    required Uint8List bytes,
+  }) async {
+    saveCallCount++;
+    lastFileName = fileName;
+    lastBytes = bytes;
   }
 }

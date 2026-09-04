@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
 
-import '../../../../core/utils/file_saver_stub.dart'
-    if (dart.library.io) '../../../../core/utils/file_saver.dart';
 import 'package:flutter_json_view/flutter_json_view.dart';
 import 'package:go_router/go_router.dart';
 import 'package:mask_text_input_formatter/mask_text_input_formatter.dart';
@@ -10,6 +8,7 @@ import 'package:rufino_core/rufino_core.dart';
 import 'package:people_management/people_management.dart';
 import '../../../core/widgets/error_dialog.dart';
 import '../viewmodel/document_template_form_viewmodel.dart';
+import 'package:provider/provider.dart';
 
 /// Form screen for creating or editing a document template.
 ///
@@ -718,7 +717,7 @@ class _FileSection extends StatelessWidget {
                     onPressed: () async {
                       final bytes = await viewModel.downloadFile();
                       if (bytes != null && context.mounted) {
-                        await saveFile(
+                        await context.read<FileSaveService>().saveBytes(
                           fileName: 'files.zip',
                           bytes: bytes,
                         );

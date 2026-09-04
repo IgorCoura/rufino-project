@@ -5,8 +5,8 @@
 library;
 
 import 'dart:typed_data';
+import 'package:people_management/people_management.dart';
 
-import 'document_scanner_service.dart';
 
 /// Desktop stub that reports scanning as unsupported.
 class DocumentScannerServiceImpl implements DocumentScannerService {

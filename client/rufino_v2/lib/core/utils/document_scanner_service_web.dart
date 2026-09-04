@@ -7,8 +7,7 @@ library;
 
 import 'dart:typed_data';
 
-import 'document_scanner_service.dart';
-import 'image_to_pdf_converter.dart';
+import 'package:people_management/people_management.dart';
 
 /// Web implementation that supports camera capture but not OCR.
 ///

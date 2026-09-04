@@ -111,8 +111,11 @@ void main() {
   });
 
   Widget buildSubject() {
-    return ChangeNotifierProvider<PermissionNotifier>.value(
-      value: permissionNotifier,
+    return MultiProvider(
+      providers: [
+        ChangeNotifierProvider<PermissionNotifier>.value(value: permissionNotifier),
+        Provider<DocumentDateExtractor>.value(value: _noDateFound),
+      ],
       child: MaterialApp.router(
         routerConfig: GoRouter(
           routes: [
@@ -579,3 +582,10 @@ void main() {
     });
   });
 }
+
+/// Extrator de data que nao acha nada — a suite exercita o dialogo de
+/// confirmacao, nunca o OCR, que e' plugin e nao existe em teste.
+Future<String?> _noDateFound({
+  required Uint8List bytes,
+  required String fileName,
+}) async => null;

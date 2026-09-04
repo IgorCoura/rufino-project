@@ -14,6 +14,7 @@ import '../viewmodel/batch_document_viewmodel.dart';
 import 'bulk_upload_verification_dialog.dart';
 import 'confirm_document_dates_dialog.dart';
 import 'document_scan_dialog.dart';
+import 'package:provider/provider.dart';
 
 /// Possible actions during a multi-document scanning session.
 enum _ScanSessionAction { scanMore, process, discard }
@@ -501,6 +502,7 @@ class _BatchDocumentScreenState extends State<BatchDocumentScreen> {
     final items = _stagedItemsAsUnits();
     if (items.isEmpty) return;
     final confirmed = await showConfirmDocumentDatesDialog(
+      extractor: context.read<DocumentDateExtractor>(),
       context,
       title: 'Confirmar Envio para Assinatura',
       confirmLabel: 'Enviar (${items.length})',
@@ -578,6 +580,7 @@ class _BatchDocumentScreenState extends State<BatchDocumentScreen> {
         .toList();
     if (items.isEmpty) return;
     final confirmed = await showConfirmDocumentDatesDialog(
+      extractor: context.read<DocumentDateExtractor>(),
       context,
       title: 'Confirmar Geração e Assinatura',
       confirmLabel: 'Gerar e Assinar (${items.length})',
@@ -594,6 +597,7 @@ class _BatchDocumentScreenState extends State<BatchDocumentScreen> {
     final items = _stagedItemsAsUnits();
     if (items.isEmpty) return;
     final confirmed = await showConfirmDocumentDatesDialog(
+      extractor: context.read<DocumentDateExtractor>(),
       context,
       title: 'Confirmar Envio',
       confirmLabel: 'Enviar (${items.length})',

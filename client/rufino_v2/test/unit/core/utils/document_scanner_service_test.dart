@@ -2,7 +2,7 @@ import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
-import 'package:rufino_v2/core/utils/document_scanner_service.dart';
+import 'package:people_management/people_management.dart';
 import 'package:rufino_v2/core/utils/document_scanner_service_stub.dart'
     as stub;
 

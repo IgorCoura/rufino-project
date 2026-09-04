@@ -4,7 +4,6 @@ import 'package:flutter/foundation.dart';
 
 import 'package:rufino_core/rufino_core.dart';
 import 'package:people_management/people_management.dart';
-import '../../../../core/utils/error_messages.dart';
 
 /// Tracks a selected document unit for batch operations.
 class SelectedDocumentUnit {

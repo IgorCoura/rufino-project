@@ -4,11 +4,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
 
 import 'package:rufino_core/rufino_core.dart';
-import '../../../../core/utils/concurrency.dart';
-import '../../../../core/utils/error_messages.dart';
 import 'package:people_management/people_management.dart';
-import '../../../../core/utils/page_rotation_finder.dart';
-import '../../../../core/utils/pdf_text_extractor.dart';
 
 /// Possible states for the batch document screen.
 enum BatchDocumentStatus {

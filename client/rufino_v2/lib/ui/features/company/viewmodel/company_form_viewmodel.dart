@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:mask_text_input_formatter/mask_text_input_formatter.dart';
 
-import '../../../../core/utils/error_messages.dart';
 import 'package:people_management/people_management.dart';
 
 enum CompanyFormStatus { loading, idle, saving, saved, error }

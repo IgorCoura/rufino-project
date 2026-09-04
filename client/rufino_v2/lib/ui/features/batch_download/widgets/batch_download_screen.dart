@@ -2,13 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:rufino_core/rufino_core.dart';
-import '../../../../core/utils/file_saver_stub.dart'
-    if (dart.library.io) '../../../../core/utils/file_saver.dart';
 import '../viewmodel/batch_download_viewmodel.dart';
 import 'combine_review_step.dart';
 import 'employee_selection_step.dart';
 import 'review_download_step.dart';
 import 'unit_selection_step.dart';
+import 'package:people_management/people_management.dart';
+import 'package:provider/provider.dart';
 
 /// Main screen for batch document download.
 ///
@@ -57,7 +57,7 @@ class _BatchDownloadScreenState extends State<BatchDownloadScreen> {
   Future<void> _handleDownload() async {
     final bytes = await widget.viewModel.downloadSelected();
     if (bytes != null && mounted) {
-      await saveFile(fileName: 'documentos.zip', bytes: bytes);
+      await context.read<FileSaveService>().saveBytes(fileName: 'documentos.zip', bytes: bytes);
       if (mounted) {
         ScaffoldMessenger.of(context)
           ..hideCurrentSnackBar()
@@ -79,7 +79,7 @@ class _BatchDownloadScreenState extends State<BatchDownloadScreen> {
       final fileName = isSingleEmployee
           ? vm.combinedFileName
           : 'documentos_combinados.zip';
-      await saveFile(fileName: fileName, bytes: bytes);
+      await context.read<FileSaveService>().saveBytes(fileName: fileName, bytes: bytes);
       if (mounted) {
         ScaffoldMessenger.of(context)
           ..hideCurrentSnackBar()

@@ -4,18 +4,15 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
-import '../../../../../core/utils/file_saver_stub.dart'
-    if (dart.library.io) '../../../../../core/utils/file_saver.dart';
 import 'package:mask_text_input_formatter/mask_text_input_formatter.dart';
 import 'package:syncfusion_flutter_pdfviewer/pdfviewer.dart';
 
 import 'package:people_management/people_management.dart';
 import 'package:rufino_core/rufino_core.dart';
-import '../../../../../core/utils/image_to_pdf_converter.dart';
-import '../../../../../core/utils/pdf_merger.dart';
 import '../../../../core/widgets/scanner_error_handler.dart';
 import '../../viewmodel/employee_profile_viewmodel.dart';
 import '../../../batch_document/widgets/document_scan_dialog.dart';
+import 'package:provider/provider.dart';
 
 /// Expandable card that displays the employee's required documents grouped
 /// by document group, with nested expansion for document units, status
@@ -112,7 +109,7 @@ class _DocumentsSectionState extends State<DocumentsSection> {
     required String fileName,
     required Uint8List bytes,
   }) async {
-    await saveFile(fileName: fileName, bytes: bytes);
+    await context.read<FileSaveService>().saveBytes(fileName: fileName, bytes: bytes);
     return true;
   }
 
@@ -1932,7 +1929,9 @@ class _PdfViewerDialog extends StatelessWidget {
             IconButton(
               icon: const Icon(Icons.download),
               tooltip: 'Baixar',
-              onPressed: () => saveFile(fileName: title, bytes: bytes),
+              onPressed: () => context
+                  .read<FileSaveService>()
+                  .saveBytes(fileName: title, bytes: bytes),
             ),
           ],
         ),
