@@ -992,13 +992,20 @@ Coisas que não podem erodir:
 - **Dentro do pacote os imports são relativos**, nunca o próprio barril: o self-import funciona,
   mas faz o analyzer marcar todo import direto como redundante e some com a noção de quem depende
   de quem.
-- ⚠️ **Dívida herdada, não introduzida: as 25 rotas criam o ViewModel dentro do builder.** É o
-  anti-padrão que o `gotchas.md` registra ("a tela volta e gira para sempre") e que
-  `bill_payment_pages.dart` e `tenant_pages.dart` já resolvem com uma `Page` dona do ViewModel. A
-  migração preservou a forma atual de propósito — mudar lugar e comportamento no mesmo passo
-  tornaria a suíte incapaz de dizer qual dos dois quebrou. **É o próximo trabalho neste pacote**, e
-  as rotas de `batch-document` e `batch-download` são as mais urgentes: elas leem a empresa
-  selecionada num `FutureBuilder` dentro do builder.
+- **A `Page` é dona do ViewModel; o builder da rota só a constrói** (`people_management_pages.dart`,
+  2026-09-04). Nenhuma das 25 rotas cria ViewModel — conferível por
+  `grep -c "ViewModel(" people_management_routes.dart`, que tem de dar **0**. O builder é
+  reexecutado a cada mudança de pilha: criar o ViewModel ali fazia nascer uma instância por
+  navegação, cada uma carregando de novo, e o `ChangeNotifier` anterior nunca era descartado —
+  medido em **3 consultas onde cabe 1**. Mesma disciplina de `bill_payment_pages.dart`.
+- **As duas telas de lote resolvem a empresa no `initState`, não no `build`.** Elas precisam do id
+  da empresa, que vem de leitura assíncrona; enquanto o `Future` nascia dentro do builder, cada
+  volta disparava uma leitura nova e a tela piscava para o indicador antes de reconstruir tudo. O
+  `Future` é criado uma vez e guardado.
+- **O teste que protege isso é de NAVEGAÇÃO** (`test/ui/route_viewmodel_lifecycle_test.dart`), com
+  `peopleManagementRoutes` de verdade: entra, empilha, volta, e conta as consultas ao repositório.
+  Um teste de widget que monta a tela uma vez **passa nos dois desenhos** — foi por isso que o bug
+  sobreviveu tanto tempo. Ao acrescentar rota, acrescente o caso aqui.
 
 ## Bill Payment (pacote `packages/bill_payment/`)
 

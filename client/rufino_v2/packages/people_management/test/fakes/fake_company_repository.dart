@@ -64,8 +64,16 @@ class FakeCompanyRepository implements CompanyRepository {
     return const Result.success(null);
   }
 
+  /// Quantas vezes a empresa selecionada foi lida.
+  ///
+  /// Existe para o teste de ciclo de vida das rotas: enquanto o `Future` da
+  /// leitura nascia dentro do builder da rota, este número crescia a cada
+  /// mudança na pilha de navegação.
+  int getSelectedCompanyCallCount = 0;
+
   @override
   Future<Result<Company>> getSelectedCompany() async {
+    getSelectedCompanyCallCount++;
     if (_selectedCompany == null) {
       return Result.error(Exception('No company selected'));
     }

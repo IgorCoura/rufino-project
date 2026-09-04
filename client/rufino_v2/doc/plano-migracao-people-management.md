@@ -465,10 +465,18 @@ deixaria o `app.dart` apontando para telas que o barril não exporta — e não 
 as fases 6, 7 e 8 aterrissaram juntas. O faseamento por camada continua certo; o que não se
 sustenta é tratá-lo como cronograma.
 
-### O que ficou de dívida, e é a próxima coisa a fazer aqui
+### A dívida que ficou — e foi paga em seguida (2026-09-04)
 
-As 25 rotas continuam criando o ViewModel **dentro do builder** — o anti-padrão do `gotchas.md`
-que `bill_payment_pages.dart` já resolve. Foi preservado de propósito: mudar de lugar e de
-comportamento no mesmo passo tornaria a suíte incapaz de dizer qual dos dois quebrou. As rotas de
-`batch-document` e `batch-download` são as mais urgentes, porque leem a empresa selecionada num
-`FutureBuilder` dentro do builder.
+As 25 rotas continuavam criando o ViewModel **dentro do builder**. Foi preservado de propósito
+durante a migração: mudar de lugar e de comportamento no mesmo passo tornaria a suíte incapaz de
+dizer qual dos dois quebrou. Fechado logo depois, em commit próprio, com `people_management_pages.dart`.
+
+**O que a correção mediu, e que corrige o que este documento dizia:** o sintoma clássico ("a tela
+volta e fica girando") **não estava acontecendo** nas listagens, porque quatro delas recarregam ao
+voltar (`.then((_) => load())`) — o remendo mascarava o defeito. As duas telas que **não** têm esse
+remendo são justamente as duas que já usavam `Page`. O custo real era outro, e é medível: **3
+consultas onde cabe 1** a cada ida e volta, um `ChangeNotifier` abandonado por navegação, e — nas
+duas telas de lote — uma leitura a mais do armazenamento com o pisca no indicador de carregamento.
+
+O teste que protege é de navegação com as rotas reais, e foi conferido nos dois sentidos: falha
+com o desenho antigo, passa com o novo.

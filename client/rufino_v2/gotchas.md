@@ -119,6 +119,15 @@ repetiu, porque o sintoma não parece um problema de ciclo de vida.
 navegue para a seguinte, volte, e afirme que os **dados** ainda estão lá e que
 não há `CircularProgressIndicator`. É o único formato que reproduz o bug.
 
+**Complemento de 2026-09-04, ao corrigir as 25 rotas do PeopleManagement.**
+Afirmar "os dados estão lá e não há spinner" **não basta**: a tela que recarrega
+ao voltar (`.then((_) => load())`) passa nos dois desenhos, porque o remendo
+mascara o defeito. Meça o que não dá para mascarar — **conte as consultas ao
+repositório**. Uma ida e volta pede 1; o desenho antigo pedia 3. E note a
+correlação que confirma o diagnóstico: as únicas duas telas do produto sem esse
+`.then` eram exatamente as duas que já tinham `Page`. O remendo é o rastro do
+bug, não uma escolha de UX.
+
 ## Tela alcançada por `go` não tem para onde dar `pop`
 
 **What happened.** As telas novas ficaram sem botão de voltar, e o back do
