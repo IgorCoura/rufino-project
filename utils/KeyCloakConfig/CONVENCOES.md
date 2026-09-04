@@ -155,6 +155,36 @@ O que a migração faz, e em que ordem — e **a ordem não é arbitrária**:
 | 5 | renomear o client de assinatura (`PUT`) | preserva UUID interno, **segredo** e service account |
 | 6 | client scopes e mappers | ver a ressalva abaixo |
 
+### Quatro coisas que só um ensaio contra Keycloak de verdade revelou
+
+Todas medidas em 2026-09-04, contra um Keycloak 26.3 local. O script foi escrito **antes**
+delas e estava errado nas quatro:
+
+1. **O import de autorização MESCLA, não substitui.** Um recurso plantado no realm sobreviveu
+   ao import de um arquivo que não o continha. Sem limpeza, as policies ANTIGAS do
+   PeopleManagement (`Admin Policy`, `Doc Send Policy`, `Employee Permission`…) sobreviveriam
+   **ainda concedendo** — e, como os papéis são RENOMEADOS e o id interno delas é o mesmo, elas
+   continuariam apontando para eles. O modelo novo seria decorativo. Por isso a limpeza vem
+   logo depois do import, e nunca antes: apagar primeiro deixaria o client sem autorização
+   nenhuma se o import falhasse no meio.
+2. **`--data-binary "$(cat arquivo)"` corrompe o JSON.** A interpolação do shell faz o Keycloak
+   responder `400 Cannot parse the JSON`. É `--data-binary @arquivo`.
+3. **O endpoint de `resource` devolve `_id`, não `id`** — ao contrário de policy e scope. Ler só
+   `id` estoura com `KeyError`, e o laço que consome a listagem recebe nada: a limpeza conclui
+   "nenhum recurso obsoleto" sem ter olhado.
+4. **CRLF quebra a comparação, e o efeito é destruir tudo.** O `print` do Python no Windows emite
+   `
+`; o `read` do bash mantém o `` no nome vindo do realm, o `grep` normaliza o do lado do
+   arquivo, e **nada casa** — a limpeza classificou as 17 policies e os 12 escopos corretos como
+   obsoletos e os apagou. No ensaio isso destruiu a autorização do realm local; na nuvem teria
+   sido irreversível.
+
+Daí a guarda que hoje está no script: **lista de esperados vazia NUNCA autoriza apagar**. Apagar
+tudo por causa de uma leitura que falhou é a pior leitura possível de um defeito de leitura.
+
+**A lição de processo:** ensaie a migração contra o Keycloak local antes de tocar na nuvem. O
+local é descartável — dá para apagar o realm e reimportar; a nuvem não.
+
 ### O que o script deliberadamente NÃO faz
 
 Mexer em **mapper** fica manual: errar um mapper de audience derruba a autenticação inteira, e o
