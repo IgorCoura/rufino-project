@@ -175,6 +175,27 @@ import_authz() { # <uuid> <arquivo> <rótulo>
   done
 }
 
+# ─────────────────────────────────────────────────────────── 0. ponto de retorno
+# Na nuvem nao existe "apaga o realm e reimporta": o export vai para um arquivo
+# ANTES de qualquer escrita, e e' o unico caminho de volta se algo sair errado.
+# O export MASCARA os segredos dos clients confidenciais — ele restaura papeis,
+# policies e recursos, nunca credenciais.
+step "0. Ponto de retorno"
+if [[ $APPLY -eq 1 ]]; then
+  BACKUP="$HERE/backup-$REALM-$(date +%Y%m%d-%H%M%S).json"
+  codigo="$(curl -sS -o "$BACKUP" -w '%{http_code}' -X POST \
+    -H "Authorization: Bearer $KC_ADMIN_TOKEN" -H 'Content-Type: application/json' \
+    "$KC_URL/admin/realms/$REALM/partial-export?exportClients=true&exportGroupsAndRoles=true")"
+  if [[ ! "$codigo" =~ ^2 ]]; then
+    echo "   ✘ nao consegui exportar o realm (HTTP $codigo) — ABORTANDO."
+    echo "     Migrar a nuvem sem ponto de retorno nao e' aceitavel."
+    rm -f "$BACKUP"; exit 1
+  fi
+  ok "backup em $(basename "$BACKUP") ($(wc -c < "$BACKUP") bytes)"
+else
+  todo "exportar o realm para backup-$REALM-<data>.json antes de qualquer escrita"
+fi
+
 # ───────────────────────────────────────────────────────── 1. papel de realm
 step "1. Realm role 'developer' (libera as ferramentas de diagnóstico do app)"
 if get "/roles" | grep -q '"name" *: *"developer"'; then
