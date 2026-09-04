@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:rufino_core/rufino_core.dart';
 import '../../shared/error_dialog.dart';
 import '../viewmodel/require_document_form_viewmodel.dart';
+import '../../../people_management_permissions.dart';
 
 /// Form screen for creating or editing a require document.
 ///
@@ -272,8 +273,8 @@ class _RequireDocumentFormBody extends StatelessWidget {
               // ─── Generate Documents ─────────────────────────────────
               if (!viewModel.isNew)
                 PermissionGuard(
-                  resource: 'require-documents',
-                  scope: 'generate',
+                  resource: PeopleManagementResources.requireDocuments,
+                  scope: PeopleManagementScopes.generate,
                   child: _GenerateDocumentsSection(viewModel: viewModel),
                 ),
               const SizedBox(height: AppSpacing.xl),

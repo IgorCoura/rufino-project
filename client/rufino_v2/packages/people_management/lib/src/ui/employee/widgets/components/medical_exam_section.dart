@@ -4,6 +4,7 @@ import 'package:mask_text_input_formatter/mask_text_input_formatter.dart';
 import 'package:rufino_core/rufino_core.dart';
 import '../../viewmodel/employee_profile_viewmodel.dart';
 import 'profile_shared_widgets.dart';
+import '../../../../people_management_permissions.dart';
 
 /// Expandable card for viewing and editing the employee medical admission exam
 /// (Exame Medico Admissional / ASO).
@@ -208,8 +209,8 @@ class _MedicalExamSectionState extends State<MedicalExamSection> {
         Align(
           alignment: Alignment.centerRight,
           child: PermissionGuard(
-            resource: 'employee',
-            scope: 'edit',
+            resource: PeopleManagementResources.employee,
+            scope: PeopleManagementScopes.edit,
             child: TextButton.icon(
               onPressed: _startEdit,
               icon: const Icon(Icons.edit_outlined, size: 18),

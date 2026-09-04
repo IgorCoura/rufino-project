@@ -9,8 +9,10 @@ import 'package:flutter/material.dart';
 import 'package:syncfusion_flutter_pdfviewer/pdfviewer.dart';
 
 import 'package:rufino_core/rufino_core.dart';
-import 'package:people_management/people_management.dart';
 import '../viewmodel/batch_document_viewmodel.dart';
+import '../../../domain/entities/batch_document_unit.dart';
+import '../../../domain/entities/bulk_upload_match.dart';
+import '../../../utils/fuzzy_name_matcher.dart';
 
 /// Displays the bulk upload verification dialog.
 ///

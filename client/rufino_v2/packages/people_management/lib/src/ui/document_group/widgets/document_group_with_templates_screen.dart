@@ -2,8 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:rufino_core/rufino_core.dart';
-import 'package:people_management/people_management.dart';
 import '../viewmodel/document_group_with_templates_viewmodel.dart';
+import '../../../people_management_permissions.dart';
+import '../../../domain/entities/document_group_with_templates.dart';
 
 /// Displays document groups as expandable cards that reveal their templates.
 ///
@@ -104,8 +105,8 @@ class _DocumentGroupWithTemplatesScreenState
         },
       ),
       floatingActionButton: PermissionGuard(
-        resource: 'document',
-        scope: 'create',
+        resource: PeopleManagementResources.document,
+        scope: PeopleManagementScopes.create,
         child: FloatingActionButton(
           onPressed: () =>
               context.push('/document-group/create').then((_) => _reload()),
@@ -227,7 +228,7 @@ class _GroupActions extends StatelessWidget {
         children: [
           PermissionGuard(
             resource: 'document_group',
-            scope: 'edit',
+            scope: PeopleManagementScopes.edit,
             child: TextButton.icon(
               onPressed: onEdit,
               icon: const Icon(Icons.edit_outlined, size: 18),
@@ -236,8 +237,8 @@ class _GroupActions extends StatelessWidget {
           ),
           const SizedBox(width: AppSpacing.sm),
           PermissionGuard(
-            resource: 'document-template',
-            scope: 'create',
+            resource: PeopleManagementResources.documentTemplate,
+            scope: PeopleManagementScopes.create,
             child: TextButton.icon(
               onPressed: onCreateTemplate,
               icon: const Icon(Icons.add, size: 18),

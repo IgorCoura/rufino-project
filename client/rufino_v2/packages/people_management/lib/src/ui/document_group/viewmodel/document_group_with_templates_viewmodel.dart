@@ -1,8 +1,10 @@
 import 'dart:collection';
 
 import 'package:flutter/foundation.dart';
+import '../../../domain/entities/document_group_with_templates.dart';
+import '../../../domain/repositories/company_repository.dart';
+import '../../../domain/repositories/document_group_repository.dart';
 
-import 'package:people_management/people_management.dart';
 
 /// Possible statuses for the unified document group + templates list screen.
 enum DocumentGroupWithTemplatesStatus { loading, idle, error }

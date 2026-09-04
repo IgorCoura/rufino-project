@@ -1,8 +1,10 @@
 import 'dart:collection';
 
 import 'package:flutter/foundation.dart';
+import '../../../domain/entities/require_document.dart';
+import '../../../domain/repositories/company_repository.dart';
+import '../../../domain/repositories/require_document_repository.dart';
 
-import 'package:people_management/people_management.dart';
 
 /// Manages the state for the require document list screen.
 ///

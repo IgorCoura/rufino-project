@@ -5,7 +5,6 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 import 'package:rufino_core/rufino_core.dart';
-import 'package:people_management/people_management.dart';
 import '../viewmodel/employee_profile_viewmodel.dart';
 import 'components/address_section.dart';
 import 'components/contact_section.dart';
@@ -21,6 +20,12 @@ import 'components/signing_options_section.dart';
 import 'components/social_integration_program_section.dart';
 import 'components/vote_id_section.dart';
 import 'components/workplace_section.dart';
+import '../../../people_management_permissions.dart';
+import '../../../domain/entities/employee.dart';
+import '../../../domain/entities/employee_profile.dart';
+import '../../../domain/ports/file_picker_service.dart';
+import '../../shared/error_dialog.dart';
+import '../../../utils/image_to_pdf_converter.dart';
 
 /// Displays a detailed employee profile with photo upload, name editing,
 /// status badge, and assignment summary.
@@ -592,8 +597,8 @@ class _EmployeeHeroCard extends StatelessWidget {
                   bottom: 0,
                   right: 0,
                   child: PermissionGuard(
-                    resource: 'employee',
-                    scope: 'upload',
+                    resource: PeopleManagementResources.employee,
+                    scope: PeopleManagementScopes.upload,
                     child: Tooltip(
                       message: 'Alterar foto',
                       child: GestureDetector(
@@ -691,8 +696,8 @@ class _EmployeeNameCard extends StatelessWidget {
                 ),
                 if (!vm.isEditingName)
                   PermissionGuard(
-                    resource: 'employee',
-                    scope: 'edit',
+                    resource: PeopleManagementResources.employee,
+                    scope: PeopleManagementScopes.edit,
                     child: TextButton.icon(
                       onPressed: vm.isSaving
                           ? null

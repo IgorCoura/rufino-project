@@ -3,8 +3,11 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 import 'package:rufino_core/rufino_core.dart';
-import 'package:people_management/people_management.dart';
 import '../viewmodel/document_dashboard_viewmodel.dart';
+import '../../../domain/entities/document_dashboard.dart';
+import '../../../domain/repositories/company_repository.dart';
+import '../../../domain/repositories/document_dashboard_repository.dart';
+import '../../../domain/repositories/document_group_repository.dart';
 
 /// Route-level entry point that owns the [DocumentDashboardViewModel]
 /// lifecycle.

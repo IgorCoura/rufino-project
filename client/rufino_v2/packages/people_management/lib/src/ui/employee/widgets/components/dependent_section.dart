@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:mask_text_input_formatter/mask_text_input_formatter.dart';
 
 import 'package:rufino_core/rufino_core.dart';
-import 'package:people_management/people_management.dart';
 import '../../viewmodel/employee_profile_viewmodel.dart';
 import 'profile_shared_widgets.dart';
+import '../../../../people_management_permissions.dart';
+import '../../../../domain/entities/employee_dependent.dart';
+import '../../../../domain/entities/selection_option.dart';
 
 /// Expandable card for listing, creating, editing, and removing employee
 /// dependents (Dependentes).
@@ -254,8 +256,8 @@ class _DependentSectionState extends State<DependentSection> {
             child: Align(
               alignment: Alignment.centerRight,
               child: PermissionGuard(
-                resource: 'employee',
-                scope: 'edit',
+                resource: PeopleManagementResources.employee,
+                scope: PeopleManagementScopes.edit,
                 child: FilledButton.tonalIcon(
                   onPressed: isSaving ? null : _startAdd,
                   icon: const Icon(Icons.add),
@@ -316,8 +318,8 @@ class _DependentSectionState extends State<DependentSection> {
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
                   PermissionGuard(
-                    resource: 'employee',
-                    scope: 'edit',
+                    resource: PeopleManagementResources.employee,
+                    scope: PeopleManagementScopes.edit,
                     child: TextButton.icon(
                       onPressed: isSaving ? null : () => _startEdit(index),
                       icon: const Icon(Icons.edit_outlined, size: 18),
@@ -326,8 +328,8 @@ class _DependentSectionState extends State<DependentSection> {
                   ),
                   const SizedBox(width: AppSpacing.sm),
                   PermissionGuard(
-                    resource: 'employee',
-                    scope: 'edit',
+                    resource: PeopleManagementResources.employee,
+                    scope: PeopleManagementScopes.edit,
                     child: TextButton.icon(
                       onPressed: isSaving
                           ? null

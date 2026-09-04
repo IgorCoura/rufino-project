@@ -2,8 +2,13 @@ import 'dart:typed_data';
 
 import 'package:flutter/widgets.dart';
 import 'package:mask_text_input_formatter/mask_text_input_formatter.dart';
+import '../../../domain/entities/document_template.dart';
+import '../../../domain/entities/selection_option.dart';
+import '../../../domain/ports/file_picker_service.dart';
+import '../../../domain/repositories/company_repository.dart';
+import '../../../domain/repositories/document_template_repository.dart';
+import '../../../utils/error_messages.dart';
 
-import 'package:people_management/people_management.dart';
 
 /// Possible statuses for the document template form screen.
 enum DocumentTemplateFormStatus { loading, idle, saving, saved, error }

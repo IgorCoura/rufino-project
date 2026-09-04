@@ -1,6 +1,9 @@
 import 'package:flutter/widgets.dart';
+import '../../../domain/entities/document_group.dart';
+import '../../../domain/repositories/company_repository.dart';
+import '../../../domain/repositories/document_group_repository.dart';
+import '../../../utils/error_messages.dart';
 
-import 'package:people_management/people_management.dart';
 
 /// Possible statuses for the document group form screen.
 enum DocumentGroupFormStatus { loading, idle, saving, saved, error }

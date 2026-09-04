@@ -2,10 +2,25 @@ import 'dart:collection';
 
 import 'package:flutter/foundation.dart';
 
-import 'package:people_management/people_management.dart';
 import '../export/employee_export_row.dart';
 import '../export/etiquetas_xlsx_builder.dart';
 import '../export/soc_xlsx_builder.dart';
+import '../../../data/services/spreadsheet_service.dart';
+import '../../../domain/entities/company_detail.dart';
+import '../../../domain/entities/department.dart';
+import '../../../domain/entities/employee.dart';
+import '../../../domain/entities/employee_contract.dart';
+import '../../../domain/entities/employee_id_card.dart';
+import '../../../domain/entities/employee_personal_info.dart';
+import '../../../domain/entities/employee_profile.dart';
+import '../../../domain/entities/employee_social_integration_program.dart';
+import '../../../domain/entities/personal_info_options.dart';
+import '../../../domain/entities/position.dart';
+import '../../../domain/ports/file_save_service.dart';
+import '../../../domain/repositories/company_repository.dart';
+import '../../../domain/repositories/department_repository.dart';
+import '../../../domain/repositories/employee_repository.dart';
+import '../../../utils/error_messages.dart';
 
 /// Which field the search query is applied to.
 enum SearchParam {

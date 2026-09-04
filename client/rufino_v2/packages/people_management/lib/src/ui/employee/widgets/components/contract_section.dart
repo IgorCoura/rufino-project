@@ -2,9 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:mask_text_input_formatter/mask_text_input_formatter.dart';
 
 import 'package:rufino_core/rufino_core.dart';
-import 'package:people_management/people_management.dart';
 import '../../viewmodel/employee_profile_viewmodel.dart';
 import 'profile_shared_widgets.dart';
+import '../../../../people_management_permissions.dart';
+import '../../../../domain/entities/employee_contract.dart';
 
 /// Expandable card for viewing and managing employee contracts (Contratos).
 ///
@@ -92,8 +93,8 @@ class _ContractSectionState extends State<ContractSection> {
           children: [
             if (hasActive)
               PermissionGuard(
-                resource: 'employee',
-                scope: 'edit',
+                resource: PeopleManagementResources.employee,
+                scope: PeopleManagementScopes.edit,
                 child: TextButton.icon(
                   onPressed:
                       isSaving ? null : () => _showFinishDialog(context),
@@ -103,8 +104,8 @@ class _ContractSectionState extends State<ContractSection> {
               ),
             if (!hasActive)
               PermissionGuard(
-                resource: 'employee',
-                scope: 'edit',
+                resource: PeopleManagementResources.employee,
+                scope: PeopleManagementScopes.edit,
                 child: FilledButton.tonalIcon(
                   onPressed:
                       isSaving ? null : () => _showNewContractDialog(context),
@@ -114,8 +115,8 @@ class _ContractSectionState extends State<ContractSection> {
               ),
             if (!hasActive && widget.canMarkAsInactive)
               PermissionGuard(
-                resource: 'employee',
-                scope: 'edit',
+                resource: PeopleManagementResources.employee,
+                scope: PeopleManagementScopes.edit,
                 child: FilledButton.tonalIcon(
                   onPressed: isSaving ? null : widget.onMarkAsInactive,
                   icon: isSaving

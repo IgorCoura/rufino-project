@@ -5,13 +5,18 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:mask_text_input_formatter/mask_text_input_formatter.dart';
 
-import 'package:people_management/people_management.dart';
 import 'package:rufino_core/rufino_core.dart';
 import '../viewmodel/batch_document_viewmodel.dart';
 import 'bulk_upload_verification_dialog.dart';
 import 'confirm_document_dates_dialog.dart';
 import 'document_scan_dialog.dart';
 import 'package:provider/provider.dart';
+import '../../../people_management_permissions.dart';
+import '../../../domain/entities/batch_document_unit.dart';
+import '../../../domain/errors/document_scanner_exception.dart';
+import '../../../domain/ports/document_date_extractor.dart';
+import '../../../domain/ports/file_picker_service.dart';
+import '../../shared/scanner_error_handler.dart';
 
 /// Possible actions during a multi-document scanning session.
 enum _ScanSessionAction { scanMore, process, discard }
@@ -1247,8 +1252,8 @@ class _ActionBar extends StatelessWidget {
         ),
         const SizedBox(width: AppSpacing.xs),
         PermissionGuard(
-          resource: 'document',
-          scope: 'create',
+          resource: PeopleManagementResources.document,
+          scope: PeopleManagementScopes.create,
           child: OutlinedButton.icon(
             onPressed: onCreateMissing,
             icon: const Icon(Icons.person_add_outlined, size: 18),
@@ -1256,8 +1261,8 @@ class _ActionBar extends StatelessWidget {
           ),
         ),
         PermissionGuard(
-          resource: 'document',
-          scope: 'edit',
+          resource: PeopleManagementResources.document,
+          scope: PeopleManagementScopes.edit,
           child: OutlinedButton.icon(
             onPressed: vm.selectedUnitIds.isEmpty ? null : onBatchUpdateDate,
             icon: const Icon(Icons.calendar_today, size: 18),
@@ -1266,8 +1271,8 @@ class _ActionBar extends StatelessWidget {
         ),
         const SizedBox(width: AppSpacing.sm),
         PermissionGuard(
-          resource: 'document',
-          scope: 'upload',
+          resource: PeopleManagementResources.document,
+          scope: PeopleManagementScopes.upload,
           child: OutlinedButton.icon(
             onPressed:
                 vm.pendingUnits.isEmpty || isLoading || vm.isBulkProcessing
@@ -1279,8 +1284,8 @@ class _ActionBar extends StatelessWidget {
         ),
         if (vm.isScanSupported)
           PermissionGuard(
-            resource: 'document',
-            scope: 'upload',
+            resource: PeopleManagementResources.document,
+            scope: PeopleManagementScopes.upload,
             child: OutlinedButton.icon(
               onPressed:
                   vm.pendingUnits.isEmpty || isLoading || vm.isBulkProcessing
@@ -1291,8 +1296,8 @@ class _ActionBar extends StatelessWidget {
             ),
           ),
         PermissionGuard(
-          resource: 'document',
-          scope: 'upload',
+          resource: PeopleManagementResources.document,
+          scope: PeopleManagementScopes.upload,
           child: FilledButton.icon(
             onPressed: vm.stagedFileCount == 0 || isLoading
                 ? null
@@ -1302,11 +1307,11 @@ class _ActionBar extends StatelessWidget {
           ),
         ),
         PermissionGuard(
-          resource: 'document',
-          scope: 'upload',
+          resource: PeopleManagementResources.document,
+          scope: PeopleManagementScopes.upload,
           child: PermissionGuard(
-            resource: 'document',
-            scope: 'send2sign',
+            resource: PeopleManagementResources.document,
+            scope: PeopleManagementScopes.sendToSign,
             child: FilledButton.tonalIcon(
               onPressed: vm.stagedFileCount == 0 || isLoading || !vm.isSignable
                   ? null
@@ -1318,8 +1323,8 @@ class _ActionBar extends StatelessWidget {
         ),
         const SizedBox(width: AppSpacing.sm),
         PermissionGuard(
-          resource: 'document',
-          scope: 'generate',
+          resource: PeopleManagementResources.document,
+          scope: PeopleManagementScopes.generate,
           child: OutlinedButton.icon(
             onPressed: vm.selectedUnitIds.isEmpty ||
                     isLoading ||
@@ -1331,11 +1336,11 @@ class _ActionBar extends StatelessWidget {
           ),
         ),
         PermissionGuard(
-          resource: 'document',
-          scope: 'generate',
+          resource: PeopleManagementResources.document,
+          scope: PeopleManagementScopes.generate,
           child: PermissionGuard(
-            resource: 'document',
-            scope: 'send2sign',
+            resource: PeopleManagementResources.document,
+            scope: PeopleManagementScopes.sendToSign,
             child: FilledButton.tonalIcon(
               onPressed: vm.selectedUnitIds.isEmpty ||
                       isLoading ||

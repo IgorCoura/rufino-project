@@ -2,8 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:rufino_core/rufino_core.dart';
-import 'package:people_management/people_management.dart';
 import '../viewmodel/employee_form_viewmodel.dart';
+import '../../../domain/entities/department.dart';
+import '../../../domain/entities/position.dart';
+import '../../../domain/entities/role.dart';
+import '../../../domain/entities/workplace.dart';
+import '../../shared/error_dialog.dart';
 
 /// Screen for creating a new employee.
 ///

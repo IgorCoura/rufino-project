@@ -2,8 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:rufino_core/rufino_core.dart';
-import 'package:people_management/people_management.dart';
 import '../viewmodel/workplace_list_viewmodel.dart';
+import '../../../people_management_permissions.dart';
+import '../../../domain/entities/workplace.dart';
 
 /// Displays the list of workplaces for the currently selected company.
 ///
@@ -91,8 +92,8 @@ class _WorkplaceListScreenState extends State<WorkplaceListScreen> {
         },
       ),
       floatingActionButton: PermissionGuard(
-        resource: 'workplace',
-        scope: 'create',
+        resource: PeopleManagementResources.workplace,
+        scope: PeopleManagementScopes.create,
         child: FloatingActionButton(
           onPressed: () => context
               .push('/workplace/create')
@@ -128,8 +129,8 @@ class _WorkplaceTile extends StatelessWidget {
           style: Theme.of(context).textTheme.bodySmall,
         ),
         trailing: PermissionGuard(
-          resource: 'workplace',
-          scope: 'edit',
+          resource: PeopleManagementResources.workplace,
+          scope: PeopleManagementScopes.edit,
           child: Semantics(
             label: 'Editar local de trabalho ${workplace.name}',
             button: true,

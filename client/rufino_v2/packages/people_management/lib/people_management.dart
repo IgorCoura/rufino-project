@@ -61,6 +61,9 @@ export 'src/domain/repositories/employee_repository.dart';
 export 'src/domain/repositories/require_document_repository.dart';
 export 'src/domain/repositories/workplace_repository.dart';
 
+// Permissões — os nomes de recurso e escopo do realm.
+export 'src/people_management_permissions.dart';
+
 // UI — só as rotas e as constantes de rota. Tela e ViewModel ficam privadas.
 export 'src/ui/people_management_routes.dart';
 export 'src/ui/shared/error_dialog.dart';
@@ -125,36 +128,8 @@ export 'src/utils/page_rotation_finder.dart';
 export 'src/utils/pdf_merger.dart';
 export 'src/utils/pdf_text_extractor.dart';
 export 'src/utils/zip_builder.dart';
-// Dados — DTOs.
-//
-// ANDAIME: pelo critério do `bill_payment` o mapper de DTO NÃO é API pública —
-// quem está fora usa entidade, nunca o shape da API. Eles estão aqui só porque
-// os testes de DTO ainda vivem na casca; saem do barril quando esses testes
-// migrarem para o pacote (fase 10 do plano).
-export 'src/data/models/batch_document_unit_api_model.dart';
-export 'src/data/models/batch_download_api_model.dart';
-export 'src/data/models/cep_lookup_model.dart';
-export 'src/data/models/company_api_model.dart';
-export 'src/data/models/department_api_model.dart';
-export 'src/data/models/document_dashboard_api_model.dart';
-export 'src/data/models/document_group_api_model.dart';
-export 'src/data/models/document_group_with_documents_api_model.dart';
-export 'src/data/models/document_group_with_templates_api_model.dart';
+
+// DTO que NAO e detalhe interno: aparece na assinatura de
+// EmployeeRepository, que e exportado. Os demais *_api_model ficam
+// privados — quem esta fora usa entidade, nunca o shape da API.
 export 'src/data/models/document_range_item.dart';
-export 'src/data/models/document_template_api_model.dart';
-export 'src/data/models/employee_address_api_model.dart';
-export 'src/data/models/employee_api_model.dart';
-export 'src/data/models/employee_contact_api_model.dart';
-export 'src/data/models/employee_contract_api_model.dart';
-export 'src/data/models/employee_dependent_api_model.dart';
-export 'src/data/models/employee_document_api_model.dart';
-export 'src/data/models/employee_id_card_api_model.dart';
-export 'src/data/models/employee_medical_exam_api_model.dart';
-export 'src/data/models/employee_military_document_api_model.dart';
-export 'src/data/models/employee_personal_info_api_model.dart';
-export 'src/data/models/employee_profile_api_model.dart';
-export 'src/data/models/employee_social_integration_program_api_model.dart';
-export 'src/data/models/employee_vote_id_api_model.dart';
-export 'src/data/models/period_api_model.dart';
-export 'src/data/models/require_document_api_model.dart';
-export 'src/data/models/workplace_api_model.dart';

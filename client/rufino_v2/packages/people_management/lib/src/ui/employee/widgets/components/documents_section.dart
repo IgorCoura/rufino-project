@@ -6,11 +6,19 @@ import 'package:flutter/material.dart';
 import 'package:mask_text_input_formatter/mask_text_input_formatter.dart';
 import 'package:syncfusion_flutter_pdfviewer/pdfviewer.dart';
 
-import 'package:people_management/people_management.dart';
 import 'package:rufino_core/rufino_core.dart';
 import '../../viewmodel/employee_profile_viewmodel.dart';
 import '../../../batch_document/widgets/document_scan_dialog.dart';
 import 'package:provider/provider.dart';
+import '../../../../people_management_permissions.dart';
+import '../../../../domain/entities/document_group_with_documents.dart';
+import '../../../../domain/entities/employee_document.dart';
+import '../../../../domain/errors/document_scanner_exception.dart';
+import '../../../../domain/ports/file_picker_service.dart';
+import '../../../../domain/ports/file_save_service.dart';
+import '../../../shared/scanner_error_handler.dart';
+import '../../../../utils/image_to_pdf_converter.dart';
+import '../../../../utils/pdf_merger.dart';
 
 /// Expandable card that displays the employee's required documents grouped
 /// by document group, with nested expansion for document units, status
@@ -264,8 +272,8 @@ class _DocumentsSectionState extends State<DocumentsSection> {
             ),
             if (doc.isSignable && _canSendToSign)
               PermissionGuard(
-                resource: 'document',
-                scope: 'send2sign',
+                resource: PeopleManagementResources.document,
+                scope: PeopleManagementScopes.sendToSign,
                 child: FilledButton(
                   onPressed: () => Navigator.of(ctx).pop('generate_sign'),
                   child: const Text('Gerar e enviar para assinatura'),
@@ -325,8 +333,8 @@ class _DocumentsSectionState extends State<DocumentsSection> {
             ),
             if (scanSupported)
               PermissionGuard(
-                resource: 'document',
-                scope: 'upload',
+                resource: PeopleManagementResources.document,
+                scope: PeopleManagementScopes.upload,
                 child: OutlinedButton.icon(
                   onPressed: () => Navigator.of(ctx).pop('scan'),
                   icon: const Icon(Icons.document_scanner_outlined, size: 18),
@@ -339,8 +347,8 @@ class _DocumentsSectionState extends State<DocumentsSection> {
             ),
             if (doc.isSignable && _canSendToSign)
               PermissionGuard(
-                resource: 'document',
-                scope: 'send2sign',
+                resource: PeopleManagementResources.document,
+                scope: PeopleManagementScopes.sendToSign,
                 child: FilledButton(
                   onPressed: () => Navigator.of(ctx).pop('send_sign'),
                   child: const Text('Enviar para assinatura'),
@@ -1335,8 +1343,8 @@ class _DocumentsSectionState extends State<DocumentsSection> {
         Align(
           alignment: Alignment.centerLeft,
           child: PermissionGuard(
-            resource: 'document',
-            scope: 'create',
+            resource: PeopleManagementResources.document,
+            scope: PeopleManagementScopes.create,
             child: TextButton.icon(
               onPressed: _isBusy
                   ? null
@@ -1552,8 +1560,8 @@ class _DocumentsSectionState extends State<DocumentsSection> {
     final actions = <Widget>[
       if (unit.isPending) ...[
         PermissionGuard(
-          resource: 'document',
-          scope: 'edit',
+          resource: PeopleManagementResources.document,
+          scope: PeopleManagementScopes.edit,
           child: IconButton(
             icon: const Icon(Icons.edit, size: 20),
             tooltip: 'Editar data',
@@ -1561,7 +1569,7 @@ class _DocumentsSectionState extends State<DocumentsSection> {
           ),
         ),
         PermissionGuard(
-          resource: 'document',
+          resource: PeopleManagementResources.document,
           scope: 'mark-not-applicable',
           child: IconButton(
             icon: const Icon(Icons.block, size: 20),
@@ -1572,8 +1580,8 @@ class _DocumentsSectionState extends State<DocumentsSection> {
         ),
         if (canGenerate)
           PermissionGuard(
-            resource: 'document',
-            scope: 'generate',
+            resource: PeopleManagementResources.document,
+            scope: PeopleManagementScopes.generate,
             child: IconButton(
               icon: const Icon(Icons.sim_card_download_outlined, size: 20),
               tooltip: 'Gerar',
@@ -1582,8 +1590,8 @@ class _DocumentsSectionState extends State<DocumentsSection> {
           ),
         if (canSend)
           PermissionGuard(
-            resource: 'document',
-            scope: 'upload',
+            resource: PeopleManagementResources.document,
+            scope: PeopleManagementScopes.upload,
             child: IconButton(
               icon: const Icon(Icons.upload_file_outlined, size: 20),
               tooltip: 'Enviar',
@@ -1592,8 +1600,8 @@ class _DocumentsSectionState extends State<DocumentsSection> {
           ),
       ] else if (unit.hasFile)
         PermissionGuard(
-          resource: 'document',
-          scope: 'download',
+          resource: PeopleManagementResources.document,
+          scope: PeopleManagementScopes.download,
           child: IconButton(
             icon: const Icon(Icons.search, size: 20),
             tooltip: 'Visualizar',
@@ -1765,8 +1773,8 @@ class _DocumentsSectionState extends State<DocumentsSection> {
             mainAxisAlignment: MainAxisAlignment.end,
             children: [
               PermissionGuard(
-                resource: 'document',
-                scope: 'generate',
+                resource: PeopleManagementResources.document,
+                scope: PeopleManagementScopes.generate,
                 child: OutlinedButton.icon(
                   onPressed: selected.isEmpty || _isBusy
                       ? null
@@ -1779,8 +1787,8 @@ class _DocumentsSectionState extends State<DocumentsSection> {
               ),
               const SizedBox(width: AppSpacing.sm),
               PermissionGuard(
-                resource: 'document',
-                scope: 'download',
+                resource: PeopleManagementResources.document,
+                scope: PeopleManagementScopes.download,
                 child: OutlinedButton.icon(
                   onPressed: selected.isEmpty || _isBusy
                       ? null

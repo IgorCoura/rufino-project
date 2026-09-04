@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 
 import 'package:rufino_core/rufino_core.dart';
-import 'package:people_management/people_management.dart';
 import '../../viewmodel/employee_profile_viewmodel.dart';
 import 'profile_shared_widgets.dart';
+import '../../../../people_management_permissions.dart';
+import '../../../../domain/entities/employee_personal_info.dart';
+import '../../../../domain/entities/personal_info_options.dart';
+import '../../../../domain/entities/selection_option.dart';
 
 /// Expandable card for viewing and editing employee personal information.
 class PersonalInfoSection extends StatefulWidget {
@@ -208,8 +211,8 @@ class _PersonalInfoSectionState extends State<PersonalInfoSection> {
         Align(
           alignment: Alignment.centerRight,
           child: PermissionGuard(
-            resource: 'employee',
-            scope: 'edit',
+            resource: PeopleManagementResources.employee,
+            scope: PeopleManagementScopes.edit,
             child: TextButton.icon(
               onPressed: _isEditing
                   ? null

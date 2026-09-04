@@ -1,8 +1,10 @@
 import 'dart:collection';
 
 import 'package:flutter/foundation.dart';
+import '../../../domain/entities/department.dart';
+import '../../../domain/repositories/company_repository.dart';
+import '../../../domain/repositories/department_repository.dart';
 
-import 'package:people_management/people_management.dart';
 
 /// Possible statuses for the department list screen.
 enum DepartmentListStatus { loading, idle, error }

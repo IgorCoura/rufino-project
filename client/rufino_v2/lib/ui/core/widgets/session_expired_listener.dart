@@ -4,7 +4,7 @@ import 'package:provider/provider.dart';
 
 import '../../../domain/repositories/auth_repository.dart';
 import '../../features/auth/viewmodel/auth_session_notifier.dart';
-import '../../features/auth/viewmodel/permission_notifier.dart';
+import 'package:rufino_core/rufino_core.dart';
 
 /// Watches [AuthSessionNotifier] and, when the session expires, shows a
 /// blocking dialog telling the user to log in again.

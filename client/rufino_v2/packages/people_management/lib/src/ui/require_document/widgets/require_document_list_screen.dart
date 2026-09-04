@@ -3,8 +3,9 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 import 'package:rufino_core/rufino_core.dart';
-import 'package:people_management/people_management.dart';
 import '../viewmodel/require_document_list_viewmodel.dart';
+import '../../../people_management_permissions.dart';
+import '../../../domain/entities/require_document.dart';
 
 /// Displays the list of require documents for the currently selected company.
 ///
@@ -96,8 +97,8 @@ class _RequireDocumentListScreenState extends State<RequireDocumentListScreen> {
         },
       ),
       floatingActionButton: PermissionGuard(
-        resource: 'require-documents',
-        scope: 'create',
+        resource: PeopleManagementResources.requireDocuments,
+        scope: PeopleManagementScopes.create,
         child: FloatingActionButton(
           onPressed: () => context
               .push('/require-document/create')

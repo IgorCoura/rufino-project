@@ -6,6 +6,7 @@ import 'package:tenant_management/tenant_management.dart';
 
 import 'package:rufino_core/rufino_core.dart';
 import '../viewmodel/home_viewmodel.dart';
+import 'package:people_management/people_management.dart';
 
 /// The hub the app opens on: the features of the products the selected
 /// customer has enabled, and that this person is allowed to use.
@@ -229,51 +230,51 @@ const _peopleManagementEntries = <_Entry>[
   _Entry(
     icon: Icons.people_outline,
     label: 'Funcionários',
-    route: '/employee',
-    resource: 'employee',
+    route: PeopleManagementRoutes.employees,
+    resource: PeopleManagementResources.employee,
   ),
   _Entry(
     icon: Icons.location_on_outlined,
     label: 'Locais de Trabalho',
-    route: '/workplace',
-    resource: 'workplace',
+    route: PeopleManagementRoutes.workplaces,
+    resource: PeopleManagementResources.workplace,
   ),
   _Entry(
     icon: Icons.apartment_outlined,
     label: 'Setores',
-    route: '/department',
-    resource: 'department',
+    route: PeopleManagementRoutes.departments,
+    resource: PeopleManagementResources.department,
   ),
   _Entry(
     icon: Icons.folder_outlined,
     label: 'Grupos de Template de Documentos',
-    route: '/document-group',
-    resource: 'document-group',
+    route: PeopleManagementRoutes.documentGroups,
+    resource: PeopleManagementResources.documentGroup,
   ),
   _Entry(
     icon: Icons.description_outlined,
     label: 'Requerimentos de Documentos',
-    route: '/require-document',
-    resource: 'require-documents',
+    route: PeopleManagementRoutes.requireDocuments,
+    resource: PeopleManagementResources.requireDocuments,
   ),
   _Entry(
     icon: Icons.insert_chart_outlined_rounded,
     label: 'Dashboard de Documentos',
-    route: '/document-dashboard',
-    resource: 'document',
+    route: PeopleManagementRoutes.documentDashboard,
+    resource: PeopleManagementResources.document,
   ),
   _Entry(
     icon: Icons.upload_file_outlined,
     label: 'Gestão de Documentos em Lote',
-    route: '/batch-document',
-    resource: 'document',
+    route: PeopleManagementRoutes.batchDocument,
+    resource: PeopleManagementResources.document,
   ),
   _Entry(
     icon: Icons.download_rounded,
     label: 'Download em Lote',
-    route: '/batch-download',
-    resource: 'document',
-    scope: 'download',
+    route: PeopleManagementRoutes.batchDownload,
+    resource: PeopleManagementResources.document,
+    scope: PeopleManagementScopes.download,
   ),
 ];
 
@@ -348,7 +349,7 @@ const _toolEntries = <_Entry>[
     icon: Icons.bug_report_outlined,
     label: 'Debug',
     route: '/debug',
-    resource: 'debug',
+    resource: PeopleManagementResources.debug,
   ),
 ];
 

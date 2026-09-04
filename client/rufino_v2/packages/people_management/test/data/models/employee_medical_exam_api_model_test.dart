@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:people_management/people_management.dart';
+import 'package:people_management/src/data/models/employee_medical_exam_api_model.dart';
 
 void main() {
   group('EmployeeMedicalExamApiModel', () {

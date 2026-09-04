@@ -5,7 +5,7 @@ import 'package:http/http.dart' as http;
 import 'package:http/testing.dart' as http_testing;
 import 'package:people_management/people_management.dart';
 
-import '../../../testing/fakes/fake_error_reporter.dart';
+import '../../fakes/fake_error_reporter.dart';
 /// Asserts on the raw request body because that is the contract with the API:
 /// a present `documentValidityDurationInDays` means "expiration rule active",
 /// so sending zero for an absent rule silently creates a rule server-side.

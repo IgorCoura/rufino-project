@@ -1,8 +1,10 @@
 import 'dart:collection';
 
 import 'package:flutter/foundation.dart';
+import '../../../domain/entities/workplace.dart';
+import '../../../domain/repositories/company_repository.dart';
+import '../../../domain/repositories/workplace_repository.dart';
 
-import 'package:people_management/people_management.dart';
 
 /// Possible statuses for the workplace list screen.
 enum WorkplaceListStatus { loading, idle, error }

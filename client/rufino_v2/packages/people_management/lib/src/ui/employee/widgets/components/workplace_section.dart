@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 
 import 'package:rufino_core/rufino_core.dart';
-import 'package:people_management/people_management.dart';
 import '../../viewmodel/employee_profile_viewmodel.dart';
 import 'profile_shared_widgets.dart';
+import '../../../../people_management_permissions.dart';
+import '../../../../domain/entities/workplace.dart';
 
 /// Expandable card for viewing and editing the employee's workplace assignment
 /// (Local de Trabalho).
@@ -127,8 +128,8 @@ class _WorkplaceSectionState extends State<WorkplaceSection> {
         Align(
           alignment: Alignment.centerRight,
           child: PermissionGuard(
-            resource: 'employee',
-            scope: 'edit',
+            resource: PeopleManagementResources.employee,
+            scope: PeopleManagementScopes.edit,
             child: TextButton.icon(
               onPressed: _startEdit,
               icon: const Icon(Icons.edit_outlined, size: 18),

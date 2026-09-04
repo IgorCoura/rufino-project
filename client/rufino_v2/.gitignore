@@ -77,3 +77,7 @@ sentry.properties
 **/key.properties
 **/*.jks
 **/*.keystore
+
+# Saidas temporarias de ferramenta de migracao — nunca versionadas.
+.analyze*.txt
+.symbol_index.json

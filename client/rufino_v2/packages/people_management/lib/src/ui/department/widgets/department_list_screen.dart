@@ -2,8 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:rufino_core/rufino_core.dart';
-import 'package:people_management/people_management.dart';
 import '../viewmodel/department_list_viewmodel.dart';
+import '../../../people_management_permissions.dart';
+import '../../../domain/entities/department.dart';
+import '../../../domain/entities/position.dart';
+import '../../../domain/entities/role.dart';
 
 /// Displays the hierarchical list of departments, positions, and roles for the
 /// currently selected company.
@@ -103,8 +106,8 @@ class _DepartmentListScreenState extends State<DepartmentListScreen> {
         },
       ),
       floatingActionButton: PermissionGuard(
-        resource: 'department',
-        scope: 'create',
+        resource: PeopleManagementResources.department,
+        scope: PeopleManagementScopes.create,
         child: FloatingActionButton(
           onPressed: () => context
               .push('/department/create')
@@ -152,8 +155,8 @@ class _DepartmentTile extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             PermissionGuard(
-              resource: 'department',
-              scope: 'edit',
+              resource: PeopleManagementResources.department,
+              scope: PeopleManagementScopes.edit,
               child: Semantics(
                 label: 'Editar setor ${department.name}',
                 button: true,
@@ -164,8 +167,8 @@ class _DepartmentTile extends StatelessWidget {
               ),
             ),
             PermissionGuard(
-              resource: 'position',
-              scope: 'create',
+              resource: PeopleManagementResources.position,
+              scope: PeopleManagementScopes.create,
               child: Semantics(
                 label: 'Adicionar cargo ao setor ${department.name}',
                 button: true,
@@ -223,8 +226,8 @@ class _PositionTile extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               PermissionGuard(
-                resource: 'position',
-                scope: 'edit',
+                resource: PeopleManagementResources.position,
+                scope: PeopleManagementScopes.edit,
                 child: Semantics(
                   label: 'Editar cargo ${position.name}',
                   button: true,
@@ -235,8 +238,8 @@ class _PositionTile extends StatelessWidget {
                 ),
               ),
               PermissionGuard(
-                resource: 'role',
-                scope: 'create',
+                resource: PeopleManagementResources.role,
+                scope: PeopleManagementScopes.create,
                 child: Semantics(
                   label: 'Adicionar função ao cargo ${position.name}',
                   button: true,
@@ -282,8 +285,8 @@ class _RoleTile extends StatelessWidget {
         style: Theme.of(context).textTheme.bodySmall,
       ),
       trailing: PermissionGuard(
-        resource: 'role',
-        scope: 'edit',
+        resource: PeopleManagementResources.role,
+        scope: PeopleManagementScopes.edit,
         child: Semantics(
           label: 'Editar função ${role.name}',
           button: true,

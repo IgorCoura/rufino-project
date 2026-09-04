@@ -5,9 +5,15 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 import 'package:rufino_core/rufino_core.dart';
-import 'package:people_management/people_management.dart';
 import '../viewmodel/employee_list_viewmodel.dart';
 import '../../shared/filter_sheet.dart';
+import '../../../people_management_permissions.dart';
+import '../../../data/services/spreadsheet_service.dart';
+import '../../../domain/entities/employee.dart';
+import '../../../domain/ports/file_save_service.dart';
+import '../../../domain/repositories/company_repository.dart';
+import '../../../domain/repositories/department_repository.dart';
+import '../../../domain/repositories/employee_repository.dart';
 
 /// Route-level entry point that owns the [EmployeeListViewModel] lifecycle.
 ///
@@ -123,8 +129,8 @@ class _EmployeeListScreenState extends State<EmployeeListScreen> {
         title: const Text('Funcionários'),
         actions: [
           PermissionGuard(
-            resource: 'employee',
-            scope: 'download',
+            resource: PeopleManagementResources.employee,
+            scope: PeopleManagementScopes.download,
             child: _ExportMenuButton(viewModel: widget.viewModel),
           ),
         ],
@@ -159,8 +165,8 @@ class _EmployeeListScreenState extends State<EmployeeListScreen> {
         ),
       ),
       floatingActionButton: PermissionGuard(
-        resource: 'employee',
-        scope: 'create',
+        resource: PeopleManagementResources.employee,
+        scope: PeopleManagementScopes.create,
         child: FloatingActionButton(
           onPressed: () => context
               .push('/employee/create')
