@@ -254,9 +254,12 @@ conhece os dois.
 ### Pendências que bloqueiam a Fase 4
 
 - [x] `AppConfig.billPaymentUrl` + `bill_payment_url` no `secrets/local_config.json` —
-      feito em 2026-08-18 (`http://192.168.15.41:8100`). **Falta a chave no
-      `prod_config.json`** (junto com a `tenant_management_url`, pendência antiga): o
-      `assertConfigured()` exige as duas, então o build de produção não sobe sem elas.
+      feito em 2026-08-18 (`http://192.168.15.41:8100`). No build de imagem o
+      `prod_config.json` é **gerado pelo `Dockerfile`** a partir de build args, e desde
+      2026-09-04 ele escreve também `tenant_management_url` e `bill_payment_url`
+      (`ARG TENANT_MANAGEMENT_URL` / `ARG BILL_PAYMENT_URL`) — `assertConfigured()` exige as
+      duas, e sem elas o bundle compila e o app morre no boot. **Quem chama o build precisa
+      passar os dois args**; arg não passado vira string vazia, que é o mesmo que faltar.
 - [x] **Como o usuário escolhe o `tenantId`** — resolvido em 2026-08-14. `GET /api/v1/me/tenants`
       devolve, a partir do e-mail do próprio token, os tenants da pessoa. O seletor é **único**
       (D4′) e vive em `packages/tenant_management/`; `bill_payment` lê o tenant corrente pelo
