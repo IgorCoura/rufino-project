@@ -1,5 +1,4 @@
 import 'package:mocktail/mocktail.dart';
-import 'package:people_management/people_management.dart';
 import 'package:rufino_v2/data/services/auth_api_service.dart';
 import 'package:rufino_v2/data/services/auth_code_api_service.dart';
 import 'package:rufino_v2/data/services/oauth_login_strategy.dart';
@@ -9,11 +8,3 @@ class MockAuthApiService extends Mock implements AuthApiService {}
 class MockAuthCodeApiService extends Mock implements AuthCodeApiService {}
 class MockOAuthLoginStrategy extends Mock implements OAuthLoginStrategy {}
 class MockAuthRepository extends Mock implements AuthRepository {}
-class MockBatchDocumentRepository extends Mock implements BatchDocumentRepository {}
-class MockCompanyRepository extends Mock implements CompanyRepository {}
-class MockDepartmentRepository extends Mock implements DepartmentRepository {}
-class MockDocumentGroupRepository extends Mock implements DocumentGroupRepository {}
-class MockDocumentTemplateRepository extends Mock implements DocumentTemplateRepository {}
-class MockDocumentScannerService extends Mock implements DocumentScannerService {}
-class MockDocumentScannerRepository extends Mock implements DocumentScannerRepository {}
-class MockWorkplaceRepository extends Mock implements WorkplaceRepository {}

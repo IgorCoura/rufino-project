@@ -22,4 +22,7 @@ class DocumentScannerServiceImpl implements DocumentScannerService {
   @override
   Future<Uint8List> imagesToPdf(List<Uint8List> pages) async =>
       Uint8List(0);
+
+  @override
+  Future<void> openAppSettings() async {}
 }

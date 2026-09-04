@@ -28,4 +28,10 @@ abstract class DocumentScannerService {
 
   /// Converts page images into a single multi-page PDF document.
   Future<Uint8List> imagesToPdf(List<Uint8List> pages);
+
+  /// Opens the system settings page for this app.
+  ///
+  /// The way out when a permission was denied permanently: the product can
+  /// only point there, and asking again would do nothing.
+  Future<void> openAppSettings();
 }

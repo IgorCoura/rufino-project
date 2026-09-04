@@ -25,6 +25,7 @@ import 'package:people_management/people_management.dart';
 import 'core/utils/document_date_extractor.dart';
 import 'core/utils/document_scanner_service.dart';
 import 'data/services/auth_api_service.dart';
+import 'data/services/platform_file_picker_service.dart';
 import 'data/services/platform_file_save_service.dart';
 import 'domain/repositories/auth_repository.dart';
 import 'ui/core/widgets/session_expired_listener.dart';
@@ -35,43 +36,9 @@ import 'ui/features/auth/viewmodel/splash_viewmodel.dart';
 import 'ui/features/auth/widgets/login_screen.dart';
 import 'ui/features/auth/widgets/login_sso_screen.dart';
 import 'ui/features/auth/widgets/splash_screen.dart';
-import 'ui/features/company/viewmodel/company_form_viewmodel.dart';
-import 'ui/features/company/widgets/company_form_screen.dart';
-import 'ui/features/department/viewmodel/department_form_viewmodel.dart';
-import 'ui/features/document_group/viewmodel/document_group_form_viewmodel.dart';
-import 'ui/features/document_group/viewmodel/document_group_with_templates_viewmodel.dart';
-import 'ui/features/document_group/widgets/document_group_form_screen.dart';
-import 'ui/features/document_group/widgets/document_group_with_templates_screen.dart';
-import 'ui/features/document_template/viewmodel/document_template_form_viewmodel.dart';
-import 'ui/features/document_template/widgets/document_template_form_screen.dart';
-import 'ui/features/department/viewmodel/department_list_viewmodel.dart';
-import 'ui/features/department/viewmodel/position_form_viewmodel.dart';
-import 'ui/features/department/viewmodel/role_form_viewmodel.dart';
-import 'ui/features/department/widgets/department_form_screen.dart';
-import 'ui/features/department/widgets/department_list_screen.dart';
-import 'ui/features/department/widgets/position_form_screen.dart';
-import 'ui/features/department/widgets/role_form_screen.dart';
-import 'ui/features/require_document/viewmodel/require_document_form_viewmodel.dart';
-import 'ui/features/require_document/viewmodel/require_document_list_viewmodel.dart';
-import 'ui/features/require_document/widgets/require_document_form_screen.dart';
-import 'ui/features/require_document/widgets/require_document_list_screen.dart';
-import 'ui/features/employee/viewmodel/employee_form_viewmodel.dart';
-import 'ui/features/employee/viewmodel/employee_profile_viewmodel.dart';
-import 'ui/features/employee/widgets/employee_form_screen.dart';
-import 'ui/features/employee/widgets/employee_list_screen.dart';
-import 'ui/features/employee/widgets/employee_profile_screen.dart';
-import 'ui/features/batch_document/viewmodel/batch_document_viewmodel.dart';
-import 'ui/features/batch_document/widgets/batch_document_screen.dart';
-import 'ui/features/batch_download/viewmodel/batch_download_viewmodel.dart';
-import 'ui/features/batch_download/widgets/batch_download_screen.dart';
-import 'ui/features/document_dashboard/widgets/document_dashboard_screen.dart';
 import 'ui/features/debug/widgets/debug_screen.dart';
 import 'ui/features/home/viewmodel/home_viewmodel.dart';
 import 'ui/features/home/widgets/home_screen.dart';
-import 'ui/features/workplace/viewmodel/workplace_form_viewmodel.dart';
-import 'ui/features/workplace/viewmodel/workplace_list_viewmodel.dart';
-import 'ui/features/workplace/widgets/workplace_form_screen.dart';
-import 'ui/features/workplace/widgets/workplace_list_screen.dart';
 
 class App extends StatelessWidget {
   const App({
@@ -505,12 +472,16 @@ class App extends StatelessWidget {
     // Spreadsheet export — stateless, safe to share across the app.
     final spreadsheetService = SpreadsheetService();
     final fileSaveService = PlatformFileSaveService();
+    final filePickerService = PlatformFilePickerService();
+    final scannerService = createDocumentScannerService();
 
     return [
       Provider<ErrorReporter>.value(value: errorReporter),
       // A leitura da data e' porta do produto: PDF e Dart puro, imagem
       // exige OCR, que e' plugin. A casca e' quem sabe qual existe aqui.
       Provider<DocumentDateExtractor>.value(value: extractLastDocumentDate),
+      Provider<FilePickerService>.value(value: filePickerService),
+      Provider<DocumentScannerService>.value(value: scannerService),
       ChangeNotifierProvider(create: (_) => ThemeNotifier()),
       ChangeNotifierProvider.value(value: permissionNotifier),
       ChangeNotifierProvider.value(value: tenantPermissionNotifier),
@@ -655,14 +626,13 @@ class _AppRouterState extends State<_AppRouter> {
           onPickDocument: _pickBillDocument,
           onOpenLink: _openBillLink,
         ),
-        GoRoute(
-          path: '/company/edit/:id',
-          builder: (context, state) => CompanyFormScreen(
-            viewModel: CompanyFormViewModel(
-              companyRepository: context.read<CompanyRepository>(),
-            ),
-            companyId: state.pathParameters['id'],
-          ),
+        // Gestão de pessoas: o módulo fornece as telas, a casca fornece o home
+        // e as duas capacidades de plataforma — escolher arquivo e digitalizar
+        // dependem de plugin, e o módulo não carrega plugin.
+        ...peopleManagementRoutes(
+          homeRoute: '/home',
+          filePicker: context.read<FilePickerService>(),
+          scannerService: context.read<DocumentScannerService>(),
         ),
         GoRoute(
           path: '/home',
@@ -682,279 +652,24 @@ class _AppRouterState extends State<_AppRouter> {
         ),
 
         // ─── Department ───────────────────────────────────────────────────
-        GoRoute(
-          path: '/department',
-          builder: (context, state) => DepartmentListScreen(
-            viewModel: DepartmentListViewModel(
-              companyRepository: context.read<CompanyRepository>(),
-              departmentRepository: context.read<DepartmentRepository>(),
-            ),
-          ),
-        ),
-        GoRoute(
-          path: '/department/create',
-          builder: (context, state) => DepartmentFormScreen(
-            viewModel: DepartmentFormViewModel(
-              companyRepository: context.read<CompanyRepository>(),
-              departmentRepository: context.read<DepartmentRepository>(),
-            ),
-          ),
-        ),
-        GoRoute(
-          path: '/department/edit/:id',
-          builder: (context, state) => DepartmentFormScreen(
-            viewModel: DepartmentFormViewModel(
-              companyRepository: context.read<CompanyRepository>(),
-              departmentRepository: context.read<DepartmentRepository>(),
-            ),
-            departmentId: state.pathParameters['id'],
-          ),
-        ),
 
         // ─── Position ─────────────────────────────────────────────────────
-        GoRoute(
-          path: '/department/position/create/:departmentId',
-          builder: (context, state) => PositionFormScreen(
-            viewModel: PositionFormViewModel(
-              companyRepository: context.read<CompanyRepository>(),
-              departmentRepository: context.read<DepartmentRepository>(),
-              departmentId: state.pathParameters['departmentId']!,
-            ),
-          ),
-        ),
-        GoRoute(
-          path: '/department/position/edit/:departmentId/:id',
-          builder: (context, state) => PositionFormScreen(
-            viewModel: PositionFormViewModel(
-              companyRepository: context.read<CompanyRepository>(),
-              departmentRepository: context.read<DepartmentRepository>(),
-              departmentId: state.pathParameters['departmentId']!,
-            ),
-            positionId: state.pathParameters['id'],
-          ),
-        ),
 
         // ─── Role ─────────────────────────────────────────────────────────
-        GoRoute(
-          path: '/department/role/create/:positionId',
-          builder: (context, state) => RoleFormScreen(
-            viewModel: RoleFormViewModel(
-              companyRepository: context.read<CompanyRepository>(),
-              departmentRepository: context.read<DepartmentRepository>(),
-              positionId: state.pathParameters['positionId']!,
-            ),
-          ),
-        ),
-        GoRoute(
-          path: '/department/role/edit/:positionId/:id',
-          builder: (context, state) => RoleFormScreen(
-            viewModel: RoleFormViewModel(
-              companyRepository: context.read<CompanyRepository>(),
-              departmentRepository: context.read<DepartmentRepository>(),
-              positionId: state.pathParameters['positionId']!,
-            ),
-            roleId: state.pathParameters['id'],
-          ),
-        ),
 
         // ─── Document Group ─────────────────────────────────────────────
-        GoRoute(
-          path: '/document-group',
-          builder: (context, state) => DocumentGroupWithTemplatesScreen(
-            viewModel: DocumentGroupWithTemplatesViewModel(
-              companyRepository: context.read<CompanyRepository>(),
-              documentGroupRepository:
-                  context.read<DocumentGroupRepository>(),
-            ),
-          ),
-        ),
-        GoRoute(
-          path: '/document-group/create',
-          builder: (context, state) => DocumentGroupFormScreen(
-            viewModel: DocumentGroupFormViewModel(
-              companyRepository: context.read<CompanyRepository>(),
-              documentGroupRepository:
-                  context.read<DocumentGroupRepository>(),
-            ),
-          ),
-        ),
-        GoRoute(
-          path: '/document-group/edit/:id',
-          builder: (context, state) => DocumentGroupFormScreen(
-            viewModel: DocumentGroupFormViewModel(
-              companyRepository: context.read<CompanyRepository>(),
-              documentGroupRepository:
-                  context.read<DocumentGroupRepository>(),
-            ),
-            groupId: state.pathParameters['id'],
-          ),
-        ),
 
         // ─── Document Template ────────────────────────────────────────────
-        GoRoute(
-          path: '/document-template/create',
-          builder: (context, state) => DocumentTemplateFormScreen(
-            viewModel: DocumentTemplateFormViewModel(
-              companyRepository: context.read<CompanyRepository>(),
-              documentTemplateRepository:
-                  context.read<DocumentTemplateRepository>(),
-            ),
-          ),
-        ),
-        GoRoute(
-          path: '/document-template/edit/:id',
-          builder: (context, state) => DocumentTemplateFormScreen(
-            viewModel: DocumentTemplateFormViewModel(
-              companyRepository: context.read<CompanyRepository>(),
-              documentTemplateRepository:
-                  context.read<DocumentTemplateRepository>(),
-            ),
-            templateId: state.pathParameters['id'],
-          ),
-        ),
 
         // ─── Require Document ────────────────────────────────────────────
-        GoRoute(
-          path: '/require-document',
-          builder: (context, state) => RequireDocumentListScreen(
-            viewModel: RequireDocumentListViewModel(
-              companyRepository: context.read<CompanyRepository>(),
-              requireDocumentRepository:
-                  context.read<RequireDocumentRepository>(),
-            ),
-          ),
-        ),
-        GoRoute(
-          path: '/require-document/create',
-          builder: (context, state) => RequireDocumentFormScreen(
-            viewModel: RequireDocumentFormViewModel(
-              companyRepository: context.read<CompanyRepository>(),
-              requireDocumentRepository:
-                  context.read<RequireDocumentRepository>(),
-            ),
-          ),
-        ),
-        GoRoute(
-          path: '/require-document/edit/:id',
-          builder: (context, state) => RequireDocumentFormScreen(
-            viewModel: RequireDocumentFormViewModel(
-              companyRepository: context.read<CompanyRepository>(),
-              requireDocumentRepository:
-                  context.read<RequireDocumentRepository>(),
-            ),
-            requireDocumentId: state.pathParameters['id'],
-          ),
-        ),
 
         // ─── Employee ─────────────────────────────────────────────────────
-        GoRoute(
-          path: '/employee',
-          builder: (context, state) => const EmployeeListPage(),
-        ),
-        GoRoute(
-          path: '/employee/create',
-          builder: (context, state) => EmployeeFormScreen(
-            viewModel: EmployeeFormViewModel(
-              companyRepository: context.read<CompanyRepository>(),
-              departmentRepository: context.read<DepartmentRepository>(),
-              workplaceRepository: context.read<WorkplaceRepository>(),
-              employeeRepository: context.read<EmployeeRepository>(),
-            ),
-          ),
-        ),
-        GoRoute(
-          path: '/employee/:id',
-          builder: (context, state) => EmployeeProfileScreen(
-            employeeId: state.pathParameters['id']!,
-            initialTab: switch (state.uri.queryParameters['tab']) {
-              'documents' => EmployeeProfileTab.documents,
-              'contracts' => EmployeeProfileTab.employmentContract,
-              _ => EmployeeProfileTab.personalData,
-            },
-            viewModel: EmployeeProfileViewModel(
-              companyRepository: context.read<CompanyRepository>(),
-              employeeRepository: context.read<EmployeeRepository>(),
-              departmentRepository: context.read<DepartmentRepository>(),
-              workplaceRepository: context.read<WorkplaceRepository>(),
-              documentGroupRepository:
-                  context.read<DocumentGroupRepository>(),
-              cepRepository: context.read<CepRepository>(),
-              scannerRepository: DocumentScannerRepositoryImpl(
-                scannerService: createDocumentScannerService(),
-                reporter: context.read<ErrorReporter>(),
-              ),
-            ),
-          ),
-        ),
 
         // ─── Workplace ────────────────────────────────────────────────────
-        GoRoute(
-          path: '/workplace',
-          builder: (context, state) => WorkplaceListScreen(
-            viewModel: WorkplaceListViewModel(
-              companyRepository: context.read<CompanyRepository>(),
-              workplaceRepository: context.read<WorkplaceRepository>(),
-            ),
-          ),
-        ),
-        GoRoute(
-          path: '/workplace/create',
-          builder: (context, state) => WorkplaceFormScreen(
-            viewModel: WorkplaceFormViewModel(
-              companyRepository: context.read<CompanyRepository>(),
-              workplaceRepository: context.read<WorkplaceRepository>(),
-            ),
-          ),
-        ),
-        GoRoute(
-          path: '/workplace/edit/:id',
-          builder: (context, state) => WorkplaceFormScreen(
-            viewModel: WorkplaceFormViewModel(
-              companyRepository: context.read<CompanyRepository>(),
-              workplaceRepository: context.read<WorkplaceRepository>(),
-            ),
-            workplaceId: state.pathParameters['id'],
-          ),
-        ),
 
         // ─── Batch Document ────────────────────────────────────
-        GoRoute(
-          path: '/batch-document',
-          builder: (context, state) {
-            final companyId =
-                context.read<CompanyRepository>();
-            return FutureBuilder(
-              future: companyId.getSelectedCompany(),
-              builder: (context, snapshot) {
-                final company = snapshot.data?.valueOrNull;
-                if (company == null) {
-                  return const Scaffold(
-                    body: Center(child: CircularProgressIndicator()),
-                  );
-                }
-                return BatchDocumentScreen(
-                  viewModel: BatchDocumentViewModel(
-                    batchDocumentRepository:
-                        context.read<BatchDocumentRepository>(),
-                    documentGroupRepository:
-                        context.read<DocumentGroupRepository>(),
-                    companyId: company.id,
-                    scannerRepository: DocumentScannerRepositoryImpl(
-                      scannerService: createDocumentScannerService(),
-                      reporter: context.read<ErrorReporter>(),
-                    ),
-                  ),
-                );
-              },
-            );
-          },
-        ),
 
         // ─── Document Dashboard ────────────────────────────────
-        GoRoute(
-          path: '/document-dashboard',
-          builder: (context, state) => const DocumentDashboardPage(),
-        ),
 
         // ─── Debug ────────────────────────────────────────────────────────
         GoRoute(
@@ -963,34 +678,6 @@ class _AppRouterState extends State<_AppRouter> {
         ),
 
         // ─── Batch Download ────────────────────────────────────
-        GoRoute(
-          path: '/batch-download',
-          builder: (context, state) {
-            final companyRepo = context.read<CompanyRepository>();
-            return FutureBuilder(
-              future: companyRepo.getSelectedCompany(),
-              builder: (context, snapshot) {
-                final company = snapshot.data?.valueOrNull;
-                if (company == null) {
-                  return const Scaffold(
-                    body: Center(child: CircularProgressIndicator()),
-                  );
-                }
-                return BatchDownloadScreen(
-                  viewModel: BatchDownloadViewModel(
-                    batchDownloadRepository:
-                        context.read<BatchDownloadRepository>(),
-                    documentGroupRepository:
-                        context.read<DocumentGroupRepository>(),
-                    workplaceRepository:
-                        context.read<WorkplaceRepository>(),
-                    companyId: company.id,
-                  ),
-                );
-              },
-            );
-          },
-        ),
       ],
     );
   }

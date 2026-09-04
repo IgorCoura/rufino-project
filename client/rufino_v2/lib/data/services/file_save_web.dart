@@ -29,3 +29,7 @@ Future<void> saveBytes(String fileName, Uint8List bytes) async {
     ..click();
   web.URL.revokeObjectURL(url);
 }
+
+/// No-op on web: there is no arbitrary path to write to, and the save dialog
+/// that would produce one does not exist there either.
+Future<void> writeToPath(String path, Uint8List bytes) async {}

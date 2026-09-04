@@ -35,4 +35,10 @@ class DocumentScannerServiceImpl implements DocumentScannerService {
   @override
   Future<Uint8List> imagesToPdf(List<Uint8List> pages) =>
       convertImagesToPdf(pages);
+
+  @override
+  Future<void> openAppSettings() async {
+    // Nao existe pagina de configuracoes do app no navegador: quem decide
+    // permissao de camera ali e o proprio navegador, pela barra de endereco.
+  }
 }

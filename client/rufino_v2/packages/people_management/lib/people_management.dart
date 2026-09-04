@@ -61,9 +61,15 @@ export 'src/domain/repositories/employee_repository.dart';
 export 'src/domain/repositories/require_document_repository.dart';
 export 'src/domain/repositories/workplace_repository.dart';
 
+// UI — só as rotas e as constantes de rota. Tela e ViewModel ficam privadas.
+export 'src/ui/people_management_routes.dart';
+export 'src/ui/shared/error_dialog.dart';
+export 'src/ui/shared/scanner_error_handler.dart';
+
 // Portas de plataforma — a implementação vive na casca.
 export 'src/domain/ports/document_date_extractor.dart';
 export 'src/domain/ports/document_scanner_service.dart';
+export 'src/domain/ports/file_picker_service.dart';
 export 'src/domain/ports/file_save_service.dart';
 
 // Domínio — famílias seladas de exceção

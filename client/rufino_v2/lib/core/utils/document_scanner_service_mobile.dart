@@ -11,7 +11,7 @@ import 'dart:typed_data';
 
 import 'package:cunning_document_scanner/cunning_document_scanner.dart';
 import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
-import 'package:permission_handler/permission_handler.dart';
+import 'package:permission_handler/permission_handler.dart' as ph;
 
 import 'package:people_management/people_management.dart';
 
@@ -63,7 +63,7 @@ class DocumentScannerServiceImpl implements DocumentScannerService {
   /// authorization (iOS silently no-ops the presentation in that case,
   /// which is the root cause of "tapping Digitalizar does nothing").
   Future<void> _ensureCameraPermission() async {
-    final status = await Permission.camera.request();
+    final status = await ph.Permission.camera.request();
     if (status.isGranted || status.isLimited) return;
     if (status.isPermanentlyDenied || status.isRestricted) {
       throw const ScannerPermissionPermanentlyDeniedException();
@@ -90,4 +90,7 @@ class DocumentScannerServiceImpl implements DocumentScannerService {
   @override
   Future<Uint8List> imagesToPdf(List<Uint8List> pages) =>
       convertImagesToPdf(pages);
+
+  @override
+  Future<void> openAppSettings() => ph.openAppSettings();
 }

@@ -41,6 +41,13 @@ dependencies:
   flutter_json_view: ^1.1.5
   # Compilação condicional para web nos utilitários de PDF.
   web: ^1.1.0
+  # EXCEÇÃO à regra acima, e a única. A captura de página com preview ao vivo
+  # (`DocumentScanDialog`, usada por duas telas deste produto) É a interface do
+  # produto, não a implementação de um serviço: levá-la para a casca moveria uma
+  # tela de 283 linhas para fora do pacote, invertendo o objetivo da migração.
+  # O que é uma linha de plugin — abrir as configurações do sistema — saiu por
+  # porta, e não está aqui.
+  camera: ^0.11.0
 
 dev_dependencies:
   flutter_test:

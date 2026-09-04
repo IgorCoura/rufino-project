@@ -69,3 +69,7 @@ Future<void> saveBytes(String fileName, Uint8List bytes) async {
     mimeType: MimeType.other,
   );
 }
+
+/// Writes [bytes] to [path] — the path came from the platform's save dialog.
+Future<void> writeToPath(String path, Uint8List bytes) =>
+    File(path).writeAsBytes(bytes, flush: true);
