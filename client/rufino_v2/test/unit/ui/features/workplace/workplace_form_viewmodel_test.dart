@@ -1,7 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:rufino_v2/domain/entities/address.dart';
-import 'package:rufino_v2/domain/entities/company.dart';
-import 'package:rufino_v2/domain/entities/workplace.dart';
+import 'package:people_management/people_management.dart';
 import 'package:rufino_v2/ui/features/workplace/viewmodel/workplace_form_viewmodel.dart';
 
 import '../../../../testing/fakes/fake_company_repository.dart';

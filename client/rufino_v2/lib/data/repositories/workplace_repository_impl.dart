@@ -1,7 +1,5 @@
-import '../../core/errors/workplace_exception.dart';
+import 'package:people_management/people_management.dart';
 import 'package:rufino_core/rufino_core.dart';
-import '../../domain/entities/workplace.dart';
-import '../../domain/repositories/workplace_repository.dart';
 import '../models/workplace_api_model.dart';
 import '../services/workplace_api_service.dart';
 

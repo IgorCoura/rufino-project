@@ -1,8 +1,5 @@
-import '../../core/errors/require_document_exception.dart';
+import 'package:people_management/people_management.dart';
 import 'package:rufino_core/rufino_core.dart';
-import '../../domain/entities/require_document.dart';
-import '../../domain/entities/selection_option.dart';
-import '../../domain/repositories/require_document_repository.dart';
 import '../services/require_document_api_service.dart';
 
 /// Concrete implementation of [RequireDocumentRepository] backed by

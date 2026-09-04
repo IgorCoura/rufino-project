@@ -1,9 +1,7 @@
 import 'dart:convert';
 
 import 'package:rufino_core/rufino_core.dart';
-import '../../domain/entities/company.dart';
-import '../../domain/entities/company_detail.dart';
-import '../../domain/repositories/company_repository.dart';
+import 'package:people_management/people_management.dart';
 import '../models/company_api_model.dart';
 import '../services/company_api_service.dart';
 

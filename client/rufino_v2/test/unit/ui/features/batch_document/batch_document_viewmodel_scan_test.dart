@@ -3,10 +3,8 @@ import 'dart:typed_data';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:rufino_core/rufino_core.dart';
-import 'package:rufino_v2/core/utils/fuzzy_name_matcher.dart';
+import 'package:people_management/people_management.dart';
 import 'package:rufino_v2/core/utils/page_rotation_finder.dart';
-import 'package:rufino_v2/domain/entities/batch_document_unit.dart';
-import 'package:rufino_v2/domain/entities/document_group_with_templates.dart';
 import 'package:rufino_v2/ui/features/batch_document/viewmodel/batch_document_viewmodel.dart';
 
 import '../../../../testing/mocks/mocks.dart';

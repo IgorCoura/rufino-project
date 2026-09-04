@@ -1,6 +1,5 @@
 import 'package:rufino_core/rufino_core.dart';
-import 'package:rufino_v2/domain/entities/address.dart';
-import 'package:rufino_v2/domain/repositories/cep_repository.dart';
+import 'package:people_management/people_management.dart';
 
 /// In-memory fake implementation of [CepRepository] for tests.
 ///

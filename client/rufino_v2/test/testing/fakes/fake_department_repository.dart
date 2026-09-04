@@ -1,9 +1,5 @@
 import 'package:rufino_core/rufino_core.dart';
-import 'package:rufino_v2/domain/entities/department.dart';
-import 'package:rufino_v2/domain/entities/position.dart';
-import 'package:rufino_v2/domain/entities/remuneration.dart';
-import 'package:rufino_v2/domain/entities/role.dart';
-import 'package:rufino_v2/domain/repositories/department_repository.dart';
+import 'package:people_management/people_management.dart';
 
 /// In-memory fake implementation of [DepartmentRepository] for tests.
 ///

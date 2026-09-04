@@ -1,4 +1,4 @@
-import '../../domain/entities/employee.dart';
+import 'package:people_management/people_management.dart';
 
 /// Data Transfer Object for an employee as returned by the list endpoint.
 class EmployeeApiModel {

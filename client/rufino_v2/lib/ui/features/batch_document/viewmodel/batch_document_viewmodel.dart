@@ -6,15 +6,9 @@ import 'package:flutter/foundation.dart';
 import 'package:rufino_core/rufino_core.dart';
 import '../../../../core/utils/concurrency.dart';
 import '../../../../core/utils/error_messages.dart';
-import '../../../../core/utils/fuzzy_name_matcher.dart';
+import 'package:people_management/people_management.dart';
 import '../../../../core/utils/page_rotation_finder.dart';
 import '../../../../core/utils/pdf_text_extractor.dart';
-import '../../../../domain/entities/batch_document_unit.dart';
-import '../../../../domain/entities/bulk_upload_match.dart';
-import '../../../../domain/entities/document_group_with_templates.dart';
-import '../../../../domain/repositories/batch_document_repository.dart';
-import '../../../../domain/repositories/document_group_repository.dart';
-import '../../../../domain/repositories/document_scanner_repository.dart';
 
 /// Possible states for the batch document screen.
 enum BatchDocumentStatus {

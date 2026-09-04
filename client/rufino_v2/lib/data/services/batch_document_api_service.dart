@@ -4,7 +4,7 @@ import 'dart:typed_data';
 import 'package:http/http.dart' as http;
 
 import 'package:rufino_core/rufino_core.dart';
-import '../../domain/entities/batch_document_unit.dart';
+import 'package:people_management/people_management.dart';
 import '../models/batch_document_unit_api_model.dart';
 import 'http_status_helper.dart';
 import 'request_id_helper.dart';

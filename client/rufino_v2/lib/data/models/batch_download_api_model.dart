@@ -1,4 +1,4 @@
-import '../../domain/entities/batch_download.dart';
+import 'package:people_management/people_management.dart';
 import 'period_api_model.dart';
 
 /// API response model for an employee in batch download context.

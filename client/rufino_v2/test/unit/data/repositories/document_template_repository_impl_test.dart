@@ -5,7 +5,7 @@ import 'package:http/http.dart' as http;
 import 'package:http/testing.dart' as http_testing;
 import 'package:rufino_v2/data/repositories/document_template_repository_impl.dart';
 import 'package:rufino_v2/data/services/document_template_api_service.dart';
-import 'package:rufino_v2/domain/entities/document_template.dart';
+import 'package:people_management/people_management.dart';
 
 import '../../../testing/fakes/fake_error_reporter.dart';
 /// Asserts on the raw request body because that is the contract with the API:

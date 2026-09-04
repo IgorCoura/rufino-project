@@ -1,7 +1,5 @@
 import 'package:rufino_core/rufino_core.dart';
-import 'package:rufino_v2/domain/entities/company.dart';
-import 'package:rufino_v2/domain/entities/company_detail.dart';
-import 'package:rufino_v2/domain/repositories/company_repository.dart';
+import 'package:people_management/people_management.dart';
 
 class FakeCompanyRepository implements CompanyRepository {
   List<Company> _companies = [

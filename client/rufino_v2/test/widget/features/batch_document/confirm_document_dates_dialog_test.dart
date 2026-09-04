@@ -3,7 +3,7 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:rufino_v2/domain/entities/batch_document_unit.dart';
+import 'package:people_management/people_management.dart';
 import 'package:rufino_v2/ui/features/batch_document/widgets/confirm_document_dates_dialog.dart';
 
 BatchDocumentUnitItem _unit({

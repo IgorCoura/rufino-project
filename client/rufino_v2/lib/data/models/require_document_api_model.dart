@@ -1,4 +1,4 @@
-import '../../domain/entities/require_document.dart';
+import 'package:people_management/people_management.dart';
 
 /// DTO for the require document API responses.
 ///

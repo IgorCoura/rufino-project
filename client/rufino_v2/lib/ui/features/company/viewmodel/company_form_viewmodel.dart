@@ -2,10 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:mask_text_input_formatter/mask_text_input_formatter.dart';
 
 import '../../../../core/utils/error_messages.dart';
-import '../../../../domain/entities/address.dart';
-import '../../../../domain/entities/company.dart';
-import '../../../../domain/entities/company_detail.dart';
-import '../../../../domain/repositories/company_repository.dart';
+import 'package:people_management/people_management.dart';
 
 enum CompanyFormStatus { loading, idle, saving, saved, error }
 

@@ -1,9 +1,7 @@
 import 'dart:typed_data';
 
-import '../../core/errors/batch_document_exception.dart';
+import 'package:people_management/people_management.dart';
 import 'package:rufino_core/rufino_core.dart';
-import '../../domain/entities/batch_document_unit.dart';
-import '../../domain/repositories/batch_document_repository.dart';
 import '../services/batch_document_api_service.dart';
 
 /// Concrete implementation of [BatchDocumentRepository] backed by

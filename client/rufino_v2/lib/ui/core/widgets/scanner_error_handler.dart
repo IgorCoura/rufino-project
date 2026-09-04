@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:permission_handler/permission_handler.dart';
 
-import '../../../core/errors/document_scanner_exception.dart';
+import 'package:people_management/people_management.dart';
 
 /// Presents a user-facing error for a [DocumentScannerException].
 ///

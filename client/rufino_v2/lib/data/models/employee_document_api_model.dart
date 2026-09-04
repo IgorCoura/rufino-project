@@ -1,4 +1,4 @@
-import '../../domain/entities/employee_document.dart';
+import 'package:people_management/people_management.dart';
 import 'period_api_model.dart';
 
 /// Data Transfer Object for the employee document endpoints.

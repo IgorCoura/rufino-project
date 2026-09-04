@@ -3,7 +3,7 @@ import 'package:bill_payment/bill_payment.dart';
 import 'package:rufino_core/rufino_core.dart';
 import 'package:tenant_management/tenant_management.dart';
 
-import '../../domain/repositories/company_repository.dart';
+import 'package:people_management/people_management.dart';
 
 /// Turns "this tenant is now the context" into whatever each product needs.
 ///

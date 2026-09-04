@@ -3,15 +3,7 @@ import 'dart:collection';
 import 'package:flutter/widgets.dart';
 
 import '../../../../core/utils/error_messages.dart';
-import '../../../../domain/entities/department.dart';
-import '../../../../domain/entities/employee.dart';
-import '../../../../domain/entities/position.dart';
-import '../../../../domain/entities/role.dart';
-import '../../../../domain/entities/workplace.dart';
-import '../../../../domain/repositories/company_repository.dart';
-import '../../../../domain/repositories/department_repository.dart';
-import '../../../../domain/repositories/employee_repository.dart';
-import '../../../../domain/repositories/workplace_repository.dart';
+import 'package:people_management/people_management.dart';
 
 /// Possible statuses for the new employee form screen.
 enum EmployeeFormStatus { loadingOptions, idle, saving, saved, error }

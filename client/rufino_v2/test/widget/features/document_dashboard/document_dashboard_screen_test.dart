@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
-import 'package:rufino_v2/domain/entities/document_dashboard.dart';
-import 'package:rufino_v2/domain/entities/document_group_with_templates.dart';
+import 'package:people_management/people_management.dart';
 import 'package:rufino_v2/ui/features/document_dashboard/viewmodel/document_dashboard_viewmodel.dart';
 import 'package:rufino_v2/ui/features/document_dashboard/widgets/document_dashboard_screen.dart';
 

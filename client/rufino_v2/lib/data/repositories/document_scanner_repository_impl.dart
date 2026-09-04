@@ -1,9 +1,8 @@
 import 'dart:typed_data';
 
-import '../../core/errors/document_scanner_exception.dart';
+import 'package:people_management/people_management.dart';
 import 'package:rufino_core/rufino_core.dart';
 import '../../core/utils/document_scanner_service.dart';
-import '../../domain/repositories/document_scanner_repository.dart';
 
 /// Concrete [DocumentScannerRepository] backed by [DocumentScannerService].
 ///

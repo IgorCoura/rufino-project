@@ -4,13 +4,7 @@ import 'package:rufino_v2/data/services/auth_api_service.dart';
 import 'package:rufino_v2/data/services/auth_code_api_service.dart';
 import 'package:rufino_v2/data/services/oauth_login_strategy.dart';
 import 'package:rufino_v2/domain/repositories/auth_repository.dart';
-import 'package:rufino_v2/domain/repositories/batch_document_repository.dart';
-import 'package:rufino_v2/domain/repositories/company_repository.dart';
-import 'package:rufino_v2/domain/repositories/department_repository.dart';
-import 'package:rufino_v2/domain/repositories/document_group_repository.dart';
-import 'package:rufino_v2/domain/repositories/document_scanner_repository.dart';
-import 'package:rufino_v2/domain/repositories/document_template_repository.dart';
-import 'package:rufino_v2/domain/repositories/workplace_repository.dart';
+import 'package:people_management/people_management.dart';
 
 class MockAuthApiService extends Mock implements AuthApiService {}
 class MockAuthCodeApiService extends Mock implements AuthCodeApiService {}

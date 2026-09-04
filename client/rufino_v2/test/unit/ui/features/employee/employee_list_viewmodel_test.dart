@@ -1,12 +1,7 @@
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:rufino_v2/domain/entities/company.dart';
-import 'package:rufino_v2/domain/entities/employee.dart';
-import 'package:rufino_v2/domain/entities/employee_contract.dart';
-import 'package:rufino_v2/domain/entities/employee_id_card.dart';
-import 'package:rufino_v2/domain/entities/employee_personal_info.dart';
-import 'package:rufino_v2/domain/entities/employee_social_integration_program.dart';
+import 'package:people_management/people_management.dart';
 import 'package:rufino_v2/ui/features/employee/export/etiquetas_xlsx_builder.dart';
 import 'package:rufino_v2/ui/features/employee/export/soc_xlsx_builder.dart';
 import 'package:rufino_v2/ui/features/employee/viewmodel/employee_list_viewmodel.dart';

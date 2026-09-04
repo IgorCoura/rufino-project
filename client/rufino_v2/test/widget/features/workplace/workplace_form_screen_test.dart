@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
-import 'package:rufino_v2/domain/entities/address.dart';
-import 'package:rufino_v2/domain/entities/company.dart';
-import 'package:rufino_v2/domain/entities/workplace.dart';
+import 'package:people_management/people_management.dart';
 import 'package:rufino_v2/ui/features/workplace/viewmodel/workplace_form_viewmodel.dart';
 import 'package:rufino_v2/ui/features/workplace/widgets/workplace_form_screen.dart';
 

@@ -1,10 +1,7 @@
 import 'package:flutter/widgets.dart';
 
 import '../../../../core/utils/error_messages.dart';
-import '../../../../domain/entities/address.dart';
-import '../../../../domain/entities/workplace.dart';
-import '../../../../domain/repositories/company_repository.dart';
-import '../../../../domain/repositories/workplace_repository.dart';
+import 'package:people_management/people_management.dart';
 
 /// Possible statuses for the workplace form screen.
 enum WorkplaceFormStatus { loading, idle, saving, saved, error }

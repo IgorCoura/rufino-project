@@ -2,24 +2,7 @@ import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:rufino_core/rufino_core.dart';
-import 'package:rufino_v2/data/models/document_range_item.dart';
-import 'package:rufino_v2/domain/entities/address.dart';
-import 'package:rufino_v2/domain/entities/employee.dart';
-import 'package:rufino_v2/domain/entities/employee_contact.dart';
-import 'package:rufino_v2/domain/entities/employee_document.dart';
-import 'package:rufino_v2/domain/entities/employee_contract.dart';
-import 'package:rufino_v2/domain/entities/employee_dependent.dart';
-import 'package:rufino_v2/domain/entities/employee_id_card.dart';
-import 'package:rufino_v2/domain/entities/employee_personal_info.dart';
-import 'package:rufino_v2/domain/entities/employee_profile.dart';
-import 'package:rufino_v2/domain/entities/employee_medical_exam.dart';
-import 'package:rufino_v2/domain/entities/employee_military_document.dart';
-import 'package:rufino_v2/domain/entities/employee_social_integration_program.dart';
-import 'package:rufino_v2/domain/entities/employee_vote_id.dart';
-import 'package:rufino_v2/domain/entities/personal_info_options.dart';
-import 'package:rufino_v2/domain/entities/selection_option.dart';
-import 'package:rufino_v2/data/services/multipart_upload_helper.dart';
-import 'package:rufino_v2/domain/repositories/employee_repository.dart';
+import 'package:people_management/people_management.dart';
 
 /// In-memory fake implementation of [EmployeeRepository] for tests.
 ///

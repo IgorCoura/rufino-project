@@ -1,9 +1,5 @@
-import '../../core/errors/document_group_exception.dart';
+import 'package:people_management/people_management.dart';
 import 'package:rufino_core/rufino_core.dart';
-import '../../domain/entities/document_group.dart';
-import '../../domain/entities/document_group_with_documents.dart';
-import '../../domain/entities/document_group_with_templates.dart';
-import '../../domain/repositories/document_group_repository.dart';
 import '../models/document_group_api_model.dart';
 import '../services/document_group_api_service.dart';
 

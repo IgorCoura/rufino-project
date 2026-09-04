@@ -1,24 +1,7 @@
 import 'dart:typed_data';
 
-import '../../core/errors/employee_exception.dart';
+import 'package:people_management/people_management.dart';
 import 'package:rufino_core/rufino_core.dart';
-import '../models/document_range_item.dart';
-import '../../domain/entities/address.dart';
-import '../../domain/entities/employee.dart';
-import '../../domain/entities/employee_contact.dart';
-import '../../domain/entities/employee_document.dart';
-import '../../domain/entities/employee_contract.dart';
-import '../../domain/entities/selection_option.dart';
-import '../../domain/entities/employee_dependent.dart';
-import '../../domain/entities/employee_id_card.dart';
-import '../../domain/entities/employee_personal_info.dart';
-import '../../domain/entities/employee_profile.dart';
-import '../../domain/entities/employee_medical_exam.dart';
-import '../../domain/entities/employee_military_document.dart';
-import '../../domain/entities/employee_social_integration_program.dart';
-import '../../domain/entities/employee_vote_id.dart';
-import '../../domain/entities/personal_info_options.dart';
-import '../../domain/repositories/employee_repository.dart';
 import '../models/employee_address_api_model.dart';
 import '../models/employee_contract_api_model.dart';
 import '../models/employee_dependent_api_model.dart';
@@ -27,7 +10,6 @@ import '../models/employee_id_card_api_model.dart';
 import '../models/employee_medical_exam_api_model.dart';
 import '../models/employee_military_document_api_model.dart';
 import '../services/employee_api_service.dart';
-import '../services/multipart_upload_helper.dart';
 
 /// Concrete implementation of [EmployeeRepository] backed by [EmployeeApiService].
 ///

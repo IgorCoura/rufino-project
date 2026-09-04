@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:rufino_core/rufino_core.dart';
-import '../../../../domain/entities/document_group_with_templates.dart';
+import 'package:people_management/people_management.dart';
 import '../viewmodel/document_group_with_templates_viewmodel.dart';
 
 /// Displays document groups as expandable cards that reveal their templates.

@@ -1,10 +1,5 @@
-import '../../core/errors/department_exception.dart';
+import 'package:people_management/people_management.dart';
 import 'package:rufino_core/rufino_core.dart';
-import '../../domain/entities/department.dart';
-import '../../domain/entities/position.dart';
-import '../../domain/entities/remuneration.dart';
-import '../../domain/entities/role.dart';
-import '../../domain/repositories/department_repository.dart';
 import '../models/department_api_model.dart';
 import '../services/department_api_service.dart';
 

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'package:rufino_core/rufino_core.dart';
-import '../../../../../domain/entities/workplace.dart';
+import 'package:people_management/people_management.dart';
 import '../../viewmodel/employee_profile_viewmodel.dart';
 import 'profile_shared_widgets.dart';
 

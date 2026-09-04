@@ -14,7 +14,7 @@ import 'package:flutter/material.dart';
 
 import 'package:rufino_core/rufino_core.dart';
 import '../../../../core/utils/document_date_extractor.dart';
-import '../../../../domain/entities/batch_document_unit.dart';
+import 'package:people_management/people_management.dart';
 
 /// Raw bytes of a file attached to a document unit, paired with its name.
 class AttachedDocumentBytes {

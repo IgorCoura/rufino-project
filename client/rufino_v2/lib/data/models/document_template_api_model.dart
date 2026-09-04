@@ -1,4 +1,4 @@
-import '../../domain/entities/document_template.dart';
+import 'package:people_management/people_management.dart';
 
 /// DTO that mirrors the JSON shape of a document template returned by the
 /// people-management API.

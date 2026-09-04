@@ -3,7 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 import 'package:rufino_core/rufino_core.dart';
-import '../../../../domain/entities/require_document.dart';
+import 'package:people_management/people_management.dart';
 import '../viewmodel/require_document_list_viewmodel.dart';
 
 /// Displays the list of require documents for the currently selected company.

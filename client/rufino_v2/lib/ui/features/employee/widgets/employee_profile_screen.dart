@@ -5,8 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:rufino_core/rufino_core.dart';
-import '../../../../domain/entities/employee.dart';
-import '../../../../domain/entities/employee_profile.dart';
+import 'package:people_management/people_management.dart';
 import '../../../core/widgets/error_dialog.dart';
 import '../viewmodel/employee_profile_viewmodel.dart';
 import 'components/address_section.dart';

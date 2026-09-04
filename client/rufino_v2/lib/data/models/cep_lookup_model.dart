@@ -1,6 +1,6 @@
 import 'package:rufino_core/rufino_core.dart';
 
-import '../../domain/entities/address.dart';
+import 'package:people_management/people_management.dart';
 
 /// DTO representing a ViaCEP API response.
 ///

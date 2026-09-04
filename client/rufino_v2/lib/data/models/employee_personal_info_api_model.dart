@@ -1,6 +1,4 @@
-import '../../domain/entities/employee_personal_info.dart';
-import '../../domain/entities/personal_info_options.dart';
-import '../../domain/entities/selection_option.dart';
+import 'package:people_management/people_management.dart';
 
 // ─── Translation maps ─────────────────────────────────────────────────────────
 // The API returns option names in English or without accents. These maps

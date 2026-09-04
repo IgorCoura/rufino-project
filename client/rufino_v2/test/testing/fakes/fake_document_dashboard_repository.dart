@@ -1,6 +1,5 @@
 import 'package:rufino_core/rufino_core.dart';
-import 'package:rufino_v2/domain/entities/document_dashboard.dart';
-import 'package:rufino_v2/domain/repositories/document_dashboard_repository.dart';
+import 'package:people_management/people_management.dart';
 
 /// In-memory fake implementation of [DocumentDashboardRepository] for tests.
 ///

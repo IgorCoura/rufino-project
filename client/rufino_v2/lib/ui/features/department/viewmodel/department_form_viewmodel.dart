@@ -1,9 +1,7 @@
 import 'package:flutter/widgets.dart';
 
 import '../../../../core/utils/error_messages.dart';
-import '../../../../domain/entities/department.dart';
-import '../../../../domain/repositories/company_repository.dart';
-import '../../../../domain/repositories/department_repository.dart';
+import 'package:people_management/people_management.dart';
 
 /// Possible statuses for the department form screen.
 enum DepartmentFormStatus { loading, idle, saving, saved, error }

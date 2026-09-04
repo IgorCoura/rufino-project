@@ -1,6 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:rufino_v2/domain/entities/address.dart';
-import 'package:rufino_v2/domain/entities/workplace.dart';
+import 'package:people_management/people_management.dart';
 
 void main() {
   const fullAddress = Address(

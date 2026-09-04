@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:rufino_v2/domain/entities/batch_document_unit.dart';
+import 'package:people_management/people_management.dart';
 
 void main() {
   BatchDocumentUnitItem itemWithStatus(String id, {String name = ''}) =>

@@ -2,8 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:mask_text_input_formatter/mask_text_input_formatter.dart';
 
 import 'package:rufino_core/rufino_core.dart';
-import '../../../../../domain/entities/employee_dependent.dart';
-import '../../../../../domain/entities/selection_option.dart';
+import 'package:people_management/people_management.dart';
 import '../../viewmodel/employee_profile_viewmodel.dart';
 import 'profile_shared_widgets.dart';
 

@@ -1,6 +1,5 @@
 import 'package:rufino_core/rufino_core.dart';
-import 'package:rufino_v2/domain/entities/workplace.dart';
-import 'package:rufino_v2/domain/repositories/workplace_repository.dart';
+import 'package:people_management/people_management.dart';
 
 /// In-memory fake implementation of [WorkplaceRepository] for tests.
 ///

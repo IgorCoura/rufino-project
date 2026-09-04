@@ -9,12 +9,10 @@ import '../../../../../core/utils/file_saver_stub.dart'
 import 'package:mask_text_input_formatter/mask_text_input_formatter.dart';
 import 'package:syncfusion_flutter_pdfviewer/pdfviewer.dart';
 
-import '../../../../../core/errors/document_scanner_exception.dart';
+import 'package:people_management/people_management.dart';
 import 'package:rufino_core/rufino_core.dart';
 import '../../../../../core/utils/image_to_pdf_converter.dart';
 import '../../../../../core/utils/pdf_merger.dart';
-import '../../../../../domain/entities/document_group_with_documents.dart';
-import '../../../../../domain/entities/employee_document.dart';
 import '../../../../core/widgets/scanner_error_handler.dart';
 import '../../viewmodel/employee_profile_viewmodel.dart';
 import '../../../batch_document/widgets/document_scan_dialog.dart';

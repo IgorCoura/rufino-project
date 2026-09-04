@@ -1,10 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
-import 'package:rufino_v2/domain/entities/address.dart';
-import 'package:rufino_v2/domain/entities/company.dart';
-import 'package:rufino_v2/domain/entities/employee.dart';
-import 'package:rufino_v2/domain/entities/employee_profile.dart';
+import 'package:people_management/people_management.dart';
 import 'package:rufino_v2/domain/entities/permission.dart';
 import 'package:rufino_v2/ui/features/auth/viewmodel/permission_notifier.dart';
 import 'package:rufino_v2/ui/features/employee/viewmodel/employee_profile_viewmodel.dart';

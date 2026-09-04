@@ -3,10 +3,7 @@ import 'dart:collection';
 import 'package:flutter/widgets.dart';
 
 import '../../../../core/utils/error_messages.dart';
-import '../../../../domain/entities/require_document.dart';
-import '../../../../domain/entities/selection_option.dart';
-import '../../../../domain/repositories/company_repository.dart';
-import '../../../../domain/repositories/require_document_repository.dart';
+import 'package:people_management/people_management.dart';
 
 /// Possible statuses for the require document form screen.
 enum RequireDocumentFormStatus { loading, idle, saving, saved, generating, generated, error }

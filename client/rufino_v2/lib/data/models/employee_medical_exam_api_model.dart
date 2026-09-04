@@ -1,4 +1,4 @@
-import '../../domain/entities/employee_medical_exam.dart';
+import 'package:people_management/people_management.dart';
 
 /// Data Transfer Object for the employee medical admission exam endpoint.
 ///

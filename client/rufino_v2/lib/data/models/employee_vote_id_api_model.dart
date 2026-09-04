@@ -1,4 +1,4 @@
-import '../../domain/entities/employee_vote_id.dart';
+import 'package:people_management/people_management.dart';
 
 /// Data Transfer Object for the employee voter registration (Título de Eleitor)
 /// endpoint.

@@ -1,4 +1,4 @@
-import '../../domain/entities/document_group_with_templates.dart';
+import 'package:people_management/people_management.dart';
 
 /// DTO that mirrors the JSON shape returned by the
 /// `GET /api/v1/{companyId}/documentgroup/withtemplates` endpoint.

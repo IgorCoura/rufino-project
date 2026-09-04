@@ -1,7 +1,4 @@
-import '../../domain/entities/department.dart';
-import '../../domain/entities/position.dart';
-import '../../domain/entities/remuneration.dart';
-import '../../domain/entities/role.dart';
+import 'package:people_management/people_management.dart';
 
 /// DTO representing the JSON payload for a department from the API.
 class DepartmentApiModel {

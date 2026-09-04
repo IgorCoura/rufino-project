@@ -1,4 +1,4 @@
-import '../../domain/entities/document_dashboard.dart';
+import 'package:people_management/people_management.dart';
 import 'period_api_model.dart';
 
 /// API response model for the dashboard summary.

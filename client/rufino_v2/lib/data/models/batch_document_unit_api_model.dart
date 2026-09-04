@@ -1,4 +1,4 @@
-import '../../domain/entities/batch_document_unit.dart';
+import 'package:people_management/people_management.dart';
 import 'period_api_model.dart';
 
 /// API response model for a pending document unit in batch context.

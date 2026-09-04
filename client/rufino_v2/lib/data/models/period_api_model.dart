@@ -1,4 +1,4 @@
-import '../../domain/entities/period.dart';
+import 'package:people_management/people_management.dart';
 
 /// API response model for a document unit period.
 class PeriodApiModel {

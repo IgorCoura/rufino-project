@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:rufino_v2/data/models/employee_profile_api_model.dart';
-import 'package:rufino_v2/domain/entities/employee.dart';
+import 'package:people_management/people_management.dart';
 
 void main() {
   const json = {

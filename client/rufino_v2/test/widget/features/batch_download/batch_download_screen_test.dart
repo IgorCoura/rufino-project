@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
-import 'package:rufino_v2/domain/entities/batch_download.dart';
+import 'package:people_management/people_management.dart';
 import 'package:rufino_v2/domain/entities/permission.dart';
 import 'package:rufino_v2/ui/features/auth/viewmodel/permission_notifier.dart';
 import 'package:rufino_v2/ui/features/batch_download/viewmodel/batch_download_viewmodel.dart';

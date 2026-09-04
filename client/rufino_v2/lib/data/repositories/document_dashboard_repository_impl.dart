@@ -1,7 +1,5 @@
-import '../../core/errors/document_dashboard_exception.dart';
+import 'package:people_management/people_management.dart';
 import 'package:rufino_core/rufino_core.dart';
-import '../../domain/entities/document_dashboard.dart';
-import '../../domain/repositories/document_dashboard_repository.dart';
 import '../services/document_dashboard_api_service.dart';
 
 /// Concrete implementation of [DocumentDashboardRepository] backed by

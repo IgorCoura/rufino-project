@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:rufino_v2/domain/entities/employee_id_card.dart';
+import 'package:people_management/people_management.dart';
 
 void main() {
   group('EmployeeIdCard computed properties', () {

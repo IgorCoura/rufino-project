@@ -7,7 +7,7 @@ library;
 
 import 'dart:typed_data';
 
-import '../../core/utils/fuzzy_name_matcher.dart';
+import '../../utils/fuzzy_name_matcher.dart';
 
 /// A file that has been matched (or not) to a pending document unit.
 ///

@@ -3,10 +3,7 @@ import 'dart:collection';
 import 'package:flutter/widgets.dart';
 
 import '../../../../core/utils/error_messages.dart';
-import '../../../../domain/entities/remuneration.dart';
-import '../../../../domain/entities/role.dart';
-import '../../../../domain/repositories/company_repository.dart';
-import '../../../../domain/repositories/department_repository.dart';
+import 'package:people_management/people_management.dart';
 
 /// Possible statuses for the role form screen.
 enum RoleFormStatus { loading, idle, saving, saved, error }

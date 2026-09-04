@@ -1,9 +1,7 @@
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:rufino_v2/domain/entities/batch_download.dart';
-import 'package:rufino_v2/domain/entities/address.dart';
-import 'package:rufino_v2/domain/entities/workplace.dart';
+import 'package:people_management/people_management.dart';
 import 'package:rufino_v2/ui/features/batch_download/viewmodel/batch_download_viewmodel.dart';
 
 import '../../../../testing/fakes/fake_batch_download_repository.dart';

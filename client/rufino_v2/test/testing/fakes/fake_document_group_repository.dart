@@ -1,8 +1,5 @@
 import 'package:rufino_core/rufino_core.dart';
-import 'package:rufino_v2/domain/entities/document_group.dart';
-import 'package:rufino_v2/domain/entities/document_group_with_documents.dart';
-import 'package:rufino_v2/domain/entities/document_group_with_templates.dart';
-import 'package:rufino_v2/domain/repositories/document_group_repository.dart';
+import 'package:people_management/people_management.dart';
 
 /// In-memory fake implementation of [DocumentGroupRepository] for tests.
 ///

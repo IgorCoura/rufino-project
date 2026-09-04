@@ -3,7 +3,7 @@ import 'dart:typed_data';
 
 import 'package:http/http.dart' as http;
 
-import '../../core/errors/employee_exception.dart';
+import 'package:people_management/people_management.dart';
 import 'package:rufino_core/rufino_core.dart';
 import '../models/employee_api_model.dart';
 import '../models/employee_address_api_model.dart';
@@ -19,7 +19,6 @@ import '../models/employee_military_document_api_model.dart';
 import '../models/employee_social_integration_program_api_model.dart';
 import '../models/employee_vote_id_api_model.dart';
 import 'http_status_helper.dart';
-import 'multipart_upload_helper.dart';
 import 'request_id_helper.dart';
 
 /// HTTP client for the employee endpoints of the people-management service.

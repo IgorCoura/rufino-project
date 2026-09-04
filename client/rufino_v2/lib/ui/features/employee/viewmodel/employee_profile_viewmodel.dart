@@ -3,36 +3,8 @@ import 'dart:collection';
 import 'package:flutter/foundation.dart';
 
 import 'package:rufino_core/rufino_core.dart';
-import '../../../../data/models/document_range_item.dart';
-import '../../../../domain/entities/address.dart';
-import '../../../../domain/entities/employee.dart';
-import '../../../../domain/entities/department.dart';
-import '../../../../domain/entities/document_group_with_documents.dart';
-import '../../../../domain/entities/employee_contact.dart';
-import '../../../../domain/entities/employee_document.dart';
-import '../../../../domain/entities/employee_contract.dart';
-import '../../../../domain/entities/employee_dependent.dart';
-import '../../../../domain/entities/selection_option.dart';
-import '../../../../domain/entities/employee_id_card.dart';
-import '../../../../domain/entities/employee_personal_info.dart';
-import '../../../../domain/entities/employee_profile.dart';
-import '../../../../domain/entities/position.dart';
-import '../../../../domain/entities/remuneration.dart';
-import '../../../../domain/entities/workplace.dart';
-import '../../../../domain/entities/role.dart';
-import '../../../../domain/entities/employee_medical_exam.dart';
-import '../../../../domain/entities/employee_military_document.dart';
-import '../../../../domain/entities/employee_social_integration_program.dart';
-import '../../../../domain/entities/employee_vote_id.dart';
-import '../../../../domain/entities/personal_info_options.dart';
+import 'package:people_management/people_management.dart';
 import '../../../../core/utils/error_messages.dart';
-import '../../../../domain/repositories/cep_repository.dart';
-import '../../../../domain/repositories/company_repository.dart';
-import '../../../../domain/repositories/department_repository.dart';
-import '../../../../domain/repositories/document_group_repository.dart';
-import '../../../../domain/repositories/document_scanner_repository.dart';
-import '../../../../domain/repositories/employee_repository.dart';
-import '../../../../domain/repositories/workplace_repository.dart';
 
 /// Tracks a selected document unit for batch operations.
 class SelectedDocumentUnit {

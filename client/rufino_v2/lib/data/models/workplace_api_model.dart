@@ -1,5 +1,4 @@
-import '../../domain/entities/address.dart';
-import '../../domain/entities/workplace.dart';
+import 'package:people_management/people_management.dart';
 
 /// DTO that mirrors the JSON shape of an address returned by the
 /// people-management API.

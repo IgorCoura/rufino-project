@@ -1,6 +1,5 @@
 import 'package:rufino_core/rufino_core.dart';
-import '../../domain/entities/address.dart';
-import '../../domain/repositories/cep_repository.dart';
+import 'package:people_management/people_management.dart';
 import '../services/cep_api_service.dart';
 
 /// Concrete implementation of [CepRepository] that delegates to

@@ -1,4 +1,4 @@
-import '../../domain/entities/batch_download.dart';
+import 'package:people_management/people_management.dart';
 
 /// Builds the combined PDF file name following the backend naming pattern.
 ///

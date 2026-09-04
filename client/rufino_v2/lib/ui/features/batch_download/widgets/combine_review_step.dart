@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'package:rufino_core/rufino_core.dart';
-import '../../../../domain/entities/batch_download.dart';
+import 'package:people_management/people_management.dart';
 import '../viewmodel/batch_download_viewmodel.dart';
 
 /// Step 3 (combine mode): Review combination groups and download merged PDFs.

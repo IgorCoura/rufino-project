@@ -1,5 +1,4 @@
-import '../../domain/entities/company.dart';
-import '../../domain/entities/company_detail.dart';
+import 'package:people_management/people_management.dart';
 
 class CompanyApiModel {
   const CompanyApiModel({

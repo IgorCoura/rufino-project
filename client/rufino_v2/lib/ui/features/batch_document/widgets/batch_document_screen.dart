@@ -7,9 +7,8 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:mask_text_input_formatter/mask_text_input_formatter.dart';
 
-import '../../../../core/errors/document_scanner_exception.dart';
+import 'package:people_management/people_management.dart';
 import 'package:rufino_core/rufino_core.dart';
-import '../../../../domain/entities/batch_document_unit.dart';
 import '../../../core/widgets/scanner_error_handler.dart';
 import '../viewmodel/batch_document_viewmodel.dart';
 import 'bulk_upload_verification_dialog.dart';
